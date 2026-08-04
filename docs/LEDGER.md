@@ -1856,3 +1856,37 @@ aprobaciones: [Autorización de ejecución del usuario; RACI independiente pendi
 estado_gov: EN REVISION
 estado: Vigente
 ```
+```
+id: 0203
+timestamp_utc: 2026-08-04T14:10:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (atomic_guards + plan slice 1)
+agente_responsable: Staff Backend ACID
+tipo: Entregable nuevo
+subtipo: runD1AtomicPlan
+relacion: AMPLIA
+referencias_entradas: [0202]
+referencias_documentales: [packages/adapters-d1/migrations/0003_atomic_guards.sql, packages/adapters-d1/src/index.ts, docs/architecture/06-acid-engine.md]
+prev_id: 0202
+prev_hash: bdff9589aa1f565c1d36baa5fc8bc2b1b6fd54e38ed0cea01396e33e459f72d1
+entry_hash: fbcc2349de2c61eacec9632da37f0e885e87a30b585904ebf96f8106a405cf80
+ticket_or_adr: ADR-0007
+test_ids: [index, schema.integration]
+entregable_afectado: adapters-d1 atomic_guards + runD1AtomicPlan
+descripcion: >
+  Slice 1 Sprint 4: migración 0003 atomic_guards (CHECK ok=1); AtomicPlanBuilder
+  y runD1AtomicPlan con una sola db.batch; integración demuestra abort sin efectos
+  parciales. ROADMAP Sprint 4 Entrega=En progreso.
+evidencia: >
+  RED (ancestro a66ab60): sin atomic_guards ni runD1AtomicPlan.
+  GREEN (commit a7cca0f): 7 unit + 9 integration adapters-d1; verify SUITE GREEN.
+red_commit_sha: a66ab6012b463b1762d719451953016c78849825
+red_run_id: run-red-0203-atomic-plan
+expected_failure: AssertionError: missing atomic_guards / runD1AtomicPlan
+green_commit_sha: a7cca0f9230e03ce5aeb42f40b0c89ee5987fe26
+green_run_id: run-green-0203-atomic-plan
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
