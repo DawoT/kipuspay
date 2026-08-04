@@ -1,21 +1,37 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
+async function loadFeatures() {
+  vi.resetModules();
+  return import('./features.js');
+}
+
+async function withEnv(value: string | undefined, run: () => Promise<boolean>) {
+  const prev = process.env.PUBLIC_FEATURE_MARKETING_SITE;
+  if (value === undefined) delete process.env.PUBLIC_FEATURE_MARKETING_SITE;
+  else process.env.PUBLIC_FEATURE_MARKETING_SITE = value;
+  try {
+    return await run();
+  } finally {
+    if (prev === undefined) delete process.env.PUBLIC_FEATURE_MARKETING_SITE;
+    else process.env.PUBLIC_FEATURE_MARKETING_SITE = prev;
+  }
+}
+
 describe('features soft-launch', () => {
   it('default off', async () => {
-    vi.resetModules();
-    vi.stubEnv('PUBLIC_FEATURE_MARKETING_SITE', '');
-    const mod = await import('./features.js');
-    expect(mod.isMarketingSiteEnabled()).toBe(false);
-    vi.unstubAllEnvs();
+    const on = await withEnv('', async () => (await loadFeatures()).isMarketingSiteEnabled());
+    expect(on).toBe(false);
+  });
+
+  it('off con 0', async () => {
+    const on = await withEnv('0', async () => (await loadFeatures()).isMarketingSiteEnabled());
+    expect(on).toBe(false);
   });
 
   it('on con 1', async () => {
-    vi.resetModules();
-    vi.stubEnv('PUBLIC_FEATURE_MARKETING_SITE', '1');
-    const mod = await import('./features.js');
-    expect(mod.isMarketingSiteEnabled()).toBe(true);
-    vi.unstubAllEnvs();
+    const on = await withEnv('1', async () => (await loadFeatures()).isMarketingSiteEnabled());
+    expect(on).toBe(true);
   });
 
   it('wiring: un solo nombre y default off en build (soft-launch real)', () => {

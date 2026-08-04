@@ -32,8 +32,10 @@ describe('marketing claim-gate', () => {
     expect(HOME.trustLine).not.toMatch(/ya venden|miles de|clientes/);
   });
 
-  it('no promete onboarding del Sprint 11 como actual', () => {
+  it('no promete el registro completo como disponible hoy', () => {
     expect(HOME.steps[0].body).not.toContain('traemos tus datos');
-    expect(HOME.steps[0].body).toMatch(/Sprint 11/);
+    // El aviso se mantiene, pero en lenguaje de comercio: nada de numeros de sprint.
+    expect(HOME.steps[0].body).toMatch(/se habilita cuando/);
+    expect(HOME.steps[0].body).not.toMatch(/Sprint/i);
   });
 });

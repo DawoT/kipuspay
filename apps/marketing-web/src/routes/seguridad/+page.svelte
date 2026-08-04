@@ -1,17 +1,11 @@
 <script lang="ts">
-  import { STUBS } from '$lib/content/home';
-  const stub = STUBS.find((s) => s.path === '/seguridad')!;
+  import StubView from '$lib/components/StubView.svelte';
 </script>
 
 <svelte:head>
   <title>Seguridad · KipusPay</title>
-  <meta name="description" content="Pagina de seguridad KipusPay — Sprint 13." />
-  <meta name="robots" content="noindex" />
+  <meta name="description" content="Como protege KipusPay la informacion de tu negocio." />
+  <meta name="robots" content="noindex, follow" />
 </svelte:head>
 
-<main class="stub" data-testid="stub-page">
-  <h1>{stub.title}</h1>
-  <p class="sprint">Sprint {stub.unlockSprint}</p>
-  <p>{stub.blurb}</p>
-  <a class="btn" href="/">Volver al inicio</a>
-</main>
+<StubView path="/seguridad" />

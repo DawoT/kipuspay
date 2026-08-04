@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#14161c"/>
+  <radialGradient id="ogGlow" cx="0.78" cy="0.4" r="0.6">
+    <stop offset="0%" stop-color="#d99a3d" stop-opacity="0.2"/>
+    <stop offset="100%" stop-color="#d99a3d" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="940" cy="250" r="430" fill="url(#ogGlow)"/>
+
+  <g stroke="#f3efe6" stroke-opacity="0.05" stroke-width="1">
+    <line x1="60" y1="140" x2="1200" y2="140"/>
+    <line x1="60" y1="210" x2="1200" y2="210"/>
+    <line x1="60" y1="280" x2="1200" y2="280"/>
+    <line x1="60" y1="350" x2="1200" y2="350"/>
+    <line x1="60" y1="420" x2="1200" y2="420"/>
+    <line x1="60" y1="490" x2="1200" y2="490"/>
+  </g>
+
+  <rect x="26" y="26" width="12" height="12" transform="rotate(45 32 32)" fill="#d99a3d"/>
+  <text x="56" y="42" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#f3efe6">KipusPay</text>
+
+  <text x="60" y="150" font-family="Georgia, serif" font-size="20" letter-spacing="4" fill="#eeb765">POS Y FACTURACION PARA COMERCIOS DEL PERU</text>
+  <text x="60" y="232" font-family="Georgia, serif" font-size="64" font-weight="bold" fill="#f3efe6">El unico POS que</text>
+  <text x="60" y="312" font-family="Georgia, serif" font-size="64" font-weight="bold" fill="#f3efe6">no se cae contigo.</text>
+  <text x="60" y="380" font-family="Arial, sans-serif" font-size="26" fill="#c9cfd6">Vende, cobra y factura aunque se corte el internet.</text>
+
+  <line x1="880" y1="70" x2="1130" y2="70" stroke="#3a4150" stroke-width="8" stroke-linecap="round"/>
+  <path d="M955,70 C 938,200 972,330 950,560" stroke="#d99a3d" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M1085,70 C 1070,200 1098,330 1082,560" stroke="#f3efe6" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <rect x="948" y="170" width="16" height="16" transform="rotate(45 956 178)" fill="#eeb765"/>
+  <rect x="946" y="330" width="20" height="20" transform="rotate(45 956 340)" fill="#d99a3d"/>
+  <rect x="944" y="500" width="16" height="16" transform="rotate(45 952 508)" fill="#eeb765"/>
+  <rect x="1078" y="240" width="16" height="16" transform="rotate(45 1086 248)" fill="#f3efe6"/>
+  <rect x="1076" y="420" width="16" height="16" transform="rotate(45 1084 428)" fill="#f3efe6"/>
+  <path d="M930,320 l8 8 l22 -26" stroke="#2e9e74" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

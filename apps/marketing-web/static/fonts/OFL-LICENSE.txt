@@ -1,0 +1,20 @@
+Fonts vendidas en /fonts (self-hosted, sin CDN runtime).
+
+Las tres tipografias se distribuyen bajo la SIL Open Font License 1.1
+(https://openfontlicense.org/open-font-license-official-text/):
+
+- Fraunces
+  (c) 2018 The Fraunces Project Authors
+  https://github.com/googlefonts/fraunces
+
+- Schibsted Grotesk
+  (c) 2022 The Schibsted Grotesk Project Authors
+  https://github.com/schibsted/grotesk
+
+- Spline Sans Mono
+  (c) 2021 The Spline Project Authors
+  https://github.com/googlefonts/spline-fonts
+
+Archivos woff2 descargados sin modificacion desde fonts.gstatic.com (subset
+latin, variabels) y convertidos para uso estatico del sitio de marketing.
+Se permite su uso comercial bajo los terminos de la OFL 1.1.

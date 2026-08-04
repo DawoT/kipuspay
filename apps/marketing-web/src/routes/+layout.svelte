@@ -1,14 +1,64 @@
 <script lang="ts">
   import '../app.css';
   import { allVerticals } from '$lib/content/verticals';
-  import { COMPETITOR_SLUGS } from '$lib/content/compare';
+  import { allCompares } from '$lib/content/compare';
 
   let { data, children } = $props();
   const verticals = allVerticals();
+  const compares = allCompares();
+
+  /** El header cambia de peso al despegarse del hero; sin librerias ni layout thrash. */
+  let scrolled = $state(false);
+  /** Marca que el hero (y su CTA) ya quedaron atras: habilita el CTA de pulgar. */
+  let pastHero = $state(false);
+
+  $effect(() => {
+    const onScroll = () => {
+      scrolled = window.scrollY > 8;
+      pastHero = window.scrollY > window.innerHeight * 0.7;
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  });
+
+  const orgLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'KipusPay',
+    url: 'https://kipuspay.pe',
+    logo: 'https://kipuspay.pe/favicon.svg',
+  });
+
+  const siteLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'KipusPay',
+    url: 'https://kipuspay.pe',
+  });
 </script>
 
 <svelte:head>
-  <meta name="theme-color" content="#0e141b" />
+  <meta name="theme-color" content="#14161c" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <link
+    rel="preload"
+    href="/fonts/fraunces-latin.woff2"
+    as="font"
+    type="font/woff2"
+    crossorigin="anonymous"
+  />
+  <link
+    rel="preload"
+    href="/fonts/schibsted-grotesk-latin.woff2"
+    as="font"
+    type="font/woff2"
+    crossorigin="anonymous"
+  />
+  <script type="application/ld+json">{@html orgLd}</script>
+  <script type="application/ld+json">{@html siteLd}</script>
 </svelte:head>
 
 {#if !data.siteEnabled}
@@ -18,55 +68,102 @@
     <p>Activa PUBLIC_FEATURE_MARKETING_SITE=1 para previsualizar el sitio de marketing.</p>
   </main>
 {:else}
-  <header class="site-header">
-    <a class="brand" href="/" data-testid="brand">KipusPay</a>
-    <nav class="nav" aria-label="Principal">
-      <details>
+  <a class="skip-link" href="#contenido">Ir al contenido</a>
+
+  <header
+    class="site-header"
+    class:scrolled
+    class:past-hero={pastHero}
+    data-testid="site-header"
+  >
+    <a class="brand" href="/" data-testid="brand">
+      <span class="brand-knot" aria-hidden="true"></span>
+      KipusPay
+    </a>
+
+    <nav class="nav nav-lg" aria-label="Principal">
+      <details class="nav-drop">
         <summary>Para tu negocio</summary>
         <div class="dropdown">
-          {#each verticals as v}
-            <a href={`/para/${v.slug}`}>{v.slug}</a>
+          {#each verticals as v (v.slug)}
+            <a href={`/para/${v.slug}`} data-cord={v.slug}>
+              <span class="knot-dot" aria-hidden="true"></span>
+              {v.navLabel}
+            </a>
           {/each}
         </div>
       </details>
-      <a class="hide-sm" href="/precios">Precios</a>
-      <a class="hide-sm" href="/seguridad">Seguridad</a>
-      <a class="hide-sm" href="/casos-de-exito">Casos de exito</a>
-      <a class="hide-sm" href="/comparar/bsale">Comparar</a>
-      <a href="/empezar">Ingresar</a>
+      <a href="/precios">Precios</a>
+      <a href="/seguridad">Seguridad</a>
+      <a href="/comparar/bsale">Comparar</a>
       <a class="btn" href="/empezar">Empieza gratis</a>
     </nav>
+
+    <details class="nav-sm">
+      <summary aria-label="Abrir menu">
+        <span class="burger" aria-hidden="true"></span>
+        <span class="burger-label">Menu</span>
+      </summary>
+      <nav class="nav-sm-panel" aria-label="Principal movil">
+        <p class="nav-sm-title">Para tu negocio</p>
+        {#each verticals as v (v.slug)}
+          <a href={`/para/${v.slug}`} data-cord={v.slug}>
+            <span class="knot-dot" aria-hidden="true"></span>
+            {v.navLabel}
+          </a>
+        {/each}
+        <p class="nav-sm-title">Sitio</p>
+        <a href="/precios">Precios</a>
+        <a href="/seguridad">Seguridad</a>
+        <a href="/comparar/bsale">Comparar</a>
+        <a href="/ayuda">Ayuda</a>
+        <a class="btn" href="/empezar">Empieza gratis</a>
+      </nav>
+    </details>
   </header>
 
-  {@render children()}
+  <main id="contenido">
+    {@render children()}
+  </main>
 
   <footer class="site-footer">
     <div class="footer-grid">
       <div>
-        <h3>Producto</h3>
-        {#each verticals as v}
-          <a href={`/para/${v.slug}`}>{v.slug}</a>
+        <h3>Para tu negocio</h3>
+        {#each verticals as v (v.slug)}
+          <a href={`/para/${v.slug}`}>{v.navLabel}</a>
         {/each}
-        <a href="/precios">Precios</a>
-        <a href="/seguridad">Seguridad</a>
       </div>
       <div>
         <h3>Comparativas</h3>
-        {#each COMPETITOR_SLUGS as c}
-          <a href={`/comparar/${c}`}>vs {c}</a>
+        {#each compares as c (c.slug)}
+          <a href={`/comparar/${c.slug}`}>KipusPay vs {c.name}</a>
         {/each}
       </div>
       <div>
         <h3>Recursos</h3>
+        <a href="/precios">Precios</a>
         <a href="/blog">Blog</a>
         <a href="/ayuda">Ayuda</a>
         <a href="/casos-de-exito">Casos de exito</a>
       </div>
       <div>
-        <h3>Legal</h3>
-        <a href="/seguridad">Privacidad y confianza</a>
+        <h3>Confianza</h3>
+        <a href="/seguridad">Seguridad y privacidad</a>
         <a href="/empezar">Empezar</a>
       </div>
     </div>
+
+    <ul class="footer-seals">
+      <li>Tu informacion va cifrada</li>
+      <li>Tus datos son tuyos</li>
+      <li>Soporte en espanol</li>
+      <li>Sin contratos largos</li>
+    </ul>
+
+    <p class="footer-legal">
+      KipusPay — POS y facturacion electronica para comercios del Peru. La aceptacion de cada
+      comprobante siempre depende de SUNAT.
+    </p>
   </footer>
 {/if}
