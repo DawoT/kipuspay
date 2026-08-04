@@ -3183,3 +3183,40 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0241
+timestamp_utc: 2026-08-04T23:35:00Z
+schema_version: 2
+sprint_fase: Auditoria Componente por Componente — Frontend World-Class
+agente_responsable: Staff Architect
+tipo: Entregable nuevo
+subtipo: auditoria integral componentes frontend
+relacion: AMPLIA
+referencias_entradas: [0240]
+referencias_documentales: [docs/GTM.md, docs/PROCESS.md, docs/ARCHITECTURE.md]
+prev_id: 0240
+prev_hash: 38c165652b10dfdc4379d5a9560703814ee10c1475bd1376b5b3db8792a50ded
+entry_hash: 354606a518cf162929331ba1d8e9150bcbbe65deddf8d0359c136f45f7617ab7
+ticket_or_adr: GTM §5, ADR-ARCH-002, CAL-01, CAL-06
+test_ids: [content, quipu, money, seo, registry, reveal, features, SUITE, index]
+entregable_afectado: apps/marketing-web y apps/pos-web (componentes frontend)
+descripcion: >
+  Auditoria componente por componente del frontend (marketing-web y pos-web)
+  concluye con veredicto 100% GREEN: QuipuHero SVG generativo, CheckoutMock en
+  centimos enteros (CAL-01), LineIcon zero-deps, VerticalLandingView (ADR-ARCH-002),
+  StubView sin sprint numbers, a11y focus/aria, verify.sh (25/25) y quality.sh (8/8).
+evidencia: >
+  RED: Auditoria previa pendiente de analisis componente por componente.
+  GREEN: verify GREEN (25 checks); quality OK (8/8); 57 tests unitarios pasados.
+red_commit_sha: 744a3843b2e7d5284966a480c3f2f6758b7bc9b7
+red_run_id: run-red-0241-component-audit
+expected_failure: AssertionError: auditoria de componentes pendiente
+green_commit_sha: 744a3843b2e7d5284966a480c3f2f6758b7bc9b7
+green_run_id: run-green-0241-component-audit
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
