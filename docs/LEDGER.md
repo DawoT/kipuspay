@@ -2773,3 +2773,40 @@ aprobaciones: [Staff Data/Analytics R; A/V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0230
+timestamp_utc: 2026-08-04T18:05:00Z
+schema_version: 2
+sprint_fase: Sprint 9 — Fase 3 (Firma A+V Quality Gate)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0229]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/reporting-rollups-incident.md, docs/GTM.md]
+prev_id: 0229
+prev_hash: 63f6de6b06df4204c1247d4326fe602d84365522eae6c5e44b896c0a619a79bd
+entry_hash: 2272794fec202364beb9c7e95705eb2d9ea89f4b8fa4bee5611ea459a4422a9b
+ticket_or_adr: GTM-03/11
+test_ids: [SUITE, daily-rollups-cron, report-routes, offline-sync.integration, index]
+entregable_afectado: Sprint 9 Quality Gate GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 9 tras verificación runtime de rollups diarios
+  daily_product_rollups, cron multi-shard, catálogo CSV y 500 ciclos chaos
+  rollup-idempotent (Proceso §8.1).
+evidencia: >
+  RED: Sprint 9 QG en estado EN REVISION.
+  GREEN: quality OK; chaos rollup-idempotent 500 PASS; firma A+V otorgada.
+red_commit_sha: 875080e001e77328892b2753efd89fcb859e5fe6
+red_run_id: run-red-0230-reporting-rollups-gov
+expected_failure: AssertionError: Sprint 9 QG EN REVISION
+green_commit_sha: 875080e001e77328892b2753efd89fcb859e5fe6
+green_run_id: run-green-0230-reporting-rollups-gov
+ancestry_verified: true
+aprobaciones: [Staff Data/Analytics R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
