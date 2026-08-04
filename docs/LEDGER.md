@@ -2139,3 +2139,38 @@ aprobaciones: [Staff Backend ACID, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0211
+timestamp_utc: 2026-08-04T15:50:00Z
+schema_version: 2
+sprint_fase: Sprint 5 — Fase 2 (ADR + guards slice 5.0/5.1)
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: ADR-FISCAL-001 + domain guards
+relacion: AMPLIA
+referencias_entradas: [0210]
+referencias_documentales: [docs/adr/ADR-FISCAL-001-v2-pse-guards-exclusions.md, packages/domain-fiscal-pe/src/index.ts, docs/architecture/05-1-formalization-matrix.md]
+prev_id: 0210
+prev_hash: a51e76e5df607663e72f2cdd0e193c0c5bb6bfa880ea568b7ec498fb9eeb21f4
+entry_hash: 836e602a334242d183e9e7fb97a10b4fd400aef653f827d9e0adc701b63f8c2b
+ticket_or_adr: ADR-FISCAL-001
+test_ids: [index]
+entregable_afectado: domain-fiscal-pe FormalizationMode + guards + ADR file
+descripcion: >
+  Materializa ADR-FISCAL-001 v2 en docs/adr; FormalizationMode INTERNAL_CONTROL|
+  FORMALIZING|ELECTRONIC_ISSUER (elimina contingencia); constantes 70000/500;
+  assertEmissionAllowed; resolveBranchSeries; ROADMAP Sprint 5 En progreso.
+evidencia: >
+  RED: FormalizationMode era pse|contingencia; sin archivo ADR.
+  GREEN: 16 tests domain-fiscal 100% lines; ADR file; verify SUITE.
+red_commit_sha: 369314899d0034d4938218905bb586af596d73e4
+red_run_id: run-red-0211-fiscal-guards
+expected_failure: AssertionError: FormalizationMode contigencia / missing ADR file
+green_commit_sha: 71a1b90819077947b833f254edc51a1569c707c6
+green_run_id: run-green-0211-fiscal-guards
+ancestry_verified: true
+aprobaciones: [Staff Fiscal, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
