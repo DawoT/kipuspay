@@ -2467,3 +2467,73 @@ aprobaciones: [Staff Frontend]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0221
+timestamp_utc: 2026-08-04T16:20:00Z
+schema_version: 2
+sprint_fase: Sprint 7 — Fase 3 (POS premium / plantillas / Vitrina)
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: pos-checkout print-templates vitrina low-end
+relacion: AMPLIA
+referencias_entradas: [0220]
+referencias_documentales: [docs/roadmap/fase-3.md, docs/runbooks/pos-checkout-print-vitrina.md, packages/print-templates/src/index.ts, packages/chaos-harness/src/low-end-device.ts]
+prev_id: 0220
+prev_hash: f4bb0eb911db299b2984ad0fc63838508c5c819e1bf9d450e847ae9fb047bc06
+entry_hash: 530c223e9b94ed35fd6cf2a743dbebd5ff2e847c9523421154ddc207f3a3d733
+ticket_or_adr: GTM-6.5
+test_ids: [document-selector, print-templates, pos-checkout, reserve, index]
+entregable_afectado: Sprint 7 POS caja + plantillas + Vitrina + low-end
+descripcion: >
+  suggestDocumentType/banner; chargeCartOffline guards+cola; print-templates
+  CPE/NV 58/80 zero-dep; vitrina/kiosk thin; correlativo offline; chaos
+  low-end-device + quality 4e; flags default 0.
+evidencia: >
+  RED: sin checkout/plantillas/vitrina/low-end runner.
+  GREEN: quality OK; print-templates; pos-checkout; chaos 4e.
+red_commit_sha: 735fb1bb898cf33b4a849c4409883f2b5bd8630e
+red_run_id: run-red-0221-pos-checkout
+expected_failure: AssertionError: missing pos-checkout/print-templates/vitrina/low-end
+green_commit_sha: e550e5d1d2fdc1e00553d3484c2f7a97a9d216fb
+green_run_id: run-green-0221-pos-checkout
+ancestry_verified: true
+aprobaciones: [Staff Frontend, Staff Hardware, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0222
+timestamp_utc: 2026-08-04T16:25:00Z
+schema_version: 2
+sprint_fase: Sprint 7 — Fase 3 (Quality Gate cierre)
+agente_responsable: Staff Frontend
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0220, 0221]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/pos-checkout-print-vitrina.md, docs/architecture/10-printing-display.md]
+prev_id: 0221
+prev_hash: 530c223e9b94ed35fd6cf2a743dbebd5ff2e847c9523421154ddc207f3a3d733
+entry_hash: 1a4c8460793ee0d9c31e3086b7c54a8d406776c7c3a54937980c9f8ed324cf8e
+ticket_or_adr: GTM-6.5
+test_ids: [SUITE, print-templates, pos-checkout, document-selector, index]
+entregable_afectado: ROADMAP Sprint 7 Cerrado + QG EN REVISION
+descripcion: >
+  Cierre Sprint 7: ROADMAP/INDEX Entrega=Cerrado; verify+quality GREEN;
+  runbook pos-checkout-print-vitrina; estado_gov EN REVISION hasta firma
+  A+V independiente (Proceso §8.1).
+evidencia: >
+  RED: Sprint 7 En progreso sin QG.
+  GREEN: quality OK; chaos 4e; ROADMAP Cerrado; runbook checkout/print/vitrina.
+red_commit_sha: e550e5d1d2fdc1e00553d3484c2f7a97a9d216fb
+red_run_id: run-red-0222-pos-checkout-qg
+expected_failure: AssertionError: Sprint 7 still En progreso
+green_commit_sha: f513455430c5438c0de1ed2723281aee97a6af6a
+green_run_id: run-green-0222-pos-checkout-qg
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; A/V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
