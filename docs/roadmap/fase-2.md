@@ -10,6 +10,7 @@ sprints: "5–6"
 ### FASE 2 — Cumplimiento Fiscal y Resiliencia de Red
 
 #### Sprint 5 — Motor Fiscal Dual + ADR-FISCAL-001 v2 (PSE, guards, NC/ND)
+**Entrega:** En progreso (2026-08-04)
 **Referencia:** Arquitectura §5 / §5.1 / §5.2 / §8; GTM §3.3.1 · **Agentes:** Staff Fiscal (owner), Staff Security (colaborador), Staff SRE (colaborador)
 
 **Entregables:**

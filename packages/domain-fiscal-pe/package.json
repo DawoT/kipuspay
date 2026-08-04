@@ -2,7 +2,7 @@
   "name": "@kipuspay/domain-fiscal-pe",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay — dominio fiscal SUNAT Perú (CDR, PSE, contingencia)",
+  "description": "KipusPay — dominio fiscal SUNAT Perú (CDR, PSE KipusPay, guards ADR-FISCAL-001)",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

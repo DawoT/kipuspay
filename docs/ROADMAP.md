@@ -41,7 +41,7 @@ owner: "@DawoT"
 | 2 | 1 | Actualizada (auth fail-closed, plan guard, IdP — §3) | Cerrado |
 | 3 | 1 | Actualizada (webhooks pasarela + invalidación — §4) | Cerrado |
 | 4 | 1 | Actualizada (motor ACID + reconciliación — §6) | Cerrado |
-| 5 | 2 | Base | Planificado |
+| 5 | 2 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | En progreso |
 | 5b | 2 | Actualizada (Resumen Diario, plazos, baja y alertas) | Planificado |
 | 6 | 2 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Planificado |
 | 7–8 | 2–3 | Base | Planificado |
