@@ -7,6 +7,11 @@ const SUBSCRIPTION_TYPES = new Set([
   'invoice.paid',
 ]);
 
+const EXTERNAL_TENANT_ID = 'external';
+
+// Estados no-pagadores de Stripe: fail-closed → revocar (SEC-08).
+const NON_PAYING_STATUSES = new Set(['canceled', 'unpaid', 'incomplete', 'incomplete_expired']);
+
 export interface StripeWebhookEnv {
   readonly WEBHOOK_EVENTS_DB?: D1Database;
   readonly DB?: D1Database;
@@ -30,15 +35,11 @@ export interface WebhookHttpResult {
   body: Record<string, unknown>;
 }
 
-interface PriorEvent {
-  id: string;
-  status: 'PROCESSING' | 'PROCESSED' | 'FAILED';
-}
-
 interface ParsedStripeEvent {
   id?: string | undefined;
   type?: string | undefined;
   tenantId?: string | undefined;
+  objectStatus?: string | undefined;
 }
 
 function webhookDb(env: StripeWebhookEnv): D1Database | null {
@@ -49,51 +50,78 @@ function parseEvent(rawBody: string): ParsedStripeEvent {
   const event = JSON.parse(rawBody) as {
     id?: unknown;
     type?: unknown;
-    data?: { object?: { metadata?: { tenant_id?: unknown } } };
+    data?: { object?: { metadata?: { tenant_id?: unknown }; status?: unknown } };
   };
   const tenantRaw = event.data?.object?.metadata?.tenant_id;
+  const objectStatus = event.data?.object?.status;
   return {
     id: typeof event.id === 'string' ? event.id : undefined,
     type: typeof event.type === 'string' ? event.type : undefined,
     tenantId: typeof tenantRaw === 'string' ? tenantRaw : undefined,
+    objectStatus: typeof objectStatus === 'string' ? objectStatus : undefined,
   };
 }
 
-function subscriptionStatusFor(eventType: string): 'canceled' | 'past_due' | 'active' {
+/**
+ * Estado de suscripción derivado del evento (SEC-08). `customer.subscription.updated`
+ * NUNCA des-revoca ni sube de estado: Stripe no garantiza orden de entrega entre tipos
+ * en retries, un `updated` tardío tras un `deleted` no debe restaurar acceso. Solo
+ * `invoice.paid` des-revoca; un estado no-pagador en `updated` revoca (fail-closed).
+ * Devuelve null = no-op.
+ */
+function statusForPayload(
+  eventType: string,
+  objectStatus: string | undefined,
+): 'canceled' | 'past_due' | 'active' | null {
   if (eventType === 'customer.subscription.deleted') return 'canceled';
+  if (eventType === 'invoice.paid') return 'active';
   if (eventType === 'invoice.payment_failed') return 'past_due';
-  return 'active';
+  if (eventType === 'customer.subscription.updated') {
+    if (objectStatus === undefined || objectStatus === 'active' || objectStatus === 'trialing') {
+      return null;
+    }
+    if (objectStatus === 'past_due') return 'past_due';
+    if (NON_PAYING_STATUSES.has(objectStatus)) return 'canceled';
+    return null;
+  }
+  return null;
 }
 
+/**
+ * SEC-08 dedup atómico: INSERT ... ON CONFLICT DO NOTHING (un solo statement, sin
+ * SELECT→INSERT con TOCTOU). changes=1 → claim; changes=0 → re-entrega: PROCESSED → dedup,
+ * PROCESSING/FAILED → re-claim con attempt_count+1.
+ */
 async function claimEvent(
   db: D1Database,
   eventId: string,
   tenantId: string,
 ): Promise<'deduplicated' | 'claimed'> {
+  const inserted = await db
+    .prepare(
+      `INSERT INTO webhook_events (id, tenant_id, source, event_id, status, attempt_count)
+       VALUES (?, ?, 'stripe', ?, 'PROCESSING', 1)
+       ON CONFLICT (source, event_id) DO NOTHING`,
+    )
+    .bind(crypto.randomUUID(), tenantId, eventId)
+    .run();
+
+  if ((inserted.meta?.changes ?? 0) === 1) return 'claimed';
+
   const prior = await db
-    .prepare(`SELECT id, status FROM webhook_events WHERE source = 'stripe' AND event_id = ?`)
+    .prepare(`SELECT status FROM webhook_events WHERE source = 'stripe' AND event_id = ?`)
     .bind(eventId)
-    .first<PriorEvent>();
+    .first<{ status: string }>();
 
   if (prior?.status === 'PROCESSED') return 'deduplicated';
 
-  if (prior) {
-    await db
-      .prepare(
-        `UPDATE webhook_events SET status = 'PROCESSING', attempt_count = attempt_count + 1,
-         last_error = NULL WHERE id = ?`,
-      )
-      .bind(prior.id)
-      .run();
-  } else {
-    await db
-      .prepare(
-        `INSERT INTO webhook_events (id, tenant_id, source, event_id, status, attempt_count)
-       VALUES (?, ?, 'stripe', ?, 'PROCESSING', 1)`,
-      )
-      .bind(crypto.randomUUID(), tenantId, eventId)
-      .run();
-  }
+  await db
+    .prepare(
+      `UPDATE webhook_events SET status = 'PROCESSING', attempt_count = attempt_count + 1,
+       last_error = NULL WHERE source = 'stripe' AND event_id = ?`,
+    )
+    .bind(eventId)
+    .run();
   return 'claimed';
 }
 
@@ -132,14 +160,14 @@ async function postTenantState(
 async function syncTenantSubscriptionStatus(
   env: StripeWebhookEnv,
   tenantId: string,
-  eventType: string,
+  status: 'canceled' | 'past_due' | 'active',
 ): Promise<void> {
   const put = env.TENANT_KV.put?.bind(env.TENANT_KV);
   if (!put) throw new Error('TENANT_KV_MUTATORS_UNAVAILABLE');
   const tenantRaw = await env.TENANT_KV.get(`tenant:${tenantId}`);
   if (!tenantRaw) return;
   const tenant = JSON.parse(tenantRaw) as Record<string, unknown>;
-  tenant.subscriptionStatus = subscriptionStatusFor(eventType);
+  tenant.subscriptionStatus = status;
   await put(`tenant:${tenantId}`, JSON.stringify(tenant));
 }
 
@@ -147,20 +175,26 @@ async function applySubscriptionEffects(
   env: StripeWebhookEnv,
   tenantId: string,
   eventType: string,
+  objectStatus: string | undefined,
 ): Promise<void> {
   const put = env.TENANT_KV.put?.bind(env.TENANT_KV);
   const del = env.TENANT_KV.delete?.bind(env.TENANT_KV);
   if (!put || !del) throw new Error('TENANT_KV_MUTATORS_UNAVAILABLE');
 
-  if (eventType === 'customer.subscription.deleted') {
+  const status = statusForPayload(eventType, objectStatus);
+
+  if (status === 'canceled') {
     await postTenantState(env, tenantId, '/revoke');
     await put(`revocation:${tenantId}`, '1');
-  } else if (eventType === 'invoice.paid' || eventType === 'customer.subscription.updated') {
+  } else if (status === 'active') {
+    // Única vía de des-revocación: invoice.paid. Un `updated` no restaura acceso.
     await postTenantState(env, tenantId, '/unrevoke');
     await del(`revocation:${tenantId}`);
   }
-  // invoice.payment_failed: past_due en KV sin revoke DO (gracia GTM §4.3)
-  await syncTenantSubscriptionStatus(env, tenantId, eventType);
+  // past_due: gracia GTM §4.3, sin revoke DO. null: no-op (updated activo/trial/desconocido).
+  if (status !== null) {
+    await syncTenantSubscriptionStatus(env, tenantId, status);
+  }
 }
 
 function validateWebhookRequest(
@@ -198,7 +232,7 @@ async function runWebhookEffects(
   event: ParsedStripeEvent,
 ): Promise<WebhookHttpResult> {
   const eventId = event.id!;
-  const claim = await claimEvent(db, eventId, event.tenantId ?? 'system');
+  const claim = await claimEvent(db, eventId, event.tenantId ?? EXTERNAL_TENANT_ID);
   if (claim === 'deduplicated') {
     return { status: 200, body: { received: true, deduplicated: true } };
   }
@@ -206,7 +240,7 @@ async function runWebhookEffects(
   const isSubscriptionEvent = event.type !== undefined && SUBSCRIPTION_TYPES.has(event.type);
   try {
     if (isSubscriptionEvent && event.tenantId && event.type) {
-      await applySubscriptionEffects(env, event.tenantId, event.type);
+      await applySubscriptionEffects(env, event.tenantId, event.type, event.objectStatus);
     }
     await markProcessed(db, eventId);
   } catch (error) {

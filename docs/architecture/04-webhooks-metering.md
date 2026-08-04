@@ -40,38 +40,55 @@ app.post('/v1/webhooks/stripe', async (c) => {
     return c.json({ error: 'Missing tenant_id in metadata' }, 400);  
   }
 
-  // SEC-08: dedup por (source, event.id) ANTES de procesar — re-deliveries legítimas o
-  // replays dentro de la ventana de 5 min no re-ejecutan efectos (doble revoke/escritura KV).
+  // SEC-08: claim atómico por (source, event.id) ANTES de procesar. El INSERT con
+  // ON CONFLICT elimina el TOCTOU SELECT→INSERT; re-deliveries legítimas o replays
+  // dentro de la ventana de 5 min no re-ejecutan efectos tras PROCESSED.
   // WEBHOOK_EVENTS_DB es el binding D1 canónico del registro de eventos entrantes.
-  const db = c.env.WEBHOOK_EVENTS_DB as D1Database;  
-  const priorEvent = await db.prepare(
-    `SELECT id, status FROM webhook_events WHERE source = 'stripe' AND event_id = ?`
-  ).bind(eventId).first<{ id: string; status: 'PROCESSING' | 'PROCESSED' | 'FAILED' }>();
-  if (priorEvent?.status === 'PROCESSED') {
-    return c.json({ received: true, deduplicated: true });  
-  }
-  if (priorEvent) {
+  const db = c.env.WEBHOOK_EVENTS_DB as D1Database;
+  const claim = await db.prepare(
+    `INSERT INTO webhook_events (id, tenant_id, source, event_id, status, attempt_count)
+     VALUES (?, ?, 'stripe', ?, 'PROCESSING', 1)
+     ON CONFLICT (source, event_id) DO NOTHING`,
+  ).bind(crypto.randomUUID(), tenantId ?? 'external', eventId).run();
+  if (claim.meta.changes === 0) {
+    const priorEvent = await db.prepare(
+      `SELECT status FROM webhook_events WHERE source = 'stripe' AND event_id = ?`,
+    ).bind(eventId).first<{ status: 'PROCESSING' | 'PROCESSED' | 'FAILED' }>();
+    if (priorEvent?.status === 'PROCESSED') {
+      return c.json({ received: true, deduplicated: true });
+    }
     await db.prepare(
       `UPDATE webhook_events SET status = 'PROCESSING', attempt_count = attempt_count + 1,
-         last_error = NULL WHERE id = ?`
-    ).bind(priorEvent.id).run();
-  } else {
-    await db.prepare(
-      `INSERT INTO webhook_events (id, tenant_id, source, event_id, status, attempt_count)
-       VALUES (?, ?, 'stripe', ?, 'PROCESSING', 1)`
-    ).bind(crypto.randomUUID(), tenantId ?? 'system', eventId).run();
+         last_error = NULL WHERE source = 'stripe' AND event_id = ?`,
+    ).bind(eventId).run();
   }
 
   try {
   if (isSubscriptionEvent) {  
-    // Solo una cancelación definitiva revoca el tenant. Un pago fallido entra en gracia
-    // (GTM §4.3): actualiza `past_due`, pero no bloquea caja ni emisión con un revoke DO.
-    if (event.type === 'customer.subscription.deleted') {  
+    const objectStatus = event.data?.object?.status as string | undefined;
+    const subscriptionStatus = event.type === 'customer.subscription.deleted'
+      ? 'canceled'
+      : event.type === 'invoice.payment_failed'
+        ? 'past_due'
+        : event.type === 'invoice.paid'
+          ? 'active'
+          : event.type === 'customer.subscription.updated' && objectStatus === 'past_due'
+            ? 'past_due'
+            : event.type === 'customer.subscription.updated'
+              && ['canceled', 'unpaid', 'incomplete', 'incomplete_expired'].includes(objectStatus ?? '')
+              ? 'canceled'
+              : undefined;
+
+    // Solo invoice.paid des-revoca. Un updated activo/trialing/desconocido es no-op:
+    // Stripe no garantiza orden entre tipos en retries y no debe restaurar acceso tarde.
+    // Un estado no-pagador en updated revoca fail-closed; payment_failed queda en gracia
+    // (GTM §4.3): actualiza past_due, pero no bloquea caja ni emisión.
+    if (subscriptionStatus === 'canceled') {
       const doId = c.env.TENANT_STATE_DO.idFromName(tenantId!);  
       const stub = c.env.TENANT_STATE_DO.get(doId);  
       await stub.fetch(new Request(new URL('/revoke', c.env.FQDN), { method: 'POST' }));
       await c.env.TENANT_KV.put(`revocation:${tenantId}`, '1');
-    } else if (event.type === 'invoice.paid' || event.type === 'customer.subscription.updated') {
+    } else if (subscriptionStatus === 'active') {
       const doId = c.env.TENANT_STATE_DO.idFromName(tenantId!);
       const stub = c.env.TENANT_STATE_DO.get(doId);
       await stub.fetch(new Request(new URL('/unrevoke', c.env.FQDN), { method: 'POST' }));
@@ -80,11 +97,9 @@ app.post('/v1/webhooks/stripe', async (c) => {
 
     // Actualizar estado en KV Cache  
     const tenantRaw = await c.env.TENANT_KV.get(`tenant:${tenantId}`);  
-    if (tenantRaw) {  
+    if (tenantRaw && subscriptionStatus) {
       const tenant = JSON.parse(tenantRaw);  
-      tenant.subscriptionStatus = event.type === 'customer.subscription.deleted'
-        ? 'canceled'
-        : event.type === 'invoice.payment_failed' ? 'past_due' : 'active';
+      tenant.subscriptionStatus = subscriptionStatus;
       await c.env.TENANT_KV.put(`tenant:${tenantId}`, JSON.stringify(tenant));  
     }  
   }
@@ -234,4 +249,3 @@ CREATE TABLE billing_overages (
 Regla anti-ambigüedad: el cupo se consume **al emitir** el comprobante (venta, NC, ND, NV), nunca al anular. Un error del cajero que se corrige con 50 NC consume 50 docs de cupo (cada NC es un XML real enviado a SUNAT). La NC **no** reembolsa el cupo consumido por la venta original.
 
 Regla de aceptación SUNAT: el cupo cubre la **generación/procesamiento** del comprobante (XML emitido y enviado), **independiente del estado final de aceptación** (`ACEPTADO`, `QUARANTINED`, `REJECTED`, `DEADLINE_EXCEEDED`). Un CPE que SUNAT nunca acepta ya consumió su doc; solo una NC posterior anula el efecto comercial, pero cada XML generado contó para el cupo. La caja nunca se detiene por rechazo: el cobro commite y el reintento de envío queda en la cola de resumen, sin exigir doc nuevo. **Anulación de CPE no aceptado (edge E-A):** si el origen está `REJECTED`/`QUARANTINED`/`DEADLINE_EXCEEDED` (jamás tuvo CDR `ACCEPTED`), la NC de anulación **no exige** CDR aceptado — no existe CDR que exigir. Se emite la NC con motivo Catálogo 09 de anulación (por el total, no parcial), se revierte el efecto comercial (el dinero ya está contabilizado en caja/rollups), se alerta al Dueño vía Modo Dueño (`audit_events` `CREDIT_NOTE_NO_CDR` con el estado origen) y el XML de la NC se envía como corrección del original no aceptado (unitaria o en RC, según §5.2). La precondición `ACCEPTED` (§8, Sprint 5) aplica **solo** cuando el origen sí tiene CDR. Jamás se bloquea la caja por un rechazo.
-

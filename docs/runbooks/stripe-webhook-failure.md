@@ -13,7 +13,7 @@ owner: "@DawoT"
 | Severidad tipica | SEV-2 (billing/revocación); SEV-1 si storm satura D1 |
 | Owner on-call | Staff SRE |
 | Ultima ensayada | 2026-08-04 (handle-stripe-webhook.test.ts + verify-stripe-signature fuzz) |
-| Relaciona | Arquitectura §4 · SEC-08 · ADR-0005 · AGENTS invariante 6 · Roadmap Sprint 3 |
+| Relaciona | Arquitectura §4 · SEC-08 · ADR-0005 · ADR-0006 · AGENTS invariante 6 · Roadmap Sprint 3 |
 
 ## Sintomas
 
@@ -74,6 +74,8 @@ owner: "@DawoT"
 
 - Fuzz firmas inválidas: `verify-stripe-signature.test.ts` (≥50 → todos false).
 - Replay/dedup: `handle-stripe-webhook.test.ts` (PROCESSED → 200 deduplicated).
+- Orden/reintento: `updated(active)` no des-revoca, `updated(canceled)` revoca y
+  redelivery `PROCESSING` reclama sin 500.
 - Efecto fallido: DO 503 → `FAILED` + HTTP 503 `WEBHOOK_RETRYABLE`.
 - Timing: test timed invalidación < 100 ms (unit).
 

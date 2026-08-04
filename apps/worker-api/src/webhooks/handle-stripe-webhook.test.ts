@@ -38,18 +38,23 @@ function createMemDb() {
         bind(...args: unknown[]) {
           return {
             first<T>(): Promise<T | null> {
-              if (sql.includes('SELECT id, status')) {
+              if (sql.includes('SELECT status')) {
                 const eventId = String(args[0]);
                 const row = rows.get(keyOf('stripe', eventId));
-                return Promise.resolve(row ? ({ id: row.id, status: row.status } as T) : null);
+                return Promise.resolve(row ? ({ status: row.status } as T) : null);
               }
               return Promise.resolve(null);
             },
-            run(): Promise<{ success: boolean }> {
+            run(): Promise<{ success: boolean; meta: { changes: number } }> {
               if (sql.includes('INSERT INTO webhook_events')) {
                 const [id, tenantId, eventId] = args as [string, string, string];
                 const k = keyOf('stripe', eventId);
-                if (rows.has(k)) throw new Error('UNIQUE constraint failed');
+                if (rows.has(k)) {
+                  if (sql.includes('ON CONFLICT')) {
+                    return Promise.resolve({ success: true, meta: { changes: 0 } });
+                  }
+                  throw new Error('UNIQUE constraint failed');
+                }
                 rows.set(k, {
                   id,
                   tenant_id: tenantId,
@@ -60,18 +65,17 @@ function createMemDb() {
                   last_error: null,
                   processed_at: null,
                 });
-                return Promise.resolve({ success: true });
+                return Promise.resolve({ success: true, meta: { changes: 1 } });
               }
               if (sql.includes("status = 'PROCESSING'") && sql.includes('attempt_count')) {
-                const id = String(args[0]);
-                for (const row of rows.values()) {
-                  if (row.id === id) {
-                    row.status = 'PROCESSING';
-                    row.attempt_count += 1;
-                    row.last_error = null;
-                  }
+                const eventId = String(args[0]);
+                const row = rows.get(keyOf('stripe', eventId));
+                if (row) {
+                  row.status = 'PROCESSING';
+                  row.attempt_count += 1;
+                  row.last_error = null;
                 }
-                return Promise.resolve({ success: true });
+                return Promise.resolve({ success: true, meta: { changes: 1 } });
               }
               if (sql.includes("status = 'PROCESSED'")) {
                 const eventId = String(args[0]);
@@ -80,7 +84,7 @@ function createMemDb() {
                   row.status = 'PROCESSED';
                   row.processed_at = new Date().toISOString();
                 }
-                return Promise.resolve({ success: true });
+                return Promise.resolve({ success: true, meta: { changes: 1 } });
               }
               if (sql.includes("status = 'FAILED'")) {
                 const [error, eventId] = args as [string, string];
@@ -89,7 +93,7 @@ function createMemDb() {
                   row.status = 'FAILED';
                   row.last_error = error;
                 }
-                return Promise.resolve({ success: true });
+                return Promise.resolve({ success: true, meta: { changes: 1 } });
               }
               throw new Error(`unsupported SQL: ${sql}`);
             },
@@ -153,11 +157,15 @@ function createEnv(opts: { secret?: string; doFail?: boolean; doRevoked?: boolea
   return { env, kv, doCalls, mem };
 }
 
-function eventBody(type: string, tenantId: string, eventId: string): string {
+function eventBody(type: string, tenantId: string, eventId: string, objectStatus?: string): string {
+  const object: { metadata: { tenant_id: string }; status?: string } = {
+    metadata: { tenant_id: tenantId },
+  };
+  if (objectStatus !== undefined) object.status = objectStatus;
   return JSON.stringify({
     id: eventId,
     type,
-    data: { object: { metadata: { tenant_id: tenantId } } },
+    data: { object },
   });
 }
 
@@ -188,6 +196,43 @@ describe('handleStripeWebhook', () => {
 
     const second = await handleStripeWebhook(env, body, sig, nowMs);
     expect(second).toEqual({ status: 200, body: { received: true, deduplicated: true } });
+  });
+
+  it('redelivery mientras PROCESSING → re-claim sin 500', async () => {
+    const { env, mem } = createEnv({});
+    mem.rows.set('stripe:evt_inflight', {
+      id: 'we-inflight',
+      tenant_id: 't1',
+      source: 'stripe',
+      event_id: 'evt_inflight',
+      status: 'PROCESSING',
+      attempt_count: 1,
+      last_error: null,
+      processed_at: null,
+    });
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_inflight');
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+
+    expect(res.status).toBe(200);
+    expect(mem.rows.get('stripe:evt_inflight')?.attempt_count).toBe(2);
+    expect(mem.rows.get('stripe:evt_inflight')?.status).toBe('PROCESSED');
+  });
+
+  it('evento no-suscripción usa la partición external', async () => {
+    const { env, mem } = createEnv({});
+    const body = JSON.stringify({
+      id: 'evt_charge',
+      type: 'charge.succeeded',
+      data: { object: {} },
+    });
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+
+    expect(res.status).toBe(200);
+    expect(mem.rows.get('stripe:evt_charge')?.tenant_id).toBe('external');
   });
 
   it('subscription.deleted → DO revoke + KV revocation; lookup revoked', async () => {
@@ -243,6 +288,62 @@ describe('handleStripeWebhook', () => {
     expect(doCalls).toContain('/unrevoke');
     expect(kv.get('revocation:t1')).toBeUndefined();
     expect(readTenant(kv, 't1').subscriptionStatus).toBe('active');
+  });
+
+  it('subscription.updated active no des-revoca tenant cancelado', async () => {
+    const { env, kv, doCalls } = createEnv({ doRevoked: true });
+    kv.set('revocation:t1', '1');
+    kv.set(
+      'tenant:t1',
+      JSON.stringify({ id: 't1', status: 'active', subscriptionStatus: 'canceled' }),
+    );
+    const body = eventBody('customer.subscription.updated', 't1', 'evt_updated_active', 'active');
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+
+    expect(res.status).toBe(200);
+    expect(doCalls).toEqual([]);
+    expect(kv.get('revocation:t1')).toBe('1');
+    expect(readTenant(kv, 't1').subscriptionStatus).toBe('canceled');
+  });
+
+  it('subscription.updated active no promociona past_due', async () => {
+    const { env, kv, doCalls } = createEnv({});
+    kv.set(
+      'tenant:t1',
+      JSON.stringify({ id: 't1', status: 'active', subscriptionStatus: 'past_due' }),
+    );
+    const body = eventBody('customer.subscription.updated', 't1', 'evt_updated_past_due', 'active');
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+
+    expect(res.status).toBe(200);
+    expect(doCalls).toEqual([]);
+    expect(readTenant(kv, 't1').subscriptionStatus).toBe('past_due');
+  });
+
+  it('subscription.updated canceled → revoca fail-closed', async () => {
+    const { env, kv, doCalls } = createEnv({});
+    kv.set(
+      'tenant:t1',
+      JSON.stringify({ id: 't1', status: 'active', subscriptionStatus: 'active' }),
+    );
+    const body = eventBody(
+      'customer.subscription.updated',
+      't1',
+      'evt_updated_canceled',
+      'canceled',
+    );
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+
+    expect(res.status).toBe(200);
+    expect(doCalls).toContain('/revoke');
+    expect(kv.get('revocation:t1')).toBe('1');
+    expect(readTenant(kv, 't1').subscriptionStatus).toBe('canceled');
   });
 
   it('fallo de efecto → FAILED + 503 WEBHOOK_RETRYABLE', async () => {
