@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# KipusPay — pre-commit hook: batería documental antes de commitear.
+# Habilitado vía core.hooksPath = scripts/git-hooks.
+set -eu
+ROOT="$(git rev-parse --show-toplevel)"
+echo "== KipusPay pre-commit: atlas-verify =="
+bash "$ROOT/scripts/verify.sh"

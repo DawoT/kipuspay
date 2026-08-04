@@ -48,6 +48,80 @@ Se introduce formalmente el lenguaje de diseño de producto que acompaña la arq
 
 KipusPay ocupa el cuadrante superior-derecho: **confiabilidad de nivel bancario a costo de infraestructura Edge serverless** (![][image4] por cada 1,000 comercios).
 
+### **0.4 Registry de Reglas (punteros canónicos)**
+
+El **único** lugar donde cada regla se define es la sección indicada en esta tabla (DRY de dominio, §1.1). Cualquier doc que la referencie usa el puntero `§` correspondiente. Crear/alterar una regla = actualizar esta tabla + definirla **una vez**; nunca crear IDs huérfanos (validado por el skill `atlas-rules-registry`).
+
+| ID | Definición canónica | Tema |
+|---|---|---|
+| SEC-01 | §3 | Identidad SOLO desde JWT verificado |
+| SEC-02 | §6 | Re-validación server-side por ítem; descuentos/sobreprecios y umbrales |
+| SEC-03 | §3 | Gestión de secretos; PIN argon2id server-side |
+| SEC-04 | §4.0 | Política de seguridad transversal |
+| SEC-05 | §6 | Correlativo emitido por el servidor |
+| SEC-06 | §6 | Ventana de skew única ±6h |
+| SEC-07 | §6 | Filas PII anonimizadas/borradas (`pii_erased`/`deleted_at`) |
+| SEC-08 | §4 | Dedup, anti-replay ≤5 min, comparación constante en tiempo |
+| SEC-09 | §5.3 | Zero-Trust de caja |
+| SEC-10 | §5.3 | DDL zero-trust (lockout PIN) |
+| SEC-11 | §4.0 | PIN de caja: lockout 5 fallos/15 min |
+| SEC-12 | §5.4 | DDL ecosistema v9 |
+| FIS-01 | §5.2/§5.3 (def. Ledger 0164) | `issued_date_lima` +3 días |
+| FIS-02 | §6 | Estado SUNAT + deadline por tipo de documento |
+| FIS-03 | §5.2 | RC por emisor (`tenant_id`+`summary_date`); corrección de RC boleta |
+| FIS-07 | §5.4 | CHECKs DDL ecosistema |
+| FIS-08 | §6 | Reglas de negocio del motor |
+| FIS-10 | §6 | Reglas de negocio del motor |
+| FIS-11 | §5.4 | DDL ecosistema v9 |
+| FIS-12 | §6 | Reglas de negocio del motor |
+| COM-01 | §5.3 (6B) | DDL profundidad retail |
+| COM-02 | §5.4 | DDL ecosistema v9 |
+| COM-03 | §5.3 (6B) | DDL profundidad retail |
+| COM-04 | §5.3 (6B) | DDL profundidad retail |
+| COM-05 | §5.3 | Precio congelado en cotizaciones/preventas (snapshot) |
+| COM-06 | §5.3 (6C) | DDL cierre comercial |
+| COM-07 | §5.3 (6B) | DDL profundidad retail |
+| COM-08 | §5.3 (6B) | DDL profundidad retail |
+| COM-09 | §5.3 (6E) | DDL servicios y fuerza de venta |
+| COM-12 | §5.4 | DDL ecosistema v9 |
+| DAT-01 | §5.4 | `branch_id TEXT NULL` en `sunat_daily_summaries` |
+| DAT-02 | §6 | Estado SUNAT + deadline (compartida con FIS-02) |
+| DAT-03 | §5.3 (def. Ledger 0165) | Versión v8.1 en comentario DDL |
+| DAT-04 | §5.4 | CHECKs en `payment_captures`/`cash_register_sessions`/CxC/`sunat_daily_summaries` |
+| DAT-05 | §6 | Pago a crédito → CxC en la misma tx |
+| DAT-07 | §5.3 (6B) | Índices de venta/journal |
+| DAT-09 | §5.0/§6 (def. Ledger 0165) | Redondeo server-side `Math.round(centavos)`, jamás `toFixed` |
+| DAT-10 | §5.3 (def. Ledger 0165) | Ediciones acumulativas como "NOTA IMPORTANTE" |
+| DAT-11 | §6 | Reuso de `sale_payments.id` (sin UUID huérfano) |
+| PERF-01 | §6 | Hot path sin lecturas por ítem dentro del batch |
+| PERF-02 | §5.4 | DDL ecosistema v9 |
+| PERF-03 | §5.4 | DDL ecosistema v9 |
+| PERF-04 | §3 | Caché de 2 niveles en auth path |
+| PERF-05 | §5.4 | DDL ecosistema v9 |
+| PERF-06 | §5.4 | DDL ecosistema v9 |
+| PERF-07 | §6 | Upsert con `RETURNING id` |
+| PERF-08 | §6 | Cupo por documento emitido, idempotente |
+| PERF-09 | §5.4 | Pre-agregación de fuentes 1:N |
+| PERF-10 | §5.4 | Cupo por documento (compartida con PERF-08) |
+| PERF-11 | §5.3 | Zero-Trust de caja |
+| PERF-12 | §5.3 (6F) | Insights: réplica de lectura, `LIMIT 50`, NLG post-check |
+| SYN-01 | §5.4 | DDL ecosistema v9 |
+| SYN-02 | §6 | Correlativo emitido por servidor (compartida con SEC-05) |
+| SYN-03 | §5.4 | DDL ecosistema v9 |
+| SYN-04 | §6 | Ventana de skew única ±6h (compartida con SEC-06) |
+| SYN-05 | §6 | FEFO/lotes re-validadas en la tx |
+| SYN-06 | §6 | Política de oversell offline: venta aceptada jamás se pierde |
+| SYN-07 | §7 | Chunked Sync Dispatcher (Service Worker) |
+| SYN-08 | §6 | LWW en reloj de servidor |
+| SYN-11 | §1.10/§5.2 | Consolidación de cliente single-writer + RC complementaria |
+| SYN-12 | §6 | Contrato de atomicidad D1 |
+| ADR-ARCH-002 | §1.4 | Capability model vs `vertical_type` |
+| ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas |
+| ADR-FISCAL-002 | §5.1 | Decisiones fiscales (v2) |
+| LPDP-* | §5.3 (6F) | Privacidad (prefijo reservado; sin IDs emitidos aún) |
+
+Las reglas definidas por corrección de ledger (`FIS-01`, `DAT-03`, `DAT-09`, `DAT-10`) conservan su definición histórica en la entrada indicada de `Ledger.md` (inmutable) y su efecto normativo en la sección canónica de la especificación.
+
 ## **1\. Visión General del Sistema y Principios de Diseño**
 
 El objetivo de KipusPay v8.0 es ofrecer rendimiento extremo (Sub-50ms en Edge), costo operacional cercano a ![][image5] en etapa inicial y escalabilidad horizontal para soportar ![][image6] comercios, ![][image7] sucursales y ![][image8] de comprobantes diarios sin bloqueos de concurrencia ni duplicaciones contables.
@@ -838,6 +912,8 @@ KipusPay no asume que todo tenant es emisor electrónico desde el día 1. El ser
 ### **5.3 Operación comercial (KipusPay v8.1) — Zero-Trust de caja, inventario y comandas**
 
 Extiende el DDL base con entidades de operación. Implementación por sprints Agents FASE 6 (17–20). **No sustituye** el pipeline fiscal §5.2.
+
+> **Delimitación de §5.3:** la **prosa normativa** (reglas 1–12 Zero-Trust + reglas FASE 6B–6G 13–37) y el **DDL** viven aquí. No colocares en §5.3: reglas fiscales/SUNAT (§5.1–5.2), ecosistema Perú (§5.4), client-side/sync (§6–7) ni backlog v10 (Agents FASE 7). Si una regla pertenece a otra sección, se referencia por `§`, nunca se re-escribe.
 
 #### Reglas Zero-Trust de negocio
 
@@ -1755,6 +1831,8 @@ CREATE TABLE cash_register_shifts (
 ### **5.4 Ecosistema Perú (KipusPay v9) — puertos de integración Zero-Trust**
 
 Extiende el core sin meter SDKs de terceros en `domain-sales`. Implementación: Agents FASE 7 (sprints 21–24). **Stripe de billing SaaS** no es medio de pago de caja.
+
+> **Delimitación de §5.4:** **puertos de integración** (import/export, catálogo, ecosistema) con sus reglas y DDL. No colocares en §5.4: operación comercial interna (§5.3), pipeline fiscal (§5.2) ni el motor transaccional (§6). Cualquier regla compartida se referencia por `§` (ver Registry §0.4).
 
 #### Reglas
 
