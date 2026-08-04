@@ -219,9 +219,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // Reporting rollups / catálogo / CSV (Sprint 9) — flags default off
-  const reportQueryOpts = (
-    c: { req: { query: (k: string) => string | undefined } },
-  ): { reportDate: string; format?: string; branchId?: string } => {
+  const reportQueryOpts = (c: {
+    req: { query: (k: string) => string | undefined };
+  }): { reportDate: string; format?: string; branchId?: string } => {
     const opts: { reportDate: string; format?: string; branchId?: string } = {
       reportDate: c.req.query('date') ?? '',
     };
