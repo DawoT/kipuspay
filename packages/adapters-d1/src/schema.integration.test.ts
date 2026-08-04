@@ -6,6 +6,7 @@ import {
   DOWN_0001_DDL_BASE,
   DOWN_0002_WEBHOOK_EVENTS,
   DOWN_0003_ATOMIC_GUARDS,
+  DOWN_0004_AUDIT_EVENTS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -277,7 +278,24 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(guards?.n).toBe(0);
   });
 
-  it('down 0003 + 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+  it('migración 0004: audit_events append-only (UPDATE/DELETE abortan)', async () => {
+    // 0004 ya aplicada por apply-migrations; solo ejercita triggers.
+    await env.DB.prepare(
+      `INSERT INTO audit_events (
+         id, tenant_id, actor_user_id, action, entity_type, entity_id, payload_json, row_hash
+       ) VALUES ('ae1', 't1', 'u1', 'OFFLINE_OVERSELL', 'sale_item', 's1', '{}', 'h1')`,
+    ).run();
+
+    await expect(
+      env.DB.prepare(`UPDATE audit_events SET action = 'X' WHERE id = 'ae1'`).run(),
+    ).rejects.toThrow(/AUDIT_APPEND_ONLY/);
+    await expect(env.DB.prepare(`DELETE FROM audit_events WHERE id = 'ae1'`).run()).rejects.toThrow(
+      /AUDIT_APPEND_ONLY/,
+    );
+  });
+
+  it('down 0004 + 0003 + 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0004_AUDIT_EVENTS);
     await env.DB.exec(DOWN_0003_ATOMIC_GUARDS);
     await env.DB.exec(DOWN_0002_WEBHOOK_EVENTS);
     await env.DB.exec(DOWN_0001_DDL_BASE);

@@ -25,7 +25,10 @@ owner: "@DawoT"
 ## Impacto
 
 - Caja offline sigue encolando localmente; sync falla hasta remediar.
-- Oversell controlado (SYN-06) solo si `allow_negative_stock`; MVP Sprint 4 rechaza.
+- Oversell controlado (SYN-06): si `allow_negative_stock=1` y stock < qty, la venta
+  se acepta, el stock puede quedar negativo y se inserta `audit_events.action =
+  OFFLINE_OVERSELL` en el mismo batch. Si `allow_negative_stock=0`, preflight/
+  guard rechazan con `INSUFFICIENT_STOCK` (nunca stock negativo silencioso).
 
 ## Diagnóstico rápido (<5 min)
 

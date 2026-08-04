@@ -44,6 +44,29 @@ function isUniqueConstraint(error: unknown): boolean {
   return /UNIQUE|constraint/i.test(msg);
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function computeAuditHash(event: Record<string, unknown>): Promise<string> {
+  return sha256Hex(JSON.stringify(event));
+}
+
+async function previousAuditHash(
+  db: D1DatabaseLike,
+  tenantId: string,
+): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT row_hash FROM audit_events
+       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+    )
+    .bind(tenantId)
+    .first<{ row_hash: string }>();
+  return row?.row_hash ?? null;
+}
+
 async function loadAlreadySynced(
   db: D1DatabaseLike,
   tenantId: string,
@@ -201,6 +224,41 @@ export async function processOfflineSaleAtomic(
     qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.quantity);
   }
 
+  // SYN-06: preparar OFFLINE_OVERSELL antes del batch (hash-chain sobre stock preflight).
+  const oversellAudits: Array<{
+    id: string;
+    productId: string;
+    requested: number;
+    available: number;
+    prevHash: string | null;
+    rowHash: string;
+  }> = [];
+  let chainPrev = await previousAuditHash(db, tenantId);
+  for (const [productId, qty] of qtyByProduct) {
+    if (catalog.get(productId)!.type !== 'physical') continue;
+    const st = stockByProduct.get(productId)!;
+    if (st.allowNegative && st.stock < qty) {
+      const id = crypto.randomUUID();
+      const rowHash = await computeAuditHash({
+        action: 'OFFLINE_OVERSELL',
+        entity_id: saleId,
+        productId,
+        requested: qty,
+        available: st.stock,
+        prev_hash: chainPrev,
+      });
+      oversellAudits.push({
+        id,
+        productId,
+        requested: qty,
+        available: st.stock,
+        prevHash: chainPrev,
+        rowHash,
+      });
+      chainPrev = rowHash;
+    }
+  }
+
   try {
     await runD1AtomicPlan(db, (plan) => {
       const stockGuardIds: string[] = [];
@@ -233,6 +291,32 @@ export async function processOfflineSaleAtomic(
               .bind(guardId, qty, allow, tenantId, productId),
           );
         }
+      }
+
+      for (const audit of oversellAudits) {
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO audit_events (
+                   id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+                   payload_json, prev_hash, row_hash
+                 ) VALUES (?, ?, ?, ?, 'OFFLINE_OVERSELL', 'sale_item', ?, ?, ?, ?)`,
+            )
+            .bind(
+              audit.id,
+              tenantId,
+              payload.branchId,
+              userId,
+              saleId,
+              JSON.stringify({
+                productId: audit.productId,
+                requested: audit.requested,
+                available: audit.available,
+              }),
+              audit.prevHash,
+              audit.rowHash,
+            ),
+        );
       }
 
       // Correlativo atómico en el batch (evita carrera en current_number).

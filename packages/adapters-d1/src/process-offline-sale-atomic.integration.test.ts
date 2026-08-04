@@ -262,4 +262,50 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     expect(stock?.stock).toBe(0);
     expect(saleCount?.n).toBe(2);
   });
+
+  it('allow_negative_stock: oversell acepta y audita OFFLINE_OVERSELL (SYN-06)', async () => {
+    const fixture = await seedNvFixture('t-acid-oversell');
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE products SET allow_negative_stock = 1 WHERE id = ?`).bind(
+        fixture.productId,
+      ),
+      env.DB.prepare(
+        `UPDATE branch_product_stock SET stock = 1 WHERE tenant_id = ? AND product_id = ?`,
+      ).bind('t-acid-oversell', fixture.productId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    // qty 3 × 1000 = 3000 + IGV 18% = 3540
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-oversell',
+      fixture.userId,
+      nvPayload(fixture, 'off-oversell', 3, 3540),
+      now,
+    );
+    expect(result.status).toBe('SUCCESS');
+
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-oversell', fixture.productId)
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(-2);
+
+    const audit = await env.DB.prepare(
+      `SELECT action, payload_json FROM audit_events
+       WHERE tenant_id = ? AND action = 'OFFLINE_OVERSELL'`,
+    )
+      .bind('t-acid-oversell')
+      .first<{ action: string; payload_json: string }>();
+    expect(audit?.action).toBe('OFFLINE_OVERSELL');
+    const payload = JSON.parse(audit?.payload_json ?? '{}') as {
+      productId: string;
+      requested: number;
+      available: number;
+    };
+    expect(payload.productId).toBe(fixture.productId);
+    expect(payload.requested).toBe(3);
+    expect(payload.available).toBe(1);
+  });
 });
