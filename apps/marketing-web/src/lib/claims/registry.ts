@@ -4,7 +4,7 @@
  */
 
 export type ClaimStatus =
-  | { readonly kind: 'live' }
+  | { readonly kind: 'live'; readonly plan?: string }
   | { readonly kind: 'roadmap'; readonly unlockSprint: number; readonly label: string };
 
 export type FeaturedClaimId =
@@ -32,6 +32,7 @@ export const FEATURED_CLAIMS: Readonly<Record<FeaturedClaimId, ClaimStatus>> = {
   },
   owner_ranking: {
     kind: 'live',
+    plan: 'Crece+',
   },
   merma_xfer: {
     kind: 'roadmap',
@@ -46,7 +47,8 @@ export function resolveClaim(id: FeaturedClaimId): ClaimStatus {
 
 /** Texto seguro para UI: nunca presenta roadmap como disponible. */
 export function claimBadge(status: ClaimStatus): string {
-  if (status.kind === 'live') return 'Disponible';
+  if (status.kind === 'live')
+    return status.plan ? `Disponible (plan ${status.plan})` : 'Disponible';
   return `En el roadmap (Sprint ${status.unlockSprint})`;
 }
 

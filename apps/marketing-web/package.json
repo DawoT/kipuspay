@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "PUBLIC_FEATURE_MARKETING_SITE=1 vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --max-warnings 0",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

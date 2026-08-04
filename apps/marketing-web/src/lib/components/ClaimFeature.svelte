@@ -27,6 +27,10 @@
       Mientras tanto vendemos el dolor y lo ya listo: cobro, formalizacion y Modo Dueno basico.
     </p>
   {:else}
-    <p>Lista para tu negocio hoy: cobra y ve tu dia sin promesas de tiempo real.</p>
+    {#if status.kind === 'live' && status.plan}
+      <p>Lista para tu negocio hoy en el plan {status.plan}: cobra y ve tu dia sin promesas de tiempo real.</p>
+    {:else}
+      <p>Lista para tu negocio hoy: cobra y ve tu dia sin promesas de tiempo real.</p>
+    {/if}
   {/if}
 </div>

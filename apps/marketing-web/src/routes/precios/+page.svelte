@@ -6,6 +6,7 @@
 <svelte:head>
   <title>Precios · KipusPay</title>
   <meta name="description" content="Precios KipusPay — se publica en Sprint 11." />
+  <meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="stub" data-testid="stub-page">

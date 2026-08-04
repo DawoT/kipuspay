@@ -5,8 +5,7 @@ export const HOME = {
     'Vende, cobra y factura aunque se corte la luz, el internet, o sea tu dia de mas gente. Configuralo en minutos. Sin contratos largos, sin instalador, sin dolores de cabeza.',
   ctaPrimary: 'Empieza gratis',
   ctaSecondary: 'Ver como funciona',
-  trustLine:
-    'Comercios ya venden con KipusPay · Prueba con tus datos reales · Tus datos, siempre tuyos',
+  trustLine: 'Sin contratos largos · Tus datos, siempre tuyos · Configuralo en minutos',
   pains: [
     {
       pain: 'Se me lleno la cola y el sistema se puso lento.',
@@ -24,7 +23,7 @@ export const HOME = {
   steps: [
     {
       title: 'Cuentanos de tu negocio',
-      body: 'Si ya tienes RUC, traemos tus datos. Si aun formalizas, empiezas con el nombre de tu negocio.',
+      body: 'Dinos tu rubro y tu etapa: control interno o facturacion electronica. El registro completo con tu RUC llega en el Sprint 11.',
     },
     {
       title: 'Elige tu rubro y tu etapa',

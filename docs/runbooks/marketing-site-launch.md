@@ -10,7 +10,7 @@ owner: "@DawoT"
 | Campo | Valor |
 |---|---|
 | App | `apps/marketing-web` |
-| Soft-launch | `PUBLIC_FEATURE_MARKETING_SITE` / `FEATURE_MARKETING_SITE` default `0` |
+| Soft-launch | `PUBLIC_FEATURE_MARKETING_SITE` default `0` (build-time; el sitio es prerender estático) |
 | Owner | Staff Growth + Staff Content |
 | Relaciona | GTM §1–3 / §5 · Roadmap FASE 4 Sprint 10 |
 
@@ -31,13 +31,13 @@ Feature destacada por vertical solo `live` si el QG GTM §2 del sprint correspon
 python3 scripts/checks/marketing_copy.py
 ```
 
-0 terminos: Edge, D1, Workers, ACID, sharding, Durable Object.
+0 terminos: Edge, D1, Workers, ACID, sharding, Durable Object, Cloudflare, CDR, UBL, PSE.
 
 ## SEO
 
 - title / description / canonical por home, vertical y comparar
 - `robots.txt` + `sitemap.xml` prerender
-- Stubs con copy honesto de sprint (empezar: noindex)
+- Stubs con copy honesto de sprint (todos `noindex` hasta su sprint; ausentes del sitemap)
 
 ## Core Web Vitals (presupuesto)
 
@@ -51,8 +51,11 @@ Medicion con `PUBLIC_FEATURE_MARKETING_SITE=1` y `pnpm --filter @kipuspay/market
 
 Evidencia local (Sprint 10): LCP vía poster estatico en primer viewport; CLS 0 esperado (img dimensionada); INP sin handlers pesados. Re-medir con Lighthouse en preview antes de flip de flag en produccion.
 
-## Soft-launch
+## Soft-launch (build-time)
 
-1. Preview con flag `1` → Content + Growth firman copy/SEO.
-2. Flip `FEATURE_MARKETING_SITE=1` en Pages.
-3. Si rollback: flag `0` → pantalla "Sitio en preparacion".
+El sitio es prerender estático: el flag se decide en **build**, no en runtime.
+Un cambio de variable en Pages en caliente no cambia el contenido ya emitido.
+
+1. Preview: `PUBLIC_FEATURE_MARKETING_SITE=1 pnpm --filter @kipuspay/marketing-web build` + `preview`.
+2. Go-live: definir `PUBLIC_FEATURE_MARKETING_SITE=1` como variable de **build** del proyecto Pages y redeploy.
+3. Rollback: redeploy con `PUBLIC_FEATURE_MARKETING_SITE=0` (o sin la variable) → pantalla "Sitio en preparacion".

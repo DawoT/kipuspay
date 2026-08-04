@@ -6,6 +6,7 @@
 <svelte:head>
   <title>Ayuda · KipusPay</title>
   <meta name="description" content="Ayuda KipusPay — Sprint 13." />
+  <meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="stub" data-testid="stub-page">

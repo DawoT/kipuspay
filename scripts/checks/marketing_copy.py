@@ -16,8 +16,9 @@ TARGET = os.path.join(ROOT, "apps", "marketing-web")
 # Términos técnicos internos — no van en copy de cara al cliente (GTM §1).
 BANNED = re.compile(
     r"\b("
-    r"Edge|D1|Workers|ACID|sharding|Durable\s*Object|DurableObject|"
-    r"Analytics\s*Engine|workerd|Cloudflare\s*Workers"
+    r"Edge|D1|Workers?|ACID|sharding|Durable\s*Object|DurableObject|"
+    r"Analytics\s*Engine|workerd|Cloudflare\s*Workers|cloudflare|"
+    r"CDR|UBL|PSE"
     r")\b",
     re.IGNORECASE,
 )

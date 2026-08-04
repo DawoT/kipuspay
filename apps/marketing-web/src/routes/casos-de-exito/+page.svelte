@@ -6,6 +6,7 @@
 <svelte:head>
   <title>Casos de exito · KipusPay</title>
   <meta name="description" content="Casos de exito — Sprint 12." />
+  <meta name="robots" content="noindex" />
 </svelte:head>
 
 <main class="stub" data-testid="stub-page">

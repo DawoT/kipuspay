@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { claimBadge, isClaimLive, resolveClaim } from './registry.js';
+import { HOME } from '../content/home.js';
 
 describe('marketing claim-gate', () => {
   it('KDS/FEFO/arqueo Z / merma son roadmap con sprint', () => {
@@ -18,6 +19,21 @@ describe('marketing claim-gate', () => {
   it('servicios núcleo y ranking Dueño son live', () => {
     expect(isClaimLive(resolveClaim('services_core'))).toBe(true);
     expect(isClaimLive(resolveClaim('owner_ranking'))).toBe(true);
-    expect(claimBadge(resolveClaim('owner_ranking'))).toBe('Disponible');
+  });
+
+  it('owner_ranking exige plan Crece+ (GTM-03 / GTM §2)', () => {
+    const status = resolveClaim('owner_ranking');
+    expect(status.kind).toBe('live');
+    if (status.kind === 'live') expect(status.plan).toBe('Crece+');
+    expect(claimBadge(status)).toBe('Disponible (plan Crece+)');
+  });
+
+  it('no promete prueba social sin evidencia (GTM-12)', () => {
+    expect(HOME.trustLine).not.toMatch(/ya venden|miles de|clientes/);
+  });
+
+  it('no promete onboarding del Sprint 11 como actual', () => {
+    expect(HOME.steps[0].body).not.toContain('traemos tus datos');
+    expect(HOME.steps[0].body).toMatch(/Sprint 11/);
   });
 });

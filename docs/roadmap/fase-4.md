@@ -12,7 +12,7 @@ sprints: "10–13"
 #### Sprint 10 — Sitio de Marketing y Landings Verticales
 **Referencia:** GTM §1-3 / §5 · **Agentes:** Staff Growth (owner), Staff Design (colaborador), Staff Content (colaborador) · **Especificación:** Actualizada
 
-**Capabilities (FASE 4):** `marketing.site`, `marketing.vertical_landing`, `marketing.compare`, `marketing.claim_gate`. Flag soft-launch default `0`: `FEATURE_MARKETING_SITE`. App: `apps/marketing-web` (SvelteKit). Nomenclatura por capacidad (`marketing-site`, `marketing-claim-gate`); prohibido `sprint10-*`. Vertical = content slug + plantilla única (ADR-ARCH-002); no forks de UI por vertical.
+**Capabilities (FASE 4):** `marketing.site`, `marketing.vertical_landing`, `marketing.compare`, `marketing.claim_gate`. Flag soft-launch default `0`: `PUBLIC_FEATURE_MARKETING_SITE` (build-time; sitio prerender estático). App: `apps/marketing-web` (SvelteKit). Nomenclatura por capacidad (`marketing-site`, `marketing-claim-gate`); prohibido `sprint10-*`. Vertical = content slug + plantilla única (ADR-ARCH-002); no forks de UI por vertical.
 
 **Entregables:** home principal + 5 landings verticales (`/para/restaurantes`, `/para/farmacias`, `/para/retail`, `/para/servicios`, `/para/cadenas`), páginas `/comparar/[competidor]` (Bsale, Alegra, Siigo); claim-gate GTM (live vs roadmap+sprint); copy-lint anti-jerga; SEO on-page + CWV documentados.
 
