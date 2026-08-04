@@ -33,12 +33,16 @@ describe('chaos-harness contrato §13.5', () => {
     ).resolves.toBe('PASS');
   });
 
-  it('Sprint 4 concurrent-writers PASS con defaults', async () => {
-    await expect(runChaosScenario('concurrent-writers', 4)).resolves.toBe('PASS');
+  it('Sprint 4 concurrent-writers fail-closed sin deps', async () => {
+    await expect(runChaosScenario('concurrent-writers', 4)).rejects.toThrow(
+      /exige deps\.runConcurrentWriters/,
+    );
   });
 
-  it('Sprint 4 duplicate-retry PASS con defaults y custom', async () => {
-    await expect(runChaosScenario('duplicate-retry', 4)).resolves.toBe('PASS');
+  it('Sprint 4 duplicate-retry fail-closed sin deps y PASS con inject', async () => {
+    await expect(runChaosScenario('duplicate-retry', 4)).rejects.toThrow(
+      /exige deps\.runDuplicateRetry/,
+    );
     await expect(
       runChaosScenario('duplicate-retry', 4, {
         runDuplicateRetry: () =>

@@ -61,8 +61,9 @@ export interface ChaosSprint4Deps {
 }
 
 /**
- * Punto de entrada. Sprint 4: concurrent-writers / duplicate-retry requieren deps
- * inyectadas (evidencia D1 en adapters-d1) o usan jueces con fixtures de demo.
+ * Punto de entrada. Sprint 4: concurrent-writers / duplicate-retry exigen deps
+ * inyectadas (evidencia D1). Fail-closed: sin execute real → error, nunca PASS
+ * por fixtures de demo.
  */
 export async function runChaosScenario(
   scenario: ChaosScenarioId,
@@ -72,35 +73,25 @@ export async function runChaosScenario(
   assertScenarioReady(scenario, currentSprint);
 
   if (scenario === 'concurrent-writers') {
-    const execute =
-      deps.runConcurrentWriters ??
-      (() =>
-        Promise.resolve({
-          attempts: [
-            { ok: true, offlineSaleId: 'a' },
-            { ok: true, offlineSaleId: 'b' },
-            { ok: false, offlineSaleId: 'c' },
-          ],
-          finalStock: 0,
-          saleCount: 2,
-        }));
+    if (!deps.runConcurrentWriters) {
+      throw new Error(
+        'Escenario concurrent-writers exige deps.runConcurrentWriters (evidencia D1); fail-closed sin fixtures',
+      );
+    }
     return runConcurrentWritersChaos(
-      execute,
+      deps.runConcurrentWriters,
       deps.concurrentInitialStock ?? 2,
       deps.concurrentQtyEach ?? 1,
     );
   }
 
   if (scenario === 'duplicate-retry') {
-    const execute =
-      deps.runDuplicateRetry ??
-      (() =>
-        Promise.resolve({
-          firstStatus: 'SUCCESS',
-          secondStatus: 'ALREADY_SYNCED',
-          saleCount: 1,
-        }));
-    return runDuplicateRetryChaos(execute);
+    if (!deps.runDuplicateRetry) {
+      throw new Error(
+        'Escenario duplicate-retry exige deps.runDuplicateRetry (evidencia D1); fail-closed sin fixtures',
+      );
+    }
+    return runDuplicateRetryChaos(deps.runDuplicateRetry);
   }
 
   return Promise.reject(

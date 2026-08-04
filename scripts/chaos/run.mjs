@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Orquestador chaos (§13.5). Delega en la suite del harness + integration D1.
+ * Orquestador chaos (§13.5). Sprint 4+: evidencia D1 vive en adapters-d1
+ * integration (quality step 4). Aquí solo corre el harness unitario fail-closed
+ * (jueces + rechazo sin deps). No re-ejecuta integration (evita doble-run).
  */
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
@@ -27,14 +29,7 @@ const unit = spawnSync(
 );
 if (unit.status !== 0) process.exit(unit.status ?? 1);
 
-if (Number(sprint) >= 4) {
-  const integ = spawnSync(
-    'pnpm',
-    ['--filter', '@kipuspay/adapters-d1', 'test:integration'],
-    { stdio: 'inherit', shell: false },
-  );
-  if (integ.status !== 0) process.exit(integ.status ?? 1);
-}
-
-console.log(`RESULT chaos ${scenario} PASS (sprint ${sprint})`);
+console.log(
+  `RESULT chaos ${scenario} PASS (sprint ${sprint}; harness fail-closed; D1 evidence = quality step 4 integration)`,
+);
 process.exit(0);
