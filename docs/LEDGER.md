@@ -1779,3 +1779,37 @@ aprobaciones: [Staff Security, Staff Principal, Staff SRE]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0201
+timestamp_utc: 2026-08-04T13:20:00Z
+schema_version: 2
+sprint_fase: Sprint 3 — Fase 1 (Quality Gate cierre)
+agente_responsable: Staff Security
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0199, 0200]
+referencias_documentales: [docs/runbooks/stripe-webhook-failure.md, docs/adr/ADR-0005-stripe-webhook-webcrypto.md, docs/ROADMAP.md, docs/roadmap/fase-1.md]
+prev_id: 0200
+prev_hash: 2cd0b653b18d57ef56eee470cc4b32b83cff6ab0419c09dd58af7404cf5f8d5f
+entry_hash: e308d01289c2a476618f4fd9f0e3a37bea52aabb7b932dc48a7983091a81c309
+ticket_or_adr: ADR-0005
+test_ids: [handle-stripe-webhook, verify-stripe-signature, schema.integration]
+entregable_afectado: ROADMAP Sprint 3 Cerrado + runbook webhook + RACI QG
+descripcion: >
+  Cierre Sprint 3: runbook stripe-webhook-failure ensayado (suite); latencia
+  invalidación documentada (unit <100 ms); checklist QG ADR-0005 firmado
+  Security+SRE; ROADMAP/INDEX Entrega=Cerrado; gitleaks 0; verify+quality GREEN.
+evidencia: >
+  RED (ancestro 2da48e5): Sprint 3 En progreso sin runbook/QG firmado.
+  GREEN (commit acd567b): Sprint 3 Cerrado; QG GO; SUITE/quality GREEN.
+red_commit_sha: 2da48e5ee1525e8758bfafddbcf612f5cbddc42d
+red_run_id: run-red-0201-sprint3-qg
+expected_failure: AssertionError: Sprint 3 still En progreso / missing runbook QG
+green_commit_sha: acd567b2749e9fdf9f98cfc050e5949fafb434ce
+green_run_id: run-green-0201-sprint3-qg
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal, Staff SRE]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
