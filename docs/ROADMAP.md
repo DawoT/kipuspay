@@ -44,7 +44,7 @@ owner: "@DawoT"
 | 5 | 2 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | Cerrado |
 | 5b | 2 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
 | 6 | 2 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Cerrado |
-| 7 | 3 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | En progreso |
+| 7 | 3 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | Cerrado |
 | 8 | 3 | Base | Planificado |
 | 9 | 3 | Actualizada (M3 rollups §9) | Planificado |
 | 10–16 | 3–5 | Base | Planificado |

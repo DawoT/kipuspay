@@ -83,7 +83,7 @@ Abre solo los archivos que esta tabla te señale.
 | 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | Cerrado |
 | 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 34 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
 | 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 53 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Cerrado |
-| 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | En progreso |
+| 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | Cerrado |
 | 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 25 | Base | Planificado |
 | 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 36 | Actualizada (M3 rollups §9) | Planificado |
 | 10–16 | 3–5 | — | — | Base | Planificado |

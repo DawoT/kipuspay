@@ -10,7 +10,7 @@ sprints: "7–9"
 ### FASE 3 — Experiencia de Producto Premium
 
 #### Sprint 7 — POS Offline-First, Caja por Modo, Plantillas CPE/NV, Modo Vitrina y Hardware
-**Entrega:** En progreso (2026-08-04)
+**Entrega:** Cerrado (2026-08-04) — QG técnico GREEN; RACI `V` humana pendiente (`EN REVISION`)
 **Especificación:** Actualizada (capabilities `pos.checkout` / `pos.document_selector` / `hardware.print_templates` / `display.vitrina` / `pos.offline_correlative_reserve`; frontera S25 = sin print outbox ni ladder USB/WSS/BT)
 **Referencia:** Arquitectura §2, §5.2, §10; GTM §3.3.1 y §6.4 · **Agentes:** Staff Frontend (owner), Staff Hardware (owner conjunto), Staff Design (colaborador), Staff Fiscal (consultado)
 
