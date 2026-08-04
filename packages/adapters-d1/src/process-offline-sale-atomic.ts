@@ -20,6 +20,11 @@ import {
   type FormalizationMode,
   type TaxRegime,
 } from '@kipuspay/domain-fiscal-pe';
+import {
+  compensateArOnCreditNote,
+  defaultCreditDueDateIso,
+  planCreateAr,
+} from '@kipuspay/domain-cash';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 export type OfflineSaleResult =
@@ -167,17 +172,37 @@ function assertStockAvailable(
   }
 }
 
+export interface ProcessOfflineSaleOptions {
+  readonly nowMs?: number;
+  readonly insightsKv?: InsightsKv;
+  /** FEATURE_LEDGER_AR_AP — DAT-05 + E-D compensación. */
+  readonly ledgerArApEnabled?: boolean;
+}
+
 /**
- * Consolida venta offline NV/CPE de forma atómica (Sprint 4–5).
+ * Consolida venta offline NV/CPE de forma atómica (Sprint 4–5 / Sprint 8 ledger).
  */
 export async function processOfflineSaleAtomic(
   db: D1DatabaseLike,
   tenantId: string,
   userId: string,
   payload: OfflineSalePayload,
-  nowMs: number = Date.now(),
+  nowMsOrOpts: number | ProcessOfflineSaleOptions = Date.now(),
   insightsKv?: InsightsKv,
 ): Promise<OfflineSaleResult> {
+  const opts: ProcessOfflineSaleOptions =
+    typeof nowMsOrOpts === 'number'
+      ? {
+          nowMs: nowMsOrOpts,
+          ...(insightsKv ? { insightsKv } : {}),
+          ledgerArApEnabled: false,
+        }
+      : nowMsOrOpts;
+
+  const nowMs = opts.nowMs ?? Date.now();
+  const kv = opts.insightsKv ?? insightsKv;
+  const ledgerOn = opts.ledgerArApEnabled === true;
+
   assertOfflineSaleShape(payload);
 
   const already = await loadAlreadySynced(db, tenantId, payload.offlineSaleId);
@@ -295,6 +320,42 @@ export async function processOfflineSaleAtomic(
     crmPlan.kind === 'INSERT' || crmPlan.kind === 'UPDATE' || crmPlan.kind === 'KEEP'
       ? crmPlan.customerId
       : null;
+
+  const creditPayments = ledgerOn ? payload.payments.filter((p) => p.isCredit === true) : [];
+  if (creditPayments.length > 0 && !customerId) {
+    throw new Error('CREDIT_REQUIRES_CUSTOMER');
+  }
+
+  // E-D preflight: NV_RETURN sobre venta con CxC abierta.
+  let arCompensate:
+    | {
+        arId: string;
+        plan: ReturnType<typeof compensateArOnCreditNote>;
+      }
+    | undefined;
+  if (ledgerOn && isReturn && payload.referencedSaleId) {
+    const arRow = await db
+      .prepare(
+        `SELECT id, balance_due_cents FROM accounts_receivable
+         WHERE tenant_id = ? AND sale_id = ? AND balance_due_cents > 0 LIMIT 1`,
+      )
+      .bind(tenantId, payload.referencedSaleId)
+      .first<{ id: string; balance_due_cents: number }>();
+    if (arRow) {
+      arCompensate = {
+        arId: arRow.id,
+        plan: compensateArOnCreditNote({
+          accountsReceivableId: arRow.id,
+          originSaleId: payload.referencedSaleId,
+          currentBalanceCents: arRow.balance_due_cents,
+          creditAmountCents: totals.totalAmountCents,
+          paymentId: crypto.randomUUID(),
+          collectedByUserId: userId,
+          source: 'NV_RETURN',
+        }),
+      };
+    }
+  }
 
   const qtyByProduct = new Map<string, number>();
   for (const item of payload.items) {
@@ -606,6 +667,67 @@ export async function processOfflineSaleAtomic(
               pay.referenceNumber ?? null,
             ),
         );
+        // DAT-05: crédito → CxC en la MISMA tx (mismo db.batch).
+        if (ledgerOn && pay.isCredit === true && customerId) {
+          const ar = planCreateAr({
+            id: crypto.randomUUID(),
+            tenantId,
+            customerId,
+            saleId,
+            amountCents: pay.amountCents,
+            dueDateIso: defaultCreditDueDateIso(limaTs, 30),
+            createdAtIso: limaTs,
+          });
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO accounts_receivable (
+                     id, tenant_id, customer_id, sale_id, original_amount_cents,
+                     balance_due_cents, due_date, status, created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)`,
+              )
+              .bind(
+                ar.arId,
+                ar.tenantId,
+                ar.customerId,
+                ar.originSaleId,
+                ar.originalAmountCents,
+                ar.balanceDueCents,
+                ar.dueDateIso,
+                ar.createdAtIso,
+              ),
+          );
+        }
+      }
+
+      if (arCompensate) {
+        const c = arCompensate.plan;
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO accounts_receivable_payments (
+                   id, accounts_receivable_id, amount_cents, payment_method,
+                   cash_register_session_id, collected_by_user_id
+                 ) VALUES (?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+              c.paymentId,
+              c.accountsReceivableId,
+              c.appliedCents,
+              c.paymentMethod,
+              payload.cashRegisterSessionId,
+              c.collectedByUserId,
+            ),
+        );
+        plan.add(
+          db
+            .prepare(
+              `UPDATE accounts_receivable
+                 SET balance_due_cents = ?, status = ?
+               WHERE id = ? AND tenant_id = ? AND balance_due_cents > 0`,
+            )
+            .bind(c.nextBalanceCents, c.nextStatus, c.accountsReceivableId, tenantId),
+        );
       }
 
       // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).
@@ -639,14 +761,7 @@ export async function processOfflineSaleAtomic(
     .first<{ number: number }>();
 
   // Edge D: sync tardío de día cerrado → rematerialize rollup + invalidate insights KV.
-  await rematerializeDailyRollupIfClosedDay(
-    db,
-    tenantId,
-    payload.branchId,
-    limaTs,
-    nowMs,
-    insightsKv,
-  );
+  await rematerializeDailyRollupIfClosedDay(db, tenantId, payload.branchId, limaTs, nowMs, kv);
 
   return {
     status: 'SUCCESS',

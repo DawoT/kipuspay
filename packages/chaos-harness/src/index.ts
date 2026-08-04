@@ -16,11 +16,13 @@ import {
 } from './network-adversarial.js';
 import { runQuotaExceededChaos, type QuotaExceededResult } from './quota-exceeded.js';
 import { runLowEndDeviceChaos, type LowEndDeviceResult } from './low-end-device.js';
+import { runArCompensateChaos, type ArCompensateChaosResult } from './ar-compensate.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'
   | 'quota-exceeded'
   | 'low-end-device'
+  | 'ar-compensate'
   | 'shard-do-failure'
   | 'concurrent-writers'
   | 'duplicate-retry'
@@ -33,6 +35,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'network-adversarial': 6,
   'quota-exceeded': 6,
   'low-end-device': 7,
+  'ar-compensate': 8,
   'shard-do-failure': 26,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
@@ -72,6 +75,7 @@ export interface ChaosDeps {
   readonly networkCycles?: number;
   readonly runQuotaExceeded?: () => Promise<QuotaExceededResult>;
   readonly runLowEndDevice?: () => Promise<LowEndDeviceResult>;
+  readonly runArCompensate?: () => Promise<ArCompensateChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -129,6 +133,13 @@ async function dispatchReadyScenario(
           'Escenario low-end-device exige deps.runLowEndDevice (evidencia cola); fail-closed sin fixtures',
         ),
       );
+    case 'ar-compensate':
+      return runArCompensateChaos(
+        requireDep(
+          deps.runArCompensate,
+          'Escenario ar-compensate exige deps.runArCompensate (evidencia ciclos); fail-closed sin fixtures',
+        ),
+      );
     default:
       return Promise.reject(
         new Error(
@@ -164,3 +175,10 @@ export { judgeNetworkAdversarial, runNetworkAdversarialChaos } from './network-a
 export { judgeQuotaExceeded, runQuotaExceededChaos } from './quota-exceeded.js';
 
 export { judgeLowEndDevice, runLowEndDeviceChaos } from './low-end-device.js';
+
+export {
+  judgeArCompensate,
+  runArCompensateChaos,
+  runArCompensateCycles,
+  simulateArCompensateCycle,
+} from './ar-compensate.js';

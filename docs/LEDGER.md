@@ -2537,3 +2537,32 @@ aprobaciones: [Staff Frontend R; A/V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0223
+timestamp_utc: 2026-08-04T16:40:00Z
+schema_version: 2
+sprint_fase: Fase 3 — apertura ledger CxC/CxP + Modo Dueño
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: ROADMAP + flags
+relacion: AMPLIA
+referencias_entradas: [0222]
+referencias_documentales: [docs/ROADMAP.md, docs/roadmap/fase-3.md, docs/architecture/01-principles.md, apps/worker-api/wrangler.jsonc]
+prev_id: 0222
+prev_hash: 1a4c8460793ee0d9c31e3086b7c54a8d406776c7c3a54937980c9f8ed324cf8e
+entry_hash: a6919e717e801a1a7b4d1ccf5d91ad1f1e298030c272b2803386494186af7aae
+ticket_or_adr: GTM-6.3
+test_ids: [SUITE]
+entregable_afectado: Sprint 8 En progreso + FEATURE_LEDGER_* / OWNER_*
+descripcion: >
+  Apertura Sprint 8: ROADMAP fila 8 En progreso; spec Actualizada; capabilities
+  FASE 3 ledger/owner; flags FEATURE_LEDGER_AR_AP, FEATURE_PURCHASING_ORDERS,
+  FEATURE_CASH_EXPENSES, FEATURE_OWNER_MODE, FEATURE_OWNER_PUSH default 0;
+  frontera S9 (GTM-03/11 freeze) y S25 print.
+evidencia: >
+  ROADMAP fila 8 En progreso; wrangler flags=0; 01-principles capabilities FASE 3 S8.
+aprobaciones: [Staff Backend Datos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

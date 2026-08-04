@@ -1,18 +1,24 @@
 /**
- * processCreditNoteAtomic — NC 07 (Sprint 5 E-A / E-B).
- * Inserta NC referenciando origen; audita CREDIT_NOTE_NO_CDR; restaura stock salvo uncatalogued.
+ * processCreditNoteAtomic — NC 07 (Sprint 5 E-A / E-B + Sprint 8 E-D).
+ * Inserta NC referenciando origen; audita CREDIT_NOTE_NO_CDR; restaura stock salvo uncatalogued;
+ * compensa CxC del origen en la misma tx cuando FEATURE_LEDGER_AR_AP.
  */
 import {
   assertCreditNoteAllowed,
   stockRestoreQuantity,
   type CreditNoteRequest,
 } from '@kipuspay/domain-fiscal-pe';
+import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 
 export interface CreditNoteResult {
   readonly status: 'SUCCESS';
   readonly creditNoteSaleId: string;
   readonly requiresNoCdrAudit: boolean;
+}
+
+export interface ProcessCreditNoteOptions {
+  readonly ledgerArApEnabled?: boolean;
 }
 
 export async function processCreditNoteAtomic(
@@ -22,7 +28,9 @@ export async function processCreditNoteAtomic(
   originSaleId: string,
   request: CreditNoteRequest,
   series: string,
+  options: ProcessCreditNoteOptions = {},
 ): Promise<CreditNoteResult> {
+  const ledgerOn = options.ledgerArApEnabled === true;
   const origin = await db
     .prepare(
       `SELECT id, document_type, sunat_status, total_amount_cents, branch_id,
@@ -103,6 +111,28 @@ export async function processCreditNoteAtomic(
     )
     .then((buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join(''));
 
+  let arCompensate: ReturnType<typeof compensateArOnCreditNote> | undefined;
+  if (ledgerOn) {
+    const arRow = await db
+      .prepare(
+        `SELECT id, balance_due_cents FROM accounts_receivable
+         WHERE tenant_id = ? AND sale_id = ? AND balance_due_cents > 0 LIMIT 1`,
+      )
+      .bind(tenantId, originSaleId)
+      .first<{ id: string; balance_due_cents: number }>();
+    if (arRow) {
+      arCompensate = compensateArOnCreditNote({
+        accountsReceivableId: arRow.id,
+        originSaleId,
+        currentBalanceCents: arRow.balance_due_cents,
+        creditAmountCents: request.amountCents,
+        paymentId: crypto.randomUUID(),
+        collectedByUserId: userId,
+        source: 'CREDIT_NOTE',
+      });
+    }
+  }
+
   await runD1AtomicPlan(db, (plan) => {
     plan.add(
       db
@@ -179,6 +209,40 @@ export async function processCreditNoteAtomic(
                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
           )
           .bind(restore, tenantId, origin.branch_id, item.productId),
+      );
+    }
+
+    if (arCompensate) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO accounts_receivable_payments (
+                 id, accounts_receivable_id, amount_cents, payment_method,
+                 cash_register_session_id, collected_by_user_id
+               ) VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            arCompensate.paymentId,
+            arCompensate.accountsReceivableId,
+            arCompensate.appliedCents,
+            arCompensate.paymentMethod,
+            origin.cash_register_session_id,
+            arCompensate.collectedByUserId,
+          ),
+      );
+      plan.add(
+        db
+          .prepare(
+            `UPDATE accounts_receivable
+               SET balance_due_cents = ?, status = ?
+             WHERE id = ? AND tenant_id = ? AND balance_due_cents > 0`,
+          )
+          .bind(
+            arCompensate.nextBalanceCents,
+            arCompensate.nextStatus,
+            arCompensate.accountsReceivableId,
+            tenantId,
+          ),
       );
     }
   });

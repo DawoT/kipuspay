@@ -22,6 +22,8 @@ export interface OfflinePaymentPayload {
   readonly paymentMethodId: string;
   readonly amountCents: number;
   readonly referenceNumber?: string | undefined;
+  /** DAT-05: crédito de tienda → CxC en la misma tx (servidor revalida). */
+  readonly isCredit?: boolean | undefined;
 }
 
 export interface OfflineSaleItemPayload {
@@ -50,6 +52,8 @@ export interface OfflineSalePayload {
   readonly currency?: 'PEN' | undefined;
   readonly items: readonly OfflineSaleItemPayload[];
   readonly payments: readonly OfflinePaymentPayload[];
+  /** NV_RETURN / NC: venta origen para compensación CxC (edge E-D). */
+  readonly referencedSaleId?: string | undefined;
 }
 
 const ISSUED_AT_SKEW_MS = 6 * 3600 * 1000;

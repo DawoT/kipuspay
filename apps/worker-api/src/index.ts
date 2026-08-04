@@ -18,6 +18,18 @@ import {
   runOwnerAlertsHttp,
   runVoidBoletaHttp,
 } from './fiscal/fiscal-rc-routes.js';
+import {
+  runCreateApHttp,
+  runCreateExpenseHttp,
+  runCreatePoHttp,
+  runListApHttp,
+  runListArHttp,
+  runOwnerDaySummaryHttp,
+  runPayApHttp,
+  runPayArHttp,
+  runTransitionPoHttp,
+} from './ledger/ledger-routes.js';
+import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -96,6 +108,108 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } = await c.req.json();
     const result = await runFiscalCronHttp(c.env, body);
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
+  // Ledger CxC/CxP/OC/egresos + Modo Dueño read (Sprint 8) — flags default off
+  app.get('/api/ledger/ar', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListArHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+  app.post('/api/ledger/ar/pay', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runPayArHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.get('/api/ledger/ap', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListApHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+  app.post('/api/ledger/ap', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runCreateApHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 404 | 422 | 503);
+  });
+  app.post('/api/ledger/ap/pay', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runPayApHttp(c.env, jwt?.tenantId ?? '', body as Record<string, unknown>);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/purchasing/orders', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreatePoHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+  app.post('/api/purchasing/orders/transition', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runTransitionPoHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/cash/expenses', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateExpenseHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/day-summary', async (c) => {
+    const jwt = c.get('jwt');
+    const date = c.req.query('date') ?? '';
+    const result = await runOwnerDaySummaryHttp(c.env, jwt?.tenantId ?? '', date);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+  app.post('/api/owner/push/subscribe', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runSubscribePushHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+  app.post('/api/owner/push/send', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runSendOwnerPushHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 404 | 503);
   });
 
   // Portal CPE: auth por token (adquirente), fuera del JWT tenant.

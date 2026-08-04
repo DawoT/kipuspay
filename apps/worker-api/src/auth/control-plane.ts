@@ -33,6 +33,11 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_POS_CHECKOUT?: string;
   readonly FEATURE_PRINT_TEMPLATES?: string;
   readonly FEATURE_VITRINA?: string;
+  readonly FEATURE_LEDGER_AR_AP?: string;
+  readonly FEATURE_PURCHASING_ORDERS?: string;
+  readonly FEATURE_CASH_EXPENSES?: string;
+  readonly FEATURE_OWNER_MODE?: string;
+  readonly FEATURE_OWNER_PUSH?: string;
   readonly CPE_PORTAL_SECRET?: string;
 }
 

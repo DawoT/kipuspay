@@ -27,6 +27,7 @@
     "wrangler": "^4.118.0"
   },
   "dependencies": {
+    "@kipuspay/domain-cash": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*"
   }

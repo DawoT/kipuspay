@@ -1,6 +1,12 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0008_PUSH_SUBSCRIPTIONS = `
+DROP INDEX IF EXISTS idx_push_subscriptions_tenant_user;
+DROP INDEX IF EXISTS uq_push_subscriptions_endpoint;
+DROP TABLE IF EXISTS push_subscriptions;
+`;
+
 export const DOWN_0007_DAILY_ROLLUPS = `
 DROP INDEX IF EXISTS idx_daily_financial_rollups_tenant_date;
 DROP TABLE IF EXISTS daily_financial_rollups;

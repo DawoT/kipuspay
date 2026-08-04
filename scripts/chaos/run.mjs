@@ -35,6 +35,11 @@ if (Number(sprint) < 7 && scenario === 'low-end-device') {
   process.exit(2);
 }
 
+if (Number(sprint) < 8 && scenario === 'ar-compensate') {
+  console.error(`Escenario ar-compensate activo desde fase ledger Dueño (sprint≥8)`);
+  process.exit(2);
+}
+
 const unit = spawnSync(
   'pnpm',
   ['--filter', '@kipuspay/chaos-harness', 'test:unit'],

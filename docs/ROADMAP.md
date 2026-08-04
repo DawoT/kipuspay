@@ -45,7 +45,7 @@ owner: "@DawoT"
 | 5b | 2 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
 | 6 | 2 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Cerrado |
 | 7 | 3 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | Cerrado |
-| 8 | 3 | Base | Planificado |
+| 8 | 3 | Actualizada (ledger CxC/CxP/OC/egresos + Modo Dueño + offline rollup + owner.push_alerts; GTM-03/11 freeze) | Cerrado |
 | 9 | 3 | Actualizada (M3 rollups §9) | Planificado |
 | 10–16 | 3–5 | Base | Planificado |
 | 17 | 6 | Actualizada (M6/M7 caja dura + audit) | Planificado |

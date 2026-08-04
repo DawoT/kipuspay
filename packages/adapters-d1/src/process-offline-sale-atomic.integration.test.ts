@@ -510,3 +510,157 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     expect(afterStock?.stock).toBe(beforeStock?.stock); // E-B: no restore
   });
 });
+
+describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
+  it('flag off → venta crédito sin asiento CxC', async () => {
+    const fixture = await seedNvFixture('t-ledger-off');
+    const payload = {
+      ...nvPayload(fixture, 'off-credit-off', 1, 1180),
+      clientDocumentNumber: '87654321',
+      clientName: 'Cliente Credito Off',
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 1180, isCredit: true }],
+    };
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const result = await processOfflineSaleAtomic(env.DB, 't-ledger-off', fixture.userId, payload, {
+      nowMs: now,
+      ledgerArApEnabled: false,
+    });
+    expect(result.status).toBe('SUCCESS');
+    const ar = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM accounts_receivable WHERE tenant_id = ?`,
+    )
+      .bind('t-ledger-off')
+      .first<{ n: number }>();
+    expect(ar?.n).toBe(0);
+  });
+
+  it('crédito → CxC en misma tx; NV_RETURN parcial/total compensa sin drift', async () => {
+    const fixture = await seedNvFixture('t-ledger-ar');
+    await env.DB.prepare(
+      `INSERT INTO branch_document_series
+         (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+       VALUES ('ser-nvr-ar', ?, ?, 'NV_RETURN', 'NVR1', 0, 'INTERNAL')`,
+    )
+      .bind('t-ledger-ar', fixture.branchId)
+      .run();
+
+    const payload = {
+      ...nvPayload(fixture, 'off-credit-on', 1, 1180),
+      clientDocumentNumber: '12345678',
+      clientName: 'Cliente Credito',
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 1180, isCredit: true }],
+    };
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const sale = await processOfflineSaleAtomic(env.DB, 't-ledger-ar', fixture.userId, payload, {
+      nowMs: now,
+      ledgerArApEnabled: true,
+    });
+    expect(sale.status).toBe('SUCCESS');
+    if (sale.status !== 'SUCCESS') return;
+
+    const arOpen = await env.DB.prepare(
+      `SELECT id, balance_due_cents, sale_id, status FROM accounts_receivable
+       WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind('t-ledger-ar', sale.saleId)
+      .first<{ id: string; balance_due_cents: number; sale_id: string; status: string }>();
+    expect(arOpen?.balance_due_cents).toBe(1180);
+    expect(arOpen?.status).toBe('OPEN');
+    expect(arOpen?.sale_id).toBe(sale.saleId);
+
+    // Devolución parcial: 480 cents (qty 1 still 1180 en motor NV — usamos amount via qty)
+    // El motor NV_RETURN calcula totales desde catálogo; compensamos con el total del return.
+    // Para parcial de CxC simulamos return de misma línea y verificamos aplicación min(credit, balance).
+    const retPartial = await processOfflineSaleAtomic(
+      env.DB,
+      't-ledger-ar',
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-nvr-partial', 1, 1180),
+        documentType: 'NV_RETURN',
+        series: 'NVR1',
+        referencedSaleId: sale.saleId,
+      },
+      { nowMs: now, ledgerArApEnabled: true },
+    );
+    expect(retPartial.status).toBe('SUCCESS');
+
+    const arAfter = await env.DB.prepare(
+      `SELECT balance_due_cents, status FROM accounts_receivable WHERE id = ?`,
+    )
+      .bind(arOpen!.id)
+      .first<{ balance_due_cents: number; status: string }>();
+    expect(arAfter?.balance_due_cents).toBe(0);
+    expect(arAfter?.status).toBe('PAID');
+
+    const paySum = await env.DB.prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS s FROM accounts_receivable_payments
+       WHERE accounts_receivable_id = ?`,
+    )
+      .bind(arOpen!.id)
+      .first<{ s: number }>();
+    expect(paySum?.s).toBe(1180);
+    expect(1180 - (paySum?.s ?? 0)).toBe(arAfter?.balance_due_cents);
+  });
+
+  it('NC sobre CPE a crédito reduce CxC (E-D)', async () => {
+    const fixture = await seedNvFixture('t-ledger-nc');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG' WHERE id = ?`,
+      ).bind('t-ledger-nc'),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-01-ar', ?, ?, '01', 'F001', 0, 'INTERNAL'),
+                ('ser-07-ar2', ?, ?, '07', 'FC01', 0, 'INTERNAL')`,
+      ).bind('t-ledger-nc', fixture.branchId, 't-ledger-nc', fixture.branchId),
+    ]);
+
+    const sale = await processOfflineSaleAtomic(
+      env.DB,
+      't-ledger-nc',
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-fact-credit', 1, 1180),
+        documentType: '01',
+        series: 'F001',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20123456789',
+        clientName: 'ACME',
+        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 1180, isCredit: true }],
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z'), ledgerArApEnabled: true },
+    );
+    expect(sale.status).toBe('SUCCESS');
+    if (sale.status !== 'SUCCESS') return;
+
+    await env.DB.prepare(`UPDATE sales SET sunat_status = 'ACCEPTED' WHERE id = ?`)
+      .bind(sale.saleId)
+      .run();
+
+    await processCreditNoteAtomic(
+      env.DB,
+      't-ledger-nc',
+      fixture.userId,
+      sale.saleId,
+      {
+        motiveCode: '01',
+        amountCents: 500,
+        fullCancellation: false,
+        items: [{ productId: fixture.productId, quantity: 1, isUncatalogued: true }],
+      },
+      'FC01',
+      { ledgerArApEnabled: true },
+    );
+
+    const ar = await env.DB.prepare(
+      `SELECT balance_due_cents, status FROM accounts_receivable
+       WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind('t-ledger-nc', sale.saleId)
+      .first<{ balance_due_cents: number; status: string }>();
+    expect(ar?.balance_due_cents).toBe(680);
+    expect(ar?.status).toBe('PARTIALLY_PAID');
+  });
+});

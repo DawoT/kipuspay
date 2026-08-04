@@ -15,6 +15,9 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "build": "true"
   },
+  "dependencies": {
+    "@kipuspay/domain-cash": "workspace:*"
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",

@@ -121,6 +121,13 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | `hardware.print_templates` | 7 | Tickets CPE/NV 58/80 (no ladder S25) |
 | `display.vitrina` | 7 | Customer display en cobro |
 | `pos.offline_correlative_reserve` | 7 | Reserva tentativa local; server autoritativo |
+| `ledger.accounts_receivable` | 8 | CxC + DAT-05 + compensación NC (E-D) |
+| `ledger.accounts_payable` | 8 | CxP + pagos |
+| `purchasing.orders` | 8 | Órdenes de compra (status mínimo; sin 3-way) |
+| `cash.register_expenses` | 8 | Egresos de caja chica |
+| `owner.mode` | 8 | PWA Modo Dueño Hoy/Finanzas/Yo |
+| `owner.offline_rollup` | 8 | Cache IDB rollup + banner antigüedad |
+| `owner.push_alerts` | 8 | Push accionable Dueño (no `mobile.push` completo) |
 
 **Capabilities canónicas (FASE 6 → flags):**
 

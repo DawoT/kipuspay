@@ -15,3 +15,15 @@ export function isPrintTemplatesEnabled(): boolean {
 export function isVitrinaEnabled(): boolean {
   return flagOn(import.meta.env.PUBLIC_FEATURE_VITRINA as string | undefined);
 }
+
+export function isOwnerModeEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_OWNER_MODE as string | undefined);
+}
+
+export function isOwnerPushEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_OWNER_PUSH as string | undefined);
+}
+
+export function isLedgerArApEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_LEDGER_AR_AP as string | undefined);
+}

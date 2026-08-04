@@ -23,9 +23,13 @@ sprints: "7–9"
 ---
 
 #### Sprint 8 — Ledger Completo (CxC/CxP/Compras) y App "Modo Dueño"
-**Referencia:** Arquitectura §5 (ledger); GTM §6.3 · **Agentes:** Staff Backend Datos (owner), Staff Mobile/Producto (owner conjunto)
+**Referencia:** Arquitectura §5 (ledger) / §6 (DAT-05, edge E-D); GTM §6.3 · **Agentes:** Staff Backend Datos (owner), Staff Mobile/Producto (owner conjunto) · **Especificación:** Actualizada
 
-**Entregables:** módulos de cuentas por cobrar/pagar, órdenes de compra, egresos de caja chica; app Modo Dueño con resumen del día sin scroll, alertas push accionables, modo oscuro real; en pestaña **Yo**: plan/suscripción + atajo “Activar facturación electrónica” (config profunda en Admin).
+**Capabilities (FASE 3):** `ledger.accounts_receivable`, `ledger.accounts_payable`, `purchasing.orders`, `cash.register_expenses`, `owner.mode`, `owner.offline_rollup`, `owner.push_alerts`. Flags default `0`: `FEATURE_LEDGER_AR_AP`, `FEATURE_PURCHASING_ORDERS`, `FEATURE_CASH_EXPENSES`, `FEATURE_OWNER_MODE`, `FEATURE_OWNER_PUSH`. Nomenclatura por capacidad (`ledger-ar`, `owner-mode`, `ar-compensate`); prohibido `sprint8-*`.
+
+**Entregables:** módulos de cuentas por cobrar/pagar, órdenes de compra, egresos de caja chica; PWA Modo Dueño (tabs Hoy / Finanzas / Yo; Locales ranking UI gated / copy no-live) con resumen del día sin scroll, alertas push accionables (`owner.push_alerts`), modo oscuro real; en pestaña **Yo**: plan/suscripción + atajo “Activar facturación electrónica” (config profunda en Admin). Lectura Dueño desde `daily_financial_rollups` (S6); sin catálogo de reportes S9.
+
+**Frontera explícita:** Sprint 9 (catálogo reportes, cron multi-shard, CSV, descongelar GTM-03/11); Sprint 25 (print ladder/outbox); Sprint 17 (`cash.blind_z` / credit limit runtime); Sprint 20/28 (partial receive / three-way); Sprint 43–45 (`mobile.push` completo — aquí solo `owner.push_alerts`). **GTM-03 / GTM-11 claims siguen congelados** para Growth hasta S9; S8 implementa infra offline+banner sin descongelar pitch.
 
 **Criterios de aceptación:** 100% de asientos CxC/CxP trazables a su transacción origen; alertas push con tasa de entrega ≥99%; app revisada bajo el "modelo de interacción de app de consumo" (no de panel administrativo); **compensación de CxC en NC/devolución (edge E-D): una NC/NV_RETURN sobre venta con `balance_due_cents > 0` reduce el saldo en la misma tx — 0 discrepancias saldo vs asientos en 500 ciclos (total y parcial)**; **Modo Dueño legible offline (edge D): el resumen del día y el ranking por sucursal se muestran sin conexión desde el último rollup cacheado en IndexedDB (lectura pura), con banner de marca de tiempo ("Datos de hace X horas") que nunca se presenta como en vivo, y refresco automático al reconectar**.
 

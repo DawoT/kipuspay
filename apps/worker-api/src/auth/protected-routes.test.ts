@@ -10,6 +10,17 @@ import type { TenantAuthDeps } from './tenant-auth-middleware.js';
 const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/pos/totals' },
   { method: 'POST', path: '/api/pos/offline-sale' },
+  { method: 'GET', path: '/api/ledger/ar' },
+  { method: 'POST', path: '/api/ledger/ar/pay' },
+  { method: 'GET', path: '/api/ledger/ap' },
+  { method: 'POST', path: '/api/ledger/ap' },
+  { method: 'POST', path: '/api/ledger/ap/pay' },
+  { method: 'POST', path: '/api/purchasing/orders' },
+  { method: 'POST', path: '/api/purchasing/orders/transition' },
+  { method: 'POST', path: '/api/cash/expenses' },
+  { method: 'GET', path: '/api/owner/day-summary' },
+  { method: 'POST', path: '/api/owner/push/subscribe' },
+  { method: 'POST', path: '/api/owner/push/send' },
 ];
 
 const tenant: AuthTenantSnapshot = {

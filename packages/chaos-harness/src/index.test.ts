@@ -8,6 +8,8 @@ import {
   judgeNetworkAdversarial,
   judgeQuotaExceeded,
   judgeLowEndDevice,
+  judgeArCompensate,
+  runArCompensateCycles,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -230,6 +232,24 @@ describe('chaos-harness contrato §13.5', () => {
         feedbackP95Ms: 5,
       }),
     ).toBe('FAIL');
+  });
+
+  it('ar-compensate fail-closed + 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['ar-compensate']).toBe(8);
+    expect(() => assertScenarioReady('ar-compensate', 7)).toThrow(ChaosScenarioNotReadyError);
+    await expect(runChaosScenario('ar-compensate', 8)).rejects.toThrow(
+      /exige deps\.runArCompensate/,
+    );
+    const cycles = runArCompensateCycles(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeArCompensate(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('ar-compensate', 8, {
+        runArCompensate: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+    expect(judgeArCompensate({ cycles: 10, discrepancies: 0, samples: [] })).toBe('FAIL');
+    expect(judgeArCompensate({ cycles: 500, discrepancies: 1, samples: [] })).toBe('FAIL');
   });
 
   it('rechaza escenario activo en Sprint N sin runner aún', async () => {

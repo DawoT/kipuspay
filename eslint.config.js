@@ -14,7 +14,8 @@ const noRestrictedSyntax = [
   },
   {
     message: 'UPSERT INTO prohibido (AGENTS §2): usar ON CONFLICT explícito dentro de db.batch().',
-    selector: "CallExpression[callee.name='raw'][arguments.0.type='TemplateLiteral'][arguments.0.quasis.0.value.raw=/[\\s\\S]*UPSERT\\s+INTO/i]",
+    selector:
+      "CallExpression[callee.name='raw'][arguments.0.type='TemplateLiteral'][arguments.0.quasis.0.value.raw=/[\\s\\S]*UPSERT\\s+INTO/i]",
   },
   {
     message: 'toFixed() prohibido para montos (DAT-09): redondear con Math.round en el servidor.',
@@ -36,17 +37,8 @@ const domainOverrides = {
     'no-restricted-imports': [
       'error',
       {
-        patterns: [
-          'cloudflare:*',
-          '@cloudflare/*',
-          'hono*',
-          'miniflare*',
-          'svelte*',
-          'wrangler',
-        ],
-        paths: [
-          'd1', 'r2', 'kv', 'queues',
-        ],
+        patterns: ['cloudflare:*', '@cloudflare/*', 'hono*', 'miniflare*', 'svelte*', 'wrangler'],
+        paths: ['d1', 'r2', 'kv', 'queues'],
       },
     ],
     complexity: ['error', { max: 12 }],
@@ -109,7 +101,8 @@ export default tseslint.config(
     rules: {
       'no-secrets/no-secrets': ['error', { tolerance: 3.9 }],
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
-      'no-restricted-syntax': ['error', ...noRestrictedSyntax],      '@typescript-eslint/restrict-template-expressions': 'off',
+      'no-restricted-syntax': ['error', ...noRestrictedSyntax],
+      '@typescript-eslint/restrict-template-expressions': 'off',
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/await-thenable': 'error',

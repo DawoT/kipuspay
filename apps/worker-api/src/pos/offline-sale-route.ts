@@ -12,6 +12,11 @@ export function isFiscalCpeEnabled(env: WorkerEnv | undefined): boolean {
   return flag === '1' || flag === 'true';
 }
 
+export function isLedgerArApEnabled(env: WorkerEnv | undefined): boolean {
+  const flag = env?.FEATURE_LEDGER_AR_AP;
+  return flag === '1' || flag === 'true';
+}
+
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
   if (error instanceof InsufficientStockError) {
     return {
@@ -76,7 +81,9 @@ export async function runOfflineSaleHttp(
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
   try {
-    const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload);
+    const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
+      ledgerArApEnabled: isLedgerArApEnabled(env),
+    });
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (error) {
     return mapError(error);

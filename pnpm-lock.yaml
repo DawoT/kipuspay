@@ -102,6 +102,9 @@ importers:
       '@kipuspay/adapters-d1':
         specifier: workspace:*
         version: link:../../packages/adapters-d1
+      '@kipuspay/domain-cash':
+        specifier: workspace:*
+        version: link:../../packages/domain-cash
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../../packages/domain-fiscal-pe
@@ -168,6 +171,9 @@ importers:
 
   packages/adapters-d1:
     dependencies:
+      '@kipuspay/domain-cash':
+        specifier: workspace:*
+        version: link:../domain-cash
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../domain-fiscal-pe
@@ -262,6 +268,10 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
 
   packages/chaos-harness:
+    dependencies:
+      '@kipuspay/domain-cash':
+        specifier: workspace:*
+        version: link:../domain-cash
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10
