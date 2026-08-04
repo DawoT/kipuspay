@@ -1890,3 +1890,37 @@ aprobaciones: [Staff Backend ACID, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0204
+timestamp_utc: 2026-08-04T14:20:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (processOfflineSaleAtomic NV slice 2)
+agente_responsable: Staff Backend ACID
+tipo: Entregable nuevo
+subtipo: processOfflineSaleAtomic
+relacion: AMPLIA
+referencias_entradas: [0203]
+referencias_documentales: [packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/domain-sales/src/offline-sale.ts, docs/architecture/06-acid-engine.md]
+prev_id: 0203
+prev_hash: fbcc2349de2c61eacec9632da37f0e885e87a30b585904ebf96f8106a405cf80
+entry_hash: eec342fedbb2d771e62fc5cfdda37fc75d5989edb05fd286028f2452d090b54e
+ticket_or_adr: ADR-0007
+test_ids: [offline-sale, process-offline-sale-atomic.integration, index]
+entregable_afectado: domain-sales offline + adapters-d1 processOfflineSaleAtomic
+descripcion: >
+  Slice 2 Sprint 4: contratos NV en domain-sales; processOfflineSaleAtomic con
+  preflight, guards SQL anti-carrera, correlativo, stock, pagos; idempotencia
+  ALREADY_SYNCED; tests integración D1 (stock/sesión/skew/dup).
+evidencia: >
+  RED (ancestro 8f23aba): sin processOfflineSaleAtomic.
+  GREEN (commit e201c8b): domain 100% coverage; 14 integration adapters-d1 GREEN.
+red_commit_sha: 8f23abad25f45d1edcb335a5615f59eee452be46
+red_run_id: run-red-0204-offline-atomic
+expected_failure: AssertionError: missing processOfflineSaleAtomic / offline contracts
+green_commit_sha: e201c8bf6208812d0f968efa94e37f054e6af2dc
+green_run_id: run-green-0204-offline-atomic
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Fiscal, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
