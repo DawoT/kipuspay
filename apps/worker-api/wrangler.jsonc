@@ -41,5 +41,6 @@
   ],
   "vars": {
     "FQDN": "https://api.kipuspay.local",
+    "FEATURE_ACID_OFFLINE_SALE": "0",
   },
 }

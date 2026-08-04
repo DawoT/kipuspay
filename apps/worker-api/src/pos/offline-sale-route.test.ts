@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest';
+import { createApp } from '../index.js';
+import type { AuthTenantSnapshot } from '../auth/auth-decide.js';
+import type { WorkerEnv } from '../auth/control-plane.js';
+import type { TenantAuthDeps } from '../auth/tenant-auth-middleware.js';
+import { isAcidOfflineSaleEnabled, runOfflineSaleHttp } from './offline-sale-route.js';
+
+const tenant: AuthTenantSnapshot = {
+  id: 't1',
+  status: 'active',
+  subscriptionStatus: 'active',
+  trialEndsAt: null,
+  pastGracePeriod: false,
+};
+
+const authed: TenantAuthDeps = {
+  verifyJwt: () => Promise.resolve({ tenantId: 't1', sub: 'u1' }),
+  getTenant: () => Promise.resolve(tenant),
+  checkRevocation: () => Promise.resolve({ available: true, revoked: false }),
+};
+
+describe('isAcidOfflineSaleEnabled', () => {
+  it('solo true con 1/true', () => {
+    expect(isAcidOfflineSaleEnabled(undefined)).toBe(false);
+    expect(isAcidOfflineSaleEnabled({} as WorkerEnv)).toBe(false);
+    expect(isAcidOfflineSaleEnabled({ FEATURE_ACID_OFFLINE_SALE: '0' } as WorkerEnv)).toBe(false);
+    expect(isAcidOfflineSaleEnabled({ FEATURE_ACID_OFFLINE_SALE: '1' } as WorkerEnv)).toBe(true);
+    expect(isAcidOfflineSaleEnabled({ FEATURE_ACID_OFFLINE_SALE: 'true' } as WorkerEnv)).toBe(true);
+  });
+});
+
+describe('runOfflineSaleHttp', () => {
+  it('flag off → 404 FEATURE_DISABLED', async () => {
+    const res = await runOfflineSaleHttp(undefined, 't1', 'u1', {
+      offlineSaleId: 'x',
+      branchId: 'b',
+      cashRegisterSessionId: 's',
+      documentType: 'NV',
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '1',
+      clientName: 'C',
+      items: [{ productId: 'p', quantity: 1 }],
+      payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
+    });
+    expect(res).toEqual({
+      status: 404,
+      body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' },
+    });
+  });
+
+  it('flag on sin DB → 503', async () => {
+    const res = await runOfflineSaleHttp(
+      { FEATURE_ACID_OFFLINE_SALE: '1' } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'x',
+        branchId: 'b',
+        cashRegisterSessionId: 's',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        items: [{ productId: 'p', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
+      },
+    );
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('DB_UNAVAILABLE');
+  });
+});
+
+describe('POST /api/pos/offline-sale auth', () => {
+  it('exige Bearer (401)', async () => {
+    const app = createApp(authed);
+    const res = await app.request('/api/pos/offline-sale', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(res.status).toBe(401);
+  });
+});

@@ -89,6 +89,9 @@ importers:
 
   apps/worker-api:
     dependencies:
+      '@kipuspay/adapters-d1':
+        specifier: workspace:*
+        version: link:../../packages/adapters-d1
       '@kipuspay/domain-sales':
         specifier: workspace:*
         version: link:../../packages/domain-sales

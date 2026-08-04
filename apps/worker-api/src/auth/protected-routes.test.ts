@@ -9,6 +9,7 @@ import type { TenantAuthDeps } from './tenant-auth-middleware.js';
  */
 const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/pos/totals' },
+  { method: 'POST', path: '/api/pos/offline-sale' },
 ];
 
 const tenant: AuthTenantSnapshot = {

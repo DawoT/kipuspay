@@ -23,6 +23,7 @@
     "wrangler": "^4.118.0"
   },
   "dependencies": {
+    "@kipuspay/adapters-d1": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*",
     "hono": "^4.12.34"
   }
