@@ -68,7 +68,10 @@ export function listCatalogEntries(): readonly {
 }
 
 /** CSV UTF-8 BOM; montos INTEGER cents — sin toFixed/float. */
-export function toCsv(headers: readonly string[], rows: readonly (readonly (string | number)[])[]): string {
+export function toCsv(
+  headers: readonly string[],
+  rows: readonly (readonly (string | number)[])[],
+): string {
   const escape = (v: string | number): string => {
     const s = String(v);
     if (s.includes(',') || s.includes('"') || s.includes('\n')) {
@@ -216,7 +219,10 @@ async function loadReport(
         binds.push(branchId);
       }
       q += ` GROUP BY product_id ORDER BY gross_cents DESC LIMIT 50`;
-      const rows = await db.prepare(q).bind(...binds).all();
+      const rows = await db
+        .prepare(q)
+        .bind(...binds)
+        .all();
       return { items: rows.results ?? [] };
     }
     case 'inventory-valued': {
@@ -307,13 +313,9 @@ export async function runDailyRollupsCronHttp(
 ): Promise<HttpResult> {
   if (!isReportingRollupsEnabled(env)) return featureOff('FEATURE_REPORTING_ROLLUPS');
   if (!env?.DB) return dbUnavailable();
-  const { runDailyRollupsCron, parseActiveShards } = await import(
-    '@kipuspay/adapters-d1'
-  );
+  const { runDailyRollupsCron, parseActiveShards } = await import('@kipuspay/adapters-d1');
   const shardKeys = parseActiveShards(
-    typeof env.TENANT_KV?.get === 'function'
-      ? await env.TENANT_KV.get('active_shards')
-      : '["DB"]',
+    typeof env.TENANT_KV?.get === 'function' ? await env.TENANT_KV.get('active_shards') : '["DB"]',
   );
   // Local/dev: single binding DB as first shard.
   const shards = [{ shardKey: shardKeys[0] ?? 'DB', db: env.DB }];

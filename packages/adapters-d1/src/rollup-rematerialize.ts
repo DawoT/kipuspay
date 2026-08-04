@@ -94,15 +94,7 @@ export async function rematerializeProductRollups(
              tenant_id, branch_id, report_date, product_id, qty, gross_cents, cogs_cents
            ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(
-          tenantId,
-          branchId,
-          reportDate,
-          row.product_id,
-          row.qty,
-          row.gross,
-          row.cogs,
-        ),
+        .bind(tenantId, branchId, reportDate, row.product_id, row.qty, row.gross, row.cogs),
     );
   }
   await db.batch(stmts);

@@ -17,10 +17,7 @@ import {
 import { runQuotaExceededChaos, type QuotaExceededResult } from './quota-exceeded.js';
 import { runLowEndDeviceChaos, type LowEndDeviceResult } from './low-end-device.js';
 import { runArCompensateChaos, type ArCompensateChaosResult } from './ar-compensate.js';
-import {
-  runRollupIdempotentChaos,
-  type RollupIdempotentResult,
-} from './rollup-idempotent.js';
+import { runRollupIdempotentChaos, type RollupIdempotentResult } from './rollup-idempotent.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'

@@ -75,10 +75,9 @@ describe('reporting flags + catalog', () => {
     expect(csvOff.status).toBe(404);
 
     const csvOn = await runReportHttp(
-      mockEnv(
-        { FEATURE_REPORTING_CATALOG: '1', FEATURE_REPORTING_EXPORT: '1' },
-        [{ branch_id: 'b1', net_sales_cents: 100 }],
-      ),
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1', FEATURE_REPORTING_EXPORT: '1' }, [
+        { branch_id: 'b1', net_sales_cents: 100 },
+      ]),
       't1',
       'day-summary',
       { reportDate: '2026-08-04', format: 'csv' },
