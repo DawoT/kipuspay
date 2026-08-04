@@ -1813,3 +1813,46 @@ aprobaciones: [Staff Security, Staff Principal, Staff SRE]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0202
+timestamp_utc: 2026-08-04T13:54:38Z
+schema_version: 2
+sprint_fase: Sprint 3 — Fase 1 (corrección QG webhooks)
+agente_responsable: Staff Security
+tipo: Corrección
+subtipo: ordenamiento fail-closed y claim atómico SEC-08
+relacion: CORRIGE
+referencias_entradas: [0200, 0201]
+referencias_documentales: [docs/architecture/04-webhooks-metering.md, docs/adr/ADR-0006-stripe-webhook-ordering-dedup.md, docs/runbooks/stripe-webhook-failure.md]
+prev_id: 0201
+prev_hash: e308d01289c2a476618f4fd9f0e3a37bea52aabb7b932dc48a7983091a81c309
+entry_hash: bdff9589aa1f565c1d36baa5fc8bc2b1b6fd54e38ed0cea01396e33e459f72d1
+ticket_or_adr: ADR-0006
+test_ids: [handle-stripe-webhook, schema.integration, V-13, V-15, SUITE]
+entregable_afectado: worker-api Stripe webhook ordering/dedup + Arquitectura §4
+descripcion: >
+  Corrige dos riesgos de SEC-08 detectados en la auditoría del Sprint 3. Un
+  `customer.subscription.updated` activo/trialing/desconocido ya no des-revoca
+  ni eleva `past_due`; solo `invoice.paid` restaura acceso, mientras estados
+  no pagadores revocan fail-closed. El claim de `webhook_events` usa un INSERT
+  atómico con `ON CONFLICT DO NOTHING`, eliminando el TOCTOU SELECT→INSERT y
+  el 500 por UNIQUE en redelivery concurrente. Eventos no-suscripción usan la
+  partición reservada `external`.
+evidencia: >
+  RED (a93757b): `updated` des-revocaba sin leer `data.object.status` y el
+  claim SELECT→INSERT podía lanzar UNIQUE fuera del try; los nuevos casos
+  `updated(canceled)` y redelivery PROCESSING fallaban.
+  GREEN (8394258): 12 tests de handle-stripe-webhook y 64 tests unitarios del
+  worker-api GREEN; 8 tests de schema.integration GREEN; typecheck/lint,
+  scripts/verify.sh SUITE GREEN y scripts/quality.sh Quality Gate OK.
+red_commit_sha: a93757b6ab571e00853a2112578d411963174507
+red_run_id: run-red-0202-stripe-ordering-dedup
+expected_failure: AssertionError: updated(canceled) no revoca y redelivery PROCESSING lanza UNIQUE
+green_commit_sha: 8394258bb5b301a505f15ee722fafb2c638289fa
+green_run_id: run-green-0202-stripe-ordering-dedup
+ancestry_verified: true
+aprobaciones: [Autorización de ejecución del usuario; RACI independiente pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```

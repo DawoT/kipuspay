@@ -53,5 +53,5 @@ evento, dejando una ventana TOCTOU frente a redelivery concurrente.
 - Tests: `handle-stripe-webhook.test.ts` (updated stale, past_due, canceled, redelivery PROCESSING, external).
 - Checks: `@kipuspay/worker-api` 64/64 tests, typecheck, lint, `scripts/verify.sh`
   SUITE GREEN y `scripts/quality.sh` Quality Gate OK.
-- Ledger: `id: 0202` pendiente de SHA GREEN tras commit.
+- Ledger: `id: 0202` con evidencia RED/GREEN y SHAs verificables.
 - Firmas RACI: `R` Staff Security · `A` pendiente · `V` Staff SRE.
