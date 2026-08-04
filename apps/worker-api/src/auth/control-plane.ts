@@ -1,5 +1,7 @@
 import type { AuthTenantSnapshot, RevocationLookup, SubscriptionStatus } from './auth-decide.js';
-import type { TenantAuthDeps, VerifiedJwtClaims } from './tenant-auth-middleware.js';
+import { loadUserFromD1 } from './idp-user.js';
+import type { TenantAuthDeps } from './tenant-auth-middleware.js';
+import { verifyJwt, type JwtVerifyEnv } from './verify-jwt.js';
 
 /** Bindings mínimos del plano de control (KV + DO). */
 export interface ControlPlaneEnv {
@@ -14,7 +16,7 @@ export interface ControlPlaneEnv {
   };
 }
 
-export interface WorkerEnv extends ControlPlaneEnv {
+export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly DB?: D1Database;
 }
 
@@ -145,16 +147,20 @@ export async function checkRevocationLookup(
 }
 
 /**
- * Deps de runtime: plano KV/DO real.
- * verifyJwt sigue stub (slice 3); sin JWT válido → 401.
+ * Deps de runtime: JWT WebCrypto + plano KV/DO + IdP/D1 (si hay DB).
  */
-export function createAuthDepsFromEnv(env: ControlPlaneEnv): TenantAuthDeps {
-  return {
-    verifyJwt: (_token: string): Promise<VerifiedJwtClaims | null> => {
-      void _token;
-      return Promise.resolve(null);
-    },
+export function createAuthDepsFromEnv(env: WorkerEnv): TenantAuthDeps {
+  const deps: TenantAuthDeps = {
+    verifyJwt: (token: string) => verifyJwt(env, token),
     getTenant: (tenantId: string) => getTenantCached(env, tenantId),
     checkRevocation: (tenantId: string) => checkRevocationLookup(env, tenantId),
   };
+  if (env.DB) {
+    const db = env.DB;
+    return {
+      ...deps,
+      loadUser: (tenantId, externalAuthId) => loadUserFromD1(db, tenantId, externalAuthId),
+    };
+  }
+  return deps;
 }

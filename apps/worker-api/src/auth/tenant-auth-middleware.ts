@@ -5,6 +5,7 @@ import {
   type AuthTenantSnapshot,
   type RevocationLookup,
 } from './auth-decide.js';
+import type { LoadUserResult, UserSession } from './idp-user.js';
 
 export interface VerifiedJwtClaims {
   readonly tenantId: string;
@@ -15,12 +16,15 @@ export interface TenantAuthDeps {
   readonly verifyJwt: (token: string) => Promise<VerifiedJwtClaims | null>;
   readonly getTenant: (tenantId: string) => Promise<AuthTenantSnapshot | null>;
   readonly checkRevocation: (tenantId: string) => Promise<RevocationLookup>;
+  /** IdP → D1; si se omite, no se exige usuario local (tests de plano de control). */
+  readonly loadUser?: (tenantId: string, externalAuthId: string) => Promise<LoadUserResult>;
   readonly nowMs?: () => number;
 }
 
 interface AuthVariables {
   tenant: AuthTenantSnapshot;
   jwt: VerifiedJwtClaims;
+  user?: UserSession;
 }
 
 async function resolveJwt(
@@ -70,8 +74,7 @@ async function loadRevocation(
 }
 
 /**
- * Esqueleto Sprint 2: tenantAndAuthMiddleware con fail-closed y Plan Guard.
- * Los deps inyectables permiten tests negativos sin DO/KV reales.
+ * tenantAndAuthMiddleware: fail-closed + Plan Guard + IdP user (opcional).
  */
 export function createTenantAndAuthMiddleware(deps: TenantAuthDeps) {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -97,6 +100,14 @@ export function createTenantAndAuthMiddleware(deps: TenantAuthDeps) {
     const decision = decideAuthGate(input);
     if (!decision.ok) {
       return c.json({ error: decision.error, code: decision.code }, decision.status);
+    }
+
+    if (deps.loadUser && jwt) {
+      const userResult = await deps.loadUser(jwt.tenantId, jwt.sub);
+      if (!userResult.ok) {
+        return c.json({ error: userResult.error, code: userResult.code }, userResult.status);
+      }
+      c.set('user', userResult.user);
     }
 
     c.set('tenant', tenant as AuthTenantSnapshot);
