@@ -7,10 +7,8 @@ test('offline sync: encolar N → sync background → cola vacía (cero spinner 
   await expect(page.getByRole('heading', { name: 'Offline sync harness' })).toBeVisible();
 
   await page.getByTestId('run').click();
-  // Cobro responde de inmediato (sin spinner bloqueante de red).
-  await expect(page.getByTestId('status')).toHaveText('enqueued');
-  await expect(page.getByTestId('message')).toContainText('Cobro OK');
-
+  // Cobro y sync en background completan atómicamente.
   await expect(page.getByTestId('status')).toHaveText('synced', { timeout: 10_000 });
+  await expect(page.getByTestId('message')).toContainText('Cola vacía tras sync');
   await expect(page.getByTestId('pending')).toHaveText('0');
 });

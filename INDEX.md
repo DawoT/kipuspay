@@ -19,52 +19,57 @@ Abre solo los archivos que esta tabla te señale.
 
 | Capability | Sprint | Empaquetado GTM | Definida en | Línea |
 |---|---|---|---|---|
-| `cash.blind_z` | 17 | Retail / “cada sol cuadra” | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 118 |
-| `cash.discount_authz` | 17 | Retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 119 |
-| `ledger.credit_limit_cents` | 17 | Retail / CxC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 120 |
-| `audit.sensitive_actions` | 17 | Todos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 121 |
-| `inventory.batches` | 18 | Farmacias | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 122 |
-| `inventory.bom` | 18 | Retail / food | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 123 |
-| `pricing.lists` | 18 | Multi-lista | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 124 |
-| `orders.lifecycle` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 125 |
-| `orders.kds` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 126 |
-| `orders.split_bill` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 127 |
-| `stock.transfers` | 20 | Cadenas | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 128 |
-| `purchasing.partial_receive` | 20 | Cadenas / retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 129 |
-| `integrations.catalog_import` | 21 | Migración / objeción #1 | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 135 |
-| `payments.qr_wallets` | 22 | Cobro PE (Yape/Plin/MP) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 136 |
-| `payments.card_acquirer` | 22 | Retail / Culqi-Niubiz | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 137 |
-| `integrations.accounting_export` | 23 | Crece+ / contador | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 138 |
-| `integrations.api` | 23 | Cadena (API + webhooks) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 139 |
-| `messaging.whatsapp_receipt` | 24 | Post-venta / activación | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 140 |
-| `loyalty.points` | 24 | Cadena (fidelización light) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 141 |
-| `sales.returns` | 28–32 | Devoluciones con política N días | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 147 |
-| `purchasing.three_way` | 28–32 | Control de proveedor / OC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 148 |
-| `pricing.promotions` | 28–32 | Promos y tramos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 149 |
-| `catalog.variants` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 150 |
-| `sales.layaway` | 28–32 | Apartados | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 151 |
-| `ledger.chart_of_accounts` | 28–32 | Diario contable (retail) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 152 |
-| `sales.quotes` | 33–37 | Cotizaciones/presupuestos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 158 |
-| `purchasing.returns` | 33–37 | Devolución a proveedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 159 |
-| `ledger.store_credit` | 33–37 | Crédito de tienda / gift cards | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 160 |
-| `sales.installments` | 33–37 | Cuotas / pago en partes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 161 |
-| `sales.commissions` | 33–37 | Comisiones de vendedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 162 |
-| `inventory.locations` | 38–42 | Ubicaciones de inventario | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 168 |
-| `inventory.serials` | 38–42 | Números de serie | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 169 |
-| `inventory.scale` | 38–42 | Venta por peso / balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 170 |
-| `catalog.price_labels` | 38–42 | Etiquetas de precio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 171 |
-| `data.backup` | 38–42 | Export / restore del negocio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 172 |
-| `orders.customer_orders` | 43–45 | Preventa / pedido a cliente | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 178 |
-| `sales.recurring` | 43–45 | Recurrentes / membresías | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 179 |
-| `mobile.push` | 43–45 | Push + caja móvil | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 180 |
-| `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 186 |
-| `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 187 |
-| `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 188 |
-| `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 194 |
-| `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 195 |
-| `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 196 |
-| `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 197 |
-| `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 198 |
+| `pos.checkout` | 7 | Caja por modo / cobro offline-first | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 119 |
+| `pos.document_selector` | 7 | NV/01/03 según modo+régimen | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 120 |
+| `hardware.print_templates` | 7 | Tickets CPE/NV 58/80 (no ladder S25) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 121 |
+| `display.vitrina` | 7 | Customer display en cobro | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 122 |
+| `pos.offline_correlative_reserve` | 7 | Reserva tentativa local; server autoritativo | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 123 |
+| `cash.blind_z` | 17 | Retail / “cada sol cuadra” | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 129 |
+| `cash.discount_authz` | 17 | Retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 130 |
+| `ledger.credit_limit_cents` | 17 | Retail / CxC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 131 |
+| `audit.sensitive_actions` | 17 | Todos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 132 |
+| `inventory.batches` | 18 | Farmacias | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 133 |
+| `inventory.bom` | 18 | Retail / food | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 134 |
+| `pricing.lists` | 18 | Multi-lista | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 135 |
+| `orders.lifecycle` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 136 |
+| `orders.kds` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 137 |
+| `orders.split_bill` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 138 |
+| `stock.transfers` | 20 | Cadenas | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 139 |
+| `purchasing.partial_receive` | 20 | Cadenas / retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 140 |
+| `integrations.catalog_import` | 21 | Migración / objeción #1 | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 146 |
+| `payments.qr_wallets` | 22 | Cobro PE (Yape/Plin/MP) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 147 |
+| `payments.card_acquirer` | 22 | Retail / Culqi-Niubiz | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 148 |
+| `integrations.accounting_export` | 23 | Crece+ / contador | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 149 |
+| `integrations.api` | 23 | Cadena (API + webhooks) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 150 |
+| `messaging.whatsapp_receipt` | 24 | Post-venta / activación | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 151 |
+| `loyalty.points` | 24 | Cadena (fidelización light) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 152 |
+| `sales.returns` | 28–32 | Devoluciones con política N días | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 158 |
+| `purchasing.three_way` | 28–32 | Control de proveedor / OC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 159 |
+| `pricing.promotions` | 28–32 | Promos y tramos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 160 |
+| `catalog.variants` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 161 |
+| `sales.layaway` | 28–32 | Apartados | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 162 |
+| `ledger.chart_of_accounts` | 28–32 | Diario contable (retail) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 163 |
+| `sales.quotes` | 33–37 | Cotizaciones/presupuestos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 169 |
+| `purchasing.returns` | 33–37 | Devolución a proveedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 170 |
+| `ledger.store_credit` | 33–37 | Crédito de tienda / gift cards | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 171 |
+| `sales.installments` | 33–37 | Cuotas / pago en partes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 172 |
+| `sales.commissions` | 33–37 | Comisiones de vendedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 173 |
+| `inventory.locations` | 38–42 | Ubicaciones de inventario | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 179 |
+| `inventory.serials` | 38–42 | Números de serie | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 180 |
+| `inventory.scale` | 38–42 | Venta por peso / balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 181 |
+| `catalog.price_labels` | 38–42 | Etiquetas de precio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 182 |
+| `data.backup` | 38–42 | Export / restore del negocio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 183 |
+| `orders.customer_orders` | 43–45 | Preventa / pedido a cliente | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 189 |
+| `sales.recurring` | 43–45 | Recurrentes / membresías | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 190 |
+| `mobile.push` | 43–45 | Push + caja móvil | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 191 |
+| `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 197 |
+| `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 198 |
+| `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 199 |
+| `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 205 |
+| `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 206 |
+| `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 207 |
+| `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 208 |
+| `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 209 |
 
 ## Sprints → fase, archivo y estado
 
@@ -78,8 +83,9 @@ Abre solo los archivos que esta tabla te señale.
 | 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | Cerrado |
 | 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 34 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
 | 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 53 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Cerrado |
-| 7–8 | 2–3 | — | — | Base | Planificado |
-| 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 34 | Actualizada (M3 rollups §9) | Planificado |
+| 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | En progreso |
+| 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 25 | Base | Planificado |
+| 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 36 | Actualizada (M3 rollups §9) | Planificado |
 | 10–16 | 3–5 | — | — | Base | Planificado |
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Planificado |
 | 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Planificado |
@@ -95,8 +101,6 @@ Abre solo los archivos que esta tabla te señale.
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | sin fila de estado | — |
-| 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 23 | sin fila de estado | — |
 | 10 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 12 | sin fila de estado | — |
 | 11 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 23 | sin fila de estado | — |
 | 12 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 39 | sin fila de estado | — |
@@ -353,7 +357,8 @@ Abre solo los archivos que esta tabla te señale.
 | `adapters-accounting` | Contasis, Concar | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 94 |
 | `adapters-messaging` | WhatsApp Business | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 95 |
 | `chaos-harness` | §13.5 escenarios chaos (jueces + fail-closed deps) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 96 |
-| `pos-web` | SvelteKit | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 98 |
-| `worker-api` | Hono composition root | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 99 |
+| `print-templates` | ESC/POS + HTML ticket CPE/NV (zero-dep; §10) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 97 |
+| `pos-web` | SvelteKit | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 99 |
+| `worker-api` | Hono composition root | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 100 |
 
 <!-- generado desde: 20 archivo(s) de especificación + 17 de proceso/roadmap -->
