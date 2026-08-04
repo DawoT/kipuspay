@@ -1487,3 +1487,42 @@ aprobaciones: [Staff Backend Datos, Staff Principal, Staff Security]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0193
+timestamp_utc: 2026-08-04T07:20:00Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (auth fail-closed slice 1)
+agente_responsable: Staff Security
+tipo: Entregable nuevo
+subtipo: middleware auth + plan guard
+relacion: AMPLIA
+referencias_entradas: [0192]
+referencias_documentales: [docs/adr/ADR-0003-auth-fail-closed-plan-guard.md, docs/architecture/03-auth-plan-enforcement.md, docs/runbooks/revocation-control-plane-unavailable.md, apps/worker-api/src/auth/]
+prev_id: 0192
+prev_hash: eaf56158d265ab7990f79f0b57608523b81da7fb9041ceeca9779edd647c7336
+entry_hash: 98a1c13b9b009ab55fcd7f5c4aada626137b246a033d90f3cec9b188ed21f76c
+ticket_or_adr: ADR-0003
+test_ids: [auth-decide, tenant-auth-middleware, index]
+entregable_afectado: apps/worker-api auth middleware, ADR-0003, ROADMAP Sprint 2
+descripcion: >
+  Slice 1 de Sprint 2: decideAuthGate pura + createTenantAndAuthMiddleware con
+  deps inyectables. Fail-closed: revocación no verificable → 503
+  REVOCATION_CHECK_UNAVAILABLE. Plan Guard: rutas de cobro/caja/emisión nunca
+  reciben 402; premium (owner/reports/insights) sí. ADR-0003 y runbook de
+  incidente de plano de revocación. ROADMAP Sprint 2 Entrega=En progreso.
+  DO/KV reales y OWASP ASVS quedan fuera de este slice.
+evidencia: >
+  RED (ancestro 96aa275): worker-api sin gate de auth; /api/pos/totals abierto.
+  GREEN (commit 1b790ee): 19 tests worker-api GREEN incl. autorización negativa;
+  quality.sh OK; verify SUITE GREEN; ADR-0003 aceptado.
+red_commit_sha: 96aa2754ca7997c88a4e0fc4c1bc924dc2afa65d
+red_run_id: run-red-0193-auth-fail-closed
+expected_failure: AssertionError: expected 503 REVOCATION_CHECK_UNAVAILABLE / never 402 on checkout
+green_commit_sha: 1b790ee53f2fd5a02b690357212588f588b40515
+green_run_id: run-green-0193-auth-fail-closed
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal, Staff SRE, Staff PM]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

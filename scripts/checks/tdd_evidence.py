@@ -37,6 +37,8 @@ TEST_FILE_GLOBS = (
     "packages/**/*.spec.ts",
     "packages/**/*.test.js",
     "packages/**/*.spec.js",
+    "apps/**/*.test.ts",
+    "apps/**/*.spec.ts",
     "apps/**/test/**/*.ts",
     "apps/**/tests/**/*.ts",
 )
