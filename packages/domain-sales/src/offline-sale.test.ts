@@ -36,7 +36,9 @@ describe('assertOfflineSaleShape', () => {
     expect(() => assertOfflineSaleShape({ ...basePayload(), cashRegisterSessionId: '' })).toThrow(
       /MISSING_SESSION_ID/,
     );
-    expect(() => assertOfflineSaleShape({ ...basePayload(), series: '' })).toThrow(/MISSING_SERIES/);
+    expect(() => assertOfflineSaleShape({ ...basePayload(), series: '' })).toThrow(
+      /MISSING_SERIES/,
+    );
     expect(() => assertOfflineSaleShape({ ...basePayload(), clientDocumentType: '' })).toThrow(
       /MISSING_CLIENT_DOC_TYPE/,
     );

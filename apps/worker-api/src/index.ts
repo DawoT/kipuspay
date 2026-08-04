@@ -54,7 +54,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
-
   // Stripe webhooks: raw body + firma; sin JWT (Arquitectura §4).
   app.post('/v1/webhooks/stripe', async (c) => {
     const rawBody = await c.req.text();

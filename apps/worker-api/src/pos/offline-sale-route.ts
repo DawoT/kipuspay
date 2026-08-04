@@ -2,7 +2,6 @@ import { processOfflineSaleAtomic } from '@kipuspay/adapters-d1';
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
-
 export function isAcidOfflineSaleEnabled(env: WorkerEnv | undefined): boolean {
   const flag = env?.FEATURE_ACID_OFFLINE_SALE;
   return flag === '1' || flag === 'true';
