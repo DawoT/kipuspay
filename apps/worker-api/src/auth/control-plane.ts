@@ -1,0 +1,160 @@
+import type { AuthTenantSnapshot, RevocationLookup, SubscriptionStatus } from './auth-decide.js';
+import type { TenantAuthDeps, VerifiedJwtClaims } from './tenant-auth-middleware.js';
+
+/** Bindings mínimos del plano de control (KV + DO). */
+export interface ControlPlaneEnv {
+  readonly TENANT_KV: {
+    get(key: string): Promise<string | null>;
+  };
+  readonly TENANT_STATE_DO: {
+    idFromName(name: string): { toString(): string };
+    get(id: { toString(): string }): {
+      fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+    };
+  };
+}
+
+export interface WorkerEnv extends ControlPlaneEnv {
+  readonly DB?: D1Database;
+}
+
+const isolateCache = new Map<string, { value: unknown; ts: number }>();
+const MAX_ISOLATE_CACHE_ENTRIES = 10_000;
+const ISOLATE_TTL_MS = 10_000;
+
+const SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set([
+  'trial',
+  'active',
+  'past_due',
+  'canceled',
+]);
+
+function putIsolateCache(key: string, value: unknown): void {
+  if (isolateCache.size >= MAX_ISOLATE_CACHE_ENTRIES && !isolateCache.has(key)) {
+    const oldest = isolateCache.keys().next().value;
+    if (oldest !== undefined) isolateCache.delete(oldest);
+  }
+  isolateCache.set(key, { value, ts: Date.now() });
+}
+
+/** Solo tests: limpia el caché de isolate entre casos. */
+export function clearIsolateAuthCache(): void {
+  isolateCache.clear();
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function isRevokedPayload(data: unknown): boolean {
+  if (typeof data !== 'object' || data === null) return false;
+  return Reflect.get(data, 'revoked') === true;
+}
+
+function mapTenantRow(raw: Record<string, unknown>): AuthTenantSnapshot {
+  const statusRaw = raw.status ?? (raw.is_active ? 'active' : 'suspended');
+  const status = statusRaw === 'active' ? 'active' : 'suspended';
+  const subRaw = asString(raw.subscriptionStatus) ?? asString(raw.subscription_status) ?? 'active';
+  const subscriptionStatus: SubscriptionStatus = SUBSCRIPTION_STATUSES.has(subRaw)
+    ? (subRaw as SubscriptionStatus)
+    : 'active';
+  return {
+    id: String(raw.id),
+    status,
+    subscriptionStatus,
+    trialEndsAt: asString(raw.trialEndsAt) ?? asString(raw.trial_ends_at),
+    pastGracePeriod: Boolean(raw.pastGracePeriod ?? raw.past_grace_period ?? false),
+  };
+}
+
+/**
+ * PERF-04: isolate → KV. Fallo de KV → throw (middleware → 503 AUTH_CONTROL).
+ */
+export async function getTenantCached(
+  env: ControlPlaneEnv,
+  tenantId: string,
+): Promise<AuthTenantSnapshot | null> {
+  const cacheKey = `tenant:${tenantId}`;
+  const cached = isolateCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < ISOLATE_TTL_MS) {
+    return cached.value as AuthTenantSnapshot | null;
+  }
+  try {
+    const raw = await env.TENANT_KV.get(`tenant:${tenantId}`);
+    if (!raw) {
+      putIsolateCache(cacheKey, null);
+      return null;
+    }
+    const parsed = mapTenantRow(JSON.parse(raw) as Record<string, unknown>);
+    putIsolateCache(cacheKey, parsed);
+    return parsed;
+  } catch {
+    throw new Error('TENANT_CACHE_UNAVAILABLE');
+  }
+}
+
+/**
+ * PERF-04 + fail-closed: KV solo acelera revoked=true; miss/0 → DO autoritativo.
+ * Si el DO no responde → throw REVOCATION_CHECK_UNAVAILABLE (nunca false por omisión).
+ */
+export async function isTenantRevokedCached(
+  env: ControlPlaneEnv,
+  tenantId: string,
+): Promise<boolean> {
+  const cacheKey = `revoked:${tenantId}`;
+  const cached = isolateCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < ISOLATE_TTL_MS) {
+    return cached.value as boolean;
+  }
+
+  let kvFlag: string | null = null;
+  try {
+    kvFlag = await env.TENANT_KV.get(`revocation:${tenantId}`);
+  } catch {
+    // KV down: continuar al DO.
+  }
+  if (kvFlag === '1') {
+    putIsolateCache(cacheKey, true);
+    return true;
+  }
+
+  try {
+    const id = env.TENANT_STATE_DO.idFromName(tenantId);
+    const stub = env.TENANT_STATE_DO.get(id);
+    const res = await stub.fetch(new Request('https://tenant-state/status'));
+    if (!res.ok) throw new Error(`DO responded with status ${res.status}`);
+    const data: unknown = await res.json();
+    const revoked = isRevokedPayload(data);
+    putIsolateCache(cacheKey, revoked);
+    return revoked;
+  } catch {
+    throw new Error('REVOCATION_CHECK_UNAVAILABLE');
+  }
+}
+
+export async function checkRevocationLookup(
+  env: ControlPlaneEnv,
+  tenantId: string,
+): Promise<RevocationLookup> {
+  try {
+    const revoked = await isTenantRevokedCached(env, tenantId);
+    return { available: true, revoked };
+  } catch {
+    return { available: false };
+  }
+}
+
+/**
+ * Deps de runtime: plano KV/DO real.
+ * verifyJwt sigue stub (slice 3); sin JWT válido → 401.
+ */
+export function createAuthDepsFromEnv(env: ControlPlaneEnv): TenantAuthDeps {
+  return {
+    verifyJwt: (_token: string): Promise<VerifiedJwtClaims | null> => {
+      void _token;
+      return Promise.resolve(null);
+    },
+    getTenant: (tenantId: string) => getTenantCached(env, tenantId),
+    checkRevocation: (tenantId: string) => checkRevocationLookup(env, tenantId),
+  };
+}

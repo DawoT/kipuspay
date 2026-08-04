@@ -81,6 +81,8 @@ export default tseslint.config(
       '**/*.integration.test.ts',
       '**/test/apply-migrations.ts',
       '**/test/env.d.ts',
+      'apps/worker-api/src/auth/tenant-state.ts',
+      'apps/worker-api/src/worker.ts',
     ],
   },
   {

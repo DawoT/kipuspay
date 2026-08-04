@@ -7,7 +7,7 @@ import {
 } from './auth/tenant-auth-middleware.js';
 
 export interface Env {
-  DB: D1Database;
+  DB?: D1Database;
 }
 
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
@@ -15,7 +15,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
-  // Rutas protegidas: auth fail-closed + Plan Guard (Sprint 2 slice 1).
+  // Rutas protegidas: auth fail-closed + Plan Guard (Sprint 2).
   app.use('/api/*', createTenantAndAuthMiddleware(authDeps));
 
   app.post('/api/pos/totals', async (c) => {
@@ -27,5 +27,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   return app;
 }
 
+/** App con deps fail-closed (tests / sin bindings). El deploy usa `worker.ts`. */
 const app = createApp();
 export default app;

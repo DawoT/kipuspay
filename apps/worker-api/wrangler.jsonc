@@ -1,7 +1,28 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kipuspay-worker-api",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "TENANT_KV",
+      "id": "00000000000000000000000000000001",
+      "preview_id": "00000000000000000000000000000001",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TENANT_STATE_DO",
+        "class_name": "TenantState",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1-tenant-state",
+      "new_sqlite_classes": ["TenantState"],
+    },
+  ],
 }

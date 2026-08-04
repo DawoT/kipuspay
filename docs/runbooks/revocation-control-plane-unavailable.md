@@ -11,7 +11,7 @@ owner: "@DawoT"
 |---|---|
 | Severidad tipica | SEV-1 (auth fail-closed bloquea rutas protegidas) |
 | Owner on-call | Staff SRE |
-| Ultima ensayada | 2026-08-04 (tests unitarios slice 1) |
+| Ultima ensayada | 2026-08-04 (control-plane.test.ts: DO down → 503) |
 | Relaciona | Arquitectura §3 · ADR-0003 · AGENTS invariante 5 · Proceso §9.1 |
 
 ## Sintomas

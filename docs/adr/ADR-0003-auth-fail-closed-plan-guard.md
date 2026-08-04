@@ -31,8 +31,10 @@ comercialmente.
    (`REVOCATION_CHECK_UNAVAILABLE`), nunca permitir por omisión.
 3. `isCheckoutCriticalRoute` excluye cobro/caja/emisión de `isPremiumFeatureRoute`;
    402 solo aplica a premium (Modo Dueño, reportes avanzados, insights, multi-caja).
-4. El middleware Hono adapta headers/deps; DO/KV reales llegan en slices
-   posteriores del mismo sprint.
+4. Slice 2: `TENANT_KV` + `TenantState` DO (`TENANT_STATE_DO`) cableados vía
+   `createAuthDepsFromEnv` / `isTenantRevokedCached` (KV solo acelera
+   `revocation:{id}=1`; miss → DO; DO caído → 503). `verifyJwt` WebCrypto
+   queda para slice 3.
 
 ## Alternativas consideradas
 
