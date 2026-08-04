@@ -38,7 +38,7 @@ owner: "@DawoT"
 |---|---|---|---|
 | 0 | 0 | Actualizada (ADR-0001, CAL-01..08, monorepo, D1 humo) | Cerrado |
 | 1 | 1 | Actualizada (M1 dinero cents, §5.0 / §5.5 migraciones) | Cerrado |
-| 2 | 1 | Actualizada (auth fail-closed, plan guard, IdP — §3) | Planificado |
+| 2 | 1 | Actualizada (auth fail-closed, plan guard, IdP — §3) | En progreso |
 | 3 | 1 | Actualizada (webhooks pasarela + invalidación — §4) | Planificado |
 | 4 | 1 | Actualizada (motor ACID + reconciliación — §6) | Planificado |
 | 5 | 2 | Base | Planificado |
