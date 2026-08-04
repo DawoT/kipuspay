@@ -1745,3 +1745,37 @@ aprobaciones: [Staff Security, Staff Principal, Staff SRE]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0200
+timestamp_utc: 2026-08-04T13:15:00Z
+schema_version: 2
+sprint_fase: Sprint 3 — Fase 1 (webhook route + invalidación slice 2)
+agente_responsable: Staff Security
+tipo: Entregable nuevo
+subtipo: stripe-webhook-route
+relacion: AMPLIA
+referencias_entradas: [0199]
+referencias_documentales: [apps/worker-api/src/webhooks/handle-stripe-webhook.ts, packages/adapters-d1/migrations/0002_webhook_events.sql, docs/architecture/04-webhooks-metering.md]
+prev_id: 0199
+prev_hash: dec11d3d7114981c4082b8be0eb7c60ebd6305a37676a03d7ceb96e9cf30c14e
+entry_hash: 2cd0b653b18d57ef56eee470cc4b32b83cff6ab0419c09dd58af7404cf5f8d5f
+ticket_or_adr: ADR-0005
+test_ids: [handle-stripe-webhook, schema.integration]
+entregable_afectado: worker-api webhook Stripe + D1 webhook_events
+descripcion: >
+  Slice 2 Sprint 3: migración 0002 webhook_events (UNIQUE source,event_id);
+  POST /v1/webhooks/stripe con dedup SEC-08; revoke/unrevoke DO+KV; past_due
+  sin apagar caja; efecto fallido → FAILED + 503 WEBHOOK_RETRYABLE.
+evidencia: >
+  RED (ancestro 49fb04b): sin ruta webhook ni tabla webhook_events en D1.
+  GREEN (commit d7ef6cb): 58 tests worker-api; 8/8 schema.integration; quality GREEN.
+red_commit_sha: 49fb04bb21a2b6eaa49cd1a7e2a0eb12a1c63e2d
+red_run_id: run-red-0200-stripe-webhook
+expected_failure: AssertionError: missing webhook route / webhook_events table
+green_commit_sha: d7ef6cbdd43f87dc99f6332aef44bbc1821ecad8
+green_run_id: run-green-0200-stripe-webhook
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal, Staff SRE]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
