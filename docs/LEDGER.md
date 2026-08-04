@@ -1526,3 +1526,41 @@ aprobaciones: [Staff Security, Staff Principal, Staff SRE, Staff PM]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0194
+timestamp_utc: 2026-08-04T07:40:00Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (higiene git post-rebase)
+agente_responsable: Staff Principal
+tipo: Corrección
+subtipo: evidencia TDD SHAs tras rewrite de author
+relacion: CORRIGE
+referencias_entradas: [0192, 0193]
+referencias_documentales: [docs/LEDGER.md]
+prev_id: 0193
+prev_hash: 98a1c13b9b009ab55fcd7f5c4aada626137b246a033d90f3cec9b188ed21f76c
+entry_hash: b0f3f0edf4c9dc52388b31baf40e30b5a3ae3170a3ad3f69fdf2abfee8a656c2
+ticket_or_adr: GIT-HYGIENE-0001
+test_ids: [schema.integration, auth-decide, tenant-auth-middleware, index]
+entregable_afectado: cadena TDD de 0192/0193 tras drop 141e5e7 y author DawoT
+descripcion: >
+  Reescritura local (sin push) de cefffd0..HEAD: se elimina el commit vacío 141e5e7
+  (solo líneas en blanco en LEDGER) y se corrige author/committer a
+  DawoT <22259653+DawoT@users.noreply.github.com> vía rebase --exec --reset-author
+  (sin tocar git config). Los SHAs pineados en 0192/0193 quedan históricos; esta
+  entrada declara los SHAs canónicos post-rebase para CAL-07/V-20.
+evidencia: >
+  RED: commits locales con Test User <test@example.com>; 141e5e7 sin contenido útil;
+  green_commit_sha de 0192/0193 apuntaban a SHAs pre-rebase.
+  GREEN: 141e5e7 dropeado; 4 commits post-cefffd0 con author DawoT noreply;
+  SHAs canónicos: 0192 green=e3438bd; 0193 red=da1ccb5 green=0c75889.
+red_commit_sha: cefffd001ec4255dbea19a818c846fef37cf943b
+red_run_id: run-red-0194-git-hygiene
+expected_failure: AssertionError: author Test User / empty ledger commit 141e5e7
+green_commit_sha: 0c758890d8502e6aa511f16838ca5fe7467a32ff
+green_run_id: run-green-0194-git-hygiene
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
