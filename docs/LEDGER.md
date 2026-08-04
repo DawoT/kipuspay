@@ -2368,3 +2368,74 @@ aprobaciones: [Staff Frontend Offline-First]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0218
+timestamp_utc: 2026-08-04T15:45:00Z
+schema_version: 2
+sprint_fase: Sprint 6 — Fase 2 (offline sync / chunked dispatcher)
+agente_responsable: Staff Frontend Offline-First
+tipo: Entregable nuevo
+subtipo: offline-sync chunked CRM LWW edge D chaos
+relacion: AMPLIA
+referencias_entradas: [0217]
+referencias_documentales: [docs/architecture/07-sync-offloading.md, docs/architecture/09-reporting.md, docs/runbooks/offline-sync-chunked.md, packages/adapters-d1/migrations/0007_daily_financial_rollups.sql]
+prev_id: 0217
+prev_hash: 3941e9c7982cf318b8b67bc9047dccf1f8bb5f0220862c5744c1c3a308a76c9d
+entry_hash: 272d502b28f57970217ae68c8bafaa1e6d157d89733037f72f41b96cae92bd35
+ticket_or_adr: SYN-07
+test_ids: [crm-lww, offline-sync, offline-sync.integration, sync-sales-route, index]
+entregable_afectado: offline sync chunked + cuota + edge D + chaos
+descripcion: >
+  OfflineSalePayload CRM + LWW customers (INSERT/UPDATE, SEC-07); POST
+  /api/v1/sync/sales ack per-sale; IndexedDB cola + guardián 80/100; dispatcher
+  CHUNK=30 + SW SYN-11; migration 0007 rollups + rematerialize/insights KV;
+  chaos network-adversarial (500 ciclos) y quota-exceeded; quality 4d.
+evidencia: >
+  RED: sin batch sync/IDB/dispatcher/edge D/chaos offline.
+  GREEN: quality OK; integration offline-sync; domain crm-lww; chaos 4d.
+red_commit_sha: 28ef9854a5221365c8931a48315307a82bcb52ab
+red_run_id: run-red-0218-offline-sync
+expected_failure: AssertionError: missing offline-sync/chunked/CRM LWW/edge D/chaos
+green_commit_sha: bb47c130b59984b08004dd9c11c550a33fd3ff97
+green_run_id: run-green-0218-offline-sync
+ancestry_verified: true
+aprobaciones: [Staff Frontend Offline-First, Staff Backend ACID, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0219
+timestamp_utc: 2026-08-04T15:50:00Z
+schema_version: 2
+sprint_fase: Sprint 6 — Fase 2 (Quality Gate cierre)
+agente_responsable: Staff Frontend Offline-First
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0217, 0218]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/offline-sync-chunked.md, docs/architecture/07-sync-offloading.md]
+prev_id: 0218
+prev_hash: 272d502b28f57970217ae68c8bafaa1e6d157d89733037f72f41b96cae92bd35
+entry_hash: 3e00dc047d8f5ae14443003b73ca48d242ff19bce6978bb8219ad64844534a70
+ticket_or_adr: SYN-07
+test_ids: [SUITE, offline-sync.integration, crm-lww, index]
+entregable_afectado: ROADMAP Sprint 6 Cerrado + QG EN REVISION
+descripcion: >
+  Cierre Sprint 6: ROADMAP/INDEX Entrega=Cerrado; verify+quality GREEN;
+  runbook offline-sync-chunked; estado_gov EN REVISION hasta firma A+V
+  independiente (Proceso §8.1).
+evidencia: >
+  RED: Sprint 6 En progreso sin QG.
+  GREEN: quality OK; chaos 4d; ROADMAP Cerrado; runbook offline-sync-chunked.
+red_commit_sha: bb47c130b59984b08004dd9c11c550a33fd3ff97
+red_run_id: run-red-0219-offline-sync-qg
+expected_failure: AssertionError: Sprint 6 still En progreso
+green_commit_sha: 1fc4ea614861e2f2a1a9f6cacdc99a2a01ed63ca
+green_run_id: run-green-0219-offline-sync-qg
+ancestry_verified: true
+aprobaciones: [Staff Frontend Offline-First R; A/V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
