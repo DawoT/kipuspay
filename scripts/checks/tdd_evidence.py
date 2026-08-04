@@ -13,6 +13,10 @@ Reglas:
 - Si el repo ya tiene archivos de test (`*.test.ts`, `*.spec.ts`, `*.test.js`,
   `*.spec.js`), cada `test_id` que no sea un check del gate (`V-NN`/`SUITE`) debe
   resolverse en un archivo de test del monorepo.
+- Reachability: `green_commit_sha` y `red_commit_sha` deben ser ancestros de HEAD
+  (`git merge-base --is-ancestor`), salvo que una entrada posterior con
+  `relacion: CORRIGE` liste el id en `referencias_entradas` (SHA huérfano tras
+  rewrite queda documentado por la CORRIGE, no se reescribe la entrada).
 
 Emite `RESULT V-20 GREEN|RED [motivo]` y sale 1 si el contrato está incompleto.
 """
@@ -22,6 +26,7 @@ import glob
 import importlib.util
 import os
 import re
+import subprocess
 import sys
 
 _spec = importlib.util.spec_from_file_location("paths", f"{__file__.rsplit('/', 1)[0]}/paths.py")
@@ -76,6 +81,37 @@ def parse_entries(lines: list[str]) -> list[dict[str, str]]:
     return out
 
 
+def corriged_ids(entries: list[dict[str, str]]) -> set[str]:
+    """Ids listados en referencias_entradas de entradas CORRIGE posteriores."""
+    out: set[str] = set()
+    for e in entries:
+        if e.get("relacion", "").strip().upper() != "CORRIGE":
+            continue
+        refs = e.get("referencias_entradas", "")
+        for rid in re.findall(r"\d+", refs):
+            out.add(rid)
+            out.add(rid.zfill(4))
+    return out
+
+
+def is_ancestor_of_head(sha: str) -> bool:
+    sha = sha.strip()
+    if not sha or sha.upper().startswith("N/A"):
+        return True
+    if not re.fullmatch(r"[0-9a-fA-F]{7,40}", sha):
+        return False
+    try:
+        r = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", sha, "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return r.returncode == 0
+
+
 def main() -> int:
     if not os.path.exists(LEDGER):
         print("RESULT V-20 RED  falta docs/LEDGER.md")
@@ -83,6 +119,7 @@ def main() -> int:
     with open(LEDGER, encoding="utf-8") as fh:
         entries = parse_entries(fh.readlines())
     test_names = load_test_names()
+    corrected = corriged_ids(entries)
     problems: list[str] = []
     for e in entries:
         has_code_keys = any(e.get(f) for f in ("red_commit_sha", "green_commit_sha", "red_run_id"))
@@ -99,6 +136,12 @@ def main() -> int:
                 missing.append("expected_failure")
             if missing:
                 problems.append(f"{e['id']}: faltan {', '.join(missing)}")
+            # Reachability (skip if superseded by CORRIGE)
+            if e["id"] not in corrected and e["id"].zfill(4) not in corrected:
+                for field in ("green_commit_sha", "red_commit_sha"):
+                    sha = e.get(field, "").strip()
+                    if sha and not sha.upper().startswith("N/A") and not is_ancestor_of_head(sha):
+                        problems.append(f"{e['id']}: {field} {sha[:12]} no es ancestro de HEAD")
         tids = [
             t.strip()
             for t in e.get("test_ids", "").replace("[", " ").replace("]", " ").split(",")

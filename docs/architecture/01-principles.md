@@ -87,12 +87,13 @@ packages/
   domain-cash/           # sesiones, Z ciego, authz descuentos
   domain-integrations/   # importers, exporters, messaging contracts
   contracts-sync/        # idempotency envelopes / outbox
-  adapters-d1/
-  adapters-sunat/
+  adapters-d1/           # D1 batch, processOfflineSaleAtomic, atomic_guards, audit_events
+  adapters-sunat/        # transporte fiscal SUNAT / PSE
   adapters-payments-pe/  # Yape, Plin, MP, Culqi, Niubiz
   adapters-importers/    # Bsale, Alegra, CSV
   adapters-accounting/   # Contasis, Concar
   adapters-messaging/    # WhatsApp Business
+  chaos-harness/         # §13.5 escenarios chaos (jueces + fail-closed deps)
 apps/
   pos-web/               # SvelteKit
   worker-api/            # Hono composition root

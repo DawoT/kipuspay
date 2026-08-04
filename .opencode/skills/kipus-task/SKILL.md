@@ -36,7 +36,7 @@ Con el sprint identificado, la fuente de verdad es su archivo de fase (`INDEX.md
 
 Cada regla que toques debe tener fila en el Registry §0.4. Si la necesitas y no existe: primero la defines **una vez** en la especificación y la registras (skill `kipus-rules-registry`). Nunca dos definiciones, nunca un ID huérfano.
 
-Decisiones que no se improvisan en el PR: si el cambio implica una elección arquitectónica (canal fiscal, política de stock, modelo de cobro, auth/revocación), va como ADR con su fila en el Registry. Plantilla: `docs/adr/TEMPLATE.md` → archivo `docs/adr/ADR-NNNN-….md`. Procedimientos operativos: `docs/runbooks/TEMPLATE.md`.
+Decisiones que no se improvisan en el PR: si el cambio implica una elección arquitectónica (canal fiscal, política de stock, modelo de cobro, auth/revocación), va como ADR con su fila en el Registry. Plantilla: `docs/adr/TEMPLATE.md` → archivo `docs/adr/ADR-NNNN-….md`. **El archivo ADR debe existir en el tree antes de citar `ticket_or_adr: ADR-NNNN` en el Ledger** (ADR-first; no adelantar el ID en slices previos). Procedimientos operativos: `docs/runbooks/TEMPLATE.md`.
 
 ## 4. Diseñar contra las invariantes
 

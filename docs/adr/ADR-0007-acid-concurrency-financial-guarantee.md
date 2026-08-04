@@ -51,8 +51,21 @@ cero carreras de stock bajo escritores concurrentes. D1 no ofrece
 |---|---|---|---|---|
 | 1 | 0 carreras stock (concurrencia) | `process-offline-sale-atomic.integration` | Firmado | Firmado |
 | 2 | Rollback mid-batch (guard ok=0) | `schema.integration` atomic_guards | Firmado | Firmado |
-| 3 | Retry duplicado → ALREADY_SYNCED | integration + chaos-harness | Firmado | Firmado |
+| 3 | Retry duplicado → ALREADY_SYNCED | integration + chaos-harness fail-closed | Firmado | Firmado |
 | 4 | Feature flag desactiva motor | `offline-sale-route` | — | Firmado |
 | 5 | verify + quality GREEN | scripts | Firmado | Firmado |
+| 6 | SYN-06 OFFLINE_OVERSELL | integration allow_negative + `audit_events` | Firmado | Firmado |
 
-**Veredicto QG:** GO — Garantía Financiera ACID certificada (2026-08-04).
+**Veredicto QG técnico:** GO — Garantía Financiera ACID (código + chaos D1) certificada (2026-08-04).
+
+## Addendum remediación QG (honesty, 2026-08-04)
+
+| Residual DoD | Estado | Nota |
+|---|---|---|
+| Sub-50ms hot-path medido | Pendiente | No fingir benchmark; medir en sprint de perf / staging |
+| Firma RACI `V` independiente de `R` | Pendiente humana | Checklist "Firmado" del cierre original fue auto-referencial; requiere revisor distinto |
+| Chaos sin fixtures | Cerrado | harness fail-closed; D1 en integration (quality step 4) |
+| Ledger 0202 SHA huérfano | Cerrado | Ledger 0207 CORRIGE → `caa940a` |
+| ADR-0007 citado antes del archivo | Documentado | 0203–0205; archivo nace en 0206; no reescritura |
+
+Sprint 4 permanece **Cerrado** en ROADMAP con esta honesty documentada.

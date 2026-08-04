@@ -156,7 +156,7 @@ def main() -> int:
     expect(bool(cm.CENTS_OK.search("total_cents")), "V-21 no reconoce _cents como dinero OK")
     expect(not cm.CENTS_OK.search("total"), "V-21 marca un nombre sin _cents como dinero OK")
 
-    # V-20: parseo de entradas del ledger (CAL-07)
+    # V-20: parseo de entradas del ledger (CAL-07) + reachability helpers
     te = load_tdd_evidence()
     entries = te.parse_entries(
         "id: 0188\nred_commit_sha: a1b2\nred_run_id: r1\ngreen_commit_sha: c3d4\n"
@@ -164,6 +164,15 @@ def main() -> int:
     )
     expect(len(entries) == 2 and entries[0]["id"] == "0188", "V-20 no parsea las entradas del ledger")
     expect(any(e.get("red_commit_sha") == "a1b2" for e in entries), "V-20 pierde campos de la entrada")
+    corr = te.corriged_ids(
+        [
+            {"id": "0207", "relacion": "CORRIGE", "referencias_entradas": "[0202, 0203]"},
+            {"id": "0202", "relacion": "AMPLIA"},
+        ]
+    )
+    expect("0202" in corr and "0203" in corr, "V-20 corriged_ids no lee referencias CORRIGE")
+    expect(te.is_ancestor_of_head("N/A") is True, "V-20 N/A no debe fallar reachability")
+    expect(te.is_ancestor_of_head("not-a-sha") is False, "V-20 SHA inválido debe fallar reachability")
 
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")
@@ -171,7 +180,7 @@ def main() -> int:
             print(f"     {f}")
         return 1
     print("RESULT V-00 GREEN")
-    print("     20 aserciones sobre los detectores del gate")
+    print("     23 aserciones sobre los detectores del gate")
     return 0
 
 

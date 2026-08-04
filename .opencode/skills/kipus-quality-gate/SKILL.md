@@ -56,6 +56,14 @@ gitleaks git --no-banner --redact -v                                  # secretos
 
 - `SUITE GREEN` documental (`scripts/verify.sh`) + pipeline verde + umbrales cumplidos
   son condición **necesaria**.
+- Chaos Sprint 4+ (`scripts/chaos/run.mjs` / §13.5): el harness **fail-closed** sin deps
+  inyectadas; un PASS solo con fixtures de demo **no** cuenta como QG. La evidencia D1
+  de `concurrent-writers` / `duplicate-retry` vive en `adapters-d1` integration
+  (paso 4 de `quality.sh`); el paso 4b no debe re-ejecutar esa suite.
+- V-20 exige `green_commit_sha`/`red_commit_sha` **reachable desde HEAD** (salvo
+  entrada posterior `CORRIGE`). Tras un rewrite de commits, registrar CORRIGE — no
+  editar la entrada.
 - El cierre del sprint exige además la firma RACI de `A` + `V` independiente
   (`docs/PROCESS.md` §8.1) y evidencia runtime RED→GREEN registrada en el ledger con
-  contrato TDD (CAL-07): `test_ids`, `red_run_id`/`green_run_id`, commits reales.
+  schema v2 y contrato TDD (CAL-07: `test_ids`, `red_run_id`/`green_run_id`, commits
+  reales reachable); sin `A` + `V` distinto de `R`, el veredicto es `NO-GO`.
