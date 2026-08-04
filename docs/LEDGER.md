@@ -2566,3 +2566,73 @@ aprobaciones: [Staff Backend Datos]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0224
+timestamp_utc: 2026-08-04T17:10:00Z
+schema_version: 2
+sprint_fase: Sprint 8 — Fase 3 (ledger CxC/CxP + Modo Dueño)
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: ledger-ar owner-mode ar-compensate
+relacion: AMPLIA
+referencias_entradas: [0223]
+referencias_documentales: [docs/roadmap/fase-3.md, docs/runbooks/owner-mode-ledger.md, packages/domain-cash/src/ledger.ts, packages/chaos-harness/src/ar-compensate.ts]
+prev_id: 0223
+prev_hash: a6919e717e801a1a7b4d1ccf5d91ad1f1e298030c272b2803386494186af7aae
+entry_hash: 577e0c4a47b7a3642d8cf6723bd6dc18e6ad78bb2682b3cd9cad85780701e20d
+ticket_or_adr: GTM-6.3
+test_ids: [ledger, ledger-routes, push-routes, cache, index]
+entregable_afectado: Sprint 8 ledger + Modo Dueño + push + chaos
+descripcion: >
+  Dominio AR/AP/OC/egresos + compensateArOnCreditNote; DAT-05/E-D en
+  processOfflineSaleAtomic/processCreditNoteAtomic; API ledger/owner;
+  push_subscriptions; PWA Dueño dark; IDB rollup+banner; chaos ar-compensate 500.
+evidencia: >
+  RED: sin ledger Dueño ni ar-compensate.
+  GREEN: quality OK; chaos 4f; owner-mode-ledger runbook; flags default 0.
+red_commit_sha: 763c996c33cdab16dc9b6ba35bffd9b4496a10df
+red_run_id: run-red-0224-owner-ledger
+expected_failure: AssertionError: missing ledger-ar/owner-mode/ar-compensate
+green_commit_sha: 94d3a68139fcb4c91dc329d03143d31af73f1462
+green_run_id: run-green-0224-owner-ledger
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos, Staff Mobile/Producto, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0225
+timestamp_utc: 2026-08-04T17:20:00Z
+schema_version: 2
+sprint_fase: Sprint 8 — Fase 3 (Quality Gate cierre)
+agente_responsable: Staff Backend Datos
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0223, 0224]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/owner-mode-ledger.md, docs/roadmap/fase-3.md]
+prev_id: 0224
+prev_hash: 577e0c4a47b7a3642d8cf6723bd6dc18e6ad78bb2682b3cd9cad85780701e20d
+entry_hash: ef708bf18e9dcb9af7a99b9e037dce41a234755fc6f8ae11fdb94740d13757ad
+ticket_or_adr: GTM-6.3
+test_ids: [SUITE, ledger, ledger-routes, cache, index]
+entregable_afectado: ROADMAP Sprint 8 Cerrado + QG EN REVISION
+descripcion: >
+  Cierre Sprint 8: ROADMAP/INDEX Entrega=Cerrado; verify+quality GREEN;
+  runbook owner-mode-ledger; GTM-03/11 siguen congelados; estado_gov EN REVISION
+  hasta firma A+V independiente (Proceso §8.1).
+evidencia: >
+  RED: Sprint 8 En progreso sin QG.
+  GREEN: quality OK; chaos 4f; ROADMAP Cerrado; runbook Dueño/ledger.
+red_commit_sha: 763c996c33cdab16dc9b6ba35bffd9b4496a10df
+red_run_id: run-red-0225-owner-ledger-qg
+expected_failure: AssertionError: Sprint 8 still En progreso
+green_commit_sha: 94d3a68139fcb4c91dc329d03143d31af73f1462
+green_run_id: run-green-0225-owner-ledger-qg
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R; A/V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
