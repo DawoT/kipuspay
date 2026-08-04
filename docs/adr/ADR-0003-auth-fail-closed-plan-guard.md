@@ -53,6 +53,6 @@ comercialmente.
 
 ## Evidencia de cierre
 
-- Tests: `auth-decide.test.ts`, `tenant-auth-middleware.test.ts`.
-- Ledger: `id: 0193`.
+- Tests: `auth-decide.test.ts`, `tenant-auth-middleware.test.ts`, `control-plane.test.ts`.
+- Ledger: `id: 0193` (slice 1) · `id: 0195` (slice 2 KV/DO).
 - Firmas RACI: `R` Staff Security · `A` Staff Principal · `V` Staff SRE + Staff PM.
