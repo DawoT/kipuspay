@@ -2032,3 +2032,38 @@ estado: Vigente
 ```
 
 
+
+```
+id: 0208
+timestamp_utc: 2026-08-04T15:15:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (remediación QG chaos)
+agente_responsable: Staff QA/Chaos
+tipo: Corrección
+subtipo: chaos fail-closed
+relacion: CORRIGE
+referencias_entradas: [0206]
+referencias_documentales: [packages/chaos-harness/src/index.ts, scripts/chaos/run.mjs]
+prev_id: 0207
+prev_hash: 3913e7e440197486ef6168e251e2d903dda17e16e4e2c38d94e7710ae48df0f8
+entry_hash: 371d4288066520be9cbbee3791689bcb23cec8dc1d72f4fd2a54668dc1786e53
+ticket_or_adr: ADR-0007
+test_ids: [index, process-offline-sale-atomic.integration]
+entregable_afectado: chaos-harness Sprint 4 fail-closed + quality 4b
+descripcion: >
+  Elimina PASS por fixtures en concurrent-writers/duplicate-retry; sin deps
+  inyectadas el harness lanza. scripts/chaos/run.mjs solo corre unit del harness
+  (no re-ejecuta adapters-d1 integration; evidencia D1 = quality step 4).
+evidencia: >
+  RED: runChaosScenario sin deps resolvía PASS con fixtures demo.
+  GREEN: unit fail-closed; chaos run.mjs PASS; integration D1 intacta.
+red_commit_sha: da05b6c56e05c489527753b88a966ba7e1e5bbdb
+red_run_id: run-red-0208-chaos-fixtures
+expected_failure: AssertionError: concurrent-writers PASS without D1 deps
+green_commit_sha: eed15d153c8cec085f3ccfd7ac944d3383e7cc91
+green_run_id: run-green-0208-chaos-failclosed
+ancestry_verified: true
+aprobaciones: [Staff QA/Chaos, Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
