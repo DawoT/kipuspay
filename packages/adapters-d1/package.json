@@ -5,7 +5,8 @@
   "description": "KipusPay — adaptador de persistencia D1 (repositorios, db.batch, migraciones)",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./process-offline-sale-atomic": "./src/process-offline-sale-atomic.ts"
   },
   "scripts": {
     "lint": "eslint src --max-warnings 0",

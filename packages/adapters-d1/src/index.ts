@@ -7,6 +7,7 @@ export interface D1Result<T> {
 export interface D1Bound {
   bind(...params: unknown[]): D1Bound;
   all<T = unknown>(): Promise<D1Result<T>>;
+  first<T = unknown>(): Promise<T | null>;
   run(): Promise<D1Result<unknown>>;
 }
 
@@ -49,11 +50,13 @@ export async function runBatch(
  */
 export class AtomicPlanBuilder {
   private readonly statements: D1Bound[] = [];
+  private readonly db: D1DatabaseLike;
+  private readonly guardId: string;
 
-  constructor(
-    private readonly db: D1DatabaseLike,
-    private readonly guardId: string = crypto.randomUUID(),
-  ) {}
+  constructor(db: D1DatabaseLike, guardId: string = crypto.randomUUID()) {
+    this.db = db;
+    this.guardId = guardId;
+  }
 
   add(statement: D1Bound): this {
     this.statements.push(statement);

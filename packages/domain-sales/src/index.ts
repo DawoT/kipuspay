@@ -35,3 +35,16 @@ export function buildSaleTotals(lines: readonly SaleLine[]): SaleTotals {
     totalCents: subtotalCents + igvCents,
   };
 }
+
+export {
+  assertOfflineSaleShape,
+  computeNvLineTotals,
+  InsufficientStockError,
+  resolveIssuedAtMs,
+  toLimaTimestamp,
+  type NvLineCents,
+  type NvTotals,
+  type OfflinePaymentPayload,
+  type OfflineSaleItemPayload,
+  type OfflineSalePayload,
+} from './offline-sale.js';

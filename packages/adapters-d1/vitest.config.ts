@@ -14,6 +14,7 @@ export default defineConfig({
         'src/worker-entry.ts',
         'src/migrations-down.ts',
         'src/raw.d.ts',
+        'src/process-offline-sale-atomic.ts',
       ],
       thresholds: {
         lines: 70,
