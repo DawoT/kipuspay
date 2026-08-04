@@ -1638,3 +1638,40 @@ aprobaciones: [Staff Security, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0197
+timestamp_utc: 2026-08-04T09:00:00Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (Quality Gate cierre)
+agente_responsable: Staff Security
+tipo: Entregable nuevo
+subtipo: ASVS L2 + gitleaks + ROADMAP Cerrado
+relacion: AMPLIA
+referencias_entradas: [0193, 0195, 0196]
+referencias_documentales: [docs/adr/ADR-0004-sprint2-asvs-l2-checklist.md, .gitleaks.toml, docs/ROADMAP.md, apps/worker-api/src/auth/protected-routes.test.ts]
+prev_id: 0196
+prev_hash: 25d78cb10738d6240ca386c1a368c7d479d9f0701061a1b9f1ab06d467394295
+entry_hash: c06549da080bfb581dc350feb5fedb4785bff037615fc020abef5e42601e92a3
+ticket_or_adr: ADR-0004
+test_ids: [protected-routes, control-plane, verify-jwt, jwt-idp.http]
+entregable_afectado: ROADMAP Sprint 2 Cerrado, ADR-0004 ASVS L2, gitleaks
+descripcion: >
+  Cierra Sprint 2 Quality Gate: ADR-0004 checklist OWASP ASVS L2 + firma PM
+  (Plan Guard no apaga cobro); matriz 100% rutas /api/* protegidas; gitleaks
+  8.28 no leaks (config TOML corregida); evidencia DO down→503 ya en 0195.
+  ROADMAP/INDEX Sprint 2 Entrega=Cerrado. RACI A+V independientes.
+evidencia: >
+  RED (ancestro 044e064): Sprint 2 En progreso; .gitleaks.toml TOML inválido;
+  sin checklist ASVS ni matriz protected-routes.
+  GREEN (commit a7d3294): gitleaks no leaks; 44 tests worker-api; quality+verify
+  GREEN; Sprint 2 Cerrado; ADR-0004 aceptado.
+red_commit_sha: 044e064b3b27513af9b4e1ea88f24a64d21a8e04
+red_run_id: run-red-0197-sprint2-qg
+expected_failure: AssertionError: gitleaks config TOML / Sprint 2 still En progreso
+green_commit_sha: a7d3294f720d4d9fb67d82a7fd8eb08d7274cc1a
+green_run_id: run-green-0197-sprint2-qg
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal, Staff SRE, Staff PM]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
