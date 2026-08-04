@@ -2102,3 +2102,40 @@ aprobaciones: [Staff Backend ACID, Staff Fiscal, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0210
+timestamp_utc: 2026-08-04T15:35:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (remediación QG cierre)
+agente_responsable: Staff Backend ACID
+tipo: Corrección
+subtipo: V-20 reachability + skills + DoD residual
+relacion: CORRIGE
+referencias_entradas: [0206, 0207]
+referencias_documentales: [scripts/checks/tdd_evidence.py, .opencode/skills/kipus-task/SKILL.md, .opencode/skills/kipus-quality-gate/SKILL.md, docs/adr/ADR-0007-acid-concurrency-financial-guarantee.md, INDEX.md]
+prev_id: 0209
+prev_hash: b883a2f2f8a52591526a66a481f46caca4fe184fbcfec54bcc10bcf1ca9a7651
+entry_hash: a51e76e5df607663e72f2cdd0e193c0c5bb6bfa880ea568b7ec498fb9eeb21f4
+ticket_or_adr: ADR-0007
+test_ids: [V-00, V-20, SUITE]
+entregable_afectado: V-20 reachability + skills QG + ADR addendum DoD
+descripcion: >
+  Ratchet V-20: green/red SHA deben ser ancestros de HEAD salvo CORRIGE;
+  selftest V-00 +3 aserciones. Skills kipus-task (ADR-first) y kipus-quality-gate
+  (chaos fail-closed, reachability). INDEX packages adapters-d1/chaos-harness.
+  ADR-0007 addendum: Sub-50ms y V RACI independiente quedan pendientes humanos;
+  Sprint 4 permanece Cerrado con honesty.
+evidencia: >
+  RED: V-20 no validaba reachability (0202 huérfano pasaba).
+  GREEN: V-20 GREEN con CORRIGE 0207; verify SUITE; quality path.
+red_commit_sha: 840a9c939f1f29c511e57aa26323156095a38aa5
+red_run_id: run-red-0210-v20-reachability
+expected_failure: AssertionError: orphan green_commit_sha accepted by V-20
+green_commit_sha: 6ef2c339a1928689425924006be75ad033e33d42
+green_run_id: run-green-0210-v20-skills-index
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
