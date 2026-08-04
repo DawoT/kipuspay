@@ -14,7 +14,7 @@ sprints: "0"
 
 **Entregables**
 - Charter del escuadrón (este documento, adoptado formalmente) y asignación de owner por rol.
-- Plantilla de ADR, plantilla de runbook, estructura de repositorio.
+- Plantilla de ADR (`docs/adr/TEMPLATE.md`), plantilla de runbook (`docs/runbooks/TEMPLATE.md`), estructura de repositorio; **ADR-0001** (adopción roadmap/DoD/ledger/CAL/monorepo) en `docs/adr/`.
 - Pipeline de CI con linters, cobertura de tests, escaneo de secretos y de dependencias vulnerables (Sección 5).
 - Pipeline de testing multi-capa configurado con los umbrales mínimos de la Sección 6 activos en CI.
 - Esquema y tooling del Changelog Obligatorio inmutable (Sección 7), incluida la plantilla de entrada.

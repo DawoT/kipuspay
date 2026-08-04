@@ -70,8 +70,12 @@ Abre solo los archivos que esta tabla te señale.
 
 | Sprint | FASE | Archivo | Línea | Especificación | Entrega |
 |---|---|---|---|---|---|
-| 1 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 12 | Actualizada (M1 dinero cents, §5.0) | Planificado |
-| 2–5 | 1–2 | — | — | Base | Planificado |
+| 0 | 0 | [`docs/roadmap/fase-0.md`](docs/roadmap/fase-0.md) | 12 | Actualizada (ADR-0001, CAL-01..08, monorepo, D1 humo) | Cerrado |
+| 1 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 12 | Actualizada (M1 dinero cents, §5.0 / §5.5 migraciones) | Cerrado |
+| 2 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 23 | Actualizada (auth fail-closed, plan guard, IdP — §3) | Planificado |
+| 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | Actualizada (webhooks pasarela + invalidación — §4) | Planificado |
+| 4 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 45 | Actualizada (motor ACID + reconciliación — §6) | Planificado |
+| 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | Base | Planificado |
 | 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 33 | Actualizada (Resumen Diario, plazos, baja y alertas) | Planificado |
 | 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 51 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Planificado |
 | 7–8 | 2–3 | — | — | Base | Planificado |
@@ -91,11 +95,6 @@ Abre solo los archivos que esta tabla te señale.
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 0 | 0 | [`docs/roadmap/fase-0.md`](docs/roadmap/fase-0.md) | 12 | sin fila de estado | — |
-| 2 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 23 | sin fila de estado | — |
-| 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | sin fila de estado | — |
-| 4 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 45 | sin fila de estado | — |
-| 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | sin fila de estado | — |
 | 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | sin fila de estado | — |
 | 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 23 | sin fila de estado | — |
 | 10 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 12 | sin fila de estado | — |

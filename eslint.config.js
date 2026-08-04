@@ -77,6 +77,10 @@ export default tseslint.config(
       '**/.svelte-kit/**',
       '**/.wrangler/**',
       '**/coverage/**',
+      // Tipado cloudflare:workers / cloudflare:test solo resuelve bajo pool-workers
+      '**/*.integration.test.ts',
+      '**/test/apply-migrations.ts',
+      '**/test/env.d.ts',
     ],
   },
   {

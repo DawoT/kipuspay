@@ -12,11 +12,11 @@ sprints: "1–4"
 #### Sprint 1 — Esquema de Datos, Multi-Sucursal, Formalización y Sharding Dinámico
 **Referencia:** Arquitectura §5, §5.1, §5.2 · **Agentes:** Staff Backend Datos (owner), Staff Principal (revisor), Staff Security (auditor), Staff Fiscal (consultado)
 
-**Entregables:** DDL completo incl. `tenants` (`tax_regime`, `formalization_mode`, `pse_mode`, cert status, docs habilitados); `branch_document_series` (**series por sucursal**, no por caja) con `authorization_status`; `sales` con `must_submit_by`, `void_status`, `issued_at_lima`, `daily_summary_id`, hash/QR; `sunat_daily_summaries`; `sale_items.igv_affectation_code`; `products.charges_icbper`; docs `NV`/`NV_RETURN`/`01`/`03`/`07`/`08`; migraciones; router tenant→shard. **Convención de dinero (v8.1, §5.0):** todo monto como `INTEGER` cents (`*_cents`); cero columnas monetarias `REAL`.
+**Entregables:** DDL completo incl. `tenants` (`tax_regime`, `formalization_mode`, `pse_mode`, cert status, docs habilitados); `branch_document_series` (**series por sucursal**, no por caja) con `authorization_status`; `sales` con `must_submit_by`, `void_status`, `issued_at_lima`, `daily_summary_id`, hash/QR; `sunat_daily_summaries`; `sale_items.igv_affectation_code`; `products.charges_icbper`; docs `NV`/`NV_RETURN`/`01`/`03`/`07`/`08`; migraciones en `packages/adapters-d1/migrations/` (`0000_schema_meta`, `0001_ddl_base_v8`) + downs en `migrations-down/`; router tenant→shard (`resolveShardId`). **Convención de dinero (v8.1, §5.0):** todo monto como `INTEGER` cents (`*_cents`); cero columnas monetarias `REAL`.
 
-**Criterios de aceptación:** 0 FKs huérfanas; índices únicos parciales OK; `ruc` nullable; correlativo único por tenant+tipo+serie+número; migraciones up/down en CI; **grep de regresión: 0 columnas monetarias `REAL` en el DDL**.
+**Criterios de aceptación:** 0 FKs huérfanas; índices únicos parciales OK; `ruc` nullable; correlativo único por tenant+branch+tipo+serie+número; migraciones up/down en CI (pool-workers); **grep de regresión: 0 columnas monetarias `REAL` en el DDL**.
 
-**Quality Gate:** ADR de esquema firmado por Staff Principal + Staff Security + Staff Fiscal.
+**Quality Gate:** [ADR-0002](../adr/ADR-0002-schema-d1-base.md) firmado por Staff Principal + Staff Security + Staff Fiscal.
 
 ---
 

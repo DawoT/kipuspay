@@ -20,6 +20,10 @@
 # Claims comerciales y pricing
 /docs/GTM.md                                 @DawoT
 
+# ADRs y runbooks operativos
+/docs/adr/                                   @DawoT
+/docs/runbooks/                              @DawoT
+
 # Gate ejecutable: cambiar el verificador cambia lo que el repo garantiza
 /scripts/                                    @DawoT
 /.github/workflows/                          @DawoT

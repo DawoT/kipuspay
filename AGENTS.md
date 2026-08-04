@@ -28,7 +28,9 @@ tarea. Si no sabes dónde vive algo, la respuesta es `INDEX.md`, no un `grep` a 
 | Motor transaccional / atomicidad D1 | `docs/architecture/06-acid-engine.md` | El DDL completo |
 | Claim comercial o pricing | `docs/GTM.md` + el Quality Gate del sprint que lo libera (`docs/ROADMAP.md`) | La especificación técnica |
 | Gate, DoD, RACI, CI/CD | `Proceso §3`, `§5.2`, `§8.1` | El roadmap |
-| Registrar un cambio | Skill `kipus-changelog` → **solo la última entrada** de `docs/LEDGER.md` (para `prev_hash`) | Las 44 entradas del ledger |
+| Registrar un cambio | Skill `kipus-changelog` → **solo la última entrada** de `docs/LEDGER.md` (para `prev_hash`) | El resto del ledger (append-only) |
+| Decisión no trivial | `docs/adr/TEMPLATE.md` → ADR numerado en `docs/adr/` | Re-escribir la regla en el PR sin ADR |
+| Incidente / procedimiento | `docs/runbooks/TEMPLATE.md` → runbook en `docs/runbooks/` | Improvisar mitigación sin registro |
 | Cambiar el gate | `scripts/verify.sh` + `scripts/checks/` | Los documentos normativos |
 
 Los alias de la tabla (`Arquitectura §N`, `Proceso §N`, `Roadmap`, `GTM §N`) resuelven a
@@ -64,7 +66,9 @@ falla si una cita apunta a una sección que no existe. Los mapas navegables son
 | `docs/PROCESS.md` | `Proceso §N` | Proceso | Roles, DoD, Quality Gates, CI/CD, gobernanza, métricas |
 | `docs/ROADMAP.md` + `docs/roadmap/*.md` | `Roadmap FASE N` | Roadmap | Alcance, entregables y gate de cada sprint |
 | `docs/LEDGER.md` | `Ledger NNNN` | Registro | Changelog append-only (0143+) — **inmutable** |
-| `docs/GTM.md` | `GTM §N` | Comercial | Claims, pricing, gates GTM-01..12 |
+| `docs/GTM.md` | `GTM §N` | Comercial | Claims, pricing, gates GTM-01..18 |
+| `docs/adr/` | ADR-NNNN | Decisiones | ADRs aceptados (plantilla `docs/adr/TEMPLATE.md`) |
+| `docs/runbooks/` | — | Operación | Runbooks de incidente (plantilla `docs/runbooks/TEMPLATE.md`) |
 | `AGENTS.md` | `AGENTS §N` | Contrato raíz | Invariantes + autoridad + router de lectura (este archivo) |
 | `INDEX.md` | — | Índice **generado** | Punteros capability/DDL/regla/puerto/package — sin autoridad normativa |
 

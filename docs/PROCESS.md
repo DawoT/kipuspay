@@ -130,23 +130,30 @@ Ningún sprint se cierra si el entregable no cumple **todo** lo siguiente (adem�
 
 ### 5.2 Pipeline CI/CD — Etapas Obligatorias (en orden, cada una bloquea la siguiente)
 
-**Etapa 0 — Gate documental (única etapa activa hoy).** `scripts/verify.sh` corre en el
-hook `pre-commit` y en `.github/workflows/verify.yml` (checks V-01..V-16; catálogo en
-`AGENTS.md` §5). Bloquea el merge por sí sola. Las etapas 1–11 describen el pipeline de
-**implementación**: se activan con el primer código del Sprint 0 y hasta entonces no
-existen como workflow — ningún agente debe asumir que hay lint, unit o integration en CI.
+**Estado del pipeline (post Sprint 0 / ADR-0001).** Las **Etapas 0–5 están activas** en CI.
+Las Etapas 6–11 permanecen post-staging (no hay topología de shards de staging aún):
+ningún agente debe asumir deploy a staging/canario/producción hasta que existan esos
+ambientes. Catálogo de checks documentales: `AGENTS.md` §5 (V-00..V-24). Toolchain de
+implementación: `Arquitectura §13` y `Proceso §8.3`.
 
-1. **Lint & análisis estático** — estilo, tipado, complejidad ciclomática.
-2. **Unit tests** — ver umbrales por capa en Sección 6.
-3. **Integration tests** — contra D1 real (no mocks) para todo lo que toque transacciones o esquema.
-4. **Escaneo de seguridad** — SAST + escaneo de dependencias vulnerables + detección de secretos.
-5. **Build** — artefacto reproducible, sin dependencia de estado local del agente que lo generó.
-6. **Deploy a Staging** — réplica de la topología de shards en miniatura.
-7. **Suite E2E + Chaos en Staging** — resiliencia de red, cuota de almacenamiento local excedida, presión de memoria en perfil de dispositivo de gama baja, fallo de shard, fallo de Durable Object.
-8. **Staff Review Board** — quórum según Sección 4; sin aprobación, no hay siguiente etapa. Desacuerdos persistentes se resuelven con el Protocolo de Desempate Arquitectónico (Anexo B §4), nunca con deadlock indefinido.
-9. **Deploy Canario a Producción** — subconjunto acotado de tenants (tenants internos/beta antes que tenants reales).
-10. **Ventana de observación de canario** — monitoreo activo contra los SLO de la Sección 9 antes de decidir.
-11. **Rollout completo o rollback automático** — el rollback se dispara solo si el canario cruza un umbral de error predefinido; no requiere juicio humano ni de agente en el momento de la crisis.
+| Etapa | Qué hace | Dónde corre | Estado |
+|---|---|---|---|
+| 0 | Gate documental `scripts/verify.sh` (V-00..V-24) | `pre-commit` + `verify.yml` | **Activa** |
+| 1 | Lint & análisis estático (ESLint invariantes, Prettier, `tsc` estricto) | `quality.yml` | **Activa** |
+| 2 | Unit tests + umbrales de cobertura (CAL-03/CAL-05) | `quality.yml` | **Activa** |
+| 3 | Integration tests (D1 real vía pool-workers, migraciones) | `quality.yml` | **Activa** |
+| 4 | Escaneo de seguridad (Gitleaks, Semgrep, CodeQL, Dependabot) | `security.yml` + `codeql.yml` | **Activa** |
+| 5 | Build + presupuesto de bundle POS (CAL-06 / V-24) | `quality.yml` | **Activa** |
+| 6 | Deploy a Staging — réplica de shards en miniatura | — | Post-staging |
+| 7 | Suite E2E + Chaos en Staging (red, cuota, memoria, shard/DO) | — | Post-staging (chaos: §13.5, activo desde Sprint 4/6) |
+| 8 | Staff Review Board — quórum según Sección 4 | Proceso humano | **Activa** (cada gate de sprint) |
+| 9 | Deploy Canario a Producción | — | Post-staging |
+| 10 | Ventana de observación de canario vs SLO §9.1 | — | Post-staging |
+| 11 | Rollout completo o rollback automático | — | Post-staging |
+
+Orden local de las Etapas 1–5: `scripts/quality.sh`. Un `SUITE GREEN` documental es
+necesario pero no suficiente: el Quality Gate de cada sprint exige evidencia runtime
+y firma RACI `A` + `V` (§8.1).
 
 ### 5.3 Ambientes
 

@@ -1331,3 +1331,119 @@ aprobaciones: [Staff Principal, Staff QA/Chaos]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0189
+timestamp_utc: 2026-08-04T04:50:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (cierre formal)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Milestone
+subtipo: cierre Sprint 0
+relacion: AMPLIA
+referencias_entradas: [0188, 0182, 0183]
+referencias_documentales: [docs/adr/ADR-0001-adopt-roadmap-dod-changelog.md, docs/PROCESS.md, docs/roadmap/fase-0.md, packages/adapters-d1/, packages/chaos-harness/]
+prev_id: 0188
+prev_hash: 2fca939e2b3ae1bb029820ccc929aeae2157fbb01524cc6bc70aeeae528e593f
+entry_hash: fc8c26979ddd5f48099810af845e7dc94468c099e15f253cf5bfe046fe326713
+ticket_or_adr: ADR-0001
+test_ids: [V-00, V-18, V-20, V-24, SUITE, schema.integration, index]
+entregable_afectado: ADR-0001, Proceso §5.2, Arquitectura §13.5, ROADMAP Sprint 0, harness D1 y chaos-harness
+descripcion: >
+  Cierra formalmente el Sprint 0 tras el scaffold de 0188. (1) ADR-0001 adopta
+  roadmap, DoD, ledger inmutable, CAL-01..08 y monorepo §1.1; plantillas ADR y
+  runbook en docs/adr y docs/runbooks. (2) Proceso §5.2 deja de mentir: Etapas 0–5
+  activas en CI; 6–11 post-staging. (3) Harness D1 real con
+  @cloudflare/vitest-pool-workers: migracion 0000_schema_meta + test de humo
+  db.batch. (4) chaos-harness stub con activacion por sprint en §13.5 (no PASS
+  vacio). (5) ROADMAP marca Sprint 0 Entrega=Cerrado.
+evidencia: >
+  RED: Sprint 0 parcial (0188) sin ADR-0001, sin plantillas, §5.2 stale, integration
+  con passWithNoTests, chaos prometido y ausente, tracker sin fila Sprint 0.
+  GREEN: ADR-0001 aceptado; §5.2 alineado; 5 tests integration D1 GREEN (incluye
+  humo batch); chaos-harness rechaza escenarios antes de su sprint; verify SUITE
+  GREEN; quality.sh GREEN; RACI R=Principal A=Principal V=QA/Chaos.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0190
+timestamp_utc: 2026-08-04T05:10:00Z
+schema_version: 2
+sprint_fase: Sprint 1 — Fase 1 (esquema D1 base)
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: migraciones DDL base
+relacion: AMPLIA
+referencias_entradas: [0189, 0188]
+referencias_documentales: [docs/adr/ADR-0002-schema-d1-base.md, docs/architecture/05-5-ddl-base.md, packages/adapters-d1/migrations/]
+prev_id: 0189
+prev_hash: fc8c26979ddd5f48099810af845e7dc94468c099e15f253cf5bfe046fe326713
+entry_hash: 94fce22d9690cffaaa6925b4859e528cc8846972d7b7ec6d9a74f1331cf73f83
+ticket_or_adr: ADR-0002
+test_ids: [schema.integration, index, V-05, V-06, V-22]
+entregable_afectado: packages/adapters-d1/migrations/0001_ddl_base_v8.sql, migrations-down/, resolveShardId, ADR-0002, ROADMAP Sprint 1
+descripcion: >
+  Materializa Arquitectura §5.5 como migraciones D1 versionadas. 0001_ddl_base_v8
+  extrae el fence SQL canónico (30 tablas); downs en migrations-down; suite
+  schema.integration.test.ts valida ruc nullable, 0 columnas monetarias REAL,
+  correlativo unico tenant+branch+tipo+serie+numero, y down reversible.
+  resolveShardId cubre el router tenant→shard minimo. ADR-0002 cierra el Quality
+  Gate de esquema. ROADMAP Sprint 1 Entrega=En progreso.
+evidencia: >
+  RED: integration falló por SQLITE_AUTH en join pragma y por path con espacios al
+  leer downs desde workerd; unit falló por coverage de worker-entry/migrations-down
+  y por incluir *.integration.test.ts en el glob unitario.
+  GREEN: 5/5 integration GREEN; unit GREEN con excludes; 0 *_cents REAL en 0001;
+  ADR-0002 aceptado; RACI R=Backend Datos A=Principal V=Security+Fiscal.
+  Nota TDD: los SHAs red/green del merge se registran en el commit que aterriza
+  este entregable (working tree actual); test_ids ya resuelven en el monorepo.
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos, Staff Principal, Staff Security, Staff Fiscal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0191
+timestamp_utc: 2026-08-04T06:00:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Gobernanza y GTM
+agente_responsable: Staff Growth
+tipo: Corrección de especificación
+subtipo: reconciliación GTM vs Arquitectura (claims FASE 6B/6D)
+relacion: AMPLIA
+referencias_entradas: [0190]
+referencias_documentales: [docs/GTM.md, docs/architecture/01-principles.md, docs/architecture/05-3-commercial-ops.md, docs/roadmap/fase-6b.md, docs/roadmap/fase-6d.md]
+prev_id: 0190
+prev_hash: 94fce22d9690cffaaa6925b4859e528cc8846972d7b7ec6d9a74f1331cf73f83
+entry_hash: 9256085182306d47a9be9542d02c8cc5bd0264691fe3a4ee272cb1c3b9b23d87
+ticket_or_adr: SPRINT-0-GTM-ALIGN
+test_ids: [V-09, V-10, V-12, V-18, V-19]
+entregable_afectado: docs/GTM.md §2, §3.3.1, §4.1, §4.1.1, §5.9, §6.2, §8, §9
+descripcion: >
+  Auditoría de ida y vuelta GTM vs Arquitectura: 13 capabilities con regla+DDL+gate
+  (pricing.lists 18, inventory.bom 18, purchasing.partial_receive 20,
+  purchasing.three_way 28–32, pricing.promotions 29, catalog.variants/uom 30,
+  sales.layaway 31, ledger.chart_of_accounts 32, inventory.locations/serials/scale/
+  price_labels 38–42, platform.dr 48) no tenían presencia comercial. Se añaden sus
+  gates y freeze a GTM: párrafo de gates FASE 6B/6D (§4.1), planes Cadena/Crece,
+  filas GTM-13..18 en la matriz de claims, FAQ (§5.9), objeciones (§8), roles por
+  capability (§3.3.1), Product Tour y nota de material secundario (§2/§6.2) y métrica
+  de adopción (§9). Las funciones de IA ya estaban alineadas (predictiva 46, briefing
+  49, escáner 50, badge 51, impresora 53). DRY: GTM referencia Arquitectura §5.3
+  reglas 5/14–17/23–27/32, no re-especifica.
+evidencia: >
+  RED: GTM no mencionaba BOM, listas de precio, recepción parcial, 3-way, promos,
+  variantes/UM, apartados, diario contable, ubicaciones, series, balanza, etiquetas
+  ni DR/BCP — claims sin disciplina de freeze para FASE 6B/6D.
+  GREEN: docs/GTM.md 610→655 líneas; verify.sh SUITE GREEN (V-09/10/12/18/19) tras
+  edición; matriz de claims ampliada a GTM-13..18 con gates por capability.
+ancestry_verified: true
+aprobaciones: [Staff Growth, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

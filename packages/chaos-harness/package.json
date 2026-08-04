@@ -1,8 +1,8 @@
 {
-  "name": "@kipuspay/adapters-d1",
+  "name": "@kipuspay/chaos-harness",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay — adaptador de persistencia D1 (repositorios, db.batch, migraciones)",
+  "description": "KipusPay — escenarios de chaos adversarial (Arquitectura §13.5). Activo por sprint.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -13,19 +13,12 @@
     "test": "vitest run --coverage",
     "test:unit": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "build": "true",
-    "migrate:list": "ls -1 migrations/*.sql"
+    "build": "true"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.20.1",
-    "@cloudflare/workers-types": "^5.20260801.1",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.118.0"
-  },
-  "dependencies": {
-    "@kipuspay/domain-sales": "workspace:*"
+    "vitest": "^4.1.10"
   }
 }

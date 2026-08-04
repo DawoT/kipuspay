@@ -130,19 +130,26 @@ package en su `vitest.config.ts` (no en la raíz), para que cada capa declare su
 ### **13.5 Chaos y adversarial (CAL-04)**
 
 El package `chaos-harness` expone escenarios reutilizables; `scripts/chaos/` los orquesta.
-Cada escenario emite un veredicto `PASS|FAIL` y un log reproducible:
+Cada escenario emite un veredicto `PASS|FAIL` y un log reproducible.
 
-| Escenario | Técnica | Capa que protege |
-|---|---|---|
-| Red adversarial | CDP `Network.emulateNetworkConditions` (packet loss, latencia) | sync offline |
-| Cuota local | monkeypatch de IndexedDB para lanzar `QuotaExceededError` | cola offline |
-| Memoria / CPU gama baja | Playwright `--cpu-throttling`, perfil Android low-end | POS |
-| Fallo de shard / DO | pool-workers: `fetch` al DO falla con 5xx; se verifica breaker abierto (5xx abren, 4xx no) | SRE breaker |
-| Escritores concurrentes | `Promise.all` de N ventas sobre el mismo SKU en D1 real | motor ACID |
-| Reintento duplicado | re-envío del mismo envelope de idempotencia | reconciliación |
+**Activación por sprint (no fingir cobertura):** el andamiaje (`packages/chaos-harness`,
+`scripts/chaos/`) existe desde Sprint 0; los escenarios **bloquean CI** solo cuando el
+sprint de la capa correspondiente los activa. Hasta entonces el harness documenta el
+contrato y falla en seco si se invoca un escenario no implementado.
+
+| Escenario | Técnica | Capa | Activo desde |
+|---|---|---|---|
+| Red adversarial | CDP `Network.emulateNetworkConditions` (packet loss, latencia) | sync offline | Sprint 6 |
+| Cuota local | monkeypatch de IndexedDB para lanzar `QuotaExceededError` | cola offline | Sprint 6 |
+| Memoria / CPU gama baja | Playwright `--cpu-throttling`, perfil Android low-end | POS | Sprint 7 / 14 |
+| Fallo de shard / DO | pool-workers: `fetch` al DO falla con 5xx; breaker (5xx abren, 4xx no) | SRE breaker | Sprint 26 (FASE 8) |
+| Escritores concurrentes | `Promise.all` de N ventas sobre el mismo SKU en D1 real | motor ACID | Sprint 4 |
+| Reintento duplicado | re-envío del mismo envelope de idempotencia | reconciliación | Sprint 4 |
 
 Regla: **ningún sprint de las Fases 1–2 (dinero, impuestos, seguridad) cierra su gate sin
-el escenario de su capa ejecutado en CI** (CAL-04, `Proceso §4`).
+el escenario de su capa ejecutado en CI** una vez que ese escenario está marcado activo
+arriba (CAL-04, `Proceso §4`). Sprint 1 cierra con integración D1 (migraciones up/down),
+no con chaos de concurrencia — eso es el gate de Sprint 4.
 
 ### **13.6 Seguridad en CI (CAL-05)**
 
