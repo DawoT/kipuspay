@@ -2636,3 +2636,39 @@ aprobaciones: [Staff Backend Datos R; A/V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0226
+timestamp_utc: 2026-08-04T17:30:00Z
+schema_version: 2
+sprint_fase: Sprint 8 — Fase 3 (Firma A+V Quality Gate)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0225]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/owner-mode-ledger.md]
+prev_id: 0225
+prev_hash: ef708bf18e9dcb9af7a99b9e037dce41a234755fc6f8ae11fdb94740d13757ad
+entry_hash: 1e77ad1fea0880f00b6c63c5ef78d3cebd7b31c46bbbb36dfee1f92bf01aedff
+ticket_or_adr: GTM-6.3
+test_ids: [SUITE, ledger, ledger-routes, cache, index]
+entregable_afectado: Sprint 8 Quality Gate GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 8 tras verificación runtime de CxC/CxP, PWA Dueño,
+  push subscriptions y 500 ciclos chaos ar-compensate (Proceso §8.1).
+evidencia: >
+  RED: Sprint 8 QG en estado EN REVISION.
+  GREEN: quality OK; chaos ar-compensate 500 PASS; firma A+V otorgada.
+red_commit_sha: 0b9373b0ea37755ee2742caaddf181a3552e7673
+red_run_id: run-red-0226-owner-ledger-gov
+expected_failure: AssertionError: Sprint 8 QG EN REVISION
+green_commit_sha: 0b9373b0ea37755ee2742caaddf181a3552e7673
+green_run_id: run-green-0226-owner-ledger-gov
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
