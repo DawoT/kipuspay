@@ -2209,3 +2209,38 @@ aprobaciones: [Staff Fiscal, Staff Backend ACID, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0213
+timestamp_utc: 2026-08-04T16:25:00Z
+schema_version: 2
+sprint_fase: Sprint 5 — Fase 2 (Quality Gate cierre)
+agente_responsable: Staff Fiscal
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0211, 0212]
+referencias_documentales: [docs/ROADMAP.md, docs/adr/ADR-FISCAL-001-v2-pse-guards-exclusions.md, docs/runbooks/pse-kipuspay-staging.md]
+prev_id: 0212
+prev_hash: c2ca7fd887302e46ad8e3348186c54412c6ddb0f354ff5da82a30ec2d8c4bbfe
+entry_hash: 2ec4b0fa56a937a8cee1f8cc01055fcefe89918910106c433c1d1d690e4e6d7e
+ticket_or_adr: ADR-FISCAL-001
+test_ids: [SUITE, process-offline-sale-atomic.integration, index, ubl-invoice]
+entregable_afectado: ROADMAP Sprint 5 Cerrado + QG EN REVISION
+descripcion: >
+  Cierre Sprint 5: ROADMAP/INDEX Entrega=Cerrado; verify+quality GREEN; ADR
+  checklist con V humana pendiente. estado_gov EN REVISION hasta firma A+V
+  independiente (Proceso §8.1). Claim PSE comercial sigue congelado.
+evidencia: >
+  RED: Sprint 5 En progreso sin QG.
+  GREEN: quality OK; ROADMAP Cerrado; ADR evidencia técnica documentada.
+red_commit_sha: e8a5d16d88a2550a8e06d3edf1e1c44d88604288
+red_run_id: run-red-0213-sprint5-qg
+expected_failure: AssertionError: Sprint 5 still En progreso
+green_commit_sha: 2471ec237ffe5a1bfef75784bedefae995e3000c
+green_run_id: run-green-0213-sprint5-qg
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R; A/V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
