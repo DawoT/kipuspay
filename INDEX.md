@@ -73,7 +73,7 @@ Abre solo los archivos que esta tabla te señale.
 | 0 | 0 | [`docs/roadmap/fase-0.md`](docs/roadmap/fase-0.md) | 12 | Actualizada (ADR-0001, CAL-01..08, monorepo, D1 humo) | Cerrado |
 | 1 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 12 | Actualizada (M1 dinero cents, §5.0 / §5.5 migraciones) | Cerrado |
 | 2 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 23 | Actualizada (auth fail-closed, plan guard, IdP — §3) | Cerrado |
-| 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | Actualizada (webhooks pasarela + invalidación — §4) | En progreso |
+| 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | Actualizada (webhooks pasarela + invalidación — §4) | Cerrado |
 | 4 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 45 | Actualizada (motor ACID + reconciliación — §6) | Planificado |
 | 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | Base | Planificado |
 | 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 33 | Actualizada (Resumen Diario, plazos, baja y alertas) | Planificado |

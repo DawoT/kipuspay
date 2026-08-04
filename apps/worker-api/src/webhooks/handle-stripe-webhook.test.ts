@@ -255,4 +255,27 @@ describe('handleStripeWebhook', () => {
     expect(res.body.code).toBe('WEBHOOK_RETRYABLE');
     expect(mem.rows.get('stripe:evt_503')?.status).toBe('FAILED');
   });
+
+  it('latencia invalidación: webhook → isTenantRevokedCached true (E2E timed)', async () => {
+    const { env, kv } = createEnv({});
+    kv.set(
+      'tenant:t1',
+      JSON.stringify({ id: 't1', status: 'active', subscriptionStatus: 'active' }),
+    );
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_timing');
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const t0 = performance.now();
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+    const control: ControlPlaneEnv = {
+      TENANT_KV: { get: (k) => Promise.resolve(kv.get(k) ?? null) },
+      TENANT_STATE_DO: env.TENANT_STATE_DO,
+    };
+    await expect(isTenantRevokedCached(control, 't1')).resolves.toBe(true);
+    const elapsedMs = performance.now() - t0;
+
+    expect(res.status).toBe(200);
+    // Presupuesto unitario (mem KV/DO): p95 << 100 ms. Staging E2E documentado en runbook.
+    expect(elapsedMs).toBeLessThan(100);
+  });
 });
