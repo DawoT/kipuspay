@@ -1675,3 +1675,39 @@ aprobaciones: [Staff Security, Staff Principal, Staff SRE, Staff PM]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0198
+timestamp_utc: 2026-08-04T05:35:13Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (calidad: paridad gate local vs CI)
+agente_responsable: Staff SRE
+tipo: Corrección de herramienta
+subtipo: quality.sh añade paso bundle CAL-06 y corrige referencia CAL-04→CAL-03
+relacion: AMPLIA
+referencias_entradas: [0197]
+referencias_documentales: [scripts/quality.sh, .github/workflows/quality.yml]
+prev_id: 0197
+prev_hash: c06549da080bfb581dc350feb5fedb4785bff037615fc020abef5e42601e92a3
+entry_hash: ba76001d6e44c76901a51cf24cb7a0702af8902210c2ba1f0c50cda217b31f7d
+ticket_or_adr: SPRINT-2-CAL-06-LOCAL-PARITY
+test_ids: [V-24, V-13, V-15, SUITE]
+entregable_afectado: scripts/quality.sh (CAL-06, Arquitectura §13.8)
+descripcion: >
+  El Quality Gate local terminaba en 7/7 Build sin validar el presupuesto de
+  bundle del POS: un artefacto que excediera el límite solo lo frenaba CI
+  (quality.yml, paso bundle CAL-06), no el gate del staff antes del push.
+  Se añade el paso 8/8 "Presupuesto de bundle del POS (CAL-06)" con
+  `pnpm bundle` sobre apps/pos-web tras el build, y se corrige la referencia
+  de regla del mensaje de semgrep (CAL-04→CAL-03, Arquitectura §13.6).
+  No se toca CI: security.yml ya ejecuta gitleaks (CAL-04) y semgrep (CAL-03).
+evidencia: >
+  RED: quality.sh terminaba en 7/7 sin ejecutar size-limit; solo
+  .github/workflows/quality.yml:47-49 validaba el presupuesto.
+  GREEN: paso 8/8 corriendo `size-limit` → 28.02 kB gz < 300 kB; quality.sh
+  completo GREEN (16 tareas turbo); scripts/verify.sh RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
