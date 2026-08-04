@@ -2271,3 +2271,73 @@ aprobaciones: [Staff Fiscal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0215
+timestamp_utc: 2026-08-04T16:10:00Z
+schema_version: 2
+sprint_fase: Fase 2 — fiscal RC / plazos / baja / portal
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: RC deadlines void portal chaos
+relacion: AMPLIA
+referencias_entradas: [0214]
+referencias_documentales: [docs/adr/ADR-FISCAL-001-v2-pse-guards-exclusions.md, docs/runbooks/fiscal-deadlines-rc.md, packages/adapters-d1/migrations/0006_fiscal_alerts_rc.sql, packages/chaos-harness/src/deadline-chaos.ts]
+prev_id: 0214
+prev_hash: 6ddeee0ae40ea539d725af6348cabbba7db813c9ded6bbd35454d1750430b1be
+entry_hash: d94ce3ae94bb6cab1455ee2cdb47f45c0a2e40d5a8a24ab83a8b1a23d08f4099
+ticket_or_adr: ADR-FISCAL-001
+test_ids: [deadlines, fiscal-rc, fiscal-rc.integration, index, fiscal-rc-routes]
+entregable_afectado: fiscal RC completo (plazos, baja E-C, portal, chaos)
+descripcion: >
+  processFiscalDeadlines T-24h/T-6h/DEADLINE_EXCEEDED+E-A; buildDailySummary
+  FIS-03 (tenant_id+summary_date); void E-C sin stock/caja; NRUS≤500 en RC;
+  portal CPE 1y FEATURE_CPE_PORTAL; chaos deadline fail-closed; migration 0006.
+evidencia: >
+  RED: sin RC cron/plazos/void/portal/chaos deadline.
+  GREEN: quality OK; integration fiscal-rc; domain-fiscal deadlines/fiscal-rc; chaos deadline.
+red_commit_sha: a8b23a5c2736f0926d49bc93023194262e4b0d8d
+red_run_id: run-red-0215-fiscal-rc
+expected_failure: AssertionError: missing RC/deadline/void/portal/chaos deadline
+green_commit_sha: 72c1b2c9e59c0a46e7e58a3e5f05871d7a342a1c
+green_run_id: run-green-0215-fiscal-rc
+ancestry_verified: true
+aprobaciones: [Staff Fiscal, Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0216
+timestamp_utc: 2026-08-04T16:15:00Z
+schema_version: 2
+sprint_fase: Fase 2 — Quality Gate cierre fiscal RC
+agente_responsable: Staff Fiscal
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0214, 0215]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/fiscal-deadlines-rc.md, docs/adr/ADR-FISCAL-001-v2-pse-guards-exclusions.md]
+prev_id: 0215
+prev_hash: d94ce3ae94bb6cab1455ee2cdb47f45c0a2e40d5a8a24ab83a8b1a23d08f4099
+entry_hash: 1759c5fd3f2a6b4f7bf0760c7968f09dcd0bbd0e8926c68a96be49a529918a99
+ticket_or_adr: ADR-FISCAL-001
+test_ids: [SUITE, fiscal-rc.integration, deadlines, index]
+entregable_afectado: ROADMAP fiscal RC Cerrado + QG EN REVISION
+descripcion: >
+  Cierre entregable fiscal RC/plazos: ROADMAP/INDEX Entrega=Cerrado;
+  verify+quality GREEN; runbook plazos pendiente V humano. estado_gov
+  EN REVISION hasta firma A+V independiente (Proceso §8.1).
+evidencia: >
+  RED: entregable fiscal RC En progreso sin QG.
+  GREEN: quality OK; chaos deadline step; ROADMAP Cerrado; runbook fiscal-deadlines-rc.
+red_commit_sha: a8b23a5c2736f0926d49bc93023194262e4b0d8d
+red_run_id: run-red-0216-fiscal-rc-qg
+expected_failure: AssertionError: fiscal RC still En progreso
+green_commit_sha: 72c1b2c9e59c0a46e7e58a3e5f05871d7a342a1c
+green_run_id: run-green-0216-fiscal-rc-qg
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R; A/V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
