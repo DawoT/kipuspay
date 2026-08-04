@@ -1447,3 +1447,43 @@ aprobaciones: [Staff Growth, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0192
+timestamp_utc: 2026-08-04T07:00:00Z
+schema_version: 2
+sprint_fase: Sprint 1 — Fase 1 (cierre TDD esquema D1)
+agente_responsable: Staff Backend Datos
+tipo: Corrección
+subtipo: evidencia TDD + aceptación Sprint 1
+relacion: CORRIGE
+referencias_entradas: [0190]
+referencias_documentales: [packages/adapters-d1/src/schema.integration.test.ts, docs/ROADMAP.md, docs/adr/ADR-0002-schema-d1-base.md]
+prev_id: 0191
+prev_hash: 9256085182306d47a9be9542d02c8cc5bd0264691fe3a4ee272cb1c3b9b23d87
+entry_hash: eaf56158d265ab7990f79f0b57608523b81da7fb9041ceeca9779edd647c7336
+ticket_or_adr: ADR-0002
+test_ids: [schema.integration, index]
+entregable_afectado: packages/adapters-d1 schema.integration + ROADMAP Sprint 1 Cerrado
+descripcion: >
+  Completa el contrato CAL-07/V-20 de la entrada 0190 con SHAs reales del aterrizaje
+  y cierra formalmente Sprint 1. Añade tests de aceptación pendientes: rechazo de FK
+  huérfana con PRAGMA foreign_keys=ON y presencia de índices únicos parciales
+  canónicos (idx_tenants_ruc, idx_branches_tenant_code, idx_users_tenant_email,
+  idx_sales_offline_id, idx_sales_series_number) vía sqlite_master. ROADMAP Sprint 1
+  Entrega=Cerrado; higiene agéntica (AGENTS adr/runbooks, filas Sprint 2–4, kipus-task).
+evidencia: >
+  RED (ancestro cefffd0): sin migraciones 0001 ni aserciones FK/índices; suite
+  schema.integration inexistente en el monorepo.
+  GREEN (commit 2045015): 7/7 schema.integration GREEN; quality.sh OK; verify
+  SUITE GREEN; Sprint 0+1 Cerrado en ROADMAP/INDEX.
+red_commit_sha: cefffd001ec4255dbea19a818c846fef37cf943b
+red_run_id: run-red-0192-schema-integration
+expected_failure: AssertionError: falta índice idx_tenants_ruc / SQLITE_CONSTRAINT FK orphan
+green_commit_sha: 20450151a783d50d57149678439727cbfb1fbbe0
+green_run_id: run-green-0192-schema-integration
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos, Staff Principal, Staff Security]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
