@@ -57,5 +57,5 @@ Ventas offline quedan en IndexedDB; cobro online sigue. Al 100% cuota, **nuevas*
 
 ## Postmortem
 
-- Entrada de ledger (cierre QG): `id: 0219` (o siguiente)
+- Entrada de ledger (cierre QG): `id: 0219`
 - Acción preventiva: no reintroducir `UPSERT INTO` en LWW CRM; mantener INSERT+UPDATE WHERE.
