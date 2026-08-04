@@ -97,7 +97,7 @@ Abre solo los archivos que esta tabla te señale.
 | 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 53 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Cerrado |
 | 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | Cerrado |
 | 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 25 | Actualizada (ledger CxC/CxP/OC/egresos + Modo Dueño + offline rollup + owner.push_alerts; GTM-03/11 freeze) | Cerrado |
-| 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 40 | Actualizada (M3 rollups §9 + cron multi-shard + catálogo CSV + GTM-03/11 unfreeze) | En progreso |
+| 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 40 | Actualizada (M3 rollups §9 + cron multi-shard + catálogo CSV + GTM-03/11 unfreeze) | Cerrado |
 | 10–16 | 3–5 | — | — | Base | Planificado |
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Planificado |
 | 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Planificado |

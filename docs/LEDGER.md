@@ -2701,3 +2701,75 @@ aprobaciones: [Staff Data/Analytics]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0228
+timestamp_utc: 2026-08-04T17:40:00Z
+schema_version: 2
+sprint_fase: Sprint 9 — Fase 3 (reporting rollups / catálogo / CSV)
+agente_responsable: Staff Data/Analytics
+tipo: Entregable nuevo
+subtipo: reporting-rollups catalog export
+relacion: AMPLIA
+referencias_entradas: [0227]
+referencias_documentales: [docs/architecture/09-reporting.md, docs/runbooks/reporting-rollups-incident.md, packages/adapters-d1/src/daily-rollups-cron.ts, packages/chaos-harness/src/rollup-idempotent.ts, apps/worker-api/src/reports/report-routes.ts]
+prev_id: 0227
+prev_hash: 1ff5b44a49ac4db7c764be989985f31c4855c74fb6e8762aa7c7b7def766a85c
+entry_hash: 1cfcdafb7e4b96b1949b2d52d4c2433a59d921bee5c317030fb9a0a862915663
+ticket_or_adr: GTM-03/11
+test_ids: [daily-rollups-cron, report-routes, offline-sync.integration, auth-decide, index]
+entregable_afectado: Sprint 9 rollups SoT + cron + catálogo CSV + chaos
+descripcion: >
+  Implementación Sprint 9: migración daily_product_rollups; rematerialize
+  financial+product DELETE+INSERT; cron Promise.all multi-shard; API
+  /api/reports con flags; CSV UTF-8 BOM; chaos rollup-idempotent activeFrom=9;
+  Locales ranking + rankingClaimFrozen off con FEATURE_REPORTING_CATALOG;
+  runbook IR game day + P95 Sub-50ms.
+evidencia: >
+  RED: AssertionError: missing reporting-rollups/catalog/rollup-idempotent
+  GREEN: quality OK; integration edge D product+cron 2×; chaos 4g.
+red_commit_sha: df2c2300f2acc521b501680ec519002948e0e895
+red_run_id: run-red-0228-reporting-rollups
+expected_failure: AssertionError: missing reporting-rollups/catalog/rollup-idempotent
+green_commit_sha: 875080e001e77328892b2753efd89fcb859e5fe6
+green_run_id: run-green-0228-reporting-rollups
+ancestry_verified: true
+aprobaciones: [Staff Data/Analytics, Staff SRE, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0229
+timestamp_utc: 2026-08-04T17:50:00Z
+schema_version: 2
+sprint_fase: Sprint 9 — Fase 3 (Quality Gate cierre)
+agente_responsable: Staff Data/Analytics
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0227, 0228]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/reporting-rollups-incident.md, docs/roadmap/fase-3.md, docs/GTM.md]
+prev_id: 0228
+prev_hash: 1cfcdafb7e4b96b1949b2d52d4c2433a59d921bee5c317030fb9a0a862915663
+entry_hash: 63f6de6b06df4204c1247d4326fe602d84365522eae6c5e44b896c0a619a79bd
+ticket_or_adr: GTM-03/11
+test_ids: [SUITE, daily-rollups-cron, report-routes, offline-sync.integration, index]
+entregable_afectado: ROADMAP Sprint 9 Cerrado + QG EN REVISION
+descripcion: >
+  Cierre Sprint 9: ROADMAP/INDEX Entrega=Cerrado; verify+quality GREEN;
+  GTM-03/11 listos tras QG con evidencia rollups SoT + banner offline;
+  estado_gov EN REVISION hasta firma A+V independiente (Proceso §8.1).
+evidencia: >
+  RED: AssertionError: Sprint 9 still En progreso
+  GREEN: quality OK; chaos 4g; ROADMAP Cerrado; runbook reporting-rollups.
+red_commit_sha: df2c2300f2acc521b501680ec519002948e0e895
+red_run_id: run-red-0229-reporting-rollups-qg
+expected_failure: AssertionError: Sprint 9 still En progreso
+green_commit_sha: 875080e001e77328892b2753efd89fcb859e5fe6
+green_run_id: run-green-0229-reporting-rollups-qg
+ancestry_verified: true
+aprobaciones: [Staff Data/Analytics R; A/V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
