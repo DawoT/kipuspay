@@ -3096,3 +3096,52 @@ aprobaciones: [Staff Growth R; RACI A+V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0239
+timestamp_utc: 2026-08-04T23:05:00Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (pulido premium)
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: ingenieria de marca y superficies de producto del sitio
+relacion: AMPLIA
+referencias_entradas: [0237, 0238]
+referencias_documentales: [docs/GTM.md, docs/roadmap/fase-4.md, docs/PROCESS.md]
+prev_id: 0238
+prev_hash: 4433df49612476511e4c7988b8046db36aeb1c15cdef3028e9d2b93b6191d373
+entry_hash: b471cca4760777568538ed7472de58eeed12cb19a319d3b89a0f025d1f29e5c8
+ticket_or_adr: GTM §5, GTM §6
+test_ids: [content, quipu, money, seo, registry, reveal, features, SUITE, V-21, V-23, V-24]
+entregable_afectado: apps/marketing-web (marca, producto, contenido de rubro, comparativas, stubs)
+descripcion: >
+  El sitio cumplia el alcance de Sprint 10 pero no el estandar de marca de GTM
+  §5-§6: el heroe no compartia la grilla del sitio, el quipu era decorativo, no
+  existia superficie de producto, los rubros se mostraban por slug, las tres
+  comparativas compartian una sola tabla y las seis paginas pendientes eran
+  avisos con numero de sprint. Este entregable cierra esos huecos sin sumar una
+  sola dependencia de runtime: geometria de quipu generada en TypeScript con
+  nudos de valor posicional, set propio de iconos de linea, CheckoutMock
+  reutilizable en lib/brand con dinero en centimos enteros, contenido de rubro
+  (nombre legible, dolores, FAQ, cruce entre rubros, breadcrumb JSON-LD),
+  comparativas diferenciadas cuya columna ajena se declara como lo reportado por
+  quienes migran, StubView con salidas utiles y nav movil accesible sin JS.
+  El copy deja de exponer numeros de sprint al comercio sin perder el aviso de
+  que el registro completo aun no esta abierto.
+evidencia: >
+  RED: en 07bd469 no existen lib/brand/, StubView ni las pruebas de contenido
+  extendido; los stubs decian "Sprint 11" y las tres comparativas compartian
+  COMPARE_ROWS con la columna "Sistemas tradicionales".
+  GREEN: 0345b86 con 57 pruebas verdes (8 archivos), svelte-check 0 errores,
+  marketing_copy GREEN, verify SUITE GREEN, quality Gate OK y presupuesto de
+  bundle bajado de 120 kB a 72 kB con 59.7 kB gz reales.
+red_commit_sha: 07bd469f058ba34c5cf4307432a91665d0e414d7
+red_run_id: run-red-0239-premium-marketing
+expected_failure: AssertionError: falta lib/brand, StubView y las pruebas de contenido de rubro
+green_commit_sha: 0345b867a62bd2b502a81a94d5272979fae89d07
+green_run_id: run-green-0239-premium-marketing
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
