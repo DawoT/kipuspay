@@ -8,6 +8,7 @@ import {
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
+import type { DeadlineChaosResult } from './deadline-chaos.js';
 
 describe('chaos-harness contrato §13.5', () => {
   it('rechaza concurrent-writers antes del Sprint 4', () => {
@@ -77,34 +78,33 @@ describe('chaos-harness contrato §13.5', () => {
   });
 
   it('jueces deadline fallan ante silent expiry / sin E-A / status malo', () => {
-    expect(
-      judgeDeadlineChaos({
-        steps: [],
-        finalSunatStatus: 'PENDING',
-        silentExpiry: true,
-      }),
-    ).toBe('FAIL');
-    expect(
-      judgeDeadlineChaos({
-        steps: [{ alert: 'T24H', suggestCreditNoteEa: false }],
-        finalSunatStatus: 'DEADLINE_EXCEEDED',
-        silentExpiry: false,
-      }),
-    ).toBe('FAIL');
-    expect(
-      judgeDeadlineChaos({
-        steps: [{ alert: 'DEADLINE_EXCEEDED', suggestCreditNoteEa: false }],
-        finalSunatStatus: 'DEADLINE_EXCEEDED',
-        silentExpiry: false,
-      }),
-    ).toBe('FAIL');
-    expect(
-      judgeDeadlineChaos({
-        steps: [{ alert: 'DEADLINE_EXCEEDED', suggestCreditNoteEa: true }],
-        finalSunatStatus: 'PENDING',
-        silentExpiry: false,
-      }),
-    ).toBe('FAIL');
+    const r1: DeadlineChaosResult = {
+      steps: [],
+      finalSunatStatus: 'PENDING',
+      silentExpiry: true,
+    };
+    expect(judgeDeadlineChaos(r1)).toBe('FAIL');
+
+    const r2: DeadlineChaosResult = {
+      steps: [{ alert: 'T24H', suggestCreditNoteEa: false }],
+      finalSunatStatus: 'DEADLINE_EXCEEDED',
+      silentExpiry: false,
+    };
+    expect(judgeDeadlineChaos(r2)).toBe('FAIL');
+
+    const r3: DeadlineChaosResult = {
+      steps: [{ alert: 'DEADLINE_EXCEEDED', suggestCreditNoteEa: false }],
+      finalSunatStatus: 'DEADLINE_EXCEEDED',
+      silentExpiry: false,
+    };
+    expect(judgeDeadlineChaos(r3)).toBe('FAIL');
+
+    const r4: DeadlineChaosResult = {
+      steps: [{ alert: 'DEADLINE_EXCEEDED', suggestCreditNoteEa: true }],
+      finalSunatStatus: 'PENDING',
+      silentExpiry: false,
+    };
+    expect(judgeDeadlineChaos(r4)).toBe('FAIL');
   });
 
   it('rechaza escenario activo en Sprint N sin runner aún', async () => {
