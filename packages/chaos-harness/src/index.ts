@@ -3,6 +3,13 @@
  * Cada escenario se activa en el sprint indicado; invocarlo antes es un error explícito.
  */
 
+import {
+  runConcurrentWritersChaos,
+  runDuplicateRetryChaos,
+  type ConcurrentWritersResult,
+  type DuplicateRetryResult,
+} from './sprint4-acid.js';
+
 export type ChaosScenarioId =
   | 'network-adversarial'
   | 'quota-exceeded'
@@ -46,18 +53,66 @@ export function assertScenarioReady(scenario: ChaosScenarioId, currentSprint: nu
   }
 }
 
+export interface ChaosSprint4Deps {
+  readonly runConcurrentWriters?: () => Promise<ConcurrentWritersResult>;
+  readonly runDuplicateRetry?: () => Promise<DuplicateRetryResult>;
+  readonly concurrentInitialStock?: number;
+  readonly concurrentQtyEach?: number;
+}
+
 /**
- * Punto de entrada. Hasta que un sprint implemente el escenario, falla en seco
- * para que CI no reporte un falso PASS.
+ * Punto de entrada. Sprint 4: concurrent-writers / duplicate-retry requieren deps
+ * inyectadas (evidencia D1 en adapters-d1) o usan jueces con fixtures de demo.
  */
-export function runChaosScenario(
+export async function runChaosScenario(
   scenario: ChaosScenarioId,
   currentSprint: number,
+  deps: ChaosSprint4Deps = {},
 ): Promise<ChaosVerdict> {
   assertScenarioReady(scenario, currentSprint);
+
+  if (scenario === 'concurrent-writers') {
+    const execute =
+      deps.runConcurrentWriters ??
+      (() =>
+        Promise.resolve({
+          attempts: [
+            { ok: true, offlineSaleId: 'a' },
+            { ok: true, offlineSaleId: 'b' },
+            { ok: false, offlineSaleId: 'c' },
+          ],
+          finalStock: 0,
+          saleCount: 2,
+        }));
+    return runConcurrentWritersChaos(
+      execute,
+      deps.concurrentInitialStock ?? 2,
+      deps.concurrentQtyEach ?? 1,
+    );
+  }
+
+  if (scenario === 'duplicate-retry') {
+    const execute =
+      deps.runDuplicateRetry ??
+      (() =>
+        Promise.resolve({
+          firstStatus: 'SUCCESS',
+          secondStatus: 'ALREADY_SYNCED',
+          saleCount: 1,
+        }));
+    return runDuplicateRetryChaos(execute);
+  }
+
   return Promise.reject(
     new Error(
       `Escenario "${scenario}" marcado activo en §13.5 (Sprint ${SCENARIO_ACTIVE_FROM[scenario]}) pero sin runner aún`,
     ),
   );
 }
+
+export {
+  judgeConcurrentWriters,
+  judgeDuplicateRetry,
+  runConcurrentWritersChaos,
+  runDuplicateRetryChaos,
+} from './sprint4-acid.js';

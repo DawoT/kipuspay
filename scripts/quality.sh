@@ -25,6 +25,9 @@ pnpm test:unit
 step "4/8 Tests de integración (Vitest + pool de Workers)"
 pnpm test:integration
 
+step "4b/8 Chaos Sprint 4 (§13.5 concurrent-writers + duplicate-retry)"
+node scripts/chaos/run.mjs --scenario all --sprint 4
+
 step "5/8 Secretos (Gitleaks)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --no-banner --redact -v

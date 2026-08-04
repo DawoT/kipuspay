@@ -6,19 +6,17 @@ Orquesta los escenarios de `@kipuspay/chaos-harness` (Arquitectura §13.5).
 
 | Escenario | Activo desde | Runner |
 |---|---|---|
-| `concurrent-writers` / `duplicate-retry` | Sprint 4 | pendiente |
+| `concurrent-writers` / `duplicate-retry` | Sprint 4 | `chaos-harness` + evidencia D1 en `adapters-d1` integration |
 | `network-adversarial` / `quota-exceeded` | Sprint 6 | pendiente |
 | `low-end-device` | Sprint 7 / 14 | pendiente |
 | `shard-do-failure` | Sprint 26 | pendiente |
 
-Hasta la activación, `runChaosScenario` falla en seco (no hay PASS vacío). Sprint 0/1
-cierran con integración D1 real (`packages/adapters-d1`), no con chaos.
-
-## Uso (cuando exista runner)
+## Uso Sprint 4
 
 ```bash
-# desde la raíz del monorepo
 pnpm --filter @kipuspay/chaos-harness test:unit
-# orquestación futura:
-# node scripts/chaos/run.mjs --scenario concurrent-writers --sprint 4
+pnpm --filter @kipuspay/adapters-d1 test:integration
+# orquestación:
+node scripts/chaos/run.mjs --scenario concurrent-writers --sprint 4
+node scripts/chaos/run.mjs --scenario duplicate-retry --sprint 4
 ```

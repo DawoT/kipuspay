@@ -95,3 +95,5 @@ export async function runD1AtomicPlan(
   await build(plan);
   return plan.commit(options?.ok ?? true);
 }
+
+export * from './process-offline-sale-atomic.js';

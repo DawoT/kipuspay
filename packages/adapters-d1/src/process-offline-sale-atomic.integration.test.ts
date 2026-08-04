@@ -180,4 +180,86 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
       processOfflineSaleAtomic(env.DB, 't-acid-skew', fixture.userId, payload, now),
     ).rejects.toThrow(/ISSUED_AT_SKEW_VIOLATION/);
   });
+
+  it('chaos concurrent-writers: Promise.all N ventas mismo SKU (stock coherente)', async () => {
+    const fixture = await seedNvFixture('t-acid-conc');
+    await env.DB.prepare(
+      `UPDATE branch_product_stock SET stock = 5 WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-conc', fixture.productId)
+      .run();
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const attempts = await Promise.all(
+      Array.from({ length: 5 }, async (_, i) => {
+        try {
+          const r = await processOfflineSaleAtomic(
+            env.DB,
+            't-acid-conc',
+            fixture.userId,
+            nvPayload(fixture, `off-conc-${i}`, 1, 1180),
+            now,
+          );
+          return { ok: r.status === 'SUCCESS', offlineSaleId: `off-conc-${i}` };
+        } catch {
+          return { ok: false, offlineSaleId: `off-conc-${i}` };
+        }
+      }),
+    );
+
+    const successes = attempts.filter((a) => a.ok).length;
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-conc', fixture.productId)
+      .first<{ stock: number }>();
+    const saleCount = await env.DB.prepare(`SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ?`)
+      .bind('t-acid-conc')
+      .first<{ n: number }>();
+
+    expect(successes).toBe(5);
+    expect(stock?.stock).toBe(0);
+    expect(saleCount?.n).toBe(5);
+  });
+
+  it('chaos concurrent-writers: sobre-demanda no deja stock negativo', async () => {
+    const fixture = await seedNvFixture('t-acid-race');
+    await env.DB.prepare(
+      `UPDATE branch_product_stock SET stock = 2 WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-race', fixture.productId)
+      .run();
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const attempts = await Promise.all(
+      Array.from({ length: 5 }, async (_, i) => {
+        try {
+          const r = await processOfflineSaleAtomic(
+            env.DB,
+            't-acid-race',
+            fixture.userId,
+            nvPayload(fixture, `off-race-${i}`, 1, 1180),
+            now,
+          );
+          return r.status === 'SUCCESS';
+        } catch {
+          return false;
+        }
+      }),
+    );
+
+    const successes = attempts.filter(Boolean).length;
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-race', fixture.productId)
+      .first<{ stock: number }>();
+    const saleCount = await env.DB.prepare(`SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ?`)
+      .bind('t-acid-race')
+      .first<{ n: number }>();
+
+    expect(successes).toBe(2);
+    expect(stock?.stock).toBe(0);
+    expect(saleCount?.n).toBe(2);
+  });
 });

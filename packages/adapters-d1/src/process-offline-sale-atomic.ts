@@ -72,6 +72,70 @@ async function loadAlreadySynced(
   };
 }
 
+async function loadCatalogAndStock(
+  db: D1DatabaseLike,
+  tenantId: string,
+  branchId: string,
+  productIds: readonly string[],
+): Promise<{
+  catalog: Map<string, { priceCents: number; costCents: number; name: string; type: string }>;
+  stockByProduct: Map<string, { stock: number; allowNegative: boolean; hasBranchRow: boolean }>;
+}> {
+  const catalog = new Map<
+    string,
+    { priceCents: number; costCents: number; name: string; type: string }
+  >();
+  const stockByProduct = new Map<
+    string,
+    { stock: number; allowNegative: boolean; hasBranchRow: boolean }
+  >();
+
+  for (const productId of productIds) {
+    const row = await db
+      .prepare(
+        `SELECT p.id, p.name, p.product_type, p.price_cents, p.cost_cents, p.allow_negative_stock,
+                COALESCE(bps.stock, p.stock) AS branch_stock,
+                CASE WHEN bps.product_id IS NULL THEN 0 ELSE 1 END AS has_branch_row
+         FROM products p
+         LEFT JOIN branch_product_stock bps
+           ON bps.tenant_id = p.tenant_id AND bps.product_id = p.id AND bps.branch_id = ?
+         WHERE p.tenant_id = ? AND p.id = ? AND p.deleted_at IS NULL AND p.is_active = 1`,
+      )
+      .bind(branchId, tenantId, productId)
+      .first<ProductRow & { has_branch_row: number }>();
+    if (!row) throw new Error(`Product not found: ${productId}`);
+    catalog.set(productId, {
+      priceCents: row.price_cents,
+      costCents: row.cost_cents ?? 0,
+      name: row.name,
+      type: row.product_type,
+    });
+    stockByProduct.set(productId, {
+      stock: row.branch_stock,
+      allowNegative: Boolean(row.allow_negative_stock),
+      hasBranchRow: row.has_branch_row === 1,
+    });
+  }
+  return { catalog, stockByProduct };
+}
+
+function assertStockAvailable(
+  payload: OfflineSalePayload,
+  catalog: Map<string, { type: string }>,
+  stockByProduct: Map<string, { stock: number; allowNegative: boolean }>,
+): void {
+  for (const item of payload.items) {
+    const stock = stockByProduct.get(item.productId)!;
+    if (
+      catalog.get(item.productId)!.type === 'physical' &&
+      !stock.allowNegative &&
+      stock.stock < item.quantity
+    ) {
+      throw new InsufficientStockError(item.productId, item.quantity, stock.stock);
+    }
+  }
+}
+
 /**
  * Consolida venta offline NV de forma atómica (Sprint 4 MVP).
  */
@@ -100,52 +164,13 @@ export async function processOfflineSaleAtomic(
   const limaTs = toLimaTimestamp(issuedMs);
 
   const productIds = [...new Set(payload.items.map((i) => i.productId))];
-  const catalog = new Map<
-    string,
-    { priceCents: number; costCents: number; name: string; type: string }
-  >();
-  const stockByProduct = new Map<
-    string,
-    { stock: number; allowNegative: boolean; hasBranchRow: boolean }
-  >();
-
-  for (const productId of productIds) {
-    const row = await db
-      .prepare(
-        `SELECT p.id, p.name, p.product_type, p.price_cents, p.cost_cents, p.allow_negative_stock,
-                COALESCE(bps.stock, p.stock) AS branch_stock,
-                CASE WHEN bps.product_id IS NULL THEN 0 ELSE 1 END AS has_branch_row
-         FROM products p
-         LEFT JOIN branch_product_stock bps
-           ON bps.tenant_id = p.tenant_id AND bps.product_id = p.id AND bps.branch_id = ?
-         WHERE p.tenant_id = ? AND p.id = ? AND p.deleted_at IS NULL AND p.is_active = 1`,
-      )
-      .bind(payload.branchId, tenantId, productId)
-      .first<ProductRow & { has_branch_row: number }>();
-    if (!row) throw new Error(`Product not found: ${productId}`);
-    catalog.set(productId, {
-      priceCents: row.price_cents,
-      costCents: row.cost_cents ?? 0,
-      name: row.name,
-      type: row.product_type,
-    });
-    stockByProduct.set(productId, {
-      stock: row.branch_stock,
-      allowNegative: Boolean(row.allow_negative_stock),
-      hasBranchRow: row.has_branch_row === 1,
-    });
-  }
-
-  for (const item of payload.items) {
-    const stock = stockByProduct.get(item.productId)!;
-    if (
-      catalog.get(item.productId)!.type === 'physical' &&
-      !stock.allowNegative &&
-      stock.stock < item.quantity
-    ) {
-      throw new InsufficientStockError(item.productId, item.quantity, stock.stock);
-    }
-  }
+  const { catalog, stockByProduct } = await loadCatalogAndStock(
+    db,
+    tenantId,
+    payload.branchId,
+    productIds,
+  );
+  assertStockAvailable(payload, catalog, stockByProduct);
 
   const totals = computeNvLineTotals(
     payload.items,
@@ -169,7 +194,6 @@ export async function processOfflineSaleAtomic(
     .bind(tenantId, payload.branchId, payload.series)
     .first<{ id: string; series: string; current_number: number }>();
   if (!seriesRow) throw new Error('SERIES_NOT_FOUND');
-  const nextNumber = seriesRow.current_number + 1;
 
   const saleId = crypto.randomUUID();
   const qtyByProduct = new Map<string, number>();
@@ -211,23 +235,15 @@ export async function processOfflineSaleAtomic(
         }
       }
 
+      // Correlativo atómico en el batch (evita carrera en current_number).
       plan.add(
         db
           .prepare(
-            `UPDATE branch_document_series SET current_number = current_number + 1
-             WHERE id = ? AND tenant_id = ? AND current_number = ?`,
+            `UPDATE branch_document_series
+             SET current_number = current_number + 1
+             WHERE id = ? AND tenant_id = ?`,
           )
-          .bind(seriesRow.id, tenantId, seriesRow.current_number),
-      );
-      const seriesGuardId = crypto.randomUUID();
-      stockGuardIds.push(seriesGuardId);
-      plan.add(
-        db
-          .prepare(
-            `INSERT INTO atomic_guards (id, ok)
-             SELECT ?, CASE WHEN changes() = 1 THEN 1 ELSE 0 END`,
-          )
-          .bind(seriesGuardId),
+          .bind(seriesRow.id, tenantId),
       );
 
       plan.add(
@@ -240,8 +256,11 @@ export async function processOfflineSaleAtomic(
                  total_taxable_cents, total_exempt_cents, total_igv_cents, total_icbper_cents,
                  total_discount_cents, total_cogs_cents, total_amount_cents,
                  issued_at_lima, sunat_status
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NV', ?, ?, 'PEN', 1.0,
-                 ?, 0, ?, 0, ?, ?, ?, ?, 'NOT_APPLICABLE')`,
+               )
+               SELECT
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NV', ?,
+                 (SELECT current_number FROM branch_document_series WHERE id = ?),
+                 'PEN', 1.0, ?, 0, ?, 0, ?, ?, ?, ?, 'NOT_APPLICABLE'`,
           )
           .bind(
             saleId,
@@ -254,7 +273,7 @@ export async function processOfflineSaleAtomic(
             payload.clientDocumentNumber,
             payload.clientName,
             payload.series,
-            nextNumber,
+            seriesRow.id,
             totals.totalTaxableCents,
             totals.totalIgvCents,
             totals.totalDiscountCents,
@@ -384,11 +403,16 @@ export async function processOfflineSaleAtomic(
     throw error;
   }
 
+  const saved = await db
+    .prepare(`SELECT number FROM sales WHERE id = ? AND tenant_id = ?`)
+    .bind(saleId, tenantId)
+    .first<{ number: number }>();
+
   return {
     status: 'SUCCESS',
     saleId,
     authoritativeTotalAmount: totals.totalAmountCents,
     series: payload.series,
-    number: nextNumber,
+    number: saved?.number ?? 0,
   };
 }

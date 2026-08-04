@@ -20,6 +20,7 @@ export default defineConfig(async () => {
     test: {
       include: ['src/**/*.integration.test.ts'],
       setupFiles: ['./test/apply-migrations.ts'],
+      fileParallelism: false,
       // pool-workers no usa v8 coverage del host; umbrales viven en unit.
       passWithNoTests: false,
     },
