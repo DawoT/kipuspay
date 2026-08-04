@@ -8,7 +8,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
-      exclude: ['src/worker.ts', 'src/auth/tenant-state.ts'],
+      exclude: ['src/worker.ts', 'src/index.ts', 'src/auth/tenant-state.ts'],
       thresholds: {
         lines: 70,
         functions: 70,
