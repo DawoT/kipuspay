@@ -1,7 +1,7 @@
-# Atlas — Estrategia Go-To-Market y Landing Page Comercial
+# KipusPay — Estrategia Go-To-Market y Landing Page Comercial
 ## Documento Consolidado de Producto, Pricing y Ventas
 
-> Atlas es el sistema de punto de venta y facturación electrónica que se vende solo, porque en cinco minutos ya está cobrando la primera venta — no en cinco semanas de implementación.
+> KipusPay es el sistema de punto de venta y facturación electrónica que se vende solo, porque en cinco minutos ya está cobrando la primera venta — no en cinco semanas de implementación.
 
 > **Estado de publicación:** la gobernanza de especificación está `GOV-APROBADO` (milestone Sprint 0, entrada 0176 de `Agents.md`), pero mientras `Agents.md` mantenga `Entrega = Planificado`, este documento es especificación comercial, no autorización para publicar claims. Staff Growth solo publica un claim cuando el Quality Gate, la evidencia de implementación y la aprobación RACI correspondiente están cerrados.
 
@@ -15,11 +15,11 @@ Frase de respaldo (para contextos donde se necesite más de 6 palabras): *"Vende
 
 Esta propuesta de valor está diseñada para funcionar igual de bien en la boca de un vendedor telefónico, en un titular de landing page, y en un anuncio de Facebook de 15 segundos — porque no depende de que el cliente entienda tecnología. Depende de que reconozca un dolor que ya vivió: el sistema lento en hora punta, la venta que se perdió porque "se cayó el internet", el descuadre de caja que nadie puede explicar a fin de mes.
 
-### 1.1 Los Tres Dolores que Atlas Vende (no las tres features que Atlas tiene)
+### 1.1 Los Tres Dolores que KipusPay Vende (no las tres features que KipusPay tiene)
 
-Todo el frontend, todo el copy y todo el pricing de Atlas se organiza alrededor de tres dolores universales de cualquier negocio con caja registradora — desde una farmacia de barrio hasta una cadena de 40 locales:
+Todo el frontend, todo el copy y todo el pricing de KipusPay se organiza alrededor de tres dolores universales de cualquier negocio con caja registradora — desde una farmacia de barrio hasta una cadena de 40 locales:
 
-| Dolor del dueño de negocio | Lo que siente | Lo que Atlas resuelve | Frase de venta |
+| Dolor del dueño de negocio | Lo que siente | Lo que KipusPay resuelve | Frase de venta |
 |---|---|---|---|
 | **"Se me llenó la cola y el sistema no aguantó"** | Vergüenza frente al cliente, ventas perdidas por gente que se va | Responde igual de rápido en la venta 1 que en la venta 10,000 | *"Despide a las colas. Atiende al triple sin que se ponga lento."* |
 | **"Se cortó el internet y tuve que cerrar la caja"** | Impotencia, pérdida de ingresos en horas pico que no vuelven | Sigue vendiendo, cobrando e imprimiendo sin conexión; sincroniza solo al volver la señal | *"El internet caído dejó de ser excusa para cerrar la caja."* |
@@ -31,7 +31,7 @@ Nótese lo que NO aparece en esta tabla: sharding, Edge, latencia, arquitectura,
 
 ## 2. A Quién le Vendemos — Segmentación por Vertical
 
-Atlas se posiciona como agnóstico de vertical, pero se **vende** vertical por vertical, porque cada tipo de negocio tiene un dolor dominante distinto que debe liderar su propia página de aterrizaje. En producto eso significa **un solo core + capabilities** (Arquitectura §1.1 / ADR-ARCH-002): las landings empaquetan comercialmente bundles de capabilities, no forks del código.
+KipusPay se posiciona como agnóstico de vertical, pero se **vende** vertical por vertical, porque cada tipo de negocio tiene un dolor dominante distinto que debe liderar su propia página de aterrizaje. En producto eso significa **un solo core + capabilities** (Arquitectura §1.1 / ADR-ARCH-002): las landings empaquetan comercialmente bundles de capabilities, no forks del código.
 
 **Regla comercial (FASE 6 / Agents):** el *feature destacado en demo* y el copy de landing vertical solo se usan en campaña o pitch **después** del Quality Gate del sprint indicado. Hasta entonces: vender el dolor + lo ya shipped (caja offline, formalización, Modo Dueño básico, CPE/PSE); no prometer KDS/split, FEFO, arqueo Z ciego ni merma entre locales como listos.
 
@@ -90,7 +90,7 @@ atlas.pe (Home / Landing Principal)
 Para que las cinco landings de vertical (sección 2) no se sientan como cinco sitios distintos, el header y el footer permanecen idénticos en estructura y posición en todas — solo cambia el contenido del cuerpo:
 
 **Header persistente (todas las páginas del sitio de marketing):**
-`Logo Atlas` — `Para tu negocio ▾` (dropdown a los 5 verticales) — `Precios` — `Seguridad` — `Casos de éxito` — `Ingresar` (link a login del producto) — `[Empieza gratis]` (botón CTA, siempre visible, siempre el mismo estilo)
+`Logo KipusPay` — `Para tu negocio ▾` (dropdown a los 5 verticales) — `Precios` — `Seguridad` — `Casos de éxito` — `Ingresar` (link a login del producto) — `[Empieza gratis]` (botón CTA, siempre visible, siempre el mismo estilo)
 
 **Footer persistente:**
 Cuatro columnas — `Producto` (verticales, precios, seguridad) / `Comparativas` (vs. competidores) / `Recursos` (blog, ayuda, casos de éxito) / `Legal` (términos, privacidad, SUNAT compliance) — más los sellos de confianza de la sección 5.7.1 repetidos aquí, porque el footer es lo último que ve alguien indeciso antes de cerrar la pestaña.
@@ -136,13 +136,13 @@ Subsecciones del panel Configuración:
 | **Etapa de formalización** | Control interno → Formalizando facturación → Emisor electrónico (cambio con confirmación) |
 | **Comprobantes habilitados** | Nota de venta (`NV`), Boleta, Factura, NC, ND — según régimen × etapa |
 | **Series por sucursal** | `NV01`, `B001`, `F001`, `FC01`… (la caja elige serie de su local) |
-| **Certificado / PSE** | Modo PSE Atlas (default) o certificado `.pfx` propio del tenant; estado de envíos |
+| **Certificado / PSE** | Modo PSE KipusPay (default) o certificado `.pfx` propio del tenant; estado de envíos |
 | **Facturación electrónica (estado)** | Facturas pendientes de envío, Resumen Diario del día, alertas de plazo (3d/7d), bajas |
 | **Impuestos** | IGV, ICBPER, exonerados por rubro |
 | **Impresión / hardware** | Ancho de papel 58/80 mm, impresora; **troubleshooter visual** ("Probar impresora USB" / "Buscar impresoras en mi red" / "Probar balanza") sin exponer WebUSB/WSS/IP |
 | **Usuarios y roles** | Alta/baja de cajeros y permisos; **invitación por email/link** + emisión de **PIN de caja** y **badge barcode**; **handoff de turno** sin cerrar caja solo tras el Quality Gate del Sprint 51 (PIN temporal, `SHIFT_TRANSFER` en auditoría) |
 
-**Presets de rol (RBAC, Arquitectura §5.3):** Atlas expone 4 roles con permisos pre-armados; los cambios de permiso, precio o configuración generan `audit_events` (control §5.3 regla 12).
+**Presets de rol (RBAC, Arquitectura §5.3):** KipusPay expone 4 roles con permisos pre-armados; los cambios de permiso, precio o configuración generan `audit_events` (control §5.3 regla 12).
 
 | Rol | Caja | Descuentos | Cierre Z / arqueo | Conteo físico | Reportes | Config / plan | Reimpresión |
 |---|---|---|---|---|---|---|---|---|
@@ -159,12 +159,12 @@ Regla de control: el dueño nunca opera la caja (no mezcla roles); el cajero jam
 
 | Etapa | Default en caja | Mensaje al dueño |
 |---|---|---|
-| Control interno | **Nota de venta** | *"Llevas tu control de ventas. Cuando actives facturación electrónica, Atlas te guía."* |
-| Formalizando | Boleta/Factura vía **activación PSE** | *"Ya emites comprobantes electrónicos con Atlas. Completa tu alta si quieres usar tu propio certificado."* |
+| Control interno | **Nota de venta** | *"Llevas tu control de ventas. Cuando actives facturación electrónica, KipusPay te guía."* |
+| Formalizando | Boleta/Factura vía **activación PSE** | *"Ya emites comprobantes electrónicos con KipusPay. Completa tu alta si quieres usar tu propio certificado."* |
 | Emisor electrónico | Boleta/Factura a SUNAT | *"Tus comprobantes se envían solos (facturas al instante; boletas en el resumen diario)."* |
 
 Banner persistente en Admin/Caja mientras esté en control interno: *"Tu negocio aún no emite comprobantes electrónicos. Activa facturación cuando estés listo."*
-Banner ámbar si hay envíos/RC cerca del plazo: *"Hay comprobantes por declarar a SUNAT. Atlas lo reintenta solo; revisa el estado en Configuración."*
+Banner ámbar si hay envíos/RC cerca del plazo: *"Hay comprobantes por declarar a SUNAT. KipusPay lo reintenta solo; revisa el estado en Configuración."*
 
 **Navegación del Dueño / Modo Dueño (móvil, multi-local):**
 
@@ -180,7 +180,7 @@ Cinco destinos en tab bar inferior, patrón de app de consumo (igual a apps banc
 
 ## 4. Estructura de Precios — Planes y Justificación Comercial
 
-El pricing de Atlas se diseña alrededor de un principio de PLG (Product-Led Growth): **el plan de entrada debe ser tan barato y tan fácil de activar que la decisión de compra la tome el cajero o el dueño solo, sin necesitar aprobación de un comité ni una llamada de ventas.**
+El pricing de KipusPay se diseña alrededor de un principio de PLG (Product-Led Growth): **el plan de entrada debe ser tan barato y tan fácil de activar que la decisión de compra la tome el cajero o el dueño solo, sin necesitar aprobación de un comité ni una llamada de ventas.**
 
 ### 4.1 Planes Sugeridos
 
@@ -243,13 +243,13 @@ Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion co
 
 ### 4.2 Garantía que Elimina el Riesgo Percibido
 
-**"30 días de prueba real, con datos reales, sin tarjeta de crédito."** No un demo con datos ficticios — el negocio usa Atlas en su caja de verdad durante 30 días, y solo paga si decide quedarse. Esto traslada el riesgo de la decisión del cliente hacia Atlas, que es exactamente donde debe estar cuando el producto es tan bueno como afirma serlo.
+**"30 días de prueba real, con datos reales, sin tarjeta de crédito."** No un demo con datos ficticios — el negocio usa KipusPay en su caja de verdad durante 30 días, y solo paga si decide quedarse. Esto traslada el riesgo de la decisión del cliente hacia KipusPay, que es exactamente donde debe estar cuando el producto es tan bueno como afirma serlo.
 
 ### 4.3 Política de Cobranza — Por Qué "El POS que no se cae" Nunca Puede Apagar a un Cliente por un Pago Fallido
 
-La promesa central de marca de Atlas es que el sistema nunca deja al negocio sin poder vender. Esa promesa debe cumplirse también cuando el problema es administrativo, no técnico — si a un cliente le rebota la tarjeta un viernes en hora punta, apagarle el sistema en ese momento contradice exactamente lo que se le vendió, y convierte a un cliente satisfecho en un detractor de marca en minutos.
+La promesa central de marca de KipusPay es que el sistema nunca deja al negocio sin poder vender. Esa promesa debe cumplirse también cuando el problema es administrativo, no técnico — si a un cliente le rebota la tarjeta un viernes en hora punta, apagarle el sistema en ese momento contradice exactamente lo que se le vendió, y convierte a un cliente satisfecho en un detractor de marca en minutos.
 
-Por eso, la lógica de cobranza de Atlas sigue un **periodo de gracia activo** en lugar de suspensión instantánea:
+Por eso, la lógica de cobranza de KipusPay sigue un **periodo de gracia activo** en lugar de suspensión instantánea:
 
 1. **Pago fallido →** el negocio sigue vendiendo con total normalidad. No se bloquea ni una sola función de cobro ni la emisión de comprobantes con serie oficial.
 2. **Aviso visible pero tranquilo →** aparece un banner ámbar (nunca rojo de alarma) tanto en la pantalla de cobro como en Modo Dueño: *"Hubo un problema con tu pago. Actualiza tu método de pago en los próximos 3 días para seguir disfrutando de todos los beneficios de tu plan."*
@@ -266,7 +266,7 @@ La landing sigue una estructura de "problema → alivio → prueba → acción",
 
 ### 5.1 Hero (primer scroll, sin necesidad de bajar) — Video Generado por IA como Fondo
 
-Este es el punto de mayor diferenciación visual de toda la landing, y el que más debe alejarse del estándar de la categoría: ningún competidor regional (Bsale, Alegra, Siigo) usa video como lenguaje de marca en su hero — todos usan captura de pantalla estática del software o ilustración plana de stock. Atlas rompe ese patrón deliberadamente.
+Este es el punto de mayor diferenciación visual de toda la landing, y el que más debe alejarse del estándar de la categoría: ningún competidor regional (Bsale, Alegra, Siigo) usa video como lenguaje de marca en su hero — todos usan captura de pantalla estática del software o ilustración plana de stock. KipusPay rompe ese patrón deliberadamente.
 
 **Headline:**
 > ## El único POS que no se cae contigo.
@@ -279,7 +279,7 @@ Este es el punto de mayor diferenciación visual de toda la landing, y el que m�
 
 **Elemento visual — video de fondo en loop (8-12 seg, sin audio, autoplay muted):** no una animación de interfaz ni un screencast del producto, sino una pieza cinematográfica corta que transmite *velocidad, calma y control* sin mostrar una sola pantalla de software — el video vende la sensación del negocio funcionando bien, no las features. La interfaz real del producto se muestra después, en la sección 5.3, una vez que el visitante ya sintió la promesa emocional.
 
-**Microcopy de confianza bajo el CTA:** `Más de [N] comercios ya venden con Atlas · 30 días de prueba con tus datos reales · Tus datos, siempre tuyos`
+**Microcopy de confianza bajo el CTA:** `Más de [N] comercios ya venden con KipusPay · 30 días de prueba con tus datos reales · Tus datos, siempre tuyos`
 
 #### Prompt Profesional para Generación del Video Hero (IA de video, ej. Sora / Veo / Runway)
 
@@ -336,7 +336,7 @@ no visible brand logos.
 Tres columnas, una por dolor (ver tabla sección 1.1), cada una con:
 - Ícono simple (no ilustración corporativa genérica)
 - Frase de dolor en primera persona: *"Se me llenó la cola y el sistema se puso lento."*
-- Frase de alivio de Atlas debajo, en color de "sello" (verde institucional)
+- Frase de alivio de KipusPay debajo, en color de "sello" (verde institucional)
 
 Este bloque existe para que el visitante piense *"eso me pasó a mí"* antes de que la marca le explique nada de sí misma — la venta empieza por empatía, no por feature.
 
@@ -344,15 +344,15 @@ Este bloque existe para que el visitante piense *"eso me pasó a mí"* antes de 
 
 ### 5.3 Sección "Cómo Funciona" (pasos, sin jerga)
 
-1. **Cuéntanos de tu negocio** — Si ya tienes RUC, Atlas trae tus datos desde SUNAT. Si aún estás formalizando, empiezas igual con el nombre de tu negocio.
+1. **Cuéntanos de tu negocio** — Si ya tienes RUC, KipusPay trae tus datos desde SUNAT. Si aún estás formalizando, empiezas igual con el nombre de tu negocio.
 2. **Elige tu rubro y tu etapa** — Restaurante, farmacia, retail, servicios; y si hoy necesitas **control interno (nota de venta)**, estás **activando facturación**, o ya eres **emisor electrónico**.
-3. **Empieza a vender** — En menos de 5 minutos completas tu primera venta. Según tu etapa: ves una **nota de venta** (control interno, claramente etiquetada) o una **boleta/factura electrónica** (Atlas se encarga del envío a SUNAT como PSE o con tu certificado). Conectar tu impresora física es opcional y se configura después.
+3. **Empieza a vender** — En menos de 5 minutos completas tu primera venta. Según tu etapa: ves una **nota de venta** (control interno, claramente etiquetada) o una **boleta/factura electrónica** (KipusPay se encarga del envío a SUNAT como PSE o con tu certificado). Conectar tu impresora física es opcional y se configura después.
 
 Debajo, un contador visual simple tipo barra de progreso ("⚡ Tiempo promedio de activación: 4 min 32 seg") — convertir la velocidad de onboarding en un dato mostrable es en sí mismo un argumento de venta frente a la competencia, cuyo proceso de implementación toma semanas.
 
 **Nota de diseño de producto (documento digital primero):** el primer cobro genera de inmediato un PDF/QR compartible por WhatsApp. El emparejamiento de impresora térmica es configuración secundaria, nunca bloqueo de la primera venta.
 
-**Nota de cumplimiento (cero engaño fiscal):** la **nota de venta** es legítima para quien aún se formaliza — **nunca** se presenta como boleta/factura SUNAT (leyenda obligatoria). Quien activa facturación emite CPE válidos; Atlas opera como **PSE** por defecto (no se vende “contingencia” como atajo ilegal). Al activar facturación, el historial de notas de venta **no se convierte** en boletas. Guías de remisión y regímenes especiales avanzados llegan en fases posteriores.
+**Nota de cumplimiento (cero engaño fiscal):** la **nota de venta** es legítima para quien aún se formaliza — **nunca** se presenta como boleta/factura SUNAT (leyenda obligatoria). Quien activa facturación emite CPE válidos; KipusPay opera como **PSE** por defecto (no se vende “contingencia” como atajo ilegal). Al activar facturación, el historial de notas de venta **no se convierte** en boletas. Guías de remisión y regímenes especiales avanzados llegan en fases posteriores.
 
 ---
 
@@ -361,9 +361,9 @@ Debajo, un contador visual simple tipo barra de progreso ("⚡ Tiempo promedio d
 **Headline:** *"El internet se corta. Tus ventas, no."*
 
 Copy de cuerpo:
-> Si tu conexión falla, Atlas sigue funcionando exactamente igual: cobras, imprimes y sigues atendiendo. Cuando la señal regrese, todo se sincroniza solo — incluyendo el envío de facturas y el resumen diario de boletas a SUNAT — y te avisa si algo se acerca al plazo legal. Si el dispositivo se queda sin espacio local tras muchas horas offline, Atlas te avisa en caja antes de que se llene — nunca pierde ventas en silencio.
+> Si tu conexión falla, KipusPay sigue funcionando exactamente igual: cobras, imprimes y sigues atendiendo. Cuando la señal regrese, todo se sincroniza solo — incluyendo el envío de facturas y el resumen diario de boletas a SUNAT — y te avisa si algo se acerca al plazo legal. Si el dispositivo se queda sin espacio local tras muchas horas offline, KipusPay te avisa en caja antes de que se llene — nunca pierde ventas en silencio.
 
-Elemento visual: comparación lado a lado — "Con otros sistemas" (ícono de caja bloqueada, "Sistema no disponible") vs. "Con Atlas" (venta procesándose con indicador sutil de sincronización pendiente que luego se resuelve).
+Elemento visual: comparación lado a lado — "Con otros sistemas" (ícono de caja bloqueada, "Sistema no disponible") vs. "Con KipusPay" (venta procesándose con indicador sutil de sincronización pendiente que luego se resuelve).
 
 ---
 
@@ -372,7 +372,7 @@ Elemento visual: comparación lado a lado — "Con otros sistemas" (ícono de ca
 **Headline:** *"Se acabaron los descuadres que nadie puede explicar."*
 
 Copy de cuerpo:
-> Atlas descuenta el inventario exacto en el momento exacto de cada venta. No hay forma de que "sobre" ni "falte" — si un producto salió de tu tienda, quedó registrado. Al cerrar caja, ves en un vistazo si algo no cuadra, y por qué.
+> KipusPay descuenta el inventario exacto en el momento exacto de cada venta. No hay forma de que "sobre" ni "falte" — si un producto salió de tu tienda, quedó registrado. Al cerrar caja, ves en un vistazo si algo no cuadra, y por qué.
 
 Prueba social específica de este dolor: testimonio breve tipo *"Antes perdía 2 horas cuadrando caja cada noche. Ahora es automático."* — atribuido a un perfil de negocio real (dueño de minimarket, farmacia, etc., con nombre y ciudad si se cuenta con permiso, o "Dueño de minimarket, Arequipa" si es agregado).
 
@@ -399,7 +399,7 @@ Elemento visual: mockup de app móvil estilo dashboard financiero premium (refer
 
 Tabla de 4 filas, lenguaje 100% de negocio (no técnico):
 
-| | Sistemas tradicionales | Atlas |
+| | Sistemas tradicionales | KipusPay |
 |---|---|---|
 | Si se corta el internet | Dejas de vender | Sigues vendiendo normal |
 | Implementación | Semanas, con instalador | 5 minutos, tú solo |
@@ -418,7 +418,7 @@ Cuatro íconos con una frase corta cada uno, sin tecnicismos:
 
 - 🔒 **"Tu información va cifrada, siempre."** — nunca viaja ni se guarda en texto plano.
 - 📄 **"Tus datos son tuyos. Punto."** — la exportación y los derechos de privacidad se habilitan según los gates de Sprints 42/47; antes del gate no se promete exportación completa ni borrado inmediato de datos fiscales.
-- 🧾 **"Acompañamiento para SUNAT."** — Atlas guía el envío, los plazos y los estados; la aceptación final depende de SUNAT/OSE/PSE y nunca se garantiza por copy.
+- 🧾 **"Acompañamiento para SUNAT."** — KipusPay guía el envío, los plazos y los estados; la aceptación final depende de SUNAT/OSE/PSE y nunca se garantiza por copy.
 - 🇵🇪 **"Soporte real, en español, con personas reales."** — no un bot que te deja esperando.
 
 Elemento visual: sellos de confianza discretos solo cuando exista evidencia vigente y autorización de uso (certificaciones, logos de pasarelas o referencias de cumplimiento). Queda prohibido publicar un badge genérico de "Cumple normativa SUNAT" o una certificación no obtenida.
@@ -437,22 +437,22 @@ Presentar los 4 planes en tarjetas, con el plan **Crece** marcado como "Más ele
 
 Formato acordeón, con las objeciones reales que un dueño de negocio peruano tendría:
 
-- *"¿Necesito internet para instalarlo?"* → Solo la primera vez, para configurarlo. Después funciona sin conexión cuando la necesites. Si estuviste offline mucho tiempo, Atlas sincroniza solo y te avisa si algún comprobante electrónico está cerca del plazo de declaración a SUNAT.
-- *"¿Emite boletas y facturas válidas para SUNAT?"* → Después del Quality Gate fiscal de los Sprints 5/5b, cuando activas facturación electrónica Atlas puede operar como PSE para emitir CPE válidos. Si aún te formalizas, empiezas con **nota de venta** de control interno — claramente etiquetada, sin hacerse pasar por boleta.
-- *"¿Qué es una nota de venta y en qué se diferencia de una boleta?"* → La nota de venta es tu control interno de caja e inventario. **No** es un comprobante autorizado por SUNAT. La boleta/factura sí lo es. Atlas nunca confunde las dos.
+- *"¿Necesito internet para instalarlo?"* → Solo la primera vez, para configurarlo. Después funciona sin conexión cuando la necesites. Si estuviste offline mucho tiempo, KipusPay sincroniza solo y te avisa si algún comprobante electrónico está cerca del plazo de declaración a SUNAT.
+- *"¿Emite boletas y facturas válidas para SUNAT?"* → Después del Quality Gate fiscal de los Sprints 5/5b, cuando activas facturación electrónica KipusPay puede operar como PSE para emitir CPE válidos. Si aún te formalizas, empiezas con **nota de venta** de control interno — claramente etiquetada, sin hacerse pasar por boleta.
+- *"¿Qué es una nota de venta y en qué se diferencia de una boleta?"* → La nota de venta es tu control interno de caja e inventario. **No** es un comprobante autorizado por SUNAT. La boleta/factura sí lo es. KipusPay nunca confunde las dos.
 - *"¿Cuándo me piden el DNI del cliente?"* → En boletas de **S/ 700 o más** es obligatorio registrar tipo y número de documento y el nombre. En montos menores es opcional (salvo que el cliente lo pida). En facturas siempre se pide RUC.
-- *"¿Puedo usar Atlas si aún no estoy formalizado / no tengo facturación electrónica?"* → Sí. Eliges “control interno”, cobras con nota de venta, y activas facturación desde Configuración cuando estés listo — sin perder historial.
+- *"¿Puedo usar KipusPay si aún no estoy formalizado / no tengo facturación electrónica?"* → Sí. Eliges “control interno”, cobras con nota de venta, y activas facturación desde Configuración cuando estés listo — sin perder historial.
 - *"¿Cómo subo todos mis productos? ¿Necesito un archivo Excel?"* → Hoy puedes usar CSV o un importador habilitado. El escáner con cámara y la venta rápida genérica se habilitan como claims públicos solo después del Quality Gate del Sprint 50 (GTM-06); mientras tanto, no prometemos esa automatización.
 - *"¿Cómo cambio de cajero en medio del día?"* → El handoff sin cerrar caja se comunica solo después del Quality Gate del Sprint 51: PIN temporal de un solo uso, auditoría y atribución por turno. Antes del gate, se usa el flujo de cierre/cambio ya disponible.
 - *"¿Y si se corta el internet y el cliente quiere pagar con Yape?"* → Después del Quality Gate del Sprint 22, puedes registrar una captura manual: el POS avisa en ámbar *"Sin conexión. Verifica visualmente la app del cliente antes de entregar el producto"*. Queda listado como pago **no conciliado por API**; nunca se presenta como captura confirmada.
 - *"¿Puedo vender algo que todavía no tengo en mi sistema?"* → La línea genérica es una capacidad del Sprint 50 y solo se promete después de su Quality Gate. Cuando esté habilitada, no descontará stock y quedará marcada como "pendiente de catalogar".
-- *"¿Qué pasa si se corta el internet y no se envían mis boletas a SUNAT?"* → Tras el gate fiscal de los Sprints 5/5b/26, sigues cobrando; Atlas reintenta el envío y el resumen diario al volver la señal, y te avisa si se acerca el plazo legal. No apagamos la caja.
-- *"¿Qué pasa si aún no tengo el certificado digital (.pfx)?"* → Después del gate PSE del Sprint 5, Atlas puede operar mediante PSE según la configuración y disponibilidad del servicio. Si prefieres tu propio `.pfx`, lo cargas en Configuración; nunca se guarda la clave privada en texto plano.
+- *"¿Qué pasa si se corta el internet y no se envían mis boletas a SUNAT?"* → Tras el gate fiscal de los Sprints 5/5b/26, sigues cobrando; KipusPay reintenta el envío y el resumen diario al volver la señal, y te avisa si se acerca el plazo legal. No apagamos la caja.
+- *"¿Qué pasa si aún no tengo el certificado digital (.pfx)?"* → Después del gate PSE del Sprint 5, KipusPay puede operar mediante PSE según la configuración y disponibilidad del servicio. Si prefieres tu propio `.pfx`, lo cargas en Configuración; nunca se guarda la clave privada en texto plano.
 - *"¿Qué pasa con mis datos si dejo de pagar?"* → Tus datos son tuyos. La exportación completa y los derechos LPDP se habilitan conforme a los gates de Sprints 42/47; la retención fiscal obligatoria puede impedir el borrado inmediato de ciertos documentos, que se anonimizan cuando corresponda (GTM-09).
 - *"¿Necesito comprar un equipo especial?"* → No, funciona en la tablet, celular o computadora que ya tienes — incluyendo equipos de gama baja. Conectar una impresora térmica es opcional y se configura después de tu primera venta.
 - *"¿Puedo cambiar de plan cuando crezca mi negocio?"* → Sí, sin perder configuración ni historial. Arranque **nunca te apaga la caja**: incluye 1,000 comprobantes/mes y el excedente se factura a S/ 0.05; subes a Crece cuando necesitas segunda caja, otro local o Modo Dueño — o cuando te conviene frente al sobregiro.
 - *"¿Las notas de crédito o anulaciones me consumen mis comprobantes del plan?"* → Sí, transparente: cada comprobante emitido cuenta, **incluidas las notas de crédito/débito** (cada una es un documento real ante SUNAT). El cupo se usa al emitir, no al anular; una corrección consume 1 comprobante y no devuelve el de la venta original. La baja de boleta no suma ni resta.
-- *"¿Y si SUNAT rechaza mi factura o boleta? ¿Cómo devuelvo el dinero?"* → Si el comprobante **nunca fue aceptado** (rechazado, en cuarentena o vencido el plazo), Atlas te permite **anularlo con una nota de crédito sin esperar la aceptación** — la caja nunca se detiene por un rechazo y el dinero ya contabilizado se revierte con el respaldo fiscal correcto. El Modo Dueño te avisa cuando un comprobante quedó sin aceptar y te ofrece anularlo desde ahí.
+- *"¿Y si SUNAT rechaza mi factura o boleta? ¿Cómo devuelvo el dinero?"* → Si el comprobante **nunca fue aceptado** (rechazado, en cuarentena o vencido el plazo), KipusPay te permite **anularlo con una nota de crédito sin esperar la aceptación** — la caja nunca se detiene por un rechazo y el dinero ya contabilizado se revierte con el respaldo fiscal correcto. El Modo Dueño te avisa cuando un comprobante quedó sin aceptar y te ofrece anularlo desde ahí.
 - *"¿Puedo vender al crédito y qué pasa si el cliente devuelve?"* → La venta al crédito y su límite se publican después del gate del Sprint 17; la devolución con compensación de CxC se comunica después del gate de devoluciones (GTM-05). Cuando esté habilitada, la **nota de crédito rebajará automáticamente lo que te deben** en la misma operación; si ya te habían abonado, el vuelto saldrá por el método del último pago o como crédito de tienda.
 - *"¿Me cobran el comprobante si SUNAT lo rechaza o nunca lo acepta?"* → El cupo cubre la **generación** del comprobante, sin importar el estado final de aceptación: un CPE emitido que SUNAT deja en cuarentena o rechaza ya contó. Si hay un rechazo real (no un error de caja), lo corregimos con una nota de crédito y reemites — nunca te detenemos el cobro.
 - *"¿Qué pasa si se me pasa la fecha de pago de mi plan?"* → Nunca te apagamos en plena venta. Tienes días de gracia para actualizar tu método de pago sin que se interrumpa tu operación — ver sección 4.3.
@@ -461,7 +461,7 @@ Formato acordeón, con las objeciones reales que un dueño de negocio peruano te
 
 ### 5.10 CTA Final (Cierre)
 
-**Headline:** *"Tu próxima venta puede ser la primera con Atlas."*
+**Headline:** *"Tu próxima venta puede ser la primera con KipusPay."*
 
 **CTA:** `Empieza gratis ahora →`
 **Microcopy:** `30 días de prueba real · Cancela cuando quieras · Sin letra chica`
@@ -470,9 +470,9 @@ Formato acordeón, con las objeciones reales que un dueño de negocio peruano te
 
 ### 5.11 Dirección de Diseño Diferencial — Por Qué Esta Landing No Puede Parecerse a Ninguna Otra
 
-Toda landing de POS/facturación en la región comparte el mismo lenguaje visual: azul corporativo, capturas de pantalla de dashboards con gráficos de barras, ilustraciones planas de personas sonriendo junto a una tablet, y un layout de secciones apiladas verticalmente sin ninguna sorpresa de scroll. Ese lenguaje visual, aunque "correcto", comunica exactamente lo contrario de lo que Atlas necesita transmitir: **se ve como más de lo mismo, no como la categoría nueva que es.**
+Toda landing de POS/facturación en la región comparte el mismo lenguaje visual: azul corporativo, capturas de pantalla de dashboards con gráficos de barras, ilustraciones planas de personas sonriendo junto a una tablet, y un layout de secciones apiladas verticalmente sin ninguna sorpresa de scroll. Ese lenguaje visual, aunque "correcto", comunica exactamente lo contrario de lo que KipusPay necesita transmitir: **se ve como más de lo mismo, no como la categoría nueva que es.**
 
-El factor diferencial clave de la landing de Atlas no es un elemento aislado — es la combinación deliberada de cuatro decisiones que ningún competidor regional está tomando simultáneamente hoy:
+El factor diferencial clave de la landing de KipusPay no es un elemento aislado — es la combinación deliberada de cuatro decisiones que ningún competidor regional está tomando simultáneamente hoy:
 
 1. **Video cinematográfico como lenguaje de marca, no captura de producto.** El hero no abre mostrando software — abre mostrando la sensación de un negocio que funciona bien (sección 5.1). El producto se revela después, cuando el visitante ya sintió la promesa. Esto invierte el orden que usa el 100% de la competencia (producto primero, emoción después, si acaso).
 2. **Paleta "Ledger Minimalism" en vez de azul corporativo genérico.** Tintas profundas, ámbar cálido de atención (nunca rojo de alarma), y tipografía de cifras estable — una paleta que se siente prestada de una fintech premium o de un banco digital moderno, no de un software contable de los 2000. Ningún competidor de la categoría usa esta paleta hoy; todos convergen en azul-y-blanco corporativo.
@@ -483,9 +483,9 @@ El factor diferencial clave de la landing de Atlas no es un elemento aislado —
 
 ---
 
-## 6. Frontend Premium — Lo que Convierte a Atlas en un Producto, no en un Software
+## 6. Frontend Premium — Lo que Convierte a KipusPay en un Producto, no en un Software
 
-Un negocio decide en segundos si algo "se ve profesional" o "se ve improvisado", y esa percepción determina si confía su caja registradora al sistema. El frontend de Atlas se diseña bajo un principio simple: **debe verse y sentirse como una app de consumo premium (Stripe, Apple, Spotify), nunca como un ERP tradicional.**
+Un negocio decide en segundos si algo "se ve profesional" o "se ve improvisado", y esa percepción determina si confía su caja registradora al sistema. El frontend de KipusPay se diseña bajo un principio simple: **debe verse y sentirse como una app de consumo premium (Stripe, Apple, Spotify), nunca como un ERP tradicional.**
 
 ### 6.1 Sistema de Diseño de Marca
 
@@ -496,14 +496,14 @@ Un negocio decide en segundos si algo "se ve profesional" o "se ve improvisado",
 
 ### 6.2 Onboarding "Zero-Fricción" — El Corazón del PLG
 
-Ningún ERP tradicional puede replicar esto sin rehacer su producto desde cero, porque asumen implementación consultiva. Atlas se diseña al revés: el onboarding *es* el primer uso del producto, no un paso previo a él.
+Ningún ERP tradicional puede replicar esto sin rehacer su producto desde cero, porque asumen implementación consultiva. KipusPay se diseña al revés: el onboarding *es* el primer uso del producto, no un paso previo a él.
 
 **Flujo de pantallas (máximo 4), sin excepción:**
 
 1. **Negocio →** con RUC: autocompletado de razón social, dirección y régimen vía SUNAT. Sin RUC aún: nombre comercial y paso a control interno. Cero formularios largos.
 2. **Rubro →** selección visual (tarjetas con ícono) entre restaurante, farmacia, retail, servicios — precompone catálogo de ejemplo, impuestos y layout de cobro.
 3. **Etapa de formalización →** tres tarjetas: *Solo necesito control interno (nota de venta)* / *Estoy activando facturación electrónica* / *Ya emito boletas y facturas*. Define el default de caja y los documentos habilitados (detalle en §3.3.1).
-4. **Primera venta guiada →** "aha moment" antes del minuto 5: nota de venta (si control interno) o boleta/factura electrónica (si formalizando/emisor, vía PSE Atlas por defecto).
+4. **Primera venta guiada →** "aha moment" antes del minuto 5: nota de venta (si control interno) o boleta/factura electrónica (si formalizando/emisor, vía PSE KipusPay por defecto).
 
 La configuración profunda (series, certificado, estado de envíos SUNAT, logo, usuarios) se completa después en **Admin → Configuración** (§3.3.1), nunca como bloqueo del onboarding.
 
@@ -536,14 +536,14 @@ El Modo Vitrina deja de ser solo una animación de confirmación de pago y se co
 
 - **Kiosko de autoatención:** visión de producto, no claim disponible en la landing. Solo se comunica después de un sprint y Quality Gate específicos de autoatención; mientras tanto, Modo Vitrina se limita a la confirmación de pago.
 - **Pedido por QR desde la mesa:** visión de producto post–Sprint 19 (comandas/KDS). No destacarlo en landing de restaurantes hasta cerrar ese Quality Gate; hasta entonces el demo de food service se limita a cobro + Vitrina de pago sin flujo de cocina completo.
-- **Momento de marca en el punto de pago:** la animación de confirmación (con el logo del negocio del comerciante, no el de Atlas, en pantalla) convierte cada transacción en un micro-momento de marca premium para el propio comerciante — un diferenciador físico que ningún competidor regional ofrece de fábrica.
+- **Momento de marca en el punto de pago:** la animación de confirmación (con el logo del negocio del comerciante, no el de KipusPay, en pantalla) convierte cada transacción en un micro-momento de marca premium para el propio comerciante — un diferenciador físico que ningún competidor regional ofrece de fábrica.
 
 ### 6.5 Estándares de UX Premium — Lo que Separa "Se Ve Bien" de "Se Siente Premium"
 
 Un sistema de diseño y un onboarding rápido no garantizan por sí solos una experiencia premium si los detalles de interacción cotidiana no están resueltos. Estos son los estándares no negociables que completan la experiencia:
 
 - **Velocidad percibida antes que velocidad real:** toda acción del cajero (agregar producto, aplicar descuento, cobrar) debe reflejarse en pantalla en menos de 100ms de forma optimista — la confirmación real del servidor llega después, en segundo plano, sin que el cajero perciba espera. Un sistema técnicamente rápido que "se siente lento" por falta de feedback inmediato pierde toda la ventaja de percepción frente a la competencia.
-- **Cero pantallas de carga en bucle (spinners) en flujos críticos:** cobrar, abrir caja y cerrar caja nunca muestran un spinner genérico indefinido — se usan estados de progreso con contexto ("Confirmando con tu banco...") o, preferentemente, actualización optimista de interfaz. Un spinner sin contexto comunica incertidumbre, exactamente lo opuesto a la promesa de marca de Atlas.
+- **Cero pantallas de carga en bucle (spinners) en flujos críticos:** cobrar, abrir caja y cerrar caja nunca muestran un spinner genérico indefinido — se usan estados de progreso con contexto ("Confirmando con tu banco...") o, preferentemente, actualización optimista de interfaz. Un spinner sin contexto comunica incertidumbre, exactamente lo opuesto a la promesa de marca de KipusPay.
 - **Estados vacíos con propósito, nunca pantallas en blanco:** un inventario recién creado sin productos, un historial de ventas del primer día, o un local recién agregado sin datos aún, siempre muestran una ilustración breve y una acción sugerida clara ("Agrega tu primer producto en 10 segundos") — nunca una tabla vacía sin contexto, que comunica que "algo está roto" en lugar de "esto es nuevo".
 - **Errores redactados por humanos, no por el sistema:** ningún mensaje de error expone jerga técnica ("Error 500", "Timeout de conexión D1") al cajero o al dueño — todo error se traduce a lenguaje de negocio con una acción clara ("No pudimos confirmar este pago con tu banco. Intenta de nuevo o cobra en efectivo.").
 - **Accesibilidad como estándar, no como feature opcional:** contraste de color AA como mínimo (crítico dado que muchos puntos de venta operan bajo luz de tienda variable, no oficinas controladas), objetivos táctiles de mínimo 44x44px en la pantalla de cobro para uso rápido y con dedos apurados, y soporte completo de navegación por teclado en el panel administrativo para negocios que usan lector de código de barras USB en lugar de mouse.
@@ -554,7 +554,7 @@ Un sistema de diseño y un onboarding rápido no garantizan por sí solos una ex
 
 ## 7. Funnel de Adquisición y Growth Loops
 
-Un pricing de entrada bajo y un onboarding de 5 minutos solo generan crecimiento exponencial si existe un mecanismo que convierta cada cliente nuevo en un canal de adquisición del siguiente. Atlas necesita al menos dos loops de crecimiento activos desde el lanzamiento:
+Un pricing de entrada bajo y un onboarding de 5 minutos solo generan crecimiento exponencial si existe un mecanismo que convierta cada cliente nuevo en un canal de adquisición del siguiente. KipusPay necesita al menos dos loops de crecimiento activos desde el lanzamiento:
 
 ### 7.1 Loop de Referidos "Negocio Recomienda Negocio"
 
@@ -562,7 +562,7 @@ Los dueños de negocio confían en recomendaciones de otros dueños de negocio d
 
 ### 7.2 Loop de Marca Visible en el Punto de Venta
 
-Cada boleta, factura o nota de venta impresa y cada pantalla del Modo Vitrina pueden ser superficies publicitarias pasivas: un pie de página discreto tipo *"Emitido con Atlas"* con un código QR corto, solo si no desplaza campos ni leyendas fiscales obligatorias y si el tenant lo habilita. La nota de venta conserva siempre la leyenda de control interno de GTM-07.
+Cada boleta, factura o nota de venta impresa y cada pantalla del Modo Vitrina pueden ser superficies publicitarias pasivas: un pie de página discreto tipo *"Emitido con KipusPay"* con un código QR corto, solo si no desplaza campos ni leyendas fiscales obligatorias y si el tenant lo habilita. La nota de venta conserva siempre la leyenda de control interno de GTM-07.
 
 ### 7.3 Loop de Contenido "Casos de Éxito por Vertical"
 
@@ -578,16 +578,16 @@ Además de las FAQ públicas de la landing (sección 5.9), el equipo comercial n
 |---|---|
 | *"Ya tengo un sistema, cambiar es mucho trabajo"* | Tras Sprint 21: "Importamos catálogo y clientes desde Bsale/Alegra (o CSV) con dry-run para que confirmes antes de cobrar el mismo día." Antes del gate: CSV + onboarding guiado; **no prometer** importador automático con fecha inventada. |
 | *"¿El KDS / split de cuenta / lotes FEFO ya están?"* | Solo afirmar si el sprint de GTM §2 está cerrado (17 caja, 18 farmacia, 19 resto, 20 cadena). Si no: "Está en el roadmap v8.1 con fecha de Quality Gate; hoy te cubrimos caja offline, SUNAT/PSE y Modo Dueño." |
-| *"¿Puedo cobrar con Yape / Plin / tarjeta en la caja?"* | Tras Sprint 22: sí, como medio de pago Zero-Trust en el cobro (distinto del cobro de la suscripción Atlas). Antes del gate: efectivo/transferencia manual + registro; no afirmar Culqi/Niubiz/Yape listos. |
+| *"¿Puedo cobrar con Yape / Plin / tarjeta en la caja?"* | Tras Sprint 22: sí, como medio de pago Zero-Trust en el cobro (distinto del cobro de la suscripción KipusPay). Antes del gate: efectivo/transferencia manual + registro; no afirmar Culqi/Niubiz/Yape listos. |
 | *"¿Mi contador puede llevarlo a Contasis/Concar?"* | Tras Sprint 23: export de asientos por rango/sucursal. Antes: export de datos de ventas; no prometer formato Contasis/Concar. |
 | *"¿Tienen API / fidelización como el plan Cadena dice?"* | API = Sprint 23; fidelización puntos = Sprint 24. Si el gate no cerró: "Está en el plan Cadena con fecha de Quality Gate; hoy multi-sucursal y Modo Dueño." |
 | *"¿Y si el sistema nuevo falla y pierdo ventas el primer día?"* | "Por eso das el primer mes de prueba con tus datos reales, en paralelo a tu sistema actual si quieres — decides quedarte solo cuando confíes." |
-| *"Mi personal no es bueno con la tecnología"* | "Si saben usar WhatsApp, saben usar Atlas. La pantalla de cobro tiene menos botones que la calculadora que probablemente usan hoy." |
+| *"Mi personal no es bueno con la tecnología"* | "Si saben usar WhatsApp, saben usar KipusPay. La pantalla de cobro tiene menos botones que la calculadora que probablemente usan hoy." |
 | *"¿Por qué es tan barato comparado con [competidor]?"* | "No cobramos por instalación, servidor ni soporte técnico aparte — todo eso ya está incluido en el precio del plan. No es que seamos más baratos por hacer menos; es que no tenemos los costos que ellos sí tienen." |
 | *"¿Qué pasa si crezco y ya no me alcanza el plan?"* | "Cambias de plan en un clic. En Arranque **nunca cortamos el cobro**: 1,000 comprobantes/mes incluidos y S/ 0.05 el adicional. Subes a Crece cuando necesitas otra caja, otro local, Modo Dueño — o cuando el sobregiro hace más sentido subir." |
 | *"Aún no estoy formalizado / solo quiero control interno"* | "Perfecto: empiezas con nota de venta, con tu inventario y caja cuadrados desde el día uno. Cuando actives facturación en Configuración, las ventas nuevas salen como boleta o factura — el historial de notas se conserva tal cual." |
-| *"¿Y si SUNAT me fiscaliza y aún no terminé el trámite?"* | "Si activaste facturación: emites CPE válidos (Atlas puede operar como PSE). Si estás en control interno: la nota de venta dice claramente que no es comprobante SUNAT — no te hacemos pasar una cosa por otra." |
-| *"¿Y si se corta el internet varios días?"* | "Sigues vendiendo mientras el dispositivo tenga espacio y el flujo offline esté disponible. Al volver, Atlas sincroniza lo pendiente y te avisa si algo se acerca al plazo; el banner indica qué está confirmado y qué aún está pendiente. La caja no se apaga." |
+| *"¿Y si SUNAT me fiscaliza y aún no terminé el trámite?"* | "Si activaste facturación: emites CPE válidos (KipusPay puede operar como PSE). Si estás en control interno: la nota de venta dice claramente que no es comprobante SUNAT — no te hacemos pasar una cosa por otra." |
+| *"¿Y si se corta el internet varios días?"* | "Sigues vendiendo mientras el dispositivo tenga espacio y el flujo offline esté disponible. Al volver, KipusPay sincroniza lo pendiente y te avisa si algo se acerca al plazo; el banner indica qué está confirmado y qué aún está pendiente. La caja no se apaga." |
 | *"¿Qué pasa si un día me rebota el pago de la suscripción?"* | "Nunca te apagamos en medio de una venta. Tienes días de gracia con aviso claro para actualizar tu tarjeta, y sigues cobrando con normalidad mientras tanto — eso también es parte de la promesa de 'el POS que no se cae'." |
 
 ---

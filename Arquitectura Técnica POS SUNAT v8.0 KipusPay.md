@@ -1,16 +1,16 @@
-# **Arquitectura Técnica: POS & Facturación Electrónica Multitenant Edge-Native (SUNAT) \- Versión 8.0 "Atlas" (Enterprise ERP, Global SaaS & Financial Integrity Engine)**
+# **Arquitectura Técnica: POS & Facturación Electrónica Multitenant Edge-Native (SUNAT) \- Versión 8.0 "KipusPay" (Enterprise ERP, Global SaaS & Financial Integrity Engine)**
 
-> **Codename interno:** *Atlas*. Cada tenant es un mundo que el sistema sostiene sin que lo sienta caer.
+> **Codename interno:** *KipusPay*. Cada tenant es un mundo que el sistema sostiene sin que lo sienta caer.
 
-## **0\. Identidad de Arquitectura de Marca — Por Qué Atlas No Compite, Redefine la Categoría**
+## **0\. Identidad de Arquitectura de Marca — Por Qué KipusPay No Compite, Redefine la Categoría**
 
 La mayoría de los sistemas POS en Latinoamérica (Bsale, Defontana, Alegra, Siigo) comparten una debilidad estructural común: son aplicaciones monolíticas alojadas en un servidor central, con sincronización *best-effort*, sin garantías transaccionales reales offline, y con una interfaz genérica de software contable tradicional.
 
-**Atlas v8.0** no se posiciona como "un POS más rápido". Se posiciona como la primera **infraestructura financiera Edge-Native de Latinoamérica** — la diferencia entre construir un auto más rápido y reinventar el motor de combustión.
+**KipusPay v8.0** no se posiciona como "un POS más rápido". Se posiciona como la primera **infraestructura financiera Edge-Native de Latinoamérica** — la diferencia entre construir un auto más rápido y reinventar el motor de combustión.
 
 ### **0.1 Los Tres Pilares de Diferenciación de Marca**
 
-| Pilar | Lo que hace la competencia | Lo que hace Atlas | Narrativa de marca |
+| Pilar | Lo que hace la competencia | Lo que hace KipusPay | Narrativa de marca |
 | :---- | :---- | :---- | :---- |
 | **Integridad Financiera** | Confían en el cliente o en colas eventualmente consistentes. | Transacciones D1 explícitas con ROLLBACK real, cero condiciones de carrera de stock. | *"Cada sol cuadra. Siempre."* |
 | **Latencia** | **![][image1]** desde servidores centralizados (AWS us-east-1, GCP). | Sub\-![][image2] ejecutando en ![][image3] ciudades Edge simultáneamente. | *"Tu venta \#1 y tu venta \#10,000 se sienten igual de rápidas."* |
@@ -31,7 +31,7 @@ Se introduce formalmente el lenguaje de diseño de producto que acompaña la arq
                     Confiabilidad Transaccional  
                               ▲  
                               │  
-                    ATLAS ●   │  
+                    KIPUSPAY ●│  
                     v8.0      │  
                               │  
           Bsale ●             │             ● SAP B1 / Odoo  
@@ -46,11 +46,11 @@ Se introduce formalmente el lenguaje de diseño de producto que acompaña la arq
                               │  
                     Baja Confiabilidad
 
-Atlas ocupa el cuadrante superior-derecho: **confiabilidad de nivel bancario a costo de infraestructura Edge serverless** (![][image4] por cada 1,000 comercios).
+KipusPay ocupa el cuadrante superior-derecho: **confiabilidad de nivel bancario a costo de infraestructura Edge serverless** (![][image4] por cada 1,000 comercios).
 
 ## **1\. Visión General del Sistema y Principios de Diseño**
 
-El objetivo de Atlas v8.0 es ofrecer rendimiento extremo (Sub-50ms en Edge), costo operacional cercano a ![][image5] en etapa inicial y escalabilidad horizontal para soportar ![][image6] comercios, ![][image7] sucursales y ![][image8] de comprobantes diarios sin bloqueos de concurrencia ni duplicaciones contables.
+El objetivo de KipusPay v8.0 es ofrecer rendimiento extremo (Sub-50ms en Edge), costo operacional cercano a ![][image5] en etapa inicial y escalabilidad horizontal para soportar ![][image6] comercios, ![][image7] sucursales y ![][image8] de comprobantes diarios sin bloqueos de concurrencia ni duplicaciones contables.
 
 ### **Los 11 Principios Fundamentales (v8.0 → v8.2)**
 
@@ -60,14 +60,14 @@ El objetivo de Atlas v8.0 es ofrecer rendimiento extremo (Sub-50ms en Edge), cos
 3. **Zero-Trust Client Execution & Anti-Tampering:** El frontend del POS es un cliente no confiable. Todos los precios, tipos de cambio (Forex), descuentos, impuestos y deducciones de stock se calculan e imponen de forma estricta en el servidor antes de autorizar la persistencia.  
 4. **Multi-Branch, Split Payments & Cash Control:** Aislamiento estricto de inventarios por sucursal (branches), pagos fraccionados múltiples (sale\_payments) y vinculación obligatoria a sesiones de caja abiertas (cash\_register\_sessions) para arqueos y reportes Z.  
 5. **SaaS Monetization, Soft Caps & Fail-Closed Revocation (v8.2):** Control de vigencia de Trial/planes con HTTP 402 **solo en features premium** (Modo Dueño, multi-caja, reportes, API) — **nunca en cobro ni emisión**. Arranque incluye un cupo mensual de comprobantes; el **excedente se factura** (sobregiro, GTM §4.1 / Arquitectura §4.1) — **jamás se apaga la caja** en hora punta. El upgrade por capacidad (segunda caja, local, Dueño) sigue vigente. Periodo de gracia ante pago fallido (GTM §4.3). Suspensión de tenants en tiempo real vía webhooks Stripe/MercadoPago con firma criptográfica; si el control de revocación no está disponible, las rutas protegidas responden 503 y no autorizan acceso.  
-6. **Máquina de Estados Estricta, Formalización Progresiva & Pipeline Fiscal SUNAT:** Atlas opera en tres modos (`INTERNAL_CONTROL` | `FORMALIZING` | `ELECTRONIC_ISSUER`). **NV** = control interno (`NOT_APPLICABLE`). CPE: Factura `01` se envía **unitaria** (plazo máx. **3 días calendario**); Boleta `03` y NC/ND de boleta van por **Resumen Diario** (plazo máx. **7 días calendario**). Canal de transporte: puerto `FiscalTransport` (ADR-FISCAL-002) — default **PSE Atlas directo a SUNAT**; OSE/PSE tercero como adaptadores. **No** se usa “contingencia SUNAT” como eufemismo de “aún no hay certificado” (ADR-FISCAL-001). Guards: régimen×modo, RUC en factura, ID si boleta ≥ S/ 700, CDR `ACCEPTED` antes de NC.  
+6. **Máquina de Estados Estricta, Formalización Progresiva & Pipeline Fiscal SUNAT:** KipusPay opera en tres modos (`INTERNAL_CONTROL` | `FORMALIZING` | `ELECTRONIC_ISSUER`). **NV** = control interno (`NOT_APPLICABLE`). CPE: Factura `01` se envía **unitaria** (plazo máx. **3 días calendario**); Boleta `03` y NC/ND de boleta van por **Resumen Diario** (plazo máx. **7 días calendario**). Canal de transporte: puerto `FiscalTransport` (ADR-FISCAL-002) — default **PSE KipusPay directo a SUNAT**; OSE/PSE tercero como adaptadores. **No** se usa “contingencia SUNAT” como eufemismo de “aún no hay certificado” (ADR-FISCAL-001). Guards: régimen×modo, RUC en factura, ID si boleta ≥ S/ 700, CDR `ACCEPTED` antes de NC.  
 7. **Zona Horaria Oficial (UTC-5) y Skew de `issuedAt`:** Normalización America/Lima; `issuedAt` offline aceptado solo dentro de ventana de skew máxima **±6 horas** vs reloj de servidor; la fecha fiscal (día del Resumen Diario y `must_submit_by`) se deriva de la fecha Lima autoritativa tras reconciliación.  
 8. **Atomicidad Transaccional Garantizada (Financial ACID Guarantee):** Ninguna operación que altere inventario, caja o cuentas por cobrar/pagar puede persistir parcialmente. Toda escritura multi-tabla se ejecuta en un `db.batch([...])` D1 atómico (la API no expone `db.transaction(callback)`); las validaciones se preparan antes y los guards SQL hacen fallar el batch si cambia una precondición. **Todo monto se almacena como INTEGER en centavos** (convención `*_cents`, §5.0) — la garantía financiera es falsa con coma flotante.
 9. **Ledger Completo del Ciclo Económico (Full Economic Cycle Ledger):** El sistema modela el ciclo financiero completo: cuentas por cobrar (CxC), cuentas por pagar (CxP), órdenes de compra, proveedores y egresos de caja chica como entidades de primera clase en el DDL.  
 10. **Resiliencia de Red Adversarial y de Dispositivo:** Payloads masivos se fragmentan proactivamente (*chunking* con snapshot de perfil CRM por venta; la consolidación de clientes es **server-side** vía upsert idempotente LWW — §6, con una única excepción de single-writer en cliente: el Service Worker consolida los snapshots del **mismo** cliente nuevo (`local_client_id`) dentro del mismo turno para emitir una sola escritura — SYN-11 enmendada; el servidor sigue siendo la autoridad final con LWW por `profile_updated_at`), las respuestas de idempotencia devuelven el estado reconciliable completo y ninguna rutina asume una respuesta HTTP exitosa como única fuente de verdad. Incluye límites de IndexedDB (`QuotaExceededError`), presión de memoria en dispositivos de gama baja y alerta al cajero antes de corromper la cola offline.
 11. **Zero-Dependency Client & Computational Offloading (v8.2):** El Edge **no renderiza** tickets, QR ni PDF. Cero dependencias npm de runtime en el POS para generación visual/hardware (pdfmake, qrcode.js, etc.). QR, ticket e ESC/POS se resuelven con Web Platform APIs + Worker + (si hace falta) código **vendorizado** fijado en el repo. Presupuesto de bundle enforceable en CI (Arquitectura §7.5).
 
-### **1.1 Principios de ingeniería de código (Atlas v8.1) — DRY, SOLID, hexagonal**
+### **1.1 Principios de ingeniería de código (KipusPay v8.1) — DRY, SOLID, hexagonal**
 
 Contrato staff para que el corpus no escale como monolito improvisado. **No reabre** ADR-FISCAL-001 ni el pipeline §5.2. Detalle enforceable: Agents (principio rector + Quality Gate transversal).
 
@@ -114,10 +114,10 @@ Contrato staff para que el corpus no escale como monolito improvisado. **No reab
 | `AccountingExporter` | Asientos / libros para el contador | Contasis, Concar |
 | `MessagingSender` | Envío post-venta de representación (PDF/QR) | WhatsApp Business |
 | `PublicApiWebhook` | Eventos salientes firmados a integradores | HMAC + reintentos |
-| `FiscalTransport` | Envío/consulta CPE (ADR-FISCAL-002) | `ATLAS_PSE_DIRECT` (default), `ose_*`, `pse_third_party` |
+| `FiscalTransport` | Envío/consulta CPE (ADR-FISCAL-002) | `KIPUSPAY_PSE_DIRECT` (default), `ose_*`, `pse_third_party` |
 | `PrinterTransport` | Entrega de ticket ESC/POS o sistema | WebUSB → WSS LAN → Web Bluetooth → `window.print()` / SystemPrint |
 
-Stripe/MercadoPago en middleware de **suscripción Atlas** ≠ `PaymentAcquirer` de punto de venta.
+Stripe/MercadoPago en middleware de **suscripción KipusPay** ≠ `PaymentAcquirer` de punto de venta.
 
 #### Hexagonal / monorepo objetivo (mapa; no scaffold aún)
 
@@ -778,12 +778,12 @@ las tablas críticas ya aplican el patrón en `sales`, `customers`, `users`,
 
 ## **5.1 Formalización progresiva y matriz régimen × documento (Zero-Trust)**
 
-Atlas no asume que todo tenant es emisor electrónico desde el día 1. El servidor valida cada emisión contra `tax_regime` × `formalization_mode` × `enabled_document_types` antes de persistir (rechazo 422 si el cliente pide un tipo no permitido).
+KipusPay no asume que todo tenant es emisor electrónico desde el día 1. El servidor valida cada emisión contra `tax_regime` × `formalization_mode` × `enabled_document_types` antes de persistir (rechazo 422 si el cliente pide un tipo no permitido).
 
 | `formalization_mode` | Quién | Default en caja | Camino CPE | Documentos tipicos |
 |---|---|---|---|---|
 | `INTERNAL_CONTROL` | Pre-formalización / control interno | **Nota de Venta (`NV`)** | N/A (`NOT_APPLICABLE`) | Solo `NV` (CPE bloqueados) |
-| `FORMALIZING` | RUC activo; activando facturación | Boleta `03` / Factura `01` | **PSE Atlas** (firma/envío por plataforma o cert tenant) → `PENDING` | CPE según régimen + `NV` opcional (leyenda) |
+| `FORMALIZING` | RUC activo; activando facturación | Boleta `03` / Factura `01` | **PSE KipusPay** (firma/envío por plataforma o cert tenant) → `PENDING` | CPE según régimen + `NV` opcional (leyenda) |
 | `ELECTRONIC_ISSUER` | Emisor electrónico operativo | Boleta `03` / Factura `01` | Envío unitario / Resumen Diario según tipo | CPE según régimen; `NV` no sustituye boleta |
 
 **Matriz `tax_regime` → documentos CPE permitidos (modos FORMALIZING / ELECTRONIC_ISSUER):**
@@ -798,14 +798,14 @@ Atlas no asume que todo tenant es emisor electrónico desde el día 1. El servid
 
 1. `NV` **no** está en Catálogo 01 SUNAT. Impresión con leyenda: *"Nota de venta — documento de control interno. No es comprobante de pago autorizado por SUNAT."*
 2. Upgrade `INTERNAL_CONTROL` → `FORMALIZING` / `ELECTRONIC_ISSUER`: las NV históricas **no se convierten** en boletas (prohibida re-numeración). Ventas nuevas usan CPE.
-3. **PSE ≠ contingencia normativa.** Contingencia SUNAT = formatos preimpresos autorizados ante falla del sistema. Atlas **no** emite serie B/F “en contingencia” solo porque falta `.pfx`. Default de producto: **PSE Atlas** en modos formales (ADR-FISCAL-001).
+3. **PSE ≠ contingencia normativa.** Contingencia SUNAT = formatos preimpresos autorizados ante falla del sistema. KipusPay **no** emite serie B/F “en contingencia” solo porque falta `.pfx`. Default de producto: **PSE KipusPay** en modos formales (ADR-FISCAL-001).
 4. NRUS formalizado: ventas ≤ S/ 5 pueden omitir emisión unitaria + **boleta de consolidación diaria**; boleta ≥ **S/ 700** exige tipo+número de doc y nombres del adquirente; Factura exige RUC (`6`).
 5. **Guía de Remisión Electrónica (GRE)** y percepciones/retenciones/detracciones = **fuera de MVP v8.0** (post-MVP).
 
 #### ADR-FISCAL-001 v2 — Decisiones cerradas (obligatorio Sprint 5)
 
 1. `INTERNAL_CONTROL` = solo NV (`NOT_APPLICABLE`).
-2. `FORMALIZING` / `ELECTRONIC_ISSUER` = **PSE Atlas** por defecto (`pse_mode = ATLAS_PSE`); cert propio del tenant es opción avanzada.
+2. `FORMALIZING` / `ELECTRONIC_ISSUER` = **PSE KipusPay** por defecto (`pse_mode = KIPUSPAY_PSE`); cert propio del tenant es opción avanzada.
 3. Boletas → **Resumen Diario**; Facturas → envío **unitario** XML.
 4. Plazos: factura **3 días calendario**; RC boletas **7 días calendario**; alertas T-24h; DLQ por vencimiento.
  5. Guards: boleta ≥ S/ 700 ⇒ identificación; factura ⇒ RUC; NC/ND ⇒ origen `ACCEPTED`.
@@ -835,7 +835,7 @@ Atlas no asume que todo tenant es emisor electrónico desde el día 1. El servid
 - Leyendas: *"Representación impresa de la [FACTURA/BOLETA/NOTA] ELECTRÓNICA"*; *"Autorizado mediante Resolución …"* (o equivalente PSE).
 - NV: solo leyenda de control interno (sin hash/QR SUNAT).
 
-### **5.3 Operación comercial (Atlas v8.1) — Zero-Trust de caja, inventario y comandas**
+### **5.3 Operación comercial (KipusPay v8.1) — Zero-Trust de caja, inventario y comandas**
 
 Extiende el DDL base con entidades de operación. Implementación por sprints Agents FASE 6 (17–20). **No sustituye** el pipeline fiscal §5.2.
 
@@ -876,7 +876,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ag
 33. **Inteligencia del negocio / Agente de insights (`analytics.agentic_insights`, FASE 6F, Sprint 49):** capa **determinista** sobre D1 — el LLM **nunca calcula ni decide**; D1 es la única calculadora (Principio 9). Pipeline: (1) **router de intención** (LLM ligero) clasifica la pregunta en una lista whitelist de acciones; (2) **Text-to-SQL** (LLM solo traductor) genera el `SELECT` sobre un **schema estricto** (tablas/columnas conocidas, sin `JOIN` libre ni funciones fuera de whitelist) validado por schema JSON y **parametrizado** — jamás se concatena texto del LLM; (3) la consulta se ejecuta en **D1** (calculadora exacta, `_cents`) — **PERF-12:** con `sql_timeout` y contra la **réplica de lectura** del shard (si no hay réplica, prioridad baja / ventana fuera de hora punta) para no competir con el write-lock del cobro; el validador del schema **inyecta forzosamente `LIMIT 50`** (umbral configurable por tenant) en todo `SELECT` generado; para listas amplias fuerza **agregaciones** (`GROUP BY`/totales) y, si la pregunta pide detalle masivo, responde *"los datos son muy amplios para el chat: muestro los 50 principales, descarga el Excel completo en Configuración"* — **jamás** se materializa un listado grande en el isolate (memoria 128 MB, evita OOM/5xx que degraden el SLO); (4) **NLG server-side**: los números se computan antes y se inyectan como **hechos tipados** con placeholders; el LLM solo redacta prosa conectándolos verbatim, con un **post-check determinista** que rechaza cualquier cifra que contradiga el input (0 alucinaciones verificable por Staff QA); (5) respuesta por **SSE** (P95 <2s, canal premium — no es hot path de cobro, no aplica el SLO Sub-50ms). **Idempotencia del chat (anti doble cobro):** cada pregunta desde el móvil lleva `insight_idempotency_key` (UUID del mensaje); si el SSE se corta por red móvil y el cliente reenvía, el backend devuelve la respuesta cacheada en KV `insights:{tenant_id}:{idem}` (TTL ~10 min) **sin re-invocar al LLM**; `ai_usage_counters` sube solo en el primer procesamiento (reusa el patrón `sale_idempotency_key`). **Morning Briefing proactivo:** cron 3:30 AM post `buildDailySummaryCron`, genera 3 viñetas (ventas, quiebre, excepciones de caja) y las cachea en **KV** `insights:{tenant_id}:{fecha}` (lectura UI <10ms); el usuario puede abrir el chat para profundizar. **Regeneración ante sync offline tardío:** si una venta con `issued_at` de un día cerrado se reconcilia después del cron, la re-materialización del rollup (§9) **invalida** la llave KV del briefing y lo regenera con las cifras ya integradas (edge D, Sprint 6/49). **Zero-trust multi-tenant:** `tenant_id` se extrae del JWT y se fuerza en el `WHERE` **fuera del prompt**; el LLM es stateless y no ve datos de otros tenants; el output se renderiza como **texto plano escapado** (los nombres de producto son data, nunca markdown/HTML del modelo). **Schema PII-free (LPDP, regla 32):** el whitelist del Text-to-SQL **excluye columnas de datos personales** (`email`, `phone`, `address`, `document_number` de `customers`) y expone `customer_id` + **seudónimo** (iniciales/alias) para el análisis; un **post-check escanea `facts_json`** y rechaza la respuesta si detecta PII crudo antes de la NLG — la IA nunca procesa datos personales identificables. **Metering:** `ai_usage_counters` por tenant/día (queries, tokens de entrada/salida) + rate limit → costo Workers AI cubierto por el modelo de sobregiro (§4.1); gated a **Cadena/Enterprise**. **Auditabilidad:** cada interacción se persiste en `insight_log` (append-only) con la consulta SQL ejecutada, los hechos JSON, el texto NLG y `model_version`. Se **compone** con `analytics.forecasting` (regla 31): el briefing puede citar el forecast, pero no lo reemplaza. Respalda el claim GTM "El único POS que viene con un Gerente de Operaciones incluido" (freeze hasta Sprint 49).
 34. **Alta rápida de catálogo + venta rápida (`catalog.quick_add`, `sales.quick_line`, FASE 6G, Sprint 50):** (a) **Escáner Rápido** en Modo Dueño/Admin: cámara del celular (`BarcodeDetector`/`getUserMedia`, cliente) lee un código y **rutea por namespace** — prefijo `EMP-` ⇒ lookup en `users` (atribución de vendedor, R36); dígitos EAN-13/UPC ⇒ lookup en `products.barcode` (si existe → edición de stock/precio; si no → crea producto con nombre + precio en ~3 segundos, reusa `products.barcode`, sin depender de CSV ni de CatalogImporter del Sprint 21); **`EMP-` está prohibido como barcode de producto** (validación en Escáner Rápido y CatalogImporter); (b) **Venta rápida sin catálogo**: línea genérica en caja (`sale_items.is_uncatalogued = TRUE`, precio libre del cajero dentro del umbral sin authz, regla 2/17) para vender un artículo aún no catalogado a mitad de transacción; la línea queda **marcada** para catalogarse después (pendiente visible en Admin) y jamás corrompe stock (no descuenta ítem sin sku/barcode). **Excepción Zero-Trust offline (edge de integración):** como la línea genérica no tiene producto en listas, el motor `processOfflineSaleAtomic` (§6) **acepta `manualPriceCents` del cliente como fuente de verdad** para `is_uncatalogued = TRUE` (dentro del umbral sin authz), en vez de rechazarla por `Product not found` o sobreescribir el precio con la lista (regla 1) — la venta sincroniza y se audita como `GENERIC_LINE`. `audit_events` `QUICK_ADD`/`GENERIC_LINE`.
 35. **Handoff de turno (`ops.shift_handoff`, FASE 6G, Sprint 51):** el cambio de operador **no cierra la caja**: la sesión `cash_register_sessions` **sigue `OPEN`** y se transfiere con un **PIN temporal** de un solo uso (TTL corto, hash servidor, verificado server-side; el entrante nunca recibe las credenciales del saliente). La atribución queda garantizada por `sales.user_id` (operador real de cada venta) + `cash_register_shifts` (log de operadores por sesión). **Conteo ligero intermedio opcional**: `interim_count_cents` nullable + `interim_required` en política del tenant (`branch_stock_policies`/tenant policy) — si se exige, el cajero saliente confirma el efectivo (diferencia → `audit_events` `SHIFT_TRANSFER` con `cash_diff_cents`) **sin** emitir cierre Z; si no se exige, transferencia instantánea. El arqueo Z real (regla 11) sigue siendo del cierre de sesión/caja y **desglosa las diferencias por operador usando `cash_register_shifts`** (regla 11), visible en el ticket Z y en el Modo Dueño.
-36. **Equipo e invitaciones (`ops.team_invite`, FASE 6G, Sprint 51):** el Owner/Admin invita cajeros y vendedores (email/link) y les emite **PIN de caja** y/o **badge barcode** (`users.pin_hash`, `users.badge_barcode`); el cajero asigna el vendedor en el carrito en <1s escaneando su badge o tecleando su PIN (reusa el lector del Escáner Rápido, R34) — `sale_items.seller_id` se setea a nivel **carrito** con override por ítem; sin menú desplegable largo. **Namespace anti-colisión:** todo `badge_barcode` generado por Atlas usa el prefijo reservado **`EMP-`** + identificador server-side (`EMP-12345`), **único por tenant** y **fuera** del espacio EAN-13/UPC de los productos físicos — así un producto chino `12345` jamás colisiona con un badge `EMP-12345`; los badges no se editan a mano y el prefijo `EMP-` está **prohibido** en `products.barcode` (validado también por `CatalogImporter`/Escáner Rápido, R34). `audit_events` `TEAM_INVITE`.
+36. **Equipo e invitaciones (`ops.team_invite`, FASE 6G, Sprint 51):** el Owner/Admin invita cajeros y vendedores (email/link) y les emite **PIN de caja** y/o **badge barcode** (`users.pin_hash`, `users.badge_barcode`); el cajero asigna el vendedor en el carrito en <1s escaneando su badge o tecleando su PIN (reusa el lector del Escáner Rápido, R34) — `sale_items.seller_id` se setea a nivel **carrito** con override por ítem; sin menú desplegable largo. **Namespace anti-colisión:** todo `badge_barcode` generado por KipusPay usa el prefijo reservado **`EMP-`** + identificador server-side (`EMP-12345`), **único por tenant** y **fuera** del espacio EAN-13/UPC de los productos físicos — así un producto chino `12345` jamás colisiona con un badge `EMP-12345`; los badges no se editan a mano y el prefijo `EMP-` está **prohibido** en `products.barcode` (validado también por `CatalogImporter`/Escáner Rápido, R34). `audit_events` `TEAM_INVITE`.
 37. **Descubrimiento de capabilities + diagnóstico de hardware (`onboarding.tour`, `hardware.diagnostics`, FASE 6G, Sprints 52–53):** (a) **Product Tour** post-onboarding activado **por las capabilities del tenant** (ADR-ARCH-002): al elegir rubro, tooltips contextuales guían la primera configuración ("Como eres restaurante, activamos las comandas de cocina — configura aquí tu pantalla de chef") + **checklist de setup del "segundo día"** (logo, impresora, invitar cajero, activar facturación, subir catálogo) que mide completitud y reduce abandono del trial; (b) **Troubleshooter de hardware**: asistente visual en Admin → Configuración (Impresión/hardware) con botones *"Probar impresora USB"* / *"Buscar impresoras en mi red"* / *"Probar balanza"* — oculta la escalera WebUSB → WSS → Bluetooth (Sprint 25) y el diagnóstico de red detrás de estados claros (✓/✗ con causa y paso siguiente); `audit_events` `HARDWARE_DIAG`.
 
 #### DDL adicional (v8.1)
@@ -1752,13 +1752,13 @@ CREATE TABLE cash_register_shifts (
 
 **Fuera de §5.3 / v8.1:** ver FASE 6B (reglas 13–17, profundidad retail), FASE 6C-6F (reglas 18–33: cierre comercial, inventario avanzado, servicios, predictiva + compliance + inteligencia del negocio), FASE 6G (reglas 34–37: flujo del cliente — catálogo rápido, handoff, equipo, tour/troubleshooter), §5.4 (ecosistema v9) y backlog v10 en Agents FASE 7 (multi-moneda UI, propinas, cajón de efectivo, GRE completo, percepciones/retenciones/detracciones, ND completa, e-commerce, portal adquirente, importer Siigo, sandbox SUNAT).
 
-### **5.4 Ecosistema Perú (Atlas v9) — puertos de integración Zero-Trust**
+### **5.4 Ecosistema Perú (KipusPay v9) — puertos de integración Zero-Trust**
 
 Extiende el core sin meter SDKs de terceros en `domain-sales`. Implementación: Agents FASE 7 (sprints 21–24). **Stripe de billing SaaS** no es medio de pago de caja.
 
 #### Reglas
 
-1. **Import:** `CatalogImporter` solo escribe tras dry-run aprobado; claves externas (`external_source`, `external_id`) evitan duplicados; impuestos se mapean a tablas Atlas, nunca se copian reglas fiscales opacas del competidor.
+1. **Import:** `CatalogImporter` solo escribe tras dry-run aprobado; claves externas (`external_source`, `external_id`) evitan duplicados; impuestos se mapean a tablas KipusPay, nunca se copian reglas fiscales opacas del competidor.
 2. **Pagos en caja:** el cliente elige método; el servidor llama `PaymentAcquirer` y persiste `sale_payments` con estado monotónico; montos los impone el sale engine; reintentos idempotentes. **Captura offline de medio electrónico (edge 2B):** si el POS está sin red, un pago con billetera/QR (Yape/Plin/MP) puede marcarse **"Captura Manual"**: la UI muestra alerta ámbar al cajero *"Sin conexión. Verifica visualmente la app del cliente antes de entregar el producto"*; al sincronizar, el servidor persiste el pago con estado **`MANUAL_ELECTRONIC_CAPTURE`** en `payment_captures` (sin llamar al adquirente) y Modo Dueño lo lista como **no conciliado por API** (reporte §9), para que el dueño audite la confianza del cajero. Nunca se marca manual un pago online con captura API confirmada.
 3. **Export contable:** `AccountingExporter` es de solo lectura sobre ventas/CxC/CxP ya ACID; no altera el ledger al exportar.
 4. **API pública:** autenticación por API key de tenant; webhooks con HMAC; eventos mínimos `sale.created`, `cpe.accepted`, `cpe.rejected`; capability `integrations.api` (Plan Guard 402 en rutas API, nunca en cobro).
@@ -1903,9 +1903,9 @@ CREATE INDEX idx_loyalty_res_expiry ON loyalty_reservations(status, expires_at);
 
 **Reserva expirada en retry offline (edge case, Sprint 24):** si una venta **empezó online** (puntos `RESERVED`), la red se cortó antes del commit, la venta cayó a la cola offline y el barrendero expiró la reserva antes del sync, al consolidar el retry el servidor **commite la venta sin puntos** (promesa de caja intacta, Principio 5): no bloquea el cobro, no descuenta del balance y **jamás** genera saldo negativo de puntos. Se registra `audit_events` `LOYALTY_RESERVATION_EXPIRED` (`sale_id`, `loyalty_reservation_id`, motivo `EXPIRED_ON_RETRY`) + notificación al Dueño vía push (Modo Dueño) para ofrecer crédito de cortesía. Alternativa válida para el cajero online: si la reserva aún está vigente, el retry la reutiliza (canje normal).
 
-**No copiar de la categoría (fuera de Atlas):** ERP nómina/MRP, marketplace propio, “contingencia SUNAT” por falta de `.pfx`.
+**No copiar de la categoría (fuera de KipusPay):** ERP nómina/MRP, marketplace propio, “contingencia SUNAT” por falta de `.pfx`.
 
-\-- DDL para Cloudflare D1 (SQLite) \- Arquitectura Enterprise Atlas v8.0
+\-- DDL para Cloudflare D1 (SQLite) \- Arquitectura Enterprise KipusPay v8.0
 
 CREATE TABLE tenants (  
     id TEXT PRIMARY KEY,  
@@ -1922,9 +1922,9 @@ CREATE TABLE tenants (
     -- 'INTERNAL_CONTROL' | 'FORMALIZING' | 'ELECTRONIC_ISSUER'  
     sunat\_certificate\_status TEXT NOT NULL DEFAULT 'NONE',  
     -- 'NONE' | 'PENDING_UPLOAD' | 'ACTIVE' | 'EXPIRED' | 'REVOKED'  
-    -- En FORMALIZING/ELECTRONIC: PSE Atlas puede operar con cert de plataforma aunque tenant.cert = NONE  
-    pse\_mode TEXT NOT NULL DEFAULT 'ATLAS_PSE',  
-    -- 'ATLAS_PSE' (default producto) | 'TENANT_CERT' (emisor con .pfx propio)  
+    -- En FORMALIZING/ELECTRONIC: PSE KipusPay puede operar con cert de plataforma aunque tenant.cert = NONE  
+    pse\_mode TEXT NOT NULL DEFAULT 'KIPUSPAY_PSE',  
+    -- 'KIPUSPAY_PSE' (default producto) | 'TENANT_CERT' (emisor con .pfx propio)  
     enabled\_document\_types TEXT NOT NULL DEFAULT '["NV"]',  
     -- JSON array: NV, 01, 03, 07, 08, 12 — filtrado por tax_regime × formalization_mode  
     -- Planes de producto (GTM §4.1): arranque | crece | cadena | enterprise
@@ -2234,7 +2234,7 @@ CREATE TABLE sales (
     sunat\_status TEXT NOT NULL DEFAULT 'PENDING',  
     -- CPE: PENDING | PROCESSING | ACCEPTED | REJECTED | QUARANTINED (mensaje venenoso) | DEADLINE_EXCEEDED | DLQ_REQUIRES_INTERVENTION (negocio 4xx)  
     -- NV: NOT_APPLICABLE  
-    -- Deprecated: PENDING_CERTIFICATE (reemplazado por PSE Atlas — ADR-FISCAL-001)  
+    -- Deprecated: PENDING_CERTIFICATE (reemplazado por PSE KipusPay — ADR-FISCAL-001)  
     sunat\_xml\_hash TEXT,  
     sunat\_qr\_payload TEXT,  
     sunat\_response\_code TEXT,  
@@ -3386,7 +3386,7 @@ self.onmessage = async (event: MessageEvent) => {
 - **Devolución NV:** documento `NV_RETURN` (o anulación append-only) — revierte stock/caja, `NOT_APPLICABLE`, sin SUNAT.
 - **CxC / crédito:** permitido en NV y CPE; el tipo de pago “crédito” genera `accounts_receivable`. **Compensación de CxC en NC/devolución (edge E-D):** toda NC/NV_RETURN (regla 13) sobre una venta con saldo pendiente reduce `accounts_receivable.balance_due_cents` en la **misma tx** por el monto acreditado — total (cierra el saldo a cero) o parcial (prorratea por ítems/cantidades acreditadas). Si ya hubo abonos cobrados, el vuelto se entrega por el método del último abono o en efectivo, o se convierte en crédito de tienda (regla 20) cuando la política lo permite; **jamás** se ajusta CxC en silencio (`audit_events` con el asiento de compensación).
 - **Upgrade de formalización mid-day:** permitido con sesión abierta; docs ya emitidos conservan tipo; nuevas ventas usan el nuevo default.
-- **Gracia past_due:** caja y CPE siguen; costos OSE/PSE durante gracia los absorbe Atlas (política comercial).
+- **Gracia past_due:** caja y CPE siguen; costos OSE/PSE durante gracia los absorbe KipusPay (política comercial).
 
 // src/handlers/creditNoteHandler.ts — precondiciones (extracto)
 // 1. originalSale.sunat_status === 'ACCEPTED' (else 409 FISCAL_CDR_REQUIRED).
@@ -3448,7 +3448,7 @@ export default app;
 
 | Adaptador `FiscalTransport` | Uso |
 |---|---|
-| `ATLAS_PSE_DIRECT` | **Default** — PSE Atlas envía directo a SUNAT (mínimo costo OSE) |
+| `KIPUSPAY_PSE_DIRECT` | **Default** — PSE KipusPay envía directo a SUNAT (mínimo costo OSE) |
 | `ose_*` | Enterprise / preferencia del tenant |
 | `pse_third_party` | Plugin; requiere **suite de contrato** antes de enable |
 
@@ -3746,7 +3746,7 @@ function sanitizePrinterText(value: string): string {
 
 ### **Matriz Comparativa**
 
-| Dimensión | Bsale / Alegra / Siigo | SAP Business One / Odoo | Atlas v8.0 → v9 |
+| Dimensión | Bsale / Alegra / Siigo | SAP Business One / Odoo | KipusPay v8.0 → v9 |
 | :---- | :---- | :---- | :---- |
 | **Latencia Percibida** | **![][image1]** | **![][image11]** | **![][image12]** Global Edge |
 | **Garantía Transaccional** | Best-effort | Transaccional Tradicional | Transaccional D1 ACID |
@@ -3779,7 +3779,7 @@ function sanitizePrinterText(value: string): string {
 | **Costo Estimado para 1,000 Comercios** | **![][image17]** |
 | **Costo Estimado para 1,000,000 comprobantes/día** | **![][image18]** |
 
-**Nota v8.2 (margen):** offloading cliente (§7.5) + `ATLAS_PSE_DIRECT` (sin fee OSE por defecto) + `usage_counters` UPSERT dentro de la misma tx de venta ⇒ costo marginal Edge por comprobante ≈ **1 write D1 adicional** (+ R2 del XML async). Analytics Engine **no** entra al path de facturación de sobregiro.
+**Nota v8.2 (margen):** offloading cliente (§7.5) + `KIPUSPAY_PSE_DIRECT` (sin fee OSE por defecto) + `usage_counters` UPSERT dentro de la misma tx de venta ⇒ costo marginal Edge por comprobante ≈ **1 write D1 adicional** (+ R2 del XML async). Analytics Engine **no** entra al path de facturación de sobregiro.
 
 [image1]: <data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIIAAAAWCAYAAAAM9ESoAAADwklEQVR4Xu1ZW0hUURQdRbIXvcjMx3hHxygtKoLe9DKidxZRRBRFUNB/UUYSPSDKiqK/6iMoKKw+DESoMEjo5YdRYWr5U1SQHxJRohC2lrO37jkpweiH0FmwuGevve69w9n7nntmJhTy8PDw8PDoHZmZmeMjkchusCQnJ2e9mzdIQX4huAPeiW5SgdyqIAgO4LgxPz8/1c17DFKgaO/AavAsWAneSktLG2k92dnZWSjsa+QacXyC4zc0xDrrIZBbIvlz9IJ1rsdjEAKrwXAU7rjVULxO8IrGyI8Bm8AKfcKRPwm2h8Ph2cY3F9oPEw9FXIVzRqnmMUiBQq1l4VG0pUZjI3RiFRgn8VHRlqmHDYT4F/hINVzjATWNCcRFWDmOWc1jkAIFnGljaYz7NiYxTDY26jWih1DsneJ7bD1opmHUsSqkqZabmxvk5eXlaGxzCnjmuK8ng2R8vmIwwjGuv9k1ePQTXN5R1I+2UFLgDusT/aE2QtCzalT14qNehOJOljEb7TjuswLj58IP4Cw0ziS57luwA75LIdOAuMYM6PVgWRDb13yFp8ncziNRyFNbigm9iONPedK6IcXrfvcr5FWgjcCNZtxKopDzV3PM/YLEdeA98/ppAxvAWj7tol0Q7x45NxXjL2CZXhvNtBfxe409+oHCwsIhsrSXglcxPg05RfNSjL8aAVoVczLuKlpfjYBN5QYbg63aBEQk9o2kU+6tvk3ivcYYq8F0iU8ZTwZYr7HHAEImm0XZYuK2XnzdrwYUcr/4Kh1bkugFKkh805oQ11JHw0wz2hrxlhuNzcFNKnXyE+49T/MuxM/P+U/iOmfc8/8b8KnEfmC01XSS0QjXbRwyq4TodrO4VXzV1qObRf5opZr4blgf4qfUbSOgMCvFe8fxFoDPJEe22LxHAsAkNqCILxxNJ7irADg2M45GoxMcH3+I+s1xVlZWtpzzynpwTpj3sJr44hqBn4F6HyvCXcZojCkYX9Z8enr6CMb0qOaRIDCJreAbR+Pkkwcl5t6BRVqkHnnS2wPzLSGILbFxewkUeDkKWGI1uXZcI8DzUu5hG6HrN46gpyHniydTPRhHqWnskSBQqLGYyO9gOTdqLCyJ8VTr43d96DXQb/NdinELjrush4C+gHmwmF7EjSbHJZ2F7SZ8h/kKcvVeeIJ7ARw/41iB4/kgtiI1I95mP4NHgsBkFgWxp/4IuN3NW/AJROEOwZfh5hRBrBn4B9Y+rhxuvh9I0fviG8Ri/jCFYZLj8fDw8PDw8PDw8PAYKPwB9KNVUQAizhIAAAAASUVORK5CYII=>
 

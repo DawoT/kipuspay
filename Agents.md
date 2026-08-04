@@ -1,7 +1,7 @@
 # Roadmap de Sprints — Escuadrón de Agentes de IA Nivel Staff
-## Ejecución de Atlas v8.0 (Motor Financiero Edge-Native SUNAT) y su Salida al Mercado
+## Ejecución de KipusPay v8.0 (Motor Financiero Edge-Native SUNAT) y su Salida al Mercado
 
-> **Premisa de este roadmap:** Atlas no se construye con agentes que "generan código que funciona". Se construye con agentes que operan con el juicio, el estándar de evidencia y el nivel de responsabilidad de un **Staff Engineer / Staff Designer / Staff PM** humano — la persona a la que el resto del equipo recurre cuando algo tiene que estar bien, no solo terminado. Este documento traduce la [Arquitectura Técnica Atlas v8.0](Arquitectura_Técnica_POS_SUNAT_v8_0_Atlas.md) y el [documento GTM](GTM.md) en un roadmap ejecutable por sprints, con roles, skills, workflows, testing, criterios de calidad medibles y un registro inmutable de lo realizado.
+> **Premisa de este roadmap:** KipusPay no se construye con agentes que "generan código que funciona". Se construye con agentes que operan con el juicio, el estándar de evidencia y el nivel de responsabilidad de un **Staff Engineer / Staff Designer / Staff PM** humano — la persona a la que el resto del equipo recurre cuando algo tiene que estar bien, no solo terminado. Este documento traduce la [Arquitectura Técnica KipusPay v8.0](Arquitectura_Técnica_POS_SUNAT_v8_0_KipusPay.md) y el [documento GTM](GTM.md) en un roadmap ejecutable por sprints, con roles, skills, workflows, testing, criterios de calidad medibles y un registro inmutable de lo realizado.
 
 ---
 
@@ -15,7 +15,7 @@
 6. **Revisión par obligatoria.** Ningún agente aprueba su propio trabajo crítico. Todo entregable de Fase 1-2 (dinero, impuestos, seguridad) requiere firma de un segundo agente Staff independiente.
 7. **Reversibilidad primero.** Ningún cambio llega a producción sin un plan de rollback probado, no solo escrito.
 8. **El estándar de referencia es explícito, no aspiracional.** Cuando este roadmap dice "nivel elite" se refiere a barras concretas: diseño de API y dashboards al nivel de Stripe, velocidad percibida al nivel de Linear, experiencia móvil al nivel de una app bancaria de primer mundo, seguridad al nivel OWASP ASVS L2, accesibilidad al nivel WCAG 2.1 AA.
-9. **El registro de lo hecho es tan inmutable como el ledger financiero que Atlas promete a sus clientes.** Ningún agente edita ni borra su propio historial de trabajo; toda corrección se agrega como una entrada nueva, nunca como una reescritura del pasado (Sección 7).
+9. **El registro de lo hecho es tan inmutable como el ledger financiero que KipusPay promete a sus clientes.** Ningún agente edita ni borra su propio historial de trabajo; toda corrección se agrega como una entrada nueva, nunca como una reescritura del pasado (Sección 7).
 10. **Nada llega a producción sin haber sido sometido a fallar primero.** Todo entregable crítico se prueba bajo condiciones adversas — concurrencia, red hostil, límites de almacenamiento local, degradación de dispositivo de gama baja, carga, fallo de hardware — antes de considerarse listo, no después de un incidente real (Sección 6).
 11. **Cobrar nunca se bloquea por límites artificiales de plan ni por desacuerdos de agentes.** El Plan Guard degrada features premium; jamás apaga la caja. Los deadlocks entre agentes se resuelven con desempate arquitectónico explícito (Anexo B), no con espera infinita.
 12. **Extender por capability, no por vertical; DRY de dominio.** Un PR **no** introduce `switch(vertical)` / `if (vertical === …)` en sale, stock, fiscal o caja. Nuevas verticales GTM = bundles de capabilities (ADR-ARCH-002 / Arquitectura §1.1). Cada regla de negocio tiene un solo módulo dueño; Agents y GTM citan Arquitectura, no la re-especifican.
@@ -143,7 +143,7 @@ Ningún sprint se cierra si el entregable no cumple **todo** lo siguiente (adem�
 
 ## 6. Estrategia de Testing — Garantía de Cero Incidentes en Producción
 
-La pirámide de testing de Atlas no es genérica: cada capa del sistema tiene un tipo de prueba que existe específicamente porque esa capa puede costarle dinero real, un comprobante rechazado o una venta perdida a un comerciante.
+La pirámide de testing de KipusPay no es genérica: cada capa del sistema tiene un tipo de prueba que existe específicamente porque esa capa puede costarle dinero real, un comprobante rechazado o una venta perdida a un comerciante.
 
 | Capa / Componente | Tipos de test obligatorios | Umbral mínimo | Frecuencia | ¿Bloquea el release? |
 |---|---|---|---|---|
@@ -165,7 +165,7 @@ La pirámide de testing de Atlas no es genérica: cada capa del sistema tiene un
 
 ## 7. Changelog Obligatorio — Registro Inmutable de Iteraciones de Agentes
 
-Atlas le promete a sus comerciantes un ledger financiero donde nada se sobrescribe y todo se reconcilia (Principio 8 y 9 de la arquitectura). El mismo estándar de integridad se aplica al registro de trabajo de los agentes: **el historial de lo que cada agente hizo es, en sí mismo, un ledger — append-only, nunca editado, nunca borrado.**
+KipusPay le promete a sus comerciantes un ledger financiero donde nada se sobrescribe y todo se reconcilia (Principio 8 y 9 de la arquitectura). El mismo estándar de integridad se aplica al registro de trabajo de los agentes: **el historial de lo que cada agente hizo es, en sí mismo, un ledger — append-only, nunca editado, nunca borrado.**
 
 ### 7.1 Reglas de Inmutabilidad
 
@@ -999,6 +999,42 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0177
+timestamp_utc: 2026-08-03T20:00:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; renombre de marca)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Corrección
+subtipo: gobernanza
+relacion: CORRIGE
+referencias_entradas: [0176]
+referencias_documentales: [Agents.md, Arquitectura Técnica POS SUNAT v8.0 KipusPay.md, GTM.md]
+prev_id: 0176
+prev_hash: 7157d448684cefd7eb55aabc484f7665779f3c32ef300abb01a919689a96c13b
+entry_hash: 70a7bafdb38f53897cae40c1fe066da9af960a61a29630ce34fffa3b2bad0b48
+ticket_or_adr: REBRAND-KIPUSPAY-0001
+test_ids: [DOC-RENAME-01]
+entregable_afectado: Marca y nomenclatura del producto en los 3 documentos maestros
+descripcion: >
+  Renombre de marca del producto: "Atlas" pasa a "KipusPay" en todo el contenido
+  normativo (títulos, secciones, prosa, copy GTM, env vars ATLAS_PSE* ->
+  KIPUSPAY_PSE*, footer "Emitido con KipusPay"). El archivo de especificación se
+  renombra a "Arquitectura Técnica POS SUNAT v8.0 KipusPay.md" y las referencias
+  al path se actualizan. Por la regla append-only, las entradas 0143-0176 del
+  ledger conservan "Atlas" como término histórico (no se reescriben); esta
+  entrada declara esa equivalencia.
+evidencia: >
+  RED: grep "Atlas" en contenido normativo detectaba la marca antigua en uso.
+  GREEN: 0 "Atlas" en el contenido normativo de los 3 docs; solo persisten las
+  referencias históricas del ledger (0143-0176) declaradas aquí; fences pares;
+  archivo renombrado con git mv.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff Security]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
 ### 7.4 Integración con el Staff Review Board
 
 El changelog del sprint se revisa como parte obligatoria de la Sprint Review (Sección 8): el board no aprueba un cierre de sprint si existen entregables sin entrada, o entradas sin evidencia adjunta. Un patrón de entradas tipo `Corrección` recurrentes sobre el mismo componente es, por diseño, una señal automática de que ese componente necesita revisión de arquitectura, no solo otro parche.
@@ -1174,11 +1210,11 @@ transacciones canario consecutivas correctas.
 **Entregables:**
 - Branch Series Resolver sobre `branch_document_series` + reserva correlativo (DO o reconciliación servidor).
 - Ruta **NV / NV_RETURN:** `NOT_APPLICABLE`, leyenda legal, reversión stock/caja en devolución.
-- Ruta **CPE:** XML UBL 2.1, firma, ICBPER, Catálogo 07 en ítems; **PSE Atlas** default (`pse_mode = ATLAS_PSE`).
+- Ruta **CPE:** XML UBL 2.1, firma, ICBPER, Catálogo 07 en ítems; **PSE KipusPay** default (`pse_mode = KIPUSPAY_PSE`).
 - Guards: régimen×modo; Factura⇒RUC; Boleta≥700⇒DNI/nombre; skew `issuedAt` ±6h; auto Factura/Boleta.
 - NC/ND: precondición `ACCEPTED`; motivos Cat. 09/10; **NC parcial** por residual; NV no usa NC fiscal. **Excepción E-A (anulación sin CDR):** un CPE `REJECTED`/`QUARANTINED`/`DEADLINE_EXCEEDED` (jamás tuvo CDR) admite NC de **anulación total** sin exigir `ACCEPTED` (`audit_events` `CREDIT_NOTE_NO_CDR` + alerta Dueño); el 409 aplica solo a `PENDING`/`PROCESSING`. **Excepción E-B:** al restaurar stock en NC parcial, los ítems `is_uncatalogued` NO restauran stock ni `refresh_avg_cost` (nunca descontaron).
 - **ADR-FISCAL-001 v2** (obligatorio): decisiones cerradas PSE, RC, plazos, exclusiones GRE (Anexo C).
-- **Readiness PSE Atlas:** credenciales/secretos en Workers Secrets/KMS, endpoint/contrato
+- **Readiness PSE KipusPay:** credenciales/secretos en Workers Secrets/KMS, endpoint/contrato
   `FiscalTransport`, evidencia de autorización/acreditación aplicable y prueba de CDR en staging;
   sin estos artefactos el claim PSE permanece congelado.
 
@@ -1339,7 +1375,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6 — Motor de Operación Comercial (Atlas v8.1)
+### FASE 6 — Motor de Operación Comercial (KipusPay v8.1)
 
 > Cierra la distancia entre lo que GTM vende por vertical y el motor de negocio. **No reabre el diseño fiscal P0.** Dependencia: Fases 1–5 cerradas (o al menos núcleo ACID + formalización + pipeline fiscal). Detalle de entidades: Arquitectura §5.3. **Contrato de modularidad:** cada sprint **entrega capabilities** (ADR-ARCH-002), no ramas `if (vertical)`. Backend no mergea lógica “farmacia/resto/cadena” como enum; Growth solo vende el claim de GTM §2 tras el Quality Gate del sprint.
 
@@ -1412,7 +1448,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 7 — Ecosistema Perú (Atlas v9)
+### FASE 7 — Ecosistema Perú (KipusPay v9)
 
 > Cierra la **parity de ecosistema** frente a facturadores/POS instalados (Bsale, Alegra, Siigo): migración, pagos locales en caja, puente al contador, API/webhooks, mensajería de comprobante y loyalty light. **No reabre** fiscal P0 ni sustituye FASE 6. Dependencia: núcleo ACID + formalización; idealmente FASE 6 en curso o cerrada para no mezclar claims. Ports: Arquitectura §1.1 / §5.4. **Capabilities, no forks** (ADR-ARCH-002).
 
@@ -1438,7 +1474,7 @@ transacciones canario consecutivas correctas.
 **Entregables:**
 - `sale_payments.method` Zero-Trust: `yape` | `plin` | `mercadopago_qr` | `culqi` | `niubiz` | cash | card_manual | credit (existentes).
 - Flujo QR en caja + estado PENDING→CAPTURED/FAILED; conciliación básica (reporte Dueño de pagos no capturados).
-- Stripe permanece en **billing SaaS** de Atlas; no confundir con medio de pago en punto de venta.
+- Stripe permanece en **billing SaaS** de KipusPay; no confundir con medio de pago en punto de venta.
 
 **Criterios de aceptación:** cobro offline no inventa captura de wallet (cola o rechazo claro); monto pagado lo impone servidor; 0 doble captura por reintento (idempotency key); arqueo Z distingue efectivo vs electronic; **captura manual offline (edge 2B): pago Yape aceptado sin red persiste `MANUAL_ELECTRONIC_CAPTURE`, la UI muestra la alerta ámbar "Sin conexión. Verifica visualmente la app del cliente" y Modo Dueño lo lista como no conciliado por API**.
 
@@ -1505,7 +1541,7 @@ transacciones canario consecutivas correctas.
 **Referencia:** Arquitectura §8.1, ADR-FISCAL-002 · **Agentes:** Staff Fiscal (owner), Staff SRE, Staff Backend ACID, Staff Mobile (alertas Dueño)
 
 **Entregables:**
-- Puerto `FiscalTransport` default `ATLAS_PSE_DIRECT`; adaptadores OSE/PSE tercero con suite de contrato.
+- Puerto `FiscalTransport` default `KIPUSPAY_PSE_DIRECT`; adaptadores OSE/PSE tercero con suite de contrato.
 - Circuit breaker en **Durable Object** por `(transport, endpoint)`; KV solo cache de lectura.
 - Lectura del breaker con **caché de 2 niveles**: in-memory isolate (TTL 5-10s) → KV (eventual 60s); DO **nunca** en hot path de lectura.
 - Incrementos por fallo **coalescidos** (sampling/decimación) + jitter; no 1 request fallido = 1 incremento.
@@ -1536,7 +1572,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6B — Profundidad Retail (Atlas v8.1, sprints 28–32)
+### FASE 6B — Profundidad Retail (KipusPay v8.1, sprints 28–32)
 
 > Extiende la capa comercial de FASE 6 (v8.1) con la profundidad retail que quedó fuera del Tier 1: devoluciones, 3-way de proveedores, promociones, variantes/UM y apartados/diario contable. **No reabre fiscal P0** (las NC reusan ADR-FISCAL-001; percepciones/retenciones siguen en backlog v10). **Numeración deliberada:** sprints 28–32 después de 27 para no renumerar FASE 7–8 (GTM cita "Sprint 23+/24+") ni romper referencias; comparten la minor **v8.1** porque son la misma capa comercial de FASE 6 entregada en profundidad. Detalle de entidades: Arquitectura §5.3 reglas 13–17. **Capabilities, no forks** (ADR-ARCH-002); cada claim GTM se descongela solo tras su Quality Gate.
 
@@ -1618,7 +1654,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6C — Cierre Comercial (Atlas v8.1, sprints 33–37)
+### FASE 6C — Cierre Comercial (KipusPay v8.1, sprints 33–37)
 
 > Cierra el ciclo financiero completo del negocio: cotizar → vender → devolver (al cliente y al proveedor) → cobrar en partes → compensar con crédito de tienda → comisionar al vendedor. **No reabre fiscal P0** (las NC reusan ADR-FISCAL-001; gift cards y cuotas no emiten CPE propio salvo la venta subyacente). Detalle de entidades: Arquitectura §5.3 reglas 18–22. **Capabilities, no forks** (ADR-ARCH-002); cada claim GTM se descongela solo tras su Quality Gate.
 
@@ -1697,7 +1733,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6D — Inventario Avanzado (Atlas v8.1, sprints 38–42)
+### FASE 6D — Inventario Avanzado (KipusPay v8.1, sprints 38–42)
 
 > Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23–27. **Capabilities, no forks** (ADR-ARCH-002).
 
@@ -1775,7 +1811,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6E — Servicios y Fuerza de Venta (Atlas v8.1, sprints 43–45)
+### FASE 6E — Servicios y Fuerza de Venta (KipusPay v8.1, sprints 43–45)
 
 > Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Detalle de entidades: Arquitectura §5.3 reglas 28–30. **Capabilities, no forks** (ADR-ARCH-002).
 
@@ -1823,7 +1859,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6F — Analítica Predictiva + Compliance + Inteligencia del Negocio (Atlas v8.1, sprints 46–49)
+### FASE 6F — Analítica Predictiva + Compliance + Inteligencia del Negocio (KipusPay v8.1, sprints 46–49)
 
 > Respalda técnicamente el claim Cadena de "analítica predictiva" (GTM §4.1), cierra las obligaciones de datos (LPDP Perú y DR/BCP) y añade la capa de inteligencia del negocio (agente de insights + Morning Briefing) con pipeline determinista sobre D1. Detalle de entidades: Arquitectura §5.3 reglas 31–33. **Capabilities, no forks** (ADR-ARCH-002).
 
@@ -1889,7 +1925,7 @@ transacciones canario consecutivas correctas.
 
 ---
 
-### FASE 6G — Flujo del Cliente (Atlas v8.1, sprints 50–53)
+### FASE 6G — Flujo del Cliente (KipusPay v8.1, sprints 50–53)
 
 > Cierra la transición del "aha moment" del onboarding hacia la operación diaria: subir el catálogo sin teclear 1,500 productos, cambiar turnos sin cerrar caja, atribuir ventas al vendedor en <1s, y que el cliente descubra y configure las capabilities de su rubro. Detalle de entidades: Arquitectura §5.3 reglas 34–37. **Capabilities, no forks** (ADR-ARCH-002); cada claim GTM se descongela solo tras su Quality Gate.
 
@@ -2023,18 +2059,18 @@ transacciones canario consecutivas correctas.
 - **WCAG 2.1 AA:** estándar de accesibilidad web usado como barra mínima para contraste, navegación y targets táctiles.
 - **Error budget / SLO:** presupuesto de indisponibilidad tolerada por servicio, usado por Staff SRE para decidir cuándo priorizar estabilidad sobre features nuevas.
 - **ADR (Architecture Decision Record):** documento corto que registra una decisión de arquitectura, sus alternativas y su justificación — obligatorio para cualquier cambio no trivial.
-- **Changelog inmutable (Sección 7):** registro append-only de todo lo que un agente ejecuta, con el mismo principio de integridad que el ledger financiero de Atlas.
+- **Changelog inmutable (Sección 7):** registro append-only de todo lo que un agente ejecuta, con el mismo principio de integridad que el ledger financiero de KipusPay.
 - **Desempate Arquitectónico (Anexo B §4):** autoridad final del Staff Principal tras 3 iteraciones fallidas de remediación cruzada, para evitar deadlocks entre agentes; no puede usarse para saltarse SUNAT, Zero-Trust ni ACID.
 - **PENDING_CERTIFICATE:** estado **deprecado**. No usar como “contingencia” por falta de `.pfx`.
-- **PSE Atlas (`pse_mode = ATLAS_PSE`):** default en `FORMALIZING`/`ELECTRONIC_ISSUER` — firma y envío válidos sin improvisar contingencia normativa (ADR-FISCAL-001 v2).
+- **PSE KipusPay (`pse_mode = KIPUSPAY_PSE`):** default en `FORMALIZING`/`ELECTRONIC_ISSUER` — firma y envío válidos sin improvisar contingencia normativa (ADR-FISCAL-001 v2).
 - **Resumen Diario (RC):** vía de reporte de boletas y NC/ND de boleta; plazo máx. 7 días calendario; job independiente del arqueo Z.
 - **must_submit_by:** deadline fiscal (factura ~3d; boleta/RC ~7d); alerta T-24h; DLQ `DEADLINE_EXCEEDED`.
 - **Nota de Venta (`NV`) / `NV_RETURN`:** control interno; `NOT_APPLICABLE`; leyenda legal; devoluciones sin NC fiscal.
 - **formalization_mode:** `INTERNAL_CONTROL` | `FORMALIZING` | `ELECTRONIC_ISSUER`.
-- **ADR-FISCAL-001 v2 (obligatorio Sprint 5):** (1) INTERNAL=solo NV; (2) FORMALIZING/ELECTRONIC=**PSE Atlas** default; (3) boletas→RC, facturas→unitario; (4) plazos 3d/7d+alertas; (5) reglas 700/RUC/NC+CDR; (6) GRE y percepciones/retenciones **fuera de MVP v8.0**; (7) series por **branch**; (8) prohibido copy “contingencia SUNAT” para pre-certificado.
+- **ADR-FISCAL-001 v2 (obligatorio Sprint 5):** (1) INTERNAL=solo NV; (2) FORMALIZING/ELECTRONIC=**PSE KipusPay** default; (3) boletas→RC, facturas→unitario; (4) plazos 3d/7d+alertas; (5) reglas 700/RUC/NC+CDR; (6) GRE y percepciones/retenciones **fuera de MVP v8.0**; (7) series por **branch**; (8) prohibido copy “contingencia SUNAT” para pre-certificado.
 - **ADR-ARCH-002 (v8.1):** runtime por **capabilities** (`tenant_capabilities`); `vertical_type` solo UX/onboarding/analytics; prohibido `switch(vertical)` en core; FASE 6 entrega flags no forks (Arquitectura §1.1).
 - **FASE 7 / Ecosistema Perú (v9):** sprints 21–24 — import Bsale/Alegra, pagos PE en caja, export Contasis/Concar + API/webhooks, WhatsApp + loyalty light (Arquitectura §5.4).
 - **FASE 8 / Blindaje v8.2:** sprints 25–27 — offloading zero-dep (§7.5), `FiscalTransport` + breaker DO (ADR-FISCAL-002 / §8.1), sobregiro `usage_counters` + loyalty reservations (§4.1).
-- **ADR-FISCAL-002:** canal de transporte agnóstico; default `ATLAS_PSE_DIRECT`; OSE/PSE tercero como plugins; **no** reabre reglas de ADR-FISCAL-001.
+- **ADR-FISCAL-002:** canal de transporte agnóstico; default `KIPUSPAY_PSE_DIRECT`; OSE/PSE tercero como plugins; **no** reabre reglas de ADR-FISCAL-001.
 - **Sobregiro facturado:** cupo Arranque 1,000/mes + S/ 0.05 excedente; nunca 402 en cobro (Principio 5 / GTM §4.1).
 - **DRY de dominio / hexagonal:** una regla = un package `domain-*`; Agents/GTM citan Arquitectura; composition root en workers/apps.
