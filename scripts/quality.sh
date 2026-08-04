@@ -28,6 +28,9 @@ pnpm test:integration
 step "4b/8 Chaos Sprint 4 (§13.5 concurrent-writers + duplicate-retry)"
 node scripts/chaos/run.mjs --scenario all --sprint 4
 
+step "4c/8 Chaos plazos fiscales (§13.5 deadline fail-closed)"
+node scripts/chaos/run.mjs --scenario deadline --sprint 5
+
 step "5/8 Secretos (Gitleaks)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --no-banner --redact -v

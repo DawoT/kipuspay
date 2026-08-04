@@ -27,6 +27,9 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Proceso §5.1: motor ACID offline desactivable sin rollback de código. */
   readonly FEATURE_ACID_OFFLINE_SALE?: string;
   readonly FEATURE_FISCAL_CPE?: string;
+  readonly FEATURE_FISCAL_RC?: string;
+  readonly FEATURE_CPE_PORTAL?: string;
+  readonly CPE_PORTAL_SECRET?: string;
 }
 
 const isolateCache = new Map<string, { value: unknown; ts: number }>();

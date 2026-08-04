@@ -8,6 +8,7 @@ import {
   DOWN_0003_ATOMIC_GUARDS,
   DOWN_0004_AUDIT_EVENTS,
   DOWN_0005_FISCAL_OUTBOX,
+  DOWN_0006_FISCAL_ALERTS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -295,7 +296,8 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     );
   });
 
-  it('down 0005 + 0004 + 0003 + 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+  it('down 0006 + 0005 + 0004 + 0003 + 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0006_FISCAL_ALERTS);
     await env.DB.exec(DOWN_0005_FISCAL_OUTBOX);
     await env.DB.exec(DOWN_0004_AUDIT_EVENTS);
     await env.DB.exec(DOWN_0003_ATOMIC_GUARDS);

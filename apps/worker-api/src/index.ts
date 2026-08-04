@@ -11,6 +11,12 @@ import type { UserSession } from './auth/idp-user.js';
 import type { WorkerEnv } from './auth/control-plane.js';
 import { handleStripeWebhook } from './webhooks/handle-stripe-webhook.js';
 import { runOfflineSaleHttp } from './pos/offline-sale-route.js';
+import {
+  runCpePortalHttp,
+  runFiscalCronHttp,
+  runOwnerAlertsHttp,
+  runVoidBoletaHttp,
+} from './fiscal/fiscal-rc-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -52,6 +58,49 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     const result = await runOfflineSaleHttp(c.env, tenantId, userId, payload);
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  // Fiscal RC — void boleta / alertas / portal / cron RC+plazos
+  app.post('/api/fiscal/void-boleta', async (c) => {
+    const jwt = c.get('jwt');
+    const tenantId = jwt?.tenantId ?? '';
+    const body: { saleId?: string } = await c.req.json();
+    const result = await runVoidBoletaHttp(c.env, tenantId, body.saleId ?? '');
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  app.get('/api/fiscal/owner-alerts', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerAlertsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
+  app.post('/api/fiscal/cron', async (c) => {
+    const body: {
+      action: 'deadlines' | 'daily-summary';
+      tenantId?: string;
+      summaryDate?: string;
+      nowMs?: number;
+    } = await c.req.json();
+    const result = await runFiscalCronHttp(c.env, body);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
+  // Portal CPE: auth por token (adquirente), fuera del JWT tenant.
+  app.get('/v1/cpe/portal/:tenantId/:saleId', async (c) => {
+    const token = c.req.query('token') ?? '';
+    const result = await runCpePortalHttp(
+      c.env,
+      c.req.param('tenantId'),
+      c.req.param('saleId'),
+      token,
+    );
+    if (typeof result.body === 'string') {
+      return c.body(result.body, result.status as 200, {
+        'content-type': result.contentType ?? 'text/html; charset=utf-8',
+      });
+    }
+    return c.json(result.body, result.status as 401 | 404 | 410 | 503);
   });
 
   // Stripe webhooks: raw body + firma; sin JWT (Arquitectura §4).

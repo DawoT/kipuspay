@@ -92,6 +92,9 @@ importers:
       '@kipuspay/adapters-d1':
         specifier: workspace:*
         version: link:../../packages/adapters-d1
+      '@kipuspay/domain-fiscal-pe':
+        specifier: workspace:*
+        version: link:../../packages/domain-fiscal-pe
       '@kipuspay/domain-sales':
         specifier: workspace:*
         version: link:../../packages/domain-sales

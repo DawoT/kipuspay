@@ -76,8 +76,8 @@ Abre solo los archivos que esta tabla te señale.
 | 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | Actualizada (webhooks pasarela + invalidación — §4) | Cerrado |
 | 4 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 45 | Actualizada (motor ACID + reconciliación — §6) | Cerrado |
 | 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | Cerrado |
-| 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 34 | Actualizada (Resumen Diario, plazos, baja y alertas) | Planificado |
-| 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 52 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Planificado |
+| 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 34 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
+| 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 53 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Planificado |
 | 7–8 | 2–3 | — | — | Base | Planificado |
 | 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 34 | Actualizada (M3 rollups §9) | Planificado |
 | 10–16 | 3–5 | — | — | Base | Planificado |

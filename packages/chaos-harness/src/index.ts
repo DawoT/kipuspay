@@ -9,6 +9,7 @@ import {
   type ConcurrentWritersResult,
   type DuplicateRetryResult,
 } from './sprint4-acid.js';
+import { runDeadlineChaos, type DeadlineChaosResult } from './deadline-chaos.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'
@@ -16,7 +17,8 @@ export type ChaosScenarioId =
   | 'low-end-device'
   | 'shard-do-failure'
   | 'concurrent-writers'
-  | 'duplicate-retry';
+  | 'duplicate-retry'
+  | 'deadline';
 
 export type ChaosVerdict = 'PASS' | 'FAIL';
 
@@ -28,6 +30,8 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'shard-do-failure': 26,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
+  /** Plazos fiscales / DEADLINE_EXCEEDED (activo desde fase RC). */
+  deadline: 5,
 };
 
 export class ChaosScenarioNotReadyError extends Error {
@@ -60,15 +64,17 @@ export interface ChaosSprint4Deps {
   readonly concurrentQtyEach?: number;
 }
 
+export interface ChaosSprint5bDeps extends ChaosSprint4Deps {
+  readonly runDeadline?: () => Promise<DeadlineChaosResult>;
+}
+
 /**
- * Punto de entrada. Sprint 4: concurrent-writers / duplicate-retry exigen deps
- * inyectadas (evidencia D1). Fail-closed: sin execute real → error, nunca PASS
- * por fixtures de demo.
+ * Punto de entrada. Fail-closed: sin execute real → error, nunca PASS por fixtures.
  */
 export async function runChaosScenario(
   scenario: ChaosScenarioId,
   currentSprint: number,
-  deps: ChaosSprint4Deps = {},
+  deps: ChaosSprint5bDeps = {},
 ): Promise<ChaosVerdict> {
   assertScenarioReady(scenario, currentSprint);
 
@@ -94,6 +100,15 @@ export async function runChaosScenario(
     return runDuplicateRetryChaos(deps.runDuplicateRetry);
   }
 
+  if (scenario === 'deadline') {
+    if (!deps.runDeadline) {
+      throw new Error(
+        'Escenario deadline exige deps.runDeadline (evidencia D1/reloj); fail-closed sin fixtures',
+      );
+    }
+    return runDeadlineChaos(deps.runDeadline);
+  }
+
   return Promise.reject(
     new Error(
       `Escenario "${scenario}" marcado activo en §13.5 (Sprint ${SCENARIO_ACTIVE_FROM[scenario]}) pero sin runner aún`,
@@ -107,3 +122,5 @@ export {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
 } from './sprint4-acid.js';
+
+export { judgeDeadlineChaos, runDeadlineChaos } from './deadline-chaos.js';

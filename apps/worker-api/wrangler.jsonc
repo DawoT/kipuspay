@@ -43,5 +43,7 @@
     "FQDN": "https://api.kipuspay.local",
     "FEATURE_ACID_OFFLINE_SALE": "0",
     "FEATURE_FISCAL_CPE": "0",
+    "FEATURE_FISCAL_RC": "0",
+    "FEATURE_CPE_PORTAL": "0",
   },
 }

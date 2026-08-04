@@ -2244,3 +2244,30 @@ aprobaciones: [Staff Fiscal R; A/V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0214
+timestamp_utc: 2026-08-04T15:00:00Z
+schema_version: 2
+sprint_fase: Sprint 5b — Fase 2 (apertura RC/plazos)
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: ROADMAP + flags
+relacion: AMPLIA
+referencias_entradas: [0213]
+referencias_documentales: [docs/ROADMAP.md, docs/roadmap/fase-2.md, docs/adr/ADR-FISCAL-001-v2-pse-guards-exclusions.md, apps/worker-api/wrangler.jsonc]
+prev_id: 0213
+prev_hash: 2ec4b0fa56a937a8cee1f8cc01055fcefe89918910106c433c1d1d690e4e6d7e
+entry_hash: 6ddeee0ae40ea539d725af6348cabbba7db813c9ded6bbd35454d1750430b1be
+ticket_or_adr: ADR-FISCAL-001
+test_ids: [SUITE]
+entregable_afectado: Sprint 5b En progreso + FEATURE_FISCAL_RC/CPE_PORTAL
+descripcion: >
+  Apertura Sprint 5b: ROADMAP/fase-2 En progreso; flags FEATURE_FISCAL_RC y
+  FEATURE_CPE_PORTAL default 0 en worker-api/fiscal; cita ADR-FISCAL-001 plazos.
+evidencia: >
+  ROADMAP fila 5b En progreso; wrangler vars FEATURE_FISCAL_RC=0 FEATURE_CPE_PORTAL=0.
+aprobaciones: [Staff Fiscal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

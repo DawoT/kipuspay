@@ -17,8 +17,8 @@ const { values } = parseArgs({
 const scenario = values.scenario ?? 'all';
 const sprint = values.sprint ?? '4';
 
-if (Number(sprint) < 4 && (scenario === 'concurrent-writers' || scenario === 'duplicate-retry')) {
-  console.error(`Escenario ${scenario} activo desde Sprint 4`);
+if (Number(sprint) < 5 && scenario === 'deadline') {
+  console.error(`Escenario deadline activo desde fase fiscal RC (sprint≥5)`);
   process.exit(2);
 }
 

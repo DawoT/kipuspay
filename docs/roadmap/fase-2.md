@@ -32,6 +32,7 @@ sprints: "5–6"
 ---
 
 #### Sprint 5b — Resumen Diario, Plazos de Envío, Baja y Alertas Fiscales
+**Entrega:** Cerrado (2026-08-04)
 **Referencia:** Arquitectura §5.2 · **Agentes:** Staff Fiscal (owner), Staff SRE (owner conjunto), Staff Frontend (alertas)
 
 **Entregables:**

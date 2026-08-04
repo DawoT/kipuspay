@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@kipuspay/adapters-d1": "workspace:*",
+    "@kipuspay/domain-fiscal-pe": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*",
     "hono": "^4.12.34"
   }

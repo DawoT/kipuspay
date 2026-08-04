@@ -16,6 +16,9 @@ export default defineConfig({
         'src/raw.d.ts',
         'src/process-offline-sale-atomic.ts',
         'src/process-credit-note-atomic.ts',
+        'src/process-fiscal-deadlines.ts',
+        'src/build-daily-summary.ts',
+        'src/void-boleta-atomic.ts',
       ],
       thresholds: {
         lines: 70,

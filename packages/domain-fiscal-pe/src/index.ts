@@ -7,7 +7,7 @@
 export const DOC_TOTAL_THRESHOLD_FOR_ID = 70_000; // S/ 700
 export const NRUS_UNITARY_OMISSION_CENTS = 500; // S/ 5
 export const FACTURA_SUBMIT_DAYS = 3;
-export const BOLETA_RC_SUBMIT_DAYS = 7; // Sprint 5b consumer
+export const BOLETA_RC_SUBMIT_DAYS = 7; // consumer: buildDailySummary / plazos RC
 
 export type FormalizationMode = 'INTERNAL_CONTROL' | 'FORMALIZING' | 'ELECTRONIC_ISSUER';
 
@@ -74,7 +74,7 @@ export function computeMustSubmitByIso(
     return new Date(deadline).toISOString();
   }
   if (documentType === '03' || documentType === '12') {
-    // RC window is Sprint 5b; still stamp +7d for pipeline readiness.
+    // RC window stamped +7d for pipeline readiness (FIS-03).
     const deadline = issuedAtMs + BOLETA_RC_SUBMIT_DAYS * 24 * 3600 * 1000;
     return new Date(deadline).toISOString();
   }
@@ -188,3 +188,51 @@ export function resolveBranchSeries(input: SeriesResolveInput): SeriesResolveRes
 /** Leyenda legal obligatoria en impresión NV. */
 export const NV_LEGAL_LEGEND =
   'Nota de venta — documento de control interno. No es comprobante de pago autorizado por SUNAT.';
+
+export {
+  ALERT_T24_MS,
+  ALERT_T6_MS,
+  boletaMustSubmitByEndOfLimaDay,
+  evaluateDeadline,
+  evaluateDeadlineBatch,
+  facturaMustSubmitBy,
+  summaryDateLima,
+  type DeadlineAction,
+  type DeadlineAlertKind,
+  type DeadlineCandidate,
+} from './deadlines.js';
+
+export {
+  assertRcKeyIsEmisorDay,
+  cashCloseMustNotTriggerRc,
+  planDailySummary,
+  type BoletaForRc,
+  type DailySummaryPlan,
+} from './daily-summary.js';
+
+export {
+  assertVoidBoletaAllowed,
+  markVoidedAfterRc,
+  type VoidBoletaContext,
+  type VoidBoletaResult,
+  type VoidStatus,
+} from './void-boleta.js';
+
+export {
+  canOmitUnitaryNrus,
+  planNrusDailyConsolidation,
+  type NrusConsolidateLine,
+  type NrusConsolidatePlan,
+  type NrusOmitCandidate,
+} from './nrus.js';
+
+export { buildOwnerAlert, requiresOwnerAlert, type OwnerAlertPayload } from './owner-alerts.js';
+
+export {
+  assertWithinRetention,
+  mintPortalToken,
+  renderCpePortalHtml,
+  verifyPortalToken,
+  type CpePortalLookup,
+  type CpePortalView,
+} from './cpe-portal.js';
