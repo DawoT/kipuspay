@@ -1,0 +1,23 @@
+# KipusPay — repo de especificación (documentación maestra)
+# Ignorar artefactos locales; los docs maestros siempre se versionan.
+
+.DS_Store
+Thumbs.db
+
+# Node / build tooling (si algún día hay scripts locales)
+node_modules/
+dist/
+build/
+*.log
+
+# Secretos / entorno
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+
+# Editor / SO
+.idea/
+.vscode/
+*.swp
