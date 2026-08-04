@@ -2174,3 +2174,38 @@ aprobaciones: [Staff Fiscal, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0212
+timestamp_utc: 2026-08-04T16:20:00Z
+schema_version: 2
+sprint_fase: Sprint 5 — Fase 2 (motor fiscal dual)
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: CPE UBL FiscalTransport NC
+relacion: AMPLIA
+referencias_entradas: [0211]
+referencias_documentales: [docs/adr/ADR-FISCAL-001-v2-pse-guards-exclusions.md, packages/domain-fiscal-pe/src/ubl-invoice.ts, packages/adapters-d1/migrations/0005_fiscal_outbox.sql, packages/adapters-sunat/src/fiscal-transport.ts, docs/runbooks/pse-kipuspay-staging.md]
+prev_id: 0211
+prev_hash: 836e602a334242d183e9e7fb97a10b4fd400aef653f827d9e0adc701b63f8c2b
+entry_hash: c2ca7fd887302e46ad8e3348186c54412c6ddb0f354ff5da82a30ec2d8c4bbfe
+ticket_or_adr: ADR-FISCAL-001
+test_ids: [index, ubl-invoice, credit-note, process-offline-sale-atomic.integration, schema.integration]
+entregable_afectado: Sprint 5 Motor Fiscal Dual
+descripcion: >
+  FEATURE_FISCAL_CPE; CPE PENDING+must_submit_by+fiscal_outbox; UBL 2.1+hash;
+  mock FiscalTransport PSE; NC E-A/E-B processCreditNoteAtomic; NV_RETURN stock+;
+  runbook PSE staging; 0 NV en outbox; claim PSE congelado.
+evidencia: >
+  RED: solo NV; FormalizationMode contingencia; sin UBL/outbox/NC.
+  GREEN: quality OK; 22 integration adapters-d1; domain-fiscal 23 tests.
+red_commit_sha: f4b6cb881efdb9bd1ccabab401453860b4629d77
+red_run_id: run-red-0212-sprint5-fiscal
+expected_failure: AssertionError: missing CPE/UBL/fiscal_outbox/NC path
+green_commit_sha: e8a5d16d88a2550a8e06d3edf1e1c44d88604288
+green_run_id: run-green-0212-sprint5-fiscal
+ancestry_verified: true
+aprobaciones: [Staff Fiscal, Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
