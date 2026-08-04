@@ -15,6 +15,7 @@ export default defineConfig({
         'src/migrations-down.ts',
         'src/raw.d.ts',
         'src/process-offline-sale-atomic.ts',
+        'src/process-credit-note-atomic.ts',
       ],
       thresholds: {
         lines: 70,

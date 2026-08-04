@@ -3,7 +3,11 @@ import { createApp } from '../index.js';
 import type { AuthTenantSnapshot } from '../auth/auth-decide.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import type { TenantAuthDeps } from '../auth/tenant-auth-middleware.js';
-import { isAcidOfflineSaleEnabled, runOfflineSaleHttp } from './offline-sale-route.js';
+import {
+  isAcidOfflineSaleEnabled,
+  isFiscalCpeEnabled,
+  runOfflineSaleHttp,
+} from './offline-sale-route.js';
 
 const tenant: AuthTenantSnapshot = {
   id: 't1',
@@ -26,6 +30,14 @@ describe('isAcidOfflineSaleEnabled', () => {
     expect(isAcidOfflineSaleEnabled({ FEATURE_ACID_OFFLINE_SALE: '0' } as WorkerEnv)).toBe(false);
     expect(isAcidOfflineSaleEnabled({ FEATURE_ACID_OFFLINE_SALE: '1' } as WorkerEnv)).toBe(true);
     expect(isAcidOfflineSaleEnabled({ FEATURE_ACID_OFFLINE_SALE: 'true' } as WorkerEnv)).toBe(true);
+  });
+});
+
+describe('isFiscalCpeEnabled', () => {
+  it('default off; CPE exige FEATURE_FISCAL_CPE', () => {
+    expect(isFiscalCpeEnabled(undefined)).toBe(false);
+    expect(isFiscalCpeEnabled({ FEATURE_FISCAL_CPE: '0' } as WorkerEnv)).toBe(false);
+    expect(isFiscalCpeEnabled({ FEATURE_FISCAL_CPE: '1' } as WorkerEnv)).toBe(true);
   });
 });
 
@@ -69,6 +81,28 @@ describe('runOfflineSaleHttp', () => {
     );
     expect(res.status).toBe(503);
     expect(res.body.code).toBe('DB_UNAVAILABLE');
+  });
+
+  it('CPE con FEATURE_FISCAL_CPE off → 404', async () => {
+    const res = await runOfflineSaleHttp(
+      { FEATURE_ACID_OFFLINE_SALE: '1', FEATURE_FISCAL_CPE: '0' } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'x',
+        branchId: 'b',
+        cashRegisterSessionId: 's',
+        documentType: '01',
+        series: 'F001',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20123456789',
+        clientName: 'ACME',
+        items: [{ productId: 'p', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm', amountCents: 1180 }],
+      },
+    );
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('FEATURE_DISABLED');
   });
 });
 

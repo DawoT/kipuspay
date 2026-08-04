@@ -1,6 +1,11 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0005_FISCAL_OUTBOX = `
+DROP INDEX IF EXISTS idx_fiscal_outbox_poll;
+DROP TABLE IF EXISTS fiscal_outbox;
+`;
+
 export const DOWN_0004_AUDIT_EVENTS = `
 DROP TRIGGER IF EXISTS audit_events_no_delete;
 DROP TRIGGER IF EXISTS audit_events_no_update;

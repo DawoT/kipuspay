@@ -35,7 +35,7 @@ export interface OfflineSalePayload {
   readonly issuedAt?: string | undefined;
   readonly branchId: string;
   readonly cashRegisterSessionId: string;
-  readonly documentType: 'NV';
+  readonly documentType: 'NV' | 'NV_RETURN' | '01' | '03' | '07' | '08';
   readonly series: string;
   readonly clientDocumentType: string;
   readonly clientDocumentNumber: string;
@@ -79,7 +79,16 @@ export function assertOfflineSaleShape(payload: OfflineSalePayload): void {
   requireNonEmpty(payload.offlineSaleId, 'MISSING_OFFLINE_SALE_ID');
   requireNonEmpty(payload.branchId, 'MISSING_BRANCH_ID');
   requireNonEmpty(payload.cashRegisterSessionId, 'MISSING_SESSION_ID');
-  if (payload.documentType !== 'NV') throw new Error('UNSUPPORTED_DOCUMENT_TYPE');
+  if (
+    payload.documentType !== 'NV' &&
+    payload.documentType !== 'NV_RETURN' &&
+    payload.documentType !== '01' &&
+    payload.documentType !== '03' &&
+    payload.documentType !== '07' &&
+    payload.documentType !== '08'
+  ) {
+    throw new Error('UNSUPPORTED_DOCUMENT_TYPE');
+  }
   requireNonEmpty(payload.series, 'MISSING_SERIES');
   requireNonEmpty(payload.clientDocumentType, 'MISSING_CLIENT_DOC_TYPE');
   requireNonEmpty(payload.clientDocumentNumber, 'MISSING_CLIENT_DOC_NUMBER');

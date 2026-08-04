@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
 import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
+import { processCreditNoteAtomic } from './process-credit-note-atomic.js';
 
 async function seedNvFixture(tenantId: string): Promise<{
   branchId: string;
@@ -307,5 +308,205 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     expect(payload.productId).toBe(fixture.productId);
     expect(payload.requested).toBe(3);
     expect(payload.available).toBe(1);
+  });
+
+  it('factura 01: PENDING + must_submit_by; NV no PENDING', async () => {
+    const fixture = await seedNvFixture('t-acid-cpe');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG' WHERE id = ?`,
+      ).bind('t-acid-cpe'),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-cpe', ?, ?, '01', 'F001', 0, 'INTERNAL')`,
+      ).bind('t-acid-cpe', fixture.branchId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const payload = {
+      ...nvPayload(fixture, 'off-cpe', 1, 1180),
+      documentType: '01' as const,
+      series: 'F001',
+      clientDocumentType: '6',
+      clientDocumentNumber: '20123456789',
+      clientName: 'ACME SAC',
+    };
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-cpe',
+      fixture.userId,
+      payload,
+      now,
+    );
+    expect(result.status).toBe('SUCCESS');
+
+    const sale = await env.DB.prepare(
+      `SELECT document_type, sunat_status, must_submit_by FROM sales WHERE tenant_id = ?`,
+    )
+      .bind('t-acid-cpe')
+      .first<{ document_type: string; sunat_status: string; must_submit_by: string | null }>();
+    expect(sale?.document_type).toBe('01');
+    expect(sale?.sunat_status).toBe('PENDING');
+    expect(sale?.must_submit_by).toBe(new Date(now + 3 * 24 * 3600 * 1000).toISOString());
+
+    const outbox = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM fiscal_outbox WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind('t-acid-cpe', result.status === 'SUCCESS' ? result.saleId : '')
+      .first<{ n: number }>();
+    expect(outbox?.n).toBe(1);
+
+    // NV en mismo tenant → NOT_APPLICABLE y never PENDING enqueue semantics
+    const nv = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-cpe',
+      fixture.userId,
+      nvPayload(fixture, 'off-nv-cpe', 1, 1180),
+      now,
+    );
+    expect(nv.status).toBe('SUCCESS');
+    const nvSale = await env.DB.prepare(
+      `SELECT sunat_status, must_submit_by FROM sales WHERE offline_client_sale_id = ?`,
+    )
+      .bind('off-nv-cpe')
+      .first<{ sunat_status: string; must_submit_by: string | null }>();
+    expect(nvSale?.sunat_status).toBe('NOT_APPLICABLE');
+    expect(nvSale?.must_submit_by).toBeNull();
+
+    const nvOutbox = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM fiscal_outbox fo
+       JOIN sales s ON s.id = fo.sale_id
+       WHERE s.offline_client_sale_id = 'off-nv-cpe'`,
+    ).first<{ n: number }>();
+    expect(nvOutbox?.n).toBe(0);
+  });
+
+  it('INTERNAL_CONTROL bloquea factura', async () => {
+    const fixture = await seedNvFixture('t-acid-block');
+    await env.DB.prepare(
+      `INSERT INTO branch_document_series
+         (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+       VALUES ('ser-f-block', ?, ?, '01', 'F001', 0, 'INTERNAL')`,
+    )
+      .bind('t-acid-block', fixture.branchId)
+      .run();
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        't-acid-block',
+        fixture.userId,
+        {
+          ...nvPayload(fixture, 'off-block', 1, 1180),
+          documentType: '01',
+          series: 'F001',
+          clientDocumentType: '6',
+          clientDocumentNumber: '20123456789',
+          clientName: 'ACME',
+        },
+        now,
+      ),
+    ).rejects.toThrow(/CPE_BLOCKED_INTERNAL_CONTROL/);
+  });
+
+  it('NV_RETURN restaura stock (NOT_APPLICABLE)', async () => {
+    const fixture = await seedNvFixture('t-acid-ret');
+    await env.DB.prepare(
+      `INSERT INTO branch_document_series
+         (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+       VALUES ('ser-nvr', ?, ?, 'NV_RETURN', 'NVR1', 0, 'INTERNAL')`,
+    )
+      .bind('t-acid-ret', fixture.branchId)
+      .run();
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-ret',
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-ret', 2, 2360),
+        documentType: 'NV_RETURN',
+        series: 'NVR1',
+      },
+      now,
+    );
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-ret', fixture.productId)
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(12); // 10 + 2
+  });
+
+  it('NC E-A: REJECTED origen + CREDIT_NOTE_NO_CDR; E-B uncatalogued 0 stock', async () => {
+    const fixture = await seedNvFixture('t-acid-nc');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG' WHERE id = ?`,
+      ).bind('t-acid-nc'),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-nc', ?, ?, '01', 'F001', 0, 'INTERNAL'),
+                ('ser-nc', ?, ?, '07', 'FC01', 0, 'INTERNAL')`,
+      ).bind('t-acid-nc', fixture.branchId, 't-acid-nc', fixture.branchId),
+    ]);
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const cpe = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-nc',
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-nc-origin', 1, 1180),
+        documentType: '01',
+        series: 'F001',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20123456789',
+        clientName: 'ACME',
+      },
+      now,
+    );
+    expect(cpe.status).toBe('SUCCESS');
+    if (cpe.status !== 'SUCCESS') return;
+
+    await env.DB.prepare(`UPDATE sales SET sunat_status = 'REJECTED' WHERE id = ?`)
+      .bind(cpe.saleId)
+      .run();
+
+    const beforeStock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-nc', fixture.productId)
+      .first<{ stock: number }>();
+
+    const nc = await processCreditNoteAtomic(
+      env.DB,
+      't-acid-nc',
+      fixture.userId,
+      cpe.saleId,
+      {
+        motiveCode: '01',
+        amountCents: 1180,
+        fullCancellation: true,
+        items: [{ productId: fixture.productId, quantity: 1, isUncatalogued: true }],
+      },
+      'FC01',
+    );
+    expect(nc.requiresNoCdrAudit).toBe(true);
+
+    const audit = await env.DB.prepare(
+      `SELECT action FROM audit_events WHERE tenant_id = ? AND action = 'CREDIT_NOTE_NO_CDR'`,
+    )
+      .bind('t-acid-nc')
+      .first<{ action: string }>();
+    expect(audit?.action).toBe('CREDIT_NOTE_NO_CDR');
+
+    const afterStock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-nc', fixture.productId)
+      .first<{ stock: number }>();
+    expect(afterStock?.stock).toBe(beforeStock?.stock); // E-B: no restore
   });
 });

@@ -59,9 +59,19 @@ Claim comercial PSE permanece **congelado** hasta checklist SRE (secretos + CDR 
 | 1 | ADR-FISCAL-001 v2 archivo | este doc | Pendiente V | Pendiente V | Pendiente V | — |
 | 2 | Guards RUC / ≥700 | domain-fiscal-pe tests | Pendiente V | Pendiente V | — | — |
 | 3 | XML factura válido | fixtures UBL | Pendiente V | — | — | — |
-| 4 | 0 NV a SUNAT | tests + outbox | Pendiente V | — | — | — |
-| 5 | CDR staging + runbook PSE | runbook | — | — | — | Pendiente V |
-| 6 | NC E-A/E-B | integration | Pendiente V | — | — | — |
+| 4 | 0 NV a SUNAT / fiscal_outbox | integration CPE | Pendiente V | — | — | — |
+| 5 | CDR staging + runbook PSE | runbook + mock transport | — | — | — | Pendiente V |
+| 6 | NC E-A/E-B + NV_RETURN | domain + integration | Pendiente V | — | — | — |
 | 7 | verify + quality GREEN | scripts | — | — | Pendiente V | — |
 
 **Veredicto QG:** `EN REVISION` hasta firma `A` + `V` humana independiente (Proceso §8.1).
+
+### Evidencia técnica entregada (2026-08-04)
+
+- domain-fiscal-pe: FormalizationMode, guards, UBL, credit-note E-A/E-B
+- adapters-d1: CPE PENDING + fiscal_outbox 0005; NV_RETURN stock+; processCreditNoteAtomic
+- adapters-sunat: createMockPseTransport
+- worker-fiscal: `/v1/fiscal/submit` mock CDR
+- FEATURE_FISCAL_CPE default 0
+- Runbook: `docs/runbooks/pse-kipuspay-staging.md`
+- Claim PSE comercial: **congelado**

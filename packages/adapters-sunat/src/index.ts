@@ -19,3 +19,11 @@ export function classifySunatResponse(ticket: SunatSendTicket): SunatOutcome {
   }
   return { kind: 'rejected', cdr: ticket.cdr };
 }
+
+export {
+  applyCdrToSaleStatus,
+  createMockPseTransport,
+  type FiscalSubmitRequest,
+  type FiscalTransport,
+  type FiscalTransportMode,
+} from './fiscal-transport.js';

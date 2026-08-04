@@ -42,5 +42,6 @@
   "vars": {
     "FQDN": "https://api.kipuspay.local",
     "FEATURE_ACID_OFFLINE_SALE": "0",
+    "FEATURE_FISCAL_CPE": "0",
   },
 }

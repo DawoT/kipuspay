@@ -87,11 +87,17 @@ describe('assertOfflineSaleShape', () => {
     ).toThrow(/INVALID_PAYMENT_CENTS/);
   });
 
-  it('rechaza documentType distinto de NV', () => {
+  it('acepta CPE 01 y rechaza tipo desconocido', () => {
     expect(() =>
       assertOfflineSaleShape({
         ...basePayload(),
-        documentType: '01' as 'NV',
+        documentType: '01',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        documentType: '99' as 'NV',
       }),
     ).toThrow(/UNSUPPORTED_DOCUMENT_TYPE/);
   });

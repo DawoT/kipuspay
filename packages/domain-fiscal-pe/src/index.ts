@@ -9,25 +9,31 @@ export const NRUS_UNITARY_OMISSION_CENTS = 500; // S/ 5
 export const FACTURA_SUBMIT_DAYS = 3;
 export const BOLETA_RC_SUBMIT_DAYS = 7; // Sprint 5b consumer
 
-export type FormalizationMode =
-  | 'INTERNAL_CONTROL'
-  | 'FORMALIZING'
-  | 'ELECTRONIC_ISSUER';
+export type FormalizationMode = 'INTERNAL_CONTROL' | 'FORMALIZING' | 'ELECTRONIC_ISSUER';
 
 export type TaxRegime = 'UNKNOWN' | 'NRUS' | 'RER' | 'RMT' | 'RG';
 
-export type DocumentTypeCode =
-  | 'NV'
-  | 'NV_RETURN'
-  | '01'
-  | '03'
-  | '07'
-  | '08'
-  | '12';
+export type DocumentTypeCode = 'NV' | 'NV_RETURN' | '01' | '03' | '07' | '08' | '12';
 
 export type PseMode = 'KIPUSPAY_PSE' | 'TENANT_CERT';
 
 export const DEFAULT_PSE_MODE: PseMode = 'KIPUSPAY_PSE';
+
+export {
+  assertValidFacturaXml,
+  buildUblInvoiceXml,
+  hashUblXml,
+  type UblInvoiceInput,
+  type UblInvoiceLine,
+} from './ubl-invoice.js';
+
+export {
+  assertCreditNoteAllowed,
+  stockRestoreQuantity,
+  type CreditNoteOrigin,
+  type CreditNoteRequest,
+  type OriginSunatStatus,
+} from './credit-note.js';
 
 export interface CdrEnvelope {
   readonly cdrCode: string;
@@ -54,9 +60,7 @@ export function isSunatApplicable(documentType: DocumentTypeCode): boolean {
   return documentType !== 'NV' && documentType !== 'NV_RETURN';
 }
 
-export function defaultSunatStatus(
-  documentType: DocumentTypeCode,
-): 'NOT_APPLICABLE' | 'PENDING' {
+export function defaultSunatStatus(documentType: DocumentTypeCode): 'NOT_APPLICABLE' | 'PENDING' {
   return isSunatApplicable(documentType) ? 'PENDING' : 'NOT_APPLICABLE';
 }
 
@@ -97,8 +101,7 @@ export type EmissionGuardError =
   | 'CPE_BLOCKED_INTERNAL_CONTROL'
   | 'FACTURA_REQUIRES_RUC'
   | 'BOLETA_ID_REQUIRED'
-  | 'DOCUMENT_NOT_ALLOWED_FOR_REGIME'
-  | 'NV_BLOCKED_IN_FORMAL_MODE_WITHOUT_LEGEND'; // reserved; NV always allowed as internal
+  | 'DOCUMENT_NOT_ALLOWED_FOR_REGIME';
 
 /**
  * Matriz régimen × modo × documento (§5.1).
@@ -114,34 +117,39 @@ export function assertEmissionAllowed(ctx: EmissionContext): void {
     return;
   }
 
-  // FORMALIZING / ELECTRONIC_ISSUER
+  // FORMALIZING / ELECTRONIC_ISSUER — NV opcional
   if (documentType === 'NV' || documentType === 'NV_RETURN') {
-    return; // NV opcional con leyenda (copy fuera de este guard)
+    return;
   }
 
+  assertCpeAllowedForRegime(taxRegime, documentType);
+  assertFacturaRuc(ctx);
+  assertBoletaIdentity(ctx);
+}
+
+function assertCpeAllowedForRegime(taxRegime: TaxRegime, documentType: DocumentTypeCode): void {
   if (taxRegime === 'UNKNOWN') {
     throw new Error('DOCUMENT_NOT_ALLOWED_FOR_REGIME');
   }
-
   if (taxRegime === 'NRUS' && documentType === '01') {
     throw new Error('DOCUMENT_NOT_ALLOWED_FOR_REGIME');
   }
+}
 
-  if (documentType === '01') {
-    if (ctx.clientDocumentType !== '6' || !/^\d{11}$/.test(ctx.clientDocumentNumber)) {
-      throw new Error('FACTURA_REQUIRES_RUC');
-    }
+function assertFacturaRuc(ctx: EmissionContext): void {
+  if (ctx.documentType !== '01') return;
+  if (ctx.clientDocumentType !== '6' || !/^\d{11}$/.test(ctx.clientDocumentNumber)) {
+    throw new Error('FACTURA_REQUIRES_RUC');
   }
+}
 
-  if (
-    (documentType === '03' || documentType === '12') &&
-    ctx.totalAmountCents >= DOC_TOTAL_THRESHOLD_FOR_ID
-  ) {
-    const hasDoc = Boolean(ctx.clientDocumentType?.trim() && ctx.clientDocumentNumber?.trim());
-    const hasName = Boolean(ctx.clientName?.trim());
-    if (!hasDoc || !hasName) {
-      throw new Error('BOLETA_ID_REQUIRED');
-    }
+function assertBoletaIdentity(ctx: EmissionContext): void {
+  if (ctx.documentType !== '03' && ctx.documentType !== '12') return;
+  if (ctx.totalAmountCents < DOC_TOTAL_THRESHOLD_FOR_ID) return;
+  const hasDoc = Boolean(ctx.clientDocumentType?.trim() && ctx.clientDocumentNumber?.trim());
+  const hasName = Boolean(ctx.clientName?.trim());
+  if (!hasDoc || !hasName) {
+    throw new Error('BOLETA_ID_REQUIRED');
   }
 }
 
@@ -165,13 +173,9 @@ export interface SeriesResolveResult {
 
 /** Resuelve serie activa de sucursal para el tipo pedido. */
 export function resolveBranchSeries(input: SeriesResolveInput): SeriesResolveResult {
-  const code =
-    input.documentType === 'NV_RETURN' ? 'NV_RETURN' : input.documentType;
+  const code = input.documentType === 'NV_RETURN' ? 'NV_RETURN' : input.documentType;
   const match = input.branchSeries.find(
-    (s) =>
-      s.isActive &&
-      s.documentTypeCode === code &&
-      s.series === input.requestedSeries,
+    (s) => s.isActive && s.documentTypeCode === code && s.series === input.requestedSeries,
   );
   if (!match) throw new Error('SERIES_NOT_FOUND');
   return {

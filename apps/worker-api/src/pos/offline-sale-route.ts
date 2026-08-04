@@ -7,6 +7,11 @@ export function isAcidOfflineSaleEnabled(env: WorkerEnv | undefined): boolean {
   return flag === '1' || flag === 'true';
 }
 
+export function isFiscalCpeEnabled(env: WorkerEnv | undefined): boolean {
+  const flag = env?.FEATURE_FISCAL_CPE;
+  return flag === '1' || flag === 'true';
+}
+
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
   if (error instanceof InsufficientStockError) {
     return {
@@ -30,6 +35,15 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
   if (msg.includes('PAYMENT_TOTAL_MISMATCH')) {
     return { status: 422, body: { error: msg, code: 'PAYMENT_TOTAL_MISMATCH' } };
   }
+  if (
+    msg.includes('CPE_BLOCKED_INTERNAL_CONTROL') ||
+    msg.includes('FACTURA_REQUIRES_RUC') ||
+    msg.includes('BOLETA_ID_REQUIRED') ||
+    msg.includes('DOCUMENT_NOT_ALLOWED_FOR_REGIME') ||
+    msg.includes('SERIES_NOT_FOUND')
+  ) {
+    return { status: 422, body: { error: msg, code: msg } };
+  }
   return { status: 500, body: { error: msg, code: 'OFFLINE_SALE_FAILED' } };
 }
 
@@ -49,6 +63,14 @@ export async function runOfflineSaleHttp(
 ): Promise<OfflineSaleHttpResult> {
   if (!isAcidOfflineSaleEnabled(env)) {
     return { status: 404, body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' } };
+  }
+  const isCpe =
+    payload.documentType === '01' ||
+    payload.documentType === '03' ||
+    payload.documentType === '07' ||
+    payload.documentType === '08';
+  if (isCpe && !isFiscalCpeEnabled(env)) {
+    return { status: 404, body: { error: 'Fiscal CPE disabled', code: 'FEATURE_DISABLED' } };
   }
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };

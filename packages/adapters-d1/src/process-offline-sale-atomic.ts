@@ -1,7 +1,8 @@
 /**
- * processOfflineSaleAtomic — NV hot path (Arquitectura §6 / SYN-12).
+ * processOfflineSaleAtomic — NV/CPE hot path (Arquitectura §6 / §5 / SYN-12).
  * Preflight fuera del batch; una sola db.batch vía runD1AtomicPlan.
  */
+/* eslint-disable complexity -- motor ACID multi-rama NV/CPE/return; split diferido */
 import {
   assertOfflineSaleShape,
   computeNvLineTotals,
@@ -10,6 +11,14 @@ import {
   toLimaTimestamp,
   type OfflineSalePayload,
 } from '@kipuspay/domain-sales';
+import {
+  assertEmissionAllowed,
+  computeMustSubmitByIso,
+  defaultSunatStatus,
+  type DocumentTypeCode,
+  type FormalizationMode,
+  type TaxRegime,
+} from '@kipuspay/domain-fiscal-pe';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 
 export type OfflineSaleResult =
@@ -144,6 +153,7 @@ function assertStockAvailable(
   catalog: Map<string, { type: string }>,
   stockByProduct: Map<string, { stock: number; allowNegative: boolean }>,
 ): void {
+  if (payload.documentType === 'NV_RETURN') return;
   for (const item of payload.items) {
     const stock = stockByProduct.get(item.productId)!;
     if (
@@ -157,7 +167,7 @@ function assertStockAvailable(
 }
 
 /**
- * Consolida venta offline NV de forma atómica (Sprint 4 MVP).
+ * Consolida venta offline NV/CPE de forma atómica (Sprint 4–5).
  */
 export async function processOfflineSaleAtomic(
   db: D1DatabaseLike,
@@ -170,6 +180,12 @@ export async function processOfflineSaleAtomic(
 
   const already = await loadAlreadySynced(db, tenantId, payload.offlineSaleId);
   if (already) return already;
+
+  const tenant = await db
+    .prepare(`SELECT formalization_mode, tax_regime FROM tenants WHERE id = ?`)
+    .bind(tenantId)
+    .first<{ formalization_mode: string; tax_regime: string }>();
+  if (!tenant) throw new Error('TENANT_NOT_FOUND');
 
   const session = await db
     .prepare(
@@ -205,15 +221,31 @@ export async function processOfflineSaleAtomic(
   const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
   if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
 
+  const docType = payload.documentType as DocumentTypeCode;
+  assertEmissionAllowed({
+    formalizationMode: tenant.formalization_mode as FormalizationMode,
+    taxRegime: tenant.tax_regime as TaxRegime,
+    documentType: docType,
+    totalAmountCents: totals.totalAmountCents,
+    clientDocumentType: payload.clientDocumentType,
+    clientDocumentNumber: payload.clientDocumentNumber,
+    clientName: payload.clientName,
+  });
+
+  const seriesDocCode = docType === 'NV_RETURN' ? 'NV_RETURN' : docType;
   const seriesRow = await db
     .prepare(
       `SELECT id, series, current_number FROM branch_document_series
-       WHERE tenant_id = ? AND branch_id = ? AND document_type_code = 'NV'
+       WHERE tenant_id = ? AND branch_id = ? AND document_type_code = ?
          AND series = ? AND is_active = 1`,
     )
-    .bind(tenantId, payload.branchId, payload.series)
+    .bind(tenantId, payload.branchId, seriesDocCode, payload.series)
     .first<{ id: string; series: string; current_number: number }>();
   if (!seriesRow) throw new Error('SERIES_NOT_FOUND');
+
+  const sunatStatus = defaultSunatStatus(docType);
+  const mustSubmitBy = computeMustSubmitByIso(docType, issuedMs);
+  const isReturn = docType === 'NV_RETURN';
 
   const saleId = crypto.randomUUID();
   const qtyByProduct = new Map<string, number>();
@@ -231,28 +263,30 @@ export async function processOfflineSaleAtomic(
     rowHash: string;
   }> = [];
   let chainPrev = await previousAuditHash(db, tenantId);
-  for (const [productId, qty] of qtyByProduct) {
-    if (catalog.get(productId)!.type !== 'physical') continue;
-    const st = stockByProduct.get(productId)!;
-    if (st.allowNegative && st.stock < qty) {
-      const id = crypto.randomUUID();
-      const rowHash = await computeAuditHash({
-        action: 'OFFLINE_OVERSELL',
-        entity_id: saleId,
-        productId,
-        requested: qty,
-        available: st.stock,
-        prev_hash: chainPrev,
-      });
-      oversellAudits.push({
-        id,
-        productId,
-        requested: qty,
-        available: st.stock,
-        prevHash: chainPrev,
-        rowHash,
-      });
-      chainPrev = rowHash;
+  if (!isReturn) {
+    for (const [productId, qty] of qtyByProduct) {
+      if (catalog.get(productId)!.type !== 'physical') continue;
+      const st = stockByProduct.get(productId)!;
+      if (st.allowNegative && st.stock < qty) {
+        const id = crypto.randomUUID();
+        const rowHash = await computeAuditHash({
+          action: 'OFFLINE_OVERSELL',
+          entity_id: saleId,
+          productId,
+          requested: qty,
+          available: st.stock,
+          prev_hash: chainPrev,
+        });
+        oversellAudits.push({
+          id,
+          productId,
+          requested: qty,
+          available: st.stock,
+          prevHash: chainPrev,
+          rowHash,
+        });
+        chainPrev = rowHash;
+      }
     }
   }
 
@@ -260,10 +294,11 @@ export async function processOfflineSaleAtomic(
     await runD1AtomicPlan(db, (plan) => {
       const stockGuardIds: string[] = [];
       // Stock guard SQL (anti-carrera): ok=0 → CHECK aborta el batch entero.
+      // NV_RETURN no exige stock previo (restaura).
       for (const [productId, qty] of qtyByProduct) {
         if (catalog.get(productId)!.type !== 'physical') continue;
         const st = stockByProduct.get(productId)!;
-        const allow = st.allowNegative ? 1 : 0;
+        const allow = isReturn || st.allowNegative ? 1 : 0;
         const guardId = crypto.randomUUID();
         stockGuardIds.push(guardId);
         if (st.hasBranchRow) {
@@ -336,12 +371,12 @@ export async function processOfflineSaleAtomic(
                  document_type, series, number, currency, exchange_rate,
                  total_taxable_cents, total_exempt_cents, total_igv_cents, total_icbper_cents,
                  total_discount_cents, total_cogs_cents, total_amount_cents,
-                 issued_at_lima, sunat_status
+                 issued_at_lima, sunat_status, must_submit_by
                )
                SELECT
-                 ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NV', ?,
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  (SELECT current_number FROM branch_document_series WHERE id = ?),
-                 'PEN', 1.0, ?, 0, ?, 0, ?, ?, ?, ?, 'NOT_APPLICABLE'`,
+                 'PEN', 1.0, ?, 0, ?, 0, ?, ?, ?, ?, ?, ?`,
           )
           .bind(
             saleId,
@@ -353,6 +388,7 @@ export async function processOfflineSaleAtomic(
             payload.clientDocumentType,
             payload.clientDocumentNumber,
             payload.clientName,
+            docType,
             payload.series,
             seriesRow.id,
             totals.totalTaxableCents,
@@ -361,6 +397,8 @@ export async function processOfflineSaleAtomic(
             totals.totalCogsCents,
             totals.totalAmountCents,
             limaTs,
+            sunatStatus,
+            mustSubmitBy,
           ),
       );
 
@@ -397,7 +435,10 @@ export async function processOfflineSaleAtomic(
       for (const [productId, qty] of qtyByProduct) {
         if (catalog.get(productId)!.type !== 'physical') continue;
         const before = stockByProduct.get(productId)!;
-        const allow = before.allowNegative ? 1 : 0;
+        const allow = isReturn || before.allowNegative ? 1 : 0;
+        const signedQty = isReturn ? -qty : qty; // UPDATE uses stock - signedQty
+        const delta = isReturn ? qty : -qty;
+        const movementType = isReturn ? 'DEVOLUCION_NC' : 'VENTA';
         if (before.hasBranchRow) {
           plan.add(
             db
@@ -407,7 +448,7 @@ export async function processOfflineSaleAtomic(
                    WHERE tenant_id = ? AND branch_id = ? AND product_id = ?
                      AND (stock >= ? OR ? = 1)`,
               )
-              .bind(qty, tenantId, payload.branchId, productId, qty, allow),
+              .bind(signedQty, tenantId, payload.branchId, productId, isReturn ? 0 : qty, allow),
           );
         } else {
           plan.add(
@@ -421,7 +462,7 @@ export async function processOfflineSaleAtomic(
                 tenantId,
                 payload.branchId,
                 productId,
-                before.stock - qty,
+                before.stock - signedQty,
                 catalog.get(productId)!.costCents,
               ),
           );
@@ -432,7 +473,7 @@ export async function processOfflineSaleAtomic(
               `INSERT INTO inventory_movements (
                    id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
                    unit_cost_cents, stock_after, user_id, reference_id
-                 ) VALUES (?, ?, ?, ?, 'VENTA', ?, ?,
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?,
                    (SELECT stock FROM branch_product_stock
                     WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                    ?, ?)`,
@@ -442,7 +483,8 @@ export async function processOfflineSaleAtomic(
               tenantId,
               payload.branchId,
               productId,
-              -qty,
+              movementType,
+              delta,
               catalog.get(productId)!.costCents,
               tenantId,
               payload.branchId,
@@ -469,6 +511,19 @@ export async function processOfflineSaleAtomic(
               pay.amountCents,
               pay.referenceNumber ?? null,
             ),
+        );
+      }
+
+      // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).
+      if (sunatStatus === 'PENDING') {
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO fiscal_outbox (
+                   id, tenant_id, sale_id, status, must_submit_by
+                 ) VALUES (?, ?, ?, 'PENDING', ?)`,
+            )
+            .bind(crypto.randomUUID(), tenantId, saleId, mustSubmitBy),
         );
       }
 
