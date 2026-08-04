@@ -1991,3 +1991,42 @@ aprobaciones: [Staff Backend ACID, Staff QA/Chaos, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0207
+timestamp_utc: 2026-08-04T15:05:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (remediación QG honesty)
+agente_responsable: Staff Backend ACID
+tipo: Corrección
+subtipo: ledger SHA reachability y ADR timing
+relacion: CORRIGE
+referencias_entradas: [0202, 0203, 0204, 0205]
+referencias_documentales: [docs/LEDGER.md, docs/adr/ADR-0007-acid-concurrency-financial-guarantee.md]
+prev_id: 0206
+prev_hash: e81d963567175cf5ab0ebd111778dd3503d3a02f708291d2b4927be476b45de4
+entry_hash: 3913e7e440197486ef6168e251e2d903dda17e16e4e2c38d94e7710ae48df0f8
+ticket_or_adr: ADR-0007
+test_ids: [V-13, V-20, SUITE]
+entregable_afectado: Ledger 0202 green SHA + estado_gov; cita ADR-0007 en 0203-0205
+descripcion: >
+  Auditoría post-cierre Sprint 4: el green_commit_sha de 0202 (8394258) quedó
+  huérfano tras rewrite del autor; el gemelo vivo en HEAD es caa940a. Esta
+  entrada documenta el SHA corregido y cierra estado_gov de la corrección SEC-08.
+  Además deja constancia de que ADR-0007 se materializó en el archivo en 0206
+  (slices 0203-0205 citaron el ticket antes del archivo — ADR-first incumplido;
+  no se reescriben esas entradas).
+evidencia: >
+  RED: git merge-base --is-ancestor 8394258 HEAD falla; 0202 estado_gov EN REVISION
+  con Sprint 4 ya Cerrado.
+  GREEN: caa940a reachable; estado_gov GOV-APROBADO en esta CORRIGE; verify V-13.
+red_commit_sha: a93757b6ab571e00853a2112578d411963174507
+red_run_id: run-red-0207-ledger-sha-orphan
+expected_failure: AssertionError: green_commit_sha 8394258 not ancestor of HEAD
+green_commit_sha: caa940a557ab5e83f5d1a1e95aa3bff61c8309a6
+green_run_id: run-green-0207-ledger-sha-corrigido
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
