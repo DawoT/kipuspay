@@ -53,10 +53,7 @@ async function computeAuditHash(event: Record<string, unknown>): Promise<string>
   return sha256Hex(JSON.stringify(event));
 }
 
-async function previousAuditHash(
-  db: D1DatabaseLike,
-  tenantId: string,
-): Promise<string | null> {
+async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
   const row = await db
     .prepare(
       `SELECT row_hash FROM audit_events
