@@ -2909,4 +2909,190 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0234
+timestamp_utc: 2026-08-04T18:49:57Z
+schema_version: 2
+sprint_fase: Sprint 8 — Fase 3 (corrección evidencia QG)
+agente_responsable: Staff Architect
+tipo: Corrección
+subtipo: red==green en firma A+V Sprint 8
+relacion: CORRIGE
+referencias_entradas: [0226]
+referencias_documentales: [docs/LEDGER.md, docs/PROCESS.md]
+prev_id: 0233
+prev_hash: 1e1e9648c8ca2663fa623a5f257cb1a750083e8d1da15c95881472107bab4b41
+entry_hash: e007a14b21af0d3066049d909b47d5d792a335b2e1149127341239879317c17d
+ticket_or_adr: Proceso §8.1
+test_ids: [V-13, V-20, SUITE]
+entregable_afectado: Ledger 0226 red/green SHA de la firma A+V Sprint 8
+descripcion: >
+  Auditoría de integridad: 0226 citó red_commit_sha == green_commit_sha (0b9373b)
+  para la firma A+V del Sprint 8. Un mismo commit no puede ser RED (fallo esperado)
+  y GREEN (corrección) con contrato TDD (CAL-07). El RED real es el cierre EN
+  REVISION 0b9373b y el GREEN que materializa la certificación A+V y su verificación
+  runtime es df2c230.
+evidencia: >
+  RED: 0226 red==green=0b9373b; la certificación A+V no apuntaba a un commit propio.
+  GREEN: df2c230 contiene la entrada 0226 y la verificación runtime del Sprint 8;
+  V-13 cadena íntegra tras esta corrección.
+red_commit_sha: 0b9373b0ea37755ee2742caaddf181a3552e7673
+red_run_id: run-red-0234-sprint8-av-sha
+expected_failure: AssertionError: red_commit_sha == green_commit_sha en 0226
+green_commit_sha: df2c2300f2acc521b501680ec519002948e0e895
+green_run_id: run-green-0234-sprint8-av-sha
+ancestry_verified: true
+aprobaciones: [Staff Architect, Staff Verifier]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
 
+```
+id: 0235
+timestamp_utc: 2026-08-04T18:49:57Z
+schema_version: 2
+sprint_fase: Sprint 9 — Fase 3 (corrección evidencia QG)
+agente_responsable: Staff Data/Analytics
+tipo: Corrección
+subtipo: red==green en firma A+V Sprint 9
+relacion: CORRIGE
+referencias_entradas: [0230]
+referencias_documentales: [docs/LEDGER.md, docs/PROCESS.md]
+prev_id: 0234
+prev_hash: e007a14b21af0d3066049d909b47d5d792a335b2e1149127341239879317c17d
+entry_hash: ffb58367c98c3aec5bce348f6e5eb512e56b986d3974dea54b1115d5d8f90b17
+ticket_or_adr: Proceso §8.1
+test_ids: [V-13, V-20, SUITE]
+entregable_afectado: Ledger 0230 red/green SHA de la firma A+V Sprint 9
+descripcion: >
+  Auditoría de integridad: 0230 citó red_commit_sha == green_commit_sha (875080e)
+  para la firma A+V del Sprint 9. El RED real es el cierre EN REVISION 38c3547
+  (0228-0229) y el GREEN que materializa la certificación A+V es a51f4ae.
+evidencia: >
+  RED: 0230 red==green=875080e (commit de implementación, no de certificación).
+  GREEN: a51f4ae contiene la entrada 0230 y la verificación runtime del Sprint 9;
+  V-13 cadena íntegra.
+red_commit_sha: 38c3547993701772d38837bab316fe9944671c38
+red_run_id: run-red-0235-sprint9-av-sha
+expected_failure: AssertionError: red_commit_sha == green_commit_sha en 0230
+green_commit_sha: a51f4ae2646aebe7bf6a7c5f7d088d2c58e38917
+green_run_id: run-green-0235-sprint9-av-sha
+ancestry_verified: true
+aprobaciones: [Staff Data/Analytics, Staff Architect, Staff Verifier]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0236
+timestamp_utc: 2026-08-04T18:49:57Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (corrección evidencia QG)
+agente_responsable: Staff Growth
+tipo: Corrección
+subtipo: SHA de apertura Sprint 10
+relacion: CORRIGE
+referencias_entradas: [0231]
+referencias_documentales: [docs/LEDGER.md, docs/ROADMAP.md, docs/roadmap/fase-4.md]
+prev_id: 0235
+prev_hash: ffb58367c98c3aec5bce348f6e5eb512e56b986d3974dea54b1115d5d8f90b17
+entry_hash: 527d5456ee84850468ffa9b11d664e4c9cface2a8fd5f8ae351eae16f45f916d
+ticket_or_adr: GTM §3/§5
+test_ids: [SUITE, features, index]
+entregable_afectado: Ledger 0231 red/green SHA de apertura Sprint 10
+descripcion: >
+  Auditoría de integridad: 0231 citó red=green=a51f4ae para la apertura del
+  Sprint 10, pero ese commit no contiene apps/marketing-web ni el cambio del
+  ROADMAP (Sprint 10 aún Planificado; verificado con git ls-tree). El RED real es
+  a51f4ae (S10 Planificado) y el GREEN que materializa la apertura es 5e16365
+  (ROADMAP S10 En progreso + apps/marketing-web creado).
+evidencia: >
+  RED: git ls-tree a51f4ae apps/ → sin marketing-web; ROADMAP S10-16 Planificado.
+  GREEN: 5e16365 crea apps/marketing-web y marca S10 En progreso; V-13.
+red_commit_sha: a51f4ae2646aebe7bf6a7c5f7d088d2c58e38917
+red_run_id: run-red-0236-sprint10-apertura
+expected_failure: AssertionError: apps/marketing-web no presente en a51f4ae
+green_commit_sha: 5e16365dde15c4d265af78329bd5bcb2521fbb72
+green_run_id: run-green-0236-sprint10-apertura
+ancestry_verified: true
+aprobaciones: [Staff Growth]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0237
+timestamp_utc: 2026-08-04T18:49:57Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (corrección evidencia QG)
+agente_responsable: Staff Growth
+tipo: Corrección
+subtipo: SHA de copy-governance Sprint 10
+relacion: CORRIGE
+referencias_entradas: [0232]
+referencias_documentales: [docs/LEDGER.md, scripts/checks/marketing_copy.py]
+prev_id: 0236
+prev_hash: 527d5456ee84850468ffa9b11d664e4c9cface2a8fd5f8ae351eae16f45f916d
+entry_hash: 0404a5dfa4f1c0e1770e37af3487086d8c15815a0105377818b948c70c9c8d5a
+ticket_or_adr: GTM §1/§4.1.1
+test_ids: [SUITE, features, index]
+entregable_afectado: Ledger 0232 red/green SHA del detector marketing_copy
+descripcion: >
+  Auditoría de integridad: 0232 citó red=green=a51f4ae, pero el detector
+  scripts/checks/marketing_copy.py y apps/marketing-web solo existen en 5e16365.
+  El RED real (a51f4ae) coincide con su expected_failure 'missing marketing-web /
+  marketing_copy.py'; el GREEN que crea el entregable es 5e16365.
+evidencia: >
+  RED: a51f4ae sin marketing-web ni marketing_copy.py (git ls-tree).
+  GREEN: 5e16365 crea el detector y el sitio; MARKETING_COPY GREEN; V-13.
+red_commit_sha: a51f4ae2646aebe7bf6a7c5f7d088d2c58e38917
+red_run_id: run-red-0237-marketing-copy
+expected_failure: AssertionError: missing marketing-web / marketing_copy.py
+green_commit_sha: 5e16365dde15c4d265af78329bd5bcb2521fbb72
+green_run_id: run-green-0237-marketing-copy
+ancestry_verified: true
+aprobaciones: [Staff Growth, Staff Frontend, Staff QA]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0238
+timestamp_utc: 2026-08-04T18:49:57Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (corrección cierre QG)
+agente_responsable: Staff Growth
+tipo: Corrección
+subtipo: cierre Sprint 10 sin A+V verificable
+relacion: CORRIGE
+referencias_entradas: [0233]
+referencias_documentales: [docs/LEDGER.md, docs/ROADMAP.md, docs/PROCESS.md, docs/roadmap/fase-4.md]
+prev_id: 0237
+prev_hash: 0404a5dfa4f1c0e1770e37af3487086d8c15815a0105377818b948c70c9c8d5a
+entry_hash: 4433df49612476511e4c7988b8046db36aeb1c15cdef3028e9d2b93b6191d373
+ticket_or_adr: Proceso §8.1
+test_ids: [gtm-drift, registry, content, features, seo, SUITE, V-13, V-20]
+entregable_afectado: Ledger 0233 estado_gov + SHAs del cierre Sprint 10; ROADMAP S10
+descripcion: >
+  Auditoría de integridad: 0233 declaró ROADMAP Sprint 10 Cerrado + GOV-APROBADO con
+  firma A+V citando red=green=a51f4ae, un commit sin apps/marketing-web ni
+  marketing_copy.py (git ls-tree) y con ROADMAP S10 Planificado. Esa certificación
+  no es verificable. Se corrige a EN REVISION con SHAs reales: RED a51f4ae (S10
+  Planificado) → GREEN 5e16365 (implementación) → ed16d33 (resolución de hallazgos
+  de auditoría: soft-launch build-time, claim-gate drift vs GTM, copy honesto).
+  ROADMAP Sprint 10 permanece En progreso hasta la firma A+V independiente (Proceso §8.1).
+evidencia: >
+  RED: git ls-tree a51f4ae apps/ → sin marketing-web; ROADMAP en a51f4ae y HEAD
+  muestran Sprint 10 Planificado/En progreso, no Cerrado.
+  GREEN: 5e16365 + ed16d33; gtm-drift.test valida claim-gate vs GTM §2;
+  marketing_copy GREEN; verify SUITE GREEN; quality OK; ROADMAP En progreso.
+red_commit_sha: 5e16365dde15c4d265af78329bd5bcb2521fbb72
+red_run_id: run-red-0238-sprint10-qg
+expected_failure: AssertionError: 0233 cita a51f4ae sin el entregable y ROADMAP no Cerrado
+green_commit_sha: ed16d33cd057dd99685df3067a8ef950e5bcbe1e
+green_run_id: run-green-0238-sprint10-qg
+ancestry_verified: true
+aprobaciones: [Staff Growth R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
