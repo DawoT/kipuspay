@@ -23,7 +23,11 @@ export class TenantState extends DurableObject {
       await this.setRevoked(true);
       return Response.json({ ok: true });
     }
-    if (request.method === 'POST' && url.pathname === '/reinstate') {
+    // Spec §4 usa /unrevoke; /reinstate es alias histórico del mismo efecto.
+    if (
+      request.method === 'POST' &&
+      (url.pathname === '/reinstate' || url.pathname === '/unrevoke')
+    ) {
       await this.setRevoked(false);
       return Response.json({ ok: true });
     }

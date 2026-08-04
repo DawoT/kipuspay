@@ -30,6 +30,16 @@
       "binding": "DB",
       "database_name": "kipuspay-local",
       "database_id": "00000000-0000-0000-0000-000000000002",
+      "migrations_dir": "../../packages/adapters-d1/migrations",
+    },
+    {
+      "binding": "WEBHOOK_EVENTS_DB",
+      "database_name": "kipuspay-local",
+      "database_id": "00000000-0000-0000-0000-000000000002",
+      "migrations_dir": "../../packages/adapters-d1/migrations",
     },
   ],
+  "vars": {
+    "FQDN": "https://api.kipuspay.local",
+  },
 }

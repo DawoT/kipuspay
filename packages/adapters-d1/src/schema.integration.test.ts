@@ -1,8 +1,13 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { runBatch } from './index.js';
-import { DOWN_0000_SCHEMA_META, DOWN_0001_DDL_BASE } from './migrations-down.js';
+import {
+  DOWN_0000_SCHEMA_META,
+  DOWN_0001_DDL_BASE,
+  DOWN_0002_WEBHOOK_EVENTS,
+} from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
+import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -187,7 +192,36 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     await expect(insertSale('sale-2', 1).run()).rejects.toThrow();
   });
 
-  it('down 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+  it('migración 0002: webhook_events tenant_id NOT NULL + UNIQUE(source,event_id)', async () => {
+    expect(webhookEventsSql).toMatch(/tenant_id\s+TEXT\s+NOT\s+NULL/i);
+    expect(webhookEventsSql).toMatch(/UNIQUE\s*\(\s*source\s*,\s*event_id\s*\)/i);
+
+    await env.DB.prepare(
+      `INSERT INTO webhook_events (id, tenant_id, source, event_id, status, attempt_count)
+       VALUES (?, ?, 'stripe', ?, 'PROCESSING', 1)`,
+    )
+      .bind('we-1', 't-wh', 'evt_1')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO webhook_events (id, tenant_id, source, event_id, status, attempt_count)
+         VALUES (?, ?, 'stripe', ?, 'PROCESSING', 1)`,
+      )
+        .bind('we-2', 't-wh', 'evt_1')
+        .run(),
+    ).rejects.toThrow();
+
+    const row = await env.DB.prepare(
+      `SELECT status FROM webhook_events WHERE source = 'stripe' AND event_id = ?`,
+    )
+      .bind('evt_1')
+      .first<{ status: string }>();
+    expect(row?.status).toBe('PROCESSING');
+  });
+
+  it('down 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0002_WEBHOOK_EVENTS);
     await env.DB.exec(DOWN_0001_DDL_BASE);
     await env.DB.exec(DOWN_0000_SCHEMA_META);
 

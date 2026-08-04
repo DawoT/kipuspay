@@ -7,6 +7,8 @@ import { verifyJwt, type JwtVerifyEnv } from './verify-jwt.js';
 export interface ControlPlaneEnv {
   readonly TENANT_KV: {
     get(key: string): Promise<string | null>;
+    put?(key: string, value: string): Promise<void>;
+    delete?(key: string): Promise<void>;
   };
   readonly TENANT_STATE_DO: {
     idFromName(name: string): { toString(): string };
@@ -18,6 +20,10 @@ export interface ControlPlaneEnv {
 
 export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly DB?: D1Database;
+  /** Alias local de DB para dedup SEC-08 (Arquitectura §4). */
+  readonly WEBHOOK_EVENTS_DB?: D1Database;
+  readonly STRIPE_WEBHOOK_SECRET?: string;
+  readonly FQDN?: string;
 }
 
 const isolateCache = new Map<string, { value: unknown; ts: number }>();

@@ -63,4 +63,12 @@ describe('worker-api', () => {
     });
     expect(res.status).toBe(401);
   });
+
+  it('POST /v1/webhooks/stripe sin secret/firma → 400 (sin JWT)', async () => {
+    const res = await createApp().request('/v1/webhooks/stripe', {
+      method: 'POST',
+      body: '{}',
+    });
+    expect(res.status).toBe(400);
+  });
 });
