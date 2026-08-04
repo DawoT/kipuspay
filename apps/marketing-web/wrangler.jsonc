@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kipuspay-marketing-web",
+  "compatibility_date": "2026-07-01",
+  "pages_build_output_dir": ".svelte-kit/cloudflare",
+  "vars": {
+    "FEATURE_MARKETING_SITE": "0",
+  },
+}

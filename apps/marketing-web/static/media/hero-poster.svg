@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-label="Ambiente de comercio al atardecer">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a1f14"/>
+      <stop offset="45%" stop-color="#6b4220"/>
+      <stop offset="100%" stop-color="#c9852a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="70%" cy="40%" r="45%">
+      <stop offset="0%" stop-color="#e6c07b" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#e6c07b" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <rect width="1920" height="1080" fill="url(#glow)"/>
+  <rect x="0" y="720" width="1920" height="360" fill="#0e141b" opacity="0.55"/>
+  <rect x="620" y="480" width="680" height="320" fill="#1c2630"/>
+  <rect x="660" y="520" width="120" height="160" fill="#e6c07b" opacity="0.35"/>
+  <rect x="820" y="540" width="90" height="140" fill="#e6c07b" opacity="0.22"/>
+  <rect x="980" y="510" width="140" height="170" fill="#e6c07b" opacity="0.28"/>
+  <circle cx="1480" cy="220" r="70" fill="#f3efe6" opacity="0.35"/>
+</svg>

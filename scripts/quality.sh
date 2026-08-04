@@ -44,6 +44,9 @@ node scripts/chaos/run.mjs --scenario ar-compensate --sprint 8
 step "4g/8 Chaos rollup idempotent (§13.5 rollup-idempotent fail-closed)"
 node scripts/chaos/run.mjs --scenario rollup-idempotent --sprint 9
 
+step "4h/8 Marketing copy lint (GTM §1 anti-jerga)"
+python3 scripts/checks/marketing_copy.py
+
 step "5/8 Secretos (Gitleaks)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --no-banner --redact -v

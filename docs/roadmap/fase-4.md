@@ -10,9 +10,13 @@ sprints: "10–13"
 ### FASE 4 — Salida al Mercado
 
 #### Sprint 10 — Sitio de Marketing y Landings Verticales
-**Referencia:** GTM §1-3 · **Agentes:** Staff Growth (owner), Staff Design (colaborador), Staff Content (colaborador)
+**Referencia:** GTM §1-3 / §5 · **Agentes:** Staff Growth (owner), Staff Design (colaborador), Staff Content (colaborador) · **Especificación:** Actualizada
 
-**Entregables:** home principal + 5 landings verticales (`/para/restaurantes`, `/para/farmacias`, `/para/retail`, `/para/servicios`, `/para/cadenas`), páginas `/comparar/[competidor]` (Bsale, Alegra, Siigo).
+**Capabilities (FASE 4):** `marketing.site`, `marketing.vertical_landing`, `marketing.compare`, `marketing.claim_gate`. Flag soft-launch default `0`: `FEATURE_MARKETING_SITE`. App: `apps/marketing-web` (SvelteKit). Nomenclatura por capacidad (`marketing-site`, `marketing-claim-gate`); prohibido `sprint10-*`. Vertical = content slug + plantilla única (ADR-ARCH-002); no forks de UI por vertical.
+
+**Entregables:** home principal + 5 landings verticales (`/para/restaurantes`, `/para/farmacias`, `/para/retail`, `/para/servicios`, `/para/cadenas`), páginas `/comparar/[competidor]` (Bsale, Alegra, Siigo); claim-gate GTM (live vs roadmap+sprint); copy-lint anti-jerga; SEO on-page + CWV documentados.
+
+**Frontera explícita:** Sprint 11 `/precios` real + onboarding `/empezar`; Sprint 12 referidos/blog/casos; Sprint 13 `/seguridad` plena / SLA. Stubs honestos en header/footer.
 
 **Criterios de aceptación:** cada landing usa el dolor y el gancho de su tabla de segmentación; la feature destacada solo aparece si su Quality Gate de GTM §2 está cerrado y, si no, se presenta como roadmap con fecha; 0 términos técnicos (Edge, D1, sharding, ACID) detectados en auditoría de copy; Core Web Vitals en verde.
 

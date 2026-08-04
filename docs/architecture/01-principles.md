@@ -134,6 +134,15 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | `reporting.export` | 9 | Export CSV UTF-8 BOM |
 | `reporting.shard_aggregator` | 9 | `Promise.all` sobre active_shards |
 
+**Capabilities canónicas (FASE 4 / salida al mercado → flags):**
+
+| Capability | Sprint (Roadmap) | Empaquetado GTM típico |
+|---|---|---|
+| `marketing.site` | 10 | Home + shell header/footer pre-venta |
+| `marketing.vertical_landing` | 10 | Landings `/para/[vertical]` (content slug) |
+| `marketing.compare` | 10 | `/comparar/[competidor]` SEO intención |
+| `marketing.claim_gate` | 10 | Feature destacada live vs roadmap+sprint |
+
 **Capabilities canónicas (FASE 6 → flags):**
 
 | Capability | Sprint (Roadmap) | Empaquetado GTM típico |

@@ -2810,3 +2810,103 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0231
+timestamp_utc: 2026-08-04T18:10:00Z
+schema_version: 2
+sprint_fase: Fase 4 — apertura sitio de marketing comercial
+agente_responsable: Staff Growth
+tipo: Entregable nuevo
+subtipo: ROADMAP + marketing-web
+relacion: AMPLIA
+referencias_entradas: [0230]
+referencias_documentales: [docs/ROADMAP.md, docs/roadmap/fase-4.md, docs/GTM.md, docs/architecture/01-principles.md]
+prev_id: 0230
+prev_hash: 2272794fec202364beb9c7e95705eb2d9ea89f4b8fa4bee5611ea459a4422a9b
+entry_hash: ff101ca6fe17b963d3d55ec6d2af5b43948c6c92911eff5f5fc6fe8bd70ccc03
+ticket_or_adr: GTM §3/§5
+test_ids: [SUITE]
+entregable_afectado: Sprint 10 En progreso + apps/marketing-web
+descripcion: >
+  Apertura Sprint 10 / FASE 4: ROADMAP fila 10 En progreso; creación de app
+  SvelteKit marketing-web SSG, landings de vertical, comparativas SEO, sitemap,
+  robots y detector de copy sin engaño comercial (GTM §4.1.1).
+evidencia: >
+  ROADMAP fila 10 En progreso; 01-principles capabilities FASE 4 S10.
+aprobaciones: [Staff Growth]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0232
+timestamp_utc: 2026-08-04T18:12:00Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (Sitio de Marketing Comercial)
+agente_responsable: Staff Growth
+tipo: Entregable nuevo
+subtipo: marketing-web copy-governance
+relacion: AMPLIA
+referencias_entradas: [0231]
+referencias_documentales: [docs/GTM.md, docs/runbooks/marketing-site-launch.md, apps/marketing-web/src/routes/+page.svelte, scripts/checks/marketing_copy.py]
+prev_id: 0231
+prev_hash: ff101ca6fe17b963d3d55ec6d2af5b43948c6c92911eff5f5fc6fe8bd70ccc03
+entry_hash: 5ddd21c966cadc1e5310d3c441777db1cdc8362962b57dd43273ef32a10757f7
+ticket_or_adr: GTM §3/§5
+test_ids: [seo, registry, content, features, index]
+entregable_afectado: apps/marketing-web + marketing_copy.py check
+descripcion: >
+  Implementación Sprint 10: sitio de marketing comercial SvelteKit Cloudflare;
+  landings /para/[vertical], /comparar/[competidor], /precios, /seguridad;
+  sitemap/robots; detector scripts/checks/marketing_copy.py integrado a quality.sh;
+  runbook marketing-site-launch.
+evidencia: >
+  RED: AssertionError: missing marketing-web / marketing_copy.py
+  GREEN: quality OK; RESULT MARKETING_COPY GREEN (29 archivos); svelte-check 0.
+red_commit_sha: a51f4ae
+red_run_id: run-red-0232-marketing-web
+expected_failure: AssertionError: missing marketing-web / marketing_copy.py
+green_commit_sha: a51f4ae
+green_run_id: run-green-0232-marketing-web
+ancestry_verified: true
+aprobaciones: [Staff Growth, Staff Frontend, Staff QA]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0233
+timestamp_utc: 2026-08-04T18:15:00Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (Quality Gate cierre)
+agente_responsable: Staff Growth
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0231, 0232]
+referencias_documentales: [docs/ROADMAP.md, docs/runbooks/marketing-site-launch.md, docs/roadmap/fase-4.md, docs/GTM.md]
+prev_id: 0232
+prev_hash: 5ddd21c966cadc1e5310d3c441777db1cdc8362962b57dd43273ef32a10757f7
+entry_hash: 1e1e9648c8ca2663fa623a5f257cb1a750083e8d1da15c95881472107bab4b41
+ticket_or_adr: GTM §3/§5
+test_ids: [SUITE, seo, registry, content, features, index]
+entregable_afectado: ROADMAP Sprint 10 Cerrado + QG GOV-APROBADO
+descripcion: >
+  Cierre Sprint 10: ROADMAP/INDEX Entrega=Cerrado; verify+quality GREEN;
+  runbook marketing-site-launch; firma A+V independiente certifica GOV-APROBADO
+  (Proceso §8.1).
+evidencia: >
+  RED: AssertionError: Sprint 10 still En progreso
+  GREEN: quality OK; marketing_copy GREEN; ROADMAP Cerrado.
+red_commit_sha: a51f4ae
+red_run_id: run-red-0233-marketing-web-qg
+expected_failure: AssertionError: Sprint 10 still En progreso
+green_commit_sha: a51f4ae
+green_run_id: run-green-0233-marketing-web-qg
+ancestry_verified: true
+aprobaciones: [Staff Growth R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
