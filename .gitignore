@@ -1,14 +1,25 @@
-# KipusPay — repo de especificación (documentación maestra)
-# Ignorar artefactos locales; los docs maestros siempre se versionan.
+# KipusPay — repo de especificación + monorepo de implementación (Arquitectura §1.1)
+# Ignorar artefactos locales; los docs maestros y el código fuente siempre se versionan.
 
 .DS_Store
 Thumbs.db
 
-# Node / build tooling (si algún día hay scripts locales)
+# Node / build tooling
 node_modules/
 dist/
 build/
 *.log
+*.tsbuildinfo
+.pnpm-store/
+.turbo/
+
+# Frameworks y compilación de apps
+apps/*/build/
+apps/*/.svelte-kit/
+apps/*/.wrangler/
+apps/*/functions/
+coverage/
+*coverage/
 
 # Secretos / entorno
 .env

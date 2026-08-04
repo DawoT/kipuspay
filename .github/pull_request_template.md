@@ -17,6 +17,8 @@
 - [ ] `scripts/verify.sh` en `RESULT SUITE GREEN` (pegar la salida abajo).
 - [ ] Registry §0.4 actualizado si se creó o movió una regla (sin IDs huérfanos).
 - [ ] `INDEX.md` regenerado con `scripts/index.sh` si cambiaron capabilities, DDL, reglas, puertos o packages.
+- [ ] Si toca código del monorepo: CI de calidad verde (`quality.yml`), umbrales CAL-05
+      (dominio ≥ 95%, adaptadores/apps ≥ 70%) y bundle CAL-06 sin romper (Arquitectura §13).
 
 ```text
 <!-- salida de scripts/verify.sh -->

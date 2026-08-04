@@ -48,11 +48,17 @@ scripts/verify.sh | awk '$1=="RESULT" && $3=="RED"'
 | V-17 | Higiene de rutas versionadas: sin espacios, sin no-ASCII, sin colisiones case-insensitive | AGENTS §1 |
 | V-18 | Front-matter válido; `Alias §N` resuelve dentro de los archivos de ese alias; todo `*.md` citado existe | AGENTS §3 |
 | V-19 | Presupuesto de tamaño: ningún archivo de doctrina pasa de 1000 líneas (exentos `inmutable` y `generada`) | ruta de lectura |
+| V-20 | Contrato TDD del ledger: `test_ids` que resuelven en un test del monorepo, run IDs RED/GREEN y SHAs reales para entradas de código | CAL-07 / §13.9 |
+| V-21 | Dinero en código: cero `toFixed`/`parseFloat`/`Number` sobre montos; dinero tipado `number` exige sufijo `_cents` | CAL-01 / §13.3 |
+| V-22 | Cero `UPSERT INTO` / `db.transaction(` en `*.sql`/`*.ts`/`*.svelte` del monorepo | AGENTS §2.2 |
+| V-23 | Cero fork por vertical en componentes Svelte | ADR-ARCH-002 |
+| V-24 | Presupuesto de bundle del POS + zero-dependencia runtime vs `bundle_deps_baseline.json` | CAL-06 / §13.8 |
 
 ## Notas de alcance
 
 - `docs/LEDGER.md` es inmutable: queda fuera de V-11 (sus entradas usan fence desnudo por schema), de V-12 y de V-18 (sus punteros son históricos: citan los paths previos a la reorganización, equivalencia declarada en la entrada 0182).
 - V-18 es más estricto que V-12 a propósito: V-12 resuelve `§N` contra los headings de todo el corpus, así que un puntero que existe en **otro** documento pasa. V-18 exige que resuelva dentro de los archivos del alias citado.
+- V-20..V-24 escanean el **monorepo** (`packages/` y `apps/`, excluyendo `node_modules`/`dist`/`.svelte-kit`). El `test_ids` de una entrada de código debe resolverse en un archivo de test del monorepo; los milestones pre-código (`red_commit_sha: N/A`) quedan exentos.
 - V-14 no exige arreglar el legado: congela el inventario en `scripts/checks/fk_composite_baseline.txt` y bloquea que aparezcan FKs simples nuevas. El burn-down se hace por sprint, quitando líneas del baseline junto con el fix del DDL.
 - V-05 existe porque en SQLite una columna `TEXT PRIMARY KEY` **admite `NULL`** si no se declara.
 

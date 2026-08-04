@@ -1,0 +1,38 @@
+{
+  "name": "kipuspay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KipusPay — POS & Facturación Electrónica multitenant edge-native (SUNAT Perú). Monorepo de implementación (Arquitectura §1.1).",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "lint": "turbo run lint",
+    "lint:root": "eslint apps packages --max-warnings 0",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "build": "turbo run build",
+    "format:check": "prettier --check apps packages",
+    "format:write": "prettier --write apps packages",
+    "quality": "bash scripts/quality.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@size-limit/file": "^13.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-no-secrets": "^2.3.3",
+    "eslint-plugin-security": "^4.0.1",
+    "globals": "^17.9.0",
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
+}

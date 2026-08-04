@@ -53,10 +53,10 @@ FK_BASELINE = "scripts/checks/fk_composite_baseline.txt"
 FOREIGN_KEY = re.compile(r"FOREIGN KEY\s*\(([^)]*)\)\s*REFERENCES\s+([A-Za-z_][A-Za-z0-9_]*)", re.I)
 
 # --- V-08 -------------------------------------------------------------------
-RULE_PREFIXES = ("SEC", "FIS", "COM", "DAT", "PERF", "SYN", "LPDP")
+RULE_PREFIXES = ("SEC", "FIS", "COM", "DAT", "PERF", "SYN", "LPDP", "CAL")
 RULE_ID = re.compile(r"\b((?:%s)-[0-9]{2,})\b" % "|".join(RULE_PREFIXES))
 ADR_ID = re.compile(r"\b(ADR-[A-Z]+-[0-9]{3})\b")
-REGISTRY_ROW = re.compile(r"^\|\s*((?:SEC|FIS|COM|DAT|PERF|SYN|LPDP|ADR)-[A-Z0-9*-]+)\s*\|", re.M)
+REGISTRY_ROW = re.compile(r"^\|\s*((?:SEC|FIS|COM|DAT|PERF|SYN|LPDP|CAL|ADR)-[A-Z0-9*-]+)\s*\|", re.M)
 
 FENCE = re.compile(r"^```(\S*)")
 HEADING_NUM = re.compile(r"^#{2,4}\s+\**([0-9]+(?:\.[0-9]+)*)", re.M)

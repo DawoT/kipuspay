@@ -24,7 +24,7 @@ INDEX = paths.INDEX
 
 HEADING_NUM = re.compile(r"^#{2,4}\s+\**([0-9]+(?:\.[0-9]+)*)[.\\]?\s*(.*)$")
 CAPABILITY_ROW = re.compile(r"^\|\s*`([a-z][a-z0-9_.*]*)`[^|]*\|\s*([0-9][0-9–\-, ]*)\s*\|\s*([^|]+)\|")
-REGISTRY_ROW = re.compile(r"^\|\s*((?:SEC|FIS|COM|DAT|PERF|SYN|LPDP|ADR)-[A-Z0-9*-]+)\s*\|\s*([^|]+)\|\s*([^|]+)\|")
+REGISTRY_ROW = re.compile(r"^\|\s*((?:SEC|FIS|COM|DAT|PERF|SYN|LPDP|CAL|ADR)-[A-Z0-9*-]+)\s*\|\s*([^|]+)\|\s*([^|]+)\|")
 PORT_ROW = re.compile(r"^\|\s*`([A-Z][A-Za-z]+)`\s*\|\s*([^|]+)\|\s*([^|]+)\|")
 PACKAGE_LINE = re.compile(r"^\s{2}([a-z][a-z0-9-]+)/\s*#\s*(.+)$")
 SPRINT_ROW = re.compile(r"^\|\s*([0-9][0-9a-z–\-]*)\s*\|\s*([0-9A-G–\-]+)\s*\|\s*([^|]+)\|\s*([^|]+)\|")

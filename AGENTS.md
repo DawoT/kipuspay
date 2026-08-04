@@ -115,6 +115,11 @@ Cada check emite `RESULT <ID> GREEN|RED` y la última línea es `RESULT SUITE GR
 | V-17 | Higiene de rutas: sin espacios, sin no-ASCII, sin colisiones case-insensitive |
 | V-18 | Front-matter válido, alias `X §N` resuelve dentro de los archivos de ese alias, y todo `*.md` citado existe |
 | V-19 | Presupuesto de tamaño: ningún archivo de doctrina pasa de 1000 líneas |
+| V-20 | Contrato TDD del ledger: entradas de código con `red/green_run_id`, SHAs reales, `ancestry_verified`, `expected_failure` y `test_ids` que resuelven en un test del monorepo (CAL-07, §13.9) |
+| V-21 | Dinero en código: cero `toFixed`/`parseFloat`/`Number` sobre montos y nombres de dinero tipados `number` sin `_cents` (CAL-01, §13.3) |
+| V-22 | Cero `UPSERT INTO` / `db.transaction(` en `*.sql`/`*.ts`/`*.svelte` (refuerza V-02/V-04 en el monorepo) |
+| V-23 | Cero fork por vertical en componentes Svelte (amplía V-07, ADR-ARCH-002) |
+| V-24 | Presupuesto de bundle del POS y zero-dependencia runtime contra `bundle_deps_baseline.json` (CAL-06, §13.8) |
 
 Un `SUITE GREEN` es condición **necesaria pero no suficiente**: los Quality Gates de implementación (Proceso §8.1) exigen además evidencia runtime.
 
@@ -125,7 +130,8 @@ Un `SUITE GREEN` es condición **necesaria pero no suficiente**: los Quality Gat
 | `kipus-task` | Ciclo canónico de una tarea de sprint: contrato → índice → reglas → RED/GREEN → gate → Ledger |
 | `kipus-changelog` | Escribir una entrada nueva en `docs/LEDGER.md` (schema v2 + `prev_hash`/`entry_hash` reales) |
 | `kipus-rules-registry` | Crear/mover reglas sin huérfanos ni punteros duplicados (validado por V-08) |
-| `kipus-verify` | Gate documental completo (V-00..V-19) |
+| `kipus-verify` | Gate documental completo (V-00..V-24) |
+| `kipus-quality-gate` | Quality Gate de implementación: correr `scripts/quality.sh`, umbrales CAL-05 (dominio 95%, adaptadores/apps 70%), size-limit CAL-06 y semgrep CAL-03 sobre el monorepo (§13) |
 
 ## 7. Estado de gobernanza
 

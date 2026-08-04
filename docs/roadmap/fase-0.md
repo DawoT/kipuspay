@@ -25,6 +25,19 @@ sprints: "0"
 - ADR-0001 ("Adopción de este roadmap, del DoD global y del Changelog inmutable") aprobado por el Staff Review Board.
 - Primera entrada de changelog registrada siguiendo el esquema de la Sección 7.2, con evidencia adjunta.
 
+**Tooling de calidad (CAL-01..08)** — capítulo `Arquitectura §13` y checks V-20..V-24:
+- Estándar de calidad de código normado (`docs/architecture/13-implementation-quality.md`),
+  Registry CAL-01..08 (dinero entero, SEMGREP invariantes, GITLEAKS, SEMGREP/SAST, cobertura,
+  bundle/zero-dep, TDD, disciplina de deuda).
+- Gate V-20..V-24 implementado y autotesteado (V-00) en `scripts/verify.sh`.
+- Monorepo scaffold de `Arquitectura §1.1`: `packages/domain-*`, `packages/adapters-*` y
+  `apps/pos-web` + `apps/worker-*`, con pnpm workspaces, Turbo, TypeScript estricto,
+  ESLint (invariantes vía `no-restricted-syntax`), Prettier, Vitest con umbrales de
+  cobertura, size-limit y Semgrep; la venta y la edición de código **no** pueden romper
+  el gate documental.
+- CI: `verify.yml` (gate documental), `quality.yml` (pipeline de calidad), `security.yml`
+  (Gitleaks + Semgrep), `codeql.yml` y `dependabot.yml`.
+
 **Quality Gate:** ningún sprint de la Fase 1 puede iniciar sin este sprint cerrado.
 
 ---

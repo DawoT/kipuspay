@@ -1,0 +1,54 @@
+# Semgrep — escaneo de invariantes de dominio en el código de implementación.
+# Las reglas de Semgrep NO crean doctrina: verifican invariantes ya normadas
+# (AGENTS §2, DAT-09, ADR-ARCH-002). La fuente de verdad es docs/architecture/.
+
+rules:
+  - id: kipus-db-transaction-callback
+    pattern: db.transaction(...)
+    message: db.transaction(callback) no existe en la API D1 (AGENTS §2): usar db.batch([...]).
+    severity: ERROR
+    languages:
+      - ts
+      - js
+
+  - id: kipus-upsert-into
+    pattern-either:
+      - pattern-regex: UPSERT\s+INTO
+    message: UPSERT INTO prohibido (AGENTS §2): usar ON CONFLICT explícito.
+    severity: ERROR
+    languages:
+      - generic
+
+  - id: kipus-money-tofixed
+    pattern: $X.toFixed(...)
+    message: toFixed() prohibido para montos (DAT-09): redondear con Math.round en el servidor.
+    severity: ERROR
+    languages:
+      - ts
+      - js
+
+  - id: kipus-money-parsefloat
+    pattern: parseFloat(...)
+    message: parseFloat() prohibido para montos (DAT-09): dinero siempre como INTEGER cents.
+    severity: ERROR
+    languages:
+      - ts
+      - js
+
+  - id: kipus-vertical-switch
+    pattern-either:
+      - pattern: switch (vertical) { ... }
+      - pattern: switch (ctx.vertical) { ... }
+      - pattern-regex: \bvertical\s*===\s*['"]
+    message: fork por vertical prohibido (ADR-ARCH-002): capabilities por flags.
+    severity: ERROR
+    languages:
+      - ts
+      - js
+
+  - id: kipus-http-plaintext
+    pattern-regex: ["']http://|["']ws://
+    message: Protocolos en claro prohibidos (V-03): usar https:// y wss://.
+    severity: ERROR
+    languages:
+      - generic

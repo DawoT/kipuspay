@@ -18,6 +18,12 @@
 #                                  V-17 higiene de rutas versionadas
 #                                  V-18 front-matter, alias y rutas citadas
 #                                  V-19 presupuesto de tamaño por archivo
+# Calidad de código (Arquitectura §13):
+#                                  V-20 evidencia TDD del ledger (CAL-07)
+#                                  V-21 dinero en código, cero float (CAL-01)
+#                                  V-22 0 UPSERT INTO / db.transaction en *.sql
+#                                  V-23 0 fork vertical en *.svelte (CAL-01)
+#                                  V-24 presupuesto de bundle (CAL-06)
 # (V-16 vive en el hook pre-commit: LEDGER append-only — scripts/git-hooks/)
 #
 # Nota: se usa `set -uo pipefail` sin `-e` a propósito — la batería debe correr
@@ -112,7 +118,9 @@ check_no_http_ws() {
 # --- V-04: db.transaction(callback) no existe en la API D1 -------------------
 check_db_transaction() {
   local hits
-  hits=$(grep -rInE 'db\.transaction\s*\(' --include='*.ts' --include='*.js' . 2>/dev/null)
+  hits=$(grep -rInE 'db\.transaction\s*\(' --include='*.ts' --include='*.js' \
+        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+        --exclude-dir=.svelte-kit --exclude-dir=coverage . 2>/dev/null)
   if [ -n "$hits" ]; then
     fail V-04 "db.transaction( en código"
     printf '%s\n' "$hits" | head -5 | sed 's/^/     /'
@@ -122,11 +130,63 @@ check_db_transaction() {
 # --- V-07: capability model, no forks por vertical (ADR-ARCH-002) ------------
 check_no_vertical_fork() {
   local hits
-  hits=$(grep -rInE 'switch\s*\(\s*[A-Za-z_.]*vertical|vertical(_type)?\s*===' --include='*.ts' --include='*.js' . 2>/dev/null)
+  hits=$(grep -rInE 'switch\s*\(\s*[A-Za-z_.]*vertical|vertical(_type)?\s*===' --include='*.ts' --include='*.js' \
+        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+        --exclude-dir=.svelte-kit --exclude-dir=coverage . 2>/dev/null)
   if [ -n "$hits" ]; then
     fail V-07 "fork por vertical en código"
     printf '%s\n' "$hits" | head -5 | sed 's/^/     /'
   else pass V-07; fi
+}
+
+# --- V-20: evidencia TDD del ledger (CAL-07, Arquitectura §13.9) ---------------
+check_tdd_evidence() {
+  python3 scripts/checks/tdd_evidence.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
+# --- V-21: dinero en código, cero float (CAL-01, Arquitectura §13.3) ----------
+check_code_money() {
+  python3 scripts/checks/code_money.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
+# --- V-22: 0 UPSERT INTO / db.transaction en *.sql/*.ts/*.svelte --------------
+check_code_upsert_transaction() {
+  local hits
+  hits=$(grep -rInE 'UPSERT INTO [A-Za-z_]' --include='*.sql' --include='*.ts' --include='*.js' --include='*.svelte' \
+        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+        --exclude-dir=.svelte-kit --exclude-dir=coverage . 2>/dev/null \
+        | grep -viE 'prohibi|nunca|jamás|no existe|no se usa')
+  hits="$hits$(grep -rInE 'db\.transaction\s*\(' --include='*.sql' . 2>/dev/null)"
+  if [ -n "$hits" ]; then
+    fail V-22 "UPSERT INTO / db.transaction en código SQL"
+    printf '%s\n' "$hits" | head -5 | sed 's/^/     /'
+  else pass V-22; fi
+}
+
+# --- V-23: fork vertical en *.svelte (amplía V-07, ADR-ARCH-002) --------------
+check_svelte_vertical_fork() {
+  local hits
+  hits=$(grep -rInE 'switch\s*\(\s*[A-Za-z_.]*vertical|vertical(_type)?\s*===' --include='*.svelte' \
+        --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
+        --exclude-dir=.svelte-kit --exclude-dir=coverage . 2>/dev/null)
+  if [ -n "$hits" ]; then
+    fail V-23 "fork por vertical en componente Svelte"
+    printf '%s\n' "$hits" | head -5 | sed 's/^/     /'
+  else pass V-23; fi
+}
+
+# --- V-24: presupuesto de bundle (CAL-06, Arquitectura §13.8) -----------------
+check_bundle_budget() {
+  python3 scripts/checks/bundle_budget.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
 }
 
 # --- V-05, V-06, V-08..V-12: checks estructurales ----------------------------
@@ -165,6 +225,11 @@ check_structural
 check_aliases
 check_index_drift
 check_ledger_chain
+check_tdd_evidence
+check_code_money
+check_code_upsert_transaction
+check_svelte_vertical_fork
+check_bundle_budget
 
 echo ""
 if [ $FAIL -eq 0 ]; then

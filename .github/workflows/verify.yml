@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # V-16 necesita historia para diffear contra la base del PR
-      - name: Gate documental (V-00..V-15, V-17..V-19)
+      - name: Gate documental (V-00..V-24)
         run: bash scripts/verify.sh
       - name: Ledger append-only (V-16)
         if: github.event_name == 'pull_request'

@@ -35,6 +35,7 @@ owner: "@DawoT"
 | §10 | Impresión adaptativa y Modo Vitrina | [`architecture/10-printing-display.md`](architecture/10-printing-display.md) | 76 |
 | §11 | Matriz comparativa de mercado | [`architecture/11-market-matrix.md`](architecture/11-market-matrix.md) | 26 |
 | §12 | Costo operativo y performance estimado | [`architecture/12-cost-performance.md`](architecture/12-cost-performance.md) | 24 |
+| §13 | Calidad de implementación: toolchain Staff y presupuestos | [`architecture/13-implementation-quality.md`](architecture/13-implementation-quality.md) | 129 |
 
 ### **0.4 Registry de Reglas (punteros canónicos)**
 
@@ -109,6 +110,14 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas |
 | ADR-FISCAL-002 | §5.1 | Decisiones fiscales (v2) |
 | LPDP-* | §5.3 (6F) | Privacidad (prefijo reservado; sin IDs emitidos aún) |
+| CAL-01 | §13.3/§13.1 | Lint de invariantes: `db.transaction`, `toFixed`, `switch(vertical)`, `parseFloat` sobre dinero prohibidos (ESLint + Semgrep) |
+| CAL-02 | §13.2 | TypeScript `strict` obligatorio en todo package/app del monorepo |
+| CAL-03 | §13.4 | Cobertura mínima por capa: dominio/ACID ≥ 95%, adapters ≥ 70% |
+| CAL-04 | §13.5 | Chaos adversarial por capa (red, cuota, memoria, shard/DO, concurrencia) antes del release |
+| CAL-05 | §13.6 | SAST + secretos + dependencias: gitleaks, Semgrep, CodeQL, osv/pnpm audit |
+| CAL-06 | §13.8 | Presupuesto de bundle en CI + cero dependencia npm runtime nueva sin ADR |
+| CAL-07 | §13.9 | Evidencia TDD RED→GREEN con `red_commit_sha`/`red_run_id`/`green_*` en el ledger |
+| CAL-08 | §13.3 | Complejidad ciclomática: hot path ≤ 12, resto ≤ 15 |
 
 Las reglas definidas por corrección de ledger (`FIS-01`, `DAT-03`, `DAT-09`, `DAT-10`) conservan su definición histórica en la entrada indicada de `docs/LEDGER.md` (inmutable) y su efecto normativo en la sección canónica de la especificación.
 

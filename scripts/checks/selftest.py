@@ -24,6 +24,20 @@ def load_structural():
     return mod
 
 
+def load_code_money():
+    spec = importlib.util.spec_from_file_location("code_money", f"{HERE}/code_money.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def load_tdd_evidence():
+    spec = importlib.util.spec_from_file_location("tdd_evidence", f"{HERE}/tdd_evidence.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 SUCIA = """```sql
 CREATE TABLE mala (
     id TEXT PRIMARY KEY,
@@ -134,13 +148,30 @@ def main() -> int:
            "V-12 no extrae headings numerados")
     expect(st.SECTION_REF.findall("ver §5.3 y § 0.4") == ["5.3", "0.4"], "V-12 no extrae referencias §")
 
+    # V-21: dinero en código (CAL-01)
+    cm = load_code_money()
+    expect(bool(cm.TO_FIXED.search("return total.toFixed(2);")), "V-21 no detecta toFixed")
+    expect(bool(cm.FLOAT_ON_MONEY.search("const x = parseFloat(total_cents);")), "V-21 no detecta parseFloat sobre dinero")
+    expect(bool(cm.SUSPECT_TYPED.search("const total: number = 0;")), "V-21 no detecta dinero tipado number sin _cents")
+    expect(bool(cm.CENTS_OK.search("total_cents")), "V-21 no reconoce _cents como dinero OK")
+    expect(not cm.CENTS_OK.search("total"), "V-21 marca un nombre sin _cents como dinero OK")
+
+    # V-20: parseo de entradas del ledger (CAL-07)
+    te = load_tdd_evidence()
+    entries = te.parse_entries(
+        "id: 0188\nred_commit_sha: a1b2\nred_run_id: r1\ngreen_commit_sha: c3d4\n"
+        "green_run_id: r2\nancestry_verified: true\nid: 0189\n".splitlines()
+    )
+    expect(len(entries) == 2 and entries[0]["id"] == "0188", "V-20 no parsea las entradas del ledger")
+    expect(any(e.get("red_commit_sha") == "a1b2" for e in entries), "V-20 pierde campos de la entrada")
+
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")
         for f in fails:
             print(f"     {f}")
         return 1
     print("RESULT V-00 GREEN")
-    print("     14 aserciones sobre los detectores del gate")
+    print("     20 aserciones sobre los detectores del gate")
     return 0
 
 

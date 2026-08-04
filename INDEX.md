@@ -316,6 +316,14 @@ Abre solo los archivos que esta tabla te señale.
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | ADR-FISCAL-002 | §5.1 | Decisiones fiscales (v2) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | LPDP-* | §5.3 (6F) | Privacidad (prefijo reservado; sin IDs emitidos aún) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
+| CAL-01 | §13.3/§13.1 | Lint de invariantes: `db.transaction`, `toFixed`, `switch(vertical)`, `parseFloat` sobre dinero prohibidos (ESLint + Semgrep) | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-02 | §13.2 | TypeScript `strict` obligatorio en todo package/app del monorepo | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-03 | §13.4 | Cobertura mínima por capa: dominio/ACID ≥ 95%, adapters ≥ 70% | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-04 | §13.5 | Chaos adversarial por capa (red, cuota, memoria, shard/DO, concurrencia) antes del release | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-05 | §13.6 | SAST + secretos + dependencias: gitleaks, Semgrep, CodeQL, osv/pnpm audit | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-06 | §13.8 | Presupuesto de bundle en CI + cero dependencia npm runtime nueva sin ADR | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-07 | §13.9 | Evidencia TDD RED→GREEN con `red_commit_sha`/`red_run_id`/`green_*` en el ledger | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
+| CAL-08 | §13.3 | Complejidad ciclomática: hot path ≤ 12, resto ≤ 15 | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
 
 ## Puertos → adapters
 
@@ -346,4 +354,4 @@ Abre solo los archivos que esta tabla te señale.
 | `pos-web` | SvelteKit | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 97 |
 | `worker-api` | Hono composition root | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 98 |
 
-<!-- generado desde: 19 archivo(s) de especificación + 17 de proceso/roadmap -->
+<!-- generado desde: 20 archivo(s) de especificación + 17 de proceso/roadmap -->

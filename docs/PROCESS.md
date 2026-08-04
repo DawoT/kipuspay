@@ -301,6 +301,29 @@ remediación técnica y la normalización del legado. Estados válidos:
 `GOV-BLOQUEADO`, `GOV-EN_REMEDIACION`, `GOV-APROBADO`, `GOV-CERRADO` y
 `GOV-RECHAZADO`.
 
+### 8.3 Quality Gates de implementación — herramienta (CAL-01..08)
+
+El estándar de calidad de código vive **una sola vez** en la especificación
+(`Arquitectura §13`, Registry CAL-01..08) y en el gate documental (`AGENTS §5`,
+checks V-20..V-24). Este capítulo solo referencia: los Quality Gates de
+implementación se ejecutan con la herramienta del monorepo, nunca se re-escriben
+aquí.
+
+- **Puerta de entrada por PR:** los workflows de CI (`verify.yml` para el gate
+  documental V-00..V-24, `quality.yml` para lint/typecheck/tests/build/bundle,
+  `security.yml` para Gitleaks y Semgrep, `codeql.yml`) son condición **necesaria**.
+  Un `SUITE GREEN` documental no es suficiente: el gate de cada sprint exige además
+  la evidencia runtime de `Proceso §8.1`.
+- **Evidencia TDD:** toda entrada de código del ledger declara `test_ids`,
+  `red_run_id`/`green_run_id` y commits RED/GREEN reales; V-20 verifica que cada
+  `test_id` resuelva en un test del monorepo y que el contrato esté completo
+  (`Arquitectura §13.9`).
+- **Umbrales exigidos (CAL-05):** cobertura de dominio ≥95% y adaptadores/apps ≥70%
+  por línea/rama/función; el fallo de umbral rompe `test:unit` en CI.
+- **Cierre de sprint:** verificado por `scripts/quality.sh` local o los workflows
+  de CI, con firma RACI de `A` + `V` independiente como exige §8.1. Sin esa firma,
+  el gate es `NO-GO`.
+
 ---
 
 ## 9. Métricas Bajo Vigilancia Continua

@@ -1,0 +1,49 @@
+name: kipus-quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (ESLint + Prettier)
+        run: |
+          pnpm lint
+          pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests unitarios (umbrales de cobertura CAL-05)
+        run: pnpm test:unit
+
+      - name: Tests de integración
+        run: pnpm test:integration
+
+      - name: Build
+        run: pnpm build
+
+      - name: Presupuesto de bundle del POS (CAL-06)
+        working-directory: apps/pos-web
+        run: pnpm bundle

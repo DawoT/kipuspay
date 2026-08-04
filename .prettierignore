@@ -1,0 +1,17 @@
+# Prettier solo aplica al código de implementación.
+# Los documentos maestros siguen su propio estilo (nunca se reformatean).
+docs/
+INDEX.md
+AGENTS.md
+README.md
+scripts/
+*.md
+*.yml
+*.yaml
+*.toml
+node_modules/
+dist/
+build/
+.svelte-kit/
+.wrangler/
+coverage/

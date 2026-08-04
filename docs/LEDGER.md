@@ -1287,3 +1287,47 @@ aprobaciones: [Staff Principal, Staff QA/Chaos]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0188
+timestamp_utc: 2026-08-03T23:59:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; tooling de calidad y monorepo)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Entregable nuevo
+subtipo: estándar de calidad e implementación
+relacion: amplia
+referencias_entradas: [0179, 0180, 0182]
+referencias_documentales: [docs/architecture/13-implementation-quality.md, docs/PROCESS.md, docs/roadmap/fase-0.md, AGENTS.md]
+prev_id: 0187
+prev_hash: 5473fd43802a138960486b50dbb67943470f31239fb7c2fa8d65caf759676894
+entry_hash: 2fca939e2b3ae1bb029820ccc929aeae2157fbb01524cc6bc70aeeae528e593f
+ticket_or_adr: SPRINT-0-TOOLING
+test_ids: [V-20, V-21, V-22, V-23, V-24, SUITE]
+entregable_afectado: Arquitectura §13 (13-implementation-quality.md), Registry §0.4 (CAL-01..08), Proceso §8.3, Roadmap FASE 0 (tooling), AGENTS §5 (V-20..V-24) y §6 (kipus-quality-gate)
+descripcion: >
+  El estándar de calidad de implementación deja de ser aspiración y pasa a ser
+  norma + herramienta. (1) Nuevo capítulo 13-implementation-quality.md (Registry
+  CAL-01..08): dinero entero y lint de invariantes, TypeScript estricto, cobertura
+  por capa, chaos adversarial, SAST/secretos, presupuesto de bundle con
+  zero-dependencia runtime, evidencia TDD RED/GREEN y disciplina de deuda. (2) Gate
+  documental ampliado a V-20..V-24 con autotest (V-00) y exención de node_modules en
+  los greps. (3) Monorepo scaffold de Arquitectura §1.1: 12 packages
+  (domain-*/adapters-*) + 3 apps (pos-web SvelteKit, worker-api Hono, worker-fiscal)
+  con pnpm workspaces, Turbo, TypeScript 5.9 estricto, ESLint de invariantes,
+  Prettier, Vitest con umbrales de cobertura, size-limit y Semgrep. (4) CI:
+  verify.yml (V-00..V-24), quality.yml, security.yml (Gitleaks + Semgrep),
+  codeql.yml y dependabot.yml. El pipeline completo queda verde: lint, typecheck,
+  test:unit (umbrales), test:integration, build, bundle y SUITE GREEN.
+evidencia: >
+  RED: no existía estándar normativo de calidad ni checks que cubrieran el código;
+  el gate terminaba en V-19 y no escaneaba packages/ ni apps/.
+  GREEN: capítulo 13 con Registry CAL-01..08 en §0.4; V-00..V-24 GREEN y RESULT
+  SUITE GREEN; lint/typecheck/test:unit/test:integration/build/format:check verdes
+  sobre 15 proyectos; size-limit 28.02 kB gz < 300 kB; umbrales de cobertura
+  dominio ≥ 95% y adaptadores/apps ≥ 70% activos en CI.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -1,0 +1,9 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+allowBuilds:
+  esbuild: true
+  workerd: true
+  "@sveltejs/kit": true
+  svelte: true
