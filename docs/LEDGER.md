@@ -1603,3 +1603,38 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0196
+timestamp_utc: 2026-08-04T08:30:00Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (JWT WebCrypto + IdP slice 3)
+agente_responsable: Staff Security
+tipo: Entregable nuevo
+subtipo: verifyJwt + loadUserFromD1
+relacion: AMPLIA
+referencias_entradas: [0195]
+referencias_documentales: [apps/worker-api/src/auth/verify-jwt.ts, apps/worker-api/src/auth/idp-user.ts, docs/architecture/03-auth-plan-enforcement.md]
+prev_id: 0195
+prev_hash: e61a1b8f4500e4bba3f12323b8365dd9a134890b1aaa5b6ad0f4194158311fbc
+entry_hash: 25d78cb10738d6240ca386c1a368c7d479d9f0701061a1b9f1ab06d467394295
+ticket_or_adr: ADR-0003
+test_ids: [verify-jwt, idp-user, jwt-idp.http]
+entregable_afectado: apps/worker-api auth JWT + IdP
+descripcion: >
+  Slice 3 Sprint 2: verifyJwt con WebCrypto HS256 (secret vía env, 0 hardcoded),
+  denylist alg=none, HS denegado si AUTH_JWT_JWKS_URL; loadUserFromD1 por
+  external_auth_id+tenant; middleware carga user tras gate. Tests: inválido/
+  expirado/none/JWKS-HS, FORBIDDEN_USER, hint mismatch, cobro past_due 200.
+evidencia: >
+  RED (ancestro 936d180): verifyJwt stub null; sin IdP D1.
+  GREEN (commit cdcf8a7): 40 tests worker-api GREEN; quality+verify GREEN.
+red_commit_sha: 936d1803e2aeb8ca0a486e838f8ea65ef10cdedb
+red_run_id: run-red-0196-jwt-idp
+expected_failure: AssertionError: expected null for alg=none / FORBIDDEN_USER
+green_commit_sha: cdcf8a75783cf1817bb75a3eef5cbab5c7352f6e
+green_run_id: run-green-0196-jwt-idp
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
