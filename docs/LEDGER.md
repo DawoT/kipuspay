@@ -1957,3 +1957,37 @@ aprobaciones: [Staff Backend ACID, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0206
+timestamp_utc: 2026-08-04T14:40:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (Quality Gate cierre ACID)
+agente_responsable: Staff Backend ACID
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0203, 0204, 0205]
+referencias_documentales: [docs/adr/ADR-0007-acid-concurrency-financial-guarantee.md, docs/runbooks/acid-offline-sale-failure.md, docs/ROADMAP.md, packages/chaos-harness/src/sprint4-acid.ts]
+prev_id: 0205
+prev_hash: 86184ba06ff18259723330a4112fa6511269874efdae864c7bcc82b285a941c0
+entry_hash: e81d963567175cf5ab0ebd111778dd3503d3a02f708291d2b4927be476b45de4
+ticket_or_adr: ADR-0007
+test_ids: [process-offline-sale-atomic.integration, index, schema.integration, SUITE]
+entregable_afectado: ROADMAP Sprint 4 Cerrado + chaos ACID + ADR-0007
+descripcion: >
+  Cierre Sprint 4: chaos concurrent-writers/duplicate-retry GREEN; ADR-0007
+  concurrencia/garantía financiera; runbook mid-batch/oversell; correlativo
+  atómico en batch; ROADMAP/INDEX Entrega=Cerrado; RACI QA+Principal.
+evidencia: >
+  RED (ancestro 1bd9325): Sprint 4 En progreso sin chaos/QG.
+  GREEN (commit 3b6638d): 16 integration adapters-d1; chaos-harness PASS; quality GREEN.
+red_commit_sha: 1bd9325bfa01052b2ec7394ed3d918550d38bb92
+red_run_id: run-red-0206-sprint4-qg
+expected_failure: AssertionError: Sprint 4 still En progreso / chaos sin runner
+green_commit_sha: 3b6638d95b8006109d60fefb545b1c780d9f4d2d
+green_run_id: run-green-0206-sprint4-qg
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff QA/Chaos, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
