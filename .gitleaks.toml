@@ -1,6 +1,5 @@
-# Gitleaks — escaneo de secretos en commits (Quality Gate CAL-04).
-# Nivel de umbral: solo secreto real; las entradas del ledger de KipusPay son hashes
-# históricos y se permiten explícitamente por ruta.
+# Gitleaks — escaneo de secretos en commits (Quality Gate CAL-05 / Sprint 2).
+# Nivel de umbral: solo secreto real; ledger e hashes de control D1 se permiten.
 
 title = "KipusPay gitleaks config"
 
@@ -12,9 +11,6 @@ paths = [
   '''docs/LEDGER\.md''',
   '''docs/architecture/.*\.md''',
 ]
-
-[[rules]]
-id = "d1-migration-marker"
-description = "Migraciones D1 pueden incluir hashes de control (CRC16), no son secretos."
-regex = '''CRC32\([0-9a-f]+\)'''
-allowlist = [[regex]]
+regexes = [
+  '''CRC32\([0-9a-f]+\)''',
+]
