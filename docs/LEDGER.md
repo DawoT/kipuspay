@@ -1564,3 +1564,41 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0195
+timestamp_utc: 2026-08-04T08:00:00Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (control plane KV+DO slice 2)
+agente_responsable: Staff Security
+tipo: Entregable nuevo
+subtipo: TENANT_KV + TenantState DO
+relacion: AMPLIA
+referencias_entradas: [0193, 0194]
+referencias_documentales: [apps/worker-api/wrangler.jsonc, apps/worker-api/src/auth/control-plane.ts, apps/worker-api/src/auth/tenant-state.ts, docs/adr/ADR-0003-auth-fail-closed-plan-guard.md]
+prev_id: 0194
+prev_hash: b0f3f0edf4c9dc52388b31baf40e30b5a3ae3170a3ad3f69fdf2abfee8a656c2
+entry_hash: e61a1b8f4500e4bba3f12323b8365dd9a134890b1aaa5b6ad0f4194158311fbc
+ticket_or_adr: ADR-0003
+test_ids: [control-plane, auth-decide, tenant-auth-middleware]
+entregable_afectado: apps/worker-api control plane + wrangler bindings
+descripcion: >
+  Slice 2 Sprint 2: bindings TENANT_KV y TENANT_STATE_DO (TenantState SQLite DO)
+  en wrangler.jsonc; getTenantCached / isTenantRevokedCached (PERF-04) con
+  fail-closed; createAuthDepsFromEnv; worker.ts composition root. Tests:
+  KV revocation=1 sin DO; DO revoked→403; DO down→503; Plan Guard cobro sin 402.
+  verifyJwt WebCrypto e IdP D1 quedan para slice 3. ROADMAP Sprint 2 En progreso.
+evidencia: >
+  RED (ancestro 4a49391): middleware solo con deps inyectables; sin bindings KV/DO.
+  GREEN (commit b2edd15): 27 tests worker-api GREEN; wrangler dry-run muestra
+  TENANT_KV + TENANT_STATE_DO; quality.sh OK; verify SUITE GREEN.
+red_commit_sha: 4a49391d1d4deb491cc95fb7a08cd3481197cf59
+red_run_id: run-red-0195-control-plane
+expected_failure: AssertionError: expected 503 REVOCATION_CHECK_UNAVAILABLE when DO down
+green_commit_sha: b2edd151ca7b0824cddcafa3643bcefe5294821e
+green_run_id: run-green-0195-control-plane
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal, Staff SRE]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
