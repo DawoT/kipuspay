@@ -1,3 +1,7 @@
 {
-  "apps/pos-web": ["@kipuspay/domain-sales"]
+  "apps/pos-web": [
+    "@kipuspay/domain-fiscal-pe",
+    "@kipuspay/domain-sales",
+    "@kipuspay/print-templates"
+  ]
 }

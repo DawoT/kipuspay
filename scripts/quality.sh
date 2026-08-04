@@ -35,6 +35,9 @@ step "4d/8 Chaos offline sync (§13.5 network-adversarial + quota-exceeded)"
 node scripts/chaos/run.mjs --scenario network-adversarial --sprint 6
 node scripts/chaos/run.mjs --scenario quota-exceeded --sprint 6
 
+step "4e/8 Chaos low-end device (§13.5 low-end-device fail-closed)"
+node scripts/chaos/run.mjs --scenario low-end-device --sprint 7
+
 step "5/8 Secretos (Gitleaks)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --no-banner --redact -v

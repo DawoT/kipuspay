@@ -30,6 +30,11 @@ if (
   process.exit(2);
 }
 
+if (Number(sprint) < 7 && scenario === 'low-end-device') {
+  console.error(`Escenario low-end-device activo desde fase POS premium (sprint≥7)`);
+  process.exit(2);
+}
+
 const unit = spawnSync(
   'pnpm',
   ['--filter', '@kipuspay/chaos-harness', 'test:unit'],

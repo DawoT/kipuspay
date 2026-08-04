@@ -15,6 +15,7 @@ import {
   type NetworkAdversarialResult,
 } from './network-adversarial.js';
 import { runQuotaExceededChaos, type QuotaExceededResult } from './quota-exceeded.js';
+import { runLowEndDeviceChaos, type LowEndDeviceResult } from './low-end-device.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'
@@ -70,6 +71,71 @@ export interface ChaosDeps {
   readonly runNetworkAdversarial?: (cycles: number) => Promise<NetworkAdversarialResult>;
   readonly networkCycles?: number;
   readonly runQuotaExceeded?: () => Promise<QuotaExceededResult>;
+  readonly runLowEndDevice?: () => Promise<LowEndDeviceResult>;
+}
+
+function requireDep<T>(value: T | undefined, message: string): T {
+  if (!value) throw new Error(message);
+  return value;
+}
+
+async function dispatchReadyScenario(
+  scenario: ChaosScenarioId,
+  deps: ChaosDeps,
+): Promise<ChaosVerdict> {
+  switch (scenario) {
+    case 'concurrent-writers':
+      return runConcurrentWritersChaos(
+        requireDep(
+          deps.runConcurrentWriters,
+          'Escenario concurrent-writers exige deps.runConcurrentWriters (evidencia D1); fail-closed sin fixtures',
+        ),
+        deps.concurrentInitialStock ?? 2,
+        deps.concurrentQtyEach ?? 1,
+      );
+    case 'duplicate-retry':
+      return runDuplicateRetryChaos(
+        requireDep(
+          deps.runDuplicateRetry,
+          'Escenario duplicate-retry exige deps.runDuplicateRetry (evidencia D1); fail-closed sin fixtures',
+        ),
+      );
+    case 'deadline':
+      return runDeadlineChaos(
+        requireDep(
+          deps.runDeadline,
+          'Escenario deadline exige deps.runDeadline (evidencia D1/reloj); fail-closed sin fixtures',
+        ),
+      );
+    case 'network-adversarial':
+      return runNetworkAdversarialChaos(
+        requireDep(
+          deps.runNetworkAdversarial,
+          'Escenario network-adversarial exige deps.runNetworkAdversarial (evidencia sync); fail-closed sin fixtures',
+        ),
+        deps.networkCycles ?? 500,
+      );
+    case 'quota-exceeded':
+      return runQuotaExceededChaos(
+        requireDep(
+          deps.runQuotaExceeded,
+          'Escenario quota-exceeded exige deps.runQuotaExceeded (evidencia IDB); fail-closed sin fixtures',
+        ),
+      );
+    case 'low-end-device':
+      return runLowEndDeviceChaos(
+        requireDep(
+          deps.runLowEndDevice,
+          'Escenario low-end-device exige deps.runLowEndDevice (evidencia cola); fail-closed sin fixtures',
+        ),
+      );
+    default:
+      return Promise.reject(
+        new Error(
+          `Escenario "${scenario}" marcado activo en §13.5 (Sprint ${SCENARIO_ACTIVE_FROM[scenario]}) pero sin runner aún`,
+        ),
+      );
+  }
 }
 
 /**
@@ -81,61 +147,7 @@ export async function runChaosScenario(
   deps: ChaosDeps = {},
 ): Promise<ChaosVerdict> {
   assertScenarioReady(scenario, currentSprint);
-
-  if (scenario === 'concurrent-writers') {
-    if (!deps.runConcurrentWriters) {
-      throw new Error(
-        'Escenario concurrent-writers exige deps.runConcurrentWriters (evidencia D1); fail-closed sin fixtures',
-      );
-    }
-    return runConcurrentWritersChaos(
-      deps.runConcurrentWriters,
-      deps.concurrentInitialStock ?? 2,
-      deps.concurrentQtyEach ?? 1,
-    );
-  }
-
-  if (scenario === 'duplicate-retry') {
-    if (!deps.runDuplicateRetry) {
-      throw new Error(
-        'Escenario duplicate-retry exige deps.runDuplicateRetry (evidencia D1); fail-closed sin fixtures',
-      );
-    }
-    return runDuplicateRetryChaos(deps.runDuplicateRetry);
-  }
-
-  if (scenario === 'deadline') {
-    if (!deps.runDeadline) {
-      throw new Error(
-        'Escenario deadline exige deps.runDeadline (evidencia D1/reloj); fail-closed sin fixtures',
-      );
-    }
-    return runDeadlineChaos(deps.runDeadline);
-  }
-
-  if (scenario === 'network-adversarial') {
-    if (!deps.runNetworkAdversarial) {
-      throw new Error(
-        'Escenario network-adversarial exige deps.runNetworkAdversarial (evidencia sync); fail-closed sin fixtures',
-      );
-    }
-    return runNetworkAdversarialChaos(deps.runNetworkAdversarial, deps.networkCycles ?? 500);
-  }
-
-  if (scenario === 'quota-exceeded') {
-    if (!deps.runQuotaExceeded) {
-      throw new Error(
-        'Escenario quota-exceeded exige deps.runQuotaExceeded (evidencia IDB); fail-closed sin fixtures',
-      );
-    }
-    return runQuotaExceededChaos(deps.runQuotaExceeded);
-  }
-
-  return Promise.reject(
-    new Error(
-      `Escenario "${scenario}" marcado activo en §13.5 (Sprint ${SCENARIO_ACTIVE_FROM[scenario]}) pero sin runner aún`,
-    ),
-  );
+  return dispatchReadyScenario(scenario, deps);
 }
 
 export {
@@ -150,3 +162,5 @@ export { judgeDeadlineChaos, runDeadlineChaos } from './deadline-chaos.js';
 export { judgeNetworkAdversarial, runNetworkAdversarialChaos } from './network-adversarial.js';
 
 export { judgeQuotaExceeded, runQuotaExceededChaos } from './quota-exceeded.js';
+
+export { judgeLowEndDevice, runLowEndDeviceChaos } from './low-end-device.js';

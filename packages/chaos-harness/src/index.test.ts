@@ -7,6 +7,7 @@ import {
   judgeDuplicateRetry,
   judgeNetworkAdversarial,
   judgeQuotaExceeded,
+  judgeLowEndDevice,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -205,8 +206,34 @@ describe('chaos-harness contrato §13.5', () => {
     expect(duplicates).toBe(0);
   });
 
+  it('low-end-device fail-closed + PASS con inject', async () => {
+    expect(SCENARIO_ACTIVE_FROM['low-end-device']).toBe(7);
+    await expect(runChaosScenario('low-end-device', 7)).rejects.toThrow(
+      /exige deps\.runLowEndDevice/,
+    );
+    await expect(
+      runChaosScenario('low-end-device', 7, {
+        runLowEndDevice: () =>
+          Promise.resolve({
+            enqueueAttempts: 50,
+            survivingPending: 50,
+            lost: 0,
+            feedbackP95Ms: 12,
+          }),
+      }),
+    ).resolves.toBe('PASS');
+    expect(
+      judgeLowEndDevice({
+        enqueueAttempts: 10,
+        survivingPending: 9,
+        lost: 1,
+        feedbackP95Ms: 5,
+      }),
+    ).toBe('FAIL');
+  });
+
   it('rechaza escenario activo en Sprint N sin runner aún', async () => {
-    await expect(runChaosScenario('low-end-device', 7)).rejects.toThrow(/sin runner aún/);
+    await expect(runChaosScenario('shard-do-failure', 26)).rejects.toThrow(/sin runner aún/);
   });
 
   it('jueces fallan ante incoherencia', () => {

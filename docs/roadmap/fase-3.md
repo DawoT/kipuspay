@@ -10,9 +10,11 @@ sprints: "7–9"
 ### FASE 3 — Experiencia de Producto Premium
 
 #### Sprint 7 — POS Offline-First, Caja por Modo, Plantillas CPE/NV, Modo Vitrina y Hardware
+**Entrega:** En progreso (2026-08-04)
+**Especificación:** Actualizada (capabilities `pos.checkout` / `pos.document_selector` / `hardware.print_templates` / `display.vitrina` / `pos.offline_correlative_reserve`; frontera S25 = sin print outbox ni ladder USB/WSS/BT)
 **Referencia:** Arquitectura §2, §5.2, §10; GTM §3.3.1 y §6.4 · **Agentes:** Staff Frontend (owner), Staff Hardware (owner conjunto), Staff Design (colaborador), Staff Fiscal (consultado)
 
-**Entregables:** impresión ESC/POS + PDF: plantilla **CPE** (hash, QR, leyendas SUNAT) vs **NV** (leyenda control interno); selector de documento según modo/régimen; auto Factura si RUC / Boleta si consumidor; bloqueo cobro boleta ≥700 sin DNI; flujo `NV_RETURN`; banner formalización; Modo Vitrina; kiosko/QR (emisión al confirmar pago con mismo motor); reserva correlativo offline.
+**Entregables:** impresión ESC/POS + PDF: plantilla **CPE** (hash, QR, leyendas SUNAT) vs **NV** (leyenda control interno); selector de documento según modo/régimen; auto Factura si RUC / Boleta si consumidor; bloqueo cobro boleta ≥700 sin DNI; flujo `NV_RETURN`; banner formalización; Modo Vitrina; kiosko/QR (emisión al confirmar pago con mismo motor); reserva correlativo offline. **Fuera de 7:** ladder `PrinterTransport` completa / print outbox IDB (Sprint 25); Modo Dueño (Sprint 8); catálogo reportes (Sprint 9).
 
 **Criterios de aceptación:** feedback <100ms 95%; leyendas CPE y NV aprobadas por Fiscal; 0 cobros boleta ≥700 sin identificación; kiosko emite con mismo guard fiscal; impresión ≥2 anchos.
 

@@ -2439,3 +2439,31 @@ aprobaciones: [Staff Frontend Offline-First R; A/V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0220
+timestamp_utc: 2026-08-04T16:00:00Z
+schema_version: 2
+sprint_fase: Fase 3 — apertura POS premium / plantillas / Vitrina
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: ROADMAP + flags
+relacion: AMPLIA
+referencias_entradas: [0219]
+referencias_documentales: [docs/ROADMAP.md, docs/roadmap/fase-3.md, docs/architecture/10-printing-display.md, docs/architecture/01-principles.md, apps/worker-api/wrangler.jsonc]
+prev_id: 0219
+prev_hash: 3e00dc047d8f5ae14443003b73ca48d242ff19bce6978bb8219ad64844534a70
+entry_hash: f4bb0eb911db299b2984ad0fc63838508c5c819e1bf9d450e847ae9fb047bc06
+ticket_or_adr: GTM-6.5
+test_ids: [SUITE]
+entregable_afectado: Sprint 7 En progreso + FEATURE_POS_CHECKOUT/PRINT/VITRINA
+descripcion: >
+  Apertura Sprint 7: ROADMAP fila 7 En progreso; spec Actualizada; capabilities
+  FASE 3; flags FEATURE_POS_CHECKOUT, FEATURE_PRINT_TEMPLATES, FEATURE_VITRINA
+  default 0; frontera S25 (sin print ladder/outbox).
+evidencia: >
+  ROADMAP fila 7 En progreso; wrangler flags=0; 01-principles capabilities FASE 3.
+aprobaciones: [Staff Frontend]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

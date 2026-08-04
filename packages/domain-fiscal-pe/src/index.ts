@@ -236,3 +236,12 @@ export {
   type CpePortalLookup,
   type CpePortalView,
 } from './cpe-portal.js';
+
+export {
+  formalizationBannerMessage,
+  suggestDocumentType,
+  type SuggestDocCode,
+  type SuggestDocumentInput,
+  type SuggestFormalizationMode,
+  type SuggestTaxRegime,
+} from './document-selector.js';

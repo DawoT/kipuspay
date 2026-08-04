@@ -94,6 +94,7 @@ packages/
   adapters-accounting/   # Contasis, Concar
   adapters-messaging/    # WhatsApp Business
   chaos-harness/         # §13.5 escenarios chaos (jueces + fail-closed deps)
+  print-templates/       # ESC/POS + HTML ticket CPE/NV (zero-dep; §10)
 apps/
   pos-web/               # SvelteKit
   worker-api/            # Hono composition root
@@ -110,6 +111,16 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 |---|---|---|
 | `vertical_type` / `TenantContext.vertical` | Onboarding, playbooks, analytics, empaquetado GTM | `if` / `switch` en sale, stock, fiscal, caja |
 | `tenant_capabilities` (flags o filas) | Runtime: habilitar módulos y policies | Sustituir cumplimiento SUNAT o ACID |
+
+**Capabilities canónicas (FASE 3 / experiencia premium → flags):**
+
+| Capability | Sprint (Roadmap) | Empaquetado GTM típico |
+|---|---|---|
+| `pos.checkout` | 7 | Caja por modo / cobro offline-first |
+| `pos.document_selector` | 7 | NV/01/03 según modo+régimen |
+| `hardware.print_templates` | 7 | Tickets CPE/NV 58/80 (no ladder S25) |
+| `display.vitrina` | 7 | Customer display en cobro |
+| `pos.offline_correlative_reserve` | 7 | Reserva tentativa local; server autoritativo |
 
 **Capabilities canónicas (FASE 6 → flags):**
 
