@@ -40,7 +40,7 @@ owner: "@DawoT"
 | 1 | 1 | Actualizada (M1 dinero cents, §5.0 / §5.5 migraciones) | Cerrado |
 | 2 | 1 | Actualizada (auth fail-closed, plan guard, IdP — §3) | Cerrado |
 | 3 | 1 | Actualizada (webhooks pasarela + invalidación — §4) | Cerrado |
-| 4 | 1 | Actualizada (motor ACID + reconciliación — §6) | Planificado |
+| 4 | 1 | Actualizada (motor ACID + reconciliación — §6) | En progreso |
 | 5 | 2 | Base | Planificado |
 | 5b | 2 | Actualizada (Resumen Diario, plazos, baja y alertas) | Planificado |
 | 6 | 2 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Planificado |

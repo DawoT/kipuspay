@@ -1,13 +1,15 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
-import { runBatch } from './index.js';
+import { runBatch, runD1AtomicPlan } from './index.js';
 import {
   DOWN_0000_SCHEMA_META,
   DOWN_0001_DDL_BASE,
   DOWN_0002_WEBHOOK_EVENTS,
+  DOWN_0003_ATOMIC_GUARDS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
+import atomicGuardsSql from '../migrations/0003_atomic_guards.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -220,7 +222,63 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(row?.status).toBe('PROCESSING');
   });
 
-  it('down 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+  it('migración 0003: atomic_guards CHECK ok=1 aborta batch sin efectos parciales', async () => {
+    expect(atomicGuardsSql).toMatch(/CHECK\s*\(\s*ok\s*=\s*1\s*\)/i);
+
+    await env.DB.prepare(`INSERT INTO schema_meta (key, value) VALUES (?, ?)`)
+      .bind('pre-guard', 'alive')
+      .run();
+
+    await expect(
+      runD1AtomicPlan(
+        env.DB,
+        (plan) => {
+          plan.add(
+            env.DB.prepare(`INSERT INTO schema_meta (key, value) VALUES (?, ?)`).bind(
+              'should-rollback',
+              'nope',
+            ),
+          );
+        },
+        { ok: false, guardId: 'guard-fail' },
+      ),
+    ).rejects.toThrow();
+
+    const leaked = await env.DB.prepare(`SELECT value FROM schema_meta WHERE key = ?`)
+      .bind('should-rollback')
+      .first<{ value: string }>();
+    expect(leaked).toBeNull();
+
+    const alive = await env.DB.prepare(`SELECT value FROM schema_meta WHERE key = ?`)
+      .bind('pre-guard')
+      .first<{ value: string }>();
+    expect(alive?.value).toBe('alive');
+
+    await runD1AtomicPlan(
+      env.DB,
+      (plan) => {
+        plan.add(
+          env.DB.prepare(`INSERT INTO schema_meta (key, value) VALUES (?, ?)`).bind(
+            'post-guard',
+            'ok',
+          ),
+        );
+      },
+      { ok: true, guardId: 'guard-ok' },
+    );
+    const row = await env.DB.prepare(`SELECT value FROM schema_meta WHERE key = ?`)
+      .bind('post-guard')
+      .first<{ value: string }>();
+    expect(row?.value).toBe('ok');
+
+    const guards = await env.DB.prepare(`SELECT COUNT(*) AS n FROM atomic_guards`).first<{
+      n: number;
+    }>();
+    expect(guards?.n).toBe(0);
+  });
+
+  it('down 0003 + 0002 + 0001 + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0003_ATOMIC_GUARDS);
     await env.DB.exec(DOWN_0002_WEBHOOK_EVENTS);
     await env.DB.exec(DOWN_0001_DDL_BASE);
     await env.DB.exec(DOWN_0000_SCHEMA_META);

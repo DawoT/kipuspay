@@ -1,6 +1,8 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0003_ATOMIC_GUARDS = `DROP TABLE IF EXISTS atomic_guards;`;
+
 export const DOWN_0002_WEBHOOK_EVENTS = `DROP TABLE IF EXISTS webhook_events;`;
 
 export const DOWN_0001_DDL_BASE = `

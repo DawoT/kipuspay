@@ -42,3 +42,53 @@ export async function runBatch(
 ): Promise<readonly D1Result<unknown>[]> {
   return db.batch(statements);
 }
+
+/**
+ * Plan atómico D1 (Arquitectura §6 / SYN-12): wrappea escrituras con
+ * `atomic_guards` (CHECK ok=1). Una sola `db.batch([...])`; preflight fuera.
+ */
+export class AtomicPlanBuilder {
+  private readonly statements: D1Bound[] = [];
+
+  constructor(
+    private readonly db: D1DatabaseLike,
+    private readonly guardId: string = crypto.randomUUID(),
+  ) {}
+
+  add(statement: D1Bound): this {
+    this.statements.push(statement);
+    return this;
+  }
+
+  get size(): number {
+    return this.statements.length;
+  }
+
+  /**
+   * Inserta guard → statements → delete guard.
+   * Si `ok` es false, el CHECK falla y D1 revierte toda la secuencia.
+   */
+  async commit(ok: boolean = true): Promise<readonly D1Result<unknown>[]> {
+    const guardInsert = this.db
+      .prepare(`INSERT INTO atomic_guards (id, ok) VALUES (?, ?)`)
+      .bind(this.guardId, ok ? 1 : 0);
+    const guardDelete = this.db
+      .prepare(`DELETE FROM atomic_guards WHERE id = ?`)
+      .bind(this.guardId);
+    return runBatch(this.db, [guardInsert, ...this.statements, guardDelete]);
+  }
+}
+
+/**
+ * Compila un plan vía callback y lo ejecuta en un único batch con guard.
+ * Las lecturas de preflight deben hacerse fuera de este callback.
+ */
+export async function runD1AtomicPlan(
+  db: D1DatabaseLike,
+  build: (plan: AtomicPlanBuilder) => void | Promise<void>,
+  options?: { ok?: boolean; guardId?: string },
+): Promise<readonly D1Result<unknown>[]> {
+  const plan = new AtomicPlanBuilder(db, options?.guardId);
+  await build(plan);
+  return plan.commit(options?.ok ?? true);
+}
