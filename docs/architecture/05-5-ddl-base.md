@@ -367,7 +367,7 @@ CREATE UNIQUE INDEX uq_sales_tenant_id ON sales(tenant_id, id);
 CREATE INDEX idx_sales_must_submit ON sales(tenant_id, must_submit_by) WHERE must_submit_by IS NOT NULL AND sunat_status IN ('PENDING','PROCESSING');
 -- PERF-02/SYN-01: idempotencia física del sync offline (reemplaza al SELECT pre-tx; ON CONFLICT → ALREADY_SYNCED)
 CREATE UNIQUE INDEX idx_sales_offline_id ON sales(tenant_id, offline_client_sale_id) WHERE offline_client_sale_id IS NOT NULL AND deleted_at IS NULL;
--- PERF-10: walk FIFO de la cola fiscal por (estado, deadline) — el índice por tenant no sirve para ordenar el shard
+-- PERF-13: walk FIFO de la cola fiscal por (estado, deadline) — el índice por tenant no sirve para ordenar el shard
 CREATE INDEX idx_sales_fifo ON sales(sunat_status, must_submit_by) WHERE must_submit_by IS NOT NULL;
 -- PERF-09: barrido del cron de rollups por día Lima (cubre 01 y NV, no solo 03/07/08)
 CREATE INDEX idx_sales_issued_day ON sales(issued_at_lima) WHERE deleted_at IS NULL;

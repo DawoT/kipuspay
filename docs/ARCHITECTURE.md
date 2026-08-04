@@ -90,9 +90,10 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | PERF-07 | §6 | Upsert con `RETURNING id` |
 | PERF-08 | §6 | Cupo por documento emitido, idempotente |
 | PERF-09 | §5.4 | Pre-agregación de fuentes 1:N |
-| PERF-10 | §5.4 | Cupo por documento (compartida con PERF-08) |
+| PERF-10 | §6 | Cupo por documento emitido (compartida con PERF-08) |
 | PERF-11 | §5.3 | Zero-Trust de caja |
 | PERF-12 | §5.3 (6F) | Insights: réplica de lectura, `LIMIT 50`, NLG post-check |
+| PERF-13 | §5.5 | Walk FIFO de la cola fiscal por (estado, deadline) |
 | SYN-01 | §5.4 | DDL ecosistema v9 |
 | SYN-02 | §6 | Correlativo emitido por servidor (compartida con SEC-05) |
 | SYN-03 | §5.4 | DDL ecosistema v9 |

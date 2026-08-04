@@ -297,9 +297,10 @@ Abre solo los archivos que esta tabla te señale.
 | PERF-07 | §6 | Upsert con `RETURNING id` | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | PERF-08 | §6 | Cupo por documento emitido, idempotente | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | PERF-09 | §5.4 | Pre-agregación de fuentes 1:N | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
-| PERF-10 | §5.4 | Cupo por documento (compartida con PERF-08) | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
+| PERF-10 | §6 | Cupo por documento emitido (compartida con PERF-08) | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | PERF-11 | §5.3 | Zero-Trust de caja | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | PERF-12 | §5.3 (6F) | Insights: réplica de lectura, `LIMIT 50`, NLG post-check | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
+| PERF-13 | §5.5 | Walk FIFO de la cola fiscal por (estado, deadline) | [`docs/architecture/05-5-ddl-base.md`](docs/architecture/05-5-ddl-base.md) |
 | SYN-01 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | SYN-02 | §6 | Correlativo emitido por servidor (compartida con SEC-05) | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | SYN-03 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |

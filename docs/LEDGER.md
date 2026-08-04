@@ -9,7 +9,7 @@ owner: "@DawoT"
 
 > Changelog append-only del escuadrón. **Nunca editar ni borrar entradas; toda
 > corrección se agrega como entrada nueva con `relacion: CORRIGE`.**
-> Schema v2 desde 0174 (`prev_id`/`prev_hash`/`entry_hash`); 0143-0173 = legacy sin hash chain.
+> Schema v2: `prev_id`/`prev_hash` desde 0174, `entry_hash` desde 0176; 0143-0173 = legacy sin hash chain.
 > Contrato de escritura: Proceso §7.2.1. Usa el skill `kipus-changelog` para nuevas entradas.
 > Las entradas 0143–0181 citan los paths previos a la reorganización (`Agents.md`,
 > `Ledger.md`, el nombre largo de la especificación): son históricas y no se reescriben;
@@ -1239,6 +1239,49 @@ evidencia: >
   líneas; RESULT SUITE GREEN; 20 checks definidos (V-00 a V-19): 19 los
   emite la batería y V-16 vive en el hook pre-commit y en CI, que comparan contra la
   base del PR.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
+```
+id: 0187
+timestamp_utc: 2026-08-03T23:30:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; auditoría del refactor)
+agente_responsable: Staff QA/Chaos — Auditoría del gate
+tipo: Corrección de especificación
+subtipo: registry y nomenclatura
+relacion: CORRIGE
+referencias_entradas: [0179, 0180, 0186]
+referencias_documentales: [docs/ARCHITECTURE.md, docs/architecture/05-5-ddl-base.md, docs/architecture/06-acid-engine.md, AGENTS.md, docs/LEDGER.md]
+prev_id: 0186
+prev_hash: ecef93194bf763b601a2a1398e9c444d7b1c1e31231796216f920e2b70685b9d
+entry_hash: 5473fd43802a138960486b50dbb67943470f31239fb7c2fa8d65caf759676894
+ticket_or_adr: AUDIT-GATE-0001
+test_ids: [V-08, V-12, V-13, V-15, V-16, SUITE]
+entregable_afectado: Registry §0.4 (docs/ARCHITECTURE.md), docs/architecture/05-5-ddl-base.md, AGENTS.md (ruta de lectura), docs/LEDGER.md (cabecera)
+descripcion: >
+  PERF-10 tenía dos definiciones con significados distintos y el Registry apuntaba
+  a una sección que no coincidía con ninguna: el cupo por documento emitido vive en
+  Arquitectura §6 (compartido con PERF-08, 06-acid-engine.md) y el walk FIFO de la
+  cola fiscal es un índice distinto en §5.5 (05-5-ddl-base.md), antes numerado
+  PERF-10. El gate V-08/V-12 valida sintaxis (huérfanos/duplicados y referencias §
+  resolubles), no la semántica de los punteros: por eso el falso "PERF-10 -> §5.4"
+  pasaba GREEN. Se renumerra el walk FIFO a PERF-13 (ID nuevo, definido una sola vez
+  en §5.5) y el puntero de PERF-10 pasa a §6. De paso se corrigen dos números de la
+  documentación operativa: el conteo "39 entradas" del router de AGENTS.md (ahora
+  44) y la precisión del schema v2 en la cabecera del ledger (entry_hash real desde
+  0176, no 0174).
+evidencia: >
+  RED: registry §0.4 decía "PERF-10 -> §5.4" mientras la regla vivía en §6
+  (06-acid-engine.md:776) y existía un segundo PERF-10 en 05-5-ddl-base.md:370 (walk
+  FIFO); AGENTS.md decía "39 entradas" con 44 presentes; la cabecera decía "v2 desde
+  0174" sin entry_hash en 0174/0175.
+  GREEN: PERF-10 -> §6 y PERF-13 -> §5.5 definido una vez; 0 huérfanos; V-08, V-12,
+  V-13, V-15, V-16 y RESULT SUITE GREEN; INDEX.md regenerado sin drift.
 ancestry_verified: true
 aprobaciones: [Staff Principal, Staff QA/Chaos]
 estado_gov: GOV-APROBADO

@@ -28,7 +28,7 @@ tarea. Si no sabes dónde vive algo, la respuesta es `INDEX.md`, no un `grep` a 
 | Motor transaccional / atomicidad D1 | `docs/architecture/06-acid-engine.md` | El DDL completo |
 | Claim comercial o pricing | `docs/GTM.md` + el Quality Gate del sprint que lo libera (`docs/ROADMAP.md`) | La especificación técnica |
 | Gate, DoD, RACI, CI/CD | `Proceso §3`, `§5.2`, `§8.1` | El roadmap |
-| Registrar un cambio | Skill `kipus-changelog` → **solo la última entrada** de `docs/LEDGER.md` (para `prev_hash`) | Las 39 entradas del ledger |
+| Registrar un cambio | Skill `kipus-changelog` → **solo la última entrada** de `docs/LEDGER.md` (para `prev_hash`) | Las 44 entradas del ledger |
 | Cambiar el gate | `scripts/verify.sh` + `scripts/checks/` | Los documentos normativos |
 
 Los alias de la tabla (`Arquitectura §N`, `Proceso §N`, `Roadmap`, `GTM §N`) resuelven a
