@@ -219,6 +219,18 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // Reporting rollups / catálogo / CSV (Sprint 9) — flags default off
+  const reportQueryOpts = (
+    c: { req: { query: (k: string) => string | undefined } },
+  ): { reportDate: string; format?: string; branchId?: string } => {
+    const opts: { reportDate: string; format?: string; branchId?: string } = {
+      reportDate: c.req.query('date') ?? '',
+    };
+    const format = c.req.query('format');
+    if (format) opts.format = format;
+    const branchId = c.req.query('branchId');
+    if (branchId) opts.branchId = branchId;
+    return opts;
+  };
   app.get('/api/reports/catalog', (c) => {
     const result = runReportsCatalogHttp(c.env);
     return c.json(result.body, result.status as 200 | 404);
@@ -229,11 +241,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     if (!isAdvancedReportId(reportId)) {
       return c.json({ error: 'Not an advanced report', code: 'NOT_FOUND' }, 404);
     }
-    const result = await runReportHttp(c.env, jwt?.tenantId ?? '', reportId, {
-      reportDate: c.req.query('date') ?? '',
-      format: c.req.query('format') ?? undefined,
-      branchId: c.req.query('branchId') ?? undefined,
-    });
+    const result = await runReportHttp(c.env, jwt?.tenantId ?? '', reportId, reportQueryOpts(c));
     if (typeof result.body === 'string') {
       return c.body(result.body, result.status as 200, {
         'content-type': result.contentType ?? 'text/csv; charset=utf-8',
@@ -247,11 +255,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     if (isAdvancedReportId(reportId)) {
       return c.json({ error: 'Use /api/reports/advanced/' + reportId, code: 'USE_ADVANCED' }, 404);
     }
-    const result = await runReportHttp(c.env, jwt?.tenantId ?? '', reportId, {
-      reportDate: c.req.query('date') ?? '',
-      format: c.req.query('format') ?? undefined,
-      branchId: c.req.query('branchId') ?? undefined,
-    });
+    const result = await runReportHttp(c.env, jwt?.tenantId ?? '', reportId, reportQueryOpts(c));
     if (typeof result.body === 'string') {
       return c.body(result.body, result.status as 200, {
         'content-type': result.contentType ?? 'text/csv; charset=utf-8',
