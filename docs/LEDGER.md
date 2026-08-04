@@ -1711,3 +1711,37 @@ aprobaciones: [Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0199
+timestamp_utc: 2026-08-04T13:10:00Z
+schema_version: 2
+sprint_fase: Sprint 3 — Fase 1 (firma Stripe WebCrypto slice 1)
+agente_responsable: Staff Security
+tipo: Entregable nuevo
+subtipo: verifyStripeSignature
+relacion: AMPLIA
+referencias_entradas: [0198]
+referencias_documentales: [apps/worker-api/src/webhooks/verify-stripe-signature.ts, docs/adr/ADR-0005-stripe-webhook-webcrypto.md, docs/architecture/04-webhooks-metering.md]
+prev_id: 0198
+prev_hash: ba76001d6e44c76901a51cf24cb7a0702af8902210c2ba1f0c50cda217b31f7d
+entry_hash: dec11d3d7114981c4082b8be0eb7c60ebd6305a37676a03d7ceb96e9cf30c14e
+ticket_or_adr: ADR-0005
+test_ids: [verify-stripe-signature]
+entregable_afectado: apps/worker-api webhooks signature + ROADMAP Sprint 3
+descripcion: >
+  Slice 1 Sprint 3: verifyStripeSignature con WebCrypto HMAC-SHA256, ventana
+  anti-replay 0..300s, comparación constante en tiempo; fuzz ≥50 firmas inválidas
+  rechazadas; ADR-0005 (sin SDK stripe). ROADMAP Sprint 3 Entrega=En progreso.
+evidencia: >
+  RED (ancestro d9ca97a): sin verifyStripeSignature en monorepo.
+  GREEN (commit 6349ee6): 51 tests worker-api; fuzz 60/60 false; verify SUITE GREEN.
+red_commit_sha: d9ca97ad0d9745d59b6c8ff6d77ab523da8961a8
+red_run_id: run-red-0199-stripe-sig
+expected_failure: AssertionError: missing verifyStripeSignature / fuzz false positives
+green_commit_sha: 6349ee687748d0d227a9c71494e6fa2d9a0a9e58
+green_run_id: run-green-0199-stripe-sig
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal, Staff SRE]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
