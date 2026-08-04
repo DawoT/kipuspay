@@ -39,13 +39,13 @@ describe('reporting flags + catalog', () => {
     expect(isAdvancedReportId('arqueo')).toBe(false);
   });
 
-  it('catalog flag off → FEATURE_OFF', async () => {
-    const res = await runReportsCatalogHttp({ FEATURE_REPORTING_CATALOG: '0' } as WorkerEnv);
+  it('catalog flag off → FEATURE_OFF', () => {
+    const res = runReportsCatalogHttp({ FEATURE_REPORTING_CATALOG: '0' } as WorkerEnv);
     expect(res.status).toBe(404);
   });
 
-  it('catalog on → lista reportes', async () => {
-    const res = await runReportsCatalogHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }));
+  it('catalog on → lista reportes', () => {
+    const res = runReportsCatalogHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }));
     expect(res.status).toBe(200);
     const body = res.body as { reports: unknown[] };
     expect(body.reports.length).toBeGreaterThan(5);
@@ -85,7 +85,8 @@ describe('reporting flags + catalog', () => {
     );
     expect(csvOn.status).toBe(200);
     expect(csvOn.contentType).toContain('text/csv');
-    expect(String(csvOn.body).startsWith('\uFEFF')).toBe(true);
+    expect(typeof csvOn.body).toBe('string');
+    expect((csvOn.body as string).startsWith('\uFEFF')).toBe(true);
   });
 
   it('toCsv escapes and keeps integer cents', () => {

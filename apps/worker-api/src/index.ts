@@ -219,8 +219,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // Reporting rollups / catálogo / CSV (Sprint 9) — flags default off
-  app.get('/api/reports/catalog', async (c) => {
-    const result = await runReportsCatalogHttp(c.env);
+  app.get('/api/reports/catalog', (c) => {
+    const result = runReportsCatalogHttp(c.env);
     return c.json(result.body, result.status as 200 | 404);
   });
   app.get('/api/reports/advanced/:reportId', async (c) => {
@@ -260,7 +260,18 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 404 | 500 | 503);
   });
   app.post('/api/reporting/cron/daily-rollups', async (c) => {
-    const body: { scheduledTimeMs?: number } = await c.req.json().catch(() => ({}));
+    let body: { scheduledTimeMs?: number } = {};
+    try {
+      const raw: unknown = await c.req.json();
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        const o = raw as { scheduledTimeMs?: unknown };
+        if (typeof o.scheduledTimeMs === 'number') {
+          body = { scheduledTimeMs: o.scheduledTimeMs };
+        }
+      }
+    } catch {
+      body = {};
+    }
     const result = await runDailyRollupsCronHttp(c.env, body);
     return c.json(result.body, result.status as 200 | 404 | 503);
   });

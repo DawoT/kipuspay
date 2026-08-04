@@ -57,9 +57,9 @@ describe('daily-rollups-cron puro', () => {
           ...emptyDb,
           prepare: () => ({
             bind: () => ({
-              all: async () => {
+              all: () => {
                 started.push('fast');
-                return { results: [] };
+                return Promise.resolve({ results: [] });
               },
               first: () => Promise.resolve(null),
               run: () => Promise.resolve({ success: true }),

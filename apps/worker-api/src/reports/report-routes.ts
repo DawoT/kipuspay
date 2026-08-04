@@ -83,7 +83,7 @@ export function toCsv(headers: readonly string[], rows: readonly (readonly (stri
   return `\uFEFF${lines.join('\n')}\n`;
 }
 
-export async function runReportsCatalogHttp(env: WorkerEnv | undefined): Promise<HttpResult> {
+export function runReportsCatalogHttp(env: WorkerEnv | undefined): HttpResult {
   if (!isReportingCatalogEnabled(env)) return featureOff('FEATURE_REPORTING_CATALOG');
   return {
     status: 200,
@@ -153,6 +153,7 @@ export async function runReportHttp(
   };
 }
 
+/* eslint-disable complexity -- catálogo retail §9: un switch por reportId */
 async function loadReport(
   env: WorkerEnv,
   tenantId: string,
@@ -268,29 +269,35 @@ async function loadReport(
       throw new Error('UNKNOWN_REPORT');
   }
 }
+/* eslint-enable complexity */
+
+function cellValue(v: unknown): string | number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return v;
+  if (v == null) return '';
+  if (typeof v === 'boolean') return v ? '1' : '0';
+  return JSON.stringify(v);
+}
 
 function reportToCsv(reportId: string, payload: Record<string, unknown>): string {
   if (reportId === 'aging-ar-ap') {
     const ar = (payload.ar as Array<Record<string, unknown>>) ?? [];
     const rows = ar.map((r) => [
       'AR',
-      String(r.status ?? ''),
+      cellValue(r.status),
       Number(r.n ?? 0),
       Number(r.balance_due_cents ?? 0),
     ]);
     const ap = (payload.ap as Array<Record<string, unknown>>) ?? [];
     for (const r of ap) {
-      rows.push(['AP', String(r.status ?? ''), Number(r.n ?? 0), Number(r.balance_due_cents ?? 0)]);
+      rows.push(['AP', cellValue(r.status), Number(r.n ?? 0), Number(r.balance_due_cents ?? 0)]);
     }
     return toCsv(['ledger', 'status', 'count', 'balance_due_cents'], rows);
   }
   const items = (payload.items as Array<Record<string, unknown>>) ?? [];
   if (items.length === 0) return toCsv(['empty'], []);
   const headers = Object.keys(items[0]!);
-  const rows = items.map((item) => headers.map((h) => {
-    const v = item[h];
-    return typeof v === 'number' ? v : String(v ?? '');
-  }));
+  const rows = items.map((item) => headers.map((h) => cellValue(item[h])));
   return toCsv(headers, rows);
 }
 
