@@ -2067,3 +2067,38 @@ aprobaciones: [Staff QA/Chaos, Staff Backend ACID, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0209
+timestamp_utc: 2026-08-04T15:25:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (remediación QG SYN-06)
+agente_responsable: Staff Backend ACID
+tipo: Corrección
+subtipo: OFFLINE_OVERSELL
+relacion: AMPLIA
+referencias_entradas: [0204, 0206]
+referencias_documentales: [packages/adapters-d1/migrations/0004_audit_events.sql, packages/adapters-d1/src/process-offline-sale-atomic.ts, docs/runbooks/acid-offline-sale-failure.md, docs/architecture/06-acid-engine.md]
+prev_id: 0208
+prev_hash: 371d4288066520be9cbbee3791689bcb23cec8dc1d72f4fd2a54668dc1786e53
+entry_hash: b883a2f2f8a52591526a66a481f46caca4fe184fbcfec54bcc10bcf1ca9a7651
+ticket_or_adr: ADR-0007
+test_ids: [process-offline-sale-atomic.integration, schema.integration]
+entregable_afectado: SYN-06 OFFLINE_OVERSELL + migración audit_events
+descripcion: >
+  Migración 0004 audit_events append-only; processOfflineSaleAtomic inserta
+  OFFLINE_OVERSELL en el mismo batch cuando allow_negative_stock y stock < qty;
+  runbook alinea impacto (ya no contradice MVP rechaza).
+evidencia: >
+  RED: allow_negative aceptaba oversell sin audit_events.
+  GREEN: integration SYN-06; triggers AUDIT_APPEND_ONLY; verify/quality path.
+red_commit_sha: f70016df92a0660d738c1f138e2de13ec8a115ed
+red_run_id: run-red-0209-offline-oversell
+expected_failure: AssertionError: missing OFFLINE_OVERSELL audit on allow_negative
+green_commit_sha: fbdeb2756d5988f43054691525b4aa81ccb6d4b7
+green_run_id: run-green-0209-offline-oversell
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Fiscal, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
