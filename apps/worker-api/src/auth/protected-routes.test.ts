@@ -21,6 +21,10 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/owner/day-summary' },
   { method: 'POST', path: '/api/owner/push/subscribe' },
   { method: 'POST', path: '/api/owner/push/send' },
+  { method: 'GET', path: '/api/reports/catalog' },
+  { method: 'GET', path: '/api/reports/day-summary' },
+  { method: 'GET', path: '/api/reports/advanced/top-products' },
+  { method: 'POST', path: '/api/reporting/cron/daily-rollups' },
 ];
 
 const tenant: AuthTenantSnapshot = {

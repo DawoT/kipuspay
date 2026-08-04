@@ -27,3 +27,11 @@ export function isOwnerPushEnabled(): boolean {
 export function isLedgerArApEnabled(): boolean {
   return flagOn(import.meta.env.PUBLIC_FEATURE_LEDGER_AR_AP as string | undefined);
 }
+
+export function isReportingCatalogEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_REPORTING_CATALOG as string | undefined);
+}
+
+export function isReportingExportEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_REPORTING_EXPORT as string | undefined);
+}

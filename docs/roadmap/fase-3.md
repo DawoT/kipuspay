@@ -38,9 +38,13 @@ sprints: "7–9"
 ---
 
 #### Sprint 9 — Analítica Global Concurrente, Daily Rollups y Observabilidad
-**Referencia:** Arquitectura §9 · **Agentes:** Staff SRE (owner), Staff Data/Analytics (colaborador)
+**Referencia:** Arquitectura §9 · **Agentes:** Staff SRE (owner), Staff Data/Analytics (colaborador) · **Especificación:** Actualizada
 
-**Entregables:** **capa de rollups diarios en D1** (`daily_financial_rollups` + `daily_product_rollups`, idempotente por `(tenant, branch, día Lima)`) como **fuente de verdad de reportes**; agregador cron paralelo (`Promise.all`) sobre shards; **catálogo de reportes retail** (arqueo por cajero, ventas por hora/método de pago, top productos/margen con PMP, inventario valorizado, merma, comparativo sucursales, aging CxC/CxP) con **gating por plan+rol** (§3) y export CSV/Excel; AE solo dashboards (**nunca factura**).
+**Capabilities (FASE 3):** `reporting.daily_rollups`, `reporting.product_rollups`, `reporting.catalog`, `reporting.export`, `reporting.shard_aggregator`. Flags default `0`: `FEATURE_REPORTING_ROLLUPS`, `FEATURE_REPORTING_CATALOG`, `FEATURE_REPORTING_EXPORT`. Nomenclatura por capacidad (`reporting-rollups`, `rollup-idempotent`); prohibido `sprint9-*`. Escritura rollups: `DELETE`+`INSERT` / `ON CONFLICT` **sin** literal `UPSERT INTO` (V-02).
+
+**Entregables:** **capa de rollups diarios en D1** (`daily_financial_rollups` + `daily_product_rollups`, idempotente por `(tenant, branch, día Lima)`) como **fuente de verdad de reportes**; agregador cron paralelo (`Promise.all`) sobre shards; **catálogo de reportes retail** (arqueo por cajero, ventas por hora/método de pago, top productos/margen con PMP, inventario valorizado, merma, comparativo sucursales, aging CxC/CxP) con **gating por plan+rol** (§3) y export CSV (Excel = CSV UTF-8 BOM); AE solo dashboards (**nunca factura**).
+
+**Frontera explícita:** Sprint 46 forecasting; Sprint 49 agentic insights; FASE 6C comisiones/cuotas/store credit; Sprint 25 print ladder; chaos `shard-do-failure` (S26); Excel binario npm.
 
 **Criterios de aceptación:** rollup idempotente (correr 2× el cron = mismo resultado, 0 duplicados); agregación de métricas de todos los shards sin bloqueo entre sí; P95 documentado y dentro del presupuesto Sub-50ms; alerting configurado con error budget explícito por servicio; **0 lecturas de reportes en el hot path de venta; reportes avanzados cortados por plan sin tocar el arqueo ni el cierre Z**.
 

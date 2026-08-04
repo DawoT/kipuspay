@@ -30,6 +30,12 @@ import {
   runTransitionPoHttp,
 } from './ledger/ledger-routes.js';
 import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
+import {
+  isAdvancedReportId,
+  runDailyRollupsCronHttp,
+  runReportHttp,
+  runReportsCatalogHttp,
+} from './reports/report-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -209,6 +215,53 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
     );
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
+  // Reporting rollups / catálogo / CSV (Sprint 9) — flags default off
+  app.get('/api/reports/catalog', async (c) => {
+    const result = await runReportsCatalogHttp(c.env);
+    return c.json(result.body, result.status as 200 | 404);
+  });
+  app.get('/api/reports/advanced/:reportId', async (c) => {
+    const jwt = c.get('jwt');
+    const reportId = c.req.param('reportId');
+    if (!isAdvancedReportId(reportId)) {
+      return c.json({ error: 'Not an advanced report', code: 'NOT_FOUND' }, 404);
+    }
+    const result = await runReportHttp(c.env, jwt?.tenantId ?? '', reportId, {
+      reportDate: c.req.query('date') ?? '',
+      format: c.req.query('format') ?? undefined,
+      branchId: c.req.query('branchId') ?? undefined,
+    });
+    if (typeof result.body === 'string') {
+      return c.body(result.body, result.status as 200, {
+        'content-type': result.contentType ?? 'text/csv; charset=utf-8',
+      });
+    }
+    return c.json(result.body, result.status as 200 | 400 | 404 | 500 | 503);
+  });
+  app.get('/api/reports/:reportId', async (c) => {
+    const jwt = c.get('jwt');
+    const reportId = c.req.param('reportId');
+    if (isAdvancedReportId(reportId)) {
+      return c.json({ error: 'Use /api/reports/advanced/' + reportId, code: 'USE_ADVANCED' }, 404);
+    }
+    const result = await runReportHttp(c.env, jwt?.tenantId ?? '', reportId, {
+      reportDate: c.req.query('date') ?? '',
+      format: c.req.query('format') ?? undefined,
+      branchId: c.req.query('branchId') ?? undefined,
+    });
+    if (typeof result.body === 'string') {
+      return c.body(result.body, result.status as 200, {
+        'content-type': result.contentType ?? 'text/csv; charset=utf-8',
+      });
+    }
+    return c.json(result.body, result.status as 200 | 400 | 404 | 500 | 503);
+  });
+  app.post('/api/reporting/cron/daily-rollups', async (c) => {
+    const body: { scheduledTimeMs?: number } = await c.req.json().catch(() => ({}));
+    const result = await runDailyRollupsCronHttp(c.env, body);
     return c.json(result.body, result.status as 200 | 404 | 503);
   });
 

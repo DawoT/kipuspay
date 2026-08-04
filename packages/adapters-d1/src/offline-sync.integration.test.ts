@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
 import { processSyncSalesBatch } from './sync-sales-batch.js';
 import { isClosedReportDate, rematerializeDailyRollupIfClosedDay } from './rollup-rematerialize.js';
+import { runDailyRollupsCron } from './daily-rollups-cron.js';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 
 async function seed(tenantId: string): Promise<{
@@ -232,5 +233,34 @@ describe('offline sync — CRM LWW / batch / edge D', () => {
       .first<{ gross_sales_cents: number; doc_count: number }>();
     expect(again?.doc_count).toBe(1);
     expect(again?.gross_sales_cents).toBe(1180);
+
+    const product = await env.DB.prepare(
+      `SELECT product_id, qty, gross_cents FROM daily_product_rollups
+       WHERE tenant_id = ? AND branch_id = ? AND report_date = '2026-08-04'`,
+    )
+      .bind(tenantId, fixture.branchId)
+      .first<{ product_id: string; qty: number; gross_cents: number }>();
+    expect(product?.product_id).toBe(fixture.productId);
+    expect(product?.gross_cents).toBeGreaterThan(0);
+
+    // Cron 2× Promise.all — mismo SoT, 0 duplicados PK
+    const shards = [
+      { shardKey: 'A', db: env.DB },
+      { shardKey: 'B', db: env.DB },
+    ];
+    const cronAt = Date.parse('2026-08-05T08:00:00.000Z');
+    const firstCron = await runDailyRollupsCron(shards, cronAt);
+    const secondCron = await runDailyRollupsCron(shards, cronAt);
+    expect(firstCron.reportDate).toBe('2026-08-04');
+    expect(secondCron.shards.map((s) => s.grossSalesCents)).toEqual(
+      firstCron.shards.map((s) => s.grossSalesCents),
+    );
+    const pkCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM daily_financial_rollups
+       WHERE tenant_id = ? AND branch_id = ? AND report_date = '2026-08-04'`,
+    )
+      .bind(tenantId, fixture.branchId)
+      .first<{ n: number }>();
+    expect(pkCount?.n).toBe(1);
   });
 });

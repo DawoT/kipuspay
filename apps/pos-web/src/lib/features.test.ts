@@ -9,6 +9,8 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_OWNER_MODE', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'OWNER_PUSH', '');
     vi.stubEnv('PUBLIC_FEATURE_LEDGER_AR_AP', '');
+    vi.stubEnv('PUBLIC_FEATURE_REPORTING_CATALOG', '');
+    vi.stubEnv('PUBLIC_FEATURE_REPORTING_EXPORT', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -17,6 +19,8 @@ describe('features flags default off', () => {
     expect(mod.isOwnerModeEnabled()).toBe(false);
     expect(mod.isOwnerPushEnabled()).toBe(false);
     expect(mod.isLedgerArApEnabled()).toBe(false);
+    expect(mod.isReportingCatalogEnabled()).toBe(false);
+    expect(mod.isReportingExportEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

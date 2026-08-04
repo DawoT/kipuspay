@@ -229,7 +229,7 @@ Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion co
 |---|---|---|---|
 | **GTM-01** | Analítica predictiva de Cadena | Congelado hasta Sprint 46 | Sprint 46 cerrado; disclaimer "estimación, no garantía"; no decisiones automáticas de stock/precio |
 | **GTM-02** | Soporte prioritario Enterprise | Bloqueado hasta SLA aprobado | SLA/operación de soporte y gate RACI; Crece mantiene soporte estándar |
-| **GTM-03** | Ranking comparativo de locales en Modo Dueño | Bloqueado hasta gate Sprint 8/9 | Capability/report gate verificado; datos sincronizados y banner offline cuando corresponda |
+| **GTM-03** | Ranking comparativo de locales en Modo Dueño | Listo tras QG Sprint 9 (Data cert + `FEATURE_REPORTING_CATALOG`) | Capability/report gate verificado; rollups SoT; banner offline cuando corresponda |
 | **GTM-04** | 1,000 comprobantes/mes en Arranque + S/ 0.05 por excedente | Bloqueado hasta Sprint 27 | Metering idempotente; facturación fuera del hot path; ningún `402` en cobro/emisión |
 | **GTM-05** | Devolución con NC/NV_RETURN y compensación de CxC | Contrato E-D en Sprint 8; claim público bloqueado hasta Sprint 28 | 0 saldo fantasma en ciclos total/parcial; copy explica que la NC no reembolsa el cupo original |
 | **GTM-06** | Venta rápida sin catálogo / pagos manuales offline | Línea genérica: Sprint 50; captura manual: Sprint 22 | Línea genérica sin stock; captura electrónica offline con alerta ámbar, audit y conciliación posterior; nunca prometer pago electrónico offline confirmado |
@@ -237,7 +237,7 @@ Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion co
 | **GTM-08** | Envío, plazo y rechazo SUNAT | Bloqueado hasta Sprints 5/5b/26 | T-24h/T-6h, DLQ `QUARANTINED`/`DEADLINE_EXCEEDED`; el cobro no se bloquea; no afirmar aceptación antes del CDR |
 | **GTM-09** | Exportación, privacidad y conservación | Export/LPDP congelado hasta Sprints 42/47 | Export reproducible, consentimiento, anonimización y retención fiscal verificados; no prometer "cuando quieras" antes del gate |
 | **GTM-10** | Forecasting y briefing | Forecast gate 46; briefing gate 49 | Disclaimer; hechos D1 trazables, PII-free, anti-alucinación e idempotencia comprobados |
-| **GTM-11** | Modo Dueño offline | Bloqueado hasta Sprint 8/9 | Banner con antigüedad; nunca presentar el último rollup como tiempo real ni permitir mutaciones offline |
+| **GTM-11** | Modo Dueño offline | Listo tras QG Sprint 9 (banner S8 + ranking SoT S9) | Banner con antigüedad; nunca presentar el último rollup como tiempo real ni permitir mutaciones offline |
 | **GTM-12** | Prueba social, badges y claims legales | Condicionado a evidencia | Permiso para testimonios; certificación/sello solo con respaldo vigente; Staff Fiscal/Security aprueban copy legal |
 | **GTM-13** | Control de compras 3-way + recepción parcial de OC (Cadena) | Congelado hasta Sprints 28–32/20 | Matching OC = recepción = factura; 0 CxP sin cerrar; recepción parcial actualiza CxP por lo recibido; diferencia = 422 u override auditado |
 | **GTM-14** | Diario contable / chart of accounts (Cadena) | Congelado hasta Sprint 32 | Ledger solo lectura para UI; asiento de venta = débito efectivo/CxC + crédito venta/IGV; export bit-consistente con Sprint 23; 0 mutación desde cliente |

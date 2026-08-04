@@ -17,12 +17,17 @@ import {
 import { runQuotaExceededChaos, type QuotaExceededResult } from './quota-exceeded.js';
 import { runLowEndDeviceChaos, type LowEndDeviceResult } from './low-end-device.js';
 import { runArCompensateChaos, type ArCompensateChaosResult } from './ar-compensate.js';
+import {
+  runRollupIdempotentChaos,
+  type RollupIdempotentResult,
+} from './rollup-idempotent.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'
   | 'quota-exceeded'
   | 'low-end-device'
   | 'ar-compensate'
+  | 'rollup-idempotent'
   | 'shard-do-failure'
   | 'concurrent-writers'
   | 'duplicate-retry'
@@ -36,6 +41,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'quota-exceeded': 6,
   'low-end-device': 7,
   'ar-compensate': 8,
+  'rollup-idempotent': 9,
   'shard-do-failure': 26,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
@@ -76,6 +82,7 @@ export interface ChaosDeps {
   readonly runQuotaExceeded?: () => Promise<QuotaExceededResult>;
   readonly runLowEndDevice?: () => Promise<LowEndDeviceResult>;
   readonly runArCompensate?: () => Promise<ArCompensateChaosResult>;
+  readonly runRollupIdempotent?: () => Promise<RollupIdempotentResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -140,6 +147,13 @@ async function dispatchReadyScenario(
           'Escenario ar-compensate exige deps.runArCompensate (evidencia ciclos); fail-closed sin fixtures',
         ),
       );
+    case 'rollup-idempotent':
+      return runRollupIdempotentChaos(
+        requireDep(
+          deps.runRollupIdempotent,
+          'Escenario rollup-idempotent exige deps.runRollupIdempotent (evidencia ciclos); fail-closed sin fixtures',
+        ),
+      );
     default:
       return Promise.reject(
         new Error(
@@ -182,3 +196,10 @@ export {
   runArCompensateCycles,
   simulateArCompensateCycle,
 } from './ar-compensate.js';
+
+export {
+  judgeRollupIdempotent,
+  runRollupIdempotentChaos,
+  runRollupIdempotentCycles,
+  simulateRollupIdempotentCycle,
+} from './rollup-idempotent.js';

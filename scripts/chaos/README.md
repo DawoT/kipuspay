@@ -10,6 +10,7 @@ Orquesta los escenarios de `@kipuspay/chaos-harness` (Arquitectura §13.5).
 | `network-adversarial` / `quota-exceeded` | Sprint 6 | pendiente |
 | `low-end-device` | Sprint 7 / 14 | pendiente |
 | `ar-compensate` | Sprint 8 | activo (quality 4f) |
+| `rollup-idempotent` | Sprint 9 | activo (quality 4g) |
 | `shard-do-failure` | Sprint 26 | pendiente |
 
 ## Uso Sprint 4

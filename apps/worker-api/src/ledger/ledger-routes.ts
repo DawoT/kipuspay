@@ -423,6 +423,8 @@ export async function runOwnerDaySummaryHttp(
     }),
     { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
   );
+  const catalogOn =
+    env?.FEATURE_REPORTING_CATALOG === '1' || env?.FEATURE_REPORTING_CATALOG === 'true';
   return {
     status: 200,
     body: {
@@ -431,8 +433,10 @@ export async function runOwnerDaySummaryHttp(
       source: 'daily_financial_rollups',
       totals,
       branches: items,
-      rankingClaimFrozen: true,
-      note: 'GTM-03/GTM-11 frozen until Sprint 9',
+      rankingClaimFrozen: !catalogOn,
+      note: catalogOn
+        ? 'GTM-03/GTM-11 unfrozen: ranking from daily_financial_rollups; offline banner still no-live'
+        : 'GTM-03/GTM-11 frozen until FEATURE_REPORTING_CATALOG',
     },
   };
 }

@@ -40,6 +40,11 @@ if (Number(sprint) < 8 && scenario === 'ar-compensate') {
   process.exit(2);
 }
 
+if (Number(sprint) < 9 && scenario === 'rollup-idempotent') {
+  console.error(`Escenario rollup-idempotent activo desde fase reporting rollups (sprint≥9)`);
+  process.exit(2);
+}
+
 const unit = spawnSync(
   'pnpm',
   ['--filter', '@kipuspay/chaos-harness', 'test:unit'],

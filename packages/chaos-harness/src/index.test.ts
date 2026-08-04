@@ -9,7 +9,9 @@ import {
   judgeQuotaExceeded,
   judgeLowEndDevice,
   judgeArCompensate,
+  judgeRollupIdempotent,
   runArCompensateCycles,
+  runRollupIdempotentCycles,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -250,6 +252,30 @@ describe('chaos-harness contrato §13.5', () => {
     ).resolves.toBe('PASS');
     expect(judgeArCompensate({ cycles: 10, discrepancies: 0, samples: [] })).toBe('FAIL');
     expect(judgeArCompensate({ cycles: 500, discrepancies: 1, samples: [] })).toBe('FAIL');
+  });
+
+  it('rollup-idempotent fail-closed + 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['rollup-idempotent']).toBe(9);
+    expect(() => assertScenarioReady('rollup-idempotent', 8)).toThrow(ChaosScenarioNotReadyError);
+    await expect(runChaosScenario('rollup-idempotent', 9)).rejects.toThrow(
+      /exige deps\.runRollupIdempotent/,
+    );
+    const cycles = runRollupIdempotentCycles(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeRollupIdempotent(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('rollup-idempotent', 9, {
+        runRollupIdempotent: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+    expect(
+      judgeRollupIdempotent({
+        cycles: 10,
+        discrepancies: 0,
+        first: { reportDate: 'x', rows: [] },
+        second: { reportDate: 'x', rows: [] },
+      }),
+    ).toBe('FAIL');
   });
 
   it('rechaza escenario activo en Sprint N sin runner aún', async () => {

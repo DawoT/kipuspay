@@ -128,6 +128,11 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | `owner.mode` | 8 | PWA Modo Dueño Hoy/Finanzas/Yo |
 | `owner.offline_rollup` | 8 | Cache IDB rollup + banner antigüedad |
 | `owner.push_alerts` | 8 | Push accionable Dueño (no `mobile.push` completo) |
+| `reporting.daily_rollups` | 9 | SoT financial rollups + cron shard |
+| `reporting.product_rollups` | 9 | `daily_product_rollups` top/margen |
+| `reporting.catalog` | 9 | Catálogo reportes retail plan+rol |
+| `reporting.export` | 9 | Export CSV UTF-8 BOM |
+| `reporting.shard_aggregator` | 9 | `Promise.all` sobre active_shards |
 
 **Capabilities canónicas (FASE 6 → flags):**
 

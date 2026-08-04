@@ -102,4 +102,5 @@ export * from './process-fiscal-deadlines.js';
 export * from './build-daily-summary.js';
 export * from './void-boleta-atomic.js';
 export * from './rollup-rematerialize.js';
+export * from './daily-rollups-cron.js';
 export * from './sync-sales-batch.js';

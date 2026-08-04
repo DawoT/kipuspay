@@ -9,6 +9,8 @@ const CHECKOUT_CRITICAL_PREFIXES = [
   '/api/cash/',
   '/api/fiscal/emit',
   '/api/documents/emit',
+  // Arqueo Arranque — nunca 402 por plan (GTM §4.1 / §9).
+  '/api/reports/arqueo',
 ] as const;
 
 const PREMIUM_PREFIXES = [

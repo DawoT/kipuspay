@@ -31,16 +31,18 @@ describe('plan-routes', () => {
       '/api/cash/open',
       '/api/fiscal/emit',
       '/api/documents/emit',
+      '/api/reports/arqueo',
     ]) {
       expect(isCheckoutCriticalRoute(path)).toBe(true);
       expect(isPremiumFeatureRoute(path)).toBe(false);
     }
   });
 
-  it('marca Modo Dueño / reportes / insights como premium', () => {
+  it('marca Modo Dueño / reportes avanzados / insights como premium', () => {
     expect(isPremiumFeatureRoute('/api/owner/dashboard')).toBe(true);
-    expect(isPremiumFeatureRoute('/api/reports/advanced/margin')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/reports/advanced/top-products')).toBe(true);
     expect(isPremiumFeatureRoute('/api/insights/briefing')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/reports/day-summary')).toBe(false);
   });
 });
 

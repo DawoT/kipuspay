@@ -2672,3 +2672,32 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+
+```
+id: 0227
+timestamp_utc: 2026-08-04T16:45:00Z
+schema_version: 2
+sprint_fase: Fase 3 — apertura reporting rollups / catálogo
+agente_responsable: Staff Data/Analytics
+tipo: Entregable nuevo
+subtipo: ROADMAP + flags
+relacion: AMPLIA
+referencias_entradas: [0226]
+referencias_documentales: [docs/ROADMAP.md, docs/roadmap/fase-3.md, docs/architecture/01-principles.md, docs/architecture/09-reporting.md, apps/worker-api/wrangler.jsonc]
+prev_id: 0226
+prev_hash: 1e77ad1fea0880f00b6c63c5ef78d3cebd7b31c46bbbb36dfee1f92bf01aedff
+entry_hash: 1ff5b44a49ac4db7c764be989985f31c4855c74fb6e8762aa7c7b7def766a85c
+ticket_or_adr: GTM-03/11
+test_ids: [SUITE]
+entregable_afectado: Sprint 9 En progreso + FEATURE_REPORTING_*
+descripcion: >
+  Apertura Sprint 9: ROADMAP fila 9 En progreso; fase-3 enriquecida (capabilities,
+  frontera S46/S49/S25, DELETE+INSERT); capabilities reporting.*; flags
+  FEATURE_REPORTING_ROLLUPS/CATALOG/EXPORT default 0; GTM-03/11 se descongelan
+  solo con evidencia Data en QG.
+evidencia: >
+  ROADMAP fila 9 En progreso; wrangler flags=0; 01-principles capabilities FASE 3 S9.
+aprobaciones: [Staff Data/Analytics]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
