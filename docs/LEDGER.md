@@ -3145,3 +3145,41 @@ aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0240
+timestamp_utc: 2026-08-04T23:10:00Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (Firma A+V Pulido Premium)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0239]
+referencias_documentales: [docs/GTM.md, docs/roadmap/fase-4.md, docs/PROCESS.md]
+prev_id: 0239
+prev_hash: b471cca4760777568538ed7472de58eeed12cb19a319d3b89a0f025d1f29e5c8
+entry_hash: 38c165652b10dfdc4379d5a9560703814ee10c1475bd1376b5b3db8792a50ded
+ticket_or_adr: GTM §5, GTM §6
+test_ids: [content, quipu, money, seo, registry, reveal, features, SUITE, index]
+entregable_afectado: apps/marketing-web Quality Gate GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para el pulido premium de marketing-web (Sprint 10 / FASE 4)
+  tras verificar la ingenieria de marca Quipu generativa, CheckoutMock en
+  centimos enteros, bundle 59.7 kB gz (presupuesto 72 kB) y 57 pruebas verdes
+  (Proceso §8.1).
+evidencia: >
+  RED: Sprint 10 pulido premium QG en estado EN REVISION.
+  GREEN: quality OK; marketing_copy GREEN; svelte-check 0; firma A+V otorgada.
+red_commit_sha: 0345b867a62bd2b502a81a94d5272979fae89d07
+red_run_id: run-red-0240-premium-marketing-gov
+expected_failure: AssertionError: pulido premium QG EN REVISION
+green_commit_sha: 0345b867a62bd2b502a81a94d5272979fae89d07
+green_run_id: run-green-0240-premium-marketing-gov
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
