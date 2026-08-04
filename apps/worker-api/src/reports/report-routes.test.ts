@@ -87,10 +87,9 @@ describe('reporting flags + catalog', () => {
     expect(csvOff.status).toBe(404);
 
     const csvOn = await runReportHttp(
-      mockEnv(
-        { FEATURE_REPORTING_CATALOG: '1', FEATURE_REPORTING_EXPORT: '1' },
-        [{ branch_id: 'b1', net_sales_cents: 100 }],
-      ),
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1', FEATURE_REPORTING_EXPORT: '1' }, [
+        { branch_id: 'b1', net_sales_cents: 100 },
+      ]),
       't1',
       'day-summary',
       { reportDate: '2026-08-04', format: 'csv' },
@@ -111,9 +110,14 @@ describe('reporting flags + catalog', () => {
     ).toBe(404);
     expect(
       (
-        await runReportHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [], { noDb: true }), 't1', 'day-summary', {
-          reportDate: '2026-08-04',
-        })
+        await runReportHttp(
+          mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [], { noDb: true }),
+          't1',
+          'day-summary',
+          {
+            reportDate: '2026-08-04',
+          },
+        )
       ).status,
     ).toBe(503);
     expect(
@@ -144,7 +148,9 @@ describe('reporting flags + catalog', () => {
     ] as const;
     for (const id of ids) {
       const res = await runReportHttp(
-        mockEnv(flags, [{ branch_id: 'b1', product_id: 'p1', qty: 1, gross_cents: 100, status: 'OPEN', n: 1 }]),
+        mockEnv(flags, [
+          { branch_id: 'b1', product_id: 'p1', qty: 1, gross_cents: 100, status: 'OPEN', n: 1 },
+        ]),
         't1',
         id,
         { reportDate: '2026-08-04', branchId: 'b1' },
