@@ -20,6 +20,8 @@ apps/*/.wrangler/
 apps/*/functions/
 coverage/
 *coverage/
+**/test-results/
+**/playwright-report/
 
 # Secretos / entorno
 .env

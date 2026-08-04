@@ -10,6 +10,11 @@ import {
   type DuplicateRetryResult,
 } from './sprint4-acid.js';
 import { runDeadlineChaos, type DeadlineChaosResult } from './deadline-chaos.js';
+import {
+  runNetworkAdversarialChaos,
+  type NetworkAdversarialResult,
+} from './network-adversarial.js';
+import { runQuotaExceededChaos, type QuotaExceededResult } from './quota-exceeded.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'
@@ -30,7 +35,6 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'shard-do-failure': 26,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
-  /** Plazos fiscales / DEADLINE_EXCEEDED (activo desde fase RC). */
   deadline: 5,
 };
 
@@ -57,15 +61,15 @@ export function assertScenarioReady(scenario: ChaosScenarioId, currentSprint: nu
   }
 }
 
-export interface ChaosSprint4Deps {
+export interface ChaosDeps {
   readonly runConcurrentWriters?: () => Promise<ConcurrentWritersResult>;
   readonly runDuplicateRetry?: () => Promise<DuplicateRetryResult>;
   readonly concurrentInitialStock?: number;
   readonly concurrentQtyEach?: number;
-}
-
-export interface ChaosSprint5bDeps extends ChaosSprint4Deps {
   readonly runDeadline?: () => Promise<DeadlineChaosResult>;
+  readonly runNetworkAdversarial?: (cycles: number) => Promise<NetworkAdversarialResult>;
+  readonly networkCycles?: number;
+  readonly runQuotaExceeded?: () => Promise<QuotaExceededResult>;
 }
 
 /**
@@ -74,7 +78,7 @@ export interface ChaosSprint5bDeps extends ChaosSprint4Deps {
 export async function runChaosScenario(
   scenario: ChaosScenarioId,
   currentSprint: number,
-  deps: ChaosSprint5bDeps = {},
+  deps: ChaosDeps = {},
 ): Promise<ChaosVerdict> {
   assertScenarioReady(scenario, currentSprint);
 
@@ -109,6 +113,24 @@ export async function runChaosScenario(
     return runDeadlineChaos(deps.runDeadline);
   }
 
+  if (scenario === 'network-adversarial') {
+    if (!deps.runNetworkAdversarial) {
+      throw new Error(
+        'Escenario network-adversarial exige deps.runNetworkAdversarial (evidencia sync); fail-closed sin fixtures',
+      );
+    }
+    return runNetworkAdversarialChaos(deps.runNetworkAdversarial, deps.networkCycles ?? 500);
+  }
+
+  if (scenario === 'quota-exceeded') {
+    if (!deps.runQuotaExceeded) {
+      throw new Error(
+        'Escenario quota-exceeded exige deps.runQuotaExceeded (evidencia IDB); fail-closed sin fixtures',
+      );
+    }
+    return runQuotaExceededChaos(deps.runQuotaExceeded);
+  }
+
   return Promise.reject(
     new Error(
       `Escenario "${scenario}" marcado activo en §13.5 (Sprint ${SCENARIO_ACTIVE_FROM[scenario]}) pero sin runner aún`,
@@ -124,3 +146,7 @@ export {
 } from './sprint4-acid.js';
 
 export { judgeDeadlineChaos, runDeadlineChaos } from './deadline-chaos.js';
+
+export { judgeNetworkAdversarial, runNetworkAdversarialChaos } from './network-adversarial.js';
+
+export { judgeQuotaExceeded, runQuotaExceededChaos } from './quota-exceeded.js';

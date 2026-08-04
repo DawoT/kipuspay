@@ -1,6 +1,11 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0007_DAILY_ROLLUPS = `
+DROP INDEX IF EXISTS idx_daily_financial_rollups_tenant_date;
+DROP TABLE IF EXISTS daily_financial_rollups;
+`;
+
 export const DOWN_0006_FISCAL_ALERTS = `
 DROP INDEX IF EXISTS idx_fiscal_owner_alerts_sale;
 DROP INDEX IF EXISTS idx_fiscal_owner_alerts_tenant;

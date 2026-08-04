@@ -43,7 +43,7 @@ owner: "@DawoT"
 | 4 | 1 | Actualizada (motor ACID + reconciliación — §6) | Cerrado |
 | 5 | 2 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | Cerrado |
 | 5b | 2 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
-| 6 | 2 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Planificado |
+| 6 | 2 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | En progreso |
 | 7–8 | 2–3 | Base | Planificado |
 | 9 | 3 | Actualizada (M3 rollups §9) | Planificado |
 | 10–16 | 3–5 | Base | Planificado |

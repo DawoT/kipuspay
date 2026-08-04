@@ -11,6 +11,7 @@ import type { UserSession } from './auth/idp-user.js';
 import type { WorkerEnv } from './auth/control-plane.js';
 import { handleStripeWebhook } from './webhooks/handle-stripe-webhook.js';
 import { runOfflineSaleHttp } from './pos/offline-sale-route.js';
+import { runSyncSalesHttp } from './pos/sync-sales-route.js';
 import {
   runCpePortalHttp,
   runFiscalCronHttp,
@@ -58,6 +59,17 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     const result = await runOfflineSaleHttp(c.env, tenantId, userId, payload);
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  // Offline sync batch (SYN-07) — FEATURE_OFFLINE_SYNC
+  app.post('/api/v1/sync/sales', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const tenantId = jwt?.tenantId ?? '';
+    const userId = user?.userId ?? jwt?.sub ?? '';
+    const body: { sales?: Parameters<typeof runSyncSalesHttp>[3]['sales'] } = await c.req.json();
+    const result = await runSyncSalesHttp(c.env, tenantId, userId, body);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
   });
 
   // Fiscal RC — void boleta / alertas / portal / cron RC+plazos

@@ -40,6 +40,13 @@ export interface OfflineSalePayload {
   readonly clientDocumentType: string;
   readonly clientDocumentNumber: string;
   readonly clientName: string;
+  /** Snapshot CRM opcional — consolidación LWW server-side (SYN-08). */
+  readonly clientEmail?: string | undefined;
+  readonly clientPhone?: string | undefined;
+  readonly clientAddress?: string | undefined;
+  readonly clientProfileUpdatedAt?: string | undefined;
+  /** SYN-11: id local del cliente nuevo en el turno (single-writer pre-chunk). */
+  readonly localClientId?: string | undefined;
   readonly currency?: 'PEN' | undefined;
   readonly items: readonly OfflineSaleItemPayload[];
   readonly payments: readonly OfflinePaymentPayload[];

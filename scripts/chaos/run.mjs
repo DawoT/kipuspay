@@ -22,6 +22,14 @@ if (Number(sprint) < 5 && scenario === 'deadline') {
   process.exit(2);
 }
 
+if (
+  Number(sprint) < 6 &&
+  (scenario === 'network-adversarial' || scenario === 'quota-exceeded')
+) {
+  console.error(`Escenario ${scenario} activo desde fase offline sync (sprint≥6)`);
+  process.exit(2);
+}
+
 const unit = spawnSync(
   'pnpm',
   ['--filter', '@kipuspay/chaos-harness', 'test:unit'],

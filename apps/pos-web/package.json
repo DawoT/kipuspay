@@ -16,6 +16,9 @@
     "bundle": "size-limit --config size-limit.config.js",
     "e2e": "playwright test"
   },
+  "dependencies": {
+    "@kipuspay/domain-sales": "workspace:*"
+  },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@sveltejs/adapter-auto": "^7.0.1",

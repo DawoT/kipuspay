@@ -2341,3 +2341,30 @@ aprobaciones: [Staff Fiscal R; A/V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0217
+timestamp_utc: 2026-08-04T15:30:00Z
+schema_version: 2
+sprint_fase: Fase 2 — apertura offline sync / chunked dispatcher
+agente_responsable: Staff Frontend Offline-First
+tipo: Entregable nuevo
+subtipo: ROADMAP + flags
+relacion: AMPLIA
+referencias_entradas: [0216]
+referencias_documentales: [docs/ROADMAP.md, docs/roadmap/fase-2.md, docs/architecture/07-sync-offloading.md, apps/worker-api/wrangler.jsonc]
+prev_id: 0216
+prev_hash: 1759c5fd3f2a6b4f7bf0760c7968f09dcd0bbd0e8926c68a96be49a529918a99
+entry_hash: 3941e9c7982cf318b8b67bc9047dccf1f8bb5f0220862c5744c1c3a308a76c9d
+ticket_or_adr: SYN-07
+test_ids: [SUITE]
+entregable_afectado: Sprint 6 En progreso + FEATURE_OFFLINE_SYNC
+descripcion: >
+  Apertura Sprint 6: ROADMAP/fase-2 En progreso; flag FEATURE_OFFLINE_SYNC
+  default 0; cita SYN-07 / Principio 10 (chunked sync, IndexedDB, cuota).
+evidencia: >
+  ROADMAP fila 6 En progreso; wrangler FEATURE_OFFLINE_SYNC=0.
+aprobaciones: [Staff Frontend Offline-First]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

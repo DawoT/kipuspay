@@ -7,6 +7,7 @@ import {
   assertOfflineSaleShape,
   computeNvLineTotals,
   InsufficientStockError,
+  planCrmLww,
   resolveIssuedAtMs,
   toLimaTimestamp,
   type OfflineSalePayload,
@@ -20,7 +21,7 @@ import {
   type TaxRegime,
 } from '@kipuspay/domain-fiscal-pe';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
-
+import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 export type OfflineSaleResult =
   | {
       status: 'SUCCESS';
@@ -175,6 +176,7 @@ export async function processOfflineSaleAtomic(
   userId: string,
   payload: OfflineSalePayload,
   nowMs: number = Date.now(),
+  insightsKv?: InsightsKv,
 ): Promise<OfflineSaleResult> {
   assertOfflineSaleShape(payload);
 
@@ -248,6 +250,52 @@ export async function processOfflineSaleAtomic(
   const isReturn = docType === 'NV_RETURN';
 
   const saleId = crypto.randomUUID();
+
+  // CRM LWW (SYN-08): preflight SELECT; plan INSERT/UPDATE/KEEP — nunca UPSERT INTO.
+  const customerRow = await db
+    .prepare(
+      `SELECT id, profile_updated_at, pii_erased, deleted_at
+       FROM customers
+       WHERE tenant_id = ? AND document_type_code = ? AND document_number = ?
+       LIMIT 1`,
+    )
+    .bind(tenantId, payload.clientDocumentType, payload.clientDocumentNumber)
+    .first<{
+      id: string;
+      profile_updated_at: string;
+      pii_erased: number;
+      deleted_at: string | null;
+    }>();
+  const crmPlan = planCrmLww(
+    {
+      clientDocumentType: payload.clientDocumentType,
+      clientDocumentNumber: payload.clientDocumentNumber,
+      clientName: payload.clientName,
+      clientEmail: payload.clientEmail,
+      clientPhone: payload.clientPhone,
+      clientAddress: payload.clientAddress,
+      clientProfileUpdatedAt: payload.clientProfileUpdatedAt,
+    },
+    customerRow
+      ? {
+          id: customerRow.id,
+          profileUpdatedAtIso: customerRow.profile_updated_at,
+          piiErased: customerRow.pii_erased === 1,
+          deleted: customerRow.deleted_at !== null,
+        }
+      : null,
+    nowMs,
+    crypto.randomUUID(),
+  );
+  // SEC-07: fail-closed si PII borrado / customer soft-deleted.
+  if (crmPlan.kind === 'BLOCK_ERASED') {
+    throw new Error('CUSTOMER_PII_ERASED');
+  }
+  const customerId =
+    crmPlan.kind === 'INSERT' || crmPlan.kind === 'UPDATE' || crmPlan.kind === 'KEEP'
+      ? crmPlan.customerId
+      : null;
+
   const qtyByProduct = new Map<string, number>();
   for (const item of payload.items) {
     qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.quantity);
@@ -362,11 +410,56 @@ export async function processOfflineSaleAtomic(
           .bind(seriesRow.id, tenantId),
       );
 
+      if (crmPlan.kind === 'INSERT') {
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO customers (
+                 id, tenant_id, document_type_code, document_number, name, email, phone, address,
+                 profile_updated_at, is_active
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            )
+            .bind(
+              crmPlan.customerId,
+              tenantId,
+              payload.clientDocumentType,
+              payload.clientDocumentNumber,
+              payload.clientName,
+              payload.clientEmail ?? null,
+              payload.clientPhone ?? null,
+              payload.clientAddress ?? null,
+              crmPlan.profileUpdatedAtIso,
+            ),
+        );
+      } else if (crmPlan.kind === 'UPDATE') {
+        plan.add(
+          db
+            .prepare(
+              `UPDATE customers
+               SET name = ?, email = ?, phone = ?, address = ?,
+                   profile_updated_at = ?, is_active = 1
+               WHERE id = ? AND tenant_id = ?
+                 AND profile_updated_at <= ?
+                 AND pii_erased = 0 AND deleted_at IS NULL`,
+            )
+            .bind(
+              payload.clientName,
+              payload.clientEmail ?? null,
+              payload.clientPhone ?? null,
+              payload.clientAddress ?? null,
+              crmPlan.profileUpdatedAtIso,
+              crmPlan.customerId,
+              tenantId,
+              crmPlan.profileUpdatedAtIso,
+            ),
+        );
+      }
+
       plan.add(
         db
           .prepare(
             `INSERT INTO sales (
-                 id, tenant_id, branch_id, cash_register_session_id, user_id,
+                 id, tenant_id, branch_id, cash_register_session_id, user_id, customer_id,
                  offline_client_sale_id, client_document_type, client_document_number, client_name,
                  document_type, series, number, currency, exchange_rate,
                  total_taxable_cents, total_exempt_cents, total_igv_cents, total_icbper_cents,
@@ -374,7 +467,7 @@ export async function processOfflineSaleAtomic(
                  issued_at_lima, sunat_status, must_submit_by
                )
                SELECT
-                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  (SELECT current_number FROM branch_document_series WHERE id = ?),
                  'PEN', 1.0, ?, 0, ?, 0, ?, ?, ?, ?, ?, ?`,
           )
@@ -384,6 +477,7 @@ export async function processOfflineSaleAtomic(
             payload.branchId,
             payload.cashRegisterSessionId,
             userId,
+            customerId,
             payload.offlineSaleId,
             payload.clientDocumentType,
             payload.clientDocumentNumber,
@@ -543,6 +637,16 @@ export async function processOfflineSaleAtomic(
     .prepare(`SELECT number FROM sales WHERE id = ? AND tenant_id = ?`)
     .bind(saleId, tenantId)
     .first<{ number: number }>();
+
+  // Edge D: sync tardío de día cerrado → rematerialize rollup + invalidate insights KV.
+  await rematerializeDailyRollupIfClosedDay(
+    db,
+    tenantId,
+    payload.branchId,
+    limaTs,
+    nowMs,
+    insightsKv,
+  );
 
   return {
     status: 'SUCCESS',

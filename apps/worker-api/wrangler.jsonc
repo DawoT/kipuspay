@@ -45,5 +45,6 @@
     "FEATURE_FISCAL_CPE": "0",
     "FEATURE_FISCAL_RC": "0",
     "FEATURE_CPE_PORTAL": "0",
+    "FEATURE_OFFLINE_SYNC": "0",
   },
 }

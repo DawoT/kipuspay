@@ -48,3 +48,14 @@ export {
   type OfflineSaleItemPayload,
   type OfflineSalePayload,
 } from './offline-sale.js';
+
+export {
+  adjustProfileTimestampMs,
+  consolidateLocalClientProfiles,
+  isAnonymousDocument,
+  planCrmLww,
+  PROFILE_SKEW_MS,
+  type CrmLwwPlan,
+  type CrmProfileInput,
+  type ExistingCustomer,
+} from './crm-lww.js';

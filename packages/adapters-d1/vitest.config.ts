@@ -19,6 +19,8 @@ export default defineConfig({
         'src/process-fiscal-deadlines.ts',
         'src/build-daily-summary.ts',
         'src/void-boleta-atomic.ts',
+        'src/rollup-rematerialize.ts',
+        'src/sync-sales-batch.ts',
       ],
       thresholds: {
         lines: 70,

@@ -51,6 +51,7 @@ sprints: "5–6"
 ---
 
 #### Sprint 6 — Resiliencia de Red Adversarial, Storage Local y Chunked Sync Dispatcher
+**Entrega:** En progreso (2026-08-04)
 **Referencia:** Arquitectura §7 y Principio 10 · **Agentes:** Staff Frontend Offline-First (owner), Staff QA/Chaos (colaborador)
 
 **Entregables:** Service Worker con IndexedDB; dispatcher de sincronización en lotes de 25-35 transacciones; backpressure-aware dispatch; **guardián de cuota de almacenamiento** (alerta ≥80%, bloqueo seguro de nuevas ventas offline al 100% con mensaje accionable al cajero, nunca corrupción silenciosa de la cola); perfil de degradación en dispositivos de memoria limitada. **Sin dedup de clientes en cliente:** el payload offline lleva el snapshot del perfil (name + email/phone/address opcionales + `clientProfileUpdatedAt`); la consolidación CRM es del servidor (upsert idempotente **LWW por timestamp** — Arquitectura §6), y las correcciones de perfil del cajero viajan con la venta.

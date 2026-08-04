@@ -31,6 +31,10 @@ node scripts/chaos/run.mjs --scenario all --sprint 4
 step "4c/8 Chaos plazos fiscales (§13.5 deadline fail-closed)"
 node scripts/chaos/run.mjs --scenario deadline --sprint 5
 
+step "4d/8 Chaos offline sync (§13.5 network-adversarial + quota-exceeded)"
+node scripts/chaos/run.mjs --scenario network-adversarial --sprint 6
+node scripts/chaos/run.mjs --scenario quota-exceeded --sprint 6
+
 step "5/8 Secretos (Gitleaks)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --no-banner --redact -v

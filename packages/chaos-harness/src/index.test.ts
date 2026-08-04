@@ -5,6 +5,8 @@ import {
   judgeConcurrentWriters,
   judgeDeadlineChaos,
   judgeDuplicateRetry,
+  judgeNetworkAdversarial,
+  judgeQuotaExceeded,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -107,8 +109,104 @@ describe('chaos-harness contrato §13.5', () => {
     expect(judgeDeadlineChaos(r4)).toBe('FAIL');
   });
 
+  it('network-adversarial y quota-exceeded fail-closed + PASS con inject', async () => {
+    expect(SCENARIO_ACTIVE_FROM['network-adversarial']).toBe(6);
+    expect(SCENARIO_ACTIVE_FROM['quota-exceeded']).toBe(6);
+    await expect(runChaosScenario('network-adversarial', 6)).rejects.toThrow(
+      /exige deps\.runNetworkAdversarial/,
+    );
+    await expect(runChaosScenario('quota-exceeded', 6)).rejects.toThrow(
+      /exige deps\.runQuotaExceeded/,
+    );
+    await expect(
+      runChaosScenario('network-adversarial', 6, {
+        networkCycles: 3,
+        runNetworkAdversarial: (cycles) =>
+          Promise.resolve({
+            cycles,
+            totalEnqueued: cycles,
+            totalSucceeded: cycles,
+            totalLost: 0,
+            totalDuplicates: 0,
+          }),
+      }),
+    ).resolves.toBe('PASS');
+    await expect(
+      runChaosScenario('quota-exceeded', 6, {
+        runQuotaExceeded: () =>
+          Promise.resolve({
+            alertFiredAtOrAbove80: true,
+            blockedAt100: true,
+            queueCorrupted: false,
+            enqueueRejectedSafely: true,
+          }),
+      }),
+    ).resolves.toBe('PASS');
+    expect(
+      judgeNetworkAdversarial({
+        cycles: 1,
+        totalEnqueued: 1,
+        totalSucceeded: 0,
+        totalLost: 1,
+        totalDuplicates: 0,
+      }),
+    ).toBe('FAIL');
+    expect(
+      judgeQuotaExceeded({
+        alertFiredAtOrAbove80: false,
+        blockedAt100: true,
+        queueCorrupted: false,
+        enqueueRejectedSafely: true,
+      }),
+    ).toBe('FAIL');
+  });
+
+  it('network-adversarial 500 ciclos: 0 pérdida / 0 dup (ack idempotente simulado)', () => {
+    const seen = new Set<string>();
+    let duplicates = 0;
+    let lost = 0;
+    let succeeded = 0;
+    const cycles = 500;
+    for (let i = 0; i < cycles; i++) {
+      const id = `sale-${i}`;
+      // Adversarial: first post fails; retry succeeds; third post is ALREADY_SYNCED.
+      const attempts = ['FAIL', 'SUCCESS', 'ALREADY_SYNCED'] as const;
+      let ack: (typeof attempts)[number] | null = null;
+      for (const a of attempts) {
+        if (a === 'FAIL') continue;
+        if (a === 'SUCCESS') {
+          if (seen.has(id)) {
+            duplicates++;
+          } else {
+            seen.add(id);
+            succeeded++;
+          }
+          ack = a;
+          break;
+        }
+        if (a === 'ALREADY_SYNCED') {
+          if (!seen.has(id)) lost++;
+          ack = a;
+        }
+      }
+      if (ack === null) lost++;
+    }
+    expect(
+      judgeNetworkAdversarial({
+        cycles,
+        totalEnqueued: cycles,
+        totalSucceeded: succeeded,
+        totalLost: lost,
+        totalDuplicates: duplicates,
+      }),
+    ).toBe('PASS');
+    expect(succeeded).toBe(500);
+    expect(lost).toBe(0);
+    expect(duplicates).toBe(0);
+  });
+
   it('rechaza escenario activo en Sprint N sin runner aún', async () => {
-    await expect(runChaosScenario('network-adversarial', 6)).rejects.toThrow(/sin runner aún/);
+    await expect(runChaosScenario('low-end-device', 7)).rejects.toThrow(/sin runner aún/);
   });
 
   it('jueces fallan ante incoherencia', () => {
