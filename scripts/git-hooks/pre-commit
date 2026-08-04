@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# KipusPay — pre-commit hook: batería documental antes de commitear.
-# Habilitado vía core.hooksPath = scripts/git-hooks.
+# KipusPay — pre-commit hook: batería documental + append-only del ledger.
+# Habilitado por scripts/bootstrap.sh (core.hooksPath = scripts/git-hooks).
 set -eu
 ROOT="$(git rev-parse --show-toplevel)"
-echo "== KipusPay pre-commit: atlas-verify =="
-bash "$ROOT/scripts/verify.sh"
+cd "$ROOT"
+
+echo "== KipusPay pre-commit =="
+
+# V-16 — invariante 4: el ledger es append-only. Misma implementación que CI.
+python3 scripts/checks/ledger_append_only.py --cached || exit 1
+
+bash scripts/verify.sh

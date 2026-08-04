@@ -1,4 +1,4 @@
-name: atlas-verify
+name: kipus-verify
 
 on:
   push:
@@ -10,5 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run documental verification
+        with:
+          fetch-depth: 0 # V-16 necesita historia para diffear contra la base del PR
+      - name: Gate documental (V-00..V-15, V-17..V-19)
         run: bash scripts/verify.sh
+      - name: Ledger append-only (V-16)
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          python3 scripts/checks/ledger_append_only.py "origin/${{ github.base_ref }}...HEAD"

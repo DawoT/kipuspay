@@ -1,9 +1,19 @@
+---
+doc_id: ledger
+alias: Ledger
+authority: inmutable
+owner: "@DawoT"
+---
+
 # Ledger — Registro Inmutable de Iteraciones (KipusPay)
 
 > Changelog append-only del escuadrón. **Nunca editar ni borrar entradas; toda
 > corrección se agrega como entrada nueva con `relacion: CORRIGE`.**
 > Schema v2 desde 0174 (`prev_id`/`prev_hash`/`entry_hash`); 0143-0173 = legacy sin hash chain.
-> Contrato de escritura: `Agents.md` §7.2.1. Usa el skill `atlas-changelog` para nuevas entradas.
+> Contrato de escritura: Proceso §7.2.1. Usa el skill `kipus-changelog` para nuevas entradas.
+> Las entradas 0143–0181 citan los paths previos a la reorganización (`Agents.md`,
+> `Ledger.md`, el nombre largo de la especificación): son históricas y no se reescriben;
+> la equivalencia con los paths actuales se declara en la entrada 0182.
 
 **Regla canónica de hashing (schema v2):**
 - `entry_hash` = SHA-256 de las líneas `id:` → `estado:` **inclusive**, **excluyendo** la línea `entry_hash` (y sin fences ni líneas en blanco separadoras).
@@ -814,6 +824,423 @@ evidencia: >
   la entrada previa), reparando la convención previa del bloque 0176.
 ancestry_verified: true
 aprobaciones: [Staff Principal, Staff Security]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0178
+timestamp_utc: 2026-08-03T21:20:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; terreno agéntico)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Corrección
+subtipo: gobernanza
+relacion: AMPLIA
+referencias_entradas: [0177]
+referencias_documentales: [AGENTS.md, Agents.md, GTM.md, Arquitectura Técnica POS SUNAT v8.0 KipusPay.md]
+prev_id: 0177
+prev_hash: ae98ed6c91a874e4a6791f3a5db7bbb44253ac61388f0b5b4407debc01442fe6
+entry_hash: 5356df9cf5cd098d16b4341cd4588dc4a108ee4cae4103aa45e072ed3fa3bced
+ticket_or_adr: REBRAND-KIPUSPAY-0002
+test_ids: [DOC-RENAME-02]
+entregable_afectado: Nomenclatura de herramientas: skills, workflow y dominio de landing
+descripcion: >
+  Completa el renombre de 0177 en la capa de herramientas: los skills
+  atlas-verify / atlas-changelog / atlas-rules-registry pasan a kipus-verify /
+  kipus-changelog / kipus-rules-registry (git mv, con su frontmatter y
+  referencias en AGENTS.md §5-§6, Agents §7.3 y Registry §0.4), el workflow de
+  CI pasa a llamarse kipus-verify y la landing declarada en GTM §3 corrige
+  atlas.pe -> kipuspay.pe. El ledger histórico (0143-0176) sigue intacto.
+evidencia: >
+  RED: grep case-insensitive de "atlas" devolvía 12 referencias vivas fuera del
+  ledger (3 skills, workflow, AGENTS §5-§6, Agents §7.3, Registry §0.4, GTM §3).
+  GREEN: 0 referencias vivas fuera del ledger; skills renombrados con git mv
+  preservando historia; RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0179
+timestamp_utc: 2026-08-03T21:25:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; gate ejecutable)
+agente_responsable: Staff QA/Chaos — Verificación documental
+tipo: Corrección de especificación
+subtipo: quality gate
+relacion: CORRIGE
+referencias_entradas: [0176, 0177]
+referencias_documentales: [AGENTS.md, scripts/verify.sh, scripts/checks/, scripts/git-hooks/pre-commit]
+prev_id: 0178
+prev_hash: 5356df9cf5cd098d16b4341cd4588dc4a108ee4cae4103aa45e072ed3fa3bced
+entry_hash: 8acccc109c36c52d6c909c302032bf4049257a161d09cf11c93ae756948ef115
+ticket_or_adr: GATE-HARDENING-0001
+test_ids: [V-00, V-01, V-02, V-03, V-04, V-05, V-06, V-07, V-08, V-09, V-10, V-11, V-12, V-13, V-14, V-15, V-16]
+entregable_afectado: scripts/verify.sh + scripts/checks/ + hook pre-commit + AGENTS.md §5
+descripcion: >
+  El gate documental daba un falso GREEN: la variable SCAN se expandía sin
+  comillas, de modo que el nombre del documento de especificación (con espacios)
+  se partía en palabras inexistentes y grep las descartaba con stderr silenciado;
+  los checks de UPSERT INTO y de literales http/ws nunca escanearon la
+  especificación. Además check_tenant_fks no podía fallar (contaba ocurrencias y
+  siempre imprimía ok) mientras AGENTS.md §5 afirmaba que validaba FKs de tenant.
+  Se reescribe la batería con array citado, sin enmascarado de stderr, IDs
+  estables y salida parseable (RESULT <ID> GREEN|RED + RESULT SUITE), y se añaden
+  los checks que faltaban para las invariantes: V-05 tenant_id NOT NULL, V-06
+  dinero en INTEGER cents, V-07 forks por vertical, V-08 registry sin huérfanos,
+  V-09 placeholders de imagen, V-10 escapes de exportación, V-11 DDL fenceado,
+  V-12 referencias § resolubles, V-14 ratchet DAT-12, V-15 anti-drift de INDEX.md
+  y V-16 append-only del ledger en el hook. Se añade V-00: un autotest que
+  alimenta casos sucios y limpios a los detectores y falla si alguno deja de
+  detectar o marca un caso limpio — la batería no se autoevalúa sola nunca más.
+  Ledger.md queda fuera de V-11/V-12 por inmutabilidad.
+evidencia: >
+  RED: la batería anterior reportaba GREEN mientras 18 placeholders de imagen,
+  1512 escapes, 30 CREATE TABLE fuera de fence, 2 punteros § inexistentes y 2
+  tablas con tenant_id anulable convivían en la especificación sin detección; la
+  prueba de expansión mostró que 6 de los 6 tokens del nombre del spec no existen
+  como archivo. Primera corrida endurecida: V-05, V-09, V-10, V-11, V-12 en RED.
+  GREEN: 17 checks (V-00..V-16) con veredicto explícito, autotest del gate en
+  GREEN y RESULT SUITE GREEN tras remediar.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0180
+timestamp_utc: 2026-08-03T21:30:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; especificación legible por máquina)
+agente_responsable: Staff Backend Datos/ACID — Especificación
+tipo: Corrección de especificación
+subtipo: normalización + regla nueva
+relacion: CORRIGE
+referencias_entradas: [0176, 0179]
+referencias_documentales: [Arquitectura Técnica POS SUNAT v8.0 KipusPay.md]
+prev_id: 0179
+prev_hash: 8acccc109c36c52d6c909c302032bf4049257a161d09cf11c93ae756948ef115
+entry_hash: 98ac661327457d516051f2427187fd22e7c42aef0e1dc280c6eb51f6d20cb741
+ticket_or_adr: SPEC-MACHINE-READABLE-0001
+test_ids: [V-05, V-09, V-10, V-11, V-12, V-14]
+entregable_afectado: Arquitectura §0.4, §5.0.1, §5.3, §12 y toda la región DDL v8.0
+descripcion: >
+  La especificación no era consumible por un agente: 30 de 104 CREATE TABLE
+  estaban fuera de fence y 715 líneas arrastraban escapes de la exportación de
+  Google Docs (backslash antes de guion bajo, igual y guion), de modo que copiar
+  el DDL producía SQL
+  inválido y los greps de auditoría fallaban en silencio. Se fencea la región DDL
+  legada como sql, se etiquetan los fences sueltos de Agents/GTM y se de-escapa el
+  documento completo con validación mecánica: para cada línea modificada, quitar
+  todos los backslashes de la versión vieja y de la nueva da el mismo texto, así
+  que el diff solo pudo quitar backslashes; los escapes unicode de TypeScript se
+  preservan intactos.
+  Los 18 valores numéricos que estaban incrustados como imágenes LaTeX se
+  transcriben a texto (latencia, ciudades Edge, costos, P95, invalidación,
+  atomicidad): valor completo cuando sobrevivió íntegro, cota explícita cuando
+  solo sobrevivió el operando inferior (300ms+, desde 12ms) y PENDIENTE-VALOR en
+  el único caso sin operando recuperable (escrituras concurrentes por shard);
+  ninguna cifra se estimó. §12 declara además que el número vinculante
+  es el SLO de Agents §9.1, no esta tabla de estimación. Se corrigen dos punteros
+  del Registry que apuntaban a secciones inexistentes (ADR-ARCH-002 §1.4 -> §1.1;
+  SYN-11 §1.10 -> §1 Principio 10) y se declara la regla DAT-12 en §5.0.1:
+  tenant_id siempre NOT NULL (en SQLite un TEXT PRIMARY KEY admite NULL), FK a
+  tenants no obligatoria por costo de validación en el hot path, y deuda de FKs
+  simples congelada en baseline con ratchet (64 entradas).
+evidencia: >
+  RED: V-09 18 placeholders; V-10 1512 escapes; V-11 30 CREATE TABLE fuera de
+  fence y 6 fences sin lenguaje; V-12 §1.10 y §1.4 inexistentes; V-05
+  tenant_discount_policies y return_policies con tenant_id anulable.
+  GREEN: 0 placeholders, 0 escapes, 104/104 tablas fenceadas, 0 punteros
+  colgados, 0 tenant_id anulable, baseline DAT-12 congelado en 64 y V-14 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff Backend Datos/ACID]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0181
+timestamp_utc: 2026-08-03T21:35:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; terreno para ingeniería agéntica)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Entregable nuevo
+subtipo: andamiaje agéntico
+relacion: AMPLIA
+referencias_entradas: [0177, 0179, 0180]
+referencias_documentales: [AGENTS.md, Agents.md, INDEX.md, .opencode/skills/kipus-task/SKILL.md, .github/]
+prev_id: 0180
+prev_hash: 98ac661327457d516051f2427187fd22e7c42aef0e1dc280c6eb51f6d20cb741
+entry_hash: db75ddf8fbd236cf05ea890541cf85774affda147c5f9adc5e05a968392bfb42
+ticket_or_adr: AGENTIC-GROUND-0001
+test_ids: [V-15, DOC-BOOTSTRAP-01]
+entregable_afectado: scripts/bootstrap.sh, scripts/index.sh, INDEX.md, skill kipus-task, .github/, Agents §5.2
+descripcion: >
+  Cierra los huecos de proceso que quedaban para trabajo agéntico. (a)
+  scripts/bootstrap.sh instala core.hooksPath y corre el gate: los hooks no viajan
+  en un clone, así que hasta ahora cualquier clone o runner nuevo commiteaba sin
+  verificación. (b) INDEX.md es un índice generado de punteros (capability ->
+  sprint, tabla DDL -> sección, regla -> sección, puerto -> adapters, package
+  destino) derivado de los docs maestros: no contiene texto normativo, así que no
+  viola el DRY de dominio, y V-15 falla si queda desincronizado. (c) El skill
+  kipus-task fija el orden canónico de una tarea (contrato -> índice -> reglas ->
+  RED antes de GREEN -> package -> gate -> Ledger -> RACI), que antes existía como
+  doctrina dispersa sin procedimiento. (d) Plantilla de PR y CODEOWNERS hacen
+  explícitas las firmas del gate y la propiedad de los artefactos de gobernanza.
+  (e) Agents §5.2 declara que la Etapa 0 documental es la única activa hoy y que
+  las etapas 1-11 se activan con el primer código, para que ningún agente asuma
+  un CI de lint/unit/integration que todavía no existe.
+evidencia: >
+  RED: el hook solo existía en la máquina local (core.hooksPath sin script de
+  instalación); no había índice de implementación ni procedimiento de tarea; el
+  pipeline de 11 etapas de Agents §5.2 se leía como activo con un solo workflow real.
+  GREEN: bootstrap idempotente verificado, INDEX.md con 268 filas de punteros,
+  V-15 GREEN, skill kipus-task publicado, plantilla de PR y CODEOWNERS en .github,
+  Agents §5.2 con Etapa 0 declarada y RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0182
+timestamp_utc: 2026-08-03T22:05:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; higiene de rutas del corpus)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Corrección de proceso
+subtipo: higiene de rutas
+relacion: AMPLIA
+referencias_entradas: [0177, 0179, 0181]
+referencias_documentales: [AGENTS.md, docs/ARCHITECTURE.md, docs/PROCESS.md, docs/GTM.md, docs/LEDGER.md, scripts/checks/paths.py]
+prev_id: 0181
+prev_hash: db75ddf8fbd236cf05ea890541cf85774affda147c5f9adc5e05a968392bfb42
+entry_hash: 66da45843acfec104450bb6ea7da53eee5dc359cb182fa2393615369676d677a
+ticket_or_adr: AGENTIC-ROOT-0001
+test_ids: [V-16, V-17, SUITE]
+entregable_afectado: AGENTS.md §1/§3/§5, docs/**, scripts/verify.sh, scripts/checks/, .github/, README.md
+descripcion: >
+  Fin de la ambigüedad de rutas en el root. (a) Los cuatro documentos maestros pasan
+  a docs/ con nombres ASCII en inglés: ARCHITECTURE.md, PROCESS.md, GTM.md y
+  LEDGER.md; AGENTS.md se queda en el root porque es el archivo que las herramientas
+  de agente descubren por convención. Esto elimina la colisión case-insensitive
+  AGENTS.md vs Agents.md, que en un clone macOS o Windows hacía que un archivo
+  sobrescribiera al otro y ningún agente pudiera decidir cuál era la autoridad, y
+  elimina los espacios y acentos del path de la especificación, que fueron la causa
+  raíz del falso GREEN de la entrada 0179. (b) Equivalencia declarada de paths
+  históricos: las entradas 0143-0181 citan Agents.md, Ledger.md y el nombre largo de
+  la especificación; son históricas, no se reescriben, y equivalen a docs/PROCESS.md,
+  docs/LEDGER.md y docs/ARCHITECTURE.md respectivamente. (c) scripts/checks/paths.py
+  es la fuente única de rutas: verify.sh descubre el corpus por glob en vez de una
+  lista fija, así que partir un documento en capítulos ya no exige editar la batería.
+  (d) V-16 se reimplementa una sola vez en Python y lo consumen hook y CI, con
+  deteccion de renames por -M (mover el ledger no es borrarlo) y con el alcance exacto
+  de la invariante 4: se congela desde la primera entrada hacia abajo, la cabecera
+  operativa sí se corrige. (e) Nuevo check V-17 de higiene de rutas sobre git
+  ls-files: sin espacios, sin caracteres no ASCII, sin colisiones al comparar en
+  minúsculas.
+evidencia: >
+  RED: git ls-files listaba AGENTS.md y Agents.md a la vez; el path de la
+  especificación tenía espacios y acentos; el path del ledger estaba hardcodeado en
+  cinco lugares y V-16 vivía duplicado en el hook y en el workflow, donde un rename se
+  habría leído como borrado de líneas.
+  GREEN: V-17 GREEN con 63 rutas versionadas verificadas y RED reproducido en los tres
+  modos (espacio, no ASCII y colisión README.md vs readme.md); V-16 GREEN sobre el
+  rename real del ledger y RED al editar la línea id: 0143; RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0183
+timestamp_utc: 2026-08-03T22:20:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; contrato como router de lectura)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Entregable nuevo
+subtipo: router y alias declarados
+relacion: AMPLIA
+referencias_entradas: [0181, 0182]
+referencias_documentales: [AGENTS.md, docs/ARCHITECTURE.md, docs/PROCESS.md, docs/GTM.md, scripts/checks/aliases.py]
+prev_id: 0182
+prev_hash: 66da45843acfec104450bb6ea7da53eee5dc359cb182fa2393615369676d677a
+entry_hash: 1159bf3b1b70e7a9270ada1cd20a036827e408343559837339bcdb318cb3e7e4
+ticket_or_adr: AGENTIC-ROOT-0002
+test_ids: [V-18, SUITE]
+entregable_afectado: AGENTS.md (ruta de lectura), front-matter de los docs normativos, 28 citas de alias
+descripcion: >
+  El contrato deja de ser solo una lista de invariantes y pasa a decidir qué se lee.
+  (a) AGENTS.md abre con una ruta de lectura: por tipo de tarea, qué archivo abrir y
+  qué NO abrir, con la instrucción explícita de que cargar la especificación completa
+  está prohibido y que todo puntero se resuelve por INDEX.md. La sección va sin número
+  para no renumerar el contrato y no invalidar las citas AGENTS §2.N existentes.
+  (b) Cada documento normativo declara front-matter con doc_id, alias, authority
+  (normativa, derivada, generada o inmutable) y owner: un agente sabe qué autoridad
+  tiene un archivo sin inferirla del nombre. (c) Los alias en prosa se mantienen en
+  español y ahora son un mapa ejecutable en paths.py; las 28 citas al documento de
+  proceso migran a Proceso §N cuando apuntan a §0-§9 y a Roadmap FASE N cuando apuntan
+  al roadmap. (d) Nuevo check V-18: front-matter válido, cada cita Alias §N resuelve
+  dentro de los archivos de ese alias, y todo archivo .md citado existe (los patrones
+  con comodín valen si resuelven a por lo menos un archivo).
+evidencia: >
+  RED: no existía ruta de lectura; ningún documento declaraba su autoridad; las citas
+  al proceso usaban el nombre de archivo viejo. V-18 encontró de entrada dos punteros
+  reales: la cita Agents §5.4 (nómina fuera de alcance) resolvía por coincidencia
+  contra §5.4 de la especificación, que trata del ecosistema Perú, y la portada citaba
+  un Ledger.md que ya no existía en esa ruta.
+  GREEN: V-18 GREEN con 40 documentos con front-matter válido y alias resueltos contra
+  97 headings; RED reproducido en sus tres modos (authority inválida, Arquitectura
+  §99.9 y una ruta .md inexistente); el puntero de nómina reapuntado a Arquitectura
+  §5.3 regla 22, que es donde la regla vive; RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff PM]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0184
+timestamp_utc: 2026-08-03T22:40:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; corte de la especificación en capítulos)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Corrección de especificación
+subtipo: corte en capítulos direccionables
+relacion: AMPLIA
+referencias_entradas: [0180, 0182, 0183]
+referencias_documentales: [docs/ARCHITECTURE.md, docs/architecture/]
+prev_id: 0183
+prev_hash: 1159bf3b1b70e7a9270ada1cd20a036827e408343559837339bcdb318cb3e7e4
+entry_hash: 02ea0eeb3917639242e86c841f3aa97bb3ecf39a0199326ebc6288bb7c0d5c6d
+ticket_or_adr: AGENTIC-ROOT-0003
+test_ids: [V-01, V-11, V-12, V-19, SPLIT-PARTITION-01]
+entregable_afectado: docs/ARCHITECTURE.md (portada) + 18 archivos docs/architecture/
+descripcion: >
+  La especificación pasa de un archivo de 3899 líneas a 18 capítulos direccionables
+  más una portada navegable. Un agente que necesita una regla de caja abría 3899
+  líneas para leer 80: ese costo desaparece. (a) El corte se hace por los headings de
+  capítulo ya existentes, sin reescribir una sola línea de contenido en el mismo paso;
+  el mayor capítulo es 05-3-commercial-ops con 926 líneas. (b) docs/ARCHITECTURE.md
+  queda como portada: identidad de versión, mapa capítulo a archivo con su tamaño, y
+  el Registry de Reglas §0.4, que es una tabla de punteros y por eso vive en la
+  portada. Las citas §0.4 siguen resolviendo porque V-12 une los headings de todo el
+  corpus. (c) Dos normalizaciones se hacen después del corte, como edición explícita y
+  separada: el DDL base v8.0 (540 líneas) deja de colgar dentro de §5.4 Ecosistema
+  Perú y recibe heading propio §5.5 con su nota de convenciones, y §5.1 baja a nivel 3
+  para dejar de ser el único x.y en nivel 2. (d) El corte se validó con una prueba de
+  partición: cada línea del original aparece exactamente una vez en un archivo destino
+  y byte a byte, lo que es más fuerte que un rejoin concatenado porque también prueba
+  que nada quedó duplicado.
+  sha256 del archivo original de entrada al corte, 3899 líneas:
+  7c8475f2dd394e0ac537b4e6c9908cb8e8c31a79347270aad5ba55519b473d5c
+evidencia: >
+  RED: el capítulo §5.3 medía 918 líneas y §6 787 dentro de un único archivo de 3899;
+  el DDL base de 104 tablas estaba anidado bajo §5.4, que trata de otra cosa; §5.1 era
+  el único subcapítulo en nivel 2.
+  GREEN: CORTE GREEN con partición exacta de 3899 líneas en 19 archivos (0 líneas
+  duplicadas, 0 sin destino); V-01 confirma que ningún corte partió un fence; V-11 y
+  V-12 GREEN sobre el árbol nuevo; V-19 GREEN con 926 líneas como máximo;
+  RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff Backend Datos]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0185
+timestamp_utc: 2026-08-03T22:55:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; corte del roadmap por fases)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Corrección de especificación
+subtipo: corte del roadmap
+relacion: AMPLIA
+referencias_entradas: [0182, 0183, 0184]
+referencias_documentales: [docs/PROCESS.md, docs/ROADMAP.md, docs/roadmap/]
+prev_id: 0184
+prev_hash: 02ea0eeb3917639242e86c841f3aa97bb3ecf39a0199326ebc6288bb7c0d5c6d
+entry_hash: 62456832b0c02a96f9a2829cdb261900ab6acaddf53efe88f2d5318ed903963a
+ticket_or_adr: AGENTIC-ROOT-0004
+test_ids: [V-12, V-18, V-19, SPLIT-PARTITION-02]
+entregable_afectado: docs/PROCESS.md (§0-§9 + anexos), docs/ROADMAP.md (portada), 15 archivos docs/roadmap/
+descripcion: >
+  El roadmap se separa del proceso. §10 medía 887 de las 1289 líneas del documento, y
+  cada fase mide entre 22 y 82: un agente que trabaja un sprint cargaba 887 líneas
+  para leer 80. (a) docs/PROCESS.md conserva §0-§9 y los anexos A, B y C (401 líneas)
+  y se retitula: ya no es un roadmap, es el proceso (roles, DoD, workflows, testing,
+  gobernanza, métricas). (b) docs/ROADMAP.md es la portada: el heading §10, el mapa
+  FASE a archivo con sus sprints y la tabla de estado de especificación por sprint.
+  (c) 15 archivos docs/roadmap/fase-*.md, uno por fase (0 a 8 más 6B a 6G), cada uno
+  con su fase y su rango de sprints en el front-matter, que es lo que permite al
+  índice resolver sprint a archivo. (d) Misma prueba de partición byte-idéntica que el
+  corte de la especificación.
+  sha256 del archivo original de entrada al corte, 1289 líneas:
+  9d2b0b47001ebb5f4a74c0246b28cac2d24067119a35c8b098dc4f1c508a7e9f
+evidencia: >
+  RED: 887 líneas de roadmap dentro del documento de proceso, con el título del
+  archivo prometiendo un roadmap y el cuerpo conteniendo además todo el proceso.
+  GREEN: CORTE GREEN con partición exacta de 1289 líneas en 17 archivos (0 duplicadas,
+  0 sin destino); 15 fases de 22 a 82 líneas; PROCESS.md en 401 líneas y retitulado;
+  V-19 GREEN; RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff PM]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0186
+timestamp_utc: 2026-08-03T23:10:00Z
+schema_version: 2
+sprint_fase: Sprint 0 — Fase 0 (Fundación; índice v2 y presupuesto de tamaño)
+agente_responsable: Staff Principal — Arquitectura & Orquestación
+tipo: Entregable nuevo
+subtipo: índice con archivo y línea, presupuesto de tamaño
+relacion: AMPLIA
+referencias_entradas: [0181, 0184, 0185]
+referencias_documentales: [INDEX.md, scripts/checks/gen_index.py, scripts/checks/size_budget.py, AGENTS.md]
+prev_id: 0185
+prev_hash: 62456832b0c02a96f9a2829cdb261900ab6acaddf53efe88f2d5318ed903963a
+entry_hash: ecef93194bf763b601a2a1398e9c444d7b1c1e31231796216f920e2b70685b9d
+ticket_or_adr: AGENTIC-ROOT-0005
+test_ids: [V-15, V-19, SUITE]
+entregable_afectado: INDEX.md, scripts/checks/gen_index.py, scripts/checks/size_budget.py, AGENTS.md §5/§6
+descripcion: >
+  El índice deja de decir una sección y pasa a decir un archivo. (a) gen_index.py
+  recorre la familia completa de la especificación en orden de § (no alfabético, lo
+  resuelve por el campo section del front-matter) y de proceso o roadmap, y emite
+  archivo y línea en capabilities, tablas DDL, reglas, puertos y packages, más una
+  tabla sprint a fase con su archivo y su estado. Un agente que recibe el Sprint 37
+  abre INDEX.md, obtiene docs/roadmap/fase-6c.md y el capítulo con la regla, y no toca
+  nada más. (b) Nuevo check V-19 de presupuesto: ningún archivo de doctrina supera
+  1000 líneas. Los documentos con authority inmutable (el ledger, que crece por
+  diseño y se lee por su última entrada) y generada (el propio índice, cuyo tamaño es
+  consecuencia del corpus) quedan exentos por naturaleza. Tras los dos cortes el
+  máximo es 926 líneas, así que el check queda GREEN con margen y bloquea que vuelva a
+  formarse un monolito. (c) El router de AGENTS.md ya apunta a archivos concretos y
+  las tablas de checks de AGENTS.md y del skill kipus-verify cubren V-17, V-18 y V-19.
+evidencia: >
+  RED: tras los cortes, el índice generado quedó con 0 capabilities, 0 tablas DDL y 0
+  puertos, porque leía únicamente la portada; el puntero más preciso que sabía dar era
+  una sección, no un archivo; nada impedía que un capítulo volviera a crecer sin
+  límite.
+  GREEN: INDEX.md con 348 líneas y punteros a archivo y línea (46 capabilities, 65
+  sprints, 104 tablas DDL, 66 reglas, 7 puertos, 12 packages); V-15 GREEN sin drift;
+  V-19 GREEN con 38 archivos bajo presupuesto y RED reproducido con un archivo de 1109
+  líneas; RESULT SUITE GREEN; 20 checks definidos (V-00 a V-19): 19 los
+  emite la batería y V-16 vive en el hook pre-commit y en CI, que comparan contra la
+  base del PR.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```

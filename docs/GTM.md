@@ -1,9 +1,16 @@
+---
+doc_id: gtm
+alias: GTM
+authority: derivada
+owner: "@DawoT"
+---
+
 # KipusPay — Estrategia Go-To-Market y Landing Page Comercial
 ## Documento Consolidado de Producto, Pricing y Ventas
 
 > KipusPay es el sistema de punto de venta y facturación electrónica que se vende solo, porque en cinco minutos ya está cobrando la primera venta — no en cinco semanas de implementación.
 
-> **Estado de publicación:** la gobernanza de especificación está `GOV-APROBADO` (milestone Sprint 0, entrada 0176 de `Agents.md`), pero mientras `Agents.md` mantenga `Entrega = Planificado`, este documento es especificación comercial, no autorización para publicar claims. Staff Growth solo publica un claim cuando el Quality Gate, la evidencia de implementación y la aprobación RACI correspondiente están cerrados.
+> **Estado de publicación:** la gobernanza de especificación está `GOV-APROBADO` (milestone Sprint 0, entrada 0176 del Ledger), pero mientras el Roadmap mantenga `Entrega = Planificado`, este documento es especificación comercial, no autorización para publicar claims. Staff Growth solo publica un claim cuando el Quality Gate, la evidencia de implementación y la aprobación RACI correspondiente están cerrados.
 
 ---
 
@@ -33,7 +40,7 @@ Nótese lo que NO aparece en esta tabla: sharding, Edge, latencia, arquitectura,
 
 KipusPay se posiciona como agnóstico de vertical, pero se **vende** vertical por vertical, porque cada tipo de negocio tiene un dolor dominante distinto que debe liderar su propia página de aterrizaje. En producto eso significa **un solo core + capabilities** (Arquitectura §1.1 / ADR-ARCH-002): las landings empaquetan comercialmente bundles de capabilities, no forks del código.
 
-**Regla comercial (FASE 6 / Agents):** el *feature destacado en demo* y el copy de landing vertical solo se usan en campaña o pitch **después** del Quality Gate del sprint indicado. Hasta entonces: vender el dolor + lo ya shipped (caja offline, formalización, Modo Dueño básico, CPE/PSE); no prometer KDS/split, FEFO, arqueo Z ciego ni merma entre locales como listos.
+**Regla comercial (Roadmap FASE 6):** el *feature destacado en demo* y el copy de landing vertical solo se usan en campaña o pitch **después** del Quality Gate del sprint indicado. Hasta entonces: vender el dolor + lo ya shipped (caja offline, formalización, Modo Dueño básico, CPE/PSE); no prometer KDS/split, FEFO, arqueo Z ciego ni merma entre locales como listos.
 
 | Vertical | Dolor dominante | Gancho de landing específico | Feature destacado en demo | Listo tras |
 |---|---|---|---|---|
@@ -53,8 +60,8 @@ Una landing premium con verticalización (sección 2) solo funciona si la navega
 
 ### 3.1 Mapa del Sitio — Capa de Marketing (Pre-Venta)
 
-```
-atlas.pe (Home / Landing Principal)
+```text
+kipuspay.pe (Home / Landing Principal)
 │
 ├── /para/restaurantes          → Landing vertical: Restaurantes
 ├── /para/farmacias             → Landing vertical: Farmacias
@@ -101,7 +108,7 @@ Una vez el negocio está activado, la navegación deja de ser la de un sitio de 
 
 **Navegación del Cajero (pantalla de cobro — alta frecuencia, cero fricción):**
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ [Sesión de caja: Abierta]      [Cajero: Ana] │  ← barra superior fija, siempre visible
 ├─────────────────────────────────────────────┤
@@ -117,7 +124,7 @@ Solo 4 destinos posibles desde la pantalla de cobro — cualquier función que n
 
 **Navegación del Administrador de tienda (gestión de un local):**
 
-```
+```text
 Inicio (resumen del día) │ Ventas │ Inventario │ Clientes │ Caja │ Reportes │ Configuración
 ```
 
@@ -168,7 +175,7 @@ Banner ámbar si hay envíos/RC cerca del plazo: *"Hay comprobantes por declarar
 
 **Navegación del Dueño / Modo Dueño (móvil, multi-local):**
 
-```
+```text
 Hoy (default) │ Locales │ Alertas │ Finanzas │ Yo
 ```
 
@@ -191,11 +198,11 @@ El pricing de KipusPay se diseña alrededor de un principio de PLG (Product-Led 
 | **Cadena** | S/ 349 (~US\$ 95) + S/ 39 por sucursal adicional | Igual con 2 meses gratis | Cadenas de 4+ locales | Sucursales ilimitadas, analítica predictiva (gate Sprint 46), **motor de fidelización** (gate Sprint 24), **API de integraciones** (gate Sprint 23), **insight del negocio + briefing diario** (gate Sprint 49), account manager dedicado |
 | **Enterprise** | Cotización personalizada | — | Cadenas de 30+ locales, franquicias, requerimientos de integración a medida | SLA contractual, **soporte prioritario**, onboarding asistido, integraciones a medida (ERP contable, e-commerce) — e-commerce = backlog v10 |
 
-**Freeze comercial Cadena (FASE 7):** no afirmar en pitch/landing que la API o la fidelización “ya están” hasta Quality Gate de sprints **23** y **24** respectivamente (Agents FASE 7). Hasta entonces: vender multi-sucursal, Modo Dueño y account manager; API/fidelización como roadmap con fecha de gate.
+**Freeze comercial Cadena (FASE 7):** no afirmar en pitch/landing que la API o la fidelización “ya están” hasta Quality Gate de sprints **23** y **24** respectivamente (Roadmap FASE 7). Hasta entonces: vender multi-sucursal, Modo Dueño y account manager; API/fidelización como roadmap con fecha de gate.
 
-**Freeze “analítica predictiva” (Cadena, FASE 6F):** la claim “analítica predictiva” del plan Cadena **queda congelada** hasta el Quality Gate del **Sprint 46** (Agents FASE 6F). Hasta entonces no afirmar pronósticos de ventas ni detección de quiebre en pitch/landing; vender reporting exacto (rollups D1) y Modo Dueño. Tras el gate, la claim se descongela con disclaimer (“estimación, no garantía”).
+**Freeze “analítica predictiva” (Cadena, FASE 6F):** la claim “analítica predictiva” del plan Cadena **queda congelada** hasta el Quality Gate del **Sprint 46** (Roadmap FASE 6F). Hasta entonces no afirmar pronósticos de ventas ni detección de quiebre en pitch/landing; vender reporting exacto (rollups D1) y Modo Dueño. Tras el gate, la claim se descongela con disclaimer (“estimación, no garantía”).
 
-**Freeze “Gerente de Operaciones” (Cadena/Enterprise, FASE 6F):** la claim “El único POS que viene con un Gerente de Operaciones incluido” (inteligencia del negocio: agente de insights + Morning Briefing diario) **queda congelada** hasta el Quality Gate del **Sprint 49** (Agents FASE 6F). Hasta entonces no prometer chatbot de insights ni resumen automático diario en pitch/landing; vender analítica predictiva descongelada (Sprint 46), reporting exacto y Modo Dueño. Tras el gate, la claim se descongela (el briefing se entrega como data verificable sobre rollups D1, no como “IA que opina”).
+**Freeze “Gerente de Operaciones” (Cadena/Enterprise, FASE 6F):** la claim “El único POS que viene con un Gerente de Operaciones incluido” (inteligencia del negocio: agente de insights + Morning Briefing diario) **queda congelada** hasta el Quality Gate del **Sprint 49** (Roadmap FASE 6F). Hasta entonces no prometer chatbot de insights ni resumen automático diario en pitch/landing; vender analítica predictiva descongelada (Sprint 46), reporting exacto y Modo Dueño. Tras el gate, la claim se descongela (el briefing se entrega como data verificable sobre rollups D1, no como “IA que opina”).
 
 **Copy post-gate y criterios de descongelado (Sprint 49):** cuando pase el gate, la narrativa de venta usa estos 3 proof points — y solo se venden si el gate los verificó:
 1. **Exactitud, no opinión:** *"Cada mañana recibes 3 viñetas — ventas, quiebre, excepciones de caja — calculadas sobre los números exactos de tu negocio (rollups D1), no sobre estimaciones."* (Gate: 0 discrepancias NLG vs D1 en 500 casos; las respuestas se auditan en `insight_log`.)
@@ -204,9 +211,9 @@ El pricing de KipusPay se diseña alrededor de un principio de PLG (Product-Led 
 
 Estos proof points **no se publican en la landing antes del gate** (regla comercial FASE 6); quedan especiados aquí para que el descongelado sea ejecución, no rediseño.
 
-**Gates de claims retail/servicios (FASE 6C-6E):** cotizaciones/presupuestos, devolución a proveedor, crédito de tienda/gift cards, pago en partes, comisiones, pedidos con retiro, ventas recurrentes/membresías y caja móvil solo se venden tras el Quality Gate de sus sprints (Agents FASE 6C-6E); antes, responder como roadmap con fecha de gate. La promesa “exporta todo tu historial” (GTM §5.7.1) queda respaldada por el **Sprint 42** (backup/restore) y **47** (LPDP).
+**Gates de claims retail/servicios (FASE 6C-6E):** cotizaciones/presupuestos, devolución a proveedor, crédito de tienda/gift cards, pago en partes, comisiones, pedidos con retiro, ventas recurrentes/membresías y caja móvil solo se venden tras el Quality Gate de sus sprints (Roadmap FASE 6C-6E); antes, responder como roadmap con fecha de gate. La promesa “exporta todo tu historial” (GTM §5.7.1) queda respaldada por el **Sprint 42** (backup/restore) y **47** (LPDP).
 
-**Gates de flujo del cliente (FASE 6G):** los claims "sube tu catálogo con la cámara", "cambia de turno sin cerrar caja", "atribuye la venta al vendedor con su badge" y "asistente de impresora" solo se venden tras el Quality Gate de los **Sprints 50–53** (Agents FASE 6G); antes, vender el catálogo por importador CSV/Bsale/Alegra (Sprint 21) y el arqueo Z estándar. El **setup checklist** y el **Product Tour** son internos de retención, no claims de landing.
+**Gates de flujo del cliente (FASE 6G):** los claims "sube tu catálogo con la cámara", "cambia de turno sin cerrar caja", "atribuye la venta al vendedor con su badge" y "asistente de impresora" solo se venden tras el Quality Gate de los **Sprints 50–53** (Roadmap FASE 6G); antes, vender el catálogo por importador CSV/Bsale/Alegra (Sprint 21) y el arqueo Z estándar. El **setup checklist** y el **Product Tour** son internos de retención, no claims de landing.
 
 **Regla de producto no negociable (anti-canibalización del cobro):** **nunca apagamos la caja** por volumen ni por excedente. Arranque incluye 1,000 comprobantes/mes; el adicional se **factura** (S/ 0.05) en batch fuera del cobro (Arquitectura §4.1) — no hay paywall en hora punta ni HTTP 402 en emisión. El upgrade Arranque → Crece se dispara cuando el negocio **pide una capacidad nueva** (segunda caja, local, Modo Dueño) o cuando el sobregiro hace más barato subir de plan — nunca porque "se le acabaron" y dejó de vender.
 
@@ -231,7 +238,7 @@ Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion co
 | **GTM-11** | Modo Dueño offline | Bloqueado hasta Sprint 8/9 | Banner con antigüedad; nunca presentar el último rollup como tiempo real ni permitir mutaciones offline |
 | **GTM-12** | Prueba social, badges y claims legales | Condicionado a evidencia | Permiso para testimonios; certificación/sello solo con respaldo vigente; Staff Fiscal/Security aprueban copy legal |
 
-**Regla de publicación:** cada release de copy registra el ID GTM afectado, el sprint/gate y el enlace a la evidencia. Staff Growth no descongela un claim por decisión comercial; solo lo hace después de la firma del Quality Gate correspondiente en `Agents.md`.
+**Regla de publicación:** cada release de copy registra el ID GTM afectado, el sprint/gate y el enlace a la evidencia. Staff Growth no descongela un claim por decisión comercial; solo lo hace después de la firma del Quality Gate correspondiente (Proceso §8.1).
 
 **Justificación de los montos:**
 
@@ -285,7 +292,7 @@ Este es el punto de mayor diferenciación visual de toda la landing, y el que m�
 
 El siguiente prompt está redactado siguiendo las mejores prácticas de generación de video por IA (descripción de shot, movimiento de cámara, iluminación, ritmo y mood explícitos, sin ambigüedad interpretativa) para maximizar consistencia entre generaciones y minimizar artefactos:
 
-```
+```text
 Cinematic commercial video, 10 seconds, seamless loop, no text, no logos, no UI screens.
 
 SUBJECT: A small independent retail shop in Latin America (a neighborhood

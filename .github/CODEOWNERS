@@ -1,0 +1,25 @@
+# KipusPay — dueños de revisión.
+# El RACI vinculante está en docs/PROCESS.md §8.1 / Anexo A; aquí solo se fuerza que los
+# artefactos de gobernanza no se mezclen sin revisión del owner.
+
+# Contrato raíz e invariantes (router de lectura de los agentes)
+/AGENTS.md                                   @DawoT
+
+# Registro inmutable: toda entrada nueva pasa por el owner (append-only, invariante 4)
+/docs/LEDGER.md                              @DawoT
+
+# Especificación normativa (DDL, motor ACID, fiscal, seguridad) — portada y capítulos
+/docs/ARCHITECTURE.md                        @DawoT
+/docs/architecture/                          @DawoT
+
+# Proceso, gates y roadmap
+/docs/PROCESS.md                             @DawoT
+/docs/ROADMAP.md                             @DawoT
+/docs/roadmap/                               @DawoT
+
+# Claims comerciales y pricing
+/docs/GTM.md                                 @DawoT
+
+# Gate ejecutable: cambiar el verificador cambia lo que el repo garantiza
+/scripts/                                    @DawoT
+/.github/workflows/                          @DawoT
