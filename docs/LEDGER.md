@@ -1924,3 +1924,36 @@ aprobaciones: [Staff Backend ACID, Staff Fiscal, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0205
+timestamp_utc: 2026-08-04T14:30:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (ruta offline-sale + feature flag slice 3)
+agente_responsable: Staff Backend ACID
+tipo: Entregable nuevo
+subtipo: offline-sale-route
+relacion: AMPLIA
+referencias_entradas: [0204]
+referencias_documentales: [apps/worker-api/src/pos/offline-sale-route.ts, apps/worker-api/wrangler.jsonc, docs/PROCESS.md]
+prev_id: 0204
+prev_hash: eec342fedbb2d771e62fc5cfdda37fc75d5989edb05fd286028f2452d090b54e
+entry_hash: 86184ba06ff18259723330a4112fa6511269874efdae864c7bcc82b285a941c0
+ticket_or_adr: ADR-0007
+test_ids: [offline-sale-route, protected-routes, index]
+entregable_afectado: worker-api POST /api/pos/offline-sale + FEATURE_ACID_OFFLINE_SALE
+descripcion: >
+  Slice 3 Sprint 4: ruta autenticada /api/pos/offline-sale detrás de feature flag
+  FEATURE_ACID_OFFLINE_SALE (default 0); 404 si off; 503 sin DB; matriz protected-routes.
+evidencia: >
+  RED (ancestro 90ab8ca): sin ruta offline-sale.
+  GREEN (commit 8b5088e): 70 tests worker-api; flag unitario GREEN.
+red_commit_sha: 90ab8cac4705b6be361cb11d347d2060df778295
+red_run_id: run-red-0205-offline-route
+expected_failure: AssertionError: missing /api/pos/offline-sale route
+green_commit_sha: 8b5088e0c155f24252fe9fcc3475a091693f2843
+green_run_id: run-green-0205-offline-route
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
