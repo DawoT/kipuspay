@@ -3607,3 +3607,40 @@ aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0252
+timestamp_utc: 2026-08-05T21:13:50Z
+schema_version: 2
+sprint_fase: Sprint 11 — Fase 4 (precios + onboarding + Admin Config + primera venta)
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: slice Sprint 11
+relacion: AMPLIA
+referencias_entradas: [0251]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/GTM.md, docs/ROADMAP.md, docs/runbooks/marketing-site-launch.md]
+prev_id: 0251
+prev_hash: b54d32b090caaf5a85cc7fdf49302fe7db1c54921ae7f11ebcea541b1c59be1a
+entry_hash: 9254a71baef75ea6eaced4bd514239da35fd804b7f273b723faeb3c83e4ec0cd
+ticket_or_adr: GTM §3.3.1, GTM §4.1, GTM §6.2, Roadmap Sprint 11
+test_ids: [formalization-advance, onboarding-bootstrap, pricing, draft, session, SUITE, V-20, V-24]
+entregable_afectado: /precios + /empezar + Admin Config + POS tenant-driven + API bootstrap
+descripcion: >
+  Entrega el slice canónico de Sprint 11: /precios con 4 planes §4.1 (sin
+  “sin límite” en Arranque; cupo como copy hasta Sprint 27), /empezar onboarding
+  4 pantallas §6.2 con TTFS, API bootstrap + stage-change confirmado sin convertir
+  NV, Admin Config §3.3.1, atajo Owner y primera venta POS según etapa del tenant.
+evidencia: >
+  RED: stubs unlockSprint 11; Owner → /admin/configuracion 404; checkout hardcode
+  INTERNAL_CONTROL; sin advanceFormalization.
+  GREEN: commit 4b334fd; quality GATE OK; verify SUITE GREEN; marketing 78 tests.
+red_commit_sha: f405eaecd3b16cbea691b6de01c064ddf6263c33
+red_run_id: run-red-0252-sprint-11-slice
+expected_failure: AssertionError: /precios y /empezar siguen stub; Admin Config ausente
+green_commit_sha: 4b334fd3d265325b81868d64c388d3bfb40a5d4f
+green_run_id: run-green-0252-sprint-11-slice
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; Staff PM + Fiscal QG + RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
