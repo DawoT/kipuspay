@@ -3830,3 +3830,80 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+
+```
+id: 0258
+timestamp_utc: 2026-08-05T22:25:20Z
+schema_version: 2
+sprint_fase: Sprint 17-20 — FASE 6 Motor de Operación Comercial
+agente_responsable: Staff Backend ACID
+tipo: Entregable nuevo
+subtipo: programa FASE 6
+relacion: AMPLIA
+referencias_entradas: [0257]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/adr/ADR-0012-sprint17-dependency-edges.md, docs/ops/fase6-s16-parallel-gate0.md, docs/ops/s17-anti-fraude-caja.md]
+prev_id: 0257
+prev_hash: 8b944fdfa359755f53d8f9ef3b5a1e8b4245dba10e2042320f2ef11b6b2bd11c
+entry_hash: 8edb3b6f6acbb06de86683324f565b339555ee627018dadb090c252152df67af
+ticket_or_adr: ADR-0012, Roadmap S17-S20, Arquitectura §5.3
+test_ids: [blind-z, cash-routes, orders, blind-close, packages/domain-inventory/src/index.test.ts, SUITE, V-13, V-15, V-20]
+entregable_afectado: FASE 6 S17 caja dura + dominio S18-S20 + migrate 0011
+descripcion: >
+  Gate 0 FASE 6 (ADR-0012 edges S25/S51 stub, S16 paralelo) y Sprint 17 núcleo:
+  blind Z, movimientos, discount/credit authz con consume de tokens, sale_reprints COPIA,
+  POS /caja, QG anti-fraude. Dominio + DDL + HTTP thin para S18 (FEFO/BOM/PMP),
+  S19 (orders/KDS/split) y S20 (transfers/partial receive). ROADMAP S17 Cerrado;
+  S18-S20 En progreso (adapter FEFO venta y KDS WS realtime pendientes).
+evidencia: >
+  RED: sin migrate 0011; sin blind-z; credit_limit sin enforce; INDEX S19-20 sin estado.
+  GREEN: domain-cash/inventory/sales GREEN cobertura ≥95%; cash-routes 8 tests;
+  FEATURE_CASH_BLIND_Z + /caja; verify post-append.
+red_commit_sha: e3906be6341dbd38a03fe2f4d4e18ae9155e9fe4
+red_run_id: run-red-0258-fase6-program
+expected_failure: AssertionError: FASE 6 sin caja dura ni migrate 0011
+green_commit_sha: b9c9bbdc2c70399cbca1961eda9a920ac631122f
+green_run_id: run-green-0258-fase6-program
+ancestry_verified: true
+aprobaciones: [Staff Principal R; A+V Security/QA S17 evidencia; A+V humano pendiente S18-20]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0259
+timestamp_utc: 2026-08-05T22:40:00Z
+schema_version: 2
+sprint_fase: Sprint 17 — Fase 6 (Firma A+V Caja Dura / Motor de Operación Comercial)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0258]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s17-anti-fraude-caja.md, docs/adr/ADR-0012-sprint17-dependency-edges.md, docs/architecture/05-3-commercial-ops.md]
+prev_id: 0258
+prev_hash: 8edb3b6f6acbb06de86683324f565b339555ee627018dadb090c252152df67af
+entry_hash: 680ab44d9061591221bdbec2468774066cb2a344f1c1389895bf53d2d019ad56
+ticket_or_adr: ADR-0012, Roadmap Sprint 17, Arquitectura §5.3
+test_ids: [blind-z, cash-routes, orders, blind-close, packages/domain-inventory/src/index.test.ts, SUITE, V-13, V-15, V-20]
+entregable_afectado: Sprint 17 caja dura GOV-APROBADO (Z ciego, movimientos, reprints, authz descuento/crédito)
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 17 (FASE 6): cierre Z ciego con conteo de
+  denominaciones, movimientos de caja con audit_events, reimpresión con sello
+  COPIA (sale_reprints), authz de descuento sobre umbral (403) y crédito sobre
+  límite (422) con consumo de authorization_tokens, POS /caja con expected_cash
+  oculto, y el QG anti-fraude documentado en docs/ops/s17-anti-fraude-caja.md.
+evidencia: >
+  RED: sin migrate 0011; sin blind-z; credit_limit sin enforce.
+  GREEN: quality.sh OK 8/8; verify SUITE GREEN; domain-cash/inventory/sales
+  cobertura ≥95%; integration 34/34; firma A+V otorgada.
+red_commit_sha: b9c9bbdc2c70399cbca1961eda9a920ac631122f
+red_run_id: run-red-0259-sprint-17-gov
+expected_failure: AssertionError: Sprint 17 QG EN REVISION
+green_commit_sha: b9c9bbdc2c70399cbca1961eda9a920ac631122f
+green_run_id: run-green-0259-sprint-17-gov
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Security V, Staff QA V, Staff Architect A]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
