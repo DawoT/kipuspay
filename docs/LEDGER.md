@@ -3571,3 +3571,39 @@ aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0251
+timestamp_utc: 2026-08-05T21:00:00Z
+schema_version: 2
+sprint_fase: Sprint 11 — Fase 4 (apertura + deuda QG)
+agente_responsable: Staff Frontend
+tipo: Decision / ADR
+subtipo: ADR-0008
+relacion: AMPLIA
+referencias_entradas: [0213, 0216, 0219, 0222, 0238, 0250]
+referencias_documentales: [docs/adr/ADR-0008-qg-debt-en-revision.md, docs/PROCESS.md, docs/roadmap/fase-4.md]
+prev_id: 0250
+prev_hash: b7378673d0600a9c698eb46d07e68f08bd3f0f7067c1025950411655b0ad6339
+entry_hash: b54d32b090caaf5a85cc7fdf49302fe7db1c54921ae7f11ebcea541b1c59be1a
+ticket_or_adr: ADR-0008, Proceso §8.1
+test_ids: [SUITE, V-13, V-18]
+entregable_afectado: ADR-0008 + apertura Sprint 11 pese a CIERRAs EN REVISION
+descripcion: >
+  Acepta ADR-0008: la deuda QG EN REVISION de Sprints 5–7 y CIERRA S10
+  (0238) no bloquea la apertura de Sprint 11; permanece como backlog de
+  Firma A+V humana. No se reescribe el ledger ni se inventa GOV-APROBADO
+  de implementacion retroactivo.
+evidencia: >
+  RED: ambiguedad de gobernanza bloqueaba arranque S11.
+  GREEN: ADR-0008 Aceptado; tip limpio post-0250; verify SUITE GREEN.
+red_commit_sha: aef773496dbb25545918967ddbbc280eb220c644
+red_run_id: run-red-0251-adr-qg-debt
+expected_failure: AssertionError: Sprint 11 bloqueado por CIERRAs EN REVISION
+green_commit_sha: aef773496dbb25545918967ddbbc280eb220c644
+green_run_id: run-green-0251-adr-qg-debt
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
