@@ -33,6 +33,13 @@ python3 scripts/checks/marketing_copy.py
 
 0 terminos: Edge, D1, Workers, ACID, sharding, Durable Object, Cloudflare, CDR, UBL, PSE.
 
+## Fuentes y assets (zero-dependency runtime)
+
+- Tipografia vendida en `static/fonts/*.woff2` (Fraunces, Schibsted Grotesk, Spline Sans Mono) con `@font-face` local (`font-display: swap`); preload de Fraunces y Schibsted en `+layout.svelte`. Sin CDN externo ni libreria npm.
+- `static/fonts/OFL-LICENSE.txt` con la atribucion OFL 1.1 de las tres familias.
+- `og:image` en PNG por marca y por rubro (`/media/og-kipuspay.png`, `/media/og-*.png`); regenerar con `node apps/marketing-web/scripts/render-social-assets.mjs`.
+- Hero: video de evolucion (`/media/hero-quipu.mp4`, ~558 kB, una pasada) + quipu vivo en canvas (fisica Verlet); SVG SSR como fallback sin JS / reduced-motion.
+
 ## SEO
 
 - title / description / canonical por home, vertical y comparar
@@ -56,6 +63,7 @@ Evidencia local (Sprint 10): LCP vía poster estatico en primer viewport; CLS 0 
 El sitio es prerender estático: el flag se decide en **build**, no en runtime.
 Un cambio de variable en Pages en caliente no cambia el contenido ya emitido.
 
-1. Preview: `PUBLIC_FEATURE_MARKETING_SITE=1 pnpm --filter @kipuspay/marketing-web build` + `preview`.
-2. Go-live: definir `PUBLIC_FEATURE_MARKETING_SITE=1` como variable de **build** del proyecto Pages y redeploy.
-3. Rollback: redeploy con `PUBLIC_FEATURE_MARKETING_SITE=0` (o sin la variable) → pantalla "Sitio en preparacion".
+1. Dev preview: editar `apps/marketing-web/.env` → `PUBLIC_FEATURE_MARKETING_SITE=1` y **reiniciar** el dev server. NO usar variable de shell: en dev `import.meta.env` no se expone en SSR y `process.env` no carga `.env` → divergencia server/cliente y hydration mismatch. Restaurar a `0` al terminar.
+2. Preview de produccion: `PUBLIC_FEATURE_MARKETING_SITE=1 pnpm --filter @kipuspay/marketing-web build` + `preview`.
+3. Go-live: definir `PUBLIC_FEATURE_MARKETING_SITE=1` como variable de **build** del proyecto Pages y redeploy.
+4. Rollback: redeploy con `PUBLIC_FEATURE_MARKETING_SITE=0` (o sin la variable) → pantalla "Sitio en preparacion".

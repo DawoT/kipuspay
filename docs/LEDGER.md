@@ -3219,4 +3219,88 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0242
+timestamp_utc: 2026-08-05T00:02:12Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (cierre de calidad, Ledger Minimalism ink-first)
+agente_responsable: Staff Architect
+tipo: Corrección de especificación
+subtipo: cierre de calidad y operación del sitio de marketing
+relacion: AMPLIA
+referencias_entradas: [0239, 0240, 0241]
+referencias_documentales: [docs/GTM.md, docs/architecture/00-brand-positioning.md, docs/runbooks/marketing-site-launch.md]
+prev_id: 0241
+prev_hash: 354606a518cf162929331ba1d8e9150bcbbe65deddf8d0359c136f45f7617ab7
+entry_hash: fc75e5ce9c066c83e3237bbaea4c7a6e74dfdd926763b88bdaee58f7a336fe71
+ticket_or_adr: GTM §5, ADR-ARCH-002, CAL-01, CAL-06
+test_ids: [content, quipu, money, seo, registry, reveal, features, SUITE, index]
+entregable_afectado: apps/marketing-web y docs/runbooks/marketing-site-launch.md
+descripcion: >
+  Cierre del rediseno ink-first "Ledger Minimalism" de marketing-web: el gate de
+  calidad queda SUITE GREEN (quality.sh 8/8 exit 0, verify V-00..V-24, 29
+  pruebas unitarias, cobertura de lib 100% lineas / 97.6% statements). Se
+  corrige un selector CSS que rompia el minificador LightningCSS (.knot-steps
+  li::before span), se aíslan los tests del action reveal (guard SSR +
+  IntersectionObserver fake) y se documenta en el runbook que el preview dev se
+  controla por .env con reinicio de vite (nunca variable de shell: causa
+  divergencia server/cliente y hydration mismatch), fuentes vendidas sin CDN
+  runtime y og:image en SVG.
+evidencia: >
+  RED: quality.sh fallaba por cobertura de marketing-web <70% (reveal.ts sin
+  tests y v8 con lineas colapsadas) y por build roto (LightningCSS rechazaba
+  .knot-steps li::before span).
+  GREEN: cobertura 100% lineas; build OK; quality.sh 8/8 exit 0; verify SUITE
+  GREEN; marketing copy GREEN (31 archivos).
+red_commit_sha: 0345b867a62bd2b502a81a94d5272979fae89d07
+red_run_id: run-red-0242-marketing-gate
+expected_failure: AssertionError: coverage <70 y build LightningCSS
+green_commit_sha: 0345b867a62bd2b502a81a94d5272979fae89d07
+green_run_id: run-green-0242-marketing-gate
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
 
+
+
+```
+id: 0243
+timestamp_utc: 2026-08-05T17:26:29Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (hero video + quipu canvas)
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: video de evolucion y fisica del quipu en canvas
+relacion: AMPLIA
+referencias_entradas: [0239, 0240, 0242]
+referencias_documentales: [docs/GTM.md]
+prev_id: 0242
+prev_hash: fc75e5ce9c066c83e3237bbaea4c7a6e74dfdd926763b88bdaee58f7a336fe71
+entry_hash: aea7417c588205cc22fdeed4063b556f38a8ebbcdcc99de3170346038808f1ad
+ticket_or_adr: GTM §5.1
+test_ids: [quipu-sim, quipu-draw, quipu, content, seo, SUITE, V-21, V-24]
+entregable_afectado: apps/marketing-web QuipuHero + static/media/hero-quipu.*
+descripcion: >
+  Hero de marketing con dos capas que cumplen GTM §5.1: (1) video cinematografico
+  de 10s (quipu antiguo → mostrador), comprimido a 558 kB, una sola pasada sin
+  loop y congelado en el ultimo frame; (2) quipu vivo en canvas 2D con fisica
+  Verlet (misma geometria que buildRig, nudos con masa, auto-stop del rAF,
+  impulso al puntero, viento de scroll). El SVG SSR permanece como fallback
+  sin JS / prefers-reduced-motion. Zero dependencias runtime.
+evidencia: >
+  RED: en 4b93e90 el hero solo tenia SVG estatico; no existian quipu-sim,
+  quipu-draw ni el asset hero-quipu.mp4.
+  GREEN: fc1fa85; 67 tests verdes; verify SUITE GREEN; quality Gate OK;
+  bundle 62.35 kB gz / 72 kB; video 558 kB.
+red_commit_sha: 4b93e90914097356504feb94b8b27461a5fc8d8d
+red_run_id: run-red-0243-hero-video-canvas
+expected_failure: AssertionError: falta hero-quipu.mp4 y quipu-sim.ts
+green_commit_sha: fc1fa85a83c5cd3e8a93276be3180808f68e5d2d
+green_run_id: run-green-0243-hero-video-canvas
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
