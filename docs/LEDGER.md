@@ -3536,3 +3536,38 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+
+```
+id: 0250
+timestamp_utc: 2026-08-05T20:59:05Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (aterrizaje WIP marketing en tip)
+agente_responsable: Staff Frontend
+tipo: Correccion / Modificacion
+subtipo: evidencia SHA tip
+relacion: CORRIGE
+referencias_entradas: [0246, 0247, 0248, 0249]
+referencias_documentales: [docs/runbooks/marketing-site-launch.md, docs/PROCESS.md]
+prev_id: 0249
+prev_hash: ade261757488fce932fa7d7ed4d6635494803f53ccee68cff0273976160e70a7
+entry_hash: b7378673d0600a9c698eb46d07e68f08bd3f0f7067c1025950411655b0ad6339
+ticket_or_adr: GTM §5.1, GTM §6.1, Proceso §8.1
+test_ids: [responsive-ui, quipu-motif, quipu-physics, quipu-renderer, quipu-sim, quipu-draw, content, seo, reveal, SUITE, V-20, V-24]
+entregable_afectado: tip feat/implementation-quality marketing-web editorial + responsive
+descripcion: >
+  Aterriza en el tip el WIP documentado en 0246–0249 (fibra oscura, nudo al
+  scroll, hero loop, comparativa mobile, CTAs contraste) cuyo green_commit_sha
+  apuntaba a 979bba1 sin el arbol editorial. GREEN real = 3d9d674.
+evidencia: >
+  RED: tip 9d4d584 sin QuipuSectionMark; ledger 0246–0249 certificaba arbol ausente.
+  GREEN: commit 3d9d674; 73 tests; bundle ~60 kB; verify SUITE GREEN.
+red_commit_sha: 9d4d58473727cc519f973338122516626cf2451a
+red_run_id: run-red-0250-land-marketing-wip
+expected_failure: AssertionError: QuipuSectionMark ausente en tip pese a 0249 GOV-APROBADO
+green_commit_sha: 3d9d6742306514a2732fd0453b7d31e7a4331b83
+green_run_id: run-green-0250-land-marketing-wip
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
