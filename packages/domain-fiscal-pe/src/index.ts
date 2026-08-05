@@ -245,3 +245,9 @@ export {
   type SuggestFormalizationMode,
   type SuggestTaxRegime,
 } from './document-selector.js';
+
+export {
+  advanceFormalization,
+  assertFormalizationAdvance,
+  enabledDocumentTypesFor,
+} from './formalization-advance.js';

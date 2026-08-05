@@ -1,14 +1,22 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { isOwnerModeEnabled } from '$lib/features';
+  import { readTenantSession } from '$lib/tenant/session';
 
   const enabled = isOwnerModeEnabled();
+  let planLabel = $state('Plan: Arranque (lectura)');
+
+  onMount(() => {
+    const s = readTenantSession(sessionStorage);
+    planLabel = `Plan: Arranque · ${s.formalizationMode}`;
+  });
 </script>
 
 {#if enabled}
   <section class="yo" data-testid="owner-yo">
     <h1>Yo</h1>
     <p class="lede">Plan, suscripción y atajos — config profunda en Admin.</p>
-    <p class="plan" data-testid="plan-label">Plan: Crece (lectura)</p>
+    <p class="plan" data-testid="plan-label">{planLabel}</p>
     <a
       class="cta"
       data-testid="activar-facturacion"

@@ -36,6 +36,7 @@ import {
   runReportHttp,
   runReportsCatalogHttp,
 } from './reports/report-routes.js';
+import { runBootstrapHttp, runFormalizationStageHttp } from './onboarding/onboarding-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -295,6 +296,29 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       });
     }
     return c.json(result.body, result.status as 401 | 404 | 410 | 503);
+  });
+
+  // Onboarding Sprint 11: bootstrap publico (soft-launch) + stage tras auth.
+  app.post('/v1/onboarding/bootstrap', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = runBootstrapHttp(c.env, raw);
+    return c.json(result.body, result.status as 201 | 400 | 422);
+  });
+
+  app.patch('/api/tenant/formalization', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = runFormalizationStageHttp(c.env, raw);
+    return c.json(result.body, result.status as 200 | 400 | 422);
   });
 
   // Stripe webhooks: raw body + firma; sin JWT (Arquitectura §4).

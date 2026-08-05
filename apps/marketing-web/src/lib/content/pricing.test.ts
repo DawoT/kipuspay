@@ -1,0 +1,17 @@
+import { describe, expect, it } from 'vitest';
+import { PRICING_DISCLAIMERS, PRICING_PLANS } from './pricing.js';
+
+describe('pricing content', () => {
+  it('expone 4 planes GTM §4.1 sin copy sin limite en Arranque', () => {
+    expect(PRICING_PLANS).toHaveLength(4);
+    expect(PRICING_PLANS.map((p) => p.id)).toEqual(['arranque', 'crece', 'cadena', 'enterprise']);
+    const arranque = PRICING_PLANS[0];
+    expect(arranque?.limits.join(' ')).toMatch(/1,000/);
+    expect(arranque?.limits.join(' ').toLowerCase()).not.toMatch(/sin l[ií]mite/);
+  });
+
+  it('declara cupo Arranque como copy hasta Sprint 27', () => {
+    expect(PRICING_DISCLAIMERS.cupo).toMatch(/Sprint 27/);
+    expect(PRICING_DISCLAIMERS.gracia).toMatch(/gracia/i);
+  });
+});

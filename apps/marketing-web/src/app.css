@@ -1899,6 +1899,125 @@ li {
   color: var(--paper);
 }
 
+.pricing-grid {
+  display: grid;
+  gap: 1.2rem;
+  margin-top: 2rem;
+}
+
+@media (min-width: 720px) {
+  .pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .pricing-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.pricing-card {
+  border: 1px solid var(--line-ink);
+  padding: 1.25rem 1.1rem 1.4rem;
+  background: transparent;
+}
+
+.pricing-card[data-plan='arranque'] {
+  border-color: var(--amber);
+}
+
+.pricing-name {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  margin: 0 0 0.35rem;
+  color: var(--ink);
+}
+
+.pricing-price {
+  font-weight: 700;
+  margin: 0;
+  color: var(--ink);
+}
+
+.pricing-annual,
+.pricing-audience,
+.pricing-gates {
+  color: var(--muted-ink);
+  font-size: 0.92rem;
+}
+
+.pricing-card ul {
+  margin: 1rem 0 1.2rem;
+  padding-left: 1.1rem;
+  color: var(--ink);
+}
+
+.pricing-card .btn {
+  width: 100%;
+}
+
+.pricing-note {
+  margin-top: 1.2rem;
+  color: var(--muted-ink);
+  font-size: 0.92rem;
+  max-width: 48rem;
+}
+
+.onboarding {
+  max-width: 40rem;
+}
+
+.onb-field {
+  display: grid;
+  gap: 0.35rem;
+  margin: 1rem 0;
+  font-weight: 600;
+}
+
+.onb-field input {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line-ink);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.onb-cards {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.onb-cards button {
+  text-align: left;
+  padding: 1rem;
+  border: 1px solid var(--line-ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.onb-cards button.selected {
+  border-color: var(--amber);
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+
+.onb-cards button strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.onb-cards button span {
+  color: var(--muted-ink);
+  font-size: 0.95rem;
+}
+
+.onb-error {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
 /* ------------------------------------------------------------------ */
 /* Fibra oscura + un nudo: margen de seccion y reconnect offline       */
 /* ------------------------------------------------------------------ */

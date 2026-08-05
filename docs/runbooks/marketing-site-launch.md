@@ -41,6 +41,7 @@ python3 scripts/checks/marketing_copy.py
 - Hero: video cinematografico de evolucion (`/media/hero-quipu.mp4`, ~558 kB, loop + poster mientras el hero esta en viewport). Sin canvas ni SVG superpuesto.
 - Bajo el fold: sistema editorial "fibra oscura + un nudo" — margen de seccion hairline (`QuipuSectionMark`) con nudo ligado al progreso de scroll de cada seccion (sticky en desktop), picker tipografico 3+2, dolores como citas, reconnect offline como unico motivo ilustrado mid-page. Reduced-motion: video no reproduce; nudo queda fijo por `state`; animaciones one-shot se omiten.
 - Mobile: comparativas apiladas por concepto (sin scrollbar horizontal anidado); botones `hover`/`focus-visible` invierten superficie y texto con contraste AA.
+- Sprint 11: `/precios` real (GTM §4.1) y `/empezar` onboarding 4 pantallas; stubs restantes: seguridad (13), blog/casos (12).
 
 ## SEO
 

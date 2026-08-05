@@ -103,7 +103,8 @@ Abre solo los archivos que esta tabla te señale.
 | 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 25 | Actualizada (ledger CxC/CxP/OC/egresos + Modo Dueño + offline rollup + owner.push_alerts; GTM-03/11 freeze) | Cerrado |
 | 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 40 | Actualizada (M3 rollups §9 + cron multi-shard + catálogo CSV + GTM-03/11 unfreeze) | Cerrado |
 | 10 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 12 | Actualizada (sitio marketing + 5 landings + /comparar + claim-gate GTM) | Cerrado |
-| 11–16 | 4–5 | — | — | Base | Planificado |
+| 11 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 27 | Actualizada (precios §4.1 + onboarding §6.2 + Admin Config §3.3.1 + primera venta) | En progreso |
+| 12–16 | 4–5 | — | — | Base | Planificado |
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Planificado |
 | 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Planificado |
 | 19–20 | 6 | — | — | Base | Planificado |
@@ -118,7 +119,6 @@ Abre solo los archivos que esta tabla te señale.
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 11 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 27 | sin fila de estado | — |
 | 12 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 43 | sin fila de estado | — |
 | 13 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 54 | sin fila de estado | — |
 | 14 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 12 | sin fila de estado | — |

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import {
     isPosCheckoutEnabled,
@@ -19,11 +20,19 @@
     resolveLineWidth,
     type TicketData,
   } from '@kipuspay/print-templates';
+  import {
+    defaultTenantSession,
+    markTenantFirstSale,
+    readTenantSession,
+    tenantFromSearchParams,
+    ttfsMs,
+    writeTenantSession,
+    type PosTenantSession,
+  } from '$lib/tenant/session';
 
   const checkoutOn = isPosCheckoutEnabled();
-  const formalizationMode = 'INTERNAL_CONTROL' as const;
-  const banner = formalizationBannerMessage(formalizationMode);
 
+  let session = $state<PosTenantSession>(defaultTenantSession());
   let lines = $state<CartLine[]>([
     { productId: 'p1', name: 'Producto demo', unitPriceCents: 11800, quantity: 1 },
   ]);
@@ -31,20 +40,32 @@
   let message = $state('');
   let lastFeedbackMs = $state(0);
   let printPreview = $state('');
+  let lastTtfsMs = $state<number | null>(null);
 
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
   const correlatives = new OfflineCorrelativeStore(1);
 
   const totalCents = $derived(cartTotalCents(lines));
+  const banner = $derived(formalizationBannerMessage(session.formalizationMode));
+
+  onMount(() => {
+    if (typeof window === 'undefined') return;
+    const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
+    if (fromQs) {
+      writeTenantSession(sessionStorage, fromQs);
+      session = fromQs;
+      return;
+    }
+    session = readTenantSession(sessionStorage);
+  });
 
   async function onCharge() {
-    // Cobro crítico: sin await de red — encola y retorna (GTM §6.5).
     status = 'cobrando';
     if (isVitrinaEnabled()) {
       publishVitrina({
         totalCents,
         itemCount: lines.length,
-        documentType: 'NV',
+        documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
         phase: 'confirming',
         message: 'Confirma el pago',
       });
@@ -53,11 +74,11 @@
     const outcome = await chargeCartOffline(
       lines,
       {
-        formalizationMode,
+        formalizationMode: session.formalizationMode,
         taxRegime: 'RG',
         branchId: 'b-demo',
         cashRegisterSessionId: 's-demo',
-        series: 'NV01',
+        series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
         clientDocumentType: '1',
         clientDocumentNumber: '00000000',
         clientName: 'Cliente',
@@ -73,9 +94,15 @@
       return;
     }
 
-    correlatives.reserve(outcome.offlineSaleId, 'NV01');
+    correlatives.reserve(outcome.offlineSaleId, outcome.documentType === 'NV' ? 'NV01' : 'B001');
     status = 'cobrado';
     message = `Venta ${outcome.offlineSaleId.slice(0, 8)}… en cola · ${outcome.documentType}`;
+
+    if (!session.firstSaleAtIso && session.onboardingStartedAtIso) {
+      session = markTenantFirstSale(session);
+      writeTenantSession(sessionStorage, session);
+      lastTtfsMs = ttfsMs(session);
+    }
 
     if (isVitrinaEnabled()) {
       publishVitrina({
@@ -89,10 +116,10 @@
 
     if (isPrintTemplatesEnabled()) {
       const ticket: TicketData = {
-        enterprise: 'KipusPay Demo',
+        enterprise: session.tradeName,
         ruc: '20100000000',
         documentType: outcome.documentType,
-        series: 'NV01',
+        series: outcome.documentType === 'NV' ? 'NV01' : 'B001',
         number: correlatives.get(outcome.offlineSaleId)?.tentativeNumber ?? 0,
         totalCents: outcome.totalCents,
         items: lines.map((l) => ({
@@ -119,16 +146,21 @@
 </script>
 
 <h1>KipusPay POS</h1>
+<p data-testid="tenant-name">{session.tradeName}</p>
 
 {#if !checkoutOn}
   <p data-testid="checkout-off">Caja desactivada (FEATURE_POS_CHECKOUT off).</p>
   <p>Total demo: S/ {formatCents(11800)}</p>
 {:else}
   <p data-testid="formalization-banner" role="status">{banner}</p>
+  <p data-testid="formalization-mode">{session.formalizationMode}</p>
   <p data-testid="total">Total: S/ {formatCents(totalCents)}</p>
   <p data-testid="status">{status}</p>
   <p data-testid="message">{message}</p>
   <p data-testid="feedback-ms">{Math.round(lastFeedbackMs)}</p>
+  {#if lastTtfsMs !== null}
+    <p data-testid="ttfs-ms">{lastTtfsMs}</p>
+  {/if}
 
   <button type="button" data-testid="add-line" onclick={addDemo}>Agregar</button>
   <button type="button" data-testid="charge" onclick={onCharge}>Cobrar</button>

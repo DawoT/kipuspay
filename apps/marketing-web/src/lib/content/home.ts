@@ -160,17 +160,6 @@ export const HOME = {
 
 export const STUBS = [
   {
-    path: '/precios',
-    title: 'Precios',
-    unlockSprint: 11,
-    blurb:
-      'Estamos afinando los planes para publicarlos con el detalle que mereces: que incluye cada uno, hasta donde llega y sin letra chica. No queremos publicar un numero que despues cambie.',
-    meanwhile: [
-      { label: 'Ver que cambia en tu caja', href: '/comparar/bsale' },
-      { label: 'Ver tu rubro', href: '/para/retail' },
-    ],
-  },
-  {
     path: '/seguridad',
     title: 'Seguridad',
     unlockSprint: 13,
@@ -185,17 +174,6 @@ export const STUBS = [
     blurb:
       'Preferimos publicar casos reales cuando tengamos meses de operacion que mostrar, con nombre del negocio y numeros verificables. Testimonios de lanzamiento no le sirven a nadie.',
     meanwhile: [{ label: 'Ver como funciona', href: '/#como' }],
-  },
-  {
-    path: '/empezar',
-    title: 'Empezar',
-    unlockSprint: 11,
-    blurb:
-      'El registro abre en los proximos dias. Cuando abra, la promesa es simple: contestas tres preguntas sobre tu negocio, cargas tus productos y cobras. Tu primera venta en menos de 5 minutos.',
-    meanwhile: [
-      { label: 'Ver tu rubro', href: '/para/restaurantes' },
-      { label: 'Ver la comparativa', href: '/comparar/bsale' },
-    ],
   },
   {
     path: '/blog',
