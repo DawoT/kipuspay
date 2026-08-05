@@ -3681,3 +3681,39 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+
+```
+id: 0254
+timestamp_utc: 2026-08-05T21:37:07Z
+schema_version: 2
+sprint_fase: Sprint 12 — Fase 4 (Growth Loops GTM §7 / §9)
+agente_responsable: Staff Growth
+tipo: Entregable nuevo
+subtipo: CIERRA Sprint 12
+relacion: AMPLIA
+referencias_entradas: [0253]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/GTM.md, docs/adr/ADR-0009-growth-loops-referrals-brand-qr.md, docs/ROADMAP.md]
+prev_id: 0253
+prev_hash: f1134b8fbd05f5eae3111b5795f9c426c1c5157b34520ec6f04413e007d5f62d
+entry_hash: 3a4b61e9aa278f162af2053f0101d09b77433f797badd55f3460f37020c96a4d
+ticket_or_adr: ADR-0009, GTM §7, GTM §9, Roadmap Sprint 12
+test_ids: [referral-domain, referral-store, print-templates, cases, blog, metrics, SUITE, V-20, V-24]
+entregable_afectado: referidos + brand QR + casos/blog + Owner métricas §9
+descripcion: >
+  Cierra Sprint 12: ADR-0009; DDL 0010 referrals/brand/growth; atribución E2E
+  1+1 mes; pie marca post-leyenda fiscal + Vitrina; /casos-de-exito y /blog
+  (GTM-12); dashboard Owner TTFS/upgrade/activation/NRR/K-factor. ROADMAP Cerrado;
+  FASE 4 sigue abierta (falta Sprint 13).
+evidencia: >
+  RED: stubs blog/casos; sin referidos ni brand QR; sin métricas §9.
+  GREEN: commit 78a603d; quality GATE OK; verify SUITE GREEN.
+red_commit_sha: 738163e041ff61acc79df8d75673c2d3894b61d9
+red_run_id: run-red-0254-sprint-12-growth-loops
+expected_failure: AssertionError: Sprint 12 growth loops ausentes (stubs blog/casos; sin referral DDL)
+green_commit_sha: 78a603dc82ec85a62fda6b805c68197db0f98fca
+green_run_id: run-green-0254-sprint-12-growth-loops
+ancestry_verified: true
+aprobaciones: [Staff Growth R; Staff Data/Content/Fiscal QG + RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
