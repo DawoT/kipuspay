@@ -3757,3 +3757,39 @@ estado: Vigente
 
 
 
+```
+id: 0256
+timestamp_utc: 2026-08-05T21:53:01Z
+schema_version: 2
+sprint_fase: Sprint 13-16 — FASE 4 close + FASE 5 Hardening
+agente_responsable: Staff Principal
+tipo: Entregable nuevo
+subtipo: programa FASE 5
+relacion: AMPLIA
+referencias_entradas: [0255]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/roadmap/fase-5.md, docs/ops/support_sla_enterprise.md, docs/adr/ADR-0010-fase5-exception-inventory.md, docs/adr/ADR-0011-sprint14-shard-chaos-scope.md]
+prev_id: 0255
+prev_hash: 934096c8a8a3053810e248e69c4cf41b80e7a6fe633ea7aa3c488a7d9d9f1df4
+entry_hash: 28209707064a78754ee3c9c1ff4bd30cf7dfa34b398b3d02d5d0aa3dfd14c147
+ticket_or_adr: GTM-02, GTM §5.7.1, GTM §8, Roadmap S13-S16, ADR-0010, ADR-0011
+test_ids: [security, pricing, SUITE, V-18, V-20, V-24]
+entregable_afectado: /seguridad + SLA + S14 bench/audit + S15 Go/No-Go + S16 plantillas
+descripcion: >
+  Cierra FASE 4 (Sprint 13: /seguridad, objections playbook, support_sla_enterprise,
+  GTM-02 descongelado) e implementa el programa FASE 5: ADR-0010 inventario,
+  ADR-0011 alcance shard, bench Sub-50ms, deps audit 0 high/crit, informe seguridad,
+  axe E2E, brand audit, rollback runbook, Go/No-Go GO soft-launch; S16 plantillas
+  postmortem/metricas 30d en progreso continuo.
+evidencia: >
+  RED: stubs /seguridad; sin SLA; sin bench/deps en quality; FASE 4 incompleta.
+  GREEN: commit d7bdaad9c5a2; quality GATE OK; verify SUITE GREEN; ROADMAP S13-15 Cerrado.
+red_commit_sha: 405395ac398a027913a89b52036aa449026d9252
+red_run_id: run-red-0256-fase5-program
+expected_failure: AssertionError: FASE 4 sin /seguridad; FASE 5 sin evidencia S14/S15
+green_commit_sha: d7bdaad9c5a23552f10d8774ceef467b6c67d866
+green_run_id: run-green-0256-fase5-program
+ancestry_verified: true
+aprobaciones: [Staff Principal R; Review Board Go S15; A+V humano ADR-0010 pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
