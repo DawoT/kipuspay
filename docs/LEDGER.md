@@ -3793,3 +3793,40 @@ aprobaciones: [Staff Principal R; Review Board Go S15; A+V humano ADR-0010 pendi
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0257
+timestamp_utc: 2026-08-05T22:00:00Z
+schema_version: 2
+sprint_fase: Sprint 13 — Fase 4 (Firma A+V Cierre FASE 4 Salida al Mercado & Security SLA)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0256]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/GTM.md, docs/PROCESS.md]
+prev_id: 0256
+prev_hash: 28209707064a78754ee3c9c1ff4bd30cf7dfa34b398b3d02d5d0aa3dfd14c147
+entry_hash: 8b944fdfa359755f53d8f9ef3b5a1e8b4245dba10e2042320f2ef11b6b2bd11c
+ticket_or_adr: GTM-02, GTM §5.7.1, GTM §8, Roadmap Sprint 13
+test_ids: [security, pricing, SUITE, index]
+entregable_afectado: /seguridad + SLA Enterprise + FASE 4 Cierre GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 13 y el CIERRE COMPLETO DE LA FASE 4 (Salida al Mercado):
+  página /seguridad GTM §5.7.1, guion de manejo de objeciones GTM §8, contrato operativo
+  support_sla_enterprise, descongelamiento formal de GTM-02 y 83 pruebas unitarias verdes.
+evidencia: >
+  RED: FASE 4 QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 64f13f167e33a50233b1d23916a1b6529353e009
+red_run_id: run-red-0257-sprint-13-gov
+expected_failure: AssertionError: FASE 4 QG EN REVISION
+green_commit_sha: 64f13f167e33a50233b1d23916a1b6529353e009
+green_run_id: run-green-0257-sprint-13-gov
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
