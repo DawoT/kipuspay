@@ -3644,3 +3644,40 @@ aprobaciones: [Staff Frontend R; Staff PM + Fiscal QG + RACI A+V humano pendient
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0253
+timestamp_utc: 2026-08-05T21:18:00Z
+schema_version: 2
+sprint_fase: Sprint 11 — Fase 4 (Firma A+V Sprint 11 Pricing, Onboarding & First Sale)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0252]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/GTM.md, docs/PROCESS.md]
+prev_id: 0252
+prev_hash: 9254a71baef75ea6eaced4bd514239da35fd804b7f273b723faeb3c83e4ec0cd
+entry_hash: f1134b8fbd05f5eae3111b5795f9c426c1c5157b34520ec6f04413e007d5f62d
+ticket_or_adr: GTM §3.3.1, GTM §4.1, GTM §6.2, Roadmap Sprint 11
+test_ids: [formalization-advance, onboarding-bootstrap, pricing, draft, session, SUITE, index]
+entregable_afectado: apps/marketing-web + apps/pos-web + packages/worker-api Sprint 11 GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 11 (FASE 4): /precios con 4 planes GTM §4.1, onboarding
+  interactive 4 etapas GTM §6.2, Admin Configuración GTM §3.3.1, upgrade guiado sin
+  conversión de NV históricas y primera venta POS guiada según etapa fiscal.
+evidencia: >
+  RED: Sprint 11 QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 4f1cb6d27c0c88c714f0cf4f4616f2d84df77051
+red_run_id: run-red-0253-sprint-11-gov
+expected_failure: AssertionError: Sprint 11 QG EN REVISION
+green_commit_sha: 4f1cb6d27c0c88c714f0cf4f4616f2d84df77051
+green_run_id: run-green-0253-sprint-11-gov
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
