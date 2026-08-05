@@ -46,6 +46,12 @@ export interface RigOptions {
   readonly knotScale?: number;
   /** Cuanto sobresale el cordel principal a cada lado del ultimo colgante. */
   readonly overhang?: number;
+  /**
+   * Colocacion compacta: nudos pequenos y pasos ajustados para cordeles cortos
+   * (telares de seccion, no el hero). Mantiene la lectura por posicion
+   * (centenas arriba, unidades abajo) pero sin solaparse.
+   */
+  readonly compact?: boolean;
 }
 
 interface TierSpec {
@@ -60,6 +66,9 @@ const TIERS: readonly TierSpec[] = [
   { tier: 'tens', at: 0.45, size: 14 },
   { tier: 'units', at: 0.72, size: 11 },
 ];
+
+/** Arranque de cada grupo en colocacion compacta (fraccion del largo). */
+const COMPACT_AT: readonly number[] = [0.12, 0.46, 0.78];
 
 const SAMPLES = 24;
 
@@ -111,9 +120,11 @@ function knotsFor(
     const count = digits[index] ?? 0;
     const size = spec.size * opts.knotScale;
     const gap = size * 1.35;
+    const step = opts.compact ? (size * 1.25) / length : gap / length;
+    const start = opts.compact ? (COMPACT_AT[index] ?? spec.at) : spec.at;
 
     for (let i = 0; i < count; i++) {
-      const t = spec.at + (i * gap) / length;
+      const t = start + i * step;
       knots.push({
         x: round(originX + offsetAt(t, drift)),
         y: round(opts.originY + t * length),
@@ -138,6 +149,7 @@ export function buildRig(
     knotScale: 1,
     overhang: options.spacing * 0.55,
     ...options,
+    compact: options.compact ?? false,
   };
 
   const cords = entries.map((entry, index) => {

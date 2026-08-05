@@ -65,6 +65,7 @@
   --alerta: #b5461d;
   --alerta-bright: #d96a3c;
   --muted: #9aa3ad;
+  --muted-ink: rgba(26, 29, 35, 0.62);
   --line: rgba(243, 239, 230, 0.14);
   --line-ink: rgba(26, 29, 35, 0.16);
   --radius: 0;
@@ -73,6 +74,15 @@
   --font-mono: 'Spline Sans Mono', 'Spline Fallback', ui-monospace, SFMono-Regular, monospace;
   --header-h: 4.25rem;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Fibra del cordel narrativo (fuera del hero). */
+  --fiber: #3a4150;
+  --fiber-bright: var(--amber-bright);
+  --fiber-w: 2px;
+  --fiber-shadow: rgba(10, 12, 16, 0.35);
+  --knot-size: 0.55rem;
+  --tension-ms: 700ms;
+  --stitch-ms: 900ms;
 
   /* Escala tipografica: una sola fuente para todo tamano de texto del sitio. */
   --step--1: clamp(0.74rem, 0.72rem + 0.1vw, 0.8rem);
@@ -611,142 +621,7 @@ li {
   color: var(--paper);
 }
 
-.hero-scene {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.rig {
-  width: 100%;
-  height: 100%;
-}
-
-.rig-tall {
-  display: block;
-}
-
-.rig-wide {
-  display: none;
-}
-
-@media (min-width: 720px) {
-  .rig-tall {
-    display: none;
-  }
-
-  .rig-wide {
-    display: block;
-  }
-}
-
-.q-rules line {
-  stroke: var(--paper);
-  stroke-width: 1;
-  opacity: 0.045;
-}
-
-.q-primary {
-  stroke: #3a4150;
-  stroke-linecap: round;
-}
-
-.q-cord-group {
-  --cord: var(--paper);
-  transition: opacity 0.5s var(--ease-out);
-}
-
-.q-cord-group.dim {
-  opacity: 0.26;
-}
-
-.q-cord {
-  fill: none;
-  stroke: var(--cord);
-  stroke-linecap: round;
-}
-
-.q-tassel {
-  stroke: var(--cord);
-  stroke-linecap: round;
-  opacity: 0.45;
-}
-
-.q-knot-core {
-  fill: var(--cord);
-}
-
-.q-knot-halo {
-  fill: var(--cord);
-  opacity: 0.15;
-}
-
-.q-knot-light {
-  fill: #fff;
-  opacity: 0.2;
-}
-
-/* Tensado del cordel: el quipu se arma una vez al entrar, no en bucle. */
-.js .q-cord {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: cordDraw 0.95s var(--ease-out) forwards;
-  animation-delay: calc(var(--i, 0) * 90ms);
-}
-
-.js .q-knot {
-  opacity: 0;
-  animation: knotSet 0.4s var(--ease-out) forwards;
-  animation-delay: calc(340ms + var(--i, 0) * 60ms);
-}
-
-@keyframes cordDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes knotSet {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.q-knot {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-/*
- * El quipu se tensa una vez al entrar y despues se queda quieto: un gesto
- * orquestado pesa mas que un vaiven perpetuo, y no deja el compositor
- * trabajando para siempre en el fondo.
- */
-.q-rig {
-  transform-box: view-box;
-  transform-origin: 50% 0%;
-  transform: rotate(-0.6deg);
-}
-
-.js .q-rig {
-  animation: quipuSettle 1.6s var(--ease-out) forwards;
-}
-
-@keyframes quipuSettle {
-  from {
-    transform: rotate(-1.4deg);
-  }
-  to {
-    transform: rotate(-0.4deg);
-  }
-}
-
+/* Hero cinematografico: solo video/poster + scrim. Sin canvas ni SVG. */
 .hero-video {
   position: absolute;
   inset: 0;
@@ -760,49 +635,19 @@ li {
 }
 
 .hero-video.has-src {
-  opacity: 0.55;
+  opacity: 0.72;
 }
 
-.hero-scene .q-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  transition: opacity 0.35s var(--ease-out);
-  pointer-events: auto;
-}
-
-.hero-scene.canvas-on .q-canvas {
-  opacity: 1;
-}
-
-.hero-scene.canvas-on .rig {
-  opacity: 0;
-  transition: opacity 0.35s var(--ease-out);
-  pointer-events: none;
-}
-
-/* Con video: el SVG cede paso al instante para que la evolucion se lea. */
-.js .hero-scene.has-video:not(.canvas-on) .rig {
-  opacity: 0.2;
-}
-
-/*
- * Velo: en movil el quipu ocupa la banda superior y el texto necesita fondo
- * abajo; en escritorio el texto vive a la izquierda y el quipu a la derecha,
- * asi que el degradado gira 90 grados.
- */
 .hero-scrim {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 1;
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(20, 22, 28, 0.15) 0%,
-    rgba(20, 22, 28, 0.55) 38%,
-    rgba(20, 22, 28, 0.96) 72%,
+    rgba(20, 22, 28, 0.35) 0%,
+    rgba(20, 22, 28, 0.55) 42%,
+    rgba(20, 22, 28, 0.92) 78%,
     var(--ink) 100%
   );
 }
@@ -813,11 +658,11 @@ li {
       linear-gradient(
         90deg,
         var(--ink) 0%,
-        rgba(20, 22, 28, 0.92) 34%,
-        rgba(20, 22, 28, 0.45) 62%,
-        rgba(20, 22, 28, 0.18) 100%
+        rgba(20, 22, 28, 0.94) 36%,
+        rgba(20, 22, 28, 0.55) 64%,
+        rgba(20, 22, 28, 0.22) 100%
       ),
-      linear-gradient(180deg, rgba(20, 22, 28, 0) 62%, var(--ink) 100%);
+      linear-gradient(180deg, rgba(20, 22, 28, 0) 70%, var(--ink) 100%);
   }
 }
 
@@ -950,8 +795,8 @@ li {
 }
 
 .pain-grid article {
-  border-top: 2px solid var(--ink);
-  padding-top: 1.1rem;
+  border-top: none;
+  padding-top: 0.2rem;
 }
 
 .pain-icon {
@@ -1093,9 +938,10 @@ li {
 
 .claim-box {
   margin: 1.8rem 0;
-  padding: 1.2rem 0;
+  padding: 1.2rem 0 1.2rem 1rem;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+  border-left: 3px solid var(--cord, var(--amber));
 }
 
 .claim-box h3 {
@@ -1847,8 +1693,8 @@ li {
 }
 
 .why-grid article {
-  border-top: 2px solid var(--ink);
-  padding-top: 1.1rem;
+  border-top: none;
+  padding-top: 0.2rem;
 }
 
 .why-grid h3 {
@@ -1890,4 +1736,874 @@ li {
   font-size: 1.02rem;
   font-weight: 600;
   color: var(--paper);
+}
+
+/* ------------------------------------------------------------------ */
+/* Cordel narrativo: motivos SVG fuera del hero                        */
+/* ------------------------------------------------------------------ */
+
+.quipu-motif {
+  display: block;
+  width: 100%;
+  color: var(--fiber);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.quipu-motif .qm-cord,
+.quipu-motif .qm-primary,
+.quipu-motif .qm-primary-soft,
+.quipu-motif .qm-cord-soft,
+.quipu-motif .qm-tassel,
+.quipu-motif .qm-fray,
+.quipu-motif .qm-thread,
+.quipu-motif .qm-stitch,
+.quipu-motif .qm-ring,
+.quipu-motif .qm-tick {
+  fill: none;
+  stroke: var(--cord, currentColor);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.quipu-motif .qm-cord {
+  stroke-width: 1.5px;
+}
+
+.quipu-motif .qm-cord-soft {
+  stroke-width: 4.5px;
+  opacity: 0.16;
+}
+
+.quipu-motif .qm-primary {
+  stroke: var(--fiber);
+  stroke-width: 2px;
+}
+
+.quipu-motif .qm-primary-soft {
+  stroke: var(--fiber);
+  stroke-width: 6px;
+  opacity: 0.12;
+}
+
+.quipu-motif .qm-tassel {
+  stroke-width: 1.2px;
+  opacity: 0.85;
+}
+
+.quipu-motif .qm-fray {
+  stroke-width: 1.3px;
+  opacity: 0.8;
+}
+
+.quipu-motif .qm-thread {
+  stroke-width: 1px;
+  opacity: 0.35;
+}
+
+.quipu-motif .qm-stitch {
+  stroke-width: 1.6px;
+}
+
+.quipu-motif .qm-ring {
+  stroke: currentColor;
+  stroke-width: 1.2px;
+  stroke-dasharray: 3 4;
+  opacity: 0.5;
+}
+
+.quipu-motif .qm-ring-soft {
+  opacity: 0.22;
+  stroke-dasharray: none;
+}
+
+.quipu-motif .qm-tick {
+  stroke: currentColor;
+  stroke-width: 1.1px;
+  opacity: 0.4;
+}
+
+.quipu-motif .qm-knot-core {
+  fill: var(--cord, currentColor);
+}
+
+.quipu-motif .qm-knot-halo {
+  fill: none;
+  stroke: var(--cord, currentColor);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.45;
+}
+
+.quipu-motif .qm-knot rect {
+  fill: currentColor;
+}
+
+.section-paper .quipu-motif {
+  color: var(--cord-ink, var(--amber));
+}
+
+.section-paper .quipu-motif .qm-primary {
+  stroke: var(--ink-4);
+}
+
+/* Loom: telar sobre el picker de rubros */
+.loom-rail {
+  margin: 0 0 -0.35rem;
+  height: 6.25rem;
+  color: var(--ink-4);
+}
+
+.vertical-picker.loom-grid {
+  position: relative;
+  gap: 0.9rem;
+}
+
+.vertical-picker.loom-grid a {
+  padding-top: 1.35rem;
+  transition:
+    transform 0.28s var(--ease-out),
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+}
+
+.vertical-picker.loom-grid a::before {
+  content: '';
+  position: absolute;
+  top: -1.1rem;
+  left: 50%;
+  width: 2px;
+  height: 1.1rem;
+  background: var(--cord-ink, var(--amber));
+  transform: translateX(-50%);
+  opacity: 0.55;
+  transition:
+    height 0.28s var(--ease-out),
+    opacity 0.28s ease;
+}
+
+.vertical-picker.loom-grid a:hover,
+.vertical-picker.loom-grid a:focus-visible {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 36px rgba(26, 29, 35, 0.16);
+}
+
+.vertical-picker.loom-grid a:hover::before,
+.vertical-picker.loom-grid a:focus-visible::before {
+  height: 1.45rem;
+  opacity: 1;
+}
+
+.motif-loom .qm-hang {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  transition: opacity 0.3s ease;
+}
+
+.motif-loom .qm-cord {
+  transition: stroke-width 0.3s var(--ease-out);
+}
+
+.motif-loom .qm-hang .qm-cord {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.js .motif-loom .qm-hang .qm-knot {
+  opacity: 0;
+}
+
+.js .motif-loom .qm-hang .qm-tassel {
+  opacity: 0;
+}
+
+.js .motif-loom .qm-hang {
+  animation: cordSway 7.5s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i, 0) * -1.7s);
+}
+
+.js .reveal.in .motif-loom .qm-hang .qm-cord {
+  animation: fiberDraw var(--tension-ms) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.js .reveal.in .motif-loom .qm-hang .qm-knot {
+  animation: knotIn 0.5s var(--ease-out) both;
+  animation-delay: calc(240ms + var(--i, 0) * 70ms);
+}
+
+.js .reveal.in .motif-loom .qm-hang .qm-tassel {
+  animation: knotIn 0.45s var(--ease-out) both;
+  animation-delay: calc(480ms + var(--i, 0) * 70ms);
+}
+
+.motif-loom:has(.qm-hang.active) .qm-hang:not(.active) {
+  opacity: 0.28;
+}
+
+.motif-loom .qm-hang.active .qm-cord {
+  stroke-width: 2.4px;
+}
+
+.motif-loom .qm-hang.active .qm-tassel {
+  opacity: 1;
+}
+
+.motif-loom .qm-hang.active .qm-knot-halo {
+  opacity: 0.85;
+}
+
+/* Tension: borde superior de dolores */
+.pain-grid article {
+  position: relative;
+}
+
+.pain-tension {
+  display: block;
+  width: 100%;
+  height: 0.7rem;
+  margin: 0 0 0.85rem;
+  color: var(--ink);
+}
+
+.pain-tension .qm-tangled {
+  stroke: var(--alerta-bright);
+}
+
+.pain-tension .qm-knot-tangled rect {
+  fill: var(--alerta-bright);
+}
+
+.pain-tension .qm-straight {
+  stroke: var(--sello);
+}
+
+.pain-tension .qm-knot-tidy rect {
+  fill: var(--sello);
+}
+
+.pain-tension .qm-knot-tidy-halo {
+  fill: none;
+  stroke: var(--sello);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.4;
+}
+
+.js .pain-tension .qm-knot-tangled,
+.js .pain-tension .qm-knot-tidy {
+  opacity: 0;
+}
+
+.js .pain-grid article .qm-tangled {
+  opacity: 1;
+  transition: opacity 0.4s ease 0.45s;
+}
+
+.js .pain-grid article .qm-straight {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.js .pain-grid article .qm-knot-tidy {
+  transition: opacity 0.3s ease 0.8s;
+}
+
+.js .pain-grid article .qm-knot-tangled {
+  transition: opacity 0.3s ease;
+}
+
+.js .pain-grid article.reveal.in .qm-straight {
+  animation: fiberDraw var(--tension-ms) var(--ease-out) forwards;
+}
+
+.js .pain-grid article.reveal.in .qm-tangled {
+  opacity: 0;
+}
+
+.js .pain-grid article.reveal.in .qm-knot-tidy {
+  opacity: 1;
+}
+
+.js .pain-grid article.reveal.in .qm-knot-tangled {
+  opacity: 0;
+}
+
+.pain-grid article .relief {
+  position: relative;
+}
+
+.pain-grid article .relief::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.15em;
+  width: 0;
+  height: 2px;
+  background: var(--sello);
+  transition: width var(--stitch-ms) var(--ease-out);
+}
+
+.js .pain-grid article.reveal.in .relief::after {
+  width: 100%;
+}
+
+/* Tres nudos: cordel vertical real */
+.knot-steps {
+  border-left: none;
+}
+
+.knot-steps li {
+  border-left: 2px solid rgba(238, 183, 101, 0.35);
+}
+
+.js .knot-steps.reveal.in li {
+  animation: fiberDrawSoft 0.7s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 120ms);
+}
+
+.knot-steps li::before {
+  box-shadow: 0 0 0 3px var(--ink);
+}
+
+.js .knot-steps.reveal.in li::before {
+  animation: knotPop 0.5s var(--ease-out) both;
+  animation-delay: calc(180ms + var(--i, 0) * 120ms);
+}
+
+/* Offline reconnect */
+.reconnect-wrap {
+  position: relative;
+  margin-top: 1.6rem;
+}
+
+.reconnect-motif {
+  width: min(100%, 22rem);
+  margin: 0 auto 0.4rem;
+  color: var(--amber);
+  height: 2.6rem;
+}
+
+.motif-tension,
+.motif-reconnect {
+  height: 100%;
+}
+
+.section-paper .reconnect-motif {
+  color: var(--alerta);
+}
+
+.motif-reconnect .qm-stitch,
+.motif-reconnect .qm-thread,
+.motif-reconnect .qm-join {
+  opacity: 0;
+}
+
+.motif-reconnect .qm-broken {
+  opacity: 1;
+}
+
+.motif-reconnect .qm-fray {
+  stroke: var(--alerta-bright);
+}
+
+.motif-reconnect .qm-stitch,
+.motif-reconnect .qm-thread {
+  stroke: var(--sello);
+}
+
+.motif-reconnect .qm-join rect {
+  fill: var(--sello);
+}
+
+.js .reveal.in .motif-reconnect .qm-stitch {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 1;
+  animation: fiberDraw 0.5s var(--ease-out) 0.2s forwards;
+  animation-delay: calc(0.2s + var(--i, 0) * 0.09s);
+}
+
+.js .reveal.in .motif-reconnect .qm-thread {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 1;
+  animation: fiberDraw 0.6s var(--ease-out) 0.55s forwards;
+}
+
+.js .reveal.in .motif-reconnect .qm-broken {
+  animation: fadeOutSoft 0.4s ease 0.55s forwards;
+}
+
+.js .reveal.in .motif-reconnect .qm-fray {
+  animation: fadeOutSoft 0.3s ease 0.45s forwards;
+}
+
+.js .reveal.in .motif-reconnect .qm-join {
+  animation: knotIn 0.45s var(--ease-out) 0.8s both;
+}
+
+.js .reveal.in .motif-reconnect .qm-left,
+.js .reveal.in .motif-reconnect .qm-right {
+  animation: knotIn 0.35s var(--ease-out) 0.2s both;
+}
+
+.split-card.kipus-card {
+  border-color: var(--sello);
+  box-shadow: inset 3px 0 0 var(--sello);
+}
+
+/* Ledger row knots */
+.ledger-table tbody th[scope='row'] {
+  position: relative;
+  padding-left: 1.85rem;
+}
+
+.ledger-table tbody th[scope='row']::before {
+  content: '';
+  position: absolute;
+  left: 0.7rem;
+  top: 1.2rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--amber);
+  transform: rotate(45deg);
+  opacity: 0.45;
+}
+
+.ledger-table tbody tr .kipus-mark ~ *,
+.ledger-table tbody tr:has(.kipus-mark) th[scope='row']::before {
+  background: var(--sello-bright);
+  opacity: 1;
+}
+
+.js .ledger-table-wrap.reveal.in tbody tr th[scope='row']::before {
+  animation: knotPop 0.4s var(--ease-out) both;
+}
+
+.js .ledger-table-wrap.reveal.in tbody tr:nth-child(1) th[scope='row']::before {
+  animation-delay: 0.05s;
+}
+.js .ledger-table-wrap.reveal.in tbody tr:nth-child(2) th[scope='row']::before {
+  animation-delay: 0.15s;
+}
+.js .ledger-table-wrap.reveal.in tbody tr:nth-child(3) th[scope='row']::before {
+  animation-delay: 0.25s;
+}
+.js .ledger-table-wrap.reveal.in tbody tr:nth-child(4) th[scope='row']::before {
+  animation-delay: 0.35s;
+}
+
+/* Network / owner */
+.owner-network {
+  width: min(100%, 14rem);
+  margin: 0 0 1rem;
+  color: var(--amber-bright);
+  height: auto;
+}
+
+.owner-network .qm-primary,
+.owner-network .qm-primary-soft {
+  stroke: rgba(243, 239, 230, 0.32);
+}
+
+.pm-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 0;
+  transform: rotate(45deg);
+  flex: none;
+}
+
+.phone-screen {
+  position: relative;
+}
+
+.phone-screen::before {
+  content: '';
+  position: absolute;
+  left: 1.35rem;
+  top: 3.1rem;
+  bottom: 2.6rem;
+  width: 2px;
+  background: linear-gradient(180deg, var(--amber-bright), rgba(238, 183, 101, 0.15));
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Compare dual fiber */
+.compare-fibers {
+  display: grid;
+  grid-template-columns: 26% 1fr 1fr;
+  gap: 0;
+  margin: 0 0 0.4rem;
+  padding: 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.compare-fibers span {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.compare-fibers span::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.compare-fibers .cf-kipus {
+  color: var(--sello-bright);
+}
+
+.ledger-table thead th:nth-child(3) {
+  box-shadow: inset 0 -2px 0 var(--sello-bright);
+}
+
+/* Trust seals */
+.trust-item .icon {
+  transform: rotate(0deg);
+  border-radius: 0;
+  position: relative;
+}
+
+.trust-item .icon::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 1px solid currentColor;
+  opacity: 0.22;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* FAQ thread release */
+.faq-item .a {
+  position: relative;
+}
+
+.faq-item[open] .a::before {
+  content: '';
+  position: absolute;
+  left: 1.2rem;
+  top: -0.35rem;
+  width: 2.8rem;
+  height: 2px;
+  background: var(--amber);
+  opacity: 0.55;
+}
+
+.section-paper .faq-item[open] .a::before {
+  background: var(--cord-ink, var(--alerta));
+}
+
+/* Final CTA seal */
+.final-cta,
+.cta-seal {
+  position: relative;
+  overflow: hidden;
+}
+
+.final-cta .seal-backdrop,
+.cta-seal .seal-backdrop {
+  position: absolute;
+  inset: auto 0 -1rem;
+  margin: 0 auto;
+  width: min(22rem, 90%);
+  height: 6rem;
+  opacity: 0.18;
+  color: var(--amber);
+  pointer-events: none;
+}
+
+.js .final-cta.reveal.in .motif-seal .qm-cord,
+.js .cta-seal.reveal.in .motif-seal .qm-cord {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: fiberDraw 0.9s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.js .final-cta.reveal.in .motif-seal .qm-ring,
+.js .cta-seal.reveal.in .motif-seal .qm-ring {
+  opacity: 0.5;
+  animation: knotIn 0.7s var(--ease-out) 0.35s both;
+}
+
+.js .final-cta.reveal.in .motif-seal .qm-tick,
+.js .cta-seal.reveal.in .motif-seal .qm-tick {
+  opacity: 0.4;
+  animation: knotIn 0.4s var(--ease-out) 0.5s both;
+}
+
+.js .final-cta.reveal.in .motif-seal .qm-seal-stack,
+.js .cta-seal.reveal.in .motif-seal .qm-seal-stack {
+  animation: knotIn 0.55s var(--ease-out) 0.65s both;
+}
+
+.motif-seal .qm-seal-halo {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.18;
+}
+
+.motif-seal .qm-seal-stack rect {
+  fill: currentColor;
+}
+
+.js .motif-seal .qm-seal-stack {
+  opacity: 0;
+}
+
+.motif-network .qm-branch .qm-cord {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.js .motif-network .qm-branch .qm-knot {
+  opacity: 0;
+}
+
+.js .motif-network .qm-branch .qm-tassel {
+  opacity: 0;
+}
+
+.js .reveal.in .motif-network .qm-branch .qm-cord {
+  stroke-dashoffset: 1;
+  animation: fiberDraw 0.85s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+.js .reveal.in .motif-network .qm-branch .qm-knot {
+  animation: knotIn 0.4s var(--ease-out) both;
+  animation-delay: calc(320ms + var(--i, 0) * 80ms);
+}
+
+.js .reveal.in .motif-network .qm-branch .qm-tassel {
+  animation: knotIn 0.4s var(--ease-out) both;
+  animation-delay: calc(520ms + var(--i, 0) * 80ms);
+}
+
+/* Product stitch frame */
+.product-screen .pos {
+  position: relative;
+}
+
+.product-screen .pos::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed rgba(243, 239, 230, 0.22);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.section-paper .product-screen .pos::before {
+  border-color: rgba(26, 29, 35, 0.18);
+}
+
+/* Stub incomplete knot */
+.stub {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 80% 20%, rgba(217, 154, 61, 0.14), transparent 55%), var(--ink);
+}
+
+.stub::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 2.4rem,
+    rgba(243, 239, 230, 0.04) 2.4rem,
+    rgba(243, 239, 230, 0.04) calc(2.4rem + 1px)
+  );
+  pointer-events: none;
+}
+
+.stub-incomplete {
+  display: flex;
+  gap: 0.55rem;
+  margin: 1.6rem 0 0;
+}
+
+.stub-incomplete span {
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--amber-bright);
+  transform: rotate(45deg);
+  opacity: 0.9;
+}
+
+.stub-incomplete span:last-child {
+  opacity: 0.22;
+  outline: 1px solid var(--amber-bright);
+  outline-offset: 2px;
+  background: transparent;
+}
+
+.stub-steps {
+  position: relative;
+  padding-left: 0.4rem;
+  border-left: 2px solid rgba(238, 183, 101, 0.35);
+}
+
+.stub-steps li {
+  position: relative;
+  border-bottom: none;
+  padding-left: 1.4rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+}
+
+.stub-steps li::before {
+  content: '';
+  position: absolute;
+  left: -0.35rem;
+  top: 0.35rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--ink);
+  border: 1px solid var(--amber);
+  transform: rotate(45deg);
+}
+
+.stub-steps li span {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--amber-bright);
+  min-width: 1rem;
+}
+
+.stub .stub-inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* Compact compare hero with static seal */
+.hero-compact {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-compact .compact-seal {
+  position: absolute;
+  right: -1rem;
+  bottom: -0.5rem;
+  width: min(18rem, 42vw);
+  opacity: 0.16;
+  color: var(--amber);
+  pointer-events: none;
+}
+
+@keyframes fiberDraw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fiberDrawSoft {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes knotPop {
+  from {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+@keyframes knotIn {
+  from {
+    opacity: 0;
+    scale: 0.55;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes cordSway {
+  from {
+    rotate: -0.4deg;
+  }
+  to {
+    rotate: 0.4deg;
+  }
+}
+
+@keyframes fadeOutSoft {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal.in .motif-loom .qm-hang .qm-cord,
+  .js .reveal.in .motif-loom .qm-hang .qm-knot,
+  .js .reveal.in .motif-loom .qm-hang .qm-tassel,
+  .js .pain-grid article.reveal.in .qm-straight,
+  .js .reveal.in .motif-reconnect .qm-stitch,
+  .js .reveal.in .motif-reconnect .qm-thread,
+  .js .reveal.in .motif-network .qm-branch .qm-cord,
+  .js .reveal.in .motif-network .qm-branch .qm-knot,
+  .js .reveal.in .motif-network .qm-branch .qm-tassel,
+  .js .final-cta.reveal.in .motif-seal .qm-cord,
+  .js .final-cta.reveal.in .motif-seal .qm-ring,
+  .js .final-cta.reveal.in .motif-seal .qm-tick,
+  .js .final-cta.reveal.in .motif-seal .qm-seal-stack,
+  .js .cta-seal.reveal.in .motif-seal .qm-cord,
+  .js .cta-seal.reveal.in .motif-seal .qm-ring,
+  .js .cta-seal.reveal.in .motif-seal .qm-tick,
+  .js .cta-seal.reveal.in .motif-seal .qm-seal-stack {
+    animation: none !important;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  .js .motif-loom .qm-hang {
+    animation: none !important;
+  }
+
+  .js .pain-grid article .qm-tangled {
+    opacity: 0;
+  }
+
+  .motif-reconnect .qm-stitch,
+  .motif-reconnect .qm-thread,
+  .motif-reconnect .qm-join {
+    opacity: 1;
+  }
+
+  .motif-reconnect .qm-broken,
+  .motif-reconnect .qm-fray {
+    opacity: 0;
+  }
 }

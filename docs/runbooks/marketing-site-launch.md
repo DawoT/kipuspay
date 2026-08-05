@@ -38,7 +38,8 @@ python3 scripts/checks/marketing_copy.py
 - Tipografia vendida en `static/fonts/*.woff2` (Fraunces, Schibsted Grotesk, Spline Sans Mono) con `@font-face` local (`font-display: swap`); preload de Fraunces y Schibsted en `+layout.svelte`. Sin CDN externo ni libreria npm.
 - `static/fonts/OFL-LICENSE.txt` con la atribucion OFL 1.1 de las tres familias.
 - `og:image` en PNG por marca y por rubro (`/media/og-kipuspay.png`, `/media/og-*.png`); regenerar con `node apps/marketing-web/scripts/render-social-assets.mjs`.
-- Hero: video de evolucion (`/media/hero-quipu.mp4`, ~558 kB, una pasada) + quipu vivo en canvas (fisica Verlet); SVG SSR como fallback sin JS / reduced-motion.
+- Hero: video cinematografico de evolucion (`/media/hero-quipu.mp4`, ~558 kB, una pasada + poster). Sin canvas ni SVG superpuesto: el quipu narrativo vive en las secciones (motivos SVG one-shot: loom/tension/reconnect/network/seal).
+- Reduced-motion: el video no se reproduce; permanece el poster.
 
 ## SEO
 

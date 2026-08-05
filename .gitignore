@@ -42,3 +42,5 @@ __pycache__/
 # Artefactos de E2E / screenshots locales
 .playwright-mcp/
 /home-*.png
+/quipu-premium-*.png
+/current-*.png

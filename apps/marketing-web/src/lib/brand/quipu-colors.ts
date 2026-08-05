@@ -1,6 +1,5 @@
 /**
  * Paleta de cordeles del quipu — espejo de [data-cord] en app.css.
- * Duplicada aqui porque el canvas no hereda custom properties del DOM.
  */
 export const CORD_COLORS: Readonly<Record<string, string>> = {
   restaurantes: '#eeb765',

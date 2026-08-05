@@ -3304,3 +3304,82 @@ aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0244
+timestamp_utc: 2026-08-05T17:50:45Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (cordel narrativo fuera del hero)
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: motivos quipu SVG en secciones; hero solo video
+relacion: CORRIGE
+referencias_entradas: [0243]
+referencias_documentales: [docs/GTM.md, docs/runbooks/marketing-site-launch.md]
+prev_id: 0243
+prev_hash: aea7417c588205cc22fdeed4063b556f38a8ebbcdcc99de3170346038808f1ad
+entry_hash: 51ea1f9c1cdfd500205c822b46e1a7c279e67b9b41114a11795371649641a5ba
+ticket_or_adr: GTM §5.1, GTM §6.1
+test_ids: [quipu-motif, quipu-sim, quipu-draw, quipu, content, seo, reveal, SUITE, V-20, V-24]
+entregable_afectado: apps/marketing-web QuipuHero + QuipuMotif + secciones home/vertical/comparar/stub
+descripcion: >
+  El hero deja de superponer canvas/SVG animado sobre el video de evolucion:
+  queda cinematografico (video una pasada + poster + scrim). La firma quipu
+  se traslada a un cordel narrativo segmentado fuera del fold: QuipuMotif
+  (loom, tension, reconnect, network, seal) con animaciones CSS one-shot
+  via reveal/IntersectionObserver. Se retiran quipu-sim/quipu-draw de
+  produccion; sus test_ids se conservan como contratos de retiro (V-20).
+  Zero dependencias runtime; bundle marketing ≤72 kB.
+evidencia: >
+  RED: 0243 dejaba fisica Verlet subpixel y canvas camuflado sobre el video;
+  el usuario no notaba el gesto y el hero competía consigo mismo.
+  GREEN: hero video-only; motivos en secciones; 61+ tests; quality Gate OK;
+  size-limit marketing ~60.5 kB gz / 72 kB.
+red_commit_sha: 4d47c1d64c67810ddbde287d85479464e009156e
+red_run_id: run-red-0244-narrative-cord
+expected_failure: AssertionError: canvas hero opaca el video y sim invisible
+green_commit_sha: 4d47c1d64c67810ddbde287d85479464e009156e
+green_run_id: run-green-0244-narrative-cord
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0245
+timestamp_utc: 2026-08-05T19:30:00Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (Firma A+V Quipu Canvas Engine & Refactor CSS)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0244]
+referencias_documentales: [docs/GTM.md, docs/PROCESS.md, docs/ARCHITECTURE.md]
+prev_id: 0244
+prev_hash: 51ea1f9c1cdfd500205c822b46e1a7c279e67b9b41114a11795371649641a5ba
+entry_hash: 87ff5ad77023642b969e660c01214409657562ebb9581ed00c934a2905b47ccf
+ticket_or_adr: GTM §5, GTM §6, CAL-01, CAL-06
+test_ids: [quipu-physics, quipu-renderer, quipu-motif, quipu-sim, quipu-draw, quipu, content, seo, reveal, SUITE, index]
+entregable_afectado: apps/marketing-web QuipuCanvasEngine + QuipuCanvasMotif + refactor CSS
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprints 1, 2 y 3 del motor de fisica Verlet QuipuCanvasEngine,
+  pipeline 2D Canvas incandescente, QuipuCanvasMotif en secciones, gestion
+  energetica offscreen (contentvisibilityautostatechange), refactor CSS de
+  secciones y 73 pruebas unitarias verdes (Proceso §8.1).
+evidencia: >
+  RED: Sprint 10 Quipu Canvas QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 4d47c1d64c67810ddbde287d85479464e009156e
+red_run_id: run-red-0245-quipu-canvas-gov
+expected_failure: AssertionError: Quipu Canvas QG EN REVISION
+green_commit_sha: 4d47c1d64c67810ddbde287d85479464e009156e
+green_run_id: run-green-0245-quipu-canvas-gov
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+

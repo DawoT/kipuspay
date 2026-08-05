@@ -3,6 +3,7 @@
   import { reveal } from '$lib/components/reveal';
   import ClaimFeature from './ClaimFeature.svelte';
   import QuipuHero from '$lib/brand/QuipuHero.svelte';
+  import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
   import LineIcon from '$lib/brand/LineIcon.svelte';
   import { otherVerticals } from '$lib/content/verticals';
@@ -18,11 +19,7 @@
   data-cord={landing.slug}
 >
   <section class="hero">
-    <QuipuHero
-      activeCord={landing.slug}
-      videoSrc="/media/hero-quipu.mp4"
-      poster="/media/hero-quipu-poster.jpg"
-    />
+    <QuipuHero videoSrc="/media/hero-quipu.mp4" poster="/media/hero-quipu-poster.jpg" />
     <div class="hero-inner">
       <div class="hero-copy">
         <p class="eyebrow">
@@ -52,6 +49,9 @@
       <div class="pain-grid">
         {#each landing.pains as item, i (item.pain)}
           <article use:reveal data-reveal-delay={i % 3}>
+            <span class="pain-tension" aria-hidden="true">
+              <QuipuMotif kind="tension" id={`${landing.slug}-pain-${i}`} />
+            </span>
             <span class="pain-icon" aria-hidden="true">
               <LineIcon name={item.icon} size={22} />
             </span>
@@ -133,8 +133,11 @@
     </div>
   </section>
 
-  <section class="section section-paper">
-    <div class="section-inner" use:reveal>
+  <section class="section section-paper cta-seal" use:reveal>
+    <div class="seal-backdrop" aria-hidden="true">
+      <QuipuMotif kind="seal" id={`${landing.slug}-seal`} />
+    </div>
+    <div class="section-inner">
       <p class="eyebrow">
         <span class="knot-dot" aria-hidden="true"></span>
         Empezar

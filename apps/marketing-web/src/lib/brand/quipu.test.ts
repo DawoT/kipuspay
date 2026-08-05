@@ -88,4 +88,34 @@ describe('quipu — aparejo', () => {
     expect(offsetAt(0, 12)).toBeCloseTo(0);
     expect(offsetAt(0.5, 12)).toBeGreaterThan(0);
   });
+
+  it('compacto: nudos caben en un cordel corto sin salirse del largo', () => {
+    const rig = buildRig([{ slug: 'retail', value: 333 }], {
+      ...OPTS,
+      length: 52,
+      knotScale: 0.33,
+      compact: true,
+    });
+    const knots = rig.cords[0]?.knots ?? [];
+    expect(knots).toHaveLength(9);
+    for (const knot of knots) {
+      expect(knot.y).toBeLessThanOrEqual(OPTS.originY + 52);
+    }
+    const [hundreds, , units] = knots;
+    expect(hundreds?.y).toBeLessThan(units?.y ?? 0);
+  });
+
+  it('compacto: mantiene el orden posicional igual que el clasico', () => {
+    const classic = buildRig([{ slug: 'restaurantes', value: 231 }], OPTS);
+    const compact = buildRig([{ slug: 'restaurantes', value: 231 }], {
+      ...OPTS,
+      knotScale: 0.33,
+      compact: true,
+    });
+    for (const cord of [classic.cords[0], compact.cords[0]]) {
+      const ks = cord?.knots ?? [];
+      expect(ks[0]?.tier).toBe('hundreds');
+      expect(ks[ks.length - 1]?.tier).toBe('units');
+    }
+  });
 });

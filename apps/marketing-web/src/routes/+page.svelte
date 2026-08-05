@@ -4,11 +4,14 @@
   import { COMPARE_ROWS } from '$lib/content/compare';
   import { reveal } from '$lib/components/reveal';
   import QuipuHero from '$lib/brand/QuipuHero.svelte';
+  import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
   import LineIcon from '$lib/brand/LineIcon.svelte';
   import { ogImageFor } from '$lib/seo';
 
   const verticals = allVerticals();
+
+  let activeCord: string | null = null;
 
   const [offlineBefore, offlineAfter] = HOME.offline.body.split('sincroniza');
 
@@ -53,10 +56,7 @@
 </svelte:head>
 
 <section class="hero" data-testid="home-hero">
-  <QuipuHero
-    videoSrc="/media/hero-quipu.mp4"
-    poster="/media/hero-quipu-poster.jpg"
-  />
+  <QuipuHero videoSrc="/media/hero-quipu.mp4" poster="/media/hero-quipu-poster.jpg" />
   <div class="hero-inner">
     <div class="hero-copy">
       <p class="eyebrow">
@@ -85,12 +85,25 @@
       </p>
       <h2>Elige tu cordel</h2>
       <p class="section-lead">
-        Cada rubro tiene su propio dolor. Elige el tuyo y mira el plan hecho para el mostrador de tu local.
+        Cada rubro tiene su propio dolor. Elige el tuyo y mira el plan hecho para el mostrador de tu
+        local.
       </p>
     </div>
-    <div class="vertical-picker">
+    <div class="loom-rail" use:reveal aria-hidden="true">
+      <QuipuMotif kind="loom" count={verticals.length} id="home-loom" active={activeCord} />
+    </div>
+    <div class="vertical-picker loom-grid">
       {#each verticals as v, i (v.slug)}
-        <a href={`/para/${v.slug}`} data-cord={v.slug} use:reveal data-reveal-delay={i % 3}>
+        <a
+          href={`/para/${v.slug}`}
+          data-cord={v.slug}
+          use:reveal
+          data-reveal-delay={i % 3}
+          onmouseenter={() => (activeCord = v.slug)}
+          onmouseleave={() => (activeCord = null)}
+          onfocus={() => (activeCord = v.slug)}
+          onblur={() => (activeCord = null)}
+        >
           <span class="cord-label">Cordel</span>
           <strong>{v.navLabel}</strong>
           <span>{v.hook}</span>
@@ -112,6 +125,9 @@
     <div class="pain-grid">
       {#each HOME.pains as item, i (item.pain)}
         <article use:reveal data-reveal-delay={i % 3}>
+          <span class="pain-tension" aria-hidden="true">
+            <QuipuMotif kind="tension" id={`home-pain-${i}`} />
+          </span>
           <span class="pain-icon" aria-hidden="true">
             <LineIcon name={item.icon} size={22} />
           </span>
@@ -133,9 +149,9 @@
       <h2>Tres nudos y estas vendiendo.</h2>
       <p class="section-lead">Sin instalador, sin capacitacion, sin letra chica.</p>
     </div>
-    <ol class="knot-steps">
+    <ol class="knot-steps" use:reveal>
       {#each HOME.steps as step, i (step.title)}
-        <li use:reveal data-reveal-delay={i % 3}>
+        <li style={`--i:${i}`}>
           <h3>{step.title}</h3>
           <p>{step.body}</p>
         </li>
@@ -183,14 +199,19 @@
         {offlineBefore}<span class="stitch" use:reveal>sincroniza</span>{offlineAfter}
       </p>
     </div>
-    <div class="split-grid">
-      <div class="split-card muted">
-        <h3>Con tu sistema actual</h3>
-        <p>{HOME.offline.withOthers}</p>
+    <div class="reconnect-wrap" use:reveal>
+      <div class="reconnect-motif" aria-hidden="true">
+        <QuipuMotif kind="reconnect" id="home-offline" />
       </div>
-      <div class="split-card">
-        <h3>Con KipusPay</h3>
-        <p>{HOME.offline.withKipus}</p>
+      <div class="split-grid">
+        <div class="split-card muted">
+          <h3>Con tu sistema actual</h3>
+          <p>{HOME.offline.withOthers}</p>
+        </div>
+        <div class="split-card kipus-card">
+          <h3>Con KipusPay</h3>
+          <p>{HOME.offline.withKipus}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -254,6 +275,9 @@
       <p class="owner-note">{HOME.owner.note}</p>
     </div>
     <div class="phone-mock" use:reveal aria-hidden="true">
+      <div class="owner-network">
+        <QuipuMotif kind="network" count={3} id="home-owner" />
+      </div>
       <div class="phone-screen">
         <p class="pm-title">Modo Dueno</p>
         <div class="pm-row">
@@ -289,6 +313,11 @@
       <p class="section-lead">
         Sin jerga tecnica: asi cambia tu dia a dia frente al sistema tradicional.
       </p>
+    </div>
+    <div class="compare-fibers" aria-hidden="true">
+      <span></span>
+      <span>Tradicional</span>
+      <span class="cf-kipus">KipusPay</span>
     </div>
     <div class="ledger-table-wrap" use:reveal>
       <table class="ledger-table" aria-label="Comparativa frente a sistemas tradicionales">
@@ -362,8 +391,11 @@
   </div>
 </section>
 
-<section class="section section-paper final-cta" data-testid="final-cta">
-  <div class="section-inner" use:reveal>
+<section class="section section-paper final-cta" data-testid="final-cta" use:reveal>
+  <div class="seal-backdrop" aria-hidden="true">
+    <QuipuMotif kind="seal" id="home-seal" />
+  </div>
+  <div class="section-inner">
     <p class="eyebrow">
       <span class="knot-dot" aria-hidden="true"></span>
       Empezar
