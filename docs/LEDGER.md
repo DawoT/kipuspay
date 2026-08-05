@@ -3717,3 +3717,41 @@ aprobaciones: [Staff Growth R; Staff Data/Content/Fiscal QG + RACI A+V humano pe
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0255
+timestamp_utc: 2026-08-05T21:40:00Z
+schema_version: 2
+sprint_fase: Sprint 12 — Fase 4 (Firma A+V Sprint 12 Growth Loops & Metrics §9)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0254]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/GTM.md, docs/PROCESS.md]
+prev_id: 0254
+prev_hash: 3a4b61e9aa278f162af2053f0101d09b77433f797badd55f3460f37020c96a4d
+entry_hash: 934096c8a8a3053810e248e69c4cf41b80e7a6fe633ea7aa3c488a7d9d9f1df4
+ticket_or_adr: ADR-0009, GTM §7, GTM §9, Roadmap Sprint 12
+test_ids: [referral-domain, referral-store, print-templates, cases, blog, metrics, SUITE, index]
+entregable_afectado: referidos + brand QR + casos/blog + Owner métricas §9 Sprint 12 GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 12 (FASE 4): programa de referidos 1+1 mes GTM §7.1,
+  marca QR en comprobantes térmicos 58/80mm y Vitrina GTM §7.2, pipeline de casos
+  de éxito y blog GTM §7.3, y panel de métricas de negocio GTM §9 (TTFS, upgrade,
+  activación, NRR, K-factor).
+evidencia: >
+  RED: Sprint 12 QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: cbb590af8502be9c99ecf6d7d601fbcf0a034068
+red_run_id: run-red-0255-sprint-12-gov
+expected_failure: AssertionError: Sprint 12 QG EN REVISION
+green_commit_sha: cbb590af8502be9c99ecf6d7d601fbcf0a034068
+green_run_id: run-green-0255-sprint-12-gov
+ancestry_verified: true
+aprobaciones: [Staff Growth R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
