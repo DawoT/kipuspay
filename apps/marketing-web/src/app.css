@@ -614,7 +614,7 @@ li {
 .hero-scene {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
 }
 
@@ -753,12 +753,39 @@ li {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 70% center;
   opacity: 0;
-  z-index: 1;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .hero-video.has-src {
+  opacity: 0.55;
+}
+
+.hero-scene .q-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-out);
+  pointer-events: auto;
+}
+
+.hero-scene.canvas-on .q-canvas {
   opacity: 1;
+}
+
+.hero-scene.canvas-on .rig {
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-out);
+  pointer-events: none;
+}
+
+/* Con video: el SVG cede paso al instante para que la evolucion se lea. */
+.js .hero-scene.has-video:not(.canvas-on) .rig {
+  opacity: 0.2;
 }
 
 /*
@@ -769,7 +796,8 @@ li {
 .hero-scrim {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
+  pointer-events: none;
   background: linear-gradient(
     180deg,
     rgba(20, 22, 28, 0.15) 0%,

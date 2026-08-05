@@ -38,3 +38,7 @@ coverage/
 # Python de los checks (scripts/checks/*.py se importan entre sí y generan caché)
 __pycache__/
 *.pyc
+
+# Artefactos de E2E / screenshots locales
+.playwright-mcp/
+/home-*.png

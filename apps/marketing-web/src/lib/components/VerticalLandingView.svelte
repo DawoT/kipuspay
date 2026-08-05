@@ -18,7 +18,11 @@
   data-cord={landing.slug}
 >
   <section class="hero">
-    <QuipuHero activeCord={landing.slug} />
+    <QuipuHero
+      activeCord={landing.slug}
+      videoSrc="/media/hero-quipu.mp4"
+      poster="/media/hero-quipu-poster.jpg"
+    />
     <div class="hero-inner">
       <div class="hero-copy">
         <p class="eyebrow">

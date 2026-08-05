@@ -1,5 +1,14 @@
 <script lang="ts">
   import { buildRig, type QuipuRig } from './quipu';
+  import {
+    ENERGY_EPSILON,
+    applyImpulse,
+    createSim,
+    kineticEnergy,
+    step,
+    type SimState,
+  } from './quipu-sim';
+  import { drawBackdrop, drawSim } from './quipu-draw';
 
   interface Props {
     /** Cordel del rubro que se ilumina; el resto queda en penumbra. */
@@ -40,18 +49,39 @@
   });
 
   let videoEl = $state<HTMLVideoElement | null>(null);
+  let canvasEl = $state<HTMLCanvasElement | null>(null);
+  let sceneEl = $state<HTMLDivElement | null>(null);
+  let canvasReady = $state(false);
 
-  /* El video solo se descarga cuando el hero esta a la vista. */
+  /** Caja mutable: el paint del rAF lee el valor actual sin rearmar el efecto. */
+  const activeRef = { current: activeCord as string | null };
+  $effect(() => {
+    activeRef.current = activeCord;
+  });
+
+  /* Video: descarga diferida, una sola pasada, se congela en el ultimo frame. */
   $effect(() => {
     const el = videoEl;
     if (!el || !videoSrc) return;
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
+    const onEnded = () => {
+      // Congelar el ultimo fotograma: pause + currentTime al final.
+      try {
+        el.currentTime = Math.max(0, el.duration - 0.04);
+      } catch {
+        /* ignore seek errors on incomplete metadata */
+      }
+      el.pause();
+    };
+    el.addEventListener('ended', onEnded);
+
     const io = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          el.load();
+          if (el.readyState < 2) el.load();
+          if (el.ended || el.currentTime >= el.duration - 0.1) return;
           void el.play().catch(() => undefined);
         } else {
           el.pause();
@@ -60,7 +90,194 @@
     });
 
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      el.removeEventListener('ended', onEnded);
+    };
+  });
+
+  /*
+   * Canvas: mejora progresiva. El SVG SSR se queda como fallback; al montar,
+   * si hay JS y no hay reduced-motion, se dibuja encima y se apaga el SVG.
+   */
+  $effect(() => {
+    const canvas = canvasEl;
+    const scene = sceneEl;
+    if (!canvas || !scene) return;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!canvas.getContext) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    const hasVideo = Boolean(videoSrc);
+
+    let sim: SimState | null = null;
+    let rig: QuipuRig = wide;
+    let viewW = 1440;
+    let viewH = 900;
+    let strokeWidth = 3.2;
+    let raf = 0;
+    let running = false;
+    let wind = 0;
+    let lastTs = 0;
+    let disposed = false;
+
+    const mq = window.matchMedia('(min-width: 720px)');
+
+    function pickRig() {
+      if (mq.matches) {
+        rig = wide;
+        viewW = 1440;
+        viewH = 900;
+        strokeWidth = 3.2;
+      } else {
+        rig = tall;
+        viewW = 480;
+        viewH = 720;
+        strokeWidth = 2.6;
+      }
+      sim = createSim(rig);
+    }
+
+    function resize() {
+      const rect = scene!.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      canvas!.width = Math.floor(w * dpr);
+      canvas!.height = Math.floor(h * dpr);
+      canvas!.style.width = `${w}px`;
+      canvas!.style.height = `${h}px`;
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      pickRig();
+      paint();
+      canvasReady = true;
+      wake();
+    }
+
+    function paint() {
+      if (!sim) return;
+      const w = canvas!.clientWidth;
+      const h = canvas!.clientHeight;
+      drawBackdrop(ctx!, {
+        width: w,
+        height: h,
+        viewW,
+        viewH,
+        glowX: mq.matches ? w * 0.82 : w * 0.5,
+        glowY: mq.matches ? h * 0.44 : h * 0.3,
+        glowR: h * 0.55,
+        rulesFromX: mq.matches ? w * 0.48 : 0,
+        transparent: hasVideo,
+      });
+      drawSim(ctx!, sim, rig, {
+        width: w,
+        height: h,
+        viewW,
+        viewH,
+        activeCord: activeRef.current,
+        strokeWidth,
+        transparent: hasVideo,
+      });
+    }
+
+    function tick(ts: number) {
+      if (disposed || !sim) return;
+      const dt = Math.min(0.032, (ts - lastTs) / 1000 || 1 / 60);
+      lastTs = ts;
+      step(sim, dt, { gravity: 0.18, wind, damping: 0.985 });
+      // El viento se disipa solo.
+      wind *= 0.92;
+      paint();
+      if (kineticEnergy(sim) > ENERGY_EPSILON || Math.abs(wind) > 0.05) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        running = false;
+        raf = 0;
+      }
+    }
+
+    function wake() {
+      if (disposed || running) return;
+      running = true;
+      lastTs = performance.now();
+      raf = requestAnimationFrame(tick);
+    }
+
+    function onPointer(e: PointerEvent) {
+      if (!sim) return;
+      const rect = canvas!.getBoundingClientRect();
+      const sx = viewW / rect.width;
+      const sy = viewH / rect.height;
+      const mx = (e.clientX - rect.left) * sx;
+      const my = (e.clientY - rect.top) * sy;
+
+      // Cordel mas cercano al puntero.
+      let best: { slug: string; t: number; dist: number } | null = null;
+      for (const cord of sim.cords) {
+        for (let i = 1; i < cord.nodes.length; i++) {
+          const n = cord.nodes[i]!;
+          const d = Math.hypot(n.x - mx, n.y - my);
+          if (!best || d < best.dist) {
+            best = { slug: cord.slug, t: i / (cord.nodes.length - 1), dist: d };
+          }
+        }
+      }
+      if (best && best.dist < 80) {
+        const cord = sim.cords.find((c) => c.slug === best!.slug)!;
+        const idx = Math.round(best.t * (cord.nodes.length - 1));
+        const node = cord.nodes[idx]!;
+        applyImpulse(sim, best.slug, best.t, mx < node.x ? -16 : 16, 0);
+        wake();
+      }
+    }
+
+    let lastScrollY = window.scrollY;
+    function onScroll() {
+      const dy = window.scrollY - lastScrollY;
+      lastScrollY = window.scrollY;
+      wind += Math.max(-2.5, Math.min(2.5, dy * 0.04));
+      wake();
+    }
+
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) wake();
+        else if (raf) {
+          cancelAnimationFrame(raf);
+          raf = 0;
+          running = false;
+        }
+      }
+    });
+    io.observe(canvas);
+
+    const onMq = () => resize();
+    mq.addEventListener('change', onMq);
+    window.addEventListener('resize', resize, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+    canvas.addEventListener('pointermove', onPointer, { passive: true });
+
+    resize();
+    // Empuje inicial sutil: el quipu se asienta al entrar.
+    if (sim) {
+      applyImpulse(sim, CORDS[0]!.slug, 0.35, 8, 0);
+      applyImpulse(sim, CORDS[2]!.slug, 0.5, -6, 0);
+      wake();
+    }
+
+    return () => {
+      disposed = true;
+      canvasReady = false;
+      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
+      mq.removeEventListener('change', onMq);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('scroll', onScroll);
+      canvas.removeEventListener('pointermove', onPointer);
+    };
   });
 </script>
 
@@ -130,7 +347,14 @@
   </g>
 {/snippet}
 
-<div class="hero-scene" aria-hidden="true">
+<div
+  class="hero-scene"
+  class:canvas-on={canvasReady}
+  class:has-video={Boolean(videoSrc)}
+  bind:this={sceneEl}
+  aria-hidden="true"
+>
+  <!-- SVG: primer pintado sin JS. Se apaga cuando el canvas toma el relevo. -->
   <svg class="rig rig-wide" viewBox="0 0 1440 900" preserveAspectRatio="xMaxYMin slice">
     <defs>
       <radialGradient id="w-glow" cx="0.5" cy="0.42" r="0.5">
@@ -180,18 +404,19 @@
 
     {@render rig(tall, 't', 2.6)}
   </svg>
+
+  <canvas class="q-canvas" bind:this={canvasEl}></canvas>
 </div>
 
 {#if videoSrc}
   <video
-    class="hero-video"
+    class="hero-video has-src"
     bind:this={videoEl}
     src={videoSrc}
     poster={poster ?? undefined}
     preload="none"
     muted
     playsinline
-    loop
     tabindex="-1"
     aria-hidden="true"
   ></video>

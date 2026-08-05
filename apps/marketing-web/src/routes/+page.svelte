@@ -53,7 +53,10 @@
 </svelte:head>
 
 <section class="hero" data-testid="home-hero">
-  <QuipuHero />
+  <QuipuHero
+    videoSrc="/media/hero-quipu.mp4"
+    poster="/media/hero-quipu-poster.jpg"
+  />
   <div class="hero-inner">
     <div class="hero-copy">
       <p class="eyebrow">
