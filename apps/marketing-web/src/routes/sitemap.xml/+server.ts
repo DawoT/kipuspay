@@ -8,6 +8,7 @@ export function GET(): Response {
     '/',
     '/precios',
     '/empezar',
+    '/seguridad',
     '/casos-de-exito',
     '/blog',
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),

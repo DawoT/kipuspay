@@ -65,7 +65,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     audience: 'Cadenas de 30+ locales, franquicias',
     limits: [
       'SLA contractual',
-      'Soporte prioritario (tras aprobacion de SLA)',
+      'Soporte prioritario (contrato operativo GTM-02)',
       'Onboarding asistido',
       'Integraciones a medida',
     ],

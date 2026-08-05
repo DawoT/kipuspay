@@ -10,6 +10,13 @@ describe('pricing content', () => {
     expect(arranque?.limits.join(' ').toLowerCase()).not.toMatch(/sin l[ií]mite/);
   });
 
+  it('descongela soporte prioritario Enterprise tras GTM-02 / SLA', () => {
+    const enterprise = PRICING_PLANS.find((p) => p.id === 'enterprise');
+    expect(enterprise?.limits.join(' ')).toMatch(/Soporte prioritario/);
+    expect(enterprise?.limits.join(' ')).toMatch(/GTM-02/);
+    expect(enterprise?.limits.join(' ')).not.toMatch(/tras aprobacion de SLA/i);
+  });
+
   it('declara cupo Arranque como copy hasta Sprint 27', () => {
     expect(PRICING_DISCLAIMERS.cupo).toMatch(/Sprint 27/);
     expect(PRICING_DISCLAIMERS.gracia).toMatch(/gracia/i);

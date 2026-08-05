@@ -20,8 +20,10 @@ owner: "@DawoT"
 - `/para/{restaurantes,farmacias,retail,servicios,cadenas}`
 - `/comparar/{bsale,alegra,siigo}`
 - Live S11: `/precios`, `/empezar`
-- Live S12: `/casos-de-exito`, `/blog` (+ posts `/blog/[slug]`); referidos vía `?ref=` en `/empezar` (sin ruta `/referidos`)
-- Stubs S13: `/seguridad`, `/ayuda`
+- Live S12: `/casos-de-exito`, `/blog` (+ posts `/blog/[slug]`); referidos vía `?ref=` en `/empezar`
+- Live S13: `/seguridad` (claims ≤ evidencia; GTM-02 SLA en `docs/ops/support_sla_enterprise.md`)
+- Stub: `/ayuda` (centro de ayuda)
+
 
 
 ## Claim-gate

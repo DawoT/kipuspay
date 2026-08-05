@@ -50,7 +50,10 @@ owner: "@DawoT"
 | 10 | 4 | Actualizada (sitio marketing + 5 landings + /comparar + claim-gate GTM) | Cerrado |
 | 11 | 4 | Actualizada (precios §4.1 + onboarding §6.2 + Admin Config §3.3.1 + primera venta) | Cerrado |
 | 12 | 4 | Actualizada (referidos §7.1 + marca POS §7.2 + casos/blog §7.3 + métricas §9) | Cerrado |
-| 13–16 | 4–5 | Base | Planificado |
+| 13 | 4 | Actualizada (seguridad §5.7.1 + guion §8 + support_sla_enterprise / GTM-02) | Cerrado |
+| 14 | 5 | Actualizada (carga + caos evidencia + auditoría seguridad) | Cerrado |
+| 15 | 5 | Actualizada (WCAG AA + marca + rollback + Go/No-Go) | Cerrado |
+| 16 | 5 | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
 | 17 | 6 | Actualizada (M6/M7 caja dura + audit) | Planificado |
 | 18 | 6 | Actualizada (M2/M4/M5 PMP + stock) | Planificado |
 | 19–20 | 6 | Base | Planificado |

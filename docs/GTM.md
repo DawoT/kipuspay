@@ -228,7 +228,7 @@ Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion co
 | ID | Claim/control | Estado público | Gate o evidencia obligatoria |
 |---|---|---|---|
 | **GTM-01** | Analítica predictiva de Cadena | Congelado hasta Sprint 46 | Sprint 46 cerrado; disclaimer "estimación, no garantía"; no decisiones automáticas de stock/precio |
-| **GTM-02** | Soporte prioritario Enterprise | Bloqueado hasta SLA aprobado | SLA/operación de soporte y gate RACI; Crece mantiene soporte estándar |
+| **GTM-02** | Soporte prioritario Enterprise | **Descongelado** tras Sprint 13 | Contrato [`docs/ops/support_sla_enterprise.md`](docs/ops/support_sla_enterprise.md); Crece mantiene soporte estándar; RACI PM+Growth |
 | **GTM-03** | Ranking comparativo de locales en Modo Dueño | Listo tras QG Sprint 9 (Data cert + `FEATURE_REPORTING_CATALOG`) | Capability/report gate verificado; rollups SoT; banner offline cuando corresponda |
 | **GTM-04** | 1,000 comprobantes/mes en Arranque + S/ 0.05 por excedente | Bloqueado hasta Sprint 27 | Metering idempotente; facturación fuera del hot path; ningún `402` en cobro/emisión |
 | **GTM-05** | Devolución con NC/NV_RETURN y compensación de CxC | Contrato E-D en Sprint 8; claim público bloqueado hasta Sprint 28 | 0 saldo fantasma en ciclos total/parcial; copy explica que la NC no reembolsa el cupo original |

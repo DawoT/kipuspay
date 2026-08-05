@@ -109,7 +109,10 @@ Abre solo los archivos que esta tabla te señale.
 | 10 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 12 | Actualizada (sitio marketing + 5 landings + /comparar + claim-gate GTM) | Cerrado |
 | 11 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 27 | Actualizada (precios §4.1 + onboarding §6.2 + Admin Config §3.3.1 + primera venta) | Cerrado |
 | 12 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 43 | Actualizada (referidos §7.1 + marca POS §7.2 + casos/blog §7.3 + métricas §9) | Cerrado |
-| 13–16 | 4–5 | — | — | Base | Planificado |
+| 13 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 54 | Actualizada (seguridad §5.7.1 + guion §8 + support_sla_enterprise / GTM-02) | Cerrado |
+| 14 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 12 | Actualizada (carga + caos evidencia + auditoría seguridad) | Cerrado |
+| 15 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 23 | Actualizada (WCAG AA + marca + rollback + Go/No-Go) | Cerrado |
+| 16 | 5 | — | — | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Planificado |
 | 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Planificado |
 | 19–20 | 6 | — | — | Base | Planificado |
@@ -124,9 +127,6 @@ Abre solo los archivos que esta tabla te señale.
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 13 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 54 | sin fila de estado | — |
-| 14 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 12 | sin fila de estado | — |
-| 15 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 23 | sin fila de estado | — |
 | 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | sin fila de estado | — |
 | 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | sin fila de estado | — |
 | 28 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 14 | sin fila de estado | — |

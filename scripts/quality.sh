@@ -47,6 +47,12 @@ node scripts/chaos/run.mjs --scenario rollup-idempotent --sprint 9
 step "4h/8 Marketing copy lint (GTM §1 anti-jerga)"
 python3 scripts/checks/marketing_copy.py
 
+step "4i/8 Bench Sub-50ms hot-path (Sprint 14)"
+node scripts/bench/hot-path.mjs
+
+step "4j/8 Dependencias high/critical (Sprint 14)"
+bash scripts/checks/deps_audit.sh
+
 step "5/8 Secretos (Gitleaks)"
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks git --no-banner --redact -v

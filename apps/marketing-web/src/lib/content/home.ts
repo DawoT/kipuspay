@@ -160,14 +160,6 @@ export const HOME = {
 
 export const STUBS = [
   {
-    path: '/seguridad',
-    title: 'Seguridad',
-    unlockSprint: 13,
-    blurb:
-      'La pagina completa de seguridad y privacidad se publica junto con la revision independiente que la respalda. Lo esencial ya esta dicho en el inicio: tu informacion va cifrada y es tuya.',
-    meanwhile: [{ label: 'Leer los compromisos de confianza', href: '/#confianza' }],
-  },
-  {
     path: '/ayuda',
     title: 'Ayuda',
     unlockSprint: 13,
