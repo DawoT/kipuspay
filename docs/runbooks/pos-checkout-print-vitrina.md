@@ -32,8 +32,9 @@ Sin checkout no hay cobro UI (cola offline S6 sigue disponible vía API). Print/
 2. Guards: dominio `assertEmissionAllowed` — boleta ≥ S/700 exige DNI+nombre; INTERNAL_CONTROL bloquea CPE.
 3. Cola: IndexedDB `offline/{offlineSaleId}` tras cobro (cero spinner de red).
 4. Print: `resolveLineWidth(58)=32`, `(80)=48`; leyendas en `@kipuspay/print-templates`.
-5. Vitrina: canal `kipuspay-vitrina` (BroadcastChannel).
-6. Correlativo: reserva local tentativa; número server gana en reconcile.
+5. Brand QR (Sprint 12 / ADR-0009): pie *"Emitido con KipusPay"* **después** de leyenda fiscal; flag `brand_qr_enabled` default on (opt-out Admin). URL `/empezar?ref={code}`.
+6. Vitrina: canal `kipuspay-vitrina` (BroadcastChannel); en `charged` muestra brand si flag on.
+7. Correlativo: reserva local tentativa; número server gana en reconcile.
 
 ## Mitigación
 

@@ -19,7 +19,10 @@ owner: "@DawoT"
 - `/` home
 - `/para/{restaurantes,farmacias,retail,servicios,cadenas}`
 - `/comparar/{bsale,alegra,siigo}`
-- Stubs: `/precios` (S11), `/empezar` (S11), `/casos-de-exito` `/blog` (S12), `/seguridad` `/ayuda` (S13)
+- Live S11: `/precios`, `/empezar`
+- Live S12: `/casos-de-exito`, `/blog` (+ posts `/blog/[slug]`); referidos vía `?ref=` en `/empezar` (sin ruta `/referidos`)
+- Stubs S13: `/seguridad`, `/ayuda`
+
 
 ## Claim-gate
 

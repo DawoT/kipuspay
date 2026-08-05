@@ -29,5 +29,11 @@
     <p data-testid="vitrina-phase">{snap.phase}</p>
     <p data-testid="vitrina-total">S/ {formatCents(snap.totalCents)}</p>
     <p data-testid="vitrina-message">{snap.message}</p>
+    {#if snap.phase === 'charged' && snap.brandLabel}
+      <p class="brand" data-testid="vitrina-brand">{snap.brandLabel}</p>
+      {#if snap.brandUrl}
+        <p class="brand-url" data-testid="vitrina-brand-url">{snap.brandUrl}</p>
+      {/if}
+    {/if}
   </main>
 {/if}

@@ -1,6 +1,17 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0010_REFERRALS_BRAND_GROWTH = `
+DROP INDEX IF EXISTS idx_growth_events_tenant_type;
+DROP TABLE IF EXISTS growth_events;
+DROP INDEX IF EXISTS idx_referral_attr_referrer;
+DROP INDEX IF EXISTS idx_referral_attr_referred;
+DROP TABLE IF EXISTS referral_attributions;
+DROP INDEX IF EXISTS idx_referral_codes_code;
+DROP INDEX IF EXISTS idx_referral_codes_tenant;
+DROP TABLE IF EXISTS referral_codes;
+`;
+
 export const DOWN_0009_DAILY_PRODUCT_ROLLUPS = `
 DROP INDEX IF EXISTS idx_daily_product_rollups_tenant_date;
 DROP TABLE IF EXISTS daily_product_rollups;

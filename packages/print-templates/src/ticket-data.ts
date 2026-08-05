@@ -1,3 +1,11 @@
+export interface TicketBrandFooter {
+  readonly enabled: boolean;
+  readonly label: string;
+  readonly shortUrl: string;
+  /** Payload QR de marca (texto); distinto del QR fiscal CPE. */
+  readonly qrPayload: string;
+}
+
 export interface TicketItem {
   readonly name: string;
   readonly qty: number;
@@ -14,7 +22,9 @@ export interface TicketData {
   readonly items: readonly TicketItem[];
   /** Hash UBL / digest (CPE); vacío en NV. */
   readonly digestValue?: string | undefined;
-  /** Payload QR (texto); vacío en NV. */
+  /** Payload QR fiscal (texto); vacío en NV. */
   readonly qrPayload?: string | undefined;
   readonly lineWidth: number;
+  /** Pie de marca KipusPay (GTM §7.2 / ADR-0009); nunca antes de leyendas fiscales. */
+  readonly brandFooter?: TicketBrandFooter | undefined;
 }

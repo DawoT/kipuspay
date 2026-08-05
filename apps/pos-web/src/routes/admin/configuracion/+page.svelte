@@ -51,6 +51,14 @@
       confirmOpen = false;
     }
   }
+
+  function toggleBrandQr() {
+    session = { ...session, brandQrEnabled: !session.brandQrEnabled };
+    writeTenantSession(sessionStorage, session);
+    notice = session.brandQrEnabled
+      ? 'Pie de marca KipusPay activado en comprobantes y Vitrina.'
+      : 'Pie de marca KipusPay desactivado (opt-out).';
+  }
 </script>
 
 <section class="admin-config" data-testid="admin-config">
@@ -90,6 +98,20 @@
         Marcar emisor electrónico
       </button>
     </div>
+  </section>
+
+  <section id="marca">
+    <h2>Marca en el punto de venta</h2>
+    <p class="hint">
+      Pie “Emitido con KipusPay” + QR en boletas/NV y Vitrina (GTM §7.2). Default activado; puedes
+      optar por no mostrarlo.
+    </p>
+    <p data-testid="brand-qr-state">
+      {session.brandQrEnabled ? 'Activado' : 'Desactivado'}
+    </p>
+    <button type="button" data-testid="toggle-brand-qr" onclick={toggleBrandQr}>
+      {session.brandQrEnabled ? 'Desactivar marca' : 'Activar marca'}
+    </button>
   </section>
 
   <section id="fiscal-status">

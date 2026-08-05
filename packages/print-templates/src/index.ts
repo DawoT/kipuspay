@@ -10,4 +10,4 @@ export {
   type PrintMode,
   type SystemPrintPort,
 } from './system-print.js';
-export type { TicketData, TicketItem } from './ticket-data.js';
+export type { TicketData, TicketItem, TicketBrandFooter } from './ticket-data.js';

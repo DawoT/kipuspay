@@ -37,6 +37,11 @@ import {
   runReportsCatalogHttp,
 } from './reports/report-routes.js';
 import { runBootstrapHttp, runFormalizationStageHttp } from './onboarding/onboarding-routes.js';
+import {
+  runCaptureReferralHttp,
+  runEnsureReferralCodeHttp,
+  runFirstSaleReferralHttp,
+} from './referrals/referral-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -307,6 +312,15 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
     const result = runBootstrapHttp(c.env, raw);
+    if (result.status === 201 && raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const o = raw as Record<string, unknown>;
+      if (typeof o.ref === 'string' && o.ref && typeof result.body.tenantId === 'string') {
+        runCaptureReferralHttp(c.env, {
+          referredTenantId: result.body.tenantId,
+          ref: o.ref,
+        });
+      }
+    }
     return c.json(result.body, result.status as 201 | 400 | 422);
   });
 
@@ -318,6 +332,40 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
     const result = runFormalizationStageHttp(c.env, raw);
+    return c.json(result.body, result.status as 200 | 400 | 422);
+  });
+
+  // Sprint 12 — referidos (soft-launch in-memory; DDL 0010 = contrato D1)
+  app.post('/v1/referrals/code', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = runEnsureReferralCodeHttp(c.env, raw);
+    return c.json(result.body, result.status as 200 | 400 | 422);
+  });
+
+  app.post('/v1/referrals/capture', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = runCaptureReferralHttp(c.env, raw);
+    return c.json(result.body, result.status as 201 | 400 | 422);
+  });
+
+  app.post('/v1/referrals/first-sale', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = runFirstSaleReferralHttp(c.env, raw);
     return c.json(result.body, result.status as 200 | 400 | 422);
   });
 

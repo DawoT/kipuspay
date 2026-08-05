@@ -6,6 +6,10 @@ export const prerender = true;
 export function GET(): Response {
   const urls = [
     '/',
+    '/precios',
+    '/empezar',
+    '/casos-de-exito',
+    '/blog',
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),
     ...COMPETITOR_SLUGS.map((s) => `/comparar/${s}`),
   ];

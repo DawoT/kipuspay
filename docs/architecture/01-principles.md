@@ -142,6 +142,10 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | `marketing.vertical_landing` | 10 | Landings `/para/[vertical]` (content slug) |
 | `marketing.compare` | 10 | `/comparar/[competidor]` SEO intención |
 | `marketing.claim_gate` | 10 | Feature destacada live vs roadmap+sprint |
+| `marketing.referrals` | 12 | Códigos + atribución 1+1 mes (GTM §7.1) |
+| `marketing.content` | 12 | `/casos-de-exito` + `/blog` (GTM §7.3) |
+| `pos.brand_qr` | 12 | Pie “Emitido con KipusPay” + QR (GTM §7.2) |
+| `analytics.growth_metrics` | 12 | TTFS / upgrade / activation / NRR / K-factor (GTM §9) |
 
 **Capabilities canónicas (FASE 6 → flags):**
 

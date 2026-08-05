@@ -8,6 +8,8 @@ export interface VitrinaSnapshot {
   readonly documentType: string;
   readonly phase: 'idle' | 'confirming' | 'charged';
   readonly message: string;
+  readonly brandLabel?: string;
+  readonly brandUrl?: string;
 }
 
 export function publishVitrina(snapshot: VitrinaSnapshot): void {

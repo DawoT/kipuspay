@@ -89,4 +89,47 @@ describe('print-templates', () => {
     expect(() => formatTicketCents(1.5)).toThrow(/INVALID_TICKET_CENTS/);
     expect(resolveLineWidth(99, 48)).toBe(48);
   });
+
+  it('brand footer va DESPUES de leyenda fiscal; opt-out sin pie', () => {
+    const withBrand = buildTicketHtml(
+      ticket({
+        brandFooter: {
+          enabled: true,
+          label: 'Emitido con KipusPay',
+          shortUrl: 'https://kipuspay.pe/empezar?ref=KPABCD',
+          qrPayload: 'https://kipuspay.pe/empezar?ref=KPABCD',
+        },
+      }),
+    );
+    const legendIdx = withBrand.indexOf(NV_TICKET_LEGEND);
+    const brandIdx = withBrand.indexOf('Emitido con KipusPay');
+    expect(legendIdx).toBeGreaterThan(-1);
+    expect(brandIdx).toBeGreaterThan(legendIdx);
+
+    const off = buildTicketHtml(
+      ticket({
+        brandFooter: {
+          enabled: false,
+          label: 'Emitido con KipusPay',
+          shortUrl: 'x',
+          qrPayload: 'x',
+        },
+      }),
+    );
+    expect(off).not.toContain('Emitido con KipusPay');
+
+    const esc = new TextDecoder().decode(
+      buildEscPosPayload(
+        ticket({
+          brandFooter: {
+            enabled: true,
+            label: 'Emitido con KipusPay',
+            shortUrl: 'https://kipuspay.pe/empezar?ref=KP1',
+            qrPayload: 'https://kipuspay.pe/empezar?ref=KP1',
+          },
+        }),
+      ),
+    );
+    expect(esc.indexOf('control interno')).toBeLessThan(esc.indexOf('Emitido con KipusPay'));
+  });
 });

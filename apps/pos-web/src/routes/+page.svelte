@@ -102,7 +102,18 @@
       session = markTenantFirstSale(session);
       writeTenantSession(sessionStorage, session);
       lastTtfsMs = ttfsMs(session);
+      void fetch('/v1/referrals/first-sale', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tenantId: session.tenantId }),
+      }).catch(() => undefined);
     }
+
+    const inviteBase =
+      (import.meta.env.PUBLIC_MARKETING_ORIGIN as string | undefined) ?? 'https://kipuspay.pe';
+    const brandUrl = session.referralCode
+      ? `${inviteBase.replace(/\/$/, '')}/empezar?ref=${encodeURIComponent(session.referralCode)}`
+      : `${inviteBase.replace(/\/$/, '')}/empezar`;
 
     if (isVitrinaEnabled()) {
       publishVitrina({
@@ -111,6 +122,9 @@
         documentType: outcome.documentType,
         phase: 'charged',
         message: 'Gracias por su compra',
+        ...(session.brandQrEnabled
+          ? { brandLabel: 'Emitido con KipusPay', brandUrl }
+          : {}),
       });
     }
 
@@ -128,6 +142,12 @@
           totalCents: l.unitPriceCents * l.quantity,
         })),
         lineWidth: resolveLineWidth(58),
+        brandFooter: {
+          enabled: session.brandQrEnabled,
+          label: 'Emitido con KipusPay',
+          shortUrl: brandUrl,
+          qrPayload: brandUrl,
+        },
       };
       printPreview = buildTicketHtml(ticket);
     }

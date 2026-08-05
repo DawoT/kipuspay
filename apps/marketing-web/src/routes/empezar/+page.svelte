@@ -6,6 +6,8 @@
     writeOnboardingDraft,
   } from '$lib/onboarding/draft';
   import { ogImageFor } from '$lib/seo';
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
 
   type Step = 0 | 1 | 2 | 3;
 
@@ -16,6 +18,11 @@
   let formalizationMode = $state<FormalizationMode>('INTERNAL_CONTROL');
   let error = $state('');
   let busy = $state(false);
+  let refCode = $state('');
+
+  onMount(() => {
+    refCode = $page.url.searchParams.get('ref') ?? '';
+  });
 
   const verticals: { id: OnboardingVertical; label: string }[] = [
     { id: 'restaurantes', label: 'Restaurantes y cafeterias' },
@@ -69,12 +76,20 @@
           ruc: ruc.trim() || null,
           verticalType,
           formalizationMode,
+          ...(refCode ? { ref: refCode } : {}),
         }),
       });
       let tenantId = `local_${Date.now().toString(36)}`;
       if (res.ok) {
         const body = (await res.json()) as { tenantId?: string };
         if (body.tenantId) tenantId = body.tenantId;
+      }
+      if (refCode) {
+        await fetch('/v1/referrals/capture', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ referredTenantId: tenantId, ref: refCode }),
+        }).catch(() => undefined);
       }
       const draft = createOnboardingDraft({
         tradeName,

@@ -6,10 +6,12 @@
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
   import { otherVerticals } from '$lib/content/verticals';
+  import { casesForRubro } from '$lib/content/cases';
 
   let { landing }: { landing: VerticalLanding } = $props();
 
   const others = $derived(otherVerticals(landing.slug));
+  const verticalCases = $derived(casesForRubro(landing.slug));
 </script>
 
 <article
@@ -117,6 +119,40 @@
             caption={landing.checkout.caption}
           />
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-paper" data-testid="vertical-cases">
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="synced" tone="paper" />
+      </div>
+      <div class="section-body">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Casos de tu rubro
+          </p>
+          <h2>Solo historias con permiso del dueno.</h2>
+        </div>
+        {#if verticalCases.length === 0}
+          <p use:reveal>
+            Aun no hay casos publicados para este rubro.
+            <a href="/casos-de-exito">Ver el indice de casos</a>
+            o
+            <a href="/empezar">se el primero en cobrar hoy</a>.
+          </p>
+        {:else}
+          <ul>
+            {#each verticalCases as c (c.id)}
+              <li use:reveal>
+                <p>“{c.quote}”</p>
+                <p>{c.businessName}</p>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </div>
     </div>
   </section>

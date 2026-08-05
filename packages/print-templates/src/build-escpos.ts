@@ -49,6 +49,15 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
   }
 
   cmd.push(...encoder.encode(`\n${legend}\n\n`));
+
+  if (data.brandFooter?.enabled === true) {
+    cmd.push(
+      ...encoder.encode(
+        `${sanitizePrinterText(data.brandFooter.label)}\n${sanitizePrinterText(data.brandFooter.shortUrl).slice(0, lineWidth)}\nQR marca: ${sanitizePrinterText(data.brandFooter.qrPayload).slice(0, lineWidth)}\n\n`,
+      ),
+    );
+  }
+
   cmd.push(0x1d, 0x56, 0x42, 0x00);
   return new Uint8Array(cmd);
 }

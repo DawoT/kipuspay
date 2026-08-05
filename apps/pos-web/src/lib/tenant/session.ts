@@ -13,6 +13,9 @@ export interface PosTenantSession {
   readonly verticalType: string;
   readonly onboardingStartedAtIso: string | null;
   readonly firstSaleAtIso: string | null;
+  /** ADR-0009: default on; opt-out en Admin. */
+  readonly brandQrEnabled: boolean;
+  readonly referralCode: string | null;
 }
 
 const MODES: readonly FormalizationMode[] = [
@@ -33,6 +36,8 @@ export function defaultTenantSession(): PosTenantSession {
     verticalType: 'retail',
     onboardingStartedAtIso: null,
     firstSaleAtIso: null,
+    brandQrEnabled: true,
+    referralCode: null,
   };
 }
 
@@ -47,6 +52,8 @@ export function tenantFromSearchParams(params: URLSearchParams): PosTenantSessio
     verticalType: params.get('vertical') || 'retail',
     onboardingStartedAtIso: new Date().toISOString(),
     firstSaleAtIso: null,
+    brandQrEnabled: true,
+    referralCode: null,
   };
 }
 

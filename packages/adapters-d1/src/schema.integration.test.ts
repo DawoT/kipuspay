@@ -12,6 +12,7 @@ import {
   DOWN_0007_DAILY_ROLLUPS,
   DOWN_0008_PUSH_SUBSCRIPTIONS,
   DOWN_0009_DAILY_PRODUCT_ROLLUPS,
+  DOWN_0010_REFERRALS_BRAND_GROWTH,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -299,7 +300,8 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     );
   });
 
-  it('down 0009 + 0008 + … + 0000 deja el schema sin tablas de negocio', async () => {
+  it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0010_REFERRALS_BRAND_GROWTH);
     await env.DB.exec(DOWN_0009_DAILY_PRODUCT_ROLLUPS);
     await env.DB.exec(DOWN_0008_PUSH_SUBSCRIPTIONS);
     await env.DB.exec(DOWN_0007_DAILY_ROLLUPS);

@@ -168,22 +168,6 @@ export const STUBS = [
     meanwhile: [{ label: 'Leer los compromisos de confianza', href: '/#confianza' }],
   },
   {
-    path: '/casos-de-exito',
-    title: 'Casos de exito',
-    unlockSprint: 12,
-    blurb:
-      'Preferimos publicar casos reales cuando tengamos meses de operacion que mostrar, con nombre del negocio y numeros verificables. Testimonios de lanzamiento no le sirven a nadie.',
-    meanwhile: [{ label: 'Ver como funciona', href: '/#como' }],
-  },
-  {
-    path: '/blog',
-    title: 'Blog',
-    unlockSprint: 12,
-    blurb:
-      'Estamos escribiendo guias practicas para comercios: como cuadrar tu caja sin pelearte con el cuaderno, que cambia cuando te formalizas y como controlar el inventario sin volverte loco.',
-    meanwhile: [{ label: 'Volver al inicio', href: '/' }],
-  },
-  {
     path: '/ayuda',
     title: 'Ayuda',
     unlockSprint: 13,

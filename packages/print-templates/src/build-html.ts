@@ -19,6 +19,12 @@ export function buildTicketHtml(data: TicketData): string {
     !isNv && data.qrPayload
       ? `<p class="qr" data-qr="${escapeHtml(data.qrPayload)}">QR: ${escapeHtml(data.qrPayload)}</p>`
       : '';
+  const brand =
+    data.brandFooter?.enabled === true
+      ? `<p class="brand" data-testid="brand-footer">${escapeHtml(data.brandFooter.label)}</p>
+<p class="brand-url">${escapeHtml(data.brandFooter.shortUrl)}</p>
+<p class="brand-qr" data-brand-qr="${escapeHtml(data.brandFooter.qrPayload)}">QR marca: ${escapeHtml(data.brandFooter.qrPayload)}</p>`
+      : '';
 
   // eslint-disable-next-line no-secrets/no-secrets -- plantilla HTML ticket, no secreto
   const head = `<!doctype html><html><head><meta charset="utf-8"><title>Ticket</title>
@@ -26,6 +32,7 @@ export function buildTicketHtml(data: TicketData): string {
 body{font-family:ui-monospace,monospace;width:${data.lineWidth}ch;margin:0 auto}
 h1{font-size:1rem;text-align:center} table{width:100%} td{padding:2px 0}
 .legend{font-size:.75rem;margin-top:1rem}
+.brand{font-size:.7rem;margin-top:.75rem;text-align:center}
 </style></head><body>`;
   return `${head}
 <h1>${escapeHtml(data.enterprise)}</h1>
@@ -35,6 +42,7 @@ h1{font-size:1rem;text-align:center} table{width:100%} td{padding:2px 0}
 <p><strong>TOTAL: S/ ${formatTicketCents(data.totalCents)}</strong></p>
 ${digest}${qr}
 <p class="legend">${escapeHtml(legend)}</p>
+${brand}
 </body></html>`;
 }
 
