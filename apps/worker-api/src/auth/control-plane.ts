@@ -36,6 +36,11 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_LEDGER_AR_AP?: string;
   readonly FEATURE_PURCHASING_ORDERS?: string;
   readonly FEATURE_CASH_EXPENSES?: string;
+  /** Sprint 17: cierre Z ciego / movimientos / reprints (ADR-0012). */
+  readonly FEATURE_CASH_BLIND_Z?: string;
+  readonly FEATURE_ORDERS_KDS?: string;
+  readonly FEATURE_STOCK_TRANSFERS?: string;
+  readonly FEATURE_PURCHASING_PARTIAL_RECEIVE?: string;
   readonly FEATURE_OWNER_MODE?: string;
   readonly FEATURE_OWNER_PUSH?: string;
   readonly FEATURE_REPORTING_ROLLUPS?: string;

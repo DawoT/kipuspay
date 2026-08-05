@@ -54,9 +54,10 @@ owner: "@DawoT"
 | 14 | 5 | Actualizada (carga + caos evidencia + auditoría seguridad) | Cerrado |
 | 15 | 5 | Actualizada (WCAG AA + marca + rollback + Go/No-Go) | Cerrado |
 | 16 | 5 | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
-| 17 | 6 | Actualizada (M6/M7 caja dura + audit) | Planificado |
-| 18 | 6 | Actualizada (M2/M4/M5 PMP + stock) | Planificado |
-| 19–20 | 6 | Base | Planificado |
+| 17 | 6 | Actualizada (M6/M7 caja dura + audit) | Cerrado |
+| 18 | 6 | Actualizada (M2/M4/M5 PMP + stock) | En progreso |
+| 19 | 6 | Actualizada (comandas / KDS / split bill) | En progreso |
+| 20 | 6 | Actualizada (transferencias + recepción OC parcial) | En progreso |
 | 21–24 | 7 | Base | Planificado |
 | 25 | 8 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Planificado |
 | 26 | 8 | Actualizada (P1 breaker §8.1) | Planificado |

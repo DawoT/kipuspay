@@ -35,3 +35,8 @@ export function isReportingCatalogEnabled(): boolean {
 export function isReportingExportEnabled(): boolean {
   return flagOn(import.meta.env.PUBLIC_FEATURE_REPORTING_EXPORT as string | undefined);
 }
+
+/** Sprint 17 — cierre Z ciego / movimientos / reprints. */
+export function isCashBlindZEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_CASH_BLIND_Z as string | undefined);
+}

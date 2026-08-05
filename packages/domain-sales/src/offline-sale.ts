@@ -54,6 +54,10 @@ export interface OfflineSalePayload {
   readonly payments: readonly OfflinePaymentPayload[];
   /** NV_RETURN / NC: venta origen para compensación CxC (edge E-D). */
   readonly referencedSaleId?: string | undefined;
+  /** S17: hash del authorization_token para descuentos sobre umbral. */
+  readonly discountAuthorizationTokenHash?: string | null | undefined;
+  /** S17: override de credit_limit. */
+  readonly creditOverrideTokenHash?: string | null | undefined;
 }
 
 const ISSUED_AT_SKEW_MS = 6 * 3600 * 1000;

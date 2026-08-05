@@ -6,6 +6,7 @@ import {
   planCreateAp,
   planCreateAr,
   planCreateExpense,
+  planPartialReceive,
   planPayAp,
   planPayAr,
 } from './ledger.js';
@@ -316,5 +317,94 @@ describe('planPayAr edge', () => {
         source: 'CREDIT_NOTE',
       }),
     ).toThrow(/INVALID_CREDIT_AMOUNT/);
+  });
+});
+
+describe('planPartialReceive', () => {
+  it('marca PARTIALLY_RECEIVED y acumula CxP solo por recibido', () => {
+    const plan = planPartialReceive({
+      purchaseOrderId: 'po1',
+      currentStatus: 'SENT',
+      orderedQtyByProduct: new Map([
+        ['p1', 10],
+        ['p2', 5],
+      ]),
+      previouslyReceivedQtyByProduct: new Map([['p1', 0]]),
+      lines: [{ productId: 'p1', quantity: 4, unitCostCents: 100 }],
+    });
+    expect(plan.nextStatus).toBe('PARTIALLY_RECEIVED');
+    expect(plan.apAmountCents).toBe(400);
+    expect(plan.receivedQtyByProduct.get('p1')).toBe(4);
+  });
+
+  it('completa a RECEIVED cuando todo llega', () => {
+    const plan = planPartialReceive({
+      purchaseOrderId: 'po1',
+      currentStatus: 'SENT',
+      orderedQtyByProduct: new Map([['p1', 10]]),
+      previouslyReceivedQtyByProduct: new Map([['p1', 6]]),
+      lines: [{ productId: 'p1', quantity: 4, unitCostCents: 50 }],
+    });
+    expect(plan.nextStatus).toBe('RECEIVED');
+    expect(plan.apAmountCents).toBe(200);
+  });
+
+  it('rechaza exceso / líneas vacías / qty inválida', () => {
+    expect(() =>
+      planPartialReceive({
+        purchaseOrderId: 'po1',
+        currentStatus: 'SENT',
+        orderedQtyByProduct: new Map([['p1', 2]]),
+        previouslyReceivedQtyByProduct: new Map(),
+        lines: [],
+      }),
+    ).toThrow('RECEIPT_REQUIRES_LINES');
+    expect(() =>
+      planPartialReceive({
+        purchaseOrderId: 'po1',
+        currentStatus: 'SENT',
+        orderedQtyByProduct: new Map([['p1', 2]]),
+        previouslyReceivedQtyByProduct: new Map(),
+        lines: [{ productId: 'p1', quantity: 3, unitCostCents: 10 }],
+      }),
+    ).toThrow('RECEIVE_EXCEEDS_ORDERED');
+    expect(() =>
+      planPartialReceive({
+        purchaseOrderId: 'po1',
+        currentStatus: 'SENT',
+        orderedQtyByProduct: new Map([['p1', 2]]),
+        previouslyReceivedQtyByProduct: new Map(),
+        lines: [{ productId: 'p1', quantity: 0, unitCostCents: 10 }],
+      }),
+    ).toThrow('INVALID_RECEIVE_QTY');
+    expect(() =>
+      planPartialReceive({
+        purchaseOrderId: 'po1',
+        currentStatus: 'SENT',
+        orderedQtyByProduct: new Map([['p1', 2]]),
+        previouslyReceivedQtyByProduct: new Map(),
+        lines: [{ productId: 'p1', quantity: 1, unitCostCents: 0 }],
+      }),
+    ).toThrow('INVALID_UNIT_COST');
+    expect(() => assertPurchaseOrderTransition('DRAFT', 'PARTIALLY_RECEIVED')).toThrow();
+  });
+
+  it('mergea previos no tocados en el receipt', () => {
+    const plan = planPartialReceive({
+      purchaseOrderId: 'po1',
+      currentStatus: 'PARTIALLY_RECEIVED',
+      orderedQtyByProduct: new Map([
+        ['p1', 10],
+        ['p2', 5],
+      ]),
+      previouslyReceivedQtyByProduct: new Map([
+        ['p1', 10],
+        ['p2', 2],
+      ]),
+      lines: [{ productId: 'p2', quantity: 1, unitCostCents: 100 }],
+    });
+    expect(plan.receivedQtyByProduct.get('p1')).toBe(10);
+    expect(plan.receivedQtyByProduct.get('p2')).toBe(3);
+    expect(plan.nextStatus).toBe('PARTIALLY_RECEIVED');
   });
 });

@@ -31,6 +31,7 @@ export {
   planCreateExpense,
   planPayAp,
   planPayAr,
+  planPartialReceive,
   type ApCreatePlan,
   type ApPaymentPlan,
   type ArCompensatePlan,
@@ -39,5 +40,22 @@ export {
   type ArStatus,
   type ExpenseCategory,
   type ExpenseCreatePlan,
+  type PartialReceivePlan,
   type PurchaseOrderStatus,
 } from './ledger.js';
+
+export {
+  assertCreditWithinLimit,
+  assertDiscountAuthorized,
+  computeExpectedCashCents,
+  discountRequiresAuthz,
+  planBlindClose,
+  planSaleReprint,
+  printOutboxPendingCount,
+  shouldBlockZForPrintOutbox,
+  sumCountLines,
+  type BlindClosePlan,
+  type CashMovementType,
+  type DiscountPolicy,
+  type SaleReprintPlan,
+} from './blind-z.js';

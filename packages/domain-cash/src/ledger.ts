@@ -7,7 +7,7 @@ export type Cents = number;
 
 export type ArStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
 export type ApStatus = 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
-export type PurchaseOrderStatus = 'DRAFT' | 'SENT' | 'RECEIVED' | 'CANCELED';
+export type PurchaseOrderStatus = 'DRAFT' | 'SENT' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELED';
 export type ExpenseCategory = 'SUPPLIES' | 'TRANSPORT' | 'OTHER';
 
 export interface ArCreateInput {
@@ -139,7 +139,8 @@ export interface ExpenseCreatePlan {
 
 const PO_TRANSITIONS: Readonly<Record<PurchaseOrderStatus, readonly PurchaseOrderStatus[]>> = {
   DRAFT: ['SENT', 'CANCELED'],
-  SENT: ['RECEIVED', 'CANCELED'],
+  SENT: ['PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELED'],
+  PARTIALLY_RECEIVED: ['PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELED'],
   RECEIVED: [],
   CANCELED: [],
 };
@@ -253,6 +254,82 @@ export function assertPurchaseOrderTransition(
   if (!PO_TRANSITIONS[from].includes(to)) {
     throw new Error(`PO_INVALID_TRANSITION:${from}->${to}`);
   }
+}
+
+export interface PartialReceiveLine {
+  readonly productId: string;
+  readonly quantity: number;
+  readonly unitCostCents: Cents;
+}
+
+export interface PartialReceiveInput {
+  readonly purchaseOrderId: string;
+  readonly currentStatus: PurchaseOrderStatus;
+  readonly orderedQtyByProduct: ReadonlyMap<string, number>;
+  readonly previouslyReceivedQtyByProduct: ReadonlyMap<string, number>;
+  readonly lines: readonly PartialReceiveLine[];
+}
+
+export interface PartialReceivePlan {
+  readonly nextStatus: PurchaseOrderStatus;
+  readonly receivedQtyByProduct: ReadonlyMap<string, number>;
+  readonly apAmountCents: Cents;
+}
+
+/**
+ * Recepción parcial: CxP solo por lo recibido en este receipt; status PARTIALLY_RECEIVED o RECEIVED.
+ */
+export function planPartialReceive(input: PartialReceiveInput): PartialReceivePlan {
+  const { receivedQtyByProduct, apAmountCents } = accumulateReceived(
+    input.lines,
+    input.orderedQtyByProduct,
+    input.previouslyReceivedQtyByProduct,
+  );
+  const allComplete = isFullyReceived(input.orderedQtyByProduct, receivedQtyByProduct);
+  const nextStatus: PurchaseOrderStatus = allComplete ? 'RECEIVED' : 'PARTIALLY_RECEIVED';
+  assertPurchaseOrderTransition(input.currentStatus, nextStatus);
+  return { nextStatus, receivedQtyByProduct, apAmountCents };
+}
+
+interface ReceivedAccum {
+  readonly receivedQtyByProduct: ReadonlyMap<string, number>;
+  readonly apAmountCents: Cents;
+}
+
+function accumulateReceived(
+  lines: readonly PartialReceiveLine[],
+  orderedQtyByProduct: ReadonlyMap<string, number>,
+  previouslyReceivedQtyByProduct: ReadonlyMap<string, number>,
+): ReceivedAccum {
+  if (lines.length === 0) throw new Error('RECEIPT_REQUIRES_LINES');
+  let apAmountCents = 0;
+  const receivedQtyByProduct = new Map<string, number>();
+  for (const line of lines) {
+    if (!(line.quantity > 0) || !Number.isFinite(line.quantity)) {
+      throw new Error('INVALID_RECEIVE_QTY');
+    }
+    assertPositiveCents(line.unitCostCents, 'INVALID_UNIT_COST');
+    const ordered = orderedQtyByProduct.get(line.productId) ?? 0;
+    const prev = previouslyReceivedQtyByProduct.get(line.productId) ?? 0;
+    const nextQty = prev + line.quantity;
+    if (nextQty > ordered) throw new Error('RECEIVE_EXCEEDS_ORDERED');
+    receivedQtyByProduct.set(line.productId, nextQty);
+    apAmountCents += Math.round(line.quantity * line.unitCostCents);
+  }
+  for (const [pid, qty] of previouslyReceivedQtyByProduct) {
+    if (!receivedQtyByProduct.has(pid)) receivedQtyByProduct.set(pid, qty);
+  }
+  return { receivedQtyByProduct, apAmountCents };
+}
+
+function isFullyReceived(
+  orderedQtyByProduct: ReadonlyMap<string, number>,
+  receivedQtyByProduct: ReadonlyMap<string, number>,
+): boolean {
+  for (const [pid, ordered] of orderedQtyByProduct) {
+    if ((receivedQtyByProduct.get(pid) ?? 0) < ordered) return false;
+  }
+  return true;
 }
 
 export function planCreateExpense(input: ExpenseCreateInput): ExpenseCreatePlan {

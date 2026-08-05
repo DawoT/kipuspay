@@ -167,7 +167,7 @@ CREATE TABLE order_items (
     status TEXT NOT NULL DEFAULT 'PENDING',
     -- PENDING | FIRED | READY | CANCELLED | BILLED
     sale_id TEXT,               -- set al split/cobro
-    authorized_cancel_by TEXT,
+    authorized_by_user_id TEXT, -- quién autorizó la cancelación (S19)
     FOREIGN KEY (order_id) REFERENCES orders(id)
 );
 

@@ -536,13 +536,18 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
 
   it('crédito → CxC en misma tx; NV_RETURN parcial/total compensa sin drift', async () => {
     const fixture = await seedNvFixture('t-ledger-ar');
-    await env.DB.prepare(
-      `INSERT INTO branch_document_series
-         (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
-       VALUES ('ser-nvr-ar', ?, ?, 'NV_RETURN', 'NVR1', 0, 'INTERNAL')`,
-    )
-      .bind('t-ledger-ar', fixture.branchId)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-nvr-ar', ?, ?, 'NV_RETURN', 'NVR1', 0, 'INTERNAL')`,
+      ).bind('t-ledger-ar', fixture.branchId),
+      env.DB.prepare(
+        `INSERT INTO customers (
+             id, tenant_id, document_type_code, document_number, name, profile_updated_at, is_active, credit_limit_cents
+           ) VALUES (?, ?, '1', '12345678', 'Cliente Credito', '2026-08-01T00:00:00.000Z', 1, 100000)`,
+      ).bind('cust-ar', 't-ledger-ar'),
+    ]);
 
     const payload = {
       ...nvPayload(fixture, 'off-credit-on', 1, 1180),
@@ -615,6 +620,11 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
          VALUES ('ser-01-ar', ?, ?, '01', 'F001', 0, 'INTERNAL'),
                 ('ser-07-ar2', ?, ?, '07', 'FC01', 0, 'INTERNAL')`,
       ).bind('t-ledger-nc', fixture.branchId, 't-ledger-nc', fixture.branchId),
+      env.DB.prepare(
+        `INSERT INTO customers (
+             id, tenant_id, document_type_code, document_number, name, profile_updated_at, is_active, credit_limit_cents
+           ) VALUES (?, ?, '6', '20123456789', 'ACME', '2026-08-01T00:00:00.000Z', 1, 100000)`,
+      ).bind('cust-nc', 't-ledger-nc'),
     ]);
 
     const sale = await processOfflineSaleAtomic(

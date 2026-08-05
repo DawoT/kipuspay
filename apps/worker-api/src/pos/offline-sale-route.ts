@@ -40,6 +40,18 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
   if (msg.includes('PAYMENT_TOTAL_MISMATCH')) {
     return { status: 422, body: { error: msg, code: 'PAYMENT_TOTAL_MISMATCH' } };
   }
+  if (msg.includes('AUTH_TOKEN_REQUIRED') || msg.includes('AUTH_TOKEN_INVALID')) {
+    return {
+      status: 403,
+      body: {
+        error: msg,
+        code: msg.includes('INVALID') ? 'AUTH_TOKEN_INVALID' : 'AUTH_TOKEN_REQUIRED',
+      },
+    };
+  }
+  if (msg.includes('CREDIT_LIMIT_EXCEEDED')) {
+    return { status: 422, body: { error: msg, code: 'CREDIT_LIMIT_EXCEEDED' } };
+  }
   if (
     msg.includes('CPE_BLOCKED_INTERNAL_CONTROL') ||
     msg.includes('FACTURA_REQUIRES_RUC') ||

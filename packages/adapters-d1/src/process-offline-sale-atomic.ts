@@ -21,12 +21,35 @@ import {
   type TaxRegime,
 } from '@kipuspay/domain-fiscal-pe';
 import {
+  assertCreditWithinLimit,
+  assertDiscountAuthorized,
   compensateArOnCreditNote,
   defaultCreditDueDateIso,
+  discountRequiresAuthz,
   planCreateAr,
 } from '@kipuspay/domain-cash';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
+
+async function requireLiveAuthToken(
+  db: D1DatabaseLike,
+  tenantId: string,
+  tokenHash: string | null | undefined,
+): Promise<string> {
+  if (!tokenHash?.trim()) throw new Error('AUTH_TOKEN_REQUIRED');
+  const row = await db
+    .prepare(
+      `SELECT id FROM authorization_tokens
+       WHERE tenant_id = ? AND token_hash = ?
+         AND used_at IS NULL
+         AND expires_at > datetime('now')
+       LIMIT 1`,
+    )
+    .bind(tenantId, tokenHash)
+    .first<{ id: string }>();
+  if (!row) throw new Error('AUTH_TOKEN_INVALID');
+  return row.id;
+}
 export type OfflineSaleResult =
   | {
       status: 'SUCCESS';
@@ -324,6 +347,92 @@ export async function processOfflineSaleAtomic(
   const creditPayments = ledgerOn ? payload.payments.filter((p) => p.isCredit === true) : [];
   if (creditPayments.length > 0 && !customerId) {
     throw new Error('CREDIT_REQUIRES_CUSTOMER');
+  }
+
+  // S17: enforce credit_limit_cents (Arquitectura §5.3 / capability ledger.credit_limit_cents).
+  const authTokensToConsume: string[] = [];
+  if (creditPayments.length > 0 && customerId) {
+    const custCredit = await db
+      .prepare(`SELECT credit_limit_cents FROM customers WHERE tenant_id = ? AND id = ? LIMIT 1`)
+      .bind(tenantId, customerId)
+      .first<{ credit_limit_cents: number | null }>();
+    const openAr = await db
+      .prepare(
+        `SELECT COALESCE(SUM(balance_due_cents), 0) AS open_cents
+         FROM accounts_receivable
+         WHERE tenant_id = ? AND customer_id = ? AND balance_due_cents > 0`,
+      )
+      .bind(tenantId, customerId)
+      .first<{ open_cents: number }>();
+    const creditSaleCents = creditPayments.reduce((s, p) => s + p.amountCents, 0);
+    try {
+      assertCreditWithinLimit({
+        creditLimitCents: custCredit?.credit_limit_cents ?? 0,
+        openArBalanceCents: openAr?.open_cents ?? 0,
+        saleAmountCents: creditSaleCents,
+        creditOverrideTokenHash: payload.creditOverrideTokenHash ?? null,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'CREDIT_LIMIT_EXCEEDED') {
+        throw new Error('CREDIT_LIMIT_EXCEEDED', { cause: err });
+      }
+      throw err;
+    }
+    const limit = custCredit?.credit_limit_cents ?? 0;
+    const projected = (openAr?.open_cents ?? 0) + creditSaleCents;
+    if (projected > limit) {
+      const tokenId = await requireLiveAuthToken(db, tenantId, payload.creditOverrideTokenHash);
+      authTokensToConsume.push(tokenId);
+    }
+  }
+
+  // S17: descuentos sobre umbral requieren authorization_token (SEC-09).
+  {
+    const policyRow = await db
+      .prepare(
+        `SELECT max_percent_without_auth, max_amount_without_auth_cents
+         FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
+      )
+      .bind(tenantId)
+      .first<{ max_percent_without_auth: number; max_amount_without_auth_cents: number }>();
+    const policy = {
+      maxPercentWithoutAuth: policyRow?.max_percent_without_auth ?? 5,
+      maxAmountWithoutAuthCents: policyRow?.max_amount_without_auth_cents ?? 2000,
+    };
+    let needsDiscountToken = false;
+    for (const line of totals.lines) {
+      try {
+        assertDiscountAuthorized({
+          lineSubtotalCents: line.quantity * line.unitPriceCents,
+          discountCents: line.discountCents,
+          policy,
+          authorizationTokenHash: payload.discountAuthorizationTokenHash ?? null,
+        });
+      } catch (err) {
+        if (err instanceof Error && err.message === 'AUTH_TOKEN_REQUIRED') {
+          throw new Error('AUTH_TOKEN_REQUIRED', { cause: err });
+        }
+        throw err;
+      }
+      if (
+        discountRequiresAuthz({
+          lineSubtotalCents: line.quantity * line.unitPriceCents,
+          discountCents: line.discountCents,
+          policy,
+          authorizationTokenHash: payload.discountAuthorizationTokenHash ?? null,
+        })
+      ) {
+        needsDiscountToken = true;
+      }
+    }
+    if (needsDiscountToken) {
+      const tokenId = await requireLiveAuthToken(
+        db,
+        tenantId,
+        payload.discountAuthorizationTokenHash,
+      );
+      authTokensToConsume.push(tokenId);
+    }
   }
 
   // E-D preflight: NV_RETURN sobre venta con CxC abierta.
@@ -745,6 +854,17 @@ export async function processOfflineSaleAtomic(
 
       for (const gid of stockGuardIds) {
         plan.add(db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(gid));
+      }
+
+      for (const tokenId of authTokensToConsume) {
+        plan.add(
+          db
+            .prepare(
+              `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP
+               WHERE id = ? AND tenant_id = ? AND used_at IS NULL`,
+            )
+            .bind(tokenId, tenantId),
+        );
       }
     });
   } catch (error) {
