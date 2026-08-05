@@ -253,3 +253,111 @@ export function assertTransferTransition(from: TransferStatus, to: TransferStatu
     throw new Error(`TRANSFER_INVALID:${from}->${to}`);
   }
 }
+
+/** Conteo físico (Arquitectura §5.3) — hoja ciega → review → approve. */
+export type InventoryCountStatus = 'COUNTING' | 'DIFFERENCE_REVIEW' | 'APPROVED' | 'CANCELLED';
+
+const COUNT_TRANSITIONS: Readonly<Record<InventoryCountStatus, readonly InventoryCountStatus[]>> = {
+  COUNTING: ['DIFFERENCE_REVIEW', 'CANCELLED'],
+  DIFFERENCE_REVIEW: ['APPROVED', 'CANCELLED'],
+  APPROVED: [],
+  CANCELLED: [],
+};
+
+export function assertInventoryCountTransition(
+  from: InventoryCountStatus,
+  to: InventoryCountStatus,
+): void {
+  if (!COUNT_TRANSITIONS[from].includes(to)) {
+    throw new Error(`COUNT_INVALID:${from}->${to}`);
+  }
+}
+
+export interface CountLineDiff {
+  readonly productId: string;
+  readonly differenceQty: number;
+  readonly unitCostCents: Cents;
+}
+
+export interface CountAuthzInput {
+  readonly lines: readonly CountLineDiff[];
+  readonly differenceThresholdCents: Cents;
+  readonly authorizedByUserId: string | null;
+}
+
+/** Valoriza |diff| y exige authz si supera umbral. */
+export function assertCountDiffAuthorized(input: CountAuthzInput): void {
+  if (!Number.isInteger(input.differenceThresholdCents) || input.differenceThresholdCents < 0) {
+    throw new Error('INVALID_COUNT_THRESHOLD');
+  }
+  let absValue = 0;
+  for (const line of input.lines) {
+    if (!Number.isInteger(line.unitCostCents) || line.unitCostCents < 0) {
+      throw new Error('INVALID_UNIT_COST');
+    }
+    absValue += Math.abs(Math.round(line.differenceQty * line.unitCostCents));
+  }
+  if (absValue > input.differenceThresholdCents) {
+    if (!(input.authorizedByUserId && input.authorizedByUserId.trim())) {
+      throw new Error('AUTH_TOKEN_REQUIRED');
+    }
+  }
+}
+
+export function assertCountMutable(status: InventoryCountStatus): void {
+  if (status === 'APPROVED') throw new Error('COUNT_LOCKED');
+  if (status === 'CANCELLED') throw new Error('COUNT_CANCELLED');
+}
+
+export type StockLossStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type StockLossCategory = 'DAMAGED' | 'EXPIRED' | 'THEFT_SUSPECTED' | 'SHRINK' | 'OTHER';
+
+export interface ApproveStockLossInput {
+  readonly status: StockLossStatus;
+  readonly quantity: number;
+  readonly category: StockLossCategory;
+  readonly evidenceR2Key: string | null;
+  readonly reason: string;
+  readonly approvedByUserId: string | null;
+}
+
+export interface StockLossApprovePlan {
+  readonly nextStatus: 'APPROVED';
+  readonly adjustmentQty: number;
+  readonly movementType: 'AJUSTE';
+}
+
+/** APPROVED exige evidencia R2 + razón + aprobador; genera AJUSTE negativo. */
+export function planApproveStockLoss(input: ApproveStockLossInput): StockLossApprovePlan {
+  if (input.status !== 'PENDING') throw new Error('LOSS_NOT_PENDING');
+  if (!(input.quantity > 0) || !Number.isFinite(input.quantity)) {
+    throw new Error('INVALID_LOSS_QTY');
+  }
+  if (!(input.evidenceR2Key && input.evidenceR2Key.trim())) {
+    throw new Error('LOSS_EVIDENCE_REQUIRED');
+  }
+  if (!(input.reason && input.reason.trim())) throw new Error('LOSS_REASON_REQUIRED');
+  if (!(input.approvedByUserId && input.approvedByUserId.trim())) {
+    throw new Error('LOSS_APPROVER_REQUIRED');
+  }
+  return {
+    nextStatus: 'APPROVED',
+    adjustmentQty: -input.quantity,
+    movementType: 'AJUSTE',
+  };
+}
+
+export function assertStockLossReject(status: StockLossStatus): void {
+  if (status !== 'PENDING') throw new Error('LOSS_NOT_PENDING');
+}
+
+/** Sugerencia de OC desde política de reposición. */
+export function suggestReorderQty(input: {
+  readonly stock: number;
+  readonly reorderPoint: number;
+  readonly reorderQty: number;
+}): number {
+  if (!(input.reorderQty > 0)) return 0;
+  if (input.stock > input.reorderPoint) return 0;
+  return input.reorderQty;
+}

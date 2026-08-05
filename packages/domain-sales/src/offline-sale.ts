@@ -138,6 +138,14 @@ export interface NvLineCents {
   readonly igvCents: number;
   readonly totalCents: number;
   readonly unitCostCents: number;
+  /** S18 FEFO: lote asignado (opcional; adapter puede partir líneas). */
+  readonly batchId?: string | null;
+}
+
+export interface CatalogPriceCost {
+  readonly priceCents: number;
+  /** Snapshot COGS: preferir PMP branch (servidor); nunca precio cliente. */
+  readonly costCents: number;
 }
 
 export interface NvTotals {
@@ -149,10 +157,13 @@ export interface NvTotals {
   readonly totalAmountCents: number;
 }
 
-/** Totales NV server-side (IGV 18%, Math.round). */
+/**
+ * Totales NV server-side (IGV 18%, Math.round).
+ * `catalog` ya trae precio de lista resuelto y PMP/costo snapshot (Zero-Trust).
+ */
 export function computeNvLineTotals(
   items: readonly OfflineSaleItemPayload[],
-  catalog: ReadonlyMap<string, { priceCents: number; costCents: number }>,
+  catalog: ReadonlyMap<string, CatalogPriceCost>,
 ): NvTotals {
   const lines: NvLineCents[] = [];
   let totalTaxableCents = 0;
@@ -164,6 +175,12 @@ export function computeNvLineTotals(
   for (const item of items) {
     const product = catalog.get(item.productId);
     if (!product) throw new Error(`Product not found: ${item.productId}`);
+    if (!Number.isInteger(product.priceCents) || product.priceCents < 0) {
+      throw new Error('INVALID_UNIT_PRICE');
+    }
+    if (!Number.isInteger(product.costCents) || product.costCents < 0) {
+      throw new Error('INVALID_UNIT_COST');
+    }
     const discountCents = item.discountAmountCents ?? 0;
     const subtotalCents = item.quantity * product.priceCents - discountCents;
     if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
@@ -179,6 +196,7 @@ export function computeNvLineTotals(
       igvCents,
       totalCents,
       unitCostCents,
+      batchId: null,
     });
     totalTaxableCents += subtotalCents;
     totalIgvCents += igvCents;
@@ -195,4 +213,57 @@ export function computeNvLineTotals(
     totalCogsCents,
     totalAmountCents,
   };
+}
+
+/**
+ * Parte líneas NV por FEFO y asigna batchId. Recalcula subtotales/IGV por tramo.
+ */
+export function splitNvLinesByFefo(
+  lines: readonly NvLineCents[],
+  allocationsByProduct: ReadonlyMap<string, readonly { batchId: string; qty: number }[]>,
+): NvLineCents[] {
+  const out: NvLineCents[] = [];
+  for (const line of lines) {
+    const allocs = allocationsByProduct.get(line.productId);
+    if (!allocs || allocs.length === 0) {
+      out.push({ ...line, batchId: line.batchId ?? null });
+      continue;
+    }
+    const sumQty = allocs.reduce((s, a) => s + a.qty, 0);
+    if (Math.abs(sumQty - line.quantity) > 1e-9) throw new Error('FEFO_QTY_MISMATCH');
+    let discountLeft = line.discountCents;
+    let taxableLeft = line.subtotalCents;
+    let igvLeft = line.igvCents;
+    let totalLeft = line.totalCents;
+    for (let i = 0; i < allocs.length; i++) {
+      const a = allocs[i]!;
+      const isLast = i === allocs.length - 1;
+      const discountCents = isLast
+        ? discountLeft
+        : Math.round((line.discountCents * a.qty) / line.quantity);
+      const subtotalCents = isLast
+        ? taxableLeft
+        : Math.round((line.subtotalCents * a.qty) / line.quantity);
+      const igvCents = isLast ? igvLeft : Math.round((line.igvCents * a.qty) / line.quantity);
+      const totalCents = isLast ? totalLeft : Math.round((line.totalCents * a.qty) / line.quantity);
+      if (!isLast) {
+        discountLeft -= discountCents;
+        taxableLeft -= subtotalCents;
+        igvLeft -= igvCents;
+        totalLeft -= totalCents;
+      }
+      out.push({
+        productId: line.productId,
+        quantity: a.qty,
+        unitPriceCents: line.unitPriceCents,
+        discountCents,
+        subtotalCents,
+        igvCents,
+        totalCents,
+        unitCostCents: line.unitCostCents,
+        batchId: a.batchId,
+      });
+    }
+  }
+  return out;
 }

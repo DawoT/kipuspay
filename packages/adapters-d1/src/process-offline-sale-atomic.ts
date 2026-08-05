@@ -9,7 +9,9 @@ import {
   InsufficientStockError,
   planCrmLww,
   resolveIssuedAtMs,
+  splitNvLinesByFefo,
   toLimaTimestamp,
+  type NvLineCents,
   type OfflineSalePayload,
 } from '@kipuspay/domain-sales';
 import {
@@ -28,8 +30,17 @@ import {
   discountRequiresAuthz,
   planCreateAr,
 } from '@kipuspay/domain-cash';
+import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
+import {
+  loadBatchesForProduct,
+  loadBomComponents,
+  planBomExplosion,
+  planFefoForQty,
+  resolveServerUnitPriceCents,
+  type S18SaleCaps,
+} from './s18-sale-inventory.js';
 
 async function requireLiveAuthToken(
   db: D1DatabaseLike,
@@ -73,8 +84,17 @@ interface ProductRow {
   product_type: string;
   price_cents: number;
   cost_cents: number;
+  pmp_unit_cost_cents: number | null;
   allow_negative_stock: number | boolean;
   branch_stock: number;
+}
+
+interface CatalogEntry {
+  priceCents: number;
+  costCents: number;
+  name: string;
+  type: string;
+  pmpUnitCostCents: number;
 }
 
 function isUniqueConstraint(error: unknown): boolean {
@@ -136,13 +156,10 @@ async function loadCatalogAndStock(
   branchId: string,
   productIds: readonly string[],
 ): Promise<{
-  catalog: Map<string, { priceCents: number; costCents: number; name: string; type: string }>;
+  catalog: Map<string, CatalogEntry>;
   stockByProduct: Map<string, { stock: number; allowNegative: boolean; hasBranchRow: boolean }>;
 }> {
-  const catalog = new Map<
-    string,
-    { priceCents: number; costCents: number; name: string; type: string }
-  >();
+  const catalog = new Map<string, CatalogEntry>();
   const stockByProduct = new Map<
     string,
     { stock: number; allowNegative: boolean; hasBranchRow: boolean }
@@ -153,6 +170,7 @@ async function loadCatalogAndStock(
       .prepare(
         `SELECT p.id, p.name, p.product_type, p.price_cents, p.cost_cents, p.allow_negative_stock,
                 COALESCE(bps.stock, p.stock) AS branch_stock,
+                bps.pmp_unit_cost_cents AS pmp_unit_cost_cents,
                 CASE WHEN bps.product_id IS NULL THEN 0 ELSE 1 END AS has_branch_row
          FROM products p
          LEFT JOIN branch_product_stock bps
@@ -162,11 +180,17 @@ async function loadCatalogAndStock(
       .bind(branchId, tenantId, productId)
       .first<ProductRow & { has_branch_row: number }>();
     if (!row) throw new Error(`Product not found: ${productId}`);
+    const catalogCost = row.cost_cents ?? 0;
+    const pmp =
+      row.pmp_unit_cost_cents !== null && row.pmp_unit_cost_cents !== undefined
+        ? row.pmp_unit_cost_cents
+        : catalogCost;
     catalog.set(productId, {
       priceCents: row.price_cents,
-      costCents: row.cost_cents ?? 0,
+      costCents: pmp,
       name: row.name,
       type: row.product_type,
+      pmpUnitCostCents: pmp,
     });
     stockByProduct.set(productId, {
       stock: row.branch_stock,
@@ -200,6 +224,8 @@ export interface ProcessOfflineSaleOptions {
   readonly insightsKv?: InsightsKv;
   /** FEATURE_LEDGER_AR_AP — DAT-05 + E-D compensación. */
   readonly ledgerArApEnabled?: boolean;
+  /** Sprint 18 capabilities (env FEATURE_* / tenant_capabilities). */
+  readonly s18?: S18SaleCaps;
 }
 
 /**
@@ -225,6 +251,11 @@ export async function processOfflineSaleAtomic(
   const nowMs = opts.nowMs ?? Date.now();
   const kv = opts.insightsKv ?? insightsKv;
   const ledgerOn = opts.ledgerArApEnabled === true;
+  const s18: S18SaleCaps = opts.s18 ?? {
+    inventoryBatches: false,
+    inventoryBom: false,
+    pricingLists: false,
+  };
 
   assertOfflineSaleShape(payload);
 
@@ -256,17 +287,102 @@ export async function processOfflineSaleAtomic(
     payload.branchId,
     productIds,
   );
+
+  // Precio lista: lookup cliente por documento (Zero-Trust; sin usar precio cliente).
+  if (s18.pricingLists) {
+    const custRow = await db
+      .prepare(
+        `SELECT id FROM customers
+         WHERE tenant_id = ? AND document_type_code = ? AND document_number = ?
+           AND deleted_at IS NULL LIMIT 1`,
+      )
+      .bind(tenantId, payload.clientDocumentType, payload.clientDocumentNumber)
+      .first<{ id: string }>();
+    const pricingCustomerId = custRow?.id ?? null;
+    for (const pid of productIds) {
+      const entry = catalog.get(pid)!;
+      const resolved = await resolveServerUnitPriceCents(
+        db,
+        tenantId,
+        payload.branchId,
+        pricingCustomerId,
+        pid,
+        entry.priceCents,
+        true,
+      );
+      catalog.set(pid, { ...entry, priceCents: resolved });
+    }
+  }
+
+  // BOM: stock a descontar = componentes; kit no debitar stock propio.
+  const bomDebits = new Map<string, number>();
+  const isReturnDoc = payload.documentType === 'NV_RETURN' || payload.documentType === '07';
+  if (s18.inventoryBom && !isReturnDoc) {
+    for (const item of payload.items) {
+      const entry = catalog.get(item.productId)!;
+      if (entry.type !== 'kit') continue;
+      const comps = await loadBomComponents(db, tenantId, item.productId);
+      const exploded = planBomExplosion(comps, item.quantity);
+      for (const line of exploded) {
+        bomDebits.set(
+          line.componentProductId,
+          (bomDebits.get(line.componentProductId) ?? 0) + line.qty,
+        );
+      }
+    }
+    const missingCompIds = [...bomDebits.keys()].filter((id) => !catalog.has(id));
+    if (missingCompIds.length > 0) {
+      const extra = await loadCatalogAndStock(db, tenantId, payload.branchId, missingCompIds);
+      for (const [id, e] of extra.catalog) catalog.set(id, e);
+      for (const [id, s] of extra.stockByProduct) stockByProduct.set(id, s);
+    }
+    for (const [compId, qty] of bomDebits) {
+      const st = stockByProduct.get(compId);
+      if (!st) throw new InsufficientStockError(compId, qty, 0);
+      if (!st.allowNegative && st.stock < qty) {
+        throw new InsufficientStockError(compId, qty, st.stock);
+      }
+    }
+  }
+
   assertStockAvailable(payload, catalog, stockByProduct);
+
+  // FEFO preflight
+  const fefoByProduct = new Map<string, ReturnType<typeof planFefoForQty>>();
+  const nowIso = new Date(nowMs).toISOString();
+  if (s18.inventoryBatches && !isReturnDoc) {
+    try {
+      for (const item of payload.items) {
+        const entry = catalog.get(item.productId)!;
+        if (entry.type !== 'physical') continue;
+        const batches = await loadBatchesForProduct(db, tenantId, payload.branchId, item.productId);
+        if (batches.length === 0) continue;
+        fefoByProduct.set(
+          item.productId,
+          planFefoForQty(batches, item.productId, item.quantity, nowIso),
+        );
+      }
+    } catch (err) {
+      if (err instanceof ExpiredBatchError || err instanceof InsufficientBatchStockError) {
+        throw err;
+      }
+      throw err;
+    }
+  }
 
   const totals = computeNvLineTotals(
     payload.items,
     new Map(
       [...catalog.entries()].map(([id, p]) => [
         id,
-        { priceCents: p.priceCents, costCents: p.costCents },
+        { priceCents: p.priceCents, costCents: p.pmpUnitCostCents },
       ]),
     ),
   );
+  let saleLines: readonly NvLineCents[] = totals.lines;
+  if (fefoByProduct.size > 0) {
+    saleLines = splitNvLinesByFefo(totals.lines, fefoByProduct);
+  }
 
   const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
   if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
@@ -666,7 +782,7 @@ export async function processOfflineSaleAtomic(
           ),
       );
 
-      for (const line of totals.lines) {
+      for (const line of saleLines) {
         const product = catalog.get(line.productId)!;
         plan.add(
           db
@@ -675,8 +791,8 @@ export async function processOfflineSaleAtomic(
                    id, tenant_id, sale_id, product_id, product_name, product_type,
                    quantity, unit_price_cents, unit_cost_cents, discount_amount_cents,
                    subtotal_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
-                   total_amount_cents, is_uncatalogued
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0)`,
+                   total_amount_cents, is_uncatalogued, batch_id
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?)`,
             )
             .bind(
               crypto.randomUUID(),
@@ -692,17 +808,32 @@ export async function processOfflineSaleAtomic(
               line.subtotalCents,
               line.igvCents,
               line.totalCents,
+              line.batchId ?? null,
             ),
         );
       }
 
+      // Stock: físicos (y FEFO lotes) + componentes BOM. Kits no debitan stock propio.
+      const stockDebits = new Map<string, number>();
       for (const [productId, qty] of qtyByProduct) {
-        if (catalog.get(productId)!.type !== 'physical') continue;
+        const typ = catalog.get(productId)!.type;
+        if (typ === 'kit' && s18.inventoryBom) continue;
+        if (typ !== 'physical' && typ !== 'kit') continue;
+        if (typ === 'physical' || !s18.inventoryBom) {
+          stockDebits.set(productId, (stockDebits.get(productId) ?? 0) + qty);
+        }
+      }
+      for (const [compId, qty] of bomDebits) {
+        stockDebits.set(compId, (stockDebits.get(compId) ?? 0) + qty);
+      }
+
+      for (const [productId, qty] of stockDebits) {
         const before = stockByProduct.get(productId)!;
         const allow = isReturn || before.allowNegative ? 1 : 0;
-        const signedQty = isReturn ? -qty : qty; // UPDATE uses stock - signedQty
+        const signedQty = isReturn ? -qty : qty;
         const delta = isReturn ? qty : -qty;
-        const movementType = isReturn ? 'DEVOLUCION_NC' : 'VENTA';
+        const isBomComp = bomDebits.has(productId);
+        const movementType = isReturn ? 'DEVOLUCION_NC' : isBomComp ? 'VENTA_BOM' : 'VENTA';
         if (before.hasBranchRow) {
           plan.add(
             db
@@ -727,36 +858,78 @@ export async function processOfflineSaleAtomic(
                 payload.branchId,
                 productId,
                 before.stock - signedQty,
-                catalog.get(productId)!.costCents,
+                catalog.get(productId)!.pmpUnitCostCents,
               ),
           );
         }
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO inventory_movements (
-                   id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-                   unit_cost_cents, stock_after, user_id, reference_id
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?,
-                   (SELECT stock FROM branch_product_stock
-                    WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
-                   ?, ?)`,
-            )
-            .bind(
-              crypto.randomUUID(),
-              tenantId,
-              payload.branchId,
-              productId,
-              movementType,
-              delta,
-              catalog.get(productId)!.costCents,
-              tenantId,
-              payload.branchId,
-              productId,
-              userId,
-              saleId,
-            ),
-        );
+        const fefoAllocs = fefoByProduct.get(productId);
+        if (fefoAllocs && !isReturn) {
+          for (const alloc of fefoAllocs) {
+            plan.add(
+              db
+                .prepare(
+                  `UPDATE inventory_batches
+                   SET stock = stock - ?
+                   WHERE id = ? AND tenant_id = ? AND stock >= ?`,
+                )
+                .bind(alloc.qty, alloc.batchId, tenantId, alloc.qty),
+            );
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO inventory_movements (
+                       id, tenant_id, branch_id, product_id, batch_id, movement_type, quantity_delta,
+                       unit_cost_cents, stock_after, user_id, reference_id
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+                       (SELECT stock FROM branch_product_stock
+                        WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                       ?, ?)`,
+                )
+                .bind(
+                  crypto.randomUUID(),
+                  tenantId,
+                  payload.branchId,
+                  productId,
+                  alloc.batchId,
+                  movementType,
+                  -alloc.qty,
+                  catalog.get(productId)!.pmpUnitCostCents,
+                  tenantId,
+                  payload.branchId,
+                  productId,
+                  userId,
+                  saleId,
+                ),
+            );
+          }
+        } else {
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO inventory_movements (
+                     id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
+                     unit_cost_cents, stock_after, user_id, reference_id
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?,
+                     (SELECT stock FROM branch_product_stock
+                      WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                     ?, ?)`,
+              )
+              .bind(
+                crypto.randomUUID(),
+                tenantId,
+                payload.branchId,
+                productId,
+                movementType,
+                delta,
+                catalog.get(productId)!.pmpUnitCostCents,
+                tenantId,
+                payload.branchId,
+                productId,
+                userId,
+                saleId,
+              ),
+          );
+        }
       }
 
       for (const pay of payload.payments) {

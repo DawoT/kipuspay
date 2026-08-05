@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   allocateFefo,
+  assertCountDiffAuthorized,
+  assertCountMutable,
+  assertInventoryCountTransition,
+  assertStockLossReject,
   assertTransferLineConservation,
   assertTransferTransition,
   evaluateStockAlerts,
   explodeBom,
   ExpiredBatchError,
   firstExpiringAtUtc,
+  planApproveStockLoss,
   refreshAvgCostCents,
   resolveUnitPriceCents,
+  suggestReorderQty,
   sumQty,
 } from './index.js';
 
@@ -243,5 +249,130 @@ describe('edge coverage inventory', () => {
       expiryWarnDays: 7,
     });
     expect(minOnly.some((a) => a.kind === 'REORDER')).toBe(true);
+  });
+});
+
+describe('inventory counts', () => {
+  it('transiciones y aprobado inmutable', () => {
+    assertInventoryCountTransition('COUNTING', 'DIFFERENCE_REVIEW');
+    assertInventoryCountTransition('DIFFERENCE_REVIEW', 'APPROVED');
+    expect(() => assertInventoryCountTransition('APPROVED', 'COUNTING')).toThrow(/COUNT_INVALID/);
+    expect(() => assertCountMutable('APPROVED')).toThrow('COUNT_LOCKED');
+    expect(() => assertCountMutable('CANCELLED')).toThrow('COUNT_CANCELLED');
+    assertCountMutable('COUNTING');
+  });
+
+  it('exige authz si |diff| valorizado > umbral', () => {
+    expect(() =>
+      assertCountDiffAuthorized({
+        lines: [{ productId: 'p1', differenceQty: -3, unitCostCents: 1000 }],
+        differenceThresholdCents: 1000,
+        authorizedByUserId: null,
+      }),
+    ).toThrow('AUTH_TOKEN_REQUIRED');
+    expect(() =>
+      assertCountDiffAuthorized({
+        lines: [{ productId: 'p1', differenceQty: -3, unitCostCents: 1000 }],
+        differenceThresholdCents: 1000,
+        authorizedByUserId: 'supervisor',
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe('stock losses', () => {
+  it('aprueba con evidencia y plan AJUSTE negativo', () => {
+    const plan = planApproveStockLoss({
+      status: 'PENDING',
+      quantity: 2,
+      category: 'DAMAGED',
+      evidenceR2Key: 'r2/merma/1.jpg',
+      reason: 'roto',
+      approvedByUserId: 'u1',
+    });
+    expect(plan.adjustmentQty).toBe(-2);
+    expect(plan.movementType).toBe('AJUSTE');
+    expect(() =>
+      planApproveStockLoss({
+        status: 'PENDING',
+        quantity: 1,
+        category: 'DAMAGED',
+        evidenceR2Key: null,
+        reason: 'x',
+        approvedByUserId: 'u',
+      }),
+    ).toThrow('LOSS_EVIDENCE_REQUIRED');
+    expect(() =>
+      planApproveStockLoss({
+        status: 'APPROVED',
+        quantity: 1,
+        category: 'DAMAGED',
+        evidenceR2Key: 'k',
+        reason: 'x',
+        approvedByUserId: 'u',
+      }),
+    ).toThrow('LOSS_NOT_PENDING');
+    expect(() =>
+      planApproveStockLoss({
+        status: 'PENDING',
+        quantity: 0,
+        category: 'DAMAGED',
+        evidenceR2Key: 'k',
+        reason: 'x',
+        approvedByUserId: 'u',
+      }),
+    ).toThrow('INVALID_LOSS_QTY');
+    expect(() =>
+      planApproveStockLoss({
+        status: 'PENDING',
+        quantity: 1,
+        category: 'DAMAGED',
+        evidenceR2Key: 'k',
+        reason: '  ',
+        approvedByUserId: 'u',
+      }),
+    ).toThrow('LOSS_REASON_REQUIRED');
+    expect(() =>
+      planApproveStockLoss({
+        status: 'PENDING',
+        quantity: 1,
+        category: 'DAMAGED',
+        evidenceR2Key: 'k',
+        reason: 'ok',
+        approvedByUserId: null,
+      }),
+    ).toThrow('LOSS_APPROVER_REQUIRED');
+    expect(() => assertStockLossReject('APPROVED')).toThrow('LOSS_NOT_PENDING');
+    assertStockLossReject('PENDING');
+  });
+
+  it('sugiere OC en reorder point', () => {
+    expect(suggestReorderQty({ stock: 2, reorderPoint: 5, reorderQty: 20 })).toBe(20);
+    expect(suggestReorderQty({ stock: 10, reorderPoint: 5, reorderQty: 20 })).toBe(0);
+    expect(suggestReorderQty({ stock: 1, reorderPoint: 5, reorderQty: 0 })).toBe(0);
+  });
+
+  it('count authz bajo umbral y threshold inválido', () => {
+    expect(() =>
+      assertCountDiffAuthorized({
+        lines: [{ productId: 'p1', differenceQty: 1, unitCostCents: 100 }],
+        differenceThresholdCents: 500,
+        authorizedByUserId: null,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertCountDiffAuthorized({
+        lines: [{ productId: 'p1', differenceQty: 1, unitCostCents: 100 }],
+        differenceThresholdCents: -1,
+        authorizedByUserId: null,
+      }),
+    ).toThrow('INVALID_COUNT_THRESHOLD');
+    expect(() =>
+      assertCountDiffAuthorized({
+        lines: [{ productId: 'p1', differenceQty: 1, unitCostCents: -1 }],
+        differenceThresholdCents: 100,
+        authorizedByUserId: null,
+      }),
+    ).toThrow('INVALID_UNIT_COST');
   });
 });

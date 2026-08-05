@@ -18,14 +18,10 @@ export const FEATURED_CLAIMS: Readonly<Record<FeaturedClaimId, ClaimStatus>> = {
     label: 'Comandas y cocina sincronizada',
   },
   fefo_lots: {
-    kind: 'roadmap',
-    unlockSprint: 18,
-    label: 'Control de vencimientos y stock',
+    kind: 'live',
   },
   blind_z_audit: {
-    kind: 'roadmap',
-    unlockSprint: 17,
-    label: 'Arqueo ciego y auditoría de caja',
+    kind: 'live',
   },
   services_core: {
     kind: 'live',

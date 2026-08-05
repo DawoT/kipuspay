@@ -1,5 +1,6 @@
 import { processOfflineSaleAtomic } from '@kipuspay/adapters-d1';
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
+import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 export function isAcidOfflineSaleEnabled(env: WorkerEnv | undefined): boolean {
@@ -17,6 +18,23 @@ export function isLedgerArApEnabled(env: WorkerEnv | undefined): boolean {
   return flag === '1' || flag === 'true';
 }
 
+function flagOn(v: string | undefined): boolean {
+  return v === '1' || v === 'true';
+}
+
+export function isInventoryBatchesEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_INVENTORY_BATCHES);
+}
+
+export function isInventoryBomEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_INVENTORY_BOM);
+}
+
+export function isPricingListsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_PRICING_LISTS);
+}
+
+/* eslint-disable complexity -- HTTP error map multi-código S17/S18 */
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
   if (error instanceof InsufficientStockError) {
     return {
@@ -24,6 +42,24 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
       body: {
         error: error.message,
         code: 'INSUFFICIENT_STOCK',
+        productId: error.productId,
+        requested: error.requested,
+        available: error.available,
+      },
+    };
+  }
+  if (error instanceof ExpiredBatchError) {
+    return {
+      status: 422,
+      body: { error: error.message, code: 'EXPIRED_BATCH', batchId: error.batchId },
+    };
+  }
+  if (error instanceof InsufficientBatchStockError) {
+    return {
+      status: 422,
+      body: {
+        error: error.message,
+        code: 'INSUFFICIENT_BATCH_STOCK',
         productId: error.productId,
         requested: error.requested,
         available: error.available,
@@ -63,6 +99,7 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
   }
   return { status: 500, body: { error: msg, code: 'OFFLINE_SALE_FAILED' } };
 }
+/* eslint-enable complexity */
 
 export interface OfflineSaleHttpResult {
   status: number;
@@ -95,6 +132,11 @@ export async function runOfflineSaleHttp(
   try {
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
       ledgerArApEnabled: isLedgerArApEnabled(env),
+      s18: {
+        inventoryBatches: isInventoryBatchesEnabled(env),
+        inventoryBom: isInventoryBomEnabled(env),
+        pricingLists: isPricingListsEnabled(env),
+      },
     });
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (error) {

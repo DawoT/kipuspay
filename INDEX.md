@@ -114,7 +114,7 @@ Abre solo los archivos que esta tabla te señale.
 | 15 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 23 | Actualizada (WCAG AA + marca + rollback + Go/No-Go) | Cerrado |
 | 16 | 5 | — | — | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Cerrado |
-| 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | En progreso |
+| 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Cerrado |
 | 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | Actualizada (comandas / KDS / split bill) | En progreso |
 | 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | Actualizada (transferencias + recepción OC parcial) | En progreso |
 | 21–24 | 7 | — | — | Base | Planificado |

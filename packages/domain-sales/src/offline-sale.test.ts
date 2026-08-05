@@ -4,6 +4,7 @@ import {
   computeNvLineTotals,
   InsufficientStockError,
   resolveIssuedAtMs,
+  splitNvLinesByFefo,
   toLimaTimestamp,
   type OfflineSalePayload,
 } from './offline-sale.js';
@@ -153,5 +154,63 @@ describe('InsufficientStockError', () => {
     expect(err.requested).toBe(5);
     expect(err.available).toBe(2);
     expect(err.name).toBe('InsufficientStockError');
+  });
+});
+
+describe('splitNvLinesByFefo', () => {
+  it('asigna batchId y conserva totales', () => {
+    const totals = computeNvLineTotals(
+      [{ productId: 'p1', quantity: 5 }],
+      new Map([['p1', { priceCents: 1000, costCents: 200 }]]),
+    );
+    const split = splitNvLinesByFefo(
+      totals.lines,
+      new Map([
+        [
+          'p1',
+          [
+            { batchId: 'b-old', qty: 2 },
+            { batchId: 'b-new', qty: 3 },
+          ],
+        ],
+      ]),
+    );
+    expect(split).toHaveLength(2);
+    expect(split[0]!.batchId).toBe('b-old');
+    expect(split[1]!.batchId).toBe('b-new');
+    expect(split.reduce((s, l) => s + l.totalCents, 0)).toBe(totals.totalAmountCents);
+    expect(split.reduce((s, l) => s + l.quantity, 0)).toBe(5);
+  });
+
+  it('usa PMP snapshot como COGS', () => {
+    const totals = computeNvLineTotals(
+      [{ productId: 'p1', quantity: 1 }],
+      new Map([['p1', { priceCents: 1180, costCents: 350 }]]),
+    );
+    expect(totals.lines[0]!.unitCostCents).toBe(350);
+    expect(totals.totalCogsCents).toBe(350);
+  });
+
+  it('rechaza precio/costo inválidos y FEFO mismatch', () => {
+    expect(() =>
+      computeNvLineTotals(
+        [{ productId: 'p1', quantity: 1 }],
+        new Map([['p1', { priceCents: -1, costCents: 0 }]]),
+      ),
+    ).toThrow('INVALID_UNIT_PRICE');
+    expect(() =>
+      computeNvLineTotals(
+        [{ productId: 'p1', quantity: 1 }],
+        new Map([['p1', { priceCents: 100, costCents: -1 }]]),
+      ),
+    ).toThrow('INVALID_UNIT_COST');
+    const totals = computeNvLineTotals(
+      [{ productId: 'p1', quantity: 2 }],
+      new Map([['p1', { priceCents: 100, costCents: 10 }]]),
+    );
+    expect(() =>
+      splitNvLinesByFefo(totals.lines, new Map([['p1', [{ batchId: 'b', qty: 1 }]]])),
+    ).toThrow('FEFO_QTY_MISMATCH');
+    expect(splitNvLinesByFefo(totals.lines, new Map()).map((l) => l.batchId)).toEqual([null]);
   });
 });

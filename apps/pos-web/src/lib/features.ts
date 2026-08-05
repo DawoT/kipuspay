@@ -40,3 +40,11 @@ export function isReportingExportEnabled(): boolean {
 export function isCashBlindZEnabled(): boolean {
   return flagOn(import.meta.env.PUBLIC_FEATURE_CASH_BLIND_Z as string | undefined);
 }
+
+/** Sprint 18 — FEFO / BOM / conteo / merma / alertas. */
+export function isInventoryOpsEnabled(): boolean {
+  return (
+    flagOn(import.meta.env.PUBLIC_FEATURE_INVENTORY_BATCHES as string | undefined) ||
+    flagOn(import.meta.env.PUBLIC_FEATURE_INVENTORY_BOM as string | undefined)
+  );
+}

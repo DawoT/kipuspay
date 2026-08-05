@@ -41,6 +41,10 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_ORDERS_KDS?: string;
   readonly FEATURE_STOCK_TRANSFERS?: string;
   readonly FEATURE_PURCHASING_PARTIAL_RECEIVE?: string;
+  /** Sprint 18 inventory capabilities. */
+  readonly FEATURE_INVENTORY_BATCHES?: string;
+  readonly FEATURE_INVENTORY_BOM?: string;
+  readonly FEATURE_PRICING_LISTS?: string;
   readonly FEATURE_OWNER_MODE?: string;
   readonly FEATURE_OWNER_PUSH?: string;
   readonly FEATURE_REPORTING_ROLLUPS?: string;

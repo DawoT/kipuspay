@@ -55,7 +55,7 @@ owner: "@DawoT"
 | 15 | 5 | Actualizada (WCAG AA + marca + rollback + Go/No-Go) | Cerrado |
 | 16 | 5 | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
 | 17 | 6 | Actualizada (M6/M7 caja dura + audit) | Cerrado |
-| 18 | 6 | Actualizada (M2/M4/M5 PMP + stock) | En progreso |
+| 18 | 6 | Actualizada (M2/M4/M5 PMP + stock) | Cerrado |
 | 19 | 6 | Actualizada (comandas / KDS / split bill) | En progreso |
 | 20 | 6 | Actualizada (transferencias + recepción OC parcial) | En progreso |
 | 21–24 | 7 | Base | Planificado |

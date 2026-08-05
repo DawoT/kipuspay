@@ -41,6 +41,15 @@ import {
   runReceiveTransferHttp,
   runShipTransferHttp,
 } from './inventory/transfer-receive-routes.js';
+import {
+  runApproveCountHttp,
+  runApproveStockLossHttp,
+  runCreateInventoryCountHttp,
+  runCreateStockLossHttp,
+  runOwnerStockAlertsHttp,
+  runRejectStockLossHttp,
+  runSubmitCountReviewHttp,
+} from './inventory/inventory-ops-routes.js';
 import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
 import {
   isAdvancedReportId,
@@ -322,6 +331,85 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
+
+  // Sprint 18 — conteo / merma / alertas stock
+  app.post('/api/inventory/counts', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateInventoryCountHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+  app.post('/api/inventory/counts/submit-review', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runSubmitCountReviewHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/counts/approve', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runApproveCountHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/losses', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateStockLossHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/losses/approve', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runApproveStockLossHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/losses/reject', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runRejectStockLossHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/stock-alerts', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerStockAlertsHttp(c.env, jwt?.tenantId ?? '', {
+      branchId: c.req.query('branchId') ?? '',
+      expiryWarnDays: Number(c.req.query('expiryWarnDays') ?? '30'),
+    });
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
   app.get('/api/owner/day-summary', async (c) => {
     const jwt = c.get('jwt');
     const date = c.req.query('date') ?? '';

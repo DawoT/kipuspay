@@ -3,17 +3,18 @@ import { claimBadge, isClaimLive, resolveClaim } from './registry.js';
 import { HOME } from '../content/home.js';
 
 describe('marketing claim-gate', () => {
-  it('KDS/FEFO/arqueo Z / merma son roadmap con sprint', () => {
-    for (const id of ['kds_split', 'fefo_lots', 'blind_z_audit', 'merma_xfer'] as const) {
+  it('KDS / merma siguen roadmap; FEFO y arqueo Z son live post-QG', () => {
+    for (const id of ['kds_split', 'merma_xfer'] as const) {
       const s = resolveClaim(id);
       expect(s.kind).toBe('roadmap');
       if (s.kind === 'roadmap') {
         expect(s.unlockSprint).toBeGreaterThanOrEqual(17);
         expect(claimBadge(s)).toContain('roadmap');
-        expect(claimBadge(s)).toMatch(/Sprint \d+/);
         expect(isClaimLive(s)).toBe(false);
       }
     }
+    expect(isClaimLive(resolveClaim('fefo_lots'))).toBe(true);
+    expect(isClaimLive(resolveClaim('blind_z_audit'))).toBe(true);
   });
 
   it('servicios núcleo y ranking Dueño son live', () => {
