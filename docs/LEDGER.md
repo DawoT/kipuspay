@@ -3907,3 +3907,40 @@ aprobaciones: [Staff Backend ACID R, Staff Security V, Staff QA V, Staff Archite
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0260
+timestamp_utc: 2026-08-05T23:05:00Z
+schema_version: 2
+sprint_fase: Sprint 17 — Fase 6 (Firma A+V Sprint 17 Caja Dura & DDL 0011 Commercial Ops)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0259]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/PROCESS.md, docs/architecture/05-3-commercial-ops.md]
+prev_id: 0259
+prev_hash: 680ab44d9061591221bdbec2468774066cb2a344f1c1389895bf53d2d019ad56
+entry_hash: c6661f44a50cce89e08f1ebf5c799d7ee335b8b6c1ac65e9f648ed8244c4f9d4
+ticket_or_adr: ADR-0012, Roadmap Sprint 17, Arquitectura §5.3
+test_ids: [blind-z, cash-routes, orders, blind-close, index]
+entregable_afectado: Sprint 17 Caja Dura + DDL 0011 FASE 6 GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 17 (FASE 6): motor de caja dura, arqueo Z ciego,
+  movimientos auditables con audit_events, token authorization consumido para
+  descuento/crédito, y migración DDL 0011 commercial ops.
+evidencia: >
+  RED: Sprint 17 QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 480b07bfd5257132cb4858eb9584e72e67a77b8c
+red_run_id: run-red-0260-sprint-17-gov
+expected_failure: AssertionError: Sprint 17 QG EN REVISION
+green_commit_sha: 480b07bfd5257132cb4858eb9584e72e67a77b8c
+green_run_id: run-green-0260-sprint-17-gov
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
