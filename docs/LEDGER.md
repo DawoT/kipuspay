@@ -1856,6 +1856,7 @@ aprobaciones: [Autorización de ejecución del usuario; RACI independiente pendi
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
 ```
 id: 0203
 timestamp_utc: 2026-08-04T14:10:00Z
@@ -3377,6 +3378,158 @@ red_run_id: run-red-0245-quipu-canvas-gov
 expected_failure: AssertionError: Quipu Canvas QG EN REVISION
 green_commit_sha: 4d47c1d64c67810ddbde287d85479464e009156e
 green_run_id: run-green-0245-quipu-canvas-gov
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
+```
+id: 0246
+timestamp_utc: 2026-08-05T19:46:46Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (fibra oscura + un nudo)
+agente_responsable: Staff Frontend
+tipo: Correccion / Modificacion
+subtipo: rediseño editorial quipu
+relacion: CORRIGE
+referencias_entradas: [0244, 0245]
+referencias_documentales: [docs/GTM.md, docs/runbooks/marketing-site-launch.md]
+prev_id: 0245
+prev_hash: 87ff5ad77023642b969e660c01214409657562ebb9581ed00c934a2905b47ccf
+entry_hash: 41b46b5649fbd9aace0d98262838dad36bcf45b3aab432cd48c4f338426913c9
+ticket_or_adr: GTM §5.1, GTM §6.1, CAL-06
+test_ids: [quipu-motif, quipu-physics, quipu-renderer, quipu-sim, quipu-draw, quipu, content, seo, reveal, SUITE, V-20, V-24]
+entregable_afectado: apps/marketing-web QuipuSectionMark + QuipuMotif reconnect + secciones home/vertical/comparar/stub
+descripcion: >
+  Reemplaza el cordel narrativo ornamentado (loom/tension/network/seal, chips
+  Cordel, rainbow cards, telar flotante) por el sistema editorial "fibra oscura
+  + un nudo": QuipuSectionMark hairline, picker tipografico 3+2, dolores como
+  citas, tres nudos y reconnect offline como unicos gestos fuertes mid-page.
+  Se retiran QuipuCanvas/physics/renderer de produccion; sus test_ids se
+  conservan como contratos de retiro (V-20). Hero sigue solo video.
+evidencia: >
+  RED: capturas de picker/dolores se leian como catalogo SaaS amateur (telar,
+  diamantes glitch, cinco hues, iconos en caja).
+  GREEN: 69 tests; size-limit ~59.74 kB/72 kB; DOM QA 375/768/1024/1440 sin
+  motivos flotantes ni 5 cols comprimidas; verify+quality pendientes en esta entrada.
+red_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+red_run_id: run-red-0246-editorial-fiber
+expected_failure: AssertionError: ornamentacion quipu mid-page supera presupuesto visual
+green_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+green_run_id: run-green-0246-editorial-fiber
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0247
+timestamp_utc: 2026-08-05T20:15:35Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (nudo al scroll + hero loop)
+agente_responsable: Staff Frontend
+tipo: Correccion / Modificacion
+subtipo: polish quipu editorial
+relacion: CORRIGE
+referencias_entradas: [0246]
+referencias_documentales: [docs/GTM.md, docs/runbooks/marketing-site-launch.md]
+prev_id: 0246
+prev_hash: 41b46b5649fbd9aace0d98262838dad36bcf45b3aab432cd48c4f338426913c9
+entry_hash: 30041f4f3a6b78aac99a40d9971a9d6d8693fbd43fbddd262c5c697d970d9b79
+ticket_or_adr: GTM §5.1, GTM §6.1, CAL-06
+test_ids: [quipu-motif, quipu-physics, quipu-renderer, quipu-sim, quipu-draw, quipu, content, seo, reveal, SUITE, V-20, V-24]
+entregable_afectado: apps/marketing-web QuipuSectionMark scroll + QuipuHero loop
+descripcion: >
+  El nudo del margen QuipuSectionMark viaja por la fibra segun el progreso
+  de scroll de cada seccion (sticky en desktop); reduced-motion conserva
+  markKnotY(state). El video del hero pasa a loop mientras esta en viewport
+  (sin freeze one-shot); reduced-motion sigue sin reproducir.
+evidencia: >
+  RED: nudo fijo por state; video se congelaba al terminar.
+  GREEN: 71 tests; sectionScrollProgress + markKnotYFromProgress; hero loop;
+  verify+bundle en esta entrada.
+red_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+red_run_id: run-red-0247-scroll-knot-loop
+expected_failure: AssertionError: nudo estatico y video sin loop
+green_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+green_run_id: run-green-0247-scroll-knot-loop
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0248
+timestamp_utc: 2026-08-05T20:27:50Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (comparativa mobile + estados CTA)
+agente_responsable: Staff Frontend
+tipo: Correccion / Modificacion
+subtipo: responsive-ui
+relacion: CORRIGE
+referencias_entradas: [0247]
+referencias_documentales: [docs/GTM.md, docs/runbooks/marketing-site-launch.md]
+prev_id: 0247
+prev_hash: 30041f4f3a6b78aac99a40d9971a9d6d8693fbd43fbddd262c5c697d970d9b79
+entry_hash: 062478eb38ea0eb128e2d11f46426a088c8c522e6a098161bbb7fc0fcaefca20
+ticket_or_adr: GTM §5.1, GTM §6.1, CAL-06
+test_ids: [responsive-ui, quipu-motif, content, seo, reveal, SUITE, V-20, V-24]
+entregable_afectado: apps/marketing-web comparativas responsive + estados de botones
+descripcion: >
+  En mobile las comparativas dejan la tabla ancha con scrollbar nativo y se
+  presentan como fichas verticales por concepto, con labels explicitos para
+  sistema tradicional/competidor y KipusPay. Los botones ghost y primarios
+  ganan estados hover/focus-visible de alto contraste en fondos ink y paper.
+evidencia: >
+  RED: responsive-ui fallo 2/2; tabla min-width 34rem provocaba scroll horizontal
+  y el hover ghost podia dejar texto paper sobre fondo paper.
+  GREEN: responsive-ui 2/2; marketing 73 tests; viewport 375 sin overflow;
+  labels visibles, CTA full-width y estados hover/focus con inversion de color.
+red_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+red_run_id: run-red-0248-mobile-comparison-cta
+expected_failure: AssertionError: comparativa mobile conserva scroll nativo y hover sin contraste
+green_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+green_run_id: run-green-0248-mobile-comparison-cta
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; RACI A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0249
+timestamp_utc: 2026-08-05T20:45:00Z
+schema_version: 2
+sprint_fase: Sprint 10 — Fase 4 (Firma A+V Refinamiento SVG Motifs & UI Responsive)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0248]
+referencias_documentales: [docs/GTM.md, docs/PROCESS.md, docs/ARCHITECTURE.md]
+prev_id: 0248
+prev_hash: 062478eb38ea0eb128e2d11f46426a088c8c522e6a098161bbb7fc0fcaefca20
+entry_hash: ade261757488fce932fa7d7ed4d6635494803f53ccee68cff0273976160e70a7
+ticket_or_adr: GTM §5.1, GTM §6.1, CAL-01, CAL-06
+test_ids: [responsive-ui, quipu-motif, content, seo, reveal, SUITE, index]
+entregable_afectado: apps/marketing-web QuipuSectionMark + QuipuMotif + UI Responsive Quality Gate GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para el refinamiento de motivos vectoriales SVG QuipuSectionMark,
+  QuipuMotif en secciones, responsive UI mobile-first sin overflow en 375px, y
+  73 pruebas unitarias verdes (Proceso §8.1).
+evidencia: >
+  RED: Sprint 10 refinamiento visual QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+red_run_id: run-red-0249-responsive-refinement-gov
+expected_failure: AssertionError: refinamiento visual QG EN REVISION
+green_commit_sha: 979bba122e503c442d0ac7830355fd14c7e96fc5
+green_run_id: run-green-0249-responsive-refinement-gov
 ancestry_verified: true
 aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
 estado_gov: GOV-APROBADO
