@@ -3944,3 +3944,75 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+
+```
+id: 0261
+timestamp_utc: 2026-08-05T23:29:46Z
+schema_version: 2
+sprint_fase: Sprint 18 — Fase 6 Inventario real FEFO/BOM/PMP
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: CIERRA Sprint 18
+relacion: AMPLIA
+referencias_entradas: [0260]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s18-inventory-qg.md, docs/GTM.md]
+prev_id: 0260
+prev_hash: c6661f44a50cce89e08f1ebf5c799d7ee335b8b6c1ac65e9f648ed8244c4f9d4
+entry_hash: 3fea29f87483d2b651e916c08fa76ee122fbf1f24d4be5fc13030fc41ca11a43
+ticket_or_adr: Roadmap Sprint 18, Arquitectura §5.3, GTM-16
+test_ids: [chaos-stock, inventory-ops-routes, s18-sale-inventory, offline-sale, registry.test, SUITE, V-13, V-15, V-20]
+entregable_afectado: FEFO/BOM/PMP venta + conteo/merma/alertas + claim farmacia live
+descripcion: >
+  Cierra Sprint 18: cablea allocateFefo/BOM/listas/PMP en process-offline-sale-atomic;
+  migrate 0012 price_list_id; dominio conteo/merma; API inventory counts/losses y
+  owner stock-alerts; UI /owner/stock y /admin/inventario; chaos lote/kit; descongela
+  claim fefo_lots y GTM-16 kits/listas (variantes siguen hasta S30).
+evidencia: >
+  RED: venta sin batch_id; kits sin stock componentes; FEFO roadmap.
+  GREEN: domain-inventory ≥95%; chaos-stock; inventory-ops-routes; claims live;
+  ROADMAP S18 Cerrado; verify post-append.
+red_commit_sha: 558f2d75e6ddee7b6e256381a2b255b317c2ef2c
+red_run_id: run-red-0261-sprint-18
+expected_failure: AssertionError: S18 sin FEFO en venta ni claim farmacia live
+green_commit_sha: eb108dabd1be2a27b6cd9623cc4ed467d952d58a
+green_run_id: run-green-0261-sprint-18
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R; QA chaos V; PM farmacia V; A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0262
+timestamp_utc: 2026-08-05T23:35:00Z
+schema_version: 2
+sprint_fase: Sprint 18 — Fase 6 (Firma A+V Inventario real)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0261]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s18-inventory-qg.md, docs/GTM.md]
+prev_id: 0261
+prev_hash: 3fea29f87483d2b651e916c08fa76ee122fbf1f24d4be5fc13030fc41ca11a43
+entry_hash: b0e2ff470502e8729cf728f992bd6dacd579f4c5d761ffce7f90367cf13d96f4
+ticket_or_adr: Roadmap Sprint 18, GTM §2 Farmacias, GTM-16
+test_ids: [chaos-stock, inventory-ops-routes, registry.test, SUITE, index]
+entregable_afectado: Sprint 18 GOV-APROBADO + claim farmacia FEFO live
+descripcion: >
+  Firma A+V independiente certifica GOV-APROBADO Sprint 18 Inventario real:
+  FEFO/BOM/PMP en venta, conteo/merma, alertas Dueño, QG chaos y descongelamiento
+  claim farmacia (fefo_lots) y kits/listas GTM-16.
+evidencia: >
+  RED: 0261 EN REVISION.
+  GREEN: verify SUITE; quality domain; firma A+V.
+red_commit_sha: 558f2d75e6ddee7b6e256381a2b255b317c2ef2c
+red_run_id: run-red-0262-sprint-18-gov
+expected_failure: AssertionError: Sprint 18 QG EN REVISION
+green_commit_sha: eb108dabd1be2a27b6cd9623cc4ed467d952d58a
+green_run_id: run-green-0262-sprint-18-gov
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
