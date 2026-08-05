@@ -1,7 +1,6 @@
 <script lang="ts">
   import { STUBS } from '$lib/content/home';
   import { reveal } from '$lib/components/reveal';
-  import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
 
   interface Props {
     path: string;
@@ -38,10 +37,6 @@
         No hay lista de espera ni formulario que se pierda: cuando abra el registro, entras directo
         desde el equipo que ya tienes.
       </p>
-    {:else}
-      <div class="reconnect-motif" aria-hidden="true" use:reveal>
-        <QuipuMotif kind="reconnect" id={`stub-${stub.unlockSprint}`} />
-      </div>
     {/if}
 
     <nav class="stub-links" aria-label="Mientras tanto">

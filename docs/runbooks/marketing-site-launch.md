@@ -38,8 +38,9 @@ python3 scripts/checks/marketing_copy.py
 - Tipografia vendida en `static/fonts/*.woff2` (Fraunces, Schibsted Grotesk, Spline Sans Mono) con `@font-face` local (`font-display: swap`); preload de Fraunces y Schibsted en `+layout.svelte`. Sin CDN externo ni libreria npm.
 - `static/fonts/OFL-LICENSE.txt` con la atribucion OFL 1.1 de las tres familias.
 - `og:image` en PNG por marca y por rubro (`/media/og-kipuspay.png`, `/media/og-*.png`); regenerar con `node apps/marketing-web/scripts/render-social-assets.mjs`.
-- Hero: video cinematografico de evolucion (`/media/hero-quipu.mp4`, ~558 kB, una pasada + poster). Sin canvas ni SVG superpuesto: el quipu narrativo vive en las secciones (motivos SVG one-shot: loom/tension/reconnect/network/seal).
-- Reduced-motion: el video no se reproduce; permanece el poster.
+- Hero: video cinematografico de evolucion (`/media/hero-quipu.mp4`, ~558 kB, loop + poster mientras el hero esta en viewport). Sin canvas ni SVG superpuesto.
+- Bajo el fold: sistema editorial "fibra oscura + un nudo" — margen de seccion hairline (`QuipuSectionMark`) con nudo ligado al progreso de scroll de cada seccion (sticky en desktop), picker tipografico 3+2, dolores como citas, reconnect offline como unico motivo ilustrado mid-page. Reduced-motion: video no reproduce; nudo queda fijo por `state`; animaciones one-shot se omiten.
+- Mobile: comparativas apiladas por concepto (sin scrollbar horizontal anidado); botones `hover`/`focus-visible` invierten superficie y texto con contraste AA.
 
 ## SEO
 

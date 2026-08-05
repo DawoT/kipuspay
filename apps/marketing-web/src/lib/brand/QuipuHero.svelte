@@ -9,28 +9,17 @@
 
   let videoEl = $state<HTMLVideoElement | null>(null);
 
-  /* Video: descarga diferida, una sola pasada, se congela en el ultimo frame. */
+  /* Video: descarga diferida, loop mientras el hero esta en viewport. */
   $effect(() => {
     const el = videoEl;
     if (!el || !videoSrc) return;
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    const onEnded = () => {
-      try {
-        el.currentTime = Math.max(0, el.duration - 0.04);
-      } catch {
-        /* ignore seek errors on incomplete metadata */
-      }
-      el.pause();
-    };
-    el.addEventListener('ended', onEnded);
-
     const io = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
           if (el.readyState < 2) el.load();
-          if (el.ended || el.currentTime >= el.duration - 0.1) return;
           void el.play().catch(() => undefined);
         } else {
           el.pause();
@@ -41,7 +30,6 @@
     io.observe(el);
     return () => {
       io.disconnect();
-      el.removeEventListener('ended', onEnded);
     };
   });
 </script>
@@ -54,6 +42,7 @@
     poster={poster ?? undefined}
     preload="none"
     muted
+    loop
     playsinline
     tabindex="-1"
     aria-hidden="true"

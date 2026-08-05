@@ -3,9 +3,8 @@
   import { reveal } from '$lib/components/reveal';
   import ClaimFeature from './ClaimFeature.svelte';
   import QuipuHero from '$lib/brand/QuipuHero.svelte';
-  import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
+  import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
-  import LineIcon from '$lib/brand/LineIcon.svelte';
   import { otherVerticals } from '$lib/content/verticals';
 
   let { landing }: { landing: VerticalLanding } = $props();
@@ -38,105 +37,119 @@
   </section>
 
   <section class="section section-paper">
-    <div class="section-inner">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          Lo que escuchamos en tu rubro
-        </p>
-        <h2>Si esto te suena, ya sabemos por que viniste.</h2>
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="entry" tone="paper" />
       </div>
-      <div class="pain-grid">
-        {#each landing.pains as item, i (item.pain)}
-          <article use:reveal data-reveal-delay={i % 3}>
-            <span class="pain-tension" aria-hidden="true">
-              <QuipuMotif kind="tension" id={`${landing.slug}-pain-${i}`} />
-            </span>
-            <span class="pain-icon" aria-hidden="true">
-              <LineIcon name={item.icon} size={22} />
-            </span>
-            <p class="quote">“{item.pain}”</p>
-            <p class="relief">{item.relief}</p>
-          </article>
-        {/each}
+      <div class="section-body">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Lo que escuchamos en tu rubro
+          </p>
+          <h2>Si esto te suena, ya sabemos por que viniste.</h2>
+        </div>
+        <div class="pain-grid editorial-pains">
+          {#each landing.pains as item, i (item.pain)}
+            <article use:reveal data-reveal-delay={i % 3}>
+              <p class="quote">“{item.pain}”</p>
+              <p class="relief">
+                <span class="knot-dot" aria-hidden="true"></span>
+                {item.relief}
+              </p>
+            </article>
+          {/each}
+        </div>
       </div>
     </div>
   </section>
 
   <section class="section" id="destacado">
-    <div class="section-inner">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          Lo que ya puedes hacer
-        </p>
-        <h2>{landing.title}</h2>
-        <p class="section-lead">Nada de funciones de papel. Esto ya cobra en tu mostrador hoy.</p>
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="synced" tone="ink" />
       </div>
-      <ul class="knot-list">
-        {#each landing.points as point, i (point)}
-          <li use:reveal data-reveal-delay={i % 3}>{point}</li>
-        {/each}
-      </ul>
-      <ClaimFeature claimId={landing.featuredClaimId} />
-      {#if landing.secondaryClaimId}
-        <ClaimFeature claimId={landing.secondaryClaimId} />
-      {/if}
+      <div class="section-body">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Lo que ya puedes hacer
+          </p>
+          <h2>{landing.title}</h2>
+          <p class="section-lead">Nada de funciones de papel. Esto ya cobra en tu mostrador hoy.</p>
+        </div>
+        <ul class="knot-list">
+          {#each landing.points as point, i (point)}
+            <li use:reveal data-reveal-delay={i % 3}>{point}</li>
+          {/each}
+        </ul>
+        <ClaimFeature claimId={landing.featuredClaimId} />
+        {#if landing.secondaryClaimId}
+          <ClaimFeature claimId={landing.secondaryClaimId} />
+        {/if}
+      </div>
     </div>
   </section>
 
   <section class="section section-paper">
-    <div class="section-inner product-grid">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          Asi se ve en tu mostrador
-        </p>
-        <h2>La pantalla que usa tu equipo, no una demo de catalogo.</h2>
-        <p class="section-lead">
-          El producto arriba, el total grande y el boton de cobrar. Debajo, la costura que avisa que
-          la venta ya quedo guardada.
-        </p>
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="synced" tone="paper" />
       </div>
-      <div class="product-screen" use:reveal>
-        <CheckoutMock
-          lines={landing.checkout.lines}
-          documentLabel={landing.checkout.documentLabel}
-          register={landing.checkout.register}
-          syncState={landing.checkout.syncState}
-          caption={landing.checkout.caption}
-        />
+      <div class="section-body product-grid">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Asi se ve en tu mostrador
+          </p>
+          <h2>La pantalla que usa tu equipo, no una demo de catalogo.</h2>
+          <p class="section-lead">
+            El producto arriba, el total grande y el boton de cobrar. Debajo, la costura que avisa
+            que la venta ya quedo guardada.
+          </p>
+        </div>
+        <div class="product-screen" use:reveal>
+          <CheckoutMock
+            lines={landing.checkout.lines}
+            documentLabel={landing.checkout.documentLabel}
+            register={landing.checkout.register}
+            syncState={landing.checkout.syncState}
+            caption={landing.checkout.caption}
+          />
+        </div>
       </div>
     </div>
   </section>
 
   <section class="section">
-    <div class="section-inner">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          Preguntas de tu rubro
-        </p>
-        <h2>Lo que preguntan antes de decidir.</h2>
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="entry" tone="ink" />
       </div>
-      <div class="faq">
-        {#each landing.faq as item, i (item.q)}
-          <details class="faq-item" use:reveal data-reveal-delay={i % 3}>
-            <summary>
-              <span class="num">{String(i + 1).padStart(2, '0')}</span>
-              <span class="q">{item.q}</span>
-            </summary>
-            <p class="a">{item.a}</p>
-          </details>
-        {/each}
+      <div class="section-body">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Preguntas de tu rubro
+          </p>
+          <h2>Lo que preguntan antes de decidir.</h2>
+        </div>
+        <div class="faq">
+          {#each landing.faq as item, i (item.q)}
+            <details class="faq-item" use:reveal data-reveal-delay={i % 3}>
+              <summary>
+                <span class="num">{String(i + 1).padStart(2, '0')}</span>
+                <span class="q">{item.q}</span>
+              </summary>
+              <p class="a">{item.a}</p>
+            </details>
+          {/each}
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="section section-paper cta-seal" use:reveal>
-    <div class="seal-backdrop" aria-hidden="true">
-      <QuipuMotif kind="seal" id={`${landing.slug}-seal`} />
-    </div>
+  <section class="section section-paper" use:reveal>
     <div class="section-inner">
       <p class="eyebrow">
         <span class="knot-dot" aria-hidden="true"></span>
@@ -153,7 +166,7 @@
         <ul>
           {#each others as other (other.slug)}
             <li>
-              <a href="/para/{other.slug}" data-cord={other.slug}>
+              <a href="/para/{other.slug}">
                 <span class="knot-dot" aria-hidden="true"></span>
                 {other.navLabel}
               </a>

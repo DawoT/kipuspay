@@ -2,8 +2,7 @@
   import { COMPARE_ROWS, compareDisclaimer } from '$lib/content/compare';
   import { absoluteUrl, ogImageFor, pageTitle } from '$lib/seo';
   import { reveal } from '$lib/components/reveal';
-  import LineIcon from '$lib/brand/LineIcon.svelte';
-  import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
+  import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
 
   let { data } = $props();
 
@@ -51,9 +50,6 @@
 
 <article data-testid="compare-page" data-slug={data.page.slug}>
   <section class="hero hero-compact">
-    <div class="compact-seal" aria-hidden="true">
-      <QuipuMotif kind="seal" id={`compare-${data.page.slug}`} />
-    </div>
     <div class="hero-inner">
       <div class="hero-copy">
         <p class="eyebrow">
@@ -72,73 +68,69 @@
   </section>
 
   <section class="section section-paper">
-    <div class="section-inner">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          Por que migran
-        </p>
-        <h2>Las tres razones que más escuchamos.</h2>
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="entry" tone="paper" />
       </div>
-      <div class="why-grid">
-        {#each data.page.whyMigrate as item, i (item.title)}
-          <article use:reveal data-reveal-delay={i % 3}>
-            <span class="pain-tension" aria-hidden="true">
-              <QuipuMotif kind="tension" id={`compare-why-${i}`} />
-            </span>
-            <span class="pain-icon" aria-hidden="true">
-              <LineIcon name={item.icon} size={22} />
-            </span>
-            <h3>{item.title}</h3>
-            <p>{item.body}</p>
-          </article>
-        {/each}
+      <div class="section-body">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Por que migran
+          </p>
+          <h2>Las tres razones que más escuchamos.</h2>
+        </div>
+        <div class="why-grid editorial-pains">
+          {#each data.page.whyMigrate as item, i (item.title)}
+            <article use:reveal data-reveal-delay={i % 3}>
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </article>
+          {/each}
+        </div>
       </div>
     </div>
   </section>
 
   <section class="section" id="tabla">
-    <div class="section-inner">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          Lado a lado
-        </p>
-        <h2>El día a día de tu caja, fila por fila.</h2>
+    <div class="section-frame">
+      <div class="section-gutter" aria-hidden="true" use:reveal>
+        <QuipuSectionMark state="synced" tone="ink" />
       </div>
-      <div class="compare-fibers" aria-hidden="true">
-        <span></span>
-        <span>{data.page.name}</span>
-        <span class="cf-kipus">KipusPay</span>
-      </div>
-      <div class="ledger-table-wrap" use:reveal>
-        <table class="ledger-table" aria-label={data.page.title}>
-          <thead>
-            <tr>
-              <th scope="col"></th>
-              <th scope="col">Lo que nos cuentan de {data.page.name}</th>
-              <th scope="col">KipusPay</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each rows as row (row.label)}
+      <div class="section-body">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            Lado a lado
+          </p>
+          <h2>El día a día de tu caja, fila por fila.</h2>
+        </div>
+        <div class="ledger-table-wrap comparison-table-wrap" use:reveal>
+          <table class="ledger-table comparison-table" aria-label={data.page.title}>
+            <thead>
               <tr>
-                <th scope="row">{row.label}</th>
-                <td>{row.reported}</td>
-                <td class="kipus">{row.kipus}</td>
+                <th scope="col"></th>
+                <th scope="col">Lo que nos cuentan de {data.page.name}</th>
+                <th scope="col">KipusPay</th>
               </tr>
-            {/each}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {#each rows as row (row.label)}
+                <tr>
+                  <th scope="row">{row.label}</th>
+                  <td data-label={`Experiencia con ${data.page.name}`}>{row.reported}</td>
+                  <td class="kipus" data-label="KipusPay">{row.kipus}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <p class="compare-note">{compareDisclaimer(data.page.name)}</p>
       </div>
-      <p class="compare-note">{compareDisclaimer(data.page.name)}</p>
     </div>
   </section>
 
-  <section class="section section-paper cta-seal" use:reveal>
-    <div class="seal-backdrop" aria-hidden="true">
-      <QuipuMotif kind="seal" id={`compare-cta-${data.page.slug}`} />
-    </div>
+  <section class="section section-paper" use:reveal>
     <div class="section-inner">
       <div class="sec-head">
         <p class="eyebrow">
@@ -149,7 +141,7 @@
       </div>
       <div class="faq">
         {#each data.page.faq as item, i (item.q)}
-          <details class="faq-item" data-reveal-delay={i % 3}>
+          <details class="faq-item">
             <summary>
               <span class="num">{String(i + 1).padStart(2, '0')}</span>
               <span class="q">{item.q}</span>
