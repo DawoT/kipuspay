@@ -129,7 +129,7 @@ CREATE TABLE loyalty_accounts (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     customer_id TEXT NOT NULL,
-    points_balance REAL NOT NULL DEFAULT 0,
+    points_balance INTEGER NOT NULL DEFAULT 0,
     UNIQUE (tenant_id, customer_id),
     -- COM-12: saldo jamás negativo + vínculo al cliente
     CHECK (points_balance >= 0),
@@ -142,7 +142,7 @@ CREATE TABLE loyalty_reservations (
     tenant_id TEXT NOT NULL,
     customer_id TEXT NOT NULL,
     sale_idempotency_key TEXT NOT NULL,  -- misma key que la venta offline/online
-    points REAL NOT NULL,
+    points INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'RESERVED',
     -- RESERVED | REDEEMED | EXPIRED | CANCELLED
     expires_at DATETIME NOT NULL,

@@ -4016,3 +4016,41 @@ aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0263
+timestamp_utc: 2026-08-06T00:35:00Z
+schema_version: 2
+sprint_fase: Sprint 21 — Fase 7 (Migración: importadores Bsale/Alegra/CSV)
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: capability
+relacion: amplia
+referencias_entradas: [0262]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/architecture/05-4-ecosystem-ports.md, docs/ops/s21-catalog-import-qg.md, docs/GTM.md]
+prev_id: 0262
+prev_hash: b0e2ff470502e8729cf728f992bd6dacd579f4c5d761ffce7f90367cf13d96f4
+entry_hash: 3d2afde162bb9cdf3429c210ba6cc3da76131518dfd67bbee5f4198cc6895a08
+ticket_or_adr: Roadmap Sprint 21, Arquitectura §5.4 regla 1, GTM §8 objeción migración
+test_ids: [catalog-import.test, catalog-importer.test, bsale.test, alegra.test, csv.test, catalog-import-routes.test, SUITE, index]
+entregable_afectado: capability integrations.catalog_import + external_entity_map (migración 0013)
+descripcion: >
+  Implementa el importador de catálogo de la FASE 7: dominio CatalogImporter en
+  domain-integrations (plan dry-run puro, idempotencia por clave externa, mapeo de
+  impuestos a taxes/product_taxes sin copiar reglas fiscales del competidor), maestro
+  atómico en adapters-d1 (un solo batch con external_entity_map), adapters Bsale/Alegra/CSV
+  en adapters-importers (CSV RFC 4180 sin dependencias) y endpoint
+  POST /api/integrations/catalog-import (preview/commit) tras flag FEATURE_CATALOG_IMPORT.
+evidencia: >
+  RED: capability solo en spec, sin runtime.
+  GREEN: quality.sh 8/8; verify SUITE GREEN; cobertura 100% domain-integrations;
+  dry-run no escribe D1; re-import no duplica; 0 secretos de terceros en cliente.
+red_commit_sha: eb108dabd1be2a27b6cd9623cc4ed467d952d58a
+red_run_id: run-red-0263-sprint-21-catalog-import
+expected_failure: AssertionError: catalog_import sin runtime
+green_commit_sha: 2ea2e3c01ee64a12643c06552cbb41183ba1d4e1
+green_run_id: run-green-0263-sprint-21-catalog-import
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Security V, Staff QA V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
