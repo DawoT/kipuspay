@@ -13,7 +13,6 @@ export default defineConfig({
         'src/index.ts',
         'src/auth/tenant-state.ts',
         'src/orders/branch-kds-hub.ts',
-        'src/payments/payment-routes.ts',
       ],
       thresholds: {
         lines: 70,
