@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertItemCancelAuthorized,
+  assertOrderBillable,
   assertOrderItemTransition,
   assertOrderTransition,
+  DEFAULT_ORDER_STOCK_POLICY,
+  planMarkItemsReady,
+  planOrderStockDeltas,
+  planOrderReadyAggregation,
   planSplitBill,
+  resolveOrderStockPolicy,
 } from './orders.js';
 
 describe('orders lifecycle', () => {
@@ -153,5 +159,112 @@ describe('planSplitBill', () => {
         portions: [{ saleId: 's1', itemIds: ['i1'] }],
       }),
     ).toThrow('SPLIT_INCOMPLETE');
+  });
+});
+
+describe('assertOrderBillable', () => {
+  it('acepta FIRED y READY', () => {
+    expect(() => assertOrderBillable('FIRED')).not.toThrow();
+    expect(() => assertOrderBillable('READY')).not.toThrow();
+  });
+
+  it('rechaza OPEN/PAID/CANCELLED', () => {
+    expect(() => assertOrderBillable('OPEN')).toThrow('ORDER_NOT_BILLABLE');
+    expect(() => assertOrderBillable('PAID')).toThrow('ORDER_NOT_BILLABLE');
+    expect(() => assertOrderBillable('CANCELLED')).toThrow('ORDER_NOT_BILLABLE');
+  });
+});
+
+describe('planMarkItemsReady', () => {
+  it('marca FIRED→READY y valida transición', () => {
+    expect(planMarkItemsReady([{ id: 'i1', status: 'FIRED' }])).toEqual([
+      { id: 'i1', nextStatus: 'READY' },
+    ]);
+  });
+
+  it('rechaza ítem no FIRED', () => {
+    expect(() => planMarkItemsReady([{ id: 'i1', status: 'PENDING' }])).toThrow(
+      'ORDER_ITEM_INVALID:PENDING->READY',
+    );
+  });
+});
+
+describe('planOrderReadyAggregation', () => {
+  it('FIRED→READY cuando todos activos READY', () => {
+    expect(
+      planOrderReadyAggregation({
+        orderStatus: 'FIRED',
+        itemStatuses: ['READY', 'READY', 'CANCELLED'],
+      }),
+    ).toBe('READY');
+  });
+
+  it('no agrega si queda FIRED activo', () => {
+    expect(
+      planOrderReadyAggregation({
+        orderStatus: 'FIRED',
+        itemStatuses: ['READY', 'FIRED'],
+      }),
+    ).toBeNull();
+  });
+
+  it('no agrega si orden no FIRED', () => {
+    expect(
+      planOrderReadyAggregation({
+        orderStatus: 'OPEN',
+        itemStatuses: ['READY'],
+      }),
+    ).toBeNull();
+  });
+});
+
+describe('order stock policy (§5.3 regla 7)', () => {
+  it('default deduct_on_sale', () => {
+    expect(DEFAULT_ORDER_STOCK_POLICY).toBe('deduct_on_sale');
+    expect(resolveOrderStockPolicy(undefined)).toBe('deduct_on_sale');
+    expect(resolveOrderStockPolicy('reserve_on_fired')).toBe('reserve_on_fired');
+  });
+
+  it('rechaza política desconocida', () => {
+    expect(() => resolveOrderStockPolicy('weird')).toThrow('INVALID_STOCK_POLICY');
+  });
+
+  it('deduct_on_sale planifica deltas en cobro', () => {
+    const plan = planOrderStockDeltas({
+      policy: 'deduct_on_sale',
+      phase: 'bill',
+      lines: [
+        { productId: 'p1', quantity: 2 },
+        { productId: 'p1', quantity: 1 },
+      ],
+    });
+    expect(plan).toEqual([{ productId: 'p1', qtyDelta: -3 }]);
+  });
+
+  it('deduct_on_sale no mueve stock en fire', () => {
+    expect(
+      planOrderStockDeltas({
+        policy: 'deduct_on_sale',
+        phase: 'fire',
+        lines: [{ productId: 'p1', quantity: 2 }],
+      }),
+    ).toEqual([]);
+  });
+
+  it('reserve_on_fired reserva en fire y no en bill', () => {
+    expect(
+      planOrderStockDeltas({
+        policy: 'reserve_on_fired',
+        phase: 'fire',
+        lines: [{ productId: 'p1', quantity: 2 }],
+      }),
+    ).toEqual([{ productId: 'p1', qtyDelta: -2 }]);
+    expect(
+      planOrderStockDeltas({
+        policy: 'reserve_on_fired',
+        phase: 'bill',
+        lines: [{ productId: 'p1', quantity: 2 }],
+      }),
+    ).toEqual([]);
   });
 });

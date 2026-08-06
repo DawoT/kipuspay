@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { publishVitrina, subscribeVitrina, type VitrinaSnapshot } from './channel.js';
+import {
+  publishVitrina,
+  subscribeVitrina,
+  vitrinaMessageForPhase,
+  type VitrinaSnapshot,
+} from './channel.js';
 
 describe('vitrina channel', () => {
   it('publish/subscribe no-op sin BroadcastChannel', () => {
@@ -13,7 +18,16 @@ describe('vitrina channel', () => {
       message: 'Confirma pago',
     });
     unsub();
-    // En Node no hay BroadcastChannel → 0 mensajes; no lanza.
     expect(Array.isArray(snaps)).toBe(true);
+  });
+
+  it('mensajes de fase de pedido', () => {
+    expect(vitrinaMessageForPhase('order_open', '3')).toContain('abierta');
+    expect(vitrinaMessageForPhase('order_fired', '12')).toContain('cocina');
+    expect(vitrinaMessageForPhase('order_ready', '12')).toContain('Listo');
+    expect(vitrinaMessageForPhase('order_paid')).toContain('pagada');
+    expect(vitrinaMessageForPhase('confirming')).toContain('Confirma');
+    expect(vitrinaMessageForPhase('charged')).toContain('Cobrado');
+    expect(vitrinaMessageForPhase('idle')).toContain('Esperando');
   });
 });

@@ -3,15 +3,14 @@ import { claimBadge, isClaimLive, resolveClaim } from './registry.js';
 import { HOME } from '../content/home.js';
 
 describe('marketing claim-gate', () => {
-  it('KDS / merma siguen roadmap; FEFO y arqueo Z son live post-QG', () => {
-    for (const id of ['kds_split', 'merma_xfer'] as const) {
-      const s = resolveClaim(id);
-      expect(s.kind).toBe('roadmap');
-      if (s.kind === 'roadmap') {
-        expect(s.unlockSprint).toBeGreaterThanOrEqual(17);
-        expect(claimBadge(s)).toContain('roadmap');
-        expect(isClaimLive(s)).toBe(false);
-      }
+  it('KDS live post-QG S19; merma sigue roadmap; FEFO y arqueo Z live', () => {
+    expect(isClaimLive(resolveClaim('kds_split'))).toBe(true);
+    const merma = resolveClaim('merma_xfer');
+    expect(merma.kind).toBe('roadmap');
+    if (merma.kind === 'roadmap') {
+      expect(merma.unlockSprint).toBe(20);
+      expect(claimBadge(merma)).toContain('roadmap');
+      expect(isClaimLive(merma)).toBe(false);
     }
     expect(isClaimLive(resolveClaim('fefo_lots'))).toBe(true);
     expect(isClaimLive(resolveClaim('blind_z_audit'))).toBe(true);

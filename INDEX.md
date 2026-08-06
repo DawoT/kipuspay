@@ -115,7 +115,7 @@ Abre solo los archivos que esta tabla te señale.
 | 16 | 5 | — | — | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Cerrado |
 | 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Cerrado |
-| 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | Actualizada (comandas / KDS / split bill) | En progreso |
+| 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | Actualizada (comandas / KDS / split bill) | Cerrado |
 | 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | Actualizada (transferencias + recepción OC parcial) | En progreso |
 | 21 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 14 | Actualizada (importadores Bsale/Alegra/CSV, dry-run→commit idempotente, external_entity_map) | Cerrado |
 | 22–24 | 7 | — | — | Base | Planificado |

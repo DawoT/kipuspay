@@ -48,3 +48,8 @@ export function isInventoryOpsEnabled(): boolean {
     flagOn(import.meta.env.PUBLIC_FEATURE_INVENTORY_BOM as string | undefined)
   );
 }
+
+/** Sprint 19 — comandas / KDS / split. */
+export function isOrdersKdsEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_ORDERS_KDS as string | undefined);
+}

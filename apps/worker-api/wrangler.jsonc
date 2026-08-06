@@ -17,12 +17,20 @@
         "name": "TENANT_STATE_DO",
         "class_name": "TenantState",
       },
+      {
+        "name": "BRANCH_KDS_HUB_DO",
+        "class_name": "BranchKdsHub",
+      },
     ],
   },
   "migrations": [
     {
       "tag": "v1-tenant-state",
       "new_sqlite_classes": ["TenantState"],
+    },
+    {
+      "tag": "v2-branch-kds-hub",
+      "new_sqlite_classes": ["BranchKdsHub"],
     },
   ],
   "d1_databases": [

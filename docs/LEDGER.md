@@ -4091,3 +4091,112 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+
+```
+id: 0265
+timestamp_utc: 2026-08-06T01:05:00Z
+schema_version: 2
+sprint_fase: Sprint 19 — Fase 6 Food service comandas/KDS/split
+agente_responsable: Staff Frontend
+tipo: Entregable nuevo
+subtipo: CIERRA Sprint 19
+relacion: AMPLIA
+referencias_entradas: [0262, 0264]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s19-orders-kds-qg.md, docs/adr/ADR-0013-branch-kds-hub.md, docs/GTM.md]
+prev_id: 0264
+prev_hash: 572dfe7559f88529cd946720ccb2ee84ec1327516bd6a61bde4ee4c7e5f3b1e1
+entry_hash: 1f9d5b9373c71e16f0eef56b9605d7f02da3e3caa5fb2ea14cc597dfaaea54eb
+ticket_or_adr: Roadmap Sprint 19, Arquitectura §5.3 regla 7, ADR-0013, GTM §2
+test_ids: [orders-chaos, orders.test, order-routes, kds-hub-helpers, process-order-billing-atomic, registry.test, SUITE, V-13, V-15, V-20]
+entregable_afectado: orders.* + BranchKdsHub WS + claim kds_split live
+descripcion: >
+  Cierra Sprint 19: lifecycle READY/PAID + stock regla 7; processOrderBillingAtomic
+  split→N sales ACID sin doble stock; cancel READY con authorization_tokens +
+  ORDER_ITEM_CANCEL; BranchKdsHub DO WebSocket (ADR-0013); UI /salon /kds /salon/split
+  y Vitrina fases de pedido; descongela claim kds_split.
+evidencia: >
+  RED: split solo planificaba; kdsVisible booleano; claim roadmap.
+  GREEN: domain-sales ≥95%; orders-chaos; order-routes; ROADMAP S19 Cerrado; verify post-append.
+red_commit_sha: 0785a5942b20c707d6404129c5680e3f4a2c2340
+red_run_id: run-red-0265-sprint-19
+expected_failure: AssertionError: S19 sin KDS WS ni claim restaurantes live
+green_commit_sha: 0785a5942b20c707d6404129c5680e3f4a2c2340
+green_run_id: run-green-0265-sprint-19
+ancestry_verified: true
+aprobaciones: [Staff Frontend R; Staff Backend ACID R; Staff Hardware R; QA V; PM resto V; A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0266
+timestamp_utc: 2026-08-06T01:10:00Z
+schema_version: 2
+sprint_fase: Sprint 19 — Fase 6 (Firma A+V Food service)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0265]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s19-orders-kds-qg.md, docs/GTM.md, docs/adr/ADR-0013-branch-kds-hub.md]
+prev_id: 0265
+prev_hash: 1f9d5b9373c71e16f0eef56b9605d7f02da3e3caa5fb2ea14cc597dfaaea54eb
+entry_hash: fbc3db363ccb8a8b736978f1d866bc6c86ef257baea5286ed2202aadbd48788e
+ticket_or_adr: Roadmap Sprint 19, GTM §2 Restaurantes, ADR-0013
+test_ids: [orders-chaos, order-routes, registry.test, SUITE, index]
+entregable_afectado: Sprint 19 GOV-APROBADO + claim kds_split live
+descripcion: >
+  Firma A+V independiente certifica GOV-APROBADO Sprint 19 Food service:
+  comandas/KDS WebSocket/split→sales, Vitrina pedido y descongelamiento claim
+  restaurantes (kds_split).
+evidencia: >
+  RED: 0265 EN REVISION.
+  GREEN: verify SUITE; quality; firma A+V.
+red_commit_sha: 0785a5942b20c707d6404129c5680e3f4a2c2340
+red_run_id: run-red-0266-sprint-19-gov
+expected_failure: AssertionError: Sprint 19 QG EN REVISION
+green_commit_sha: 0785a5942b20c707d6404129c5680e3f4a2c2340
+green_run_id: run-green-0266-sprint-19-gov
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0267
+timestamp_utc: 2026-08-06T01:15:00Z
+schema_version: 2
+sprint_fase: Sprint 19 — Fase 6 (Firma A+V Comandas, KDS WebSocket & Split Bill)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0266]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/PROCESS.md, docs/adr/ADR-0013-branch-kds-hub.md]
+prev_id: 0266
+prev_hash: fbc3db363ccb8a8b736978f1d866bc6c86ef257baea5286ed2202aadbd48788e
+entry_hash: 7e519eacecd5ee0f07fe8a5bf7117e9561b25a08b64a78719ed51bc884718b67
+ticket_or_adr: ADR-0013, Roadmap Sprint 19, GTM §2
+test_ids: [orders-chaos, orders.test, order-routes, kds-hub-helpers, process-order-billing-atomic, index]
+entregable_afectado: orders.* + BranchKdsHub WS + POS /kds /salon /salon/split GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 19 (FASE 6): sistema de comandas/KDS en tiempo real vía
+  BranchKdsHub Durable Object WebSocket (ADR-0013), split bill atómico a N ventas sin
+  duplicación de stock (processOrderBillingAtomic), vistas UI /salon, /kds, /salon/split y 
+  26/26 tareas verdes en monorepo.
+evidencia: >
+  RED: Sprint 19 QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 0785a5942b20c707d6404129c5680e3f4a2c2340
+red_run_id: run-red-0267-sprint-19-gov
+expected_failure: AssertionError: Sprint 19 QG EN REVISION
+green_commit_sha: 0785a5942b20c707d6404129c5680e3f4a2c2340
+green_run_id: run-green-0267-sprint-19-gov
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+

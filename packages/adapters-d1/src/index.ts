@@ -105,3 +105,4 @@ export * from './rollup-rematerialize.js';
 export * from './daily-rollups-cron.js';
 export * from './sync-sales-batch.js';
 export * from './catalog-importer.js';
+export * from './process-order-billing-atomic.js';

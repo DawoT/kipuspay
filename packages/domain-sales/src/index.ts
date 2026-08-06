@@ -64,11 +64,19 @@ export {
 
 export {
   assertItemCancelAuthorized,
+  assertOrderBillable,
   assertOrderItemTransition,
   assertOrderTransition,
+  DEFAULT_ORDER_STOCK_POLICY,
   KDS_FIRE_SLA_MS,
+  planMarkItemsReady,
+  planOrderReadyAggregation,
+  planOrderStockDeltas,
   planSplitBill,
+  resolveOrderStockPolicy,
   type OrderItemStatus,
   type OrderStatus,
+  type OrderStockDelta,
+  type OrderStockPolicy,
   type SplitPortion,
 } from './orders.js';

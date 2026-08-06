@@ -13,9 +13,7 @@ export type FeaturedClaimId =
 /** Estado canónico post–QG de cada feature destacada de vertical (GTM §2). */
 export const FEATURED_CLAIMS: Readonly<Record<FeaturedClaimId, ClaimStatus>> = {
   kds_split: {
-    kind: 'roadmap',
-    unlockSprint: 19,
-    label: 'Comandas y cocina sincronizada',
+    kind: 'live',
   },
   fefo_lots: {
     kind: 'live',

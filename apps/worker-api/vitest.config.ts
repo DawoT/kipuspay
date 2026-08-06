@@ -8,7 +8,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
-      exclude: ['src/worker.ts', 'src/index.ts', 'src/auth/tenant-state.ts'],
+      exclude: [
+        'src/worker.ts',
+        'src/index.ts',
+        'src/auth/tenant-state.ts',
+        'src/orders/branch-kds-hub.ts',
+      ],
       thresholds: {
         lines: 70,
         functions: 70,

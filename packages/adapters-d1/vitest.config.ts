@@ -21,6 +21,7 @@ export default defineConfig({
         'src/void-boleta-atomic.ts',
         'src/rollup-rematerialize.ts',
         'src/sync-sales-batch.ts',
+        'src/process-order-billing-atomic.ts',
       ],
       thresholds: {
         lines: 70,

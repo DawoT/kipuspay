@@ -44,7 +44,7 @@ KipusPay se posiciona como agnóstico de vertical, pero se **vende** vertical po
 
 | Vertical | Dolor dominante | Gancho de landing específico | Feature destacado en demo | Listo tras |
 |---|---|---|---|---|
-| **Restaurantes / Food service** | Comandas perdidas, cuentas divididas mal cobradas, cocina desincronizada del salón | *"Tu cocina y tu caja, siempre en el mismo minuto."* | Comandas → KDS + split bill → sales | **Sprint 19** |
+| **Restaurantes / Food service** | Comandas perdidas, cuentas divididas mal cobradas, cocina desincronizada del salón | *"Tu cocina y tu caja, siempre en el mismo minuto."* | Comandas → KDS + split bill → sales | **Sprint 19** (QG cerrado) |
 | **Farmacias** | Vencimientos no controlados, quiebre de stock de medicamentos de alta rotación, normativa SUNAT estricta | *"Nunca más un cliente se va sin su medicina por falta de stock."* | FEFO/lotes + alertas de vencimiento/quiebre | **Sprint 18** |
 | **Retail / Ferreterías / Minimarkets** | Robo hormiga, descuadres de caja, control de múltiples locales | *"Sabe exactamente qué pasó en cada una de tus tiendas, hoy, ahora."* | Arqueo Z ciego + authz descuentos + audit trail | **Sprint 17** |
 | **Servicios (spas, talleres, consultorios)** | Citas y cobros desconectados, no hay "producto físico" que descontar | *"Cobra sin inventario, sin fricción, sin complicarte."* | Bypass de inventario + facturación/NV rápida | Núcleo (Fases 1–5) |
@@ -554,7 +554,7 @@ Mientras el cajero vive en la pantalla de alta densidad, el dueño del negocio v
 El Modo Vitrina deja de ser solo una animación de confirmación de pago y se convierte en una superficie de negocio adicional:
 
 - **Kiosko de autoatención:** visión de producto, no claim disponible en la landing. Solo se comunica después de un sprint y Quality Gate específicos de autoatención; mientras tanto, Modo Vitrina se limita a la confirmación de pago.
-- **Pedido por QR desde la mesa:** visión de producto post–Sprint 19 (comandas/KDS). No destacarlo en landing de restaurantes hasta cerrar ese Quality Gate; hasta entonces el demo de food service se limita a cobro + Vitrina de pago sin flujo de cocina completo.
+- **Pedido por QR desde la mesa:** visión de producto post–Sprint 19 (comandas/KDS ya con QG cerrado). No destacarlo en landing de restaurantes como claim; el demo de food service usa salón → KDS → split → sales + Vitrina de pedido.
 - **Momento de marca en el punto de pago:** la animación de confirmación (con el logo del negocio del comerciante, no el de KipusPay, en pantalla) convierte cada transacción en un micro-momento de marca premium para el propio comerciante — un diferenciador físico que ningún competidor regional ofrece de fábrica.
 
 ### 6.5 Estándares de UX Premium — Lo que Separa "Se Ve Bien" de "Se Siente Premium"

@@ -34,6 +34,8 @@ import {
   runCancelOrderItemHttp,
   runCreateOrderHttp,
   runFireOrderHttp,
+  runKdsWebSocketHttp,
+  runMarkItemsReadyHttp,
   runSplitBillHttp,
 } from './orders/order-routes.js';
 import {
@@ -278,25 +280,44 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
+  app.post('/api/orders/items/ready', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runMarkItemsReadyHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
   app.post('/api/orders/items/cancel', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runCancelOrderItemHttp(
       c.env,
       jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/orders/split', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runSplitBillHttp(
       c.env,
       jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.get('/api/kds/ws', async (c) => {
+    const jwt = c.get('jwt');
+    const branchId = c.req.query('branchId') ?? '';
+    return runKdsWebSocketHttp(c.env, jwt?.tenantId ?? '', branchId, c.req.raw);
   });
 
   // Sprint 20 — transferencias / recepción parcial

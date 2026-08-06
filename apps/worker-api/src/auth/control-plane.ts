@@ -53,6 +53,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 21: importador de catálogo Bsale/Alegra/CSV (FASE 7 §5.4). */
   readonly FEATURE_CATALOG_IMPORT?: string;
   readonly CPE_PORTAL_SECRET?: string;
+  /** Sprint 19 — KDS WebSocket hub (ADR-0013). */
+  readonly BRANCH_KDS_HUB_DO?: ControlPlaneEnv['TENANT_STATE_DO'];
 }
 
 const isolateCache = new Map<string, { value: unknown; ts: number }>();
