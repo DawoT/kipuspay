@@ -95,7 +95,9 @@ export class AtomicPlanBuilder {
              SELECT ?, CASE WHEN EXISTS (${this.stateGuard.sql}) THEN 1 ELSE 0 END`,
           )
           .bind(this.guardId, ...this.stateGuard.params)
-      : this.db.prepare(`INSERT INTO atomic_guards (id, ok) VALUES (?, ?)`).bind(this.guardId, ok ? 1 : 0);
+      : this.db
+          .prepare(`INSERT INTO atomic_guards (id, ok) VALUES (?, ?)`)
+          .bind(this.guardId, ok ? 1 : 0);
     const guardDelete = this.db
       .prepare(`DELETE FROM atomic_guards WHERE id = ?`)
       .bind(this.guardId);

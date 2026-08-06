@@ -690,10 +690,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const signatureHeader = c.req.header('x-kipus-signature') ?? '';
     const tsHeader = c.req.header('x-kipus-timestamp');
     if (tsHeader === undefined || tsHeader === null || tsHeader.trim() === '') {
-      return c.json(
-        { error: 'MISSING_WEBHOOK_TIMESTAMP', code: 'MISSING_WEBHOOK_TIMESTAMP' },
-        400,
-      );
+      return c.json({ error: 'MISSING_WEBHOOK_TIMESTAMP', code: 'MISSING_WEBHOOK_TIMESTAMP' }, 400);
     }
     const timestampSec = Number(tsHeader);
     if (!Number.isFinite(timestampSec)) {
@@ -702,7 +699,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         { error: 'INVALID_WEBHOOK_TIMESTAMP', code: 'INVALID_WEBHOOK_TIMESTAMP' },
         400,
       );
-    }    const result = await runPaymentWebhookHttp(
+    }
+    const result = await runPaymentWebhookHttp(
       c.env,
       c.req.param('acquirer'),
       rawBody,

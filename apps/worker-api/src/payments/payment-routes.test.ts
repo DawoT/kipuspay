@@ -15,18 +15,19 @@ vi.mock('@kipuspay/adapters-d1', () => ({
   settleCaptureAtomic: vi.fn(() => Promise.resolve({ id: 'cap1', status: 'CAPTURED' })),
 }));
 
-const verifyWebhook = vi.fn((): Promise<{
-  ok: boolean;
-  chargeId: string | null;
-  status: 'CAPTURED' | 'FAILED' | 'PENDING' | 'REFUNDED' | 'MANUAL_ELECTRONIC_CAPTURE' | null;
-  reference: string | null;
-}> =>
-  Promise.resolve({
-    ok: true,
-    chargeId: 'cap1',
-    status: 'CAPTURED',
-    reference: 'ref1',
-  }),
+const verifyWebhook = vi.fn(
+  (): Promise<{
+    ok: boolean;
+    chargeId: string | null;
+    status: 'CAPTURED' | 'FAILED' | 'PENDING' | 'REFUNDED' | 'MANUAL_ELECTRONIC_CAPTURE' | null;
+    reference: string | null;
+  }> =>
+    Promise.resolve({
+      ok: true,
+      chargeId: 'cap1',
+      status: 'CAPTURED',
+      reference: 'ref1',
+    }),
 );
 
 vi.mock('@kipuspay/adapters-payments-pe', () => ({
@@ -154,14 +155,26 @@ describe('runPaymentWebhookHttp', () => {
   it('M3: sin secret configurado → 503 fail-closed (sin fallback sandbox-secret)', async () => {
     const env = mockEnv() as WorkerEnv & { YAPE_WEBHOOK_SECRET?: string };
     delete env.YAPE_WEBHOOK_SECRET;
-    const res = await runPaymentWebhookHttp(env, 'yape', '{}', 'sig', Math.floor(Date.now() / 1000));
+    const res = await runPaymentWebhookHttp(
+      env,
+      'yape',
+      '{}',
+      'sig',
+      Math.floor(Date.now() / 1000),
+    );
     expect(res.status).toBe(503);
     expect(res.body.code).toBe('WEBHOOK_SECRET_NOT_CONFIGURED');
   });
 
   it('M3: secret vacío → 503 fail-closed', async () => {
     const env = mockEnv({ YAPE_WEBHOOK_SECRET: '' });
-    const res = await runPaymentWebhookHttp(env, 'yape', '{}', 'sig', Math.floor(Date.now() / 1000));
+    const res = await runPaymentWebhookHttp(
+      env,
+      'yape',
+      '{}',
+      'sig',
+      Math.floor(Date.now() / 1000),
+    );
     expect(res.status).toBe(503);
   });
 
@@ -186,7 +199,12 @@ describe('runPaymentWebhookHttp', () => {
   });
 
   it('firma inválida → 401', async () => {
-    verifyWebhook.mockResolvedValueOnce({ ok: false, chargeId: null, status: null, reference: null });
+    verifyWebhook.mockResolvedValueOnce({
+      ok: false,
+      chargeId: null,
+      status: null,
+      reference: null,
+    });
     const res = await runPaymentWebhookHttp(
       mockEnv(),
       'yape',
