@@ -1,85 +1,99 @@
-/** Feature flags cliente (PUBLIC_*). Default off. */
+/** Feature flags cliente (PUBLIC_*). Default off. SvelteKit: $env/dynamic/public. */
+import { env } from '$env/dynamic/public';
 
 function flagOn(value: string | boolean | undefined): boolean {
   return value === '1' || value === 'true' || value === true;
 }
 
+function pub(name: string): string | undefined {
+  return (env as Record<string, string | undefined>)[name];
+}
+
+const PF = 'PUBLIC_FEATURE_';
+
 export function isPosCheckoutEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_POS_CHECKOUT as string | undefined);
+  return flagOn(pub(PF + 'POS_CHECKOUT'));
 }
 
 export function isPrintTemplatesEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_PRINT_TEMPLATES as string | undefined);
+  return flagOn(pub(PF + 'PRINT_TEMPLATES'));
 }
 
 export function isVitrinaEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_VITRINA as string | undefined);
+  return flagOn(pub(PF + 'VITRINA'));
 }
 
 export function isOwnerModeEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_OWNER_MODE as string | undefined);
+  return flagOn(pub(PF + 'OWNER_MODE'));
 }
 
 export function isOwnerPushEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_OWNER_PUSH as string | undefined);
+  return flagOn(pub(PF + 'OWNER_PUSH'));
 }
 
 export function isLedgerArApEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_LEDGER_AR_AP as string | undefined);
+  return flagOn(pub(PF + 'LEDGER_AR_AP'));
 }
 
 export function isReportingCatalogEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_REPORTING_CATALOG as string | undefined);
+  return flagOn(pub(PF + 'REPORTING_CATALOG'));
 }
 
 export function isReportingExportEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_REPORTING_EXPORT as string | undefined);
+  return flagOn(pub(PF + 'REPORTING_EXPORT'));
 }
 
 /** Sprint 17 — cierre Z ciego / movimientos / reprints. */
 export function isCashBlindZEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_CASH_BLIND_Z as string | undefined);
+  return flagOn(pub(PF + 'CASH_BLIND_Z'));
 }
 
 /** Sprint 18 — FEFO / BOM / conteo / merma / alertas. */
 export function isInventoryOpsEnabled(): boolean {
-  return (
-    flagOn(import.meta.env.PUBLIC_FEATURE_INVENTORY_BATCHES as string | undefined) ||
-    flagOn(import.meta.env.PUBLIC_FEATURE_INVENTORY_BOM as string | undefined)
-  );
+  return flagOn(pub(PF + 'INVENTORY_BATCHES')) || flagOn(pub(PF + 'INVENTORY_BOM'));
 }
 
 /** Sprint 19 — comandas / KDS / split. */
 export function isOrdersKdsEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_ORDERS_KDS as string | undefined);
+  return flagOn(pub(PF + 'ORDERS_KDS'));
 }
 
 /** Sprint 20 — transferencias entre sucursales. */
 export function isStockTransfersEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_STOCK_TRANSFERS as string | undefined);
+  return flagOn(pub(PF + 'STOCK_TRANSFERS'));
 }
 
 /** Sprint 20 — recepción parcial OC. */
 export function isPartialReceiveEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE as string | undefined);
+  return flagOn(pub(PF + 'PURCHASING_PARTIAL_RECEIVE'));
 }
 
 /** Sprint 22 — wallets QR en caja. */
 export function isPaymentsQrWalletsEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_PAYMENTS_QR_WALLETS as string | undefined);
+  return flagOn(pub(PF + 'PAYMENTS_QR_WALLETS'));
 }
 
 /** Sprint 22 — tarjeta Culqi/Niubiz en caja. */
 export function isPaymentsCardAcquirerEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_PAYMENTS_CARD_ACQUIRER as string | undefined);
+  return flagOn(pub(PF + 'PAYMENTS_CARD_ACQUIRER'));
 }
 
 /** Sprint 23 — export Contasis/Concar. */
 export function isAccountingExportEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_ACCOUNTING_EXPORT as string | undefined);
+  return flagOn(pub(PF + 'ACCOUNTING_EXPORT'));
 }
 
 /** Sprint 23 — API keys + webhooks. */
 export function isIntegrationsApiEnabled(): boolean {
-  return flagOn(import.meta.env.PUBLIC_FEATURE_INTEGRATIONS_API as string | undefined);
+  return flagOn(pub(PF + 'INTEGRATIONS_API'));
+}
+
+/** Sprint 24 — WhatsApp receipt. */
+export function isMessagingWhatsAppEnabled(): boolean {
+  return flagOn(pub(PF + 'MESSAGING_WHATSAPP'));
+}
+
+/** Sprint 24 — loyalty points. */
+export function isLoyaltyPointsEnabled(): boolean {
+  return flagOn(pub(PF + 'LOYALTY_POINTS'));
 }

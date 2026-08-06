@@ -31,6 +31,7 @@ import {
   DOWN_0014_SPRINT20_PO_PARTIAL,
   DOWN_0015_SPRINT22_PAYMENT_CAPTURES,
   DOWN_0016_SPRINT23_API_WEBHOOKS,
+  DOWN_0017_SPRINT24_LOYALTY_MESSAGING,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -39,6 +40,7 @@ import catalogImportSql from '../migrations/0013_catalog_import.sql?raw';
 import sprint20PoSql from '../migrations/0014_sprint20_po_partial_status.sql?raw';
 import sprint22PaymentsSql from '../migrations/0015_sprint22_payment_captures.sql?raw';
 import sprint23ApiWebhooksSql from '../migrations/0016_sprint23_api_webhooks.sql?raw';
+import sprint24LoyaltySql from '../migrations/0017_sprint24_loyalty_messaging.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -812,7 +814,80 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(row?.attempt_count).toBe(1);
   });
 
+  it('migración 0017 up: loyalty_accounts/reservations + messaging_opt_ins', async () => {
+    expect(sprint24LoyaltySql).toMatch(/CREATE TABLE IF NOT EXISTS loyalty_accounts/);
+    expect(sprint24LoyaltySql).toMatch(/CREATE TABLE IF NOT EXISTS loyalty_reservations/);
+    expect(sprint24LoyaltySql).toMatch(/CREATE TABLE IF NOT EXISTS messaging_opt_ins/);
+    expect(sprint24LoyaltySql).toMatch(
+      /CHECK\s*\(\s*status\s+IN\s*\(\s*'RESERVED'\s*,\s*'REDEEMED'\s*,\s*'EXPIRED'\s*,\s*'CANCELLED'\s*\)\s*\)/i,
+    );
+
+    await seedTenantBranchSession('t-loy-up');
+    await env.DB.prepare(
+      `INSERT INTO customers (id, tenant_id, document_type_code, document_number, name)
+       VALUES (?, ?, '1', '12345678', 'Cliente Loyalty')`,
+    )
+      .bind('c-loy', 't-loy-up')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO loyalty_accounts (id, tenant_id, customer_id, points_balance)
+       VALUES (?, ?, ?, ?)`,
+    )
+      .bind('la-up', 't-loy-up', 'c-loy', 100)
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO customers (id, tenant_id, document_type_code, document_number, name)
+       VALUES (?, ?, '1', '87654321', 'Neg')`,
+    )
+      .bind('c-loy-2', 't-loy-up')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO loyalty_accounts (id, tenant_id, customer_id, points_balance)
+         VALUES (?, ?, ?, ?)`,
+      )
+        .bind('la-neg', 't-loy-up', 'c-loy-2', -1)
+        .run(),
+    ).rejects.toThrow();
+
+    await env.DB.prepare(
+      `INSERT INTO loyalty_reservations (
+         id, tenant_id, customer_id, sale_idempotency_key, points, status, expires_at
+       ) VALUES (?, ?, ?, ?, ?, 'RESERVED', '2026-08-06 12:00:00')`,
+    )
+      .bind('lr-up', 't-loy-up', 'c-loy', 'sale-idem-1', 10)
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO loyalty_reservations (
+           id, tenant_id, customer_id, sale_idempotency_key, points, status, expires_at
+         ) VALUES (?, ?, ?, ?, ?, 'RESERVED', '2026-08-06 13:00:00')`,
+      )
+        .bind('lr-dup', 't-loy-up', 'c-loy', 'sale-idem-1', 5)
+        .run(),
+    ).rejects.toThrow();
+
+    await env.DB.prepare(
+      `INSERT INTO messaging_opt_ins (id, tenant_id, customer_id, channel, opted_in)
+       VALUES (?, ?, ?, 'whatsapp', ?)`,
+    )
+      .bind('mo-up', 't-loy-up', 'c-loy', 1)
+      .run();
+
+    const opt = await env.DB.prepare(
+      `SELECT opted_in FROM messaging_opt_ins WHERE tenant_id = ? AND customer_id = ?`,
+    )
+      .bind('t-loy-up', 'c-loy')
+      .first<{ opted_in: number }>();
+    expect(opt?.opted_in).toBe(1);
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0017_SPRINT24_LOYALTY_MESSAGING);
     await env.DB.exec(DOWN_0016_SPRINT23_API_WEBHOOKS);
     await env.DB.exec(DOWN_0015_SPRINT22_PAYMENT_CAPTURES);
     await env.DB.exec(DOWN_0014_SPRINT20_PO_PARTIAL);

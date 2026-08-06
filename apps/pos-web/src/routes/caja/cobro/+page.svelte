@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
+    isLoyaltyPointsEnabled,
+    isMessagingWhatsAppEnabled,
     isPaymentsCardAcquirerEnabled,
     isPaymentsQrWalletsEnabled,
     isPosCheckoutEnabled,
@@ -13,6 +15,8 @@
   const checkoutOn = isPosCheckoutEnabled();
   const walletsOn = isPaymentsQrWalletsEnabled();
   const cardsOn = isPaymentsCardAcquirerEnabled();
+  const whatsappOn = isMessagingWhatsAppEnabled();
+  const loyaltyOn = isLoyaltyPointsEnabled();
 
   let methodCode = $state('cash');
   /** M4: fuente de verdad = navigator.onLine (nunca inventar online). */
@@ -21,6 +25,14 @@
   let captureId = $state('');
   let message = $state('');
   let amber = $state('');
+
+  let customerId = $state('cust-demo');
+  let saleIdempotencyKey = $state(`sale-${Date.now()}`);
+  let loyaltyPoints = $state(10);
+  let authzTokenHash = $state('');
+  let waOptedIn = $state(true);
+  let loyaltyMsg = $state('');
+  let waMsg = $state('');
 
   onMount(() => {
     const apply = () => {
@@ -93,6 +105,47 @@
     if (res.ok && json.captureId) captureId = json.captureId;
     message = res.ok ? `Captura ${json.captureId} · ${json.status}` : (json.error ?? 'error');
   }
+
+  async function reserveLoyalty() {
+    loyaltyMsg = '';
+    if (!loyaltyOn) {
+      loyaltyMsg = 'FEATURE_LOYALTY_POINTS off';
+      return;
+    }
+    if (!online) {
+      loyaltyMsg = 'Canje offline-originado deshabilitado — reserva solo en línea';
+      return;
+    }
+    const res = await fetch(`${apiBase()}/api/loyalty/reserve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: auth() },
+      body: JSON.stringify({
+        customerId,
+        saleIdempotencyKey,
+        points: loyaltyPoints,
+        discountAuthorizationTokenHash: authzTokenHash || undefined,
+      }),
+    });
+    const json = (await res.json()) as { id?: string; status?: string; error?: string };
+    loyaltyMsg = res.ok
+      ? `Reserva ${json.id} · ${json.status} (authz ${authzTokenHash ? 'ok' : 'requerida al cobrar'})`
+      : (json.error ?? 'error');
+  }
+
+  async function saveWhatsAppOptIn() {
+    waMsg = '';
+    if (!whatsappOn) {
+      waMsg = 'FEATURE_MESSAGING_WHATSAPP off';
+      return;
+    }
+    const res = await fetch(`${apiBase()}/api/messaging/opt-in`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: auth() },
+      body: JSON.stringify({ customerId, optedIn: waOptedIn }),
+    });
+    const json = (await res.json()) as { optedIn?: boolean; error?: string };
+    waMsg = res.ok ? `Opt-in WhatsApp = ${json.optedIn}` : (json.error ?? 'error');
+  }
 </script>
 
 <section class="caja-cobro" data-testid="caja-cobro-local">
@@ -144,6 +197,48 @@
       <p data-testid="caja-cobro-msg">{message}</p>
     {/if}
   {/if}
+
+  {#if whatsappOn || loyaltyOn}
+    <h2>Cliente · WhatsApp y puntos</h2>
+    <label>
+      customer_id
+      <input bind:value={customerId} data-testid="caja-customer-id" />
+    </label>
+  {/if}
+
+  {#if whatsappOn}
+    <label class="online">
+      <input type="checkbox" bind:checked={waOptedIn} data-testid="caja-wa-optin" />
+      Opt-in WhatsApp (comprobante)
+    </label>
+    <button type="button" data-testid="caja-wa-save" onclick={saveWhatsAppOptIn}>
+      Guardar opt-in
+    </button>
+    {#if waMsg}
+      <p data-testid="caja-wa-msg">{waMsg}</p>
+    {/if}
+  {/if}
+
+  {#if loyaltyOn}
+    <label>
+      sale_idempotency_key
+      <input bind:value={saleIdempotencyKey} data-testid="caja-loyalty-key" />
+    </label>
+    <label>
+      Puntos a reservar
+      <input type="number" bind:value={loyaltyPoints} data-testid="caja-loyalty-points" />
+    </label>
+    <label>
+      Authz token hash (canje)
+      <input bind:value={authzTokenHash} data-testid="caja-loyalty-authz" />
+    </label>
+    <button type="button" data-testid="caja-loyalty-reserve" onclick={reserveLoyalty}>
+      Reservar puntos
+    </button>
+    {#if loyaltyMsg}
+      <p data-testid="caja-loyalty-msg">{loyaltyMsg}</p>
+    {/if}
+  {/if}
 </section>
 
 <style>
@@ -156,6 +251,10 @@
   .lede {
     color: #445;
     margin-bottom: 1.25rem;
+  }
+  h2 {
+    margin-top: 2rem;
+    font-size: 1.1rem;
   }
   label {
     display: block;

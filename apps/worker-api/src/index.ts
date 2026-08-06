@@ -87,6 +87,12 @@ import {
   runPublicSalesListHttp,
   runRevokeApiKeyHttp,
 } from './integrations/integration-routes.js';
+import {
+  runExpireLoyaltyCronHttp,
+  runLoyaltyBalanceHttp,
+  runLoyaltyReserveHttp,
+  runMessagingOptInHttp,
+} from './loyalty/loyalty-messaging-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -675,6 +681,38 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const user = c.get('user');
     const result = await runDrainWebhookDeliveriesHttp(c.env, 20, user?.userId ?? '', user?.role);
     return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+
+  // Sprint 24 — loyalty + WhatsApp opt-in (Cadena+)
+  app.post('/api/loyalty/reserve', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runLoyaltyReserveHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 201 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/loyalty/balance', async (c) => {
+    const jwt = c.get('jwt');
+    const customerId = c.req.query('customerId') ?? '';
+    const result = await runLoyaltyBalanceHttp(c.env, jwt?.tenantId ?? '', customerId);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
+  });
+  app.post('/api/messaging/opt-in', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runMessagingOptInHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 201 | 400 | 403 | 404 | 503);
+  });
+  app.post('/api/loyalty/cron/expire', async (c) => {
+    const result = await runExpireLoyaltyCronHttp(c.env);
+    return c.json(result.body, result.status as 200 | 404 | 422 | 503);
   });
 
   // Public API (API key) — Cadena+; no JWT middleware

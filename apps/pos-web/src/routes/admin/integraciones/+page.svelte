@@ -1,8 +1,6 @@
 <script lang="ts">
-  import {
-    isAccountingExportEnabled,
-    isIntegrationsApiEnabled,
-  } from '$lib/features';
+  import { env } from '$env/dynamic/public';
+  import { isAccountingExportEnabled, isIntegrationsApiEnabled } from '$lib/features';
 
   const exportOn = isAccountingExportEnabled();
   const apiOn = isIntegrationsApiEnabled();
@@ -23,10 +21,8 @@
   let createdSecret = $state('');
   let endpointsJson = $state('');
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => env.PUBLIC_API_BASE?.replace(/\/$/, '') || 'https://api.kipuspay.local';
+  const auth = () => env.PUBLIC_DEV_AUTH ?? 'Bearer demo';
 
   async function runExport() {
     exportMessage = '';

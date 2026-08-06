@@ -69,7 +69,7 @@ sprints: "21–24"
 
 **Criterios de aceptación:** 0 envíos WhatsApp sin opt-in; loyalty no bypasea Zero-Trust de precios; canje genera `audit_events`; **reserva de puntos expirada en retry offline (edge A): una venta que empezó online (reserva `RESERVED`), cayó a la cola offline y expiró antes del sync se consolida **sin puntos**, sin saldo negativo y con `audit_events` `LOYALTY_RESERVATION_EXPIRED` + aviso push al Dueño**; Growth no vende “motor de fidelización” completo más allá de puntos hasta este gate.
 
-**Quality Gate:** Staff Security (PII/messaging) + Staff PM; Staff Growth descongela claim Cadena de fidelización **light** tras gate; Staff Principal aprueba el cierre según RACI.
+**Quality Gate:** Staff Security (PII/messaging) + Staff PM; Staff Growth descongela claim Cadena de fidelización **light** tras gate; Staff Principal aprueba el cierre según RACI. **Estado:** Cerrado (QG `docs/ops/s24-whatsapp-loyalty-qg.md`).
 
 ---
 

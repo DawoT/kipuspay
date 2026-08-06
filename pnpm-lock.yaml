@@ -150,6 +150,9 @@ importers:
       '@kipuspay/adapters-d1':
         specifier: workspace:*
         version: link:../../packages/adapters-d1
+      '@kipuspay/adapters-messaging':
+        specifier: workspace:*
+        version: link:../../packages/adapters-messaging
       '@kipuspay/adapters-payments-pe':
         specifier: workspace:*
         version: link:../../packages/adapters-payments-pe
@@ -292,6 +295,10 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
 
   packages/adapters-messaging:
+    dependencies:
+      '@kipuspay/domain-integrations':
+        specifier: workspace:*
+        version: link:../domain-integrations
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

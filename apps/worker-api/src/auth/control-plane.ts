@@ -58,6 +58,12 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 23 — export Contasis/Concar + API pública. */
   readonly FEATURE_ACCOUNTING_EXPORT?: string;
   readonly FEATURE_INTEGRATIONS_API?: string;
+  /** Sprint 24 — WhatsApp receipt + loyalty points. */
+  readonly FEATURE_MESSAGING_WHATSAPP?: string;
+  readonly FEATURE_LOYALTY_POINTS?: string;
+  readonly WA_ACCESS_TOKEN?: string;
+  readonly WA_PHONE_NUMBER_ID?: string;
+  readonly WA_API_BASE?: string;
   /** Pepper HMAC para api_keys.key_hash (SEC-03). */
   readonly API_KEY_PEPPER?: string;
   readonly YAPE_WEBHOOK_SECRET?: string;

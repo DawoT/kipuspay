@@ -94,6 +94,29 @@ export {
   WEBHOOK_TIMEOUT_MS,
 } from './public-api.js';
 
+export type { LoyaltyReservationStatus, OfflineLoyaltyOutcome } from './loyalty.js';
+export {
+  assertLoyaltyTransition,
+  assertOfflineLoyaltyPolicy,
+  assertPointsBalanceNonNegative,
+  assertRedeemAuthorized,
+  buildLoyaltyIdempotencyKey,
+  LOYALTY_RESERVATION_EXPIRED,
+} from './loyalty.js';
+
+export type {
+  MessagingSendReceiptRequest,
+  MessagingSendReceiptResult,
+  MessagingSenderPort,
+  ReceiptDocumentKind,
+} from './messaging.js';
+export {
+  assertSendableReceipt,
+  assertWhatsAppOptIn,
+  receiptLegend,
+  receiptTemplateId,
+} from './messaging.js';
+
 /**
  * Puerto de importación de catálogo (S21, §5.4).
  * Regla 1: commit solo después de un dry-run aprobado (preview → confirmar).

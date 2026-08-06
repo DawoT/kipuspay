@@ -48,6 +48,10 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/integrations/webhooks' },
   { method: 'DELETE', path: '/api/integrations/webhooks/ep1' },
   { method: 'POST', path: '/api/integrations/webhooks/drain' },
+  { method: 'POST', path: '/api/loyalty/reserve' },
+  { method: 'GET', path: '/api/loyalty/balance' },
+  { method: 'POST', path: '/api/messaging/opt-in' },
+  { method: 'POST', path: '/api/loyalty/cron/expire' },
   { method: 'POST', path: '/api/reporting/cron/daily-rollups' },
 ];
 

@@ -312,7 +312,8 @@ function accumulateReceived(
     const ordered = orderedQtyByProduct.get(line.productId) ?? 0;
     const currentAcc =
       receivedQtyByProduct.get(line.productId) ??
-      (previouslyReceivedQtyByProduct.get(line.productId) ?? 0);
+      previouslyReceivedQtyByProduct.get(line.productId) ??
+      0;
     const nextQty = currentAcc + line.quantity;
     if (nextQty > ordered) throw new Error('RECEIVE_EXCEEDS_ORDERED');
     receivedQtyByProduct.set(line.productId, nextQty);

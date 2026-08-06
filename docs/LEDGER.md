@@ -4663,3 +4663,42 @@ estado: Vigente
 ```
 
 
+
+```
+id: 0280
+timestamp_utc: 2026-08-06T06:40:00Z
+schema_version: 2
+sprint_fase: Sprint 24 — Fase 7 (WhatsApp + loyalty light)
+agente_responsable: Staff Backend ACID / Staff Security / Staff Frontend
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0279]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s24-whatsapp-loyalty-qg.md, docs/architecture/05-4-ecosystem-ports.md, docs/GTM.md]
+prev_id: 0279
+prev_hash: 5cf93833de1536b92ec6a94a6c7e6b9f864695d020ecf76ad870b97414b61f5f
+entry_hash: 1371460e992caecc028742d5d905704ec216ef448f7cf65a4ed05427c3733898
+ticket_or_adr: Roadmap Sprint 24, Arquitectura §5.4 reglas 5–6 edge A
+test_ids: [loyalty, messaging, loyalty.chaos, reserve-loyalty-atomic, loyalty-messaging-routes, schema.integration, index]
+entregable_afectado: Sprint 24 messaging.whatsapp_receipt + loyalty.points GOV-APROBADO
+descripcion: >
+  Cierra Sprint 24 (último DoD FASE 7 ecosistema): MessagingSender WhatsApp con
+  opt-in (messaging_opt_ins), loyalty.points (loyalty_accounts/reservations mig 0017),
+  reserve/expire atomics, edge A LOYALTY_RESERVATION_EXPIRED en offline-sale + push
+  Dueño, Plan Guard Cadena+, flags default off, UI caja opt-in/canje, claim GTM
+  fidelización light descongelado (motor completo sigue roadmap).
+evidencia: >
+  RED: S24 Planificado; sin DDL loyalty/opt-in ni MessagingSender WA.
+  GREEN: domain-integrations 87; adapters-messaging 5; adapters-d1 unit+integration;
+  worker-api 282+; ops s24 QG; verify/quality; GTM/ROADMAP/INDEX Cerrado.
+red_commit_sha: 38d005a2ac5e4e6e458b8bc862b87eb522ce01eb
+red_run_id: run-red-0280-sprint24-whatsapp-loyalty
+expected_failure: AssertionError: Sprint 24 Planificado sin loyalty/WA
+green_commit_sha: 38d005a2ac5e4e6e458b8bc862b87eb522ce01eb
+green_run_id: run-green-0280-sprint24-whatsapp-loyalty
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Principal A, Staff Security V, Staff PM V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+

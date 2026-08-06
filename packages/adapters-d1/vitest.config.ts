@@ -27,6 +27,7 @@ export default defineConfig({
         'src/process-payment-capture-atomic.ts',
         'src/process-webhook-delivery-atomic.ts',
         'src/accounting-export-reader.ts',
+        'src/reserve-loyalty-atomic.ts',
       ],
       thresholds: {
         lines: 70,

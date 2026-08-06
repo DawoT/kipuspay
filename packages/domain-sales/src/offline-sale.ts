@@ -63,6 +63,11 @@ export interface OfflineSalePayload {
   readonly discountAuthorizationTokenHash?: string | null | undefined;
   /** S17: override de credit_limit. */
   readonly creditOverrideTokenHash?: string | null | undefined;
+  /**
+   * Sprint 24: puntos a canjear (0/omit = no-op).
+   * Offline-origin sin reserva online → rechazo; reserva EXPIRED → edge A.
+   */
+  readonly loyaltyPoints?: number | undefined;
 }
 
 const ISSUED_AT_SKEW_MS = 6 * 3600 * 1000;

@@ -33,9 +33,15 @@ import {
 import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
 import {
   assertOfflineCapturePolicy,
+  assertOfflineLoyaltyPolicy,
+  assertRedeemAuthorized,
   buildCaptureIdempotencyKey,
+  buildLoyaltyIdempotencyKey,
   isPaymentMethodCode,
+  LOYALTY_RESERVATION_EXPIRED,
   methodCodeToAcquirer,
+  type LoyaltyReservationStatus,
+  type OfflineLoyaltyOutcome,
   type PaymentMethodCode,
 } from '@kipuspay/domain-integrations';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
@@ -75,6 +81,10 @@ export type OfflineSaleResult =
       authoritativeTotalAmount: number;
       series: string;
       number: number;
+      customerId?: string | null;
+      /** Sprint 24 edge A / redeem. */
+      loyaltyOutcome?: 'REDEEMED' | 'EXPIRED_ON_RETRY' | 'NONE';
+      loyaltyReservationId?: string | null;
     }
   | {
       status: 'ALREADY_SYNCED';
@@ -670,6 +680,97 @@ export async function processOfflineSaleAtomic(
     }
   }
 
+  // Sprint 24: loyalty.points — preflight edge A / redeem (fuera del batch).
+  const loyaltyPoints = payload.loyaltyPoints ?? 0;
+  let loyaltyPlan:
+    | {
+        outcome: OfflineLoyaltyOutcome;
+        reservationId: string | null;
+        points: number;
+        customerId: string;
+        auditId?: string;
+        prevHash?: string | null;
+        rowHash?: string;
+      }
+    | undefined;
+  if (loyaltyPoints !== 0) {
+    if (!customerId) throw new Error('LOYALTY_REQUIRES_CUSTOMER');
+    const idemKey = buildLoyaltyIdempotencyKey(payload.offlineSaleId);
+    const reservation = await db
+      .prepare(
+        `SELECT id, status, points, customer_id FROM loyalty_reservations
+         WHERE tenant_id = ? AND sale_idempotency_key = ? LIMIT 1`,
+      )
+      .bind(tenantId, idemKey)
+      .first<{
+        id: string;
+        status: LoyaltyReservationStatus;
+        points: number;
+        customer_id: string;
+      }>();
+    const outcome = assertOfflineLoyaltyPolicy({
+      offlineOrigin: reservation === null,
+      requestedPoints: loyaltyPoints,
+      reservationStatus: reservation?.status ?? null,
+    });
+    if (outcome === 'REDEEM' && reservation) {
+      assertRedeemAuthorized(Boolean(payload.discountAuthorizationTokenHash?.trim()));
+      if (reservation.points !== loyaltyPoints) {
+        throw new Error('LOYALTY_POINTS_MISMATCH');
+      }
+      if (payload.discountAuthorizationTokenHash?.trim()) {
+        const tokenId = await requireLiveAuthToken(
+          db,
+          tenantId,
+          payload.discountAuthorizationTokenHash,
+        );
+        authTokensToConsume.push(tokenId);
+      }
+      const auditId = crypto.randomUUID();
+      const rowHash = await computeAuditHash({
+        action: 'LOYALTY_REDEEMED',
+        entity_id: reservation.id,
+        sale_id: saleId,
+        points: reservation.points,
+        prev_hash: chainPrev,
+      });
+      loyaltyPlan = {
+        outcome,
+        reservationId: reservation.id,
+        points: reservation.points,
+        customerId: reservation.customer_id,
+        auditId,
+        prevHash: chainPrev,
+        rowHash,
+      };
+    } else if (outcome === 'EXPIRED_ON_RETRY' && reservation) {
+      const auditId = crypto.randomUUID();
+      const rowHash = await computeAuditHash({
+        action: LOYALTY_RESERVATION_EXPIRED,
+        entity_id: saleId,
+        loyalty_reservation_id: reservation.id,
+        reason: 'EXPIRED_ON_RETRY',
+        prev_hash: chainPrev,
+      });
+      loyaltyPlan = {
+        outcome,
+        reservationId: reservation.id,
+        points: 0,
+        customerId: reservation.customer_id,
+        auditId,
+        prevHash: chainPrev,
+        rowHash,
+      };
+    } else {
+      loyaltyPlan = {
+        outcome: 'REDEEM',
+        reservationId: null,
+        points: 0,
+        customerId,
+      };
+    }
+  }
+
   try {
     await runD1AtomicPlan(db, (plan) => {
       const stockGuardIds: string[] = [];
@@ -1085,6 +1186,97 @@ export async function processOfflineSaleAtomic(
         );
       }
 
+      // Sprint 24: loyalty redeem / edge A en la misma batch.
+      if (
+        loyaltyPlan?.outcome === 'REDEEM' &&
+        loyaltyPlan.reservationId &&
+        loyaltyPlan.points > 0
+      ) {
+        const guardId = crypto.randomUUID();
+        stockGuardIds.push(guardId);
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO atomic_guards (id, ok)
+               SELECT ?, CASE WHEN points_balance >= ? THEN 1 ELSE 0 END
+               FROM loyalty_accounts
+               WHERE tenant_id = ? AND customer_id = ?`,
+            )
+            .bind(guardId, loyaltyPlan.points, tenantId, loyaltyPlan.customerId),
+        );
+        plan.add(
+          db
+            .prepare(
+              `UPDATE loyalty_accounts
+               SET points_balance = points_balance - ?
+               WHERE tenant_id = ? AND customer_id = ? AND points_balance >= ?`,
+            )
+            .bind(loyaltyPlan.points, tenantId, loyaltyPlan.customerId, loyaltyPlan.points),
+        );
+        plan.add(
+          db
+            .prepare(
+              `UPDATE loyalty_reservations
+               SET status = 'REDEEMED'
+               WHERE id = ? AND tenant_id = ? AND status = 'RESERVED'`,
+            )
+            .bind(loyaltyPlan.reservationId, tenantId),
+        );
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO audit_events (
+                   id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+                   payload_json, prev_hash, row_hash
+                 ) VALUES (?, ?, ?, ?, 'LOYALTY_REDEEMED', 'loyalty_reservation', ?, ?, ?, ?)`,
+            )
+            .bind(
+              loyaltyPlan.auditId!,
+              tenantId,
+              payload.branchId,
+              userId,
+              loyaltyPlan.reservationId,
+              JSON.stringify({
+                sale_id: saleId,
+                points: loyaltyPlan.points,
+                customer_id: loyaltyPlan.customerId,
+              }),
+              loyaltyPlan.prevHash ?? null,
+              loyaltyPlan.rowHash!,
+            ),
+        );
+      } else if (
+        loyaltyPlan?.outcome === 'EXPIRED_ON_RETRY' &&
+        loyaltyPlan.reservationId &&
+        loyaltyPlan.auditId &&
+        loyaltyPlan.rowHash
+      ) {
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO audit_events (
+                   id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+                   payload_json, prev_hash, row_hash
+                 ) VALUES (?, ?, ?, ?, ?, 'loyalty_reservation', ?, ?, ?, ?)`,
+            )
+            .bind(
+              loyaltyPlan.auditId,
+              tenantId,
+              payload.branchId,
+              userId,
+              LOYALTY_RESERVATION_EXPIRED,
+              loyaltyPlan.reservationId,
+              JSON.stringify({
+                sale_id: saleId,
+                loyalty_reservation_id: loyaltyPlan.reservationId,
+                reason: 'EXPIRED_ON_RETRY',
+              }),
+              loyaltyPlan.prevHash ?? null,
+              loyaltyPlan.rowHash,
+            ),
+        );
+      }
+
       // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).
       if (sunatStatus === 'PENDING') {
         plan.add(
@@ -1135,5 +1327,13 @@ export async function processOfflineSaleAtomic(
     authoritativeTotalAmount: totals.totalAmountCents,
     series: payload.series,
     number: saved?.number ?? 0,
+    customerId,
+    loyaltyOutcome:
+      loyaltyPlan?.outcome === 'EXPIRED_ON_RETRY'
+        ? 'EXPIRED_ON_RETRY'
+        : loyaltyPlan?.outcome === 'REDEEM' && (loyaltyPlan.points ?? 0) > 0
+          ? 'REDEEMED'
+          : 'NONE',
+    loyaltyReservationId: loyaltyPlan?.reservationId ?? null,
   };
 }

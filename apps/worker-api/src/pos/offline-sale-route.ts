@@ -85,6 +85,9 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
       },
     };
   }
+  if (msg.startsWith('LOYALTY_')) {
+    return { status: 422, body: { error: msg, code: msg } };
+  }
   if (msg.includes('CREDIT_LIMIT_EXCEEDED')) {
     return { status: 422, body: { error: msg, code: 'CREDIT_LIMIT_EXCEEDED' } };
   }
@@ -105,6 +108,64 @@ export interface OfflineSaleHttpResult {
   status: number;
   body: Record<string, unknown>;
 }
+
+/**
+ * Best-effort post-commit hooks (webhook + WhatsApp + edge A push).
+ * Nunca debe revertir una venta ya persistida.
+ */
+/* eslint-disable complexity -- hooks post-commit multi-rama S23/S24 */
+async function runPostCommitSaleHooks(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  payload: OfflineSalePayload,
+  result: {
+    saleId?: string;
+    loyaltyOutcome?: string;
+    loyaltyReservationId?: string | null;
+    customerId?: string | null;
+  },
+  saleId: string,
+): Promise<void> {
+  try {
+    if (env) {
+      const { enqueuePublicEventForTenant } = await import('../integrations/integration-routes.js');
+      await enqueuePublicEventForTenant(env, tenantId, 'sale.created', saleId, {
+        saleId,
+        documentType: payload.documentType,
+      });
+    }
+  } catch {
+    // webhook se reintentará desde la cola
+  }
+  try {
+    const { notifyOwnerLoyaltyExpired, trySendWhatsAppReceipt } =
+      await import('../loyalty/loyalty-messaging-routes.js');
+    if (result.loyaltyOutcome === 'EXPIRED_ON_RETRY') {
+      await notifyOwnerLoyaltyExpired(env, tenantId, saleId, result.loyaltyReservationId);
+    }
+    const phone = payload.clientPhone?.trim();
+    const customerId = typeof result.customerId === 'string' ? result.customerId : '';
+    if (phone && customerId) {
+      const isCpeDoc =
+        payload.documentType === '01' ||
+        payload.documentType === '03' ||
+        payload.documentType === '07' ||
+        payload.documentType === '08';
+      const fqdn = env?.FQDN?.replace(/\/$/, '') || 'https://app.kipuspay.local';
+      await trySendWhatsAppReceipt(env, {
+        tenantId,
+        customerId,
+        saleId,
+        documentKind: isCpeDoc ? 'CPE' : 'NV',
+        phoneE164: phone.startsWith('+') ? phone : `+${phone}`,
+        representationUrl: `${fqdn}/cpe/${saleId}`,
+      });
+    }
+  } catch {
+    // venta ya OK
+  }
+}
+/* eslint-enable complexity */
 
 /**
  * Pipeline HTTP de venta offline (feature flag + DB + motor ACID).
@@ -138,23 +199,9 @@ export async function runOfflineSaleHttp(
         pricingLists: isPricingListsEnabled(env),
       },
     });
-    const saleId =
-      typeof (result as { saleId?: unknown }).saleId === 'string'
-        ? (result as { saleId: string }).saleId
-        : '';
+    const saleId = 'saleId' in result && typeof result.saleId === 'string' ? result.saleId : '';
     if (saleId) {
-      // M3: el enqueue del evento público es best-effort post-commit; un fallo
-      // aquí NUNCA revierte la venta ya persistida → try/catch aislado.
-      try {
-        const { enqueuePublicEventForTenant } =
-          await import('../integrations/integration-routes.js');
-        await enqueuePublicEventForTenant(env, tenantId, 'sale.created', saleId, {
-          saleId,
-          documentType: payload.documentType,
-        });
-      } catch {
-        // 200 garantizado; el webhook saliente se reintentará desde la cola.
-      }
+      await runPostCommitSaleHooks(env, tenantId, payload, result, saleId);
     }
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (error) {

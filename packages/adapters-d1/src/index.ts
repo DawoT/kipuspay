@@ -134,3 +134,4 @@ export * from './process-partial-receive-atomic.js';
 export * from './process-payment-capture-atomic.js';
 export * from './process-webhook-delivery-atomic.js';
 export * from './accounting-export-reader.js';
+export * from './reserve-loyalty-atomic.js';

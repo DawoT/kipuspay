@@ -1,6 +1,16 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0017_SPRINT24_LOYALTY_MESSAGING = `
+DROP INDEX IF EXISTS idx_messaging_opt_ins_tenant;
+DROP TABLE IF EXISTS messaging_opt_ins;
+DROP INDEX IF EXISTS idx_loyalty_res_customer;
+DROP INDEX IF EXISTS idx_loyalty_res_expiry;
+DROP TABLE IF EXISTS loyalty_reservations;
+DROP TABLE IF EXISTS loyalty_accounts;
+DELETE FROM schema_meta WHERE key = 'loyalty_messaging.sprint24';
+`;
+
 export const DOWN_0016_SPRINT23_API_WEBHOOKS = `
 DROP INDEX IF EXISTS idx_webhook_deliveries_poll;
 DROP TABLE IF EXISTS webhook_deliveries;
