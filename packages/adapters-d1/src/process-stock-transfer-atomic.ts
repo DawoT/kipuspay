@@ -1,0 +1,545 @@
+/**
+ * Sprint 20 — stock transfers ACID (espejo origen/destino + cancel).
+ * Preflight fuera; una sola db.batch vía runD1AtomicPlan.
+ */
+import {
+  assertShrinkJustified,
+  assertTransferLineConservation,
+  assertTransferTransition,
+  planCancelInTransit,
+  planReceiveStockDeltas,
+  planShipStockDeltas,
+  refreshAvgCostCents,
+  type TransferStatus,
+} from '@kipuspay/domain-inventory';
+import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+
+export interface TransferLineInput {
+  readonly productId: string;
+  readonly qtySent: number;
+  readonly batchId?: string | null;
+}
+
+interface TransferRow {
+  id: string;
+  from_branch_id: string;
+  to_branch_id: string;
+  status: TransferStatus;
+}
+
+interface TransferLineRow {
+  id: string;
+  product_id: string;
+  qty_sent: number;
+}
+
+interface StockSnap {
+  stock: number;
+  pmp_unit_cost_cents: number;
+}
+
+export async function createStockTransferAtomic(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  input: {
+    readonly fromBranchId: string;
+    readonly toBranchId: string;
+    readonly notes?: string | null;
+    readonly lines: readonly TransferLineInput[];
+  },
+): Promise<{ readonly id: string; readonly status: 'DRAFT' }> {
+  if (input.fromBranchId === input.toBranchId) throw new Error('TRANSFER_SAME_BRANCH');
+  if (input.lines.length === 0) throw new Error('TRANSFER_REQUIRES_LINES');
+  for (const line of input.lines) {
+    if (!(line.qtySent > 0) || !Number.isFinite(line.qtySent)) {
+      throw new Error('INVALID_TRANSFER_QTY');
+    }
+  }
+  const id = crypto.randomUUID();
+  await runD1AtomicPlan(db, (plan) => {
+    plan.add(
+      db
+        .prepare(
+          `INSERT INTO stock_transfers (
+               id, tenant_id, from_branch_id, to_branch_id, status, notes, created_by_user_id
+             ) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?)`,
+        )
+        .bind(id, tenantId, input.fromBranchId, input.toBranchId, input.notes ?? null, userId),
+    );
+    for (const line of input.lines) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO stock_transfer_lines (
+                 id, tenant_id, transfer_id, product_id, batch_id,
+                 qty_sent, qty_received, qty_shrink
+               ) VALUES (?, ?, ?, ?, ?, ?, 0, 0)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            tenantId,
+            id,
+            line.productId,
+            line.batchId ?? null,
+            line.qtySent,
+          ),
+      );
+    }
+  });
+  return { id, status: 'DRAFT' };
+}
+
+export async function shipStockTransferAtomic(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  transferId: string,
+): Promise<{ readonly id: string; readonly status: 'IN_TRANSIT' }> {
+  const xfer = await loadTransfer(db, tenantId, transferId);
+  assertTransferTransition(xfer.status, 'IN_TRANSIT');
+  const lines = await loadTransferLines(db, tenantId, transferId);
+  if (lines.length === 0) throw new Error('TRANSFER_REQUIRES_LINES');
+  const deltas = planShipStockDeltas({
+    originBranchId: xfer.from_branch_id,
+    lines: lines.map((l) => ({ productId: l.product_id, quantity: l.qty_sent })),
+  });
+
+  for (const d of deltas) {
+    const snap = await loadStock(db, tenantId, d.branchId, d.productId);
+    if (!snap || snap.stock < -d.qtyDelta) throw new Error('INSUFFICIENT_STOCK');
+  }
+
+  await runD1AtomicPlan(db, (plan) => {
+    plan.guardState(
+      `SELECT 1 FROM stock_transfers WHERE id = ? AND tenant_id = ? AND status = 'DRAFT'`,
+      [transferId, tenantId],
+    );
+    plan.add(
+      db
+        .prepare(
+          `UPDATE stock_transfers
+           SET status = 'IN_TRANSIT', shipped_at = CURRENT_TIMESTAMP
+           WHERE id = ? AND tenant_id = ? AND status = 'DRAFT'`,
+        )
+        .bind(transferId, tenantId),
+    );
+    for (const d of deltas) {
+      addDebitStock(
+        plan,
+        db,
+        tenantId,
+        userId,
+        transferId,
+        d.branchId,
+        d.productId,
+        -d.qtyDelta,
+        d.movementType,
+      );
+    }
+  });
+  return { id: transferId, status: 'IN_TRANSIT' };
+}
+
+export async function receiveStockTransferAtomic(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  input: {
+    readonly transferId: string;
+    readonly lines: readonly {
+      readonly lineId: string;
+      readonly qtyReceived: number;
+      readonly qtyShrink: number;
+      readonly shrinkReason: string | null;
+    }[];
+  },
+): Promise<{ readonly id: string; readonly status: 'RECEIVED' }> {
+  const xfer = await loadTransfer(db, tenantId, input.transferId);
+  assertTransferTransition(xfer.status, 'RECEIVED');
+  const existing = await loadTransferLines(db, tenantId, input.transferId);
+  const byId = new Map(existing.map((l) => [l.id, l]));
+
+  const receiveLines = input.lines.map((l) => {
+    const row = byId.get(l.lineId);
+    if (!row) throw new Error('UNKNOWN_TRANSFER_LINE');
+    assertTransferLineConservation({
+      qtySent: row.qty_sent,
+      qtyReceived: l.qtyReceived,
+      qtyShrink: l.qtyShrink,
+    });
+    assertShrinkJustified(l.qtyShrink, l.shrinkReason);
+    return {
+      productId: row.product_id,
+      qtyReceived: l.qtyReceived,
+      qtyShrink: l.qtyShrink,
+      shrinkReason: l.shrinkReason,
+      lineId: l.lineId,
+    };
+  });
+
+  const deltas = planReceiveStockDeltas({
+    destinationBranchId: xfer.to_branch_id,
+    lines: receiveLines,
+  });
+
+  const creditPlans: {
+    productId: string;
+    qty: number;
+    newPmp: number;
+    exists: boolean;
+    movementType: string;
+  }[] = [];
+
+  for (const d of deltas) {
+    if (d.movementType !== 'TRANSFER_IN' || d.qtyDelta <= 0) continue;
+    const snap = await loadStock(db, tenantId, d.branchId, d.productId);
+    const costRow = await db
+      .prepare(`SELECT cost_cents FROM products WHERE id = ? AND tenant_id = ? LIMIT 1`)
+      .bind(d.productId, tenantId)
+      .first<{ cost_cents: number }>();
+    const prevStock = snap?.stock ?? 0;
+    const prevPmp = snap?.pmp_unit_cost_cents ?? 0;
+    const inboundCost = costRow?.cost_cents ?? prevPmp;
+    const newPmp = refreshAvgCostCents({
+      previousStock: prevStock,
+      previousPmpCents: prevPmp,
+      inboundQty: d.qtyDelta,
+      inboundUnitCostCents: inboundCost,
+    });
+    creditPlans.push({
+      productId: d.productId,
+      qty: d.qtyDelta,
+      newPmp,
+      exists: Boolean(snap),
+      movementType: d.movementType,
+    });
+  }
+
+  const prevHash = await previousAuditHash(db, tenantId);
+  const varianceAudits: {
+    lineId: string;
+    productId: string;
+    qtyShrink: number;
+    reason: string | null;
+    rowHash: string;
+    payloadJson: string;
+  }[] = [];
+  for (const l of input.lines) {
+    if (l.qtyShrink <= 0) continue;
+    const row = byId.get(l.lineId)!;
+    const payload = {
+      action: 'TRANSFER_VARIANCE',
+      transferId: input.transferId,
+      lineId: l.lineId,
+      productId: row.product_id,
+      qtyShrink: l.qtyShrink,
+      reason: l.shrinkReason,
+    };
+    const payloadJson = JSON.stringify(payload);
+    varianceAudits.push({
+      lineId: l.lineId,
+      productId: row.product_id,
+      qtyShrink: l.qtyShrink,
+      reason: l.shrinkReason,
+      payloadJson,
+      rowHash: await sha256Hex(JSON.stringify({ ...payload, prev: prevHash })),
+    });
+  }
+
+  await runD1AtomicPlan(db, (plan) => {
+    plan.guardState(
+      `SELECT 1 FROM stock_transfers WHERE id = ? AND tenant_id = ? AND status = 'IN_TRANSIT'`,
+      [input.transferId, tenantId],
+    );
+    for (const l of input.lines) {
+      plan.add(
+        db
+          .prepare(
+            `UPDATE stock_transfer_lines
+             SET qty_received = ?, qty_shrink = ?, shrink_reason = ?
+             WHERE id = ? AND tenant_id = ?`,
+          )
+          .bind(l.qtyReceived, l.qtyShrink, l.shrinkReason, l.lineId, tenantId),
+      );
+    }
+    plan.add(
+      db
+        .prepare(
+          `UPDATE stock_transfers
+           SET status = 'RECEIVED', received_at = CURRENT_TIMESTAMP
+           WHERE id = ? AND tenant_id = ? AND status = 'IN_TRANSIT'`,
+        )
+        .bind(input.transferId, tenantId),
+    );
+
+    for (const c of creditPlans) {
+      addCreditStock(
+        plan,
+        db,
+        tenantId,
+        userId,
+        input.transferId,
+        xfer.to_branch_id,
+        c.productId,
+        c.qty,
+        c.newPmp,
+        c.exists,
+        c.movementType,
+      );
+    }
+
+    for (const v of varianceAudits) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO audit_events (
+                 id, tenant_id, actor_user_id, action, entity_type, entity_id,
+                 payload_json, prev_hash, row_hash
+               ) VALUES (?, ?, ?, 'TRANSFER_VARIANCE', 'stock_transfer', ?, ?, ?, ?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            tenantId,
+            userId,
+            input.transferId,
+            v.payloadJson,
+            prevHash,
+            v.rowHash,
+          ),
+      );
+    }
+  });
+
+  return { id: input.transferId, status: 'RECEIVED' };
+}
+
+export async function cancelStockTransferAtomic(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  transferId: string,
+): Promise<{ readonly id: string; readonly status: 'CANCELLED' }> {
+  const xfer = await loadTransfer(db, tenantId, transferId);
+  assertTransferTransition(xfer.status, 'CANCELLED');
+  const lines = await loadTransferLines(db, tenantId, transferId);
+  const deltas = planCancelInTransit({
+    originBranchId: xfer.from_branch_id,
+    status: xfer.status,
+    lines: lines.map((l) => ({ productId: l.product_id, quantity: l.qty_sent })),
+  });
+
+  const creditPlans: { productId: string; qty: number; newPmp: number; exists: boolean }[] = [];
+  for (const d of deltas) {
+    if (d.qtyDelta <= 0) continue;
+    const snap = await loadStock(db, tenantId, d.branchId, d.productId);
+    creditPlans.push({
+      productId: d.productId,
+      qty: d.qtyDelta,
+      newPmp: snap?.pmp_unit_cost_cents ?? 0,
+      exists: Boolean(snap),
+    });
+  }
+
+  await runD1AtomicPlan(db, (plan) => {
+    plan.guardState(
+      `SELECT 1 FROM stock_transfers WHERE id = ? AND tenant_id = ? AND status IN ('DRAFT', 'IN_TRANSIT')`,
+      [transferId, tenantId],
+    );
+    plan.add(
+      db
+        .prepare(
+          `UPDATE stock_transfers SET status = 'CANCELLED'
+           WHERE id = ? AND tenant_id = ? AND status IN ('DRAFT', 'IN_TRANSIT')`,
+        )
+        .bind(transferId, tenantId),
+    );
+    for (const c of creditPlans) {
+      addCreditStock(
+        plan,
+        db,
+        tenantId,
+        userId,
+        transferId,
+        xfer.from_branch_id,
+        c.productId,
+        c.qty,
+        c.newPmp,
+        c.exists,
+        'TRANSFER_CANCEL',
+      );
+    }
+  });
+  return { id: transferId, status: 'CANCELLED' };
+}
+
+async function loadTransfer(
+  db: D1DatabaseLike,
+  tenantId: string,
+  transferId: string,
+): Promise<TransferRow> {
+  const row = await db
+    .prepare(
+      `SELECT id, from_branch_id, to_branch_id, status
+       FROM stock_transfers WHERE id = ? AND tenant_id = ? LIMIT 1`,
+    )
+    .bind(transferId, tenantId)
+    .first<TransferRow>();
+  if (!row) throw new Error('TRANSFER_NOT_FOUND');
+  return row;
+}
+
+async function loadTransferLines(
+  db: D1DatabaseLike,
+  tenantId: string,
+  transferId: string,
+): Promise<TransferLineRow[]> {
+  const res = await db
+    .prepare(
+      `SELECT id, product_id, qty_sent FROM stock_transfer_lines
+       WHERE transfer_id = ? AND tenant_id = ?`,
+    )
+    .bind(transferId, tenantId)
+    .all<TransferLineRow>();
+  return [...(res.results ?? [])];
+}
+
+async function loadStock(
+  db: D1DatabaseLike,
+  tenantId: string,
+  branchId: string,
+  productId: string,
+): Promise<StockSnap | null> {
+  return db
+    .prepare(
+      `SELECT stock, pmp_unit_cost_cents FROM branch_product_stock
+       WHERE tenant_id = ? AND branch_id = ? AND product_id = ? LIMIT 1`,
+    )
+    .bind(tenantId, branchId, productId)
+    .first<StockSnap>();
+}
+
+function addDebitStock(
+  plan: AtomicPlanBuilder,
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  refId: string,
+  branchId: string,
+  productId: string,
+  qtyAbs: number,
+  movementType: string,
+): void {
+  plan.add(
+    db
+      .prepare(
+        `UPDATE branch_product_stock
+         SET stock = stock - ?, updated_at = CURRENT_TIMESTAMP, version = version + 1
+         WHERE tenant_id = ? AND branch_id = ? AND product_id = ? AND stock >= ?`,
+      )
+      .bind(qtyAbs, tenantId, branchId, productId, qtyAbs),
+  );
+  plan.add(
+    db
+      .prepare(
+        `INSERT INTO inventory_movements (
+             id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
+             unit_cost_cents, stock_after, user_id, reference_id
+           ) VALUES (?, ?, ?, ?, ?, ?, 0,
+             (SELECT stock FROM branch_product_stock
+              WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+             ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        tenantId,
+        branchId,
+        productId,
+        movementType,
+        -qtyAbs,
+        tenantId,
+        branchId,
+        productId,
+        userId,
+        refId,
+      ),
+  );
+}
+
+function addCreditStock(
+  plan: AtomicPlanBuilder,
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  refId: string,
+  branchId: string,
+  productId: string,
+  qty: number,
+  newPmp: number,
+  exists: boolean,
+  movementType: string,
+): void {
+  if (exists) {
+    plan.add(
+      db
+        .prepare(
+          `UPDATE branch_product_stock
+           SET stock = stock + ?, pmp_unit_cost_cents = ?,
+               updated_at = CURRENT_TIMESTAMP, version = version + 1
+           WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
+        )
+        .bind(qty, newPmp, tenantId, branchId, productId),
+    );
+  } else {
+    plan.add(
+      db
+        .prepare(
+          `INSERT INTO branch_product_stock (
+               tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents, version
+             ) VALUES (?, ?, ?, ?, ?, 1)`,
+        )
+        .bind(tenantId, branchId, productId, qty, newPmp),
+    );
+  }
+  plan.add(
+    db
+      .prepare(
+        `INSERT INTO inventory_movements (
+             id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
+             unit_cost_cents, stock_after, user_id, reference_id
+           ) VALUES (?, ?, ?, ?, ?, ?, 0,
+             (SELECT stock FROM branch_product_stock
+              WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+             ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        tenantId,
+        branchId,
+        productId,
+        movementType,
+        qty,
+        tenantId,
+        branchId,
+        productId,
+        userId,
+        refId,
+      ),
+  );
+}
+
+async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT row_hash FROM audit_events
+       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+    )
+    .bind(tenantId)
+    .first<{ row_hash: string }>();
+  return row?.row_hash ?? null;
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}

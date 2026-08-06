@@ -52,6 +52,7 @@ export class AtomicPlanBuilder {
   private readonly statements: D1Bound[] = [];
   private readonly db: D1DatabaseLike;
   private readonly guardId: string;
+  private stateGuard: { sql: string; params: readonly unknown[] } | null = null;
 
   constructor(db: D1DatabaseLike, guardId: string = crypto.randomUUID()) {
     this.db = db;
@@ -68,13 +69,33 @@ export class AtomicPlanBuilder {
   }
 
   /**
+   * Guard optimista derivado de estado (Arquitectura §6): el `ok` del
+   * atomic_guard se computa con `EXISTS(<sql>)` DENTRO del batch, contra el
+   * estado ya commiteado (el guard va primero, antes de los writes del plan).
+   * Si la precondición ya no se cumple (UPDATE condicional habría matcheado
+   * 0 filas), `ok=0` → CHECK aborta y D1 revierte TODA la secuencia,
+   * incluyendo efectos laterales. Cierra el race de doble ship/receive/
+   * cancel/settle que el guard booleano estático no veía.
+   */
+  guardState(sql: string, params: readonly unknown[]): this {
+    this.stateGuard = { sql, params };
+    return this;
+  }
+
+  /**
    * Inserta guard → statements → delete guard.
-   * Si `ok` es false, el CHECK falla y D1 revierte toda la secuencia.
+   * Si `stateGuard` está fijado, el `ok` se deriva de la SELECT y `ok` estático
+   * queda ignorado. Si `ok` es false sin stateGuard, el CHECK falla y revierte.
    */
   async commit(ok: boolean = true): Promise<readonly D1Result<unknown>[]> {
-    const guardInsert = this.db
-      .prepare(`INSERT INTO atomic_guards (id, ok) VALUES (?, ?)`)
-      .bind(this.guardId, ok ? 1 : 0);
+    const guardInsert = this.stateGuard
+      ? this.db
+          .prepare(
+            `INSERT INTO atomic_guards (id, ok)
+             SELECT ?, CASE WHEN EXISTS (${this.stateGuard.sql}) THEN 1 ELSE 0 END`,
+          )
+          .bind(this.guardId, ...this.stateGuard.params)
+      : this.db.prepare(`INSERT INTO atomic_guards (id, ok) VALUES (?, ?)`).bind(this.guardId, ok ? 1 : 0);
     const guardDelete = this.db
       .prepare(`DELETE FROM atomic_guards WHERE id = ?`)
       .bind(this.guardId);
@@ -106,3 +127,6 @@ export * from './daily-rollups-cron.js';
 export * from './sync-sales-batch.js';
 export * from './catalog-importer.js';
 export * from './process-order-billing-atomic.js';
+export * from './process-stock-transfer-atomic.js';
+export * from './process-partial-receive-atomic.js';
+export * from './process-payment-capture-atomic.js';

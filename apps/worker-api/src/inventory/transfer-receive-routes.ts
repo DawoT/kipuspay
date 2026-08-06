@@ -1,16 +1,14 @@
 /**
  * Transferencias + recepción parcial OC — Sprint 20.
+ * HTTP thin → adapters ACID (stock espejo / CxP).
  */
 import {
-  assertTransferLineConservation,
-  assertTransferTransition,
-  type TransferStatus,
-} from '@kipuspay/domain-inventory';
-import {
-  assertPurchaseOrderTransition,
-  planPartialReceive,
-  type PurchaseOrderStatus,
-} from '@kipuspay/domain-cash';
+  cancelStockTransferAtomic,
+  createStockTransferAtomic,
+  processPartialReceiveAtomic,
+  receiveStockTransferAtomic,
+  shipStockTransferAtomic,
+} from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 export function isStockTransfersEnabled(env: WorkerEnv | undefined): boolean {
@@ -37,196 +35,85 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
-type LoadTransferRowResult =
-  | { ok: true; status: TransferStatus }
-  | { ok: false; status: number; body: { error: string; code: string } };
+function mapDomainError(e: unknown): HttpResult {
+  const msg = e instanceof Error ? e.message : String(e);
+  const client =
+    msg.includes('NOT_FOUND') ||
+    msg.includes('INVALID') ||
+    msg.includes('MISMATCH') ||
+    msg.includes('REQUIRED') ||
+    msg.includes('EXCEEDS') ||
+    msg.includes('INSUFFICIENT') ||
+    msg.includes('SAME_BRANCH') ||
+    msg.includes('REQUIRES');
+  return {
+    status: client ? 422 : 500,
+    body: { error: msg, code: msg },
+  };
+}
 
-async function loadTransferRow(
-  db: D1Database,
-  transferId: string,
+export async function runCreateTransferHttp(
+  env: WorkerEnv | undefined,
   tenantId: string,
-  target: TransferStatus,
-): Promise<LoadTransferRowResult> {
-  const row = await db
-    .prepare(`SELECT status FROM stock_transfers WHERE id = ? AND tenant_id = ? LIMIT 1`)
-    .bind(transferId, tenantId)
-    .first<{ status: TransferStatus }>();
-  if (!row)
-    return { ok: false, status: 404, body: { error: 'Transfer not found', code: 'NOT_FOUND' } };
-  try {
-    assertTransferTransition(row.status, target);
-  } catch (e) {
+  userId: string,
+  body: {
+    fromBranchId?: string;
+    toBranchId?: string;
+    notes?: string | null;
+    lines?: readonly { productId?: string; qtySent?: number; batchId?: string | null }[];
+  },
+): Promise<HttpResult> {
+  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
+  if (!env?.DB) return dbUnavailable();
+  const fromBranchId = body.fromBranchId?.trim() ?? '';
+  const toBranchId = body.toBranchId?.trim() ?? '';
+  if (!fromBranchId || !toBranchId) {
     return {
-      ok: false,
-      status: 422,
-      body: { error: String(e instanceof Error ? e.message : e), code: 'TRANSFER_INVALID' },
+      status: 400,
+      body: { error: 'fromBranchId and toBranchId required', code: 'BAD_REQUEST' },
     };
   }
-  return { ok: true, status: row.status };
-}
-
-type ValidateReceiveLinesResult =
-  { ok: true } | { ok: false; status: number; body: { error: string; code: string } };
-
-function validateReceiveLines(
-  lines: readonly {
-    lineId?: string;
-    qtyReceived?: number;
-    qtyShrink?: number;
-    shrinkReason?: string | null;
-  }[],
-  qtySentById: ReadonlyMap<string, number>,
-): ValidateReceiveLinesResult {
-  for (const line of lines) {
-    const sent = qtySentById.get(line.lineId ?? '');
-    if (sent === undefined) {
-      return {
-        ok: false,
-        status: 422,
-        body: { error: 'UNKNOWN_TRANSFER_LINE', code: 'UNKNOWN_TRANSFER_LINE' },
-      };
-    }
-    try {
-      assertTransferLineConservation({
-        qtySent: sent,
-        qtyReceived: line.qtyReceived ?? 0,
-        qtyShrink: line.qtyShrink ?? 0,
-      });
-    } catch (e) {
-      return {
-        ok: false,
-        status: 422,
-        body: { error: String(e instanceof Error ? e.message : e), code: 'TRANSFER_QTY_MISMATCH' },
-      };
-    }
-    if ((line.qtyShrink ?? 0) > 0 && !(line.shrinkReason && line.shrinkReason.trim())) {
-      return {
-        ok: false,
-        status: 422,
-        body: { error: 'SHRINK_REASON_REQUIRED', code: 'SHRINK_REASON_REQUIRED' },
-      };
-    }
+  try {
+    const result = await createStockTransferAtomic(env.DB, tenantId, userId, {
+      fromBranchId,
+      toBranchId,
+      notes: body.notes ?? null,
+      lines: (body.lines ?? []).map((l) => ({
+        productId: l.productId ?? '',
+        qtySent: l.qtySent ?? 0,
+        batchId: l.batchId ?? null,
+      })),
+    });
+    return { status: 201, body: { ...result } };
+  } catch (e) {
+    return mapDomainError(e);
   }
-  return { ok: true };
-}
-
-interface PoContext {
-  status: PurchaseOrderStatus;
-  orderedQtyByProduct: ReadonlyMap<string, number>;
-  previouslyReceivedQtyByProduct: ReadonlyMap<string, number>;
-}
-
-interface NormalizedReceiveLine {
-  productId: string;
-  quantity: number;
-  unitCostCents: number;
-  batchNumber: string | null;
-  expiryDate: string | null;
-}
-
-function normalizeReceiveLines(
-  lines: readonly {
-    productId?: string;
-    quantity?: number;
-    unitCostCents?: number;
-    batchNumber?: string | null;
-    expiryDate?: string | null;
-  }[],
-): NormalizedReceiveLine[] {
-  return lines.map((l) => ({
-    productId: l.productId ?? '',
-    quantity: l.quantity ?? 0,
-    unitCostCents: l.unitCostCents ?? 0,
-    batchNumber: l.batchNumber ?? null,
-    expiryDate: l.expiryDate ?? null,
-  }));
-}
-
-function accumulateReceivedStmts(
-  db: D1Database,
-  poId: string,
-  previouslyReceived: ReadonlyMap<string, number>,
-  lines: readonly { productId?: string; quantity?: number }[],
-): D1PreparedStatement[] {
-  return lines.map((l) => {
-    const productId = l.productId ?? '';
-    const quantityReceived = (previouslyReceived.get(productId) ?? 0) + (l.quantity ?? 0);
-    return db
-      .prepare(
-        `UPDATE purchase_order_items
-         SET quantity_received = ?
-         WHERE purchase_order_id = ? AND product_id = ?`,
-      )
-      .bind(quantityReceived, poId, productId);
-  });
-}
-
-type LoadPoContextResult =
-  | { ok: true; po: PoContext }
-  | { ok: false; status: number; body: { error: string; code: string } };
-
-async function loadPoContext(
-  db: D1Database,
-  poId: string,
-  tenantId: string,
-): Promise<LoadPoContextResult> {
-  const po = await db
-    .prepare(`SELECT status FROM purchase_orders WHERE id = ? AND tenant_id = ? LIMIT 1`)
-    .bind(poId, tenantId)
-    .first<{ status: PurchaseOrderStatus }>();
-  if (!po) return { ok: false, status: 404, body: { error: 'PO not found', code: 'NOT_FOUND' } };
-
-  const poLines = await db
-    .prepare(
-      `SELECT product_id, quantity_ordered AS quantity, quantity_received, unit_cost_cents
-       FROM purchase_order_items WHERE purchase_order_id = ?`,
-    )
-    .bind(poId)
-    .all<{
-      product_id: string;
-      quantity: number;
-      quantity_received: number;
-      unit_cost_cents: number;
-    }>();
-
-  return {
-    ok: true,
-    po: {
-      status: po.status,
-      orderedQtyByProduct: new Map((poLines.results ?? []).map((l) => [l.product_id, l.quantity])),
-      previouslyReceivedQtyByProduct: new Map(
-        (poLines.results ?? []).map((l) => [l.product_id, l.quantity_received ?? 0]),
-      ),
-    },
-  };
 }
 
 export async function runShipTransferHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  userId: string,
   body: { transferId?: string },
 ): Promise<HttpResult> {
   if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
   const transferId = body.transferId?.trim() ?? '';
-  if (!transferId)
+  if (!transferId) {
     return { status: 400, body: { error: 'transferId required', code: 'BAD_REQUEST' } };
-
-  const row = await loadTransferRow(env.DB, transferId, tenantId, 'IN_TRANSIT');
-  if (!row.ok) return { status: row.status, body: row.body };
-
-  await env.DB.prepare(
-    `UPDATE stock_transfers SET status = 'IN_TRANSIT', shipped_at = CURRENT_TIMESTAMP
-     WHERE id = ? AND tenant_id = ?`,
-  )
-    .bind(transferId, tenantId)
-    .run();
-  return { status: 200, body: { id: transferId, status: 'IN_TRANSIT' } };
+  }
+  try {
+    const result = await shipStockTransferAtomic(env.DB, tenantId, userId, transferId);
+    return { status: 200, body: { ...result } };
+  } catch (e) {
+    return mapDomainError(e);
+  }
 }
 
 export async function runReceiveTransferHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  userId: string,
   body: {
     transferId?: string;
     lines?: readonly {
@@ -240,45 +127,43 @@ export async function runReceiveTransferHttp(
   if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
   const transferId = body.transferId?.trim() ?? '';
-  if (!transferId)
+  if (!transferId) {
     return { status: 400, body: { error: 'transferId required', code: 'BAD_REQUEST' } };
+  }
+  try {
+    const result = await receiveStockTransferAtomic(env.DB, tenantId, userId, {
+      transferId,
+      lines: (body.lines ?? []).map((l) => ({
+        lineId: l.lineId ?? '',
+        qtyReceived: l.qtyReceived ?? 0,
+        qtyShrink: l.qtyShrink ?? 0,
+        shrinkReason: l.shrinkReason ?? null,
+      })),
+    });
+    return { status: 200, body: { ...result } };
+  } catch (e) {
+    return mapDomainError(e);
+  }
+}
 
-  const row = await loadTransferRow(env.DB, transferId, tenantId, 'RECEIVED');
-  if (!row.ok) return { status: row.status, body: row.body };
-
-  const dbLines = await env.DB.prepare(
-    `SELECT id, qty_sent FROM stock_transfer_lines WHERE transfer_id = ? AND tenant_id = ?`,
-  )
-    .bind(transferId, tenantId)
-    .all<{ id: string; qty_sent: number }>();
-
-  const byId = new Map((dbLines.results ?? []).map((l) => [l.id, l.qty_sent]));
-  const validated = validateReceiveLines(body.lines ?? [], byId);
-  if (!validated.ok) return { status: validated.status, body: validated.body };
-
-  const stmts = [
-    ...(body.lines ?? []).map((line) =>
-      env
-        .DB!.prepare(
-          `UPDATE stock_transfer_lines
-         SET qty_received = ?, qty_shrink = ?, shrink_reason = ?
-         WHERE id = ? AND tenant_id = ?`,
-        )
-        .bind(
-          line.qtyReceived ?? 0,
-          line.qtyShrink ?? 0,
-          line.shrinkReason ?? null,
-          line.lineId,
-          tenantId,
-        ),
-    ),
-    env.DB.prepare(
-      `UPDATE stock_transfers SET status = 'RECEIVED', received_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND tenant_id = ?`,
-    ).bind(transferId, tenantId),
-  ];
-  await env.DB.batch(stmts);
-  return { status: 200, body: { id: transferId, status: 'RECEIVED' } };
+export async function runCancelTransferHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  userId: string,
+  body: { transferId?: string },
+): Promise<HttpResult> {
+  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
+  if (!env?.DB) return dbUnavailable();
+  const transferId = body.transferId?.trim() ?? '';
+  if (!transferId) {
+    return { status: 400, body: { error: 'transferId required', code: 'BAD_REQUEST' } };
+  }
+  try {
+    const result = await cancelStockTransferAtomic(env.DB, tenantId, userId, transferId);
+    return { status: 200, body: { ...result } };
+  } catch (e) {
+    return mapDomainError(e);
+  }
 }
 
 export async function runPartialReceivePoHttp(
@@ -307,77 +192,72 @@ export async function runPartialReceivePoHttp(
       body: { error: 'purchaseOrderId and branchId required', code: 'BAD_REQUEST' },
     };
   }
-
-  const ctx = await loadPoContext(env.DB, poId, tenantId);
-  if (!ctx.ok) return { status: ctx.status, body: ctx.body };
-
-  const receiveLines = normalizeReceiveLines(body.lines ?? []);
-
-  let plan;
   try {
-    plan = planPartialReceive({
+    const result = await processPartialReceiveAtomic(env.DB, tenantId, userId, {
       purchaseOrderId: poId,
-      currentStatus: ctx.po.status,
-      orderedQtyByProduct: ctx.po.orderedQtyByProduct,
-      previouslyReceivedQtyByProduct: ctx.po.previouslyReceivedQtyByProduct,
-      lines: receiveLines.map((l) => ({
-        productId: l.productId,
-        quantity: l.quantity,
-        unitCostCents: l.unitCostCents,
+      branchId,
+      lines: (body.lines ?? []).map((l) => ({
+        productId: l.productId ?? '',
+        quantity: l.quantity ?? 0,
+        unitCostCents: l.unitCostCents ?? 0,
+        batchNumber: l.batchNumber ?? null,
+        expiryDate: l.expiryDate ?? null,
       })),
     });
-    assertPurchaseOrderTransition(ctx.po.status, plan.nextStatus);
+    return { status: 200, body: { ...result } };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return { status: 422, body: { error: msg, code: msg } };
+    return mapDomainError(e);
   }
+}
 
-  const receiptId = crypto.randomUUID();
-  const stmts = [
-    env.DB.prepare(
-      `INSERT INTO purchase_receipts (
-           id, tenant_id, purchase_order_id, branch_id, received_by_user_id
-         ) VALUES (?, ?, ?, ?, ?)`,
-    ).bind(receiptId, tenantId, poId, branchId, userId),
-    ...receiveLines.map((l) =>
-      env
-        .DB!.prepare(
-          `INSERT INTO purchase_receipt_lines (
-             id, tenant_id, receipt_id, product_id, batch_number, expiry_date, quantity, unit_cost_cents
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          crypto.randomUUID(),
-          tenantId,
-          receiptId,
-          l.productId,
-          l.batchNumber,
-          l.expiryDate,
-          l.quantity,
-          l.unitCostCents,
-        ),
-    ),
-    ...accumulateReceivedStmts(
-      env.DB,
-      poId,
-      ctx.po.previouslyReceivedQtyByProduct,
-      body.lines ?? [],
-    ),
-    env.DB.prepare(`UPDATE purchase_orders SET status = ? WHERE id = ? AND tenant_id = ?`).bind(
-      plan.nextStatus,
-      poId,
-      tenantId,
-    ),
-  ];
-  await env.DB.batch(stmts);
+export async function runOwnerPendingTransfersHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+): Promise<HttpResult> {
+  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
+  if (!env?.DB) return dbUnavailable();
+
+  const pending = await env.DB.prepare(
+    `SELECT id, from_branch_id, to_branch_id, status, shipped_at, created_by_user_id
+     FROM stock_transfers
+     WHERE tenant_id = ? AND status = 'IN_TRANSIT'
+     ORDER BY shipped_at ASC`,
+  )
+    .bind(tenantId)
+    .all<{
+      id: string;
+      from_branch_id: string;
+      to_branch_id: string;
+      status: string;
+      shipped_at: string | null;
+      created_by_user_id: string;
+    }>();
+
+  const discrepancies = await env.DB.prepare(
+    `SELECT t.id AS transfer_id, l.id AS line_id, l.product_id, l.qty_sent,
+            l.qty_received, l.qty_shrink, l.shrink_reason
+     FROM stock_transfer_lines l
+     JOIN stock_transfers t ON t.id = l.transfer_id AND t.tenant_id = l.tenant_id
+     WHERE l.tenant_id = ? AND t.status = 'RECEIVED' AND l.qty_shrink > 0
+     ORDER BY t.received_at DESC
+     LIMIT 50`,
+  )
+    .bind(tenantId)
+    .all<{
+      transfer_id: string;
+      line_id: string;
+      product_id: string;
+      qty_sent: number;
+      qty_received: number;
+      qty_shrink: number;
+      shrink_reason: string | null;
+    }>();
 
   return {
     status: 200,
     body: {
-      receiptId,
-      purchaseOrderId: poId,
-      nextStatus: plan.nextStatus,
-      apAmountCents: plan.apAmountCents,
+      pending: pending.results ?? [],
+      discrepancies: discrepancies.results ?? [],
     },
   };
 }

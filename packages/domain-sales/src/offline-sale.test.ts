@@ -27,6 +27,29 @@ describe('assertOfflineSaleShape', () => {
     expect(() => assertOfflineSaleShape(basePayload())).not.toThrow();
   });
 
+  it('rechaza captureStatus inválido', () => {
+    const badPay = {
+      paymentMethodId: 'pm1',
+      amountCents: 100,
+      captureStatus: 'BOGUS',
+    };
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        payments: [badPay as OfflineSalePayload['payments'][number]],
+      }),
+    ).toThrow(/INVALID_CAPTURE_STATUS/);
+  });
+
+  it('acepta captureStatus MANUAL', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        payments: [{ paymentMethodId: 'pm1', amountCents: 100, captureStatus: 'MANUAL' }],
+      }),
+    ).not.toThrow();
+  });
+
   it('rechaza campos de cabecera vacíos', () => {
     expect(() => assertOfflineSaleShape({ ...basePayload(), offlineSaleId: '' })).toThrow(
       /MISSING_OFFLINE_SALE_ID/,

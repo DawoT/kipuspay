@@ -12,6 +12,10 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_REPORTING_CATALOG', '');
     vi.stubEnv('PUBLIC_FEATURE_REPORTING_EXPORT', '');
     vi.stubEnv('PUBLIC_FEATURE_ORDERS_KDS', '');
+    vi.stubEnv('PUBLIC_FEATURE_STOCK_TRANSFERS', '');
+    vi.stubEnv('PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'PAYMENTS_QR_WALLETS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'PAYMENTS_CARD_ACQUIRER', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -23,6 +27,10 @@ describe('features flags default off', () => {
     expect(mod.isReportingCatalogEnabled()).toBe(false);
     expect(mod.isReportingExportEnabled()).toBe(false);
     expect(mod.isOrdersKdsEnabled()).toBe(false);
+    expect(mod.isStockTransfersEnabled()).toBe(false);
+    expect(mod.isPartialReceiveEnabled()).toBe(false);
+    expect(mod.isPaymentsQrWalletsEnabled()).toBe(false);
+    expect(mod.isPaymentsCardAcquirerEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

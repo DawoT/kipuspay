@@ -52,6 +52,14 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_REPORTING_EXPORT?: string;
   /** Sprint 21: importador de catálogo Bsale/Alegra/CSV (FASE 7 §5.4). */
   readonly FEATURE_CATALOG_IMPORT?: string;
+  /** Sprint 22 — cobro local wallets / tarjeta. */
+  readonly FEATURE_PAYMENTS_QR_WALLETS?: string;
+  readonly FEATURE_PAYMENTS_CARD_ACQUIRER?: string;
+  readonly YAPE_WEBHOOK_SECRET?: string;
+  readonly PLIN_WEBHOOK_SECRET?: string;
+  readonly MP_WEBHOOK_SECRET?: string;
+  readonly CULQI_WEBHOOK_SECRET?: string;
+  readonly NIUBIZ_WEBHOOK_SECRET?: string;
   readonly CPE_PORTAL_SECRET?: string;
   /** Sprint 19 — KDS WebSocket hub (ADR-0013). */
   readonly BRANCH_KDS_HUB_DO?: ControlPlaneEnv['TENANT_STATE_DO'];

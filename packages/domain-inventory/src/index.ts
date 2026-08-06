@@ -236,8 +236,13 @@ export function assertTransferLineConservation(line: TransferLineBalance): void 
   if (Math.abs(sum - line.qtySent) > 1e-9) {
     throw new Error('TRANSFER_QTY_MISMATCH');
   }
-  if (line.qtyShrink > 0) {
-    // caller must supply reason + audit TRANSFER_VARIANCE
+}
+
+/** Merma en tránsito exige justificación (audit TRANSFER_VARIANCE en adapter). */
+export function assertShrinkJustified(qtyShrink: number, shrinkReason: string | null): void {
+  if (!(qtyShrink > 0)) return;
+  if (!(shrinkReason && shrinkReason.trim())) {
+    throw new Error('SHRINK_REASON_REQUIRED');
   }
 }
 
@@ -252,6 +257,108 @@ export function assertTransferTransition(from: TransferStatus, to: TransferStatu
   if (!TRANSFER_TRANSITIONS[from].includes(to)) {
     throw new Error(`TRANSFER_INVALID:${from}->${to}`);
   }
+}
+
+export interface TransferStockLine {
+  readonly productId: string;
+  readonly quantity: number;
+}
+
+export interface TransferStockDelta {
+  readonly branchId: string;
+  readonly productId: string;
+  readonly qtyDelta: number;
+  readonly movementType: 'TRANSFER_OUT' | 'TRANSFER_IN' | 'TRANSFER_SHRINK' | 'TRANSFER_CANCEL';
+}
+
+/** Ship DRAFT→IN_TRANSIT: debit stock en origen. */
+export function planShipStockDeltas(input: {
+  readonly originBranchId: string;
+  readonly lines: readonly TransferStockLine[];
+}): TransferStockDelta[] {
+  return aggregateTransferDeltas(input.originBranchId, input.lines, -1, 'TRANSFER_OUT');
+}
+
+/** Receive: credit destino por received; shrink no entra a destino. */
+export function planReceiveStockDeltas(input: {
+  readonly destinationBranchId: string;
+  readonly lines: readonly {
+    readonly productId: string;
+    readonly qtyReceived: number;
+    readonly qtyShrink: number;
+    readonly shrinkReason: string | null;
+  }[];
+}): TransferStockDelta[] {
+  const deltas: TransferStockDelta[] = [];
+  for (const line of input.lines) {
+    assertShrinkJustified(line.qtyShrink, line.shrinkReason);
+    if (line.qtyReceived > 0) {
+      deltas.push({
+        branchId: input.destinationBranchId,
+        productId: line.productId,
+        qtyDelta: line.qtyReceived,
+        movementType: 'TRANSFER_IN',
+      });
+    }
+    if (line.qtyShrink > 0) {
+      deltas.push({
+        branchId: input.destinationBranchId,
+        productId: line.productId,
+        qtyDelta: 0,
+        movementType: 'TRANSFER_SHRINK',
+      });
+    }
+  }
+  return mergeTransferDeltas(deltas);
+}
+
+/** Cancel IN_TRANSIT: devolver qty_sent al origen. */
+export function planCancelInTransit(input: {
+  readonly originBranchId: string;
+  readonly status: TransferStatus;
+  readonly lines: readonly TransferStockLine[];
+}): TransferStockDelta[] {
+  assertTransferTransition(input.status, 'CANCELLED');
+  if (input.status !== 'IN_TRANSIT') {
+    // DRAFT cancel = no stock restore
+    return [];
+  }
+  return aggregateTransferDeltas(input.originBranchId, input.lines, 1, 'TRANSFER_CANCEL');
+}
+
+function aggregateTransferDeltas(
+  branchId: string,
+  lines: readonly TransferStockLine[],
+  sign: 1 | -1,
+  movementType: TransferStockDelta['movementType'],
+): TransferStockDelta[] {
+  const byProduct = new Map<string, number>();
+  for (const line of lines) {
+    if (!(line.quantity > 0) || !Number.isFinite(line.quantity)) {
+      throw new Error('INVALID_TRANSFER_QTY');
+    }
+    byProduct.set(line.productId, (byProduct.get(line.productId) ?? 0) + line.quantity);
+  }
+  return [...byProduct.entries()].map(([productId, qty]) => ({
+    branchId,
+    productId,
+    qtyDelta: sign * qty,
+    movementType,
+  }));
+}
+
+function mergeTransferDeltas(deltas: readonly TransferStockDelta[]): TransferStockDelta[] {
+  const map = new Map<string, TransferStockDelta>();
+  for (const d of deltas) {
+    const key = `${d.branchId}|${d.productId}|${d.movementType}`;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, d);
+      continue;
+    }
+    map.set(key, { ...prev, qtyDelta: prev.qtyDelta + d.qtyDelta });
+  }
+  return [...map.values()];
 }
 
 /** Conteo físico (Arquitectura §5.3) — hoja ciega → review → approve. */

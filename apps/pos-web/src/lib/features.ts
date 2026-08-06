@@ -53,3 +53,23 @@ export function isInventoryOpsEnabled(): boolean {
 export function isOrdersKdsEnabled(): boolean {
   return flagOn(import.meta.env.PUBLIC_FEATURE_ORDERS_KDS as string | undefined);
 }
+
+/** Sprint 20 — transferencias entre sucursales. */
+export function isStockTransfersEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_STOCK_TRANSFERS as string | undefined);
+}
+
+/** Sprint 20 — recepción parcial OC. */
+export function isPartialReceiveEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE as string | undefined);
+}
+
+/** Sprint 22 — wallets QR en caja. */
+export function isPaymentsQrWalletsEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_PAYMENTS_QR_WALLETS as string | undefined);
+}
+
+/** Sprint 22 — tarjeta Culqi/Niubiz en caja. */
+export function isPaymentsCardAcquirerEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_PAYMENTS_CARD_ACQUIRER as string | undefined);
+}

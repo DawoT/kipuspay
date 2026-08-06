@@ -39,10 +39,19 @@ import {
   runSplitBillHttp,
 } from './orders/order-routes.js';
 import {
+  runCancelTransferHttp,
+  runCreateTransferHttp,
+  runOwnerPendingTransfersHttp,
   runPartialReceivePoHttp,
   runReceiveTransferHttp,
   runShipTransferHttp,
 } from './inventory/transfer-receive-routes.js';
+import {
+  runOwnerUncapturedPaymentsHttp,
+  runPaymentCaptureGetHttp,
+  runPaymentChargeHttp,
+  runPaymentWebhookHttp,
+} from './payments/payment-routes.js';
 import {
   runApproveCountHttp,
   runApproveStockLossHttp,
@@ -321,22 +330,50 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // Sprint 20 — transferencias / recepción parcial
+  app.post('/api/inventory/transfers', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateTransferHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
+  });
   app.post('/api/inventory/transfers/ship', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runShipTransferHttp(
       c.env,
       jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
   app.post('/api/inventory/transfers/receive', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runReceiveTransferHttp(
       c.env,
       jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/transfers/cancel', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCancelTransferHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
@@ -352,6 +389,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/transfers/pending', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerPendingTransfersHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
   });
 
   // Sprint 18 — conteo / merma / alertas stock
@@ -523,6 +565,28 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 404 | 503);
   });
 
+  // Sprint 22 — cobro local POS (no confundir con Stripe billing SaaS)
+  app.post('/api/payments/charge', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runPaymentChargeHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.get('/api/payments/captures/:id', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runPaymentCaptureGetHttp(c.env, jwt?.tenantId ?? '', c.req.param('id'));
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+  app.get('/api/owner/payments/uncaptured', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerUncapturedPaymentsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
   // Sprint 21 — importación de catálogo Bsale/Alegra/CSV (FEATURE_CATALOG_IMPORT, FASE 7 §5.4)
   app.post('/api/integrations/catalog-import', async (c) => {
     const jwt = c.get('jwt');
@@ -618,7 +682,37 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 422);
   });
 
-  // Stripe webhooks: raw body + firma; sin JWT (Arquitectura §4).
+  // POS acquirer webhooks (Sprint 22) — distinct from Stripe SaaS billing.
+  // Fuera de /api/* (sin JWT) y con ventana anti-replay fail-closed: el
+  // header x-kipus-timestamp es OBLIGATORIO (nunca se auto-satisface).
+  app.post('/v1/webhooks/payments/:acquirer', async (c) => {
+    const rawBody = await c.req.text();
+    const signatureHeader = c.req.header('x-kipus-signature') ?? '';
+    const tsHeader = c.req.header('x-kipus-timestamp');
+    if (tsHeader === undefined || tsHeader === null || tsHeader.trim() === '') {
+      return c.json(
+        { error: 'MISSING_WEBHOOK_TIMESTAMP', code: 'MISSING_WEBHOOK_TIMESTAMP' },
+        400,
+      );
+    }
+    const timestampSec = Number(tsHeader);
+    if (!Number.isFinite(timestampSec)) {
+      return c.json(
+        // eslint-disable-next-line no-secrets/no-secrets -- código de error, no un secret
+        { error: 'INVALID_WEBHOOK_TIMESTAMP', code: 'INVALID_WEBHOOK_TIMESTAMP' },
+        400,
+      );
+    }    const result = await runPaymentWebhookHttp(
+      c.env,
+      c.req.param('acquirer'),
+      rawBody,
+      signatureHeader,
+      timestampSec,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+
+  // Stripe webhooks: raw body + firma; sin JWT (Arquitectura §4). Billing SaaS only.
   app.post('/v1/webhooks/stripe', async (c) => {
     const rawBody = await c.req.text();
     const signatureHeader = c.req.header('stripe-signature') ?? undefined;

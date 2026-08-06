@@ -23,6 +23,8 @@ export interface ChargeContext {
   readonly clientName: string;
   readonly paymentMethodId: string;
   readonly documentTypeOverride?: 'NV' | 'NV_RETURN' | '01' | '03' | undefined;
+  /** §5.4 edge 2B: MANUAL cuando offline + wallet sin red. */
+  readonly captureStatus?: 'API' | 'MANUAL' | undefined;
 }
 
 export interface ChargeResult {
@@ -115,7 +117,13 @@ export async function chargeCartOffline(
     clientDocumentNumber: ctx.clientDocumentNumber || '00000000',
     clientName: ctx.clientName || 'Cliente',
     items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
-    payments: [{ paymentMethodId: ctx.paymentMethodId, amountCents: totalCents }],
+    payments: [
+      {
+        paymentMethodId: ctx.paymentMethodId,
+        amountCents: totalCents,
+        ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
+      },
+    ],
   };
 
   await queue.enqueue(payload);

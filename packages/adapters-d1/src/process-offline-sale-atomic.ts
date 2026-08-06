@@ -31,6 +31,13 @@ import {
   planCreateAr,
 } from '@kipuspay/domain-cash';
 import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
+import {
+  assertOfflineCapturePolicy,
+  buildCaptureIdempotencyKey,
+  isPaymentMethodCode,
+  methodCodeToAcquirer,
+  type PaymentMethodCode,
+} from '@kipuspay/domain-integrations';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
@@ -386,6 +393,33 @@ export async function processOfflineSaleAtomic(
 
   const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
   if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
+
+  // S22: resolve payment_methods.code + edge 2B capture policy (preflight).
+  const methodCodeById = new Map<string, PaymentMethodCode | null>();
+  for (const pay of payload.payments) {
+    if (methodCodeById.has(pay.paymentMethodId)) continue;
+    const pm = await db
+      .prepare(
+        `SELECT code FROM payment_methods
+         WHERE tenant_id = ? AND id = ? AND is_active = 1 LIMIT 1`,
+      )
+      .bind(tenantId, pay.paymentMethodId)
+      .first<{ code: string }>();
+    if (!pm) throw new Error('PAYMENT_METHOD_NOT_FOUND');
+    methodCodeById.set(pay.paymentMethodId, isPaymentMethodCode(pm.code) ? pm.code : null);
+  }
+  for (let i = 0; i < payload.payments.length; i++) {
+    const pay = payload.payments[i]!;
+    const code = methodCodeById.get(pay.paymentMethodId);
+    if (pay.captureStatus && !code) throw new Error('INVALID_PAYMENT_METHOD_CODE');
+    if (code) {
+      assertOfflineCapturePolicy({
+        methodCode: code,
+        captureStatus: pay.captureStatus ?? null,
+        online: false,
+      });
+    }
+  }
 
   const docType = payload.documentType as DocumentTypeCode;
   assertEmissionAllowed({
@@ -932,7 +966,9 @@ export async function processOfflineSaleAtomic(
         }
       }
 
-      for (const pay of payload.payments) {
+      for (let paymentIndex = 0; paymentIndex < payload.payments.length; paymentIndex++) {
+        const pay = payload.payments[paymentIndex]!;
+        const salePaymentId = crypto.randomUUID();
         plan.add(
           db
             .prepare(
@@ -941,7 +977,7 @@ export async function processOfflineSaleAtomic(
                  ) VALUES (?, ?, ?, ?, ?, ?)`,
             )
             .bind(
-              crypto.randomUUID(),
+              salePaymentId,
               tenantId,
               saleId,
               pay.paymentMethodId,
@@ -949,6 +985,31 @@ export async function processOfflineSaleAtomic(
               pay.referenceNumber ?? null,
             ),
         );
+        // §5.4 edge 2B: MANUAL_ELECTRONIC_CAPTURE en la misma batch (nunca inventa CAPTURED).
+        if (pay.captureStatus === 'MANUAL') {
+          const code = methodCodeById.get(pay.paymentMethodId);
+          const acquirer = code ? methodCodeToAcquirer(code) : null;
+          if (!acquirer) throw new Error('MANUAL_CAPTURE_REQUIRES_ACQUIRER');
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO payment_captures (
+                     id, tenant_id, sale_id, sale_payment_id, acquirer, acquirer_ref,
+                     status, amount_cents, idempotency_key
+                   ) VALUES (?, ?, ?, ?, ?, ?, 'MANUAL_ELECTRONIC_CAPTURE', ?, ?)`,
+              )
+              .bind(
+                crypto.randomUUID(),
+                tenantId,
+                saleId,
+                salePaymentId,
+                acquirer,
+                pay.referenceNumber ?? null,
+                pay.amountCents,
+                buildCaptureIdempotencyKey(payload.offlineSaleId, paymentIndex, code!),
+              ),
+          );
+        }
         // DAT-05: crédito → CxC en la MISMA tx (mismo db.batch).
         if (ledgerOn && pay.isCredit === true && customerId) {
           const ar = planCreateAr({

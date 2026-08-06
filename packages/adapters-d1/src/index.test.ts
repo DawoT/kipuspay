@@ -94,4 +94,16 @@ describe('runD1AtomicPlan / AtomicPlanBuilder', () => {
     const stmts = batch.mock.calls[0]![0] as Array<{ sql: string }>;
     expect(stmts[0]!.sql).toMatch(/INSERT INTO atomic_guards/);
   });
+
+  it('guardState deriva el ok del estado DENTRO del batch (SELECT CASE WHEN EXISTS)', async () => {
+    const { db, batch } = fakeDb();
+    const plan = new AtomicPlanBuilder(db, 'g-state');
+    plan.guardState(`SELECT 1 FROM stock_transfers WHERE id = ? AND status = 'DRAFT'`, ['tr1']);
+    plan.add(db.prepare('UPDATE stock_transfers SET status = ?').bind('IN_TRANSIT'));
+    await plan.commit();
+    const stmts = batch.mock.calls[0]![0] as Array<{ sql: string }>;
+    expect(stmts[0]!.sql).toMatch(/INSERT INTO atomic_guards/);
+    expect(stmts[0]!.sql).toMatch(/SELECT \?, CASE WHEN EXISTS/);
+    expect(stmts[0]!.sql).toMatch(/status = 'DRAFT'/);
+  });
 });

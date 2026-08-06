@@ -1,6 +1,17 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0015_SPRINT22_PAYMENT_CAPTURES = `
+DROP INDEX IF EXISTS idx_payment_captures_sale;
+DROP INDEX IF EXISTS idx_payment_captures_tenant_status;
+DROP TABLE IF EXISTS payment_captures;
+DELETE FROM schema_meta WHERE key = 'payment_captures.sprint22';
+`;
+
+export const DOWN_0014_SPRINT20_PO_PARTIAL = `
+DELETE FROM schema_meta WHERE key = 'purchase_orders.status.partially_received';
+`;
+
 export const DOWN_0013_CATALOG_IMPORT = `
 DROP TABLE IF EXISTS external_entity_map;
 `;

@@ -1,6 +1,9 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { runBatch, runD1AtomicPlan } from './index.js';
+import { createStockTransferAtomic, shipStockTransferAtomic } from './process-stock-transfer-atomic.js';
+import { processPartialReceiveAtomic } from './process-partial-receive-atomic.js';
+import { createPendingCaptureAtomic, settleCaptureAtomic } from './process-payment-capture-atomic.js';
 import {
   DOWN_0000_SCHEMA_META,
   DOWN_0001_DDL_BASE,
@@ -15,11 +18,15 @@ import {
   DOWN_0010_REFERRALS_BRAND_GROWTH,
   DOWN_0011_FASE6_COMMERCIAL_OPS,
   DOWN_0013_CATALOG_IMPORT,
+  DOWN_0014_SPRINT20_PO_PARTIAL,
+  DOWN_0015_SPRINT22_PAYMENT_CAPTURES,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
 import atomicGuardsSql from '../migrations/0003_atomic_guards.sql?raw';
 import catalogImportSql from '../migrations/0013_catalog_import.sql?raw';
+import sprint20PoSql from '../migrations/0014_sprint20_po_partial_status.sql?raw';
+import sprint22PaymentsSql from '../migrations/0015_sprint22_payment_captures.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -340,7 +347,326 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     ).rejects.toThrow();
   });
 
+  it('migración 0014 up: purchase_orders.status acepta PARTIALLY_RECEIVED (runtime)', async () => {
+    expect(sprint20PoSql).toMatch(/purchase_orders\.status\.partially_received/i);
+
+    const { branchId, userId } = await seedTenantBranchSession('t-po-up');
+    await env.DB.prepare(
+      `INSERT INTO suppliers (id, tenant_id, ruc, business_name)
+       VALUES (?, ?, ?, ?)`,
+    )
+      .bind('sup-po-up', 't-po-up', '20123456789', 'Proveedor A')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO purchase_orders (
+         id, tenant_id, branch_id, supplier_id, status, total_amount_cents,
+         currency_code, created_by_user_id
+       ) VALUES (?, ?, ?, ?, 'PARTIALLY_RECEIVED', ?, ?, ?)`,
+    )
+      .bind('po-up', 't-po-up', branchId, 'sup-po-up', 0, 'PEN', userId)
+      .run();
+
+    const row = await env.DB.prepare(
+      `SELECT status FROM purchase_orders WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind('po-up', 't-po-up')
+      .first<{ status: string }>();
+    expect(row?.status).toBe('PARTIALLY_RECEIVED');
+  });
+
+  it('migración 0015 up: payment_captures con CHECKs + UNIQUE(idempotency_key) en runtime', async () => {
+    expect(sprint22PaymentsSql).toMatch(/CREATE TABLE IF NOT EXISTS payment_captures/);
+    expect(sprint22PaymentsSql).toMatch(
+      /CHECK\s*\(\s*status\s+IN\s*\(\s*'PENDING'\s*,\s*'CAPTURED'\s*,\s*'FAILED'\s*,\s*'REFUNDED'\s*,\s*'MANUAL_ELECTRONIC_CAPTURE'\s*\)\s*\)/i,
+    );
+    expect(sprint22PaymentsSql).toMatch(/UNIQUE\s*\(\s*tenant_id\s*,\s*idempotency_key\s*\)/i);
+
+    const { branchId, sessionId, userId } = await seedTenantBranchSession('t-capt-up');
+    await env.DB.prepare(
+      `INSERT INTO payment_methods (id, tenant_id, code, name)
+       VALUES (?, ?, 'yape', 'Yape')`,
+    )
+      .bind('pm-up', 't-capt-up')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, currency, total_amount_cents, issued_at_lima
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        'sale-up',
+        't-capt-up',
+        branchId,
+        sessionId,
+        userId,
+        '1',
+        '00000000',
+        'Cliente',
+        '03',
+        'B001',
+        1,
+        'PEN',
+        1000,
+        '2026-08-04T10:00:00',
+      )
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO sale_payments (id, tenant_id, sale_id, payment_method_id, amount_cents)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind('sp-up', 't-capt-up', 'sale-up', 'pm-up', 1000)
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO payment_captures (
+         id, tenant_id, sale_id, sale_payment_id, acquirer, status, amount_cents, idempotency_key
+       ) VALUES (?, ?, ?, ?, 'yape', 'PENDING', ?, ?)`,
+    )
+      .bind('cap-up', 't-capt-up', 'sale-up', 'sp-up', 1000, 'k-up')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO payment_captures (
+           id, tenant_id, sale_id, sale_payment_id, acquirer, status, amount_cents, idempotency_key
+         ) VALUES (?, ?, ?, ?, 'yape', 'BOGUS', ?, ?)`,
+      )
+        .bind('cap-bad', 't-capt-up', 'sale-up', 'sp-up', 1000, 'k-up-2')
+        .run(),
+    ).rejects.toThrow();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO payment_captures (
+           id, tenant_id, sale_id, sale_payment_id, acquirer, status, amount_cents, idempotency_key
+         ) VALUES (?, ?, ?, ?, 'yape', 'PENDING', ?, ?)`,
+      )
+        .bind('cap-dup', 't-capt-up', 'sale-up', 'sp-up', 1000, 'k-up')
+        .run(),
+    ).rejects.toThrow();
+
+    const row = await env.DB.prepare(
+      `SELECT status FROM payment_captures WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind('cap-up', 't-capt-up')
+      .first<{ status: string }>();
+    expect(row?.status).toBe('PENDING');
+  });
+
+  it('C2: doble ship concurrente sobre el mismo DRAFT → un solo débito (guardState)', async () => {
+    const { branchId } = await seedTenantBranchSession('t-c2-race');
+    const branchTo = `bt-${'t-c2-race'}`;
+    const userId = `u-${'t-c2-race'}`;
+
+    await env.DB.prepare(
+      `INSERT INTO branches (id, tenant_id, code, name, address)
+       VALUES (?, ?, 'C02', 'Destino', 'Lima')`,
+    )
+      .bind(branchTo, 't-c2-race')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO products (
+         id, tenant_id, sku, name, product_type, unit_code, price_cents, cost_cents
+       ) VALUES (?, ?, ?, ?, 'physical', 'NIU', ?, ?)`,
+    )
+      .bind('p-c2', 't-c2-race', 'SKU-C2', 'Producto C2', 1000, 500)
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind('t-c2-race', branchId, 'p-c2', 10, 500)
+      .run();
+
+    const created = await createStockTransferAtomic(env.DB, 't-c2-race', userId, {
+      fromBranchId: branchId,
+      toBranchId: branchTo,
+      lines: [{ productId: 'p-c2', qtySent: 3 }],
+    });
+
+    const ships = await Promise.allSettled([
+      shipStockTransferAtomic(env.DB, 't-c2-race', userId, created.id),
+      shipStockTransferAtomic(env.DB, 't-c2-race', userId, created.id),
+    ]);
+
+    const fulfilled = ships.filter((r) => r.status === 'fulfilled').length;
+    const rejected = ships.filter((r) => r.status === 'rejected').length;
+    expect(fulfilled).toBe(1);
+    expect(rejected).toBe(1);
+
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock
+       WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
+    )
+      .bind('t-c2-race', branchId, 'p-c2')
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(7);
+
+    const xfer = await env.DB.prepare(
+      `SELECT status FROM stock_transfers WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(created.id, 't-c2-race')
+      .first<{ status: string }>();
+    expect(xfer?.status).toBe('IN_TRANSIT');
+  });
+
+  it('M1: recepción parcial OC con D1 real → PARTIALLY_RECEIVED + AP + stock', async () => {
+    const { branchId, userId } = await seedTenantBranchSession('t-m1-po');
+    await env.DB.prepare(
+      `INSERT INTO suppliers (id, tenant_id, ruc, business_name)
+       VALUES (?, ?, ?, ?)`,
+    )
+      .bind('sup-m1', 't-m1-po', '20123456789', 'Proveedor M1')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO purchase_orders (
+         id, tenant_id, branch_id, supplier_id, status, total_amount_cents,
+         currency_code, created_by_user_id
+       ) VALUES (?, ?, ?, ?, 'SENT', ?, 'PEN', ?)`,
+    )
+      .bind('po-m1', 't-m1-po', branchId, 'sup-m1', 0, userId)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO purchase_order_items (
+         id, purchase_order_id, product_id, quantity_ordered, quantity_received, unit_cost_cents
+       ) VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+      .bind('poi-m1', 'po-m1', 'p-m1', 10, 0, 100)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO products (
+         id, tenant_id, sku, name, product_type, unit_code, price_cents, cost_cents
+       ) VALUES (?, ?, ?, ?, 'physical', 'NIU', ?, ?)`,
+    )
+      .bind('p-m1', 't-m1-po', 'SKU-M1', 'Producto M1', 1000, 500)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents)
+       VALUES (?, ?, ?, 0, 0)`,
+    )
+      .bind('t-m1-po', branchId, 'p-m1')
+      .run();
+
+    const res = await processPartialReceiveAtomic(env.DB, 't-m1-po', userId, {
+      purchaseOrderId: 'po-m1',
+      branchId,
+      lines: [{ productId: 'p-m1', quantity: 4, unitCostCents: 100 }],
+    });
+
+    expect(res.nextStatus).toBe('PARTIALLY_RECEIVED');
+    expect(res.apAmountCents).toBe(400);
+
+    const po = await env.DB.prepare(`SELECT status FROM purchase_orders WHERE id = ?`)
+      .bind('po-m1')
+      .first<{ status: string }>();
+    expect(po?.status).toBe('PARTIALLY_RECEIVED');
+
+    const ap = await env.DB.prepare(
+      `SELECT original_amount_cents, balance_due_cents, status FROM accounts_payable WHERE id = ?`,
+    )
+      .bind(res.apId)
+      .first<{ original_amount_cents: number; balance_due_cents: number; status: string }>();
+    expect(ap?.original_amount_cents).toBe(400);
+    expect(ap?.balance_due_cents).toBe(400);
+    expect(ap?.status).toBe('OPEN');
+
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock
+       WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
+    )
+      .bind('t-m1-po', branchId, 'p-m1')
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(4);
+
+    const receipts = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM purchase_receipts WHERE tenant_id = ? AND purchase_order_id = ?`,
+    )
+      .bind('t-m1-po', 'po-m1')
+      .first<{ n: number }>();
+    expect(receipts?.n).toBe(1);
+  });
+
+  it('C2: doble settle concurrente sobre el mismo PENDING → un solo CAPTURED (guardState)', async () => {
+    const { branchId, sessionId, userId } = await seedTenantBranchSession('t-c2-set');
+    await env.DB.prepare(
+      `INSERT INTO payment_methods (id, tenant_id, code, name)
+       VALUES (?, ?, 'yape', 'Yape')`,
+    )
+      .bind('pm-set', 't-c2-set')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, currency, total_amount_cents, issued_at_lima
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        'sale-set',
+        't-c2-set',
+        branchId,
+        sessionId,
+        userId,
+        '1',
+        '00000000',
+        'Cliente',
+        '03',
+        'B001',
+        1,
+        'PEN',
+        1000,
+        '2026-08-04T10:00:00',
+      )
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO sale_payments (id, tenant_id, sale_id, payment_method_id, amount_cents)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind('sp-set', 't-c2-set', 'sale-set', 'pm-set', 1000)
+      .run();
+
+    const created = await createPendingCaptureAtomic(env.DB, 't-c2-set', {
+      saleId: 'sale-set',
+      salePaymentId: 'sp-set',
+      methodCode: 'yape',
+      amountCents: 1000,
+      idempotencyKey: 'set:0:yape',
+    });
+
+    const settles = await Promise.allSettled([
+      settleCaptureAtomic(env.DB, 't-c2-set', {
+        captureId: created.id,
+        toStatus: 'CAPTURED',
+        acquirerRef: 'ref-1',
+      }),
+      settleCaptureAtomic(env.DB, 't-c2-set', {
+        captureId: created.id,
+        toStatus: 'CAPTURED',
+        acquirerRef: 'ref-2',
+      }),
+    ]);
+
+    const fulfilled = settles.filter((r) => r.status === 'fulfilled').length;
+    expect(fulfilled).toBe(1);
+
+    const cap = await env.DB.prepare(
+      `SELECT status FROM payment_captures WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(created.id, 't-c2-set')
+      .first<{ status: string }>();
+    expect(cap?.status).toBe('CAPTURED');
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0015_SPRINT22_PAYMENT_CAPTURES);
+    await env.DB.exec(DOWN_0014_SPRINT20_PO_PARTIAL);
     await env.DB.exec(DOWN_0013_CATALOG_IMPORT);
     await env.DB.exec(DOWN_0011_FASE6_COMMERCIAL_OPS);
     await env.DB.exec(DOWN_0010_REFERRALS_BRAND_GROWTH);

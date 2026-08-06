@@ -4,6 +4,7 @@ import {
   assertCountDiffAuthorized,
   assertCountMutable,
   assertInventoryCountTransition,
+  assertShrinkJustified,
   assertStockLossReject,
   assertTransferLineConservation,
   assertTransferTransition,
@@ -12,6 +13,9 @@ import {
   ExpiredBatchError,
   firstExpiringAtUtc,
   planApproveStockLoss,
+  planCancelInTransit,
+  planReceiveStockDeltas,
+  planShipStockDeltas,
   refreshAvgCostCents,
   resolveUnitPriceCents,
   suggestReorderQty,
@@ -155,6 +159,91 @@ describe('stock transfers', () => {
     ).toThrow('TRANSFER_QTY_MISMATCH');
     assertTransferTransition('DRAFT', 'IN_TRANSIT');
     expect(() => assertTransferTransition('RECEIVED', 'DRAFT')).toThrow(/TRANSFER_INVALID/);
+  });
+
+  it('exige reason si hay shrink', () => {
+    expect(() => assertShrinkJustified(2, null)).toThrow('SHRINK_REASON_REQUIRED');
+    expect(() => assertShrinkJustified(2, '  ')).toThrow('SHRINK_REASON_REQUIRED');
+    expect(() => assertShrinkJustified(2, 'roto en tránsito')).not.toThrow();
+    expect(() => assertShrinkJustified(0, null)).not.toThrow();
+  });
+
+  it('ship debita origen; receive acredita destino; cancel restaura', () => {
+    expect(
+      planShipStockDeltas({
+        originBranchId: 'b-orig',
+        lines: [
+          { productId: 'p1', quantity: 5 },
+          { productId: 'p1', quantity: 2 },
+        ],
+      }),
+    ).toEqual([
+      {
+        branchId: 'b-orig',
+        productId: 'p1',
+        qtyDelta: -7,
+        movementType: 'TRANSFER_OUT',
+      },
+    ]);
+
+    expect(
+      planReceiveStockDeltas({
+        destinationBranchId: 'b-dest',
+        lines: [
+          {
+            productId: 'p1',
+            qtyReceived: 5,
+            qtyShrink: 2,
+            shrinkReason: 'merma',
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        branchId: 'b-dest',
+        productId: 'p1',
+        qtyDelta: 5,
+        movementType: 'TRANSFER_IN',
+      },
+      {
+        branchId: 'b-dest',
+        productId: 'p1',
+        qtyDelta: 0,
+        movementType: 'TRANSFER_SHRINK',
+      },
+    ]);
+
+    expect(
+      planCancelInTransit({
+        originBranchId: 'b-orig',
+        status: 'IN_TRANSIT',
+        lines: [{ productId: 'p1', quantity: 7 }],
+      }),
+    ).toEqual([
+      {
+        branchId: 'b-orig',
+        productId: 'p1',
+        qtyDelta: 7,
+        movementType: 'TRANSFER_CANCEL',
+      },
+    ]);
+
+    expect(
+      planCancelInTransit({
+        originBranchId: 'b-orig',
+        status: 'DRAFT',
+        lines: [{ productId: 'p1', quantity: 7 }],
+      }),
+    ).toEqual([]);
+  });
+
+  it('rechaza qty inválida en ship', () => {
+    expect(() =>
+      planShipStockDeltas({
+        originBranchId: 'b1',
+        lines: [{ productId: 'p1', quantity: 0 }],
+      }),
+    ).toThrow('INVALID_TRANSFER_QTY');
   });
 });
 

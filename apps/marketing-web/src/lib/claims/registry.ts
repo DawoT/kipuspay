@@ -29,12 +29,9 @@ export const FEATURED_CLAIMS: Readonly<Record<FeaturedClaimId, ClaimStatus>> = {
     plan: 'Crece+',
   },
   merma_xfer: {
-    kind: 'roadmap',
-    unlockSprint: 20,
-    label: 'Merma y transferencias entre locales',
+    kind: 'live',
   },
 };
-
 export function resolveClaim(id: FeaturedClaimId): ClaimStatus {
   return FEATURED_CLAIMS[id];
 }

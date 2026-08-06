@@ -71,4 +71,27 @@ describe('worker-api', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('C1+A4: webhook POS vive en /v1 (sin JWT) y exige x-kipus-timestamp', async () => {
+    const app = createApp();
+    const missing = await app.request('/v1/webhooks/payments/yape', {
+      method: 'POST',
+      body: '{}',
+    });
+    expect(missing.status).toBe(400);
+
+    const bad = await app.request('/v1/webhooks/payments/yape', {
+      method: 'POST',
+      headers: { 'x-kipus-timestamp': 'not-a-number' },
+      body: '{}',
+    });
+    expect(bad.status).toBe(400);
+
+    const authed = await app.request('/api/webhooks/payments/yape', {
+      method: 'POST',
+      headers: { 'x-kipus-timestamp': String(Math.floor(Date.now() / 1000)) },
+      body: '{}',
+    });
+    expect(authed.status).toBe(401);
+  });
 });

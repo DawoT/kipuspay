@@ -24,6 +24,11 @@ export interface OfflinePaymentPayload {
   readonly referenceNumber?: string | undefined;
   /** DAT-05: crédito de tienda → CxC en la misma tx (servidor revalida). */
   readonly isCredit?: boolean | undefined;
+  /**
+   * Captura offline de medio electrónico (§5.4 edge 2B):
+   * 'API' si el adquirente confirmó en línea; 'MANUAL' = cajero verificó visualmente sin red.
+   */
+  readonly captureStatus?: 'API' | 'MANUAL' | undefined;
 }
 
 export interface OfflineSaleItemPayload {
@@ -86,6 +91,13 @@ function assertPayments(payments: readonly OfflinePaymentPayload[]): void {
     requireNonEmpty(pay.paymentMethodId, 'MISSING_PAYMENT_METHOD');
     if (!Number.isInteger(pay.amountCents) || pay.amountCents < 0) {
       throw new Error('INVALID_PAYMENT_CENTS');
+    }
+    if (
+      pay.captureStatus !== undefined &&
+      pay.captureStatus !== 'API' &&
+      pay.captureStatus !== 'MANUAL'
+    ) {
+      throw new Error('INVALID_CAPTURE_STATUS');
     }
   }
 }

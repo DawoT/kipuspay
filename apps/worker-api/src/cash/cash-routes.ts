@@ -111,7 +111,12 @@ async function loadBlindCloseContext(
   sessionId: string,
   tenantId: string,
 ): Promise<
-  | { ok: true; session: BlindCloseSession; expectedCents: number }
+  | {
+      ok: true;
+      session: BlindCloseSession;
+      expectedCents: number;
+      electronicSalesCents: number;
+    }
   | { ok: false; status: number; body: { error: string; code: string } }
 > {
   const session = await db
@@ -134,7 +139,10 @@ async function loadBlindCloseContext(
       `SELECT COALESCE(SUM(sp.amount_cents), 0) AS cash_cents
        FROM sale_payments sp
        INNER JOIN sales s ON s.id = sp.sale_id AND s.tenant_id = sp.tenant_id
+       INNER JOIN payment_methods pm
+         ON pm.id = sp.payment_method_id AND pm.tenant_id = sp.tenant_id
        WHERE s.tenant_id = ? AND s.cash_register_session_id = ?
+         AND pm.code = 'cash'
          AND NOT EXISTS (
            SELECT 1 FROM accounts_receivable ar
            WHERE ar.tenant_id = s.tenant_id AND ar.sale_id = s.id
@@ -142,6 +150,23 @@ async function loadBlindCloseContext(
     )
     .bind(tenantId, sessionId)
     .first<{ cash_cents: number }>();
+
+  const electronicSales = await db
+    .prepare(
+      `SELECT COALESCE(SUM(sp.amount_cents), 0) AS electronic_cents
+       FROM sale_payments sp
+       INNER JOIN sales s ON s.id = sp.sale_id AND s.tenant_id = sp.tenant_id
+       INNER JOIN payment_methods pm
+         ON pm.id = sp.payment_method_id AND pm.tenant_id = sp.tenant_id
+       WHERE s.tenant_id = ? AND s.cash_register_session_id = ?
+         AND pm.code IN ('yape','plin','mercadopago_qr','culqi','niubiz','card_manual')
+         AND NOT EXISTS (
+           SELECT 1 FROM accounts_receivable ar
+           WHERE ar.tenant_id = s.tenant_id AND ar.sale_id = s.id
+         )`,
+    )
+    .bind(tenantId, sessionId)
+    .first<{ electronic_cents: number }>();
 
   const movements = await db
     .prepare(
@@ -171,7 +196,12 @@ async function loadBlindCloseContext(
     legacyExpenseCents: legacy?.expense_cents ?? 0,
   });
 
-  return { ok: true, session, expectedCents };
+  return {
+    ok: true,
+    session,
+    expectedCents,
+    electronicSalesCents: electronicSales?.electronic_cents ?? 0,
+  };
 }
 
 type CashMovementParseResult =
@@ -359,6 +389,7 @@ export async function runBlindCloseHttp(
       countedTotalCents: plan.countedTotalCents,
       expectedTotalCents: plan.expectedTotalCents,
       differenceAmountCents: plan.differenceAmountCents,
+      electronicSalesCents: ctx.electronicSalesCents,
       closedBlind: true,
       attributedTo: 'cash_register_session',
     },

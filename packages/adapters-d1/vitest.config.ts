@@ -22,6 +22,9 @@ export default defineConfig({
         'src/rollup-rematerialize.ts',
         'src/sync-sales-batch.ts',
         'src/process-order-billing-atomic.ts',
+        'src/process-stock-transfer-atomic.ts',
+        'src/process-partial-receive-atomic.ts',
+        'src/process-payment-capture-atomic.ts',
       ],
       thresholds: {
         lines: 70,

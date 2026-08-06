@@ -27,21 +27,32 @@ export {
   validateCatalogRow,
 } from './catalog-import.js';
 
-export interface PaymentChargeRequest {
-  readonly chargeId: string;
-  readonly amountCents: Cents;
-  readonly currency: 'PEN';
-}
-
-export interface PaymentChargeResult {
-  readonly chargeId: string;
-  readonly approved: boolean;
-  readonly reference: string | null;
-}
-
-export interface PaymentAcquirerPort {
-  charge(request: PaymentChargeRequest): Promise<PaymentChargeResult>;
-}
+export type {
+  CaptureStatus,
+  OfflineCaptureStatus,
+  PaymentAcquirerCode,
+  PaymentChargeRequest,
+  PaymentChargeResult,
+  PaymentMethodCode,
+  PaymentStatusRequest,
+  PaymentWebhookVerifyInput,
+  PaymentWebhookVerifyResult,
+} from './payment-capture.js';
+export {
+  assertCaptureTransition,
+  assertOfflineCapturePolicy,
+  assertWebhookFreshness,
+  buildCaptureIdempotencyKey,
+  isCardMethod,
+  isCashMethod,
+  isElectronicMethod,
+  isPaymentMethodCode,
+  isWalletMethod,
+  MANUAL_CAPTURE_AMBER_COPY,
+  methodCodeToAcquirer,
+  WEBHOOK_REPLAY_WINDOW_SEC,
+} from './payment-capture.js';
+export type { PaymentAcquirerPort } from './payment-capture.js';
 
 export interface PriceLookupPort {
   priceCentsFor(productId: string): Promise<Cents>;
