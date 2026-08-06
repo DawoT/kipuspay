@@ -37,7 +37,7 @@ export function parseBsaleProducts(payloads: readonly BsaleProductPayload[]): Ca
       unitCode: 'NIU',
       priceCents,
       costCents: 0,
-      taxName: payload.taxNames?.[0] ?? 'IGV',
+      taxName: payload.taxNames?.[0] ?? null,
       igvAffectationCode: '10',
     });
   }
@@ -48,11 +48,13 @@ export function parseBsaleCustomers(payloads: readonly BsaleCustomerPayload[]): 
   const rows: CatalogImportRow[] = [];
   for (const payload of payloads) {
     const name = [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim();
+    const documentNumber = payload.code?.trim() ?? '';
+    const documentTypeCode = documentNumber.length > 8 ? '6' : documentNumber ? '1' : '';
     rows.push({
       entityType: 'customer',
       externalId: String(payload.id),
-      documentTypeCode: '6',
-      documentNumber: payload.code?.trim() || String(payload.id).padStart(8, '0'),
+      documentTypeCode,
+      documentNumber,
       name: payload.company?.trim() || name || null,
       email: payload.email?.trim() ?? null,
       creditLimitCents: 0,

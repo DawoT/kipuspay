@@ -76,6 +76,10 @@ describe('validateCatalogRow', () => {
     expect(validateCatalogRow(productRow({ priceCents: -1 }))).toBe('precio no puede ser negativo');
   });
 
+  it('rechaza producto sin precio (priceCents 0 del adapter)', () => {
+    expect(validateCatalogRow(productRow({ priceCents: 0 }))).toBe('producto requiere precio');
+  });
+
   it('rechaza cliente sin documento', () => {
     expect(validateCatalogRow(customerRow({ documentNumber: '' }))).toBe(
       'cliente requiere número de documento',

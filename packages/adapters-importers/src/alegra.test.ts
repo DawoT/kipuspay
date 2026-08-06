@@ -17,10 +17,10 @@ describe('parseAlegraItems', () => {
     });
   });
 
-  it('genera sku fallback y default IGV', () => {
+  it('genera sku fallback y no fuerza IGV (taxName null)', () => {
     const rows = parseAlegraItems([{ id: 2 }]);
     expect((rows[0] as NormalizedProductRow).sku).toBe('ALEGRA-2');
-    expect((rows[0] as NormalizedProductRow).taxName).toBe('IGV');
+    expect((rows[0] as NormalizedProductRow).taxName).toBeNull();
     expect((rows[0] as NormalizedProductRow).priceCents).toBe(0);
   });
 });
@@ -44,5 +44,11 @@ describe('parseAlegraContacts', () => {
     const rows = parseAlegraContacts([{ id: 2, identification: '12345678' }]);
     expect((rows[0] as NormalizedCustomerRow).documentTypeCode).toBe('1');
     expect((rows[0] as NormalizedCustomerRow).documentNumber).toBe('12345678');
+  });
+
+  it('no fabrica documento fiscal cuando falta identification (vacío → conflicto)', () => {
+    const rows = parseAlegraContacts([{ id: 3, name: 'Sin identificación' }]);
+    expect((rows[0] as NormalizedCustomerRow).documentNumber).toBe('');
+    expect((rows[0] as NormalizedCustomerRow).documentTypeCode).toBe('');
   });
 });

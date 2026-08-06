@@ -29,6 +29,11 @@ describe('parseBsaleProducts', () => {
     const rows = parseBsaleProducts([{ id: 3, prices: [{ netPrice: 8 }] }]);
     expect((rows[0] as NormalizedProductRow).priceCents).toBe(800);
   });
+
+  it('no fuerza IGV cuando el producto no trae impuesto (taxName null)', () => {
+    const rows = parseBsaleProducts([{ id: 4, name: 'Exportación', prices: [{ grossPrice: 10 }] }]);
+    expect((rows[0] as NormalizedProductRow).taxName).toBeNull();
+  });
 });
 
 describe('parseBsaleCustomers', () => {
@@ -44,9 +49,16 @@ describe('parseBsaleCustomers', () => {
     });
   });
 
-  it('compone nombre desde firstName/lastName y genera documento si falta', () => {
+  it('compone nombre desde firstName/lastName; sin code el documento queda vacío', () => {
     const rows = parseBsaleCustomers([{ id: 9, firstName: 'Ana', lastName: 'Luz' }]);
     expect((rows[0] as NormalizedCustomerRow).name).toBe('Ana Luz');
-    expect((rows[0] as NormalizedCustomerRow).documentNumber).toBe('00000009');
+    expect((rows[0] as NormalizedCustomerRow).documentNumber).toBe('');
+    expect((rows[0] as NormalizedCustomerRow).documentTypeCode).toBe('');
+  });
+
+  it('no fabrica documento fiscal cuando falta code (vacío → conflicto en dominio)', () => {
+    const rows = parseBsaleCustomers([{ id: 11, firstName: 'Luis' }]);
+    expect((rows[0] as NormalizedCustomerRow).documentNumber).toBe('');
+    expect((rows[0] as NormalizedCustomerRow).documentTypeCode).toBe('');
   });
 });

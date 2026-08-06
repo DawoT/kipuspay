@@ -31,7 +31,11 @@ CREATE TABLE external_entity_map (
     entity_type TEXT NOT NULL,     -- 'product' | 'customer' | 'series'
     external_id TEXT NOT NULL,
     internal_id TEXT NOT NULL,
-    UNIQUE (tenant_id, source, entity_type, external_id)
+    UNIQUE (tenant_id, source, entity_type, external_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+    -- DAT-04: catálogos cerrados de fuente y tipo de entidad (FIS-07)
+    CHECK (source IN ('bsale','alegra','csv')),
+    CHECK (entity_type IN ('product','customer','series'))
 );
 
 CREATE TABLE payment_captures (

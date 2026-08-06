@@ -102,7 +102,9 @@ export function mapExternalTax(externalTaxName: string | null | undefined): TaxM
 function validateProduct(row: NormalizedProductRow): string | null {
   if (row.sku.trim() === '') return 'producto requiere sku';
   if (row.name.trim() === '') return 'producto requiere nombre';
-  if (!(row.priceCents >= 0)) return 'precio no puede ser negativo';
+  if (!(row.priceCents > 0)) {
+    return row.priceCents < 0 ? 'precio no puede ser negativo' : 'producto requiere precio';
+  }
   if (!(row.costCents >= 0)) return 'costo no puede ser negativo';
   return null;
 }

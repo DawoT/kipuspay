@@ -595,7 +595,7 @@ Además de las FAQ públicas de la landing (sección 5.9), el equipo comercial n
 
 | Objeción real | Respuesta comercial |
 |---|---|
-| *"Ya tengo un sistema, cambiar es mucho trabajo"* | Tras Sprint 21: "Importamos catálogo y clientes desde Bsale/Alegra (o CSV) con dry-run para que confirmes antes de cobrar el mismo día." Antes del gate: CSV + onboarding guiado; **no prometer** importador automático con fecha inventada. |
+| *"Ya tengo un sistema, cambiar es mucho trabajo"* | Tras Sprint 21: "Importamos catálogo y clientes desde Bsale/Alegra (o CSV) con dry-run para que confirmes antes de cobrar el mismo día" — proceso en `docs/ops/catalog-import-playbook.md`. Antes del gate: CSV + onboarding guiado; **no prometer** importador automático con fecha inventada. |
 | *"¿El KDS / split de cuenta / lotes FEFO ya están?"* | Solo afirmar si el sprint de GTM §2 está cerrado (17 caja, 18 farmacia, 19 resto, 20 cadena). Si no: "Está en el roadmap v8.1 con fecha de Quality Gate; hoy te cubrimos caja offline, SUNAT/PSE y Modo Dueño." |
 | *"¿Puedo cobrar con Yape / Plin / tarjeta en la caja?"* | Tras Sprint 22: sí, como medio de pago Zero-Trust en el cobro (distinto del cobro de la suscripción KipusPay). Antes del gate: efectivo/transferencia manual + registro; no afirmar Culqi/Niubiz/Yape listos. |
 | *"¿Mi contador puede llevarlo a Contasis/Concar?"* | Tras Sprint 23: export de asientos por rango/sucursal. Antes: export de datos de ventas; no prometer formato Contasis/Concar. |

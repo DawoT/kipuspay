@@ -19,6 +19,7 @@ import {
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
 import atomicGuardsSql from '../migrations/0003_atomic_guards.sql?raw';
+import catalogImportSql from '../migrations/0013_catalog_import.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -300,6 +301,43 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     await expect(env.DB.prepare(`DELETE FROM audit_events WHERE id = 'ae1'`).run()).rejects.toThrow(
       /AUDIT_APPEND_ONLY/,
     );
+  });
+
+  it('migración 0013: external_entity_map con CHECK de source y entity_type (FIS-07)', async () => {
+    expect(catalogImportSql).toMatch(
+      /CHECK\s*\(\s*source\s+IN\s*\(\s*'bsale'\s*,\s*'alegra'\s*,\s*'csv'\s*\)\s*\)/i,
+    );
+    expect(catalogImportSql).toMatch(
+      /CHECK\s*\(\s*entity_type\s+IN\s*\(\s*'product'\s*,\s*'customer'\s*,\s*'series'\s*\)\s*\)/i,
+    );
+    expect(catalogImportSql).toMatch(/tenant_id\s+TEXT\s+NOT\s+NULL/i);
+
+    await env.DB.prepare(
+      `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind('t-map-check', 'Map SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO external_entity_map
+           (id, tenant_id, source, entity_type, external_id, internal_id)
+         VALUES (?, ?, 'siigo', 'product', 'x1', 'p1')`,
+      )
+        .bind('em-bad-source', 't-map-check')
+        .run(),
+    ).rejects.toThrow();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO external_entity_map
+           (id, tenant_id, source, entity_type, external_id, internal_id)
+         VALUES (?, ?, 'csv', 'gadget', 'x1', 'p1')`,
+      )
+        .bind('em-bad-type', 't-map-check')
+        .run(),
+    ).rejects.toThrow();
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {

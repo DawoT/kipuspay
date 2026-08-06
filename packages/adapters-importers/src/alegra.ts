@@ -33,7 +33,7 @@ export function parseAlegraItems(payloads: readonly AlegraItemPayload[]): Catalo
       unitCode: 'NIU',
       priceCents,
       costCents: 0,
-      taxName: payload.tax?.[0]?.name ?? 'IGV',
+      taxName: payload.tax?.[0]?.name ?? null,
       igvAffectationCode: '10',
     });
   }
@@ -43,11 +43,12 @@ export function parseAlegraItems(payloads: readonly AlegraItemPayload[]): Catalo
 export function parseAlegraContacts(payloads: readonly AlegraContactPayload[]): CatalogImportRow[] {
   const rows: CatalogImportRow[] = [];
   for (const payload of payloads) {
-    const documentNumber = payload.identification?.replace(/[^0-9]/g, '') ?? String(payload.id);
+    const documentNumber = (payload.identification ?? '').replace(/[^0-9]/g, '');
+    const documentTypeCode = documentNumber.length > 8 ? '6' : documentNumber ? '1' : '';
     rows.push({
       entityType: 'customer',
       externalId: String(payload.id),
-      documentTypeCode: documentNumber.length > 8 ? '6' : '1',
+      documentTypeCode,
       documentNumber,
       name: payload.name?.trim() ?? null,
       email: payload.email?.trim() ?? null,
