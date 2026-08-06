@@ -44,6 +44,7 @@ sprints: "21–24"
 
 #### Sprint 23 — Contador + API pública
 **Capabilities:** `integrations.accounting_export`, `integrations.api`  
+**Estado:** Cerrado (QG `docs/ops/s23-accounting-api-qg.md`)  
 **Referencia:** Arquitectura §5.4; GTM plan Cadena · **Agentes:** Staff Backend Datos (export), Staff Security (API keys), Staff SRE (webhooks), Staff Content (docs API)
 
 **Entregables:**

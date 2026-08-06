@@ -2,7 +2,7 @@
   "name": "@kipuspay/adapters-accounting",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay — adaptador de exportación contable (Excel)",
+  "description": "KipusPay — Contasis CSV / Concar XML (AccountingExporter)",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -22,6 +22,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@kipuspay/domain-integrations": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*"
   }
 }

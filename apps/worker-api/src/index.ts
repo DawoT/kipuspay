@@ -75,6 +75,18 @@ import {
   runFirstSaleReferralHttp,
 } from './referrals/referral-routes.js';
 import { runCatalogImportHttp } from './integrations/catalog-import-routes.js';
+import {
+  runAccountingExportHttp,
+  runCreateApiKeyHttp,
+  runCreateWebhookEndpointHttp,
+  runDeleteWebhookEndpointHttp,
+  runDrainWebhookDeliveriesHttp,
+  runListApiKeysHttp,
+  runListWebhookEndpointsHttp,
+  runPublicDocumentsListHttp,
+  runPublicSalesListHttp,
+  runRevokeApiKeyHttp,
+} from './integrations/integration-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -597,6 +609,82 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  // Sprint 23 — Contador + API keys/webhooks (Cadena+)
+  app.post('/api/integrations/accounting/export', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runAccountingExportHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    if (typeof result.body === 'string') {
+      return c.body(result.body, result.status as 200, {
+        'content-type': result.contentType ?? 'text/plain; charset=utf-8',
+      });
+    }
+    return c.json(result.body, result.status as 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/integrations/api-keys', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListApiKeysHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+  app.post('/api/integrations/api-keys', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runCreateApiKeyHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+    );
+    return c.json(result.body, result.status as 201 | 403 | 404 | 503);
+  });
+  app.delete('/api/integrations/api-keys/:id', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runRevokeApiKeyHttp(c.env, jwt?.tenantId ?? '', c.req.param('id'));
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+  app.get('/api/integrations/webhooks', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListWebhookEndpointsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+  app.post('/api/integrations/webhooks', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runCreateWebhookEndpointHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.delete('/api/integrations/webhooks/:id', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runDeleteWebhookEndpointHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      c.req.param('id'),
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+  app.post('/api/integrations/webhooks/drain', async (c) => {
+    const user = c.get('user');
+    const result = await runDrainWebhookDeliveriesHttp(c.env, 20, user?.userId ?? '', user?.role);
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+
+  // Public API (API key) — Cadena+; no JWT middleware
+  app.get('/v1/sales', async (c) => {
+    const result = await runPublicSalesListHttp(c.env, c.req.header('authorization'));
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+  });
+  app.get('/v1/documents', async (c) => {
+    const result = await runPublicDocumentsListHttp(c.env, c.req.header('authorization'));
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 
   // Portal CPE: auth por token (adquirente), fuera del JWT tenant.

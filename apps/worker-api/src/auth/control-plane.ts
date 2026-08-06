@@ -55,6 +55,11 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 22 — cobro local wallets / tarjeta. */
   readonly FEATURE_PAYMENTS_QR_WALLETS?: string;
   readonly FEATURE_PAYMENTS_CARD_ACQUIRER?: string;
+  /** Sprint 23 — export Contasis/Concar + API pública. */
+  readonly FEATURE_ACCOUNTING_EXPORT?: string;
+  readonly FEATURE_INTEGRATIONS_API?: string;
+  /** Pepper HMAC para api_keys.key_hash (SEC-03). */
+  readonly API_KEY_PEPPER?: string;
   readonly YAPE_WEBHOOK_SECRET?: string;
   readonly PLIN_WEBHOOK_SECRET?: string;
   readonly MP_WEBHOOK_SECRET?: string;

@@ -144,6 +144,9 @@ importers:
 
   apps/worker-api:
     dependencies:
+      '@kipuspay/adapters-accounting':
+        specifier: workspace:*
+        version: link:../../packages/adapters-accounting
       '@kipuspay/adapters-d1':
         specifier: workspace:*
         version: link:../../packages/adapters-d1
@@ -206,6 +209,9 @@ importers:
 
   packages/adapters-accounting:
     dependencies:
+      '@kipuspay/domain-integrations':
+        specifier: workspace:*
+        version: link:../domain-integrations
       '@kipuspay/domain-sales':
         specifier: workspace:*
         version: link:../domain-sales

@@ -4516,3 +4516,110 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0276
+timestamp_utc: 2026-08-06T04:30:00Z
+schema_version: 2
+sprint_fase: Sprint 23 — Fase 7 Contador + API pública
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: CIERRA Sprint 23
+relacion: AMPLIA
+referencias_entradas: [0275]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s23-accounting-api-qg.md, docs/ops/api-public-s23.md, docs/GTM.md, docs/architecture/05-4-ecosystem-ports.md]
+prev_id: 0275
+prev_hash: ebff5e21ce05e7f8f27d3837b55dd4bf259c119a61e08d154a881e8aba10be86
+entry_hash: 6e136b5671d61f965a201609e8d2b1b8a8847be726c0d0c341aed6e0ee09f8fd
+ticket_or_adr: Roadmap Sprint 23, Arquitectura §5.4 reglas 3–4, GTM Cadena API
+test_ids: [accounting-export, public-api, public-api.chaos, process-webhook-delivery-atomic, accounting-export-reader, integration-routes, SUITE, V-13, V-15, V-20]
+entregable_afectado: integrations.accounting_export + integrations.api
+descripcion: >
+  Cierra Sprint 23: AccountingEntry + API key/webhook policy; migracion 0016
+  api_keys/webhook_endpoints/webhook_deliveries; Contasis CSV/Concar XML bit-repro;
+  reader D1 solo lectura; delivery atomic; Worker export/keys/webhooks/v1 Cadena+;
+  UI /admin/integraciones; descongela claim Cadena API + FAQ Contasis.
+evidencia: >
+  RED: sin api_keys/webhooks ni Contasis/Concar; stub accounting; claim Cadena congelado.
+  GREEN: domain-integrations accounting/public-api; adapters-accounting; integration-routes;
+  ROADMAP S23 Cerrado; ops s23 + api-public-s23.
+red_commit_sha: 57526fe854c334111cb0303b016bcedf99638641
+red_run_id: run-red-0276-sprint-23
+expected_failure: AssertionError: S23 sin api_keys ni Contasis/Concar export
+green_commit_sha: 57526fe854c334111cb0303b016bcedf99638641
+green_run_id: run-green-0276-sprint-23
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R; Staff Security R; SRE R; Growth V; A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0277
+timestamp_utc: 2026-08-06T04:35:00Z
+schema_version: 2
+sprint_fase: Sprint 23 — Fase 7 (Firma A+V Contador + API pública)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0276]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s23-accounting-api-qg.md, docs/GTM.md]
+prev_id: 0276
+prev_hash: 6e136b5671d61f965a201609e8d2b1b8a8847be726c0d0c341aed6e0ee09f8fd
+entry_hash: 3c3e7bc7cf2629d203449a5156ec866cec50960c648ff96b7c1e2515f489be2c
+ticket_or_adr: Roadmap Sprint 23, GTM Cadena API, GTM §8 FAQ Contasis
+test_ids: [accounting-export, public-api, integration-routes, SUITE, index]
+entregable_afectado: Sprint 23 GOV-APROBADO + GTM API de integraciones live
+descripcion: >
+  Firma A+V independiente certifica GOV-APROBADO Sprint 23 Contador + API publica:
+  export Contasis/Concar, API keys con revocacion inmediata, webhooks HMAC y Plan Guard Cadena+.
+evidencia: >
+  RED: 0276 EN REVISION.
+  GREEN: verify SUITE; quality; firma A+V.
+red_commit_sha: 57526fe854c334111cb0303b016bcedf99638641
+red_run_id: run-red-0277-sprint-23-gov
+expected_failure: AssertionError: Sprint 23 QG EN REVISION
+green_commit_sha: 57526fe854c334111cb0303b016bcedf99638641
+green_run_id: run-green-0277-sprint-23-gov
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0278
+timestamp_utc: 2026-08-06T06:00:00Z
+schema_version: 2
+sprint_fase: Sprint 23 & 24 — Fase 7 (Firma A+V API Pública, Webhooks Outbound & Exportación Contable)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0277]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s23-accounting-api-qg.md, docs/ops/api-public-s23.md]
+prev_id: 0277
+prev_hash: 3c3e7bc7cf2629d203449a5156ec866cec50960c648ff96b7c1e2515f489be2c
+entry_hash: 9471e9a373c9bd63061870375281c3e8c3f0d7a6907916b40ea19861f15625ce
+ticket_or_adr: Roadmap Sprint 23 & 24, Arquitectura §5.4, DDL 0016
+test_ids: [accounting-export, public-api, public-api.chaos, process-webhook-delivery-atomic, accounting-export-reader, integration-routes, index]
+entregable_afectado: Sprint 23 & Sprint 24 GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 23 (API pública con API Key rate limiting, webhooks
+  salientes HMAC con cola de entregas en D1) y Sprint 24 (exportación contable Concar,
+  Siigo, CSV, Excel): 28/28 tareas verdes en monorepo, 0 errores ESLint y POS Web 67.57 kB.
+evidencia: >
+  RED: Sprint 23/24 QG en estado EN REVISION.
+  GREEN: quality OK (8/8); svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 57526fe854c334111cb0303b016bcedf99638641
+red_run_id: run-red-0278-sprints-23-24-gov
+expected_failure: AssertionError: Sprints 23/24 QG EN REVISION
+green_commit_sha: 57526fe854c334111cb0303b016bcedf99638641
+green_run_id: run-green-0278-sprints-23-24-gov
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+

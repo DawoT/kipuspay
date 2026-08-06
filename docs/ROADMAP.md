@@ -60,7 +60,8 @@ owner: "@DawoT"
 | 20 | 6 | Actualizada (transferencias + recepción OC parcial) | Cerrado |
 | 21 | 7 | Actualizada (importadores Bsale/Alegra/CSV, dry-run→commit idempotente, external_entity_map) | Cerrado |
 | 22 | 7 | Actualizada (cobro local Yape/Plin/MP/Culqi/Niubiz) | Cerrado |
-| 23–24 | 7 | Base (API/export + WhatsApp/loyalty) | Planificado |
+| 23 | 7 | Actualizada (Contasis/Concar + API keys/webhooks Cadena+) | Cerrado |
+| 24 | 7 | Base (WhatsApp/loyalty) | Planificado |
 | 25 | 8 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Planificado |
 | 26 | 8 | Actualizada (P1 breaker §8.1) | Planificado |
 | 27 | 8 | Actualizada (P2 cupo §4.1) | Planificado |

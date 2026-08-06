@@ -18,6 +18,10 @@ const PREMIUM_PREFIXES = [
   '/api/reports/advanced',
   '/api/multi-register/',
   '/api/insights/',
+  // Sprint 23 — API/export Cadena+ (no incluye catalog-import S21)
+  '/api/integrations/accounting',
+  '/api/integrations/api-keys',
+  '/api/integrations/webhooks',
 ] as const;
 
 function matchesPrefix(path: string, prefix: string): boolean {

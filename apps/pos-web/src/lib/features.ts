@@ -73,3 +73,13 @@ export function isPaymentsQrWalletsEnabled(): boolean {
 export function isPaymentsCardAcquirerEnabled(): boolean {
   return flagOn(import.meta.env.PUBLIC_FEATURE_PAYMENTS_CARD_ACQUIRER as string | undefined);
 }
+
+/** Sprint 23 — export Contasis/Concar. */
+export function isAccountingExportEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_ACCOUNTING_EXPORT as string | undefined);
+}
+
+/** Sprint 23 — API keys + webhooks. */
+export function isIntegrationsApiEnabled(): boolean {
+  return flagOn(import.meta.env.PUBLIC_FEATURE_INTEGRATIONS_API as string | undefined);
+}

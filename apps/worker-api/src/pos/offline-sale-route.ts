@@ -138,6 +138,24 @@ export async function runOfflineSaleHttp(
         pricingLists: isPricingListsEnabled(env),
       },
     });
+    const saleId =
+      typeof (result as { saleId?: unknown }).saleId === 'string'
+        ? (result as { saleId: string }).saleId
+        : '';
+    if (saleId) {
+      // M3: el enqueue del evento público es best-effort post-commit; un fallo
+      // aquí NUNCA revierte la venta ya persistida → try/catch aislado.
+      try {
+        const { enqueuePublicEventForTenant } =
+          await import('../integrations/integration-routes.js');
+        await enqueuePublicEventForTenant(env, tenantId, 'sale.created', saleId, {
+          saleId,
+          documentType: payload.documentType,
+        });
+      } catch {
+        // 200 garantizado; el webhook saliente se reintentará desde la cola.
+      }
+    }
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (error) {
     return mapError(error);

@@ -42,6 +42,9 @@ describe('plan-routes', () => {
     expect(isPremiumFeatureRoute('/api/owner/dashboard')).toBe(true);
     expect(isPremiumFeatureRoute('/api/reports/advanced/top-products')).toBe(true);
     expect(isPremiumFeatureRoute('/api/insights/briefing')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/integrations/accounting/export')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/integrations/api-keys')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/integrations/catalog-import')).toBe(false);
     expect(isPremiumFeatureRoute('/api/reports/day-summary')).toBe(false);
   });
 });

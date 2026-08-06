@@ -25,6 +25,8 @@ export default defineConfig({
         'src/process-stock-transfer-atomic.ts',
         'src/process-partial-receive-atomic.ts',
         'src/process-payment-capture-atomic.ts',
+        'src/process-webhook-delivery-atomic.ts',
+        'src/accounting-export-reader.ts',
       ],
       thresholds: {
         lines: 70,

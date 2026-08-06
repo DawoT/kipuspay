@@ -11,6 +11,10 @@ import {
   settleCaptureAtomic,
 } from './process-payment-capture-atomic.js';
 import {
+  claimWebhookDeliveryAtomic,
+  enqueueWebhookDeliveryAtomic,
+} from './process-webhook-delivery-atomic.js';
+import {
   DOWN_0000_SCHEMA_META,
   DOWN_0001_DDL_BASE,
   DOWN_0002_WEBHOOK_EVENTS,
@@ -26,6 +30,7 @@ import {
   DOWN_0013_CATALOG_IMPORT,
   DOWN_0014_SPRINT20_PO_PARTIAL,
   DOWN_0015_SPRINT22_PAYMENT_CAPTURES,
+  DOWN_0016_SPRINT23_API_WEBHOOKS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -33,6 +38,7 @@ import atomicGuardsSql from '../migrations/0003_atomic_guards.sql?raw';
 import catalogImportSql from '../migrations/0013_catalog_import.sql?raw';
 import sprint20PoSql from '../migrations/0014_sprint20_po_partial_status.sql?raw';
 import sprint22PaymentsSql from '../migrations/0015_sprint22_payment_captures.sql?raw';
+import sprint23ApiWebhooksSql from '../migrations/0016_sprint23_api_webhooks.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -464,6 +470,73 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(row?.status).toBe('PENDING');
   });
 
+  it('migración 0016 up: api_keys/webhook_endpoints/deliveries con CHECKs + UNIQUE + FK', async () => {
+    expect(sprint23ApiWebhooksSql).toMatch(/CREATE TABLE IF NOT EXISTS api_keys/);
+    expect(sprint23ApiWebhooksSql).toMatch(/UNIQUE\s*\(\s*endpoint_id\s*,\s*event_id\s*\)/i);
+    expect(sprint23ApiWebhooksSql).toMatch(
+      /CHECK\s*\(\s*status\s+IN\s*\(\s*'PENDING'\s*,\s*'PROCESSING'\s*,\s*'DELIVERED'\s*,\s*'FAILED'\s*,\s*'DISABLED'\s*\)\s*\)/i,
+    );
+
+    await seedTenantBranchSession('t-wbh-up');
+    await env.DB.prepare(
+      `INSERT INTO api_keys (id, tenant_id, key_prefix, key_hash, status)
+       VALUES (?, ?, ?, ?, 'active')`,
+    )
+      .bind('ak-up', 't-wbh-up', 'kp_live_abcdef01', 'salt:hash')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO api_keys (id, tenant_id, key_prefix, key_hash, status)
+         VALUES (?, ?, ?, ?, 'BOGUS')`,
+      )
+        .bind('ak-bad', 't-wbh-up', 'kp_live_zzzzzz01', 'salt:hash')
+        .run(),
+    ).rejects.toThrow();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO api_keys (id, tenant_id, key_prefix, key_hash, status)
+         VALUES (?, ?, ?, ?, 'active')`,
+      )
+        .bind('ak-dup', 't-wbh-up', 'kp_live_abcdef01', 'salt:hash')
+        .run(),
+    ).rejects.toThrow();
+
+    await env.DB.prepare(
+      `INSERT INTO webhook_endpoints (
+         id, tenant_id, url, secret_hash, secret_kms_ref, secret_salt, events_json
+       ) VALUES (?, ?, 'https://hooks.example.com/k', 'h', 'kms-ak', x'00', '["sale.created"]')`,
+    )
+      .bind('ep-up', 't-wbh-up')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO webhook_deliveries (
+         id, tenant_id, endpoint_id, event_id, event_type, payload_json, status, attempt_count
+       ) VALUES (?, ?, ?, ?, 'sale.created', '{}', 'PENDING', 0)`,
+    )
+      .bind('dl-up', 't-wbh-up', 'ep-up', 'evt-up')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO webhook_deliveries (
+           id, tenant_id, endpoint_id, event_id, event_type, payload_json, status, attempt_count
+         ) VALUES (?, ?, ?, ?, 'sale.created', '{}', 'PENDING', 0)`,
+      )
+        .bind('dl-dup', 't-wbh-up', 'ep-up', 'evt-up')
+        .run(),
+    ).rejects.toThrow();
+
+    const count = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM webhook_deliveries WHERE tenant_id = ?`,
+    )
+      .bind('t-wbh-up')
+      .first<{ n: number }>();
+    expect(count?.n).toBe(1);
+  });
+
   it('C2: doble ship concurrente sobre el mismo DRAFT → un solo débito (guardState)', async () => {
     const { branchId } = await seedTenantBranchSession('t-c2-race');
     const branchTo = `bt-${'t-c2-race'}`;
@@ -670,7 +743,77 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(cap?.status).toBe('CAPTURED');
   });
 
+  it('C1: doble enqueue concurrente del mismo (endpoint,event) → 1 fila, sin throw (idempotente)', async () => {
+    await seedTenantBranchSession('t-c1-wbh');
+    await env.DB.prepare(
+      `INSERT INTO webhook_endpoints (
+         id, tenant_id, url, secret_hash, secret_kms_ref, secret_salt, events_json
+       ) VALUES (?, ?, 'https://hooks.example.com/k', 'h', 'kms-c1', x'00', '["sale.created"]')`,
+    )
+      .bind('ep-c1', 't-c1-wbh')
+      .run();
+
+    const enqueues = await Promise.allSettled([
+      enqueueWebhookDeliveryAtomic(env.DB, 't-c1-wbh', {
+        endpointId: 'ep-c1',
+        eventId: 'evt-c1',
+        eventType: 'sale.created',
+        payloadJson: '{"id":"s1"}',
+      }),
+      enqueueWebhookDeliveryAtomic(env.DB, 't-c1-wbh', {
+        endpointId: 'ep-c1',
+        eventId: 'evt-c1',
+        eventType: 'sale.created',
+        payloadJson: '{"id":"s1"}',
+      }),
+    ]);
+
+    expect(enqueues.every((r) => r.status === 'fulfilled')).toBe(true);
+
+    const count = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM webhook_deliveries WHERE tenant_id = ? AND endpoint_id = ?`,
+    )
+      .bind('t-c1-wbh', 'ep-c1')
+      .first<{ n: number }>();
+    expect(count?.n).toBe(1);
+  });
+
+  it('C2: doble claim concurrente de la misma delivery → exactamente un ok:true', async () => {
+    await seedTenantBranchSession('t-c2-wbh');
+    await env.DB.prepare(
+      `INSERT INTO webhook_endpoints (
+         id, tenant_id, url, secret_hash, secret_kms_ref, secret_salt, events_json
+       ) VALUES (?, ?, 'https://hooks.example.com/k', 'h', 'kms-c2', x'00', '["sale.created"]')`,
+    )
+      .bind('ep-c2', 't-c2-wbh')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO webhook_deliveries (
+         id, tenant_id, endpoint_id, event_id, event_type, payload_json, status, attempt_count
+       ) VALUES (?, ?, ?, ?, 'sale.created', '{}', 'PENDING', 0)`,
+    )
+      .bind('dl-c2', 't-c2-wbh', 'ep-c2', 'evt-c2')
+      .run();
+
+    const claims = await Promise.all([
+      claimWebhookDeliveryAtomic(env.DB, 't-c2-wbh', 'dl-c2'),
+      claimWebhookDeliveryAtomic(env.DB, 't-c2-wbh', 'dl-c2'),
+    ]);
+
+    const okCount = claims.filter((c) => c.ok).length;
+    expect(okCount).toBe(1);
+
+    const row = await env.DB.prepare(
+      `SELECT status, attempt_count FROM webhook_deliveries WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind('dl-c2', 't-c2-wbh')
+      .first<{ status: string; attempt_count: number }>();
+    expect(row?.status).toBe('PROCESSING');
+    expect(row?.attempt_count).toBe(1);
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0016_SPRINT23_API_WEBHOOKS);
     await env.DB.exec(DOWN_0015_SPRINT22_PAYMENT_CAPTURES);
     await env.DB.exec(DOWN_0014_SPRINT20_PO_PARTIAL);
     await env.DB.exec(DOWN_0013_CATALOG_IMPORT);

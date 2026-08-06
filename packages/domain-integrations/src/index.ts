@@ -58,9 +58,41 @@ export interface PriceLookupPort {
   priceCentsFor(productId: string): Promise<Cents>;
 }
 
-export interface AccountingExportPort {
-  exportMovements(movements: readonly object[]): Promise<{ exportedCount: number }>;
-}
+export type {
+  AccountingEntry,
+  AccountingExportQuery,
+  AccountingExportTarget,
+  AccountingSaleRow,
+} from './accounting-export.js';
+export {
+  buildAccountingEntries,
+  centsToDecimalString,
+  GL,
+  isAccountingExportTarget,
+  sortAccountingEntries,
+} from './accounting-export.js';
+export type { AccountingExportPort } from './accounting-export.js';
+
+export type {
+  PublicApiEventType,
+  WebhookDeliveryStatus,
+  WebhookHostResolver,
+} from './public-api.js';
+export {
+  assertHttpsWebhookUrl,
+  assertSafeWebhookUrl,
+  computeNextAttemptAtMs,
+  hashApiKey,
+  isPublicApiEventType,
+  kvApiKeyRevokedKey,
+  parseApiKeyToken,
+  shouldDisableWebhookEndpoint,
+  signWebhookBody,
+  verifyApiKey,
+  WEBHOOK_AUTO_DISABLE_FAILURES,
+  WEBHOOK_MAX_ATTEMPTS,
+  WEBHOOK_TIMEOUT_MS,
+} from './public-api.js';
 
 /**
  * Puerto de importación de catálogo (S21, §5.4).

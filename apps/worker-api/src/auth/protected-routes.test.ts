@@ -39,6 +39,15 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/reports/catalog' },
   { method: 'GET', path: '/api/reports/day-summary' },
   { method: 'GET', path: '/api/reports/advanced/top-products' },
+  { method: 'POST', path: '/api/integrations/catalog-import' },
+  { method: 'POST', path: '/api/integrations/accounting/export' },
+  { method: 'GET', path: '/api/integrations/api-keys' },
+  { method: 'POST', path: '/api/integrations/api-keys' },
+  { method: 'DELETE', path: '/api/integrations/api-keys/k1' },
+  { method: 'GET', path: '/api/integrations/webhooks' },
+  { method: 'POST', path: '/api/integrations/webhooks' },
+  { method: 'DELETE', path: '/api/integrations/webhooks/ep1' },
+  { method: 'POST', path: '/api/integrations/webhooks/drain' },
   { method: 'POST', path: '/api/reporting/cron/daily-rollups' },
 ];
 

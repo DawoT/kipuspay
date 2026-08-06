@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@kipuspay/adapters-d1": "workspace:*",
+    "@kipuspay/adapters-accounting": "workspace:*",
     "@kipuspay/adapters-payments-pe": "workspace:*",
     "@kipuspay/domain-cash": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",

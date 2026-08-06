@@ -20,8 +20,8 @@ Cada objeción cita la **garantía técnica** o el **gate** que la respalda. Si 
 | Ya tengo un sistema, cambiar es mucho trabajo | CSV/onboarding hoy; importador Bsale/Alegra tras S21 | Roadmap Sprint 21 · GTM objeción #1 |
 | KDS / split / lotes FEFO | Solo si QG del sprint vertical cerró; si no, roadmap | GTM §2 · Sprints 17–20 |
 | Yape / Plin / tarjeta en caja | Tras S22 Zero-Trust; antes efectivo/transferencia manual | Roadmap Sprint 22 · Arquitectura pagos |
-| Contasis / Concar | Export asientos tras S23; antes export ventas | Roadmap Sprint 23 |
-| API / fidelización Cadena | API S23; puntos S24; si no, roadmap | GTM Cadena · Sprints 23–24 |
+| Contasis / Concar | Export asientos listo (QG S23); Cadena+ | Roadmap Sprint 23 · ops s23 |
+| API / fidelización Cadena | API QG S23; puntos S24; si no, roadmap | GTM Cadena · Sprints 23–24 |
 | Falla el primer día / pierdo ventas | Trial 30 días con datos reales; offline-first | AGENTS invariante 7 · GTM §6.2 |
 | Personal poco tech | UI cobro mínima; trial real | GTM §6 · UX cobro |
 | ¿Por qué tan barato? | Sin instalación/servidor aparte; Edge | GTM §4 · Arquitectura §1 |

@@ -1,6 +1,17 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0016_SPRINT23_API_WEBHOOKS = `
+DROP INDEX IF EXISTS idx_webhook_deliveries_poll;
+DROP TABLE IF EXISTS webhook_deliveries;
+DROP INDEX IF EXISTS idx_webhook_endpoints_tenant_status;
+DROP INDEX IF EXISTS uq_webhook_endpoints_tenant_id;
+DROP TABLE IF EXISTS webhook_endpoints;
+DROP INDEX IF EXISTS idx_api_keys_tenant_status;
+DROP TABLE IF EXISTS api_keys;
+DELETE FROM schema_meta WHERE key = 'api_webhooks.sprint23';
+`;
+
 export const DOWN_0015_SPRINT22_PAYMENT_CAPTURES = `
 DROP INDEX IF EXISTS idx_payment_captures_sale;
 DROP INDEX IF EXISTS idx_payment_captures_tenant_status;

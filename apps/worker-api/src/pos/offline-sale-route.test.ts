@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../index.js';
 import type { AuthTenantSnapshot } from '../auth/auth-decide.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -8,6 +8,14 @@ import {
   isFiscalCpeEnabled,
   runOfflineSaleHttp,
 } from './offline-sale-route.js';
+
+vi.mock('@kipuspay/adapters-d1', () => ({
+  processOfflineSaleAtomic: vi.fn(() => Promise.resolve({ saleId: 'sale-m3' })),
+}));
+
+vi.mock('../integrations/integration-routes.js', () => ({
+  enqueuePublicEventForTenant: vi.fn(() => Promise.reject(new Error('ENQUEUE_DB_FAILURE'))),
+}));
 
 const tenant: AuthTenantSnapshot = {
   id: 't1',
@@ -103,6 +111,39 @@ describe('runOfflineSaleHttp', () => {
     );
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('FEATURE_DISABLED');
+  });
+
+  it('M3: enqueue post-commit falla → la venta sigue devolviendo 200 (ya commiteada)', async () => {
+    const res = await runOfflineSaleHttp(
+      {
+        FEATURE_ACID_OFFLINE_SALE: '1',
+        FEATURE_INTEGRATIONS_API: '1',
+        DB: {
+          prepare: () => ({ bind: () => ({ run: () => Promise.resolve({ success: true }) }) }),
+        },
+        TENANT_KV: {
+          get: () => Promise.resolve(null),
+          put: () => Promise.resolve(),
+          delete: () => Promise.resolve(),
+        },
+      } as unknown as WorkerEnv,
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'x',
+        branchId: 'b',
+        cashRegisterSessionId: 's',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        items: [{ productId: 'p', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
+      },
+    );
+    expect(res.status).toBe(200);
+    expect((res.body as { saleId?: string }).saleId).toBe('sale-m3');
   });
 });
 
