@@ -22,3 +22,10 @@ export function countErrors(rows: readonly RawImportRow[]): number {
   }
   return errors;
 }
+
+export type { AlegraContactPayload, AlegraItemPayload } from './alegra.js';
+export { parseAlegraContacts, parseAlegraItems } from './alegra.js';
+export type { BsaleCustomerPayload, BsaleProductPayload } from './bsale.js';
+export { parseBsaleCustomers, parseBsaleProducts } from './bsale.js';
+export type { CsvParseError, CsvParseResult } from './csv.js';
+export { parseEnrichedCsv, tokenizeCsv } from './csv.js';

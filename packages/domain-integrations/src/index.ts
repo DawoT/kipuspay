@@ -1,4 +1,31 @@
 import type { Cents } from '@kipuspay/domain-sales';
+import type {
+  CatalogImportInput,
+  CatalogImportPlan,
+  CatalogImportResult,
+} from './catalog-import.js';
+
+export type {
+  CatalogEntityType,
+  CatalogImportAction,
+  CatalogImportConflict,
+  CatalogImportInput,
+  CatalogImportPlan,
+  CatalogImportResult,
+  CatalogImportRow,
+  CatalogImportSource,
+  NormalizedCustomerRow,
+  NormalizedProductRow,
+  NormalizedSeriesRow,
+  TaxMapping,
+} from './catalog-import.js';
+export {
+  externalKeyFor,
+  mapExternalTax,
+  planCatalogImport,
+  summarizeImportPlan,
+  validateCatalogRow,
+} from './catalog-import.js';
 
 export interface PaymentChargeRequest {
   readonly chargeId: string;
@@ -22,6 +49,15 @@ export interface PriceLookupPort {
 
 export interface AccountingExportPort {
   exportMovements(movements: readonly object[]): Promise<{ exportedCount: number }>;
+}
+
+/**
+ * Puerto de importación de catálogo (S21, §5.4).
+ * Regla 1: commit solo después de un dry-run aprobado (preview → confirmar).
+ */
+export interface CatalogImporterPort {
+  preview(input: CatalogImportInput): Promise<CatalogImportPlan>;
+  commit(plan: CatalogImportPlan): Promise<CatalogImportResult>;
 }
 
 export function aggregateImportsPerSource(

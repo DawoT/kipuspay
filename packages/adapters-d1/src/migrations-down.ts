@@ -1,6 +1,10 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0013_CATALOG_IMPORT = `
+DROP TABLE IF EXISTS external_entity_map;
+`;
+
 export const DOWN_0011_FASE6_COMMERCIAL_OPS = `
 DROP TABLE IF EXISTS purchase_receipt_lines;
 DROP TABLE IF EXISTS purchase_receipts;

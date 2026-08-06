@@ -27,6 +27,7 @@
     "@kipuspay/domain-cash": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",
     "@kipuspay/domain-inventory": "workspace:*",
+    "@kipuspay/domain-integrations": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*",
     "hono": "^4.12.34"
   }

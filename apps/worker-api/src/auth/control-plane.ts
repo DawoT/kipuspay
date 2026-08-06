@@ -50,6 +50,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_REPORTING_ROLLUPS?: string;
   readonly FEATURE_REPORTING_CATALOG?: string;
   readonly FEATURE_REPORTING_EXPORT?: string;
+  /** Sprint 21: importador de catálogo Bsale/Alegra/CSV (FASE 7 §5.4). */
+  readonly FEATURE_CATALOG_IMPORT?: string;
   readonly CPE_PORTAL_SECRET?: string;
 }
 

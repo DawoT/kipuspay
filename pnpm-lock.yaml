@@ -153,6 +153,9 @@ importers:
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../../packages/domain-fiscal-pe
+      '@kipuspay/domain-integrations':
+        specifier: workspace:*
+        version: link:../../packages/domain-integrations
       '@kipuspay/domain-inventory':
         specifier: workspace:*
         version: link:../../packages/domain-inventory
@@ -225,6 +228,9 @@ importers:
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../domain-fiscal-pe
+      '@kipuspay/domain-integrations':
+        specifier: workspace:*
+        version: link:../domain-integrations
       '@kipuspay/domain-inventory':
         specifier: workspace:*
         version: link:../domain-inventory
@@ -255,6 +261,13 @@ importers:
         version: 4.118.0(@cloudflare/workers-types@5.20260801.1)
 
   packages/adapters-importers:
+    dependencies:
+      '@kipuspay/domain-integrations':
+        specifier: workspace:*
+        version: link:../domain-integrations
+      '@kipuspay/domain-sales':
+        specifier: workspace:*
+        version: link:../domain-sales
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

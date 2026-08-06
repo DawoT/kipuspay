@@ -63,6 +63,7 @@ import {
   runEnsureReferralCodeHttp,
   runFirstSaleReferralHttp,
 } from './referrals/referral-routes.js';
+import { runCatalogImportHttp } from './integrations/catalog-import-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -499,6 +500,18 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     const result = await runDailyRollupsCronHttp(c.env, body);
     return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
+  // Sprint 21 — importación de catálogo Bsale/Alegra/CSV (FEATURE_CATALOG_IMPORT, FASE 7 §5.4)
+  app.post('/api/integrations/catalog-import', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runCatalogImportHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
   // Portal CPE: auth por token (adquirente), fuera del JWT tenant.
