@@ -4199,4 +4199,51 @@ aprobaciones: [Staff Frontend R, Staff Architect A, Staff Verifier V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0268
+timestamp_utc: 2026-08-06T01:19:00Z
+schema_version: 2
+sprint_fase: Sprint 21 — Fase 7 (Correccion auditoria: importador de catalogo Bsale/Alegra/CSV)
+agente_responsable: Staff Backend Datos
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0263]
+referencias_documentales: [docs/architecture/05-4-ecosystem-ports.md, docs/roadmap/fase-7.md]
+prev_id: 0267
+prev_hash: 7e519eacecd5ee0f07fe8a5bf7117e9561b25a08b64a78719ed51bc884718b67
+entry_hash: 0c5f8966ce19224c41d75a092ac51207afa1d1052e51459252579674533aca7b
+ticket_or_adr: Auditoria QG Sprint 21, Arquitectura §5.4 regla 1, invariante 2 (D1 atomicidad)
+test_ids: [catalog-importer.test, catalog-importer.integration.test, catalog-import.test, csv.test, catalog-import-routes.test, SUITE, index]
+entregable_afectado: capability integrations.catalog_import + external_entity_map (CORRIGE entrada 0263)
+descripcion: >
+  Audita y corrige la implementacion del importador de catalogo de la FASE 7:
+  (C1) writeRow liga row.branchId real a branch_document_series (antes ligaba tenantId
+  y violaba la FK branch_id); preview consulta taxes del tenant e inyecta
+  availableTaxCodes, y taxIdsFor falla fail-closed si la tax desaparece entre preview
+  y commit (nunca liga '1000' como FK). (C2) existKeys de commit pasa a una sola query
+  IN(...) (antes N+1) y se elimina el codigo muerto que ejecutaba y descartaba
+  existingKeys; CatalogImporter implementa CatalogImporterPort (port ya no huerfano);
+  writeRow tipado con AtomicPlanBuilder; resolveSource plano en la ruta y
+  existingExternalKeys opcional. Higiene: validateCatalogRow rechaza entityType
+  desconocido, toCents soporta separador de miles, se elimina ratePercentage muerto
+  del TaxMapping (DRY: la tasa vive en taxes). Se agrega test de integracion D1 real
+  que ejercita FKs reales de taxes/series, seed de tenant+branch+tax, idempotencia por
+  external_entity_map y TOCTOU fail-closed.
+evidencia: >
+  RED: catalog-importer con N+1 en existKeys, FK branch_id violada (row.branchId
+  ausente), taxIdsFor no fail-closed, CatalogImporterPort huerfano, preview sin
+  availableTaxCodes, sin test de integracion D1 real.
+  GREEN: quality.sh 8/8 (coverage domain-integrations 100% stmts / 98% branches);
+  verify SUITE GREEN; integracion D1 39/39; test N+1 y FK reales pasan.
+red_commit_sha: 2ea2e3c01ee64a12643c06552cbb41183ba1d4e1
+red_run_id: run-red-0268-sprint-21-catalog-import-audit
+expected_failure: AssertionError: catalog-import con N+1 y FK branch_id violada en auditoria
+green_commit_sha: 6d47337925fe8a2077d56b2b07514a985bd462c2
+green_run_id: run-green-0268-sprint-21-catalog-import-audit
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
 
