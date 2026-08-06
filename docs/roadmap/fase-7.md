@@ -28,6 +28,7 @@ sprints: "21–24"
 
 #### Sprint 22 — Cobro local: Yape / Plin / MP QR + tarjeta Culqi/Niubiz
 **Capabilities:** `payments.qr_wallets`, `payments.card_acquirer`  
+**Estado:** Cerrado (QG `docs/ops/s22-payments-local-qg.md`)  
 **Referencia:** Arquitectura §5.4 (`PaymentAcquirer`); GTM sellos de pago · **Agentes:** Staff Backend ACID (owner), Staff Security, Staff Frontend (caja), Staff Hardware (opcional PIN pad)
 
 **Entregables:**

@@ -116,9 +116,10 @@ Abre solo los archivos que esta tabla te señale.
 | 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Cerrado |
 | 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Cerrado |
 | 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | Actualizada (comandas / KDS / split bill) | Cerrado |
-| 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | Actualizada (transferencias + recepción OC parcial) | En progreso |
+| 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | Actualizada (transferencias + recepción OC parcial) | Cerrado |
 | 21 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 14 | Actualizada (importadores Bsale/Alegra/CSV, dry-run→commit idempotente, external_entity_map) | Cerrado |
-| 22–24 | 7 | — | — | Base | Planificado |
+| 22 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 29 | Actualizada (cobro local Yape/Plin/MP/Culqi/Niubiz) | Cerrado |
+| 23–24 | 7 | — | — | Base (API/export + WhatsApp/loyalty) | Planificado |
 | 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Planificado |
 | 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | Actualizada (P1 breaker §8.1) | Planificado |
 | 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | Actualizada (P2 cupo §4.1) | Planificado |
@@ -154,9 +155,8 @@ Abre solo los archivos que esta tabla te señale.
 | 51 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 29 | sin fila de estado | — |
 | 52 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 45 | sin fila de estado | — |
 | 53 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 60 | sin fila de estado | — |
-| 22 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 29 | sin fila de estado | — |
-| 23 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 44 | sin fila de estado | — |
-| 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 59 | sin fila de estado | — |
+| 23 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 45 | sin fila de estado | — |
+| 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 60 | sin fila de estado | — |
 
 ## Tablas DDL → capítulo y línea
 

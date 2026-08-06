@@ -67,6 +67,7 @@ sprints: "17–20"
 
 #### Sprint 20 — Cadena light: transferencias entre sucursales y recepción OC parcial
 **Capabilities:** `stock.transfers`, `purchasing.partial_receive`  
+**Estado:** Cerrado (QG `docs/ops/s20-cadena-transfers-qg.md`)  
 **Referencia:** Arquitectura §5.3 / §1.1; GTM vertical Cadenas (bundle) · **Agentes:** Staff Backend Datos (owner), Staff Backend ACID (colaborador), Staff Mobile (Dueño), Staff Frontend (Admin)
 
 **Entregables:**
@@ -76,7 +77,7 @@ sprints: "17–20"
 
 **Criterios de aceptación:** transferencia no duplica ni pierde unidades (suma origen+destino+merma = cantidad enviada); recepción parcial actualiza CxP solo por lo recibido; cancelación IN_TRANSIT revierte stock origen.
 
-**Quality Gate:** Staff Principal + Staff QA; Staff Growth no promociona “control de merma entre locales” en Cadena hasta cerrar este sprint.
+**Quality Gate:** Staff Principal + Staff QA; claim Cadena `merma_xfer` live tras firma A+V.
 
 ---
 

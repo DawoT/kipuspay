@@ -40,4 +40,4 @@ owner: "@DawoT"
 ## Residuales
 
 - Siigo: solo CSV o sprint follow-up (no adapter explícito hasta decisión).
-- `sale_payments.payment_method_id` vs `payment_captures` de §5.4 → decidir en Sprint 22.
+- `sale_payments.payment_method_id` vs `payment_captures` → resuelto en Sprint 22 (ambos; ver `docs/ops/s22-payments-local-qg.md`).

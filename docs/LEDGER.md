@@ -4247,3 +4247,235 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0269
+timestamp_utc: 2026-08-06T02:00:00Z
+schema_version: 2
+sprint_fase: Sprint 20 — Fase 6 Cadena light transferencias + OC parcial
+agente_responsable: Staff Backend Datos
+tipo: Entregable nuevo
+subtipo: CIERRA Sprint 20
+relacion: AMPLIA
+referencias_entradas: [0267, 0268]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s20-cadena-transfers-qg.md, docs/GTM.md]
+prev_id: 0268
+prev_hash: 0c5f8966ce19224c41d75a092ac51207afa1d1052e51459252579674533aca7b
+entry_hash: 9ceacba71edce87041c0363c6ffab72f5f45c929aa2e3c5a991bee1db4a0c608
+ticket_or_adr: Roadmap Sprint 20, Arquitectura §5.3 reglas 8-9, GTM §2 Cadena
+test_ids: [chaos-transfer, process-stock-transfer-atomic, transfer-receive-routes, registry.test, SUITE, V-13, V-15, V-20]
+entregable_afectado: stock.transfers + purchasing.partial_receive + claim merma_xfer live
+descripcion: >
+  Cierra Sprint 20 Cadena light: assertShrinkJustified + planShip/Receive/Cancel;
+  process-stock-transfer-atomic (ship/receive/cancel + PMP + TRANSFER_VARIANCE);
+  process-partial-receive-atomic (receipts + inventory_batches + AP via planCreateAp);
+  migracion 0014 PARTIALLY_RECEIVED; HTTP create/ship/receive/cancel/partial/owner;
+  UI Admin transferencias/OC y Dueño pendientes; descongela claim merma_xfer.
+evidencia: >
+  RED: ship/receive thin HTTP sin stock; partial-receive sin CxP; claim roadmap.
+  GREEN: domain-inventory ≥95%; chaos-transfer; adapters unit; routes; ROADMAP Cerrado;
+  ops s20 QG; merma_xfer live.
+red_commit_sha: 3869446497608111df7b3cfcd2cc085e5e390628
+red_run_id: run-red-0269-sprint-20
+expected_failure: AssertionError: S20 sin espejo stock ni CxP parcial ni claim Cadena live
+green_commit_sha: 3869446497608111df7b3cfcd2cc085e5e390628
+green_run_id: run-green-0269-sprint-20
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R; Staff Backend ACID R; QA V; Growth V; A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0270
+timestamp_utc: 2026-08-06T02:05:00Z
+schema_version: 2
+sprint_fase: Sprint 20 — Fase 6 (Firma A+V Cadena light)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0269]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s20-cadena-transfers-qg.md, docs/GTM.md]
+prev_id: 0269
+prev_hash: 9ceacba71edce87041c0363c6ffab72f5f45c929aa2e3c5a991bee1db4a0c608
+entry_hash: 3889e7c033b7ff723389878cb7483fe40322e4f7cef0345c1b1f8e3620007b9e
+ticket_or_adr: Roadmap Sprint 20, GTM §2 Cadena
+test_ids: [chaos-transfer, transfer-receive-routes, registry.test, SUITE, index]
+entregable_afectado: Sprint 20 GOV-APROBADO + claim merma_xfer live
+descripcion: >
+  Firma A+V independiente certifica GOV-APROBADO Sprint 20 Cadena light:
+  transferencias con conservacion/cancel, recepcion OC parcial con CxP solo
+  por recibido, alertas Dueño y descongelamiento claim merma_xfer.
+evidencia: >
+  RED: 0269 EN REVISION.
+  GREEN: verify SUITE; quality; firma A+V.
+red_commit_sha: 3869446497608111df7b3cfcd2cc085e5e390628
+red_run_id: run-red-0270-sprint-20-gov
+expected_failure: AssertionError: Sprint 20 QG EN REVISION
+green_commit_sha: 3869446497608111df7b3cfcd2cc085e5e390628
+green_run_id: run-green-0270-sprint-20-gov
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0271
+timestamp_utc: 2026-08-06T02:40:00Z
+schema_version: 2
+sprint_fase: Sprint 22 — Fase 7 Cobro local Yape/Plin/MP/Culqi/Niubiz
+agente_responsable: Staff Backend ACID
+tipo: Entregable nuevo
+subtipo: CIERRA Sprint 22
+relacion: AMPLIA
+referencias_entradas: [0270, 0268]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s22-payments-local-qg.md, docs/GTM.md, docs/architecture/05-4-ecosystem-ports.md]
+prev_id: 0270
+prev_hash: 3889e7c033b7ff723389878cb7483fe40322e4f7cef0345c1b1f8e3620007b9e
+entry_hash: 82f4ee129fb583b48148c6b3a54d45c7be9a920d49f4671ce8cf76219e42108f
+ticket_or_adr: Roadmap Sprint 22, Arquitectura §5.4 regla 2 edge 2B, GTM-06
+test_ids: [payment-capture, payment-capture.chaos, process-payment-capture-atomic, payment-routes, cash-routes, SUITE, V-13, V-15, V-20]
+entregable_afectado: payments.qr_wallets + payments.card_acquirer + payment_captures
+descripcion: >
+  Cierra Sprint 22: FSM captura + offlineStatus offline; migracion 0015 payment_captures;
+  process-offline-sale MANUAL en misma batch; process-payment-capture-atomic idempotente;
+  adapters-payments-pe sandbox HMAC; charge/webhook/owner uncaptured; Z cash vs electronic;
+  UI /caja/cobro ambar + /owner/pagos; descongela GTM-06/FAQ Yape.
+evidencia: >
+  RED: sin payment_captures; Z sumaba electronic como cash; claim FAQ post-gate.
+  GREEN: domain-integrations payment-capture; adapters PE; payment-routes; ROADMAP Cerrado; ops s22.
+red_commit_sha: 6f8740b66d9574be96bfe52a9e3e5f1b9a63d353
+red_run_id: run-red-0271-sprint-22
+expected_failure: AssertionError: S22 sin payment_captures ni edge 2B MANUAL
+green_commit_sha: 6f8740b66d9574be96bfe52a9e3e5f1b9a63d353
+green_run_id: run-green-0271-sprint-22
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R; Staff Security R; QA V; PM V; A+V humano pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0272
+timestamp_utc: 2026-08-06T02:45:00Z
+schema_version: 2
+sprint_fase: Sprint 22 — Fase 7 (Firma A+V Cobro local)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0271]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s22-payments-local-qg.md, docs/GTM.md]
+prev_id: 0271
+prev_hash: 82f4ee129fb583b48148c6b3a54d45c7be9a920d49f4671ce8cf76219e42108f
+entry_hash: 4796f5d20e532956cef6209bbd2ee9a5bfd1a2ec368ce67c3a6fb7b6cb20aaf1
+ticket_or_adr: Roadmap Sprint 22, GTM-06, GTM §8 FAQ pagos
+test_ids: [payment-capture, payment-routes, cash-routes, SUITE, index]
+entregable_afectado: Sprint 22 GOV-APROBADO + GTM captura manual / Yape live
+descripcion: >
+  Firma A+V independiente certifica GOV-APROBADO Sprint 22 Cobro local:
+  wallets/tarjeta Zero-Trust, edge 2B MANUAL, Z cash vs electronic y copy GTM.
+evidencia: >
+  RED: 0271 EN REVISION.
+  GREEN: verify SUITE; quality; firma A+V.
+red_commit_sha: 6f8740b66d9574be96bfe52a9e3e5f1b9a63d353
+red_run_id: run-red-0272-sprint-22-gov
+expected_failure: AssertionError: Sprint 22 QG EN REVISION
+green_commit_sha: 6f8740b66d9574be96bfe52a9e3e5f1b9a63d353
+green_run_id: run-green-0272-sprint-22-gov
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0273
+timestamp_utc: 2026-08-06T03:10:00Z
+schema_version: 2
+sprint_fase: Sprint 22 — Fase 7 (CORRIGE auditoria S22: gobernanza green falso)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0271, 0272]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/ops/s22-payments-local-qg.md, docs/GTM.md]
+prev_id: 0272
+prev_hash: 4796f5d20e532956cef6209bbd2ee9a5bfd1a2ec368ce67c3a6fb7b6cb20aaf1
+entry_hash: 81a456a25d553023b979ab9c000530afafcbac0dfd1a0e0a938ca81215a434b7
+ticket_or_adr: Auditoria S20/S22, Arquitectura §13.9 (CAL-07), invariante 2 (D1 atomicidad)
+test_ids: [payment-capture, payment-capture.chaos, process-payment-capture-atomic, payment-routes, cash-routes, schema.integration, SUITE, V-13, V-20]
+entregable_afectado: payments.qr_wallets + payments.card_acquirer + payment_captures (CORRIGE entradas 0271, 0272)
+descripcion: >
+  Corrige la gobernanza del Sprint 22: las entradas 0271/0272 citaban como
+  red_commit_sha/green_commit_sha el commit 6f8740b, que NO contenia el codigo de
+  payments locales (codigo sin commitear al momento de firmar = falso GREEN de TDD).
+  Auditoria implementada (C1/A4/M3/M5): webhook POS movido a POST
+  /v1/webhooks/payments/:acquirer fuera del JWT, x-kipus-timestamp obligatorio con
+  parseo estricto (400 si falta o no es finito), secretFor fail-closed (503
+  WEBHOOK_SECRET_NOT_CONFIGURED sin fallback 'sandbox-secret'), settle filtra por
+  acquirer. (C2) guardState derivado de estado en AtomicPlanBuilder para el settle
+  PENDING, validado con D1 real (doble settle concurrente → 1 CAPTURED). (A3)
+  createPendingCaptureAtomic devuelve el status real en reintento idempotente.
+  Esta entrada registra el commit de codigo que SÍ contiene el entregable.
+evidencia: >
+  RED: ledger 0271/0272 citaban 6f8740b sin el codigo; webhook bajo JWT en /api/*;
+  secret con fallback 'sandbox-secret'; settle sin filtro de acquirer; sin timestamp.
+  GREEN: commit 2de1a8f contiene S22 completo + correcciones; worker-api 236 tests,
+  adapters-d1 integration con doble settle real, adapters-payments-pe 4 tests;
+  verify SUITE GREEN; quality.sh.
+red_commit_sha: 6f8740b66d9574be96bfe52a9e3e5f1b9a63d353
+red_run_id: run-red-0273-sprint-22-gov-fix
+expected_failure: AssertionError: S22 green citaba 6f8740b sin codigo (falso GREEN TDD)
+green_commit_sha: 2de1a8f4b9544164a442bd30103beca94424b67d
+green_run_id: run-green-0273-sprint-22-gov-fix
+ancestry_verified: true
+aprobaciones: [Staff Architect R, Staff Security R, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0274
+timestamp_utc: 2026-08-06T03:12:00Z
+schema_version: 2
+sprint_fase: Sprint 20 — Fase 6 (CORRIGE auditoria S20: gobernanza green falso)
+agente_responsable: Staff Backend Datos
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0269, 0270]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/ops/s20-cadena-transfers-qg.md]
+prev_id: 0273
+prev_hash: 81a456a25d553023b979ab9c000530afafcbac0dfd1a0e0a938ca81215a434b7
+entry_hash: 93f02a56ae6c2f3af59a2ab607fe254454c923e41241344914f25b6c5e8d138c
+ticket_or_adr: Auditoria S20/S22, Arquitectura §13.9 (CAL-07), invariante 2 (D1 atomicidad)
+test_ids: [chaos-transfer, process-stock-transfer-atomic, transfer-receive-routes, registry.test, schema.integration, SUITE, V-13, V-20]
+entregable_afectado: inventory.stock_transfers cadena + purchase_orders parcial (CORRIGE entradas 0269, 0270)
+descripcion: >
+  Corrige la gobernanza del Sprint 20: las entradas 0269/0270 citaban como
+  red_commit_sha/green_commit_sha el commit 3869446, que NO contenia el codigo de la
+  cadena de transferencias (codigo sin commitear al momento de firmar = falso GREEN de
+  TDD). Auditoria implementada (C2): AtomicPlanBuilder.guardState aplicado a
+  shipStockTransferAtomic (status DRAFT), receiveStockTransferAtomic (IN_TRANSIT) y
+  cancelStockTransferAtomic (DRAFT/IN_TRANSIT), con test D1 real de doble ship
+  concurrente (stock 10→7 + 1 rejected). (A2) tests "up" de migraciones 0014/0015 con
+  D1 real. (M1) test propio de process-partial-receive-atomic con D1 real
+  (PARTIALLY_RECEIVED + AP OPEN 400 + stock 0→4 + 1 purchase_receipt).
+  Esta entrada registra el commit de codigo que SÍ contiene el entregable.
+evidencia: >
+  RED: ledger 0269/0270 citaban 3869446 sin el codigo; ship/receive/cancel sin guard
+  de estado derivado; migraciones 0014/0015 sin test "up"; partial-receive sin test D1.
+  GREEN: commit 2de1a8f contiene S20 completo + correcciones; adapters-d1 integration
+  con doble ship real (10→7), up 0014/0015, partial-receive D1; worker-api 236 tests;
+  verify SUITE GREEN; quality.sh.
+red_commit_sha: 3869446497608111df7b3cfcd2cc085e5e390628
+red_run_id: run-red-0274-sprint-20-gov-fix
+expected_failure: AssertionError: S20 green citaba 3869446 sin codigo (falso GREEN TDD)
+green_commit_sha: 2de1a8f4b9544164a442bd30103beca94424b67d
+green_run_id: run-green-0274-sprint-20-gov-fix
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -40,5 +40,6 @@ owner: "@DawoT"
 ## Residuales
 
 - QR mesa → post-S19 (GTM)
-- Espejo stock transferencias → Sprint 20
+- Espejo stock transferencias → Sprint 20 (cerrado; ver `docs/ops/s20-cadena-transfers-qg.md`)
+- Cobro local wallets/tarjeta → Sprint 22 (cerrado; ver `docs/ops/s22-payments-local-qg.md`)
 - Print outbox → Sprint 25 (ADR-0012)
