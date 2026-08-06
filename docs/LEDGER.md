@@ -4054,3 +4054,40 @@ aprobaciones: [Staff Backend Datos R, Staff Security V, Staff QA V, Staff Growth
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0264
+timestamp_utc: 2026-08-06T00:40:00Z
+schema_version: 2
+sprint_fase: Sprint 21 — Fase 7 (Firma A+V Importador de Catálogo Bsale/Alegra/CSV)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0263]
+referencias_documentales: [docs/roadmap/fase-7.md, docs/PROCESS.md, docs/architecture/05-4-ecosystem-ports.md]
+prev_id: 0263
+prev_hash: 3d2afde162bb9cdf3429c210ba6cc3da76131518dfd67bbee5f4198cc6895a08
+entry_hash: 572dfe7559f88529cd946720ccb2ee84ec1327516bd6a61bde4ee4c7e5f3b1e1
+ticket_or_adr: Roadmap Sprint 21, Arquitectura §5.4, GTM §8
+test_ids: [catalog-import.test, catalog-importer.test, bsale.test, alegra.test, csv.test, catalog-import-routes.test, index]
+entregable_afectado: integrations.catalog_import + adapters-importers Sprint 21 GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 21 (FASE 7): importador de catálogo Bsale/Alegra/CSV con
+  dry-run de 2 fases, resolución de duplicados por external_entity_map (migración 0013),
+  zero-dependency CSV RFC 4180 y 26/26 tareas verdes en monorepo.
+evidencia: >
+  RED: Sprint 21 QG en estado EN REVISION.
+  GREEN: quality OK; svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: e748a3ae879bd6c6443b901bfcf2fa76c34d2025
+red_run_id: run-red-0264-sprint-21-gov
+expected_failure: AssertionError: Sprint 21 QG EN REVISION
+green_commit_sha: e748a3ae879bd6c6443b901bfcf2fa76c34d2025
+green_run_id: run-green-0264-sprint-21-gov
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
