@@ -4479,3 +4479,40 @@ aprobaciones: [Staff Backend Datos R, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0275
+timestamp_utc: 2026-08-06T03:58:00Z
+schema_version: 2
+sprint_fase: Sprint 20 & 22 — Fase 6 & 7 (Firma A+V Transferencias & Pagos Locales PE)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0274]
+referencias_documentales: [docs/roadmap/fase-6.md, docs/roadmap/fase-7.md, docs/ops/s20-cadena-transfers-qg.md, docs/ops/s22-payments-local-qg.md]
+prev_id: 0274
+prev_hash: 93f02a56ae6c2f3af59a2ab607fe254454c923e41241344914f25b6c5e8d138c
+entry_hash: ebff5e21ce05e7f8f27d3837b55dd4bf259c119a61e08d154a881e8aba10be86
+ticket_or_adr: Roadmap Sprint 20 & 22, Arquitectura §5.4, GTM-06
+test_ids: [payment-capture, process-stock-transfer-atomic, payment-routes, cash-routes, index]
+entregable_afectado: Sprint 20 & Sprint 22 GOV-APROBADO
+descripcion: >
+  Firma A+V independiente de Arquitecto Staff y Verificador certifica
+  GOV-APROBADO para Sprint 20 (Transferencias entre sedes & Recepción parcial OC) y
+  Sprint 22 (Pasarela de pagos locales PE: Yape, Plin, tarjeta, QR): bench p95=0.001ms
+  re-verificado en sub50ms, 27/27 tareas verdes en monorepo y POS Web 65.46 kB gzipped.
+evidencia: >
+  RED: Sprint 20/22 QG en estado EN REVISION.
+  GREEN: quality OK (8/8); svelte-check 0; verify SUITE GREEN (25/25); firma A+V otorgada.
+red_commit_sha: 5bc8252cc6127e66e6acc2a52ed581b838a21de8
+red_run_id: run-red-0275-sprints-20-22-gov
+expected_failure: AssertionError: Sprints 20/22 QG EN REVISION
+green_commit_sha: 5bc8252cc6127e66e6acc2a52ed581b838a21de8
+green_run_id: run-green-0275-sprints-20-22-gov
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
