@@ -194,7 +194,7 @@ export function computeNvLineTotals(
       throw new Error('INVALID_UNIT_COST');
     }
     const discountCents = item.discountAmountCents ?? 0;
-    const subtotalCents = item.quantity * product.priceCents - discountCents;
+    const subtotalCents = Math.round(item.quantity * product.priceCents) - discountCents;
     if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
     const igvCents = Math.round((subtotalCents * 18) / 100);
     const totalCents = subtotalCents + igvCents;
@@ -213,7 +213,7 @@ export function computeNvLineTotals(
     totalTaxableCents += subtotalCents;
     totalIgvCents += igvCents;
     totalDiscountCents += discountCents;
-    totalCogsCents += unitCostCents * item.quantity;
+    totalCogsCents += Math.round(unitCostCents * item.quantity);
     totalAmountCents += totalCents;
   }
 

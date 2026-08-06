@@ -1,6 +1,7 @@
 export function formatCents(cents: number): string {
   const sign = cents < 0 ? '-' : '';
-  const whole = Math.trunc(cents / 100);
-  const rest = Math.abs(cents % 100);
+  const abs = Math.abs(Math.round(cents));
+  const whole = Math.floor(abs / 100);
+  const rest = abs % 100;
   return `${sign}${whole}.${String(rest).padStart(2, '0')}`;
 }

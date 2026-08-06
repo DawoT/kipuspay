@@ -64,12 +64,14 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
   if (!input.lines.length) throw new Error('EMPTY_LINES');
 
   const linesXml = input.lines
-    .map(
-      (line) => `
+    .map((line) => {
+      const netCents = line.lineTotalCents - line.igvCents - line.icbperCents;
+      const unitValueCents = Math.round(netCents / (line.quantity || 1));
+      return `
   <cac:InvoiceLine>
     <cbc:ID>${line.id}</cbc:ID>
     <cbc:InvoicedQuantity unitCode="${escapeXml(line.unitCode)}">${line.quantity}</cbc:InvoicedQuantity>
-    <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(line.lineTotalCents - line.igvCents)}</cbc:LineExtensionAmount>
+    <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(netCents)}</cbc:LineExtensionAmount>
     <cac:PricingReference>
       <cac:AlternativeConditionPrice>
         <cbc:PriceAmount currencyID="${input.currency}">${centsToAmount(line.unitPriceCents)}</cbc:PriceAmount>
@@ -94,10 +96,10 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       <cbc:Description>${escapeXml(line.description)}</cbc:Description>
     </cac:Item>
     <cac:Price>
-      <cbc:PriceAmount currencyID="${input.currency}">${centsToAmount(line.unitPriceCents)}</cbc:PriceAmount>
+      <cbc:PriceAmount currencyID="${input.currency}">${centsToAmount(unitValueCents)}</cbc:PriceAmount>
     </cac:Price>
-  </cac:InvoiceLine>`,
-    )
+  </cac:InvoiceLine>`;
+    })
     .join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>

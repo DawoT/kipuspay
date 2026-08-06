@@ -4623,3 +4623,43 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0279
+timestamp_utc: 2026-08-06T06:05:00Z
+schema_version: 2
+sprint_fase: Sprints 0 al 23 — Auditoría de Calidad Staff (Hotfixes & Optimización N+1)
+agente_responsable: Staff Architect
+tipo: Correccion / Modificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0278]
+referencias_documentales: [docs/architecture/13-implementation-quality.md, docs/PROCESS.md]
+prev_id: 0278
+prev_hash: 9471e9a373c9bd63061870375281c3e8c3f0d7a6907916b40ea19861f15625ce
+entry_hash: 5cf93833de1536b92ec6a94a6c7e6b9f864695d020ecf76ad870b97414b61f5f
+ticket_or_adr: Auditoría Staff S0-S23, Quality Gate CAL-01..08
+test_ids: [cents.test, ledger.test, ubl-invoice.test, offline-sale.test, orders.test, csv.test, process-offline-sale-atomic.integration.test, index]
+entregable_afectado: Sprints 0-23 Hardening & Quality Audit GOV-APROBADO
+descripcion: >
+  Firma A+V certifica correcciones críticas de auditoría Staff: (1) formatCents en UI
+  soporta montos negativos <-100c sin guión doble; (2) accumulateReceived en domain-cash
+  acumula correctamente por producto; (3) ubl-invoice ajusta LineExtensionAmount y PriceAmount
+  sin IGV/ICBPER según UBL 2.1 SUNAT; (4) offline-sale aplica Math.round en subtotal y COGS
+  para cantidades fraccionadas; (5) planOrderReadyAggregation acepta ítems BILLED; (6) toCents
+  en CSV importer reconoce separadores de miles; (7) N+1 query en processOfflineSaleAtomic
+  optimizado a un solo batch IN(...).
+evidencia: >
+  RED: auditoría reporta 7 hallazgos de código/lógica.
+  GREEN: quality OK 8/8; verify SUITE GREEN (25/25); 266/266 tests pasados.
+red_commit_sha: 9de84e757daa2f8aa520a28bc6734a3e0bbf3dd6
+red_run_id: run-red-0279-audit-hotfixes
+expected_failure: AssertionError: Hallazgos de auditoría sin corregir
+green_commit_sha: 9de84e757daa2f8aa520a28bc6734a3e0bbf3dd6
+green_run_id: run-green-0279-audit-hotfixes
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Architect A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+

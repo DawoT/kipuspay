@@ -139,7 +139,7 @@ export function planOrderReadyAggregation(input: {
   if (input.orderStatus !== 'FIRED') return null;
   const active = input.itemStatuses.filter((s) => s !== 'CANCELLED');
   if (active.length === 0) return null;
-  if (!active.every((s) => s === 'READY')) return null;
+  if (!active.every((s) => s === 'READY' || s === 'BILLED')) return null;
   assertOrderTransition('FIRED', 'READY');
   return 'READY';
 }

@@ -310,8 +310,10 @@ function accumulateReceived(
     }
     assertPositiveCents(line.unitCostCents, 'INVALID_UNIT_COST');
     const ordered = orderedQtyByProduct.get(line.productId) ?? 0;
-    const prev = previouslyReceivedQtyByProduct.get(line.productId) ?? 0;
-    const nextQty = prev + line.quantity;
+    const currentAcc =
+      receivedQtyByProduct.get(line.productId) ??
+      (previouslyReceivedQtyByProduct.get(line.productId) ?? 0);
+    const nextQty = currentAcc + line.quantity;
     if (nextQty > ordered) throw new Error('RECEIVE_EXCEEDS_ORDERED');
     receivedQtyByProduct.set(line.productId, nextQty);
     apAmountCents += Math.round(line.quantity * line.unitCostCents);

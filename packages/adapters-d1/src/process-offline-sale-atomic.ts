@@ -171,40 +171,52 @@ async function loadCatalogAndStock(
     string,
     { stock: number; allowNegative: boolean; hasBranchRow: boolean }
   >();
+  if (productIds.length === 0) return { catalog, stockByProduct };
 
-  for (const productId of productIds) {
-    const row = await db
-      .prepare(
-        `SELECT p.id, p.name, p.product_type, p.price_cents, p.cost_cents, p.allow_negative_stock,
-                COALESCE(bps.stock, p.stock) AS branch_stock,
-                bps.pmp_unit_cost_cents AS pmp_unit_cost_cents,
-                CASE WHEN bps.product_id IS NULL THEN 0 ELSE 1 END AS has_branch_row
-         FROM products p
-         LEFT JOIN branch_product_stock bps
-           ON bps.tenant_id = p.tenant_id AND bps.product_id = p.id AND bps.branch_id = ?
-         WHERE p.tenant_id = ? AND p.id = ? AND p.deleted_at IS NULL AND p.is_active = 1`,
-      )
-      .bind(branchId, tenantId, productId)
-      .first<ProductRow & { has_branch_row: number }>();
-    if (!row) throw new Error(`Product not found: ${productId}`);
+  const placeholders = productIds.map(() => '?').join(',');
+  const params = [branchId, tenantId, ...productIds];
+  const { results } = await db
+    .prepare(
+      `SELECT p.id, p.name, p.product_type, p.price_cents, p.cost_cents, p.allow_negative_stock,
+              COALESCE(bps.stock, p.stock) AS branch_stock,
+              bps.pmp_unit_cost_cents AS pmp_unit_cost_cents,
+              CASE WHEN bps.product_id IS NULL THEN 0 ELSE 1 END AS has_branch_row
+       FROM products p
+       LEFT JOIN branch_product_stock bps
+         ON bps.tenant_id = p.tenant_id AND bps.product_id = p.id AND bps.branch_id = ?
+       WHERE p.tenant_id = ? AND p.id IN (${placeholders}) AND p.deleted_at IS NULL AND p.is_active = 1`,
+    )
+    .bind(...params)
+    .all<ProductRow & { has_branch_row: number }>();
+
+  const foundSet = new Set<string>();
+  for (const row of results ?? []) {
+    foundSet.add(row.id);
     const catalogCost = row.cost_cents ?? 0;
     const pmp =
       row.pmp_unit_cost_cents !== null && row.pmp_unit_cost_cents !== undefined
         ? row.pmp_unit_cost_cents
         : catalogCost;
-    catalog.set(productId, {
+    catalog.set(row.id, {
       priceCents: row.price_cents,
       costCents: pmp,
       name: row.name,
       type: row.product_type,
       pmpUnitCostCents: pmp,
     });
-    stockByProduct.set(productId, {
+    stockByProduct.set(row.id, {
       stock: row.branch_stock,
-      allowNegative: Boolean(row.allow_negative_stock),
+      allowNegative: row.allow_negative_stock === 1,
       hasBranchRow: row.has_branch_row === 1,
     });
   }
+
+  for (const productId of productIds) {
+    if (!foundSet.has(productId)) {
+      throw new Error(`Product not found: ${productId}`);
+    }
+  }
+
   return { catalog, stockByProduct };
 }
 
