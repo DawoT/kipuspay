@@ -72,6 +72,21 @@ describe('parseEnrichedCsv', () => {
     expect((result.rows[0] as NormalizedProductRow).priceCents).toBe(999);
   });
 
+  it('maneja separador de miles sin romper el precio', () => {
+    const csv =
+      // eslint-disable-next-line no-secrets/no-secrets -- CSV de prueba, no secreto
+      'entity_type,external_id,sku,name,price\nproduct,p1,SKU-1,Café,"1,299.50"';
+    const result = parseEnrichedCsv(csv);
+    expect((result.rows[0] as NormalizedProductRow).priceCents).toBe(129950);
+  });
+
+  it('rechaza precio con doble separador ambiguo', () => {
+    const csv = 'entity_type,external_id,sku,name,price\nproduct,p1,SKU-1,Café,"1,2,3"';
+    const result = parseEnrichedCsv(csv);
+    expect(result.rows).toHaveLength(0);
+    expect(result.errors[0]?.reason).toMatch(/precio inválido/);
+  });
+
   it('devuelve vacío para entrada sin registros', () => {
     expect(parseEnrichedCsv('')).toEqual({ rows: [], errors: [] });
   });

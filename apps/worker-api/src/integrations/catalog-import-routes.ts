@@ -3,7 +3,7 @@
  * Dos fases: preview (dry-run, no escribe) → commit (solo lo aprobado, idempotente).
  * Flag default off → 404 FEATURE_OFF.
  */
-import type { CatalogImportRow } from '@kipuspay/domain-integrations';
+import type { CatalogImportRow, CatalogImportSource } from '@kipuspay/domain-integrations';
 import { CatalogImporter } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -11,6 +11,8 @@ export interface HttpResult {
   status: number;
   body: Record<string, unknown>;
 }
+
+const CATALOG_SOURCES: readonly CatalogImportSource[] = ['bsale', 'alegra', 'csv'];
 
 export function isCatalogImportEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_CATALOG_IMPORT === '1' || env?.FEATURE_CATALOG_IMPORT === 'true';
@@ -28,30 +30,25 @@ function badRequest(reason: string): HttpResult {
   return { status: 400, body: { error: reason, code: 'BAD_REQUEST' } };
 }
 
+function resolveSource(value: unknown): CatalogImportSource | null {
+  return typeof value === 'string' && (CATALOG_SOURCES as readonly string[]).includes(value)
+    ? (value as CatalogImportSource)
+    : null;
+}
+
 export function runCatalogImportHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  return importCatalog(
-    env,
-    tenantId,
-    body,
-    body.source === 'bsale'
-      ? 'bsale'
-      : body.source === 'alegra'
-        ? 'alegra'
-        : body.source === 'csv'
-          ? 'csv'
-          : null,
-  );
+  return importCatalog(env, tenantId, body, resolveSource(body.source));
 }
 
 async function importCatalog(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: Record<string, unknown>,
-  source: 'bsale' | 'alegra' | 'csv' | null,
+  source: CatalogImportSource | null,
 ): Promise<HttpResult> {
   if (!isCatalogImportEnabled(env)) return featureOff('FEATURE_CATALOG_IMPORT');
   if (!env?.DB) return dbUnavailable();
@@ -65,12 +62,7 @@ async function importCatalog(
   const importer = new CatalogImporter(env.DB);
 
   if (body.mode === 'preview') {
-    const plan = await importer.preview({
-      source,
-      tenantId,
-      rows,
-      existingExternalKeys: new Map(),
-    });
+    const plan = await importer.preview({ source, tenantId, rows });
     return {
       status: 200,
       body: {
@@ -83,7 +75,7 @@ async function importCatalog(
   }
 
   // Commit tras preview (regla 1): el servidor re-planifica y rechaza si hay conflictos.
-  const plan = await importer.preview({ source, tenantId, rows, existingExternalKeys: new Map() });
+  const plan = await importer.preview({ source, tenantId, rows });
   if (plan.conflicts.length > 0) {
     return {
       status: 422,

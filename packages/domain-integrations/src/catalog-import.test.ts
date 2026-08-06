@@ -44,6 +44,7 @@ function seriesRow(overrides: Partial<NormalizedSeriesRow> = {}): NormalizedSeri
   return {
     entityType: 'series',
     externalId: 's-1',
+    branchId: 'b-1',
     documentTypeCode: '01',
     prefix: 'F001',
     ...overrides,
@@ -102,6 +103,16 @@ describe('validateCatalogRow', () => {
   it('rechaza serie sin prefijo', () => {
     expect(validateCatalogRow(seriesRow({ prefix: '' }))).toBe('serie requiere prefijo');
   });
+
+  it('rechaza serie sin sucursal', () => {
+    expect(validateCatalogRow(seriesRow({ branchId: '' }))).toBe('serie requiere sucursal');
+  });
+
+  it('rechaza entidad desconocida (no cae a series)', () => {
+    expect(validateCatalogRow({ entityType: 'gadget' } as never)).toBe(
+      'tipo de entidad no soportado: gadget',
+    );
+  });
 });
 
 describe('mapExternalTax', () => {
@@ -110,7 +121,6 @@ describe('mapExternalTax', () => {
       kind: 'known',
       taxCode: '1000',
       taxName: 'IGV',
-      ratePercentage: 18,
     });
   });
 
@@ -119,7 +129,6 @@ describe('mapExternalTax', () => {
       kind: 'known',
       taxCode: '7152',
       taxName: 'ICBPER',
-      ratePercentage: 0,
     });
   });
 
@@ -174,6 +183,24 @@ describe('planCatalogImport (dry-run: no escribe)', () => {
     expect(plan.conflicts.at(0)?.reason).toBe('impuesto no mapeable: IMPUESTO-RARO');
   });
 
+  it('reporta conflicto si la tax canónica no está disponible en el tenant', () => {
+    const plan = planCatalogImport({
+      ...input([productRow()]),
+      availableTaxCodes: new Set(['7152']),
+    });
+    expect(plan.actions).toHaveLength(0);
+    expect(plan.conflicts.at(0)?.reason).toBe('impuesto no configurado en el tenant: 1000');
+  });
+
+  it('no conflige cuando la tax canónica sí está disponible', () => {
+    const plan = planCatalogImport({
+      ...input([productRow()]),
+      availableTaxCodes: new Set(['1000']),
+    });
+    expect(plan.actions).toHaveLength(1);
+    expect(plan.actions[0]).toEqual({ kind: 'create', row: productRow() });
+  });
+
   it('reporta clave externa duplicada dentro del mismo lote', () => {
     const plan = planCatalogImport(input([productRow(), productRow()]));
     expect(plan.actions.filter((a) => a.kind === 'create')).toHaveLength(1);
@@ -202,7 +229,7 @@ describe('planCatalogImport (dry-run: no escribe)', () => {
     const plan = planCatalogImport(input(rows));
     expect(plan.actions).toHaveLength(1);
     expect(rows).toHaveLength(1);
-    expect(input(rows).existingExternalKeys.size).toBe(0);
+    expect(plan.actions).toHaveLength(1);
   });
 });
 

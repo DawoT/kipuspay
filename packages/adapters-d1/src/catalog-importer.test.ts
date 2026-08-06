@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CatalogImportInput, CatalogImportRow } from '@kipuspay/domain-integrations';
+import type {
+  CatalogImportInput,
+  CatalogImportRow,
+  NormalizedProductRow,
+} from '@kipuspay/domain-integrations';
 import { CatalogImporter } from './catalog-importer.js';
 import type { D1DatabaseLike } from './index.js';
 
 type Row = Record<string, unknown>;
 
-function productRow(): CatalogImportRow {
+function productRow(overrides: Partial<NormalizedProductRow> = {}): CatalogImportRow {
   return {
     entityType: 'product',
     externalId: 'p1',
@@ -17,6 +21,7 @@ function productRow(): CatalogImportRow {
     costCents: 800,
     taxName: 'IGV',
     igvAffectationCode: '10',
+    ...overrides,
   };
 }
 
@@ -43,14 +48,20 @@ function input(rows: readonly CatalogImportRow[], existing: Row[] = []): Catalog
   };
 }
 
-function mockDb(handlers: { first?: (sql: string, binds: unknown[]) => Row | null }): {
+function mockDb(handlers: {
+  first?: (sql: string, binds: unknown[]) => Row | null;
+  all?: (sql: string, binds: unknown[]) => Row[];
+}): {
   db: D1DatabaseLike;
   batch: ReturnType<typeof vi.fn>;
   prepare: ReturnType<typeof vi.fn>;
+  statements: { sql: string; binds: unknown[] }[];
 } {
+  const statements: { sql: string; binds: unknown[] }[] = [];
   const batch = vi.fn().mockResolvedValue([]);
   const prepare = vi.fn((sql: string) => {
     const binds: unknown[] = [];
+    statements.push({ sql, binds });
     const stmt: {
       bind(...args: unknown[]): typeof stmt;
       first<T>(): Promise<T | null>;
@@ -62,18 +73,35 @@ function mockDb(handlers: { first?: (sql: string, binds: unknown[]) => Row | nul
         return stmt;
       },
       first: <T>() => Promise.resolve((handlers.first?.(sql, binds) ?? null) as T | null),
-      all: <T>() => Promise.resolve({ results: [] as T[], success: true }),
+      all: <T>() =>
+        Promise.resolve({
+          results: (handlers.all?.(sql, binds) ?? []) as T[],
+          success: true,
+        }),
       run: () => Promise.resolve({ success: true }),
     };
     return stmt;
   });
   const db = { prepare, batch } as unknown as D1DatabaseLike;
-  return { db, batch, prepare };
+  return { db, batch, prepare, statements };
+}
+
+/** Mock con IGV (1000) configurado — estado normal de un tenant operativo. */
+function mockDbWithIgv(): {
+  db: D1DatabaseLike;
+  batch: ReturnType<typeof vi.fn>;
+  prepare: ReturnType<typeof vi.fn>;
+  statements: { sql: string; binds: unknown[] }[];
+} {
+  return mockDb({
+    all: (sql) => (sql.includes('FROM taxes') ? [{ code: '1000' }] : []),
+    first: (sql) => (sql.includes('FROM taxes') ? { id: 'tax-igv-1' } : null),
+  });
 }
 
 describe('CatalogImporter.preview (dry-run)', () => {
   it('no escribe nada y marca filas como create', async () => {
-    const { db, batch, prepare } = mockDb({});
+    const { db, batch, prepare } = mockDbWithIgv();
     const importer = new CatalogImporter(db);
     const plan = await importer.preview(input([productRow()]));
     expect(plan.actions).toHaveLength(1);
@@ -84,17 +112,54 @@ describe('CatalogImporter.preview (dry-run)', () => {
 
   it('reutiliza claves externas ya materializadas sin duplicar', async () => {
     const { db } = mockDb({
-      first: (sql) => (sql.includes('FROM external_entity_map') ? { internal_id: 'prod-9' } : null),
+      all: (sql) => {
+        if (sql.includes('FROM taxes')) return [{ code: '1000' }];
+        if (sql.includes('FROM external_entity_map')) {
+          return [{ entity_type: 'product', external_id: 'p1', internal_id: 'prod-9' }];
+        }
+        return [];
+      },
     });
     const importer = new CatalogImporter(db);
     const plan = await importer.preview(input([productRow()]));
     expect(plan.actions[0]).toMatchObject({ kind: 'skip-duplicate', existingInternalId: 'prod-9' });
   });
+
+  it('reporta conflicto si la tax mapeada no existe para el tenant (regla 1)', async () => {
+    const { db } = mockDb({
+      first: (sql) => (sql.includes('FROM taxes') ? null : null),
+    });
+    const importer = new CatalogImporter(db);
+    const plan = await importer.preview(input([productRow()]));
+    expect(plan.actions).toHaveLength(0);
+    expect(plan.conflicts.at(0)?.reason).toBe('impuesto no configurado en el tenant: 1000');
+  });
+
+  it('resuelve claves existentes con UNA query de external_entity_map (no N+1)', async () => {
+    const { db, statements } = mockDb({
+      all: (sql) => {
+        if (sql.includes('FROM taxes')) return [{ code: '1000' }];
+        if (sql.includes('FROM external_entity_map')) {
+          return [{ entity_type: 'product', external_id: 'p2', internal_id: 'prod-9' }];
+        }
+        return [];
+      },
+    });
+    const importer = new CatalogImporter(db);
+    const plan = await importer.preview(
+      input([productRow({ externalId: 'p1' }), productRow({ externalId: 'p2' })]),
+    );
+    const keyQueries = statements.filter((s) => s.sql.includes('FROM external_entity_map'));
+    expect(keyQueries).toHaveLength(1);
+    expect(keyQueries[0]!.sql).toMatch(/IN\s*\(/);
+    expect(plan.actions).toHaveLength(2);
+    expect(plan.actions[1]).toMatchObject({ kind: 'skip-duplicate', existingInternalId: 'prod-9' });
+  });
 });
 
 describe('CatalogImporter.commit', () => {
   it('escribe productos, product_taxes y external_entity_map en un solo batch', async () => {
-    const { db, batch, prepare } = mockDb({});
+    const { db, batch, prepare } = mockDbWithIgv();
     const importer = new CatalogImporter(db);
     const plan = await importer.preview(input([productRow()]));
     const result = await importer.commit(plan);
@@ -109,7 +174,13 @@ describe('CatalogImporter.commit', () => {
 
   it('commit de plan sin creates es noop (idempotencia)', async () => {
     const { db, batch, prepare } = mockDb({
-      first: (sql) => (sql.includes('FROM external_entity_map') ? { internal_id: 'prod-9' } : null),
+      all: (sql) => {
+        if (sql.includes('FROM taxes')) return [{ code: '1000' }];
+        if (sql.includes('FROM external_entity_map')) {
+          return [{ entity_type: 'product', external_id: 'p1', internal_id: 'prod-9' }];
+        }
+        return [];
+      },
     });
     const importer = new CatalogImporter(db);
     const plan = await importer.preview(input([productRow()]));
@@ -129,5 +200,26 @@ describe('CatalogImporter.commit', () => {
 
     const sqls = prepare.mock.calls.map((c) => c[0] as string);
     expect(sqls.some((s) => s.includes('INSERT INTO customers'))).toBe(true);
+  });
+
+  it('escribe series con branch_id de la fila, no el tenant_id', async () => {
+    const { db, statements } = mockDb({});
+    const importer = new CatalogImporter(db);
+    const plan = await importer.preview(
+      input([
+        {
+          entityType: 'series',
+          externalId: 's1',
+          branchId: 'branch-7',
+          documentTypeCode: '01',
+          prefix: 'F001',
+        },
+      ]),
+    );
+    await importer.commit(plan);
+
+    const seriesStmt = statements.find((s) => s.sql.includes('branch_document_series'));
+    expect(seriesStmt).toBeDefined();
+    expect(seriesStmt!.binds).toEqual([expect.any(String), 't-1', 'branch-7', '01', 'F001']);
   });
 });

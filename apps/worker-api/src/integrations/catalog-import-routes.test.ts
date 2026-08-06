@@ -26,15 +26,15 @@ function mockEnv(): WorkerEnv {
         return stmt;
       },
       first<T>() {
-        if (sql.includes('FROM external_entity_map')) {
-          return Promise.resolve(null);
-        }
         if (sql.includes('FROM taxes')) {
           return Promise.resolve({ id: 'tax-igv' } as T);
         }
         return Promise.resolve(null);
       },
       all<T>() {
+        if (sql.includes('FROM taxes')) {
+          return Promise.resolve(okResult<T>([{ code: '1000' } as T]));
+        }
         return Promise.resolve(okResult<T>());
       },
       run<T>() {

@@ -3,6 +3,7 @@ import type {
   CatalogImportPlan,
   CatalogImportResult,
   CatalogImportRow,
+  CatalogImporterPort,
 } from '@kipuspay/domain-integrations';
 import {
   externalKeyFor,
@@ -10,14 +11,20 @@ import {
   planCatalogImport,
   summarizeImportPlan,
 } from '@kipuspay/domain-integrations';
-import type { D1DatabaseLike } from './index.js';
+import type { AtomicPlanBuilder, D1DatabaseLike } from './index.js';
 import { runD1AtomicPlan } from './index.js';
 
 interface ExternalKeyRow {
+  readonly entity_type: string;
+  readonly external_id: string;
   readonly internal_id: string;
 }
 
-interface TaxRow {
+interface TaxCodeRow {
+  readonly code: string;
+}
+
+interface TaxIdRow {
   readonly id: string;
 }
 
@@ -27,7 +34,7 @@ interface TaxRow {
  * - commit: materializa SOLO lo aprobado por el preview, atómicamente y con
  *   idempotencia vía external_entity_map (re-import no duplica).
  */
-export class CatalogImporter {
+export class CatalogImporter implements CatalogImporterPort {
   private readonly db: D1DatabaseLike;
 
   constructor(db: D1DatabaseLike) {
@@ -35,7 +42,12 @@ export class CatalogImporter {
   }
 
   async preview(input: CatalogImportInput): Promise<CatalogImportPlan> {
-    return planCatalogImport({ ...input, existingExternalKeys: await this.existingKeys(input) });
+    const availableTaxCodes = await this.availableTaxCodes(input.tenantId);
+    return planCatalogImport({
+      ...input,
+      existingExternalKeys: await this.existingKeys(input),
+      availableTaxCodes,
+    });
   }
 
   async commit(plan: CatalogImportPlan): Promise<CatalogImportResult> {
@@ -45,13 +57,11 @@ export class CatalogImporter {
     }
 
     const taxIds = await this.taxIdsFor(plan);
-    const keys = await this.existingKeys(planToInput(plan));
 
     await runD1AtomicPlan(this.db, (builder) => {
       for (const action of created) {
         const row = action.row;
         const internalId = crypto.randomUUID();
-        keys.set(externalKeyFor(row.entityType, row.externalId), internalId);
         this.writeRow(builder, plan.tenantId, plan.source, row, internalId, taxIds);
       }
     });
@@ -60,22 +70,43 @@ export class CatalogImporter {
   }
 
   private async existingKeys(input: CatalogImportInput): Promise<Map<string, string>> {
+    if (input.rows.length === 0) return new Map();
     const keys = new Map<string, string>();
-    for (const row of input.rows) {
-      const result = await this.db
-        .prepare(
-          `SELECT internal_id FROM external_entity_map
-           WHERE tenant_id = ? AND source = ? AND entity_type = ? AND external_id = ?`,
-        )
-        .bind(input.tenantId, input.source, row.entityType, row.externalId)
-        .first<ExternalKeyRow>();
-      if (result) {
-        keys.set(externalKeyFor(row.entityType, row.externalId), result.internal_id);
-      }
+    const pairs = input.rows.map((r) => [r.entityType, r.externalId] as const);
+    const placeholders = pairs.map(() => '(?, ?)').join(', ');
+    const binds: unknown[] = [input.tenantId, input.source];
+    for (const [entityType, externalId] of pairs) binds.push(entityType, externalId);
+
+    const rows = await this.db
+      .prepare(
+        `SELECT entity_type, external_id, internal_id FROM external_entity_map
+         WHERE tenant_id = ? AND source = ?
+           AND (entity_type, external_id) IN (${placeholders})`,
+      )
+      .bind(...binds)
+      .all<ExternalKeyRow>();
+    for (const row of rows.results ?? []) {
+      keys.set(
+        externalKeyFor(row.entity_type as CatalogImportRow['entityType'], row.external_id),
+        row.internal_id,
+      );
     }
     return keys;
   }
 
+  /** Códigos de impuesto canónicos que el tenant tiene configurados en `taxes`. */
+  private async availableTaxCodes(tenantId: string): Promise<ReadonlySet<string>> {
+    const rows = await this.db
+      .prepare(`SELECT code FROM taxes WHERE tenant_id = ?`)
+      .bind(tenantId)
+      .all<TaxCodeRow>();
+    return new Set((rows.results ?? []).map((r) => r.code));
+  }
+
+  /**
+   * Resuelve el internal id de cada tax canónica que el plan necesita.
+   * Fail-closed (regla 1): si la tax no existe, lanza — jamás liga el código como FK.
+   */
   private async taxIdsFor(plan: CatalogImportPlan): Promise<ReadonlyMap<string, string>> {
     const taxIds = new Map<string, string>();
     for (const action of plan.actions) {
@@ -87,14 +118,17 @@ export class CatalogImporter {
       const result = await this.db
         .prepare(`SELECT id FROM taxes WHERE tenant_id = ? AND code = ?`)
         .bind(plan.tenantId, mapped.taxCode)
-        .first<TaxRow>();
-      taxIds.set(mapped.taxCode, result?.id ?? mapped.taxCode);
+        .first<TaxIdRow>();
+      if (!result) {
+        throw new Error(`tax no configurada para el tenant: ${mapped.taxCode}`);
+      }
+      taxIds.set(mapped.taxCode, result.id);
     }
     return taxIds;
   }
 
   private writeRow(
-    builder: { add(statement: unknown): void },
+    builder: AtomicPlanBuilder,
     tenantId: string,
     source: string,
     row: CatalogImportRow,
@@ -157,7 +191,7 @@ export class CatalogImporter {
             `INSERT INTO branch_document_series (id, tenant_id, branch_id, document_type_code, series)
              VALUES (?, ?, ?, ?, ?)`,
           )
-          .bind(internalId, tenantId, tenantId, row.documentTypeCode, row.prefix),
+          .bind(internalId, tenantId, row.branchId, row.documentTypeCode, row.prefix),
       );
     }
     builder.add(
@@ -169,13 +203,4 @@ export class CatalogImporter {
         .bind(crypto.randomUUID(), tenantId, source, row.entityType, row.externalId, internalId),
     );
   }
-}
-
-function planToInput(plan: CatalogImportPlan): CatalogImportInput {
-  return {
-    source: plan.source,
-    tenantId: plan.tenantId,
-    rows: plan.actions.map((a) => a.row),
-    existingExternalKeys: new Map(),
-  };
 }

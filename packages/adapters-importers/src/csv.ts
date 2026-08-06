@@ -70,7 +70,24 @@ export function tokenizeCsv(input: string): string[][] {
 }
 
 function toCents(value: string): Cents | null {
-  const parsed = Number(value.replace(/,/g, '.'));
+  const trimmed = value.trim();
+  if (trimmed === '') return null;
+  const lastComma = trimmed.lastIndexOf(',');
+  const lastDot = trimmed.lastIndexOf('.');
+  const hasDecimal = lastComma >= 0 || lastDot >= 0;
+  if (hasDecimal) {
+    const sepIdx = Math.max(lastComma, lastDot);
+    const sepChar = trimmed[sepIdx] ?? '';
+    const integerPartRaw = trimmed.slice(0, sepIdx);
+    if (integerPartRaw.includes(sepChar)) return null;
+    const integerPart = integerPartRaw.replace(/[^0-9]/g, '');
+    const decimalPart = trimmed.slice(sepIdx + 1).replace(/[^0-9]/g, '');
+    if (decimalPart.length === 0 || decimalPart.length > 2) return null;
+    const parsed = Number(`${integerPart}.${decimalPart}`);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.round(parsed * 100);
+  }
+  const parsed = Number(trimmed);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
   return Math.round(parsed * 100);
 }

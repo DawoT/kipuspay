@@ -29,6 +29,7 @@ export interface NormalizedCustomerRow {
 export interface NormalizedSeriesRow {
   readonly entityType: 'series';
   readonly externalId: string;
+  readonly branchId: string;
   readonly documentTypeCode: string;
   readonly prefix: string;
 }
@@ -40,7 +41,9 @@ export interface CatalogImportInput {
   readonly tenantId: string;
   readonly rows: readonly CatalogImportRow[];
   /** Claves externas ya materializadas: `${entityType}:${externalId}` → internalId. */
-  readonly existingExternalKeys: ReadonlyMap<string, string>;
+  readonly existingExternalKeys?: ReadonlyMap<string, string>;
+  /** Códigos de impuesto canónicos disponibles en el tenant (fuente: tabla taxes). */
+  readonly availableTaxCodes?: ReadonlySet<string>;
 }
 
 export type CatalogImportAction =
@@ -73,7 +76,6 @@ export type TaxMapping =
       readonly kind: 'known';
       readonly taxCode: string;
       readonly taxName: string;
-      readonly ratePercentage: number;
     }
   | { readonly kind: 'unknown'; readonly externalTaxName: string };
 
@@ -89,10 +91,10 @@ export function mapExternalTax(externalTaxName: string | null | undefined): TaxM
   if (!externalTaxName) return null;
   const name = externalTaxName.trim().toUpperCase();
   if (name === 'IGV') {
-    return { kind: 'known', taxCode: '1000', taxName: 'IGV', ratePercentage: 18 };
+    return { kind: 'known', taxCode: '1000', taxName: 'IGV' };
   }
   if (name === 'ICBPER') {
-    return { kind: 'known', taxCode: '7152', taxName: 'ICBPER', ratePercentage: 0 };
+    return { kind: 'known', taxCode: '7152', taxName: 'ICBPER' };
   }
   return { kind: 'unknown', externalTaxName };
 }
@@ -113,6 +115,7 @@ function validateCustomer(row: NormalizedCustomerRow): string | null {
 }
 
 function validateSeries(row: NormalizedSeriesRow): string | null {
+  if (row.branchId.trim() === '') return 'serie requiere sucursal';
   if (row.documentTypeCode === '') return 'serie requiere tipo de documento';
   if (row.prefix.trim() === '') return 'serie requiere prefijo';
   return null;
@@ -121,7 +124,26 @@ function validateSeries(row: NormalizedSeriesRow): string | null {
 export function validateCatalogRow(row: CatalogImportRow): string | null {
   if (row.entityType === 'product') return validateProduct(row);
   if (row.entityType === 'customer') return validateCustomer(row);
-  return validateSeries(row);
+  if (row.entityType === 'series') return validateSeries(row);
+  const unknown = (row as { entityType?: unknown }).entityType;
+  return `tipo de entidad no soportado: ${String(unknown)}`;
+}
+
+/** Razón de conflicto fiscal de un producto, si aplica (regla 1 §5.4). */
+function taxConflictReason(
+  row: NormalizedProductRow,
+  availableTaxCodes: ReadonlySet<string> | undefined,
+): string | null {
+  const mapped = mapExternalTax(row.taxName);
+  if (mapped?.kind === 'unknown') return `impuesto no mapeable: ${mapped.externalTaxName}`;
+  if (
+    mapped?.kind === 'known' &&
+    availableTaxCodes !== undefined &&
+    !availableTaxCodes.has(mapped.taxCode)
+  ) {
+    return `impuesto no configurado en el tenant: ${mapped.taxCode}`;
+  }
+  return null;
 }
 
 /**
@@ -133,6 +155,7 @@ export function planCatalogImport(input: CatalogImportInput): CatalogImportPlan 
   const actions: CatalogImportAction[] = [];
   const conflicts: CatalogImportConflict[] = [];
   const seen = new Set<string>();
+  const existingKeys = input.existingExternalKeys ?? new Map<string, string>();
 
   for (const row of input.rows) {
     const validationError = validateCatalogRow(row);
@@ -141,12 +164,9 @@ export function planCatalogImport(input: CatalogImportInput): CatalogImportPlan 
       continue;
     }
     if (row.entityType === 'product') {
-      const mapped = mapExternalTax(row.taxName);
-      if (mapped?.kind === 'unknown') {
-        conflicts.push({
-          row,
-          reason: `impuesto no mapeable: ${mapped.externalTaxName}`,
-        });
+      const taxConflict = taxConflictReason(row, input.availableTaxCodes);
+      if (taxConflict) {
+        conflicts.push({ row, reason: taxConflict });
         continue;
       }
     }
@@ -158,7 +178,7 @@ export function planCatalogImport(input: CatalogImportInput): CatalogImportPlan 
     }
     seen.add(key);
 
-    const existingInternalId = input.existingExternalKeys.get(key);
+    const existingInternalId = existingKeys.get(key);
     if (existingInternalId) {
       actions.push({ kind: 'skip-duplicate', row, existingInternalId });
     } else {
