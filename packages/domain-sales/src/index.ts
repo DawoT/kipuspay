@@ -80,3 +80,24 @@ export {
   type OrderStockPolicy,
   type SplitPortion,
 } from './orders.js';
+
+export {
+  assertReturnReason,
+  assertReturnWithinWindow,
+  daysSinceIssued,
+  DEFAULT_RETURN_POLICY,
+  parseReturnPolicyRow,
+  planReturnLines,
+  resolveReturnDocType,
+  RETURN_NO_LINES,
+  RETURN_OUTSIDE_WINDOW,
+  RETURN_QTY_EXCEEDED,
+  RETURN_REASON_REQUIRED,
+  sumReturnRefundCents,
+  windowDaysForMethod,
+  type OriginalSaleItem,
+  type PlannedReturnLine,
+  type ReturnDocType,
+  type ReturnLineRequest,
+  type ReturnPolicy,
+} from './returns.js';

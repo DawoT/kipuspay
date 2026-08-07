@@ -147,6 +147,10 @@ export const HOME = {
       a: 'Nunca te apagamos en plena venta. Tienes dias de gracia para actualizar tu metodo de pago y sigues cobrando con normalidad.',
     },
     {
+      q: '¿Puedo devolver una venta y que se ajuste lo que me deben?',
+      a: 'Si. Dentro de la ventana de dias que configures, la devolucion genera nota de credito o nota de venta de devolucion, restaura stock cuando aplica y, si fue a credito, rebaja lo pendiente en la misma operacion. El comprobante de devolucion cuenta en tu cupo; no se reembolsa el del original.',
+    },
+    {
       q: '¿Necesito comprar un equipo especial?',
       a: 'No. Funciona en la tablet, el celular o la computadora que ya tienes. Conectar una impresora termica es opcional y se configura despues de tu primera venta.',
     },

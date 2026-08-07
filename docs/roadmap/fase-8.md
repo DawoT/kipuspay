@@ -59,7 +59,7 @@ sprints: "25–27"
 
 **Criterios de aceptación:** 0 llamadas Stripe en hot path de cobro; doble cron no doble-cobra; reintento offline reusa reserva; caja nunca 402 por cupo.
 
-**Quality Gate:** Staff Security + Backend ACID + Growth (copy).
+**Quality Gate:** Staff Security + Backend ACID + Growth (copy). **Estado:** Cerrado (QG `docs/ops/s27-usage-overage-qg.md`).
 
 ---
 

@@ -20,6 +20,7 @@ import {
 } from './fiscal/fiscal-rc-routes.js';
 import { runCreditNoteEaHttp, runOwnerBacklogHttp } from './fiscal/owner-ea-routes.js';
 import { parseCreditNoteEaBody } from './fiscal/parse-ea-body.js';
+import { runMeterOverageCronHttp } from './billing/meter-overage-routes.js';
 import {
   runCreateApHttp,
   runCreateExpenseHttp,
@@ -32,6 +33,11 @@ import {
   runTransitionPoHttp,
 } from './ledger/ledger-routes.js';
 import { runBlindCloseHttp, runCashMovementHttp, runSaleReprintHttp } from './cash/cash-routes.js';
+import {
+  runCreateSalesReturnHttp,
+  runGetReturnPolicyHttp,
+  runListSalesReturnsHttp,
+} from './sales/sales-returns-routes.js';
 import {
   runCancelOrderItemHttp,
   runCreateOrderHttp,
@@ -303,6 +309,31 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  // Sprint 28 — devoluciones (FEATURE_SALES_RETURNS); checkout-critical vía /api/sales/
+  app.post('/api/sales/returns', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateSalesReturnHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/sales/returns/policy', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runGetReturnPolicyHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.get('/api/sales/returns', async (c) => {
+    const jwt = c.get('jwt');
+    const saleId = c.req.query('saleId') ?? '';
+    const result = await runListSalesReturnsHttp(c.env, jwt?.tenantId ?? '', saleId);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 503);
   });
 
   // Sprint 19 — comandas / KDS / split
@@ -734,6 +765,12 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/loyalty/cron/expire', async (c) => {
     const result = await runExpireLoyaltyCronHttp(c.env);
     return c.json(result.body, result.status as 200 | 404 | 422 | 503);
+  });
+
+  // Sprint 27 — sobregiro Stripe Metered (fuera del hot path)
+  app.post('/api/billing/cron/meter-overage', async (c) => {
+    const result = await runMeterOverageCronHttp(c.env);
+    return c.json(result.body, result.status as 200 | 404 | 502 | 503);
   });
 
   // Public API (API key) — Cadena+; no JWT middleware

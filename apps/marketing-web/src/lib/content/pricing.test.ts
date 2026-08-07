@@ -17,8 +17,11 @@ describe('pricing content', () => {
     expect(enterprise?.limits.join(' ')).not.toMatch(/tras aprobacion de SLA/i);
   });
 
-  it('declara cupo Arranque como copy hasta Sprint 27', () => {
-    expect(PRICING_DISCLAIMERS.cupo).toMatch(/Sprint 27/);
+  it('publica cupo Arranque activo (GTM-04)', () => {
+    expect(PRICING_DISCLAIMERS.cupo).toMatch(/1,000/);
+    expect(PRICING_DISCLAIMERS.cupo).toMatch(/0\.05/);
+    expect(PRICING_DISCLAIMERS.cupo).toMatch(/no reembolsa/);
+    expect(PRICING_DISCLAIMERS.cupo).not.toMatch(/Sprint 27/);
     expect(PRICING_DISCLAIMERS.gracia).toMatch(/gracia/i);
   });
 });

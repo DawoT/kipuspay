@@ -30,6 +30,9 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_FISCAL_RC?: string;
   readonly FEATURE_FISCAL_CIRCUIT_BREAKER?: string;
   readonly FEATURE_FISCAL_TRANSPORT_PLUGINS?: string;
+  readonly FEATURE_BILLING_USAGE_OVERAGE?: string;
+  readonly FEATURE_SALES_RETURNS?: string;
+  readonly STRIPE_SECRET_KEY?: string;
   readonly FEATURE_CPE_PORTAL?: string;
   readonly FEATURE_OFFLINE_SYNC?: string;
   readonly FEATURE_POS_CHECKOUT?: string;

@@ -1,6 +1,23 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0021_SPRINT28_SALES_RETURNS = `
+DROP TABLE IF EXISTS sale_return_items;
+DROP INDEX IF EXISTS idx_sales_returns_sale;
+DROP TABLE IF EXISTS sales_returns;
+DROP TABLE IF EXISTS return_policies;
+DELETE FROM schema_meta WHERE key = 'sales.returns.sprint28';
+`;
+
+export const DOWN_0020_SPRINT27_USAGE_BILLING = `
+DROP INDEX IF EXISTS idx_billing_overages_tenant_period;
+DROP INDEX IF EXISTS idx_usage_events_tenant_period;
+DROP TABLE IF EXISTS billing_overages;
+DROP TABLE IF EXISTS usage_events;
+DROP TABLE IF EXISTS usage_counters;
+DELETE FROM schema_meta WHERE key = 'billing.usage_overage.sprint27';
+`;
+
 export const DOWN_0019_SPRINT26_FISCAL_OUTBOX_R2 = `
 DROP INDEX IF EXISTS idx_fiscal_outbox_must_submit;
 DELETE FROM schema_meta WHERE key = 'fiscal_breaker.sprint26';

@@ -10,6 +10,7 @@ import {
 } from '@kipuspay/domain-fiscal-pe';
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface CreditNoteResult {
   readonly status: 'SUCCESS';
@@ -246,6 +247,12 @@ export async function processCreditNoteAtomic(
           ),
       );
     }
+
+    appendUsageMeterToPlan(plan, db, {
+      tenantId,
+      documentId: ncId,
+      documentType: '07',
+    });
   });
 
   return {

@@ -22,6 +22,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'HARDWARE_PRINT_FALLBACK', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'FISCAL_CIRCUIT_BREAKER', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'FISCAL_TRANSPORT_PLUGINS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_RETURNS', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -43,6 +44,7 @@ describe('features flags default off', () => {
     expect(mod.isHardwarePrintFallbackEnabled()).toBe(false);
     expect(mod.isFiscalCircuitBreakerEnabled()).toBe(false);
     expect(mod.isFiscalTransportPluginsEnabled()).toBe(false);
+    expect(mod.isSalesReturnsEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

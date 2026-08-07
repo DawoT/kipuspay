@@ -52,6 +52,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/loyalty/balance' },
   { method: 'POST', path: '/api/messaging/opt-in' },
   { method: 'POST', path: '/api/loyalty/cron/expire' },
+  { method: 'POST', path: '/api/billing/cron/meter-overage' },
   { method: 'POST', path: '/api/reporting/cron/daily-rollups' },
 ];
 

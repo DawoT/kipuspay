@@ -5,6 +5,14 @@
 
 import { runShardDoFailureChaos, type ShardDoFailureResult } from './shard-do-failure.js';
 import {
+  runUsageOverageIdempotentChaos,
+  type UsageOverageChaosResult,
+} from './usage-overage-idempotent.js';
+import {
+  runSalesReturnsWindowChaos,
+  type SalesReturnsChaosResult,
+} from './sales-returns-window.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -27,6 +35,8 @@ export type ChaosScenarioId =
   | 'ar-compensate'
   | 'rollup-idempotent'
   | 'shard-do-failure'
+  | 'usage-overage-idempotent'
+  | 'sales-returns-window'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -41,6 +51,8 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'ar-compensate': 8,
   'rollup-idempotent': 9,
   'shard-do-failure': 26,
+  'usage-overage-idempotent': 27,
+  'sales-returns-window': 28,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -82,6 +94,8 @@ export interface ChaosDeps {
   readonly runArCompensate?: () => Promise<ArCompensateChaosResult>;
   readonly runRollupIdempotent?: () => Promise<RollupIdempotentResult>;
   readonly runShardDoFailure?: () => Promise<ShardDoFailureResult>;
+  readonly runUsageOverageIdempotent?: () => Promise<UsageOverageChaosResult>;
+  readonly runSalesReturnsWindow?: () => Promise<SalesReturnsChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -155,6 +169,10 @@ async function dispatchReadyScenario(
       );
     case 'shard-do-failure':
       return runShardDoFailureChaos(deps.runShardDoFailure);
+    case 'usage-overage-idempotent':
+      return runUsageOverageIdempotentChaos(deps.runUsageOverageIdempotent);
+    case 'sales-returns-window':
+      return runSalesReturnsWindowChaos(deps.runSalesReturnsWindow);
     default:
       return Promise.reject(
         new Error(
@@ -211,3 +229,15 @@ export {
   runBreakerTaxonomyChaos,
   runShardDoFailureChaos,
 } from './shard-do-failure.js';
+
+export {
+  judgeUsageOverageIdempotent,
+  runUsageOverageIdempotentChaos,
+} from './usage-overage-idempotent.js';
+
+export {
+  judgeSalesReturnsWindow,
+  runSalesReturnsWindowChaos,
+  runSalesReturnsWindowCycles,
+  simulateSalesReturnsCycle,
+} from './sales-returns-window.js';

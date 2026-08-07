@@ -117,3 +117,8 @@ export function isFiscalCircuitBreakerEnabled(): boolean {
 export function isFiscalTransportPluginsEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_TRANSPORT_PLUGINS'));
 }
+
+/** Sprint 28 — devoluciones con política N días. */
+export function isSalesReturnsEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_RETURNS'));
+}

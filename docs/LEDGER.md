@@ -4854,3 +4854,79 @@ aprobaciones: [Staff Principal Architect A, Staff Fiscal R, Staff SRE R, Staff Q
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0285
+timestamp_utc: 2026-08-07T17:25:00Z
+schema_version: 2
+sprint_fase: Sprint 27 — Fase 8 (cupo + sobregiro Stripe + loyalty locks)
+agente_responsable: Staff Backend ACID / Staff Security / Staff Data / Staff Growth
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0284]
+referencias_documentales: [docs/roadmap/fase-8.md, docs/ops/s27-usage-overage-qg.md, docs/architecture/04-webhooks-metering.md, docs/runbooks/stripe-metered-billing.md, docs/GTM.md]
+prev_id: 0284
+prev_hash: 39c0e845343ca6401f5ed0dd67e1960660359ec08677255a47a6841253894598
+entry_hash: f249ad0bc732703dedb503a017cdd3f31b38e05cc403bf6a1011145cf2222bf5
+ticket_or_adr: Roadmap Sprint 27, Arquitectura §4.1 §5.4, GTM-04, DDL 0020
+test_ids: [cupo, usage-meter-batch, meter-overage-cron, metered, usage-overage-idempotent, loyalty.s27-qg, schema.integration, auth-decide, pricing]
+entregable_afectado: Sprint 27 billing.usage_overage + loyalty.reservations GOV-APROBADO
+descripcion: >
+  Cierra Sprint 27 (FASE 8): domain-billing cupo documental, mig 0020 usage_counters/
+  usage_events/billing_overages + stripe_customer_id, incremento en db.batch venta/NC,
+  adapters-stripe Meter Events (fetch inyectable, cero SDK), cron meter-overage con
+  idempotency_key UNIQUE, chaos usage-overage-idempotent, evidencia loyalty reuse/
+  offline-off, Plan Guard nunca 402 por cupo, GTM-04 descongelado + marketing.
+evidencia: >
+  RED: S27 Planificado; sin usage_* ni Stripe metered; GTM-04 bloqueado.
+  GREEN: domain-billing/adapters-stripe/adapters-d1/worker-api/chaos; ops s27 QG;
+  ROADMAP/INDEX Cerrado; verify/quality.
+red_commit_sha: 43239be4836c07869e7261c53eb0869086e10018
+red_run_id: run-red-0285-sprint27-usage-overage
+expected_failure: AssertionError: Sprint 27 Planificado sin metering
+green_commit_sha: 43239be4836c07869e7261c53eb0869086e10018
+green_run_id: run-green-0285-sprint27-usage-overage
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Security R, Staff Data R, Staff Growth R, Staff Principal A, Staff QA/Chaos V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0286
+timestamp_utc: 2026-08-07T19:30:00Z
+schema_version: 2
+sprint_fase: Sprint 28 — FASE 6B (sales.returns + GTM-05)
+agente_responsable: Staff Backend ACID / Staff Fiscal / Staff Frontend / Staff PM
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0285]
+referencias_documentales: [docs/roadmap/fase-6b.md, docs/ops/s28-sales-returns-qg.md, docs/architecture/05-3-commercial-ops.md, docs/GTM.md]
+prev_id: 0285
+prev_hash: f249ad0bc732703dedb503a017cdd3f31b38e05cc403bf6a1011145cf2222bf5
+entry_hash: 2fd52d1309d3f859593765835b9e519a118cb69a041aae221298297c64ce6c1d
+ticket_or_adr: Roadmap Sprint 28, Arquitectura §5.3 regla 13, GTM-05, DDL 0021
+test_ids: [returns, process-return-atomic, sales-returns-routes, sales-returns-window, features, pricing, schema.integration, auth-decide]
+entregable_afectado: Sprint 28 sales.returns GOV-APROBADO
+descripcion: >
+  Cierra Sprint 28 (FASE 6B): dominio return policy N días, mig 0021 return_policies/
+  sales_returns/sale_return_items, processReturnAtomic (07|NV_RETURN + PMP reverse +
+  cash SALE_REFUND + audit RETURN + E-D CxC + cupo sin refund origen), API/POS flags
+  FEATURE_SALES_RETURNS default off, chaos sales-returns-window 500 ciclos, GTM-05
+  descongelado + FAQ/marketing.
+evidencia: >
+  RED: S28 Planificado; sin return_policies ni orquestador ni UI caja devolución.
+  GREEN: domain-sales/adapters-d1/worker-api/pos-web/chaos; ops s28 QG;
+  ROADMAP/INDEX Cerrado; verify/quality.
+red_commit_sha: 43239be4836c07869e7261c53eb0869086e10018
+red_run_id: run-red-0286-sprint28-sales-returns
+expected_failure: AssertionError: Sprint 28 Planificado sin sales.returns
+green_commit_sha: 43239be4836c07869e7261c53eb0869086e10018
+green_run_id: run-green-0286-sprint28-sales-returns
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Fiscal R, Staff Frontend R, Staff Principal A, Staff QA/Chaos V, Staff PM V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

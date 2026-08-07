@@ -45,6 +45,7 @@ import {
   type PaymentMethodCode,
 } from '@kipuspay/domain-integrations';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
   loadBatchesForProduct,
@@ -1283,6 +1284,13 @@ export async function processOfflineSaleAtomic(
             .bind(crypto.randomUUID(), tenantId, saleId, mustSubmitBy),
         );
       }
+
+      // Sprint 27 §4.1: cupo en la misma tx (nunca Stripe aquí).
+      appendUsageMeterToPlan(plan, db, {
+        tenantId,
+        documentId: saleId,
+        documentType: docType,
+      });
 
       for (const gid of stockGuardIds) {
         plan.add(db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(gid));

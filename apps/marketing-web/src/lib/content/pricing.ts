@@ -1,5 +1,5 @@
 /**
- * Planes públicos — GTM §4.1. Cupo Arranque como copy comercial (metering = Sprint 27 / GTM-04).
+ * Planes públicos — GTM §4.1. Cupo Arranque + sobregiro facturable (GTM-04 / Sprint 27).
  */
 
 export type PlanId = 'arranque' | 'crece' | 'cadena' | 'enterprise';
@@ -74,7 +74,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
 ] as const;
 
 export const PRICING_DISCLAIMERS = {
-  cupo: 'El cupo de Arranque se publica como referencia comercial; el metering facturable se habilita con Sprint 27 (GTM-04). El cobro nunca se apaga por volumen.',
+  cupo: 'Arranque incluye 1,000 comprobantes/mes; el excedente se factura a S/ 0.05 fuera del cobro (nunca HTTP 402 ni corte de caja). Cada CPE/NV emitido cuenta, incluidas NC/ND y devoluciones; la NC no reembolsa el cupo del documento original.',
   gracia:
     'Si falla un pago, sigues cobrando en periodo de gracia: no apagamos la caja por un tema administrativo.',
 } as const;

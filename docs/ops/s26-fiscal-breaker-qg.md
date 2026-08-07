@@ -35,5 +35,5 @@ owner: "@DawoT"
 ## Residuales
 
 - Credenciales SUNAT staging reales → runbook PSE
-- Cupo/Stripe → Sprint 27
+- Cupo/Stripe → **Cerrado Sprint 27** (`docs/ops/s27-usage-overage-qg.md`)
 - Emparejamiento OSE producción tras suite contrato + flag

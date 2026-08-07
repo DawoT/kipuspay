@@ -123,15 +123,15 @@ Abre solo los archivos que esta tabla te señale.
 | 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 61 | Base (WhatsApp/loyalty) | Cerrado |
 | 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Cerrado |
 | 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | Actualizada (P1 breaker §8.1) | Cerrado |
-| 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | Actualizada (P2 cupo §4.1) | Planificado |
-| 28–32 | 6B | — | — | Actualizada (FASE 6B reglas 13–17 + COM pricing) | Planificado |
+| 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | Actualizada (P2 cupo §4.1) | Cerrado |
+| 28 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 14 | Actualizada (sales.returns + GTM-05) | Cerrado |
+| 29–32 | 6B | — | — | Actualizada (FASE 6B reglas 14–17 + COM pricing) | Planificado |
 | 33–37 | 6C | — | — | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |
 | 38–42 | 6D | — | — | Actualizada (FASE 6D reglas 23–27) | Planificado |
 | 43–45 | 6E | — | — | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 28 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 14 | sin fila de estado | — |
 | 29 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 31 | sin fila de estado | — |
 | 30 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 47 | sin fila de estado | — |
 | 31 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 63 | sin fila de estado | — |

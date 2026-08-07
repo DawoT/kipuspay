@@ -64,8 +64,9 @@ owner: "@DawoT"
 | 24 | 7 | Base (WhatsApp/loyalty) | Cerrado |
 | 25 | 8 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Cerrado |
 | 26 | 8 | Actualizada (P1 breaker §8.1) | Cerrado |
-| 27 | 8 | Actualizada (P2 cupo §4.1) | Planificado |
-| 28–32 | 6B | Actualizada (FASE 6B reglas 13–17 + COM pricing) | Planificado |
+| 27 | 8 | Actualizada (P2 cupo §4.1) | Cerrado |
+| 28 | 6B | Actualizada (sales.returns + GTM-05) | Cerrado |
+| 29–32 | 6B | Actualizada (FASE 6B reglas 14–17 + COM pricing) | Planificado |
 | 33–37 | 6C | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |
 | 38–42 | 6D | Actualizada (FASE 6D reglas 23–27) | Planificado |
 | 43–45 | 6E | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |

@@ -28,6 +28,7 @@ describe('plan-routes', () => {
     for (const path of [
       '/api/pos/checkout',
       '/api/sales/offline',
+      '/api/sales/returns',
       '/api/cash/open',
       '/api/fiscal/emit',
       '/api/documents/emit',
@@ -46,6 +47,23 @@ describe('plan-routes', () => {
     expect(isPremiumFeatureRoute('/api/integrations/api-keys')).toBe(true);
     expect(isPremiumFeatureRoute('/api/integrations/catalog-import')).toBe(false);
     expect(isPremiumFeatureRoute('/api/reports/day-summary')).toBe(false);
+  });
+
+  it('billing cron no es premium ni checkout-critical (Arranque puede meter)', () => {
+    expect(isPremiumFeatureRoute('/api/billing/cron/meter-overage')).toBe(false);
+    expect(isCheckoutCriticalRoute('/api/billing/cron/meter-overage')).toBe(false);
+  });
+
+  it('cobro/emisión siguen checkout-critical (nunca 402 por cupo/plan)', () => {
+    for (const path of [
+      '/api/pos/offline-sale',
+      '/api/sales/emit',
+      '/api/cash/open',
+      '/api/fiscal/emit',
+    ]) {
+      expect(isCheckoutCriticalRoute(path)).toBe(true);
+      expect(isPremiumFeatureRoute(path)).toBe(false);
+    }
   });
 });
 

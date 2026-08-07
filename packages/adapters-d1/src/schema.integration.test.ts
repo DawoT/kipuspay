@@ -34,6 +34,8 @@ import {
   DOWN_0017_SPRINT24_LOYALTY_MESSAGING,
   DOWN_0018_SPRINT25_POS_TERMINALS,
   DOWN_0019_SPRINT26_FISCAL_OUTBOX_R2,
+  DOWN_0020_SPRINT27_USAGE_BILLING,
+  DOWN_0021_SPRINT28_SALES_RETURNS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -45,6 +47,8 @@ import sprint23ApiWebhooksSql from '../migrations/0016_sprint23_api_webhooks.sql
 import sprint24LoyaltySql from '../migrations/0017_sprint24_loyalty_messaging.sql?raw';
 import sprint25TerminalsSql from '../migrations/0018_sprint25_pos_terminals.sql?raw';
 import sprint26FiscalR2Sql from '../migrations/0019_sprint26_fiscal_outbox_r2.sql?raw';
+import sprint27UsageSql from '../migrations/0020_sprint27_usage_billing.sql?raw';
+import sprint28ReturnsSql from '../migrations/0021_sprint28_sales_returns.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -929,7 +933,56 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint26FiscalR2Sql).toMatch(/idx_fiscal_outbox_must_submit/);
   });
 
+  it('migración 0020 up: usage_counters + usage_events + billing_overages', async () => {
+    expect(sprint27UsageSql).toMatch(/CREATE TABLE IF NOT EXISTS usage_counters/);
+    expect(sprint27UsageSql).toMatch(/CREATE TABLE IF NOT EXISTS usage_events/);
+    expect(sprint27UsageSql).toMatch(/CREATE TABLE IF NOT EXISTS billing_overages/);
+    expect(sprint27UsageSql).toMatch(/stripe_idempotency_key/);
+    expect(sprint27UsageSql).toMatch(/stripe_customer_id/);
+    expect(sprint27UsageSql).toMatch(/billing\.usage_overage\.sprint27/);
+
+    await env.DB.prepare(
+      `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind('t-usage-up', 'Usage SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO usage_events (id, tenant_id, usage_key, period_ym, document_id)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind('ue-1', 't-usage-up', 'usage:doc-1', '2026-08', 'doc-1')
+      .run();
+
+    await env.DB.prepare(
+      `INSERT INTO usage_counters (tenant_id, period_ym, doc_count, overage_reported_thru)
+       VALUES (?, ?, 1, 0)
+       ON CONFLICT(tenant_id, period_ym) DO UPDATE SET doc_count = doc_count + 1`,
+    )
+      .bind('t-usage-up', '2026-08')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO usage_events (id, tenant_id, usage_key, period_ym, document_id)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+        .bind('ue-2', 't-usage-up', 'usage:doc-1', '2026-08', 'doc-1')
+        .run(),
+    ).rejects.toThrow();
+  });
+
+  it('migración 0021 up: return_policies + sales_returns + sale_return_items', async () => {
+    expect(sprint28ReturnsSql).toMatch(/CREATE TABLE IF NOT EXISTS return_policies/);
+    expect(sprint28ReturnsSql).toMatch(/CREATE TABLE IF NOT EXISTS sales_returns/);
+    expect(sprint28ReturnsSql).toMatch(/CREATE TABLE IF NOT EXISTS sale_return_items/);
+    expect(sprint28ReturnsSql).toMatch(/sales\.returns\.sprint28/);
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0021_SPRINT28_SALES_RETURNS);
+    await env.DB.exec(DOWN_0020_SPRINT27_USAGE_BILLING);
     await env.DB.exec(DOWN_0019_SPRINT26_FISCAL_OUTBOX_R2);
     await env.DB.exec(DOWN_0018_SPRINT25_POS_TERMINALS);
     await env.DB.exec(DOWN_0017_SPRINT24_LOYALTY_MESSAGING);

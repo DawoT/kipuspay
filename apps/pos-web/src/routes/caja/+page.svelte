@@ -105,6 +105,9 @@
     Contá el efectivo por denominación. El sistema calcula lo esperado solo después de confirmar —
     no se muestra anticipadamente.
   </p>
+  <p>
+    <a href="/caja/devolucion" data-testid="caja-link-devolucion">Devolución</a>
+  </p>
 
   {#if !blindOn}
     <p class="off" data-testid="caja-feature-off">
