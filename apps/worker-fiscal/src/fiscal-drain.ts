@@ -36,6 +36,7 @@ export interface OutboxRow {
   readonly must_submit_by: string | null;
   readonly r2_xml_key: string | null;
   readonly status: string;
+  readonly document_type?: string | null;
 }
 
 export interface DrainResult {
@@ -57,17 +58,17 @@ export async function putFiscalXml(
   return key;
 }
 
-/** Selecciona PENDING/FAILED ordenados por must_submit_by ASC. */
+/** Selecciona PENDING/FAILED ordenados por must_submit_by IS NULL, must_submit_by ASC. */
 export async function selectOutboxFifo(
   db: FiscalDrainDb,
   limit: number,
 ): Promise<readonly OutboxRow[]> {
   const res = await db
     .prepare(
-      `SELECT id, tenant_id, sale_id, attempt_count, must_submit_by, r2_xml_key, status
+      `SELECT id, tenant_id, sale_id, attempt_count, must_submit_by, r2_xml_key, status, document_type
        FROM fiscal_outbox
        WHERE status IN ('PENDING','FAILED')
-       ORDER BY must_submit_by ASC
+       ORDER BY must_submit_by IS NULL, must_submit_by ASC
        LIMIT ?`,
     )
     .bind(limit)
@@ -117,9 +118,9 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, attempt_count = attempt_count + 1
-           WHERE id = ?`,
+           WHERE id = ? AND tenant_id = ?`,
         )
-        .bind('MISSING_R2_XML', row.id)
+        .bind('MISSING_R2_XML', row.id, row.tenant_id)
         .run();
       quarantined += 1;
       processed += 1;
@@ -131,9 +132,9 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
-           WHERE id = ?`,
+           WHERE id = ? AND tenant_id = ?`,
         )
-        .bind('R2_MISS', row.id)
+        .bind('R2_MISS', row.id, row.tenant_id)
         .run();
       processed += 1;
       continue;
@@ -144,7 +145,7 @@ export async function drainFiscalOutbox(input: {
       saleId: row.sale_id,
       xml,
       xmlHash: 'drain',
-      documentType: '01',
+      documentType: (row.document_type as '01' | '03' | '07' | '08') || '01',
     });
 
     const errorClass =
@@ -159,9 +160,9 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
-           WHERE id = ?`,
+           WHERE id = ? AND tenant_id = ?`,
         )
-        .bind('INFRA', row.id)
+        .bind('INFRA', row.id, row.tenant_id)
         .run();
       processed += 1;
       continue;
@@ -171,9 +172,9 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, attempt_count = attempt_count + 1
-           WHERE id = ?`,
+           WHERE id = ? AND tenant_id = ?`,
         )
-        .bind('BUSINESS_4XX', row.id)
+        .bind('BUSINESS_4XX', row.id, row.tenant_id)
         .run();
       await input.db
         .prepare(`UPDATE sales SET sunat_status = 'REJECTED' WHERE id = ? AND tenant_id = ?`)
@@ -187,9 +188,9 @@ export async function drainFiscalOutbox(input: {
 
     await input.db
       .prepare(
-        `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1 WHERE id = ?`,
+        `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1 WHERE id = ? AND tenant_id = ?`,
       )
-      .bind(row.id)
+      .bind(row.id, row.tenant_id)
       .run();
     await input.db
       .prepare(`UPDATE sales SET sunat_status = 'ACCEPTED' WHERE id = ? AND tenant_id = ?`)

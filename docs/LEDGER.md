@@ -4816,3 +4816,41 @@ aprobaciones: [Staff Principal Architect A, Staff Hardware R, Staff Frontend R, 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0284
+timestamp_utc: 2026-08-07T17:10:00Z
+schema_version: 2
+sprint_fase: Sprint 26 — Remediación de Código Fuente (Breaker, Transport & Drain)
+agente_responsable: Staff Fiscal / Staff SRE / Staff Principal Architect
+tipo: Corrección
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0283]
+referencias_documentales: [docs/LEDGER.md, AGENTS.md, docs/roadmap/fase-8.md]
+prev_id: 0283
+prev_hash: 0fac99178cd32345c52444bc795412a3bb007b79ce33412cea6d2882f391a0d2
+entry_hash: 39c0e845343ca6401f5ed0dd67e1960660359ec08677255a47a6841253894598
+ticket_or_adr: Auditoría Sprint 26 / AGENTS.md §2
+test_ids: [fiscal-drain, breaker, protected-routes, index]
+entregable_afectado: Remediación de hallazgos de código fuente Sprint 26
+descripcion: >
+  Remediación técnica del Sprint 26: selección dinámica de document_type en fiscal-drain
+  evitando rechazos por hardcoding '01', ordenamiento FIFO prioritario (must_submit_by IS NULL),
+  aislamiento DAT-12 en sentencias UPDATE fiscal_outbox (AND tenant_id = ?), publicación KV
+  inmediata en el manejador alarm() del Durable Object al pasar a HALF_OPEN, interpolación
+  de ticketId en la URL de queryCdr en FiscalTransport y sanitización con .trim() y 401 guard.
+evidencia: >
+  RED: Auditoria de código del Sprint 26 (S26-DRAIN-01..02, S26-DAT12-01, S26-DO-01, S26-PSE-01).
+  GREEN: verify.sh SUITE GREEN (25/25), quality.sh Quality Gate OK (18/18 turbo tasks,
+  72.71 kB bundle budget), pnpm test PASS (100%).
+red_commit_sha: d68f23abfdc5067f74da1a22fd562111025b68ba
+red_run_id: run-red-0284-sprint26-code-fixes
+expected_failure: AssertionError: Defectos de código fuente del Sprint 26 sin remediar
+green_commit_sha: d68f23abfdc5067f74da1a22fd562111025b68ba
+green_run_id: run-green-0284-sprint26-code-fixes
+ancestry_verified: true
+aprobaciones: [Staff Principal Architect A, Staff Fiscal R, Staff SRE R, Staff QA/Chaos V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -176,8 +176,8 @@ export function createHttpPseTransport(opts: {
       }
     },
     async queryCdr(ticketId: string) {
-      void ticketId;
-      const res = await fetchImpl(`${opts.endpointUrl}/cdr`, { method: 'GET' });
+      const url = `${opts.endpointUrl}/cdr/${encodeURIComponent(ticketId)}`;
+      const res = await fetchImpl(url, { method: 'GET' });
       if (!res.ok) {
         return { cdrCode: '0', cdrDescription: 'unreachable', accepted: false };
       }

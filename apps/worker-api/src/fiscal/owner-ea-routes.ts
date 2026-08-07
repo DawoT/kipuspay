@@ -65,6 +65,9 @@ export async function runCreditNoteEaHttp(
     series?: string;
   },
 ): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!tenantId) {
+    return { status: 401, body: { error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' } };
+  }
   if (!isFiscalCircuitBreakerFlag(env) && env.FEATURE_FISCAL_CPE !== '1') {
     return { status: 404, body: { error: 'FEATURE_OFF', code: 'FEATURE_OFF' } };
   }

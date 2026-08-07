@@ -59,6 +59,7 @@ export class FiscalCircuitBreaker extends DurableObject<FiscalBreakerEnv> {
       let snap = await this.load();
       snap = applyInfraFailures(snap, count, now);
       await this.save(snap);
+      await this.ctx.storage.put('meta', { transport, endpoint });
       if (snap.state === 'open' && snap.openedAtMs !== null) {
         await this.ctx.storage.setAlarm(snap.openedAtMs + BREAKER_OPEN_MS);
       }
@@ -70,6 +71,7 @@ export class FiscalCircuitBreaker extends DurableObject<FiscalBreakerEnv> {
       let snap = await this.load();
       snap = applyProbeSuccess(snap);
       await this.save(snap);
+      await this.ctx.storage.put('meta', { transport, endpoint });
       await this.publish(snap, transport, endpoint);
       return Response.json(snap);
     }
@@ -79,6 +81,7 @@ export class FiscalCircuitBreaker extends DurableObject<FiscalBreakerEnv> {
       let snap = await this.load();
       snap = applyProbeFailure(snap, now);
       await this.save(snap);
+      await this.ctx.storage.put('meta', { transport, endpoint });
       if (snap.openedAtMs !== null) {
         await this.ctx.storage.setAlarm(snap.openedAtMs + BREAKER_OPEN_MS);
       }
@@ -93,5 +96,12 @@ export class FiscalCircuitBreaker extends DurableObject<FiscalBreakerEnv> {
     let snap = await this.load();
     snap = transitionToHalfOpen(snap, Date.now());
     await this.save(snap);
+    const meta = (await this.ctx.storage.get<{ transport: string; endpoint: FiscalEndpoint }>(
+      'meta',
+    )) ?? {
+      transport: 'KIPUSPAY_PSE_DIRECT',
+      endpoint: 'submit',
+    };
+    await this.publish(snap, meta.transport, meta.endpoint);
   }
 }

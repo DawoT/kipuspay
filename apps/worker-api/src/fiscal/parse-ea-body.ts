@@ -12,9 +12,9 @@ export function parseCreditNoteEaBody(raw: unknown): {
     motiveCode?: string;
     series?: string;
   } = {};
-  if (typeof o.originSaleId === 'string') out.originSaleId = o.originSaleId;
+  if (typeof o.originSaleId === 'string') out.originSaleId = o.originSaleId.trim();
   if (typeof o.confirmed === 'boolean') out.confirmed = o.confirmed;
-  if (typeof o.motiveCode === 'string') out.motiveCode = o.motiveCode;
-  if (typeof o.series === 'string') out.series = o.series;
+  if (typeof o.motiveCode === 'string') out.motiveCode = o.motiveCode.trim();
+  if (typeof o.series === 'string') out.series = o.series.trim();
   return out;
 }
