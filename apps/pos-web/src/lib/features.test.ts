@@ -16,6 +16,10 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'PAYMENTS_QR_WALLETS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'PAYMENTS_CARD_ACQUIRER', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'MESSAGING_WHATSAPP', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'LOYALTY_POINTS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'CLIENT_OFFLOADING', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'HARDWARE_PRINT_FALLBACK', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -31,6 +35,10 @@ describe('features flags default off', () => {
     expect(mod.isPartialReceiveEnabled()).toBe(false);
     expect(mod.isPaymentsQrWalletsEnabled()).toBe(false);
     expect(mod.isPaymentsCardAcquirerEnabled()).toBe(false);
+    expect(mod.isMessagingWhatsAppEnabled()).toBe(false);
+    expect(mod.isLoyaltyPointsEnabled()).toBe(false);
+    expect(mod.isClientOffloadingEnabled()).toBe(false);
+    expect(mod.isHardwarePrintFallbackEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

@@ -163,7 +163,7 @@ describe('runBlindCloseHttp', () => {
     const res = await runBlindCloseHttp(mockEnv(), 't1', 'u1', {
       sessionId: 'sess-1',
       countLines: [{ denominationCents: 100, quantity: 1 }],
-      stubOutboxPending: 2,
+      outboxPendingCount: 2,
     });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('PRINT_OUTBOX_BLOCK');

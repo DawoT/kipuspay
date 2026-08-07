@@ -97,3 +97,13 @@ export function isMessagingWhatsAppEnabled(): boolean {
 export function isLoyaltyPointsEnabled(): boolean {
   return flagOn(pub(PF + 'LOYALTY_POINTS'));
 }
+
+/** Sprint 25 — client offloading (Web Worker ESC/POS). */
+export function isClientOffloadingEnabled(): boolean {
+  return flagOn(pub(PF + 'CLIENT_OFFLOADING'));
+}
+
+/** Sprint 25 — print fallback ladder. */
+export function isHardwarePrintFallbackEnabled(): boolean {
+  return flagOn(pub(PF + 'HARDWARE_PRINT_FALLBACK'));
+}

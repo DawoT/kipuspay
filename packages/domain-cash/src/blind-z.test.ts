@@ -153,13 +153,13 @@ describe('sale reprint', () => {
   });
 });
 
-describe('print outbox stub ADR-0012', () => {
+describe('print outbox edge 2D', () => {
   it('no bloquea con pending 0', () => {
     expect(printOutboxPendingCount()).toBe(0);
     expect(shouldBlockZForPrintOutbox(0)).toBe(false);
   });
 
-  it('bloquea cuando pending > 0 (contrato S25)', () => {
+  it('bloquea cuando pending > 0', () => {
     expect(shouldBlockZForPrintOutbox(2)).toBe(true);
   });
 

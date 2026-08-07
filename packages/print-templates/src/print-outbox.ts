@@ -1,0 +1,88 @@
+/**
+ * Contrato PrintOutbox (§7.5) — puro, sin IndexedDB.
+ * PENDING/FAILED bloquean cierre Z (edge 2D); PRINTED se borra tras ACK.
+ */
+
+export type PrintJobStatus = 'PENDING' | 'PRINTED' | 'FAILED';
+
+export type PrinterStrategy = 'webusb' | 'wss_lan' | 'bluetooth' | 'system_print' | 'whatsapp';
+
+/** Payload mínimo recompilable del ticket (JSON-serializable). */
+export interface PrintTicketSnapshot {
+  readonly enterprise: string;
+  readonly ruc: string;
+  readonly documentType: string;
+  readonly series: string;
+  readonly number: number;
+  readonly totalCents: number;
+  readonly items: readonly {
+    readonly name: string;
+    readonly qty: number;
+    readonly totalCents: number;
+  }[];
+  readonly lineWidth: number;
+  readonly digestValue?: string;
+  readonly qrPayload?: string;
+}
+
+export interface PrintJobRecord {
+  readonly saleId: string;
+  readonly ticket: PrintTicketSnapshot;
+  /** Bytes ESC/POS (base64 en IDB); null = recompilar. */
+  readonly escPosBase64: string | null;
+  readonly status: PrintJobStatus;
+  readonly preferredAdapter: PrinterStrategy | null;
+  readonly lastError: string | null;
+  readonly enqueuedAtMs: number;
+  readonly updatedAtMs: number;
+}
+
+export interface PrintOutboxPort {
+  enqueue(job: PrintJobRecord): Promise<void>;
+  get(saleId: string): Promise<PrintJobRecord | undefined>;
+  listBlocking(): Promise<readonly PrintJobRecord[]>;
+  pendingCount(): Promise<number>;
+  markPrinted(saleId: string): Promise<void>;
+  markFailed(saleId: string, error: string): Promise<void>;
+  /** ACK: borra el job (solo tras print OK). */
+  ackDelete(saleId: string): Promise<void>;
+}
+
+export function printJobKey(saleId: string): string {
+  const id = saleId.trim();
+  if (!id) throw new Error('PRINT_JOB_SALE_ID_EMPTY');
+  return `print_jobs/${id}`;
+}
+
+/** PENDING + FAILED cuentan para edge 2D. */
+export function countBlockingPrintJobs(jobs: readonly Pick<PrintJobRecord, 'status'>[]): number {
+  let n = 0;
+  for (const j of jobs) {
+    if (j.status === 'PENDING' || j.status === 'FAILED') n += 1;
+  }
+  return n;
+}
+
+export function assertPrintJobTransition(from: PrintJobStatus, to: PrintJobStatus): void {
+  const allowed: Record<PrintJobStatus, readonly PrintJobStatus[]> = {
+    PENDING: ['PRINTED', 'FAILED'],
+    FAILED: ['PENDING', 'PRINTED'],
+    PRINTED: [],
+  };
+  if (!allowed[from].includes(to)) {
+    throw new Error(`PRINT_JOB_INVALID:${from}->${to}`);
+  }
+}
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 1) s += String.fromCharCode(bytes[i]!);
+  return btoa(s);
+}
+
+export function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  return out;
+}

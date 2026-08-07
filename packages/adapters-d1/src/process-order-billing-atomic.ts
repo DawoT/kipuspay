@@ -157,15 +157,29 @@ export async function processOrderBillingAtomic(
       plan.add(
         db
           .prepare(
-            `UPDATE branch_document_series SET current_number = current_number + 1 WHERE id = ?`,
+            `UPDATE branch_document_series SET current_number = current_number + 1 WHERE id = ? AND tenant_id = ?`,
           )
-          .bind(seriesRow.id),
+          .bind(seriesRow.id, tenantId),
       );
 
-      for (const row of portionRows) {
+      let accumulatedLineTaxable = 0;
+      let accumulatedLineIgv = 0;
+      for (let i = 0; i < portionRows.length; i++) {
+        const row = portionRows[i];
+        if (!row) continue;
+        const isLast = i === portionRows.length - 1;
         const lineTotal = lineAmountCents(row);
-        const lineTaxable = Math.round(lineTotal / 1.18);
-        const lineIgv = lineTotal - lineTaxable;
+        let lineTaxable = Math.round(lineTotal / 1.18);
+        let lineIgv = lineTotal - lineTaxable;
+
+        if (isLast) {
+          lineTaxable = taxable - accumulatedLineTaxable;
+          lineIgv = igv - accumulatedLineIgv;
+        } else {
+          accumulatedLineTaxable += lineTaxable;
+          accumulatedLineIgv += lineIgv;
+        }
+
         plan.add(
           db
             .prepare(
@@ -360,8 +374,10 @@ export async function cancelOrderItemAtomic(
     if (tokenId) {
       plan.add(
         db
-          .prepare(`UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ?`)
-          .bind(tokenId),
+          .prepare(
+            `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?`,
+          )
+          .bind(tokenId, tenantId),
       );
     }
   });

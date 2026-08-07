@@ -1,10 +1,11 @@
 import { formatTicketCents } from './format-cents.js';
+import { buildGsKQrCommands } from './escpos-qr.js';
 import { legendForDocument } from './legends.js';
 import { maxItemNameLen } from './line-width.js';
 import { sanitizePrinterText } from './sanitize.js';
 import type { TicketData } from './ticket-data.js';
 
-/** Construye bytes ESC/POS (zero-dep). QR = línea de payload texto (sin lib npm). */
+/** Construye bytes ESC/POS (zero-dep). QR térmica = GS ( k ) nativo. */
 export function buildEscPosPayload(data: TicketData): Uint8Array {
   const encoder = new TextEncoder();
   const cmd: number[] = [];
@@ -45,7 +46,10 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
     );
   }
   if (!isNv && data.qrPayload) {
-    cmd.push(...encoder.encode(`QR: ${sanitizePrinterText(data.qrPayload).slice(0, lineWidth)}\n`));
+    cmd.push(0x1b, 0x61, 0x01);
+    cmd.push(...buildGsKQrCommands(data.qrPayload));
+    cmd.push(0x1b, 0x61, 0x00);
+    cmd.push(0x0a);
   }
 
   cmd.push(...encoder.encode(`\n${legend}\n\n`));
@@ -53,9 +57,15 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
   if (data.brandFooter?.enabled === true) {
     cmd.push(
       ...encoder.encode(
-        `${sanitizePrinterText(data.brandFooter.label)}\n${sanitizePrinterText(data.brandFooter.shortUrl).slice(0, lineWidth)}\nQR marca: ${sanitizePrinterText(data.brandFooter.qrPayload).slice(0, lineWidth)}\n\n`,
+        `${sanitizePrinterText(data.brandFooter.label)}\n${sanitizePrinterText(data.brandFooter.shortUrl).slice(0, lineWidth)}\n`,
       ),
     );
+    if (data.brandFooter.qrPayload) {
+      cmd.push(0x1b, 0x61, 0x01);
+      cmd.push(...buildGsKQrCommands(data.brandFooter.qrPayload));
+      cmd.push(0x1b, 0x61, 0x00);
+      cmd.push(0x0a);
+    }
   }
 
   cmd.push(0x1d, 0x56, 0x42, 0x00);

@@ -134,8 +134,8 @@ async function runPostCommitSaleHooks(
         documentType: payload.documentType,
       });
     }
-  } catch {
-    // webhook se reintentará desde la cola
+  } catch (err) {
+    console.warn('[postCommitSaleHooks] Error encolando evento público sale.created:', err);
   }
   try {
     const { notifyOwnerLoyaltyExpired, trySendWhatsAppReceipt } =
@@ -161,8 +161,8 @@ async function runPostCommitSaleHooks(
         representationUrl: `${fqdn}/cpe/${saleId}`,
       });
     }
-  } catch {
-    // venta ya OK
+  } catch (err) {
+    console.warn('[postCommitSaleHooks] Error enviando comprobantes/lealtad:', err);
   }
 }
 /* eslint-enable complexity */

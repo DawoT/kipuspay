@@ -23,7 +23,7 @@ sprints: "25–27"
 
 **Criterios de aceptación:** UI no bloquea >100ms en compile ESC/POS; failback imprime si USB falla; venta ACID OK aunque print falle; **F5 con ticket en outbox → el ticket sigue imprimible tras recarga**; outbox dentro del guardián de cuota; PR con dep pdfmake/qrcode.js rechazado; **API `outbox.pendingCount()` disponible y consumida por el gate de cierre Z (edge 2D, Sprint 17): reporta PENDING/FAILED exactos en 500 ciclos de caos de impresora**.
 
-**Quality Gate:** Staff Frontend + Hardware + Principal (bundle).
+**Quality Gate:** Staff Frontend + Hardware + Principal (bundle). **Estado:** Cerrado (QG `docs/ops/s25-print-outbox-qg.md`).
 
 ---
 

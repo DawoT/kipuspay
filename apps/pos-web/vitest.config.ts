@@ -17,6 +17,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        // Worker entry — exercised via offload-compile / sync fallback in unit tests
+        'src/lib/print/offload.worker.ts',
+      ],
       thresholds: {
         lines: 70,
         functions: 70,

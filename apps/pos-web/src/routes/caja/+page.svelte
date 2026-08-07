@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isCashBlindZEnabled } from '$lib/features';
+  import {
+    isCashBlindZEnabled,
+    isClientOffloadingEnabled,
+    isHardwarePrintFallbackEnabled,
+  } from '$lib/features';
   import {
     PEN_DENOMS,
     submitBlindClose,
@@ -13,8 +17,11 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import { createBrowserPrintIdb, PrintOutboxStore } from '$lib/print/print-outbox-store';
+  import { createPrinterTransport } from '$lib/print/printer-transport';
 
   const blindOn = isCashBlindZEnabled();
+  const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let sessionId = $state('s-demo');
@@ -26,6 +33,8 @@
   let resultMsg = $state('');
   let revealedExpected = $state<number | null>(null);
   let revealedDiff = $state<number | null>(null);
+  let outboxPending = $state(0);
+  let preflightAdapters = $state<string[]>([]);
 
   const countLines = $derived(
     PEN_DENOMS.filter((d) => (qtyByDenom[d] ?? 0) > 0).map(
@@ -37,16 +46,35 @@
   );
   const countedLocal = $derived(sumLocalCount(countLines));
 
+  /** Adaptador de browser IndexedDB (persistencia real entre F5/pestañas). */
+  const printIdb = createBrowserPrintIdb();
+  const printOutbox = new PrintOutboxStore(printIdb);
+
   onMount(() => {
     session = readTenantSession(sessionStorage);
+    void refreshOutbox();
+    if (printOn) {
+      void createPrinterTransport().preflight().then((a) => {
+        preflightAdapters = [...a];
+      });
+    }
   });
+
+  async function refreshOutbox() {
+    outboxPending = await printOutbox.pendingCount();
+  }
 
   async function onConfirmClose() {
     status = 'enviando';
     resultMsg = '';
     revealedExpected = null;
     revealedDiff = null;
-    // Expected nunca se muestra antes del POST (cierre ciego).
+    await refreshOutbox();
+    if (outboxPending > 0) {
+      status = 'bloqueado';
+      resultMsg = `Print outbox pendiente (${outboxPending}). Reimprime o resuelve tickets antes del cierre Z.`;
+      return;
+    }
     const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
     const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
     const res = await submitBlindClose(apiBase || 'https://api.kipuspay.local', auth, {
@@ -54,10 +82,14 @@
       countLines,
       differenceReason: reason.trim() || null,
       differenceThresholdCents: 0,
+      outboxPendingCount: outboxPending,
     });
     if (!res.ok) {
       status = 'error';
-      resultMsg = res.message;
+      resultMsg =
+        res.code === 'PRINT_OUTBOX_BLOCK'
+          ? `Bloqueado por print outbox (${res.pendingCount ?? '?'})`
+          : res.message;
       return;
     }
     status = 'cerrado';
@@ -79,13 +111,23 @@
       FEATURE_CASH_BLIND_Z desactivado. Activá el flag para cerrar caja en producción.
     </p>
   {:else}
-    <label>
-      Sesión de caja
-      <input data-testid="caja-session-id" bind:value={sessionId} />
-    </label>
-    <p class="tenant" data-testid="caja-tenant">{session.tradeName}</p>
+    {#if printOn}
+      <p data-testid="caja-print-preflight">
+        Pre-flight impresora: {preflightAdapters.length
+          ? preflightAdapters.join(' → ')
+          : 'detectando…'}
+      </p>
+      <p data-testid="caja-print-pending">
+        Tickets en outbox (PENDING/FAILED): {outboxPending}
+      </p>
+    {/if}
 
-    <table class="denoms">
+    <label>
+      session_id
+      <input bind:value={sessionId} data-testid="caja-session-id" />
+    </label>
+
+    <table>
       <thead>
         <tr>
           <th>Denominación</th>
@@ -93,20 +135,15 @@
         </tr>
       </thead>
       <tbody>
-        {#each PEN_DENOMS as denom}
+        {#each PEN_DENOMS as d}
           <tr>
-            <td>{formatCents(denom)}</td>
+            <td>{formatCents(d)}</td>
             <td>
               <input
                 type="number"
                 min="0"
-                step="1"
-                data-testid={`caja-qty-${denom}`}
-                value={qtyByDenom[denom] ?? 0}
-                oninput={(e) => {
-                  const v = Number((e.currentTarget as HTMLInputElement).value);
-                  qtyByDenom = { ...qtyByDenom, [denom]: Number.isFinite(v) && v > 0 ? Math.floor(v) : 0 };
-                }}
+                bind:value={qtyByDenom[d]}
+                data-testid={`caja-denom-${d}`}
               />
             </td>
           </tr>
@@ -114,85 +151,70 @@
       </tbody>
     </table>
 
-    <p data-testid="caja-counted-local">Contado (local): {formatCents(countedLocal)}</p>
-    <p class="hint" data-testid="caja-expected-hidden">Esperado: oculto hasta confirmar</p>
+    <p>Conteo local: {formatCents(countedLocal)} (tenant {session.tenantId})</p>
 
     <label>
-      Justificación si hay diferencia
-      <textarea data-testid="caja-reason" bind:value={reason} rows="2"></textarea>
+      Motivo diferencia (si aplica)
+      <input bind:value={reason} data-testid="caja-diff-reason" />
     </label>
 
-    <button
-      type="button"
-      data-testid="caja-confirm"
-      disabled={countLines.length === 0 || status === 'enviando'}
-      onclick={onConfirmClose}
-    >
+    <button type="button" data-testid="caja-confirm-z" onclick={onConfirmClose}>
       Confirmar cierre Z
     </button>
 
     {#if status}
-      <p data-testid="caja-status">{status}: {resultMsg}</p>
+      <p data-testid="caja-z-status">{status}</p>
+    {/if}
+    {#if resultMsg}
+      <p data-testid="caja-z-msg">{resultMsg}</p>
     {/if}
     {#if revealedExpected !== null}
-      <p data-testid="caja-expected-revealed">Esperado: {formatCents(revealedExpected)}</p>
-      <p data-testid="caja-diff-revealed">Diferencia: {formatCents(revealedDiff ?? 0)}</p>
+      <p data-testid="caja-z-expected">Esperado (después): {formatCents(revealedExpected)}</p>
+    {/if}
+    {#if revealedDiff !== null}
+      <p data-testid="caja-z-diff">Diferencia: {formatCents(revealedDiff)}</p>
     {/if}
   {/if}
 </section>
 
 <style>
   .caja-blind {
-    max-width: 40rem;
+    max-width: 36rem;
     margin: 0 auto;
     padding: 1.5rem 1rem 3rem;
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
   }
-  h1 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-size: 1.75rem;
-    margin: 0 0 0.5rem;
-  }
   .lede {
-    color: #3d4450;
-    margin: 0 0 1.25rem;
+    color: #445;
   }
   .off {
-    padding: 1rem;
-    background: #f3f1ec;
+    color: #664d03;
+    background: #fff3cd;
+    padding: 0.75rem;
   }
-  .denoms {
+  label {
+    display: block;
+    margin: 0.75rem 0;
+  }
+  input {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.35rem 0.5rem;
+  }
+  table {
     width: 100%;
     border-collapse: collapse;
     margin: 1rem 0;
   }
-  .denoms th,
-  .denoms td {
+  th,
+  td {
     text-align: left;
-    padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid #e4e0d8;
-  }
-  input[type='number'],
-  input:not([type]),
-  textarea {
-    width: 100%;
-    max-width: 12rem;
-    padding: 0.35rem 0.5rem;
-  }
-  .hint {
-    font-size: 0.9rem;
-    color: #6b7280;
+    padding: 0.35rem 0.25rem;
+    border-bottom: 1px solid #dde;
   }
   button {
-    margin-top: 1rem;
-    padding: 0.65rem 1.1rem;
-    background: #1a2332;
-    color: #f8f6f1;
-    border: 0;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    margin-top: 0.75rem;
+    padding: 0.45rem 0.85rem;
   }
 </style>

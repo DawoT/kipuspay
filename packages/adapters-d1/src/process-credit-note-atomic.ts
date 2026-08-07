@@ -106,6 +106,7 @@ export async function processCreditNoteAtomic(
         JSON.stringify({
           action: gate.requiresNoCdrAudit ? 'CREDIT_NOTE_NO_CDR' : 'CREDIT_NOTE',
           entity_id: originSaleId,
+          prev: prevHash?.row_hash ?? null,
         }),
       ),
     )

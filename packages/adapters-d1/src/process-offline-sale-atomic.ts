@@ -782,28 +782,22 @@ export async function processOfflineSaleAtomic(
         const allow = isReturn || st.allowNegative ? 1 : 0;
         const guardId = crypto.randomUUID();
         stockGuardIds.push(guardId);
-        if (st.hasBranchRow) {
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO atomic_guards (id, ok)
-                 SELECT ?, CASE WHEN stock >= ? OR ? = 1 THEN 1 ELSE 0 END
-                 FROM branch_product_stock
-                 WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
-              )
-              .bind(guardId, qty, allow, tenantId, payload.branchId, productId),
-          );
-        } else {
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO atomic_guards (id, ok)
-                 SELECT ?, CASE WHEN stock >= ? OR ? = 1 THEN 1 ELSE 0 END
-                 FROM products WHERE tenant_id = ? AND id = ?`,
-              )
-              .bind(guardId, qty, allow, tenantId, productId),
-          );
-        }
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO atomic_guards (id, ok)
+               VALUES (
+                 ?,
+                 COALESCE(
+                   (SELECT CASE WHEN stock >= ? OR ? = 1 THEN 1 ELSE 0 END
+                    FROM branch_product_stock
+                    WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                   CASE WHEN ? = 1 THEN 1 ELSE 0 END
+                 )
+               )`,
+            )
+            .bind(guardId, qty, allow, tenantId, payload.branchId, productId, allow),
+        );
       }
 
       for (const audit of oversellAudits) {

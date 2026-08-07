@@ -121,7 +121,7 @@ Abre solo los archivos que esta tabla te señale.
 | 22 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 29 | Actualizada (cobro local Yape/Plin/MP/Culqi/Niubiz) | Cerrado |
 | 23 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 45 | Actualizada (Contasis/Concar + API keys/webhooks Cadena+) | Cerrado |
 | 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 61 | Base (WhatsApp/loyalty) | Cerrado |
-| 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Planificado |
+| 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Cerrado |
 | 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | Actualizada (P1 breaker §8.1) | Planificado |
 | 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | Actualizada (P2 cupo §4.1) | Planificado |
 | 28–32 | 6B | — | — | Actualizada (FASE 6B reglas 13–17 + COM pricing) | Planificado |

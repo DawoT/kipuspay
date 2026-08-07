@@ -1,6 +1,12 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0018_SPRINT25_POS_TERMINALS = `
+DROP INDEX IF EXISTS idx_pos_terminals_branch;
+DROP TABLE IF EXISTS pos_terminals;
+DELETE FROM schema_meta WHERE key = 'pos_terminals.sprint25';
+`;
+
 export const DOWN_0017_SPRINT24_LOYALTY_MESSAGING = `
 DROP INDEX IF EXISTS idx_messaging_opt_ins_tenant;
 DROP TABLE IF EXISTS messaging_opt_ins;

@@ -216,12 +216,14 @@ export async function receiveStockTransferAtomic(
     });
   }
 
-  const prevHash = await previousAuditHash(db, tenantId);
+  const initialPrevHash = await previousAuditHash(db, tenantId);
+  let currentPrev = initialPrevHash;
   const varianceAudits: {
     lineId: string;
     productId: string;
     qtyShrink: number;
     reason: string | null;
+    prevHash: string | null;
     rowHash: string;
     payloadJson: string;
   }[] = [];
@@ -237,14 +239,17 @@ export async function receiveStockTransferAtomic(
       reason: l.shrinkReason,
     };
     const payloadJson = JSON.stringify(payload);
+    const rowHash = await sha256Hex(JSON.stringify({ ...payload, prev: currentPrev }));
     varianceAudits.push({
       lineId: l.lineId,
       productId: row.product_id,
       qtyShrink: l.qtyShrink,
       reason: l.shrinkReason,
+      prevHash: currentPrev,
+      rowHash,
       payloadJson,
-      rowHash: await sha256Hex(JSON.stringify({ ...payload, prev: prevHash })),
     });
+    currentPrev = rowHash;
   }
 
   await runD1AtomicPlan(db, (plan) => {
@@ -304,7 +309,7 @@ export async function receiveStockTransferAtomic(
             userId,
             input.transferId,
             v.payloadJson,
-            prevHash,
+            v.prevHash,
             v.rowHash,
           ),
       );

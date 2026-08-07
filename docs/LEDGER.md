@@ -4702,3 +4702,78 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0281
+timestamp_utc: 2026-08-06T15:00:00Z
+schema_version: 2
+sprint_fase: Sprint 25 — Fase 8 (print outbox + offloading)
+agente_responsable: Staff Frontend / Staff Hardware / Staff QA/Chaos
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0280]
+referencias_documentales: [docs/roadmap/fase-8.md, docs/ops/s25-print-outbox-qg.md, docs/architecture/07-sync-offloading.md]
+prev_id: 0280
+prev_hash: 1371460e992caecc028742d5d905704ec216ef448f7cf65a4ed05427c3733898
+entry_hash: 06030ea3eb342fae8b8a528c29292a288fabd9935401ccaf37041a5778fdbc6d
+ticket_or_adr: Roadmap Sprint 25, Arquitectura §7.5, edge 2D ADR-0012, DDL 0018
+test_ids: [print-outbox, resolve-pos-terminal, schema.integration, blind-z, print-templates, index]
+entregable_afectado: Sprint 25 client.offloading + hardware.print_fallback GOV-APROBADO
+descripcion: >
+  Cierra Sprint 25 (FASE 8): print outbox IndexedDB (print_jobs), Web Worker
+  COMPILE_ESC_POS, QR térmica GS ( k ) zero-dep, escalera PrinterTransport
+  WebUSB→WSS→BT→SystemPrint→WA, pendingCount live en blind Z (edge 2D),
+  mig pos_terminals 58/80, flags CLIENT_OFFLOADING / HARDWARE_PRINT_FALLBACK
+  default off; chaos 500 PENDING/FAILED exactos.
+evidencia: >
+  RED: S25 Planificado; stub printOutboxPendingCount / SystemPrint; sin outbox IDB.
+  GREEN: print-templates + pos-web print suite; adapters-d1 0018 unit+integration;
+  ops s25 QG; ROADMAP/INDEX Cerrado; verify/quality.
+red_commit_sha: 56e30aa0043cf0473dae30825f7839dd9f698598
+red_run_id: run-red-0281-sprint25-print-outbox
+expected_failure: AssertionError: Sprint 25 Planificado sin print outbox
+green_commit_sha: 56e30aa0043cf0473dae30825f7839dd9f698598
+green_run_id: run-green-0281-sprint25-print-outbox
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Hardware R, Staff Principal A, Staff QA/Chaos V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0282
+timestamp_utc: 2026-08-06T16:30:00Z
+schema_version: 2
+sprint_fase: Sprints 0–25 — Auditoría Técnica y Remediación de Código
+agente_responsable: Staff Principal Architect / Staff Backend ACID / Staff Frontend
+tipo: Corrección
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0281]
+referencias_documentales: [docs/LEDGER.md, AGENTS.md, docs/ARCHITECTURE.md]
+prev_id: 0281
+prev_hash: 06030ea3eb342fae8b8a528c29292a288fabd9935401ccaf37041a5778fdbc6d
+entry_hash: 6c1920f7d9279661977a5ffb12e3a7801d25c0baa75f5a845b4121c37e881652
+ticket_or_adr: Auditoría Técnica Rigurosa / AGENTS.md §2
+test_ids: [print-outbox, blind-z, offline-sale-route, protected-routes, index]
+entregable_afectado: Remediación de vulnerabilidades de código fuente S0-S25
+descripcion: >
+  Remediación técnica de hallazgos de auditoría de código fuente: aislamiento
+  DAT-12 en UPDATE branch_document_series y authorization_tokens, guard atómico
+  COALESCE en branch_product_stock, prorrateo exacto de centavos IGV en split-bills,
+  encadenamiento secuencial de prevHash en audit_events, soporte de montos negativos
+  en formatTicketCents, observabilidad explicita en post-commit hooks y liberacion
+  de Web Workers con IDB de navegador.
+evidencia: >
+  RED: Hallazgos de auditoria linea por linea. GREEN: verify.sh SUITE GREEN (25/25),
+  quality.sh Quality Gate OK (18/18 turbo tasks, 71.28 kB bundle budget), pnpm test PASS (100%).
+red_commit_sha: 56e30aa0043cf0473dae30825f7839dd9f698598
+red_run_id: run-red-0282-audit-code-fixes
+expected_failure: AssertionError: Hallazgos de auditoria de codigo sin remediar
+green_commit_sha: 56e30aa0043cf0473dae30825f7839dd9f698598
+green_run_id: run-green-0282-audit-code-fixes
+ancestry_verified: true
+aprobaciones: [Staff Principal Architect A, Staff Backend ACID R, Staff Frontend R, Staff QA/Chaos V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

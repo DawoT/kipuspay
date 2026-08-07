@@ -1,3 +1,6 @@
+/**
+ * SystemPrint / printTicket — ladder completa = PrinterTransport en pos-web.
+ */
 import { buildEscPosPayload } from './build-escpos.js';
 import { buildTicketHtml } from './build-html.js';
 import type { TicketData } from './ticket-data.js';
@@ -9,7 +12,6 @@ export interface SystemPrintPort {
   sendEscPos?(bytes: Uint8Array): Promise<void>;
 }
 
-/** Stub mínimo: HTML → port.printHtml; ESC/POS opcional (ladder completa = S25). */
 export async function printTicket(
   data: TicketData,
   port: SystemPrintPort,
@@ -23,15 +25,64 @@ export async function printTicket(
   await port.printHtml(buildTicketHtml(data));
 }
 
+/** Narrow DOM surface — package lib is es2022+webworker (no DOM). */
+interface PrintFrame {
+  style: { position: string; width: string; height: string; border: string };
+  contentDocument: {
+    open(): void;
+    write(html: string): void;
+    close(): void;
+  } | null;
+  contentWindow: { focus(): void; print(): void } | null;
+  remove(): void;
+}
+
+interface BrowserPrintGlobals {
+  document: {
+    createElement(tag: 'iframe'): PrintFrame;
+    body: { appendChild(node: PrintFrame): void };
+  };
+  window: object;
+}
+
 /**
- * Factory browser: el adaptador real usa window.print en la app.
- * En Node/tests se inyecta SystemPrintPort mock.
+ * Factory browser: window.print vía iframe efímero.
  */
 export function createBrowserPrintPort(): SystemPrintPort {
   return {
-    printHtml(html: string): Promise<void> {
-      void html;
-      return Promise.reject(new Error('BROWSER_PRINT_UNAVAILABLE'));
+    async printHtml(html: string): Promise<void> {
+      const g = globalThis as unknown as Partial<BrowserPrintGlobals>;
+      if (!g.document || !g.window) {
+        throw new Error('BROWSER_PRINT_UNAVAILABLE');
+      }
+      const { document: docRoot } = g;
+      const frame = docRoot.createElement('iframe');
+      frame.style.position = 'fixed';
+      frame.style.width = '0';
+      frame.style.height = '0';
+      frame.style.border = '0';
+      docRoot.body.appendChild(frame);
+      const doc = frame.contentDocument;
+      if (!doc) {
+        frame.remove();
+        throw new Error('BROWSER_PRINT_UNAVAILABLE');
+      }
+      doc.open();
+      doc.write(html);
+      doc.close();
+      const w = frame.contentWindow;
+      if (!w) {
+        frame.remove();
+        throw new Error('BROWSER_PRINT_UNAVAILABLE');
+      }
+      w.focus();
+      w.print();
+      await new Promise<void>((r) => {
+        setTimeout(() => {
+          frame.remove();
+          r();
+        }, 200);
+      });
     },
   };
 }

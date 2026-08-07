@@ -110,14 +110,14 @@ export function planBlindClose(input: BlindCloseInput): BlindClosePlan {
 }
 
 /**
- * Stub S25 (ADR-0012): pending count hasta outbox real.
- * Mientras retorne 0, el modal de cierre Z no bloquea.
+ * Edge 2D: pending count del print outbox (S25).
+ * El cliente envía PENDING+FAILED; el servidor solo valida y bloquea si > 0.
  */
-export function printOutboxPendingCount(stubPending = 0): number {
-  if (!Number.isInteger(stubPending) || stubPending < 0) {
+export function printOutboxPendingCount(pendingCount = 0): number {
+  if (!Number.isInteger(pendingCount) || pendingCount < 0) {
     throw new Error('INVALID_OUTBOX_PENDING');
   }
-  return stubPending;
+  return pendingCount;
 }
 
 export function shouldBlockZForPrintOutbox(pendingCount: number): boolean {

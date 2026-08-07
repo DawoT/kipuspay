@@ -32,6 +32,7 @@ import {
   DOWN_0015_SPRINT22_PAYMENT_CAPTURES,
   DOWN_0016_SPRINT23_API_WEBHOOKS,
   DOWN_0017_SPRINT24_LOYALTY_MESSAGING,
+  DOWN_0018_SPRINT25_POS_TERMINALS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -41,6 +42,7 @@ import sprint20PoSql from '../migrations/0014_sprint20_po_partial_status.sql?raw
 import sprint22PaymentsSql from '../migrations/0015_sprint22_payment_captures.sql?raw';
 import sprint23ApiWebhooksSql from '../migrations/0016_sprint23_api_webhooks.sql?raw';
 import sprint24LoyaltySql from '../migrations/0017_sprint24_loyalty_messaging.sql?raw';
+import sprint25TerminalsSql from '../migrations/0018_sprint25_pos_terminals.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -886,7 +888,41 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(opt?.opted_in).toBe(1);
   });
 
+  it('migración 0018 up: pos_terminals 58/80 + strategy CHECK', async () => {
+    expect(sprint25TerminalsSql).toMatch(/CREATE TABLE IF NOT EXISTS pos_terminals/);
+    expect(sprint25TerminalsSql).toMatch(
+      /CHECK\s*\(\s*paper_width_mm\s+IN\s*\(\s*58\s*,\s*80\s*\)\s*\)/i,
+    );
+
+    await seedTenantBranchSession('t-term-up');
+    await env.DB.prepare(
+      `INSERT INTO pos_terminals (
+         id, tenant_id, branch_id, label, paper_width_mm, line_width, printer_strategy
+       ) VALUES (?, ?, ?, 'Caja 1', 58, 32, 'webusb')`,
+    )
+      .bind('pt-1', 't-term-up', 'b-t-term-up')
+      .run();
+
+    await expect(
+      env.DB.prepare(
+        `INSERT INTO pos_terminals (
+           id, tenant_id, branch_id, paper_width_mm, line_width, printer_strategy
+         ) VALUES (?, ?, ?, 99, 32, 'webusb')`,
+      )
+        .bind('pt-bad', 't-term-up', 'b-t-term-up')
+        .run(),
+    ).rejects.toThrow();
+
+    const row = await env.DB.prepare(
+      `SELECT line_width FROM pos_terminals WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind('pt-1', 't-term-up')
+      .first<{ line_width: number }>();
+    expect(row?.line_width).toBe(32);
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0018_SPRINT25_POS_TERMINALS);
     await env.DB.exec(DOWN_0017_SPRINT24_LOYALTY_MESSAGING);
     await env.DB.exec(DOWN_0016_SPRINT23_API_WEBHOOKS);
     await env.DB.exec(DOWN_0015_SPRINT22_PAYMENT_CAPTURES);

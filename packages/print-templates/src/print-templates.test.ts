@@ -42,7 +42,13 @@ describe('print-templates', () => {
     expect(narrow).toContain('control interno');
     expect(wide).toContain('comprobante electrónico');
     expect(wide).toContain('Hash: abc');
-    expect(wide).toContain('QR: qr1');
+    const wideBytes = buildEscPosPayload(
+      ticket({ lineWidth: 48, documentType: '03', digestValue: 'abc', qrPayload: 'qr1' }),
+    );
+    const hasGsK = [...wideBytes].some(
+      (_, i, arr) => arr[i] === 0x1d && arr[i + 1] === 0x28 && arr[i + 2] === 0x6b,
+    );
+    expect(hasGsK).toBe(true);
     expect(narrow.length).toBeLessThan(wide.length);
   });
 

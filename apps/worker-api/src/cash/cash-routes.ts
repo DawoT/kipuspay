@@ -288,8 +288,8 @@ export async function runBlindCloseHttp(
     differenceReason?: string | null;
     differenceThresholdCents?: number;
     strictMode?: boolean;
-    /** Solo tests S25: fuerza pending outbox; prod stub = 0 (ADR-0012). */
-    stubOutboxPending?: number;
+    /** PENDING+FAILED del print outbox cliente (edge 2D S25). */
+    outboxPendingCount?: number;
   },
 ): Promise<HttpResult> {
   if (!isCashBlindZEnabled(env)) return featureOff('FEATURE_CASH_BLIND_Z');
@@ -300,8 +300,7 @@ export async function runBlindCloseHttp(
     return { status: 400, body: { error: 'sessionId required', code: 'BAD_REQUEST' } };
   }
 
-  // Edge 2D stub (ADR-0012): no-op mientras pending = 0.
-  const pending = printOutboxPendingCount(body.stubOutboxPending ?? 0);
+  const pending = printOutboxPendingCount(body.outboxPendingCount ?? 0);
   if (shouldBlockZForPrintOutbox(pending)) {
     return {
       status: 409,

@@ -10,6 +10,8 @@ export interface BlindCloseRequest {
   readonly countLines: readonly DenominationLine[];
   readonly differenceReason?: string | null;
   readonly differenceThresholdCents?: number;
+  /** PENDING+FAILED del print outbox local (edge 2D). */
+  readonly outboxPendingCount?: number;
 }
 
 export interface BlindCloseResult {
@@ -20,6 +22,7 @@ export interface BlindCloseResult {
   readonly differenceAmountCents?: number;
   readonly message: string;
   readonly code?: string;
+  readonly pendingCount?: number;
 }
 
 export function sumLocalCount(lines: readonly DenominationLine[]): number {
@@ -49,6 +52,7 @@ export async function submitBlindClose(
       status: res.status,
       message: typeof json.error === 'string' ? json.error : 'Cierre rechazado',
       code: typeof json.code === 'string' ? json.code : undefined,
+      pendingCount: typeof json.pendingCount === 'number' ? json.pendingCount : undefined,
     };
   }
   return {
