@@ -151,6 +151,10 @@ export const HOME = {
       a: 'Si. Dentro de la ventana de dias que configures, la devolucion genera nota de credito o nota de venta de devolucion, restaura stock cuando aplica y, si fue a credito, rebaja lo pendiente en la misma operacion. El comprobante de devolucion cuenta en tu cupo; no se reembolsa el del original.',
     },
     {
+      q: '¿Puedo controlar las compras a proveedores?',
+      a: 'En el plan Cadena, si: armás la orden de compra, recibís (incluso en partes) y cruzás la factura del proveedor. Si no cuadra cantidad o precio, el sistema pide corrección o una autorizacion auditada. El saldo a pagar se abre al confirmar la factura, no al recibir mercaderia.',
+    },
+    {
       q: '¿Necesito comprar un equipo especial?',
       a: 'No. Funciona en la tablet, el celular o la computadora que ya tienes. Conectar una impresora termica es opcional y se configura despues de tu primera venta.',
     },

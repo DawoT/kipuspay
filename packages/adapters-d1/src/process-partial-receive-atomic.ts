@@ -18,13 +18,15 @@ export interface ProcessPartialReceiveInput {
   readonly branchId: string;
   readonly lines: readonly PartialReceiveLineInput[];
   readonly dueDateIso?: string;
+  /** Sprint 29: con 3-way on, recepción no crea CxP (se crea al match de factura). */
+  readonly deferAccountsPayable?: boolean;
 }
 
 export interface ProcessPartialReceiveResult {
   readonly receiptId: string;
   readonly purchaseOrderId: string;
   readonly nextStatus: PurchaseOrderStatus;
-  readonly apId: string;
+  readonly apId: string | null;
   readonly apAmountCents: number;
 }
 
@@ -78,15 +80,19 @@ export async function processPartialReceiveAtomic(
   const dueDateIso =
     input.dueDateIso ??
     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-  const apId = crypto.randomUUID();
-  const apPlan = planCreateAp({
-    id: apId,
-    tenantId,
-    supplierId: po.supplier_id,
-    purchaseOrderId: input.purchaseOrderId,
-    amountCents: receivePlan.apAmountCents,
-    dueDateIso,
-  });
+  const deferAp = input.deferAccountsPayable === true;
+  const apId = deferAp ? null : crypto.randomUUID();
+  const apPlan =
+    apId === null
+      ? null
+      : planCreateAp({
+          id: apId,
+          tenantId,
+          supplierId: po.supplier_id,
+          purchaseOrderId: input.purchaseOrderId,
+          amountCents: receivePlan.apAmountCents,
+          dueDateIso,
+        });
 
   const stockPlans: {
     productId: string;
@@ -179,25 +185,27 @@ export async function processPartialReceiveAtomic(
         .bind(receivePlan.nextStatus, input.purchaseOrderId, tenantId),
     );
 
-    plan.add(
-      db
-        .prepare(
-          `INSERT INTO accounts_payable (
-               id, tenant_id, supplier_id, purchase_order_id,
-               original_amount_cents, balance_due_cents, due_date, status
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          apPlan.apId,
-          apPlan.tenantId,
-          apPlan.supplierId,
-          apPlan.purchaseOrderId,
-          apPlan.originalAmountCents,
-          apPlan.balanceDueCents,
-          apPlan.dueDateIso,
-          apPlan.status,
-        ),
-    );
+    if (apPlan) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO accounts_payable (
+                 id, tenant_id, supplier_id, purchase_order_id,
+                 original_amount_cents, balance_due_cents, due_date, status
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            apPlan.apId,
+            apPlan.tenantId,
+            apPlan.supplierId,
+            apPlan.purchaseOrderId,
+            apPlan.originalAmountCents,
+            apPlan.balanceDueCents,
+            apPlan.dueDateIso,
+            apPlan.status,
+          ),
+      );
+    }
 
     for (const s of stockPlans) {
       addInboundStock(plan, db, tenantId, userId, receiptId, input.branchId, s);
@@ -208,8 +216,8 @@ export async function processPartialReceiveAtomic(
     receiptId,
     purchaseOrderId: input.purchaseOrderId,
     nextStatus: receivePlan.nextStatus,
-    apId: apPlan.apId,
-    apAmountCents: receivePlan.apAmountCents,
+    apId,
+    apAmountCents: deferAp ? 0 : receivePlan.apAmountCents,
   };
 }
 

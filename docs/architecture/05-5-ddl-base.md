@@ -63,6 +63,7 @@ CREATE TABLE branches (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 );
 CREATE UNIQUE INDEX idx_branches_tenant_code ON branches(tenant_id, code) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_branches_tenant_id ON branches(tenant_id, id);
 
 CREATE TABLE cash_registers (
     id TEXT PRIMARY KEY,
@@ -456,6 +457,7 @@ CREATE TABLE suppliers (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 );
 CREATE INDEX idx_suppliers_tenant ON suppliers(tenant_id) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_suppliers_tenant_id ON suppliers(tenant_id, id);
 
 CREATE TABLE purchase_orders (
     id TEXT PRIMARY KEY,
@@ -470,6 +472,7 @@ CREATE TABLE purchase_orders (
     FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
     FOREIGN KEY (branch_id) REFERENCES branches(id)
 );
+CREATE UNIQUE INDEX uq_purchase_orders_tenant_id ON purchase_orders(tenant_id, id);
 
 CREATE TABLE purchase_order_items (
     id TEXT PRIMARY KEY,

@@ -10,6 +10,7 @@ import {
   shipStockTransferAtomic,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { isPurchasingThreeWayEnabled } from '../purchasing/purchasing-three-way-routes.js';
 
 export function isStockTransfersEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_STOCK_TRANSFERS === '1' || env?.FEATURE_STOCK_TRANSFERS === 'true';
@@ -193,9 +194,11 @@ export async function runPartialReceivePoHttp(
     };
   }
   try {
+    const deferAccountsPayable = isPurchasingThreeWayEnabled(env);
     const result = await processPartialReceiveAtomic(env.DB, tenantId, userId, {
       purchaseOrderId: poId,
       branchId,
+      deferAccountsPayable,
       lines: (body.lines ?? []).map((l) => ({
         productId: l.productId ?? '',
         quantity: l.quantity ?? 0,

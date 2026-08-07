@@ -13,6 +13,10 @@ import {
   type SalesReturnsChaosResult,
 } from './sales-returns-window.js';
 import {
+  runPurchasingThreeWayLateInvoiceChaos,
+  type ThreeWayChaosResult,
+} from './purchasing-three-way-late-invoice.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -37,6 +41,7 @@ export type ChaosScenarioId =
   | 'shard-do-failure'
   | 'usage-overage-idempotent'
   | 'sales-returns-window'
+  | 'purchasing-three-way-late-invoice'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -53,6 +58,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'shard-do-failure': 26,
   'usage-overage-idempotent': 27,
   'sales-returns-window': 28,
+  'purchasing-three-way-late-invoice': 29,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -96,6 +102,7 @@ export interface ChaosDeps {
   readonly runShardDoFailure?: () => Promise<ShardDoFailureResult>;
   readonly runUsageOverageIdempotent?: () => Promise<UsageOverageChaosResult>;
   readonly runSalesReturnsWindow?: () => Promise<SalesReturnsChaosResult>;
+  readonly runPurchasingThreeWayLateInvoice?: () => Promise<ThreeWayChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -103,6 +110,7 @@ function requireDep<T>(value: T | undefined, message: string): T {
   return value;
 }
 
+/* eslint-disable complexity -- dispatch por escenario §13.5 */
 async function dispatchReadyScenario(
   scenario: ChaosScenarioId,
   deps: ChaosDeps,
@@ -173,6 +181,8 @@ async function dispatchReadyScenario(
       return runUsageOverageIdempotentChaos(deps.runUsageOverageIdempotent);
     case 'sales-returns-window':
       return runSalesReturnsWindowChaos(deps.runSalesReturnsWindow);
+    case 'purchasing-three-way-late-invoice':
+      return runPurchasingThreeWayLateInvoiceChaos(deps.runPurchasingThreeWayLateInvoice);
     default:
       return Promise.reject(
         new Error(
@@ -241,3 +251,10 @@ export {
   runSalesReturnsWindowCycles,
   simulateSalesReturnsCycle,
 } from './sales-returns-window.js';
+
+export {
+  judgePurchasingThreeWayLateInvoice,
+  runPurchasingThreeWayLateInvoiceChaos,
+  runPurchasingThreeWayLateInvoiceCycles,
+  simulateThreeWayLateInvoiceCycle,
+} from './purchasing-three-way-late-invoice.js';

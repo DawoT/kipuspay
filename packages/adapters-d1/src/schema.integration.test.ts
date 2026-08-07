@@ -36,6 +36,7 @@ import {
   DOWN_0019_SPRINT26_FISCAL_OUTBOX_R2,
   DOWN_0020_SPRINT27_USAGE_BILLING,
   DOWN_0021_SPRINT28_SALES_RETURNS,
+  DOWN_0022_SPRINT29_SUPPLIER_INVOICES,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -49,6 +50,7 @@ import sprint25TerminalsSql from '../migrations/0018_sprint25_pos_terminals.sql?
 import sprint26FiscalR2Sql from '../migrations/0019_sprint26_fiscal_outbox_r2.sql?raw';
 import sprint27UsageSql from '../migrations/0020_sprint27_usage_billing.sql?raw';
 import sprint28ReturnsSql from '../migrations/0021_sprint28_sales_returns.sql?raw';
+import sprint29ThreeWaySql from '../migrations/0022_sprint29_supplier_invoices.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -980,7 +982,17 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint28ReturnsSql).toMatch(/sales\.returns\.sprint28/);
   });
 
+  it('migración 0022 up: supplier_invoices 3-way', async () => {
+    expect(sprint29ThreeWaySql).toMatch(/CREATE TABLE IF NOT EXISTS supplier_invoices/);
+    expect(sprint29ThreeWaySql).toMatch(/price_diff_override/);
+    expect(sprint29ThreeWaySql).toMatch(/purchasing\.three_way\.sprint29/);
+    expect(sprint29ThreeWaySql).toMatch(/CREATE TABLE IF NOT EXISTS supplier_invoice_lines/);
+    expect(sprint29ThreeWaySql).toMatch(/CHECK \(status IN/);
+    expect(sprint29ThreeWaySql).toMatch(/REFERENCES purchase_orders\(tenant_id, id\)/);
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0022_SPRINT29_SUPPLIER_INVOICES);
     await env.DB.exec(DOWN_0021_SPRINT28_SALES_RETURNS);
     await env.DB.exec(DOWN_0020_SPRINT27_USAGE_BILLING);
     await env.DB.exec(DOWN_0019_SPRINT26_FISCAL_OUTBOX_R2);

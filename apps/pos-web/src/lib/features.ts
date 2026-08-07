@@ -68,6 +68,11 @@ export function isPartialReceiveEnabled(): boolean {
   return flagOn(pub(PF + 'PURCHASING_PARTIAL_RECEIVE'));
 }
 
+/** Sprint 29 — matching 3-way OC/recepción/factura. */
+export function isPurchasingThreeWayEnabled(): boolean {
+  return flagOn(pub(PF + 'PURCHASING_THREE_WAY'));
+}
+
 /** Sprint 22 — wallets QR en caja. */
 export function isPaymentsQrWalletsEnabled(): boolean {
   return flagOn(pub(PF + 'PAYMENTS_QR_WALLETS'));

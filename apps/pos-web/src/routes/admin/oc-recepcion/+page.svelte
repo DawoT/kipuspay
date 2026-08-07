@@ -49,7 +49,8 @@
 
 <section class="admin-po-recv" data-testid="admin-oc-receive">
   <h1>Recepción parcial de OC</h1>
-  <p class="lede">CxP solo por cantidad recibida en este receipt (Sprint 20).</p>
+  <p class="lede">CxP solo por cantidad recibida en este receipt (Sprint 20). Con 3-way on, el CxP se crea al match de factura.</p>
+  <p><a href="/admin/factura-proveedor" data-testid="admin-link-factura">Match factura 3-way</a></p>
 
   {#if !recvOn}
     <p data-testid="admin-po-off">PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE desactivado.</p>

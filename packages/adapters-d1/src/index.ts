@@ -132,6 +132,7 @@ export * from './catalog-importer.js';
 export * from './process-order-billing-atomic.js';
 export * from './process-stock-transfer-atomic.js';
 export * from './process-partial-receive-atomic.js';
+export * from './process-supplier-invoice-match-atomic.js';
 export * from './process-payment-capture-atomic.js';
 export * from './process-webhook-delivery-atomic.js';
 export * from './accounting-export-reader.js';

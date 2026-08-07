@@ -14,6 +14,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_ORDERS_KDS', '');
     vi.stubEnv('PUBLIC_FEATURE_STOCK_TRANSFERS', '');
     vi.stubEnv('PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'PURCHASING_THREE_WAY', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'PAYMENTS_QR_WALLETS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'PAYMENTS_CARD_ACQUIRER', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'MESSAGING_WHATSAPP', '');
@@ -36,6 +37,7 @@ describe('features flags default off', () => {
     expect(mod.isOrdersKdsEnabled()).toBe(false);
     expect(mod.isStockTransfersEnabled()).toBe(false);
     expect(mod.isPartialReceiveEnabled()).toBe(false);
+    expect(mod.isPurchasingThreeWayEnabled()).toBe(false);
     expect(mod.isPaymentsQrWalletsEnabled()).toBe(false);
     expect(mod.isPaymentsCardAcquirerEnabled()).toBe(false);
     expect(mod.isMessagingWhatsAppEnabled()).toBe(false);

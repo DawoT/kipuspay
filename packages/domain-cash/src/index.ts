@@ -45,6 +45,17 @@ export {
 } from './ledger.js';
 
 export {
+  assertThreeWayMatch,
+  THREE_WAY_MISMATCH,
+  THREE_WAY_OVERRIDE_REQUIRED,
+  THREE_WAY_QTY_MISMATCH,
+  type SupplierInvoiceStatus,
+  type ThreeWayLineInput,
+  type ThreeWayMatchInput,
+  type ThreeWayMatchPlan,
+} from './three-way.js';
+
+export {
   assertCreditWithinLimit,
   assertDiscountAuthorized,
   computeExpectedCashCents,

@@ -55,6 +55,10 @@ import {
   runShipTransferHttp,
 } from './inventory/transfer-receive-routes.js';
 import {
+  runMatchSupplierInvoiceHttp,
+  runOwnerThreeWayReportHttp,
+} from './purchasing/purchasing-three-way-routes.js';
+import {
   runOwnerUncapturedPaymentsHttp,
   runPaymentCaptureGetHttp,
   runPaymentChargeHttp,
@@ -459,6 +463,23 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/purchasing/invoices/match', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runMatchSupplierInvoiceHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/purchasing/three-way', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
   app.get('/api/owner/transfers/pending', async (c) => {
     const jwt = c.get('jwt');

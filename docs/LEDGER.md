@@ -4930,3 +4930,82 @@ aprobaciones: [Staff Backend ACID R, Staff Fiscal R, Staff Frontend R, Staff Pri
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0287
+timestamp_utc: 2026-08-07T20:00:00Z
+schema_version: 2
+sprint_fase: Sprint 29 — FASE 6B (purchasing.three_way + GTM-13)
+agente_responsable: Staff Backend Datos / Staff Backend ACID / Staff Frontend / Staff Growth
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0286]
+referencias_documentales: [docs/roadmap/fase-6b.md, docs/ops/s29-purchasing-three-way-qg.md, docs/architecture/05-3-commercial-ops.md, docs/GTM.md]
+prev_id: 0286
+prev_hash: 2fd52d1309d3f859593765835b9e519a118cb69a041aae221298297c64ce6c1d
+entry_hash: 56a7287f1d18580cde97ca75de4d8262db7a423898b2bb5ffb42814e2b516201
+ticket_or_adr: Roadmap Sprint 29, Arquitectura §5.3 regla 14, GTM-13, DDL 0022
+test_ids: [three-way, process-supplier-invoice-match-atomic, purchasing-three-way-routes, purchasing-three-way-late-invoice, features, schema.integration]
+entregable_afectado: Sprint 29 purchasing.three_way GOV-APROBADO
+descripcion: >
+  Cierra Sprint 29 (FASE 6B): dominio assertThreeWayMatch, mig 0022 supplier_invoices,
+  defer CxP en recepción cuando FEATURE_PURCHASING_THREE_WAY, processSupplierInvoiceMatchAtomic
+  (AP + PMP true-up + SUPPLIER_PRICE_DIFF), API/Admin/Owner, chaos late-invoice 500 ciclos,
+  GTM-13 descongelado.
+evidencia: >
+  RED: S29 Planificado; AP-on-receive S20 sin invoice match.
+  GREEN: domain-cash/adapters-d1/worker-api/pos-web/chaos; ops s29 QG;
+  ROADMAP/INDEX Cerrado; verify/quality.
+red_commit_sha: 43239be4836c07869e7261c53eb0869086e10018
+red_run_id: run-red-0287-sprint29-three-way
+expected_failure: AssertionError: Sprint 29 Planificado sin purchasing.three_way
+green_commit_sha: 43239be4836c07869e7261c53eb0869086e10018
+green_run_id: run-green-0287-sprint29-three-way
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Backend ACID R, Staff Frontend R, Staff Principal A, Staff QA V, Staff Security V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0288
+timestamp_utc: 2026-08-07T20:44:01Z
+schema_version: 2
+sprint_fase: Sprint 29 — FASE 6B (purchasing.three_way remediado)
+agente_responsable: Staff Backend Datos / Staff Backend ACID / Staff Frontend / Staff Security
+tipo: Corrección de especificación
+subtipo: remediacion-auditoria
+relacion: CORRIGE
+referencias_entradas: [0287]
+referencias_documentales: [docs/architecture/05-3-commercial-ops.md, docs/architecture/05-5-ddl-base.md, docs/ops/s29-purchasing-three-way-qg.md]
+prev_id: 0287
+prev_hash: 56a7287f1d18580cde97ca75de4d8262db7a423898b2bb5ffb42814e2b516201
+entry_hash: 91586374b09bcd0e562b9e92f815d4cda17d9aaff025611348940b38317935b0
+ticket_or_adr: Auditoría Sprint 29 — hallazgos F1..F5
+test_ids: [process-supplier-invoice-match-atomic, purchasing-three-way-routes, three-way, schema.integration]
+entregable_afectado: Sprint 29 purchasing.three_way
+descripcion: >
+  Rehabilitación de hallazgos de auditoría del Sprint 29 3-way:
+  F1 tabla supplier_invoice_lines + acumulado yaFacturado por producto (impide
+  sobre-facturación en parciales); F2 guard PO_NOT_RECEIVED en el match;
+  F3 reporte owner excluye OCs con factura CLOSED; F4 flag compartido
+  isPurchasingThreeWayEnabled (se elimina duplicación en recepción) y se
+  elimina invoiceCostTrueUpCents (dead code); F5 DDL 0022 con CHECKs de
+  dominio, FK compuestas (tenant_id, parent_id) DAT-12, uq_*_tenant_id, y
+  burn-down del baseline V-14 (supplier_invoices sale de la deuda simple).
+evidencia: >
+  RED: facturar 5 tras ya facturado 6 sobre received 10 pasaba (void query);
+  match sobre PO SENT pasaba; reporte listaba OC facturada CLOSED.
+  GREEN: 3 tests nuevos en process-supplier-invoice-match-atomic; owner
+  report NOT EXISTS status CLOSED; verify.sh SUITE GREEN; quality.sh OK;
+  migración 0022 up/down en workerd (schema.integration 25 tests).
+red_commit_sha: 4f2531ebb6f191eb905d4cfe499f01b9f7a3df2e
+red_run_id: run-red-0288-sprint29-audit-remediacion
+expected_failure: AssertionError: sobre-facturación acumulada no rechazada / PO SENT matcheable
+green_commit_sha: 4f2531ebb6f191eb905d4cfe499f01b9f7a3df2e
+green_run_id: run-green-0288-sprint29-audit-remediacion
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Backend ACID R, Staff Principal A, Staff QA V, Staff Security V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
