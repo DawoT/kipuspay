@@ -101,3 +101,24 @@ export {
   type ReturnLineRequest,
   type ReturnPolicy,
 } from './returns.js';
+
+export {
+  assertAndApplyPromotions,
+  parseMaxStack,
+  parseMaxStackJson,
+  parsePromoRule,
+  parsePromoRuleJson,
+  PROMO_EXPIRED,
+  PROMO_INACTIVE,
+  PROMO_NOT_ELIGIBLE,
+  PROMO_NOT_FOUND,
+  PROMO_RULE_INVALID,
+  PROMO_STACK_FORBIDDEN,
+  type MaxStackConfig,
+  type PromoAppliesTo,
+  type PromoKind,
+  type PromoLineInput,
+  type PromoLineResult,
+  type PromoRule,
+  type PromotionDef,
+} from './promotions.js';

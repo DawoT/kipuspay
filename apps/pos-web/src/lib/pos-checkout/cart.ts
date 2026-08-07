@@ -5,6 +5,8 @@ export interface CartLine {
   readonly name: string;
   readonly unitPriceCents: number;
   readonly quantity: number;
+  /** Sprint 30: IDs de promo (display); el servidor impone el precio. */
+  readonly promotionIds?: readonly string[];
 }
 
 export function lineTotalCents(line: CartLine): number {
@@ -23,6 +25,7 @@ export function addOrBumpLine(lines: readonly CartLine[], next: CartLine): CartL
   const updated: CartLine = {
     ...prev,
     quantity: prev.quantity + next.quantity,
+    ...(next.promotionIds ? { promotionIds: next.promotionIds } : {}),
   };
   return lines.map((l, i) => (i === idx ? updated : l));
 }

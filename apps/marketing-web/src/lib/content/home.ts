@@ -155,6 +155,10 @@ export const HOME = {
       a: 'En el plan Cadena, si: armás la orden de compra, recibís (incluso en partes) y cruzás la factura del proveedor. Si no cuadra cantidad o precio, el sistema pide corrección o una autorizacion auditada. El saldo a pagar se abre al confirmar la factura, no al recibir mercaderia.',
     },
     {
+      q: '¿Puedo armar promociones u ofertas?',
+      a: 'Si, en el plan Crece: 2x1, porcentaje, umbrales y precios por tramo. La caja solo elige la promocion; el precio final siempre lo calcula KipusPay en el servidor, con anti-apilamiento configurable.',
+    },
+    {
       q: '¿Necesito comprar un equipo especial?',
       a: 'No. Funciona en la tablet, el celular o la computadora que ya tienes. Conectar una impresora termica es opcional y se configura despues de tu primera venta.',
     },

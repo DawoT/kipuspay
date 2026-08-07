@@ -35,6 +35,13 @@ export interface OfflineSaleItemPayload {
   readonly productId: string;
   readonly quantity: number;
   readonly discountAmountCents?: number | undefined;
+  /** Sprint 30: IDs de promoción (servidor impone el precio; ADR-0014). */
+  readonly promotionIds?: readonly string[] | undefined;
+  /**
+   * Solo motor ACID post-promo (nunca del cliente HTTP).
+   * Precio unitario ya resuelto por lista + promoción.
+   */
+  readonly serverUnitPriceCents?: number | undefined;
 }
 
 export interface OfflineSalePayload {
@@ -76,6 +83,14 @@ function requireNonEmpty(value: string | undefined, code: string): void {
   if (!value?.trim()) throw new Error(code);
 }
 
+function assertPromotionIds(item: OfflineSaleItemPayload): void {
+  if (item.promotionIds === undefined) return;
+  if (!Array.isArray(item.promotionIds)) throw new Error('INVALID_PROMOTION_IDS');
+  for (const id of item.promotionIds) {
+    if (typeof id !== 'string' || !id.trim()) throw new Error('INVALID_PROMOTION_IDS');
+  }
+}
+
 function assertItems(items: readonly OfflineSaleItemPayload[]): void {
   if (!items?.length) throw new Error('EMPTY_ITEMS');
   for (const item of items) {
@@ -87,6 +102,7 @@ function assertItems(items: readonly OfflineSaleItemPayload[]): void {
     ) {
       throw new Error('INVALID_DISCOUNT_CENTS');
     }
+    assertPromotionIds(item);
   }
 }
 
@@ -192,14 +208,16 @@ export function computeNvLineTotals(
   for (const item of items) {
     const product = catalog.get(item.productId);
     if (!product) throw new Error(`Product not found: ${item.productId}`);
-    if (!Number.isInteger(product.priceCents) || product.priceCents < 0) {
+    const unitPriceCents =
+      item.serverUnitPriceCents !== undefined ? item.serverUnitPriceCents : product.priceCents;
+    if (!Number.isInteger(unitPriceCents) || unitPriceCents < 0) {
       throw new Error('INVALID_UNIT_PRICE');
     }
     if (!Number.isInteger(product.costCents) || product.costCents < 0) {
       throw new Error('INVALID_UNIT_COST');
     }
     const discountCents = item.discountAmountCents ?? 0;
-    const subtotalCents = Math.round(item.quantity * product.priceCents) - discountCents;
+    const subtotalCents = Math.round(item.quantity * unitPriceCents) - discountCents;
     if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
     const igvCents = Math.round((subtotalCents * 18) / 100);
     const totalCents = subtotalCents + igvCents;
@@ -207,7 +225,7 @@ export function computeNvLineTotals(
     lines.push({
       productId: item.productId,
       quantity: item.quantity,
-      unitPriceCents: product.priceCents,
+      unitPriceCents,
       discountCents,
       subtotalCents,
       igvCents,

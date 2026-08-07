@@ -422,7 +422,7 @@ CREATE TABLE supplier_invoice_lines (
     FOREIGN KEY (tenant_id, invoice_id) REFERENCES supplier_invoices(tenant_id, id)
 );
 
--- FASE 6B / Sprint 30 — promociones y tramos
+-- FASE 6B / Sprint 30 — promociones y tramos (DAT-12 / ADR-0014)
 CREATE TABLE promotions (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -433,8 +433,10 @@ CREATE TABLE promotions (
     rule_json TEXT NOT NULL,              -- {"kind":"buy_x_get_y"|"percent"|"threshold"|"tier", ...}
     max_stack_json TEXT NOT NULL DEFAULT '{}',
     created_by_user_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (applies_to IN ('PRODUCT','CATEGORY','LIST','CART'))
 );
+CREATE UNIQUE INDEX uq_promotions_tenant_id ON promotions(tenant_id, id);
 CREATE TABLE product_promotions (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -443,9 +445,9 @@ CREATE TABLE product_promotions (
     category_id TEXT,
     price_list_id TEXT,
     UNIQUE (tenant_id, promotion_id, product_id, category_id, price_list_id),
-    FOREIGN KEY (promotion_id) REFERENCES promotions(id),  -- COM-04
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (price_list_id) REFERENCES price_lists(id)
+    FOREIGN KEY (tenant_id, promotion_id) REFERENCES promotions(tenant_id, id),  -- COM-04 / DAT-12
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id),
+    FOREIGN KEY (tenant_id, price_list_id) REFERENCES price_lists(tenant_id, id)
 );
 
 -- FASE 6B / Sprint 31 — variantes y unidades de medida

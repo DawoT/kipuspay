@@ -59,6 +59,11 @@ import {
   runOwnerThreeWayReportHttp,
 } from './purchasing/purchasing-three-way-routes.js';
 import {
+  runCreatePromotionHttp,
+  runListPromotionsHttp,
+  runUpdatePromotionHttp,
+} from './pricing/pricing-promotions-routes.js';
+import {
   runOwnerUncapturedPaymentsHttp,
   runPaymentCaptureGetHttp,
   runPaymentChargeHttp,
@@ -481,6 +486,39 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
+
+  // Sprint 30 — promociones (FEATURE_PRICING_PROMOTIONS)
+  app.get('/api/pricing/promotions', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListPromotionsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.post('/api/pricing/promotions', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreatePromotionHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.patch('/api/pricing/promotions/:id', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runUpdatePromotionHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      c.req.param('id'),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
+  });
+
   app.get('/api/owner/transfers/pending', async (c) => {
     const jwt = c.get('jwt');
     const result = await runOwnerPendingTransfersHttp(c.env, jwt?.tenantId ?? '');

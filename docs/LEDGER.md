@@ -5009,3 +5009,40 @@ aprobaciones: [Staff Backend Datos R, Staff Backend ACID R, Staff Principal A, S
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0289
+timestamp_utc: 2026-08-07T21:10:00Z
+schema_version: 2
+sprint_fase: Sprint 30 — FASE 6B (pricing.promotions + GTM-15)
+agente_responsable: Staff Backend ACID / Staff Frontend / Staff PM / Staff Growth
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0288]
+referencias_documentales: [docs/roadmap/fase-6b.md, docs/ops/s30-pricing-promotions-qg.md, docs/architecture/05-3-commercial-ops.md, docs/adr/ADR-0014-pricing-promotions-resolution.md, docs/GTM.md]
+prev_id: 0288
+prev_hash: 91586374b09bcd0e562b9e92f815d4cda17d9aaff025611348940b38317935b0
+entry_hash: 925a81838925f2225f3d05d01219da64038330c87155adde16c53dda158aef8a
+ticket_or_adr: ADR-0014, Roadmap Sprint 30, Arquitectura §5.3 regla 15, GTM-15, DDL 0023
+test_ids: [promotions, offline-sale, pricing-promotions-routes, promotions-anti-stack, features, schema.integration]
+entregable_afectado: Sprint 30 pricing.promotions GOV-APROBADO
+descripcion: >
+  Cierra Sprint 30 (FASE 6B): ADR-0014, dominio assertAndApplyPromotions,
+  mig 0023 promotions/product_promotions (DAT-12), enganche sale ACID
+  (lista→promo→descuento manual), FEATURE_PRICING_PROMOTIONS default off,
+  Admin CRUD + PROMOTION_CHANGE, caja por ID, chaos promotions-anti-stack
+  500 ciclos, GTM-15 descongelado (gate alineado a Sprint 30).
+evidencia: >
+  RED: S30 Planificado; sin tablas promotions ni motor en sale.
+  GREEN: domain-sales/adapters-d1/worker-api/pos-web/chaos/marketing;
+  ops s30 QG; ROADMAP/INDEX Cerrado; verify/quality.
+red_commit_sha: 9a928608964fa48c781674549f81e041e575232f
+red_run_id: run-red-0289-sprint30-promotions
+expected_failure: AssertionError: Sprint 30 Planificado sin pricing.promotions
+green_commit_sha: 9a928608964fa48c781674549f81e041e575232f
+green_run_id: run-green-0289-sprint30-promotions
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff PM R, Staff Principal A, Staff QA V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

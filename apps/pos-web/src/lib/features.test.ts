@@ -24,6 +24,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'FISCAL_CIRCUIT_BREAKER', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'FISCAL_TRANSPORT_PLUGINS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_RETURNS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'PRICING_PROMOTIONS', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -47,6 +48,7 @@ describe('features flags default off', () => {
     expect(mod.isFiscalCircuitBreakerEnabled()).toBe(false);
     expect(mod.isFiscalTransportPluginsEnabled()).toBe(false);
     expect(mod.isSalesReturnsEnabled()).toBe(false);
+    expect(mod.isPricingPromotionsEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

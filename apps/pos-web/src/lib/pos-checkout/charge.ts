@@ -116,7 +116,11 @@ export async function chargeCartOffline(
     clientDocumentType: ctx.clientDocumentType || '1',
     clientDocumentNumber: ctx.clientDocumentNumber || '00000000',
     clientName: ctx.clientName || 'Cliente',
-    items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+    items: lines.map((l) => ({
+      productId: l.productId,
+      quantity: l.quantity,
+      ...(l.promotionIds?.length ? { promotionIds: l.promotionIds } : {}),
+    })),
     payments: [
       {
         paymentMethodId: ctx.paymentMethodId,

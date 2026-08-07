@@ -4,6 +4,7 @@
  */
 /* eslint-disable complexity -- motor ACID multi-rama NV/CPE/return; split diferido */
 import {
+  assertAndApplyPromotions,
   assertOfflineSaleShape,
   computeNvLineTotals,
   InsufficientStockError,
@@ -55,6 +56,7 @@ import {
   resolveServerUnitPriceCents,
   type S18SaleCaps,
 } from './s18-sale-inventory.js';
+import { loadPromotionsByIds } from './load-promotions.js';
 
 async function requireLiveAuthToken(
   db: D1DatabaseLike,
@@ -256,6 +258,8 @@ export interface ProcessOfflineSaleOptions {
   readonly ledgerArApEnabled?: boolean;
   /** Sprint 18 capabilities (env FEATURE_* / tenant_capabilities). */
   readonly s18?: S18SaleCaps;
+  /** Sprint 30 — FEATURE_PRICING_PROMOTIONS. */
+  readonly pricingPromotionsEnabled?: boolean;
 }
 
 /**
@@ -286,8 +290,14 @@ export async function processOfflineSaleAtomic(
     inventoryBom: false,
     pricingLists: false,
   };
+  const pricingPromotionsEnabled = opts.pricingPromotionsEnabled === true;
 
   assertOfflineSaleShape(payload);
+
+  const hasPromoIds = payload.items.some((i) => (i.promotionIds?.length ?? 0) > 0);
+  if (hasPromoIds && !pricingPromotionsEnabled) {
+    throw new Error('FEATURE_OFF');
+  }
 
   const already = await loadAlreadySynced(db, tenantId, payload.offlineSaleId);
   if (already) return already;
@@ -400,8 +410,52 @@ export async function processOfflineSaleAtomic(
     }
   }
 
+  // Sprint 30: lista → promoción → (luego descuento manual S17). Cliente solo envía IDs.
+  let itemsForTotals = payload.items;
+  if (pricingPromotionsEnabled && hasPromoIds) {
+    const allPromoIds = payload.items.flatMap((i) => i.promotionIds ?? []);
+    const promotionsById = await loadPromotionsByIds(db, tenantId, allPromoIds);
+    const branchList = await db
+      .prepare(`SELECT price_list_id FROM branches WHERE id = ? AND tenant_id = ? LIMIT 1`)
+      .bind(payload.branchId, tenantId)
+      .first<{ price_list_id: string | null }>();
+    const priceListId = branchList?.price_list_id ?? null;
+    const applied = assertAndApplyPromotions({
+      lines: payload.items.map((item) => {
+        const entry = catalog.get(item.productId)!;
+        const line: {
+          productId: string;
+          quantity: number;
+          unitPriceCents: number;
+          categoryId: null;
+          priceListId: string | null;
+          promotionIds?: readonly string[];
+        } = {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPriceCents: entry.priceCents,
+          categoryId: null,
+          priceListId,
+        };
+        if (item.promotionIds?.length) line.promotionIds = item.promotionIds;
+        return line;
+      }),
+      promotionsById,
+      nowMs,
+    });
+    itemsForTotals = payload.items.map((item, idx) => {
+      const promoLine = applied[idx]!;
+      const manual = item.discountAmountCents ?? 0;
+      return {
+        ...item,
+        serverUnitPriceCents: promoLine.unitPriceCents,
+        discountAmountCents: manual + promoLine.promoDiscountCents,
+      };
+    });
+  }
+
   const totals = computeNvLineTotals(
-    payload.items,
+    itemsForTotals,
     new Map(
       [...catalog.entries()].map(([id, p]) => [
         id,
@@ -573,11 +627,15 @@ export async function processOfflineSaleAtomic(
       maxAmountWithoutAuthCents: policyRow?.max_amount_without_auth_cents ?? 2000,
     };
     let needsDiscountToken = false;
-    for (const line of totals.lines) {
+    for (let i = 0; i < totals.lines.length; i++) {
+      const line = totals.lines[i]!;
+      const originalItem = payload.items[Math.min(i, payload.items.length - 1)];
+      // FEFO may split lines; authz uses manual discount only (promo no dispara S17).
+      const manualDiscountCents = originalItem?.discountAmountCents ?? 0;
       try {
         assertDiscountAuthorized({
           lineSubtotalCents: line.quantity * line.unitPriceCents,
-          discountCents: line.discountCents,
+          discountCents: manualDiscountCents,
           policy,
           authorizationTokenHash: payload.discountAuthorizationTokenHash ?? null,
         });
@@ -590,7 +648,7 @@ export async function processOfflineSaleAtomic(
       if (
         discountRequiresAuthz({
           lineSubtotalCents: line.quantity * line.unitPriceCents,
-          discountCents: line.discountCents,
+          discountCents: manualDiscountCents,
           policy,
           authorizationTokenHash: payload.discountAuthorizationTokenHash ?? null,
         })

@@ -109,6 +109,18 @@ describe('assertOfflineSaleShape', () => {
         payments: [{ paymentMethodId: 'pm1', amountCents: 1.5 }],
       }),
     ).toThrow(/INVALID_PAYMENT_CENTS/);
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', quantity: 1, promotionIds: [''] }],
+      }),
+    ).toThrow(/INVALID_PROMOTION_IDS/);
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', quantity: 1, promotionIds: ['promo-1'] }],
+      }),
+    ).not.toThrow();
   });
 
   it('acepta CPE 01 y rechaza tipo desconocido', () => {
@@ -167,6 +179,16 @@ describe('nv line totals', () => {
     expect(() => computeNvLineTotals([{ productId: 'missing', quantity: 1 }], catalog)).toThrow(
       /Product not found/,
     );
+  });
+
+  it('usa serverUnitPriceCents post-promo (nunca precio cliente HTTP)', () => {
+    const catalog = new Map([['p1', { priceCents: 1000, costCents: 100 }]]);
+    const totals = computeNvLineTotals(
+      [{ productId: 'p1', quantity: 2, serverUnitPriceCents: 800, discountAmountCents: 100 }],
+      catalog,
+    );
+    expect(totals.lines[0]!.unitPriceCents).toBe(800);
+    expect(totals.totalTaxableCents).toBe(1500);
   });
 });
 

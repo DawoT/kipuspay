@@ -127,3 +127,8 @@ export function isFiscalTransportPluginsEnabled(): boolean {
 export function isSalesReturnsEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_RETURNS'));
 }
+
+/** Sprint 30 — promociones y tramos. */
+export function isPricingPromotionsEnabled(): boolean {
+  return flagOn(pub(PF + 'PRICING_PROMOTIONS'));
+}

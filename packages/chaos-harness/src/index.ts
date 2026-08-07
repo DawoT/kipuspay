@@ -17,6 +17,10 @@ import {
   type ThreeWayChaosResult,
 } from './purchasing-three-way-late-invoice.js';
 import {
+  runPromotionsAntiStackChaosScenario,
+  type PromotionsAntiStackChaosResult,
+} from './promotions-anti-stack.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -42,6 +46,7 @@ export type ChaosScenarioId =
   | 'usage-overage-idempotent'
   | 'sales-returns-window'
   | 'purchasing-three-way-late-invoice'
+  | 'promotions-anti-stack'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -59,6 +64,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'usage-overage-idempotent': 27,
   'sales-returns-window': 28,
   'purchasing-three-way-late-invoice': 29,
+  'promotions-anti-stack': 30,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -103,6 +109,7 @@ export interface ChaosDeps {
   readonly runUsageOverageIdempotent?: () => Promise<UsageOverageChaosResult>;
   readonly runSalesReturnsWindow?: () => Promise<SalesReturnsChaosResult>;
   readonly runPurchasingThreeWayLateInvoice?: () => Promise<ThreeWayChaosResult>;
+  readonly runPromotionsAntiStack?: () => Promise<PromotionsAntiStackChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -183,6 +190,8 @@ async function dispatchReadyScenario(
       return runSalesReturnsWindowChaos(deps.runSalesReturnsWindow);
     case 'purchasing-three-way-late-invoice':
       return runPurchasingThreeWayLateInvoiceChaos(deps.runPurchasingThreeWayLateInvoice);
+    case 'promotions-anti-stack':
+      return runPromotionsAntiStackChaosScenario(deps.runPromotionsAntiStack);
     default:
       return Promise.reject(
         new Error(
@@ -258,3 +267,9 @@ export {
   runPurchasingThreeWayLateInvoiceCycles,
   simulateThreeWayLateInvoiceCycle,
 } from './purchasing-three-way-late-invoice.js';
+
+export {
+  judgePromotionsAntiStack,
+  runPromotionsAntiStackChaos,
+  runPromotionsAntiStackChaosScenario,
+} from './promotions-anti-stack.js';

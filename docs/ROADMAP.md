@@ -67,7 +67,8 @@ owner: "@DawoT"
 | 27 | 8 | Actualizada (P2 cupo §4.1) | Cerrado |
 | 28 | 6B | Actualizada (sales.returns + GTM-05) | Cerrado |
 | 29 | 6B | Actualizada (purchasing.three_way + GTM-13) | Cerrado |
-| 30–32 | 6B | Actualizada (FASE 6B reglas 15–17 + COM pricing) | Planificado |
+| 30 | 6B | Actualizada (pricing.promotions + GTM-15) | Cerrado |
+| 31–32 | 6B | Actualizada (FASE 6B reglas 16–17 + COM pricing) | Planificado |
 | 33–37 | 6C | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |
 | 38–42 | 6D | Actualizada (FASE 6D reglas 23–27) | Planificado |
 | 43–45 | 6E | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |

@@ -1,6 +1,17 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0023_SPRINT30_PROMOTIONS = `
+DROP INDEX IF EXISTS idx_product_promotions_promo;
+DROP TABLE IF EXISTS product_promotions;
+DROP INDEX IF EXISTS idx_promotions_tenant_active;
+DROP INDEX IF EXISTS uq_promotions_tenant_id;
+DROP TABLE IF EXISTS promotions;
+DROP INDEX IF EXISTS uq_price_lists_tenant_id;
+DROP INDEX IF EXISTS uq_products_tenant_id;
+DELETE FROM schema_meta WHERE key = 'pricing.promotions.sprint30';
+`;
+
 export const DOWN_0022_SPRINT29_SUPPLIER_INVOICES = `
 DROP INDEX IF EXISTS idx_supplier_invoices_po;
 DROP TABLE IF EXISTS supplier_invoice_lines;

@@ -34,6 +34,10 @@ export function isPricingListsEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_PRICING_LISTS);
 }
 
+export function isPricingPromotionsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_PRICING_PROMOTIONS);
+}
+
 /* eslint-disable complexity -- HTTP error map multi-código S17/S18 */
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
   if (error instanceof InsufficientStockError) {
@@ -90,6 +94,12 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
   }
   if (msg.includes('CREDIT_LIMIT_EXCEEDED')) {
     return { status: 422, body: { error: msg, code: 'CREDIT_LIMIT_EXCEEDED' } };
+  }
+  if (msg === 'FEATURE_OFF' || msg.startsWith('PROMO_') || msg === 'DISCOUNT_EXCEEDS_SUBTOTAL') {
+    return {
+      status: msg === 'FEATURE_OFF' ? 404 : 422,
+      body: { error: msg, code: msg },
+    };
   }
   if (
     msg.includes('CPE_BLOCKED_INTERNAL_CONTROL') ||
@@ -193,6 +203,7 @@ export async function runOfflineSaleHttp(
   try {
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
       ledgerArApEnabled: isLedgerArApEnabled(env),
+      pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),
         inventoryBom: isInventoryBomEnabled(env),

@@ -6,6 +6,7 @@
     isPaymentsCardAcquirerEnabled,
     isPaymentsQrWalletsEnabled,
     isPosCheckoutEnabled,
+    isPricingPromotionsEnabled,
   } from '$lib/features';
 
   /** Copy normativa §5.4 edge 2B (misma cadena que MANUAL_CAPTURE_AMBER_COPY). */
@@ -17,6 +18,7 @@
   const cardsOn = isPaymentsCardAcquirerEnabled();
   const whatsappOn = isMessagingWhatsAppEnabled();
   const loyaltyOn = isLoyaltyPointsEnabled();
+  const promosOn = isPricingPromotionsEnabled();
 
   let methodCode = $state('cash');
   /** M4: fuente de verdad = navigator.onLine (nunca inventar online). */
@@ -25,6 +27,7 @@
   let captureId = $state('');
   let message = $state('');
   let amber = $state('');
+  let promotionId = $state('');
 
   let customerId = $state('cust-demo');
   let saleIdempotencyKey = $state(`sale-${Date.now()}`);
@@ -204,6 +207,20 @@
       customer_id
       <input bind:value={customerId} data-testid="caja-customer-id" />
     </label>
+  {/if}
+
+  {#if promosOn}
+    <h2>Promoción</h2>
+    <label>
+      ID de promoción (servidor impone el precio)
+      <input bind:value={promotionId} data-testid="caja-promo-id" />
+    </label>
+    <p data-testid="caja-promo-hint">
+      Se envía solo el ID en la venta offline; no se confía en el precio de pantalla.
+      {#if promotionId.trim()}
+        · promo activa: {promotionId.trim()}
+      {/if}
+    </p>
   {/if}
 
   {#if whatsappOn}
