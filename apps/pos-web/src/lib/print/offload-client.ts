@@ -30,6 +30,13 @@ export function createOffloadClient(): OffloadClient {
         else if (msg.type === 'ERROR') slot.reject(new Error(msg.error));
         else if (msg.type === 'PONG') slot.resolve('pong');
       };
+      worker.onerror = (err) => {
+        const message = err.message || 'WORKER_UNHANDLED_ERROR';
+        for (const [, slot] of pending) {
+          slot.reject(new Error(message));
+        }
+        pending.clear();
+      };
     }
   } catch {
     worker = null;
@@ -48,7 +55,21 @@ export function createOffloadClient(): OffloadClient {
         return Promise.reject(new Error(res.type === 'ERROR' ? res.error : 'COMPILE_FAILED'));
       }
       return new Promise((resolve, reject) => {
-        pending.set(requestId, { resolve, reject });
+        const timer = setTimeout(() => {
+          pending.delete(requestId);
+          reject(new Error('OFFLOAD_TIMEOUT'));
+        }, 5000);
+
+        pending.set(requestId, {
+          resolve: (val) => {
+            clearTimeout(timer);
+            resolve(val);
+          },
+          reject: (err) => {
+            clearTimeout(timer);
+            reject(err);
+          },
+        });
         const req: OffloadRequest = { type: 'COMPILE_ESC_POS', requestId, ticket };
         worker!.postMessage(req);
       });
@@ -56,6 +77,9 @@ export function createOffloadClient(): OffloadClient {
     dispose() {
       worker?.terminate();
       worker = null;
+      for (const [, slot] of pending) {
+        slot.reject(new Error('OFFLOAD_CLIENT_DISPOSED'));
+      }
       pending.clear();
     },
   };

@@ -107,3 +107,13 @@ export function isClientOffloadingEnabled(): boolean {
 export function isHardwarePrintFallbackEnabled(): boolean {
   return flagOn(pub(PF + 'HARDWARE_PRINT_FALLBACK'));
 }
+
+/** Sprint 26 — circuit breaker / backlog Dueño E-A. */
+export function isFiscalCircuitBreakerEnabled(): boolean {
+  return flagOn(pub(PF + 'FISCAL_CIRCUIT_BREAKER'));
+}
+
+/** Sprint 26 — transport plugins OSE/PSE tercero. */
+export function isFiscalTransportPluginsEnabled(): boolean {
+  return flagOn(pub(PF + 'FISCAL_TRANSPORT_PLUGINS'));
+}

@@ -203,6 +203,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/domain-fiscal-pe
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260801.1
+        version: 5.20260801.1
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -356,6 +359,9 @@ importers:
       '@kipuspay/domain-cash':
         specifier: workspace:*
         version: link:../domain-cash
+      '@kipuspay/domain-fiscal-pe':
+        specifier: workspace:*
+        version: link:../domain-fiscal-pe
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

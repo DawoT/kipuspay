@@ -108,7 +108,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | ADR-ARCH-002 | §1.1 | Capability model vs `vertical_type` |
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas |
-| ADR-FISCAL-002 | §5.1 | Decisiones fiscales (v2) |
+| ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker |
 | LPDP-* | §5.3 (6F) | Privacidad (prefijo reservado; sin IDs emitidos aún) |
 | CAL-01 | §13.3/§13.1 | Lint de invariantes: `db.transaction`, `toFixed`, `switch(vertical)`, `parseFloat` sobre dinero prohibidos (ESLint + Semgrep) |
 | CAL-02 | §13.2 | TypeScript `strict` obligatorio en todo package/app del monorepo |

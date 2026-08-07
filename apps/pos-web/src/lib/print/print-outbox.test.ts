@@ -100,6 +100,50 @@ describe('offload client (sync fallback)', () => {
     expect(b64.length).toBeGreaterThan(10);
     client.dispose();
   });
+
+  it('soporta Worker en entorno de navegador mockeado', async () => {
+    let messageHandler: ((ev: MessageEvent) => void) | null = null;
+    class MockWorker {
+      set onmessage(fn: (ev: MessageEvent) => void) {
+        messageHandler = fn;
+      }
+      set onerror(_fn: unknown) {}
+      postMessage(req: { requestId: string }) {
+        setTimeout(() => {
+          messageHandler?.({
+            data: { type: 'ESC_POS_READY', requestId: req.requestId, escPosBase64: 'QQ==' },
+          } as MessageEvent);
+        }, 5);
+      }
+      terminate() {}
+    }
+    vi.stubGlobal('Worker', MockWorker);
+    const client = createOffloadClient();
+    const b64 = await client.compileEscPos(snap);
+    expect(b64).toBe('QQ==');
+    client.dispose();
+  });
+
+  it('maneja errores de worker y dispose', async () => {
+    let errorHandler: ((ev: { message?: string }) => void) | null = null;
+    class MockWorkerErr {
+      set onmessage(_fn: unknown) {}
+      set onerror(fn: (ev: { message?: string }) => void) {
+        errorHandler = fn;
+      }
+      postMessage() {
+        setTimeout(() => {
+          errorHandler?.({ message: 'WORKER_BOOM' });
+        }, 5);
+      }
+      terminate() {}
+    }
+    vi.stubGlobal('Worker', MockWorkerErr);
+    const client = createOffloadClient();
+    const p = client.compileEscPos(snap);
+    await expect(p).rejects.toThrow('WORKER_BOOM');
+    client.dispose();
+  });
 });
 
 describe('enqueueAndPrintTicket', () => {

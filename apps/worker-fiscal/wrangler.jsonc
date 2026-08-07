@@ -4,7 +4,44 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "FISCAL_BREAKER_KV",
+      "id": "00000000000000000000000000000011",
+      "preview_id": "00000000000000000000000000000011",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FISCAL_XML_R2",
+      "bucket_name": "kipuspay-fiscal-xml-local",
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kipuspay-local",
+      "database_id": "00000000-0000-0000-0000-000000000002",
+      "migrations_dir": "../../packages/adapters-d1/migrations",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FISCAL_CIRCUIT_BREAKER_DO",
+        "class_name": "FiscalCircuitBreaker",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1-fiscal-circuit-breaker",
+      "new_sqlite_classes": ["FiscalCircuitBreaker"],
+    },
+  ],
   "vars": {
     "FEATURE_FISCAL_RC": "0",
+    "FEATURE_FISCAL_CIRCUIT_BREAKER": "0",
+    "FEATURE_FISCAL_TRANSPORT_PLUGINS": "0",
   },
 }

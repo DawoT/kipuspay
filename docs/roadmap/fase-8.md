@@ -42,7 +42,7 @@ sprints: "25–27"
 
 **Criterios de aceptación:** 10× 5xx abren breaker en todos los isolates; 10× 4xx **no** lo abren; colapso SUNAT simultáneo (miles de isolates): DO recibe **≤10 lecturas/s por DO en ventana móvil de 60s**, nunca 1 por request; factura cercana a deadline no queda detrás de 40k boletas; mensaje venenoso no bloquea cabecera; **CPE no aceptado se anula con NC sin CDR (E-A): 0 docs atrapados en represados/cuarentena en 100 ciclos, con confirmación y `CREDIT_NOTE_NO_CDR` persistente en todos los casos**.
 
-**Quality Gate:** Staff Fiscal + SRE + Principal. **Marcado como prerrequisito de volumen real.**
+**Quality Gate:** Staff Fiscal + SRE + Principal. **Marcado como prerrequisito de volumen real.** **Estado:** Cerrado (QG `docs/ops/s26-fiscal-breaker-qg.md`).
 
 ---
 

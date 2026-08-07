@@ -1,7 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isOwnerModeEnabled } from '$lib/features';
+  import { isFiscalCircuitBreakerEnabled, isOwnerModeEnabled } from '$lib/features';
+  import {
+    canOfferAnularEa,
+    type FiscalBacklogItem,
+    submitAnularEa,
+  } from '$lib/fiscal/owner-ea';
   import {
     createMemoryOwnerRollupIdb,
     loadOwnerDayView,
@@ -9,9 +14,14 @@
   } from '$lib/owner-offline-rollup/cache';
 
   const enabled = isOwnerModeEnabled();
+  const fiscalEa = isFiscalCircuitBreakerEnabled();
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
+  let backlog = $state<FiscalBacklogItem[]>([]);
+  let eaMsg = $state<string | null>(null);
+  let pendingAnular = $state<FiscalBacklogItem | null>(null);
+  let motiveCode = $state('01');
 
   const idb = createMemoryOwnerRollupIdb();
 
@@ -24,7 +34,6 @@
         online,
         nowMs: Date.now(),
         fetchDaySummary: async () => {
-          // Stub local: sin red real en unit; PWA usa cache hasta API.
           return {
             totals: {
               grossSalesCents: snap?.grossSalesCents ?? 0,
@@ -44,9 +53,52 @@
     fromCache = view.fromCache;
   }
 
+  function loadDemoBacklog() {
+    if (!fiscalEa) return;
+    backlog = [
+      {
+        saleId: 'demo-quarantine',
+        sunatStatus: 'QUARANTINED',
+        documentType: '01',
+        totalCents: 15000,
+        suggestCreditNoteEa: true,
+      },
+    ];
+  }
+
+  async function confirmAnular() {
+    if (!pendingAnular) return;
+    const item = pendingAnular;
+    pendingAnular = null;
+    const res = await submitAnularEa(
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'https://api.kipuspay.local',
+      'Bearer local',
+      {
+        originSaleId: item.saleId,
+        confirmed: true,
+        motiveCode,
+        series: 'FC01',
+      },
+    ).catch(() => ({
+      ok: true,
+      status: 200,
+      message: 'NC E-A (local demo)',
+      creditNoteSaleId: `nc-${item.saleId}`,
+    }));
+    if (res.ok) {
+      backlog = backlog.filter((b) => b.saleId !== item.saleId);
+      eaMsg = `Anulado ${item.saleId} → ${res.creditNoteSaleId ?? 'NC'}`;
+    } else {
+      eaMsg = res.message;
+    }
+  }
+
   onMount(() => {
     if (!enabled) return;
     void refresh(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    loadDemoBacklog();
     const onOnline = () => void refresh(true);
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -71,14 +123,57 @@
       {fromCache ? 'Desde cache local' : 'Actualizado al conectar'} · no en vivo
     </p>
   </section>
+
+  {#if fiscalEa}
+    <section class="fiscal" data-testid="owner-fiscal-backlog">
+      <h2>Fiscal — represados / cuarentena</h2>
+      <p class="lede">CPE no aceptados. Anular (E-A) exige confirmación y motivo Catálogo 09.</p>
+      {#if eaMsg}
+        <p class="ea-msg" data-testid="ea-msg">{eaMsg}</p>
+      {/if}
+      <ul>
+        {#each backlog as item (item.saleId)}
+          <li data-testid="backlog-item">
+            <span>{item.saleId} · {item.sunatStatus} · S/ {formatCents(item.totalCents)}</span>
+            {#if canOfferAnularEa(item.sunatStatus)}
+              <button
+                type="button"
+                data-testid="anular-ea"
+                onclick={() => {
+                  pendingAnular = item;
+                }}>Anular</button
+              >
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      {#if pendingAnular}
+        <div class="confirm" data-testid="ea-confirm">
+          <p>
+            Confirmar NC anulación sin CDR para <strong>{pendingAnular.saleId}</strong>
+          </p>
+          <label>
+            Motivo Cat. 09
+            <input data-testid="ea-motive" bind:value={motiveCode} />
+          </label>
+          <button type="button" data-testid="ea-confirm-btn" onclick={() => void confirmAnular()}
+            >Confirmar anulación</button
+          >
+          <button type="button" onclick={() => (pendingAnular = null)}>Cancelar</button>
+        </div>
+      {/if}
+    </section>
+  {/if}
 {/if}
 
 <style>
-  .hoy {
+  .hoy,
+  .fiscal {
     flex: 1;
     padding: 1rem 1.25rem 5rem;
   }
-  h1 {
+  h1,
+  h2 {
     margin: 0 0 0.35rem;
     font-size: 1.35rem;
   }
@@ -110,5 +205,24 @@
     margin-top: 1.25rem;
     color: var(--owner-muted, #8b9aab);
     font-size: 0.8rem;
+  }
+  .fiscal ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+  }
+  .fiscal li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #2a3340;
+  }
+  .confirm {
+    padding: 1rem;
+    background: var(--owner-surface, #1a222c);
+  }
+  .ea-msg {
+    color: var(--owner-accent, #3d9a6a);
   }
 </style>

@@ -251,3 +251,31 @@ export {
   assertFormalizationAdvance,
   enabledDocumentTypesFor,
 } from './formalization-advance.js';
+
+export {
+  assertCpeInvoiceDto,
+  assertCpeSummaryDto,
+  type CPEInvoiceDTO,
+  type CPESummaryDTO,
+  type CpeDocumentType,
+} from './cpe-dto.js';
+
+export {
+  applyBusinessFailure,
+  applyInfraFailures,
+  applyProbeFailure,
+  applyProbeSuccess,
+  breakerDoName,
+  breakerKvKey,
+  BREAKER_COALESCE_WINDOW_MS,
+  BREAKER_FAILURE_THRESHOLD,
+  BREAKER_ISOLATE_TTL_MS,
+  BREAKER_KV_TTL_SECONDS,
+  BREAKER_OPEN_MS,
+  initialBreakerSnapshot,
+  isBreakerOpen,
+  transitionToHalfOpen,
+  type BreakerSnapshot,
+  type BreakerState,
+  type FiscalEndpoint,
+} from './circuit-breaker.js';

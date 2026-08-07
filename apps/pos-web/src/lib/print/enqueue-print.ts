@@ -48,6 +48,7 @@ export async function enqueueAndPrintTicket(input: {
   const result = await input.transport.print({
     ticket: input.ticket,
     escPosBase64,
+    preferredAdapter: input.preferredAdapter,
   });
   if (result.ok) {
     await input.outbox.markPrinted(input.saleId);

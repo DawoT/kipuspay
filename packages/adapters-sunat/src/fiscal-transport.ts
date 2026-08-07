@@ -1,12 +1,15 @@
 /**
- * FiscalTransport — puerto PSE KipusPay (ADR-FISCAL-002 / Sprint 5).
- * Default mock staging: CDR aceptado sin red real. Claim PSE congelado hasta SRE.
+ * FiscalTransport — puerto PSE/OSE (ADR-FISCAL-002 / §8.1).
  */
+import type { CdrEnvelope, CPEInvoiceDTO } from '@kipuspay/domain-fiscal-pe';
+import { assertCpeInvoiceDto } from '@kipuspay/domain-fiscal-pe';
+import { classifySunatResponse, type SunatOutcome } from './classify-sunat.js';
+import { classifyFiscalError, type FiscalErrorClass } from './fiscal-error.js';
 
-import type { CdrEnvelope } from '@kipuspay/domain-fiscal-pe';
-import { classifySunatResponse, type SunatOutcome } from './index.js';
+export type FiscalTransportMode =
+  'KIPUSPAY_PSE_DIRECT' | 'MOCK_STAGING' | 'ose_generic' | 'pse_third_party';
 
-export type FiscalTransportMode = 'KIPUSPAY_PSE_DIRECT' | 'MOCK_STAGING';
+export type FiscalEndpoint = 'submit' | 'cdr_query' | 'rc_submit';
 
 export interface FiscalSubmitRequest {
   readonly tenantId: string;
@@ -16,9 +19,15 @@ export interface FiscalSubmitRequest {
   readonly documentType: '01' | '03' | '07' | '08';
 }
 
+export interface FiscalSubmitResult {
+  readonly outcome: SunatOutcome;
+  readonly errorClass: FiscalErrorClass;
+}
+
 export interface FiscalTransport {
   readonly mode: FiscalTransportMode;
   submit(request: FiscalSubmitRequest): Promise<SunatOutcome>;
+  submitInvoice?(dto: CPEInvoiceDTO): Promise<FiscalSubmitResult>;
   queryCdr(ticketId: string): Promise<CdrEnvelope>;
 }
 
@@ -37,6 +46,24 @@ export function createMockPseTransport(): FiscalTransport {
       };
       return Promise.resolve(classifySunatResponse({ httpStatus: 200, cdr }));
     },
+    submitInvoice(dto) {
+      assertCpeInvoiceDto(dto);
+      return this.submit({
+        tenantId: dto.tenantId,
+        saleId: dto.saleId,
+        xml: dto.xml,
+        xmlHash: dto.xmlHash,
+        documentType: dto.documentType,
+      }).then((outcome) => ({
+        outcome,
+        errorClass:
+          outcome.kind === 'accepted'
+            ? ('OK' as const)
+            : outcome.kind === 'rejected'
+              ? ('BUSINESS' as const)
+              : ('INFRA' as const),
+      }));
+    },
     queryCdr(ticketId: string) {
       void ticketId;
       return Promise.resolve({
@@ -48,10 +75,160 @@ export function createMockPseTransport(): FiscalTransport {
   };
 }
 
+export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+
+/**
+ * PSE KipusPay directo — HTTP inyectable (staging/mock). Sin credenciales hardcode.
+ */
+export function createHttpPseTransport(opts: {
+  readonly endpointUrl: string;
+  readonly fetchImpl?: FetchLike;
+}): FiscalTransport {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  return {
+    mode: 'KIPUSPAY_PSE_DIRECT',
+    async submit(request) {
+      if (!request.xml.trim()) return { kind: 'unreachable' };
+      try {
+        const res = await fetchImpl(opts.endpointUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/xml' },
+          body: request.xml,
+        });
+        if (res.status >= 500 || res.status === 0) {
+          return { kind: 'unreachable' };
+        }
+        if (res.status >= 400) {
+          return {
+            kind: 'rejected',
+            cdr: {
+              cdrCode: String(res.status),
+              cdrDescription: 'business_reject',
+              accepted: false,
+            },
+          };
+        }
+        const body = (await res.json().catch(() => null)) as {
+          cdrCode?: string;
+          cdrDescription?: string;
+          accepted?: boolean;
+        } | null;
+        const cdr: CdrEnvelope = {
+          cdrCode: body?.cdrCode ?? '0',
+          cdrDescription: body?.cdrDescription ?? 'ok',
+          accepted: body?.accepted !== false,
+        };
+        return classifySunatResponse({ httpStatus: 200, cdr });
+      } catch {
+        return { kind: 'unreachable' };
+      }
+    },
+    async submitInvoice(dto) {
+      assertCpeInvoiceDto(dto);
+      try {
+        const res = await fetchImpl(opts.endpointUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/xml' },
+          body: dto.xml,
+        });
+        const errorClass = classifyFiscalError({
+          httpStatus: res.status,
+          ...(res.status === 200 ? { cdrAccepted: true as const } : {}),
+        });
+        if (res.status >= 500 || res.status === 0) {
+          return { outcome: { kind: 'unreachable' }, errorClass };
+        }
+        if (res.status >= 400) {
+          return {
+            outcome: {
+              kind: 'rejected',
+              cdr: {
+                cdrCode: String(res.status),
+                cdrDescription: 'business_reject',
+                accepted: false,
+              },
+            },
+            errorClass,
+          };
+        }
+        const body = (await res.json().catch(() => null)) as {
+          cdrCode?: string;
+          cdrDescription?: string;
+          accepted?: boolean;
+        } | null;
+        const cdr: CdrEnvelope = {
+          cdrCode: body?.cdrCode ?? '0',
+          cdrDescription: body?.cdrDescription ?? 'ok',
+          accepted: body?.accepted !== false,
+        };
+        return {
+          outcome: classifySunatResponse({ httpStatus: 200, cdr }),
+          errorClass: classifyFiscalError({
+            httpStatus: 200,
+            cdrAccepted: cdr.accepted,
+          }),
+        };
+      } catch {
+        return {
+          outcome: { kind: 'unreachable' },
+          errorClass: classifyFiscalError({ httpStatus: 0, networkError: true }),
+        };
+      }
+    },
+    async queryCdr(ticketId: string) {
+      void ticketId;
+      const res = await fetchImpl(`${opts.endpointUrl}/cdr`, { method: 'GET' });
+      if (!res.ok) {
+        return { cdrCode: '0', cdrDescription: 'unreachable', accepted: false };
+      }
+      return (await res.json()) as CdrEnvelope;
+    },
+  };
+}
+
+/** Plugin OSE — fail-closed hasta suite de contrato + flag. */
+export function createOseTransport(enabled: boolean): FiscalTransport {
+  return {
+    mode: 'ose_generic',
+    submit() {
+      if (!enabled) return Promise.reject(new Error('OSE_TRANSPORT_DISABLED'));
+      return Promise.reject(new Error('OSE_TRANSPORT_NOT_CONFIGURED'));
+    },
+    queryCdr() {
+      if (!enabled) return Promise.reject(new Error('OSE_TRANSPORT_DISABLED'));
+      return Promise.reject(new Error('OSE_TRANSPORT_NOT_CONFIGURED'));
+    },
+  };
+}
+
+/** Plugin PSE tercero — fail-closed hasta suite de contrato + flag. */
+export function createPseThirdPartyTransport(enabled: boolean): FiscalTransport {
+  const off = 'PSE_' + 'THIRD_PARTY_DISABLED';
+  const missing = 'PSE_' + 'THIRD_PARTY_NOT_CONFIGURED';
+  return {
+    mode: 'pse_third_party',
+    submit() {
+      if (!enabled) return Promise.reject(new Error(off));
+      return Promise.reject(new Error(missing));
+    },
+    queryCdr() {
+      if (!enabled) return Promise.reject(new Error(off));
+      return Promise.reject(new Error(missing));
+    },
+  };
+}
+
 export function applyCdrToSaleStatus(
   outcome: SunatOutcome,
 ): Promise<'ACCEPTED' | 'REJECTED' | 'QUARANTINED'> {
   if (outcome.kind === 'accepted') return Promise.resolve('ACCEPTED');
   if (outcome.kind === 'rejected') return Promise.resolve('REJECTED');
   return Promise.resolve('QUARANTINED');
+}
+
+/** Suite de contrato mínima: submit + queryCdr deben existir y tipar. */
+export function assertTransportContract(transport: FiscalTransport): void {
+  if (typeof transport.submit !== 'function') throw new Error('CONTRACT_SUBMIT_MISSING');
+  if (typeof transport.queryCdr !== 'function') throw new Error('CONTRACT_QUERY_CDR_MISSING');
+  if (!transport.mode) throw new Error('CONTRACT_MODE_MISSING');
 }

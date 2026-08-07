@@ -63,7 +63,7 @@ owner: "@DawoT"
 | 23 | 7 | Actualizada (Contasis/Concar + API keys/webhooks Cadena+) | Cerrado |
 | 24 | 7 | Base (WhatsApp/loyalty) | Cerrado |
 | 25 | 8 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Cerrado |
-| 26 | 8 | Actualizada (P1 breaker §8.1) | Planificado |
+| 26 | 8 | Actualizada (P1 breaker §8.1) | Cerrado |
 | 27 | 8 | Actualizada (P2 cupo §4.1) | Planificado |
 | 28–32 | 6B | Actualizada (FASE 6B reglas 13–17 + COM pricing) | Planificado |
 | 33–37 | 6C | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |

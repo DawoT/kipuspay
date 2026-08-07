@@ -16,7 +16,8 @@
     "build": "true"
   },
   "dependencies": {
-    "@kipuspay/domain-cash": "workspace:*"
+    "@kipuspay/domain-cash": "workspace:*",
+    "@kipuspay/domain-fiscal-pe": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",

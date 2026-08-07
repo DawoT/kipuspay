@@ -75,6 +75,8 @@ export default tseslint.config(
       '**/test/env.d.ts',
       'apps/worker-api/src/auth/tenant-state.ts',
       'apps/worker-api/src/worker.ts',
+      'apps/worker-fiscal/src/fiscal-circuit-breaker.ts',
+      'apps/worker-fiscal/src/cloudflare-workers-stub.ts',
     ],
   },
   {

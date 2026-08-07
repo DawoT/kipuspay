@@ -3,6 +3,7 @@
  * Cada escenario se activa en el sprint indicado; invocarlo antes es un error explícito.
  */
 
+import { runShardDoFailureChaos, type ShardDoFailureResult } from './shard-do-failure.js';
 import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
@@ -80,6 +81,7 @@ export interface ChaosDeps {
   readonly runLowEndDevice?: () => Promise<LowEndDeviceResult>;
   readonly runArCompensate?: () => Promise<ArCompensateChaosResult>;
   readonly runRollupIdempotent?: () => Promise<RollupIdempotentResult>;
+  readonly runShardDoFailure?: () => Promise<ShardDoFailureResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -151,6 +153,8 @@ async function dispatchReadyScenario(
           'Escenario rollup-idempotent exige deps.runRollupIdempotent (evidencia ciclos); fail-closed sin fixtures',
         ),
       );
+    case 'shard-do-failure':
+      return runShardDoFailureChaos(deps.runShardDoFailure);
     default:
       return Promise.reject(
         new Error(
@@ -200,3 +204,10 @@ export {
   runRollupIdempotentCycles,
   simulateRollupIdempotentCycle,
 } from './rollup-idempotent.js';
+
+export {
+  judgeBreakerTaxonomy,
+  judgeShardDoFailure,
+  runBreakerTaxonomyChaos,
+  runShardDoFailureChaos,
+} from './shard-do-failure.js';

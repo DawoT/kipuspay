@@ -20,6 +20,8 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'LOYALTY_POINTS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'CLIENT_OFFLOADING', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'HARDWARE_PRINT_FALLBACK', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'FISCAL_CIRCUIT_BREAKER', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'FISCAL_TRANSPORT_PLUGINS', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -39,6 +41,8 @@ describe('features flags default off', () => {
     expect(mod.isLoyaltyPointsEnabled()).toBe(false);
     expect(mod.isClientOffloadingEnabled()).toBe(false);
     expect(mod.isHardwarePrintFallbackEnabled()).toBe(false);
+    expect(mod.isFiscalCircuitBreakerEnabled()).toBe(false);
+    expect(mod.isFiscalTransportPluginsEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

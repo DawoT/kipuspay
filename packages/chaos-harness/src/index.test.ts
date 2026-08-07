@@ -278,8 +278,10 @@ describe('chaos-harness contrato §13.5', () => {
     ).toBe('FAIL');
   });
 
-  it('rechaza escenario activo en Sprint N sin runner aún', async () => {
-    await expect(runChaosScenario('shard-do-failure', 26)).rejects.toThrow(/sin runner aún/);
+  it('rechaza escenario activo antes de su sprint de activación', async () => {
+    await expect(runChaosScenario('shard-do-failure', 25)).rejects.toThrow(
+      /activo desde Sprint 26/,
+    );
   });
 
   it('jueces fallan ante incoherencia', () => {

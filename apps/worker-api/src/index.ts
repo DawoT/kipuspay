@@ -18,6 +18,8 @@ import {
   runOwnerAlertsHttp,
   runVoidBoletaHttp,
 } from './fiscal/fiscal-rc-routes.js';
+import { runCreditNoteEaHttp, runOwnerBacklogHttp } from './fiscal/owner-ea-routes.js';
+import { parseCreditNoteEaBody } from './fiscal/parse-ea-body.js';
 import {
   runCreateApHttp,
   runCreateExpenseHttp,
@@ -160,6 +162,25 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const jwt = c.get('jwt');
     const result = await runOwnerAlertsHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
+  app.get('/api/fiscal/owner-backlog', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerBacklogHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
+  app.post('/api/fiscal/credit-note-ea', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body = parseCreditNoteEaBody(await c.req.json());
+    const result = await runCreditNoteEaHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
   });
 
   app.post('/api/fiscal/cron', async (c) => {

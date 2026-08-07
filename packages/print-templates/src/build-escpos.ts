@@ -30,10 +30,15 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
 
   const maxName = maxItemNameLen(lineWidth);
   for (const item of data.items) {
-    const nameTrunc = sanitizePrinterText(item.name).substring(0, maxName);
-    cmd.push(
-      ...encoder.encode(`${item.qty} x ${nameTrunc} S/ ${formatTicketCents(item.totalCents)}\n`),
-    );
+    const qtyPrefix = `${item.qty}x `;
+    const priceStr = `S/ ${formatTicketCents(item.totalCents)}`;
+    const availForName = lineWidth - qtyPrefix.length - priceStr.length - 1;
+    const maxLen = Math.max(6, Math.min(maxName, availForName));
+    const nameTrunc = sanitizePrinterText(item.name).substring(0, maxLen);
+    const leftPart = `${qtyPrefix}${nameTrunc}`;
+    const spaceCount = Math.max(1, lineWidth - leftPart.length - priceStr.length);
+    const lineStr = `${leftPart}${' '.repeat(spaceCount)}${priceStr}\n`;
+    cmd.push(...encoder.encode(lineStr));
   }
 
   cmd.push(0x1b, 0x45, 0x01);
@@ -68,6 +73,6 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
     }
   }
 
-  cmd.push(0x1d, 0x56, 0x42, 0x00);
+  cmd.push(0x1d, 0x56, 0x42, 0x04);
   return new Uint8Array(cmd);
 }

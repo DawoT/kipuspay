@@ -25,6 +25,7 @@ export interface PrinterTransport {
   print(job: {
     readonly ticket: PrintTicketSnapshot;
     readonly escPosBase64: string | null;
+    readonly preferredAdapter?: PrinterStrategy | null;
   }): Promise<TransportResult>;
 }
 
@@ -92,6 +93,31 @@ function tryBluetooth(bytes: Uint8Array): Promise<void> {
   return Promise.reject(new Error('BLUETOOTH_NO_DEVICE'));
 }
 
+async function executeSingleAdapter(
+  adapter: PrinterStrategy,
+  job: { readonly ticket: PrintTicketSnapshot; readonly escPosBase64: string | null },
+  bytes: Uint8Array | null,
+  env: PrinterTransportEnv,
+  system: SystemPrintPort,
+): Promise<void> {
+  switch (adapter) {
+    case 'webusb':
+      if (!bytes) throw new Error('ESCPOS_REQUIRED');
+      return tryWebUsb(bytes);
+    case 'wss_lan':
+      if (!bytes) throw new Error('ESCPOS_REQUIRED');
+      return tryWss(bytes, env.wssUrl);
+    case 'bluetooth':
+      if (!bytes) throw new Error('ESCPOS_REQUIRED');
+      return tryBluetooth(bytes);
+    case 'system_print':
+      return system.printHtml(buildTicketHtml(snapshotToTicketData(job.ticket)));
+    case 'whatsapp':
+      if (env.whatsappFallback && (await env.whatsappFallback(job.ticket))) return;
+      throw new Error('WHATSAPP_FALLBACK_FAILED');
+  }
+}
+
 export function createPrinterTransport(env: PrinterTransportEnv = {}): PrinterTransport {
   const system = createSystemPort();
   return {
@@ -106,41 +132,24 @@ export function createPrinterTransport(env: PrinterTransportEnv = {}): PrinterTr
     },
     async print(job) {
       const bytes = job.escPosBase64 ? base64ToBytes(job.escPosBase64) : null;
-      const order: PrinterStrategy[] = [
+      const defaultOrder: PrinterStrategy[] = [
         'webusb',
         'wss_lan',
         'bluetooth',
         'system_print',
         'whatsapp',
       ];
+      const preferred = job.preferredAdapter;
+      const order: PrinterStrategy[] =
+        preferred && defaultOrder.includes(preferred)
+          ? [preferred, ...defaultOrder.filter((a) => a !== preferred)]
+          : defaultOrder;
+
       let lastError = 'NO_ADAPTER';
       for (const adapter of order) {
         try {
-          if (adapter === 'webusb') {
-            if (!bytes) throw new Error('ESCPOS_REQUIRED');
-            await tryWebUsb(bytes);
-            return { ok: true, adapter };
-          }
-          if (adapter === 'wss_lan') {
-            if (!bytes) throw new Error('ESCPOS_REQUIRED');
-            await tryWss(bytes, env.wssUrl);
-            return { ok: true, adapter };
-          }
-          if (adapter === 'bluetooth') {
-            if (!bytes) throw new Error('ESCPOS_REQUIRED');
-            await tryBluetooth(bytes);
-            return { ok: true, adapter };
-          }
-          if (adapter === 'system_print') {
-            const html = buildTicketHtml(snapshotToTicketData(job.ticket));
-            await system.printHtml(html);
-            return { ok: true, adapter };
-          }
-          if (adapter === 'whatsapp' && env.whatsappFallback) {
-            const ok = await env.whatsappFallback(job.ticket);
-            if (!ok) throw new Error('WHATSAPP_FALLBACK_FAILED');
-            return { ok: true, adapter };
-          }
+          await executeSingleAdapter(adapter, job, bytes, env, system);
+          return { ok: true, adapter };
         } catch (e) {
           lastError = e instanceof Error ? e.message : String(e);
         }

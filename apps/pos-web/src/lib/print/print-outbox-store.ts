@@ -104,8 +104,9 @@ function isQuotaExceeded(error: unknown): boolean {
   return (
     (typeof DOMException !== 'undefined' &&
       error instanceof DOMException &&
-      error.name === 'QuotaExceededError') ||
-    (error instanceof Error && /QuotaExceeded/i.test(error.name + error.message))
+      (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) ||
+    (error instanceof Error &&
+      /(QuotaExceeded|NS_ERROR_DOM_QUOTA_REACHED)/i.test(error.name + error.message))
   );
 }
 

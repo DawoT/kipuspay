@@ -4777,3 +4777,42 @@ aprobaciones: [Staff Principal Architect A, Staff Backend ACID R, Staff Frontend
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0283
+timestamp_utc: 2026-08-07T16:58:00Z
+schema_version: 2
+sprint_fase: Sprint 25 — Remediación de Código Fuente (Plantillas, Offload & Transporte)
+agente_responsable: Staff Hardware / Staff Frontend / Staff Principal Architect
+tipo: Corrección
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0282]
+referencias_documentales: [docs/LEDGER.md, AGENTS.md, docs/roadmap/fase-8.md]
+prev_id: 0282
+prev_hash: 6c1920f7d9279661977a5ffb12e3a7801d25c0baa75f5a845b4121c37e881652
+entry_hash: 0fac99178cd32345c52444bc795412a3bb007b79ce33412cea6d2882f391a0d2
+ticket_or_adr: Auditoría Sprint 25 / AGENTS.md §2
+test_ids: [print-outbox, blind-z, protected-routes, index]
+entregable_afectado: Remediación de hallazgos de código fuente Sprint 25
+descripcion: >
+  Remediación técnica del Sprint 25: transliteración ASCII de 7 bits en sanitizePrinterText
+  para eliminar mojibake térmico, avance de 4 líneas (GS V 66 4) antes del corte parcial para
+  proteger la leyenda footer, alineación tabular de columnas con padStart a la derecha,
+  temporizador de 5000ms y rechazo explícito en OffloadClient con worker.onerror,
+  priorización de preferredAdapter en la escalera de transportes, simplificación de
+  complejidad ciclomática (executeSingleAdapter) y ampliación de regex NS_ERROR_DOM_QUOTA_REACHED.
+evidencia: >
+  RED: Auditoria de código del Sprint 25 (S25-HW-01..03, S25-SW-01..03, S25-DB-01).
+  GREEN: verify.sh SUITE GREEN (25/25), quality.sh Quality Gate OK (18/18 turbo tasks,
+  72.71 kB bundle budget), pnpm test PASS (100%).
+red_commit_sha: 9551b00a64c43b808ea702f9336a0d4977f23521
+red_run_id: run-red-0283-sprint25-code-fixes
+expected_failure: AssertionError: Defectos de código fuente del Sprint 25 sin remediar
+green_commit_sha: 9551b00a64c43b808ea702f9336a0d4977f23521
+green_run_id: run-green-0283-sprint25-code-fixes
+ancestry_verified: true
+aprobaciones: [Staff Principal Architect A, Staff Hardware R, Staff Frontend R, Staff QA/Chaos V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

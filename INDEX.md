@@ -122,7 +122,7 @@ Abre solo los archivos que esta tabla te señale.
 | 23 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 45 | Actualizada (Contasis/Concar + API keys/webhooks Cadena+) | Cerrado |
 | 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 61 | Base (WhatsApp/loyalty) | Cerrado |
 | 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Cerrado |
-| 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | Actualizada (P1 breaker §8.1) | Planificado |
+| 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | Actualizada (P1 breaker §8.1) | Cerrado |
 | 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | Actualizada (P2 cupo §4.1) | Planificado |
 | 28–32 | 6B | — | — | Actualizada (FASE 6B reglas 13–17 + COM pricing) | Planificado |
 | 33–37 | 6C | — | — | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |
@@ -335,7 +335,7 @@ Abre solo los archivos que esta tabla te señale.
 | ADR-ARCH-002 | §1.1 | Capability model vs `vertical_type` | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) |
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` | [`docs/architecture/05-ddl-conventions.md`](docs/architecture/05-ddl-conventions.md) |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
-| ADR-FISCAL-002 | §5.1 | Decisiones fiscales (v2) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
+| ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker | [`docs/architecture/08-credit-notes-dlq.md`](docs/architecture/08-credit-notes-dlq.md) |
 | LPDP-* | §5.3 (6F) | Privacidad (prefijo reservado; sin IDs emitidos aún) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | CAL-01 | §13.3/§13.1 | Lint de invariantes: `db.transaction`, `toFixed`, `switch(vertical)`, `parseFloat` sobre dinero prohibidos (ESLint + Semgrep) | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |
 | CAL-02 | §13.2 | TypeScript `strict` obligatorio en todo package/app del monorepo | [`docs/architecture/13-implementation-quality.md`](docs/architecture/13-implementation-quality.md) |

@@ -1,6 +1,11 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0019_SPRINT26_FISCAL_OUTBOX_R2 = `
+DROP INDEX IF EXISTS idx_fiscal_outbox_must_submit;
+DELETE FROM schema_meta WHERE key = 'fiscal_breaker.sprint26';
+`;
+
 export const DOWN_0018_SPRINT25_POS_TERMINALS = `
 DROP INDEX IF EXISTS idx_pos_terminals_branch;
 DROP TABLE IF EXISTS pos_terminals;
