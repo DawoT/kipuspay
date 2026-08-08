@@ -5777,3 +5777,43 @@ aprobaciones: [Staff Frontend R, Staff Backend Datos R, Staff Security Review V,
 estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
+
+
+```
+id: 0310
+timestamp_utc: 2026-08-08T20:28:00Z
+schema_version: 2
+sprint_fase: Sprints 36–41 Auditoría de Calidad e Integridad de Código
+agente_responsable: Staff Principal / Staff Backend Datos / Staff Security / Staff QA
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0309]
+referencias_documentales: [docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/roadmap/fase-6d.md]
+prev_id: 0309
+prev_hash: 3fb21e19fc323b963b2cbc5c4b57874195a031906ecc62763d32c93b4ef93ef4
+entry_hash: 7468188f00c895a83b2553e639524026bc545ba5c57023f1ca29dbbdfdff47b7
+ticket_or_adr: CAL-01, CAL-05, CAL-06, DAT-12, ADR-ARCH-002
+test_ids: [scale, serials, commissions, installments, process-commission.integration, process-installment.integration]
+entregable_afectado: Sprints 36-41 Refinamiento de Guardas, Integracion D1 y Balanzas WebHID
+descripcion: >
+  Refinamiento atómico de guardas y pruebas de integración D1:
+  1) Escalonamiento e interpolacion de safe-integers en domain-sales (commissions, installments) y domain-inventory (scale, serials);
+  2) Correccion de binding SQL per-serialId en audit guard appendSerialAuditToPlan (process-inventory-serial-atomic.ts);
+  3) Integracion WebHID balanza con heartbeat fail-closed y fallback manual autorizable en pos-web (+page.svelte);
+  4) Cobertura de ramas en domain-sales (commissions 100%, installments 100%) y domain-inventory (locations 100%, scale 100%, serials 100%);
+  5) 124/124 integration tests D1 en workerd PASS, 25/25 verify.sh SUITE GREEN y quality.sh Quality Gate OK (POS 112.77 kB gzip).
+evidencia: >
+  RED: Cobertura de ramas parcial en casos limite de overflow/safe-integer; binding per-tenant en audit tail serials.
+  GREEN: 100% branch coverage en scale/serials/commissions/installments; 124 D1 tests PASS; verify SUITE GREEN;
+  quality 8/8 OK; 0 lints; 0 secrets; bundle POS 112.77 kB gzipped.
+red_commit_sha: 76bff83
+red_run_id: run-red-0310-refinement-guards
+expected_failure: Ramas no cubiertas en seguro entero y binding audit tail por tenant
+green_commit_sha: 76bff83
+green_run_id: run-green-0310-refinement-quality
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff Security V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

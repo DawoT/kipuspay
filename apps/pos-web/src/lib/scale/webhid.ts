@@ -31,7 +31,9 @@ export function createWebHidScale(input: {
   return {
     parseReport(reportId: number, frame: Uint8Array, observedAtEpochMs: number): ScaleReading {
       if (!connected) throw new Error('SCALE_RECONNECT_REQUIRED');
-      if (reportId !== input.profile.reportId) throw new Error('SCALE_REPORT_NOT_ALLOWED');
+      if (input.profile.reportId !== 0 && reportId !== input.profile.reportId) {
+        throw new Error('SCALE_REPORT_NOT_ALLOWED');
+      }
       assertBoundedFrame(frame, input.profile.maxFrameBytes ?? 32);
       if (frame.byteLength < 5) throw new Error('SCALE_FRAME_INVALID');
       if ((frame[0] & 1) !== 1) throw new Error('SCALE_SIGNAL_UNSTABLE');

@@ -131,6 +131,13 @@ describe('inventory serials', () => {
       }),
     ).toThrow('SERIAL_LEASE_RELEASE_REQUIRED');
 
+    expect(() =>
+      releaseSerialLease(expiredLease, {
+        terminalId: 'terminal-a',
+        leaseToken: 'opaque-wrong',
+      }),
+    ).toThrow('SERIAL_LEASE_CONFLICT');
+
     const released = releaseSerialLease(expiredLease, {
       terminalId: 'terminal-a',
       leaseToken: 'opaque-a',

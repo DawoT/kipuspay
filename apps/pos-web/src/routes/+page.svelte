@@ -22,6 +22,9 @@
   import { OfflineCorrelativeStore } from '$lib/offline-correlative/reserve';
   import { publishVitrina } from '$lib/vitrina/channel';
   import { formalizationBannerMessage } from '@kipuspay/domain-fiscal-pe';
+  import { createWebHidScale } from '$lib/scale/webhid';
+  import { evaluateScaleHeartbeat } from '$lib/pos-checkout/scale-client';
+  import type { ScaleReading } from '$lib/scale/types';
   import {
     buildTicketHtml,
     resolveLineWidth,
@@ -41,6 +44,22 @@
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
   const scaleOn = isInventoryScaleEnabled();
+
+  interface WebHidInputReportEvent extends Event {
+    readonly reportId: number;
+    readonly data: DataView;
+  }
+  interface PosHidDevice {
+    vendorId: number;
+    productId: number;
+    productName?: string;
+    open(): Promise<void>;
+    close(): Promise<void>;
+    addEventListener(type: 'inputreport', listener: (event: WebHidInputReportEvent) => void): void;
+  }
+  interface PosNavigator extends Navigator {
+    hid: { requestDevice(options: { filters: readonly unknown[] }): Promise<PosHidDevice[]> };
+  }
   const demoProduct = {
     productId: 'p1',
     name: 'Producto demo',
@@ -70,7 +89,10 @@
     | 'MANUAL_REQUIRED';
   let scaleState = $state<ScaleState>('DISCONNECTED');
   let scaleWeightMicrounits = $state<number | null>(null);
-  let scaleSequence = $state(0);
+  let scaleError = $state('');
+  let scaleReading: ScaleReading | null = $state(null);
+  let connectedScale: { scale: ReturnType<typeof createWebHidScale>; close(): Promise<void> } | null =
+    $state(null);
   let manualWeightGrams = $state('');
   let weightAuthorizationToken = $state('');
   const manualThresholdMicrounits = 250_000;
@@ -218,22 +240,87 @@
   function connectScale() {
     scaleState = 'CONNECTING';
     scaleWeightMicrounits = null;
-    queueMicrotask(() => {
-      scaleSequence += 1;
-      scaleWeightMicrounits = 750_000;
-      scaleState = 'STABLE';
-    });
+    if (typeof navigator === 'undefined' || !('hid' in navigator)) {
+      scaleState = 'MANUAL_REQUIRED';
+      scaleError = 'WebHID no está disponible en este navegador.';
+      return;
+    }
+    void connectHidScale();
   }
 
-  function disconnectScale() {
+  async function connectHidScale() {
+    try {
+      const nav = navigator as PosNavigator;
+      const [device] = await nav.hid.requestDevice({ filters: [] });
+      if (!device) {
+        scaleState = 'MANUAL_REQUIRED';
+        scaleError = 'No se seleccionó ninguna balanza.';
+        return;
+      }
+      await device.open();
+      const scale = createWebHidScale({
+        profile: {
+          deviceId: device.productName || device.vendorId.toString(16),
+          vendorId: device.vendorId,
+          productId: device.productId,
+          reportId: 0,
+          maxFrameBytes: 64,
+        },
+        transport: {
+          vendorId: device.vendorId,
+          productId: device.productId,
+          close: () => device.close(),
+        },
+      });
+      connectedScale = { scale, close: () => device.close() };
+      device.addEventListener('inputreport', (event: WebHidInputReportEvent) => {
+        try {
+          const frame = new Uint8Array(
+            event.data.buffer,
+            event.data.byteOffset,
+            event.data.byteLength,
+          );
+          scaleReading = scale.parseReport(event.reportId, frame, Date.now());
+          scaleWeightMicrounits = scaleReading.weightMicrounits;
+          scaleState = 'STABLE';
+          scaleError = '';
+        } catch {
+          scaleState = 'UNSTABLE';
+        }
+      });
+    } catch {
+      scaleState = 'MANUAL_REQUIRED';
+      scaleError = 'No se pudo conectar la balanza WebHID.';
+    }
+  }
+
+  async function disconnectScale() {
+    await connectedScale?.close();
+    connectedScale = null;
+    scaleReading = null;
     scaleWeightMicrounits = null;
     scaleState = 'MANUAL_REQUIRED';
   }
 
   function captureDeviceWeight() {
-    if (scaleState !== 'STABLE' || !scaleWeightMicrounits || scaleWeightMicrounits <= 0) return;
+    if (!scaleReading) return;
+    const heartbeat = evaluateScaleHeartbeat({
+      connected: connectedScale !== null,
+      reading: scaleReading,
+      nowEpochMs: Date.now(),
+    });
+    if (heartbeat.status !== 'READY' || heartbeat.reading.weightMicrounits <= 0) {
+      scaleState = 'MANUAL_REQUIRED';
+      scaleError =
+        heartbeat.status === 'READY'
+          ? 'La lectura del dispositivo no es cobrable.'
+          : 'El dispositivo se desconectó o dejó de reportar.';
+      return;
+    }
     const measurementId = crypto.randomUUID();
     const saleItemId = crypto.randomUUID();
+    const { weightMicrounits, protocol, deviceId, sequence, observedAtEpochMs } =
+      heartbeat.reading;
     lines = addOrBumpLine(lines, {
       productId: 'weigh-demo',
       name: 'Manzana por peso',
@@ -242,15 +329,16 @@
       saleItemId,
       weightMeasurement: {
         measurementId,
-        weightMicrounits: scaleWeightMicrounits,
+        weightMicrounits,
         measurementSource: 'DEVICE',
-        scaleProtocol: 'WEBHID',
-        scaleDeviceId: 'scale-demo',
-        heartbeatSequence: scaleSequence,
-        observedAt: new Date().toISOString(),
+        scaleProtocol: protocol,
+        scaleDeviceId: deviceId,
+        heartbeatSequence: sequence,
+        observedAt: new Date(observedAtEpochMs).toISOString(),
       },
     });
     scaleWeightMicrounits = null;
+    scaleReading = null;
     scaleState = 'UNSTABLE';
   }
 
@@ -419,7 +507,10 @@
       </div>
       {#if scaleState === 'MANUAL_REQUIRED'}
         <div class="manual-entry">
-          <p role="alert">La lectura del dispositivo no es cobrable. Ingresa un peso manual válido.</p>
+          <p role="alert">
+            {scaleError ||
+              'La lectura del dispositivo no es cobrable. Ingresa un peso manual válido.'}
+          </p>
           <label for="manual-weight">Peso manual (gramos enteros)</label>
           <input
             id="manual-weight"

@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets -- canonical error strings in tests */
 import { describe, expect, it } from 'vitest';
 import {
   WEIGHT_SCALE,
@@ -41,6 +42,32 @@ describe('inventory scale domain contract', () => {
     ).toMatchObject({ protocol: 'WEBUSB', weightMicrounits: 1_250_000 });
   });
 
+  it('normaliza KILOGRAM y rechaza peso inválido por overflow del producto magnitude*factor', () => {
+    expect(
+      normalizeScaleReading({
+        protocol: 'WEBHID',
+        deviceId: 'scale-1',
+        sequence: 7,
+        magnitude: 2,
+        unit: 'KILOGRAM',
+        stable: true,
+        observedAtEpochMs: 10_000,
+      }),
+    ).toMatchObject({ weightMicrounits: 2_000_000 });
+
+    expect(() =>
+      normalizeScaleReading({
+        protocol: 'WEBHID',
+        deviceId: 'scale-1',
+        sequence: 7,
+        magnitude: Number.MAX_SAFE_INTEGER,
+        unit: 'KILOGRAM',
+        stable: true,
+        observedAtEpochMs: 10_000,
+      }),
+    ).toThrow('SCALE_WEIGHT_INVALID');
+  });
+
   it('uses exact integer half-up cents without a floating money path', () => {
     expect(WEIGHT_SCALE).toBe(1_000_000);
     expect(
@@ -61,6 +88,33 @@ describe('inventory scale domain contract', () => {
         weightMicrounits: 500_000,
       }),
     ).toBe(1);
+  });
+
+  it('rechaza inputs inválidos y overflow del subtotal ponderado', () => {
+    expect(() =>
+      calculateWeightedSubtotalCents({
+        unitPricePerBaseCents: -1,
+        weightMicrounits: 500_000,
+      }),
+    ).toThrow('WEIGHTED_SUBTOTAL_INPUT_INVALID');
+    expect(() =>
+      calculateWeightedSubtotalCents({
+        unitPricePerBaseCents: 1.5,
+        weightMicrounits: 500_000,
+      }),
+    ).toThrow('WEIGHTED_SUBTOTAL_INPUT_INVALID');
+    expect(() =>
+      calculateWeightedSubtotalCents({
+        unitPricePerBaseCents: 1,
+        weightMicrounits: -1,
+      }),
+    ).toThrow('WEIGHTED_SUBTOTAL_INPUT_INVALID');
+    expect(() =>
+      calculateWeightedSubtotalCents({
+        unitPricePerBaseCents: Number.MAX_SAFE_INTEGER,
+        weightMicrounits: Number.MAX_SAFE_INTEGER,
+      }),
+    ).toThrow('WEIGHTED_SUBTOTAL_OVERFLOW');
   });
 
   it('rejects unstable and non-positive device readings', () => {
@@ -104,5 +158,23 @@ describe('inventory scale domain contract', () => {
         thresholdMicrounits: 500_000,
       }),
     ).toBe(true);
+    expect(() =>
+      requiresWeightOverride({
+        manualWeightMicrounits: -1,
+        thresholdMicrounits: 500_000,
+      }),
+    ).toThrow('SCALE_WEIGHT_INVALID');
+    expect(() =>
+      requiresWeightOverride({
+        manualWeightMicrounits: 500_000,
+        thresholdMicrounits: -1,
+      }),
+    ).toThrow('SCALE_WEIGHT_INVALID');
+    expect(() =>
+      requiresWeightOverride({
+        manualWeightMicrounits: 1.5,
+        thresholdMicrounits: 500_000,
+      }),
+    ).toThrow('SCALE_WEIGHT_INVALID');
   });
 });

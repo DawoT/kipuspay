@@ -51,6 +51,23 @@ describe('resolveCommissionRate', () => {
     expect(resolveCommissionRate(rates, 'u2', 'p1', null)).toBeNull();
     expect(resolveCommissionRate(rates, '  ', 'p1', null)).toBeNull();
     expect(resolveCommissionRate(rates, 'u1', 'p2', 'cat-missing')?.ratePercent).toBe(5);
+    expect(resolveCommissionRate(rates, 'u1', 'p-non-existent', null)?.ratePercent).toBe(5);
+    expect(
+      resolveCommissionRate(
+        [
+          {
+            sellerId: 'u3',
+            productId: 'p1',
+            categoryId: null,
+            ratePercent: 10,
+            rateAmountCents: null,
+          },
+        ],
+        'u3',
+        null,
+        null,
+      ),
+    ).toBeNull();
   });
 });
 
@@ -80,6 +97,9 @@ describe('planCommissionAccrual', () => {
     expect(applyCommissionPercentCents(1001, 5)).toBe(50);
     expect(() => applyCommissionPercentCents(-1, 5)).toThrow(COMMISSION_INVALID_AMOUNT);
     expect(() => applyCommissionPercentCents(100, -1)).toThrow(COMMISSION_INVALID_RATE);
+    expect(() => applyCommissionPercentCents(Number.MAX_SAFE_INTEGER, 100)).toThrow(
+      COMMISSION_INVALID_AMOUNT,
+    );
     expect(() =>
       lineCommissionCents(
         {
@@ -108,9 +128,15 @@ describe('planCommissionAccrual', () => {
 });
 
 describe('planCommissionReverse COM-07', () => {
-  it('reverse once', () => {
+  it('reverse once y valida montos positivos enteros', () => {
     expect(planCommissionReverse({ amountCents: 700, alreadyReversed: false }).reverse).toBe(true);
     expect(planCommissionReverse({ amountCents: 700, alreadyReversed: true }).reverse).toBe(false);
+    expect(() => planCommissionReverse({ amountCents: 1.5, alreadyReversed: false })).toThrow(
+      COMMISSION_INVALID_AMOUNT,
+    );
+    expect(() => planCommissionReverse({ amountCents: 0, alreadyReversed: false })).toThrow(
+      COMMISSION_INVALID_AMOUNT,
+    );
   });
 });
 

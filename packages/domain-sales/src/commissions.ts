@@ -52,11 +52,13 @@ function assertNonNegCents(amount: number, code: string): void {
   if (!Number.isInteger(amount) || amount < 0) throw new Error(code);
 }
 
-/** Half-up percent of base → INTEGER cents. */
+/** Half-up percent of base → INTEGER cents (guard safe-integer, invariante 1/3). */
 export function applyCommissionPercentCents(baseCents: number, ratePercent: number): number {
   if (!Number.isInteger(baseCents) || baseCents < 0) throw new Error(COMMISSION_INVALID_AMOUNT);
   if (!Number.isFinite(ratePercent) || ratePercent < 0) throw new Error(COMMISSION_INVALID_RATE);
-  return Math.floor((baseCents * ratePercent) / 100 + 0.5);
+  const product = baseCents * ratePercent;
+  if (!Number.isSafeInteger(product)) throw new Error(COMMISSION_INVALID_AMOUNT);
+  return Math.round(product / 100);
 }
 
 /**

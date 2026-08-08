@@ -5,6 +5,7 @@ import {
   INSTALLMENT_FORBIDDEN,
   INSTALLMENT_IDEM_REQUIRED,
   INSTALLMENT_INVALID_AMOUNT,
+  INSTALLMENT_INVALID_STATUS,
   INSTALLMENT_PRINCIPAL_MISMATCH,
   INSTALLMENT_SCHEDULE_REQUIRED,
   assertInstallmentPayable,
@@ -275,5 +276,85 @@ describe('Casos limite y validaciones adicionales de cuotas', () => {
         arBalanceDueCents: 5_000,
       }),
     ).toThrow(INSTALLMENT_AR_CLOSED);
+  });
+});
+
+describe('Guardas de montos y estados (CAL-01 / ramas 49, 53, 135)', () => {
+  it('rechaza montos negativos en assertNonNegCents', () => {
+    expect(() =>
+      planInstallmentSchedule({
+        saleTotalCents: 5_000,
+        downPaymentCents: -1,
+        items: [
+          {
+            installmentNumber: 1,
+            principalCents: 5_000,
+            interestCents: 0,
+            dueDateIso: '2026-09-01',
+          },
+        ],
+      }),
+    ).toThrow(INSTALLMENT_INVALID_AMOUNT);
+
+    expect(() =>
+      planInstallmentSchedule({
+        saleTotalCents: 5_000,
+        downPaymentCents: 0,
+        items: [
+          { installmentNumber: 1, principalCents: -1, interestCents: 0, dueDateIso: '2026-09-01' },
+        ],
+      }),
+    ).toThrow(INSTALLMENT_INVALID_AMOUNT);
+
+    expect(() =>
+      planInstallmentSchedule({
+        saleTotalCents: 5_000,
+        downPaymentCents: 0,
+        items: [
+          { installmentNumber: 1, principalCents: 1, interestCents: -2, dueDateIso: '2026-09-01' },
+        ],
+      }),
+    ).toThrow(INSTALLMENT_INVALID_AMOUNT);
+  });
+
+  it('rechaza saleTotalCents <= 0 en assertPositiveCents', () => {
+    expect(() =>
+      planInstallmentSchedule({
+        saleTotalCents: 0,
+        downPaymentCents: 0,
+        items: [
+          { installmentNumber: 1, principalCents: 0, interestCents: 0, dueDateIso: '2026-09-01' },
+        ],
+      }),
+    ).toThrow(INSTALLMENT_INVALID_AMOUNT);
+  });
+
+  it('rechaza amountCents <= 0 en assertPositiveCents vía planInstallmentPay', () => {
+    expect(() =>
+      planInstallmentPay({
+        status: 'PENDING',
+        dueDateIso: '2026-09-01',
+        nowIso: '2026-08-15',
+        principalCents: 0,
+        interestCents: 0,
+        amountCents: 0,
+        arBalanceDueCents: 1_000,
+        actorIsSupervisorOrAbove: true,
+        idempotencyKey: 'idem-0',
+      }),
+    ).toThrow(INSTALLMENT_INVALID_AMOUNT);
+  });
+
+  it('cuota cancelada → INSTALLMENT_INVALID_STATUS', () => {
+    expect(() =>
+      assertInstallmentPayable({
+        status: 'CANCELLED',
+        dueDateIso: '2026-09-01',
+        nowIso: '2026-08-15',
+        arBalanceDueCents: 1_000,
+        actorIsSupervisorOrAbove: true,
+        idempotencyKey: 'k',
+      }),
+    ).toThrow(INSTALLMENT_INVALID_STATUS);
   });
 });

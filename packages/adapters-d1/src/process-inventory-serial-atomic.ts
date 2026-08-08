@@ -16,7 +16,7 @@ const SERIAL_STATUSES = new Set([
   'RETURNED_SUPPLIER',
 ]);
 
-const serialAuditTails = new WeakMap<AtomicPlanBuilder, Promise<string | null>>();
+const serialAuditTails = new WeakMap<AtomicPlanBuilder, Map<string, Promise<string | null>>>();
 
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -35,14 +35,20 @@ async function appendSerialAuditToPlan(
     readonly payload: Record<string, unknown>;
   },
 ): Promise<void> {
-  let previousPromise = serialAuditTails.get(plan);
+  let serialTails = serialAuditTails.get(plan);
+  if (!serialTails) {
+    serialTails = new Map();
+    serialAuditTails.set(plan, serialTails);
+  }
+  let previousPromise = serialTails.get(input.serialId);
   if (!previousPromise) {
     previousPromise = db
       .prepare(
         `SELECT row_hash FROM audit_events
-         WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1`,
+         WHERE tenant_id = ? AND entity_type = 'serial_number' AND entity_id = ?
+         ORDER BY rowid DESC LIMIT 1`,
       )
-      .bind(input.tenantId)
+      .bind(input.tenantId, input.serialId)
       .first<{ row_hash: string }>()
       .then((row) => row?.row_hash ?? null);
   }
@@ -57,7 +63,7 @@ async function appendSerialAuditToPlan(
       previousHash,
     }),
   );
-  serialAuditTails.set(plan, Promise.resolve(rowHash));
+  serialTails.set(input.serialId, Promise.resolve(rowHash));
   const auditGuardId = crypto.randomUUID();
   plan.add(
     db
@@ -65,10 +71,11 @@ async function appendSerialAuditToPlan(
         `INSERT INTO atomic_guards (id, ok)
          SELECT ?, CASE WHEN COALESCE((
            SELECT row_hash FROM audit_events
-           WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1
+           WHERE tenant_id = ? AND entity_type = 'serial_number' AND entity_id = ?
+           ORDER BY rowid DESC LIMIT 1
          ), '') = COALESCE(?, '') THEN 1 ELSE 0 END`,
       )
-      .bind(auditGuardId, input.tenantId, previousHash),
+      .bind(auditGuardId, input.tenantId, input.serialId, previousHash),
   );
   plan.add(
     db
