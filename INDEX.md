@@ -142,8 +142,8 @@ Abre solo los archivos que esta tabla te señale.
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
 | 39 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 30 | sin fila de estado | — |
 | 40 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 46 | sin fila de estado | — |
-| 41 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 61 | sin fila de estado | — |
-| 42 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 76 | sin fila de estado | — |
+| 41 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 62 | sin fila de estado | — |
+| 42 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 77 | sin fila de estado | — |
 | 43 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 14 | sin fila de estado | — |
 | 44 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 28 | sin fila de estado | — |
 | 45 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 43 | sin fila de estado | — |

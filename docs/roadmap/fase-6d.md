@@ -46,6 +46,7 @@ sprints: "38–42"
 #### Sprint 40 — Venta por peso variable (balanza)
 **Capabilities:** `inventory.scale`  
 **Referencia:** Arquitectura §5.7 regla 25 · ADR-0024 · **Agentes:** Staff Frontend (owner), Staff Hardware (balanza USB), Staff Backend ACID
+**Estado:** Cerrado — GOV-APROBADO
 
 **Entregables:**
 - Captura de peso en caja (balanza USB o manual) para `product_type = WEIGH`; precio por unidad de base; redondeo de monto en servidor.
@@ -54,7 +55,7 @@ sprints: "38–42"
 
 **Criterios de aceptación:** 0 montos redondeados en cliente; peso > 0 siempre; override sin authz = 403; precio × peso recalculado por servidor (0 manipulación); **heartbeat de balanza (edge 2C): desconexión WebUSB (suspensión/cable) → interfaz roja "Peso Manual" exige tipeo (jamás 0.00 silencioso); peso manual sobre umbral requiere PIN de supervisor y registra `WEIGHT_OVERRIDE`**.
 
-**Quality Gate:** Staff Hardware + Staff QA; Staff PM descongela claim "verdulería/venta por peso" tras gate.
+**Quality Gate:** Staff Hardware + Staff QA + Staff Security; Staff PM descongela el claim acotado "venta por peso con balanza compatible o ingreso manual autorizado". QG: `docs/ops/s40-inventory-scale-qg.md`.
 
 ---
 

@@ -5691,3 +5691,45 @@ aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff Security V, Staff 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0308
+timestamp_utc: 2026-08-08T18:54:57Z
+schema_version: 2
+sprint_fase: Sprint 40 — FASE 6D (inventory.scale)
+agente_responsable: Staff Principal / Staff Backend ACID / Staff Frontend / Staff Hardware / Staff Security / Staff QA
+tipo: Implementacion de capability
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0307]
+referencias_documentales: [docs/ops/s40-inventory-scale-qg.md, docs/adr/ADR-0024-scale-integer-measurement-authority.md, docs/architecture/05-7-inventory-scale.md, docs/roadmap/fase-6d.md, docs/GTM.md]
+prev_id: 0307
+prev_hash: 1054fde135a4533d51f17ab8132ac5af9921d745b898ffe6ebddeab3f61077c6
+entry_hash: 236d4a1abdc1ef274d2118d6f5f6fcd891d660dce345fc69d2b84dbce3ff5672
+ticket_or_adr: ADR-0024, Roadmap Sprint 40, DDL 0033, GTM-17
+ test_ids: [scale, inventory-scale, inventory-scale-heartbeat, process-weighted-sale-atomic, inventory-scale-routes, hardware, schema.integration]
+entregable_afectado: Sprint 40 inventory.scale GOV-APROBADO
+descripcion: >
+  Cierra inventory.scale con peso canonico INTEGER en microunidades, normalizacion
+  WebHID/Web Serial/WebUSB, heartbeat fail-closed y calculo half-up autoritativo en
+  centavos. Venta online/offline, stock agregado, ubicacion, FEFO, devolucion/NC,
+  medicion append-only, authz one-shot y audit hash-chain convergen en db.batch.
+  Incluye sesiones de terminal registradas, UI POS/Admin accesible, flags default-off,
+  RBAC, down protegido y claim GTM acotado a balanzas compatibles o ingreso manual.
+evidencia: >
+  RED b3ac52d665e596593894e1e037a96dce188f4af3: contratos fallaban por modulos,
+  migracion 0033, rutas, clientes hardware y chaos ausentes. GREEN
+  e4753df148142b8521b8197b4cfdccb54219e993: scripts/verify.sh RESULT SUITE GREEN;
+  scripts/quality.sh Quality Gate OK; 107 tests de integracion D1; adapters-d1
+  80.24% branch coverage y scale atomic 98.98%; Security Review sin critical/high y
+  dos hallazgos medium remediados; chaos 500 ciclos, 0 stale, 0 zero, 0 replay y 0 drift.
+red_commit_sha: b3ac52d665e596593894e1e037a96dce188f4af3
+red_run_id: run-red-s40-contract-20260808T175717Z
+expected_failure: Modulos de scale, migracion 0033, rutas multi-protocolo y escenario chaos ausentes
+green_commit_sha: e4753df148142b8521b8197b4cfdccb54219e993
+green_run_id: run-green-s40-quality-20260808T185200Z
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff Hardware V, Staff Security V, Staff QA V, Staff PM Claim]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
