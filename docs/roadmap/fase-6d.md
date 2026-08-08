@@ -60,6 +60,7 @@ sprints: "38–42"
 ---
 
 #### Sprint 41 — Etiquetas de precio / estantería
+**Estado:** Software GREEN; claim/hardware NO-GO hasta matriz física y firma A+V
 **Capabilities:** `catalog.price_labels`  
 **Referencia:** Arquitectura §5.8 regla 26; §7.5 PrinterTransport · ADR-0025 · **Agentes:** Staff Frontend (owner), Staff Hardware, Staff Data
 
@@ -70,7 +71,9 @@ sprints: "38–42"
 
 **Criterios de aceptación:** etiqueta refleja el precio del servidor (0 precio manual); impresión por outbox (Sprint 25); fallo de impresora degrada sin romper la caja.
 
-**Quality Gate:** Staff Hardware + Staff Frontend.
+**Quality Gate:** contrato automatizado GREEN; activación y claim bloqueados hasta
+certificación física 58/80 WebUSB/WSS y firma Staff Hardware + Staff QA independiente.
+QG: `docs/ops/s41-price-labels-qg.md`.
 
 ---
 

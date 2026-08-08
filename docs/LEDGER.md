@@ -5733,3 +5733,47 @@ aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff Hardware V, Staff 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0309
+timestamp_utc: 2026-08-08T20:14:00Z
+schema_version: 2
+sprint_fase: Sprint 41 — FASE 6D (catalog.price_labels)
+agente_responsable: Staff Principal / Staff Backend Datos / Staff Frontend / Staff Hardware / Staff Security / Staff QA
+tipo: Implementacion de capability
+subtipo: quality-gate-condicionado
+relacion: IMPLEMENTA
+referencias_entradas: [0308]
+referencias_documentales: [docs/ops/s41-price-labels-qg.md, docs/adr/ADR-0025-price-label-snapshot-transport.md, docs/architecture/05-8-catalog-price-labels.md, docs/roadmap/fase-6d.md, docs/GTM.md]
+prev_id: 0308
+prev_hash: 236d4a1abdc1ef274d2118d6f5f6fcd891d660dce345fc69d2b84dbce3ff5672
+entry_hash: 3fb21e19fc323b963b2cbc5c4b57874195a031906ecc62763d32c93b4ef93ef4
+ticket_or_adr: ADR-0025, Roadmap Sprint 41, DDL 0034, GTM-17
+test_ids: [price-labels, price-label-routes, price-label-printing, generic-print-outbox, price-label-transports, price-label-client, schema.integration]
+entregable_afectado: Sprint 41 catalog.price_labels software GREEN; claim/hardware NO-GO
+descripcion: >
+  Implementa catalog.price_labels con listas explicitas o default de sucursal,
+  snapshots de precio server-side inmutables, templates DSL versionados, barcode
+  zero-dependency, batches idempotentes y ACK por item. Retry conserva bytes y
+  snapshot; reprint crea identidad nueva, refresca precio y encadena audit
+  PRICE_LABEL_REPRINT. La outbox no bloquea venta ni cierre Z; WebUSB/WSS aplican
+  allowlists, cleanup, timeout, reconnect y correlacion criptografica de ACK.
+evidencia: >
+  RED 1e3919b1acb55320e1ae2aac44aa4606ae1c30d5: faltaban migracion 0034,
+  dominio/render, adapter, rutas, outbox, transportes y chaos. GREEN
+  4eb2456177ca7dd9adeb1e3b0be4a80bc8762152: scripts/verify.sh RESULT SUITE GREEN;
+  scripts/quality.sh 8/8 Quality Gate OK sobre commit limpio; 115 tests D1,
+  adapters 94.57% lineas/82.03% ramas, POS 79.83% lineas, bundle 111.92 kB;
+  Security Review 0 medium+; chaos 500 ciclos sin duplicados, stale, mezcla de
+  snapshots ni bloqueo de caja. Matriz fisica 58/80 WebUSB/WSS no ejecutada:
+  activacion y claim permanecen NO-GO hasta evidencia y firma A+V.
+red_commit_sha: 1e3919b1acb55320e1ae2aac44aa4606ae1c30d5
+red_run_id: run-red-s41-contract-20260808T192341Z
+expected_failure: Migracion 0034 y modulos de labels, API, outbox, transportes y chaos ausentes
+green_commit_sha: 4eb2456177ca7dd9adeb1e3b0be4a80bc8762152
+green_run_id: run-green-s41-quality-20260808T201334Z
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Backend Datos R, Staff Security Review V, Staff Hardware A pendiente, Staff QA V pendiente, Staff PM Claim NO-GO]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```
