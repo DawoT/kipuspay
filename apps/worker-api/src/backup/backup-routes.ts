@@ -2,6 +2,7 @@
 import type { BackupKmsBinding } from './backup-workflow.js';
 import { appendBackupAudit, runRestoreDryRunAudited } from '@kipuspay/adapters-d1';
 import { decryptKpbk1Unit } from '@kipuspay/domain-integrations';
+import { safeBackupErrorCode } from './backup-errors.js';
 import { safeRestoreValidationError, validateReadyBackup } from './backup-restore-validator.js';
 
 export interface BackupActor {
@@ -9,14 +10,13 @@ export interface BackupActor {
   readonly userId: string;
   readonly role: string;
   readonly permissions?: readonly string[];
-  readonly stepUpAt?: string;
 }
 
 interface BackupBound {
   bind(...values: unknown[]): BackupBound;
   first<T>(): Promise<T | null>;
   all<T>(): Promise<{ readonly results: readonly T[] }>;
-  run(): Promise<unknown>;
+  run(): Promise<{ readonly meta?: { readonly changes?: number } }>;
 }
 
 interface BackupDb {
@@ -47,9 +47,8 @@ export interface BackupHttpResult {
 }
 
 const CREATE_ROLES = new Set(['owner', 'admin']);
-const OWNER_PERMISSIONS = new Set(['data.backup.download', 'data.backup.restore_dry_run']);
 const MAX_IDEMPOTENCY_LENGTH = 128;
-const STEP_UP_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+const MAX_STEP_UP_TOKEN_LENGTH = 512;
 
 function result(status: number, body: Readonly<Record<string, unknown>>): BackupHttpResult {
   return {
@@ -62,6 +61,17 @@ function result(status: number, body: Readonly<Record<string, unknown>>): Backup
 
 function errorRef(): string {
   return crypto.randomUUID();
+}
+
+function safeBackupRow(row: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const code =
+    typeof row.error_code === 'string' ? safeBackupErrorCode({ code: row.error_code }) : null;
+  const reference =
+    typeof row.error_ref === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(row.error_ref)
+      ? row.error_ref
+      : null;
+  return { ...row, error_code: code, error_ref: reference };
 }
 
 export function isDataBackupEnabled(env: BackupRouteEnv | undefined): boolean {
@@ -99,22 +109,68 @@ async function preflight(
   return null;
 }
 
-function recentStepUp(actor: BackupActor): boolean {
-  if (!actor.stepUpAt) return false;
-  const age = Date.now() - Date.parse(actor.stepUpAt);
-  return Number.isFinite(age) && age >= 0 && age <= STEP_UP_MAX_AGE_MS;
-}
-
-function ownerStepUp(actor: BackupActor, permission: string): BackupHttpResult | null {
+function ownerPermission(actor: BackupActor, permission: string): BackupHttpResult | null {
   if (actor.role.toLowerCase() !== 'owner') return result(403, { code: 'FORBIDDEN' });
-  if (
-    actor.permissions &&
-    !actor.permissions.includes(permission) &&
-    !OWNER_PERMISSIONS.has(permission)
-  ) {
+  if (!actor.permissions?.includes(permission)) {
     return result(403, { code: 'FORBIDDEN' });
   }
-  return recentStepUp(actor) ? null : result(401, { code: 'STEP_UP_REQUIRED' });
+  return null;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)),
+  );
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function plaintextHashMatches(plaintext: Uint8Array, expectedHex: string): Promise<boolean> {
+  if (!/^[0-9a-f]{64}$/.test(expectedHex)) return false;
+  const actual = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', Uint8Array.from(plaintext).buffer),
+  );
+  const expected = Uint8Array.from(expectedHex.match(/../g) ?? [], (pair) =>
+    Number.parseInt(pair, 16),
+  );
+  const subtle = crypto.subtle as SubtleCrypto & {
+    timingSafeEqual?: (left: ArrayBufferView, right: ArrayBufferView) => boolean;
+  };
+  if (subtle.timingSafeEqual) return subtle.timingSafeEqual(actual, expected);
+  let difference = actual.byteLength ^ expected.byteLength;
+  for (let index = 0; index < actual.byteLength; index += 1) {
+    difference |= (actual[index] ?? 0) ^ (expected[index] ?? 0);
+  }
+  return difference === 0;
+}
+
+async function consumeStepUpToken(
+  env: BackupRouteEnv,
+  actor: BackupActor,
+  input: { readonly backupId: string; readonly action: string; readonly token: string | undefined },
+): Promise<BackupHttpResult | null> {
+  const token = input.token?.trim() ?? '';
+  if (!token || token.length > MAX_STEP_UP_TOKEN_LENGTH) {
+    return result(401, { code: 'STEP_UP_REQUIRED' });
+  }
+  if (!env.DB) {
+    return result(503, { code: 'BACKUP_D1_UNAVAILABLE', errorRef: errorRef() });
+  }
+  const tokenHash = await sha256Hex(token);
+  try {
+    const consumed = await env.DB.prepare(
+      `UPDATE authorization_tokens
+       SET used_at = CURRENT_TIMESTAMP
+       WHERE tenant_id = ? AND actor_user_id = ? AND token_hash = ?
+         AND action = ? AND backup_id = ? AND used_at IS NULL
+         AND expires_at > CURRENT_TIMESTAMP
+         AND created_at >= datetime('now', '-5 minutes')`,
+    )
+      .bind(actor.tenantId, actor.userId, tokenHash, input.action, input.backupId)
+      .run();
+    return consumed.meta?.changes === 1 ? null : result(401, { code: 'STEP_UP_REQUIRED' });
+  } catch {
+    return result(503, { code: 'BACKUP_STEP_UP_UNAVAILABLE', errorRef: errorRef() });
+  }
 }
 
 function idempotency(value: unknown): string | null {
@@ -186,7 +242,7 @@ export async function runListBackupsHttp(
   )
     .bind(actor.tenantId)
     .all<Record<string, unknown>>();
-  return result(200, { items: rows.results });
+  return result(200, { items: rows.results.map(safeBackupRow) });
 }
 
 export async function runBackupStatusHttp(
@@ -205,29 +261,7 @@ export async function runBackupStatusHttp(
   )
     .bind(actor.tenantId, input.backupId)
     .first<Record<string, unknown>>();
-  return row ? result(200, row) : result(404, { code: 'NOT_FOUND' });
-}
-
-async function kmsAvailable(
-  env: BackupRouteEnv,
-  actor: BackupActor,
-  backupId: string,
-): Promise<boolean> {
-  if (!env.BACKUP_KMS) return false;
-  if (env.DB) return true;
-  try {
-    const dek = new Uint8Array(32);
-    if (env.BACKUP_KMS.wrapDek) {
-      await env.BACKUP_KMS.wrapDek({ tenantId: actor.tenantId, backupId, dek });
-    } else if (env.BACKUP_KMS.wrap) {
-      await env.BACKUP_KMS.wrap({ tenantId: actor.tenantId, backupId, dek });
-    } else {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  return row ? result(200, safeBackupRow(row)) : result(404, { code: 'NOT_FOUND' });
 }
 
 // Security checks intentionally remain linear so every fail-closed exit is visible.
@@ -235,16 +269,15 @@ async function kmsAvailable(
 export async function runDownloadBackupHttp(
   env: BackupRouteEnv,
   actor: BackupActor,
-  input: { readonly backupId: string },
+  input: { readonly backupId: string; readonly stepUpToken?: string },
 ): Promise<BackupHttpResult> {
-  const denied = await preflight(env, actor, CREATE_ROLES);
+  const denied = await preflight(env, actor, new Set(['owner']));
   if (denied) return denied;
-  if (input.backupId.startsWith('tenant-b-')) return result(404, { code: 'NOT_FOUND' });
-  if (!(await kmsAvailable(env, actor, input.backupId))) {
-    return result(503, { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: errorRef() });
-  }
-  let realStream: ReadableStream<Uint8Array> | null = null;
-  if (env.DB) {
+  const permissionDenied = ownerPermission(actor, 'data.backup.download');
+  if (permissionDenied) return permissionDenied;
+  if (!env.DB) return result(503, { code: 'BACKUP_D1_UNAVAILABLE', errorRef: errorRef() });
+  let stream: ReadableStream<Uint8Array>;
+  {
     const row = await env.DB.prepare(
       `SELECT status, expires_at, deleted_at, manifest_r2_key, wrapped_dek, kek_version,
                 global_hash
@@ -272,6 +305,12 @@ export async function runDownloadBackupHttp(
     ) {
       return result(404, { code: 'NOT_FOUND' });
     }
+    const stepUpDenied = await consumeStepUpToken(env, actor, {
+      backupId: input.backupId,
+      action: 'DATA_BACKUP_DOWNLOAD',
+      token: input.stepUpToken,
+    });
+    if (stepUpDenied) return stepUpDenied;
     if (!env.BACKUPS || !(await env.BACKUPS.head(row.manifest_r2_key))) {
       return result(409, { code: 'BACKUP_NOT_PUBLISHED' });
     }
@@ -341,7 +380,7 @@ export async function runDownloadBackupHttp(
     ];
     let index = -1;
     const bucket = env.BACKUPS;
-    realStream = new ReadableStream<Uint8Array>({
+    stream = new ReadableStream<Uint8Array>({
       async pull(controller) {
         if (index === -1) {
           index = 0;
@@ -379,6 +418,10 @@ export async function runDownloadBackupHttp(
           dek,
           aad,
         );
+        if (!(await plaintextHashMatches(plaintext, unit.plaintext_hash))) {
+          controller.error(new Error('BACKUP_CHUNK_TAMPERED'));
+          return;
+        }
         index += 1;
         controller.enqueue(plaintext);
       },
@@ -392,14 +435,6 @@ export async function runDownloadBackupHttp(
     });
   }
 
-  const stream =
-    realStream ??
-    new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode('KPBK1\n'));
-        controller.close();
-      },
-    });
   return {
     status: 200,
     body: stream,
@@ -417,13 +452,17 @@ export async function runDownloadBackupHttp(
 export async function runRestoreDryRunHttp(
   env: BackupRouteEnv,
   actor: BackupActor,
-  input: { readonly backupId: string; readonly idempotencyKey: string },
+  input: {
+    readonly backupId: string;
+    readonly idempotencyKey: string;
+    readonly stepUpToken?: string;
+  },
   schedule?: (task: Promise<void>) => void,
 ): Promise<BackupHttpResult> {
   const denied = await preflight(env, actor, new Set(['owner']));
   if (denied) return denied;
-  const stepUp = ownerStepUp(actor, 'data.backup.restore_dry_run');
-  if (stepUp) return stepUp;
+  const permissionDenied = ownerPermission(actor, 'data.backup.restore_dry_run');
+  if (permissionDenied) return permissionDenied;
   if (!idempotency(input.idempotencyKey)) {
     return result(400, { code: 'IDEMPOTENCY_KEY_INVALID' });
   }
@@ -436,6 +475,12 @@ export async function runRestoreDryRunHttp(
     .bind(actor.tenantId, input.backupId)
     .first<{ global_hash: string }>();
   if (!backup) return result(404, { code: 'NOT_FOUND' });
+  const stepUpDenied = await consumeStepUpToken(env, actor, {
+    backupId: input.backupId,
+    action: 'DATA_BACKUP_RESTORE_DRY_RUN',
+    token: input.stepUpToken,
+  });
+  if (stepUpDenied) return stepUpDenied;
   if (!env.BACKUPS || !env.BACKUP_KMS) {
     return result(503, { code: 'BACKUP_DEPENDENCY_UNAVAILABLE', errorRef: errorRef() });
   }

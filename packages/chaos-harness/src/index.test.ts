@@ -20,6 +20,7 @@ import {
   judgeInventorySerialAssignment,
   judgeInventoryScaleHeartbeat,
   judgePriceLabelPrinting,
+  judgeDataBackupChaos,
   runArCompensateCycles,
   runRollupIdempotentCycles,
   runLayawayConvertCancelChaos,
@@ -32,6 +33,7 @@ import {
   runInventorySerialAssignmentChaos,
   runInventoryScaleHeartbeatChaos,
   runPriceLabelPrintingChaos,
+  runDataBackupChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -77,6 +79,14 @@ describe('chaos-harness contrato §13.5', () => {
     const result = await runPriceLabelPrintingChaos(500);
     expect(judgePriceLabelPrinting(result)).toBe('PASS');
     await expect(runChaosScenario('price-label-printing', 41)).resolves.toBe('PASS');
+  });
+
+  it('Sprint 42 data-backup está activo y bloquea antes del sprint', async () => {
+    expect(SCENARIO_ACTIVE_FROM['data-backup']).toBe(42);
+    expect(() => assertScenarioReady('data-backup', 41)).toThrow(ChaosScenarioNotReadyError);
+    const result = await runDataBackupChaos(500);
+    expect(judgeDataBackupChaos(result)).toBe('PASS');
+    await expect(runChaosScenario('data-backup', 42)).resolves.toBe('PASS');
   });
 
   it('rechaza concurrent-writers antes del Sprint 4', () => {

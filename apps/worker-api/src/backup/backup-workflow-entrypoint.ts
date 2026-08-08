@@ -13,6 +13,7 @@ import {
   type BackupWorkflowParams,
   type BackupWorkflowPhaseEnv as WorkflowEnv,
 } from './backup-workflow-phases.js';
+import { safeBackupErrorCode } from './backup-errors.js';
 
 const RETRY = {
   retries: { limit: 5, delay: 5_000, backoff: 'exponential' },
@@ -29,7 +30,7 @@ export class BackupWorkflow extends WorkflowEntrypoint<WorkflowEnv, BackupWorkfl
     } catch (cause) {
       const params = event.payload;
       const errorRef = crypto.randomUUID();
-      const code = cause instanceof Error ? cause.message : 'BACKUP_FAILED';
+      const code = safeBackupErrorCode(cause);
       const current = await this.env.DB.prepare(
         `SELECT status FROM data_backups WHERE tenant_id = ? AND id = ?`,
       )

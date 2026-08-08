@@ -27,4 +27,11 @@ describe('Admin backups workbench source contract', () => {
     expect(source).toContain('Ejecutar simulación');
     expect(source).not.toMatch(/Aplicar restauración|restore-apply/);
   });
+
+  it('hides download from Admin and requires Owner reauthentication', () => {
+    expect(source).toMatch(
+      /\{#if role === 'owner'\}[\s\S]*Descargar KPBK1[\s\S]*Ejecutar simulación[\s\S]*\{\/if\}/,
+    );
+    expect(source).toMatch(/disabled=\{[^}]*!stepUpToken[^}]*\}[\s\S]*Descargar KPBK1/);
+  });
 });

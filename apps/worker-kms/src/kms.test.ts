@@ -38,6 +38,9 @@ describe('Backup KMS service RPC', () => {
     await expect(
       kms.unwrapDek({ ...wrapped, tenantId: 'tenant-b', backupId: 'b1' }),
     ).rejects.toThrow('KMS_UNWRAP_FAILED');
+    await expect(
+      kms.unwrapDek({ ...wrapped, tenantId: 'tenant-a', backupId: 'b2' }),
+    ).rejects.toThrow('KMS_UNWRAP_FAILED');
     const tampered = Uint8Array.from(wrapped.wrappedDek);
     tampered[tampered.length - 1] = (tampered[tampered.length - 1] ?? 0) ^ 1;
     await expect(

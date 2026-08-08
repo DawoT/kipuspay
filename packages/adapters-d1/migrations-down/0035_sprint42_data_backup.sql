@@ -283,6 +283,8 @@ DROP INDEX IF EXISTS idx_backup_objects_backup;
 DROP INDEX IF EXISTS idx_backup_chunks_backup;
 DROP INDEX IF EXISTS idx_data_backups_expiry;
 DROP INDEX IF EXISTS idx_data_backups_lifecycle;
+DROP INDEX IF EXISTS idx_authorization_tokens_backup_scope;
+ALTER TABLE authorization_tokens DROP COLUMN backup_id;
 DROP TABLE data_backup_table_manifests;
 DROP TABLE restore_dry_runs;
 DROP TABLE data_backup_objects;

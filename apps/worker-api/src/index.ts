@@ -219,9 +219,6 @@ function trustedBackupActor(user: UserSession | undefined, jwt: VerifiedJwtClaim
     userId: user?.userId ?? jwt.sub,
     role: user?.role ?? '',
     permissions: user?.permissions ?? [],
-    ...(jwt.authTime === undefined
-      ? {}
-      : { stepUpAt: new Date(jwt.authTime * 1000).toISOString() }),
   };
 }
 
@@ -1648,6 +1645,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     backupResponse(
       await runDownloadBackupHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt')), {
         backupId: c.req.param('id'),
+        ...(c.req.header('x-step-up-token')
+          ? { stepUpToken: c.req.header('x-step-up-token')! }
+          : {}),
       }),
     ),
   );
@@ -1660,6 +1660,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         {
           backupId: c.req.param('id'),
           idempotencyKey: body.idempotencyKey ?? '',
+          ...(c.req.header('x-step-up-token')
+            ? { stepUpToken: c.req.header('x-step-up-token')! }
+            : {}),
         },
         (task) => c.executionCtx.waitUntil(task),
       ),

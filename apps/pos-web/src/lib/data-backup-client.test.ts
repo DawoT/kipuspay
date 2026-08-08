@@ -57,7 +57,7 @@ describe('data.backup POS seams', () => {
     });
   });
 
-  it('matches Worker routes/DTOs and sends step-up only on dry-run', async () => {
+  it('matches Worker routes/DTOs and sends step-up on privileged operations', async () => {
     const authenticatedFetch = vi.fn<typeof fetch>().mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify({ items: [] }), {
@@ -74,6 +74,7 @@ describe('data.backup POS seams', () => {
     await client.list();
     await client.status('backup-a');
     await client.create({ idempotencyKey: 'create-1' });
+    await client.download('backup-a');
     await client.dryRun('backup-a', { idempotencyKey: 'dry-1' });
 
     const calls = authenticatedFetch.mock.calls as [string, RequestInit][];
@@ -81,13 +82,15 @@ describe('data.backup POS seams', () => {
       ['/api/backups', 'GET'],
       ['/api/backups/backup-a', 'GET'],
       ['/api/backups', 'POST'],
+      ['/api/backups/backup-a/download', 'GET'],
       ['/api/backups/backup-a/restore-dry-run', 'POST'],
     ]);
     expect(JSON.parse(calls[2]?.[1].body as string)).toEqual({ idempotencyKey: 'create-1' });
-    expect(JSON.parse(calls[3]?.[1].body as string)).toEqual({ idempotencyKey: 'dry-1' });
+    expect(JSON.parse(calls[4]?.[1].body as string)).toEqual({ idempotencyKey: 'dry-1' });
     expect(new Headers(calls[0]?.[1].headers).has('x-step-up-token')).toBe(false);
     expect(new Headers(calls[2]?.[1].headers).has('x-step-up-token')).toBe(false);
     expect(new Headers(calls[3]?.[1].headers).get('x-step-up-token')).toBe('recent-reauth-token');
+    expect(new Headers(calls[4]?.[1].headers).get('x-step-up-token')).toBe('recent-reauth-token');
   });
 
   it('fails closed without auth/step-up or while offline and does not persist reauth', async () => {
@@ -129,7 +132,7 @@ describe('data.backup POS seams', () => {
     const client = createDataBackupClient({
       authenticatedFetch,
       online: () => true,
-      stepUpToken: () => null,
+      stepUpToken: () => 'download-step-up',
     });
     await expect(client.download('backup-a')).resolves.toBeInstanceOf(ReadableStream);
   });

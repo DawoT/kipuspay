@@ -135,7 +135,10 @@ describe('Sprint 42 D1 backup schema and registry', () => {
     expect(migration0035).toContain('CHECK (length(nonce) = 12');
     expect(migration0035).toContain('CHECK (length(auth_tag) = 16');
     expect(migration0035).toContain('error_ref TEXT');
+    expect(migration0035).toContain('ALTER TABLE authorization_tokens ADD COLUMN backup_id TEXT');
+    expect(migration0035).toContain('idx_authorization_tokens_backup_scope');
     expect(down0035).toContain('BACKUP_DOWN_PROTECTED');
+    expect(down0035).toContain('ALTER TABLE authorization_tokens DROP COLUMN backup_id');
     expect(down0035.indexOf('DROP TABLE data_backup_chunks')).toBeLessThan(
       down0035.indexOf('DROP TABLE data_backups'),
     );
@@ -368,6 +371,137 @@ describe('Sprint 42 epoch reader and dry-run', () => {
     }>();
     expect(after?.epoch).toBe(before?.epoch);
     expect(product?.name).toBe('Epoch');
+  });
+
+  it('detects epoch drift during a simultaneous sale mutation without blocking checkout', async () => {
+    const tenantId = 'backup-sale-drift-tenant';
+    await env.DB.prepare(
+      `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
+       VALUES (?, 'Drift SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL')`,
+    )
+      .bind(tenantId)
+      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO branches (id, tenant_id, code, name, address)
+         VALUES ('backup-drift-branch', ?, 'DRIFT', 'Drift', '-')`,
+      ).bind(tenantId),
+      env.DB.prepare(
+        `INSERT INTO users (id, tenant_id, email, role)
+         VALUES ('backup-drift-user', ?, 'backup-drift@example.test', 'cashier')`,
+      ).bind(tenantId),
+    ]);
+    await env.DB.prepare(
+      `INSERT INTO cash_registers (id, tenant_id, branch_id, name)
+       VALUES ('backup-drift-register', ?, 'backup-drift-branch', 'Caja')`,
+    )
+      .bind(tenantId)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO cash_register_sessions (
+         id, tenant_id, branch_id, cash_register_id, user_id
+       ) VALUES ('backup-drift-session', ?, 'backup-drift-branch',
+                 'backup-drift-register', 'backup-drift-user')`,
+    )
+      .bind(tenantId)
+      .run();
+
+    let releaseRead!: () => void;
+    let markReading!: () => void;
+    const reading = new Promise<void>((resolve) => {
+      markReading = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    let firstPage = true;
+    const reader = createBackupSnapshotReader({
+      db: env.DB,
+      maxAttempts: 1,
+      readPage: async () => {
+        if (firstPage) {
+          firstPage = false;
+          markReading();
+          await release;
+        }
+        return [];
+      },
+    });
+    const capture = reader.capture({ tenantId });
+    await reading;
+    const checkoutStarted = performance.now();
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, total_amount_cents, issued_at_lima, sunat_status
+       ) VALUES ('backup-drift-sale', ?, 'backup-drift-branch', 'backup-drift-session',
+                 'backup-drift-user', '0', '-', 'ANONIMO', 'NV', 'NV01', 1, 100,
+                 CURRENT_TIMESTAMP, 'NOT_APPLICABLE')`,
+    )
+      .bind(tenantId)
+      .run();
+    const checkoutMs = performance.now() - checkoutStarted;
+    releaseRead();
+
+    await expect(capture).rejects.toMatchObject({ code: 'BACKUP_EPOCH_DRIFT' });
+    expect(checkoutMs).toBeLessThan(50);
+  });
+
+  it('keeps epoch-trigger overhead below 50ms per mutation with bounded regression', async () => {
+    const tenantId = 'backup-epoch-benchmark-tenant';
+    await env.DB.prepare(
+      `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
+       VALUES (?, 'Benchmark SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL')`,
+    )
+      .bind(tenantId)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO products (id, tenant_id, sku, name, product_type, unit_code, price_cents)
+       VALUES ('backup-benchmark-product', ?, 'BENCH', 'Benchmark', 'physical', 'NIU', 100)`,
+    )
+      .bind(tenantId)
+      .run();
+    await env.DB.prepare(
+      `CREATE TABLE backup_benchmark_control (
+         id TEXT PRIMARY KEY,
+         value INTEGER NOT NULL
+       )`,
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO backup_benchmark_control (id, value) VALUES ('control', 0)`,
+    ).run();
+    const iterations = 25;
+    const controlStart = performance.now();
+    for (let index = 0; index < iterations; index += 1) {
+      await env.DB.prepare(
+        `UPDATE backup_benchmark_control SET value = value + 1 WHERE id = 'control'`,
+      ).run();
+    }
+    const controlPerMutationMs = (performance.now() - controlStart) / iterations;
+    const epochBefore = await env.DB.prepare(
+      `SELECT epoch FROM tenant_data_epochs WHERE tenant_id = ?`,
+    )
+      .bind(tenantId)
+      .first<{ epoch: number }>();
+    const triggerStart = performance.now();
+    for (let index = 0; index < iterations; index += 1) {
+      await env.DB.prepare(
+        `UPDATE products SET name = name WHERE tenant_id = ? AND id = 'backup-benchmark-product'`,
+      )
+        .bind(tenantId)
+        .run();
+    }
+    const triggerPerMutationMs = (performance.now() - triggerStart) / iterations;
+    const epochAfter = await env.DB.prepare(
+      `SELECT epoch FROM tenant_data_epochs WHERE tenant_id = ?`,
+    )
+      .bind(tenantId)
+      .first<{ epoch: number }>();
+
+    expect(epochAfter!.epoch - epochBefore!.epoch).toBe(iterations);
+    expect(triggerPerMutationMs).toBeLessThan(50);
+    expect(triggerPerMutationMs).toBeLessThanOrEqual(controlPerMutationMs * 10 + 5);
   });
 
   it('enforces cross-tenant backup FKs and protected down abort/success', async () => {

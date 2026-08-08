@@ -116,9 +116,11 @@ export function createDataBackupClient(dependencies: DataBackupClientDependencie
     async download(backupId: string): Promise<ReadableStream<Uint8Array>> {
       if (!online()) throw backupError('BACKUP_OFFLINE');
       if (!authenticatedFetch) throw backupError('BACKUP_AUTH_REQUIRED');
+      const token = dependencies.stepUpToken?.() ?? null;
+      if (!token) throw backupError('STEP_UP_REQUIRED');
       const response = await authenticatedFetch(
         `/api/backups/${encodeURIComponent(backupId)}/download`,
-        { method: 'GET' },
+        { method: 'GET', headers: { 'x-step-up-token': token } },
       );
       if (!response.ok) {
         const body = (await response.json()) as { readonly code?: string };

@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets -- certification environment label is not a secret */
 import { describe, expect, it } from 'vitest';
 import {
   DATA_BACKUP_FAULTS,
@@ -66,7 +67,7 @@ describe('Sprint 42 data-backup certification chaos', () => {
       judgeDataBackupChaos({
         ...valid,
         evidence: { ...valid.evidence, realCloudflareStaging: true },
-      }),
+      } as unknown as DataBackupChaosResult),
     ).toBe('FAIL');
   });
 
@@ -80,7 +81,9 @@ function validResult(): DataBackupChaosResult {
   return {
     cycles: 500,
     ...ZERO_FAILURES,
-    coverage: Object.fromEntries(DATA_BACKUP_FAULTS.map((fault) => [fault, 20])) as DataBackupChaosResult['coverage'],
+    coverage: Object.fromEntries(
+      DATA_BACKUP_FAULTS.map((fault) => [fault, 20]),
+    ) as DataBackupChaosResult['coverage'],
     evidence: {
       environment: 'LOCAL_FAKE_BINDINGS_WORKERD',
       realCloudflareStaging: false,

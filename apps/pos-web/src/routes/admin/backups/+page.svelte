@@ -84,6 +84,10 @@
   }
 
   async function download(backup: BackupSummary) {
+    if (!stepUpToken) {
+      error = 'Se requiere reautenticación reciente para descargar el respaldo.';
+      return;
+    }
     busy = true;
     error = '';
     try {
@@ -102,6 +106,7 @@
     } catch (cause) {
       error = cause instanceof Error ? cause.message : 'No se pudo descargar el respaldo.';
     } finally {
+      stepUpToken = '';
       busy = false;
     }
   }
@@ -250,14 +255,14 @@
             derivados y ventas offline pendientes. Objetos: solo evidencia referenciada.
           </p>
           <div class="detail-actions">
-            <button
-              type="button"
-              disabled={!online || busy || selected.status !== 'READY'}
-              onclick={() => download(selected!)}
-            >
-              Descargar KPBK1
-            </button>
             {#if role === 'owner'}
+              <button
+                type="button"
+                disabled={!online || busy || selected.status !== 'READY' || !stepUpToken}
+                onclick={() => download(selected!)}
+              >
+                Descargar KPBK1
+              </button>
               <button
                 type="button"
                 disabled={!online || busy || selected.status !== 'READY' || !stepUpToken}

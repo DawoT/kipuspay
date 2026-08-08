@@ -77,6 +77,10 @@ CREATE TABLE tenant_data_epochs (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, CHECK (epoch >= 0),
   FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 );
+ALTER TABLE authorization_tokens ADD COLUMN backup_id TEXT;
+CREATE INDEX idx_authorization_tokens_backup_scope
+  ON authorization_tokens(tenant_id, backup_id, token_hash, expires_at)
+  WHERE used_at IS NULL;
 CREATE INDEX idx_data_backups_lifecycle ON data_backups(tenant_id, status, created_at);
 CREATE INDEX idx_data_backups_expiry ON data_backups(status, expires_at);
 CREATE INDEX idx_backup_chunks_backup ON data_backup_chunks(tenant_id, backup_id, table_name, ordinal);
