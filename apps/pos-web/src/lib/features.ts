@@ -197,3 +197,8 @@ export function isInventorySerialsEnabled(): boolean {
 export function isCatalogPriceLabelsEnabled(): boolean {
   return flagOn(pub(PF + 'CATALOG_PRICE_LABELS'));
 }
+
+/** Sprint 43 — pedidos de cliente con retiro; siempre apagado si falta PUBLIC_*. */
+export function isCustomerOrdersEnabled(): boolean {
+  return flagOn(pub(PF + 'ORDERS_CUSTOMER_ORDERS'));
+}

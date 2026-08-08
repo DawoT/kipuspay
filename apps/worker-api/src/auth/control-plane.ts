@@ -76,6 +76,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_CATALOG_PRICE_LABELS?: string;
   /** Sprint 42: export KPBK1/restore dry-run, default-off. */
   readonly FEATURE_DATA_BACKUP?: string;
+  /** Sprint 43: pedidos de cliente con reserva, default-off. */
+  readonly FEATURE_ORDERS_CUSTOMER_ORDERS?: string;
   readonly BACKUPS?: R2Bucket;
   readonly BACKUP_WORKFLOW?: Workflow<{
     readonly tenantId: string;

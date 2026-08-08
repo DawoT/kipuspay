@@ -1,0 +1,83 @@
+import type { AdminAuthenticatedSession } from './authenticated-session.js';
+
+type FetchPort = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+interface SessionBootstrapDto {
+  readonly userId: string;
+  readonly role: 'cashier' | 'supervisor' | 'admin' | 'owner';
+  readonly branchId: string;
+  readonly terminal: {
+    readonly terminalId: string;
+    readonly terminalSessionId: string;
+  } | null;
+}
+
+function isBootstrapDto(value: unknown): value is SessionBootstrapDto {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const session = value as Record<string, unknown>;
+  const terminal = session.terminal;
+  return (
+    typeof session.userId === 'string' &&
+    ['cashier', 'supervisor', 'admin', 'owner'].includes(String(session.role)) &&
+    typeof session.branchId === 'string' &&
+    (terminal === null ||
+      (typeof terminal === 'object' &&
+        !Array.isArray(terminal) &&
+        typeof (terminal as Record<string, unknown>).terminalId === 'string' &&
+        typeof (terminal as Record<string, unknown>).terminalSessionId === 'string'))
+  );
+}
+
+export async function loadAuthenticatedAppShellSession(input: {
+  readonly fetcher: FetchPort;
+  readonly storage: Storage;
+  readonly apiBase?: string;
+  readonly authorization?: string;
+}): Promise<AdminAuthenticatedSession | null> {
+  const apiBase = (input.apiBase ?? '').replace(/\/$/, '');
+  const requestedTerminalId = input.storage.getItem('kipuspay:pos-terminal-id')?.trim() ?? '';
+  const bootstrapHeaders = new Headers();
+  if (input.authorization?.trim()) bootstrapHeaders.set('authorization', input.authorization);
+  if (requestedTerminalId) bootstrapHeaders.set('x-terminal-id', requestedTerminalId);
+  let response: Response;
+  try {
+    response = await input.fetcher(`${apiBase}/api/auth/session`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: bootstrapHeaders,
+    });
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    return null;
+  }
+  if (!isBootstrapDto(value)) return null;
+  const terminal = value.terminal
+    ? {
+        verified: true as const,
+        terminalId: value.terminal.terminalId,
+        terminalSessionId: value.terminal.terminalSessionId,
+      }
+    : null;
+  const authenticatedFetch: typeof fetch = async (request, init = {}) => {
+    const headers = new Headers(init.headers);
+    if (input.authorization?.trim()) headers.set('authorization', input.authorization);
+    if (terminal) {
+      headers.set('x-terminal-id', terminal.terminalId);
+      headers.set('x-terminal-session-id', terminal.terminalSessionId);
+    }
+    return input.fetcher(request, { ...init, credentials: 'include', headers });
+  };
+  return {
+    authenticatedFetch,
+    terminal,
+    role: value.role,
+    userId: value.userId,
+    branchId: value.branchId,
+  };
+}

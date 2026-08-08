@@ -213,10 +213,20 @@ writeFileSync(
   generatedModule,
 );
 
+// Registry follows the latest schema, while migration 0035 must remain replayable
+// before tables introduced by later sprints exist. Later migrations own their
+// corresponding epoch triggers.
+const introducedAfterSprint42 = new Set([
+  'customer_order_fulfillments',
+  'customer_order_items',
+  'customer_order_notifications',
+  'customer_orders',
+]);
 const epochTables = registry.filter(
   (entry) =>
     (entry.classification === 'BUSINESS' || entry.classification === 'DERIVED') &&
-    entry.name !== 'tenants',
+    entry.name !== 'tenants' &&
+    !introducedAfterSprint42.has(entry.name),
 );
 const triggerTenantExpression = (entry, row) => {
   if (entry.tenantVia.length === 0) return `${row}.${quote('tenant_id')}`;

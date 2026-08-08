@@ -69,6 +69,7 @@ import {
   type PriceLabelPrintingChaosResult,
 } from './price-label-printing.js';
 import { runDataBackupChaosScenario, type DataBackupChaosResult } from './data-backup-chaos.js';
+import { runCustomerOrderChaosScenario, type CustomerOrderChaosResult } from './customer-orders.js';
 import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
@@ -109,6 +110,7 @@ export type ChaosScenarioId =
   | 'inventory-scale-heartbeat'
   | 'price-label-printing'
   | 'data-backup'
+  | 'customer-orders'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -140,6 +142,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'inventory-scale-heartbeat': 40,
   'price-label-printing': 41,
   'data-backup': 42,
+  'customer-orders': 43,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -198,6 +201,7 @@ export interface ChaosDeps {
   readonly runInventoryScaleHeartbeat?: () => Promise<InventoryScaleHeartbeatChaosResult>;
   readonly runPriceLabelPrinting?: () => Promise<PriceLabelPrintingChaosResult>;
   readonly runDataBackup?: () => Promise<DataBackupChaosResult>;
+  readonly runCustomerOrders?: () => Promise<CustomerOrderChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -306,6 +310,8 @@ async function dispatchReadyScenario(
       return runPriceLabelPrintingChaosScenario(deps.runPriceLabelPrinting);
     case 'data-backup':
       return runDataBackupChaosScenario(deps.runDataBackup);
+    case 'customer-orders':
+      return runCustomerOrderChaosScenario(deps.runCustomerOrders);
     default:
       return Promise.reject(
         new Error(
@@ -473,3 +479,12 @@ export {
   runDataBackupChaosScenario,
   type DataBackupChaosResult,
 } from './data-backup-chaos.js';
+
+export {
+  CUSTOMER_ORDER_FAILURES,
+  CUSTOMER_ORDER_FAULTS,
+  judgeCustomerOrderChaos,
+  runCustomerOrderChaos,
+  runCustomerOrderChaosScenario,
+  type CustomerOrderChaosResult,
+} from './customer-orders.js';

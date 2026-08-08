@@ -35,6 +35,8 @@ export default defineConfig({
         'src/process-webhook-delivery-atomic.ts',
         'src/accounting-export-reader.ts',
         'src/reserve-loyalty-atomic.ts',
+        'src/process-customer-order-atomic.ts',
+        'src/customer-order-test-fixture.ts',
       ],
       thresholds: {
         lines: 70,

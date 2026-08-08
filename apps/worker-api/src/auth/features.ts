@@ -62,3 +62,8 @@ export function isInventoryScaleEnabled(env: WorkerEnv | undefined): boolean {
 export function isCatalogPriceLabelsEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_CATALOG_PRICE_LABELS);
 }
+
+/** Sprint 43 — pedidos de cliente con reserva (default off). */
+export function isCustomerOrdersEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_ORDERS_CUSTOMER_ORDERS);
+}

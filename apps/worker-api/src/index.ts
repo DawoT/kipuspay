@@ -9,6 +9,7 @@ import {
 } from './auth/tenant-auth-middleware.js';
 import type { UserSession } from './auth/idp-user.js';
 import type { WorkerEnv } from './auth/control-plane.js';
+import { runAuthenticatedSessionHttp } from './auth/session-route.js';
 import { handleStripeWebhook } from './webhooks/handle-stripe-webhook.js';
 import { runOfflineSaleHttp } from './pos/offline-sale-route.js';
 import { runSyncSalesHttp } from './pos/sync-sales-route.js';
@@ -201,6 +202,19 @@ import {
   type BackupActor,
   type BackupHttpResult,
 } from './backup/backup-routes.js';
+import {
+  runCancelCustomerOrderHttp,
+  runCreateCustomerOrderHttp,
+  runDispatchCustomerOrderNoticeHttp,
+  runExpireCustomerOrderHttp,
+  runFulfillCustomerOrderHttp,
+  runGetCustomerOrderHttp,
+  runListCustomerOrdersHttp,
+  runMintCustomerOrderLeaseHttp,
+  runMintCustomerOrderRepriceAuthorizationHttp,
+  runRepriceExpiredCustomerOrderHttp,
+  type CustomerOrderActor,
+} from './orders/customer-order-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -227,6 +241,29 @@ function backupResponse(result: BackupHttpResult): Response {
   return new Response(body, { status: result.status, headers: result.headers });
 }
 
+function definedOr<T>(value: T | undefined, fallback: T): T {
+  return value === undefined ? fallback : value;
+}
+
+function trustedCustomerOrderActor(c: {
+  get(name: 'jwt'): VerifiedJwtClaims | undefined;
+  get(name: 'user'): UserSession | undefined;
+  req: { header(name: string): string | undefined };
+}): CustomerOrderActor {
+  const jwt = c.get('jwt');
+  const user = c.get('user');
+  return {
+    tenantId: definedOr(jwt?.tenantId, ''),
+    userId: definedOr(user?.userId, definedOr(jwt?.sub, '')),
+    role: definedOr(user?.role, ''),
+    branchId: definedOr(user?.branchId, ''),
+    allowedBranches: definedOr(user?.allowedBranches, []),
+    permissions: definedOr(user?.permissions, []),
+    terminalId: definedOr(c.req.header('x-terminal-id'), ''),
+    terminalSessionId: definedOr(c.req.header('x-terminal-session-id'), ''),
+  };
+}
+
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   const app = new Hono<AppEnv>();
 
@@ -234,6 +271,15 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   // Rutas protegidas: auth fail-closed + Plan Guard (Sprint 2).
   app.use('/api/*', createTenantAndAuthMiddleware(authDeps));
+
+  app.get('/api/auth/session', async (c) => {
+    const response = await runAuthenticatedSessionHttp(
+      c.env,
+      c.get('user'),
+      c.req.header('x-terminal-id') ?? '',
+    );
+    return c.json(response.body, response.status);
+  });
 
   app.post('/api/pos/totals', async (c) => {
     const body: { lines?: readonly SaleLine[] } = await c.req.json();
@@ -664,6 +710,89 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const jwt = c.get('jwt');
     const branchId = c.req.query('branchId') ?? '';
     return runKdsWebSocketHttp(c.env, jwt?.tenantId ?? '', branchId, c.req.raw);
+  });
+
+  // Sprint 43 — pedidos de cliente. Tenant/JWT y terminal son siempre server-trusted.
+  app.get('/api/orders/customer-orders', async (c) => {
+    const branchId = c.req.query('branchId');
+    const status = c.req.query('status');
+    const response = await runListCustomerOrdersHttp(c.env, trustedCustomerOrderActor(c), {
+      ...(branchId ? { branchId } : {}),
+      ...(status ? { status } : {}),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 500 | 503);
+  });
+  app.get('/api/orders/customer-orders/:id', async (c) => {
+    const response = await runGetCustomerOrderHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      c.req.param('id'),
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders', async (c) => {
+    const response = await runCreateCustomerOrderHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 201 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/leases', async (c) => {
+    const response = await runMintCustomerOrderLeaseHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 201 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/fulfill', async (c) => {
+    const response = await runFulfillCustomerOrderHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/cancel', async (c) => {
+    const response = await runCancelCustomerOrderHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/expire', async (c) => {
+    const response = await runExpireCustomerOrderHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/reprice-authorizations', async (c) => {
+    const response = await runMintCustomerOrderRepriceAuthorizationHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 201 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/reprice-handoff', async (c) => {
+    const response = await runRepriceExpiredCustomerOrderHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/orders/customer-orders/notices/dispatch', async (c) => {
+    const response = await runDispatchCustomerOrderNoticeHttp(
+      c.env,
+      trustedCustomerOrderActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
   });
 
   // Sprint 20 — transferencias / recepción parcial

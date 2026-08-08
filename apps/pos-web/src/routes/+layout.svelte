@@ -1,16 +1,57 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/state';
+  import { onMount } from 'svelte';
+  import {
+    provideAdminAuthenticatedSessionState,
+    type AdminAuthenticatedSession,
+  } from '$lib/admin/authenticated-session';
+  import { loadAuthenticatedAppShellSession } from '$lib/admin/app-shell-session';
+  import {
+    showCashOperatingNavigation,
+    showCustomerOrderNavigation,
+  } from '$lib/customer-orders/customer-order-access';
+  import { isCustomerOrdersEnabled } from '$lib/features';
 
-  const navLinks = [
-    { href: '/', label: 'POS Terminal', icon: '⚡' },
-    { href: '/caja', label: 'Cierre Z', icon: '🔒' },
+  let { children } = $props();
+  let authenticatedSession = $state<AdminAuthenticatedSession | null>(null);
+  const authenticatedSessionState = {
+    get current() {
+      return authenticatedSession;
+    },
+  };
+  provideAdminAuthenticatedSessionState(authenticatedSessionState);
+
+  const navLinks = $derived([
+    ...(showCashOperatingNavigation(authenticatedSession?.role ?? '')
+      ? [
+          { href: '/', label: 'POS Terminal', icon: '⚡' },
+          { href: '/caja', label: 'Cierre Z', icon: '🔒' },
+        ]
+      : []),
+    ...(showCustomerOrderNavigation({
+      enabled: isCustomerOrdersEnabled(),
+      role: authenticatedSession?.role ?? '',
+    })
+      ? [{ href: '/orders/customer', label: 'Pedidos retiro', icon: '🛍️' }]
+      : []),
     { href: '/admin/ubicaciones', label: 'Ubicaciones', icon: '📦' },
     { href: '/admin/etiquetas', label: 'Etiquetas', icon: '🏷️' },
     { href: '/admin/diario', label: 'Diario', icon: '📜' },
     { href: '/admin/configuracion', label: 'Configuración', icon: '⚙️' },
     { href: '/owner', label: 'Modo Dueño', icon: '👑' },
-  ];
+  ]);
+
+  onMount(async () => {
+    authenticatedSession = await loadAuthenticatedAppShellSession({
+      fetcher: fetch,
+      storage: localStorage,
+      apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+      ...((import.meta.env.PUBLIC_DEV_AUTH as string | undefined)
+        ? { authorization: import.meta.env.PUBLIC_DEV_AUTH as string }
+        : {}),
+    });
+  });
 </script>
 
 <header class="app-header">
@@ -46,7 +87,7 @@
 </header>
 
 <main class="main-content">
-  <slot />
+  {@render children()}
 </main>
 
 <style>
@@ -123,6 +164,8 @@
   .nav-link {
     display: flex;
     align-items: center;
+    min-height: 44px;
+    box-sizing: border-box;
     gap: 0.375rem;
     padding: 0.4375rem 0.875rem;
     border-radius: var(--radius-md);
@@ -162,6 +205,26 @@
   @media (max-width: 1024px) {
     .nav-label {
       display: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .header-container {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .nav-menu {
+      order: 3;
+      width: 100%;
+      min-width: 0;
+      justify-content: flex-start;
+      overflow-x: auto;
+    }
+
+    .nav-link {
+      flex: 0 0 auto;
     }
   }
 </style>

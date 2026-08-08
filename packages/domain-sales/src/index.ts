@@ -209,3 +209,23 @@ export {
   type PromoRule,
   type PromotionDef,
 } from './promotions.js';
+
+export {
+  assertCustomerOrderConservation,
+  assertCustomerOrderRepricingAuthorized,
+  assertCustomerOrderTransition,
+  CUSTOMER_ORDER_MAX_ITEMS,
+  CUSTOMER_ORDER_MICROUNITS_PER_BASE_UNIT,
+  customerOrderRemainingMicrounits,
+  decideCustomerOrderClose,
+  planCustomerOrderCreate,
+  planCustomerOrderFulfillment,
+  planCustomerOrderNotification,
+  resolveCustomerOrderPrice,
+  type CustomerOrderItemInput,
+  type CustomerOrderQuantities,
+  type CustomerOrderRepricingAuthorization,
+  type CustomerOrderRepricingScope,
+  type CustomerOrderStatus,
+  type CustomerOrderTerminalStatus,
+} from './customer-orders.js';
