@@ -174,6 +174,14 @@
     </p>
   </section>
 
+  <section id="respaldos">
+    <h2>Respaldo y recuperación</h2>
+    <p class="hint">
+      Exportaciones cifradas del servidor, cobertura verificable y simulación de recuperación.
+    </p>
+    <a href="/admin/backups">Abrir centro de respaldos</a>
+  </section>
+
   <section id="series">
     <h2>Identidad serial</h2>
     <p class="hint">Configura productos en Catálogo y administra leases/disposiciones por serie.</p>

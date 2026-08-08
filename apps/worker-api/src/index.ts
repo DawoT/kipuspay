@@ -192,6 +192,15 @@ import {
   runLoyaltyReserveHttp,
   runMessagingOptInHttp,
 } from './loyalty/loyalty-messaging-routes.js';
+import {
+  runBackupStatusHttp,
+  runCreateBackupHttp,
+  runDownloadBackupHttp,
+  runListBackupsHttp,
+  runRestoreDryRunHttp,
+  type BackupActor,
+  type BackupHttpResult,
+} from './backup/backup-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -202,6 +211,23 @@ interface AppEnv {
     jwt: VerifiedJwtClaims;
     user?: UserSession;
   };
+}
+
+function trustedBackupActor(user: UserSession | undefined, jwt: VerifiedJwtClaims): BackupActor {
+  return {
+    tenantId: jwt.tenantId,
+    userId: user?.userId ?? jwt.sub,
+    role: user?.role ?? '',
+    permissions: user?.permissions ?? [],
+    ...(jwt.authTime === undefined
+      ? {}
+      : { stepUpAt: new Date(jwt.authTime * 1000).toISOString() }),
+  };
+}
+
+function backupResponse(result: BackupHttpResult): Response {
+  const body = result.body instanceof ReadableStream ? result.body : JSON.stringify(result.body);
+  return new Response(body, { status: result.status, headers: result.headers });
 }
 
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
@@ -1591,6 +1617,53 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/billing/cron/meter-overage', async (c) => {
     const result = await runMeterOverageCronHttp(c.env);
     return c.json(result.body, result.status as 200 | 404 | 502 | 503);
+  });
+
+  // Sprint 42 — KPBK1 export + restore dry-run (data.backup, default-off).
+  app.post('/api/backups', async (c) => {
+    const body: unknown = await c.req.json();
+    return backupResponse(
+      await runCreateBackupHttp(
+        c.env,
+        trustedBackupActor(c.get('user'), c.get('jwt')),
+        body && typeof body === 'object' && !Array.isArray(body)
+          ? (body as Record<string, unknown>)
+          : {},
+      ),
+    );
+  });
+  app.get('/api/backups', async (c) =>
+    backupResponse(
+      await runListBackupsHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt'))),
+    ),
+  );
+  app.get('/api/backups/:id', async (c) =>
+    backupResponse(
+      await runBackupStatusHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt')), {
+        backupId: c.req.param('id'),
+      }),
+    ),
+  );
+  app.get('/api/backups/:id/download', async (c) =>
+    backupResponse(
+      await runDownloadBackupHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt')), {
+        backupId: c.req.param('id'),
+      }),
+    ),
+  );
+  app.post('/api/backups/:id/restore-dry-run', async (c) => {
+    const body: { idempotencyKey?: string } = await c.req.json();
+    return backupResponse(
+      await runRestoreDryRunHttp(
+        c.env,
+        trustedBackupActor(c.get('user'), c.get('jwt')),
+        {
+          backupId: c.req.param('id'),
+          idempotencyKey: body.idempotencyKey ?? '',
+        },
+        (task) => c.executionCtx.waitUntil(task),
+      ),
+    );
   });
 
   // Public API (API key) — Cadena+; no JWT middleware

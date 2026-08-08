@@ -121,6 +121,8 @@ export {
   receiptTemplateId,
 } from './messaging.js';
 
+export * from './data-backup-contract.js';
+
 /**
  * Puerto de importación de catálogo (S21, §5.4).
  * Regla 1: commit solo después de un dry-run aprobado (preview → confirmar).

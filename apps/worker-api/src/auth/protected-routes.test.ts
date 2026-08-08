@@ -101,6 +101,11 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/loyalty/cron/expire' },
   { method: 'POST', path: '/api/billing/cron/meter-overage' },
   { method: 'POST', path: '/api/reporting/cron/daily-rollups' },
+  { method: 'POST', path: '/api/backups' },
+  { method: 'GET', path: '/api/backups' },
+  { method: 'GET', path: '/api/backups/backup-1' },
+  { method: 'GET', path: '/api/backups/backup-1/download' },
+  { method: 'POST', path: '/api/backups/backup-1/restore-dry-run' },
 ];
 
 const tenant: AuthTenantSnapshot = {

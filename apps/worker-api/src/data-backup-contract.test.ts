@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type * as BackupRestoreValidatorModule from './backup/backup-restore-validator.js';
 import {
   isDataBackupEnabled,
   runCreateBackupHttp,
@@ -6,6 +7,22 @@ import {
   runRestoreDryRunHttp,
 } from './backup/backup-routes.js';
 import { runBackupWorkflow } from './backup/backup-workflow.js';
+
+const restoreValidator = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    status: 'PASSED',
+    insertCount: 0,
+    updateCount: 0,
+    conflictCount: 0,
+    missingObjectCount: 0,
+    differences: [],
+    truncated: false,
+  }),
+);
+vi.mock('./backup/backup-restore-validator.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof BackupRestoreValidatorModule>()),
+  validateReadyBackup: restoreValidator,
+}));
 
 const owner = {
   tenantId: 'tenant-a',
@@ -39,10 +56,9 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
     ).resolves.toMatchObject({ status: 404, body: { code: 'FEATURE_OFF' } });
   });
 
-  it('allows Owner/Admin create but requires recent Owner step-up for download and dry-run', async () => {
+  it('allows Owner/Admin export/download but requires recent Owner step-up for dry-run', async () => {
     const cashier = { ...owner, role: 'cashier' };
     const admin = { ...owner, userId: 'admin-a', role: 'admin' };
-    const staleOwner = { ...owner, stepUpAt: '2026-08-08T18:00:00.000Z' };
     await expect(
       runCreateBackupHttp(env(), cashier, { idempotencyKey: 'cashier' }),
     ).resolves.toMatchObject({ status: 403 });
@@ -50,8 +66,8 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
       runCreateBackupHttp(env(), admin, { idempotencyKey: 'admin' }),
     ).resolves.toMatchObject({ status: 202 });
     await expect(
-      runDownloadBackupHttp(env(), staleOwner, { backupId: 'backup-a' }),
-    ).resolves.toMatchObject({ status: 401, body: { code: 'STEP_UP_REQUIRED' } });
+      runDownloadBackupHttp(env(), admin, { backupId: 'backup-a' }),
+    ).resolves.toMatchObject({ status: 200 });
     await expect(
       runRestoreDryRunHttp(env(), admin, { backupId: 'backup-a', idempotencyKey: 'dry-1' }),
     ).resolves.toMatchObject({ status: 403 });
@@ -85,8 +101,12 @@ describe('data.backup Workflow, R2 and KMS contracts', () => {
     const status = await runDownloadBackupHttp(unavailable, owner, { backupId: 'backup-a' });
     expect(status).toMatchObject({
       status: 503,
-      body: { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: expect.any(String) },
+      body: { code: 'BACKUP_KMS_UNAVAILABLE' },
     });
+    expect(status.body).not.toBeInstanceOf(ReadableStream);
+    if (!(status.body instanceof ReadableStream)) {
+      expect(typeof status.body.errorRef).toBe('string');
+    }
     expect(JSON.stringify(status)).not.toContain('provider details');
   });
 
@@ -138,5 +158,92 @@ describe('data.backup Workflow, R2 and KMS contracts', () => {
     expect(response.headers.get('content-disposition')).toMatch(/^attachment;/);
     expect(response.body).toBeInstanceOf(ReadableStream);
     expect(response.metrics.maxBufferedBytes).toBeLessThanOrEqual(4 * 1024 * 1024 + 16);
+  });
+
+  it('schedules restore audit start/result asynchronously in strict order', async () => {
+    const batches: { params: unknown[] }[][] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => ({
+        bind: vi.fn((...params: unknown[]) => ({
+          sql,
+          params,
+          first: vi.fn(() => {
+            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('SELECT global_hash')) {
+              return Promise.resolve({ global_hash: 'a'.repeat(64) });
+            }
+            return Promise.resolve(null);
+          }),
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          run: vi.fn().mockResolvedValue(undefined),
+        })),
+        first: vi.fn(),
+        all: vi.fn(),
+      })),
+      batch: vi.fn((statements: { params: unknown[] }[]) => {
+        batches.push(statements);
+        return Promise.resolve([]);
+      }),
+    };
+    const scheduled: Promise<void>[] = [];
+    const response = await runRestoreDryRunHttp(
+      env({ DB: db }),
+      owner,
+      { backupId: 'backup-ready', idempotencyKey: 'restore-async-1' },
+      (task) => scheduled.push(task),
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ status: 'PASSED', missingObjectCount: 0 });
+    expect(restoreValidator).toHaveBeenCalledWith(expect.objectContaining({ DB: db }), {
+      tenantId: 'tenant-a',
+      backupId: 'backup-ready',
+    });
+    expect(scheduled).toHaveLength(1);
+    await Promise.all(scheduled);
+    expect(batches.map((batch) => batch[1]?.params[3])).toEqual([
+      'RESTORE_DRY_RUN_STARTED',
+      'RESTORE_DRY_RUN_PASSED',
+    ]);
+  });
+
+  it('returns an allowlisted failure and audits only after validation rejects', async () => {
+    restoreValidator.mockRejectedValueOnce(new Error('BACKUP_CHUNK_TAMPERED'));
+    const actions: string[] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => ({
+        bind: vi.fn((...params: unknown[]) => ({
+          first: vi.fn(() => {
+            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('SELECT global_hash')) {
+              return Promise.resolve({ global_hash: 'a'.repeat(64) });
+            }
+            if (sql.includes('SELECT row_hash')) return Promise.resolve(null);
+            return Promise.resolve(null);
+          }),
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          run: vi.fn().mockResolvedValue(undefined),
+          sql,
+          params,
+        })),
+      })),
+      batch: vi.fn((statements: { params: unknown[] }[]) => {
+        actions.push(String(statements[1]?.params[3]));
+        return Promise.resolve([]);
+      }),
+    };
+    const scheduled: Promise<void>[] = [];
+    const response = await runRestoreDryRunHttp(
+      env({ DB: db }),
+      owner,
+      { backupId: 'backup-ready', idempotencyKey: 'restore-failed-1' },
+      (task) => scheduled.push(task),
+    );
+    expect(response).toMatchObject({
+      status: 422,
+      body: { code: 'BACKUP_CHUNK_TAMPERED' },
+    });
+    expect(actions).toEqual([]);
+    await Promise.all(scheduled);
+    expect(actions).toEqual(['RESTORE_DRY_RUN_STARTED', 'RESTORE_DRY_RUN_FAILED']);
   });
 });

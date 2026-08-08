@@ -49,6 +49,7 @@ import {
   DOWN_0032_SPRINT39_INVENTORY_SERIALS,
   DOWN_0033_SPRINT40_INVENTORY_SCALE,
   DOWN_0034_SPRINT41_PRICE_LABELS,
+  DOWN_0035_SPRINT42_DATA_BACKUP,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -75,6 +76,7 @@ import sprint38LocationsSql from '../migrations/0031_sprint38_inventory_location
 import sprint39SerialsSql from '../migrations/0032_sprint39_inventory_serials.sql?raw';
 import sprint40ScaleSql from '../migrations/0033_sprint40_inventory_scale.sql?raw';
 import sprint40ScaleDownSql from '../migrations-down/0033_sprint40_inventory_scale.sql?raw';
+import sprint42BackupSql from '../migrations/0035_sprint42_data_backup.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -1111,6 +1113,21 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint40ScaleDownSql.trim()).toBe(DOWN_0033_SPRINT40_INVENTORY_SCALE.trim());
   });
 
+  it('migración 0035 registra backup KPBK1 y triggers canónicos de epoch', async () => {
+    expect(sprint42BackupSql).toContain('data.backup.sprint42');
+    expect(sprint42BackupSql).toContain('backup_epoch_products_insert');
+    expect(sprint42BackupSql).toContain('backup_epoch_accounts_payable_payments_insert');
+    const marker = await env.DB.prepare(
+      `SELECT value FROM schema_meta WHERE key = 'data.backup.sprint42'`,
+    ).first<{ value: string }>();
+    expect(marker?.value).toBe('1');
+    const triggers = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM sqlite_master
+       WHERE type = 'trigger' AND name LIKE 'backup_epoch_%'`,
+    ).first<{ n: number }>();
+    expect(triggers?.n).toBeGreaterThan(100);
+  });
+
   it('migración 0033 runtime: WEIGH, append-only y DAT-12 quedan enforced', async () => {
     const tenantA = 't-scale-a';
     const tenantB = 't-scale-b';
@@ -1460,6 +1477,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0035_SPRINT42_DATA_BACKUP);
     await env.DB.exec(DOWN_0034_SPRINT41_PRICE_LABELS);
     await env.DB.exec(DOWN_0032_SPRINT39_INVENTORY_SERIALS);
     await env.DB.exec(DOWN_0031_SPRINT38_INVENTORY_LOCATIONS);

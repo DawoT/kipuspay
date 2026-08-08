@@ -10,6 +10,7 @@ import type { LoadUserResult, UserSession } from './idp-user.js';
 export interface VerifiedJwtClaims {
   readonly tenantId: string;
   readonly sub: string;
+  readonly authTime?: number;
 }
 
 export interface TenantAuthDeps {

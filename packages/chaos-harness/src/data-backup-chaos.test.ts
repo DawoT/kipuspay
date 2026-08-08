@@ -1,96 +1,92 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DATA_BACKUP_FAULTS,
   judgeDataBackupChaos,
   runDataBackupChaos,
   type DataBackupChaosResult,
 } from './data-backup-chaos.js';
 
-describe('Sprint 42 data backup chaos contract', () => {
-  it('500 cycles preserve tenant, integrity, crypto and POS availability', async () => {
+const ZERO_FAILURES = {
+  mixedSnapshots: 0,
+  plaintextLeaksR2: 0,
+  keyLeaksD1: 0,
+  sensitiveLogLeaks: 0,
+  nonceReuses: 0,
+  duplicateFinalChunks: 0,
+  auditForks: 0,
+  readyBeforeCompleteManifest: 0,
+  dryRunD1Mutations: 0,
+  lostPartialCleanups: 0,
+  checkoutBlocks: 0,
+  nonIdempotentBackupWinners: 0,
+  undetectedTamper: 0,
+} as const;
+
+describe('Sprint 42 data-backup certification chaos', () => {
+  it('runs a deterministic balanced 500-cycle local certification matrix', async () => {
     const first = await runDataBackupChaos(500);
     const replay = await runDataBackupChaos(500);
+
     expect(replay).toEqual(first);
     expect(first).toMatchObject({
       cycles: 500,
-      crossTenantLeaks: 0,
-      plaintextKeyLeaks: 0,
-      nonceReuses: 0,
-      readyBackupsAfterTamper: 0,
-      readyBackupsAfterEpochExhaustion: 0,
-      orphanMultipartUploads: 0,
-      dryRunBusinessWrites: 0,
-      restoreApplyAttemptsAccepted: 0,
-      posSaleBlocks: 0,
-      posSyncBlocks: 0,
-      closeZBlocks: 0,
-      unclassifiedTenantTables: 0,
-      deterministicCiphertexts: 0,
-      plaintextReproducibilityFailures: 0,
-      opaqueErrorLeaks: 0,
+      ...ZERO_FAILURES,
+      evidence: {
+        environment: 'LOCAL_FAKE_BINDINGS_WORKERD',
+        realCloudflareStaging: false,
+        externalR2: false,
+        externalKms: false,
+      },
     });
-    expect(first.coverage).toEqual({
-      epochDrifts: 100,
-      r2ObjectTamper: 100,
-      kmsUnavailable: 100,
-      kekRotations: 100,
-      multipartInterruptions: 100,
-      multipartConflicts: 100,
-      crossTenantAttempts: 100,
-      staleStepUpAttempts: 100,
-      dryRuns: 100,
-      offlinePendingWarnings: 100,
-    });
+    expect(Object.keys(first.coverage)).toEqual(DATA_BACKUP_FAULTS);
+    expect(Object.values(first.coverage)).toEqual(DATA_BACKUP_FAULTS.map(() => 20));
+    expect(first.samples).toHaveLength(500);
+    expect(first.samples.every((sample) => sample.invariantsHeld)).toBe(true);
     expect(judgeDataBackupChaos(first)).toBe('PASS');
   });
 
-  it.each([
-    ['short run', { cycles: 499 }],
-    ['cross tenant', { crossTenantLeaks: 1 }],
-    ['plaintext key', { plaintextKeyLeaks: 1 }],
-    ['nonce reuse', { nonceReuses: 1 }],
-    ['R2 tamper publish', { readyBackupsAfterTamper: 1 }],
-    ['epoch exhaustion publish', { readyBackupsAfterEpochExhaustion: 1 }],
-    ['multipart orphan', { orphanMultipartUploads: 1 }],
-    ['dry-run write', { dryRunBusinessWrites: 1 }],
-    ['restore apply', { restoreApplyAttemptsAccepted: 1 }],
-    ['sale block', { posSaleBlocks: 1 }],
-    ['sync block', { posSyncBlocks: 1 }],
-    ['close Z block', { closeZBlocks: 1 }],
-    ['registry gap', { unclassifiedTenantTables: 1 }],
-    ['deterministic ciphertext', { deterministicCiphertexts: 1 }],
-    ['plaintext mismatch', { plaintextReproducibilityFailures: 1 }],
-    ['opaque error leak', { opaqueErrorLeaks: 1 }],
-  ])('judge rejects %s', (_case, patch) => {
-    const valid: DataBackupChaosResult = {
-      cycles: 500,
-      crossTenantLeaks: 0,
-      plaintextKeyLeaks: 0,
-      nonceReuses: 0,
-      readyBackupsAfterTamper: 0,
-      readyBackupsAfterEpochExhaustion: 0,
-      orphanMultipartUploads: 0,
-      dryRunBusinessWrites: 0,
-      restoreApplyAttemptsAccepted: 0,
-      posSaleBlocks: 0,
-      posSyncBlocks: 0,
-      closeZBlocks: 0,
-      unclassifiedTenantTables: 0,
-      deterministicCiphertexts: 0,
-      plaintextReproducibilityFailures: 0,
-      opaqueErrorLeaks: 0,
-      coverage: {
-        epochDrifts: 100,
-        r2ObjectTamper: 100,
-        kmsUnavailable: 100,
-        kekRotations: 100,
-        multipartInterruptions: 100,
-        multipartConflicts: 100,
-        crossTenantAttempts: 100,
-        staleStepUpAttempts: 100,
-        dryRuns: 100,
-        offlinePendingWarnings: 100,
-      },
-    };
-    expect(judgeDataBackupChaos({ ...valid, ...patch })).toBe('FAIL');
+  it.each(Object.keys(ZERO_FAILURES) as (keyof typeof ZERO_FAILURES)[])(
+    'fails closed when %s is non-zero',
+    (failure) => {
+      const valid = validResult();
+      expect(judgeDataBackupChaos({ ...valid, [failure]: 1 })).toBe('FAIL');
+    },
+  );
+
+  it('rejects short, unbalanced, or falsely external evidence', () => {
+    const valid = validResult();
+    expect(judgeDataBackupChaos({ ...valid, cycles: 499 })).toBe('FAIL');
+    expect(
+      judgeDataBackupChaos({
+        ...valid,
+        coverage: { ...valid.coverage, r2Timeout: 19 },
+      }),
+    ).toBe('FAIL');
+    expect(
+      judgeDataBackupChaos({
+        ...valid,
+        evidence: { ...valid.evidence, realCloudflareStaging: true },
+      }),
+    ).toBe('FAIL');
+  });
+
+  it('rejects invalid cycle counts', async () => {
+    await expect(runDataBackupChaos(-1)).rejects.toThrow('CHAOS_CYCLES_INVALID');
+    await expect(runDataBackupChaos(1.5)).rejects.toThrow('CHAOS_CYCLES_INVALID');
   });
 });
+
+function validResult(): DataBackupChaosResult {
+  return {
+    cycles: 500,
+    ...ZERO_FAILURES,
+    coverage: Object.fromEntries(DATA_BACKUP_FAULTS.map((fault) => [fault, 20])) as DataBackupChaosResult['coverage'],
+    evidence: {
+      environment: 'LOCAL_FAKE_BINDINGS_WORKERD',
+      realCloudflareStaging: false,
+      externalR2: false,
+      externalKms: false,
+    },
+    samples: [],
+  };
+}

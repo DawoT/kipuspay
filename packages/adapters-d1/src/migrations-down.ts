@@ -1,5 +1,8 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
+import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
+
+export const DOWN_0035_SPRINT42_DATA_BACKUP = down0035;
 
 export const DOWN_0034_SPRINT41_PRICE_LABELS = `
 INSERT /* RAISE(ABORT via atomic_guards CHECK) */ INTO atomic_guards(id, ok) SELECT 'catalog.price_labels.sprint41.down', CASE WHEN EXISTS (SELECT 1 FROM price_label_items) OR EXISTS (SELECT 1 FROM price_label_batches) OR EXISTS (SELECT 1 FROM price_label_templates) THEN 0 ELSE 1 END;

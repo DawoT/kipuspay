@@ -18,6 +18,21 @@ describe('verifyJwt (SEC-01)', () => {
     });
   });
 
+  it('propaga auth_time verificado para autorización step-up', async () => {
+    const authTime = Math.floor(nowMs / 1000) - 60;
+    const token = await signHs256ForTests(SECRET, {
+      tenantId: 't1',
+      sub: 'user-ext-1',
+      auth_time: authTime,
+      exp: Math.floor(nowMs / 1000) + 3600,
+    });
+    await expect(verifyJwt({ AUTH_JWT_HS_SECRET: SECRET }, token, nowMs)).resolves.toEqual({
+      tenantId: 't1',
+      sub: 'user-ext-1',
+      authTime,
+    });
+  });
+
   it('rechaza alg=none', async () => {
     const token = await signHs256ForTests(
       SECRET,

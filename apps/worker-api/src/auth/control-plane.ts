@@ -2,6 +2,7 @@ import type { AuthTenantSnapshot, RevocationLookup, SubscriptionStatus } from '.
 import { loadUserFromD1 } from './idp-user.js';
 import type { TenantAuthDeps } from './tenant-auth-middleware.js';
 import { verifyJwt, type JwtVerifyEnv } from './verify-jwt.js';
+import type { BackupKmsBinding } from '../backup/backup-workflow.js';
 
 /** Bindings mínimos del plano de control (KV + DO). */
 export interface ControlPlaneEnv {
@@ -73,6 +74,14 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_INVENTORY_SCALE?: string;
   /** Sprint 41: etiquetas de precio autoritativas. */
   readonly FEATURE_CATALOG_PRICE_LABELS?: string;
+  /** Sprint 42: export KPBK1/restore dry-run, default-off. */
+  readonly FEATURE_DATA_BACKUP?: string;
+  readonly BACKUPS?: R2Bucket;
+  readonly BACKUP_WORKFLOW?: Workflow<{
+    readonly tenantId: string;
+    readonly backupId: string;
+  }>;
+  readonly BACKUP_KMS?: BackupKmsBinding;
   /** Sprint 18 inventory capabilities. */
   readonly FEATURE_INVENTORY_BATCHES?: string;
   readonly FEATURE_INVENTORY_BOM?: string;

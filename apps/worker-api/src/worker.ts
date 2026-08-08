@@ -4,6 +4,7 @@ import { runDailyRollupsCronHttp } from './reports/report-routes.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
+export { BackupWorkflow } from './backup/backup-workflow-entrypoint.js';
 
 /**
  * Composition root Workers: bindings reales → deps de auth → Hono.

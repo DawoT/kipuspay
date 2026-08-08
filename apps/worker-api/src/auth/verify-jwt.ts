@@ -68,7 +68,8 @@ function identityClaims(payload: Record<string, unknown>): VerifiedJwtClaims | n
   const tenantId = claimString(payload, 'tenantId') ?? claimString(payload, 'tenant_id');
   const sub = claimString(payload, 'sub') ?? claimString(payload, 'externalAuthId');
   if (!tenantId || !sub) return null;
-  return { tenantId, sub };
+  const authTime = claimNumber(payload, 'auth_time');
+  return { tenantId, sub, ...(authTime === null ? {} : { authTime }) };
 }
 
 async function verifyHs256(

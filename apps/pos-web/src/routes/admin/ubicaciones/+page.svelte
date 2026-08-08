@@ -151,373 +151,403 @@
   }
 </script>
 
-<svelte:head><title>Ubicaciones y racks · KipusPay</title></svelte:head>
+<svelte:head><title>Ubicaciones y Racks · KipusPay</title></svelte:head>
 
-<main class="location-admin" data-testid="admin-locations">
-  <header>
+<div class="location-admin-container" data-testid="admin-locations">
+  <header class="glass-panel admin-header">
     <div>
-      <p class="eyebrow">Inventario · Sprint 38</p>
-      <h1>Ubicaciones y racks</h1>
-      <p class="lede">Mueve, cuenta y encuentra producto sin alterar el total de la sucursal.</p>
+      <span class="badge badge-indigo">Inventario Avanzado · Sprint 38</span>
+      <h1 class="page-title">Ubicaciones y Racks por Sucursal</h1>
+      <p class="lede-text">Mueve, cuenta y localiza producto por estante sin alterar el agregado total de la sucursal.</p>
     </div>
     <a
-      class="csv-link"
+      class="btn btn-secondary csv-btn"
       href={`${apiBase()}/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`}
     >
-      Descargar CSV
+      📊 Exportar CSV
     </a>
   </header>
 
   {#if !locationsOn}
-    <section class="notice" data-testid="admin-locations-off">
-      <strong>Ubicaciones aún no habilitadas</strong>
-      <span>Activa PUBLIC_FEATURE_INVENTORY_LOCATIONS después de reconciliar el stock.</span>
-    </section>
+    <div class="glass-panel notice-box" data-testid="admin-locations-off">
+      <span class="badge badge-warning">Capability Desactivada</span>
+      <h2>Ubicaciones aún no habilitadas</h2>
+      <p>Activa PUBLIC_FEATURE_INVENTORY_LOCATIONS después de reconciliar el inventario por sucursal.</p>
+    </div>
   {:else}
-    <section class="branch-bar" aria-label="Sucursal activa">
-      <label for="branch">Sucursal</label>
-      <input id="branch" bind:value={branchId} />
-      <button type="button" onclick={refresh} disabled={busy}>Actualizar mapa</button>
+    <section class="glass-panel branch-bar">
+      <div class="branch-input-group">
+        <label for="branch-id-input">Sucursal Activa</label>
+        <input id="branch-id-input" bind:value={branchId} placeholder="b-demo" />
+      </div>
+      <button type="button" class="btn btn-primary" onclick={refresh} disabled={busy}>
+        {busy ? 'Cargando…' : '🔄 Actualizar Mapa'}
+      </button>
     </section>
 
     {#if message}
-      <p class="feedback" aria-live="polite">{message}</p>
+      <div class="feedback-banner" class:success-banner={message.includes('creada') || message.includes('registrada') || message.includes('desactivada')}>
+        <span>ℹ️ {message}</span>
+      </div>
     {/if}
 
-    <section class="rack-map" aria-label="Mapa de racks">
-      {#each locations as location}
-        <article class="rack" data-active={location.is_active === 1}>
-          <span class="rack-code">{location.code}</span>
-          <strong>{location.name || 'Sin nombre'}</strong>
-          <span class="rack-count"
-            >{stock.filter((row) => row.location_id === location.id).length} productos</span
-          >
-          {#if location.code !== 'DEFAULT'}
-            <button
-              class="rack-action"
-              type="button"
-              onclick={() => deactivate(location.id)}
-              disabled={busy}
-            >
-              Desactivar
-            </button>
-          {/if}
-        </article>
-      {:else}
-        <p class="empty">No hay racks. Crea el primero para comenzar el putaway.</p>
-      {/each}
+    <!-- Racks Map Grid -->
+    <section class="racks-section">
+      <div class="section-title-bar">
+        <h2>Mapa de Racks & Almacenes</h2>
+        <span class="badge badge-indigo">{locations.length} Racks Registrados</span>
+      </div>
+
+      <div class="rack-map-grid">
+        {#each locations as location}
+          <article class="glass-panel rack-card" class:inactive={location.is_active !== 1}>
+            <div class="rack-card-header">
+              <span class="rack-code-badge">{location.code}</span>
+              {#if location.code === 'DEFAULT'}
+                <span class="badge badge-success">DEFAULT</span>
+              {:else}
+                <span class="badge" class:badge-success={location.is_active === 1} class:badge-warning={location.is_active !== 1}>
+                  {location.is_active === 1 ? 'ACTIVO' : 'INACTIVO'}
+                </span>
+              {/if}
+            </div>
+
+            <strong class="rack-name">{location.name || 'Sin nombre asignado'}</strong>
+
+            <div class="rack-stats-row">
+              <span class="stat-label">Productos Almacenados:</span>
+              <span class="stat-count tabular-nums">
+                {stock.filter((row) => row.location_id === location.id).length} SKU
+              </span>
+            </div>
+
+            {#if location.code !== 'DEFAULT'}
+              <button
+                class="btn btn-secondary deactivate-btn"
+                type="button"
+                onclick={() => deactivate(location.id)}
+                disabled={busy}
+              >
+                🗑️ Desactivar
+              </button>
+            {/if}
+          </article>
+        {:else}
+          <div class="glass-panel empty-racks-box">
+            <span class="empty-icon">📦</span>
+            <p>No hay racks registrados. Crea la primera ubicación para comenzar la gestión de putaway.</p>
+          </div>
+        {/each}
+      </div>
     </section>
 
-    <div class="workbench">
-      <section class="panel">
-        <p class="panel-label">Alta de rack</p>
-        <h2>Nueva ubicación</h2>
-        <label for="code">Código</label>
-        <input id="code" bind:value={code} placeholder="A-01" />
-        <label for="name">Nombre</label>
-        <input id="name" bind:value={name} placeholder="Pasillo A · nivel 1" />
-        <button type="button" onclick={createLocation} disabled={busy || !code.trim()}>
-          Crear ubicación
-        </button>
+    <!-- Operations Workbench Grid -->
+    <div class="workbench-grid">
+      <!-- Create Location Panel -->
+      <section class="glass-panel workbench-card">
+        <div class="card-header">
+          <div>
+            <span class="panel-label">Alta de Rack</span>
+            <h2>Nueva Ubicación</h2>
+          </div>
+        </div>
+
+        <div class="form-body">
+          <div>
+            <label for="code-input">Código de Rack</label>
+            <input id="code-input" bind:value={code} placeholder="Ej. RACK-A1" />
+          </div>
+          <div>
+            <label for="name-input">Nombre / Descripción</label>
+            <input id="name-input" bind:value={name} placeholder="Ej. Pasillo 1 · Nivel 2" />
+          </div>
+          <button type="button" class="btn btn-primary" onclick={createLocation} disabled={busy || !code.trim()}>
+            ➕ Crear Ubicación
+          </button>
+        </div>
       </section>
 
-      <section class="panel">
-        <p class="panel-label">Movimiento interno</p>
-        <h2>Transferir stock</h2>
-        <label for="source">Origen</label>
-        <select id="source" bind:value={sourceLocationId}>
-          {#each locations as location}<option value={location.id}>{location.code}</option>{/each}
-        </select>
-        <label for="destination">Destino</label>
-        <select id="destination" bind:value={destinationLocationId}>
-          {#each locations as location}<option value={location.id}>{location.code}</option>{/each}
-        </select>
-        <label for="product">Producto ID</label>
-        <input id="product" bind:value={productId} />
-        <label for="quantity">Cantidad en microunidades</label>
-        <input id="quantity" type="number" min="1" step="1" bind:value={quantityMicrounits} />
-        <button
-          type="button"
-          onclick={transfer}
-          disabled={busy ||
-            !productId ||
-            !sourceLocationId ||
-            !destinationLocationId ||
-            sourceLocationId === destinationLocationId}
-        >
-          Transferir
-        </button>
-        <button class="secondary" type="button" onclick={pick} disabled={busy || !productId}>
-          Calcular picking FEFO
-        </button>
+      <!-- Transfer Stock Panel -->
+      <section class="glass-panel workbench-card">
+        <div class="card-header">
+          <div>
+            <span class="panel-label">Movimiento Interno</span>
+            <h2>Transferir Stock Intra-Sucursal</h2>
+          </div>
+        </div>
+
+        <div class="form-body">
+          <div class="selects-row">
+            <div>
+              <label for="source-select">Origen</label>
+              <select id="source-select" bind:value={sourceLocationId}>
+                {#each locations as location}
+                  <option value={location.id}>{location.code} ({location.name || 'Sin nombre'})</option>
+                {/each}
+              </select>
+            </div>
+            <div>
+              <label for="destination-select">Destino</label>
+              <select id="destination-select" bind:value={destinationLocationId}>
+                {#each locations as location}
+                  <option value={location.id}>{location.code} ({location.name || 'Sin nombre'})</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="product-id-input">Producto ID</label>
+            <input id="product-id-input" bind:value={productId} placeholder="p1" />
+          </div>
+          <div>
+            <label for="quantity-microunits-input">Cantidad (Microunidades 1e6)</label>
+            <input id="quantity-microunits-input" type="number" min="1" step="1" bind:value={quantityMicrounits} />
+          </div>
+
+          <div class="action-buttons-row">
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick={transfer}
+              disabled={busy ||
+                !productId ||
+                !sourceLocationId ||
+                !destinationLocationId ||
+                sourceLocationId === destinationLocationId}
+            >
+              🚀 Transferir Stock
+            </button>
+            <button class="btn btn-secondary" type="button" onclick={pick} disabled={busy || !productId}>
+              📦 Picking FEFO
+            </button>
+          </div>
+        </div>
       </section>
     </div>
 
-    <section class="stock-table">
-      <div>
-        <p class="panel-label">Existencia granular</p>
-        <h2>Stock por ubicación</h2>
+    <!-- Granular Stock Table -->
+    <section class="glass-panel stock-table-card">
+      <div class="card-header">
+        <div>
+          <span class="panel-label">Existencia Granular</span>
+          <h2>Stock por Ubicación y Producto</h2>
+        </div>
       </div>
-      <div class="table-wrap">
+
+      <div class="table-responsive">
         <table>
           <thead>
-            <tr><th>Rack</th><th>Producto</th><th>Ubicación</th><th>Sucursal</th></tr>
+            <tr>
+              <th>Código Rack</th>
+              <th>Producto ID</th>
+              <th>Nombre de Producto</th>
+              <th>Stock en Rack</th>
+              <th>Total Sucursal</th>
+            </tr>
           </thead>
           <tbody>
             {#each stock as row}
               <tr>
-                <td><span class="mini-code">{row.location_code}</span></td>
-                <td>{row.product_name || row.product_id}</td>
-                <td class="number">{units(row.quantity_microunits)}</td>
-                <td class="number">{units(row.branch_quantity_microunits)}</td>
+                <td><span class="badge badge-indigo">{row.location_code}</span></td>
+                <td class="tabular-nums">{row.product_id}</td>
+                <td><strong>{row.product_name}</strong></td>
+                <td class="tabular-nums">{units(row.quantity_microunits)} u</td>
+                <td class="tabular-nums">{units(row.branch_quantity_microunits)} u</td>
               </tr>
             {:else}
-              <tr><td colspan="4">Sin stock para mostrar.</td></tr>
+              <tr>
+                <td colspan="5" class="empty-table-cell">No hay datos de inventario registrados para esta sucursal.</td>
+              </tr>
             {/each}
           </tbody>
         </table>
       </div>
     </section>
   {/if}
-</main>
+</div>
 
 <style>
-  :global(body) {
-    margin: 0;
-    background: #f8fafc;
-    color: #0f172a;
-    font-family: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
-  }
-  .location-admin {
-    --primary: #334155;
-    --accent: #047857;
-    --border: #dbe2ea;
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 32px 20px 64px;
-  }
-  header,
-  .branch-bar,
-  .workbench,
-  .stock-table > div:first-child {
+  .location-admin-container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .admin-header {
+    padding: 1.5rem;
+    display: flex;
     justify-content: space-between;
-    gap: 16px;
+    align-items: flex-start;
+    gap: 1rem;
   }
-  h1,
-  h2,
-  p {
-    margin-top: 0;
-  }
-  h1 {
-    margin-bottom: 8px;
-    font-family: Rubik, ui-sans-serif, system-ui, sans-serif;
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    letter-spacing: -0.04em;
-  }
-  h2 {
-    margin-bottom: 20px;
-    font-size: 1.25rem;
-  }
-  .eyebrow,
-  .panel-label {
-    margin-bottom: 6px;
-    color: var(--accent);
-    font-size: 0.75rem;
+
+  .page-title {
+    font-size: 1.75rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    margin-top: 0.25rem;
   }
-  .lede {
-    margin-bottom: 0;
-    color: #475569;
+
+  .lede-text {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
   }
-  .csv-link,
-  button {
-    min-height: 44px;
-    border: 1px solid var(--primary);
-    border-radius: 10px;
-    background: var(--primary);
-    color: white;
-    cursor: pointer;
-    font: inherit;
-    font-weight: 700;
-    padding: 10px 16px;
-    text-decoration: none;
-    transition:
-      background 180ms ease,
-      border-color 180ms ease;
+
+  .notice-box {
+    padding: 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
   }
-  .csv-link:hover,
-  button:hover:not(:disabled) {
-    background: #1e293b;
-  }
-  button:focus-visible,
-  input:focus-visible,
-  select:focus-visible,
-  a:focus-visible {
-    outline: 3px solid #10b981;
-    outline-offset: 2px;
-  }
-  button:disabled {
-    cursor: not-allowed;
-    opacity: 0.45;
-  }
-  button.secondary {
-    margin-top: 8px;
-    background: white;
-    color: var(--primary);
-  }
-  .notice,
-  .feedback {
-    display: grid;
-    gap: 4px;
-    margin-top: 28px;
-    border: 1px solid #a7f3d0;
-    border-radius: 12px;
-    background: #ecfdf5;
-    padding: 16px;
-  }
+
   .branch-bar {
-    justify-content: flex-start;
-    margin: 28px 0 18px;
-    border-block: 1px solid var(--border);
-    padding: 14px 0;
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
   }
-  label {
-    display: block;
-    margin: 12px 0 6px;
-    color: #334155;
-    font-size: 0.875rem;
+
+  .branch-input-group {
+    display: flex;
+    flex-direction: column;
+    max-width: 320px;
+    width: 100%;
+  }
+
+  .feedback-banner {
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1.25rem;
+    font-weight: 600;
+  }
+  .success-banner {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #34d399;
+  }
+
+  .section-title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .rack-map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+
+  .rack-card {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .rack-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .rack-code-badge {
+    font-family: var(--font-mono);
     font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--accent-primary);
   }
-  input,
-  select {
-    box-sizing: border-box;
-    min-height: 44px;
-    width: 100%;
-    border: 1px solid #94a3b8;
-    border-radius: 8px;
-    background: white;
-    color: #0f172a;
-    font: inherit;
-    padding: 9px 11px;
+
+  .rack-name {
+    font-size: 1rem;
+    color: var(--text-main);
   }
-  .branch-bar input {
-    width: min(320px, 100%);
+
+  .rack-stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.5rem;
   }
-  .rack-map {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin: 20px 0 28px;
+
+  .stat-count {
+    font-weight: 700;
+    color: var(--emerald-green);
   }
-  .rack {
-    display: grid;
-    min-height: 104px;
-    align-content: space-between;
-    border: 1px solid var(--border);
-    border-top: 5px solid var(--accent);
-    border-radius: 8px;
-    background: white;
-    box-shadow: 0 8px 22px rgb(15 23 42 / 6%);
-    padding: 14px;
+
+  .deactivate-btn {
+    margin-top: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
   }
-  .rack-code,
-  .mini-code {
-    width: fit-content;
-    border-radius: 4px;
-    background: #0f172a;
-    color: white;
-    font-family: ui-monospace, monospace;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    padding: 3px 7px;
-  }
-  .rack-count {
-    color: #64748b;
-    font-size: 0.8rem;
-  }
-  .rack .rack-action {
-    min-height: 36px;
-    margin-top: 10px;
-    border-color: #cbd5e1;
-    background: white;
-    color: #334155;
-    font-size: 0.8rem;
-    padding: 6px 9px;
-  }
-  .empty {
+
+  .empty-racks-box {
     grid-column: 1 / -1;
-    border: 1px dashed #94a3b8;
-    border-radius: 10px;
-    padding: 24px;
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-muted);
   }
-  .workbench {
-    align-items: stretch;
+
+  .workbench-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
   }
-  .panel,
-  .stock-table {
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: white;
-    box-shadow: 0 10px 30px rgb(15 23 42 / 5%);
-    padding: 22px;
+
+  .workbench-card {
+    padding: 1.5rem;
   }
-  .panel button {
-    width: 100%;
-    margin-top: 18px;
+
+  .panel-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent-primary);
   }
-  .stock-table {
-    margin-top: 20px;
+
+  .form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
   }
-  .table-wrap {
+
+  .selects-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .action-buttons-row {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .stock-table-card {
+    padding: 1.5rem;
+  }
+
+  .table-responsive {
     overflow-x: auto;
   }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
+
+  .empty-table-cell {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 2rem;
   }
-  th,
-  td {
-    border-bottom: 1px solid var(--border);
-    padding: 12px 8px;
-    text-align: left;
-  }
-  th {
-    color: #475569;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-  .number {
-    font-family: ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
-  @media (max-width: 700px) {
-    header,
-    .branch-bar {
-      align-items: stretch;
-      flex-direction: column;
-    }
-    .workbench {
+
+  @media (max-width: 900px) {
+    .workbench-grid {
       grid-template-columns: 1fr;
-    }
-    .csv-link {
-      text-align: center;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      scroll-behavior: auto !important;
-      transition: none !important;
     }
   }
 </style>

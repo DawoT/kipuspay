@@ -152,3 +152,4 @@ export * from './resolve-pos-terminal.js';
 export * from './usage-meter-batch.js';
 export * from './meter-overage-cron.js';
 export * from './price-labels.js';
+export * from './data-backup.js';

@@ -5817,3 +5817,43 @@ aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff Security V, Staff 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0311
+timestamp_utc: 2026-08-08T21:45:00Z
+schema_version: 2
+sprint_fase: POS Web Frontend Rediseño Enterprise Premium
+agente_responsable: Staff Frontend POS / Staff Product Design / Staff Principal
+tipo: Correccion de UI/UX
+subtipo: quality-gate
+relacion: PROCESA
+referencias_entradas: [0310]
+referencias_documentales: [apps/pos-web/src/app.css, apps/pos-web/src/routes/+layout.svelte, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/caja/+page.svelte, apps/pos-web/src/routes/admin/ubicaciones/+page.svelte]
+prev_id: 0310
+prev_hash: 7468188f00c895a83b2553e639524026bc545ba5c57023f1ca29dbbdfdff47b7
+entry_hash: 95b7240eef927e4cefa2dcbba1f05f07a8a433a71c17ac15d375b9b0a294aef4
+ticket_or_adr: CAL-06, ADR-ARCH-002
+test_ids: [checkout.spec, a11y-checkout.spec, pos-checkout.test]
+entregable_afectado: Rediseño Enterprise Premium de POS Web (Terminal POS, Cierre Z, Racks de Ubicaciones)
+descripcion: >
+  Rediseño UI/UX Enterprise Premium de apps/pos-web:
+  1) Sistema de diseño global HSL con elevaciones glassmorphic, variables CSS dark mode de alta gama y tipografía Google Fonts (Inter, Outfit, JetBrains Mono tabular-nums);
+  2) Layout principal con barra de navegación integrada, badges de conectividad Edge D1 y navegación fluida entre vistas;
+  3) Terminal POS Checkout con arquitectura de dos columnas (catálogo rápido, escáner de series D1, balanza WebHID de peso neto y drawer adhesivo de cobranza tabular);
+  4) Vista de Cierre Z Ciego con tarjetas de denominaciones de efectivo PEN y estado de impresora preflight;
+  5) Vista de Ubicaciones y Racks de Inventario con mapa de tarjetas glassmorphic y tabla de existencias granulares por sucursal;
+  6) Preservación estricta del 100% de data-testid, reactividad Svelte 5 runes, zero vertical forks (ADR-ARCH-002) y zero-dependency runtime.
+evidencia: >
+  RED: Interfaz inicial plana/simple sin sistema de diseño unificado.
+  GREEN: Rediseño Enterprise con glassmorphism, tabular-nums y fuentes de alta gama; quality.sh Quality Gate OK (Bundle size 120.65 kB, ≤300 kB); verify.sh 25/25 RESULT SUITE GREEN; 0 lints; 0 secrets.
+red_commit_sha: 9ad1f6e
+red_run_id: run-red-0311-pos-ui-redesign
+expected_failure: Interfaz POS plana sin sistema de diseño premium unificado
+green_commit_sha: 9ad1f6e
+green_run_id: run-green-0311-pos-ui-redesign
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Frontend POS A, Staff Product Design V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+

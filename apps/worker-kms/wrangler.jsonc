@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kipuspay-worker-kms",
+  "main": "src/kms.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BACKUP_KEK_ACTIVE_VERSION": "v1",
+  },
+  // Values are read only through these Secrets Store bindings.
+  "secrets_store_secrets": [
+    {
+      "binding": "BACKUP_KEK_V1",
+      "store_id": "00000000000000000000000000000001",
+      "secret_name": "backup-kek-v1",
+    },
+    {
+      "binding": "BACKUP_KEK_V2",
+      "store_id": "00000000000000000000000000000001",
+      "secret_name": "backup-kek-v2",
+    },
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+}
