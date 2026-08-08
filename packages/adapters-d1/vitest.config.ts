@@ -21,6 +21,7 @@ export default defineConfig({
         'src/process-store-credit-atomic.ts',
         'src/process-installment-atomic.ts',
         'src/process-commission-atomic.ts',
+        'src/process-inventory-location-atomic.ts',
         'src/process-credit-note-atomic.ts',
         'src/process-fiscal-deadlines.ts',
         'src/build-daily-summary.ts',

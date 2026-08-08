@@ -42,3 +42,8 @@ export function isSalesInstallmentsEnabled(env: WorkerEnv | undefined): boolean 
 export function isSalesCommissionsEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_SALES_COMMISSIONS);
 }
+
+/** Sprint 38 — ubicaciones/racks (FEATURE_INVENTORY_LOCATIONS, default off). */
+export function isInventoryLocationsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_INVENTORY_LOCATIONS);
+}

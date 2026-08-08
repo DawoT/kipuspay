@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS idx_inventory_count_lines_location;
+DROP INDEX IF EXISTS idx_inventory_location_transfers_branch;
+DROP INDEX IF EXISTS idx_inventory_location_batch_fefo;
+DROP INDEX IF EXISTS idx_inventory_location_stock_product;
+DROP INDEX IF EXISTS idx_inventory_locations_branch;
+DROP TABLE IF EXISTS inventory_location_transfers;
+DROP TABLE IF EXISTS inventory_location_batch_stock;
+DROP TABLE IF EXISTS inventory_location_stock;
+DROP TABLE IF EXISTS inventory_locations;
+DELETE FROM schema_meta WHERE key = 'inventory.locations.sprint38';

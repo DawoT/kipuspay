@@ -4,6 +4,7 @@
 import { planCreateAp, planPartialReceive, type PurchaseOrderStatus } from '@kipuspay/domain-cash';
 import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 
 export interface PartialReceiveLineInput {
   readonly productId: string;
@@ -298,6 +299,13 @@ function addInboundStock(
         .bind(tenantId, branchId, s.productId, s.qty, qtyMicrounits, s.newPmp),
     );
   }
+  appendLocationStockDeltaToPlan(plan, db, {
+    tenantId,
+    branchId,
+    productId: s.productId,
+    deltaMicrounits: qtyMicrounits,
+    batchId: s.batchId,
+  });
 
   plan.add(
     db

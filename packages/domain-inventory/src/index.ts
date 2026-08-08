@@ -18,6 +18,22 @@ export {
   VARIANT_NESTING_FORBIDDEN,
   VARIANT_SELF_PARENT,
 } from './variants-uom.js';
+export {
+  LOCATION_EXPIRED_BATCH,
+  LOCATION_INSUFFICIENT_STOCK,
+  LOCATION_INVALID_QUANTITY,
+  LOCATION_NONEMPTY,
+  LOCATION_RECONCILIATION_DRIFT,
+  allocateStockByLocation,
+  assertLocationCanDeactivate,
+  planLocationCountAdjustment,
+  planLocationTransfer,
+  reconcileLocationTotal,
+  sumActiveLocationStockMicrounits,
+  type ActiveLocationStock,
+  type LocationAllocation,
+  type LocationBatchStock,
+} from './locations.js';
 
 export interface StockBatch {
   readonly batchId: string;

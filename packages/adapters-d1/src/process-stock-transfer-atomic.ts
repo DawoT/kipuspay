@@ -14,6 +14,7 @@ import {
   type TransferStatus,
 } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 
 export interface TransferLineInput {
   readonly productId: string;
@@ -450,6 +451,12 @@ function addDebitStock(
       )
       .bind(qtyAbs, qtyMicrounits, tenantId, branchId, productId, qtyMicrounits),
   );
+  appendLocationStockDeltaToPlan(plan, db, {
+    tenantId,
+    branchId,
+    productId,
+    deltaMicrounits: -qtyMicrounits,
+  });
   plan.add(
     db
       .prepare(
@@ -522,6 +529,12 @@ function addCreditStock(
         .bind(tenantId, branchId, productId, qty, qtyMicrounits, newPmp),
     );
   }
+  appendLocationStockDeltaToPlan(plan, db, {
+    tenantId,
+    branchId,
+    productId,
+    deltaMicrounits: qtyMicrounits,
+  });
   plan.add(
     db
       .prepare(

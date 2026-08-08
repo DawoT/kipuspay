@@ -1,6 +1,19 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0031_SPRINT38_INVENTORY_LOCATIONS = `
+DROP INDEX IF EXISTS idx_inventory_count_lines_location;
+DROP INDEX IF EXISTS idx_inventory_location_transfers_branch;
+DROP INDEX IF EXISTS idx_inventory_location_batch_fefo;
+DROP INDEX IF EXISTS idx_inventory_location_stock_product;
+DROP INDEX IF EXISTS idx_inventory_locations_branch;
+DROP TABLE IF EXISTS inventory_location_transfers;
+DROP TABLE IF EXISTS inventory_location_batch_stock;
+DROP TABLE IF EXISTS inventory_location_stock;
+DROP TABLE IF EXISTS inventory_locations;
+DELETE FROM schema_meta WHERE key = 'inventory.locations.sprint38';
+`;
+
 export const DOWN_0030_SPRINT37_COMMISSIONS = `
 DROP INDEX IF EXISTS idx_commission_payouts_seller;
 DROP INDEX IF EXISTS idx_commission_accruals_seller;

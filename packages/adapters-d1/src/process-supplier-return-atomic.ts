@@ -21,6 +21,7 @@ import {
 } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 
 export interface SupplierReturnLineInput {
   readonly productId: string;
@@ -637,6 +638,13 @@ export async function processSupplierReturnCloseAtomic(
           )
           .bind(sp.qty, sp.qtyMicrounits, sp.newPmp, tenantId, row.branch_id, sp.productId),
       );
+      appendLocationStockDeltaToPlan(builder, db, {
+        tenantId,
+        branchId: row.branch_id,
+        productId: sp.productId,
+        deltaMicrounits: -sp.qtyMicrounits,
+        batchId: sp.batchId,
+      });
       builder.add(
         db
           .prepare(

@@ -31,6 +31,7 @@ import {
 } from './process-store-credit-atomic.js';
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
 import { appendCommissionReverseWithJournal } from './process-commission-atomic.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface ProcessReturnInput {
@@ -529,6 +530,13 @@ export async function processReturnAtomic(
             ),
         );
       }
+      appendLocationStockDeltaToPlan(plan, db, {
+        tenantId,
+        branchId: origin.branch_id,
+        productId: sp.line.productId,
+        deltaMicrounits: qtyMicrounits,
+        batchId: sp.line.batchId,
+      });
       plan.add(
         db
           .prepare(

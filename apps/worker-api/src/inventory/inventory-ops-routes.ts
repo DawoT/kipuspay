@@ -14,6 +14,7 @@ import {
   type StockLossCategory,
   type StockLossStatus,
 } from '@kipuspay/domain-inventory';
+import { appendLocationStockDeltaToPlan, runD1AtomicPlan } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 export function isInventoryOpsEnabled(env: WorkerEnv | undefined): boolean {
@@ -67,7 +68,11 @@ export async function runSubmitCountReviewHttp(
     lines?: readonly {
       productId?: string;
       countedQty?: number;
+      countedQtyMicrounits?: number;
+      locationId?: string;
+      /** @deprecated ignorado: autoridad server-side */
       systemQty?: number;
+      /** @deprecated ignorado: autoridad server-side */
       unitCostCents?: number;
       batchId?: string | null;
     }[];
@@ -79,10 +84,10 @@ export async function runSubmitCountReviewHttp(
   if (!countId) return { status: 400, body: { error: 'countId required', code: 'BAD_REQUEST' } };
 
   const count = await env.DB.prepare(
-    `SELECT status FROM inventory_counts WHERE id = ? AND tenant_id = ? LIMIT 1`,
+    `SELECT status, branch_id FROM inventory_counts WHERE id = ? AND tenant_id = ? LIMIT 1`,
   )
     .bind(countId, tenantId)
-    .first<{ status: InventoryCountStatus }>();
+    .first<{ status: InventoryCountStatus; branch_id: string }>();
   if (!count) return { status: 404, body: { error: 'Count not found', code: 'NOT_FOUND' } };
   try {
     assertCountMutable(count.status);
@@ -94,34 +99,92 @@ export async function runSubmitCountReviewHttp(
     };
   }
 
-  const lines = body.lines ?? [];
+  const clientLines = body.lines ?? [];
+  let lines: {
+    productId: string;
+    batchId: string | null;
+    locationId: string;
+    countedMicrounits: number;
+    systemMicrounits: number;
+    differenceMicrounits: number;
+    unitCostCents: number;
+  }[];
+  try {
+    lines = await Promise.all(
+      clientLines.map(async (line) => {
+        const productId = line.productId?.trim() ?? '';
+        if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
+        const countedMicrounits =
+          line.countedQtyMicrounits ?? Math.round((line.countedQty ?? 0) * 1_000_000);
+        if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
+          throw new Error('COUNT_INVALID_QUANTITY');
+        }
+        const requestedLocationId = line.locationId?.trim() || null;
+        const authority = await env
+          .DB!.prepare(
+            `SELECT COALESCE(s.quantity_microunits, 0) AS quantity_microunits,
+                b.pmp_unit_cost_cents,
+                COALESCE(?, d.id) AS location_id
+         FROM branch_product_stock b
+         LEFT JOIN inventory_locations d
+           ON d.tenant_id = b.tenant_id AND d.branch_id = b.branch_id
+          AND d.code = 'DEFAULT' AND d.is_active = 1
+         LEFT JOIN inventory_location_stock s
+           ON s.tenant_id = b.tenant_id AND s.branch_id = b.branch_id
+          AND s.product_id = b.product_id AND s.location_id = COALESCE(?, d.id)
+         WHERE b.tenant_id = ? AND b.branch_id = ? AND b.product_id = ?
+         LIMIT 1`,
+          )
+          .bind(requestedLocationId, requestedLocationId, tenantId, count.branch_id, productId)
+          .first<{
+            quantity_microunits: number;
+            pmp_unit_cost_cents: number;
+            location_id: string | null;
+          }>();
+        if (!authority?.location_id) throw new Error('COUNT_STOCK_NOT_FOUND');
+        const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+        return {
+          productId,
+          batchId: line.batchId ?? null,
+          locationId: authority.location_id,
+          countedMicrounits,
+          systemMicrounits: authority.quantity_microunits,
+          differenceMicrounits,
+          unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+        };
+      }),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { status: 422, body: { error: message, code: message } };
+  }
   const stmts = [
     ...lines.map((l) => {
-      const counted = l.countedQty ?? 0;
-      const system = l.systemQty ?? 0;
-      const diff = counted - system;
-      const unitCost = l.unitCostCents ?? 0;
       return env
         .DB!.prepare(
           `INSERT INTO inventory_count_lines (
-             id, count_id, product_id, batch_id, counted_qty, counted_qty_microunits,
+             id, tenant_id, branch_id, count_id, location_id, product_id, batch_id,
+             counted_qty, counted_qty_microunits,
              system_qty, system_qty_microunits, difference_qty, difference_qty_microunits,
              unit_cost_cents, diff_value_cents
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           crypto.randomUUID(),
+          tenantId,
+          count.branch_id,
           countId,
-          l.productId ?? '',
-          l.batchId ?? null,
-          counted,
-          Math.round(counted * 1000000),
-          system,
-          Math.round(system * 1000000),
-          diff,
-          Math.round(diff * 1000000),
-          unitCost,
-          Math.round(diff * unitCost),
+          l.locationId,
+          l.productId,
+          l.batchId,
+          l.countedMicrounits / 1_000_000,
+          l.countedMicrounits,
+          l.systemMicrounits / 1_000_000,
+          l.systemMicrounits,
+          l.differenceMicrounits / 1_000_000,
+          l.differenceMicrounits,
+          l.unitCostCents,
+          Math.round((l.differenceMicrounits * l.unitCostCents) / 1_000_000),
         );
     }),
     env.DB.prepare(
@@ -160,11 +223,15 @@ export async function runApproveCountHttp(
   if (!count) return { status: 404, body: { error: 'Count not found', code: 'NOT_FOUND' } };
 
   const lines = await env.DB.prepare(
-    `SELECT product_id, difference_qty, difference_qty_microunits, unit_cost_cents FROM inventory_count_lines WHERE count_id = ?`,
+    `SELECT product_id, batch_id, location_id, difference_qty,
+            difference_qty_microunits, unit_cost_cents
+     FROM inventory_count_lines WHERE count_id = ? AND tenant_id = ?`,
   )
-    .bind(countId)
+    .bind(countId, tenantId)
     .all<{
       product_id: string;
+      batch_id: string | null;
+      location_id: string;
       difference_qty: number;
       difference_qty_microunits: number;
       unit_cost_cents: number;
@@ -247,7 +314,22 @@ export async function runApproveCountHttp(
           ),
       ),
   ];
-  await env.DB.batch(stmts);
+  await runD1AtomicPlan(env.DB, (atomicPlan) => {
+    for (const statement of stmts) atomicPlan.add(statement);
+    for (const line of lines.results ?? []) {
+      const deltaMicrounits =
+        line.difference_qty_microunits ?? Math.round(line.difference_qty * 1_000_000);
+      if (deltaMicrounits === 0) continue;
+      appendLocationStockDeltaToPlan(atomicPlan, env.DB!, {
+        tenantId,
+        branchId: count.branch_id,
+        productId: line.product_id,
+        deltaMicrounits,
+        locationId: line.location_id,
+        batchId: line.batch_id,
+      });
+    }
+  });
   return { status: 200, body: { id: countId, status: 'APPROVED' } };
 }
 /* eslint-enable complexity */
@@ -348,7 +430,7 @@ export async function runApproveStockLossHttp(
     };
   }
 
-  await env.DB.batch([
+  const stockLossStatements = [
     env.DB.prepare(
       `UPDATE stock_losses
        SET status = 'APPROVED', approved_by_user_id = ?, approved_at = CURRENT_TIMESTAMP
@@ -395,7 +477,18 @@ export async function runApproveStockLossHttp(
       userId,
       lossId,
     ),
-  ]);
+  ];
+  const deltaMicrounits = Math.round(plan.adjustmentQty * 1_000_000);
+  await runD1AtomicPlan(env.DB, (atomicPlan) => {
+    for (const statement of stockLossStatements) atomicPlan.add(statement);
+    appendLocationStockDeltaToPlan(atomicPlan, env.DB!, {
+      tenantId,
+      branchId: row.branch_id,
+      productId: row.product_id,
+      deltaMicrounits,
+      batchId: row.batch_id,
+    });
+  });
   return {
     status: 200,
     body: { id: lossId, status: plan.nextStatus, adjustmentQty: plan.adjustmentQty },

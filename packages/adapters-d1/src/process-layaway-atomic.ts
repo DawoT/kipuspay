@@ -23,6 +23,7 @@ import {
   processOfflineSaleAtomic,
   type ProcessOfflineSaleOptions,
 } from './process-offline-sale-atomic.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 import { processReturnAtomic } from './process-return-atomic.js';
 import { resolveServerUnitPriceCents } from './s18-sale-inventory.js';
 
@@ -300,6 +301,13 @@ export async function processLayawayCreateAtomic(
             snap.baseQuantityMicrounits,
           ),
       );
+      appendLocationStockDeltaToPlan(builder, db, {
+        tenantId,
+        branchId: input.branchId,
+        productId: snap.productId,
+        deltaMicrounits: -snap.baseQuantityMicrounits,
+        batchId: snap.batchId,
+      });
       if (snap.batchId) {
         builder.add(
           db
@@ -797,6 +805,13 @@ export async function processLayawayCancelAtomic(
             row.product_id,
           ),
       );
+      appendLocationStockDeltaToPlan(builder, db, {
+        tenantId,
+        branchId: deposit.branch_id,
+        productId: row.product_id,
+        deltaMicrounits: row.base_quantity_microunits,
+        batchId: row.batch_id,
+      });
       if (row.batch_id) {
         builder.add(
           db

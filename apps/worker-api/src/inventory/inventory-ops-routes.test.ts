@@ -19,6 +19,8 @@ function mockDbEnv(
     ownerMode?: boolean;
     first?: (sql: string) => Row | null;
     all?: (sql: string) => Row[];
+    binds?: unknown[][];
+    sqls?: string[];
     noDb?: boolean;
   } = {},
 ): WorkerEnv {
@@ -31,8 +33,12 @@ function mockDbEnv(
   }
 
   const prepare = (sql: string) => {
+    opts.sqls?.push(sql);
     const stmt = {
-      bind: () => stmt,
+      bind: (...values: unknown[]) => {
+        opts.binds?.push(values);
+        return stmt;
+      },
       run: () => Promise.resolve({ success: true }),
       first: () => Promise.resolve(opts.first?.(sql) ?? null),
       all: () => Promise.resolve({ results: opts.all?.(sql) ?? [] }),
@@ -119,7 +125,16 @@ describe('submit count review', () => {
 
   it('pasa a DIFFERENCE_REVIEW', async () => {
     const res = await runSubmitCountReviewHttp(
-      mockDbEnv({ first: () => ({ status: 'COUNTING' }) }),
+      mockDbEnv({
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 10_000_000,
+                pmp_unit_cost_cents: 100,
+                location_id: 'loc-1',
+              },
+      }),
       't1',
       {
         countId: 'c1',
@@ -136,6 +151,39 @@ describe('submit count review', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('DIFFERENCE_REVIEW');
     expect(res.body.lineCount).toBe(1);
+  });
+
+  it('ignora systemQty/costo del cliente y carga autoridad del servidor', async () => {
+    const binds: unknown[][] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 2_000_000,
+                pmp_unit_cost_cents: 125,
+                location_id: 'loc-1',
+              },
+      }),
+      't1',
+      {
+        countId: 'c1',
+        lines: [
+          {
+            productId: 'p1',
+            countedQty: 3,
+            systemQty: 999,
+            unitCostCents: 999,
+          },
+        ],
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(binds.flat()).toContain(2_000_000);
+    expect(binds.flat()).toContain(125);
+    expect(binds.flat()).not.toContain(999);
   });
 });
 
@@ -170,8 +218,10 @@ describe('approve count', () => {
   });
 
   it('aprueba con authz y genera AJUSTE', async () => {
+    const sqls: string[] = [];
     const res = await runApproveCountHttp(
       mockDbEnv({
+        sqls,
         first: () => ({
           status: 'DIFFERENCE_REVIEW',
           difference_threshold_cents: 100,
@@ -185,6 +235,7 @@ describe('approve count', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('APPROVED');
+    expect(sqls.some((sql) => sql.includes('inventory_location_stock'))).toBe(true);
   });
 });
 

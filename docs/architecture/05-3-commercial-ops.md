@@ -36,7 +36,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 20. **Crédito de tienda / vales / gift cards (`ledger.store_credit`, FASE 6C; ADR-0019):** saldo por cliente (solo servidor); venta de vale = venta (doc+cupo); canje impone `min(balance, due)` (0 monto cliente); NC sin reembolso+consent → ISSUE (0 AR/cash); GL **2102** (no 2101); `audit_events` `STORE_CREDIT_ISSUE`/`STORE_CREDIT_REDEEM`.
 21. **Cuotas / pago en partes (`sales.installments`, FASE 6C; ADR-0020):** 1 AR + N cuotas (schedule); Σ principal = saldo; interés COM-06 **no** reduce CxC; pago Zero-Trust + `idempotency_key`; OVERDUE on-read (0 corta caja); `credit_limit` (regla 3); `audit_events` `INSTALLMENT`.
 22. **Comisiones de vendedor (`sales.commissions`, FASE 6C; ADR-0021):** rates→accrual por `seller_id` (servidor); NC setea `reversed_at` (COM-07, 0 DELETE); payout Zero-Trust; GL **6311/2111**; **nómina OOS**; `audit_events` `COMMISSION`.
-23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D):** stock por ubicación/rack dentro de la sucursal; conteo físico por ubicación; transferencia intra-sucursal; picking guiado para OC; el stock "de venta" es la suma por ubicaciones activas.
+23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D; ADR-0022):** `inventory_location_stock` es fuente granular y `branch_product_stock` agregado compatible (`branch = Σ ubicaciones activas`, INTEGER microunits); dual-write en el mismo batch incluso con flag UI off; `DEFAULT` determinista para backfill/oversell; lotes multi-rack; conteo esperado server-side; transferencia intra-sucursal idempotente conserva agregado/PMP y audita `LOCATION_TRANSFER`; picking guiado OC.
 24. **Números de serie (`inventory.serials`, FASE 6D):** asignación en recepción, venta con `serial_number` por `sale_item`, devolución revierte la serie a disponible; garantía/audit; duplicados = 422; `audit_events` `SERIAL_ASSIGN`.
 25. **Venta por peso variable (`inventory.scale`, FASE 6D):** captura de peso en caja (balanza USB o manual), precio por unidad de base, redondeo de monto en servidor; el peso lo fija la caja pero el precio/monto final lo recalcula el servidor. **Heartbeat anti desconexión silenciosa (edge 2C):** el Staff Hardware mantiene un **heartbeat continuo** hacia la balanza (WebUSB); si la conexión se pierde (suspensión de la tablet, cable movido), el POS **nunca lee 0.00 silencioso** — cambia de inmediato a una interfaz **roja "Peso Manual"** que exige al cajero teclear el peso para poder cobrar; si el peso se teclea manualmente, se registra `WEIGHT_OVERRIDE` en `audit_events` y, si supera el umbral del tenant, requiere **PIN de supervisor** (reusa authz de reglas 2/17) antes de continuar.
 26. **Etiquetas de precio/estantería (`catalog.price_labels`, FASE 6D):** plantillas de etiqueta (producto, precio vigente según lista, código de barras) impresas vía `PrinterTransport` (§7.5); reimpresión en lote; nunca edita precios, solo los imprime.
@@ -328,7 +328,7 @@ CREATE TABLE sale_reprints (
 |---|---|
 | Base (FASE 6, sprints 17–20) | `DISCOUNT_OVERRIDE`, `CREDIT_OVERRIDE`, `CASH_CLOSE`, `VOID`, `NC`, `FORMALIZATION_CHANGE`, `ORDER_ITEM_CANCEL`, `TRANSFER_VARIANCE` + `PRICE_CHANGE`, `PRODUCT_EDIT`, `PERMISSION_CHANGE`, `REPRINT`, `STOCK_ADJUST`, `MERMA_APPROVE`, `CASH_MOVEMENT`, `CONFIG_CHANGE` |
 | FASE 6B (28–32) | `RETURN`, `SUPPLIER_PRICE_DIFF`, `PROMOTION_CHANGE`, `LAYAWAY_CANCEL`, `JOURNAL_POST` |
-| FASE 6C-6F (33–49) | `QUOTE_CREATE`, `QUOTE_SEND`, `QUOTE_APPROVE`, `QUOTE_CANCEL`, `QUOTE_CONVERT`, `QUOTE_EXPIRE`, `SUPPLIER_RETURN`, `STORE_CREDIT_ISSUE`, `STORE_CREDIT_REDEEM`, `INSTALLMENT`, `COMMISSION`, `SERIAL_ASSIGN`, `WEIGHT_OVERRIDE`, `PRICE_LABEL_REPRINT`, `DATA_BACKUP`, `DATA_RESTORE`, `CUSTOMER_ORDER_CANCEL`, `RECURRING_CANCEL`, `FORECAST_*`, `LPDP_ERASE`, `DR_SIMULATION` |
+| FASE 6C-6F (33–49) | `QUOTE_CREATE`, `QUOTE_SEND`, `QUOTE_APPROVE`, `QUOTE_CANCEL`, `QUOTE_CONVERT`, `QUOTE_EXPIRE`, `SUPPLIER_RETURN`, `STORE_CREDIT_ISSUE`, `STORE_CREDIT_REDEEM`, `INSTALLMENT`, `COMMISSION`, `LOCATION_TRANSFER`, `SERIAL_ASSIGN`, `WEIGHT_OVERRIDE`, `PRICE_LABEL_REPRINT`, `DATA_BACKUP`, `DATA_RESTORE`, `CUSTOMER_ORDER_CANCEL`, `RECURRING_CANCEL`, `FORECAST_*`, `LPDP_ERASE`, `DR_SIMULATION` |
 | Sprint 24 (edge A, fidelidad) | `LOYALTY_RESERVATION_EXPIRED` |
 | Sprint 49 (insights) | `INSIGHT_GENERATED`, `AI_QUOTA_EXCEEDED` |
 | FASE 6G (50–53) | `SHIFT_TRANSFER`, `TEAM_INVITE`, `QUICK_ADD`, `GENERIC_LINE`, `HARDWARE_DIAG` |
@@ -720,21 +720,34 @@ CREATE TABLE commission_accruals (
 ```sql
 -- FASE 6D / Sprint 38 — ubicaciones/racks
 CREATE TABLE inventory_locations (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     tenant_id TEXT NOT NULL,
     branch_id TEXT NOT NULL,
     code TEXT NOT NULL,                   -- 'A-01', 'B-02'...
     name TEXT,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    UNIQUE (tenant_id, branch_id, code)
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
+    UNIQUE (tenant_id, id), UNIQUE (tenant_id, branch_id, id),
+    UNIQUE (tenant_id, branch_id, code),
+    FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id)
 );
 CREATE TABLE inventory_location_stock (
     tenant_id TEXT NOT NULL,
     branch_id TEXT NOT NULL,
     location_id TEXT NOT NULL,
     product_id TEXT NOT NULL,
-    qty REAL NOT NULL DEFAULT 0,
-    PRIMARY KEY (tenant_id, branch_id, location_id, product_id)
+    quantity_microunits INTEGER NOT NULL DEFAULT 0,
+    version INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (tenant_id, branch_id, location_id, product_id),
+    FOREIGN KEY (tenant_id, branch_id, location_id) REFERENCES inventory_locations(tenant_id, branch_id, id),
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id)
+);
+CREATE TABLE inventory_location_batch_stock (
+    tenant_id TEXT NOT NULL, branch_id TEXT NOT NULL, location_id TEXT NOT NULL,
+    product_id TEXT NOT NULL, batch_id TEXT NOT NULL,
+    quantity_microunits INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (tenant_id, branch_id, location_id, product_id, batch_id),
+    FOREIGN KEY (tenant_id, branch_id, location_id, product_id) REFERENCES inventory_location_stock(tenant_id, branch_id, location_id, product_id),
+    FOREIGN KEY (tenant_id, batch_id) REFERENCES inventory_batches(tenant_id, id)
 );
 
 -- FASE 6D / Sprint 39 — números de serie

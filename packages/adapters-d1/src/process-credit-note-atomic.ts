@@ -14,6 +14,7 @@ import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { loadChartAccountsByCode } from './journal-post.js';
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
 import { appendCommissionReverseWithJournal } from './process-commission-atomic.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface CreditNoteResult {
@@ -230,6 +231,12 @@ export async function processCreditNoteAtomic(
           )
           .bind(restore, restoreMicrounits, tenantId, origin.branch_id, item.productId),
       );
+      appendLocationStockDeltaToPlan(plan, db, {
+        tenantId,
+        branchId: origin.branch_id,
+        productId: item.productId,
+        deltaMicrounits: restoreMicrounits,
+      });
     }
 
     if (arCompensate) {

@@ -14,6 +14,7 @@ import {
 } from '@kipuspay/domain-sales';
 import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 
 export interface OrderBillingPortionInput {
   readonly saleId: string;
@@ -240,6 +241,12 @@ export async function processOrderBillingAtomic(
           )
           .bind(qty, qtyMicrounits, tenantId, order.branch_id, delta.productId, qtyMicrounits),
       );
+      appendLocationStockDeltaToPlan(plan, db, {
+        tenantId,
+        branchId: order.branch_id,
+        productId: delta.productId,
+        deltaMicrounits: -qtyMicrounits,
+      });
       plan.add(
         db
           .prepare(

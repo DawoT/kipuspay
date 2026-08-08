@@ -65,6 +65,7 @@ import {
 } from './process-store-credit-atomic.js';
 import { appendInstallmentPlanToBatch } from './process-installment-atomic.js';
 import { appendCommissionAccrualToBatch } from './process-commission-atomic.js';
+import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
@@ -1363,6 +1364,12 @@ export async function processOfflineSaleAtomic(
               ),
           );
         }
+        appendLocationStockDeltaToPlan(plan, db, {
+          tenantId,
+          branchId: payload.branchId,
+          productId,
+          deltaMicrounits: isReturn ? qtyMicrounits : -qtyMicrounits,
+        });
         const fefoAllocs = fefoByProduct.get(productId);
         if (fefoAllocs && !isReturn) {
           for (const alloc of fefoAllocs) {
