@@ -29,6 +29,7 @@ owner: "@DawoT"
 | §5.4 | Ecosistema Perú: puertos de integración | [`architecture/05-4-ecosystem-ports.md`](architecture/05-4-ecosystem-ports.md) | 155 |
 | §5.5 | DDL base v8.0 (104 tablas) | [`architecture/05-5-ddl-base.md`](architecture/05-5-ddl-base.md) | 540 |
 | §5.6 | Identidad serial, historial y asignación offline | [`architecture/05-6-inventory-serials.md`](architecture/05-6-inventory-serials.md) | 139 |
+| §5.7 | Peso variable, transporte de balanza y reconciliación | [`architecture/05-7-inventory-scale.md`](architecture/05-7-inventory-scale.md) | 159 |
 | §6 | Motor de transacciones ACID y reconciliación | [`architecture/06-acid-engine.md`](architecture/06-acid-engine.md) | 787 |
 | §7 | Chunked Sync Dispatcher y descarga computacional | [`architecture/07-sync-offloading.md`](architecture/07-sync-offloading.md) | 145 |
 | §8 | NC/ND, baja, devoluciones y DLQ fiscal | [`architecture/08-credit-notes-dlq.md`](architecture/08-credit-notes-dlq.md) | 115 |
@@ -106,6 +107,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | SYN-08 | §6 | LWW en reloj de servidor |
 | SYN-11 | §1 (Principio 10)/§5.2 | Consolidación de cliente single-writer + RC complementaria |
 | SYN-12 | §6 | Contrato de atomicidad D1 |
+| SYN-13 | §5.7 | Peso entero, heartbeat fail-closed y reconciliación autoritativa |
 | ADR-ARCH-002 | §1.1 | Capability model vs `vertical_type` |
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas |

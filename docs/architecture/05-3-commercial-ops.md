@@ -754,16 +754,8 @@ CREATE TABLE inventory_location_batch_stock (
 -- DDL canónico movido a §5.6 (ADR-0023) para mantener una única definición.
 
 -- FASE 6D / Sprint 40 — venta por peso variable
--- sale_items.qty REAL (ya existente) es la base; para productos type 'WEIGH':
-CREATE TABLE weight_measurements (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    sale_item_id TEXT NOT NULL,
-    weight REAL NOT NULL,                 -- unidades base (kg)
-    unit_price_per_base_cents INTEGER NOT NULL,
-    override_reason TEXT,                 -- solo con authz (WEIGHT_OVERRIDE)
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+-- Contrato y DDL canónicos movidos a §5.7 (ADR-0024): INTEGER microunits,
+-- producto WEIGH stock-tracked y una medición exacta por sale_item.
 
 -- FASE 6D / Sprint 41 — etiquetas de precio
 CREATE TABLE price_label_templates (

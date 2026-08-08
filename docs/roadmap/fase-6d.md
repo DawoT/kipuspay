@@ -45,7 +45,7 @@ sprints: "38–42"
 
 #### Sprint 40 — Venta por peso variable (balanza)
 **Capabilities:** `inventory.scale`  
-**Referencia:** Arquitectura §5.3 regla 25 · **Agentes:** Staff Frontend (owner), Staff Hardware (balanza USB), Staff Backend ACID
+**Referencia:** Arquitectura §5.7 regla 25 · ADR-0024 · **Agentes:** Staff Frontend (owner), Staff Hardware (balanza USB), Staff Backend ACID
 
 **Entregables:**
 - Captura de peso en caja (balanza USB o manual) para `product_type = WEIGH`; precio por unidad de base; redondeo de monto en servidor.
