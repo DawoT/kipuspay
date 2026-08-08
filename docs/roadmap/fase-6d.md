@@ -78,17 +78,18 @@ QG: `docs/ops/s41-price-labels-qg.md`.
 ---
 
 #### Sprint 42 — Export / restore total del negocio
+**Estado:** Software GREEN local condicionado; claim/producción/cutover NO-GO hasta staging real y firma A+V independiente
 **Capabilities:** `data.backup`  
 **Referencia:** Arquitectura §5.9 regla 27 · ADR-0026; respalda GTM §5.7.1 ("tus datos son tuyos") sin desbloquear el claim · **Agentes:** Staff SRE (owner), Staff Data, Staff Security, Staff Growth (copy)
 
 **Entregables:**
 - KPBK1: export BUSINESS de D1 + objetos R2 referenciados, versionado y cifrado por envoltura KMS + restore **solo dry-run**; no bloquea la caja.
-- Registry exhaustivo BUSINESS/DERIVED/EPHEMERAL/SECRET y exclusiones manifestadas; migración objetivo 0035. Restore apply queda en Sprint 48.
-- RPO/RTO base (eslabón de Sprint 48); borrado de export del tenant a pedido (LPDP, Sprint 47).
+- Registry exhaustivo BUSINESS/DERIVED/EPHEMERAL/SECRET y exclusiones manifestadas; migración 0035. Restore apply, cutover y rollback de datos quedan en Sprint 48.
+- Instrumentación base para medir RPO/RTO en Sprint 48; sin objetivo operativo medido en S42. Borrado LPDP pertenece a Sprint 47 y no se promete como inmediato.
 
 **Criterios de aceptación:** contenido decrypted/hash KPBK1 reproducible para el mismo epoch y ciphertext aleatorio entre backups; restore dry-run hace 0 escrituras BUSINESS D1/R2; 0 secreto/clave en claro en D1/R2; registry sin tablas tenant no clasificadas, incluidos hijos legacy; la caja nunca se detiene durante backup/retry/abort.
 
-**Quality Gate:** baseline contractual RED no cierra el sprint. Staff Security + Staff SRE cierran solo con GREEN, evidencia runtime y firma independiente; Staff Growth actualiza claim "exporta todo tu historial" solo después de ese gate. Restore apply y claim DR permanecen bloqueados hasta Sprint 48.
+**Quality Gate:** software GREEN con evidencia automatizada local en `docs/ops/s42-data-backup-qg.md`; la Security Review encontró 1 HIGH + 3 MEDIUM, remediados con tests, sin segunda revisión limpia. Capability default-off. Staging Cloudflare/R2/Workflow/Secrets/KMS real y firma humana A+V independiente siguen pendientes; por tanto Staff Growth mantiene congelado “exporta todo tu historial sincronizado”. Restore apply, cutover, RPO/RTO y claim DR permanecen bloqueados hasta Sprint 48.
 
 ---
 

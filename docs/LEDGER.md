@@ -5857,3 +5857,48 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 ```
 
+```
+id: 0312
+timestamp_utc: 2026-08-08T22:06:45Z
+schema_version: 2
+sprint_fase: Sprint 42 — FASE 6D (data.backup)
+agente_responsable: Staff SRE / Staff Data / Staff Security / Staff Principal / Staff Growth
+tipo: Implementacion de capability
+subtipo: quality-gate-condicionado
+relacion: IMPLEMENTA
+referencias_entradas: [0311]
+referencias_documentales: [docs/ops/s42-data-backup-qg.md, docs/runbooks/backup-restore-incident.md, docs/adr/ADR-0026-kpbk1-backup-envelope.md, docs/architecture/05-9-data-backup.md, docs/roadmap/fase-6d.md, docs/GTM.md]
+prev_id: 0311
+prev_hash: 95b7240eef927e4cefa2dcbba1f05f07a8a433a71c17ac15d375b9b0a294aef4
+entry_hash: fbfaf15f376fb7d9629a821df93f382ffd3f685dea977d59b71708247f1a59c0
+ticket_or_adr: ADR-0026, Roadmap Sprint 42, DDL 0035, DAT-12
+test_ids: [data-backup-contract, data-backup.integration, data-backup-client, data-backup-page, data-backup-chaos, kms, V-20, SUITE]
+entregable_afectado: Sprint 42 data.backup software GREEN local; claim/produccion/cutover NO-GO
+descripcion: >
+  Implementa export KPBK1 de datos BUSINESS D1 y objetos R2 referenciados con registry
+  exhaustivo, hashes canonicos, cifrado de envoltura KMS, snapshot por epoch, multipart
+  idempotente, descarga verificada y restore exclusivamente dry-run con cero escrituras.
+  Mantiene venta, sync y cierre Z disponibles, capability default-off y restore apply
+  reservado a Sprint 48. El claim permanece condicionado a staging real y A+V independiente.
+evidencia: >
+  RED 43d53d34465d0a79d43bcfb853412035fcbfec27: contratos fallaban por ausencia o
+  incompletitud de implementacion productiva KPBK1, DAT-12/0035, epoch, R2/Workflow/KMS,
+  POS y chaos. Implementacion intermedia 26ecfcb294edffb3f3f0a7f598a6db3400c4e440.
+  GREEN acdd25443957269437a079179df6c9ca0ab00228: 542 Worker, 92 POS, 2 KMS,
+  adapters 252 unit + 147 integration, monorepo 34/34, dominio 106 con 99.37% lineas/
+  95.06% ramas, chaos 91 tests/97.16% lineas y 500 ciclos locales deterministas;
+  scripts/quality.sh Quality Gate OK y bundle POS 120.75 kB gzip. Security Review
+  encontro 1 HIGH + 3 MEDIUM, remediados con tests en GREEN; no hubo segunda revision
+  limpia. Sin Cloudflare staging, bindings externos, restore cutover, RPO/RTO, borrado
+  LPDP inmediato ni firma humana independiente A+V: produccion y claim siguen NO-GO.
+red_commit_sha: 43d53d34465d0a79d43bcfb853412035fcbfec27
+red_run_id: run-red-s42-kpbk1-contract-43d53d3
+expected_failure: Implementacion productiva incompleta para KPBK1 DAT-12 epoch dry-run zero-write y chaos sin bloqueo POS
+green_commit_sha: acdd25443957269437a079179df6c9ca0ab00228
+green_run_id: run-green-s42-security-quality-acdd254
+ancestry_verified: true
+aprobaciones: [Staff SRE R software local, Staff Data R software local, Staff Security remediacion sin segunda review, Staff Principal A pendiente externa, Staff Security/QA V independiente pendiente externa, Staff Growth/PM Claim NO-GO]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```
+
