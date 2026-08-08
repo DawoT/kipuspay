@@ -77,7 +77,7 @@ owner: "@DawoT"
 | 37 | 6C | Actualizada (sales.commissions + GTM-23) | Cerrado |
 | 38 | 6D | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial) | Cerrado |
 | 39–42 | 6D | Actualizada (FASE 6D reglas 24–27) | Planificado |
-| 43–45 | 6E | Actualizada (regla 28 en §5.10/ADR-0027; reglas 29–30 en §5.3; S43 baseline RED) | Planificado |
+| 43–45 | 6E | Actualizada (S43 software GREEN local condicionado; reglas 29–30 S44–45 en §5.3) | S43 claim/producción NO-GO; S44–45 planificados |
 | 46–48 | 6F | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |

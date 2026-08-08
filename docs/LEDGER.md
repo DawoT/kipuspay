@@ -5902,3 +5902,50 @@ estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
 
+```
+id: 0313
+timestamp_utc: 2026-08-08T23:41:13Z
+schema_version: 2
+sprint_fase: Sprint 43 — FASE 6E (orders.customer_orders)
+agente_responsable: Staff Frontend / Staff Backend ACID / Staff Security / Staff QA / Staff PM
+tipo: Implementacion de capability
+subtipo: quality-gate-condicionado
+relacion: IMPLEMENTA
+referencias_entradas: [0312]
+referencias_documentales: [docs/ops/s43-customer-orders-qg.md, docs/runbooks/customer-order-reservation-incident.md, docs/adr/ADR-0027-customer-order-reservation.md, docs/architecture/05-10-customer-orders.md, docs/roadmap/fase-6e.md, docs/GTM.md]
+prev_id: 0312
+prev_hash: fbfaf15f376fb7d9629a821df93f382ffd3f685dea977d59b71708247f1a59c0
+entry_hash: 0e9303d40a1c631c7452b81097c63ca21a494b7cc398aca6465b27e0de5c474a
+ticket_or_adr: ADR-0027, Roadmap Sprint 43, DDL 0036, COM-05, COM-09, DAT-12, SYN-12
+test_ids: [packages/domain-sales/src/customer-orders.red.test.ts, packages/adapters-d1/src/customer-orders-schema.test.ts, packages/adapters-d1/src/customer-orders-workerd.red.integration.test.ts, apps/worker-api/src/orders/customer-order-routes.red.test.ts, apps/pos-web/src/lib/customer-orders/customer-order-page.red.test.ts, apps/pos-web/tests/e2e/customer-orders.spec.ts, packages/chaos-harness/src/customer-orders.red.test.ts, V-20, SUITE]
+entregable_afectado: Sprint 43 orders.customer_orders software GREEN local; claim/produccion/piloto NO-GO
+descripcion: >
+  Implementa pedidos de cliente con reserva conservativa, migracion/down protegida
+  0036 DAT-12, transiciones ACID D1, dimensiones de stock, snapshot de precio, lease
+  offline idempotente, aviso durable, rutas autenticadas, UI y chaos. Mantiene checkout
+  ordinario/offline disponible, capability default-off y push reservado a Sprint 45.
+  El claim GTM-24 y rollout permanecen condicionados a evidencia humana y externa.
+evidencia: >
+  RED 748729800881accfdbe02b76673bf5217225fb23: contratos fallaban por ausencia
+  explicita de migracion 0036, dominio, ACID/workerd, rutas, UI, cola offline y chaos.
+  GREEN 1957d05a8c1bf42c0cc5be91119b22cc8592d1d6: 565 Worker, adapters 261 unit
+  + 176 workerd integration, 127 POS, 95 chaos y 201 domain con 99.86% lineas/96.30%
+  ramas; 500 ciclos locales balanceados y benchmark p95 1.55 ms/maximo 3.99 ms <50 ms;
+  Playwright con /usr/bin/google-chrome 5/5 y bundle POS 129.5 kB gzip. El primer
+  quality encontro un timeout de reportes no relacionado; retry enfocado y rerun
+  completo dieron Quality Gate OK. Security Review encontro 3 MEDIUM: lectura
+  cross-branch, cancel/expire supervisor cross-branch y terminal spoofed sin sesion
+  activa; todos remediados en GREEN con tests negativos, sin segunda revision limpia.
+  Sin staging/entrega externa WhatsApp ni QA humana + aprobacion PM A+V: software
+  GREEN local, claim/produccion/piloto NO-GO; no se promete WhatsApp ni push.
+red_commit_sha: 748729800881accfdbe02b76673bf5217225fb23
+red_run_id: run-red-s43-customer-orders-7487298
+expected_failure: AssertionError por ausencia de DDL 0036 y produccion para reserva conservativa ACID offline avisos y aislamiento tenant branch terminal
+green_commit_sha: 1957d05a8c1bf42c0cc5be91119b22cc8592d1d6
+green_run_id: run-green-s43-security-quality-1957d05
+ancestry_verified: true
+aprobaciones: [Staff Frontend R software local, Staff Backend ACID R software local, Staff Security remediacion sin segunda review, Staff QA V humana pendiente, Staff PM A pendiente, Staff Growth Claim NO-GO]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```
+

@@ -12,18 +12,19 @@ sprints: "43–45"
 > Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Pedido de cliente: Arquitectura §5.10; reglas 29–30: §5.3. **Capabilities, no forks** (ADR-ARCH-002).
 
 #### Sprint 43 — Preventa / pedido a cliente con retiro
+**Estado:** Software GREEN local condicionado; claim/producción/piloto NO-GO hasta QA humana, aprobación PM, firmas A+V y piloto externo de entrega
 **Capabilities:** `orders.customer_orders`  
-**Referencia:** Arquitectura §5.10 regla 28 · ADR-0027 · GTM-24 congelado · **Agentes:** Staff Frontend (owner), Staff Backend ACID, Staff Mobile (aviso)
+**Referencia:** Arquitectura §5.10 regla 28 · ADR-0027 · GTM-24 congelado/condicionado · QG `docs/ops/s43-customer-orders-qg.md` · **Agentes:** Staff Frontend (owner), Staff Backend ACID, Staff Mobile (aviso)
 
 **Entregables:**
-- Baseline de gobernanza y tests contractuales RED para `customer_orders`, ítems, fulfillments y avisos; target DDL 0036, sin migración ni módulos/rutas/UI/chaos de producción.
+- Implementación local GREEN de `customer_orders`, ítems, fulfillments y avisos; migración/down protegida 0036 DAT-12, dominio, ACID D1, rutas, UI, offline, E2E y chaos.
 - Pedido reserva ítems **sin pago previo, venta ni CPE**; parciales múltiples reutilizan esa reserva sin segundo descuento. Snapshot válido gana; expirado libera primero y una venta nueva usa pricing actual con autorización de supervisor.
-- Intención durable/auditable antes de expiry release; WhatsApp opcional por capability, fallback operacional in-app y push garantizado solo en Sprint 45. Fallo de transporte no bloquea caja ni retiene stock indefinidamente.
+- Intención durable/auditable antes de expiry release; fallback operacional in-app. WhatsApp carece de piloto externo y no se promete; push permanece en Sprint 45. Fallo de transporte no bloquea caja ni retiene stock indefinidamente.
 - Lease/envelope offline server-minted, tenant/order/branch/terminal scoped, TTL acotado, one-shot e idempotente; reconciliación autoritativa server-side.
 
-**Criterios de aceptación del baseline:** RED por ausencia explícita de producción, no por sintaxis; cubre cross-tenant, replay/doble fulfill, carreras fulfill-cancel-expire, parciales, lote/ubicación/serie/UOM, drift/approval, aviso duplicado/fallido, audit chain, cero CPE/pago al crear y cero bloqueo de checkout. “Tenant requiere pedido” solo aplica al flujo de retiro y nunca a venta ordinaria/offline.
+**Criterios de aceptación:** RED→GREEN con ancestría verificada; cubre cross-tenant/cross-branch, terminal sin sesión activa, replay/doble fulfill, carreras fulfill-cancel-expire, parciales, lote/ubicación/serie/UOM, drift/approval, aviso duplicado/fallido, audit chain, cero CPE/pago al crear y cero bloqueo de checkout. “Tenant requiere pedido” solo aplica al flujo de retiro y nunca a venta ordinaria/offline.
 
-**Quality Gate:** permanece abierto. Staff QA + Staff PM; Staff Growth no descongela GTM-24 hasta GREEN, chaos 500, evidencia runtime y firmas A+V.
+**Quality Gate:** software GREEN local: suites finales, Playwright 5/5 con Chrome local, chaos 500, benchmark p95 1.55 ms/máximo 3.99 ms <50 ms, `scripts/quality.sh` OK tras retry de un timeout no relacionado y tres MEDIUM remediados con tests negativos. No hubo segunda Security Review limpia, staging ni entrega externa de WhatsApp, ni firmas humanas Staff QA + Staff PM A+V. Capability default-off; Staff Growth mantiene GTM-24 congelado/condicionado y producción/piloto NO-GO. Push sigue siendo frontera de Sprint 45.
 
 ---
 
