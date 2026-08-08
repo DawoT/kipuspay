@@ -5612,3 +5612,39 @@ aprobaciones: [Staff Domain A, Staff Backend ACID A, Staff Security A, Staff QA 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0306
+timestamp_utc: 2026-08-08T16:35:00Z
+schema_version: 2
+sprint_fase: Sprint 38 — FASE 6D (inventory.locations) cierre registral
+agente_responsable: Staff Principal / Staff Backend ACID / Staff QA
+tipo: Correccion de registro
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0305]
+referencias_documentales: [docs/ops/s38-inventory-locations-qg.md, docs/adr/ADR-0022-inventory-location-authority.md, docs/roadmap/fase-6d.md]
+prev_id: 0305
+prev_hash: 28f651ec91c5b8151a71e7321dbe5ea1d2213301d4960264c5c60e41953d87d6
+entry_hash: fcc0c1d17acbef7d77fd0bb26fbff6fe158cfbf35f9c0ebdd6fbdc0071e53b97
+ticket_or_adr: ADR-0022, Roadmap Sprint 38, DDL 0031
+test_ids: [locations, inventory-location, schema.integration, inventory-ops-routes]
+entregable_afectado: Sprint 38 inventory.locations GOV-APROBADO — SHA de cierre real
+descripcion: >
+  Corrige el green_commit_sha de 0305: las remediaciones Staff y el cierre registral
+  completo de Sprint 38 quedaron versionados en 252a02f408c83dfd7df5b0cf25d9dae161e516bd.
+  No altera alcance, evidencia, firmas ni estado del gate.
+evidencia: >
+  Baseline limpio en feat/implementation-quality; 2bd7e3e es ancestro de 252a02f;
+  scripts/verify.sh SUITE GREEN y scripts/quality.sh Quality Gate OK ejecutados antes
+  de iniciar Sprint 39.
+red_commit_sha: 2bd7e3e4e6c583c859ef01d4b5fc2a8ced935d25
+red_run_id: run-red-0306-s38-closure-sha-stale
+expected_failure: La entrada 0305 apuntaba a 2bd7e3e y no al commit que contiene sus remediaciones y cierre
+green_commit_sha: 252a02f408c83dfd7df5b0cf25d9dae161e516bd
+green_run_id: run-green-0306-s38-baseline-20260808T1635Z
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
