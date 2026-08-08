@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  createPriceLabelTransportLadder,
   createPriceLabelWebUsbTransport,
   createPriceLabelWssTransport,
 } from './price-label-transports.js';
@@ -51,7 +52,7 @@ describe('Sprint 41 PrinterTransport adapters', () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
-  it('WSS requires paired allowlisted hosts and per-item ACK', async () => {
+  it('WSS requires paired allowlisted hosts and per-item ACK', () => {
     expect(() =>
       createPriceLabelWssTransport({
         url: 'ws:' + '//printer.local',
@@ -85,5 +86,53 @@ describe('Sprint 41 PrinterTransport adapters', () => {
       'PRINTER_RECONNECT_REQUIRED',
     );
     vi.useRealTimers();
+  });
+
+  it('WSS sends a bounded binary item and accepts only its matching ACK', async () => {
+    let onMessage: ((event: { data?: unknown }) => void) | undefined;
+    const send = vi.fn();
+    const transport = createPriceLabelWssTransport({
+      url: 'wss://printer.local',
+      allowlistedHosts: ['printer.local'],
+      randomBytes: (length) => new Uint8Array(length).fill(0xab),
+      socketFactory: () => ({
+        send,
+        close: vi.fn(),
+        addEventListener(type, listener) {
+          if (type === 'message') onMessage = listener;
+        },
+      }),
+    });
+    const pending = transport.send('item-9', new Uint8Array([1, 2]));
+    let settled = false;
+    void pending.then(() => {
+      settled = true;
+    });
+    expect(send.mock.calls[0]?.[0]).toBeInstanceOf(Uint8Array);
+    onMessage?.({ data: JSON.stringify({ type: 'ACK', itemId: 'other' }) });
+    onMessage?.({ data: JSON.stringify({ type: 'ACK', itemId: 'item-9', nonce: 'stale' }) });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    onMessage?.({
+      data: JSON.stringify({
+        type: 'ACK',
+        itemId: 'item-9',
+        nonce: 'abababababababababababababababab',
+      }),
+    });
+    await expect(pending).resolves.toBe('ACK');
+  });
+
+  it('fails back deterministically without reversing completed commerce', async () => {
+    const systemPrint = vi.fn(() => Promise.resolve());
+    const ladder = createPriceLabelTransportLadder({
+      webusb: { send: vi.fn(() => Promise.reject(new Error('USB_GONE'))) },
+      wss: { send: vi.fn(() => Promise.reject(new Error('LAN_GONE'))) },
+      systemPrint,
+    });
+    await expect(ladder.send('item-1', new Uint8Array([1]))).resolves.toEqual({
+      ack: 'ACK',
+      adapter: 'system_print',
+    });
   });
 });

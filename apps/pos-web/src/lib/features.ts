@@ -192,3 +192,8 @@ export function isInventoryLocationsEnabled(): boolean {
 export function isInventorySerialsEnabled(): boolean {
   return flagOn(pub(PF + 'INVENTORY_SERIALS'));
 }
+
+/** Sprint 41 — etiquetas de precio confiables desde snapshot servidor. */
+export function isCatalogPriceLabelsEnabled(): boolean {
+  return flagOn(pub(PF + 'CATALOG_PRICE_LABELS'));
+}

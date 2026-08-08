@@ -65,6 +65,10 @@ import {
   type InventoryScaleHeartbeatChaosResult,
 } from './inventory-scale-heartbeat.js';
 import {
+  runPriceLabelPrintingChaosScenario,
+  type PriceLabelPrintingChaosResult,
+} from './price-label-printing.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -102,6 +106,7 @@ export type ChaosScenarioId =
   | 'inventory-location-conservation'
   | 'inventory-serial-assignment'
   | 'inventory-scale-heartbeat'
+  | 'price-label-printing'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -131,6 +136,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'inventory-location-conservation': 38,
   'inventory-serial-assignment': 39,
   'inventory-scale-heartbeat': 40,
+  'price-label-printing': 41,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -187,6 +193,7 @@ export interface ChaosDeps {
   readonly runInventoryLocationConservation?: () => Promise<InventoryLocationChaosResult>;
   readonly runInventorySerialAssignment?: () => Promise<InventorySerialChaosResult>;
   readonly runInventoryScaleHeartbeat?: () => Promise<InventoryScaleHeartbeatChaosResult>;
+  readonly runPriceLabelPrinting?: () => Promise<PriceLabelPrintingChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -291,6 +298,8 @@ async function dispatchReadyScenario(
       return runInventorySerialAssignmentChaosScenario(deps.runInventorySerialAssignment);
     case 'inventory-scale-heartbeat':
       return runInventoryScaleHeartbeatChaosScenario(deps.runInventoryScaleHeartbeat);
+    case 'price-label-printing':
+      return runPriceLabelPrintingChaosScenario(deps.runPriceLabelPrinting);
     default:
       return Promise.reject(
         new Error(
@@ -443,3 +452,10 @@ export {
   runInventoryScaleHeartbeatChaosScenario,
   type InventoryScaleHeartbeatChaosResult,
 } from './inventory-scale-heartbeat.js';
+
+export {
+  judgePriceLabelPrinting,
+  runPriceLabelPrintingChaos,
+  runPriceLabelPrintingChaosScenario,
+  type PriceLabelPrintingChaosResult,
+} from './price-label-printing.js';

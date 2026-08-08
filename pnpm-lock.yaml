@@ -265,6 +265,9 @@ importers:
       '@kipuspay/domain-sales':
         specifier: workspace:*
         version: link:../domain-sales
+      '@kipuspay/print-templates':
+        specifier: workspace:*
+        version: link:../print-templates
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.20.1

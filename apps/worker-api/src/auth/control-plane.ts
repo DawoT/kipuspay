@@ -71,6 +71,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_INVENTORY_SERIALS?: string;
   /** Sprint 40: peso variable y balanza. */
   readonly FEATURE_INVENTORY_SCALE?: string;
+  /** Sprint 41: etiquetas de precio autoritativas. */
+  readonly FEATURE_CATALOG_PRICE_LABELS?: string;
   /** Sprint 18 inventory capabilities. */
   readonly FEATURE_INVENTORY_BATCHES?: string;
   readonly FEATURE_INVENTORY_BOM?: string;

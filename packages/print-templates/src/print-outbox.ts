@@ -4,6 +4,7 @@
  */
 
 export type PrintJobStatus = 'PENDING' | 'PRINTED' | 'FAILED';
+export type PrintJobKind = 'SALE_TICKET' | 'PRICE_LABEL_BATCH';
 
 export type PrinterStrategy = 'webusb' | 'wss_lan' | 'bluetooth' | 'system_print' | 'whatsapp';
 
@@ -26,6 +27,10 @@ export interface PrintTicketSnapshot {
 }
 
 export interface PrintJobRecord {
+  /** Generic identity. Legacy ticket producers may continue using saleId only. */
+  readonly jobId?: string;
+  readonly kind?: 'SALE_TICKET';
+  readonly blocksCashClose?: true;
   readonly saleId: string;
   readonly ticket: PrintTicketSnapshot;
   /** Bytes ESC/POS (base64 en IDB); null = recompilar. */
@@ -36,6 +41,24 @@ export interface PrintJobRecord {
   readonly enqueuedAtMs: number;
   readonly updatedAtMs: number;
 }
+
+export interface PriceLabelPrintItemRecord {
+  readonly itemId: string;
+  readonly payloadBase64: string;
+  readonly status: PrintJobStatus;
+  readonly lastError: string | null;
+}
+
+export interface PriceLabelPrintJobRecord {
+  readonly jobId: string;
+  readonly kind: 'PRICE_LABEL_BATCH';
+  readonly blocksCashClose: false;
+  readonly items: readonly PriceLabelPrintItemRecord[];
+  readonly enqueuedAtMs: number;
+  readonly updatedAtMs: number;
+}
+
+export type GenericPrintJobRecord = PrintJobRecord | PriceLabelPrintJobRecord;
 
 export interface PrintOutboxPort {
   enqueue(job: PrintJobRecord): Promise<void>;
@@ -55,10 +78,21 @@ export function printJobKey(saleId: string): string {
 }
 
 /** PENDING + FAILED cuentan para edge 2D. */
-export function countBlockingPrintJobs(jobs: readonly Pick<PrintJobRecord, 'status'>[]): number {
+export function countBlockingPrintJobs(
+  jobs: readonly {
+    readonly status: PrintJobStatus;
+    readonly blocksCashClose?: boolean;
+    readonly kind?: PrintJobKind;
+  }[],
+): number {
   let n = 0;
   for (const j of jobs) {
-    if (j.status === 'PENDING' || j.status === 'FAILED') n += 1;
+    if (
+      j.blocksCashClose !== false &&
+      (j.status === 'PENDING' || j.status === 'FAILED')
+    ) {
+      n += 1;
+    }
   }
   return n;
 }

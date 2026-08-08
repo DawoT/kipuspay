@@ -33,6 +33,15 @@ describe('print-outbox contract', () => {
     ).toBe(2);
   });
 
+  it('excludes non-cash-blocking label jobs from close Z', () => {
+    expect(
+      countBlockingPrintJobs([
+        { status: 'PENDING', kind: 'SALE_TICKET', blocksCashClose: true },
+        { status: 'FAILED', kind: 'PRICE_LABEL_BATCH', blocksCashClose: false },
+      ]),
+    ).toBe(1);
+  });
+
   it('transitions + base64 roundtrip', () => {
     expect(() => assertPrintJobTransition('PENDING', 'PRINTED')).not.toThrow();
     expect(() => assertPrintJobTransition('PRINTED', 'PENDING')).toThrow(/PRINT_JOB_INVALID/);

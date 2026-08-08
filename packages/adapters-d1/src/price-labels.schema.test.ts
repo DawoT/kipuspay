@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- canonical schema identifiers are the contract */
 import { describe, expect, it } from 'vitest';
 import priceLabelsSql from '../migrations/0034_sprint41_price_labels.sql?raw';
 import { DOWN_0034_SPRINT41_PRICE_LABELS } from './migrations-down.js';

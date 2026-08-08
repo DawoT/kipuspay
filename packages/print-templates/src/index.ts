@@ -18,9 +18,25 @@ export {
   bytesToBase64,
   base64ToBytes,
   type PrintJobStatus,
+  type PrintJobKind,
   type PrinterStrategy,
   type PrintTicketSnapshot,
   type PrintJobRecord,
+  type PriceLabelPrintItemRecord,
+  type PriceLabelPrintJobRecord,
+  type GenericPrintJobRecord,
   type PrintOutboxPort,
 } from './print-outbox.js';
+export {
+  canonicalizePriceLabelSnapshots,
+  compilePriceLabelTemplate,
+  encodePriceLabelBarcode,
+  hashPriceLabelPayload,
+  hashPriceLabelSnapshots,
+  validatePriceLabelTemplate,
+  type PriceLabelAlignment,
+  type PriceLabelBarcodeType,
+  type PriceLabelSnapshot,
+  type PriceLabelTemplateV1,
+} from './price-labels.js';
 export type { TicketData, TicketItem, TicketBrandFooter } from './ticket-data.js';

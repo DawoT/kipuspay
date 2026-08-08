@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canonicalizePriceLabelSnapshots,
   compilePriceLabelTemplate,
   encodePriceLabelBarcode,
+  hashPriceLabelPayload,
+  hashPriceLabelSnapshots,
   validatePriceLabelTemplate,
   type PriceLabelSnapshot,
 } from './price-labels.js';
@@ -54,6 +57,58 @@ describe('Sprint 41 price-label template contract', () => {
     ).toThrow('PRICE_LABEL_TEMPLATE_NOT_ALLOWED');
   });
 
+  it.each([
+    { ...template, extra: true },
+    {
+      ...template,
+      blocks: [
+        ...template.blocks,
+        { type: 'TEXT', field: 'product_name', align: 'CENTER', html: '<b>x</b>' },
+      ],
+    },
+    { ...template, blocks: Array.from({ length: 17 }, () => template.blocks[0]) },
+    { ...template, blocks: [{ type: 'SPACER', lines: 5 }] },
+  ])('rejects arbitrary keys and bounded DSL violations', (candidate) => {
+    expect(() => validatePriceLabelTemplate(candidate)).toThrow('PRICE_LABEL_TEMPLATE_NOT_ALLOWED');
+  });
+
+  it('canonically serializes ordered snapshots and hashes snapshots and payload with Web Crypto', async () => {
+    const second = { ...snapshot, productId: 'product-2', priceCents: 2590 };
+    expect(canonicalizePriceLabelSnapshots([snapshot, second])).toBe(
+      JSON.stringify([
+        {
+          barcodeType: snapshot.barcodeType,
+          barcodeValue: snapshot.barcodeValue,
+          priceCents: snapshot.priceCents,
+          productId: snapshot.productId,
+          productName: snapshot.productName,
+          templateVersion: snapshot.templateVersion,
+        },
+        {
+          barcodeType: second.barcodeType,
+          barcodeValue: second.barcodeValue,
+          priceCents: second.priceCents,
+          productId: second.productId,
+          productName: second.productName,
+          templateVersion: second.templateVersion,
+        },
+      ]),
+    );
+    await expect(hashPriceLabelSnapshots([snapshot, second])).resolves.toMatch(/^[a-f0-9]{64}$/);
+    const bytes = compilePriceLabelTemplate(template, snapshot, 58);
+    await expect(hashPriceLabelPayload(bytes)).resolves.toMatch(/^[a-f0-9]{64}$/);
+    expect(await hashPriceLabelPayload(bytes)).toBe(await hashPriceLabelPayload(bytes));
+  });
+
+  it('rejects unbounded or non-integer authoritative snapshot values', () => {
+    expect(() =>
+      compilePriceLabelTemplate(template, { ...snapshot, productName: 'X'.repeat(121) }, 58),
+    ).toThrow('PRICE_LABEL_SNAPSHOT_INVALID');
+    expect(() =>
+      compilePriceLabelTemplate(template, { ...snapshot, priceCents: 12.5 }, 58),
+    ).toThrow('PRICE_LABEL_SNAPSHOT_INVALID');
+  });
+
   it.each([58, 80] as const)('renders deterministic %dmm golden bytes', (paperWidthMm) => {
     const first = compilePriceLabelTemplate(template, snapshot, paperWidthMm);
     const replay = compilePriceLabelTemplate(template, snapshot, paperWidthMm);
@@ -63,6 +118,8 @@ describe('Sprint 41 price-label template contract', () => {
 
   it('does not add barcode or rendering runtime dependencies', async () => {
     const manifest = await import('../package.json');
-    expect(manifest.default.dependencies ?? {}).toEqual({});
+    const runtimeDependencies = (manifest.default as { dependencies?: Record<string, string> })
+      .dependencies;
+    expect(runtimeDependencies ?? {}).toEqual({});
   });
 });

@@ -1,0 +1,10 @@
+INSERT /* RAISE(ABORT via atomic_guards CHECK) */ INTO atomic_guards(id, ok) SELECT 'catalog.price_labels.sprint41.down', CASE WHEN EXISTS (SELECT 1 FROM price_label_items) OR EXISTS (SELECT 1 FROM price_label_batches) OR EXISTS (SELECT 1 FROM price_label_templates) THEN 0 ELSE 1 END;
+DROP TRIGGER IF EXISTS price_label_items_snapshot_no_update;
+DROP TRIGGER IF EXISTS price_label_batches_snapshot_no_update;
+DROP INDEX IF EXISTS idx_price_label_items_pending;
+DROP INDEX IF EXISTS idx_price_label_batches_status;
+DROP TABLE IF EXISTS price_label_items;
+DROP TABLE IF EXISTS price_label_batches;
+DROP TABLE IF EXISTS price_label_templates;
+DELETE FROM schema_meta WHERE key = 'catalog.price_labels.sprint41';
+DELETE FROM atomic_guards WHERE id = 'catalog.price_labels.sprint41.down';

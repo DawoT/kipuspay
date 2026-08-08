@@ -57,3 +57,8 @@ export function isInventorySerialsEnabled(env: WorkerEnv | undefined): boolean {
 export function isInventoryScaleEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_INVENTORY_SCALE);
 }
+
+/** Sprint 41 — server-authoritative shelf price labels (default off). */
+export function isCatalogPriceLabelsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_CATALOG_PRICE_LABELS);
+}

@@ -19,6 +19,7 @@ import {
   judgeInventoryLocationConservation,
   judgeInventorySerialAssignment,
   judgeInventoryScaleHeartbeat,
+  judgePriceLabelPrinting,
   runArCompensateCycles,
   runRollupIdempotentCycles,
   runLayawayConvertCancelChaos,
@@ -30,6 +31,7 @@ import {
   runInventoryLocationConservationChaos,
   runInventorySerialAssignmentChaos,
   runInventoryScaleHeartbeatChaos,
+  runPriceLabelPrintingChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -65,6 +67,16 @@ describe('chaos-harness contrato §13.5', () => {
     const result = runInventoryScaleHeartbeatChaos(500);
     expect(judgeInventoryScaleHeartbeat(result)).toBe('PASS');
     await expect(runChaosScenario('inventory-scale-heartbeat', 40)).resolves.toBe('PASS');
+  });
+
+  it('Sprint 41 price-label-printing está activo y bloquea antes del sprint', async () => {
+    expect(SCENARIO_ACTIVE_FROM['price-label-printing']).toBe(41);
+    expect(() => assertScenarioReady('price-label-printing', 40)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const result = await runPriceLabelPrintingChaos(500);
+    expect(judgePriceLabelPrinting(result)).toBe('PASS');
+    await expect(runChaosScenario('price-label-printing', 41)).resolves.toBe('PASS');
   });
 
   it('rechaza concurrent-writers antes del Sprint 4', () => {

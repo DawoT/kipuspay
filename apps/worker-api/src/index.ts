@@ -152,6 +152,14 @@ import {
   runRegisterTerminalSessionHttp,
   runSubmitWeightHttp,
 } from './inventory/inventory-scale-routes.js';
+import {
+  runAcknowledgePriceLabelItemsHttp,
+  runCreatePriceLabelBatchHttp,
+  runListPriceLabelTemplatesHttp,
+  runReprintPriceLabelBatchHttp,
+  runRetirePriceLabelTemplateHttp,
+  runUpsertPriceLabelTemplateHttp,
+} from './catalog/price-label-routes.js';
 import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
 import {
   isAdvancedReportId,
@@ -1220,6 +1228,76 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const body: unknown = await c.req.json();
     const result = await runSubmitWeightHttp(c.env, scaleActor(c), body as Record<string, unknown>);
     return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 422 | 500 | 503);
+  });
+  // Sprint 41 — authoritative label snapshots. Transport/outbox remains POS-owned and OOS here.
+  const priceLabelActor = (c: {
+    get(name: 'jwt'): VerifiedJwtClaims | undefined;
+    get(name: 'user'): UserSession | undefined;
+    req: { header(name: string): string | undefined };
+  }) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    return {
+      tenantId: jwt?.tenantId ?? '',
+      userId: user?.userId ?? jwt?.sub ?? '',
+      role: (user?.role ?? '').toLowerCase(),
+      branchId: user?.branchId ?? '',
+      terminalId: c.req.header('x-terminal-id') ?? '',
+      terminalSessionId: c.req.header('x-terminal-session-id') ?? '',
+    };
+  };
+  app.get('/api/catalog/price-labels/templates', async (c) => {
+    const result = await runListPriceLabelTemplatesHttp(
+      c.env,
+      priceLabelActor(c),
+      c.req.query('includeRetired') === 'true',
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/catalog/price-labels/templates', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runUpsertPriceLabelTemplateHttp(
+      c.env,
+      priceLabelActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/catalog/price-labels/templates/retire', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runRetirePriceLabelTemplateHttp(
+      c.env,
+      priceLabelActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/catalog/price-labels/batches', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runCreatePriceLabelBatchHttp(
+      c.env,
+      priceLabelActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/catalog/price-labels/batches/reprint', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runReprintPriceLabelBatchHttp(
+      c.env,
+      priceLabelActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/catalog/price-labels/batches/ack', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runAcknowledgePriceLabelItemsHttp(
+      c.env,
+      priceLabelActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 500 | 503);
   });
   app.post('/api/inventory/counts/submit-review', async (c) => {
     const jwt = c.get('jwt');

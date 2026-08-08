@@ -88,6 +88,7 @@
       Organiza familias de producto y factores racionales. El stock siempre queda en la
       unidad base de cada variante.
     </p>
+    <a class="catalog-link" href="/admin/etiquetas">Etiquetas de precio</a>
   </header>
 
   {#if !variantsOn && !uomOn && !serialsOn}
@@ -170,6 +171,7 @@
   .check input { width: auto; }
   button { border: 0; background: #196b57; color: white; padding: .78rem 1rem; font-weight: 750; cursor: pointer; }
   .secondary { background: transparent; color: #196b57; border: 1px solid #9bb8ae; }
+  .catalog-link { display: inline-flex; min-height: 44px; align-items: center; color: #196b57; font-weight: 750; }
   .ledger-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
   h2 { margin: 0; font-size: 1.15rem; }
   pre { overflow: auto; padding: 1rem; background: #16332c; color: #dff5ed; font-size: .76rem; }
