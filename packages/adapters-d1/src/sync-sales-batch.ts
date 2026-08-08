@@ -34,6 +34,7 @@ export async function processSyncSalesBatch(
   nowMs: number = Date.now(),
   insightsKv?: InsightsKv,
   storeCreditEnabled = false,
+  terminalId = '',
 ): Promise<SyncSalesBatchResult> {
   const consolidated = consolidateLocalClientProfiles(sales);
   const results: SyncSaleAck[] = [];
@@ -52,8 +53,26 @@ export async function processSyncSalesBatch(
         nowMs: number;
         storeCreditEnabled: boolean;
         storeCreditOnline: false;
+        serialAssignments: {
+          productId: string;
+          serialId: string;
+          terminalId: string;
+          leaseToken: string;
+        }[];
         insightsKv?: InsightsKv;
-      } = { nowMs, storeCreditEnabled, storeCreditOnline: false };
+      } = {
+        nowMs,
+        storeCreditEnabled,
+        storeCreditOnline: false,
+        serialAssignments: sale.items
+          .filter((item) => item.serialId && item.serialLeaseToken)
+          .map((item) => ({
+            productId: item.productId,
+            serialId: item.serialId!,
+            terminalId,
+            leaseToken: item.serialLeaseToken!,
+          })),
+      };
       if (insightsKv) opts.insightsKv = insightsKv;
       const outcome: OfflineSaleResult = await processOfflineSaleAtomic(
         db,

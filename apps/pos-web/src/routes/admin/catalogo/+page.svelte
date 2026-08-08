@@ -1,8 +1,13 @@
 <script lang="ts">
-  import { isCatalogUomEnabled, isCatalogVariantsEnabled } from '$lib/features';
+  import {
+    isCatalogUomEnabled,
+    isCatalogVariantsEnabled,
+    isInventorySerialsEnabled,
+  } from '$lib/features';
 
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
+  const serialsOn = isInventorySerialsEnabled();
   let productId = $state('');
   let parentProductId = $state('');
   let overrideCents = $state('');
@@ -12,6 +17,7 @@
   let isBase = $state(true);
   let message = $state('');
   let catalog = $state<unknown[]>([]);
+  let serialTrackingMode = $state('NONE');
 
   const apiBase = () =>
     (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
@@ -58,6 +64,18 @@
     message = response.ok ? 'Unidad guardada.' : (json.error ?? `Error ${response.status}`);
     if (response.ok) await loadCatalog();
   }
+
+  async function saveSerialTracking() {
+    const response = await fetch(`${apiBase()}/api/inventory/serials/tracking`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ productId, serialTrackingMode }),
+    });
+    const json = (await response.json()) as { error?: string; action?: string };
+    message = response.ok
+      ? 'Seguimiento serial guardado por el servidor.'
+      : [json.error, json.action].filter(Boolean).join(' ');
+  }
 </script>
 
 <svelte:head><title>Catálogo exacto · KipusPay</title></svelte:head>
@@ -72,9 +90,9 @@
     </p>
   </header>
 
-  {#if !variantsOn && !uomOn}
+  {#if !variantsOn && !uomOn && !serialsOn}
     <aside class="off" data-testid="catalog-off">
-      Activa PUBLIC_FEATURE_CATALOG_VARIANTS o PUBLIC_FEATURE_CATALOG_UOM para editar.
+      Activa una capability de catálogo o PUBLIC_FEATURE_INVENTORY_SERIALS para editar.
     </aside>
   {:else}
     <section class="workbench">
@@ -99,6 +117,20 @@
             </div>
             <label class="check"><input type="checkbox" bind:checked={isBase} /> Unidad base 1/1</label>
             <button type="button" onclick={saveUom}>Guardar unidad</button>
+          </fieldset>
+        {/if}
+        {#if serialsOn}
+          <fieldset>
+            <legend>Identidad serial</legend>
+            <label>
+              Seguimiento
+              <select bind:value={serialTrackingMode}>
+                <option value="NONE">Sin serie</option>
+                <option value="REQUIRED">Serie obligatoria (una unidad)</option>
+              </select>
+            </label>
+            <button type="button" onclick={saveSerialTracking}>Guardar seguimiento serial</button>
+            <a href="/admin/series">Buscar y gestionar series</a>
           </fieldset>
         {/if}
       </div>
@@ -131,8 +163,8 @@
   .rail, .ledger { padding: 1.25rem; }
   fieldset { border: 0; border-top: 1px solid #dce7e3; margin: 1.25rem 0 0; padding: 1.25rem 0 0; }
   label { display: grid; gap: .38rem; margin-bottom: .85rem; font-weight: 650; }
-  input { width: 100%; box-sizing: border-box; border: 1px solid #9bb8ae; background: #f8fbfa; padding: .72rem; color: inherit; }
-  input:focus-visible, button:focus-visible { outline: 3px solid #ffb29a; outline-offset: 2px; }
+  input, select { width: 100%; box-sizing: border-box; border: 1px solid #9bb8ae; background: #f8fbfa; padding: .72rem; color: inherit; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #ffb29a; outline-offset: 2px; }
   .ratio { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .65rem; }
   .check { grid-template-columns: auto 1fr; align-items: center; }
   .check input { width: auto; }

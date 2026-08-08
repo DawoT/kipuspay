@@ -24,6 +24,10 @@ import {
   type ProcessOfflineSaleOptions,
 } from './process-offline-sale-atomic.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendSerialTransitionToPlan,
+  loadSerialsForStockOperation,
+} from './process-inventory-serial-atomic.js';
 import { processReturnAtomic } from './process-return-atomic.js';
 import { resolveServerUnitPriceCents } from './s18-sale-inventory.js';
 
@@ -32,6 +36,7 @@ export interface LayawayItemInput {
   readonly uomId?: string | null;
   readonly enteredQuantityMicrounits: number;
   readonly batchId?: string | null;
+  readonly serialIds?: readonly string[];
 }
 
 export interface ProcessLayawayCreateInput {
@@ -234,6 +239,17 @@ export async function processLayawayCreateAtomic(
     });
   }
   const depositId = crypto.randomUUID();
+  const preparedSerials = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    input.branchId,
+    snapshots.map((snapshot, index) => ({
+      productId: snapshot.productId,
+      quantityMicrounits: snapshot.baseQuantityMicrounits,
+      serialIds: input.items[index]?.serialIds ?? [],
+    })),
+    'AVAILABLE',
+  );
   const journalOn = options.chartOfAccountsEnabled === true;
   const accounts = journalOn ? await loadChartAccountsByCode(db, tenantId) : new Map();
   const prevHash = await previousAuditHash(db, tenantId);
@@ -257,7 +273,9 @@ export async function processLayawayCreateAtomic(
           userId,
         ),
     );
-    for (const snap of snapshots) {
+    for (let snapshotIndex = 0; snapshotIndex < snapshots.length; snapshotIndex++) {
+      const snap = snapshots[snapshotIndex]!;
+      const depositItemId = crypto.randomUUID();
       builder.add(
         db
           .prepare(
@@ -268,7 +286,7 @@ export async function processLayawayCreateAtomic(
                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
-            crypto.randomUUID(),
+            depositItemId,
             tenantId,
             depositId,
             snap.productId,
@@ -282,6 +300,26 @@ export async function processLayawayCreateAtomic(
             snap.unitPriceCents,
           ),
       );
+      for (const serialId of input.items[snapshotIndex]?.serialIds ?? []) {
+        const serial = preparedSerials.find((candidate) => candidate.serialId === serialId);
+        if (!serial) throw new Error('SERIAL_IDENTITY_INVALID');
+        await appendSerialTransitionToPlan(builder, db, {
+          tenantId,
+          serialId,
+          branchId: serial.branchId,
+          locationId: serial.locationId,
+          productId: serial.productId,
+          expectedStatus: 'AVAILABLE',
+          nextStatus: 'RESERVED',
+          expectedVersion: serial.version,
+          eventType: 'LAYAWAY_RESERVE',
+          operationType: 'LAYAWAY',
+          operationId: depositId,
+          operationLineId: depositItemId,
+          idempotencyKey: `layaway:${depositId}:${serialId}`,
+          actorUserId: userId,
+        });
+      }
       builder.add(
         db
           .prepare(
@@ -566,6 +604,19 @@ export async function processLayawayConvertAtomic(
         .bind(tenantId, deposit.customer_id)
         .first<{ document_type_code: string; document_number: string; name: string }>()
     : null;
+  const layawaySerials = await db
+    .prepare(
+      `SELECT sn.id, sn.product_id
+       FROM serial_numbers sn
+       INNER JOIN serial_manifest_items smi
+         ON smi.tenant_id = sn.tenant_id AND smi.serial_id = sn.id
+       INNER JOIN serial_manifests sm
+         ON sm.tenant_id = smi.tenant_id AND sm.id = smi.manifest_id
+       WHERE sn.tenant_id = ? AND sm.operation_type = 'LAYAWAY'
+         AND sm.operation_id = ? AND sn.status = 'RESERVED'`,
+    )
+    .bind(tenantId, deposit.id)
+    .all<{ id: string; product_id: string }>();
   const paidCents = paid?.paid ?? 0;
   const payloadItems: OfflineSaleItemPayload[] = (items.results ?? []).map((row) => {
     const base: OfflineSaleItemPayload = {
@@ -637,6 +688,10 @@ export async function processLayawayConvertAtomic(
     catalogUomEnabled: options.catalogUomEnabled === true,
     ledgerChartOfAccountsEnabled: options.chartOfAccountsEnabled === true,
     skipStockDeduction: true,
+    serialAssignments: (layawaySerials.results ?? []).map((serial) => ({
+      productId: serial.product_id,
+      serialId: serial.id,
+    })),
     afterSaleStatements: async (builder, saleId, auditPrevHash) => {
       builder.add(
         db
@@ -757,6 +812,25 @@ export async function processLayawayCancelAtomic(
     )
     .bind(tenantId, deposit.id)
     .all<{ product_id: string; batch_id: string | null; base_quantity_microunits: number }>();
+  const reservedSerials = await db
+    .prepare(
+      `SELECT sn.id, sn.product_id, sn.branch_id, sn.location_id, sn.version
+       FROM serial_numbers sn
+       INNER JOIN serial_manifest_items smi
+         ON smi.tenant_id = sn.tenant_id AND smi.serial_id = sn.id
+       INNER JOIN serial_manifests sm
+         ON sm.tenant_id = smi.tenant_id AND sm.id = smi.manifest_id
+       WHERE sn.tenant_id = ? AND sm.operation_type = 'LAYAWAY'
+         AND sm.operation_id = ? AND sn.status = 'RESERVED'`,
+    )
+    .bind(tenantId, deposit.id)
+    .all<{
+      id: string;
+      product_id: string;
+      branch_id: string;
+      location_id: string;
+      version: number;
+    }>();
   const journalOn = options.chartOfAccountsEnabled === true;
   const accounts = journalOn ? await loadChartAccountsByCode(db, tenantId) : new Map();
   const prevHash = await previousAuditHash(db, tenantId);
@@ -861,6 +935,23 @@ export async function processLayawayCancelAtomic(
             deposit.id,
           ),
       );
+    }
+    for (const serial of reservedSerials.results ?? []) {
+      await appendSerialTransitionToPlan(builder, db, {
+        tenantId,
+        serialId: serial.id,
+        branchId: serial.branch_id,
+        locationId: serial.location_id,
+        productId: serial.product_id,
+        expectedStatus: 'RESERVED',
+        nextStatus: 'AVAILABLE',
+        expectedVersion: serial.version,
+        eventType: 'LAYAWAY_CANCEL',
+        operationType: 'LAYAWAY_CANCEL',
+        operationId: deposit.id,
+        idempotencyKey: `layaway-cancel:${deposit.id}:${serial.id}`,
+        actorUserId: userId,
+      });
     }
     if (refundCents > 0 && sessionId) {
       builder.add(

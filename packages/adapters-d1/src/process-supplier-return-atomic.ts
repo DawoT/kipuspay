@@ -22,12 +22,19 @@ import {
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendSerialTransitionToPlan,
+  appendSerialManifestItemToPlan,
+  loadSerialsForStockOperation,
+  type PreparedSerialIdentity,
+} from './process-inventory-serial-atomic.js';
 
 export interface SupplierReturnLineInput {
   readonly productId: string;
   readonly enteredQuantityMicrounits: number;
   readonly uomId?: string | null;
   readonly batchId?: string | null;
+  readonly serialIds?: readonly string[];
 }
 
 export interface ProcessSupplierReturnCreateInput {
@@ -326,6 +333,17 @@ export async function processSupplierReturnCreateAtomic(
     reason: input.reason,
   });
   const returnId = crypto.randomUUID();
+  const preparedSerials = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    receipt.branch_id,
+    snapshots.map((snapshot, index) => ({
+      productId: snapshot.productId,
+      quantityMicrounits: snapshot.baseQuantityMicrounits,
+      serialIds: input.items[index]?.serialIds ?? [],
+    })),
+    'AVAILABLE',
+  );
   const prevHash = await previousAuditHash(db, tenantId);
   const rowHash = await sha256Hex({
     action: 'SUPPLIER_RETURN',
@@ -383,6 +401,15 @@ export async function processSupplierReturnCreateAtomic(
             snap.lineTotalCents,
           ),
       );
+    }
+    for (const serial of preparedSerials) {
+      appendSerialManifestItemToPlan(builder, db, {
+        tenantId,
+        serialId: serial.serialId,
+        operationType: 'SUPPLIER_RETURN_DRAFT',
+        operationId: returnId,
+        idempotencyKey: `supplier-return-draft:${returnId}`,
+      });
     }
     builder.add(
       db
@@ -488,6 +515,7 @@ export async function processSupplierReturnCloseAtomic(
   }
   if (!row.purchase_receipt_id) throw new Error('RECEIPT_NOT_FOUND');
   const items = await loadReturnItems(db, tenantId, row.id);
+  const returnSerials = await loadSupplierReturnSerials(db, tenantId, row.id);
   const domainItems: SupplierReturnItemInput[] = [];
   for (const item of items) {
     const receiptLine = await db
@@ -670,6 +698,23 @@ export async function processSupplierReturnCloseAtomic(
           ),
       );
     }
+    for (const serial of returnSerials) {
+      await appendSerialTransitionToPlan(builder, db, {
+        tenantId,
+        serialId: serial.serialId,
+        branchId: serial.branchId,
+        locationId: serial.locationId,
+        productId: serial.productId,
+        expectedStatus: 'AVAILABLE',
+        nextStatus: 'RETURNED_SUPPLIER',
+        expectedVersion: serial.version,
+        eventType: 'SUPPLIER_RETURN',
+        operationType: 'SUPPLIER_RETURN',
+        operationId: row.id,
+        idempotencyKey: `supplier-return:${row.id}:${serial.serialId}`,
+        actorUserId: userId,
+      });
+    }
     if (ap && closePlan.nextApBalanceCents !== null && closePlan.nextApStatus) {
       builder.add(
         db
@@ -726,4 +771,45 @@ export async function processSupplierReturnCloseAtomic(
     emitsFiscalDocument: false,
     movesStock: true,
   };
+}
+
+async function loadSupplierReturnSerials(
+  db: D1DatabaseLike,
+  tenantId: string,
+  returnId: string,
+): Promise<readonly PreparedSerialIdentity[]> {
+  const rows = await db
+    .prepare(
+      `SELECT sn.id, sn.product_id, sn.branch_id, sn.location_id, sn.status, sn.version
+       FROM serial_numbers sn
+       INNER JOIN serial_manifest_items smi
+         ON smi.tenant_id = sn.tenant_id AND smi.serial_id = sn.id
+       INNER JOIN serial_manifests sm
+         ON sm.tenant_id = smi.tenant_id AND sm.id = smi.manifest_id
+       WHERE sn.tenant_id = ? AND sm.operation_type = 'SUPPLIER_RETURN_DRAFT'
+         AND sm.operation_id = ? AND sn.status = 'AVAILABLE'`,
+    )
+    .bind(tenantId, returnId)
+    .all<{
+      id: string;
+      product_id: string;
+      branch_id: string;
+      location_id: string;
+      status: string;
+      version: number;
+    }>();
+  return (rows.results ?? [])
+    .filter(
+      (row) =>
+        Boolean(row.id && row.product_id && row.branch_id && row.location_id) &&
+        Number.isSafeInteger(row.version),
+    )
+    .map((row) => ({
+      serialId: row.id,
+      productId: row.product_id,
+      branchId: row.branch_id,
+      locationId: row.location_id,
+      status: row.status,
+      version: row.version,
+    }));
 }

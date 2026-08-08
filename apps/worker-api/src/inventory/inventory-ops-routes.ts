@@ -14,7 +14,14 @@ import {
   type StockLossCategory,
   type StockLossStatus,
 } from '@kipuspay/domain-inventory';
-import { appendLocationStockDeltaToPlan, runD1AtomicPlan } from '@kipuspay/adapters-d1';
+import {
+  appendLocationStockDeltaToPlan,
+  appendSerialManifestItemToPlan,
+  appendSerialTransitionToPlan,
+  loadSerialsForStockOperation,
+  runD1AtomicPlan,
+  type PreparedSerialIdentity,
+} from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 export function isInventoryOpsEnabled(env: WorkerEnv | undefined): boolean {
@@ -75,6 +82,7 @@ export async function runSubmitCountReviewHttp(
       /** @deprecated ignorado: autoridad server-side */
       unitCostCents?: number;
       batchId?: string | null;
+      observedSerialIds?: readonly string[];
     }[];
   },
 ): Promise<HttpResult> {
@@ -108,24 +116,31 @@ export async function runSubmitCountReviewHttp(
     systemMicrounits: number;
     differenceMicrounits: number;
     unitCostCents: number;
+    countLineId: string;
+    serials: readonly PreparedSerialIdentity[];
   }[];
   try {
     lines = await Promise.all(
-      clientLines.map(async (line) => {
-        const productId = line.productId?.trim() ?? '';
-        if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
-        const countedMicrounits =
-          line.countedQtyMicrounits ?? Math.round((line.countedQty ?? 0) * 1_000_000);
-        if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
-          throw new Error('COUNT_INVALID_QUANTITY');
-        }
-        const requestedLocationId = line.locationId?.trim() || null;
-        const authority = await env
-          .DB!.prepare(
-            `SELECT COALESCE(s.quantity_microunits, 0) AS quantity_microunits,
+      clientLines.map(
+        // eslint-disable-next-line complexity -- serial + aggregate authority validation
+        async (line) => {
+          const productId = line.productId?.trim() ?? '';
+          if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
+          const countedMicrounits =
+            line.countedQtyMicrounits ?? Math.round((line.countedQty ?? 0) * 1_000_000);
+          if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
+            throw new Error('COUNT_INVALID_QUANTITY');
+          }
+          const requestedLocationId = line.locationId?.trim() || null;
+          const authority = await env
+            .DB!.prepare(
+              `SELECT COALESCE(s.quantity_microunits, 0) AS quantity_microunits,
                 b.pmp_unit_cost_cents,
-                COALESCE(?, d.id) AS location_id
+                COALESCE(?, d.id) AS location_id,
+                p.serial_tracking_mode
          FROM branch_product_stock b
+         INNER JOIN products p
+           ON p.tenant_id = b.tenant_id AND p.id = b.product_id
          LEFT JOIN inventory_locations d
            ON d.tenant_id = b.tenant_id AND d.branch_id = b.branch_id
           AND d.code = 'DEFAULT' AND d.is_active = 1
@@ -134,64 +149,108 @@ export async function runSubmitCountReviewHttp(
           AND s.product_id = b.product_id AND s.location_id = COALESCE(?, d.id)
          WHERE b.tenant_id = ? AND b.branch_id = ? AND b.product_id = ?
          LIMIT 1`,
-          )
-          .bind(requestedLocationId, requestedLocationId, tenantId, count.branch_id, productId)
-          .first<{
-            quantity_microunits: number;
-            pmp_unit_cost_cents: number;
-            location_id: string | null;
-          }>();
-        if (!authority?.location_id) throw new Error('COUNT_STOCK_NOT_FOUND');
-        const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
-        return {
-          productId,
-          batchId: line.batchId ?? null,
-          locationId: authority.location_id,
-          countedMicrounits,
-          systemMicrounits: authority.quantity_microunits,
-          differenceMicrounits,
-          unitCostCents: authority.pmp_unit_cost_cents ?? 0,
-        };
-      }),
+            )
+            .bind(requestedLocationId, requestedLocationId, tenantId, count.branch_id, productId)
+            .first<{
+              quantity_microunits: number;
+              pmp_unit_cost_cents: number;
+              location_id: string | null;
+              serial_tracking_mode: string;
+            }>();
+          if (!authority?.location_id) throw new Error('COUNT_STOCK_NOT_FOUND');
+          const serials =
+            authority.serial_tracking_mode === 'REQUIRED'
+              ? await loadSerialsForStockOperation(
+                  env.DB!,
+                  tenantId,
+                  count.branch_id,
+                  [
+                    {
+                      productId,
+                      quantityMicrounits: countedMicrounits,
+                      serialIds: line.observedSerialIds ?? [],
+                    },
+                  ],
+                  'AVAILABLE',
+                )
+              : [];
+          if (serials.some((serial) => serial.locationId !== authority.location_id)) {
+            throw new Error('SERIAL_IDENTITY_INVALID');
+          }
+          const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+          return {
+            productId,
+            batchId: line.batchId ?? null,
+            locationId: authority.location_id,
+            countedMicrounits,
+            systemMicrounits: authority.quantity_microunits,
+            differenceMicrounits,
+            unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+            countLineId: crypto.randomUUID(),
+            serials,
+          };
+        },
+      ),
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { status: 422, body: { error: message, code: message } };
   }
-  const stmts = [
-    ...lines.map((l) => {
-      return env
-        .DB!.prepare(
-          `INSERT INTO inventory_count_lines (
+  await runD1AtomicPlan(env.DB, (atomicPlan) => {
+    atomicPlan.guardState(
+      `SELECT 1 FROM inventory_counts
+       WHERE id = ? AND tenant_id = ? AND status = 'COUNTING'`,
+      [countId, tenantId],
+    );
+    for (const line of lines) {
+      atomicPlan.add(
+        env
+          .DB!.prepare(
+            `INSERT INTO inventory_count_lines (
              id, tenant_id, branch_id, count_id, location_id, product_id, batch_id,
              counted_qty, counted_qty_microunits,
              system_qty, system_qty_microunits, difference_qty, difference_qty_microunits,
              unit_cost_cents, diff_value_cents
            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          crypto.randomUUID(),
+          )
+          .bind(
+            line.countLineId,
+            tenantId,
+            count.branch_id,
+            countId,
+            line.locationId,
+            line.productId,
+            line.batchId,
+            line.countedMicrounits / 1_000_000,
+            line.countedMicrounits,
+            line.systemMicrounits / 1_000_000,
+            line.systemMicrounits,
+            line.differenceMicrounits / 1_000_000,
+            line.differenceMicrounits,
+            line.unitCostCents,
+            Math.round((line.differenceMicrounits * line.unitCostCents) / 1_000_000),
+          ),
+      );
+      for (const serial of line.serials) {
+        appendSerialManifestItemToPlan(atomicPlan, env.DB!, {
           tenantId,
-          count.branch_id,
-          countId,
-          l.locationId,
-          l.productId,
-          l.batchId,
-          l.countedMicrounits / 1_000_000,
-          l.countedMicrounits,
-          l.systemMicrounits / 1_000_000,
-          l.systemMicrounits,
-          l.differenceMicrounits / 1_000_000,
-          l.differenceMicrounits,
-          l.unitCostCents,
-          Math.round((l.differenceMicrounits * l.unitCostCents) / 1_000_000),
-        );
-    }),
-    env.DB.prepare(
-      `UPDATE inventory_counts SET status = 'DIFFERENCE_REVIEW' WHERE id = ? AND tenant_id = ?`,
-    ).bind(countId, tenantId),
-  ];
-  await env.DB.batch(stmts);
+          serialId: serial.serialId,
+          operationType: 'INVENTORY_COUNT_SUBMIT',
+          operationId: countId,
+          operationLineId: line.countLineId,
+          idempotencyKey: `count-submit:${countId}:${line.countLineId}`,
+        });
+      }
+    }
+    atomicPlan.add(
+      env
+        .DB!.prepare(
+          `UPDATE inventory_counts SET status = 'DIFFERENCE_REVIEW'
+         WHERE id = ? AND tenant_id = ? AND status = 'COUNTING'`,
+        )
+        .bind(countId, tenantId),
+    );
+  });
   return {
     status: 200,
     body: { id: countId, status: 'DIFFERENCE_REVIEW', lineCount: lines.length },
@@ -223,19 +282,90 @@ export async function runApproveCountHttp(
   if (!count) return { status: 404, body: { error: 'Count not found', code: 'NOT_FOUND' } };
 
   const lines = await env.DB.prepare(
-    `SELECT product_id, batch_id, location_id, difference_qty,
-            difference_qty_microunits, unit_cost_cents
-     FROM inventory_count_lines WHERE count_id = ? AND tenant_id = ?`,
+    `SELECT l.id, l.product_id, l.batch_id, l.location_id, l.difference_qty,
+            l.difference_qty_microunits, l.unit_cost_cents, p.serial_tracking_mode
+     FROM inventory_count_lines l
+     INNER JOIN products p ON p.tenant_id = l.tenant_id AND p.id = l.product_id
+     WHERE l.count_id = ? AND l.tenant_id = ?`,
   )
     .bind(countId, tenantId)
     .all<{
+      id: string;
       product_id: string;
       batch_id: string | null;
       location_id: string;
       difference_qty: number;
       difference_qty_microunits: number;
       unit_cost_cents: number;
+      serial_tracking_mode: string;
     }>();
+
+  const lostSerials: Array<PreparedSerialIdentity & { countLineId: string }> = [];
+  const serialSetGuards: Array<{
+    productId: string;
+    locationId: string;
+    currentIds: readonly string[];
+  }> = [];
+  try {
+    for (const line of lines.results ?? []) {
+      if (line.serial_tracking_mode !== 'REQUIRED') continue;
+      const observed = await env.DB.prepare(
+        `SELECT sn.id
+         FROM serial_manifests sm
+         INNER JOIN serial_manifest_items smi
+           ON smi.tenant_id = sm.tenant_id AND smi.manifest_id = sm.id
+         INNER JOIN serial_numbers sn
+           ON sn.tenant_id = smi.tenant_id AND sn.id = smi.serial_id
+         WHERE sm.tenant_id = ? AND sm.operation_type = 'INVENTORY_COUNT_SUBMIT'
+           AND sm.operation_id = ? AND sm.operation_line_id = ?`,
+      )
+        .bind(tenantId, countId, line.id)
+        .all<{ id: string }>();
+      const current = await env.DB.prepare(
+        `SELECT id, product_id, branch_id, location_id, status, version
+         FROM serial_numbers
+         WHERE tenant_id = ? AND branch_id = ? AND location_id = ? AND product_id = ?
+           AND status = 'AVAILABLE'`,
+      )
+        .bind(tenantId, count.branch_id, line.location_id, line.product_id)
+        .all<{
+          id: string;
+          product_id: string;
+          branch_id: string;
+          location_id: string;
+          status: string;
+          version: number;
+        }>();
+      const currentById = new Map((current.results ?? []).map((serial) => [serial.id, serial]));
+      const observedIds = new Set((observed.results ?? []).map((serial) => serial.id));
+      if ([...observedIds].some((serialId) => !currentById.has(serialId))) {
+        throw new Error('SERIAL_COUNT_UNEXPECTED_IDENTITY');
+      }
+      const missing = [...currentById.values()].filter((serial) => !observedIds.has(serial.id));
+      if (line.difference_qty_microunits !== -missing.length * 1_000_000) {
+        throw new Error('SERIAL_COUNT_DIFF_MISMATCH');
+      }
+      lostSerials.push(
+        ...missing.map((serial) => ({
+          serialId: serial.id,
+          productId: serial.product_id,
+          branchId: serial.branch_id,
+          locationId: serial.location_id,
+          status: serial.status,
+          version: serial.version,
+          countLineId: line.id,
+        })),
+      );
+      serialSetGuards.push({
+        productId: line.product_id,
+        locationId: line.location_id,
+        currentIds: [...currentById.keys()],
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { status: 422, body: { error: message, code: message } };
+  }
 
   try {
     assertInventoryCountTransition(count.status, 'APPROVED');
@@ -314,7 +444,56 @@ export async function runApproveCountHttp(
           ),
       ),
   ];
-  await runD1AtomicPlan(env.DB, (atomicPlan) => {
+  await runD1AtomicPlan(env.DB, async (atomicPlan) => {
+    atomicPlan.guardState(
+      `SELECT 1 FROM inventory_counts
+       WHERE id = ? AND tenant_id = ? AND status = 'DIFFERENCE_REVIEW'`,
+      [countId, tenantId],
+    );
+    const serialGuardIds: string[] = [];
+    for (const guard of serialSetGuards) {
+      const guardId = crypto.randomUUID();
+      serialGuardIds.push(guardId);
+      const inClause =
+        guard.currentIds.length > 0
+          ? ` AND (
+              SELECT COUNT(*) FROM serial_numbers
+              WHERE tenant_id = ? AND branch_id = ? AND location_id = ? AND product_id = ?
+                AND status = 'AVAILABLE'
+                AND id IN (${guard.currentIds.map(() => '?').join(',')})
+            ) = ?`
+          : '';
+      const params: unknown[] = [
+        guardId,
+        tenantId,
+        count.branch_id,
+        guard.locationId,
+        guard.productId,
+        guard.currentIds.length,
+      ];
+      if (guard.currentIds.length > 0) {
+        params.push(
+          tenantId,
+          count.branch_id,
+          guard.locationId,
+          guard.productId,
+          ...guard.currentIds,
+          guard.currentIds.length,
+        );
+      }
+      atomicPlan.add(
+        env
+          .DB!.prepare(
+            `INSERT INTO atomic_guards (id, ok)
+           SELECT ?, CASE WHEN (
+             SELECT COUNT(*) FROM serial_numbers
+             WHERE tenant_id = ? AND branch_id = ? AND location_id = ? AND product_id = ?
+               AND status = 'AVAILABLE'
+           ) = ?${inClause} THEN 1 ELSE 0 END`,
+          )
+          .bind(...params),
+      );
+    }
     for (const statement of stmts) atomicPlan.add(statement);
     for (const line of lines.results ?? []) {
       const deltaMicrounits =
@@ -329,11 +508,33 @@ export async function runApproveCountHttp(
         batchId: line.batch_id,
       });
     }
+    for (const serial of lostSerials) {
+      await appendSerialTransitionToPlan(atomicPlan, env.DB!, {
+        tenantId,
+        serialId: serial.serialId,
+        branchId: serial.branchId,
+        locationId: serial.locationId,
+        productId: serial.productId,
+        expectedStatus: 'AVAILABLE',
+        nextStatus: 'LOST',
+        expectedVersion: serial.version,
+        eventType: 'COUNT_LOSS',
+        operationType: 'INVENTORY_COUNT',
+        operationId: countId,
+        operationLineId: serial.countLineId,
+        idempotencyKey: `count-approve:${countId}:${serial.serialId}`,
+        actorUserId: userId,
+      });
+    }
+    for (const guardId of serialGuardIds) {
+      atomicPlan.add(env.DB!.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(guardId));
+    }
   });
   return { status: 200, body: { id: countId, status: 'APPROVED' } };
 }
 /* eslint-enable complexity */
 
+/* eslint-disable complexity -- serial manifest plus location/aggregate authority branches */
 export async function runCreateStockLossHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -341,46 +542,96 @@ export async function runCreateStockLossHttp(
   body: {
     branchId?: string;
     productId?: string;
+    locationId?: string | null;
     batchId?: string | null;
     quantity?: number;
     category?: StockLossCategory;
     evidenceR2Key?: string | null;
     reason?: string;
+    serialIds?: readonly string[];
   },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   const id = crypto.randomUUID();
+  const branchId = body.branchId?.trim() ?? '';
+  const productId = body.productId?.trim() ?? '';
+  const quantityMicrounits = Math.round((body.quantity ?? 0) * 1_000_000);
+  let locationId = body.locationId?.trim() || null;
+  let serials: readonly PreparedSerialIdentity[] = [];
   try {
     // Validate shape via approve planner preconditions loosely
     if (!(body.quantity && body.quantity > 0)) throw new Error('INVALID_LOSS_QTY');
     if (!(body.reason && body.reason.trim())) throw new Error('LOSS_REASON_REQUIRED');
+    if (!branchId || !productId) throw new Error('LOSS_CONTEXT_REQUIRED');
+    const product = await env.DB.prepare(
+      `SELECT serial_tracking_mode FROM products
+       WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1`,
+    )
+      .bind(tenantId, productId)
+      .first<{ serial_tracking_mode: string }>();
+    serials =
+      product?.serial_tracking_mode === 'REQUIRED'
+        ? await loadSerialsForStockOperation(
+            env.DB,
+            tenantId,
+            branchId,
+            [{ productId, quantityMicrounits, serialIds: body.serialIds ?? [] }],
+            'AVAILABLE',
+          )
+        : [];
+    if (serials.length > 0) {
+      const serialLocations = new Set(serials.map((serial) => serial.locationId));
+      if (serialLocations.size !== 1) throw new Error('SERIAL_IDENTITY_INVALID');
+      const actualLocationId = serials[0]!.locationId;
+      if (locationId && locationId !== actualLocationId) throw new Error('SERIAL_IDENTITY_INVALID');
+      locationId = actualLocationId;
+    }
   } catch (e) {
+    const message = String(e instanceof Error ? e.message : e);
     return {
       status: 422,
-      body: { error: String(e instanceof Error ? e.message : e), code: 'LOSS_REJECTED' },
+      body: {
+        error: message,
+        code: message.startsWith('SERIAL_') ? message : 'LOSS_REJECTED',
+      },
     };
   }
-  await env.DB.prepare(
-    `INSERT INTO stock_losses (
-         id, tenant_id, branch_id, product_id, batch_id, quantity, quantity_microunits, category,
-         evidence_r2_key, reason, status, created_by_user_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
-  )
-    .bind(
-      id,
-      tenantId,
-      body.branchId ?? '',
-      body.productId ?? '',
-      body.batchId ?? null,
-      body.quantity,
-      Math.round(body.quantity * 1000000),
-      body.category ?? 'OTHER',
-      body.evidenceR2Key ?? null,
-      body.reason,
-      userId,
-    )
-    .run();
+  await runD1AtomicPlan(env.DB, (atomicPlan) => {
+    atomicPlan.add(
+      env
+        .DB!.prepare(
+          `INSERT INTO stock_losses (
+           id, tenant_id, branch_id, location_id, product_id, batch_id,
+           quantity, quantity_microunits, category, evidence_r2_key, reason,
+           status, created_by_user_id
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
+        )
+        .bind(
+          id,
+          tenantId,
+          branchId,
+          locationId,
+          productId,
+          body.batchId ?? null,
+          body.quantity,
+          quantityMicrounits,
+          body.category ?? 'OTHER',
+          body.evidenceR2Key ?? null,
+          body.reason,
+          userId,
+        ),
+    );
+    for (const serial of serials) {
+      appendSerialManifestItemToPlan(atomicPlan, env.DB!, {
+        tenantId,
+        serialId: serial.serialId,
+        operationType: 'STOCK_LOSS',
+        operationId: id,
+        idempotencyKey: `stock-loss:${id}`,
+      });
+    }
+  });
   return { status: 200, body: { id, status: 'PENDING' } };
 }
 
@@ -396,7 +647,8 @@ export async function runApproveStockLossHttp(
   if (!lossId) return { status: 400, body: { error: 'lossId required', code: 'BAD_REQUEST' } };
 
   const row = await env.DB.prepare(
-    `SELECT status, quantity, quantity_microunits, category, evidence_r2_key, reason, branch_id, product_id, batch_id
+    `SELECT status, quantity, quantity_microunits, category, evidence_r2_key, reason,
+            branch_id, location_id, product_id, batch_id
      FROM stock_losses WHERE id = ? AND tenant_id = ? LIMIT 1`,
   )
     .bind(lossId, tenantId)
@@ -408,12 +660,14 @@ export async function runApproveStockLossHttp(
       evidence_r2_key: string | null;
       reason: string;
       branch_id: string;
+      location_id: string | null;
       product_id: string;
       batch_id: string | null;
     }>();
   if (!row) return { status: 404, body: { error: 'Loss not found', code: 'NOT_FOUND' } };
 
   let plan;
+  let serials: readonly PreparedSerialIdentity[] = [];
   try {
     plan = planApproveStockLoss({
       status: row.status,
@@ -423,10 +677,50 @@ export async function runApproveStockLossHttp(
       reason: row.reason,
       approvedByUserId: userId,
     });
+    const product = await env.DB.prepare(
+      `SELECT serial_tracking_mode FROM products
+       WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1`,
+    )
+      .bind(tenantId, row.product_id)
+      .first<{ serial_tracking_mode: string }>();
+    if (product?.serial_tracking_mode === 'REQUIRED') {
+      const manifest = await env.DB.prepare(
+        `SELECT sn.id
+         FROM serial_manifests sm
+         INNER JOIN serial_manifest_items smi
+           ON smi.tenant_id = sm.tenant_id AND smi.manifest_id = sm.id
+         INNER JOIN serial_numbers sn
+           ON sn.tenant_id = smi.tenant_id AND sn.id = smi.serial_id
+         WHERE sm.tenant_id = ? AND sm.operation_type = 'STOCK_LOSS'
+           AND sm.operation_id = ?`,
+      )
+        .bind(tenantId, lossId)
+        .all<{ id: string }>();
+      serials = await loadSerialsForStockOperation(
+        env.DB,
+        tenantId,
+        row.branch_id,
+        [
+          {
+            productId: row.product_id,
+            quantityMicrounits: row.quantity_microunits,
+            serialIds: (manifest.results ?? []).map((serial) => serial.id),
+          },
+        ],
+        'AVAILABLE',
+      );
+    }
+    if (row.location_id && serials.some((serial) => serial.locationId !== row.location_id)) {
+      throw new Error('SERIAL_IDENTITY_INVALID');
+    }
   } catch (e) {
+    const message = String(e instanceof Error ? e.message : e);
     return {
       status: 422,
-      body: { error: String(e instanceof Error ? e.message : e), code: 'LOSS_REJECTED' },
+      body: {
+        error: message,
+        code: message.startsWith('SERIAL_') ? message : 'LOSS_REJECTED',
+      },
     };
   }
 
@@ -479,21 +773,60 @@ export async function runApproveStockLossHttp(
     ),
   ];
   const deltaMicrounits = Math.round(plan.adjustmentQty * 1_000_000);
-  await runD1AtomicPlan(env.DB, (atomicPlan) => {
+  await runD1AtomicPlan(env.DB, async (atomicPlan) => {
+    if (serials.length > 0) {
+      atomicPlan.guardState(
+        `SELECT 1 FROM stock_losses sl
+         WHERE sl.id = ? AND sl.tenant_id = ? AND sl.status = 'PENDING'
+           AND EXISTS (
+             SELECT 1 FROM branch_product_stock b
+             WHERE b.tenant_id = sl.tenant_id AND b.branch_id = sl.branch_id
+               AND b.product_id = sl.product_id AND b.stock_microunits >= ?
+           )
+           AND EXISTS (
+             SELECT 1 FROM inventory_location_stock l
+             WHERE l.tenant_id = sl.tenant_id AND l.branch_id = sl.branch_id
+               AND l.location_id = ? AND l.product_id = sl.product_id
+               AND l.quantity_microunits >= ?
+           )`,
+        [lossId, tenantId, -deltaMicrounits, row.location_id, -deltaMicrounits],
+      );
+    }
     for (const statement of stockLossStatements) atomicPlan.add(statement);
     appendLocationStockDeltaToPlan(atomicPlan, env.DB!, {
       tenantId,
       branchId: row.branch_id,
       productId: row.product_id,
       deltaMicrounits,
+      locationId: row.location_id,
       batchId: row.batch_id,
     });
+    const nextSerialStatus =
+      row.category === 'DAMAGED' || row.category === 'EXPIRED' ? 'DAMAGED' : 'LOST';
+    for (const serial of serials) {
+      await appendSerialTransitionToPlan(atomicPlan, env.DB!, {
+        tenantId,
+        serialId: serial.serialId,
+        branchId: serial.branchId,
+        locationId: serial.locationId,
+        productId: serial.productId,
+        expectedStatus: 'AVAILABLE',
+        nextStatus: nextSerialStatus,
+        expectedVersion: serial.version,
+        eventType: 'STOCK_LOSS',
+        operationType: 'STOCK_LOSS',
+        operationId: lossId,
+        idempotencyKey: `stock-loss-approve:${lossId}:${serial.serialId}`,
+        actorUserId: userId,
+      });
+    }
   });
   return {
     status: 200,
     body: { id: lossId, status: plan.nextStatus, adjustmentQty: plan.adjustmentQty },
   };
 }
+/* eslint-enable complexity */
 
 export async function runRejectStockLossHttp(
   env: WorkerEnv | undefined,

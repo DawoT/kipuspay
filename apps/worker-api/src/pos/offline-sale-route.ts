@@ -203,6 +203,7 @@ export async function runOfflineSaleHttp(
   userId: string,
   payload: OfflineSalePayload,
   actorIsAdminOrOwner = false,
+  terminalId = '',
 ): Promise<OfflineSaleHttpResult> {
   if (!isAcidOfflineSaleEnabled(env)) {
     return { status: 404, body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' } };
@@ -219,6 +220,14 @@ export async function runOfflineSaleHttp(
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
   try {
+    const serialAssignments = payload.items
+      .filter((item) => item.serialId && item.serialLeaseToken)
+      .map((item) => ({
+        productId: item.productId,
+        serialId: item.serialId!,
+        leaseToken: item.serialLeaseToken!,
+        terminalId: terminalId.trim(),
+      }));
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
@@ -229,6 +238,7 @@ export async function runOfflineSaleHttp(
       storeCreditActorIsAdminOrOwner: actorIsAdminOrOwner,
       salesInstallmentsEnabled: isSalesInstallmentsEnabled(env),
       salesCommissionsEnabled: isSalesCommissionsEnabled(env),
+      serialAssignments,
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),
         inventoryBom: isInventoryBomEnabled(env),

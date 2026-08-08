@@ -65,6 +65,15 @@ function mockReturnDb(state: {
         },
         first: <T>() => Promise.resolve(pickFirst(sql, state) as T | null),
         all: <T>() => {
+          if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
+            const products = new Map(
+              (state.items ?? []).map((item) => [
+                String(item.product_id),
+                { id: String(item.product_id), serial_tracking_mode: 'NONE' },
+              ]),
+            );
+            return Promise.resolve(okResult([...products.values()] as T[]));
+          }
           if (sql.includes('FROM sale_items')) {
             return Promise.resolve(okResult((state.items ?? []) as T[]));
           }

@@ -15,6 +15,10 @@ import { loadChartAccountsByCode } from './journal-post.js';
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
 import { appendCommissionReverseWithJournal } from './process-commission-atomic.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendSerialTransitionToPlan,
+  loadSerialsForStockOperation,
+} from './process-inventory-serial-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface CreditNoteResult {
@@ -28,6 +32,7 @@ export interface ProcessCreditNoteOptions {
   readonly chartOfAccountsEnabled?: boolean;
   /** Sprint 37 — FEATURE_SALES_COMMISSIONS: reverse accruals on origin (COM-07). */
   readonly salesCommissionsEnabled?: boolean;
+  readonly serialIdsByProduct?: Readonly<Record<string, readonly string[]>>;
 }
 
 export async function processCreditNoteAtomic(
@@ -146,6 +151,20 @@ export async function processCreditNoteAtomic(
   }
 
   const issuedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const preparedSerials = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    origin.branch_id,
+    request.items
+      .map((item) => ({ item, restore: stockRestoreQuantity(item) }))
+      .filter(({ restore }) => restore > 0)
+      .map(({ item, restore }) => ({
+        productId: item.productId,
+        quantityMicrounits: Math.round(restore * QUANTITY_SCALE),
+        serialIds: options.serialIdsByProduct?.[item.productId] ?? [],
+      })),
+    'SOLD',
+  );
   const chartAccounts =
     chartOn || commissionsOn
       ? await loadChartAccountsByCode(db, tenantId)
@@ -236,6 +255,24 @@ export async function processCreditNoteAtomic(
         branchId: origin.branch_id,
         productId: item.productId,
         deltaMicrounits: restoreMicrounits,
+      });
+    }
+    for (const serial of preparedSerials) {
+      await appendSerialTransitionToPlan(plan, db, {
+        tenantId,
+        serialId: serial.serialId,
+        branchId: serial.branchId,
+        locationId: serial.locationId,
+        productId: serial.productId,
+        expectedStatus: 'SOLD',
+        nextStatus: 'RETURNED_INSPECTION',
+        expectedVersion: serial.version,
+        eventType: 'RETURNED',
+        operationType: 'CREDIT_NOTE',
+        operationId: ncId,
+        idempotencyKey: `credit-note:${ncId}:${serial.serialId}`,
+        actorUserId: userId,
+        currentSaleItemId: null,
       });
     }
 

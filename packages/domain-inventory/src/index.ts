@@ -34,6 +34,19 @@ export {
   type LocationAllocation,
   type LocationBatchStock,
 } from './locations.js';
+export {
+  QUANTITY_SCALE as SERIAL_QUANTITY_SCALE,
+  SERIAL_STATES,
+  SERIAL_TRANSITION_MATRIX,
+  assertSerialCardinality,
+  canTransitionSerial,
+  claimSerialLease,
+  normalizeSerialNumber,
+  reconcileSerialManifest,
+  releaseSerialLease,
+  type SerialLease,
+  type SerialState,
+} from './serials.js';
 
 export interface StockBatch {
   readonly batchId: string;

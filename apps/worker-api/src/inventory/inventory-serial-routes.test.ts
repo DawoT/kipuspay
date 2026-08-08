@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-member-access -- focused adapter mocks and opaque lease fixtures */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isInventorySerialsEnabled,
@@ -5,6 +6,7 @@ import {
   runConfigureSerialTrackingHttp,
   runCreateSerialManifestHttp,
   runDisposeSerialHttp,
+  runReleaseSerialLeaseHttp,
   runSearchSerialsHttp,
 } from './inventory-serial-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -13,6 +15,7 @@ const adapters = vi.hoisted(() => ({
   configureSerialTrackingAtomic: vi.fn(),
   createSerialManifestAtomic: vi.fn(),
   acquireSerialLeaseAtomic: vi.fn(),
+  releaseSerialLeaseAtomic: vi.fn(),
   disposeSerialAtomic: vi.fn(),
 }));
 
@@ -55,6 +58,10 @@ describe('inventory-serial-routes', () => {
     adapters.acquireSerialLeaseAtomic.mockResolvedValue({
       leaseToken: 'opaque_kp_7FXQm19w',
       replayed: false,
+    });
+    adapters.releaseSerialLeaseAtomic.mockResolvedValue({
+      serialId: 'serial-1',
+      status: 'RELEASED',
     });
     adapters.disposeSerialAtomic.mockResolvedValue({
       serialId: 'serial-1',
@@ -104,6 +111,7 @@ describe('inventory-serial-routes', () => {
       { serialNumber: ' SN-001 ' },
     );
     expect(response.status).toBe(200);
+    expect(vi.mocked(db.prepare).mock.calls[0]?.[0]).toContain('serial_number_normalized = ?');
     const statement = vi.mocked(db.prepare).mock.results[0]?.value;
     expect(statement.bind).toHaveBeenCalledWith('tenant-jwt', expect.stringMatching(/^SN-001$/));
   });
@@ -116,6 +124,22 @@ describe('inventory-serial-routes', () => {
       serialNumbers: ['SN-001', 'SN-001'],
     });
     expect(response).toMatchObject({ status: 422, body: { code: 'SERIAL_DUPLICATE' } });
+  });
+
+  it('does not expose unexpected D1 errors to the client', async () => {
+    adapters.createSerialManifestAtomic.mockRejectedValueOnce(
+      new Error('D1_ERROR: SQL logic error at internal statement'),
+    );
+    const response = await runCreateSerialManifestHttp(env(), 'tenant-jwt', 'user-1', 'admin', {
+      branchId: 'branch-1',
+      purchaseReceiptLineId: 'receipt-line-1',
+      serialNumbers: ['SN-001'],
+    });
+    expect(response).toMatchObject({
+      status: 500,
+      body: { code: 'SERIAL_MANIFEST_FAILED' },
+    });
+    expect(JSON.stringify(response.body)).not.toContain('SQL logic error');
   });
 
   it('rejects lease replay and cross-terminal acquisition with 422', async () => {
@@ -161,6 +185,23 @@ describe('inventory-serial-routes', () => {
     });
     expect(String(first.body.leaseToken)).not.toContain('serial-1');
     expect(String(first.body.leaseToken)).not.toContain('tenant-jwt');
+  });
+
+  it('releases a lease only through its terminal and opaque token', async () => {
+    const response = await runReleaseSerialLeaseHttp(env(), 'tenant-jwt', 'cashier', 'terminal-a', {
+      serialId: 'serial-1',
+      leaseToken: 'opaque_kp_7FXQm19w',
+    });
+    expect(response).toMatchObject({
+      status: 200,
+      body: { serialId: 'serial-1', status: 'RELEASED' },
+    });
+    expect(adapters.releaseSerialLeaseAtomic).toHaveBeenCalledWith(
+      expect.anything(),
+      'tenant-jwt',
+      'terminal-a',
+      { serialId: 'serial-1', leaseToken: 'opaque_kp_7FXQm19w' },
+    );
   });
 
   it('keeps disposition server-authoritative and privileged', async () => {

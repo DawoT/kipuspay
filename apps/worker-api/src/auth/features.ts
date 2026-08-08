@@ -47,3 +47,8 @@ export function isSalesCommissionsEnabled(env: WorkerEnv | undefined): boolean {
 export function isInventoryLocationsEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_INVENTORY_LOCATIONS);
 }
+
+/** Sprint 39 — serial identity (FEATURE_INVENTORY_SERIALS, default off). */
+export function isInventorySerialsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_INVENTORY_SERIALS);
+}

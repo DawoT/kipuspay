@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { isPartialReceiveEnabled } from '$lib/features';
+  import { isInventorySerialsEnabled, isPartialReceiveEnabled } from '$lib/features';
 
   const recvOn = isPartialReceiveEnabled();
+  const serialsOn = isInventorySerialsEnabled();
   let purchaseOrderId = $state('po-demo');
   let branchId = $state('b-demo');
   let productId = $state('p1');
@@ -10,6 +11,10 @@
   let batchNumber = $state('');
   let expiryDate = $state('');
   let message = $state('');
+  let purchaseReceiptLineId = $state('');
+  let locationId = $state('');
+  let serialScan = $state('');
+  let serialNumbers = $state<string[]>([]);
 
   const apiBase = () =>
     (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
@@ -44,6 +49,36 @@
     message = res.ok
       ? `Receipt ${json.receiptId} · ${json.nextStatus} · CxP ${json.apAmountCents} céntimos`
       : (json.error ?? 'error');
+  }
+
+  function collectSerial(event: KeyboardEvent) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const value = serialScan.trim();
+    if (value && !serialNumbers.includes(value)) serialNumbers = [...serialNumbers, value];
+    serialScan = '';
+  }
+
+  async function createSerialManifest() {
+    const res = await fetch(`${apiBase()}/api/inventory/serials/manifests`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: auth() },
+      body: JSON.stringify({
+        branchId,
+        purchaseReceiptLineId,
+        locationId,
+        serialNumbers,
+      }),
+    });
+    const json = (await res.json()) as {
+      manifestId?: string;
+      serialCount?: number;
+      error?: string;
+      action?: string;
+    };
+    message = res.ok
+      ? `Manifest ${json.manifestId} · ${json.serialCount} serie(s)`
+      : [json.error, json.action].filter(Boolean).join(' ');
   }
 </script>
 
@@ -86,6 +121,36 @@
     <button type="button" data-testid="admin-po-receive" onclick={partialReceive}>
       Registrar recepción
     </button>
+    {#if serialsOn}
+      <fieldset>
+        <legend>Series de la línea recibida</legend>
+        <label>
+          purchase_receipt_line_id
+          <input bind:value={purchaseReceiptLineId} autocomplete="off" />
+        </label>
+        <label>
+          location_id
+          <input bind:value={locationId} autocomplete="off" />
+        </label>
+        <label>
+          Escáner de serie
+          <input
+            bind:value={serialScan}
+            onkeydown={collectSerial}
+            autocomplete="off"
+            placeholder="Escanea y presiona Enter"
+          />
+        </label>
+        <p aria-live="polite">{serialNumbers.length} serie(s) listas.</p>
+        <button
+          type="button"
+          disabled={!purchaseReceiptLineId.trim() || serialNumbers.length === 0}
+          onclick={createSerialManifest}
+        >
+          Asignar series a recepción
+        </button>
+      </fieldset>
+    {/if}
     {#if message}
       <p data-testid="admin-po-msg">{message}</p>
     {/if}
@@ -116,5 +181,9 @@
   button {
     margin-top: 0.75rem;
     padding: 0.45rem 0.85rem;
+  }
+  fieldset {
+    margin-top: 1.5rem;
+    border: 1px solid #99a;
   }
 </style>

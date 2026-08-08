@@ -41,6 +41,7 @@ const ADVANCED_REPORTS = new Set([
   'top-products',
   'inventory-valued',
   'inventory-by-location',
+  'inventory-serial-warranty',
   'branch-ranking',
   'aging-ar-ap',
   'merma',
@@ -68,6 +69,7 @@ export function listCatalogEntries(): readonly {
       tier: 'crece',
       source: 'inventory_location_stock/branch_product_stock',
     },
+    { id: 'inventory-serial-warranty', tier: 'crece', source: 'serial_numbers' },
     { id: 'branch-ranking', tier: 'crece', source: 'daily_financial_rollups' },
     { id: 'aging-ar-ap', tier: 'cadena', source: 'accounts_receivable/payable' },
     { id: 'merma', tier: 'crece', source: 'stock_losses' },
@@ -277,6 +279,45 @@ async function loadReport(
         binds.push(branchId);
       }
       query += ` ORDER BY s.branch_id, l.code, s.product_id LIMIT 1000`;
+      const rows = await db
+        .prepare(query)
+        .bind(...binds)
+        .all();
+      return { items: rows.results ?? [] };
+    }
+    case 'inventory-serial-warranty': {
+      let query = `SELECT sn.serial_number, sn.product_id, sn.branch_id, sn.location_id,
+                          sn.status, sn.current_sale_item_id AS sale_item_id,
+                          s.id AS sale_id, s.document_type, s.series, s.number,
+                          s.client_document_type, s.client_document_number, s.client_name,
+                          s.issued_at_lima, sn.created_at, sn.updated_at,
+                          (
+                            SELECT json_group_array(json_object(
+                              'eventType', e.event_type,
+                              'fromStatus', e.from_status,
+                              'toStatus', e.to_status,
+                              'referenceType', e.reference_type,
+                              'referenceId', e.reference_id,
+                              'branchId', e.branch_id,
+                              'locationId', e.location_id,
+                              'createdAt', e.created_at
+                            ))
+                            FROM serial_number_events e
+                            WHERE e.tenant_id = sn.tenant_id AND e.serial_id = sn.id
+                            ORDER BY e.created_at, e.id
+                          ) AS event_history_json
+                   FROM serial_numbers sn
+                   LEFT JOIN sale_items si
+                     ON si.tenant_id = sn.tenant_id AND si.id = sn.current_sale_item_id
+                   LEFT JOIN sales s
+                     ON s.tenant_id = si.tenant_id AND s.id = si.sale_id
+                   WHERE sn.tenant_id = ?`;
+      const binds: unknown[] = [tenantId];
+      if (branchId) {
+        query += ` AND sn.branch_id = ?`;
+        binds.push(branchId);
+      }
+      query += ` ORDER BY sn.updated_at DESC, sn.serial_number LIMIT 1000`;
       const rows = await db
         .prepare(query)
         .bind(...binds)

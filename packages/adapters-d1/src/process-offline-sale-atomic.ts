@@ -66,6 +66,12 @@ import {
 import { appendInstallmentPlanToBatch } from './process-installment-atomic.js';
 import { appendCommissionAccrualToBatch } from './process-commission-atomic.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendSerialTransitionToPlan,
+  hashSerialLeaseToken,
+  loadSerialsForStockOperation,
+  type PreparedSerialIdentity,
+} from './process-inventory-serial-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
@@ -403,6 +409,13 @@ export interface ProcessOfflineSaleOptions {
   readonly salesInstallmentsEnabled?: boolean;
   /** Sprint 37 — FEATURE_SALES_COMMISSIONS. */
   readonly salesCommissionsEnabled?: boolean;
+  /** Sprint 39: exact physical identities; REQUIRED products fail closed without these. */
+  readonly serialAssignments?: readonly {
+    readonly productId: string;
+    readonly serialId: string;
+    readonly terminalId?: string;
+    readonly leaseToken?: string;
+  }[];
   /** Extra statements en el mismo batch (p.ej. marcar sale_deposits CONVERTED). */
   readonly afterSaleStatements?: (
     plan: { add(statement: D1Bound): unknown },
@@ -964,6 +977,52 @@ export async function processOfflineSaleAtomic(
     );
   }
 
+  const serialAssignments = opts.serialAssignments ?? [];
+  const serialIdsByProduct = new Map<string, string[]>();
+  for (const assignment of serialAssignments) {
+    const ids = serialIdsByProduct.get(assignment.productId) ?? [];
+    ids.push(assignment.serialId);
+    serialIdsByProduct.set(assignment.productId, ids);
+  }
+  const preparedSerials: readonly PreparedSerialIdentity[] = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    payload.branchId,
+    [...qtyByProduct].map(([productId, qty]) => ({
+      productId,
+      quantityMicrounits: Math.round(qty * QUANTITY_SCALE),
+      serialIds: serialIdsByProduct.get(productId) ?? [],
+    })),
+    isReturn ? 'SOLD' : skipStock ? 'RESERVED' : 'AVAILABLE',
+  );
+  const leaseHashBySerial = new Map<string, string>();
+  if (!isReturn && !skipStock) {
+    for (const serial of preparedSerials) {
+      const assignment = serialAssignments.find(
+        (candidate) => candidate.serialId === serial.serialId,
+      );
+      if (!assignment?.terminalId || !assignment.leaseToken)
+        throw new Error('SERIAL_LEASE_REQUIRED');
+      const tokenHash = await hashSerialLeaseToken(assignment.leaseToken);
+      const lease = await db
+        .prepare(
+          `SELECT l.id
+           FROM serial_terminal_leases l
+           INNER JOIN serial_numbers sn
+             ON sn.tenant_id = l.tenant_id AND sn.id = l.serial_id
+           INNER JOIN pos_terminals pt
+             ON pt.tenant_id = l.tenant_id AND pt.id = l.terminal_id
+            AND pt.branch_id = sn.branch_id AND pt.active = 1
+           WHERE l.tenant_id = ? AND l.serial_id = ? AND l.terminal_id = ?
+             AND l.token_hash = ? AND l.status = 'ACTIVE' LIMIT 1`,
+        )
+        .bind(tenantId, serial.serialId, assignment.terminalId, tokenHash)
+        .first<{ id: string }>();
+      if (!lease) throw new Error('SERIAL_LEASE_INVALID');
+      leaseHashBySerial.set(serial.serialId, tokenHash);
+    }
+  }
+
   // SYN-06: preparar OFFLINE_OVERSELL antes del batch (hash-chain sobre stock preflight).
   const oversellAudits: Array<{
     id: string;
@@ -1255,6 +1314,7 @@ export async function processOfflineSaleAtomic(
           ),
       );
 
+      const saleItemByProduct = new Map<string, string>();
       for (const line of saleLines) {
         const product = catalog.get(line.productId)!;
         const source = payload.items.find((item) => item.productId === line.productId)!;
@@ -1264,6 +1324,8 @@ export async function processOfflineSaleAtomic(
           ((source.enteredQuantityMicrounits ?? sourceBaseMicrounits) * baseQuantityMicrounits) /
             sourceBaseMicrounits,
         );
+        const saleItemId = crypto.randomUUID();
+        saleItemByProduct.set(line.productId, saleItemId);
         plan.add(
           db
             .prepare(
@@ -1277,7 +1339,7 @@ export async function processOfflineSaleAtomic(
                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
             )
             .bind(
-              crypto.randomUUID(),
+              saleItemId,
               tenantId,
               saleId,
               line.productId,
@@ -1300,6 +1362,58 @@ export async function processOfflineSaleAtomic(
               payload.sellerId?.trim() || null,
             ),
         );
+      }
+
+      for (const serial of preparedSerials) {
+        const saleItemId = saleItemByProduct.get(serial.productId);
+        if (!saleItemId) throw new Error('SERIAL_SALE_ITEM_REQUIRED');
+        await appendSerialTransitionToPlan(plan, db, {
+          tenantId,
+          serialId: serial.serialId,
+          branchId: serial.branchId,
+          locationId: serial.locationId,
+          productId: serial.productId,
+          expectedStatus: serial.status,
+          nextStatus: isReturn ? 'RETURNED_INSPECTION' : 'SOLD',
+          expectedVersion: serial.version,
+          eventType: isReturn ? 'RETURNED' : 'SALE',
+          operationType: isReturn ? 'SALE_RETURN' : 'SALE_ITEM',
+          operationId: saleId,
+          operationLineId: saleItemId,
+          idempotencyKey: `${payload.offlineSaleId}:${serial.serialId}`,
+          actorUserId: userId,
+          currentSaleItemId: isReturn ? null : saleItemId,
+        });
+        if (!isReturn && !skipStock) {
+          const assignment = serialAssignments.find(
+            (candidate) => candidate.serialId === serial.serialId,
+          )!;
+          plan.add(
+            db
+              .prepare(
+                `UPDATE serial_terminal_leases
+                 SET status = 'CONSUMED', consumed_at = CURRENT_TIMESTAMP, version = version + 1
+                 WHERE tenant_id = ? AND serial_id = ? AND terminal_id = ?
+                   AND token_hash = ? AND status = 'ACTIVE'
+                   AND EXISTS (
+                     SELECT 1
+                     FROM serial_numbers sn
+                     INNER JOIN pos_terminals pt
+                       ON pt.tenant_id = sn.tenant_id AND pt.id = ?
+                      AND pt.branch_id = sn.branch_id AND pt.active = 1
+                     WHERE sn.tenant_id = serial_terminal_leases.tenant_id
+                       AND sn.id = serial_terminal_leases.serial_id
+                   )`,
+              )
+              .bind(
+                tenantId,
+                serial.serialId,
+                assignment.terminalId!,
+                leaseHashBySerial.get(serial.serialId),
+                assignment.terminalId!,
+              ),
+          );
+        }
       }
 
       // Stock: físicos (y FEFO lotes) + componentes BOM. Kits no debitan stock propio.

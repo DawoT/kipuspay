@@ -1,10 +1,12 @@
 /**
  * Sprint 20 — recepción parcial OC + CxP + stock/lotes/PMP en una batch.
  */
+/* eslint-disable complexity -- recepción ACID integra PMP, lote, ubicación y serie */
 import { planCreateAp, planPartialReceive, type PurchaseOrderStatus } from '@kipuspay/domain-cash';
 import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import { appendReceiptSerialIdentityToPlan } from './process-inventory-serial-atomic.js';
 
 export interface PartialReceiveLineInput {
   readonly productId: string;
@@ -12,6 +14,8 @@ export interface PartialReceiveLineInput {
   readonly unitCostCents: number;
   readonly batchNumber?: string | null;
   readonly expiryDate?: string | null;
+  readonly locationId?: string | null;
+  readonly serialNumbers?: readonly string[];
 }
 
 export interface ProcessPartialReceiveInput {
@@ -111,6 +115,25 @@ export async function processPartialReceiveAtomic(
   }[] = [];
 
   for (const line of input.lines) {
+    const tracking = await db
+      .prepare(
+        `SELECT serial_tracking_mode FROM products
+         WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1`,
+      )
+      .bind(tenantId, line.productId)
+      .first<{ serial_tracking_mode: string }>();
+    if (tracking?.serial_tracking_mode === 'REQUIRED') {
+      const serials = line.serialNumbers ?? [];
+      if (!Number.isSafeInteger(line.quantity) || line.quantity <= 0 || line.quantity % 1 !== 0) {
+        throw new Error('SERIAL_QUANTITY_INVALID');
+      }
+      if (serials.length === 0) throw new Error('SERIAL_MANIFEST_REQUIRED');
+      if (serials.length !== line.quantity) throw new Error('SERIAL_MANIFEST_COUNT_MISMATCH');
+      const normalized = serials.map((serial) => serial.trim().normalize('NFKC').toUpperCase());
+      if (new Set(normalized).size !== normalized.length) throw new Error('SERIAL_DUPLICATE');
+    } else if ((line.serialNumbers?.length ?? 0) > 0) {
+      throw new Error('SERIAL_TRACKING_NOT_REQUIRED');
+    }
     const snap = await db
       .prepare(
         `SELECT stock, pmp_unit_cost_cents FROM branch_product_stock
@@ -141,7 +164,7 @@ export async function processPartialReceiveAtomic(
 
   const receiptId = crypto.randomUUID();
 
-  await runD1AtomicPlan(db, (plan) => {
+  await runD1AtomicPlan(db, async (plan) => {
     plan.add(
       db
         .prepare(
@@ -154,6 +177,7 @@ export async function processPartialReceiveAtomic(
 
     for (const line of input.lines) {
       const qtyMicrounits = Math.round(line.quantity * QUANTITY_SCALE);
+      const receiptLineId = crypto.randomUUID();
       plan.add(
         db
           .prepare(
@@ -163,7 +187,7 @@ export async function processPartialReceiveAtomic(
                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
-            crypto.randomUUID(),
+            receiptLineId,
             tenantId,
             receiptId,
             line.productId,
@@ -174,6 +198,18 @@ export async function processPartialReceiveAtomic(
             line.unitCostCents,
           ),
       );
+      for (const serialNumber of line.serialNumbers ?? []) {
+        await appendReceiptSerialIdentityToPlan(plan, db, {
+          tenantId,
+          userId,
+          branchId: input.branchId,
+          locationId: line.locationId || `loc-default:${tenantId}:${input.branchId}`,
+          productId: line.productId,
+          purchaseReceiptLineId: receiptLineId,
+          serialNumber,
+          operationId: `receipt:${receiptId}`,
+        });
+      }
       const prev = previouslyReceivedQtyByProduct.get(line.productId) ?? 0;
       const prevMicrounits = previouslyReceivedQtyMicrounitsByProduct.get(line.productId) ?? 0;
       plan.add(

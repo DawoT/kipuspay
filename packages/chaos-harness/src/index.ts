@@ -57,6 +57,10 @@ import {
   type InventoryLocationChaosResult,
 } from './inventory-location-conservation.js';
 import {
+  runInventorySerialAssignmentChaosScenario,
+  type InventorySerialChaosResult,
+} from './inventory-serial-assignment.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -92,6 +96,7 @@ export type ChaosScenarioId =
   | 'installment-pay-idempotent'
   | 'commission-accrual-payout'
   | 'inventory-location-conservation'
+  | 'inventory-serial-assignment'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -119,6 +124,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'installment-pay-idempotent': 36,
   'commission-accrual-payout': 37,
   'inventory-location-conservation': 38,
+  'inventory-serial-assignment': 39,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -173,6 +179,7 @@ export interface ChaosDeps {
   readonly runInstallmentPayIdempotent?: () => Promise<InstallmentChaosResult>;
   readonly runCommissionAccrualPayout?: () => Promise<CommissionChaosResult>;
   readonly runInventoryLocationConservation?: () => Promise<InventoryLocationChaosResult>;
+  readonly runInventorySerialAssignment?: () => Promise<InventorySerialChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -273,6 +280,8 @@ async function dispatchReadyScenario(
       return runCommissionAccrualPayoutChaosScenario(deps.runCommissionAccrualPayout);
     case 'inventory-location-conservation':
       return runInventoryLocationConservationChaosScenario(deps.runInventoryLocationConservation);
+    case 'inventory-serial-assignment':
+      return runInventorySerialAssignmentChaosScenario(deps.runInventorySerialAssignment);
     default:
       return Promise.reject(
         new Error(
@@ -411,3 +420,10 @@ export {
   runInventoryLocationConservationChaosScenario,
   type InventoryLocationChaosResult,
 } from './inventory-location-conservation.js';
+
+export {
+  judgeInventorySerialAssignment,
+  runInventorySerialAssignmentChaos,
+  runInventorySerialAssignmentChaosScenario,
+  type InventorySerialChaosResult,
+} from './inventory-serial-assignment.js';

@@ -379,6 +379,7 @@ export async function processOfflineSaleAtomic(
   // processInstallmentPlan/PayAtomic (S36/ADR-0020): schedule sobre AR; pay principal-only; OVERDUE on-read.
   // processCommissionRate/PayoutAtomic + accrue-on-sale / reverse-on-NC (S37/ADR-0021): GL 6311/2111; nómina OOS.
   // processInventoryLocationAtomic + dual-write stock (S38/ADR-0022): ubicación/lote granular + agregado branch; transfer conserva PMP.
+  // processInventorySerialAtomic (S39/ADR-0023): guard estado+versión y proyección+evento+manifiesto+lease en el mismo batch.
 ) {  
   // 0. Zero-Trust fiscal y financiero (validación ejecutable, no solo comentario):
   //    - identidad local obligatoria; JWT/tenant no sustituyen la fila users activa.

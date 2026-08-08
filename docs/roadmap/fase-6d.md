@@ -9,7 +9,7 @@ sprints: "38–42"
 
 ### FASE 6D — Inventario Avanzado (KipusPay v8.1, sprints 38–42)
 
-> Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23–27. **Capabilities, no forks** (ADR-ARCH-002).
+> Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23 y 25–27; §5.6 regla 24. **Capabilities, no forks** (ADR-ARCH-002).
 
 #### Sprint 38 — Ubicaciones / racks por sucursal
 **Estado:** Cerrado
@@ -28,6 +28,7 @@ sprints: "38–42"
 ---
 
 #### Sprint 39 — Números de serie
+**Estado:** Cerrado
 **Capabilities:** `inventory.serials`  
 **Referencia:** Arquitectura §5.6 regla 24 · ADR-0023 · **Agentes:** Staff Backend Datos (owner), Staff Frontend (caja), Staff QA
 
@@ -38,7 +39,7 @@ sprints: "38–42"
 
 **Criterios de aceptación:** 0 venta sin serie para productos serializados; 0 doble asignación; devolución libera la serie al estado correcto; reporte de garantía por serie reproducible.
 
-**Quality Gate:** Staff QA (concurrencia de asignación) + Staff Security; Staff PM valida claim electrónica/activos tras gate.
+**Quality Gate:** Staff QA (concurrencia de asignación) + Staff Security; Staff PM valida claim electrónica/activos tras gate. QG: `docs/ops/s39-inventory-serials-qg.md`.
 
 ---
 

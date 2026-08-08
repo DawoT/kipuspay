@@ -142,6 +142,7 @@ export * from './process-store-credit-atomic.js';
 export * from './process-installment-atomic.js';
 export * from './process-commission-atomic.js';
 export * from './process-inventory-location-atomic.js';
+export * from './process-inventory-serial-atomic.js';
 export * from './process-payment-capture-atomic.js';
 export * from './process-webhook-delivery-atomic.js';
 export * from './accounting-export-reader.js';

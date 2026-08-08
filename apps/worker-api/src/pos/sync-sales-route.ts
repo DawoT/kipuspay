@@ -16,6 +16,7 @@ export async function runSyncSalesHttp(
   userId: string,
   body: { sales?: readonly OfflineSalePayload[] | undefined },
   nowMs: number = Date.now(),
+  terminalId = '',
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!isOfflineSyncEnabled(env)) {
     return { status: 404, body: { error: 'FEATURE_OFFLINE_SYNC off', code: 'FEATURE_OFF' } };
@@ -37,6 +38,7 @@ export async function runSyncSalesHttp(
     nowMs,
     kv,
     isLedgerStoreCreditEnabled(env),
+    terminalId.trim(),
   );
   return { status: 200, body: { results: result.results } };
 }

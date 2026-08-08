@@ -46,6 +46,7 @@ import {
   DOWN_0029_SPRINT36_INSTALLMENTS,
   DOWN_0030_SPRINT37_COMMISSIONS,
   DOWN_0031_SPRINT38_INVENTORY_LOCATIONS,
+  DOWN_0032_SPRINT39_INVENTORY_SERIALS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -1056,6 +1057,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('migración 0032 up: seriales, leases y manifiestos cumplen DAT-12', () => {
+    expect(sprint39SerialsSql).toMatch(/serial_tracking_mode TEXT NOT NULL DEFAULT 'NONE'/);
     expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_numbers/);
     expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_number_events/);
     expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_terminal_leases/);
@@ -1079,10 +1081,77 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
       /FOREIGN KEY \(tenant_id, serial_id\) REFERENCES serial_numbers\(tenant_id, id\)/,
     );
     expect(sprint39SerialsSql).toMatch(/UNIQUE \(tenant_id, serial_id\)/);
+    expect(sprint39SerialsSql).toMatch(/SERIAL_EVENTS_APPEND_ONLY/);
+    expect(DOWN_0032_SPRINT39_INVENTORY_SERIALS).toMatch(/INSERT INTO atomic_guards/);
+    expect(DOWN_0032_SPRINT39_INVENTORY_SERIALS).toMatch(/status = 'ACTIVE'/);
+    expect(DOWN_0032_SPRINT39_INVENTORY_SERIALS).toMatch(/status <> 'AVAILABLE'/);
+    expect(DOWN_0032_SPRINT39_INVENTORY_SERIALS).toMatch(
+      /stock\.quantity_microunits <> COUNT\(serial\.id\) \* 1000000/,
+    );
     expect(sprint39SerialsSql).toMatch(/inventory\.serials\.sprint39/);
     expect(sprint39SerialsSql).not.toMatch(
       /FOREIGN KEY \((product_id|branch_id|serial_id)\) REFERENCES/,
     );
+  });
+
+  it('down 0032 aborta con lease activo, estado no colapsable o drift', async () => {
+    const { branchId } = await seedTenantBranchSession('t-serial-down');
+    const locationId = 'loc-default:t-serial-down:b-t-serial-down';
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO products (
+           id, tenant_id, sku, name, product_type, unit_code, price_cents,
+           serial_tracking_mode
+         ) VALUES (?, ?, ?, 'Serializado', 'physical', 'NIU', 1000, 'REQUIRED')`,
+      ).bind('p-serial-down', 't-serial-down', 'SKU-SERIAL-DOWN'),
+      env.DB.prepare(
+        `INSERT INTO inventory_locations (id, tenant_id, branch_id, code, name)
+         VALUES (?, 't-serial-down', ?, 'DEFAULT', 'Default')`,
+      ).bind(locationId, branchId),
+      env.DB.prepare(
+        `INSERT INTO inventory_location_stock (
+           tenant_id, branch_id, location_id, product_id, quantity_microunits
+         ) VALUES (?, ?, ?, ?, 1000000)`,
+      ).bind('t-serial-down', branchId, locationId, 'p-serial-down'),
+      env.DB.prepare(
+        `INSERT INTO pos_terminals (id, tenant_id, branch_id, label)
+         VALUES ('term-serial-down', 't-serial-down', ?, 'Caja serial')`,
+      ).bind(branchId),
+    ]);
+    await env.DB.prepare(
+      `INSERT INTO serial_numbers (
+         id, tenant_id, branch_id, location_id, product_id,
+         serial_number, serial_number_normalized
+       ) VALUES ('serial-down', 't-serial-down', ?, ?, 'p-serial-down', 'SN-DOWN', 'SN-DOWN')`,
+    )
+      .bind(branchId, locationId)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO serial_terminal_leases (
+         id, tenant_id, serial_id, terminal_id, token_hash
+       ) VALUES ('lease-down', 't-serial-down', 'serial-down', 'term-serial-down', 'hash-down')`,
+    ).run();
+
+    await expect(env.DB.exec(DOWN_0032_SPRINT39_INVENTORY_SERIALS)).rejects.toThrow();
+    await env.DB.prepare(`DELETE FROM serial_terminal_leases WHERE id = 'lease-down'`).run();
+
+    await env.DB.prepare(
+      `UPDATE serial_numbers SET status = 'SOLD' WHERE id = 'serial-down'`,
+    ).run();
+    await expect(env.DB.exec(DOWN_0032_SPRINT39_INVENTORY_SERIALS)).rejects.toThrow();
+    await env.DB.prepare(
+      `UPDATE serial_numbers SET status = 'AVAILABLE' WHERE id = 'serial-down'`,
+    ).run();
+
+    await env.DB.prepare(
+      `UPDATE inventory_location_stock SET quantity_microunits = 2000000
+       WHERE tenant_id = 't-serial-down' AND product_id = 'p-serial-down'`,
+    ).run();
+    await expect(env.DB.exec(DOWN_0032_SPRINT39_INVENTORY_SERIALS)).rejects.toThrow();
+    await env.DB.prepare(
+      `UPDATE inventory_location_stock SET quantity_microunits = 1000000
+       WHERE tenant_id = 't-serial-down' AND product_id = 'p-serial-down'`,
+    ).run();
   });
 
   it('migración 0029 up: installments DAT-12 cents ADR-0020 COM-06', async () => {
@@ -1212,6 +1281,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0032_SPRINT39_INVENTORY_SERIALS);
     await env.DB.exec(DOWN_0031_SPRINT38_INVENTORY_LOCATIONS);
     await env.DB.exec(DOWN_0030_SPRINT37_COMMISSIONS);
     await env.DB.exec(DOWN_0029_SPRINT36_INSTALLMENTS);

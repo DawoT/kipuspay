@@ -100,6 +100,13 @@ function mockEnv(
         return Promise.resolve(null);
       },
       all<T>() {
+        if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
+          return Promise.resolve(
+            okResult<T>(
+              binds.slice(1).map((id) => ({ id: String(id), serial_tracking_mode: 'NONE' })) as T[],
+            ),
+          );
+        }
         if (sql.includes('FROM order_items')) {
           return Promise.resolve(okResult<T>(itemRows as T[]));
         }

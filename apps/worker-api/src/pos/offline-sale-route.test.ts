@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { processOfflineSaleAtomic } from '@kipuspay/adapters-d1';
 import { createApp } from '../index.js';
 import type { AuthTenantSnapshot } from '../auth/auth-decide.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -144,6 +145,52 @@ describe('runOfflineSaleHttp', () => {
     );
     expect(res.status).toBe(200);
     expect((res.body as { saleId?: string }).saleId).toBe('sale-m3');
+  });
+
+  it('deriva asignaciones seriales usando el terminal autenticado por cabecera', async () => {
+    await runOfflineSaleHttp(
+      { FEATURE_ACID_OFFLINE_SALE: '1', DB: {} } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'serial-sale',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1,
+            serialId: 'serial-1',
+            serialLeaseToken: 'opaque_token-1',
+          },
+        ],
+        payments: [{ paymentMethodId: 'pm', amountCents: 100 }],
+      },
+      false,
+      'terminal-trusted',
+    );
+
+    expect(vi.mocked(processOfflineSaleAtomic)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      't1',
+      'u1',
+      expect.anything(),
+      expect.objectContaining({
+        serialAssignments: [
+          {
+            productId: 'p1',
+            serialId: 'serial-1',
+            leaseToken: 'opaque_token-1',
+            terminalId: 'terminal-trusted',
+          },
+        ],
+      }),
+    );
   });
 });
 

@@ -4,6 +4,10 @@
  */
 import { assertLocationCanDeactivate, planLocationTransfer } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import {
+  appendSerialTransitionToPlan,
+  loadSerialsForStockOperation,
+} from './process-inventory-serial-atomic.js';
 
 export interface LocationAtomicActorInput {
   readonly branchId: string;
@@ -317,6 +321,7 @@ export interface LocationTransferInput extends LocationAtomicActorInput {
   readonly batchId?: string | null;
   readonly quantityMicrounits: number;
   readonly idempotencyKey: string;
+  readonly serialIds?: readonly string[];
 }
 
 export interface LocationTransferResult {
@@ -362,6 +367,22 @@ export async function processInventoryLocationTransferAtomic(
     transferQuantityMicrounits: input.quantityMicrounits,
   });
   const transferId = crypto.randomUUID();
+  const serials = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    input.branchId,
+    [
+      {
+        productId: input.productId,
+        quantityMicrounits: input.quantityMicrounits,
+        serialIds: input.serialIds ?? [],
+      },
+    ],
+    'AVAILABLE',
+  );
+  if (serials.some((serial) => serial.locationId !== input.sourceLocationId)) {
+    throw new Error('SERIAL_IDENTITY_INVALID');
+  }
   const prevHash = await previousAuditHash(db, tenantId);
   const payload = {
     sourceLocationId: input.sourceLocationId,
@@ -377,7 +398,7 @@ export async function processInventoryLocationTransferAtomic(
     prev: prevHash,
   });
 
-  await runD1AtomicPlan(db, (plan) => {
+  await runD1AtomicPlan(db, async (plan) => {
     const batchGuard = input.batchId
       ? ` AND EXISTS (
             SELECT 1 FROM inventory_location_batch_stock
@@ -424,6 +445,24 @@ export async function processInventoryLocationTransferAtomic(
       guardParams,
     );
     appendTransferStatements(plan, db, tenantId, userId, input, transferId);
+    for (const serial of serials) {
+      await appendSerialTransitionToPlan(plan, db, {
+        tenantId,
+        serialId: serial.serialId,
+        branchId: serial.branchId,
+        locationId: serial.locationId,
+        productId: serial.productId,
+        expectedStatus: 'AVAILABLE',
+        nextStatus: 'AVAILABLE',
+        expectedVersion: serial.version,
+        eventType: 'LOCATION_TRANSFER',
+        operationType: 'LOCATION_TRANSFER',
+        operationId: transferId,
+        idempotencyKey: `location-transfer:${input.idempotencyKey}:${serial.serialId}`,
+        actorUserId: userId,
+        nextLocationId: input.destinationLocationId,
+      });
+    }
     plan.add(
       db
         .prepare(

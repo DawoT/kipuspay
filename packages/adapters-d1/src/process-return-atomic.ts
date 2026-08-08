@@ -32,6 +32,10 @@ import {
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
 import { appendCommissionReverseWithJournal } from './process-commission-atomic.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendSerialTransitionToPlan,
+  loadSerialsForStockOperation,
+} from './process-inventory-serial-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface ProcessReturnInput {
@@ -46,6 +50,7 @@ export interface ProcessReturnInput {
   readonly cashRegisterSessionId?: string | null;
   /** Sprint 35: NC sin reembolso → crédito de tienda (consentimiento). */
   readonly consentStoreCredit?: boolean;
+  readonly serialIdsBySaleItemId?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface ProcessReturnOptions {
@@ -237,6 +242,19 @@ export async function processReturnAtomic(
   );
   const refundAmountCents = sumReturnRefundCents(planned);
   if (refundAmountCents <= 0) throw new Error('INVALID_RETURN_AMOUNT');
+  const preparedSerials = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    origin.branch_id,
+    planned
+      .filter((line) => line.restoreStock && Boolean(line.productId))
+      .map((line) => ({
+        productId: line.productId,
+        quantityMicrounits: Math.round(line.qty * QUANTITY_SCALE),
+        serialIds: input.serialIdsBySaleItemId?.[line.originalSaleItemId] ?? [],
+      })),
+    'SOLD',
+  );
 
   const threshold = input.authThresholdCents ?? 50_000;
   if (refundAmountCents > threshold && !input.authorizedByUserId) {
@@ -463,6 +481,7 @@ export async function processReturnAtomic(
     );
 
     for (const line of planned) {
+      const returnItemId = crypto.randomUUID();
       plan.add(
         db
           .prepare(
@@ -473,7 +492,7 @@ export async function processReturnAtomic(
                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
-            crypto.randomUUID(),
+            returnItemId,
             tenantId,
             returnId,
             line.originalSaleItemId,
@@ -488,6 +507,27 @@ export async function processReturnAtomic(
             line.lineTotalCents,
           ),
       );
+      for (const serialId of input.serialIdsBySaleItemId?.[line.originalSaleItemId] ?? []) {
+        const serial = preparedSerials.find((candidate) => candidate.serialId === serialId);
+        if (!serial) throw new Error('SERIAL_IDENTITY_INVALID');
+        await appendSerialTransitionToPlan(plan, db, {
+          tenantId,
+          serialId,
+          branchId: serial.branchId,
+          locationId: serial.locationId,
+          productId: serial.productId,
+          expectedStatus: 'SOLD',
+          nextStatus: 'RETURNED_INSPECTION',
+          expectedVersion: serial.version,
+          eventType: 'RETURNED',
+          operationType: 'SALE_RETURN',
+          operationId: returnId,
+          operationLineId: returnItemId,
+          idempotencyKey: `return:${returnId}:${serialId}`,
+          actorUserId: userId,
+          currentSaleItemId: null,
+        });
+      }
     }
 
     for (const sp of stockPlans) {

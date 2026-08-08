@@ -49,6 +49,7 @@
 <section class="admin-inv" data-testid="admin-inventario">
   <h1>Inventario · conteo y merma</h1>
   <p class="lede">Hoja ciega y mermas con evidencia (Sprint 18).</p>
+  <p><a href="/admin/series">Buscar serie, lease o disposición</a></p>
 
   {#if !invOn}
     <p data-testid="admin-inv-off">FEATURE_INVENTORY_* desactivado.</p>

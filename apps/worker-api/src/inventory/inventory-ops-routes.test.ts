@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+/* eslint-disable no-secrets/no-secrets -- SQL fragments are not credentials */
 import {
   isInventoryOpsEnabled,
   runApproveCountHttp,
@@ -185,6 +186,94 @@ describe('submit count review', () => {
     expect(binds.flat()).toContain(125);
     expect(binds.flat()).not.toContain(999);
   });
+
+  it('exige identidades exactas al enviar conteo serializado', async () => {
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        first: (sql) => {
+          if (sql.includes('FROM inventory_counts')) {
+            return { status: 'COUNTING', branch_id: 'b1' };
+          }
+          if (sql.includes('COALESCE(s.quantity_microunits')) {
+            return {
+              quantity_microunits: 2_000_000,
+              pmp_unit_cost_cents: 100,
+              location_id: 'loc-1',
+              serial_tracking_mode: 'REQUIRED',
+            };
+          }
+          if (sql.includes('SELECT serial_tracking_mode')) {
+            return { serial_tracking_mode: 'REQUIRED' };
+          }
+          return null;
+        },
+        all: (sql) =>
+          sql.includes('SELECT id, serial_tracking_mode FROM products')
+            ? [{ id: 'p1', serial_tracking_mode: 'REQUIRED' }]
+            : [],
+      }),
+      't1',
+      {
+        countId: 'c1',
+        lines: [{ productId: 'p1', locationId: 'loc-1', countedQty: 2 }],
+      },
+    );
+    expect(res).toMatchObject({ status: 422, body: { code: 'SERIAL_MANIFEST_REQUIRED' } });
+  });
+
+  it('persiste manifest e identidades observadas en el batch del conteo', async () => {
+    const sqls: string[] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        sqls,
+        first: (sql) => {
+          if (sql.includes('FROM inventory_counts')) {
+            return { status: 'COUNTING', branch_id: 'b1' };
+          }
+          if (sql.includes('COALESCE(s.quantity_microunits')) {
+            return {
+              quantity_microunits: 2_000_000,
+              pmp_unit_cost_cents: 100,
+              location_id: 'loc-1',
+              serial_tracking_mode: 'REQUIRED',
+            };
+          }
+          return null;
+        },
+        all: (sql) => {
+          if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
+            return [{ id: 'p1', serial_tracking_mode: 'REQUIRED' }];
+          }
+          if (sql.includes('FROM serial_numbers')) {
+            return ['serial-1', 'serial-2'].map((id) => ({
+              id,
+              product_id: 'p1',
+              branch_id: 'b1',
+              location_id: 'loc-1',
+              status: 'AVAILABLE',
+              version: 1,
+            }));
+          }
+          return [];
+        },
+      }),
+      't1',
+      {
+        countId: 'c1',
+        lines: [
+          {
+            productId: 'p1',
+            locationId: 'loc-1',
+            countedQty: 2,
+            observedSerialIds: ['serial-1', 'serial-2'],
+          },
+        ],
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(sqls.some((sql) => sql.includes('INSERT INTO serial_manifests'))).toBe(true);
+    expect(sqls.some((sql) => sql.includes('INSERT INTO serial_manifest_items'))).toBe(true);
+  });
 });
 
 describe('approve count', () => {
@@ -237,6 +326,105 @@ describe('approve count', () => {
     expect(res.body.status).toBe('APPROVED');
     expect(sqls.some((sql) => sql.includes('inventory_location_stock'))).toBe(true);
   });
+
+  it('rechaza diff serial que no coincide con identidades actuales', async () => {
+    const res = await runApproveCountHttp(
+      mockDbEnv({
+        first: () => ({
+          status: 'DIFFERENCE_REVIEW',
+          difference_threshold_cents: 1000,
+          branch_id: 'b1',
+        }),
+        all: (sql) => {
+          if (sql.includes('FROM inventory_count_lines')) {
+            return [
+              {
+                id: 'line-1',
+                product_id: 'p1',
+                location_id: 'loc-1',
+                difference_qty: 0,
+                difference_qty_microunits: 0,
+                unit_cost_cents: 100,
+                serial_tracking_mode: 'REQUIRED',
+              },
+            ];
+          }
+          if (sql.includes('serial_manifest_items')) return [{ id: 'serial-1' }];
+          if (sql.includes('FROM serial_numbers')) {
+            return [
+              { id: 'serial-1', version: 1 },
+              { id: 'serial-2', version: 1 },
+            ];
+          }
+          return [];
+        },
+      }),
+      't1',
+      'u1',
+      { countId: 'c1' },
+    );
+    expect(res).toMatchObject({ status: 422, body: { code: 'SERIAL_COUNT_DIFF_MISMATCH' } });
+  });
+
+  it('aprueba faltantes seriales como LOST sin duplicar el ajuste agregado', async () => {
+    const sqls: string[] = [];
+    const binds: unknown[][] = [];
+    const res = await runApproveCountHttp(
+      mockDbEnv({
+        sqls,
+        binds,
+        first: () => ({
+          status: 'DIFFERENCE_REVIEW',
+          difference_threshold_cents: 1000,
+          branch_id: 'b1',
+        }),
+        all: (sql) => {
+          if (sql.includes('FROM inventory_count_lines')) {
+            return [
+              {
+                id: 'line-1',
+                product_id: 'p1',
+                location_id: 'loc-1',
+                difference_qty: -1,
+                difference_qty_microunits: -1_000_000,
+                unit_cost_cents: 100,
+                serial_tracking_mode: 'REQUIRED',
+              },
+            ];
+          }
+          if (sql.includes('serial_manifest_items')) return [{ id: 'serial-1' }];
+          if (sql.includes('FROM serial_numbers')) {
+            return [
+              {
+                id: 'serial-1',
+                product_id: 'p1',
+                branch_id: 'b1',
+                location_id: 'loc-1',
+                status: 'AVAILABLE',
+                version: 1,
+              },
+              {
+                id: 'serial-2',
+                product_id: 'p1',
+                branch_id: 'b1',
+                location_id: 'loc-1',
+                status: 'AVAILABLE',
+                version: 1,
+              },
+            ];
+          }
+          return [];
+        },
+      }),
+      't1',
+      'u1',
+      { countId: 'c1' },
+    );
+    expect(res.status).toBe(200);
+    expect(sqls.some((sql) => sql.includes('UPDATE serial_numbers'))).toBe(true);
+    expect(binds.flat()).toContain('LOST');
+    expect(sqls.filter((sql) => sql.includes('UPDATE branch_product_stock'))).toHaveLength(1);
+  });
 });
 
 describe('stock loss', () => {
@@ -259,6 +447,75 @@ describe('stock loss', () => {
     });
     expect(ok.status).toBe(200);
     expect(ok.body.status).toBe('PENDING');
+  });
+
+  it('create exige seriales y persiste location+manifest para REQUIRED', async () => {
+    const missing = await runCreateStockLossHttp(
+      mockDbEnv({
+        first: (sql) =>
+          sql.includes('SELECT serial_tracking_mode') ? { serial_tracking_mode: 'REQUIRED' } : null,
+        all: (sql) =>
+          sql.includes('SELECT id, serial_tracking_mode FROM products')
+            ? [{ id: 'p1', serial_tracking_mode: 'REQUIRED' }]
+            : [],
+      }),
+      't1',
+      'u1',
+      {
+        branchId: 'b1',
+        productId: 'p1',
+        locationId: 'loc-1',
+        quantity: 1,
+        category: 'DAMAGED',
+        reason: 'roto',
+      },
+    );
+    expect(missing).toMatchObject({ status: 422, body: { code: 'SERIAL_MANIFEST_REQUIRED' } });
+
+    const sqls: string[] = [];
+    const created = await runCreateStockLossHttp(
+      mockDbEnv({
+        sqls,
+        first: (sql) => {
+          if (sql.includes('SELECT serial_tracking_mode')) {
+            return { serial_tracking_mode: 'REQUIRED' };
+          }
+          return null;
+        },
+        all: (sql) => {
+          if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
+            return [{ id: 'p1', serial_tracking_mode: 'REQUIRED' }];
+          }
+          if (sql.includes('FROM serial_numbers')) {
+            return [
+              {
+                id: 'serial-1',
+                product_id: 'p1',
+                branch_id: 'b1',
+                location_id: 'loc-1',
+                status: 'AVAILABLE',
+                version: 1,
+              },
+            ];
+          }
+          return [];
+        },
+      }),
+      't1',
+      'u1',
+      {
+        branchId: 'b1',
+        productId: 'p1',
+        locationId: 'loc-1',
+        quantity: 1,
+        category: 'DAMAGED',
+        reason: 'roto',
+        serialIds: ['serial-1'],
+      },
+    );
+    expect(created.status).toBe(200);
+    expect(sqls.some((sql) => sql.includes('INSERT INTO serial_manifests'))).toBe(true);
+    expect(sqls.some((sql) => sql.includes('location_id'))).toBe(true);
   });
 
   it('approve exige evidencia', async () => {
@@ -302,6 +559,73 @@ describe('stock loss', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.adjustmentQty).toBe(-2);
+  });
+
+  it('approve loss transiciona identidades en el mismo plan sin segundo débito', async () => {
+    const sqls: string[] = [];
+    const binds: unknown[][] = [];
+    const res = await runApproveStockLossHttp(
+      mockDbEnv({
+        sqls,
+        binds,
+        first: (sql) => {
+          if (sql.includes('FROM stock_losses')) {
+            return {
+              status: 'PENDING',
+              quantity: 1,
+              quantity_microunits: 1_000_000,
+              category: 'DAMAGED',
+              evidence_r2_key: 'r2/e',
+              reason: 'roto',
+              branch_id: 'b1',
+              location_id: 'loc-1',
+              product_id: 'p1',
+              batch_id: null,
+            };
+          }
+          if (sql.includes('SELECT serial_tracking_mode')) {
+            return { serial_tracking_mode: 'REQUIRED' };
+          }
+          if (sql.includes('FROM serial_numbers')) {
+            return {
+              id: 'serial-1',
+              product_id: 'p1',
+              branch_id: 'b1',
+              location_id: 'loc-1',
+              status: 'AVAILABLE',
+              version: 1,
+            };
+          }
+          return null;
+        },
+        all: (sql) => {
+          if (sql.includes('serial_manifest_items')) return [{ id: 'serial-1' }];
+          if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
+            return [{ id: 'p1', serial_tracking_mode: 'REQUIRED' }];
+          }
+          if (sql.includes('FROM serial_numbers')) {
+            return [
+              {
+                id: 'serial-1',
+                product_id: 'p1',
+                branch_id: 'b1',
+                location_id: 'loc-1',
+                status: 'AVAILABLE',
+                version: 1,
+              },
+            ];
+          }
+          return [];
+        },
+      }),
+      't1',
+      'u1',
+      { lossId: 'l1' },
+    );
+    expect(res.status).toBe(200);
+    expect(sqls.some((sql) => sql.includes('UPDATE serial_numbers'))).toBe(true);
+    expect(binds.flat()).toContain('DAMAGED');
+    expect(sqls.filter((sql) => sql.includes('UPDATE branch_product_stock'))).toHaveLength(1);
   });
 
   it('reject loss', async () => {

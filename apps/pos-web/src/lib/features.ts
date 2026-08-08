@@ -182,3 +182,8 @@ export function isSalesCommissionsEnabled(): boolean {
 export function isInventoryLocationsEnabled(): boolean {
   return flagOn(pub(PF + 'INVENTORY_LOCATIONS'));
 }
+
+/** Sprint 39 — serial identity and terminal leases. */
+export function isInventorySerialsEnabled(): boolean {
+  return flagOn(pub(PF + 'INVENTORY_SERIALS'));
+}

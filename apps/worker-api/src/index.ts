@@ -133,6 +133,14 @@ import {
   runListInventoryLocationsHttp,
   runUpdateInventoryLocationHttp,
 } from './inventory/inventory-location-routes.js';
+import {
+  runAcquireSerialLeaseHttp,
+  runConfigureSerialTrackingHttp,
+  runCreateSerialManifestHttp,
+  runDisposeSerialHttp,
+  runReleaseSerialLeaseHttp,
+  runSearchSerialsHttp,
+} from './inventory/inventory-serial-routes.js';
 import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
 import {
   isAdvancedReportId,
@@ -210,6 +218,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       userId,
       payload,
       user?.role === 'admin' || user?.role === 'owner',
+      c.req.header('x-terminal-id') ?? '',
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
@@ -221,7 +230,14 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const tenantId = jwt?.tenantId ?? '';
     const userId = user?.userId ?? jwt?.sub ?? '';
     const body: { sales?: Parameters<typeof runSyncSalesHttp>[3]['sales'] } = await c.req.json();
-    const result = await runSyncSalesHttp(c.env, tenantId, userId, body);
+    const result = await runSyncSalesHttp(
+      c.env,
+      tenantId,
+      userId,
+      body,
+      Date.now(),
+      c.req.header('x-terminal-id') ?? '',
+    );
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
   });
 
@@ -1024,6 +1040,86 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       productId: c.req.query('productId') ?? '',
       quantityMicrounits: Number(c.req.query('quantityMicrounits') ?? 0),
     });
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  // Sprint 39 — serial identity. Every route remains tenant-scoped by JWT middleware.
+  app.patch('/api/inventory/serials/tracking', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runConfigureSerialTrackingHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/inventory/serials', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const serialNumber = c.req.query('serialNumber');
+    const productId = c.req.query('productId');
+    const status = c.req.query('status');
+    const result = await runSearchSerialsHttp(c.env, jwt?.tenantId ?? '', user?.role, {
+      ...(serialNumber ? { serialNumber } : {}),
+      ...(productId ? { productId } : {}),
+      ...(status ? { status } : {}),
+    });
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 503);
+  });
+  app.post('/api/inventory/serials/manifests', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateSerialManifestHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/serials/leases', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runAcquireSerialLeaseHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      c.req.header('x-terminal-id') ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/inventory/serials/leases/release', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runReleaseSerialLeaseHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.role,
+      c.req.header('x-terminal-id') ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/inventory/serials/disposition', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runDisposeSerialHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
     return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
   });
   app.post('/api/inventory/counts/submit-review', async (c) => {

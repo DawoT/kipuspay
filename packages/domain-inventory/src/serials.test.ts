@@ -55,7 +55,7 @@ describe('inventory serials', () => {
     ]);
 
     expect(SERIAL_TRANSITION_MATRIX).toEqual({
-      AVAILABLE: ['RESERVED', 'IN_TRANSIT', 'LOST', 'DAMAGED', 'RETURNED_SUPPLIER'],
+      AVAILABLE: ['RESERVED', 'SOLD', 'IN_TRANSIT', 'LOST', 'DAMAGED', 'RETURNED_SUPPLIER'],
       RESERVED: ['AVAILABLE', 'SOLD'],
       SOLD: ['RETURNED_INSPECTION'],
       IN_TRANSIT: ['AVAILABLE', 'LOST', 'DAMAGED'],

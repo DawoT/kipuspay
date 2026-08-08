@@ -15,6 +15,10 @@ import {
 import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendSerialTransitionToPlan,
+  loadSerialsForStockOperation,
+} from './process-inventory-serial-atomic.js';
 
 export interface OrderBillingPortionInput {
   readonly saleId: string;
@@ -29,6 +33,7 @@ export interface ProcessOrderBillingInput {
   readonly portions: readonly OrderBillingPortionInput[];
   readonly stockPolicy?: string | null;
   readonly clientName?: string;
+  readonly serialIdsByItemId?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface ProcessOrderBillingResult {
@@ -113,11 +118,23 @@ export async function processOrderBillingAtomic(
     phase: 'bill',
     lines: billable.map((r) => ({ productId: r.product_id, quantity: r.quantity })),
   });
+  const preparedSerials = await loadSerialsForStockOperation(
+    db,
+    tenantId,
+    order.branch_id,
+    billable.map((item) => ({
+      productId: item.product_id,
+      quantityMicrounits: Math.round(item.quantity * QUANTITY_SCALE),
+      serialIds: input.serialIdsByItemId?.[item.id] ?? [],
+    })),
+    'AVAILABLE',
+  );
 
   const limaTs = new Date(nowMs).toISOString().replace('T', ' ').slice(0, 19);
   assertOrderTransition(order.status, 'PAID');
 
-  await runD1AtomicPlan(db, (plan) => {
+  await runD1AtomicPlan(db, async (plan) => {
+    const saleItemByOrderItem = new Map<string, { saleItemId: string; saleId: string }>();
     for (const portion of portions) {
       const portionRows = portion.itemIds.map((id) => byId.get(id)!);
       const totalAmount = portion.amountCents;
@@ -182,6 +199,8 @@ export async function processOrderBillingAtomic(
           accumulatedLineIgv += lineIgv;
         }
 
+        const saleItemId = crypto.randomUUID();
+        saleItemByOrderItem.set(row.id, { saleItemId, saleId: portion.saleId });
         plan.add(
           db
             .prepare(
@@ -193,7 +212,7 @@ export async function processOrderBillingAtomic(
                  ) VALUES (?, ?, ?, ?, ?, 'physical', ?, ?, 0, 0, ?, '10', ?, 0, ?, 0, NULL)`,
             )
             .bind(
-              crypto.randomUUID(),
+              saleItemId,
               tenantId,
               portion.saleId,
               row.product_id,
@@ -278,6 +297,32 @@ export async function processOrderBillingAtomic(
             input.orderId,
           ),
       );
+    }
+
+    for (const item of billable) {
+      const target = saleItemByOrderItem.get(item.id);
+      if (!target) continue;
+      for (const serialId of input.serialIdsByItemId?.[item.id] ?? []) {
+        const serial = preparedSerials.find((candidate) => candidate.serialId === serialId);
+        if (!serial) throw new Error('SERIAL_IDENTITY_INVALID');
+        await appendSerialTransitionToPlan(plan, db, {
+          tenantId,
+          serialId,
+          branchId: serial.branchId,
+          locationId: serial.locationId,
+          productId: serial.productId,
+          expectedStatus: 'AVAILABLE',
+          nextStatus: 'SOLD',
+          expectedVersion: serial.version,
+          eventType: 'SALE',
+          operationType: 'ORDER_BILLING',
+          operationId: input.orderId,
+          operationLineId: item.id,
+          idempotencyKey: `order:${input.orderId}:${serialId}`,
+          actorUserId: userId,
+          currentSaleItemId: target.saleItemId,
+        });
+      }
     }
 
     plan.add(

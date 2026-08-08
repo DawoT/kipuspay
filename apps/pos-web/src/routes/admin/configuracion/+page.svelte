@@ -122,6 +122,12 @@
     </p>
   </section>
 
+  <section id="series">
+    <h2>Identidad serial</h2>
+    <p class="hint">Configura productos en Catálogo y administra leases/disposiciones por serie.</p>
+    <a href="/admin/series">Abrir búsqueda y gestión de series</a>
+  </section>
+
   {#if error}
     <p class="err" role="alert">{error}</p>
   {/if}

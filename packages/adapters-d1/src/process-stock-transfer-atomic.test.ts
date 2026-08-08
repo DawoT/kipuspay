@@ -44,7 +44,15 @@ function mockTransferDb(state: {
           }
           return Promise.resolve(null);
         },
-        all: <T>() => Promise.resolve(okResult((state.lines ?? []) as T[])),
+        all: <T>() => {
+          if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
+            const productIds = binds.slice(1).map(String);
+            return Promise.resolve(
+              okResult(productIds.map((id) => ({ id, serial_tracking_mode: 'NONE' })) as T[]),
+            );
+          }
+          return Promise.resolve(okResult((state.lines ?? []) as T[]));
+        },
         run: () => Promise.resolve(okResult()),
       };
       return stmt;

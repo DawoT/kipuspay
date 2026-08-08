@@ -51,6 +51,9 @@ export interface OfflineSaleItemPayload {
    * Precio unitario ya resuelto por lista + promoción.
    */
   readonly serverUnitPriceCents?: number | undefined;
+  /** Sprint 39: physical identity plus opaque terminal lease, always as a pair. */
+  readonly serialId?: string | undefined;
+  readonly serialLeaseToken?: string | undefined;
 }
 
 export interface OfflineSalePayload {
@@ -118,6 +121,32 @@ function assertPromotionIds(item: OfflineSaleItemPayload): void {
   }
 }
 
+function hasValidOpaqueLease(serialId: string, leaseToken: string): boolean {
+  return leaseToken !== serialId && leaseToken.startsWith('opaque_') && leaseToken.length >= 12;
+}
+
+function hasOneUnitCardinality(item: OfflineSaleItemPayload): boolean {
+  const validBase =
+    item.baseQuantityMicrounits === undefined || item.baseQuantityMicrounits === 1_000_000;
+  const validEntered =
+    item.enteredQuantityMicrounits === undefined || item.enteredQuantityMicrounits === 1_000_000;
+  return item.quantity === 1 && validBase && validEntered;
+}
+
+function assertSerialIdentity(item: OfflineSaleItemPayload): void {
+  const serialId = item.serialId?.trim() ?? '';
+  const leaseToken = item.serialLeaseToken?.trim() ?? '';
+  if (serialId && !leaseToken) throw new Error('MISSING_SERIAL_LEASE_TOKEN');
+  if (!serialId && leaseToken) throw new Error('MISSING_SERIAL_ID');
+  if (!serialId) return;
+  if (!hasValidOpaqueLease(serialId, leaseToken)) {
+    throw new Error('INVALID_SERIAL_LEASE_TOKEN');
+  }
+  if (!hasOneUnitCardinality(item)) {
+    throw new Error('INVALID_SERIAL_CARDINALITY');
+  }
+}
+
 function isPreResolvedItem(item: OfflineSaleItemPayload): boolean {
   return (
     item.baseQuantityMicrounits !== undefined &&
@@ -178,6 +207,7 @@ function assertItems(items: readonly OfflineSaleItemPayload[]): void {
       throw new Error('INVALID_DISCOUNT_CENTS');
     }
     assertPromotionIds(item);
+    assertSerialIdentity(item);
   }
 }
 
@@ -189,6 +219,10 @@ function requireResolvedQuantity(item: OfflineSaleItemPayload): number {
   return quantity;
 }
 
+function saleItemAggregationKey(item: OfflineSaleItemPayload): string {
+  return [item.productId, item.uomId ?? 'BASE', item.serialId ?? ''].join('\u0000');
+}
+
 /**
  * Agrupa ítems por (productId, uomId) igual que el motor ACID (S31 UOM / convert snapshot).
  * Fuerza de verdad compartida entre normalizeUomItems y los converts quote/apartado.
@@ -198,7 +232,7 @@ export function aggregateSaleItems(
 ): OfflineSaleItemPayload[] {
   const aggregated = new Map<string, OfflineSaleItemPayload>();
   for (const item of items) {
-    const key = `${item.productId}\u0000${item.uomId ?? 'BASE'}`;
+    const key = saleItemAggregationKey(item);
     const previous = aggregated.get(key);
     if (!previous) {
       aggregated.set(key, item);

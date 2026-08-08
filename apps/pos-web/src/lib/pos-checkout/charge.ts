@@ -124,6 +124,9 @@ export async function chargeCartOffline(
         ? { uomId: l.uomId, enteredQuantityMicrounits: l.enteredQuantityMicrounits }
         : { quantity: l.quantity }),
       ...(l.promotionIds?.length ? { promotionIds: l.promotionIds } : {}),
+      ...(l.serialId && l.serialLeaseToken
+        ? { serialId: l.serialId, serialLeaseToken: l.serialLeaseToken }
+        : {}),
     })),
     payments: [
       {

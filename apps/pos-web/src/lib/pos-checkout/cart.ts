@@ -11,6 +11,9 @@ export interface CartLine {
   readonly enteredQuantityMicrounits?: number;
   /** Sprint 30: IDs de promo (display); el servidor impone el precio. */
   readonly promotionIds?: readonly string[];
+  /** Sprint 39: one physical unit and its opaque terminal lease. */
+  readonly serialId?: string;
+  readonly serialLeaseToken?: string;
 }
 
 export function lineTotalCents(line: CartLine): number {
@@ -23,7 +26,10 @@ export function cartTotalCents(lines: readonly CartLine[]): number {
 
 export function addOrBumpLine(lines: readonly CartLine[], next: CartLine): CartLine[] {
   const idx = lines.findIndex(
-    (line) => line.productId === next.productId && line.uomId === next.uomId,
+    (line) =>
+      line.productId === next.productId &&
+      line.uomId === next.uomId &&
+      line.serialId === next.serialId,
   );
   if (idx < 0) return [...lines, next];
   const prev = lines[idx];
