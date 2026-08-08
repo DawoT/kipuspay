@@ -4,6 +4,7 @@
  */
 /* eslint-disable complexity -- motor ACID multi-rama NV/CPE/return; split diferido */
 import {
+  aggregateSaleItems,
   assertAndApplyPromotions,
   assertOfflineSaleShape,
   computeNvLineTotals,
@@ -30,6 +31,10 @@ import {
   defaultCreditDueDateIso,
   discountRequiresAuthz,
   planCreateAr,
+  planSaleJournal,
+  assertStoreCreditRedeemable,
+  giftCardSaleSourceRef,
+  planStoreCreditIssue,
 } from '@kipuspay/domain-cash';
 import {
   convertEnteredToBaseMicrounits,
@@ -50,7 +55,14 @@ import {
   type OfflineLoyaltyOutcome,
   type PaymentMethodCode,
 } from '@kipuspay/domain-integrations';
-import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { runD1AtomicPlan, type D1Bound, type D1DatabaseLike } from './index.js';
+import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
+import {
+  appendStoreCreditIssueToPlan,
+  appendStoreCreditRedeemToPlan,
+  ensureStoreCreditAccount,
+  loadStoreCreditAccount,
+} from './process-store-credit-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
@@ -270,13 +282,34 @@ async function normalizeUomItems(
   payload: OfflineSalePayload,
   enabled: boolean,
 ): Promise<OfflineSalePayload> {
-  const usesUom = payload.items.some(
-    (item) => item.uomId !== undefined || item.enteredQuantityMicrounits !== undefined,
-  );
-  if (usesUom && !enabled) throw new Error('FEATURE_OFF');
-
   const items = await Promise.all(
     payload.items.map(async (item) => {
+      const preResolved =
+        item.baseQuantityMicrounits !== undefined &&
+        item.resolvedFactorNumerator !== undefined &&
+        item.resolvedFactorDenominator !== undefined;
+      if (preResolved) {
+        if (
+          !Number.isSafeInteger(item.baseQuantityMicrounits) ||
+          item.baseQuantityMicrounits <= 0 ||
+          !Number.isFinite(item.resolvedFactorNumerator) ||
+          item.resolvedFactorNumerator <= 0 ||
+          !Number.isFinite(item.resolvedFactorDenominator) ||
+          item.resolvedFactorDenominator <= 0
+        ) {
+          throw new Error('INVALID_RESOLVED_UOM');
+        }
+        const quantity = requiredQuantity(item);
+        return {
+          ...item,
+          quantity,
+          baseQuantityMicrounits: item.baseQuantityMicrounits,
+          enteredQuantityMicrounits: item.enteredQuantityMicrounits ?? item.baseQuantityMicrounits,
+          resolvedUomCode: item.resolvedUomCode ?? 'UND',
+          resolvedFactorNumerator: item.resolvedFactorNumerator,
+          resolvedFactorDenominator: item.resolvedFactorDenominator,
+        };
+      }
       if (!item.uomId || item.enteredQuantityMicrounits === undefined) {
         const quantity = requiredQuantity(item);
         return {
@@ -289,6 +322,7 @@ async function normalizeUomItems(
           resolvedFactorDenominator: 1,
         };
       }
+      if (!enabled) throw new Error('FEATURE_OFF');
       const uom = await db
         .prepare(
           `SELECT uom_code, factor_numerator, factor_denominator
@@ -317,26 +351,7 @@ async function normalizeUomItems(
       };
     }),
   );
-  const aggregated = new Map<string, (typeof items)[number]>();
-  for (const item of items) {
-    const key = `${item.productId}\u0000${item.uomId ?? 'BASE'}`;
-    const previous = aggregated.get(key);
-    if (!previous) {
-      aggregated.set(key, item);
-      continue;
-    }
-    aggregated.set(key, {
-      ...previous,
-      quantity: requiredQuantity(previous) + requiredQuantity(item),
-      enteredQuantityMicrounits:
-        (previous.enteredQuantityMicrounits ?? 0) + (item.enteredQuantityMicrounits ?? 0),
-      baseQuantityMicrounits:
-        (previous.baseQuantityMicrounits ?? 0) + (item.baseQuantityMicrounits ?? 0),
-      discountAmountCents: (previous.discountAmountCents ?? 0) + (item.discountAmountCents ?? 0),
-      promotionIds: [...new Set([...(previous.promotionIds ?? []), ...(item.promotionIds ?? [])])],
-    });
-  }
-  return { ...payload, items: [...aggregated.values()] };
+  return { ...payload, items: aggregateSaleItems(items) };
 }
 
 function assertStockAvailable(
@@ -373,6 +388,25 @@ export interface ProcessOfflineSaleOptions {
   readonly pricingPromotionsEnabled?: boolean;
   /** Sprint 31 — FEATURE_CATALOG_UOM. */
   readonly catalogUomEnabled?: boolean;
+  /** Sprint 32 — FEATURE_LEDGER_CHART_OF_ACCOUNTS. */
+  readonly ledgerChartOfAccountsEnabled?: boolean;
+  /** Convertir apartado: la reserva ya descontó stock. */
+  readonly skipStockDeduction?: boolean;
+  /** Sprint 35 — FEATURE_LEDGER_STORE_CREDIT. */
+  readonly storeCreditEnabled?: boolean;
+  readonly storeCreditOnline?: boolean;
+  readonly storeCreditActorIsAdminOrOwner?: boolean;
+  /** Extra statements en el mismo batch (p.ej. marcar sale_deposits CONVERTED). */
+  readonly afterSaleStatements?: (
+    plan: { add(statement: D1Bound): unknown },
+    saleId: string,
+    /**
+     * Tail de la cadena audit_events del tenant tras los audits emitidos en este
+     * batch (oversell → loyalty → journal → store-credit). Los converts (quote/
+     * apartado) encadenan QUOTE_CONVERT / LAYAWAY_CONVERT a este hash.
+     */
+    auditPrevHash: string | null,
+  ) => void | Promise<void>;
 }
 
 /**
@@ -404,6 +438,11 @@ export async function processOfflineSaleAtomic(
     pricingLists: false,
   };
   const pricingPromotionsEnabled = opts.pricingPromotionsEnabled === true;
+  const chartOn = opts.ledgerChartOfAccountsEnabled === true;
+  const skipStock = opts.skipStockDeduction === true;
+  const storeCreditOn = opts.storeCreditEnabled === true;
+  const storeCreditOnline = opts.storeCreditOnline !== false;
+  const storeCreditAdmin = opts.storeCreditActorIsAdminOrOwner === true;
 
   assertOfflineSaleShape(payload);
   payload = await normalizeUomItems(db, tenantId, payload, opts.catalogUomEnabled === true);
@@ -601,11 +640,9 @@ export async function processOfflineSaleAtomic(
     saleLines = splitNvLinesByFefo(totals.lines, fefoByProduct);
   }
 
-  const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
-  if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
-
   // S22: resolve payment_methods.code + edge 2B capture policy (preflight).
   const methodCodeById = new Map<string, PaymentMethodCode | null>();
+  const rawMethodCodeById = new Map<string, string>();
   for (const pay of payload.payments) {
     if (methodCodeById.has(pay.paymentMethodId)) continue;
     const pm = await db
@@ -616,6 +653,7 @@ export async function processOfflineSaleAtomic(
       .bind(tenantId, pay.paymentMethodId)
       .first<{ code: string }>();
     if (!pm) throw new Error('PAYMENT_METHOD_NOT_FOUND');
+    rawMethodCodeById.set(pay.paymentMethodId, pm.code);
     methodCodeById.set(pay.paymentMethodId, isPaymentMethodCode(pm.code) ? pm.code : null);
   }
   for (let i = 0; i < payload.payments.length; i++) {
@@ -629,6 +667,19 @@ export async function processOfflineSaleAtomic(
         online: false,
       });
     }
+  }
+
+  const wantsStoreCreditTender =
+    payload.useStoreCredit === true ||
+    [...rawMethodCodeById.values()].some((code) => code === 'store_credit') ||
+    [...methodCodeById.values()].some((code) => code === 'store_credit');
+  const wantsStoreCreditIssue = payload.storeCreditIssue === true;
+  if ((wantsStoreCreditTender || wantsStoreCreditIssue) && !storeCreditOn) {
+    throw new Error('FEATURE_OFF');
+  }
+  if (!wantsStoreCreditTender) {
+    const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
+    if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
   }
 
   const docType = payload.documentType as DocumentTypeCode;
@@ -744,6 +795,72 @@ export async function processOfflineSaleAtomic(
       const tokenId = await requireLiveAuthToken(db, tenantId, payload.creditOverrideTokenHash);
       authTokensToConsume.push(tokenId);
     }
+  }
+
+  let storeCreditRedeemPlan:
+    | {
+        appliedCents: number;
+        nextBalanceCents: number;
+        accountId: string;
+        prevBalanceCents: number;
+      }
+    | undefined;
+  let storeCreditIssuePlan:
+    | { amountCents: number; accountId: string; prevBalanceCents: number; nextBalanceCents: number }
+    | undefined;
+  if (wantsStoreCreditTender) {
+    const acc = customerId ? await loadStoreCreditAccount(db, tenantId, customerId) : null;
+    const otherPaid = payload.payments
+      .filter((p) => {
+        const code =
+          methodCodeById.get(p.paymentMethodId) ?? rawMethodCodeById.get(p.paymentMethodId);
+        return code !== 'store_credit';
+      })
+      .reduce((s, p) => s + p.amountCents, 0);
+    const remainingDue = Math.max(0, totals.totalAmountCents - otherPaid);
+    const redeem = assertStoreCreditRedeemable({
+      customerId,
+      online: storeCreditOnline,
+      actorIsAdminOrOwner: storeCreditAdmin,
+      balanceCents: acc?.balance_cents ?? 0,
+      remainingDueCents: remainingDue,
+      nowMs,
+      saleId,
+      expiresAtMs: acc?.expires_at ? Date.parse(acc.expires_at) : null,
+    });
+    storeCreditRedeemPlan = {
+      appliedCents: redeem.appliedCents,
+      nextBalanceCents: redeem.nextBalanceCents,
+      accountId: acc!.id,
+      prevBalanceCents: acc!.balance_cents,
+    };
+    payload = {
+      ...payload,
+      payments: payload.payments.map((p) => {
+        const code =
+          methodCodeById.get(p.paymentMethodId) ?? rawMethodCodeById.get(p.paymentMethodId);
+        if (code === 'store_credit') return { ...p, amountCents: redeem.appliedCents };
+        return p;
+      }),
+    };
+    const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
+    if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
+  }
+  if (wantsStoreCreditIssue) {
+    if (!customerId) throw new Error('STORE_CREDIT_CUSTOMER_REQUIRED');
+    const acc = await ensureStoreCreditAccount(db, tenantId, customerId);
+    const issue = planStoreCreditIssue({
+      customerId,
+      currentBalanceCents: acc.balance_cents,
+      amountCents: totals.totalAmountCents,
+      sourceRef: giftCardSaleSourceRef(saleId),
+    });
+    storeCreditIssuePlan = {
+      amountCents: issue.amountCents,
+      accountId: acc.id,
+      prevBalanceCents: acc.balance_cents,
+      nextBalanceCents: issue.nextBalanceCents,
+    };
   }
 
   // S17: descuentos sobre umbral requieren authorization_token (SEC-09).
@@ -966,21 +1083,32 @@ export async function processOfflineSaleAtomic(
     }
   }
 
+  const chartAccounts = chartOn
+    ? await loadChartAccountsByCode(db, tenantId)
+    : new Map<string, string>();
+  // G5: tail de la cadena audit_events tras los audits planeados en este batch
+  // (OFFLINE_OVERSELL → LOYALTY_*). Journal/store-credit/converts encadenan aquí.
+  let auditTail: string | null = loyaltyPlan?.rowHash ?? chainPrev;
+  const journalPrevHash = auditTail;
+
   try {
-    await runD1AtomicPlan(db, (plan) => {
+    await runD1AtomicPlan(db, async (plan) => {
       const stockGuardIds: string[] = [];
       // Stock guard SQL (anti-carrera): ok=0 → CHECK aborta el batch entero.
-      // NV_RETURN no exige stock previo (restaura).
-      for (const [productId, qty] of qtyByProduct) {
-        if (catalog.get(productId)!.type !== 'physical') continue;
-        const st = stockByProduct.get(productId)!;
-        const allow = isReturn || st.allowNegative ? 1 : 0;
-        const guardId = crypto.randomUUID();
-        stockGuardIds.push(guardId);
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO atomic_guards (id, ok)
+      // NV_RETURN no exige stock previo (restaura). Convertir apartado ya reservó.
+      if (skipStock) {
+        /* reserva previa: no re-descontar */
+      } else
+        for (const [productId, qty] of qtyByProduct) {
+          if (catalog.get(productId)!.type !== 'physical') continue;
+          const st = stockByProduct.get(productId)!;
+          const allow = isReturn || st.allowNegative ? 1 : 0;
+          const guardId = crypto.randomUUID();
+          stockGuardIds.push(guardId);
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO atomic_guards (id, ok)
                VALUES (
                  ?,
                  COALESCE(
@@ -990,10 +1118,10 @@ export async function processOfflineSaleAtomic(
                    CASE WHEN ? = 1 THEN 1 ELSE 0 END
                  )
                )`,
-            )
-            .bind(guardId, qty, allow, tenantId, payload.branchId, productId, allow),
-        );
-      }
+              )
+              .bind(guardId, qty, allow, tenantId, payload.branchId, productId, allow),
+          );
+        }
 
       for (const audit of oversellAudits) {
         plan.add(
@@ -1178,7 +1306,7 @@ export async function processOfflineSaleAtomic(
         stockDebits.set(compId, (stockDebits.get(compId) ?? 0) + qty);
       }
 
-      for (const [productId, qty] of stockDebits) {
+      for (const [productId, qty] of skipStock ? [] : stockDebits) {
         const before = stockByProduct.get(productId)!;
         const allow = isReturn || before.allowNegative ? 1 : 0;
         const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
@@ -1510,6 +1638,80 @@ export async function processOfflineSaleAtomic(
         );
       }
 
+      if (
+        chartOn &&
+        (docType === 'NV' || docType === '01' || docType === '03' || docType === '12')
+      ) {
+        const journalPayments = payload.payments.map((pay) => {
+          const raw = rawMethodCodeById.get(pay.paymentMethodId) ?? '';
+          const code = methodCodeById.get(pay.paymentMethodId);
+          const methodCode =
+            pay.isCredit === true || code === 'credit'
+              ? 'credit'
+              : code === 'store_credit' || raw === 'store_credit'
+                ? 'store_credit'
+                : raw === 'anticipo' ||
+                    raw === 'layaway_deposit' ||
+                    (pay.referenceNumber?.startsWith('anticipo:') ?? false)
+                  ? 'anticipo'
+                  : (code ?? 'cash');
+          return { methodCode, amountCents: pay.amountCents };
+        });
+        const journalResult = await appendJournalToPlan(plan, db, {
+          tenantId,
+          branchId: payload.branchId,
+          userId,
+          accountsByCode: chartAccounts,
+          prevAuditHash: journalPrevHash,
+          entry: planSaleJournal({
+            sourceId: saleId,
+            postDate: limaTs.slice(0, 10),
+            totalCents: totals.totalAmountCents,
+            taxCents: totals.totalIgvCents,
+            payments: journalPayments,
+            ...(storeCreditIssuePlan
+              ? { storeCreditIssueCents: storeCreditIssuePlan.amountCents }
+              : {}),
+          }),
+        });
+        auditTail = journalResult.rowHash;
+      }
+
+      if (storeCreditRedeemPlan && customerId) {
+        const storeCreditRedeemResult = await appendStoreCreditRedeemToPlan(plan, db, {
+          tenantId,
+          userId,
+          branchId: payload.branchId,
+          accountId: storeCreditRedeemPlan.accountId,
+          customerId,
+          appliedCents: storeCreditRedeemPlan.appliedCents,
+          prevBalanceCents: storeCreditRedeemPlan.prevBalanceCents,
+          nextBalanceCents: storeCreditRedeemPlan.nextBalanceCents,
+          saleId,
+          prevAuditHash: auditTail,
+        });
+        auditTail = storeCreditRedeemResult.rowHash;
+      }
+      if (storeCreditIssuePlan && customerId) {
+        const storeCreditIssueResult = await appendStoreCreditIssueToPlan(plan, db, {
+          tenantId,
+          userId,
+          branchId: payload.branchId,
+          accountId: storeCreditIssuePlan.accountId,
+          customerId,
+          amountCents: storeCreditIssuePlan.amountCents,
+          sourceRef: giftCardSaleSourceRef(saleId),
+          saleId,
+          prevBalanceCents: storeCreditIssuePlan.prevBalanceCents,
+          nextBalanceCents: storeCreditIssuePlan.nextBalanceCents,
+          prevAuditHash: auditTail,
+          chartOn,
+          accountsByCode: chartAccounts,
+          postDate: limaTs.slice(0, 10),
+        });
+        auditTail = storeCreditIssueResult.rowHash;
+      }
+
       // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).
       if (sunatStatus === 'PENDING') {
         plan.add(
@@ -1543,6 +1745,10 @@ export async function processOfflineSaleAtomic(
             )
             .bind(tokenId, tenantId),
         );
+      }
+
+      if (opts.afterSaleStatements) {
+        await opts.afterSaleStatements(plan, saleId, auditTail);
       }
     });
   } catch (error) {

@@ -27,6 +27,11 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'PRICING_PROMOTIONS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'CATALOG_VARIANTS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'CATALOG_UOM', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_LAYAWAY', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'LEDGER_CHART_OF_ACCOUNTS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_QUOTES', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'PURCHASING_RETURNS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'LEDGER_STORE_CREDIT', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -53,6 +58,11 @@ describe('features flags default off', () => {
     expect(mod.isPricingPromotionsEnabled()).toBe(false);
     expect(mod.isCatalogVariantsEnabled()).toBe(false);
     expect(mod.isCatalogUomEnabled()).toBe(false);
+    expect(mod.isSalesLayawayEnabled()).toBe(false);
+    expect(mod.isLedgerChartOfAccountsEnabled()).toBe(false);
+    expect(mod.isSalesQuotesEnabled()).toBe(false);
+    expect(mod.isPurchasingReturnsEnabled()).toBe(false);
+    expect(mod.isLedgerStoreCreditEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

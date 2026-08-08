@@ -6,17 +6,26 @@
 export type Cents = number;
 
 export type CashMovementType =
-  'DEPOSIT_VALUES' | 'CHANGE_FUND_IN' | 'CHANGE_FUND_OUT' | 'SUPPLIER_PAYMENT' | 'ADJUSTMENT';
+  | 'DEPOSIT_VALUES'
+  | 'CHANGE_FUND_IN'
+  | 'CHANGE_FUND_OUT'
+  | 'SUPPLIER_PAYMENT'
+  | 'ADJUSTMENT'
+  | 'SALE_REFUND'
+  | 'LAYAWAY_DEPOSIT'
+  | 'LAYAWAY_REFUND';
 
 /** Tipos que suman al efectivo esperado (ingresos de caja). */
-const INFLOW: ReadonlySet<CashMovementType> = new Set(['CHANGE_FUND_IN']);
+const INFLOW: ReadonlySet<CashMovementType> = new Set(['CHANGE_FUND_IN', 'LAYAWAY_DEPOSIT']);
 
-/** Tipos que restan del efectivo esperado (retiros / egresos / envíos). */
+/** Tipos que restan del efectivo esperado (retiros / egresos / envíos / reembolsos). */
 const OUTFLOW: ReadonlySet<CashMovementType> = new Set([
   'DEPOSIT_VALUES',
   'CHANGE_FUND_OUT',
   'SUPPLIER_PAYMENT',
   'ADJUSTMENT',
+  'SALE_REFUND',
+  'LAYAWAY_REFUND',
 ]);
 
 export interface CashMovementLine {

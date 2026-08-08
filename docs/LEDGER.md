@@ -5132,3 +5132,152 @@ aprobaciones: [Staff Backend ACID R, Staff Backend Datos R, Staff Principal A, S
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0292
+timestamp_utc: 2026-08-08T00:50:00Z
+schema_version: 2
+sprint_fase: Sprint 32 — FASE 6B (sales.layaway + ledger.chart_of_accounts)
+agente_responsable: Staff Backend ACID / Staff Frontend / Staff Data / Staff Growth
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0291]
+referencias_documentales: [docs/roadmap/fase-6b.md, docs/ops/s32-layaway-journal-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0016-layaway-journal-posting.md, docs/GTM.md]
+prev_id: 0291
+prev_hash: ce3571c9b732f978e6cf8f9b75273b6fd7ba81f930e8b753e71f1bd4ca7a73d9
+entry_hash: 7ed264a0a934075af3a20f309fdf51c237f26a3c40b29894da16c1b3cef79352
+ticket_or_adr: ADR-0016, Roadmap Sprint 32, Arquitectura §5.3 regla 17, GTM-14, GTM-17, DDL 0025
+test_ids: [layaway, journal, journal-post, schema.integration, layaway-routes, journal-routes, layaway-convert-cancel, journal-balance-export, features]
+entregable_afectado: Sprint 32 sales.layaway + ledger.chart_of_accounts GOV-APROBADO
+descripcion: >
+  Cierra Sprint 32 (FASE 6B): ADR-0016 (apartado sin CPE hasta convertir, cancel OPEN
+  sin 07, reserva microunits DAT-12, diario SoT bit-consistente con S23 + 2101);
+  mig 0025 sale_deposits*/chart/journal + seed + arqueo SALE_REFUND/LAYAWAY_*;
+  ACID create/deposit/convert/cancel + posting hot paths; flags default off;
+  diario GET-only; chaos 500; GTM-14/17 apartados.
+evidencia: >
+  RED: layaway.ts/journal.ts/mig 0025 inexistentes; arqueo desconocía SALE_REFUND;
+  export no leía journal_lines. GREEN: dominio sales/cash ≥95% branches; adapters
+  unit ≥70%; worker-api 360; chaos 500/0; verify SUITE GREEN; quality Quality Gate OK.
+red_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+red_run_id: run-red-0292-sprint32-layaway-journal
+expected_failure: Error: Cannot find module layaway / journal / migration 0025 inexistente / UNKNOWN_MOVEMENT_TYPE:LAYAWAY_DEPOSIT
+green_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+green_run_id: run-green-0292-sprint32-layaway-journal
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff Data R, Staff Principal A, Staff QA V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
+```
+id: 0293
+timestamp_utc: 2026-08-08T01:17:42Z
+schema_version: 2
+sprint_fase: Sprint 33 — FASE 6C (sales.quotes)
+agente_responsable: Staff Backend ACID / Staff Frontend / Staff Data / Staff Growth
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0292]
+referencias_documentales: [docs/roadmap/fase-6c.md, docs/ops/s33-quotes-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0017-quotes-com05-snapshot.md, docs/GTM.md]
+prev_id: 0292
+prev_hash: 7ed264a0a934075af3a20f309fdf51c237f26a3c40b29894da16c1b3cef79352
+entry_hash: 5f37d2dcff6ae58c32a28f638c506834636d290c45580d121afba92e75f26491
+ticket_or_adr: ADR-0017, Roadmap Sprint 33, Arquitectura §5.3 regla 18, COM-05, GTM-19, DDL 0026
+test_ids: [quotes, messaging, schema.integration, quote-routes, quote-convert-expire, features]
+entregable_afectado: Sprint 33 sales.quotes GOV-APROBADO
+descripcion: >
+  Cierra Sprint 33 (FASE 6C): ADR-0017 (cotización sin CPE ni reserva, COM-05
+  snapshot, microunits DAT-12); mig 0026 quotes/quote_items; ACID create/send/
+  approve/convert/cancel vía sale engine sin skipStockDeduction; sendQuote WA
+  kipus_quote_v1; flags default off; chaos 500; GTM-19 descongelado.
+evidencia: >
+  RED: quotes.ts/mig 0026 inexistentes; fence qty REAL + FK simple. GREEN: dominio
+  quotes; messaging sendQuote; schema 0026; worker quote-routes; chaos 500/0;
+  verify SUITE GREEN; quality Quality Gate OK.
+red_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+red_run_id: run-red-0293-sprint33-quotes
+expected_failure: Error: Cannot find module quotes / migration 0026 inexistente / quote_items qty REAL
+green_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+green_run_id: run-green-0293-sprint33-quotes
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff Data R, Staff Principal A, Staff QA V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0294
+timestamp_utc: 2026-08-08T01:53:00Z
+schema_version: 2
+sprint_fase: Sprint 34 — FASE 6C (purchasing.returns)
+agente_responsable: Staff Backend Datos / Staff Backend ACID / Staff Frontend / Staff Security
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0293]
+referencias_documentales: [docs/roadmap/fase-6c.md, docs/ops/s34-supplier-returns-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0018-supplier-returns-pmp-cxp.md, docs/GTM.md]
+prev_id: 0293
+prev_hash: 5f37d2dcff6ae58c32a28f638c506834636d290c45580d121afba92e75f26491
+entry_hash: 947d6e717fc1c8ade9ff094e5a50fcf381a30f37a8be7bdba7e7c941d3551d15
+ticket_or_adr: ADR-0018, Roadmap Sprint 34, Arquitectura §5.3 regla 19, GTM-20, DDL 0027
+test_ids: [supplier-return, journal, schema.integration, supplier-return-routes, supplier-return-receive, features]
+entregable_afectado: Sprint 34 purchasing.returns GOV-APROBADO
+descripcion: >
+  Cierra Sprint 34 (FASE 6C): ADR-0018 (NC del proveedor, 0 CPE/cupo, PMP
+  outbound, CxP explícito, microunits DAT-12); mig 0027 supplier_returns/
+  supplier_return_items; ACID create/close/cancel; journal SUPPLIER_RETURN
+  Dr 2011/Cr 6011; flags default off; chaos 500; GTM-20 descongelado.
+evidencia: >
+  RED: supplier-return.ts/mig 0027 inexistentes; fence qty REAL + FK simple.
+  GREEN: dominio outbound PMP + supplier-return; schema 0027; worker
+  supplier-return-routes; chaos 500/0; verify SUITE GREEN; quality OK.
+red_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+red_run_id: run-red-0294-sprint34-supplier-returns
+expected_failure: Error: Cannot find module supplier-return / migration 0027 inexistente / supplier_return_items qty REAL
+green_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+green_run_id: run-green-0294-sprint34-supplier-returns
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Backend ACID R, Staff Frontend R, Staff Principal A, Staff QA V, Staff Security V, Staff Growth V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0295
+timestamp_utc: 2026-08-08T02:40:00Z
+schema_version: 2
+sprint_fase: Sprint 35 — FASE 6C (ledger.store_credit)
+agente_responsable: Staff Backend ACID / Staff Frontend / Staff Security / Staff QA
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0294]
+referencias_documentales: [docs/roadmap/fase-6c.md, docs/ops/s35-store-credit-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0019-store-credit-liability.md, docs/GTM.md]
+prev_id: 0294
+prev_hash: 947d6e717fc1c8ade9ff094e5a50fcf381a30f37a8be7bdba7e7c941d3551d15
+entry_hash: 3328739a5145cee35ff3f2e9261bdf711a0a81c3da6b99e88cd2e4f14b7c612e
+ticket_or_adr: ADR-0019, Roadmap Sprint 35, Arquitectura §5.3 regla 20, GTM-21, DDL 0028
+test_ids: [store-credit, journal, schema.integration, store-credit-routes, store-credit-issue-redeem, features]
+entregable_afectado: Sprint 35 ledger.store_credit GOV-APROBADO
+descripcion: >
+  Cierra Sprint 35 (FASE 6C): ADR-0019 (vale=venta+cupo, saldo servidor, GL
+  2102 ≠ 2101, DAT-12 cents); mig 0028 store_credit_accounts/transactions;
+  ACID issue/redeem/expire/adjust; canje 0 offline; NC+consent ISSUE; flags
+  default off; chaos 500; GTM-21 descongelado.
+evidencia: >
+  RED: store-credit.ts/mig 0028 inexistentes; fence FK simple. GREEN: dominio
+  store-credit + journal 2102; schema 0028; worker store-credit-routes; chaos
+  500/0; verify SUITE GREEN; quality OK.
+red_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+red_run_id: run-red-0295-sprint35-store-credit
+expected_failure: Error: Cannot find module store-credit / migration 0028 inexistente / store_credit FK simple
+green_commit_sha: 3e042334e481b950552a22e139e86afe3db0cd79
+green_run_id: run-green-0295-sprint35-store-credit
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff Principal A, Staff Security V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -12,8 +12,9 @@ sprints: "33–37"
 > Cierra el ciclo financiero completo del negocio: cotizar → vender → devolver (al cliente y al proveedor) → cobrar en partes → compensar con crédito de tienda → comisionar al vendedor. **No reabre fiscal P0** (las NC reusan ADR-FISCAL-001; gift cards y cuotas no emiten CPE propio salvo la venta subyacente). Detalle de entidades: Arquitectura §5.3 reglas 18–22. **Capabilities, no forks** (ADR-ARCH-002); cada claim GTM se descongela solo tras su Quality Gate.
 
 #### Sprint 33 — Cotizaciones / presupuestos
+**Estado:** Cerrado — GOV-APROBADO (`docs/ops/s33-quotes-qg.md`)  
 **Capabilities:** `sales.quotes`  
-**Referencia:** Arquitectura §5.3 regla 18 · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja/Admin), Staff PM (gating)
+**Referencia:** Arquitectura §5.3 regla 18 · ADR-0017 · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja/Admin), Staff PM (gating)
 
 **Entregables:**
 - `quotes`/`quote_items` con precios **congelados por servidor** (Zero-Trust, regla 1) y vencimiento.
@@ -27,8 +28,9 @@ sprints: "33–37"
 ---
 
 #### Sprint 34 — Devolución a proveedor
+**Estado:** Cerrado — GOV-APROBADO (`docs/ops/s34-supplier-returns-qg.md`)  
 **Capabilities:** `purchasing.returns`  
-**Referencia:** Arquitectura §5.3 regla 19; espejo de Sprint 28 · **Agentes:** Staff Backend Datos (owner), Staff Backend ACID, Staff Frontend (Admin), Staff Security (override)
+**Referencia:** Arquitectura §5.3 regla 19 · ADR-0018 · **Agentes:** Staff Backend Datos (owner), Staff Backend ACID, Staff Frontend (Admin), Staff Security (override)
 
 **Entregables:**
 - `supplier_returns`/`supplier_return_items` ligados a `supplier_invoice_id`/`purchase_receipt_id`; estados `OPEN → CLOSED | CANCELLED`.
@@ -42,6 +44,7 @@ sprints: "33–37"
 ---
 
 #### Sprint 35 — Crédito de tienda / vales / gift cards
+**Estado:** Cerrado — GOV-APROBADO (`docs/ops/s35-store-credit-qg.md`)  
 **Capabilities:** `ledger.store_credit`  
 **Referencia:** Arquitectura §5.3 regla 20; Sprint 28 (NC sin reembolso → crédito) · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja), Staff Security, Staff PM
 
@@ -57,6 +60,7 @@ sprints: "33–37"
 ---
 
 #### Sprint 36 — Cuotas / pago en partes
+**Estado:** Planificado  
 **Capabilities:** `sales.installments`  
 **Referencia:** Arquitectura §5.3 regla 21; regla 3 (credit_limit) · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja), Staff Mobile (alertas Dueño)
 
@@ -72,6 +76,7 @@ sprints: "33–37"
 ---
 
 #### Sprint 37 — Comisiones de vendedor
+**Estado:** Planificado  
 **Capabilities:** `sales.commissions`  
 **Referencia:** Arquitectura §5.3 regla 22 · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin), Staff Mobile (reporte Dueño)
 

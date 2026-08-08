@@ -370,6 +370,12 @@ export async function processOfflineSaleAtomic(
   tenantId: string,  
   userId: string,  
   payload: OfflineSalePayload  
+  // S32: opts.ledgerChartOfAccountsEnabled postea journal SALE en el mismo batch;
+  // opts.skipStockDeduction = conversión de apartado (reserva ya descontó stock).
+  // processLayawayCreate/Deposit/Convert/CancelAtomic: un db.batch por hecho; sin CPE hasta convert.
+  // processQuoteCreate/Send/Approve/Convert/CancelAtomic (S33): 0 reserva; convert SIN skipStockDeduction.
+  // processSupplierReturnCreate/Close/CancelAtomic (S34/ADR-0018): 0 CPE; close PMP outbound + CxP + DEVOLUCION_PROVEEDOR.
+  // processStoreCreditIssue/Redeem/Expire/AdjustAtomic (S35/ADR-0019): saldo servidor; redeem 0 offline; GL 2102.
 ) {  
   // 0. Zero-Trust fiscal y financiero (validación ejecutable, no solo comentario):
   //    - identidad local obligatoria; JWT/tenant no sustituyen la fila users activa.

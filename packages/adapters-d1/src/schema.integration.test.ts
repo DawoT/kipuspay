@@ -39,6 +39,10 @@ import {
   DOWN_0022_SPRINT29_SUPPLIER_INVOICES,
   DOWN_0023_SPRINT30_PROMOTIONS,
   DOWN_0024_SPRINT31_VARIANTS_UOM,
+  DOWN_0025_SPRINT32_LAYAWAY_JOURNAL,
+  DOWN_0026_SPRINT33_QUOTES,
+  DOWN_0027_SPRINT34_SUPPLIER_RETURNS,
+  DOWN_0028_SPRINT35_STORE_CREDIT,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -55,6 +59,10 @@ import sprint28ReturnsSql from '../migrations/0021_sprint28_sales_returns.sql?ra
 import sprint29ThreeWaySql from '../migrations/0022_sprint29_supplier_invoices.sql?raw';
 import sprint30PromotionsSql from '../migrations/0023_sprint30_promotions.sql?raw';
 import sprint31VariantsUomSql from '../migrations/0024_sprint31_variants_uom.sql?raw';
+import sprint32LayawayJournalSql from '../migrations/0025_sprint32_layaway_journal.sql?raw';
+import sprint33QuotesSql from '../migrations/0026_sprint33_quotes.sql?raw';
+import sprint34SupplierReturnsSql from '../migrations/0027_sprint34_supplier_returns.sql?raw';
+import sprint35StoreCreditSql from '../migrations/0028_sprint35_store_credit.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -1014,6 +1022,53 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint31VariantsUomSql).toMatch(/catalog\.variants_uom\.sprint31/);
   });
 
+  it('migración 0028 up: store_credit DAT-12 cents ADR-0019', async () => {
+    expect(sprint35StoreCreditSql).toMatch(/CREATE TABLE IF NOT EXISTS store_credit_accounts/);
+    expect(sprint35StoreCreditSql).toMatch(/CREATE TABLE IF NOT EXISTS store_credit_transactions/);
+    expect(sprint35StoreCreditSql).toMatch(/CHECK \(balance_cents >= 0\)/);
+    expect(sprint35StoreCreditSql).toMatch(
+      /FOREIGN KEY \(tenant_id, store_credit_account_id\) REFERENCES store_credit_accounts\(tenant_id, id\)/,
+    );
+    expect(sprint35StoreCreditSql).toMatch(
+      /FOREIGN KEY \(tenant_id, sale_id\) REFERENCES sales\(tenant_id, id\)/,
+    );
+    expect(sprint35StoreCreditSql).toMatch(/ledger\.store_credit\.sprint35/);
+    expect(sprint35StoreCreditSql).not.toMatch(
+      /FOREIGN KEY \(store_credit_account_id\) REFERENCES store_credit_accounts\(id\)/,
+    );
+  });
+
+  it('migración 0027 up: supplier_returns DAT-12/microunits ADR-0018', async () => {
+    expect(sprint34SupplierReturnsSql).toMatch(/CREATE TABLE IF NOT EXISTS supplier_returns/);
+    expect(sprint34SupplierReturnsSql).toMatch(/CREATE TABLE IF NOT EXISTS supplier_return_items/);
+    expect(sprint34SupplierReturnsSql).toMatch(/base_quantity_microunits INTEGER NOT NULL/);
+    expect(sprint34SupplierReturnsSql).toMatch(
+      /FOREIGN KEY \(tenant_id, return_id\) REFERENCES supplier_returns\(tenant_id, id\)/,
+    );
+    expect(sprint34SupplierReturnsSql).toMatch(/purchasing\.returns\.sprint34/);
+    expect(sprint34SupplierReturnsSql).not.toMatch(/\bqty REAL\b/);
+  });
+
+  it('migración 0026 up: quotes DAT-12/microunits COM-05', async () => {
+    expect(sprint33QuotesSql).toMatch(/CREATE TABLE IF NOT EXISTS quotes/);
+    expect(sprint33QuotesSql).toMatch(/CREATE TABLE IF NOT EXISTS quote_items/);
+    expect(sprint33QuotesSql).toMatch(/base_quantity_microunits INTEGER NOT NULL/);
+    expect(sprint33QuotesSql).toMatch(
+      /FOREIGN KEY \(tenant_id, quote_id\) REFERENCES quotes\(tenant_id, id\)/,
+    );
+    expect(sprint33QuotesSql).toMatch(/sales\.quotes\.sprint33/);
+    expect(sprint33QuotesSql).not.toMatch(/\bqty REAL\b/);
+  });
+
+  it('migración 0025 up: layaway + journal DAT-12/microunits', async () => {
+    expect(sprint32LayawayJournalSql).toMatch(/CREATE TABLE IF NOT EXISTS sale_deposits/);
+    expect(sprint32LayawayJournalSql).toMatch(/CREATE TABLE IF NOT EXISTS chart_of_accounts/);
+    expect(sprint32LayawayJournalSql).toMatch(/base_quantity_microunits INTEGER NOT NULL/);
+    expect(sprint32LayawayJournalSql).toMatch(/UNIQUE \(tenant_id, source_type, source_id\)/);
+    expect(sprint32LayawayJournalSql).toMatch(/sales\.layaway_journal\.sprint32/);
+    expect(sprint32LayawayJournalSql).toMatch(/'2101'/);
+  });
+
   it('trigger 0024: rechaza variante con hijos y auto-parent en runtime', async () => {
     const tenantId = `t-${Math.random().toString(36).slice(2)}`;
     const product = `p-${Math.random().toString(36).slice(2)}`;
@@ -1078,6 +1133,10 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0028_SPRINT35_STORE_CREDIT);
+    await env.DB.exec(DOWN_0027_SPRINT34_SUPPLIER_RETURNS);
+    await env.DB.exec(DOWN_0026_SPRINT33_QUOTES);
+    await env.DB.exec(DOWN_0025_SPRINT32_LAYAWAY_JOURNAL);
     await env.DB.exec(DOWN_0024_SPRINT31_VARIANTS_UOM);
     await env.DB.exec(DOWN_0023_SPRINT30_PROMOTIONS);
     await env.DB.exec(DOWN_0022_SPRINT29_SUPPLIER_INVOICES);

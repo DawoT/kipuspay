@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  aggregateSaleItems,
   assertOfflineSaleShape,
   computeNvLineTotals,
   InsufficientStockError,
@@ -61,6 +62,169 @@ describe('assertOfflineSaleShape', () => {
         ],
       }),
     ).toThrow('INVALID_UOM_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', uomId: 'u-pack', enteredQuantityMicrounits: 0 }],
+      }),
+    ).toThrow('INVALID_UOM_QUANTITY');
+  });
+
+  it('rechaza promotionIds mal formados', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', quantity: 1, promotionIds: 'pr1' as never }],
+      }),
+    ).toThrow('INVALID_PROMOTION_IDS');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', quantity: 1, promotionIds: [''] }],
+      }),
+    ).toThrow('INVALID_PROMOTION_IDS');
+  });
+
+  it('acepta item pre-resuelto server-side con cantidad fraccional (convert snapshot)', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1.5,
+            baseQuantityMicrounits: 1500000,
+            resolvedUomCode: 'UND',
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+            serverUnitPriceCents: 1000,
+          },
+        ],
+        payments: [{ paymentMethodId: 'pm1', amountCents: 1770 }],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rechaza item pre-resuelto con base o factores inválidos', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1.5,
+            baseQuantityMicrounits: -1,
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1.5,
+            baseQuantityMicrounits: 1500000,
+            resolvedFactorNumerator: 0,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 0,
+            baseQuantityMicrounits: 1500000,
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1.5,
+            baseQuantityMicrounits: 1.5,
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: Number.NaN,
+            baseQuantityMicrounits: 1500000,
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 0,
+            baseQuantityMicrounits: 1500000,
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1.5,
+            baseQuantityMicrounits: 1500000,
+            resolvedFactorNumerator: 'x' as never,
+            resolvedFactorDenominator: 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_RESOLVED_QUANTITY');
+  });
+
+  it('acepta item pre-resuelto con identidad UOM (uomId + entered + factores)', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1.5,
+            uomId: 'u-kg',
+            enteredQuantityMicrounits: 1500,
+            baseQuantityMicrounits: 1500000,
+            resolvedUomCode: 'KG',
+            resolvedFactorNumerator: 1000,
+            resolvedFactorDenominator: 1,
+            serverUnitPriceCents: 1000,
+          },
+        ],
+      }),
+    ).not.toThrow();
   });
 
   it('rechaza captureStatus inválido', () => {
@@ -194,6 +358,85 @@ describe('resolveIssuedAtMs and lima stamp', () => {
 
   it('formatea Lima UTC-5', () => {
     expect(toLimaTimestamp(Date.parse('2026-08-04T15:00:00.000Z'))).toBe('2026-08-04 10:00:00');
+  });
+});
+
+describe('aggregateSaleItems', () => {
+  it('fusiona ítems por (productId, uomId) sumando cantidades y base', () => {
+    const items = [
+      {
+        productId: 'p1',
+        quantity: 1,
+        baseQuantityMicrounits: 1000000,
+        enteredQuantityMicrounits: 1000000,
+        resolvedFactorNumerator: 1,
+        resolvedFactorDenominator: 1,
+      },
+      {
+        productId: 'p1',
+        quantity: 0.5,
+        baseQuantityMicrounits: 500000,
+        enteredQuantityMicrounits: 500000,
+        resolvedFactorNumerator: 1,
+        resolvedFactorDenominator: 1,
+      },
+      {
+        productId: 'p2',
+        quantity: 2,
+        baseQuantityMicrounits: 2000000,
+        resolvedFactorNumerator: 1,
+        resolvedFactorDenominator: 1,
+      },
+    ];
+    const merged = aggregateSaleItems(items);
+    expect(merged).toHaveLength(2);
+    const p1 = merged.find((item) => item.productId === 'p1')!;
+    expect(p1.quantity).toBe(1.5);
+    expect(p1.baseQuantityMicrounits).toBe(1500000);
+    expect(p1.enteredQuantityMicrounits).toBe(1500000);
+  });
+
+  it('fusión con descuentos y promotionIds distintos', () => {
+    const merged = aggregateSaleItems([
+      {
+        productId: 'p1',
+        quantity: 1,
+        baseQuantityMicrounits: 1000000,
+        discountAmountCents: 10,
+        promotionIds: ['pr1'],
+      },
+      {
+        productId: 'p1',
+        quantity: 1,
+        baseQuantityMicrounits: 1000000,
+        discountAmountCents: 5,
+        promotionIds: ['pr2'],
+      },
+    ]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.discountAmountCents).toBe(15);
+    expect([...(merged[0]!.promotionIds ?? [])].sort()).toEqual(['pr1', 'pr2']);
+  });
+
+  it('no fusiona el mismo producto con uomId distinto', () => {
+    const merged = aggregateSaleItems([
+      { productId: 'p1', quantity: 1, uomId: 'u-und' },
+      { productId: 'p1', quantity: 1, uomId: 'u-pack' },
+      { productId: 'p1', quantity: 1 },
+    ]);
+    expect(merged).toHaveLength(3);
+  });
+
+  it('suma entered/base/descuento ausentes como 0', () => {
+    const merged = aggregateSaleItems([
+      { productId: 'p1', quantity: 1 },
+      { productId: 'p1', quantity: 2 },
+    ]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.quantity).toBe(3);
+    expect(merged[0]!.enteredQuantityMicrounits).toBe(0);
+    expect(merged[0]!.baseQuantityMicrounits).toBe(0);
+    expect(merged[0]!.discountAmountCents).toBe(0);
   });
 });
 

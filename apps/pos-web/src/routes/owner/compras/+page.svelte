@@ -1,14 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isPurchasingThreeWayEnabled } from '$lib/features';
+  import { isPurchasingReturnsEnabled, isPurchasingThreeWayEnabled } from '$lib/features';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
+  const returnsOn = isPurchasingReturnsEnabled();
   let openPos = $state<
     { id: string; status: string; totalAmountCents: number; supplierId: string }[]
   >([]);
   let uninvoiced = $state<{ receiptId: string; purchaseOrderId: string }[]>([]);
   let overrides = $state<{ invoiceNumber: string; totalCents: number }[]>([]);
+  let openReturns = $state<{ id: string; totalCents: number; reason: string }[]>([]);
   let message = $state('');
 
   const apiBase = () =>
@@ -17,33 +19,46 @@
   const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
 
   onMount(() => {
-    if (threeWayOn) void refresh();
+    if (threeWayOn || returnsOn) void refresh();
   });
 
   async function refresh() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/owner/purchasing/three-way`, {
-      headers: { authorization: auth() },
-    });
-    const json = (await res.json()) as {
-      openPurchaseOrders?: typeof openPos;
-      uninvoicedReceipts?: typeof uninvoiced;
-      priceDiffOverrides?: typeof overrides;
-      error?: string;
-    };
-    if (!res.ok) {
-      message = json.error ?? `Error ${res.status}`;
-      return;
+    if (threeWayOn) {
+      const res = await fetch(`${apiBase()}/api/owner/purchasing/three-way`, {
+        headers: { authorization: auth() },
+      });
+      const json = (await res.json()) as {
+        openPurchaseOrders?: typeof openPos;
+        uninvoicedReceipts?: typeof uninvoiced;
+        priceDiffOverrides?: typeof overrides;
+        error?: string;
+      };
+      if (!res.ok) {
+        message = json.error ?? `Error ${res.status}`;
+        return;
+      }
+      openPos = json.openPurchaseOrders ?? [];
+      uninvoiced = json.uninvoicedReceipts ?? [];
+      overrides = json.priceDiffOverrides ?? [];
     }
-    openPos = json.openPurchaseOrders ?? [];
-    uninvoiced = json.uninvoicedReceipts ?? [];
-    overrides = json.priceDiffOverrides ?? [];
+    if (returnsOn) {
+      const ret = await fetch(`${apiBase()}/api/owner/purchasing/returns`, {
+        headers: { authorization: auth() },
+      });
+      const retJson = (await ret.json()) as { openReturns?: typeof openReturns; error?: string };
+      if (!ret.ok) {
+        message = retJson.error ?? `Error ${ret.status}`;
+        return;
+      }
+      openReturns = retJson.openReturns ?? [];
+    }
   }
 </script>
 
 <section data-testid="owner-three-way">
   <h1>Compras 3-way</h1>
-  {#if !threeWayOn}
+  {#if !threeWayOn && !returnsOn}
     <p data-testid="owner-three-way-off">PUBLIC_FEATURE_PURCHASING_THREE_WAY desactivado.</p>
   {:else}
     <button type="button" data-testid="owner-three-way-refresh" onclick={refresh}>
@@ -68,6 +83,16 @@
         <li>Ninguna</li>
       {/each}
     </ul>
+    {#if returnsOn}
+      <h2>Devoluciones OPEN</h2>
+      <ul data-testid="owner-open-returns">
+        {#each openReturns as r}
+          <li>{r.id} · {formatCents(r.totalCents)} · {r.reason}</li>
+        {:else}
+          <li>Ninguna</li>
+        {/each}
+      </ul>
+    {/if}
     <h2>Overrides de precio</h2>
     <ul data-testid="owner-price-diffs">
       {#each overrides as o}

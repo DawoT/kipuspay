@@ -10,6 +10,20 @@ import type { TenantAuthDeps } from './tenant-auth-middleware.js';
 const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/pos/totals' },
   { method: 'POST', path: '/api/pos/offline-sale' },
+  { method: 'POST', path: '/api/sales/layaways' },
+  { method: 'POST', path: '/api/sales/layaways/deposit' },
+  { method: 'POST', path: '/api/sales/layaways/convert' },
+  { method: 'POST', path: '/api/sales/layaways/cancel' },
+  { method: 'GET', path: '/api/owner/layaways/overdue' },
+  { method: 'POST', path: '/api/sales/quotes' },
+  { method: 'POST', path: '/api/sales/quotes/send' },
+  { method: 'POST', path: '/api/sales/quotes/approve' },
+  { method: 'POST', path: '/api/sales/quotes/convert' },
+  { method: 'POST', path: '/api/sales/quotes/cancel' },
+  { method: 'GET', path: '/api/owner/quotes/expired' },
+  { method: 'GET', path: '/api/ledger/journal' },
+  { method: 'POST', path: '/api/ledger/journal' },
+  { method: 'PATCH', path: '/api/ledger/journal' },
   { method: 'GET', path: '/api/ledger/ar' },
   { method: 'POST', path: '/api/ledger/ar/pay' },
   { method: 'GET', path: '/api/ledger/ap' },
@@ -18,6 +32,14 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/purchasing/orders' },
   { method: 'POST', path: '/api/purchasing/orders/transition' },
   { method: 'POST', path: '/api/purchasing/orders/partial-receive' },
+  { method: 'POST', path: '/api/purchasing/returns' },
+  { method: 'POST', path: '/api/purchasing/returns/close' },
+  { method: 'POST', path: '/api/purchasing/returns/cancel' },
+  { method: 'GET', path: '/api/owner/purchasing/returns' },
+  { method: 'POST', path: '/api/ledger/store-credit/issue' },
+  { method: 'POST', path: '/api/ledger/store-credit/expire' },
+  { method: 'POST', path: '/api/ledger/store-credit/adjust' },
+  { method: 'GET', path: '/api/owner/ledger/store-credit' },
   { method: 'POST', path: '/api/payments/charge' },
   { method: 'GET', path: '/api/payments/captures/cap1' },
   { method: 'GET', path: '/api/owner/payments/uncaptured' },
@@ -90,7 +112,11 @@ describe('matriz rutas protegidas worker-api', () => {
     const app = createApp(authed);
     const res = await app.request(
       path,
-      requestInit(method, { 'content-type': 'application/json' }, method === 'POST'),
+      requestInit(
+        method,
+        { 'content-type': 'application/json' },
+        method === 'POST' || method === 'PATCH',
+      ),
     );
     expect(res.status).toBe(401);
   });
@@ -110,7 +136,7 @@ describe('matriz rutas protegidas worker-api', () => {
             'content-type': 'application/json',
             authorization: 'Bearer tok',
           },
-          method === 'POST',
+          method === 'POST' || method === 'PATCH',
         ),
       );
       expect(res.status).toBe(503);

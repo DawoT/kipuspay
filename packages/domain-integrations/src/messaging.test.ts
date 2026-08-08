@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assertSendableQuote,
   assertSendableReceipt,
   assertWhatsAppOptIn,
+  QUOTE_TEMPLATE_ID,
   receiptLegend,
   receiptTemplateId,
 } from './messaging.js';
@@ -39,5 +41,27 @@ describe('messaging', () => {
     expect(() =>
       assertSendableReceipt({ ...base, representationUrl: 'http://insecure/x' }),
     ).toThrow('WHATSAPP_URL_NOT_HTTPS');
+  });
+
+  it('sendQuote usa plantilla kipus_quote_v1 y no finge NV', () => {
+    expect(QUOTE_TEMPLATE_ID).toBe('kipus_quote_v1');
+    const quote = {
+      tenantId: 't1',
+      customerId: 'c1',
+      quoteId: 'q1',
+      phoneE164: '+51999999999',
+      optedIn: true,
+      representationUrl: 'https://cdn.example/q.pdf',
+    };
+    expect(() => assertSendableQuote(quote)).not.toThrow();
+    expect(() => assertSendableQuote({ ...quote, optedIn: false })).toThrow(
+      'WHATSAPP_OPT_IN_REQUIRED',
+    );
+    expect(() => assertSendableQuote({ ...quote, phoneE164: '999' })).toThrow(
+      'WHATSAPP_PHONE_INVALID',
+    );
+    expect(() => assertSendableQuote({ ...quote, representationUrl: 'http://insecure/x' })).toThrow(
+      'WHATSAPP_URL_NOT_HTTPS',
+    );
   });
 });

@@ -26,6 +26,20 @@ describe('computeExpectedCashCents', () => {
     // 10000 + 5000 + 2000 - 3000 - 1000 - 500 = 12500
     expect(expected).toBe(12_500);
   });
+
+  it('trata SALE_REFUND y LAYAWAY_REFUND como outflow y LAYAWAY_DEPOSIT como inflow', () => {
+    expect(
+      computeExpectedCashCents({
+        openingBalanceCents: 10_000,
+        cashSalesCents: 0,
+        movements: [
+          { movementType: 'LAYAWAY_DEPOSIT', amountCents: 2_000 },
+          { movementType: 'SALE_REFUND', amountCents: 500 },
+          { movementType: 'LAYAWAY_REFUND', amountCents: 300 },
+        ],
+      }),
+    ).toBe(11_200);
+  });
 });
 
 describe('planBlindClose', () => {

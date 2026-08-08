@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isFiscalCircuitBreakerEnabled, isOwnerModeEnabled } from '$lib/features';
+  import {
+    isFiscalCircuitBreakerEnabled,
+    isLedgerStoreCreditEnabled,
+    isOwnerModeEnabled,
+    isSalesLayawayEnabled,
+    isSalesQuotesEnabled,
+  } from '$lib/features';
   import {
     canOfferAnularEa,
     type FiscalBacklogItem,
@@ -15,6 +21,9 @@
 
   const enabled = isOwnerModeEnabled();
   const fiscalEa = isFiscalCircuitBreakerEnabled();
+  const layawayOn = isSalesLayawayEnabled();
+  const quotesOn = isSalesQuotesEnabled();
+  const storeCreditOn = isLedgerStoreCreditEnabled();
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
@@ -22,6 +31,18 @@
   let eaMsg = $state<string | null>(null);
   let pendingAnular = $state<FiscalBacklogItem | null>(null);
   let motiveCode = $state('01');
+  let overdueLayaways = $state<
+    { id: string; balanceCents: number; dueDate: string | null; status: string }[]
+  >([]);
+  let expiredQuotes = $state<
+    { id: string; snapshotTotalCents: number; validUntil: string | null; status: string }[]
+  >([]);
+  let storeCreditReport = $state<{
+    issuedCents: number;
+    redeemedCents: number;
+    expiredCents: number;
+    openBalanceCents: number;
+  } | null>(null);
 
   const idb = createMemoryOwnerRollupIdb();
 
@@ -95,10 +116,74 @@
     }
   }
 
+  async function loadOverdueLayaways() {
+    if (!layawayOn) return;
+    const apiBase =
+      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
+      'https://api.kipuspay.local';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const res = await fetch(`${apiBase}/api/owner/layaways/overdue`, {
+      headers: { authorization: auth },
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json()) as {
+      items?: { id: string; balanceCents: number; dueDate: string | null; status: string }[];
+    };
+    overdueLayaways = json.items ?? [];
+  }
+
+  async function loadStoreCreditReport() {
+    if (!storeCreditOn) return;
+    const apiBase =
+      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
+      'https://api.kipuspay.local';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const res = await fetch(`${apiBase}/api/owner/ledger/store-credit`, {
+      headers: { authorization: auth },
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json()) as {
+      issuedCents?: number;
+      redeemedCents?: number;
+      expiredCents?: number;
+      openBalanceCents?: number;
+    };
+    storeCreditReport = {
+      issuedCents: json.issuedCents ?? 0,
+      redeemedCents: json.redeemedCents ?? 0,
+      expiredCents: json.expiredCents ?? 0,
+      openBalanceCents: json.openBalanceCents ?? 0,
+    };
+  }
+
+  async function loadExpiredQuotes() {
+    if (!quotesOn) return;
+    const apiBase =
+      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
+      'https://api.kipuspay.local';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const res = await fetch(`${apiBase}/api/owner/quotes/expired`, {
+      headers: { authorization: auth },
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json()) as {
+      items?: {
+        id: string;
+        snapshotTotalCents: number;
+        validUntil: string | null;
+        status: string;
+      }[];
+    };
+    expiredQuotes = json.items ?? [];
+  }
+
   onMount(() => {
     if (!enabled) return;
     void refresh(typeof navigator !== 'undefined' ? navigator.onLine : true);
     loadDemoBacklog();
+    void loadOverdueLayaways();
+    void loadExpiredQuotes();
+    void loadStoreCreditReport();
     const onOnline = () => void refresh(true);
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -122,6 +207,39 @@
     <p class="meta" data-testid="hoy-source">
       {fromCache ? 'Desde cache local' : 'Actualizado al conectar'} · no en vivo
     </p>
+    {#if layawayOn && overdueLayaways.length > 0}
+      <aside class="overdue" data-testid="owner-layaway-overdue">
+        <h2>Apartados vencidos</h2>
+        <ul>
+          {#each overdueLayaways as item (item.id)}
+            <li>
+              {item.id} · saldo S/ {formatCents(item.balanceCents)} · vence {item.dueDate ?? '—'}
+            </li>
+          {/each}
+        </ul>
+      </aside>
+    {/if}
+    {#if storeCreditOn && storeCreditReport}
+      <aside class="overdue" data-testid="owner-store-credit">
+        <h2>Crédito de tienda</h2>
+        <p>Emitidos S/ {formatCents(storeCreditReport.issuedCents)}</p>
+        <p>Canjeados S/ {formatCents(storeCreditReport.redeemedCents)}</p>
+        <p>Expirados S/ {formatCents(storeCreditReport.expiredCents)}</p>
+        <p>Saldo abierto S/ {formatCents(storeCreditReport.openBalanceCents)}</p>
+      </aside>
+    {/if}
+    {#if quotesOn && expiredQuotes.length > 0}
+      <aside class="overdue" data-testid="owner-quotes-expired">
+        <h2>Cotizaciones vencidas</h2>
+        <ul>
+          {#each expiredQuotes as item (item.id)}
+            <li>
+              {item.id} · S/ {formatCents(item.snapshotTotalCents)} · vence {item.validUntil ?? '—'}
+            </li>
+          {/each}
+        </ul>
+      </aside>
+    {/if}
   </section>
 
   {#if fiscalEa}
@@ -224,5 +342,20 @@
   }
   .ea-msg {
     color: var(--owner-accent, #3d9a6a);
+  }
+  .overdue {
+    margin: 1.25rem 0 0;
+    padding: 1rem;
+    background: #2a2418;
+    color: #e6c07b;
+  }
+  .overdue ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+  }
+  .overdue li {
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #3a3328;
   }
 </style>

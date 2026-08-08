@@ -42,6 +42,9 @@ export function isCatalogUomEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_CATALOG_UOM);
 }
 
+import { isLedgerChartOfAccountsEnabled, isLedgerStoreCreditEnabled } from '../auth/features.js';
+export { isLedgerChartOfAccountsEnabled, isLedgerStoreCreditEnabled };
+
 /* eslint-disable complexity -- HTTP error map multi-código S17/S18 */
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
   if (error instanceof InsufficientStockError) {
@@ -93,7 +96,7 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
       },
     };
   }
-  if (msg.startsWith('LOYALTY_')) {
+  if (msg.startsWith('LOYALTY_') || msg.startsWith('STORE_CREDIT_')) {
     return { status: 422, body: { error: msg, code: msg } };
   }
   if (msg.includes('CREDIT_LIMIT_EXCEEDED')) {
@@ -189,6 +192,7 @@ export async function runOfflineSaleHttp(
   tenantId: string,
   userId: string,
   payload: OfflineSalePayload,
+  actorIsAdminOrOwner = false,
 ): Promise<OfflineSaleHttpResult> {
   if (!isAcidOfflineSaleEnabled(env)) {
     return { status: 404, body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' } };
@@ -209,6 +213,10 @@ export async function runOfflineSaleHttp(
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
       catalogUomEnabled: isCatalogUomEnabled(env),
+      ledgerChartOfAccountsEnabled: isLedgerChartOfAccountsEnabled(env),
+      storeCreditEnabled: isLedgerStoreCreditEnabled(env),
+      storeCreditOnline: true,
+      storeCreditActorIsAdminOrOwner: actorIsAdminOrOwner,
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),
         inventoryBom: isInventoryBomEnabled(env),

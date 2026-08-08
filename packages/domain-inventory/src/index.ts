@@ -156,6 +156,32 @@ export function refreshAvgCostCents(input: {
   return Math.round(total / newStock);
 }
 
+/**
+ * PMP outbound (ADR-0018 / regla 9): reverso de recepción.
+ * remaining <= 0 → PMP 0; stock insuficiente → INSUFFICIENT_STOCK.
+ */
+export function refreshAvgCostOnOutboundCents(input: {
+  readonly previousStock: number;
+  readonly previousPmpCents: Cents;
+  readonly outboundQty: number;
+  readonly outboundUnitCostCents: Cents;
+}): Cents {
+  if (!Number.isInteger(input.previousPmpCents) || input.previousPmpCents < 0) {
+    throw new Error('INVALID_PMP');
+  }
+  if (!Number.isInteger(input.outboundUnitCostCents) || input.outboundUnitCostCents < 0) {
+    throw new Error('INVALID_UNIT_COST');
+  }
+  if (input.outboundQty <= 0) throw new Error('INVALID_OUTBOUND_QTY');
+  const prevStock = Math.max(0, input.previousStock);
+  const remaining = prevStock - input.outboundQty;
+  if (remaining < 0) throw new Error('INSUFFICIENT_STOCK');
+  if (remaining === 0) return 0;
+  const newValue =
+    prevStock * input.previousPmpCents - input.outboundQty * input.outboundUnitCostCents;
+  return Math.round(newValue / remaining);
+}
+
 export type PriceListSource = 'branch' | 'customer' | 'default';
 
 export interface PriceListResolution {

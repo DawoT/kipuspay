@@ -14,6 +14,7 @@ export interface CreateReturnResult {
   readonly documentSaleId?: string;
   readonly docType?: string;
   readonly refundAmountCents?: number;
+  readonly storeCreditTxnId?: string;
 }
 
 export async function submitSalesReturn(
@@ -26,6 +27,7 @@ export async function submitSalesReturn(
     lines: readonly ReturnLineInput[];
     cashRegisterSessionId?: string | null;
     authorizedByUserId?: string | null;
+    consentStoreCredit?: boolean;
   },
 ): Promise<CreateReturnResult> {
   const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/sales/returns`, {
@@ -53,5 +55,6 @@ export async function submitSalesReturn(
     docType: typeof json.docType === 'string' ? json.docType : undefined,
     refundAmountCents:
       typeof json.refundAmountCents === 'number' ? json.refundAmountCents : undefined,
+    storeCreditTxnId: typeof json.storeCreditTxnId === 'string' ? json.storeCreditTxnId : undefined,
   };
 }

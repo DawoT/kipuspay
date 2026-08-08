@@ -29,6 +29,8 @@ describe('plan-routes', () => {
       '/api/pos/checkout',
       '/api/sales/offline',
       '/api/sales/returns',
+      '/api/sales/layaways',
+      '/api/sales/quotes',
       '/api/cash/open',
       '/api/fiscal/emit',
       '/api/documents/emit',

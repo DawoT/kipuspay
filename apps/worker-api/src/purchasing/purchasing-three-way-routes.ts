@@ -157,6 +157,9 @@ export async function runMatchSupplierInvoiceHttp(
       priceDiffOverride: parsed.priceDiffOverride,
       overrideReason: parsed.overrideReason,
       authorizedByUserId: parsed.authorizedByUserId,
+      chartOfAccountsEnabled:
+        env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
+        env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
     });
     return {
       status: 200,

@@ -114,11 +114,15 @@ export async function runAccountingExportHttp(
   }
 
   try {
-    const entries = await exportAccountingEntries(env.DB, tenantId, {
-      fromDate,
-      toDate,
-      branchId,
-    });
+    const fromJournal =
+      env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
+      env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true';
+    const entries = await exportAccountingEntries(
+      env.DB,
+      tenantId,
+      { fromDate, toDate, branchId },
+      { fromJournal },
+    );
     const formatted = formatAccountingExport(target, entries);
     return {
       status: 200,

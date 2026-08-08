@@ -127,20 +127,19 @@ Abre solo los archivos que esta tabla te señale.
 | 28 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 14 | Actualizada (sales.returns + GTM-05) | Cerrado |
 | 29 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 31 | Actualizada (purchasing.three_way + GTM-13) | Cerrado |
 | 30 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 47 | Actualizada (pricing.promotions + GTM-15) | Cerrado |
-| 31–32 | 6B | — | — | Actualizada (FASE 6B reglas 16–17 + COM pricing) | Planificado |
-| 33–37 | 6C | — | — | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |
+| 31 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 63 | Actualizada (catalog.variants/uom + GTM-16) | Cerrado |
+| 32 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 81 | Actualizada (sales.layaway + ledger.chart_of_accounts + GTM-14/17) | Cerrado |
+| 33 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 14 | Actualizada (sales.quotes + GTM-19) | Cerrado |
+| 34 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 30 | Actualizada (purchasing.returns + GTM-20) | Cerrado |
+| 35 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 46 | Actualizada (ledger.store_credit + GTM-21) | Cerrado |
+| 36–37 | 6C | — | — | Actualizada (FASE 6C reglas 21–22) | Planificado |
 | 38–42 | 6D | — | — | Actualizada (FASE 6D reglas 23–27) | Planificado |
 | 43–45 | 6E | — | — | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 31 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 63 | sin fila de estado | — |
-| 32 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 81 | sin fila de estado | — |
-| 33 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 14 | sin fila de estado | — |
-| 34 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 29 | sin fila de estado | — |
-| 35 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 44 | sin fila de estado | — |
-| 36 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 59 | sin fila de estado | — |
-| 37 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 74 | sin fila de estado | — |
+| 36 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 62 | sin fila de estado | — |
+| 37 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 78 | sin fila de estado | — |
 | 38 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 14 | sin fila de estado | — |
 | 39 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 29 | sin fila de estado | — |
 | 40 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 44 | sin fila de estado | — |
@@ -191,39 +190,39 @@ Abre solo los archivos que esta tabla te señale.
 | `product_promotions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 440 |
 | `product_uoms` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 457 |
 | `sale_deposits` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 482 |
-| `sale_deposit_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 497 |
-| `sale_deposit_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 508 |
-| `chart_of_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 520 |
-| `journal_entries` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 528 |
-| `journal_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 542 |
-| `quotes` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 561 |
-| `quote_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 573 |
-| `supplier_returns` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 586 |
-| `supplier_return_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 599 |
-| `store_credit_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 615 |
-| `store_credit_transactions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 624 |
-| `sale_installments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 641 |
-| `sale_installment_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 657 |
-| `commission_rates` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 669 |
-| `commission_payouts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 680 |
-| `commission_accruals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 692 |
-| `inventory_locations` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 709 |
-| `inventory_location_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 718 |
-| `serial_numbers` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 728 |
-| `weight_measurements` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 742 |
-| `price_label_templates` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 753 |
-| `pos_terminals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 766 |
-| `data_backups` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 783 |
-| `customer_orders` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 799 |
-| `customer_order_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 812 |
-| `recurring_plans` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 828 |
-| `push_subscriptions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 843 |
-| `recurring_occurrences` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 853 |
-| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 873 |
-| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 888 |
-| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 906 |
-| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 924 |
-| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 939 |
+| `sale_deposit_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 500 |
+| `sale_deposit_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 513 |
+| `chart_of_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 536 |
+| `journal_entries` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 546 |
+| `journal_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 567 |
+| `quotes` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 590 |
+| `quote_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 600 |
+| `supplier_returns` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 616 |
+| `supplier_return_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 630 |
+| `store_credit_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 647 |
+| `store_credit_transactions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 654 |
+| `sale_installments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 669 |
+| `sale_installment_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 685 |
+| `commission_rates` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 697 |
+| `commission_payouts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 708 |
+| `commission_accruals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 720 |
+| `inventory_locations` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 737 |
+| `inventory_location_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 746 |
+| `serial_numbers` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 756 |
+| `weight_measurements` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 770 |
+| `price_label_templates` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 781 |
+| `pos_terminals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 794 |
+| `data_backups` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 811 |
+| `customer_orders` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 827 |
+| `customer_order_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 840 |
+| `recurring_plans` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 856 |
+| `push_subscriptions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 871 |
+| `recurring_occurrences` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 881 |
+| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 901 |
+| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 916 |
+| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 934 |
+| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 952 |
+| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 967 |
 | `external_entity_map` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 27 |
 | `payment_captures` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 41 |
 | `api_keys` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 59 |

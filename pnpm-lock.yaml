@@ -393,6 +393,9 @@ importers:
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../domain-fiscal-pe
+      '@kipuspay/domain-integrations':
+        specifier: workspace:*
+        version: link:../domain-integrations
       '@kipuspay/domain-inventory':
         specifier: workspace:*
         version: link:../domain-inventory

@@ -48,9 +48,13 @@ const TARGETS: ReadonlySet<string> = new Set(['contasis', 'concar']);
 export const GL = {
   CASH: '1011',
   AR: '1212',
+  CUSTOMER_DEPOSIT: '2101',
   SALES: '7011',
   VAT: '4011',
 } as const;
+
+/** Métodos de pago que aplican un anticipo apartado (S32/ADR-0016, 2101). */
+const DEPOSIT_METHODS: ReadonlySet<string> = new Set(['anticipo', 'layaway_deposit']);
 
 export function isAccountingExportTarget(value: string): value is AccountingExportTarget {
   return TARGETS.has(value);
@@ -71,10 +75,11 @@ function bookedDate(soldAt: string): string {
 }
 
 /**
- * Deriva asientos: débito caja/CxC, crédito ventas + IGV.
+ * Deriva asientos: débito caja/CxC/anticipo, crédito ventas + IGV.
  * C4: el débito se reparte por método de pago real (`payments`) agrupado por
- * cuenta GL — todo lo no-crédito (efectivo, yape, tarjeta, transferencia) suma
- * a 1011; el saldo a crédito va a 1212.
+ * cuenta GL — todo lo no-crédito ni-anticipo (efectivo, yape, tarjeta,
+ * transferencia) suma a 1011; el saldo a crédito va a 1212; el método
+ * `anticipo`/`layaway_deposit` (conversión de apartado, S32) va a 2101.
  * Sort caller-side con sortAccountingEntries para bit-repro.
  */
 export function buildAccountingEntries(rows: readonly AccountingSaleRow[]): AccountingEntry[] {
@@ -87,15 +92,30 @@ export function buildAccountingEntries(rows: readonly AccountingSaleRow[]): Acco
       row.payments.length > 0
         ? row.payments
         : [{ methodCode: 'cash', amountCents: row.totalCents }];
+    const depositCents = payments
+      .filter((p) => DEPOSIT_METHODS.has(p.methodCode))
+      .reduce((acc, p) => acc + Math.max(0, p.amountCents), 0);
     const cashCents = payments
-      .filter((p) => p.methodCode !== 'credit')
+      .filter((p) => p.methodCode !== 'credit' && !DEPOSIT_METHODS.has(p.methodCode))
       .reduce((acc, p) => acc + Math.max(0, p.amountCents), 0);
     const creditCents = payments
       .filter((p) => p.methodCode === 'credit')
       .reduce((acc, p) => acc + Math.max(0, p.amountCents), 0);
-    const arRemainder = row.totalCents - cashCents - creditCents;
+    const arRemainder = row.totalCents - cashCents - creditCents - depositCents;
 
     let line = 1;
+    if (depositCents > 0) {
+      out.push({
+        sourceSaleId: row.saleId,
+        branchId: row.branchId,
+        bookedAt,
+        glAccount: GL.CUSTOMER_DEPOSIT,
+        amountCents: depositCents,
+        line,
+        memo: `sale:${row.saleId}:debit:deposit`,
+      });
+      line += 1;
+    }
     if (cashCents > 0) {
       out.push({
         sourceSaleId: row.saleId,

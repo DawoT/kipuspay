@@ -161,4 +161,47 @@ describe('accounting-export', () => {
     const debits = entries.filter((e) => e.amountCents > 0);
     expect(debits.map((d) => `${d.glAccount}:${d.amountCents}`).sort()).toEqual(['1011:9000']);
   });
+
+  it('S32: conversión de apartado aplica 2101 (anticipo) y no 1011', () => {
+    const rows: AccountingSaleRow[] = [
+      {
+        saleId: 's5',
+        branchId: 'b1',
+        soldAt: '2026-08-05T10:00:00.000Z',
+        totalCents: 11800,
+        taxCents: 1800,
+        payments: [{ methodCode: 'anticipo', amountCents: 11800 }],
+        arBalanceCents: 0,
+      },
+    ];
+    const entries = buildAccountingEntries(rows);
+    const debits = entries.filter((e) => e.amountCents > 0);
+    expect(debits.map((d) => `${d.glAccount}:${d.amountCents}`).sort()).toEqual(['2101:11800']);
+  });
+
+  it('S32: anticipo residual + crédito reparte 2101/1011/1212 sin duplicar', () => {
+    const rows: AccountingSaleRow[] = [
+      {
+        saleId: 's6',
+        branchId: 'b1',
+        soldAt: '2026-08-06T10:00:00.000Z',
+        totalCents: 10000,
+        taxCents: 1526,
+        payments: [
+          { methodCode: 'anticipo', amountCents: 3000 },
+          { methodCode: 'cash', amountCents: 3000 },
+          { methodCode: 'credit', amountCents: 4000 },
+        ],
+        arBalanceCents: 4000,
+      },
+    ];
+    const entries = buildAccountingEntries(rows);
+    const debits = entries.filter((e) => e.amountCents > 0);
+    expect(debits.map((d) => `${d.glAccount}:${d.amountCents}`).sort()).toEqual([
+      '1011:3000',
+      '1212:4000',
+      '2101:3000',
+    ]);
+    expect(entries.filter((e) => e.amountCents < 0).length).toBe(2); // ventas + IGV
+  });
 });

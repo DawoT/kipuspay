@@ -10,8 +10,18 @@ import {
   judgeLowEndDevice,
   judgeArCompensate,
   judgeRollupIdempotent,
+  judgeLayawayConvertCancel,
+  judgeJournalBalanceExport,
+  judgeQuoteConvertExpire,
+  judgeSupplierReturnReceive,
+  judgeStoreCreditIssueRedeem,
   runArCompensateCycles,
   runRollupIdempotentCycles,
+  runLayawayConvertCancelChaos,
+  runJournalBalanceExportChaos,
+  runQuoteConvertExpireChaos,
+  runSupplierReturnReceiveChaos,
+  runStoreCreditIssueRedeemChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -282,6 +292,81 @@ describe('chaos-harness contrato §13.5', () => {
     await expect(runChaosScenario('shard-do-failure', 25)).rejects.toThrow(
       /activo desde Sprint 26/,
     );
+  });
+
+  it('Sprint 32 layaway-convert-cancel 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['layaway-convert-cancel']).toBe(32);
+    expect(() => assertScenarioReady('layaway-convert-cancel', 31)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const cycles = runLayawayConvertCancelChaos(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeLayawayConvertCancel(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('layaway-convert-cancel', 32, {
+        runLayawayConvertCancel: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+  });
+
+  it('Sprint 33 quote-convert-expire 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['quote-convert-expire']).toBe(33);
+    expect(() => assertScenarioReady('quote-convert-expire', 32)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const cycles = runQuoteConvertExpireChaos(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeQuoteConvertExpire(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('quote-convert-expire', 33, {
+        runQuoteConvertExpire: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+  });
+
+  it('Sprint 34 supplier-return-receive 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['supplier-return-receive']).toBe(34);
+    expect(() => assertScenarioReady('supplier-return-receive', 33)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const cycles = runSupplierReturnReceiveChaos(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeSupplierReturnReceive(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('supplier-return-receive', 34, {
+        runSupplierReturnReceive: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+  });
+
+  it('Sprint 35 store-credit-issue-redeem 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['store-credit-issue-redeem']).toBe(35);
+    expect(() => assertScenarioReady('store-credit-issue-redeem', 34)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const cycles = runStoreCreditIssueRedeemChaos(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeStoreCreditIssueRedeem(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('store-credit-issue-redeem', 35, {
+        runStoreCreditIssueRedeem: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+  });
+
+  it('Sprint 32 journal-balance-export 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['journal-balance-export']).toBe(32);
+    expect(() => assertScenarioReady('journal-balance-export', 31)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const cycles = runJournalBalanceExportChaos(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeJournalBalanceExport(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('journal-balance-export', 32, {
+        runJournalBalanceExport: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('jueces fallan ante incoherencia', () => {

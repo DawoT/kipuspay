@@ -2,9 +2,15 @@
  * Supplier invoice 3-way match — Sprint 29 (§5.3 regla 14).
  * Match factura↔OC↔recepción; CxP por monto facturado; true-up PMP; SUPPLIER_PRICE_DIFF.
  */
-import { assertThreeWayMatch, planCreateAp, type ThreeWayLineInput } from '@kipuspay/domain-cash';
+import {
+  assertThreeWayMatch,
+  planCreateAp,
+  planSupplierInvoiceJournal,
+  type ThreeWayLineInput,
+} from '@kipuspay/domain-cash';
 import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 
 export interface SupplierInvoiceLineInput {
   readonly productId: string;
@@ -23,6 +29,7 @@ export interface ProcessSupplierInvoiceMatchInput {
   readonly overrideReason?: string | null;
   readonly authorizedByUserId?: string | null;
   readonly dueDateIso?: string;
+  readonly chartOfAccountsEnabled?: boolean;
 }
 
 export interface ProcessSupplierInvoiceMatchResult {
@@ -216,7 +223,12 @@ export async function processSupplierInvoiceMatchAtomic(
     prev: prevHash?.row_hash ?? null,
   });
 
-  await runD1AtomicPlan(db, (plan) => {
+  const chartOn = input.chartOfAccountsEnabled === true;
+  const chartAccounts = chartOn
+    ? await loadChartAccountsByCode(db, tenantId)
+    : new Map<string, string>();
+
+  await runD1AtomicPlan(db, async (plan) => {
     plan.add(
       db
         .prepare(
@@ -327,6 +339,21 @@ export async function processSupplierInvoiceMatchAtomic(
             invoiceId,
           ),
       );
+    }
+
+    if (chartOn && matchPlan.apAmountCents > 0) {
+      await appendJournalToPlan(plan, db, {
+        tenantId,
+        branchId,
+        userId,
+        accountsByCode: chartAccounts,
+        prevAuditHash: prevHash?.row_hash ?? null,
+        entry: planSupplierInvoiceJournal({
+          sourceId: invoiceId,
+          postDate: dueDateIso.slice(0, 10),
+          amountCents: matchPlan.apAmountCents,
+        }),
+      });
     }
 
     if (matchPlan.requiresPriceDiffAudit) {

@@ -20,6 +20,7 @@ function pickFirst(
     ar?: Row | null;
     audit?: Row | null;
     priorNc?: Row | null;
+    storeCredit?: Row | null;
   },
 ): Row | null {
   const rules: [string, keyof typeof state][] = [
@@ -31,6 +32,7 @@ function pickFirst(
     ['FROM branch_product_stock', 'stock'],
     ['FROM accounts_receivable', 'ar'],
     ['FROM audit_events', 'audit'],
+    ['FROM store_credit_accounts', 'storeCredit'],
   ];
   for (const [needle, key] of rules) {
     if (sql.includes(needle)) return state[key] ?? null;
@@ -53,6 +55,7 @@ function mockReturnDb(state: {
   ar?: Row | null;
   audit?: Row | null;
   priorNc?: Row | null;
+  storeCredit?: Row | null;
 }): D1DatabaseLike {
   return {
     prepare(sql: string) {
@@ -261,6 +264,61 @@ describe('processReturnAtomic', () => {
     );
     expect(res.refundMovementId).toBeNull();
     expect(res.refundAmountCents).toBe(5900);
+  });
+
+  it('NC+consent sin cash/AR emite store credit', async () => {
+    const res = await processReturnAtomic(
+      mockReturnDb({
+        origin: { ...baseOrigin, customer_id: 'c1' },
+        policy: null,
+        payment: { code: 'CARD', amount_cents: 11800 },
+        session: { id: 'sess-1', status: 'OPEN' },
+        items: [baseItem],
+        series: { id: 'ser-1', series: 'NVR1', current_number: 0 },
+        stock: { stock: 8, pmp_unit_cost_cents: 2000 },
+        storeCredit: { id: 'acc-1', balance_cents: 0, expires_at: null },
+      }),
+      't1',
+      'u1',
+      {
+        originSaleId: 'sale-1',
+        lines: [{ originalSaleItemId: 'si-1', qty: 1 }],
+        reason: 'Consentimiento crédito de tienda',
+        series: 'NVR1',
+        nowMs: Date.UTC(2026, 7, 2),
+        consentStoreCredit: true,
+      },
+      { storeCreditEnabled: true },
+    );
+    expect(res.refundMovementId).toBeNull();
+    expect(res.storeCreditTxnId).toBeTruthy();
+  });
+
+  it('NC+consent con cash no emite crédito', async () => {
+    const res = await processReturnAtomic(
+      mockReturnDb({
+        origin: { ...baseOrigin, customer_id: 'c1' },
+        policy: null,
+        payment: { code: 'CASH', amount_cents: 11800 },
+        session: { id: 'sess-1', status: 'OPEN' },
+        items: [baseItem],
+        series: { id: 'ser-1', series: 'NVR1', current_number: 0 },
+        stock: { stock: 8, pmp_unit_cost_cents: 2000 },
+      }),
+      't1',
+      'u1',
+      {
+        originSaleId: 'sale-1',
+        lines: [{ originalSaleItemId: 'si-1', qty: 1 }],
+        reason: 'Cash no pasa a crédito',
+        series: 'NVR1',
+        nowMs: Date.UTC(2026, 7, 2),
+        consentStoreCredit: true,
+      },
+      { storeCreditEnabled: true },
+    );
+    expect(res.refundMovementId).toBeTruthy();
+    expect(res.storeCreditTxnId ?? null).toBeNull();
   });
 
   it('motivo vacío → RETURN_REASON_REQUIRED', async () => {

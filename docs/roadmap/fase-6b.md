@@ -79,6 +79,7 @@ sprints: "28–32"
 ---
 
 #### Sprint 32 — Apartados/anticipos y diario contable
+**Estado:** Cerrado — GOV-APROBADO (`docs/ops/s32-layaway-journal-qg.md`)  
 **Capabilities:** `sales.layaway`, `ledger.chart_of_accounts`  
 **Referencia:** Arquitectura §5.3 regla 17; GTM Cadena (diario contable); conecta Sprint 23 (export) · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja), Staff Data (export), Staff Growth (gating)
 

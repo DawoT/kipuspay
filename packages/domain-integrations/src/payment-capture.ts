@@ -4,7 +4,15 @@
  */
 
 export type PaymentMethodCode =
-  'yape' | 'plin' | 'mercadopago_qr' | 'culqi' | 'niubiz' | 'cash' | 'card_manual' | 'credit';
+  | 'yape'
+  | 'plin'
+  | 'mercadopago_qr'
+  | 'culqi'
+  | 'niubiz'
+  | 'cash'
+  | 'card_manual'
+  | 'credit'
+  | 'store_credit';
 
 /** Catálogo CHECK payment_captures.acquirer (§5.4). */
 export type PaymentAcquirerCode = 'yape' | 'plin' | 'mercadopago' | 'culqi' | 'niubiz';
@@ -23,6 +31,7 @@ const METHOD_CODES: ReadonlySet<string> = new Set([
   'cash',
   'card_manual',
   'credit',
+  'store_credit',
 ]);
 
 const WALLET_CODES: ReadonlySet<PaymentMethodCode> = new Set(['yape', 'plin', 'mercadopago_qr']);

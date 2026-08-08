@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isSalesReturnsEnabled } from '$lib/features';
+  import { isLedgerStoreCreditEnabled, isSalesReturnsEnabled } from '$lib/features';
   import { submitSalesReturn } from '$lib/sales/returns-client';
   import {
     defaultTenantSession,
@@ -10,6 +10,7 @@
   } from '$lib/tenant/session';
 
   const returnsOn = isSalesReturnsEnabled();
+  const storeCreditOn = isLedgerStoreCreditEnabled();
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let originSaleId = $state('');
@@ -20,6 +21,7 @@
   let status = $state('');
   let resultMsg = $state('');
   let refundCents = $state<number | null>(null);
+  let consentStoreCredit = $state(false);
 
   onMount(() => {
     session = readTenantSession(sessionStorage);
@@ -41,6 +43,7 @@
       series: series.trim(),
       reason: reason.trim(),
       lines: [{ originalSaleItemId: itemId.trim(), qty: Number(qty) }],
+      consentStoreCredit: storeCreditOn && consentStoreCredit,
     });
     if (!res.ok) {
       status = 'error';
@@ -90,6 +93,16 @@
       Motivo (obligatorio)
       <input bind:value={reason} data-testid="caja-return-reason" />
     </label>
+    {#if storeCreditOn}
+      <label>
+        <input
+          type="checkbox"
+          bind:checked={consentStoreCredit}
+          data-testid="caja-return-store-credit"
+        />
+        Convertir reembolso en crédito de tienda (sin efectivo ni CxC)
+      </label>
+    {/if}
 
     <button type="button" data-testid="caja-return-confirm" onclick={onConfirmReturn}>
       Confirmar devolución

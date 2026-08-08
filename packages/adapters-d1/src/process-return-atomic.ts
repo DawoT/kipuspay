@@ -3,7 +3,13 @@
  * Un solo db.batch: doc 07|NV_RETURN + sales_returns + stock/PMP + CxC E-D + cash + audit RETURN + cupo.
  */
 /* eslint-disable complexity -- orquestador multi-rama 07/NV_RETURN + PMP + cash + E-D; split diferido */
-import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
+import {
+  assertNcCanIssueStoreCredit,
+  compensateArOnCreditNote,
+  ncStoreCreditSourceRef,
+  planSalesReturnJournal,
+  planStoreCreditIssue,
+} from '@kipuspay/domain-cash';
 import { assertCreditNoteAllowed, defaultSunatStatus } from '@kipuspay/domain-fiscal-pe';
 import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import {
@@ -18,6 +24,11 @@ import {
   type ReturnLineRequest,
 } from '@kipuspay/domain-sales';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
+import {
+  appendStoreCreditIssueToPlan,
+  ensureStoreCreditAccount,
+} from './process-store-credit-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface ProcessReturnInput {
@@ -30,10 +41,14 @@ export interface ProcessReturnInput {
   readonly authThresholdCents?: number;
   /** Sesión de caja abierta actual (si el origen tiene turno cerrado). */
   readonly cashRegisterSessionId?: string | null;
+  /** Sprint 35: NC sin reembolso → crédito de tienda (consentimiento). */
+  readonly consentStoreCredit?: boolean;
 }
 
 export interface ProcessReturnOptions {
   readonly ledgerArApEnabled?: boolean;
+  readonly chartOfAccountsEnabled?: boolean;
+  readonly storeCreditEnabled?: boolean;
 }
 
 export interface ProcessReturnResult {
@@ -43,6 +58,7 @@ export interface ProcessReturnResult {
   readonly docType: ReturnDocType;
   readonly refundAmountCents: number;
   readonly refundMovementId: string | null;
+  readonly storeCreditTxnId?: string | null;
 }
 
 function normalizePaymentMethod(code: string): string {
@@ -78,14 +94,15 @@ export async function processReturnAtomic(
   options: ProcessReturnOptions = {},
 ): Promise<ProcessReturnResult> {
   const ledgerOn = options.ledgerArApEnabled === true;
+  const chartOn = options.chartOfAccountsEnabled === true;
   const nowMs = input.nowMs ?? Date.now();
   assertReturnReason(input.reason);
 
   const origin = await db
     .prepare(
       `SELECT s.id, s.document_type, s.sunat_status, s.total_amount_cents, s.branch_id,
-              s.cash_register_session_id, s.client_document_type, s.client_document_number,
-              s.client_name, s.issued_at_lima, t.formalization_mode
+              s.cash_register_session_id, s.customer_id, s.client_document_type,
+              s.client_document_number, s.client_name, s.issued_at_lima, t.formalization_mode
        FROM sales s
        JOIN tenants t ON t.id = s.tenant_id
        WHERE s.id = ? AND s.tenant_id = ? AND s.deleted_at IS NULL`,
@@ -98,6 +115,7 @@ export async function processReturnAtomic(
       total_amount_cents: number;
       branch_id: string;
       cash_register_session_id: string;
+      customer_id: string | null;
       client_document_type: string;
       client_document_number: string;
       client_name: string;
@@ -322,6 +340,21 @@ export async function processReturnAtomic(
 
   // Crédito / CxC: solo reduce AR (E-D). Efectivo: movimiento SALE_REFUND.
   const cashRefund = paymentMethod === 'cash' && !arCompensate;
+  const storeCreditOn = options.storeCreditEnabled === true;
+  const wantsStoreCredit = input.consentStoreCredit === true && storeCreditOn;
+  if (wantsStoreCredit) {
+    try {
+      assertNcCanIssueStoreCredit({
+        consentStoreCredit: true,
+        arCompensate: Boolean(arCompensate),
+        cashRefund,
+      });
+    } catch {
+      // AR o cash: no ISSUE (evitar doble beneficio). S28 sigue.
+    }
+  }
+  const issueStoreCredit =
+    wantsStoreCredit && !arCompensate && !cashRefund && Boolean(origin.customer_id);
   const refundMovementId = cashRefund ? crypto.randomUUID() : null;
   const returnId = crypto.randomUUID();
   const documentSaleId = crypto.randomUUID();
@@ -345,7 +378,16 @@ export async function processReturnAtomic(
   const issuedAt = new Date(nowMs).toISOString().replace('T', ' ').substring(0, 19);
   const nextNumber = seriesRow.current_number + 1;
 
-  await runD1AtomicPlan(db, (plan) => {
+  const chartAccounts = chartOn
+    ? await loadChartAccountsByCode(db, tenantId)
+    : new Map<string, string>();
+  const storeCreditAccount =
+    issueStoreCredit && origin.customer_id
+      ? await ensureStoreCreditAccount(db, tenantId, origin.customer_id)
+      : null;
+  let storeCreditTxnId: string | null = null;
+
+  await runD1AtomicPlan(db, async (plan) => {
     plan.add(
       db
         .prepare(
@@ -607,6 +649,58 @@ export async function processReturnAtomic(
         ),
     );
 
+    if (issueStoreCredit && storeCreditAccount && origin.customer_id) {
+      const issue = planStoreCreditIssue({
+        customerId: origin.customer_id,
+        currentBalanceCents: storeCreditAccount.balance_cents,
+        amountCents: refundAmountCents,
+        sourceRef: ncStoreCreditSourceRef(returnId),
+      });
+      const posted = await appendStoreCreditIssueToPlan(plan, db, {
+        tenantId,
+        userId,
+        branchId: origin.branch_id,
+        accountId: storeCreditAccount.id,
+        customerId: origin.customer_id,
+        amountCents: issue.amountCents,
+        sourceRef: issue.sourceRef,
+        saleId: documentSaleId,
+        prevBalanceCents: storeCreditAccount.balance_cents,
+        nextBalanceCents: issue.nextBalanceCents,
+        prevAuditHash: prevHash?.row_hash ?? null,
+        chartOn,
+        accountsByCode: chartAccounts,
+        postDate: issuedAt.slice(0, 10),
+      });
+      storeCreditTxnId = posted.txnId;
+    }
+
+    if (chartOn) {
+      await appendJournalToPlan(plan, db, {
+        tenantId,
+        branchId: origin.branch_id,
+        userId,
+        accountsByCode: chartAccounts,
+        prevAuditHash: prevHash?.row_hash ?? null,
+        entry: planSalesReturnJournal({
+          sourceId: returnId,
+          postDate: issuedAt.slice(0, 10),
+          totalCents: refundAmountCents,
+          taxCents: Math.trunc((refundAmountCents * 18 + 59) / 118),
+          payments: [
+            {
+              methodCode: issueStoreCredit
+                ? 'store_credit'
+                : paymentMethod === 'credit'
+                  ? 'credit'
+                  : 'cash',
+              amountCents: refundAmountCents,
+            },
+          ],
+        }),
+      });
+    }
+
     appendUsageMeterToPlan(plan, db, {
       tenantId,
       documentId: documentSaleId,
@@ -622,5 +716,6 @@ export async function processReturnAtomic(
     docType,
     refundAmountCents,
     refundMovementId,
+    storeCreditTxnId,
   };
 }

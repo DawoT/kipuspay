@@ -105,14 +105,18 @@ export {
 } from './loyalty.js';
 
 export type {
+  MessagingSendQuoteRequest,
+  MessagingSendQuoteResult,
   MessagingSendReceiptRequest,
   MessagingSendReceiptResult,
   MessagingSenderPort,
   ReceiptDocumentKind,
 } from './messaging.js';
 export {
+  assertSendableQuote,
   assertSendableReceipt,
   assertWhatsAppOptIn,
+  QUOTE_TEMPLATE_ID,
   receiptLegend,
   receiptTemplateId,
 } from './messaging.js';

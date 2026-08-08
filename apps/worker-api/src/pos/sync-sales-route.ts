@@ -4,6 +4,7 @@
 import { processSyncSalesBatch } from '@kipuspay/adapters-d1';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { isLedgerStoreCreditEnabled } from '../auth/features.js';
 
 export function isOfflineSyncEnabled(env: WorkerEnv): boolean {
   return env.FEATURE_OFFLINE_SYNC === '1' || env.FEATURE_OFFLINE_SYNC === 'true';
@@ -28,6 +29,14 @@ export async function runSyncSalesHttp(
   }
   const deleteFn = env.TENANT_KV?.delete?.bind(env.TENANT_KV);
   const kv = deleteFn ? { delete: (key: string) => deleteFn(key) } : undefined;
-  const result = await processSyncSalesBatch(env.DB, tenantId, userId, sales, nowMs, kv);
+  const result = await processSyncSalesBatch(
+    env.DB,
+    tenantId,
+    userId,
+    sales,
+    nowMs,
+    kv,
+    isLedgerStoreCreditEnabled(env),
+  );
   return { status: 200, body: { results: result.results } };
 }

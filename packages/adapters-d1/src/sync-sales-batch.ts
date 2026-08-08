@@ -33,19 +33,34 @@ export async function processSyncSalesBatch(
   sales: readonly OfflineSalePayload[],
   nowMs: number = Date.now(),
   insightsKv?: InsightsKv,
+  storeCreditEnabled = false,
 ): Promise<SyncSalesBatchResult> {
   const consolidated = consolidateLocalClientProfiles(sales);
   const results: SyncSaleAck[] = [];
 
   for (const sale of consolidated) {
     try {
+      if (sale.useStoreCredit === true) {
+        results.push({
+          offlineSaleId: sale.offlineSaleId,
+          status: 'FAILED',
+          code: 'STORE_CREDIT_OFFLINE',
+        });
+        continue;
+      }
+      const opts: {
+        nowMs: number;
+        storeCreditEnabled: boolean;
+        storeCreditOnline: false;
+        insightsKv?: InsightsKv;
+      } = { nowMs, storeCreditEnabled, storeCreditOnline: false };
+      if (insightsKv) opts.insightsKv = insightsKv;
       const outcome: OfflineSaleResult = await processOfflineSaleAtomic(
         db,
         tenantId,
         userId,
         sale,
-        nowMs,
-        insightsKv,
+        opts,
       );
       if (outcome.status === 'ALREADY_SYNCED') {
         results.push({

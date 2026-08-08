@@ -39,6 +39,28 @@ import {
   runListSalesReturnsHttp,
 } from './sales/sales-returns-routes.js';
 import {
+  runCancelLayawayHttp,
+  runConvertLayawayHttp,
+  runCreateLayawayHttp,
+  runDepositLayawayHttp,
+  runListOverdueLayawaysHttp,
+} from './sales/layaway-routes.js';
+import {
+  runApproveQuoteHttp,
+  runCancelQuoteHttp,
+  runConvertQuoteHttp,
+  runCreateQuoteHttp,
+  runListExpiredQuotesHttp,
+  runSendQuoteHttp,
+} from './sales/quote-routes.js';
+import { runListJournalHttp, runMutateJournalHttp } from './ledger/journal-routes.js';
+import {
+  runAdjustStoreCreditHttp,
+  runExpireStoreCreditHttp,
+  runIssueStoreCreditHttp,
+  runOwnerStoreCreditHttp,
+} from './ledger/store-credit-routes.js';
+import {
   runCancelOrderItemHttp,
   runCreateOrderHttp,
   runFireOrderHttp,
@@ -58,6 +80,12 @@ import {
   runMatchSupplierInvoiceHttp,
   runOwnerThreeWayReportHttp,
 } from './purchasing/purchasing-three-way-routes.js';
+import {
+  runCancelSupplierReturnHttp,
+  runCloseSupplierReturnHttp,
+  runCreateSupplierReturnHttp,
+  runOwnerSupplierReturnsHttp,
+} from './purchasing/supplier-return-routes.js';
 import {
   runCreatePromotionHttp,
   runListPromotionsHttp,
@@ -154,8 +182,14 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = await runOfflineSaleHttp(c.env, tenantId, userId, payload);
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    const result = await runOfflineSaleHttp(
+      c.env,
+      tenantId,
+      userId,
+      payload,
+      user?.role === 'admin' || user?.role === 'owner',
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
 
   // Offline sync batch (SYN-07) — FEATURE_OFFLINE_SYNC
@@ -350,6 +384,145 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 503);
   });
 
+  // Sprint 32 — apartados (FEATURE_SALES_LAYAWAY)
+  app.post('/api/sales/layaways', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateLayawayHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/layaways/deposit', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runDepositLayawayHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/layaways/convert', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runConvertLayawayHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/layaways/cancel', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCancelLayawayHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/layaways/overdue', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListOverdueLayawaysHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+
+  // Sprint 33 — cotizaciones (FEATURE_SALES_QUOTES)
+  app.post('/api/sales/quotes', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateQuoteHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/quotes/send', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runSendQuoteHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/quotes/approve', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runApproveQuoteHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/quotes/convert', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runConvertQuoteHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/quotes/cancel', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCancelQuoteHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/quotes/expired', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.get('/api/ledger/journal', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListJournalHttp(c.env, jwt?.tenantId ?? '', {
+      fromDate: c.req.query('fromDate') ?? '',
+      toDate: c.req.query('toDate') ?? '',
+      branchId: c.req.query('branchId') ?? '',
+    });
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+  app.post('/api/ledger/journal', (c) => {
+    const result = runMutateJournalHttp();
+    return c.json(result.body, result.status as 403);
+  });
+  app.patch('/api/ledger/journal', (c) => {
+    const result = runMutateJournalHttp();
+    return c.json(result.body, result.status as 403);
+  });
+
   // Sprint 19 — comandas / KDS / split
   app.post('/api/orders', async (c) => {
     const jwt = c.get('jwt');
@@ -489,6 +662,82 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.get('/api/owner/purchasing/three-way', async (c) => {
     const jwt = c.get('jwt');
     const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.post('/api/purchasing/returns', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateSupplierReturnHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/purchasing/returns/close', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCloseSupplierReturnHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/purchasing/returns/cancel', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCancelSupplierReturnHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/purchasing/returns', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.post('/api/ledger/store-credit/issue', (c) => {
+    const result = runIssueStoreCreditHttp(c.env);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/ledger/store-credit/expire', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runExpireStoreCreditHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/ledger/store-credit/adjust', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runAdjustStoreCreditHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/ledger/store-credit', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
 

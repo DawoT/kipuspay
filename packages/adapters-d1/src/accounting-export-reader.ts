@@ -4,6 +4,7 @@
  */
 import {
   buildAccountingEntries,
+  sortAccountingEntries,
   type AccountingEntry,
   type AccountingSaleRow,
 } from '@kipuspay/domain-integrations';
@@ -108,11 +109,98 @@ async function readPaymentsBySale(
   return map;
 }
 
+async function readJournalSaleEntries(
+  db: D1DatabaseLike,
+  tenantId: string,
+  query: AccountingExportReadQuery,
+): Promise<AccountingEntry[]> {
+  const result = await db
+    .prepare(
+      `SELECT je.source_id AS source_sale_id, je.branch_id AS branch_id, je.post_date AS booked_at,
+              coa.code AS gl_account, jl.debit_cents AS debit_cents, jl.credit_cents AS credit_cents,
+              jl.memo AS memo
+       FROM journal_entries je
+       INNER JOIN journal_lines jl
+         ON jl.tenant_id = je.tenant_id AND jl.journal_entry_id = je.id
+       INNER JOIN chart_of_accounts coa
+         ON coa.tenant_id = jl.tenant_id AND coa.id = jl.account_id
+       WHERE je.tenant_id = ?
+         AND je.branch_id = ?
+         AND je.source_type = 'SALE'
+         AND je.post_date >= date(?)
+         AND je.post_date <= date(?)
+       ORDER BY je.post_date ASC, je.source_id ASC`,
+    )
+    .bind(tenantId, query.branchId, query.fromDate, query.toDate)
+    .all<{
+      source_sale_id: string;
+      branch_id: string;
+      booked_at: string;
+      gl_account: string;
+      debit_cents: number;
+      credit_cents: number;
+      memo: string;
+    }>();
+  interface JournalRow {
+    source_sale_id: string;
+    branch_id: string;
+    booked_at: string;
+    gl_account: string;
+    debit_cents: number;
+    credit_cents: number;
+    memo: string;
+  }
+  const out: AccountingEntry[] = [];
+  let line = 1;
+  let lastSale = '';
+  const bucket: JournalRow[] = [];
+  const flush = () => {
+    const sorted = [...bucket].sort((a, b) => lineRank(a.memo) - lineRank(b.memo));
+    for (const row of sorted) {
+      out.push({
+        sourceSaleId: row.source_sale_id,
+        branchId: row.branch_id,
+        bookedAt: row.booked_at.slice(0, 10),
+        glAccount: row.gl_account,
+        amountCents: row.debit_cents > 0 ? row.debit_cents : -row.credit_cents,
+        line,
+        memo: row.memo ?? `sale:${row.source_sale_id}`,
+      });
+      line += 1;
+    }
+    bucket.length = 0;
+  };
+  for (const row of result.results ?? []) {
+    if (row.source_sale_id !== lastSale) {
+      flush();
+      line = 1;
+      lastSale = row.source_sale_id;
+    }
+    bucket.push(row);
+  }
+  flush();
+  return sortAccountingEntries(out);
+}
+
+/** Rank canónico de línea, espejo del orden de buildAccountingEntries: deposit→cash→ar→sales→vat. */
+function lineRank(memo: string): number {
+  if (memo.endsWith(':debit:deposit')) return 1;
+  if (memo.endsWith(':debit:cash')) return 2;
+  if (memo.endsWith(':debit:ar')) return 3;
+  if (memo.endsWith(':sales')) return 4;
+  if (memo.endsWith(':vat')) return 5;
+  return 6;
+}
+
 export async function exportAccountingEntries(
   db: D1DatabaseLike,
   tenantId: string,
   query: AccountingExportReadQuery,
+  options: { readonly fromJournal?: boolean } = {},
 ): Promise<readonly AccountingEntry[]> {
+  if (options.fromJournal === true) {
+    return readJournalSaleEntries(db, tenantId, query);
+  }
   const rows = await readAccountingSaleRows(db, tenantId, query);
   return buildAccountingEntries(rows);
 }

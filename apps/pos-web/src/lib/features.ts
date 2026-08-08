@@ -142,3 +142,28 @@ export function isCatalogVariantsEnabled(): boolean {
 export function isCatalogUomEnabled(): boolean {
   return flagOn(pub(PF + 'CATALOG_UOM'));
 }
+
+/** Sprint 32 — apartados / anticipos. */
+export function isSalesLayawayEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_LAYAWAY'));
+}
+
+/** Sprint 32 — diario contable solo lectura. */
+export function isLedgerChartOfAccountsEnabled(): boolean {
+  return flagOn(pub(PF + 'LEDGER_CHART_OF_ACCOUNTS'));
+}
+
+/** Sprint 33 — cotizaciones / presupuestos. */
+export function isSalesQuotesEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_QUOTES'));
+}
+
+/** Sprint 34 — devolución a proveedor. */
+export function isPurchasingReturnsEnabled(): boolean {
+  return flagOn(pub(PF + 'PURCHASING_RETURNS'));
+}
+
+/** Sprint 35 — crédito de tienda / gift cards. */
+export function isLedgerStoreCreditEnabled(): boolean {
+  return flagOn(pub(PF + 'LEDGER_STORE_CREDIT'));
+}

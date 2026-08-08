@@ -150,16 +150,20 @@ export function resolveReturnDocType(formalizationMode: string): ReturnDocType {
 
 export function parseReturnPolicyRow(
   row: {
-    window_days: number;
-    by_payment_method_json: string;
-    refund_to_original_method: number | boolean;
-    allow_turn_closed_with_auth: number | boolean;
+    window_days?: unknown;
+    by_payment_method_json?: unknown;
+    refund_to_original_method?: unknown;
+    allow_turn_closed_with_auth?: unknown;
   } | null,
 ): ReturnPolicy {
-  if (!row) return DEFAULT_RETURN_POLICY;
+  if (!row || typeof row.window_days !== 'number') return DEFAULT_RETURN_POLICY;
   let byPaymentMethod: Record<string, number> = {};
   try {
-    const parsed: unknown = JSON.parse(row.by_payment_method_json || '{}');
+    const rawJson =
+      typeof row.by_payment_method_json === 'string' && row.by_payment_method_json.trim()
+        ? row.by_payment_method_json
+        : '{}';
+    const parsed: unknown = JSON.parse(rawJson);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
         if (typeof v === 'number' && Number.isFinite(v)) byPaymentMethod[k] = v;
@@ -169,7 +173,7 @@ export function parseReturnPolicyRow(
     byPaymentMethod = {};
   }
   return {
-    windowDays: row.window_days,
+    windowDays: Number(row.window_days),
     byPaymentMethod,
     refundToOriginalMethod: Boolean(row.refund_to_original_method),
     allowTurnClosedWithAuth: Boolean(row.allow_turn_closed_with_auth),

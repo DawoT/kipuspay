@@ -1,7 +1,7 @@
 # KipusPay — baseline de deuda DAT-12 (§5.0.1): FKs simples hacia tablas tenant-owned
 # heredadas del DDL v8.0. V-14 falla si aparece una NUEVA entrada; el burn-down se
 # hace por sprint eliminando líneas de este archivo junto con el fix del DDL.
-# congelado con 63 entradas.
+# congelado con 59 entradas.
 accounts_payable -> purchase_orders (purchase_order_id)
 accounts_payable -> suppliers (supplier_id)
 branch_document_series -> branches (branch_id)
@@ -44,7 +44,6 @@ purchase_orders -> branches (branch_id)
 purchase_orders -> suppliers (supplier_id)
 purchase_receipt_lines -> purchase_receipts (receipt_id)
 purchase_receipts -> purchase_orders (purchase_order_id)
-quote_items -> quotes (quote_id)
 recurring_occurrences -> recurring_plans (plan_id)
 recurring_occurrences -> sales (sale_id)
 sale_deposit_items -> products (product_id)
@@ -62,6 +61,3 @@ sales_returns -> sales (sale_id)
 stock_transfer_lines -> stock_transfers (transfer_id)
 stock_transfers -> branches (from_branch_id)
 stock_transfers -> branches (to_branch_id)
-store_credit_transactions -> sales (sale_id)
-store_credit_transactions -> store_credit_accounts (store_credit_account_id)
-supplier_return_items -> supplier_returns (return_id)

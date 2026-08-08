@@ -84,6 +84,10 @@ export interface OfflineSalePayload {
    * Offline-origin sin reserva online → rechazo; reserva EXPIRED → edge A.
    */
   readonly loyaltyPoints?: number | undefined;
+  /** Sprint 35: canje de crédito de tienda. Monto lo impone el servidor. */
+  readonly useStoreCredit?: boolean | undefined;
+  /** Sprint 35: venta de vale/gift card (ISSUE en el mismo batch). */
+  readonly storeCreditIssue?: boolean | undefined;
 }
 
 const ISSUED_AT_SKEW_MS = 6 * 3600 * 1000;
@@ -100,6 +104,33 @@ function assertPromotionIds(item: OfflineSaleItemPayload): void {
   }
 }
 
+function isPreResolvedItem(item: OfflineSaleItemPayload): boolean {
+  return (
+    item.baseQuantityMicrounits !== undefined &&
+    item.resolvedFactorNumerator !== undefined &&
+    item.resolvedFactorDenominator !== undefined
+  );
+}
+
+function isPositiveSafeInt(value: number | undefined): boolean {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+function isPositiveFinite(value: number | undefined): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function assertPreResolvedQuantity(item: OfflineSaleItemPayload): void {
+  if (
+    !isPositiveSafeInt(item.baseQuantityMicrounits) ||
+    !isPositiveFinite(item.resolvedFactorNumerator) ||
+    !isPositiveFinite(item.resolvedFactorDenominator) ||
+    !isPositiveFinite(item.quantity)
+  ) {
+    throw new Error('INVALID_RESOLVED_QUANTITY');
+  }
+}
+
 function assertItemQuantity(item: OfflineSaleItemPayload): void {
   const hasUomIdentity = item.enteredQuantityMicrounits !== undefined || item.uomId !== undefined;
   if (hasUomIdentity) {
@@ -110,6 +141,10 @@ function assertItemQuantity(item: OfflineSaleItemPayload): void {
     ) {
       throw new Error('INVALID_UOM_QUANTITY');
     }
+    return;
+  }
+  if (isPreResolvedItem(item)) {
+    assertPreResolvedQuantity(item);
     return;
   }
   if (!Number.isSafeInteger(item.quantity) || item.quantity === undefined || item.quantity <= 0) {
@@ -138,6 +173,35 @@ function requireResolvedQuantity(item: OfflineSaleItemPayload): number {
     throw new Error('INVALID_QUANTITY');
   }
   return quantity;
+}
+
+/**
+ * Agrupa ítems por (productId, uomId) igual que el motor ACID (S31 UOM / convert snapshot).
+ * Fuerza de verdad compartida entre normalizeUomItems y los converts quote/apartado.
+ */
+export function aggregateSaleItems(
+  items: readonly OfflineSaleItemPayload[],
+): OfflineSaleItemPayload[] {
+  const aggregated = new Map<string, OfflineSaleItemPayload>();
+  for (const item of items) {
+    const key = `${item.productId}\u0000${item.uomId ?? 'BASE'}`;
+    const previous = aggregated.get(key);
+    if (!previous) {
+      aggregated.set(key, item);
+      continue;
+    }
+    aggregated.set(key, {
+      ...previous,
+      quantity: requireResolvedQuantity(previous) + requireResolvedQuantity(item),
+      enteredQuantityMicrounits:
+        (previous.enteredQuantityMicrounits ?? 0) + (item.enteredQuantityMicrounits ?? 0),
+      baseQuantityMicrounits:
+        (previous.baseQuantityMicrounits ?? 0) + (item.baseQuantityMicrounits ?? 0),
+      discountAmountCents: (previous.discountAmountCents ?? 0) + (item.discountAmountCents ?? 0),
+      promotionIds: [...new Set([...(previous.promotionIds ?? []), ...(item.promotionIds ?? [])])],
+    });
+  }
+  return [...aggregated.values()];
 }
 
 function assertPayments(payments: readonly OfflinePaymentPayload[]): void {

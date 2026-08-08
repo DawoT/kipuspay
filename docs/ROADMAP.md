@@ -68,8 +68,12 @@ owner: "@DawoT"
 | 28 | 6B | Actualizada (sales.returns + GTM-05) | Cerrado |
 | 29 | 6B | Actualizada (purchasing.three_way + GTM-13) | Cerrado |
 | 30 | 6B | Actualizada (pricing.promotions + GTM-15) | Cerrado |
-| 31–32 | 6B | Actualizada (FASE 6B reglas 16–17 + COM pricing) | Planificado |
-| 33–37 | 6C | Actualizada (FASE 6C reglas 18–22 + COM-05 pricing congelado) | Planificado |
+| 31 | 6B | Actualizada (catalog.variants/uom + GTM-16) | Cerrado |
+| 32 | 6B | Actualizada (sales.layaway + ledger.chart_of_accounts + GTM-14/17) | Cerrado |
+| 33 | 6C | Actualizada (sales.quotes + GTM-19) | Cerrado |
+| 34 | 6C | Actualizada (purchasing.returns + GTM-20) | Cerrado |
+| 35 | 6C | Actualizada (ledger.store_credit + GTM-21) | Cerrado |
+| 36–37 | 6C | Actualizada (FASE 6C reglas 21–22) | Planificado |
 | 38–42 | 6D | Actualizada (FASE 6D reglas 23–27) | Planificado |
 | 43–45 | 6E | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |
 | 46–48 | 6F | Actualizada (FASE 6F reglas 31–32) | Planificado |

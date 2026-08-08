@@ -104,4 +104,127 @@ describe('accounting-export-reader', () => {
       '1212:4000',
     ]);
   });
+
+  it('flag on: lee journal_lines y no usa ar_balance para 1212', async () => {
+    const db = mockDbWithQueries(
+      [
+        {
+          source_sale_id: 's3',
+          branch_id: 'b1',
+          booked_at: '2026-08-03',
+          gl_account: '1011',
+          debit_cents: 6000,
+          credit_cents: 0,
+          memo: 'sale:s3:debit:cash',
+        },
+        {
+          source_sale_id: 's3',
+          branch_id: 'b1',
+          booked_at: '2026-08-03',
+          gl_account: '1212',
+          debit_cents: 4000,
+          credit_cents: 0,
+          memo: 'sale:s3:debit:ar',
+        },
+        {
+          source_sale_id: 's3',
+          branch_id: 'b1',
+          booked_at: '2026-08-03',
+          gl_account: '7011',
+          debit_cents: 0,
+          credit_cents: 8474,
+          memo: 'sale:s3:sales',
+        },
+        {
+          source_sale_id: 's3',
+          branch_id: 'b1',
+          booked_at: '2026-08-03',
+          gl_account: '4011',
+          debit_cents: 0,
+          credit_cents: 1526,
+          memo: 'sale:s3:vat',
+        },
+      ],
+      [],
+    );
+    const entries = await exportAccountingEntries(
+      db,
+      't1',
+      { fromDate: '2026-08-03', toDate: '2026-08-03', branchId: 'b1' },
+      { fromJournal: true },
+    );
+    expect(entries.map((e) => `${e.glAccount}:${e.amountCents}`)).toEqual([
+      '1011:6000',
+      '1212:4000',
+      '7011:-8474',
+      '4011:-1526',
+    ]);
+  });
+
+  it('flag on: ordena líneas con rank canónico deposit→cash→ar→sales→vat aunque el SQL las devuelva revueltas', async () => {
+    const db = mockDbWithQueries(
+      [
+        {
+          source_sale_id: 's4',
+          branch_id: 'b1',
+          booked_at: '2026-08-04',
+          gl_account: '4011',
+          debit_cents: 0,
+          credit_cents: 1526,
+          memo: 'sale:s4:vat',
+        },
+        {
+          source_sale_id: 's4',
+          branch_id: 'b1',
+          booked_at: '2026-08-04',
+          gl_account: '7011',
+          debit_cents: 0,
+          credit_cents: 8474,
+          memo: 'sale:s4:sales',
+        },
+        {
+          source_sale_id: 's4',
+          branch_id: 'b1',
+          booked_at: '2026-08-04',
+          gl_account: '1212',
+          debit_cents: 4000,
+          credit_cents: 0,
+          memo: 'sale:s4:debit:ar',
+        },
+        {
+          source_sale_id: 's4',
+          branch_id: 'b1',
+          booked_at: '2026-08-04',
+          gl_account: '1011',
+          debit_cents: 3000,
+          credit_cents: 0,
+          memo: 'sale:s4:debit:cash',
+        },
+        {
+          source_sale_id: 's4',
+          branch_id: 'b1',
+          booked_at: '2026-08-04',
+          gl_account: '2101',
+          debit_cents: 4800,
+          credit_cents: 0,
+          memo: 'sale:s4:debit:deposit',
+        },
+      ],
+      [],
+    );
+    const entries = await exportAccountingEntries(
+      db,
+      't1',
+      { fromDate: '2026-08-04', toDate: '2026-08-04', branchId: 'b1' },
+      { fromJournal: true },
+    );
+    expect(entries.map((e) => `${e.glAccount}:${e.amountCents}`)).toEqual([
+      '2101:4800',
+      '1011:3000',
+      '1212:4000',
+      '7011:-8474',
+      '4011:-1526',
+    ]);
+    expect(entries.map((e) => e.line)).toEqual([1, 2, 3, 4, 5]);
+  });
 });

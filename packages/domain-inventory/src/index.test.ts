@@ -17,6 +17,7 @@ import {
   planReceiveStockDeltas,
   planShipStockDeltas,
   refreshAvgCostCents,
+  refreshAvgCostOnOutboundCents,
   resolveUnitPriceCents,
   suggestReorderQty,
   sumQty,
@@ -88,6 +89,62 @@ describe('refreshAvgCostCents', () => {
         inboundUnitCostCents: 250,
       }),
     ).toBe(250);
+  });
+});
+
+describe('refreshAvgCostOnOutboundCents', () => {
+  it('revierte PMP 1:1 y agota a 0', () => {
+    expect(
+      refreshAvgCostOnOutboundCents({
+        previousStock: 20,
+        previousPmpCents: 150,
+        outboundQty: 10,
+        outboundUnitCostCents: 200,
+      }),
+    ).toBe(100);
+    expect(
+      refreshAvgCostOnOutboundCents({
+        previousStock: 10,
+        previousPmpCents: 150,
+        outboundQty: 10,
+        outboundUnitCostCents: 150,
+      }),
+    ).toBe(0);
+  });
+
+  it('stock insuficiente o qty inválida', () => {
+    expect(() =>
+      refreshAvgCostOnOutboundCents({
+        previousStock: 4,
+        previousPmpCents: 100,
+        outboundQty: 5,
+        outboundUnitCostCents: 100,
+      }),
+    ).toThrow('INSUFFICIENT_STOCK');
+    expect(() =>
+      refreshAvgCostOnOutboundCents({
+        previousStock: 4,
+        previousPmpCents: 100,
+        outboundQty: 0,
+        outboundUnitCostCents: 100,
+      }),
+    ).toThrow('INVALID_OUTBOUND_QTY');
+    expect(() =>
+      refreshAvgCostOnOutboundCents({
+        previousStock: 4,
+        previousPmpCents: 1.5,
+        outboundQty: 1,
+        outboundUnitCostCents: 100,
+      }),
+    ).toThrow('INVALID_PMP');
+    expect(() =>
+      refreshAvgCostOnOutboundCents({
+        previousStock: 4,
+        previousPmpCents: 100,
+        outboundQty: 1,
+        outboundUnitCostCents: -1,
+      }),
+    ).toThrow('INVALID_UNIT_COST');
   });
 });
 

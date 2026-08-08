@@ -54,4 +54,89 @@ describe('createWhatsAppMessagingSender', () => {
     expect(res.templateId).toBe('kipus_cpe_receipt_v1');
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
+
+  it('HTTP receipt no aceptado si Graph falla', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(new Response('err', { status: 500 })),
+    ) as unknown as typeof fetch;
+    const sender = createWhatsAppMessagingSender(
+      { WA_ACCESS_TOKEN: 'tok', WA_PHONE_NUMBER_ID: 'pn1' },
+      fetchImpl,
+    );
+    const res = await sender.sendReceipt(baseReq);
+    expect(res.accepted).toBe(false);
+    expect(res.providerRef).toBeNull();
+  });
+
+  it('sendQuote sandbox usa kipus_quote_v1 y no finge NV', async () => {
+    const sender = createWhatsAppMessagingSender({});
+    const res = await sender.sendQuote!({
+      tenantId: 't1',
+      customerId: 'c1',
+      quoteId: 'q1',
+      phoneE164: '+51999888777',
+      optedIn: true,
+      representationUrl: 'https://cdn.example/q.pdf',
+    });
+    expect(res.accepted).toBe(true);
+    expect(res.providerRef).toBe('sandbox:q1');
+    expect(res.templateId).toBe('kipus_quote_v1');
+  });
+
+  it('sendQuote exige opt-in', async () => {
+    const sender = createWhatsAppMessagingSender({});
+    await expect(
+      sender.sendQuote!({
+        tenantId: 't1',
+        customerId: 'c1',
+        quoteId: 'q1',
+        phoneE164: '+51999888777',
+        optedIn: false,
+        representationUrl: 'https://cdn.example/q.pdf',
+      }),
+    ).rejects.toThrow('WHATSAPP_OPT_IN_REQUIRED');
+  });
+
+  it('sendQuote HTTP real y fallo Graph', async () => {
+    const okFetch = vi.fn(() =>
+      Promise.resolve(Response.json({ messages: [{ id: 'wamid.q' }] })),
+    ) as unknown as typeof fetch;
+    const okSender = createWhatsAppMessagingSender(
+      {
+        WA_ACCESS_TOKEN: 'tok',
+        WA_PHONE_NUMBER_ID: 'pn1',
+        WA_API_BASE: 'https://graph.example/v19.0/',
+      },
+      okFetch,
+    );
+    const ok = await okSender.sendQuote!({
+      tenantId: 't1',
+      customerId: 'c1',
+      quoteId: 'q1',
+      phoneE164: '+51999888777',
+      optedIn: true,
+      representationUrl: 'https://cdn.example/q.pdf',
+    });
+    expect(ok.accepted).toBe(true);
+    expect(ok.providerRef).toBe('wamid.q');
+    expect(ok.templateId).toBe('kipus_quote_v1');
+
+    const failFetch = vi.fn(() =>
+      Promise.resolve(new Response('err', { status: 502 })),
+    ) as unknown as typeof fetch;
+    const failSender = createWhatsAppMessagingSender(
+      { WA_ACCESS_TOKEN: 'tok', WA_PHONE_NUMBER_ID: 'pn1' },
+      failFetch,
+    );
+    const fail = await failSender.sendQuote!({
+      tenantId: 't1',
+      customerId: 'c1',
+      quoteId: 'q1',
+      phoneE164: '+51999888777',
+      optedIn: true,
+      representationUrl: 'https://cdn.example/q.pdf',
+    });
+    expect(fail.accepted).toBe(false);
+    expect(fail.providerRef).toBeNull();
+  });
 });

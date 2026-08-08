@@ -37,6 +37,7 @@ export function buildSaleTotals(lines: readonly SaleLine[]): SaleTotals {
 }
 
 export {
+  aggregateSaleItems,
   assertOfflineSaleShape,
   computeNvLineTotals,
   InsufficientStockError,
@@ -101,6 +102,45 @@ export {
   type ReturnLineRequest,
   type ReturnPolicy,
 } from './returns.js';
+
+export {
+  assertLayawayCancelAllowed,
+  assertLayawayConvertible,
+  computeLayawayBalanceCents,
+  LAYAWAY_ALREADY_CONVERTED,
+  LAYAWAY_ALREADY_TERMINAL,
+  LAYAWAY_DEPOSIT_EXCEEDS_BALANCE,
+  LAYAWAY_INSUFFICIENT_DEPOSIT,
+  LAYAWAY_INVALID_AMOUNT,
+  LAYAWAY_INVALID_STATUS,
+  LAYAWAY_ITEMS_REQUIRED,
+  markLayawayOverdue,
+  planLayawayCreate,
+  planLayawayDeposit,
+  type LayawayCreatePlan,
+  type LayawayDepositPlan,
+  type LayawayItemInput,
+  type LayawayStatus,
+} from './layaway.js';
+
+export {
+  assertQuoteApprovable,
+  assertQuoteCancelAllowed,
+  assertQuoteConvertible,
+  assertQuoteSendable,
+  markQuoteExpired,
+  planQuoteCreate,
+  QUOTE_ALREADY_CONVERTED,
+  QUOTE_ALREADY_TERMINAL,
+  QUOTE_EXPIRED,
+  QUOTE_INVALID_AMOUNT,
+  QUOTE_INVALID_STATUS,
+  QUOTE_ITEMS_REQUIRED,
+  QUOTE_NOT_APPROVED,
+  type QuoteCreatePlan,
+  type QuoteItemInput,
+  type QuoteStatus,
+} from './quotes.js';
 
 export {
   assertAndApplyPromotions,

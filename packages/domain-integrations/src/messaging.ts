@@ -20,9 +20,27 @@ export interface MessagingSendReceiptResult {
   readonly templateId: string;
 }
 
+export interface MessagingSendQuoteRequest {
+  readonly tenantId: string;
+  readonly customerId: string;
+  readonly quoteId: string;
+  readonly phoneE164: string;
+  readonly optedIn: boolean;
+  readonly representationUrl: string;
+}
+
+export interface MessagingSendQuoteResult {
+  readonly accepted: boolean;
+  readonly providerRef: string | null;
+  readonly templateId: string;
+}
+
 export interface MessagingSenderPort {
   sendReceipt(request: MessagingSendReceiptRequest): Promise<MessagingSendReceiptResult>;
+  sendQuote?(request: MessagingSendQuoteRequest): Promise<MessagingSendQuoteResult>;
 }
+
+export const QUOTE_TEMPLATE_ID = 'kipus_quote_v1';
 
 export function assertWhatsAppOptIn(optedIn: boolean): void {
   if (!optedIn) throw new Error('WHATSAPP_OPT_IN_REQUIRED');
@@ -42,6 +60,16 @@ export function receiptLegend(kind: ReceiptDocumentKind): string {
 }
 
 export function assertSendableReceipt(request: MessagingSendReceiptRequest): void {
+  assertWhatsAppOptIn(request.optedIn);
+  if (!request.phoneE164.startsWith('+') || request.phoneE164.length < 10) {
+    throw new Error('WHATSAPP_PHONE_INVALID');
+  }
+  if (!request.representationUrl.startsWith('https://')) {
+    throw new Error('WHATSAPP_URL_NOT_HTTPS');
+  }
+}
+
+export function assertSendableQuote(request: MessagingSendQuoteRequest): void {
   assertWhatsAppOptIn(request.optedIn);
   if (!request.phoneE164.startsWith('+') || request.phoneE164.length < 10) {
     throw new Error('WHATSAPP_PHONE_INVALID');

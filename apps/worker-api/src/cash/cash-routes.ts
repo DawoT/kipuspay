@@ -2,15 +2,19 @@
  * Caja dura Sprint 17 — blind Z, movimientos, reimpresión COPIA (ADR-0012).
  * Flags default off → 404 FEATURE_OFF.
  */
+/* eslint-disable complexity -- HTTP Z/movimientos: print-outbox + journal S32 */
 import {
   computeExpectedCashCents,
   planBlindClose,
+  planCashCountJournal,
   planSaleReprint,
   printOutboxPendingCount,
   shouldBlockZForPrintOutbox,
   type CashMovementType,
 } from '@kipuspay/domain-cash';
+import { appendJournalToPlan, loadChartAccountsByCode } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { isLedgerChartOfAccountsEnabled } from '../auth/features.js';
 
 export function isCashBlindZEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_CASH_BLIND_Z === '1' || env?.FEATURE_CASH_BLIND_Z === 'true';
@@ -96,6 +100,9 @@ const MOVEMENT_TYPES: ReadonlySet<CashMovementType> = new Set([
   'CHANGE_FUND_OUT',
   'SUPPLIER_PAYMENT',
   'ADJUSTMENT',
+  'SALE_REFUND',
+  'LAYAWAY_DEPOSIT',
+  'LAYAWAY_REFUND',
 ]);
 
 interface BlindCloseSession {
@@ -362,6 +369,26 @@ export async function runBlindCloseHttp(
         .bind(crypto.randomUUID(), tenantId, sessionId, line.denominationCents, line.quantity),
     ),
   ];
+
+  if (isLedgerChartOfAccountsEnabled(env)) {
+    const cashJournal = planCashCountJournal({
+      sourceId: sessionId,
+      postDate: new Date().toISOString().slice(0, 10),
+      differenceCents: plan.differenceAmountCents,
+    });
+    if (cashJournal) {
+      const accounts = await loadChartAccountsByCode(env.DB, tenantId);
+      const sink = { add: (stmt: (typeof stmts)[number]) => stmts.push(stmt) };
+      await appendJournalToPlan(sink, env.DB, {
+        tenantId,
+        branchId: ctx.session.branch_id,
+        userId,
+        accountsByCode: accounts,
+        prevAuditHash: null,
+        entry: cashJournal,
+      });
+    }
+  }
 
   await env.DB.batch(stmts);
 

@@ -25,6 +25,26 @@ import {
   type VariantsUomChaosResult,
 } from './variants-uom-bom-batch.js';
 import {
+  runLayawayConvertCancelChaosScenario,
+  type LayawayChaosResult,
+} from './layaway-convert-cancel.js';
+import {
+  runJournalBalanceExportChaosScenario,
+  type JournalChaosResult,
+} from './journal-balance-export.js';
+import {
+  runQuoteConvertExpireChaosScenario,
+  type QuoteChaosResult,
+} from './quote-convert-expire.js';
+import {
+  runSupplierReturnReceiveChaosScenario,
+  type SupplierReturnChaosResult,
+} from './supplier-return-receive.js';
+import {
+  runStoreCreditIssueRedeemChaosScenario,
+  type StoreCreditChaosResult,
+} from './store-credit-issue-redeem.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -52,6 +72,11 @@ export type ChaosScenarioId =
   | 'purchasing-three-way-late-invoice'
   | 'promotions-anti-stack'
   | 'variants-uom-bom-batch'
+  | 'layaway-convert-cancel'
+  | 'journal-balance-export'
+  | 'quote-convert-expire'
+  | 'supplier-return-receive'
+  | 'store-credit-issue-redeem'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -71,6 +96,11 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'purchasing-three-way-late-invoice': 29,
   'promotions-anti-stack': 30,
   'variants-uom-bom-batch': 31,
+  'layaway-convert-cancel': 32,
+  'journal-balance-export': 32,
+  'quote-convert-expire': 33,
+  'supplier-return-receive': 34,
+  'store-credit-issue-redeem': 35,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -117,6 +147,11 @@ export interface ChaosDeps {
   readonly runPurchasingThreeWayLateInvoice?: () => Promise<ThreeWayChaosResult>;
   readonly runPromotionsAntiStack?: () => Promise<PromotionsAntiStackChaosResult>;
   readonly runVariantsUomBomBatch?: () => Promise<VariantsUomChaosResult>;
+  readonly runLayawayConvertCancel?: () => Promise<LayawayChaosResult>;
+  readonly runJournalBalanceExport?: () => Promise<JournalChaosResult>;
+  readonly runQuoteConvertExpire?: () => Promise<QuoteChaosResult>;
+  readonly runSupplierReturnReceive?: () => Promise<SupplierReturnChaosResult>;
+  readonly runStoreCreditIssueRedeem?: () => Promise<StoreCreditChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -201,6 +236,16 @@ async function dispatchReadyScenario(
       return runPromotionsAntiStackChaosScenario(deps.runPromotionsAntiStack);
     case 'variants-uom-bom-batch':
       return runVariantsUomBomBatchChaosScenario(deps.runVariantsUomBomBatch);
+    case 'layaway-convert-cancel':
+      return runLayawayConvertCancelChaosScenario(deps.runLayawayConvertCancel);
+    case 'journal-balance-export':
+      return runJournalBalanceExportChaosScenario(deps.runJournalBalanceExport);
+    case 'quote-convert-expire':
+      return runQuoteConvertExpireChaosScenario(deps.runQuoteConvertExpire);
+    case 'supplier-return-receive':
+      return runSupplierReturnReceiveChaosScenario(deps.runSupplierReturnReceive);
+    case 'store-credit-issue-redeem':
+      return runStoreCreditIssueRedeemChaosScenario(deps.runStoreCreditIssueRedeem);
     default:
       return Promise.reject(
         new Error(
@@ -288,3 +333,33 @@ export {
   runVariantsUomBomBatchChaos,
   runVariantsUomBomBatchChaosScenario,
 } from './variants-uom-bom-batch.js';
+
+export {
+  judgeLayawayConvertCancel,
+  runLayawayConvertCancelChaos,
+  runLayawayConvertCancelChaosScenario,
+} from './layaway-convert-cancel.js';
+
+export {
+  judgeJournalBalanceExport,
+  runJournalBalanceExportChaos,
+  runJournalBalanceExportChaosScenario,
+} from './journal-balance-export.js';
+
+export {
+  judgeQuoteConvertExpire,
+  runQuoteConvertExpireChaos,
+  runQuoteConvertExpireChaosScenario,
+} from './quote-convert-expire.js';
+
+export {
+  judgeSupplierReturnReceive,
+  runSupplierReturnReceiveChaos,
+  runSupplierReturnReceiveChaosScenario,
+} from './supplier-return-receive.js';
+
+export {
+  judgeStoreCreditIssueRedeem,
+  runStoreCreditIssueRedeemChaos,
+  runStoreCreditIssueRedeemChaosScenario,
+} from './store-credit-issue-redeem.js';

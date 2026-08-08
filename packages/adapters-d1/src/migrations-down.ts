@@ -1,6 +1,42 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0028_SPRINT35_STORE_CREDIT = `
+DROP INDEX IF EXISTS idx_store_credit_tx_account;
+DROP INDEX IF EXISTS idx_store_credit_accounts_tenant;
+DROP TABLE IF EXISTS store_credit_transactions;
+DROP TABLE IF EXISTS store_credit_accounts;
+DELETE FROM schema_meta WHERE key = 'ledger.store_credit.sprint35';
+`;
+
+export const DOWN_0027_SPRINT34_SUPPLIER_RETURNS = `
+DROP INDEX IF EXISTS idx_supplier_return_items_return;
+DROP INDEX IF EXISTS idx_supplier_returns_tenant_status;
+DROP TABLE IF EXISTS supplier_return_items;
+DROP TABLE IF EXISTS supplier_returns;
+DROP INDEX IF EXISTS uq_purchase_receipts_tenant_id;
+DELETE FROM schema_meta WHERE key = 'purchasing.returns.sprint34';
+`;
+
+export const DOWN_0026_SPRINT33_QUOTES = `
+DROP INDEX IF EXISTS idx_quote_items_quote;
+DROP INDEX IF EXISTS idx_quotes_tenant_status;
+DROP TABLE IF EXISTS quote_items;
+DROP TABLE IF EXISTS quotes;
+DELETE FROM schema_meta WHERE key = 'sales.quotes.sprint33';
+`;
+
+export const DOWN_0025_SPRINT32_LAYAWAY_JOURNAL = `
+DROP INDEX IF EXISTS idx_journal_lines_entry;
+DROP TABLE IF EXISTS journal_lines;
+DROP TABLE IF EXISTS journal_entries;
+DROP TABLE IF EXISTS chart_of_accounts;
+DROP TABLE IF EXISTS sale_deposit_items;
+DROP TABLE IF EXISTS sale_deposit_payments;
+DROP TABLE IF EXISTS sale_deposits;
+DELETE FROM schema_meta WHERE key = 'sales.layaway_journal.sprint32';
+`;
+
 export const DOWN_0024_SPRINT31_VARIANTS_UOM = `
 DROP TRIGGER IF EXISTS products_variant_parent_guard_update;
 DROP TRIGGER IF EXISTS products_variant_parent_guard_insert;

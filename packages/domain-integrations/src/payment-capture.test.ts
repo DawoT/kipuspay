@@ -147,6 +147,7 @@ describe('methodCodeToAcquirer / electronic', () => {
 
   it('isPaymentMethodCode', () => {
     expect(isPaymentMethodCode('yape')).toBe(true);
+    expect(isPaymentMethodCode('store_credit')).toBe(true);
     expect(isPaymentMethodCode('bitcoin')).toBe(false);
   });
 

@@ -56,6 +56,7 @@ function parseCreateReturnBody(body: {
   authorizedByUserId?: string | null;
   cashRegisterSessionId?: string | null;
   authThresholdCents?: number;
+  consentStoreCredit?: boolean;
 }):
   | { ok: false; result: HttpResult }
   | {
@@ -67,6 +68,7 @@ function parseCreateReturnBody(body: {
       authorizedByUserId: string | null;
       cashRegisterSessionId: string | null;
       authThresholdCents: number | undefined;
+      consentStoreCredit: boolean;
     } {
   const originSaleId = body.originSaleId?.trim() ?? '';
   const reason = body.reason ?? '';
@@ -95,6 +97,7 @@ function parseCreateReturnBody(body: {
     authorizedByUserId: body.authorizedByUserId ?? null,
     cashRegisterSessionId: body.cashRegisterSessionId ?? null,
     authThresholdCents: body.authThresholdCents,
+    consentStoreCredit: body.consentStoreCredit === true,
   };
 }
 
@@ -110,6 +113,7 @@ export async function runCreateSalesReturnHttp(
     authorizedByUserId?: string | null;
     cashRegisterSessionId?: string | null;
     authThresholdCents?: number;
+    consentStoreCredit?: boolean;
   },
 ): Promise<HttpResult> {
   if (!isSalesReturnsEnabled(env)) return featureOff();
@@ -122,6 +126,10 @@ export async function runCreateSalesReturnHttp(
   if (!parsed.ok) return parsed.result;
 
   const ledgerArApEnabled = env.FEATURE_LEDGER_AR_AP === '1' || env.FEATURE_LEDGER_AR_AP === 'true';
+  const chartOfAccountsEnabled =
+    env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' || env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true';
+  const storeCreditEnabled =
+    env.FEATURE_LEDGER_STORE_CREDIT === '1' || env.FEATURE_LEDGER_STORE_CREDIT === 'true';
 
   try {
     const result = await processReturnAtomic(
@@ -135,11 +143,12 @@ export async function runCreateSalesReturnHttp(
         series: parsed.series,
         authorizedByUserId: parsed.authorizedByUserId,
         cashRegisterSessionId: parsed.cashRegisterSessionId,
+        consentStoreCredit: parsed.consentStoreCredit,
         ...(parsed.authThresholdCents !== undefined
           ? { authThresholdCents: parsed.authThresholdCents }
           : {}),
       },
-      { ledgerArApEnabled },
+      { ledgerArApEnabled, chartOfAccountsEnabled, storeCreditEnabled },
     );
     return {
       status: 200,
@@ -149,6 +158,7 @@ export async function runCreateSalesReturnHttp(
         docType: result.docType,
         refundAmountCents: result.refundAmountCents,
         refundMovementId: result.refundMovementId,
+        storeCreditTxnId: result.storeCreditTxnId ?? null,
       },
     };
   } catch (err) {

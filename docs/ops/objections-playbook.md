@@ -32,7 +32,10 @@ Cada objeción cita la **garantía técnica** o el **gate** que la respalda. Si 
 | Rebota pago suscripción | Gracia; caja no se apaga | GTM §4.3 |
 | Promociones | Tras S29 GTM-15 | Roadmap Sprint 29 |
 | Compras a proveedores | Tras S28–32 / S20 parcial | GTM-13 |
-| Apartados | Tras S31 GTM-17 | Roadmap Sprint 31 |
+| Apartados | QG S32 GTM-17 | Roadmap Sprint 32 · ops s32 |
+| Cotizaciones / presupuestos | QG S33 GTM-19 | Roadmap Sprint 33 · ops s33 |
+| Devolución a proveedor | QG S34 GTM-20 | Roadmap Sprint 34 · ops s34 |
+| Crédito de tienda / gift cards | QG S35 GTM-21 | Roadmap Sprint 35 · ops s35 |
 | Tallas/colores / peso | S30 / S38–42 | GTM-16/17 |
 
 ## Regla de uso

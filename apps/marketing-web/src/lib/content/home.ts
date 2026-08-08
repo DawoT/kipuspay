@@ -163,6 +163,26 @@ export const HOME = {
       a: 'Si, en el plan Crece. Cada variante tiene stock, lotes y precio propios; las cajas, packs y fracciones se convierten con factores exactos en el servidor. Una presentacion editada no cambia tickets ni devoluciones anteriores.',
     },
     {
+      q: '¿Puedo apartar mercaderia y cobrar un adelanto?',
+      a: 'Si, en el plan Crece. El apartado reserva el producto y registra abonos; el comprobante se emite solo cuando conviertes a venta. Si cancelas, se reembolsa lo abonado sin nota de credito.',
+    },
+    {
+      q: '¿Puedo devolver mercaderia al proveedor?',
+      a: 'Si, en el plan Cadena. La devolucion revierte stock y costo promedio, baja lo que debes si la factura ya estaba abierta y no emite una nota de credito SUNAT tuya: la NC es del proveedor. Distinto de devolver una venta al cliente.',
+    },
+    {
+      q: '¿Puedo vender vales o gift cards?',
+      a: 'Si, en Crece/Cadena. Vender un vale es una venta (comprobante y cupo). Al canjearlo KipusPay aplica el saldo en el servidor, no el monto que teclea la caja. Si el cliente devuelve sin reembolso en efectivo, puede pasar a credito de tienda con su consentimiento.',
+    },
+    {
+      q: '¿Puedo emitir cotizaciones o presupuestos?',
+      a: 'Si. La cotizacion congela el precio que calcula KipusPay y no emite comprobante ni reserva stock. Al convertir a venta se respeta ese precio aunque la lista haya cambiado; si vencio, hay que recotizar.',
+    },
+    {
+      q: '¿Mi contador puede ver el diario?',
+      a: 'En el plan Cadena, si: el diario se genera solo con cada venta, cobro y arqueo. La pantalla es de lectura; el export Contasis/Concar usa los mismos asientos.',
+    },
+    {
       q: '¿Necesito comprar un equipo especial?',
       a: 'No. Funciona en la tablet, el celular o la computadora que ya tienes. Conectar una impresora termica es opcional y se configura despues de tu primera venta.',
     },

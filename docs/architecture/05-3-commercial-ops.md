@@ -30,10 +30,10 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 14. **Proveedores 3-way (`purchasing.three_way`, FASE 6B):** la compra (factura de proveedor) se liga a su OC y recepción; el **matching 3-way** exige cantidad OC = recepción = factura y precio/costo coherentes; diferencia = `422` o `override` autorizado + audit (`SUPPLIER_PRICE_DIFF`); al cerrar se actualiza `inventory_movements` + `refresh_avg_cost` + CxP por lo facturado. Jamás se ajusta CxP en silencio.
 15. **Promociones y tramos (`pricing.promotions`, FASE 6B):** 2x1, % fijo, % por umbral de monto/cantidad, precio por tramo; **el precio final lo impone el sale engine** (el cliente envía solo el ID de la promoción); anti-apilamiento configurable; descuento manual sobre umbral → authz (regla 2); promoción sobre producto con lote respeta asignación `batch_id` (regla 4). Crear/editar regla = `audit_events`.
 16. **Variantes y unidades de medida (`catalog.variants`, `catalog.uom`, FASE 6B; ADR-0015):** variantes = filas `products` de un solo nivel con `parent_product_id`, stock propio y precio derivado del padre con override; padre con variantes = agrupador no vendible/sin stock. Toda cantidad física canónica usa `INTEGER *_microunits` (`QUANTITY_SCALE=1_000_000`); `product_uoms` convierte por factor racional positivo numerador/denominador y tiene exactamente una base `1/1`. El costo vive por unidad base en producto/PMP (no se duplica por UOM); venta persiste snapshots de UOM/factor/cantidad base; PMP y conteo físico se resuelven por variante/base. 0 stock cruzado entre variantes; conversión half-up server-side con overflow guard (nunca `toFixed`).
-17. **Apartados y diario contable (`sales.layaway`, `ledger.chart_of_accounts`, FASE 6B):** el apartado reserva ítems y recibe abonos (`sale_deposits`); **no emite CPE hasta la conversión a venta completa**; cancelación devuelve según política (reusa regla 13). `chart_of_accounts` + asientos automáticos desde ventas/cobros/pagos/CxP/CxC/arqueo; el ledger es **solo lectura** para la UI (el contador lee vía export Cadena, no muta).
-18. **Cotizaciones/presupuestos (`sales.quotes`, FASE 6C):** la cotización congela los precios resueltos por el servidor (Zero-Trust, regla 1) con vencimiento; **no emite doc fiscal**; estados `DRAFT → SENT → APPROVED → CONVERTED | EXPIRED | CANCELLED`; solo la `CONVERTED` genera venta (reusa pricing y listas); `audit_events` `QUOTE_*`. **COM-05:** el precio congelado de la cotización (`quote_items.unit_price_cents` snapshot) es el vigente al convertirla a venta **aunque** el precio de lista haya cambiado después (venta hereda el snapshot; si la cotización expira, la nueva venta se cotiza con pricing actual y requiere re-aprobación).
-19. **Devolución a proveedor (`purchasing.returns`, FASE 6C):** espejo de la regla 13 pero de compra: genera NC de proveedor, **revierte `inventory_movements` + PMP** (reverso de `refresh_avg_cost` por `(product, branch)`) + CxP por lo devuelto; nunca se ajusta CxP en silencio; `audit_events` `SUPPLIER_RETURN`. **Forward-only (regla 9):** la reversión solo ajusta el PMP **para transacciones futuras**; las ventas pasadas conservan su snapshot `unit_cost_cents` y los márgenes históricos no cambian.
-20. **Crédito de tienda / vales / gift cards (`ledger.store_credit`, FASE 6C):** cuenta de saldo por cliente; la venta del vale se registra como venta (doc según modo) y el **canje se impone desde el servidor** (nunca el cliente); una NC sin reembolso (regla 13) puede convertirse en crédito de tienda; vencimiento configurable; `audit_events` `STORE_CREDIT_ISSUE`/`STORE_CREDIT_REDEEM`.
+17. **Apartados y diario contable (`sales.layaway`, `ledger.chart_of_accounts`, FASE 6B; ADR-0016):** el apartado reserva ítems en microunidades (`sale_deposit_items`) y recibe abonos (`sale_deposit_payments`); **no emite CPE hasta la conversión a venta completa**; cancelación de `OPEN`/`OVERDUE` reembolsa Σ abonos según política (reusa regla 13) **sin** `07`/`NV_RETURN` y libera la reserva (`LAYAWAY_CANCEL`). `chart_of_accounts` + asientos automáticos (`JOURNAL_POST`) desde ventas/cobros/pagos/CxP/CxC/arqueo/apartado/devolución; GL S23 (`1011`/`1212`/`7011`/`4011`) + `2101` anticipos + `2011` CxP; el ledger es **solo lectura** para la UI (el contador lee vía export Cadena, no muta).
+18. **Cotizaciones/presupuestos (`sales.quotes`, FASE 6C; ADR-0017):** congela precios server-side (regla 1) con vencimiento; **no emite doc fiscal ni reserva stock**; estados `DRAFT → SENT → APPROVED → CONVERTED | EXPIRED | CANCELLED`; solo `CONVERTED` genera venta (`processOfflineSaleAtomic`, sin `skipStockDeduction`); `audit_events` `QUOTE_*`. **COM-05:** `quote_items.unit_price_cents` snapshot rige al convertir **aunque** la lista cambie; expirada → nueva cotización/pricing + re-aprobación. Cantidades en `INTEGER *_microunits` (DAT-12).
+19. **Devolución a proveedor (`purchasing.returns`, FASE 6C; ADR-0018):** NC del proveedor (ref externa, 0 CPE/cupo); `OPEN → CLOSED | CANCELLED`; close revierte stock (`DEVOLUCION_PROVEEDOR`) + PMP outbound + CxP; mismatch = 422 o `SUPPLIER_PRICE_DIFF`; `audit_events` `SUPPLIER_RETURN`. **Forward-only (regla 9).** Microunits DAT-12.
+20. **Crédito de tienda / vales / gift cards (`ledger.store_credit`, FASE 6C; ADR-0019):** saldo por cliente (solo servidor); venta de vale = venta (doc+cupo); canje impone `min(balance, due)` (0 monto cliente); NC sin reembolso+consent → ISSUE (0 AR/cash); GL **2102** (no 2101); `audit_events` `STORE_CREDIT_ISSUE`/`STORE_CREDIT_REDEEM`.
 21. **Cuotas / pago en partes (`sales.installments`, FASE 6C):** venta a crédito con plan de pagos (`sale_installments`: abono + saldo + vencimiento); cada pago actualiza CxC y el arqueo; atraso → alerta Modo Dueño; respeta `credit_limit` (regla 3); `audit_events` `INSTALLMENT`.
 22. **Comisiones de vendedor (`sales.commissions`, FASE 6C):** comisión por `seller_id` a nivel venta/ítem (%, monto o por categoría); reporte Dueño y conciliación de pagos; **la nómina queda fuera** — no se emite planilla ni retenciones laborales; `audit_events` `COMMISSION`.
 23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D):** stock por ubicación/rack dentro de la sucursal; conteo físico por ubicación; transferencia intra-sucursal; picking guiado para OC; el stock "de venta" es la suma por ubicaciones activas.
@@ -297,7 +297,7 @@ CREATE TABLE cash_register_cash_movements (
     cash_register_session_id TEXT NOT NULL,
     movement_type TEXT NOT NULL,
     -- 'DEPOSIT_VALUES' (envío de valores) | 'CHANGE_FUND_IN' | 'CHANGE_FUND_OUT'
-    -- | 'SUPPLIER_PAYMENT' | 'ADJUSTMENT'
+    -- | 'SUPPLIER_PAYMENT' | 'ADJUSTMENT' | 'SALE_REFUND' | 'LAYAWAY_DEPOSIT' | 'LAYAWAY_REFUND'
     amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
     counterparty_ref TEXT,                   -- supplier_id / accounts_payable_id
     reason TEXT,
@@ -328,7 +328,7 @@ CREATE TABLE sale_reprints (
 |---|---|
 | Base (FASE 6, sprints 17–20) | `DISCOUNT_OVERRIDE`, `CREDIT_OVERRIDE`, `CASH_CLOSE`, `VOID`, `NC`, `FORMALIZATION_CHANGE`, `ORDER_ITEM_CANCEL`, `TRANSFER_VARIANCE` + `PRICE_CHANGE`, `PRODUCT_EDIT`, `PERMISSION_CHANGE`, `REPRINT`, `STOCK_ADJUST`, `MERMA_APPROVE`, `CASH_MOVEMENT`, `CONFIG_CHANGE` |
 | FASE 6B (28–32) | `RETURN`, `SUPPLIER_PRICE_DIFF`, `PROMOTION_CHANGE`, `LAYAWAY_CANCEL`, `JOURNAL_POST` |
-| FASE 6C-6F (33–49) | `QUOTE_CONVERT`, `QUOTE_EXPIRE`, `SUPPLIER_RETURN`, `STORE_CREDIT_ISSUE`, `STORE_CREDIT_REDEEM`, `INSTALLMENT`, `COMMISSION`, `SERIAL_ASSIGN`, `WEIGHT_OVERRIDE`, `PRICE_LABEL_REPRINT`, `DATA_BACKUP`, `DATA_RESTORE`, `CUSTOMER_ORDER_CANCEL`, `RECURRING_CANCEL`, `FORECAST_CREATE`, `FORECAST_RUN`, `FORECAST_REFRESH`, `LPDP_ERASE`, `DR_SIMULATION` |
+| FASE 6C-6F (33–49) | `QUOTE_CREATE`, `QUOTE_SEND`, `QUOTE_APPROVE`, `QUOTE_CANCEL`, `QUOTE_CONVERT`, `QUOTE_EXPIRE`, `SUPPLIER_RETURN`, `STORE_CREDIT_ISSUE`, `STORE_CREDIT_REDEEM`, `INSTALLMENT`, `COMMISSION`, `SERIAL_ASSIGN`, `WEIGHT_OVERRIDE`, `PRICE_LABEL_REPRINT`, `DATA_BACKUP`, `DATA_RESTORE`, `CUSTOMER_ORDER_CANCEL`, `RECURRING_CANCEL`, `FORECAST_*`, `LPDP_ERASE`, `DR_SIMULATION` |
 | Sprint 24 (edge A, fidelidad) | `LOYALTY_RESERVATION_EXPIRED` |
 | Sprint 49 (insights) | `INSIGHT_GENERATED`, `AI_QUOTA_EXCEEDED` |
 | FASE 6G (50–53) | `SHIFT_TRANSFER`, `TEAM_INVITE`, `QUICK_ADD`, `GENERIC_LINE`, `HARDWARE_DIAG` |
@@ -476,7 +476,7 @@ CREATE UNIQUE INDEX uq_product_uoms_base
 -- sale_items snapshots: sold_uom_id/code, entered_quantity_microunits,
 -- factor_numerator/denominator y base_quantity_microunits.
 
--- FASE 6B / Sprint 32 — apartados y diario contable
+-- FASE 6B / Sprint 32 — apartados y diario contable (ADR-0016 / DAT-12 / ADR-0015)
 -- COM-08: TODO abono es una fila de sale_deposit_payments (sin initial_deposit_cents duplicado);
 -- Σ sale_deposit_payments = total cobrado; la conversión valida saldo contra la venta.
 CREATE TABLE sale_deposits (
@@ -488,11 +488,14 @@ CREATE TABLE sale_deposits (
     deposit_date DATE NOT NULL,
     due_date DATE,
     sale_id TEXT,                         -- set al convertir (emite CPE)
+    snapshot_total_cents INTEGER NOT NULL DEFAULT 0,
     created_by_user_id TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     CHECK (status IN ('OPEN','OVERDUE','CONVERTED','CANCELLED')),
-    FOREIGN KEY (sale_id) REFERENCES sales(id),  -- COM-04
-    FOREIGN KEY (customer_id) REFERENCES customers(id)
+    CHECK (snapshot_total_cents >= 0),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id),
+    FOREIGN KEY (tenant_id, sale_id) REFERENCES sales(tenant_id, id)
 );
 CREATE TABLE sale_deposit_payments (
     id TEXT PRIMARY KEY,
@@ -502,19 +505,32 @@ CREATE TABLE sale_deposit_payments (
     amount_cents INTEGER NOT NULL,
     created_by_user_id TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sale_deposit_id) REFERENCES sale_deposits(id)  -- COM-04
+    CHECK (amount_cents > 0),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, sale_deposit_id) REFERENCES sale_deposits(tenant_id, id)
 );
--- COM-08: ítems apartados (reserva física) — resuelve qué productos/cantidades están apartados
+-- COM-08: ítems apartados (reserva física en microunidades base)
 CREATE TABLE sale_deposit_items (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     sale_deposit_id TEXT NOT NULL,
     product_id TEXT NOT NULL,
     batch_id TEXT,
-    qty REAL NOT NULL,
+    sold_uom_id TEXT,
+    sold_uom_code TEXT,
+    entered_quantity_microunits INTEGER NOT NULL,
+    factor_numerator INTEGER NOT NULL DEFAULT 1,
+    factor_denominator INTEGER NOT NULL DEFAULT 1,
+    base_quantity_microunits INTEGER NOT NULL,
     unit_price_cents INTEGER NOT NULL,    -- congelado por servidor (Zero-Trust)
-    FOREIGN KEY (sale_deposit_id) REFERENCES sale_deposits(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
+    CHECK (entered_quantity_microunits > 0),
+    CHECK (base_quantity_microunits > 0),
+    CHECK (factor_numerator > 0),
+    CHECK (factor_denominator > 0),
+    CHECK (unit_price_cents >= 0),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, sale_deposit_id) REFERENCES sale_deposits(tenant_id, id),
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id)
 );
 
 CREATE TABLE chart_of_accounts (
@@ -523,6 +539,8 @@ CREATE TABLE chart_of_accounts (
     code TEXT NOT NULL,
     name TEXT NOT NULL,
     type TEXT NOT NULL,                   -- ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+    CHECK (type IN ('ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE')),
+    UNIQUE (tenant_id, id),
     UNIQUE (tenant_id, code)
 );
 CREATE TABLE journal_entries (
@@ -537,7 +555,14 @@ CREATE TABLE journal_entries (
     balanced_cents INTEGER NOT NULL DEFAULT 0,   -- sum debits - credits; debe ser 0
     posted_by_user_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (tenant_id, source_type, source_id)
+    CHECK (balanced_cents = 0),
+    CHECK (source_type IN (
+      'SALE','PAYMENT','SUPPLIER_INVOICE','AR_AP','CASH_COUNT',
+      'LAYAWAY','SALES_RETURN','COMMISSION','SUPPLIER_RETURN','STORE_CREDIT','INSTALLMENT'
+    )),
+    UNIQUE (tenant_id, id),
+    UNIQUE (tenant_id, source_type, source_id),
+    FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id)
 );
 CREATE TABLE journal_lines (
     id TEXT PRIMARY KEY,
@@ -547,92 +572,95 @@ CREATE TABLE journal_lines (
     debit_cents INTEGER NOT NULL DEFAULT 0,
     credit_cents INTEGER NOT NULL DEFAULT 0,
     memo TEXT,
-    FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id),  -- COM-04
-    FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id)
+    CHECK (debit_cents >= 0),
+    CHECK (credit_cents >= 0),
+    CHECK ((debit_cents = 0 AND credit_cents > 0) OR (credit_cents = 0 AND debit_cents > 0)),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, journal_entry_id) REFERENCES journal_entries(tenant_id, id),
+    FOREIGN KEY (tenant_id, account_id) REFERENCES chart_of_accounts(tenant_id, id)
 );
 -- DAT-07: lectura del asiento completo por entrada
-CREATE INDEX idx_journal_lines_entry ON journal_lines(journal_entry_id);
+CREATE INDEX idx_journal_lines_entry ON journal_lines(tenant_id, journal_entry_id);
 ```
 
 #### DDL adicional (v8.1, FASE 6C — cierre comercial)
 
 ```sql
--- FASE 6C / Sprint 33 — cotizaciones/presupuestos
+-- FASE 6C / Sprint 33 — cotizaciones (ADR-0017 / DAT-12 / microunits; 0 reserva)
 CREATE TABLE quotes (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    branch_id TEXT NOT NULL,
-    customer_id TEXT,
-    status TEXT NOT NULL DEFAULT 'DRAFT',  -- DRAFT | SENT | APPROVED | CONVERTED | EXPIRED | CANCELLED
-    valid_until DATE,
-    total_cents INTEGER NOT NULL DEFAULT 0,
-    sale_id TEXT,                          -- set al CONVERTED
-    created_by_user_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, branch_id TEXT NOT NULL,
+    customer_id TEXT, status TEXT NOT NULL DEFAULT 'DRAFT',
+    valid_until DATE, total_cents INTEGER NOT NULL DEFAULT 0, sale_id TEXT,
+    created_by_user_id TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (status IN ('DRAFT','SENT','APPROVED','CONVERTED','EXPIRED','CANCELLED')),
+    CHECK (total_cents >= 0), UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id),
+    FOREIGN KEY (tenant_id, sale_id) REFERENCES sales(tenant_id, id)
 );
 CREATE TABLE quote_items (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,               -- COM-01: aislamiento multi-tenant
-    quote_id TEXT NOT NULL,
-    product_id TEXT NOT NULL,
-    batch_id TEXT,
-    qty REAL NOT NULL,
-    unit_price_cents INTEGER NOT NULL,     -- congelado por servidor (Zero-Trust)
-    line_total_cents INTEGER NOT NULL,
-    FOREIGN KEY (quote_id) REFERENCES quotes(id)
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, quote_id TEXT NOT NULL,
+    product_id TEXT NOT NULL, batch_id TEXT, sold_uom_id TEXT, sold_uom_code TEXT,
+    entered_quantity_microunits INTEGER NOT NULL, factor_numerator INTEGER NOT NULL DEFAULT 1,
+    factor_denominator INTEGER NOT NULL DEFAULT 1, base_quantity_microunits INTEGER NOT NULL,
+    unit_price_cents INTEGER NOT NULL, line_total_cents INTEGER NOT NULL,
+    promotion_ids_json TEXT NOT NULL DEFAULT '[]',
+    CHECK (entered_quantity_microunits > 0), CHECK (base_quantity_microunits > 0),
+    CHECK (factor_numerator > 0), CHECK (factor_denominator > 0),
+    CHECK (unit_price_cents >= 0), CHECK (line_total_cents >= 0),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, quote_id) REFERENCES quotes(tenant_id, id),
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id)
 );
 
--- FASE 6C / Sprint 34 — devolución a proveedor
+-- FASE 6C / Sprint 34 — devolución proveedor (ADR-0018 / DAT-12 / microunits; 0 CPE)
 CREATE TABLE supplier_returns (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    branch_id TEXT NOT NULL,
-    supplier_id TEXT NOT NULL,
-    supplier_invoice_id TEXT,              -- si proviene de compra facturada
-    purchase_receipt_id TEXT,
-    status TEXT NOT NULL DEFAULT 'OPEN',   -- OPEN | CLOSED | CANCELLED
-    total_cents INTEGER NOT NULL,
-    reason TEXT NOT NULL,
-    created_by_user_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, branch_id TEXT NOT NULL,
+    supplier_id TEXT NOT NULL, supplier_invoice_id TEXT, purchase_receipt_id TEXT,
+    purchase_order_id TEXT, status TEXT NOT NULL DEFAULT 'OPEN',
+    total_cents INTEGER NOT NULL, reason TEXT NOT NULL, supplier_credit_note_ref TEXT,
+    created_by_user_id TEXT NOT NULL, authorized_by_user_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (status IN ('OPEN','CLOSED','CANCELLED')), CHECK (total_cents >= 0),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id),
+    FOREIGN KEY (tenant_id, supplier_id) REFERENCES suppliers(tenant_id, id),
+    FOREIGN KEY (tenant_id, supplier_invoice_id) REFERENCES supplier_invoices(tenant_id, id),
+    FOREIGN KEY (tenant_id, purchase_receipt_id) REFERENCES purchase_receipts(tenant_id, id)
 );
 CREATE TABLE supplier_return_items (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,               -- COM-01
-    return_id TEXT NOT NULL,
-    product_id TEXT NOT NULL,
-    batch_id TEXT,
-    qty REAL NOT NULL,
-    unit_cost_cents INTEGER NOT NULL,      -- revierte el PMP del momento
-    igv_affectation_code TEXT NOT NULL DEFAULT '10',  -- COM-03: snapshot fiscal
-    igv_amount_cents INTEGER NOT NULL DEFAULT 0,
-    icbper_amount_cents INTEGER NOT NULL DEFAULT 0,
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, return_id TEXT NOT NULL,
+    product_id TEXT NOT NULL, batch_id TEXT, sold_uom_id TEXT, sold_uom_code TEXT,
+    entered_quantity_microunits INTEGER NOT NULL, factor_numerator INTEGER NOT NULL DEFAULT 1,
+    factor_denominator INTEGER NOT NULL DEFAULT 1, base_quantity_microunits INTEGER NOT NULL,
+    unit_cost_cents INTEGER NOT NULL, igv_affectation_code TEXT NOT NULL DEFAULT '10',
+    igv_amount_cents INTEGER NOT NULL DEFAULT 0, icbper_amount_cents INTEGER NOT NULL DEFAULT 0,
     line_total_cents INTEGER NOT NULL,
-    FOREIGN KEY (return_id) REFERENCES supplier_returns(id)
+    CHECK (entered_quantity_microunits > 0), CHECK (base_quantity_microunits > 0),
+    CHECK (factor_numerator > 0), CHECK (factor_denominator > 0),
+    CHECK (unit_cost_cents >= 0), CHECK (line_total_cents >= 0),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, return_id) REFERENCES supplier_returns(tenant_id, id),
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id)
 );
 
--- FASE 6C / Sprint 35 — crédito de tienda / vales / gift cards
+-- FASE 6C / Sprint 35 — crédito de tienda (ADR-0019 / DAT-12 / cents; GL 2102)
 CREATE TABLE store_credit_accounts (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    customer_id TEXT NOT NULL,
-    balance_cents INTEGER NOT NULL DEFAULT 0,   -- solo el servidor lo modifica
-    currency TEXT NOT NULL DEFAULT 'PEN',
-    expires_at DATETIME,
-    UNIQUE (tenant_id, customer_id)
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, customer_id TEXT NOT NULL,
+    balance_cents INTEGER NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT 'PEN', expires_at DATETIME,
+    CHECK (balance_cents >= 0), CHECK (currency = 'PEN'),
+    UNIQUE (tenant_id, id), UNIQUE (tenant_id, customer_id),
+    FOREIGN KEY (tenant_id, customer_id) REFERENCES customers(tenant_id, id)
 );
 CREATE TABLE store_credit_transactions (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    store_credit_account_id TEXT NOT NULL,
-    type TEXT NOT NULL,                   -- ISSUE (venta de vale/NC convertida) | REDEEM | EXPIRE | ADJUST
-    amount_cents INTEGER NOT NULL,
-    sale_id TEXT,
-    source_ref TEXT,                      -- 'gift_card_sale:{saleId}' | 'nc:{docId}'
-    created_by_user_id TEXT NOT NULL,
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, store_credit_account_id TEXT NOT NULL,
+    type TEXT NOT NULL, amount_cents INTEGER NOT NULL, sale_id TEXT, source_ref TEXT NOT NULL,
+    adjust_sign TEXT, created_by_user_id TEXT NOT NULL, authorized_by_user_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (store_credit_account_id) REFERENCES store_credit_accounts(id),  -- COM-04
-    FOREIGN KEY (sale_id) REFERENCES sales(id)
+    CHECK (type IN ('ISSUE','REDEEM','EXPIRE','ADJUST')), CHECK (amount_cents > 0),
+    CHECK (adjust_sign IS NULL OR adjust_sign IN ('CREDIT','DEBIT')),
+    UNIQUE (tenant_id, id), UNIQUE (tenant_id, source_ref),
+    FOREIGN KEY (tenant_id, store_credit_account_id) REFERENCES store_credit_accounts(tenant_id, id),
+    FOREIGN KEY (tenant_id, sale_id) REFERENCES sales(tenant_id, id)
 );
 
 -- FASE 6C / Sprint 36 — cuotas / pago en partes
@@ -961,5 +989,5 @@ CREATE TABLE cash_register_shifts (
 -- sale_items.is_uncatalogued INTEGER DEFAULT 0 declarado en el DDL §5.3 (product_id NULL si =1).
 ```
 
-**Fuera de §5.3 / v8.1:** ver FASE 6B (reglas 13–17, profundidad retail), FASE 6C-6F (reglas 18–33: cierre comercial, inventario avanzado, servicios, predictiva + compliance + inteligencia del negocio), FASE 6G (reglas 34–37: flujo del cliente — catálogo rápido, handoff, equipo, tour/troubleshooter), §5.4 (ecosistema v9) y backlog v10 en Roadmap FASE 7 (multi-moneda UI, propinas, cajón de efectivo, GRE completo, percepciones/retenciones/detracciones, ND completa, e-commerce, portal adquirente, importer Siigo, sandbox SUNAT).
+**Fuera de §5.3:** §5.4 (v9) · FASE 7.
 
