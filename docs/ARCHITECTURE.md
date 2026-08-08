@@ -32,6 +32,7 @@ owner: "@DawoT"
 | §5.7 | Peso variable, transporte de balanza y reconciliación | [`architecture/05-7-inventory-scale.md`](architecture/05-7-inventory-scale.md) | 159 |
 | §5.8 | Etiquetas de precio, snapshots y transporte | [`architecture/05-8-catalog-price-labels.md`](architecture/05-8-catalog-price-labels.md) | 167 |
 | §5.9 | Backup total, formato KPBK1 y restore dry-run | [`architecture/05-9-data-backup.md`](architecture/05-9-data-backup.md) | 299 |
+| §5.10 | Pedidos de cliente, reserva y fulfillment | [`architecture/05-10-customer-orders.md`](architecture/05-10-customer-orders.md) | 307 |
 | §6 | Motor de transacciones ACID y reconciliación | [`architecture/06-acid-engine.md`](architecture/06-acid-engine.md) | 787 |
 | §7 | Chunked Sync Dispatcher y descarga computacional | [`architecture/07-sync-offloading.md`](architecture/07-sync-offloading.md) | 145 |
 | §8 | NC/ND, baja, devoluciones y DLQ fiscal | [`architecture/08-credit-notes-dlq.md`](architecture/08-credit-notes-dlq.md) | 115 |
@@ -71,11 +72,11 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | COM-02 | §5.4 | DDL ecosistema v9 |
 | COM-03 | §5.3 (6B) | DDL profundidad retail |
 | COM-04 | §5.3 (6B) | DDL profundidad retail |
-| COM-05 | §5.3 | Precio congelado en cotizaciones/preventas (snapshot) |
+| COM-05 | §5.10 | Precio congelado en pedidos de cliente (snapshot) |
 | COM-06 | §5.3 (6C) | DDL cierre comercial |
 | COM-07 | §5.3 (6B) | DDL profundidad retail |
 | COM-08 | §5.3 (6B) | DDL profundidad retail |
-| COM-09 | §5.3 (6E) | DDL servicios y fuerza de venta |
+| COM-09 | §5.10 | Pedido de cliente: reserva, aviso, fulfillment y DDL 0036 |
 | COM-12 | §5.4 | DDL ecosistema v9 |
 | DAT-01 | §5.4 | `branch_id TEXT NULL` en `sunat_daily_summaries` |
 | DAT-02 | §6 | Estado SUNAT + deadline (compartida con FIS-02) |

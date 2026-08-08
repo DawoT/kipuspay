@@ -10,7 +10,7 @@ section: "5.3"
 
 Extiende el DDL base con entidades de operación. Implementación por sprints Roadmap FASE 6 (17–20). **No sustituye** el pipeline fiscal §5.2.
 
-> **Delimitación de §5.3:** la **prosa normativa** (reglas 1–12 Zero-Trust + reglas FASE 6B–6G 13–37) y el **DDL** viven aquí. No colocares en §5.3: reglas fiscales/SUNAT (§5.1–5.2), ecosistema Perú (§5.4), client-side/sync (§6–7) ni backlog v10 (Roadmap FASE 7). Si una regla pertenece a otra sección, se referencia por `§`, nunca se re-escribe.
+> **Delimitación de §5.3:** la **prosa normativa** (reglas 1–12 Zero-Trust + reglas FASE 6B–6G 13–37) y el **DDL**, salvo contratos extraídos explícitamente a capítulos especializados, viven aquí. No colocar en §5.3: reglas fiscales/SUNAT (§5.1–5.2), ecosistema Perú (§5.4), client-side/sync (§6–7) ni backlog v10 (Roadmap FASE 7). Si una regla pertenece a otra sección, se referencia por `§`, nunca se re-escribe.
 
 #### Reglas Zero-Trust de negocio
 
@@ -41,7 +41,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 25. **Venta por peso variable (`inventory.scale`, FASE 6D):** captura de peso en caja (balanza USB o manual), precio por unidad de base, redondeo de monto en servidor; el peso lo fija la caja pero el precio/monto final lo recalcula el servidor. **Heartbeat anti desconexión silenciosa (edge 2C):** el Staff Hardware mantiene un **heartbeat continuo** hacia la balanza (WebUSB); si la conexión se pierde (suspensión de la tablet, cable movido), el POS **nunca lee 0.00 silencioso** — cambia de inmediato a una interfaz **roja "Peso Manual"** que exige al cajero teclear el peso para poder cobrar; si el peso se teclea manualmente, se registra `WEIGHT_OVERRIDE` en `audit_events` y, si supera el umbral del tenant, requiere **PIN de supervisor** (reusa authz de reglas 2/17) antes de continuar.
 26. **Etiquetas de precio/estantería (`catalog.price_labels`, FASE 6D):** contrato, autoridad de snapshots, DDL y transporte canónicos viven una sola vez en §5.8 (ADR-0025).
 27. **Export/restore total del negocio (`data.backup`, FASE 6D/6F):** alcance, formato KPBK1, registry, cifrado de envoltura, DDL objetivo y restore dry-run viven una sola vez en §5.9 (ADR-0026); apply y DR operativo pertenecen a Sprint 48.
-28. **Preventa / pedido a cliente (`orders.customer_orders`, FASE 6E):** reserva de ítems sin pago previo → aviso al cliente → venta al retiro; distinto de `orders.lifecycle` (food service); cumplimiento parcial permitido; `audit_events` `CUSTOMER_ORDER_*`. **COM-05:** el precio se congela al crear el pedido (`customer_order_items.unit_price_cents` snapshot); la venta que cumple el pedido hereda esos precios incluso si cambiaron; `reserved_until` caducada → se liberan `reserved_qty` y la venta final se cotiza con pricing actual.
+28. **Preventa / pedido a cliente (`orders.customer_orders`, FASE 6E):** semántica, reserva, precio snapshot, avisos, fulfillment offline, contrato ACID y DDL objetivo 0036 viven una sola vez en §5.10 (ADR-0027).
 29. **Ventas recurrentes / membresías (`sales.recurring`, FASE 6E):** generación programada de venta/NV por plan con **idempotencia** (cada ocurrencia = doc fiscal propio); cancelación y proporcionalidad; adaptada a la vertical Servicios; `audit_events` `RECURRING_*`.
 30. **Notificaciones push + caja móvil (`mobile.push`, `client.mobile_pos`, FASE 6E):** push real (Web Push/FCM) al Modo Dueño para arqueo, quiebre y discrepancias (no solo polling); la caja móvil es una terminal PWA que reusa el core (multi-caja portátil); sin fork de dominio.
 31. **Analítica predictiva (`analytics.forecasting`, FASE 6F):** modelo sobre `daily_product_rollups` (D1) + features de Analytics Engine; forecast de ventas por sucursal/producto y detección de quiebre; salida = **sugerencias** (reposición, alertas), **nunca decisiones automáticas de precio/stock**; gated a plan Cadena con disclaimer; respalda el claim GTM §4.1 "analítica predictiva".
@@ -790,31 +790,8 @@ CREATE TABLE pos_terminals (
 
 ```sql
 -- FASE 6E / Sprint 43 — preventa / pedido a cliente
-CREATE TABLE customer_orders (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    branch_id TEXT NOT NULL,
-    customer_id TEXT,
-    status TEXT NOT NULL DEFAULT 'OPEN',  -- OPEN | FULFILLED | PARTIAL | CANCELLED
-    pickup_at DATE,
-    reserved_until DATETIME,              -- COM-09: la reserva sin pago previo caduca (regla 28)
-    sale_id TEXT,
-    created_by_user_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id)
-);
-CREATE TABLE customer_order_items (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,               -- COM-01: aislamiento multi-tenant
-    customer_order_id TEXT NOT NULL,
-    product_id TEXT NOT NULL,
-    batch_id TEXT,
-    qty REAL NOT NULL,
-    reserved_qty REAL NOT NULL DEFAULT 0,  -- COM-09: cantidad físicamente apartada del stock
-    fulfilled_qty REAL NOT NULL DEFAULT 0,
-    unit_price_cents INTEGER NOT NULL,    -- Zero-Trust al momento del pedido
-    FOREIGN KEY (customer_order_id) REFERENCES customer_orders(id)
-);
+-- Contrato y DDL objetivo canónicos movidos a §5.10 (ADR-0027):
+-- INTEGER microunits, DAT-12, parciales múltiples, avisos durables y leases offline.
 
 -- FASE 6E / Sprint 44 — ventas recurrentes / membresías
 -- COM-09: cada ocurrencia re-resuelve el precio del ítem (regla 1); la idempotencia
