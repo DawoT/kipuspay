@@ -76,9 +76,9 @@ sprints: "33–37"
 ---
 
 #### Sprint 37 — Comisiones de vendedor
-**Estado:** Planificado  
+**Estado:** Cerrado  
 **Capabilities:** `sales.commissions`  
-**Referencia:** Arquitectura §5.3 regla 22 · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin), Staff Mobile (reporte Dueño)
+**Referencia:** Arquitectura §5.3 regla 22 · ADR-0021 · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin), Staff Mobile (reporte Dueño)
 
 **Entregables:**
 - `commission_rates` (%, monto, por producto/categoría) + `commission_payouts` por período.
@@ -87,7 +87,7 @@ sprints: "33–37"
 
 **Criterios de aceptación:** comisión calculada sobre ventas ACID post-NC (una devolución resta comisión); tasa resuelta en servidor; 0 pagos de comisión sin `COMMISSION` audit; export reproducible.
 
-**Quality Gate:** Staff Data + Staff PM; Staff Growth vende "comisiones" solo tras gate.
+**Quality Gate:** Staff Data + Staff PM; Staff Growth vende "comisiones" solo tras gate. QG: `docs/ops/s37-commissions-qg.md`.
 
 ---
 

@@ -37,3 +37,8 @@ export function isLedgerStoreCreditEnabled(env: WorkerEnv | undefined): boolean 
 export function isSalesInstallmentsEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_SALES_INSTALLMENTS);
 }
+
+/** Sprint 37 — comisiones de vendedor (FEATURE_SALES_COMMISSIONS, default off). */
+export function isSalesCommissionsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_SALES_COMMISSIONS);
+}

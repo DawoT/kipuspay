@@ -100,6 +100,8 @@ export interface OfflineSalePayload {
         }[];
       }
     | undefined;
+  /** Sprint 37: atribución de vendedor (carrito) → sale_items.seller_id. */
+  readonly sellerId?: string | undefined;
 }
 
 const ISSUED_AT_SKEW_MS = 6 * 3600 * 1000;

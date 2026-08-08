@@ -329,15 +329,6 @@ export async function processInstallmentPayAtomic(
     dueDateIso: row.due_date,
     nowIso,
   });
-  if (overdueStatus === 'OVERDUE' && row.status === 'PENDING') {
-    await db
-      .prepare(
-        `UPDATE sale_installments SET status = 'OVERDUE'
-         WHERE tenant_id = ? AND id = ? AND status = 'PENDING'`,
-      )
-      .bind(tenantId, row.id)
-      .run();
-  }
 
   const ar = await db
     .prepare(

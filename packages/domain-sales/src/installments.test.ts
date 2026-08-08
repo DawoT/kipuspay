@@ -223,7 +223,7 @@ describe('Casos limite y validaciones adicionales de cuotas', () => {
   it('rechaza cuota con principal=0 e interes=0 o fecha vacia', () => {
     expect(() =>
       planInstallmentSchedule({
-        saleTotalCents: 0,
+        saleTotalCents: 5_000,
         downPaymentCents: 0,
         items: [
           { installmentNumber: 1, principalCents: 0, interestCents: 0, dueDateIso: '2026-09-01' },

@@ -35,7 +35,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 19. **Devolución a proveedor (`purchasing.returns`, FASE 6C; ADR-0018):** NC del proveedor (ref externa, 0 CPE/cupo); `OPEN → CLOSED | CANCELLED`; close revierte stock (`DEVOLUCION_PROVEEDOR`) + PMP outbound + CxP; mismatch = 422 o `SUPPLIER_PRICE_DIFF`; `audit_events` `SUPPLIER_RETURN`. **Forward-only (regla 9).** Microunits DAT-12.
 20. **Crédito de tienda / vales / gift cards (`ledger.store_credit`, FASE 6C; ADR-0019):** saldo por cliente (solo servidor); venta de vale = venta (doc+cupo); canje impone `min(balance, due)` (0 monto cliente); NC sin reembolso+consent → ISSUE (0 AR/cash); GL **2102** (no 2101); `audit_events` `STORE_CREDIT_ISSUE`/`STORE_CREDIT_REDEEM`.
 21. **Cuotas / pago en partes (`sales.installments`, FASE 6C; ADR-0020):** 1 AR + N cuotas (schedule); Σ principal = saldo; interés COM-06 **no** reduce CxC; pago Zero-Trust + `idempotency_key`; OVERDUE on-read (0 corta caja); `credit_limit` (regla 3); `audit_events` `INSTALLMENT`.
-22. **Comisiones de vendedor (`sales.commissions`, FASE 6C):** comisión por `seller_id` a nivel venta/ítem (%, monto o por categoría); reporte Dueño y conciliación de pagos; **la nómina queda fuera** — no se emite planilla ni retenciones laborales; `audit_events` `COMMISSION`.
+22. **Comisiones de vendedor (`sales.commissions`, FASE 6C; ADR-0021):** rates→accrual por `seller_id` (servidor); NC setea `reversed_at` (COM-07, 0 DELETE); payout Zero-Trust; GL **6311/2111**; **nómina OOS**; `audit_events` `COMMISSION`.
 23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D):** stock por ubicación/rack dentro de la sucursal; conteo físico por ubicación; transferencia intra-sucursal; picking guiado para OC; el stock "de venta" es la suma por ubicaciones activas.
 24. **Números de serie (`inventory.serials`, FASE 6D):** asignación en recepción, venta con `serial_number` por `sale_item`, devolución revierte la serie a disponible; garantía/audit; duplicados = 422; `audit_events` `SERIAL_ASSIGN`.
 25. **Venta por peso variable (`inventory.scale`, FASE 6D):** captura de peso en caja (balanza USB o manual), precio por unidad de base, redondeo de monto en servidor; el peso lo fija la caja pero el precio/monto final lo recalcula el servidor. **Heartbeat anti desconexión silenciosa (edge 2C):** el Staff Hardware mantiene un **heartbeat continuo** hacia la balanza (WebUSB); si la conexión se pierde (suspensión de la tablet, cable movido), el POS **nunca lee 0.00 silencioso** — cambia de inmediato a una interfaz **roja "Peso Manual"** que exige al cajero teclear el peso para poder cobrar; si el peso se teclea manualmente, se registra `WEIGHT_OVERRIDE` en `audit_events` y, si supera el umbral del tenant, requiere **PIN de supervisor** (reusa authz de reglas 2/17) antes de continuar.
@@ -685,40 +685,33 @@ CREATE TABLE sale_installment_payments (
     FOREIGN KEY (tenant_id, sale_installment_id) REFERENCES sale_installments(tenant_id, id)
 );
 
--- FASE 6C / Sprint 37 — comisiones de vendedor
+-- FASE 6C / Sprint 37 — comisiones (ADR-0021 / DAT-12 / COM-07; nómina OOS)
 CREATE TABLE commission_rates (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    seller_id TEXT NOT NULL,
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, seller_id TEXT NOT NULL,
     product_id TEXT, category_id TEXT,
-    rate_percent REAL NOT NULL,           -- ratio, no money
-    rate_amount_cents INTEGER,
-    UNIQUE (tenant_id, seller_id, product_id, category_id),
-    FOREIGN KEY (seller_id) REFERENCES users(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
+    rate_percent REAL NOT NULL, rate_amount_cents INTEGER,
+    CHECK (rate_amount_cents IS NULL OR rate_amount_cents >= 0),
+    UNIQUE (tenant_id, id), UNIQUE (tenant_id, seller_id, product_id, category_id),
+    FOREIGN KEY (tenant_id, seller_id) REFERENCES users(tenant_id, id),
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id)
 );
 CREATE TABLE commission_payouts (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    seller_id TEXT NOT NULL,
-    period_start DATE NOT NULL,
-    period_end DATE NOT NULL,
-    gross_cents INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'OPEN',   -- OPEN | PAID | VOID
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, seller_id TEXT NOT NULL,
+    period_start DATE NOT NULL, period_end DATE NOT NULL,
+    gross_cents INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'OPEN',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES users(id)
+    CHECK (gross_cents > 0), CHECK (status IN ('OPEN','PAID','VOID')),
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, seller_id) REFERENCES users(tenant_id, id)
 );
--- COM-07: devengo de comisión por venta — la NC/devolución revierte la fila (nunca se borra)
 CREATE TABLE commission_accruals (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    sale_id TEXT NOT NULL,
-    seller_id TEXT NOT NULL,
-    amount_cents INTEGER NOT NULL,
-    reversed_at DATETIME,                 -- set si la venta se anula/devolvió (regla 13)
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (sale_id) REFERENCES sales(id),
-    FOREIGN KEY (seller_id) REFERENCES users(id)
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sale_id TEXT NOT NULL,
+    seller_id TEXT NOT NULL, amount_cents INTEGER NOT NULL,
+    reversed_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (amount_cents > 0), UNIQUE (tenant_id, id),
+    UNIQUE (tenant_id, sale_id, seller_id),
+    FOREIGN KEY (tenant_id, sale_id) REFERENCES sales(tenant_id, id),
+    FOREIGN KEY (tenant_id, seller_id) REFERENCES users(tenant_id, id)
 );
 ```
 

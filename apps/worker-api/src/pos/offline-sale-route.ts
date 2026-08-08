@@ -45,9 +45,15 @@ export function isCatalogUomEnabled(env: WorkerEnv | undefined): boolean {
 import {
   isLedgerChartOfAccountsEnabled,
   isLedgerStoreCreditEnabled,
+  isSalesCommissionsEnabled,
   isSalesInstallmentsEnabled,
 } from '../auth/features.js';
-export { isLedgerChartOfAccountsEnabled, isLedgerStoreCreditEnabled, isSalesInstallmentsEnabled };
+export {
+  isLedgerChartOfAccountsEnabled,
+  isLedgerStoreCreditEnabled,
+  isSalesCommissionsEnabled,
+  isSalesInstallmentsEnabled,
+};
 
 /* eslint-disable complexity -- HTTP error map multi-código S17/S18 */
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
@@ -222,6 +228,7 @@ export async function runOfflineSaleHttp(
       storeCreditOnline: true,
       storeCreditActorIsAdminOrOwner: actorIsAdminOrOwner,
       salesInstallmentsEnabled: isSalesInstallmentsEnabled(env),
+      salesCommissionsEnabled: isSalesCommissionsEnabled(env),
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),
         inventoryBom: isInventoryBomEnabled(env),

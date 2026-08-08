@@ -66,6 +66,14 @@ import {
   runPayInstallmentHttp,
 } from './sales/installment-routes.js';
 import {
+  runCreateCommissionPayoutHttp,
+  runListCommissionRatesHttp,
+  runOwnerCommissionsHttp,
+  runPayCommissionPayoutHttp,
+  runUpsertCommissionRateHttp,
+  runVoidCommissionPayoutHttp,
+} from './sales/commission-routes.js';
+import {
   runCancelOrderItemHttp,
   runCreateOrderHttp,
   runFireOrderHttp,
@@ -774,6 +782,70 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.get('/api/owner/installments/overdue', async (c) => {
     const jwt = c.get('jwt');
     const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+
+  app.get('/api/admin/commissions/rates', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runListCommissionRatesHttp(c.env, jwt?.tenantId ?? '', user?.role);
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+  });
+  app.post('/api/admin/commissions/rates', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runUpsertCommissionRateHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/admin/commissions/payouts', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateCommissionPayoutHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/admin/commissions/payouts/pay', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runPayCommissionPayoutHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/admin/commissions/payouts/void', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runVoidCommissionPayoutHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/commissions', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
 

@@ -165,6 +165,31 @@ export {
 } from './installments.js';
 
 export {
+  applyCommissionPercentCents,
+  assertCommissionNotPayroll,
+  assertCommissionPayable,
+  assertCommissionVoidable,
+  lineCommissionCents,
+  planCommissionAccrual,
+  planCommissionPayout,
+  planCommissionReverse,
+  resolveCommissionRate,
+  COMMISSION_ALREADY_PAID,
+  COMMISSION_FORBIDDEN,
+  COMMISSION_INVALID_AMOUNT,
+  COMMISSION_INVALID_RATE,
+  COMMISSION_INVALID_STATUS,
+  COMMISSION_NOTHING_TO_PAY,
+  COMMISSION_PAYROLL_FORBIDDEN,
+  COMMISSION_SELLER_REQUIRED,
+  type CommissionAccrualPlan,
+  type CommissionLineInput,
+  type CommissionPayoutPlan,
+  type CommissionPayoutStatus,
+  type CommissionRateRow,
+} from './commissions.js';
+
+export {
   assertAndApplyPromotions,
   parseMaxStack,
   parseMaxStackJson,

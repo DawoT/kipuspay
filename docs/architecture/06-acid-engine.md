@@ -377,6 +377,7 @@ export async function processOfflineSaleAtomic(
   // processSupplierReturnCreate/Close/CancelAtomic (S34/ADR-0018): 0 CPE; close PMP outbound + CxP + DEVOLUCION_PROVEEDOR.
   // processStoreCreditIssue/Redeem/Expire/AdjustAtomic (S35/ADR-0019): saldo servidor; redeem 0 offline; GL 2102.
   // processInstallmentPlan/PayAtomic (S36/ADR-0020): schedule sobre AR; pay principal-only; OVERDUE on-read.
+  // processCommissionRate/PayoutAtomic + accrue-on-sale / reverse-on-NC (S37/ADR-0021): GL 6311/2111; nómina OOS.
 ) {  
   // 0. Zero-Trust fiscal y financiero (validación ejecutable, no solo comentario):
   //    - identidad local obligatoria; JWT/tenant no sustituyen la fila users activa.

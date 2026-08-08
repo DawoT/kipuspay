@@ -37,6 +37,7 @@ Cada objeción cita la **garantía técnica** o el **gate** que la respalda. Si 
 | Devolución a proveedor | QG S34 GTM-20 | Roadmap Sprint 34 · ops s34 |
 | Crédito de tienda / gift cards | QG S35 GTM-21 | Roadmap Sprint 35 · ops s35 |
 | Cuotas / pago en partes | QG S36 GTM-22 | Roadmap Sprint 36 · ops s36 · solo principal reduce CxC; atraso ≠ apaga caja |
+| Comisiones de vendedor | QG S37 GTM-23 | Roadmap Sprint 37 · ops s37 · ≠ nómina; monto servidor; NC revierte accrual |
 | Tallas/colores / peso | S30 / S38–42 | GTM-16/17 |
 
 ## Regla de uso

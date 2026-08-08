@@ -43,6 +43,7 @@ const ADVANCED_REPORTS = new Set([
   'branch-ranking',
   'aging-ar-ap',
   'merma',
+  'commissions-pending',
 ]);
 
 export function isAdvancedReportId(reportId: string): boolean {
@@ -64,6 +65,7 @@ export function listCatalogEntries(): readonly {
     { id: 'branch-ranking', tier: 'crece', source: 'daily_financial_rollups' },
     { id: 'aging-ar-ap', tier: 'cadena', source: 'accounts_receivable/payable' },
     { id: 'merma', tier: 'crece', source: 'stock_losses' },
+    { id: 'commissions-pending', tier: 'crece', source: 'commission_accruals' },
   ];
 }
 
@@ -270,6 +272,20 @@ async function loadReport(
         .bind(tenantId)
         .all();
       return { ar: ar.results ?? [], ap: ap.results ?? [] };
+    }
+    case 'commissions-pending': {
+      const rows = await db
+        .prepare(
+          `SELECT id, seller_id, sale_id, amount_cents, created_at
+           FROM commission_accruals
+           WHERE tenant_id = ? AND reversed_at IS NULL
+             AND date(created_at) = ?
+           ORDER BY created_at DESC
+           LIMIT 500`,
+        )
+        .bind(tenantId, reportDate)
+        .all();
+      return { items: rows.results ?? [] };
     }
     default:
       throw new Error('UNKNOWN_REPORT');

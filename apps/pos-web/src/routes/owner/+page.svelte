@@ -5,6 +5,7 @@
     isFiscalCircuitBreakerEnabled,
     isLedgerStoreCreditEnabled,
     isOwnerModeEnabled,
+    isSalesCommissionsEnabled,
     isSalesInstallmentsEnabled,
     isSalesLayawayEnabled,
     isSalesQuotesEnabled,
@@ -26,6 +27,7 @@
   const quotesOn = isSalesQuotesEnabled();
   const storeCreditOn = isLedgerStoreCreditEnabled();
   const installmentsOn = isSalesInstallmentsEnabled();
+  const commissionsOn = isSalesCommissionsEnabled();
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
@@ -55,6 +57,11 @@
       status: string;
     }[]
   >([]);
+  let commissionsReport = $state<{
+    pendingAccrualCents: number;
+    openPayoutCents: number;
+    paidPayoutCents: number;
+  } | null>(null);
 
   const idb = createMemoryOwnerRollupIdb();
 
@@ -212,6 +219,28 @@
     overdueInstallments = json.items ?? [];
   }
 
+  async function loadCommissionsReport() {
+    if (!commissionsOn) return;
+    const apiBase =
+      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
+      'https://api.kipuspay.local';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const res = await fetch(`${apiBase}/api/owner/commissions`, {
+      headers: { authorization: auth },
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json()) as {
+      pendingAccrualCents?: number;
+      openPayoutCents?: number;
+      paidPayoutCents?: number;
+    };
+    commissionsReport = {
+      pendingAccrualCents: json.pendingAccrualCents ?? 0,
+      openPayoutCents: json.openPayoutCents ?? 0,
+      paidPayoutCents: json.paidPayoutCents ?? 0,
+    };
+  }
+
   onMount(() => {
     if (!enabled) return;
     void refresh(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -220,6 +249,7 @@
     void loadExpiredQuotes();
     void loadStoreCreditReport();
     void loadOverdueInstallments();
+    void loadCommissionsReport();
     const onOnline = () => void refresh(true);
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -288,6 +318,15 @@
             </li>
           {/each}
         </ul>
+      </aside>
+    {/if}
+    {#if commissionsOn && commissionsReport}
+      <aside class="overdue" data-testid="owner-commissions">
+        <h2>Comisiones pendientes</h2>
+        <p>Devengado S/ {formatCents(commissionsReport.pendingAccrualCents)}</p>
+        <p>Payouts OPEN S/ {formatCents(commissionsReport.openPayoutCents)}</p>
+        <p>Pagado S/ {formatCents(commissionsReport.paidPayoutCents)}</p>
+        <p class="lede">CSV: reporte commissions-pending (Crece).</p>
       </aside>
     {/if}
   </section>

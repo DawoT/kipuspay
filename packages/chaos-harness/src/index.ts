@@ -49,6 +49,10 @@ import {
   type InstallmentChaosResult,
 } from './installment-pay-idempotent.js';
 import {
+  runCommissionAccrualPayoutChaosScenario,
+  type CommissionChaosResult,
+} from './commission-accrual-payout.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -82,6 +86,7 @@ export type ChaosScenarioId =
   | 'supplier-return-receive'
   | 'store-credit-issue-redeem'
   | 'installment-pay-idempotent'
+  | 'commission-accrual-payout'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -107,6 +112,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'supplier-return-receive': 34,
   'store-credit-issue-redeem': 35,
   'installment-pay-idempotent': 36,
+  'commission-accrual-payout': 37,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -159,6 +165,7 @@ export interface ChaosDeps {
   readonly runSupplierReturnReceive?: () => Promise<SupplierReturnChaosResult>;
   readonly runStoreCreditIssueRedeem?: () => Promise<StoreCreditChaosResult>;
   readonly runInstallmentPayIdempotent?: () => Promise<InstallmentChaosResult>;
+  readonly runCommissionAccrualPayout?: () => Promise<CommissionChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -255,6 +262,8 @@ async function dispatchReadyScenario(
       return runStoreCreditIssueRedeemChaosScenario(deps.runStoreCreditIssueRedeem);
     case 'installment-pay-idempotent':
       return runInstallmentPayIdempotentChaosScenario(deps.runInstallmentPayIdempotent);
+    case 'commission-accrual-payout':
+      return runCommissionAccrualPayoutChaosScenario(deps.runCommissionAccrualPayout);
     default:
       return Promise.reject(
         new Error(
@@ -379,3 +388,10 @@ export {
   runInstallmentPayIdempotentChaosScenario,
   type InstallmentChaosResult,
 } from './installment-pay-idempotent.js';
+
+export {
+  judgeCommissionAccrualPayout,
+  runCommissionAccrualPayoutChaos,
+  runCommissionAccrualPayoutChaosScenario,
+  type CommissionChaosResult,
+} from './commission-accrual-payout.js';

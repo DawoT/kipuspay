@@ -172,3 +172,8 @@ export function isLedgerStoreCreditEnabled(): boolean {
 export function isSalesInstallmentsEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_INSTALLMENTS'));
 }
+
+/** Sprint 37 — comisiones de vendedor. */
+export function isSalesCommissionsEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_COMMISSIONS'));
+}

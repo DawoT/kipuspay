@@ -10,12 +10,15 @@ export const GL = {
   CASH: '1011',
   AR: '1212',
   AP: '2011',
+  COMMISSION_PAYABLE: '2111',
   CUSTOMER_DEPOSIT: '2101',
   STORE_CREDIT: '2102',
   VAT: '4011',
   PURCHASES: '6011',
+  COMMISSION_EXPENSE: '6311',
   CASH_OVER_SHORT: '6591',
   SALES: '7011',
+  FINANCIAL_INCOME: '7701',
 } as const;
 
 export type ChartAccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
@@ -32,10 +35,13 @@ export const SEED_CHART_OF_ACCOUNTS: readonly SeedChartAccount[] = [
   { code: GL.AP, name: 'Cuentas por pagar', type: 'LIABILITY' },
   { code: GL.CUSTOMER_DEPOSIT, name: 'Anticipos de clientes', type: 'LIABILITY' },
   { code: GL.STORE_CREDIT, name: 'Créditos de tienda', type: 'LIABILITY' },
+  { code: GL.COMMISSION_PAYABLE, name: 'Comisiones por pagar', type: 'LIABILITY' },
   { code: GL.VAT, name: 'IGV por pagar', type: 'LIABILITY' },
   { code: GL.PURCHASES, name: 'Compras', type: 'EXPENSE' },
+  { code: GL.COMMISSION_EXPENSE, name: 'Comisiones', type: 'EXPENSE' },
   { code: GL.CASH_OVER_SHORT, name: 'Faltantes y sobrantes de caja', type: 'EXPENSE' },
   { code: GL.SALES, name: 'Ventas', type: 'REVENUE' },
+  { code: GL.FINANCIAL_INCOME, name: 'Ingresos financieros', type: 'REVENUE' },
 ];
 
 export type JournalSourceType =
@@ -48,7 +54,8 @@ export type JournalSourceType =
   | 'SALES_RETURN'
   | 'SUPPLIER_RETURN'
   | 'STORE_CREDIT'
-  | 'INSTALLMENT';
+  | 'INSTALLMENT'
+  | 'COMMISSION';
 
 export interface JournalLinePlan {
   readonly code: string;
@@ -513,12 +520,12 @@ export function planInstallmentPayJournal(input: {
   if (!Number.isInteger(input.interestCents) || input.interestCents < 0) {
     throw new Error(JOURNAL_INVALID_LINE);
   }
-  const total = input.principalCents + input.interestCents;
-  if (total <= 0) throw new Error(JOURNAL_INVALID_LINE);
+  const totalCents = input.principalCents + input.interestCents;
+  if (totalCents <= 0) throw new Error(JOURNAL_INVALID_LINE);
   const lines: JournalLinePlan[] = [
     {
       code: GL.CASH,
-      debitCents: total,
+      debitCents: totalCents,
       creditCents: 0,
       memo: `installment:${input.sourceId}:cash`,
     },
@@ -533,7 +540,7 @@ export function planInstallmentPayJournal(input: {
   }
   if (input.interestCents > 0) {
     lines.push({
-      code: GL.SALES,
+      code: GL.FINANCIAL_INCOME,
       debitCents: 0,
       creditCents: input.interestCents,
       memo: `installment:${input.sourceId}:interest`,
@@ -541,6 +548,102 @@ export function planInstallmentPayJournal(input: {
   }
   return {
     sourceType: 'INSTALLMENT',
+    sourceId: input.sourceId,
+    postDate: input.postDate,
+    balancedCents: assertJournalBalanced(lines),
+    lines,
+  };
+}
+
+/** Devengo comisión: Dr 6311 / Cr 2111. */
+export function planCommissionAccrueJournal(input: {
+  readonly sourceId: string;
+  readonly postDate: string;
+  readonly amountCents: number;
+}): JournalEntryPlan {
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    throw new Error(JOURNAL_INVALID_LINE);
+  }
+  const lines: JournalLinePlan[] = [
+    {
+      code: GL.COMMISSION_EXPENSE,
+      debitCents: input.amountCents,
+      creditCents: 0,
+      memo: `commission:${input.sourceId}:accrue`,
+    },
+    {
+      code: GL.COMMISSION_PAYABLE,
+      debitCents: 0,
+      creditCents: input.amountCents,
+      memo: `commission:${input.sourceId}:payable`,
+    },
+  ];
+  return {
+    sourceType: 'COMMISSION',
+    sourceId: input.sourceId,
+    postDate: input.postDate,
+    balancedCents: assertJournalBalanced(lines),
+    lines,
+  };
+}
+
+/** Reverse COM-07: Dr 2111 / Cr 6311. */
+export function planCommissionReverseJournal(input: {
+  readonly sourceId: string;
+  readonly postDate: string;
+  readonly amountCents: number;
+}): JournalEntryPlan {
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    throw new Error(JOURNAL_INVALID_LINE);
+  }
+  const lines: JournalLinePlan[] = [
+    {
+      code: GL.COMMISSION_PAYABLE,
+      debitCents: input.amountCents,
+      creditCents: 0,
+      memo: `commission:${input.sourceId}:reverse-payable`,
+    },
+    {
+      code: GL.COMMISSION_EXPENSE,
+      debitCents: 0,
+      creditCents: input.amountCents,
+      memo: `commission:${input.sourceId}:reverse-expense`,
+    },
+  ];
+  return {
+    sourceType: 'COMMISSION',
+    sourceId: input.sourceId,
+    postDate: input.postDate,
+    balancedCents: assertJournalBalanced(lines),
+    lines,
+  };
+}
+
+/** Pago comisión: Dr 2111 / Cr 1011. */
+export function planCommissionPayJournal(input: {
+  readonly sourceId: string;
+  readonly postDate: string;
+  readonly amountCents: number;
+}): JournalEntryPlan {
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    throw new Error(JOURNAL_INVALID_LINE);
+  }
+  const lines: JournalLinePlan[] = [
+    {
+      code: GL.COMMISSION_PAYABLE,
+      debitCents: input.amountCents,
+      creditCents: 0,
+      memo: `commission:${input.sourceId}:pay`,
+    },
+    {
+      code: GL.CASH,
+      debitCents: 0,
+      creditCents: input.amountCents,
+      memo: `commission:${input.sourceId}:cash`,
+    },
+  ];
+  return {
+    sourceType: 'COMMISSION',
     sourceId: input.sourceId,
     postDate: input.postDate,
     balancedCents: assertJournalBalanced(lines),

@@ -179,6 +179,10 @@ export const HOME = {
       a: 'Si, en Crece/Cadena. Armas un plan sobre la cuenta por cobrar: solo el capital baja lo que te deben; el interes se registra aparte. Si se atrasa una cuota, el Dueño lo ve y la caja sigue vendiendo. No es un apartado ni un vale.',
     },
     {
+      q: '¿Puedo pagar comisiones a mis vendedores?',
+      a: 'Si, en el plan Crece. Configuras la tasa por vendedor; KipusPay calcula el monto al vender y una nota de credito revierte el devengo. El payout lo arma Admin o Dueño. No es nomina ni planilla.',
+    },
+    {
       q: '¿Puedo emitir cotizaciones o presupuestos?',
       a: 'Si. La cotizacion congela el precio que calcula KipusPay y no emite comprobante ni reserva stock. Al convertir a venta se respeta ese precio aunque la lista haya cambiado; si vencio, hay que recotizar.',
     },

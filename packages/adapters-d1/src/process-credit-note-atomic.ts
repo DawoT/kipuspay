@@ -11,7 +11,9 @@ import {
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
 import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { loadChartAccountsByCode } from './journal-post.js';
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
+import { appendCommissionReverseWithJournal } from './process-commission-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface CreditNoteResult {
@@ -22,6 +24,9 @@ export interface CreditNoteResult {
 
 export interface ProcessCreditNoteOptions {
   readonly ledgerArApEnabled?: boolean;
+  readonly chartOfAccountsEnabled?: boolean;
+  /** Sprint 37 — FEATURE_SALES_COMMISSIONS: reverse accruals on origin (COM-07). */
+  readonly salesCommissionsEnabled?: boolean;
 }
 
 export async function processCreditNoteAtomic(
@@ -34,6 +39,8 @@ export async function processCreditNoteAtomic(
   options: ProcessCreditNoteOptions = {},
 ): Promise<CreditNoteResult> {
   const ledgerOn = options.ledgerArApEnabled === true;
+  const chartOn = options.chartOfAccountsEnabled === true;
+  const commissionsOn = options.salesCommissionsEnabled === true;
   const origin = await db
     .prepare(
       `SELECT id, document_type, sunat_status, total_amount_cents, branch_id,
@@ -137,7 +144,13 @@ export async function processCreditNoteAtomic(
     }
   }
 
-  await runD1AtomicPlan(db, (plan) => {
+  const issuedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const chartAccounts =
+    chartOn || commissionsOn
+      ? await loadChartAccountsByCode(db, tenantId)
+      : new Map<string, string>();
+
+  await runD1AtomicPlan(db, async (plan) => {
     plan.add(
       db
         .prepare(
@@ -176,7 +189,7 @@ export async function processCreditNoteAtomic(
           request.amountCents,
           originSaleId,
           request.motiveCode,
-          new Date().toISOString().replace('T', ' ').substring(0, 19),
+          issuedAt,
         ),
     );
 
@@ -255,6 +268,20 @@ export async function processCreditNoteAtomic(
         tenantId,
         saleId: originSaleId,
         nextArBalanceCents: arCompensate.nextBalanceCents,
+      });
+    }
+
+    if (commissionsOn) {
+      await appendCommissionReverseWithJournal(plan, db, {
+        tenantId,
+        userId,
+        branchId: origin.branch_id,
+        saleId: originSaleId,
+        nowIso: issuedAt,
+        prevAuditHash: prevHash?.row_hash ?? null,
+        chartOn,
+        accountsByCode: chartAccounts,
+        postDate: issuedAt.slice(0, 10),
       });
     }
 

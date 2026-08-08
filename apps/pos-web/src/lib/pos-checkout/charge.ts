@@ -25,6 +25,8 @@ export interface ChargeContext {
   readonly documentTypeOverride?: 'NV' | 'NV_RETURN' | '01' | '03' | undefined;
   /** §5.4 edge 2B: MANUAL cuando offline + wallet sin red. */
   readonly captureStatus?: 'API' | 'MANUAL' | undefined;
+  /** Sprint 37: atribución vendedor (opcional). */
+  readonly sellerId?: string | undefined;
 }
 
 export interface ChargeResult {
@@ -130,6 +132,7 @@ export async function chargeCartOffline(
         ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
       },
     ],
+    ...(ctx.sellerId?.trim() ? { sellerId: ctx.sellerId.trim() } : {}),
   };
 
   await queue.enqueue(payload);

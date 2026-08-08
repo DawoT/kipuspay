@@ -16,6 +16,9 @@ import {
   planStoreCreditAdjustJournal,
   planStoreCreditExpireJournal,
   planInstallmentPayJournal,
+  planCommissionAccrueJournal,
+  planCommissionPayJournal,
+  planCommissionReverseJournal,
   planSupplierInvoiceJournal,
   planSupplierReturnJournal,
 } from './journal.js';
@@ -23,7 +26,20 @@ import {
 describe('journal posting', () => {
   it('seeds S23 GL plus deposits and AP', () => {
     const codes = SEED_CHART_OF_ACCOUNTS.map((row) => row.code).sort();
-    expect(codes).toEqual(['1011', '1212', '2011', '2101', '2102', '4011', '6011', '6591', '7011']);
+    expect(codes).toEqual([
+      '1011',
+      '1212',
+      '2011',
+      '2101',
+      '2102',
+      '2111',
+      '4011',
+      '6011',
+      '6311',
+      '6591',
+      '7011',
+      '7701',
+    ]);
     expect(SEED_CHART_OF_ACCOUNTS.find((row) => row.code === GL.CASH)?.type).toBe('ASSET');
   });
 
@@ -234,7 +250,48 @@ describe('journal posting', () => {
     expect(plan.sourceType).toBe('INSTALLMENT');
     expect(plan.balancedCents).toBe(0);
     expect(plan.lines.map((line) => `${line.code}:${line.debitCents}:${line.creditCents}`)).toEqual(
-      ['1011:4200:0', '1212:0:4000', '7011:0:200'],
+      ['1011:4200:0', '1212:0:4000', '7701:0:200'],
     );
+  });
+
+  it('posts commission accrue/pay/reverse 6311/2111', () => {
+    const accrue = planCommissionAccrueJournal({
+      sourceId: 'a1',
+      postDate: '2026-08-08',
+      amountCents: 700,
+    });
+    expect(accrue.sourceType).toBe('COMMISSION');
+    expect(accrue.lines.map((l) => `${l.code}:${l.debitCents}:${l.creditCents}`)).toEqual([
+      '6311:700:0',
+      '2111:0:700',
+    ]);
+    const pay = planCommissionPayJournal({
+      sourceId: 'p1',
+      postDate: '2026-08-08',
+      amountCents: 700,
+    });
+    expect(pay.lines.map((l) => `${l.code}:${l.debitCents}:${l.creditCents}`)).toEqual([
+      '2111:700:0',
+      '1011:0:700',
+    ]);
+    const reverse = planCommissionReverseJournal({
+      sourceId: 'a1',
+      postDate: '2026-08-09',
+      amountCents: 700,
+    });
+    expect(reverse.sourceType).toBe('COMMISSION');
+    expect(reverse.lines.map((l) => `${l.code}:${l.debitCents}:${l.creditCents}`)).toEqual([
+      '2111:700:0',
+      '6311:0:700',
+    ]);
+    expect(() =>
+      planCommissionAccrueJournal({ sourceId: 'a', postDate: '2026-08-08', amountCents: 0 }),
+    ).toThrow(JOURNAL_INVALID_LINE);
+    expect(() =>
+      planCommissionPayJournal({ sourceId: 'p', postDate: '2026-08-08', amountCents: -1 }),
+    ).toThrow(JOURNAL_INVALID_LINE);
+    expect(() =>
+      planCommissionReverseJournal({ sourceId: 'a', postDate: '2026-08-08', amountCents: 1.5 }),
+    ).toThrow(JOURNAL_INVALID_LINE);
   });
 });

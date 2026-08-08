@@ -15,6 +15,7 @@ import {
   judgeQuoteConvertExpire,
   judgeSupplierReturnReceive,
   judgeStoreCreditIssueRedeem,
+  judgeCommissionAccrualPayout,
   runArCompensateCycles,
   runRollupIdempotentCycles,
   runLayawayConvertCancelChaos,
@@ -22,6 +23,7 @@ import {
   runQuoteConvertExpireChaos,
   runSupplierReturnReceiveChaos,
   runStoreCreditIssueRedeemChaos,
+  runCommissionAccrualPayoutChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -350,6 +352,21 @@ describe('chaos-harness contrato §13.5', () => {
     await expect(
       runChaosScenario('store-credit-issue-redeem', 35, {
         runStoreCreditIssueRedeem: () => Promise.resolve(cycles),
+      }),
+    ).resolves.toBe('PASS');
+  });
+
+  it('Sprint 37 commission-accrual-payout 500 ciclos 0 drift', async () => {
+    expect(SCENARIO_ACTIVE_FROM['commission-accrual-payout']).toBe(37);
+    expect(() => assertScenarioReady('commission-accrual-payout', 36)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const cycles = runCommissionAccrualPayoutChaos(500);
+    expect(cycles.discrepancies).toBe(0);
+    expect(judgeCommissionAccrualPayout(cycles)).toBe('PASS');
+    await expect(
+      runChaosScenario('commission-accrual-payout', 37, {
+        runCommissionAccrualPayout: () => Promise.resolve(cycles),
       }),
     ).resolves.toBe('PASS');
   });

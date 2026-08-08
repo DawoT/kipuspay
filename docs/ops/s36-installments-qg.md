@@ -46,6 +46,6 @@ owner: "@DawoT"
 
 ## Residuales
 
-- Comisiones → Sprint 37.
+- Comisiones → Sprint 37 (**cerrado**; ver `docs/ops/s37-commissions-qg.md`).
 - Seriales → Sprint 39.
 - Reprogramar tras NC parcial → fuera de alcance.

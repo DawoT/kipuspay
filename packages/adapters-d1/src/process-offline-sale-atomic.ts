@@ -64,6 +64,7 @@ import {
   loadStoreCreditAccount,
 } from './process-store-credit-atomic.js';
 import { appendInstallmentPlanToBatch } from './process-installment-atomic.js';
+import { appendCommissionAccrualToBatch } from './process-commission-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
@@ -399,6 +400,8 @@ export interface ProcessOfflineSaleOptions {
   readonly storeCreditActorIsAdminOrOwner?: boolean;
   /** Sprint 36 — FEATURE_SALES_INSTALLMENTS. */
   readonly salesInstallmentsEnabled?: boolean;
+  /** Sprint 37 — FEATURE_SALES_COMMISSIONS. */
+  readonly salesCommissionsEnabled?: boolean;
   /** Extra statements en el mismo batch (p.ej. marcar sale_deposits CONVERTED). */
   readonly afterSaleStatements?: (
     plan: { add(statement: D1Bound): unknown },
@@ -447,6 +450,7 @@ export async function processOfflineSaleAtomic(
   const storeCreditOnline = opts.storeCreditOnline !== false;
   const storeCreditAdmin = opts.storeCreditActorIsAdminOrOwner === true;
   const installmentsOn = opts.salesInstallmentsEnabled === true;
+  const commissionsOn = opts.salesCommissionsEnabled === true;
 
   assertOfflineSaleShape(payload);
   payload = await normalizeUomItems(db, tenantId, payload, opts.catalogUomEnabled === true);
@@ -1268,8 +1272,8 @@ export async function processOfflineSaleAtomic(
                    subtotal_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
                    total_amount_cents, is_uncatalogued, batch_id, sold_uom_id, sold_uom_code,
                    entered_quantity_microunits, factor_numerator, factor_denominator,
-                   base_quantity_microunits
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+                   base_quantity_microunits, seller_id
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
             )
             .bind(
               crypto.randomUUID(),
@@ -1292,6 +1296,7 @@ export async function processOfflineSaleAtomic(
               source.resolvedFactorNumerator ?? 1,
               source.resolvedFactorDenominator ?? 1,
               baseQuantityMicrounits,
+              payload.sellerId?.trim() || null,
             ),
         );
       }
@@ -1732,6 +1737,27 @@ export async function processOfflineSaleAtomic(
           prevAuditHash: auditTail,
         });
         auditTail = installmentResult.rowHash;
+      }
+
+      if (commissionsOn && payload.sellerId?.trim() && !isReturn) {
+        const commissionLines = saleLines.map((line) => ({
+          productId: line.productId,
+          categoryId: null as string | null,
+          lineTotalCents: line.totalCents,
+        }));
+        const commissionResult = await appendCommissionAccrualToBatch(plan, db, {
+          tenantId,
+          userId,
+          branchId: payload.branchId,
+          saleId,
+          sellerId: payload.sellerId.trim(),
+          lines: commissionLines,
+          prevAuditHash: auditTail,
+          chartOn,
+          accountsByCode: chartAccounts,
+          postDate: limaTs.slice(0, 10),
+        });
+        if (commissionResult.rowHash) auditTail = commissionResult.rowHash;
       }
 
       // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).

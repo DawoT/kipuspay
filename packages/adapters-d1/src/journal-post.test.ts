@@ -46,15 +46,20 @@ describe('journal-post', () => {
       { id: 'coa-2011', code: '2011' },
       { id: 'coa-2101', code: '2101' },
       { id: 'coa-2102', code: '2102' },
+      { id: 'coa-2111', code: '2111' },
       { id: 'coa-4011', code: '4011' },
       { id: 'coa-6011', code: '6011' },
+      { id: 'coa-6311', code: '6311' },
       { id: 'coa-6591', code: '6591' },
       { id: 'coa-7011', code: '7011' },
+      { id: 'coa-7701', code: '7701' },
     ]);
     const map = await loadChartAccountsByCode(db, 't1');
     expect(map.get('2101')).toBe('coa-2101');
     expect(map.get('2102')).toBe('coa-2102');
-    expect(map.size).toBe(9);
+    expect(map.get('2111')).toBe('coa-2111');
+    expect(map.get('6311')).toBe('coa-6311');
+    expect(map.size).toBe(12);
   });
 
   it('appends journal entry + lines + JOURNAL_POST audit', async () => {

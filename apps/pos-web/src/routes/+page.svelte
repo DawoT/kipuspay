@@ -4,6 +4,7 @@
   import {
     isPosCheckoutEnabled,
     isPrintTemplatesEnabled,
+    isSalesCommissionsEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
   import { addOrBumpLine, cartTotalCents, type CartLine } from '$lib/pos-checkout/cart';
@@ -31,11 +32,13 @@
   } from '$lib/tenant/session';
 
   const checkoutOn = isPosCheckoutEnabled();
+  const commissionsOn = isSalesCommissionsEnabled();
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let lines = $state<CartLine[]>([
     { productId: 'p1', name: 'Producto demo', unitPriceCents: 11800, quantity: 1 },
   ]);
+  let sellerId = $state('');
   let status = $state('listo');
   let message = $state('');
   let lastFeedbackMs = $state(0);
@@ -83,6 +86,7 @@
         clientDocumentNumber: '00000000',
         clientName: 'Cliente',
         paymentMethodId: 'pm-cash',
+        ...(commissionsOn && sellerId.trim() ? { sellerId: sellerId.trim() } : {}),
       },
       queue,
     );
@@ -175,6 +179,12 @@
   <p data-testid="formalization-banner" role="status">{banner}</p>
   <p data-testid="formalization-mode">{session.formalizationMode}</p>
   <p data-testid="total">Total: S/ {formatCents(totalCents)}</p>
+  {#if commissionsOn}
+    <label>
+      Vendedor (opcional)
+      <input bind:value={sellerId} data-testid="seller-id" />
+    </label>
+  {/if}
   <p data-testid="status">{status}</p>
   <p data-testid="message">{message}</p>
   <p data-testid="feedback-ms">{Math.round(lastFeedbackMs)}</p>

@@ -194,7 +194,7 @@ function runCycle(seed: number): InstallmentCycleResult {
       arPay.amountCents === half &&
       journal.sourceType === 'INSTALLMENT' &&
       (interest === 0 ||
-        journal.lines.some((l) => l.code === '7011' && l.creditCents === interest)) &&
+        journal.lines.some((l) => l.code === '7701' && l.creditCents === interest)) &&
       journal.lines.some((l) => l.code === '1212' && l.creditCents === half),
     overdueOnRead: overdue === 'OVERDUE',
     ncCancelsPending: shouldCancelInstallmentsOnArClosed({ nextArBalanceCents: 0 }),

@@ -1,6 +1,17 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0030_SPRINT37_COMMISSIONS = `
+DROP INDEX IF EXISTS idx_commission_payouts_seller;
+DROP INDEX IF EXISTS idx_commission_accruals_seller;
+DROP INDEX IF EXISTS idx_commission_accruals_sale;
+DROP INDEX IF EXISTS idx_commission_rates_seller;
+DROP TABLE IF EXISTS commission_accruals;
+DROP TABLE IF EXISTS commission_payouts;
+DROP TABLE IF EXISTS commission_rates;
+DELETE FROM schema_meta WHERE key = 'sales.commissions.sprint37';
+`;
+
 export const DOWN_0029_SPRINT36_INSTALLMENTS = `
 DROP INDEX IF EXISTS idx_sale_installment_payments_inst;
 DROP INDEX IF EXISTS idx_sale_installments_status;

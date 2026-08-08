@@ -104,6 +104,14 @@ export async function runCreditNoteEaHttp(
         items: [],
       },
       series,
+      {
+        ledgerArApEnabled: env.FEATURE_LEDGER_AR_AP === '1' || env.FEATURE_LEDGER_AR_AP === 'true',
+        chartOfAccountsEnabled:
+          env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
+          env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
+        salesCommissionsEnabled:
+          env.FEATURE_SALES_COMMISSIONS === '1' || env.FEATURE_SALES_COMMISSIONS === 'true',
+      },
     );
     return {
       status: 200,

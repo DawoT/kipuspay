@@ -70,7 +70,7 @@ export function planInstallmentSchedule(input: {
   if (input.items.length === 0) throw new Error(INSTALLMENT_SCHEDULE_REQUIRED);
 
   const schedulePrincipalCents = input.saleTotalCents - input.downPaymentCents;
-  let sumPrincipal = 0;
+  let sumPrincipalCents = 0;
   const seen = new Set<number>();
   const items: InstallmentScheduleItemPlan[] = [];
 
@@ -88,7 +88,7 @@ export function planInstallmentSchedule(input: {
     if (!raw.dueDateIso.trim()) throw new Error(INSTALLMENT_INVALID_AMOUNT);
     const amountCents = raw.principalCents + raw.interestCents;
     assertPositiveCents(amountCents, INSTALLMENT_INVALID_AMOUNT);
-    sumPrincipal += raw.principalCents;
+    sumPrincipalCents += raw.principalCents;
     items.push({
       installmentNumber: raw.installmentNumber,
       principalCents: raw.principalCents,
@@ -99,7 +99,7 @@ export function planInstallmentSchedule(input: {
     });
   }
 
-  if (sumPrincipal !== schedulePrincipalCents) {
+  if (sumPrincipalCents !== schedulePrincipalCents) {
     throw new Error(INSTALLMENT_PRINCIPAL_MISMATCH);
   }
 
@@ -136,15 +136,11 @@ export function assertInstallmentPayable(input: {
   if (!Number.isInteger(input.arBalanceDueCents) || input.arBalanceDueCents <= 0) {
     throw new Error(INSTALLMENT_AR_CLOSED);
   }
-  const effective = markInstallmentOverdue({
+  return markInstallmentOverdue({
     status: input.status,
     dueDateIso: input.dueDateIso,
     nowIso: input.nowIso,
   });
-  if (effective !== 'PENDING' && effective !== 'OVERDUE') {
-    throw new Error(INSTALLMENT_INVALID_STATUS);
-  }
-  return effective;
 }
 
 /**

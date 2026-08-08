@@ -130,6 +130,8 @@ export async function runCreateSalesReturnHttp(
     env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' || env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true';
   const storeCreditEnabled =
     env.FEATURE_LEDGER_STORE_CREDIT === '1' || env.FEATURE_LEDGER_STORE_CREDIT === 'true';
+  const salesCommissionsEnabled =
+    env.FEATURE_SALES_COMMISSIONS === '1' || env.FEATURE_SALES_COMMISSIONS === 'true';
 
   try {
     const result = await processReturnAtomic(
@@ -148,7 +150,7 @@ export async function runCreateSalesReturnHttp(
           ? { authThresholdCents: parsed.authThresholdCents }
           : {}),
       },
-      { ledgerArApEnabled, chartOfAccountsEnabled, storeCreditEnabled },
+      { ledgerArApEnabled, chartOfAccountsEnabled, storeCreditEnabled, salesCommissionsEnabled },
     );
     return {
       status: 200,

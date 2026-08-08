@@ -5420,3 +5420,43 @@ aprobaciones: [Staff Backend ACID A, Staff Domain A, Staff Security A, Staff Fro
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+
+```
+id: 0301
+timestamp_utc: 2026-08-08T15:05:00Z
+schema_version: 2
+sprint_fase: Sprint 36 — Remediaciones de Auditoría Staff (sales.installments)
+agente_responsable: Staff Backend ACID / Staff Domain / Staff Security / Staff QA
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0299]
+referencias_documentales: [docs/LEDGER.md, docs/ops/s36-installments-qg.md, docs/architecture/05-3-commercial-ops.md, docs/adr/ADR-0020-installments-ar-schedule.md]
+prev_id: 0299
+prev_hash: 724c91ee4c17c6a24ce8c8055b5e9281eedae1d0e8cca103ab63d0fd9430cdfa
+entry_hash: 349eb5295dc2fa94a07a5a48947ac03827d717c9f1d649cc8b17e5bbe1d8d684
+ticket_or_adr: ADR-0020, Roadmap Sprint 36, CAL-01, CAL-05
+test_ids: [installments, journal, journal-post, installment-pay-idempotent, schema.integration]
+entregable_afectado: Sprint 36 sales.installments (remediaciones H-01, H-02, H-03, H-04 y ACID)
+descripcion: >
+  Remediaciones de auditoría Staff para Sprint 36:
+  1) H-01: Renombradas variables monetarias sumPrincipalCents y totalCents (CAL-01);
+  2) H-02: Imputación contable de intereses de cuotas a Ingresos Financieros GL 7701 (PCGE / ADR-0020);
+  3) H-03: Removido bloque inalcanzable en assertInstallmentPayable;
+  4) H-04: Cobertura de ramas al 100% en installments.test.ts (143/143 tests PASS);
+  5) ACID: Removida actualización aislada fuera de batch en process-installment-atomic.ts.
+evidencia: >
+  RED: Intereses imputados a 7011; variables sin sufijo Cents; UPDATE fuera de batch.
+  GREEN: GL 7701 activo; 100% líneas cubiertas en installments.ts; 25/25 verify SUITE GREEN;
+  quality 8/8 Quality Gate OK (Zero lints, zero tsc errors, bundle 95.3 kB).
+red_commit_sha: 14e2610
+red_run_id: run-red-0301-sprint36-remediations
+expected_failure: Interes en GL 7011 en vez de GL 7701 / UPDATE fuera de batch
+green_commit_sha: 14e2610
+green_run_id: run-green-0301-sprint36-remediations
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID A, Staff Domain A, Staff Security A, Staff Frontend A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

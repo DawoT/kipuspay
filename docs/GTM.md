@@ -211,7 +211,7 @@ El pricing de KipusPay se diseña alrededor de un principio de PLG (Product-Led 
 
 Estos proof points **no se publican en la landing antes del gate** (regla comercial FASE 6); quedan especiados aquí para que el descongelado sea ejecución, no rediseño.
 
-**Gates de claims retail/servicios (FASE 6C-6E):** cotizaciones/presupuestos (**GTM-19**, gate Sprint 33), devolución a proveedor (**GTM-20**, gate Sprint 34), crédito de tienda/gift cards (**GTM-21**, gate Sprint 35), pago en partes/cuotas (**GTM-22**, gate Sprint 36), comisiones, pedidos con retiro, ventas recurrentes/membresías y caja móvil solo se venden tras el Quality Gate de sus sprints (Roadmap FASE 6C-6E); antes, responder como roadmap con fecha de gate. La promesa “exporta todo tu historial” (GTM §5.7.1) queda respaldada por el **Sprint 42** (backup/restore) y **47** (LPDP).
+**Gates de claims retail/servicios (FASE 6C-6E):** cotizaciones/presupuestos (**GTM-19**, gate Sprint 33), devolución a proveedor (**GTM-20**, gate Sprint 34), crédito de tienda/gift cards (**GTM-21**, gate Sprint 35), pago en partes/cuotas (**GTM-22**, gate Sprint 36), comisiones de vendedor (**GTM-23**, gate Sprint 37), pedidos con retiro, ventas recurrentes/membresías y caja móvil solo se venden tras el Quality Gate de sus sprints (Roadmap FASE 6C-6E); antes, responder como roadmap con fecha de gate. La promesa “exporta todo tu historial” (GTM §5.7.1) queda respaldada por el **Sprint 42** (backup/restore) y **47** (LPDP).
 
 **Gates de claims retail/inventario (FASE 6B/6D y Sprints 18/20/48):** estas capabilities están especificadas en la arquitectura (Arquitectura §5.3 reglas 5/14–17/23–27/32; Roadmap FASE 6B/6D) pero **no se publican como claims** hasta su Quality Gate: kits BOM y listas de precio múltiples (**retail/food**, gate **Sprint 18** — **QG cerrado**, claim FEFO/farmacia live); recepción parcial de OC (**Cadena**, gate **Sprint 20** — **QG cerrado**, claim `merma_xfer` live); control de compras 3-way (**Cadena**, gates **Sprints 28–32**); promociones y tramos (**Crece**, gate **Sprint 30** — **QG cerrado**, GTM-15); catálogo multi-variante y unidades de medida (**Crece**, gate **Sprint 31**); apartados/anticipos (**Crece**, gate **Sprint 32**); diario contable (**Cadena**, gate **Sprint 32**); ubicaciones/racks (**Cadena**, gates **Sprints 38–42**); números de serie, venta por peso/balanza y etiquetas de precio (**Crece**, gates **Sprints 38–42**); DR/BCP (**Cadena**, gate **Sprint 48**). Antes del gate, responder como roadmap con fecha de gate; **no prometer** “control de compras”, “diario contable”, “multi-almacén”, “promociones” ni “apartados” como disponibles.
 
@@ -221,7 +221,7 @@ Estos proof points **no se publican en la landing antes del gate** (regla comerc
 
 **Regla de cupo (transparencia con el cajero, Arquitectura §4.1):** el cupo se consume **al emitir**, no al anular. Cada CPE emitido — incluidas **Notas de Crédito/Débito** (`07`/`08`) y `NV` — cuenta como 1 comprobante de los 1,000/mes. Una NC que corrige un error consume 1 doc de cupo y **no** reembolsa el de la venta original; la baja de boleta no suma ni resta. **El cupo cubre la generación/procesamiento del comprobante, sin importar el estado final de aceptación SUNAT** (`QUARANTINED`/`REJECTED`): un CPE que SUNAT nunca aceptó ya consumió su doc; la caja nunca se detiene por rechazo (el cobro commite y el envío reintenta en la cola de resumen). Precio activo tras GTM-04 / Sprint 27 (QG `docs/ops/s27-usage-overage-qg.md`).
 
-### 4.1.1 Matriz de claims, gates y controles (GTM-01..22)
+### 4.1.1 Matriz de claims, gates y controles (GTM-01..23)
 
 Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion comercial. Un claim con estado **congelado** se puede mencionar únicamente como roadmap con su sprint y Quality Gate; no se presenta como una capacidad disponible.
 
@@ -249,6 +249,7 @@ Esta matriz es la fuente de verdad para landing, anuncios, demos, FAQ y guion co
 | **GTM-20** | Devolución a proveedor (Cadena) | **Descongelado** tras QG Sprint 34 | NC del proveedor (0 CPE nuestro / 0 cupo); revierte stock+PMP outbound+CxP; mismatch = 422 o `SUPPLIER_PRICE_DIFF`; distinto de GTM-05 y GTM-13; QG `docs/ops/s34-supplier-returns-qg.md` |
 | **GTM-21** | Crédito de tienda / gift cards (Cadena/Crece) | **Descongelado** tras QG Sprint 35 | Vale = venta (doc+cupo); canje impone monto servidor; NC sin reembolso+consent → crédito; GL 2102 ≠ 2101; distinto de GTM-05 y GTM-20; QG `docs/ops/s35-store-credit-qg.md` |
 | **GTM-22** | Pago en partes / cuotas (Crece/Cadena) | **Descongelado** tras QG Sprint 36 | Schedule sobre AR; solo principal reduce CxC (COM-06); pago idempotente Zero-Trust; OVERDUE no corta caja; distinto de GTM-17 y GTM-21; QG `docs/ops/s36-installments-qg.md` |
+| **GTM-23** | Comisiones de vendedor (Crece) | **Descongelado** tras QG Sprint 37 | Tasa/monto servidor; accrual + reverse COM-07; payout Zero-Trust; ≠ nómina; QG `docs/ops/s37-commissions-qg.md` |
 
 **Regla de publicación:** cada release de copy registra el ID GTM afectado, el sprint/gate y el enlace a la evidencia. Staff Growth no descongela un claim por decisión comercial; solo lo hace después de la firma del Quality Gate correspondiente (Proceso §8.1).
 
@@ -483,6 +484,7 @@ Formato acordeón, con las objeciones reales que un dueño de negocio peruano te
 - *"¿Puedo devolver mercadería al proveedor?"* → **Sí (GTM-20 / Sprint 34):** revierte stock y PMP, baja el CxP si la factura ya estaba abierta y no emite nota de crédito SUNAT nuestra (la NC es del proveedor). Distinto de la devolución a cliente (GTM-05).
 - *"¿Puedo vender vales / gift cards o dejar crédito de tienda?"* → **Sí (GTM-21 / Sprint 35):** la venta del vale es una venta (doc + cupo). El canje lo impone el servidor (nunca el monto que teclea la caja). Una NC sin reembolso puede pasar a crédito con consentimiento del cliente; distinto de GTM-05 (devolución cliente) y GTM-20 (devolución proveedor).
 - *"¿Puedo cobrar en cuotas / pago en partes?"* → **Sí (GTM-22 / Sprint 36):** plan sobre la CxC de la venta a crédito; solo el **principal** baja el saldo (COM-06); el interés se asienta aparte. Retry idempotente; atraso (OVERDUE) alerta al Dueño y **no** corta la caja. Distinto de apartado (GTM-17) y vale (GTM-21).
+- *"¿Puedo pagar comisiones a mis vendedores?"* → **Sí (GTM-23 / Sprint 37):** tasas por vendedor/producto; el monto lo calcula el servidor al vender; una NC revierte el devengo (COM-07). El payout lo arma Admin/Owner. **No es nómina** ni planilla.
 
 ---
 
@@ -623,6 +625,7 @@ Además de las FAQ públicas de la landing (sección 5.9), el equipo comercial n
 | *"¿Puedo devolver mercadería al proveedor?"* | Sí (QG Sprint 34 / GTM-20): revierte stock+PMP+CxP; 0 CPE nuestro; mismatch = 422 o override auditado. Distinto de devolución a cliente. |
 | *"¿Puedo vender vales / gift cards?"* | Sí (QG Sprint 35 / GTM-21): vale = venta (doc+cupo); canje lo impone el servidor; NC sin reembolso+consent → crédito. Distinto de GTM-05 y GTM-20. |
 | *"¿Puedo cobrar en cuotas?"* | Sí (QG Sprint 36 / GTM-22): schedule sobre AR; solo principal reduce CxC; atraso no corta caja. Distinto de apartado (GTM-17) y vale (GTM-21). |
+| *"¿Puedo pagar comisiones a mis vendedores?"* | Sí (QG Sprint 37 / GTM-23): tasa/monto servidor; NC revierte accrual; payout Admin/Owner. Distinto de nómina. |
 | *"¿Manejan tallas/colores o venta por peso?"* | Variantes y unidades tras el Quality Gate del **Sprint 31** (GTM-16); venta por peso/balanza tras los gates de **Sprints 38–42** (GTM-17). Antes: productos simples y cobro por unidad. |
 
 ---

@@ -30,6 +30,7 @@ import {
   ensureStoreCreditAccount,
 } from './process-store-credit-atomic.js';
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
+import { appendCommissionReverseWithJournal } from './process-commission-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface ProcessReturnInput {
@@ -50,6 +51,8 @@ export interface ProcessReturnOptions {
   readonly ledgerArApEnabled?: boolean;
   readonly chartOfAccountsEnabled?: boolean;
   readonly storeCreditEnabled?: boolean;
+  /** Sprint 37 — FEATURE_SALES_COMMISSIONS: reverse accruals on origin (COM-07). */
+  readonly salesCommissionsEnabled?: boolean;
 }
 
 export interface ProcessReturnResult {
@@ -96,6 +99,7 @@ export async function processReturnAtomic(
 ): Promise<ProcessReturnResult> {
   const ledgerOn = options.ledgerArApEnabled === true;
   const chartOn = options.chartOfAccountsEnabled === true;
+  const commissionsOn = options.salesCommissionsEnabled === true;
   const nowMs = input.nowMs ?? Date.now();
   assertReturnReason(input.reason);
 
@@ -702,6 +706,20 @@ export async function processReturnAtomic(
             },
           ],
         }),
+      });
+    }
+
+    if (commissionsOn) {
+      await appendCommissionReverseWithJournal(plan, db, {
+        tenantId,
+        userId,
+        branchId: origin.branch_id,
+        saleId: input.originSaleId,
+        nowIso: issuedAt,
+        prevAuditHash: prevHash?.row_hash ?? null,
+        chartOn,
+        accountsByCode: chartAccounts,
+        postDate: issuedAt.slice(0, 10),
       });
     }
 
