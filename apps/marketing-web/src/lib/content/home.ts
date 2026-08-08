@@ -183,6 +183,10 @@ export const HOME = {
       a: 'Si, en el plan Crece. Configuras la tasa por vendedor; KipusPay calcula el monto al vender y una nota de credito revierte el devengo. El payout lo arma Admin o Dueño. No es nomina ni planilla.',
     },
     {
+      q: '¿Puedo saber en que rack esta cada producto?',
+      a: 'Si, en el plan Cadena. Organizas ubicaciones por sucursal, cuentas y transfieres stock entre racks, recibes una ruta de picking por vencimiento y descargas el detalle en CSV. Mover entre racks nunca cambia el total de la sucursal. Numeros de serie, balanza, etiquetas y backup siguen en el roadmap.',
+    },
+    {
       q: '¿Puedo emitir cotizaciones o presupuestos?',
       a: 'Si. La cotizacion congela el precio que calcula KipusPay y no emite comprobante ni reserva stock. Al convertir a venta se respeta ese precio aunque la lista haya cambiado; si vencio, hay que recotizar.',
     },

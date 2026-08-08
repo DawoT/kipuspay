@@ -747,7 +747,7 @@ CREATE TABLE inventory_location_batch_stock (
     quantity_microunits INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (tenant_id, branch_id, location_id, product_id, batch_id),
     FOREIGN KEY (tenant_id, branch_id, location_id, product_id) REFERENCES inventory_location_stock(tenant_id, branch_id, location_id, product_id),
-    FOREIGN KEY (tenant_id, batch_id) REFERENCES inventory_batches(tenant_id, id)
+    FOREIGN KEY (tenant_id, branch_id, product_id, batch_id) REFERENCES inventory_batches(tenant_id, branch_id, product_id, id)
 );
 
 -- FASE 6D / Sprint 39 — números de serie

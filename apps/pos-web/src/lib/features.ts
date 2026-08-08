@@ -177,3 +177,8 @@ export function isSalesInstallmentsEnabled(): boolean {
 export function isSalesCommissionsEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_COMMISSIONS'));
 }
+
+/** Sprint 38 — ubicaciones y racks. */
+export function isInventoryLocationsEnabled(): boolean {
+  return flagOn(pub(PF + 'INVENTORY_LOCATIONS'));
+}

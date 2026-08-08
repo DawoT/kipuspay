@@ -5498,3 +5498,117 @@ aprobaciones: [Staff Principal A, Staff Security A, Staff SRE A, Staff Backend A
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0303
+timestamp_utc: 2026-08-08T15:56:00Z
+schema_version: 2
+sprint_fase: Sprint 38 — FASE 6D (inventory.locations) + correccion de frontera Sprint 37
+agente_responsable: Staff Backend Datos / Staff Backend ACID / Staff Frontend / Staff Data / Staff PM / Staff QA
+tipo: Cierre de sprint
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0302]
+referencias_documentales: [docs/roadmap/fase-6d.md, docs/ops/s38-inventory-locations-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0022-inventory-location-authority.md, docs/GTM.md]
+prev_id: 0302
+prev_hash: c049e9183952510b48f919f252b19f3decdf65800e16ec31a42067558f3bbf96
+entry_hash: 395b30d682e9580de2c9b47e9cbd0dfc4a614fb1d6386b477db454128c296eb2
+ticket_or_adr: ADR-0022, Roadmap Sprint 38, Arquitectura §5.3 regla 23, GTM-17, DDL 0031
+test_ids: [locations, schema.integration, inventory-location, inventory-location-conservation, inventory-ops-routes, features, protected-routes, report-routes]
+entregable_afectado: Sprint 38 inventory.locations GOV-APROBADO
+descripcion: >
+  Cierra Sprint 38: ubicación granular autoritativa + agregado branch compatible,
+  DEFAULT determinista, lotes multi-rack, dual-write ACID en todos los stock writers,
+  transferencia idempotente LOCATION_TRANSFER, conteo server-authoritative, RBAC,
+  Admin racks/picking, reporte CSV y GTM-17 parcial. Corrige además la frontera
+  registral: 0302 quedó dedicada a auditoría general y no debe interpretarse como
+  cierre Sprint 37; el código/QG S37 permanece trazado por ADR-0021 y e482d4d.
+evidencia: >
+  RED: en e482d4d no existían dominio locations, DDL 0031, dual-write, API/UI ni
+  chaos S38. GREEN: 0031 up/down 80 tests D1; domain-inventory 95.75% branches;
+  chaos inventory-location-conservation 500/0; verify SUITE GREEN; quality 8/8
+  Quality Gate OK; POS 98.43 kB gzip dentro de CAL-06.
+red_commit_sha: e482d4def36deb093912e342992883c69226558d
+red_run_id: run-red-0303-s38-locations-absent
+green_commit_sha: 2bd7e3e3d5c1f0e6108e56c7b334e04afc5c0b67
+green_run_id: run-green-0303-s38-quality-20260808T1556Z
+expected_failure: inventory.locations sin autoridad granular, DDL 0031, dual-write ni chaos 500
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Frontend R, Staff Data A, Staff Backend ACID A, Staff PM A, Staff Security V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0304
+timestamp_utc: 2026-08-08T15:57:00Z
+schema_version: 2
+sprint_fase: Sprint 38 — FASE 6D (inventory.locations)
+agente_responsable: Staff Principal / Staff Data / Staff QA
+tipo: Correccion de registro
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0303]
+referencias_documentales: [docs/ops/s38-inventory-locations-qg.md, docs/adr/ADR-0022-inventory-location-authority.md, docs/roadmap/fase-6d.md]
+prev_id: 0303
+prev_hash: 395b30d682e9580de2c9b47e9cbd0dfc4a614fb1d6386b477db454128c296eb2
+entry_hash: 71874b6211f1a15c118ee584e655c81e9bd804c95f3cc816f2c4027ec99b8b55
+ticket_or_adr: ADR-0022, Roadmap Sprint 38, DDL 0031
+test_ids: [locations, schema.integration, inventory-location, inventory-location-conservation, inventory-ops-routes, features, protected-routes, report-routes]
+entregable_afectado: Sprint 38 inventory.locations GOV-APROBADO
+descripcion: >
+  Corrige exclusivamente el green_commit_sha transcrito en 0303. La evidencia,
+  alcance, Quality Gate, firmas y cierre Sprint 38 de 0303 permanecen vigentes.
+evidencia: >
+  git rev-parse HEAD = 2bd7e3e4e6c583c859ef01d4b5fc2a8ced935d25;
+  e482d4d es ancestro verificado. verify SUITE GREEN y quality 8/8 OK.
+red_commit_sha: e482d4def36deb093912e342992883c69226558d
+red_run_id: run-red-0304-sha-transcription
+expected_failure: green_commit_sha de 0303 no resolvia a un commit real
+green_commit_sha: 2bd7e3e4e6c583c859ef01d4b5fc2a8ced935d25
+green_run_id: run-green-0304-sha-corrected
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Data A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
+```
+id: 0305
+timestamp_utc: 2026-08-08T16:30:00Z
+schema_version: 2
+sprint_fase: Sprint 38 — FASE 6D (inventory.locations) Auditoría Staff
+agente_responsable: Staff Domain / Staff Backend ACID / Staff Security / Staff QA
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0304]
+referencias_documentales: [docs/roadmap/fase-6d.md, docs/ops/s38-inventory-locations-qg.md, docs/adr/ADR-0022-inventory-location-authority.md]
+prev_id: 0304
+prev_hash: 71874b6211f1a15c118ee584e655c81e9bd804c95f3cc816f2c4027ec99b8b55
+entry_hash: 28f651ec91c5b8151a71e7321dbe5ea1d2213301d4960264c5c60e41953d87d6
+ticket_or_adr: ADR-0022, CAL-01, CAL-05, CAL-06
+test_ids: [locations, inventory-location, schema.integration, inventory-ops-routes]
+entregable_afectado: Sprint 38 inventory.locations (Remediaciones H-1, H-2, H-3 y Cobertura CAL-05 100%)
+descripcion: >
+  Remediaciones de auditoría Staff para Sprint 38:
+  1) CAL-05: Cobertura de ramas en domain-inventory locations.ts elevada a 100.00% (domain-inventory 96.69%);
+  2) H-1: Incluido check atomico s.quantity_microunits > 0 dentro de guardState SQL en batch de desactivacion;
+  3) H-2: Corregido retorno idempotente processInventoryLocationTransferAtomic a alreadyApplied: true;
+  4) H-3: Impedida desactivacion de ubicacion DEFAULT determinista (LOCATION_DEFAULT_IMMUTABLE);
+  5) 81/81 tests de integracion D1 en workerd PASS y 0 lints/secrets violations.
+evidencia: >
+  RED: Cobertura de ramas domain-inventory en 93.75%; race condition en guardState desactivacion.
+  GREEN: domain-inventory locations.ts 100% branch coverage; 81/81 D1 integration tests PASS;
+  25/25 verify.sh SUITE GREEN; quality.sh 8/8 Quality Gate OK (POS 98.43 kB gzip).
+red_commit_sha: 2bd7e3e
+red_run_id: run-red-0305-s38-audit-remediations
+expected_failure: Cobertura de ramas domain-inventory en 93.75% inferior a umbral 95%
+green_commit_sha: 2bd7e3e
+green_run_id: run-green-0305-s38-audit-remediations
+ancestry_verified: true
+aprobaciones: [Staff Domain A, Staff Backend ACID A, Staff Security A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

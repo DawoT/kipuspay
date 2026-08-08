@@ -38,7 +38,9 @@ Cada objeción cita la **garantía técnica** o el **gate** que la respalda. Si 
 | Crédito de tienda / gift cards | QG S35 GTM-21 | Roadmap Sprint 35 · ops s35 |
 | Cuotas / pago en partes | QG S36 GTM-22 | Roadmap Sprint 36 · ops s36 · solo principal reduce CxC; atraso ≠ apaga caja |
 | Comisiones de vendedor | QG S37 GTM-23 | Roadmap Sprint 37 · ops s37 · ≠ nómina; monto servidor; NC revierte accrual |
-| Tallas/colores / peso | S30 / S38–42 | GTM-16/17 |
+| ¿Puedo saber en qué rack está cada producto? | Sí, ubicaciones/racks por sucursal tras QG S38 | GTM-17 · reporte/CSV por ubicación · transferencia interna no cambia total |
+| ¿Ya incluye seriales, balanza, etiquetas y backup? | No; siguen como roadmap S39–S42 | GTM-17 · no decir “inventario avanzado completo” |
+| Tallas/colores | QG S31 | GTM-16 |
 
 ## Regla de uso
 

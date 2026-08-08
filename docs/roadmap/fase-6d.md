@@ -12,17 +12,18 @@ sprints: "38–42"
 > Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23–27. **Capabilities, no forks** (ADR-ARCH-002).
 
 #### Sprint 38 — Ubicaciones / racks por sucursal
+**Estado:** Cerrado
 **Capabilities:** `inventory.locations`  
-**Referencia:** Arquitectura §5.3 regla 23; Sprint 18 (conteo) · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin), Staff QA
+**Referencia:** Arquitectura §5.3 regla 23; ADR-0022; Sprint 18 (conteo) · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin), Staff QA
 
 **Entregables:**
-- `inventory_locations` + `inventory_location_stock`; stock de venta = suma por ubicaciones activas.
+- `inventory_locations` + `inventory_location_stock` + lotes multi-rack; stock de venta = suma por ubicaciones activas.
 - Conteo físico **por ubicación** (extiende Sprint 18); transferencia intra-sucursal con `audit_events`.
 - Picking guiado para OC (listado de ítems por ubicación).
 
 **Criterios de aceptación:** 0 stock perdido entre ubicaciones (suma invariante); conteo por ubicación concilia con total de la sucursal; transferencia intra-sucursal no altera el total.
 
-**Quality Gate:** Staff QA (conteo concurrente por ubicación); Staff PM valida claim multi-almacén tras gate.
+**Quality Gate:** Staff QA (conteo concurrente por ubicación); Staff PM valida claim ubicaciones/racks tras gate. QG: `docs/ops/s38-inventory-locations-qg.md`.
 
 ---
 

@@ -11,6 +11,10 @@ DROP TABLE IF EXISTS inventory_location_transfers;
 DROP TABLE IF EXISTS inventory_location_batch_stock;
 DROP TABLE IF EXISTS inventory_location_stock;
 DROP TABLE IF EXISTS inventory_locations;
+DROP INDEX IF EXISTS uq_inventory_counts_tenant_branch_id;
+DROP INDEX IF EXISTS uq_inventory_counts_tenant_id;
+DROP INDEX IF EXISTS uq_inventory_batches_tenant_branch_product_id;
+DROP INDEX IF EXISTS uq_inventory_batches_tenant_id;
 DELETE FROM schema_meta WHERE key = 'inventory.locations.sprint38';
 `;
 

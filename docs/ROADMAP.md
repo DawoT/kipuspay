@@ -75,7 +75,8 @@ owner: "@DawoT"
 | 35 | 6C | Actualizada (ledger.store_credit + GTM-21) | Cerrado |
 | 36 | 6C | Actualizada (sales.installments + GTM-22) | Cerrado |
 | 37 | 6C | Actualizada (sales.commissions + GTM-23) | Cerrado |
-| 38–42 | 6D | Actualizada (FASE 6D reglas 23–27) | Planificado |
+| 38 | 6D | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial) | Cerrado |
+| 39–42 | 6D | Actualizada (FASE 6D reglas 24–27) | Planificado |
 | 43–45 | 6E | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |
 | 46–48 | 6F | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |

@@ -3,6 +3,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_branches_tenant_id ON branches(tenant_id, i
 CREATE UNIQUE INDEX IF NOT EXISTS uq_products_tenant_id ON products(tenant_id, id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_inventory_batches_tenant_id
     ON inventory_batches(tenant_id, id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_inventory_batches_tenant_branch_product_id
+    ON inventory_batches(tenant_id, branch_id, product_id, id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_inventory_counts_tenant_id
     ON inventory_counts(tenant_id, id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_inventory_counts_tenant_branch_id
@@ -49,7 +51,8 @@ CREATE TABLE IF NOT EXISTS inventory_location_batch_stock (
     PRIMARY KEY (tenant_id, branch_id, location_id, product_id, batch_id),
     FOREIGN KEY (tenant_id, branch_id, location_id, product_id)
       REFERENCES inventory_location_stock(tenant_id, branch_id, location_id, product_id),
-    FOREIGN KEY (tenant_id, batch_id) REFERENCES inventory_batches(tenant_id, id)
+    FOREIGN KEY (tenant_id, branch_id, product_id, batch_id)
+      REFERENCES inventory_batches(tenant_id, branch_id, product_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS inventory_location_transfers (
@@ -72,7 +75,8 @@ CREATE TABLE IF NOT EXISTS inventory_location_transfers (
     FOREIGN KEY (tenant_id, branch_id, destination_location_id)
       REFERENCES inventory_locations(tenant_id, branch_id, id),
     FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id),
-    FOREIGN KEY (tenant_id, batch_id) REFERENCES inventory_batches(tenant_id, id),
+    FOREIGN KEY (tenant_id, branch_id, product_id, batch_id)
+      REFERENCES inventory_batches(tenant_id, branch_id, product_id, id),
     FOREIGN KEY (tenant_id, created_by_user_id) REFERENCES users(tenant_id, id)
 );
 
@@ -139,7 +143,8 @@ CREATE TABLE inventory_count_lines_s38 (
     FOREIGN KEY (tenant_id, branch_id, location_id)
       REFERENCES inventory_locations(tenant_id, branch_id, id),
     FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id),
-    FOREIGN KEY (tenant_id, batch_id) REFERENCES inventory_batches(tenant_id, id)
+    FOREIGN KEY (tenant_id, branch_id, product_id, batch_id)
+      REFERENCES inventory_batches(tenant_id, branch_id, product_id, id)
 );
 
 INSERT INTO inventory_count_lines_s38 (

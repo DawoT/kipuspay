@@ -61,6 +61,9 @@ describe('reporting flags + catalog', () => {
     expect(res.status).toBe(200);
     const body = res.body as { reports: unknown[] };
     expect(body.reports.length).toBeGreaterThan(5);
+    expect(body.reports).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'inventory-by-location' })]),
+    );
   });
 
   it('merma → REPORT_UNAVAILABLE; day-summary JSON; csv exige export flag', async () => {
@@ -144,6 +147,7 @@ describe('reporting flags + catalog', () => {
       'sales-by-cashier',
       'top-products',
       'inventory-valued',
+      'inventory-by-location',
       'branch-ranking',
     ] as const;
     for (const id of ids) {

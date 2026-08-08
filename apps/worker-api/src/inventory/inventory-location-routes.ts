@@ -1,7 +1,9 @@
 /** Sprint 38 — locations/racks API, flag default-off y tenant desde JWT. */
 import {
   createInventoryLocationAtomic,
+  deactivateInventoryLocationAtomic,
   processInventoryLocationTransferAtomic,
+  updateInventoryLocationAtomic,
 } from '@kipuspay/adapters-d1';
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -34,9 +36,7 @@ function gate(
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const operational = role === 'cashier' || role === 'admin' || role === 'owner';
   const allowed = privileged ? role === 'admin' || role === 'owner' : operational;
-  return allowed
-    ? null
-    : { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
+  return allowed ? null : { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
 }
 
 export async function runListInventoryLocationsHttp(
@@ -49,12 +49,13 @@ export async function runListInventoryLocationsHttp(
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
-  const rows = await env!.DB!.prepare(
-    `SELECT id, branch_id, code, name, is_active, created_at, updated_at
+  const rows = await env!
+    .DB!.prepare(
+      `SELECT id, branch_id, code, name, is_active, created_at, updated_at
      FROM inventory_locations
      WHERE tenant_id = ? AND branch_id = ? AND (? = 1 OR is_active = 1)
      ORDER BY code, id`,
-  )
+    )
     .bind(tenantId, branchId, query.includeInactive ? 1 : 0)
     .all();
   return { status: 200, body: { items: rows.results ?? [] } };
@@ -88,6 +89,69 @@ export async function runCreateInventoryLocationHttp(
   }
 }
 
+export async function runUpdateInventoryLocationHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  userId: string,
+  role: string | undefined,
+  body: Record<string, unknown>,
+): Promise<HttpResult> {
+  const denied = gate(env, tenantId, role, true);
+  if (denied) return denied;
+  const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
+  const locationId = typeof body.locationId === 'string' ? body.locationId.trim() : '';
+  const code = typeof body.code === 'string' ? body.code.trim() : '';
+  if (!branchId || !locationId || !code) {
+    return {
+      status: 400,
+      body: { error: 'branchId, locationId and code required', code: 'BAD_REQUEST' },
+    };
+  }
+  try {
+    const result = await updateInventoryLocationAtomic(env!.DB!, tenantId, userId, {
+      branchId,
+      locationId,
+      code,
+      name: typeof body.name === 'string' ? body.name : null,
+      actorIsAdminOrOwner: true,
+    });
+    return { status: 200, body: { ...result } };
+  } catch (error) {
+    const codeValue = error instanceof Error ? error.message : 'LOCATION_UPDATE_FAILED';
+    return { status: 422, body: { error: codeValue, code: codeValue } };
+  }
+}
+
+export async function runDeactivateInventoryLocationHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  _userId: string,
+  role: string | undefined,
+  body: Record<string, unknown>,
+): Promise<HttpResult> {
+  const denied = gate(env, tenantId, role, true);
+  if (denied) return denied;
+  const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
+  const locationId = typeof body.locationId === 'string' ? body.locationId.trim() : '';
+  if (!branchId || !locationId) {
+    return {
+      status: 400,
+      body: { error: 'branchId and locationId required', code: 'BAD_REQUEST' },
+    };
+  }
+  try {
+    const result = await deactivateInventoryLocationAtomic(env!.DB!, tenantId, {
+      branchId,
+      locationId,
+      actorIsAdminOrOwner: true,
+    });
+    return { status: 200, body: { ...result } };
+  } catch (error) {
+    const codeValue = error instanceof Error ? error.message : 'LOCATION_DEACTIVATE_FAILED';
+    return { status: 422, body: { error: codeValue, code: codeValue } };
+  }
+}
+
 export async function runInventoryLocationStockHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -98,8 +162,11 @@ export async function runInventoryLocationStockHttp(
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
-  const rows = await env!.DB!.prepare(
-    `SELECT s.location_id, l.code AS location_code, s.product_id, p.name AS product_name,
+  const locationId = query.locationId?.trim() || null;
+  const productId = query.productId?.trim() || null;
+  const rows = await env!
+    .DB!.prepare(
+      `SELECT s.location_id, l.code AS location_code, s.product_id, p.name AS product_name,
             s.quantity_microunits, b.stock_microunits AS branch_quantity_microunits
      FROM inventory_location_stock s
      JOIN inventory_locations l
@@ -112,15 +179,8 @@ export async function runInventoryLocationStockHttp(
        AND (? IS NULL OR s.location_id = ?)
        AND (? IS NULL OR s.product_id = ?)
      ORDER BY l.code, p.name, s.product_id`,
-  )
-    .bind(
-      tenantId,
-      branchId,
-      query.locationId ?? null,
-      query.locationId ?? null,
-      query.productId ?? null,
-      query.productId ?? null,
     )
+    .bind(tenantId, branchId, locationId, locationId, productId, productId)
     .all();
   return { status: 200, body: { items: rows.results ?? [] } };
 }
@@ -136,16 +196,17 @@ export async function runInventoryLocationTransferHttp(
   if (denied) return denied;
   try {
     const result = await processInventoryLocationTransferAtomic(env!.DB!, tenantId, userId, {
-      branchId: String(body.branchId ?? ''),
-      sourceLocationId: String(body.sourceLocationId ?? ''),
-      destinationLocationId: String(body.destinationLocationId ?? ''),
-      productId: String(body.productId ?? ''),
+      branchId: typeof body.branchId === 'string' ? body.branchId : '',
+      sourceLocationId: typeof body.sourceLocationId === 'string' ? body.sourceLocationId : '',
+      destinationLocationId:
+        typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
+      productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
       quantityMicrounits: Number(body.quantityMicrounits),
-      idempotencyKey: String(body.idempotencyKey ?? ''),
+      idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });
-    return { status: 200, body: result };
+    return { status: 200, body: { ...result } };
   } catch (error) {
     const code = error instanceof Error ? error.message : 'LOCATION_TRANSFER_FAILED';
     return { status: 422, body: { error: code, code } };
@@ -166,8 +227,9 @@ export async function runInventoryLocationPickingHttp(
   if (!branchId || !productId || !Number.isSafeInteger(requested) || requested <= 0) {
     return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
   }
-  const rows = await env!.DB!.prepare(
-    `SELECT s.location_id, l.code AS location_code, s.batch_id,
+  const rows = await env!
+    .DB!.prepare(
+      `SELECT s.location_id, l.code AS location_code, s.batch_id,
             b.expiration_date, s.quantity_microunits
      FROM inventory_location_batch_stock s
      JOIN inventory_locations l
@@ -177,7 +239,7 @@ export async function runInventoryLocationPickingHttp(
      WHERE s.tenant_id = ? AND s.branch_id = ? AND s.product_id = ?
        AND s.quantity_microunits > 0
      ORDER BY COALESCE(b.expiration_date, '9999-12-31'), l.code, s.batch_id`,
-  )
+    )
     .bind(tenantId, branchId, productId)
     .all<{
       location_id: string;

@@ -2,15 +2,21 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   isInventoryLocationsEnabled,
   runCreateInventoryLocationHttp,
+  runDeactivateInventoryLocationHttp,
   runInventoryLocationPickingHttp,
   runInventoryLocationStockHttp,
   runInventoryLocationTransferHttp,
   runListInventoryLocationsHttp,
+  runUpdateInventoryLocationHttp,
 } from './inventory-location-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
   createInventoryLocationAtomic: vi.fn(() => Promise.resolve({ locationId: 'loc-1' })),
+  updateInventoryLocationAtomic: vi.fn(() => Promise.resolve({ locationId: 'loc-1' })),
+  deactivateInventoryLocationAtomic: vi.fn(() =>
+    Promise.resolve({ locationId: 'loc-1', active: false }),
+  ),
   processInventoryLocationTransferAtomic: vi.fn(() =>
     Promise.resolve({
       transferId: 'tr-1',
@@ -32,6 +38,8 @@ function env(flag = '1'): WorkerEnv {
               location_id: 'loc-1',
               location_code: 'A-01',
               product_id: 'p1',
+              batch_id: 'batch-1',
+              expiration_date: '2026-12-01',
               quantity_microunits: 1_000_000,
             },
           ],
@@ -68,6 +76,23 @@ describe('inventory-location-routes', () => {
         })
       ).status,
     ).toBe(201);
+    expect(
+      (
+        await runUpdateInventoryLocationHttp(env(), 't1', 'u1', 'admin', {
+          branchId: 'b1',
+          locationId: 'loc-1',
+          code: 'A-02',
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await runDeactivateInventoryLocationHttp(env(), 't1', 'u1', 'owner', {
+          branchId: 'b1',
+          locationId: 'loc-1',
+        })
+      ).status,
+    ).toBe(200);
     expect(
       (
         await runInventoryLocationTransferHttp(env(), 't1', 'u1', 'owner', {

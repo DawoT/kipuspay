@@ -151,4 +151,63 @@ describe('inventory locations', () => {
       }),
     ).toThrow(LOCATION_INVALID_QUANTITY);
   });
+
+  it('valida assertMicrounits rechaza flotantes y negativos no permitidos', () => {
+    expect(() =>
+      planLocationTransfer({
+        sourceQuantityMicrounits: 1.5,
+        destinationQuantityMicrounits: 0,
+        transferQuantityMicrounits: 1,
+      }),
+    ).toThrow(LOCATION_INVALID_QUANTITY);
+
+    expect(() =>
+      planLocationTransfer({
+        sourceQuantityMicrounits: -100,
+        destinationQuantityMicrounits: 0,
+        transferQuantityMicrounits: 1,
+      }),
+    ).toThrow(LOCATION_INVALID_QUANTITY);
+  });
+
+  it('desempata por locationId y batchId y descarta candidatas en cero', () => {
+    const allocations = allocateStockByLocation(
+      [
+        {
+          locationId: 'loc-2',
+          locationCode: 'A-01',
+          batchId: 'batch-b',
+          expiresAtIso: '2026-09-01',
+          quantityMicrounits: 500_000,
+        },
+        {
+          locationId: 'loc-1',
+          locationCode: 'A-01',
+          batchId: 'batch-a',
+          expiresAtIso: '2026-09-01',
+          quantityMicrounits: 500_000,
+        },
+        {
+          locationId: 'loc-1',
+          locationCode: 'A-01',
+          batchId: 'batch-b',
+          expiresAtIso: '2026-09-01',
+          quantityMicrounits: 500_000,
+        },
+        {
+          locationId: 'loc-zero',
+          locationCode: 'A-00',
+          batchId: 'batch-z',
+          expiresAtIso: '2026-01-01',
+          quantityMicrounits: 0,
+        },
+      ],
+      1_000_000,
+      '2026-08-08',
+    );
+    expect(allocations).toEqual([
+      { locationId: 'loc-1', batchId: 'batch-a', quantityMicrounits: 500_000 },
+      { locationId: 'loc-1', batchId: 'batch-b', quantityMicrounits: 500_000 },
+    ]);
+  });
 });

@@ -16,6 +16,7 @@ import {
   judgeSupplierReturnReceive,
   judgeStoreCreditIssueRedeem,
   judgeCommissionAccrualPayout,
+  judgeInventoryLocationConservation,
   runArCompensateCycles,
   runRollupIdempotentCycles,
   runLayawayConvertCancelChaos,
@@ -24,12 +25,20 @@ import {
   runSupplierReturnReceiveChaos,
   runStoreCreditIssueRedeemChaos,
   runCommissionAccrualPayoutChaos,
+  runInventoryLocationConservationChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
 import type { DeadlineChaosResult } from './deadline-chaos.js';
 
 describe('chaos-harness contrato §13.5', () => {
+  it('Sprint 38 inventory-location-conservation está activo y pasa 500/0', async () => {
+    expect(SCENARIO_ACTIVE_FROM['inventory-location-conservation']).toBe(38);
+    const result = runInventoryLocationConservationChaos(500);
+    expect(judgeInventoryLocationConservation(result)).toBe('PASS');
+    await expect(runChaosScenario('inventory-location-conservation', 38)).resolves.toBe('PASS');
+  });
+
   it('rechaza concurrent-writers antes del Sprint 4', () => {
     expect(() => assertScenarioReady('concurrent-writers', 1)).toThrow(ChaosScenarioNotReadyError);
   });

@@ -56,6 +56,17 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/inventory/transfers/ship' },
   { method: 'POST', path: '/api/inventory/transfers/receive' },
   { method: 'POST', path: '/api/inventory/transfers/cancel' },
+  { method: 'GET', path: '/api/inventory/locations?branchId=b1' },
+  { method: 'POST', path: '/api/inventory/locations' },
+  { method: 'PATCH', path: '/api/inventory/locations' },
+  { method: 'DELETE', path: '/api/inventory/locations' },
+  { method: 'GET', path: '/api/inventory/locations/stock?' + 'branchId=b1' },
+  { method: 'POST', path: '/api/inventory/locations/transfer' },
+  {
+    method: 'GET',
+    path:
+      '/api/inventory/locations/picking?' + 'branchId=b1&' + 'productId=p1&quantityMicrounits=1',
+  },
   { method: 'GET', path: '/api/owner/transfers/pending' },
   { method: 'POST', path: '/api/cash/expenses' },
   { method: 'POST', path: '/api/orders' },

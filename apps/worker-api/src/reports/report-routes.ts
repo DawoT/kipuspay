@@ -40,6 +40,7 @@ const ARRIVAL_REPORTS = new Set([
 const ADVANCED_REPORTS = new Set([
   'top-products',
   'inventory-valued',
+  'inventory-by-location',
   'branch-ranking',
   'aging-ar-ap',
   'merma',
@@ -62,6 +63,11 @@ export function listCatalogEntries(): readonly {
     { id: 'arqueo', tier: 'arranque', source: 'daily_financial_rollups' },
     { id: 'top-products', tier: 'crece', source: 'daily_product_rollups' },
     { id: 'inventory-valued', tier: 'crece', source: 'branch_product_stock' },
+    {
+      id: 'inventory-by-location',
+      tier: 'crece',
+      source: 'inventory_location_stock/branch_product_stock',
+    },
     { id: 'branch-ranking', tier: 'crece', source: 'daily_financial_rollups' },
     { id: 'aging-ar-ap', tier: 'cadena', source: 'accounts_receivable/payable' },
     { id: 'merma', tier: 'crece', source: 'stock_losses' },
@@ -239,6 +245,41 @@ async function loadReport(
            LIMIT 200`,
         )
         .bind(tenantId)
+        .all();
+      return { items: rows.results ?? [] };
+    }
+    case 'inventory-by-location': {
+      let query = `WITH totals AS (
+          SELECT tenant_id, branch_id, product_id,
+                 SUM(quantity_microunits) AS location_total_microunits
+          FROM inventory_location_stock
+          WHERE tenant_id = ?
+          GROUP BY tenant_id, branch_id, product_id
+        )
+        SELECT s.branch_id, s.location_id, l.code AS location_code,
+               s.product_id, s.quantity_microunits,
+               t.location_total_microunits, b.stock_microunits AS branch_total_microunits,
+               t.location_total_microunits - b.stock_microunits AS drift_microunits
+        FROM inventory_location_stock s
+        JOIN inventory_locations l
+          ON l.tenant_id = s.tenant_id AND l.branch_id = s.branch_id
+         AND l.id = s.location_id
+        JOIN totals t
+          ON t.tenant_id = s.tenant_id AND t.branch_id = s.branch_id
+         AND t.product_id = s.product_id
+        JOIN branch_product_stock b
+          ON b.tenant_id = s.tenant_id AND b.branch_id = s.branch_id
+         AND b.product_id = s.product_id
+        WHERE s.tenant_id = ?`;
+      const binds: unknown[] = [tenantId, tenantId];
+      if (branchId) {
+        query += ` AND s.branch_id = ?`;
+        binds.push(branchId);
+      }
+      query += ` ORDER BY s.branch_id, l.code, s.product_id LIMIT 1000`;
+      const rows = await db
+        .prepare(query)
+        .bind(...binds)
         .all();
       return { items: rows.results ?? [] };
     }

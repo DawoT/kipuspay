@@ -34,6 +34,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'LEDGER_STORE_CREDIT', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_INSTALLMENTS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_COMMISSIONS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'INVENTORY_LOCATIONS', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -67,6 +68,7 @@ describe('features flags default off', () => {
     expect(mod.isLedgerStoreCreditEnabled()).toBe(false);
     expect(mod.isSalesInstallmentsEnabled()).toBe(false);
     expect(mod.isSalesCommissionsEnabled()).toBe(false);
+    expect(mod.isInventoryLocationsEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

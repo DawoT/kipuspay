@@ -134,16 +134,16 @@ Abre solo los archivos que esta tabla te señale.
 | 35 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 46 | Actualizada (ledger.store_credit + GTM-21) | Cerrado |
 | 36 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 62 | Actualizada (sales.installments + GTM-22) | Cerrado |
 | 37 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 78 | Actualizada (sales.commissions + GTM-23) | Cerrado |
-| 38–42 | 6D | — | — | Actualizada (FASE 6D reglas 23–27) | Planificado |
+| 38 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 14 | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial) | Cerrado |
+| 39–42 | 6D | — | — | Actualizada (FASE 6D reglas 24–27) | Planificado |
 | 43–45 | 6E | — | — | Actualizada (FASE 6E reglas 28–30 + COM-05 reserva/pricing) | Planificado |
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
-| 38 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 14 | sin fila de estado | — |
-| 39 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 29 | sin fila de estado | — |
-| 40 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 44 | sin fila de estado | — |
-| 41 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 59 | sin fila de estado | — |
-| 42 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 74 | sin fila de estado | — |
+| 39 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 30 | sin fila de estado | — |
+| 40 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 45 | sin fila de estado | — |
+| 41 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 60 | sin fila de estado | — |
+| 42 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 75 | sin fila de estado | — |
 | 43 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 14 | sin fila de estado | — |
 | 44 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 28 | sin fila de estado | — |
 | 45 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 43 | sin fila de estado | — |

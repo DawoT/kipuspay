@@ -208,25 +208,94 @@ export async function createInventoryLocationAtomic(
   return { locationId };
 }
 
+export async function updateInventoryLocationAtomic(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  input: LocationAtomicActorInput & {
+    readonly locationId: string;
+    readonly code: string;
+    readonly name?: string | null;
+  },
+): Promise<{ readonly locationId: string }> {
+  assertPrivileged(input);
+  const code = input.code.trim().toUpperCase();
+  if (!code) throw new Error('LOCATION_CODE_REQUIRED');
+  if (input.locationId === defaultLocationId(tenantId, input.branchId) && code !== 'DEFAULT') {
+    throw new Error('LOCATION_DEFAULT_IMMUTABLE');
+  }
+  const prevHash = await previousAuditHash(db, tenantId);
+  const rowHash = await sha256Hex({
+    action: 'CONFIG_CHANGE',
+    entity_id: input.locationId,
+    kind: 'LOCATION_UPDATE',
+    code,
+    prev: prevHash,
+  });
+  await runD1AtomicPlan(db, (plan) => {
+    plan.guardState(
+      `SELECT 1 FROM inventory_locations
+       WHERE tenant_id = ? AND branch_id = ? AND id = ? AND is_active = 1`,
+      [tenantId, input.branchId, input.locationId],
+    );
+    plan.add(
+      db
+        .prepare(
+          `UPDATE inventory_locations
+           SET code = ?, name = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE tenant_id = ? AND branch_id = ? AND id = ? AND is_active = 1`,
+        )
+        .bind(code, input.name?.trim() || null, tenantId, input.branchId, input.locationId),
+    );
+    plan.add(
+      db
+        .prepare(
+          `INSERT INTO audit_events (
+             id, tenant_id, branch_id, actor_user_id, action, entity_type,
+             entity_id, payload_json, prev_hash, row_hash
+           ) VALUES (?, ?, ?, ?, 'CONFIG_CHANGE', 'inventory_location', ?, ?, ?, ?)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          tenantId,
+          input.branchId,
+          userId,
+          input.locationId,
+          JSON.stringify({ kind: 'LOCATION_UPDATE', code }),
+          prevHash,
+          rowHash,
+        ),
+    );
+  });
+  return { locationId: input.locationId };
+}
+
 export async function deactivateInventoryLocationAtomic(
   db: D1DatabaseLike,
   tenantId: string,
   input: LocationAtomicActorInput & { readonly locationId: string },
 ): Promise<{ readonly locationId: string; readonly active: false }> {
   assertPrivileged(input);
+  if (input.locationId === defaultLocationId(tenantId, input.branchId)) {
+    throw new Error('LOCATION_DEFAULT_IMMUTABLE');
+  }
+  const sumCol = 'quantity_microunits';
   const total = await db
     .prepare(
-      `SELECT COALESCE(SUM(quantity_microunits), 0) AS total_qty
-       FROM inventory_location_stock
-       WHERE tenant_id = ? AND branch_id = ? AND location_id = ?`,
+      `SELECT COALESCE(SUM(${sumCol}), 0) AS total_qty FROM inventory_location_stock ` +
+        'WHERE tenant_id = ? AND branch_id = ? AND location_id = ?',
     )
     .bind(tenantId, input.branchId, input.locationId)
     .first<{ total_qty: number }>();
   assertLocationCanDeactivate(total?.total_qty ?? 0);
   await runD1AtomicPlan(db, (plan) => {
     plan.guardState(
-      `SELECT 1 FROM inventory_locations
-       WHERE tenant_id = ? AND branch_id = ? AND id = ? AND is_active = 1`,
+      'SELECT 1 FROM inventory_locations l ' +
+        'WHERE l.tenant_id = ? AND l.branch_id = ? AND l.id = ? AND l.is_active = 1 ' +
+        'AND NOT EXISTS ( ' +
+        'SELECT 1 FROM inventory_location_stock s ' +
+        'WHERE s.tenant_id = l.tenant_id AND s.branch_id = l.branch_id AND s.location_id = l.id ' +
+        'AND s.quantity_microunits > 0 )',
       [tenantId, input.branchId, input.locationId],
     );
     plan.add(
@@ -282,7 +351,7 @@ export async function processInventoryLocationTransferAtomic(
       transferId: existing.id,
       sourceAfterMicrounits: current.source,
       destinationAfterMicrounits: current.destination,
-      alreadyApplied: false,
+      alreadyApplied: true,
     };
   }
 

@@ -53,6 +53,10 @@ import {
   type CommissionChaosResult,
 } from './commission-accrual-payout.js';
 import {
+  runInventoryLocationConservationChaosScenario,
+  type InventoryLocationChaosResult,
+} from './inventory-location-conservation.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -87,6 +91,7 @@ export type ChaosScenarioId =
   | 'store-credit-issue-redeem'
   | 'installment-pay-idempotent'
   | 'commission-accrual-payout'
+  | 'inventory-location-conservation'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -113,6 +118,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'store-credit-issue-redeem': 35,
   'installment-pay-idempotent': 36,
   'commission-accrual-payout': 37,
+  'inventory-location-conservation': 38,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -166,6 +172,7 @@ export interface ChaosDeps {
   readonly runStoreCreditIssueRedeem?: () => Promise<StoreCreditChaosResult>;
   readonly runInstallmentPayIdempotent?: () => Promise<InstallmentChaosResult>;
   readonly runCommissionAccrualPayout?: () => Promise<CommissionChaosResult>;
+  readonly runInventoryLocationConservation?: () => Promise<InventoryLocationChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -264,6 +271,8 @@ async function dispatchReadyScenario(
       return runInstallmentPayIdempotentChaosScenario(deps.runInstallmentPayIdempotent);
     case 'commission-accrual-payout':
       return runCommissionAccrualPayoutChaosScenario(deps.runCommissionAccrualPayout);
+    case 'inventory-location-conservation':
+      return runInventoryLocationConservationChaosScenario(deps.runInventoryLocationConservation);
     default:
       return Promise.reject(
         new Error(
@@ -395,3 +404,10 @@ export {
   runCommissionAccrualPayoutChaosScenario,
   type CommissionChaosResult,
 } from './commission-accrual-payout.js';
+
+export {
+  judgeInventoryLocationConservation,
+  runInventoryLocationConservationChaos,
+  runInventoryLocationConservationChaosScenario,
+  type InventoryLocationChaosResult,
+} from './inventory-location-conservation.js';

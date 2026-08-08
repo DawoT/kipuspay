@@ -124,6 +124,15 @@ import {
   runRejectStockLossHttp,
   runSubmitCountReviewHttp,
 } from './inventory/inventory-ops-routes.js';
+import {
+  runCreateInventoryLocationHttp,
+  runDeactivateInventoryLocationHttp,
+  runInventoryLocationPickingHttp,
+  runInventoryLocationStockHttp,
+  runInventoryLocationTransferHttp,
+  runListInventoryLocationsHttp,
+  runUpdateInventoryLocationHttp,
+} from './inventory/inventory-location-routes.js';
 import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
 import {
   isAdvancedReportId,
@@ -933,6 +942,89 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
+  // Sprint 38 — ubicaciones/racks (FEATURE_INVENTORY_LOCATIONS)
+  app.get('/api/inventory/locations', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runListInventoryLocationsHttp(c.env, jwt?.tenantId ?? '', user?.role, {
+      branchId: c.req.query('branchId') ?? '',
+      includeInactive: c.req.query('includeInactive') === 'true',
+    });
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 503);
+  });
+  app.post('/api/inventory/locations', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateInventoryLocationHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.patch('/api/inventory/locations', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runUpdateInventoryLocationHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.delete('/api/inventory/locations', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runDeactivateInventoryLocationHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/inventory/locations/stock', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runInventoryLocationStockHttp(c.env, jwt?.tenantId ?? '', user?.role, {
+      branchId: c.req.query('branchId') ?? '',
+      locationId: c.req.query('locationId') ?? '',
+      productId: c.req.query('productId') ?? '',
+    });
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 503);
+  });
+  app.post('/api/inventory/locations/transfer', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runInventoryLocationTransferHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/inventory/locations/picking', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runInventoryLocationPickingHttp(c.env, jwt?.tenantId ?? '', user?.role, {
+      branchId: c.req.query('branchId') ?? '',
+      productId: c.req.query('productId') ?? '',
+      quantityMicrounits: Number(c.req.query('quantityMicrounits') ?? 0),
+    });
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
   });
   app.post('/api/inventory/counts/submit-review', async (c) => {
     const jwt = c.get('jwt');
