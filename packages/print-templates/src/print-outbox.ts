@@ -87,10 +87,7 @@ export function countBlockingPrintJobs(
 ): number {
   let n = 0;
   for (const j of jobs) {
-    if (
-      j.blocksCashClose !== false &&
-      (j.status === 'PENDING' || j.status === 'FAILED')
-    ) {
+    if (j.blocksCashClose !== false && (j.status === 'PENDING' || j.status === 'FAILED')) {
       n += 1;
     }
   }

@@ -65,7 +65,10 @@ function snapshotHash(seed: number, prices: readonly number[], width: 58 | 80): 
   return `${seed}:${width}:${prices.join(',')}`;
 }
 
-function increment(coverage: Record<keyof PriceLabelPrintingCoverage, number>, key: keyof PriceLabelPrintingCoverage) {
+function increment(
+  coverage: Record<keyof PriceLabelPrintingCoverage, number>,
+  key: keyof PriceLabelPrintingCoverage,
+) {
   coverage[key] += 1;
 }
 
@@ -107,11 +110,14 @@ function simulateCycle(
     ? (JSON.parse(JSON.stringify(items)) as Item[])
     : items.map((item) => ({ ...item }));
   const f5Recovered =
-    !reload || restored.length === items.length && restored.every((item) => item.status === 'PENDING');
+    !reload ||
+    (restored.length === items.length && restored.every((item) => item.status === 'PENDING'));
 
   const quotaPressure = exercised('quotaPressure', 3);
   const queueBeforeQuota = restored.map((item) => item.id).join(',');
-  const queueAfterQuota = quotaPressure ? restored.map((item) => item.id).join(',') : queueBeforeQuota;
+  const queueAfterQuota = quotaPressure
+    ? restored.map((item) => item.id).join(',')
+    : queueBeforeQuota;
 
   const webUsbDisconnect = exercised('webUsbDisconnects', 4);
   const usb = { claimed: true };
@@ -161,12 +167,16 @@ function simulateCycle(
       ]
     : [];
   const auditFork =
-    audit.length > 1 && audit.some((entry, index) => index > 0 && entry.prevHash !== audit[index - 1]!.id);
+    audit.length > 1 &&
+    audit.some((entry, index) => index > 0 && entry.prevHash !== audit[index - 1]!.id);
 
   const crossTenantAttempt = exercised('crossTenantAttempts', 0);
   const authenticatedTenant = `tenant-${seed}`;
-  const requestedTenant = crossTenantAttempt ? `${authenticatedTenant}-foreign` : authenticatedTenant;
-  const crossTenantRead = requestedTenant !== authenticatedTenant && requestedTenant === authenticatedTenant;
+  const requestedTenant = crossTenantAttempt
+    ? `${authenticatedTenant}-foreign`
+    : authenticatedTenant;
+  const crossTenantRead =
+    requestedTenant !== authenticatedTenant && requestedTenant === authenticatedTenant;
   const snapshotCoherent =
     resolvedPrices.every((price, index) => price === oldPrices[index]) ||
     resolvedPrices.every((price, index) => price === newPrices[index]);
@@ -181,7 +191,8 @@ function simulateCycle(
     crossTenantRejected: !crossTenantRead,
     duplicatePrintPrevented,
     duplicateAckPrevented: !duplicateAcknowledged,
-    partialAckConverged: restored.every((item) => item.status === 'ACKED') && !duplicateAcknowledged,
+    partialAckConverged:
+      restored.every((item) => item.status === 'ACKED') && !duplicateAcknowledged,
     f5Recovered,
     reloadPendingPreserved: f5Recovered,
     quotaFailurePreservedQueue: queueAfterQuota === queueBeforeQuota,

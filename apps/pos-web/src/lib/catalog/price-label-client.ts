@@ -78,7 +78,9 @@ function onlineRequired(online: () => boolean): void {
 async function trustedJson(response: Response): Promise<PriceLabelBatchDto> {
   const value = (await response.json()) as Record<string, unknown>;
   if (!response.ok) {
-    throw new Error(typeof value.error === 'string' ? value.error : `PRICE_LABEL_API_${response.status}`);
+    throw new Error(
+      typeof value.error === 'string' ? value.error : `PRICE_LABEL_API_${response.status}`,
+    );
   }
   if (
     typeof value.batchId !== 'string' ||
@@ -86,9 +88,7 @@ async function trustedJson(response: Response): Promise<PriceLabelBatchDto> {
     typeof value.branchId !== 'string' ||
     typeof value.templateId !== 'string' ||
     typeof value.priceListId !== 'string' ||
-    !['EXPLICIT', 'BRANCH_DEFAULT', 'TENANT_DEFAULT'].includes(
-      String(value.priceListIdentity),
-    ) ||
+    !['EXPLICIT', 'BRANCH_DEFAULT', 'TENANT_DEFAULT'].includes(String(value.priceListIdentity)) ||
     !(value.reprintOfBatchId === null || typeof value.reprintOfBatchId === 'string') ||
     typeof value.snapshotHash !== 'string' ||
     !['PENDING', 'PRINTING', 'PARTIAL', 'ACKED', 'FAILED'].includes(String(value.status)) ||
@@ -204,14 +204,11 @@ export function createPriceLabelClient(input: {
       readonly acknowledgements: readonly PriceLabelAcknowledgement[];
     }): Promise<{ readonly batchStatus: string; readonly retryItemIds: readonly string[] }> {
       const headers = requestHeaders();
-      const response = await fetcher(
-        `${apiBase}/api/catalog/price-labels/batches/ack`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(request),
-        },
-      );
+      const response = await fetcher(`${apiBase}/api/catalog/price-labels/batches/ack`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
       if (!response.ok) throw new Error(`PRICE_LABEL_ACK_${response.status}`);
       const value = (await response.json()) as Record<string, unknown>;
       if (typeof value.batchStatus !== 'string' || !Array.isArray(value.retryItemIds)) {

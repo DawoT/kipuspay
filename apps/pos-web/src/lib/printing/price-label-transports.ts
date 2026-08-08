@@ -25,7 +25,10 @@ export function createPriceLabelTransportLadder(input: {
     async send(
       itemId: string,
       payload: Uint8Array,
-    ): Promise<{ readonly ack: 'ACK'; readonly adapter: 'webusb' | 'wss_lan' | 'system_print' | 'messaging' }> {
+    ): Promise<{
+      readonly ack: 'ACK';
+      readonly adapter: 'webusb' | 'wss_lan' | 'system_print' | 'messaging';
+    }> {
       const attempts: [
         'webusb' | 'wss_lan' | 'system_print' | 'messaging',
         () => Promise<unknown>,
@@ -151,7 +154,8 @@ export function createPriceLabelWssTransport(input: {
 
   return {
     send(itemId, payload) {
-      if (reconnectRequired || !socket) return Promise.reject(new Error('PRINTER_RECONNECT_REQUIRED'));
+      if (reconnectRequired || !socket)
+        return Promise.reject(new Error('PRINTER_RECONNECT_REQUIRED'));
       if (payload.byteLength > (input.maxItemBytes ?? 1_048_576)) {
         return Promise.reject(new Error('PRINTER_ITEM_TOO_LARGE'));
       }
@@ -200,7 +204,9 @@ export function createPriceLabelWssTransport(input: {
         try {
           const idBytes = new TextEncoder().encode(itemId);
           if (idBytes.byteLength > 65_535) throw new Error('PRINTER_ITEM_ID_TOO_LARGE');
-          const frame = new Uint8Array(4 + nonceBytes.byteLength + idBytes.byteLength + payload.byteLength);
+          const frame = new Uint8Array(
+            4 + nonceBytes.byteLength + idBytes.byteLength + payload.byteLength,
+          );
           frame[0] = 1;
           frame[1] = nonceBytes.byteLength;
           frame[2] = idBytes.byteLength >> 8;
