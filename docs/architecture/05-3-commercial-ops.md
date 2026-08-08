@@ -40,7 +40,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 24. **Números de serie (`inventory.serials`, FASE 6D; ADR-0023):** identidad, historial, leases offline y DDL canónico viven una sola vez en §5.6.
 25. **Venta por peso variable (`inventory.scale`, FASE 6D):** captura de peso en caja (balanza USB o manual), precio por unidad de base, redondeo de monto en servidor; el peso lo fija la caja pero el precio/monto final lo recalcula el servidor. **Heartbeat anti desconexión silenciosa (edge 2C):** el Staff Hardware mantiene un **heartbeat continuo** hacia la balanza (WebUSB); si la conexión se pierde (suspensión de la tablet, cable movido), el POS **nunca lee 0.00 silencioso** — cambia de inmediato a una interfaz **roja "Peso Manual"** que exige al cajero teclear el peso para poder cobrar; si el peso se teclea manualmente, se registra `WEIGHT_OVERRIDE` en `audit_events` y, si supera el umbral del tenant, requiere **PIN de supervisor** (reusa authz de reglas 2/17) antes de continuar.
 26. **Etiquetas de precio/estantería (`catalog.price_labels`, FASE 6D):** contrato, autoridad de snapshots, DDL y transporte canónicos viven una sola vez en §5.8 (ADR-0025).
-27. **Export/restore total del negocio (`data.backup`, FASE 6D/6F):** export completo versionado y cifrado de todos los datos del tenant + restore con dry-run; **respaldar la promesa GTM §5.7.1 ("tus datos son tuyos")**; RPO/RTO base; eslabón de la regla 32 (DR).
+27. **Export/restore total del negocio (`data.backup`, FASE 6D/6F):** alcance, formato KPBK1, registry, cifrado de envoltura, DDL objetivo y restore dry-run viven una sola vez en §5.9 (ADR-0026); apply y DR operativo pertenecen a Sprint 48.
 28. **Preventa / pedido a cliente (`orders.customer_orders`, FASE 6E):** reserva de ítems sin pago previo → aviso al cliente → venta al retiro; distinto de `orders.lifecycle` (food service); cumplimiento parcial permitido; `audit_events` `CUSTOMER_ORDER_*`. **COM-05:** el precio se congela al crear el pedido (`customer_order_items.unit_price_cents` snapshot); la venta que cumple el pedido hereda esos precios incluso si cambiaron; `reserved_until` caducada → se liberan `reserved_qty` y la venta final se cotiza con pricing actual.
 29. **Ventas recurrentes / membresías (`sales.recurring`, FASE 6E):** generación programada de venta/NV por plan con **idempotencia** (cada ocurrencia = doc fiscal propio); cancelación y proporcionalidad; adaptada a la vertical Servicios; `audit_events` `RECURRING_*`.
 30. **Notificaciones push + caja móvil (`mobile.push`, `client.mobile_pos`, FASE 6E):** push real (Web Push/FCM) al Modo Dueño para arqueo, quiebre y discrepancias (no solo polling); la caja móvil es una terminal PWA que reusa el core (multi-caja portátil); sin fork de dominio.
@@ -782,16 +782,8 @@ CREATE TABLE pos_terminals (
 );
 
 -- FASE 6D / Sprint 42 — export/restore del negocio
-CREATE TABLE data_backups (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'RUNNING',  -- RUNNING | READY | FAILED | RESTORED
-    r2_key TEXT NOT NULL,
-    encryption_ref TEXT NOT NULL,         -- envoltura KMS, nunca clave en claro
-    size_bytes INTEGER,
-    created_by_user_id TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+-- Contrato y DDL objetivo canónicos movidos a §5.9 (ADR-0026): KPBK1,
+-- registry exhaustivo, epoch snapshot, cifrado de envoltura y dry-run sin apply.
 ```
 
 #### DDL adicional (v8.1, FASE 6E — servicios y fuerza de venta)

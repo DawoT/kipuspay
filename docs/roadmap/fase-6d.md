@@ -9,7 +9,7 @@ sprints: "38–42"
 
 ### FASE 6D — Inventario Avanzado (KipusPay v8.1, sprints 38–42)
 
-> Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23 y 25–27; §5.6 regla 24. **Capabilities, no forks** (ADR-ARCH-002).
+> Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23 y 25; §5.6 regla 24; §5.8 regla 26; §5.9 regla 27. **Capabilities, no forks** (ADR-ARCH-002).
 
 #### Sprint 38 — Ubicaciones / racks por sucursal
 **Estado:** Cerrado
@@ -79,15 +79,16 @@ QG: `docs/ops/s41-price-labels-qg.md`.
 
 #### Sprint 42 — Export / restore total del negocio
 **Capabilities:** `data.backup`  
-**Referencia:** Arquitectura §5.3 regla 27; respalda GTM §5.7.1 ("tus datos son tuyos") · **Agentes:** Staff SRE (owner), Staff Data, Staff Security, Staff Growth (copy)
+**Referencia:** Arquitectura §5.9 regla 27 · ADR-0026; respalda GTM §5.7.1 ("tus datos son tuyos") sin desbloquear el claim · **Agentes:** Staff SRE (owner), Staff Data, Staff Security, Staff Growth (copy)
 
 **Entregables:**
-- `data_backups`: export completo versionado y cifrado a R2 (envoltura KMS) + restore con **dry-run**; no bloquea la caja.
+- KPBK1: export BUSINESS de D1 + objetos R2 referenciados, versionado y cifrado por envoltura KMS + restore **solo dry-run**; no bloquea la caja.
+- Registry exhaustivo BUSINESS/DERIVED/EPHEMERAL/SECRET y exclusiones manifestadas; migración objetivo 0035. Restore apply queda en Sprint 48.
 - RPO/RTO base (eslabón de Sprint 48); borrado de export del tenant a pedido (LPDP, Sprint 47).
 
-**Criterios de aceptación:** export reproducible bit-a-bit; restore dry-run no escribe D1; 0 secreto/clave en claro en R2; la caja nunca se detiene durante backup.
+**Criterios de aceptación:** contenido decrypted/hash KPBK1 reproducible para el mismo epoch y ciphertext aleatorio entre backups; restore dry-run hace 0 escrituras BUSINESS D1/R2; 0 secreto/clave en claro en D1/R2; registry sin tablas tenant no clasificadas, incluidos hijos legacy; la caja nunca se detiene durante backup/retry/abort.
 
-**Quality Gate:** Staff Security + Staff SRE; Staff Growth actualiza claim "exporta todo tu historial" solo tras gate.
+**Quality Gate:** baseline contractual RED no cierra el sprint. Staff Security + Staff SRE cierran solo con GREEN, evidencia runtime y firma independiente; Staff Growth actualiza claim "exporta todo tu historial" solo después de ese gate. Restore apply y claim DR permanecen bloqueados hasta Sprint 48.
 
 ---
 
