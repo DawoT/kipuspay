@@ -38,6 +38,7 @@ import {
   DOWN_0021_SPRINT28_SALES_RETURNS,
   DOWN_0022_SPRINT29_SUPPLIER_INVOICES,
   DOWN_0023_SPRINT30_PROMOTIONS,
+  DOWN_0024_SPRINT31_VARIANTS_UOM,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -53,6 +54,7 @@ import sprint27UsageSql from '../migrations/0020_sprint27_usage_billing.sql?raw'
 import sprint28ReturnsSql from '../migrations/0021_sprint28_sales_returns.sql?raw';
 import sprint29ThreeWaySql from '../migrations/0022_sprint29_supplier_invoices.sql?raw';
 import sprint30PromotionsSql from '../migrations/0023_sprint30_promotions.sql?raw';
+import sprint31VariantsUomSql from '../migrations/0024_sprint31_variants_uom.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -572,10 +574,10 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
       .run();
 
     await env.DB.prepare(
-      `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     )
-      .bind('t-c2-race', branchId, 'p-c2', 10, 500)
+      .bind('t-c2-race', branchId, 'p-c2', 10, 10000000, 500)
       .run();
 
     const created = await createStockTransferAtomic(env.DB, 't-c2-race', userId, {
@@ -641,8 +643,8 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
       .bind('p-m1', 't-m1-po', 'SKU-M1', 'Producto M1', 1000, 500)
       .run();
     await env.DB.prepare(
-      `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents)
-       VALUES (?, ?, ?, 0, 0)`,
+      `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents)
+       VALUES (?, ?, ?, 0, 0, 0)`,
     )
       .bind('t-m1-po', branchId, 'p-m1')
       .run();
@@ -1001,7 +1003,82 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint30PromotionsSql).toMatch(/uq_promotions_tenant_id/);
   });
 
+  it('migración 0024 up: variants/UOM + microunits DAT-12', async () => {
+    expect(sprint31VariantsUomSql).toMatch(/CREATE TABLE IF NOT EXISTS product_uoms/);
+    expect(sprint31VariantsUomSql).toMatch(/factor_numerator INTEGER NOT NULL/);
+    expect(sprint31VariantsUomSql).toMatch(/factor_denominator INTEGER NOT NULL/);
+    expect(sprint31VariantsUomSql).toMatch(/base_quantity_microunits INTEGER/);
+    expect(sprint31VariantsUomSql).toMatch(
+      /FOREIGN KEY \(tenant_id, product_id\) REFERENCES products\(tenant_id, id\)/,
+    );
+    expect(sprint31VariantsUomSql).toMatch(/catalog\.variants_uom\.sprint31/);
+  });
+
+  it('trigger 0024: rechaza variante con hijos y auto-parent en runtime', async () => {
+    const tenantId = `t-${Math.random().toString(36).slice(2)}`;
+    const product = `p-${Math.random().toString(36).slice(2)}`;
+    const child = `p-${Math.random().toString(36).slice(2)}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
+         VALUES (?, ?, ?, ?, ?)`,
+      ).bind(tenantId, 'Demo SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL'),
+      env.DB.prepare(
+        `INSERT INTO products (id, tenant_id, sku, name, product_type, unit_code, price_cents,
+                              stock, stock_microunits, is_active, is_sellable)
+         VALUES (?, ?, ?, 'Padre', 'physical', 'UND', 1000, 0, 0, 1, 1)`,
+      ).bind(product, tenantId, `SKU-${product}`),
+      env.DB.prepare(
+        `INSERT INTO products (id, tenant_id, sku, name, product_type, unit_code, price_cents,
+                              stock, stock_microunits, is_active, is_sellable)
+         VALUES (?, ?, ?, 'Hijo', 'physical', 'UND', 1000, 0, 0, 1, 1)`,
+      ).bind(child, tenantId, `SKU-${child}`),
+      env.DB.prepare(
+        `INSERT INTO products (id, tenant_id, parent_product_id, sku, name, product_type,
+                              unit_code, price_cents, stock, stock_microunits, is_active, is_sellable)
+         VALUES (?, ?, ?, ?, 'Hijo-de-hijo', 'physical', 'UND', 1000, 0, 0, 1, 1)`,
+      ).bind(`v-${child}`, tenantId, child, `SKU-v-${child}`),
+    ]);
+
+    // 1) auto-parent → VARIANT_SELF_PARENT
+    await expect(
+      env.DB.prepare(
+        `UPDATE products SET parent_product_id = ?
+         WHERE tenant_id = ? AND id = ?`,
+      )
+        .bind(product, tenantId, product)
+        .run(),
+    ).rejects.toThrow(/VARIANT_SELF_PARENT/);
+
+    // 2) producto con hijos (child tiene un hijo) → VARIANT_NESTING_FORBIDDEN
+    await expect(
+      env.DB.prepare(
+        `UPDATE products SET parent_product_id = ?
+         WHERE tenant_id = ? AND id = ?`,
+      )
+        .bind(product, tenantId, child)
+        .run(),
+    ).rejects.toThrow(/VARIANT_NESTING_FORBIDDEN/);
+
+    // 3) padre es variante (child es variante de product) → VARIANT_NESTING_FORBIDDEN
+    await env.DB.prepare(
+      `UPDATE products SET parent_product_id = ?
+       WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(child, tenantId, product)
+      .run();
+    await expect(
+      env.DB.prepare(
+        `UPDATE products SET parent_product_id = ?
+         WHERE tenant_id = ? AND id = ?`,
+      )
+        .bind(`v-${child}`, tenantId, child)
+        .run(),
+    ).rejects.toThrow(/VARIANT_NESTING_FORBIDDEN/);
+  });
+
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0024_SPRINT31_VARIANTS_UOM);
     await env.DB.exec(DOWN_0023_SPRINT30_PROMOTIONS);
     await env.DB.exec(DOWN_0022_SPRINT29_SUPPLIER_INVOICES);
     await env.DB.exec(DOWN_0021_SPRINT28_SALES_RETURNS);

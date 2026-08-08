@@ -5046,3 +5046,89 @@ aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff PM R, Staff Princip
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0290
+timestamp_utc: 2026-08-07T22:20:00Z
+schema_version: 2
+sprint_fase: Sprint 31 — FASE 6B (catalog.variants + catalog.uom + GTM-16)
+agente_responsable: Staff Backend Datos / Staff Backend ACID / Staff Frontend / Staff Mobile
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0289]
+referencias_documentales: [docs/roadmap/fase-6b.md, docs/ops/s31-variants-uom-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0015-variants-uom-quantity-model.md, docs/GTM.md]
+prev_id: 0289
+prev_hash: 925a81838925f2225f3d05d01219da64038330c87155adde16c53dda158aef8a
+entry_hash: 10caa493cd45a6193a2bbb8cc13021fdacaec9c578d0246503610a4972b8bb50
+ticket_or_adr: ADR-0015, Roadmap Sprint 31, Arquitectura §5.3 regla 16, GTM-16, DDL 0024
+test_ids: [variants-uom, offline-sale, schema.integration, catalog-variants-uom-routes, pos-checkout, variants-uom-bom-batch]
+entregable_afectado: Sprint 31 catalog.variants/catalog.uom GOV-APROBADO
+descripcion: >
+  Cierra Sprint 31 (FASE 6B): ADR-0015 y QUANTITY_SCALE 1e6; dominio UOM racional/
+  topología/precio; mig 0024 con product_uoms DAT-12, variantes y snapshots/microunidades;
+  sale ACID con compatibilidad offline, precio heredado, promo S30 y BOM/FEFO; flags default
+  off, Admin auditado, caja por producto+UOM, Modo Dueño, chaos 500 ciclos y GTM-16.
+evidencia: >
+  RED: módulos variants-uom/mig 0024/API/runner inexistentes; payload UOM rechazado y carrito
+  cruzaba presentaciones. GREEN: dominio 96.34% branches; D1 integración 56/56; POS flags/cart
+  7/7; chaos 500/0; verify SUITE GREEN; quality Quality Gate OK.
+red_commit_sha: 64eb558fdf459251aff9a8d818469a9b3e205f30
+red_run_id: run-red-0290-sprint31-variants-uom
+expected_failure: Error: Cannot find module variants-uom / migration 0024 inexistente / UOM INVALID_QUANTITY
+green_commit_sha: 64eb558fdf459251aff9a8d818469a9b3e205f30
+green_run_id: run-green-0290-sprint31-variants-uom
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Backend ACID R, Staff Frontend R, Staff Mobile R, Staff Principal A, Staff QA V, Staff PM V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0291
+timestamp_utc: 2026-08-07T23:15:00Z
+schema_version: 2
+sprint_fase: Sprint 31 — FASE 6B (catalog.variants + catalog.uom)
+agente_responsable: Staff Backend ACID / Staff Backend Datos / Staff QA
+tipo: Corrección de especificación
+subtipo: auditoría-aceptación
+relacion: CORRIGE
+referencias_entradas: [0290]
+referencias_documentales: [docs/architecture/06-acid-engine.md, docs/architecture/05-3-commercial-ops.md, docs/roadmap/fase-6b.md, docs/adr/ADR-0015-variants-uom-quantity-model.md]
+prev_id: 0290
+prev_hash: 10caa493cd45a6193a2bbb8cc13021fdacaec9c578d0246503610a4972b8bb50
+entry_hash: ce3571c9b732f978e6cf8f9b75273b6fd7ba81f930e8b753e71f1bd4ca7a73d9
+ticket_or_adr: ADR-0015, Roadmap Sprint 31, DDL 0024
+test_ids: [variants-uom, offline-sale, schema.integration, catalog-variants-uom-routes, process-offline-sale-atomic.integration, process-stock-transfer-atomic, variants-uom-bom-batch]
+entregable_afectado: Sprint 31 hallazgos F1–F6 (dual-write microunits, discount-authz, triggers, dead code, upsert UOM base, listado y quantity legacy)
+descripcion: >
+  Corrige los seis hallazgos de la auditoría de aceptación del Sprint 31. F1: dual-write
+  INTEGER microunits completo en los 7 writers ACID (transfer, partial-receive, return,
+  credit-note, order-billing, supplier-invoice-match), rollup-rematerialize (qty_microunits
+  desde base_quantity_microunits con signo por doc 07/08/NV_RETURN), inventory-ops-routes
+  (counts/losses) y order-routes. F2: process-offline-sale-atomic usa aritmética entera
+  microunits para disponibilidad, FEFO, branch_product_stock e inventory_batches; descuento/
+  authz con subtotalCents + discountCents (entero) en vez de quantity * unitPriceCents.
+  F3: triggers 0024 rechazan VARIANT_NESTING_FORBIDDEN para producto con hijos y para padre
+  que ya es variante (VARIANT_PARENT_INVALID solo para padre inexistente), alineados con
+  assertVariantTopology en la ruta. F4: resolveVariantUnitPriceCents pasa de dead code a
+  helper conectado en listado (resolved_price_cents) con precedencia canónica
+  override → lista padre → lista variante (spec regla 16). F5: upsert UOM base con plan
+  batch anti-conflicto uq_product_uoms_base → 422 UOM_BASE_CONFLICT. F6: quantity legacy
+  validada con Number.isSafeInteger; listado deduplicado GROUP BY p.id con uoms_json;
+  desvincular variante restaura is_sellable=1 del ex-padre sin hijos.
+evidencia: >
+  RED: process-offline-sale-atomic re-derivaba stock_microunits desde REAL; discount-authz
+  lanzaba INVALID_SUBTOTAL con UOM 1/3; triggers permitían 2 niveles; helpers topología/precio
+  sin llamadores; upsert UOM base violaba índice parcial → 500; listado duplicaba filas y
+  ex-padre quedaba is_sellable=0. GREEN: adapters-d1 unit 90/90 + integración D1 60/60
+  (t-uom-third, t-uom-3x, t-uom-insuf, triggers runtime); domain-inventory 6/6; worker-api
+  331/331; verify SUITE GREEN; quality Quality Gate OK.
+red_commit_sha: 64eb558fdf459251aff9a8d818469a9b3e205f30
+red_run_id: run-red-0291-s31-hallazgos
+expected_failure: VARIANT_NESTING no rechazado / INVALID_SUBTOTAL con UOM 1/3 / stock microunits derivado de REAL / listado duplicado
+green_commit_sha: 64eb558fdf459251aff9a8d818469a9b3e205f30
+green_run_id: run-green-0291-s31-hallazgos
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Backend Datos R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -62,7 +62,9 @@ export interface OfflineSaleItemPayload {
   productId: string | null;             // NULL obligatorio cuando isUncatalogued=true
   saleItemId?: string;                  // obligatorio para NC/NV_RETURN parcial; origen server-side
   batchId?: string;  
-  quantity: number;  
+  quantity?: number;                    // compatibilidad offline legado: unidades base
+  uomId?: string;                       // S31/ADR-0015: ID solamente; factor lo resuelve servidor
+  enteredQuantityMicrounits?: number;   // INTEGER > 0; cantidad en la UOM elegida
   discountAmountCents?: number;  
   igvAffectationCode?: string;          // hint; el servidor resuelve el catálogo fiscal del producto
   // Venta rápida sin catálogo (regla 34): el motor acepta manualPriceCents como
@@ -103,7 +105,11 @@ export interface OfflineSalePayload {
 function assertOfflineSaleShape(payload: OfflineSalePayload): void {
   if (!Array.isArray(payload.items) || payload.items.length === 0) throw new Error('SALE_ITEMS_REQUIRED');
   for (const item of payload.items) {
-    if (!Number.isFinite(item.quantity) || !Number.isInteger(item.quantity) || item.quantity <= 0) {
+    const entered = item.enteredQuantityMicrounits;
+    const legacy = item.quantity;
+    const enteredOk = Number.isSafeInteger(entered) && (entered ?? 0) > 0 && !!item.uomId;
+    const legacyOk = entered === undefined && Number.isSafeInteger(legacy) && (legacy ?? 0) > 0;
+    if (!enteredOk && !legacyOk) {
       throw new Error('INVALID_QUANTITY');
     }
     if (item.discountAmountCents !== undefined &&

@@ -29,7 +29,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 13. **Devoluciones con política N días (`sales.returns`, FASE 6B):** ventana configurable por tenant (días, por método de pago/categoría); unidad mínima = `sale_item` con su `batch_id`; genera **NC fiscal (07)** en electrónico o **NV_RETURN** en control interno; **revierte el efecto PMP** del `unit_cost_cents` snapshot del item original (reusa `refresh_avg_cost`); vuelto por el mismo método si aplica, asentado en `cash_register_cash_movements`; devolución de turno cerrado o sobre umbral requiere authz (regla 2). La NC no reembolsa el cupo del doc original (§4.1). **Excepción de línea genérica (edge de integración, FASE 6G):** si `sale_item.is_uncatalogued = TRUE` (venta rápida, R34), la devolución genera la NC/NV_RETURN y el vuelto según método, pero **omite** la restauración de stock y `refresh_avg_cost` — la línea **nunca descontó stock** (`unit_cost_cents = 0`, sin `batch_id`); re-materializar el rollup (§9) refleja solo el efecto monetario. El flag viaja en el ítem devuelto (`audit_events` `RETURN` con `is_uncatalogued` en payload) para que el contador no confunda un inventario "positivo fantasma". **Compensación de CxC (edge E-D):** si la venta original tenía saldo pendiente (`accounts_receivable.balance_due_cents > 0`, regla 21), la NC/NV_RETURN reduce ese saldo en la **misma tx** por el monto acreditado (total o prorrateado); vuelto ya cobrado se entrega por método del último abono/efectivo o se convierte en crédito de tienda (regla 20); nunca se ajusta CxC en silencio (`audit_events`).
 14. **Proveedores 3-way (`purchasing.three_way`, FASE 6B):** la compra (factura de proveedor) se liga a su OC y recepción; el **matching 3-way** exige cantidad OC = recepción = factura y precio/costo coherentes; diferencia = `422` o `override` autorizado + audit (`SUPPLIER_PRICE_DIFF`); al cerrar se actualiza `inventory_movements` + `refresh_avg_cost` + CxP por lo facturado. Jamás se ajusta CxP en silencio.
 15. **Promociones y tramos (`pricing.promotions`, FASE 6B):** 2x1, % fijo, % por umbral de monto/cantidad, precio por tramo; **el precio final lo impone el sale engine** (el cliente envía solo el ID de la promoción); anti-apilamiento configurable; descuento manual sobre umbral → authz (regla 2); promoción sobre producto con lote respeta asignación `batch_id` (regla 4). Crear/editar regla = `audit_events`.
-16. **Variantes y unidades de medida (`catalog.variants`, `catalog.uom`, FASE 6B):** variantes = filas `products` con `parent_product_id`, stock propio y precio derivado del padre con override; `product_uoms` con factor de conversión y costo base; venta registra cantidad en UM base; PMP y conteo físico se resuelven por variante/base. 0 stock cruzado entre variantes; redondeo de cantidad en servidor (nunca `toFixed`).
+16. **Variantes y unidades de medida (`catalog.variants`, `catalog.uom`, FASE 6B; ADR-0015):** variantes = filas `products` de un solo nivel con `parent_product_id`, stock propio y precio derivado del padre con override; padre con variantes = agrupador no vendible/sin stock. Toda cantidad física canónica usa `INTEGER *_microunits` (`QUANTITY_SCALE=1_000_000`); `product_uoms` convierte por factor racional positivo numerador/denominador y tiene exactamente una base `1/1`. El costo vive por unidad base en producto/PMP (no se duplica por UOM); venta persiste snapshots de UOM/factor/cantidad base; PMP y conteo físico se resuelven por variante/base. 0 stock cruzado entre variantes; conversión half-up server-side con overflow guard (nunca `toFixed`).
 17. **Apartados y diario contable (`sales.layaway`, `ledger.chart_of_accounts`, FASE 6B):** el apartado reserva ítems y recibe abonos (`sale_deposits`); **no emite CPE hasta la conversión a venta completa**; cancelación devuelve según política (reusa regla 13). `chart_of_accounts` + asientos automáticos desde ventas/cobros/pagos/CxP/CxC/arqueo; el ledger es **solo lectura** para la UI (el contador lee vía export Cadena, no muta).
 18. **Cotizaciones/presupuestos (`sales.quotes`, FASE 6C):** la cotización congela los precios resueltos por el servidor (Zero-Trust, regla 1) con vencimiento; **no emite doc fiscal**; estados `DRAFT → SENT → APPROVED → CONVERTED | EXPIRED | CANCELLED`; solo la `CONVERTED` genera venta (reusa pricing y listas); `audit_events` `QUOTE_*`. **COM-05:** el precio congelado de la cotización (`quote_items.unit_price_cents` snapshot) es el vigente al convertirla a venta **aunque** el precio de lista haya cambiado después (venta hereda el snapshot; si la cotización expira, la nueva venta se cotiza con pricing actual y requiere re-aprobación).
 19. **Devolución a proveedor (`purchasing.returns`, FASE 6C):** espejo de la regla 13 pero de compra: genera NC de proveedor, **revierte `inventory_movements` + PMP** (reverso de `refresh_avg_cost` por `(product, branch)`) + CxP por lo devuelto; nunca se ajusta CxP en silencio; `audit_events` `SUPPLIER_RETURN`. **Forward-only (regla 9):** la reversión solo ajusta el PMP **para transacciones futuras**; las ventas pasadas conservan su snapshot `unit_cost_cents` y los márgenes históricos no cambian.
@@ -450,17 +450,31 @@ CREATE TABLE product_promotions (
     FOREIGN KEY (tenant_id, price_list_id) REFERENCES price_lists(tenant_id, id)
 );
 
--- FASE 6B / Sprint 31 — variantes y unidades de medida
--- products.parent_product_id TEXT NULL (FK products.id); variante = fila products con parent.
+-- FASE 6B / Sprint 31 — variantes y unidades de medida (ADR-0015 / DAT-12)
+-- products.parent_product_id TEXT NULL + variant_price_override_cents INTEGER NULL
+-- + is_sellable INTEGER NOT NULL DEFAULT 1; variante = fila products con parent.
+-- FK (tenant_id,parent_product_id) → products(tenant_id,id); no auto-parent/nesting.
 CREATE TABLE product_uoms (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     product_id TEXT NOT NULL,
     uom_code TEXT NOT NULL,               -- 'UND' | 'CAJA' | 'PACK' | ...
-    factor REAL NOT NULL,                 -- unidades base por UOM (rate, no money)
-    is_base BOOLEAN NOT NULL DEFAULT FALSE,
-    UNIQUE (tenant_id, product_id, uom_code)
+    factor_numerator INTEGER NOT NULL,     -- factor racional: base = entered*numerator/denominator
+    factor_denominator INTEGER NOT NULL,
+    is_base INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (factor_numerator > 0),
+    CHECK (factor_denominator > 0),
+    CHECK (is_base IN (0,1)),
+    CHECK (is_base = 0 OR (factor_numerator = 1 AND factor_denominator = 1)),
+    UNIQUE (tenant_id, id),
+    UNIQUE (tenant_id, product_id, uom_code),
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, id)
 );
+CREATE UNIQUE INDEX uq_product_uoms_base
+    ON product_uoms(tenant_id, product_id) WHERE is_base = 1;
+-- sale_items snapshots: sold_uom_id/code, entered_quantity_microunits,
+-- factor_numerator/denominator y base_quantity_microunits.
 
 -- FASE 6B / Sprint 32 — apartados y diario contable
 -- COM-08: TODO abono es una fila de sale_deposit_payments (sin initial_deposit_cents duplicado);

@@ -50,8 +50,8 @@ async function seedBoletaTenant(tenantId: string): Promise<{
     ).bind(productId, tenantId, `SKU-${tenantId}`, 'Producto'),
     env.DB.prepare(
       `INSERT INTO branch_product_stock
-         (tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents)
-       VALUES (?, ?, ?, 10, 100)`,
+         (tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents)
+       VALUES (?, ?, ?, 10, 10000000, 100)`,
     ).bind(tenantId, branchId, productId),
     env.DB.prepare(
       `INSERT INTO payment_methods (id, tenant_id, code, name) VALUES (?, ?, 'CASH', 'Efectivo')`,

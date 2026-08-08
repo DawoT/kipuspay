@@ -9,6 +9,7 @@ import {
   planCancelInTransit,
   planReceiveStockDeltas,
   planShipStockDeltas,
+  QUANTITY_SCALE,
   refreshAvgCostCents,
   type TransferStatus,
 } from '@kipuspay/domain-inventory';
@@ -35,6 +36,7 @@ interface TransferLineRow {
 
 interface StockSnap {
   stock: number;
+  stock_microunits: number;
   pmp_unit_cost_cents: number;
 }
 
@@ -107,7 +109,8 @@ export async function shipStockTransferAtomic(
 
   for (const d of deltas) {
     const snap = await loadStock(db, tenantId, d.branchId, d.productId);
-    if (!snap || snap.stock < -d.qtyDelta) throw new Error('INSUFFICIENT_STOCK');
+    const needMicrounits = Math.round(-d.qtyDelta * QUANTITY_SCALE);
+    if (!snap || snap.stock_microunits < needMicrounits) throw new Error('INSUFFICIENT_STOCK');
   }
 
   await runD1AtomicPlan(db, (plan) => {
@@ -417,7 +420,7 @@ async function loadStock(
 ): Promise<StockSnap | null> {
   return db
     .prepare(
-      `SELECT stock, pmp_unit_cost_cents FROM branch_product_stock
+      `SELECT stock, stock_microunits, pmp_unit_cost_cents FROM branch_product_stock
        WHERE tenant_id = ? AND branch_id = ? AND product_id = ? LIMIT 1`,
     )
     .bind(tenantId, branchId, productId)
@@ -435,23 +438,29 @@ function addDebitStock(
   qtyAbs: number,
   movementType: string,
 ): void {
+  const qtyMicrounits = Math.round(qtyAbs * QUANTITY_SCALE);
   plan.add(
     db
       .prepare(
         `UPDATE branch_product_stock
-         SET stock = stock - ?, updated_at = CURRENT_TIMESTAMP, version = version + 1
-         WHERE tenant_id = ? AND branch_id = ? AND product_id = ? AND stock >= ?`,
+         SET stock = stock - ?,
+             stock_microunits = stock_microunits - ?,
+             updated_at = CURRENT_TIMESTAMP, version = version + 1
+         WHERE tenant_id = ? AND branch_id = ? AND product_id = ? AND stock_microunits >= ?`,
       )
-      .bind(qtyAbs, tenantId, branchId, productId, qtyAbs),
+      .bind(qtyAbs, qtyMicrounits, tenantId, branchId, productId, qtyMicrounits),
   );
   plan.add(
     db
       .prepare(
         `INSERT INTO inventory_movements (
              id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-             unit_cost_cents, stock_after, user_id, reference_id
-           ) VALUES (?, ?, ?, ?, ?, ?, 0,
+             quantity_delta_microunits, unit_cost_cents, stock_after,
+             stock_after_microunits, user_id, reference_id
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, 0,
              (SELECT stock FROM branch_product_stock
+              WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+             (SELECT stock_microunits FROM branch_product_stock
               WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
              ?, ?)`,
       )
@@ -462,6 +471,10 @@ function addDebitStock(
         productId,
         movementType,
         -qtyAbs,
+        -qtyMicrounits,
+        tenantId,
+        branchId,
+        productId,
         tenantId,
         branchId,
         productId,
@@ -484,26 +497,29 @@ function addCreditStock(
   exists: boolean,
   movementType: string,
 ): void {
+  const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
   if (exists) {
     plan.add(
       db
         .prepare(
           `UPDATE branch_product_stock
-           SET stock = stock + ?, pmp_unit_cost_cents = ?,
+           SET stock = stock + ?,
+               stock_microunits = stock_microunits + ?,
+               pmp_unit_cost_cents = ?,
                updated_at = CURRENT_TIMESTAMP, version = version + 1
            WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
         )
-        .bind(qty, newPmp, tenantId, branchId, productId),
+        .bind(qty, qtyMicrounits, newPmp, tenantId, branchId, productId),
     );
   } else {
     plan.add(
       db
         .prepare(
           `INSERT INTO branch_product_stock (
-               tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents, version
-             ) VALUES (?, ?, ?, ?, ?, 1)`,
+               tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents, version
+             ) VALUES (?, ?, ?, ?, ?, ?, 1)`,
         )
-        .bind(tenantId, branchId, productId, qty, newPmp),
+        .bind(tenantId, branchId, productId, qty, qtyMicrounits, newPmp),
     );
   }
   plan.add(
@@ -511,9 +527,12 @@ function addCreditStock(
       .prepare(
         `INSERT INTO inventory_movements (
              id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-             unit_cost_cents, stock_after, user_id, reference_id
-           ) VALUES (?, ?, ?, ?, ?, ?, 0,
+             quantity_delta_microunits, unit_cost_cents, stock_after,
+             stock_after_microunits, user_id, reference_id
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, 0,
              (SELECT stock FROM branch_product_stock
+              WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+             (SELECT stock_microunits FROM branch_product_stock
               WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
              ?, ?)`,
       )
@@ -524,6 +543,10 @@ function addCreditStock(
         productId,
         movementType,
         qty,
+        qtyMicrounits,
+        tenantId,
+        branchId,
+        productId,
         tenantId,
         branchId,
         productId,

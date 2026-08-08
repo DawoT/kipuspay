@@ -104,9 +104,10 @@ export async function runSubmitCountReviewHttp(
       return env
         .DB!.prepare(
           `INSERT INTO inventory_count_lines (
-             id, count_id, product_id, batch_id, counted_qty, system_qty, difference_qty,
+             id, count_id, product_id, batch_id, counted_qty, counted_qty_microunits,
+             system_qty, system_qty_microunits, difference_qty, difference_qty_microunits,
              unit_cost_cents, diff_value_cents
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           crypto.randomUUID(),
@@ -114,8 +115,11 @@ export async function runSubmitCountReviewHttp(
           l.productId ?? '',
           l.batchId ?? null,
           counted,
+          Math.round(counted * 1000000),
           system,
+          Math.round(system * 1000000),
           diff,
+          Math.round(diff * 1000000),
           unitCost,
           Math.round(diff * unitCost),
         );
@@ -156,10 +160,15 @@ export async function runApproveCountHttp(
   if (!count) return { status: 404, body: { error: 'Count not found', code: 'NOT_FOUND' } };
 
   const lines = await env.DB.prepare(
-    `SELECT product_id, difference_qty, unit_cost_cents FROM inventory_count_lines WHERE count_id = ?`,
+    `SELECT product_id, difference_qty, difference_qty_microunits, unit_cost_cents FROM inventory_count_lines WHERE count_id = ?`,
   )
     .bind(countId)
-    .all<{ product_id: string; difference_qty: number; unit_cost_cents: number }>();
+    .all<{
+      product_id: string;
+      difference_qty: number;
+      difference_qty_microunits: number;
+      unit_cost_cents: number;
+    }>();
 
   try {
     assertInventoryCountTransition(count.status, 'APPROVED');
@@ -190,10 +199,18 @@ export async function runApproveCountHttp(
         env
           .DB!.prepare(
             `UPDATE branch_product_stock
-           SET stock = stock + ?, updated_at = CURRENT_TIMESTAMP, version = version + 1
+           SET stock = stock + ?,
+               stock_microunits = stock_microunits + ?,
+               updated_at = CURRENT_TIMESTAMP, version = version + 1
            WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
           )
-          .bind(l.difference_qty, tenantId, count.branch_id, l.product_id),
+          .bind(
+            l.difference_qty,
+            l.difference_qty_microunits,
+            tenantId,
+            count.branch_id,
+            l.product_id,
+          ),
       ),
     ...(lines.results ?? [])
       .filter((l) => l.difference_qty !== 0)
@@ -202,9 +219,12 @@ export async function runApproveCountHttp(
           .DB!.prepare(
             `INSERT INTO inventory_movements (
                id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-               unit_cost_cents, stock_after, user_id, reference_id
-             ) VALUES (?, ?, ?, ?, 'AJUSTE', ?, ?,
+               quantity_delta_microunits, unit_cost_cents, stock_after,
+               stock_after_microunits, user_id, reference_id
+             ) VALUES (?, ?, ?, ?, 'AJUSTE', ?, ?, ?,
                (SELECT stock FROM branch_product_stock
+                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+               (SELECT stock_microunits FROM branch_product_stock
                 WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                ?, ?)`,
           )
@@ -214,7 +234,11 @@ export async function runApproveCountHttp(
             count.branch_id,
             l.product_id,
             l.difference_qty,
+            l.difference_qty_microunits,
             l.unit_cost_cents ?? 0,
+            tenantId,
+            count.branch_id,
+            l.product_id,
             tenantId,
             count.branch_id,
             l.product_id,
@@ -257,9 +281,9 @@ export async function runCreateStockLossHttp(
   }
   await env.DB.prepare(
     `INSERT INTO stock_losses (
-         id, tenant_id, branch_id, product_id, batch_id, quantity, category,
+         id, tenant_id, branch_id, product_id, batch_id, quantity, quantity_microunits, category,
          evidence_r2_key, reason, status, created_by_user_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)`,
   )
     .bind(
       id,
@@ -268,6 +292,7 @@ export async function runCreateStockLossHttp(
       body.productId ?? '',
       body.batchId ?? null,
       body.quantity,
+      Math.round(body.quantity * 1000000),
       body.category ?? 'OTHER',
       body.evidenceR2Key ?? null,
       body.reason,
@@ -289,13 +314,14 @@ export async function runApproveStockLossHttp(
   if (!lossId) return { status: 400, body: { error: 'lossId required', code: 'BAD_REQUEST' } };
 
   const row = await env.DB.prepare(
-    `SELECT status, quantity, category, evidence_r2_key, reason, branch_id, product_id, batch_id
+    `SELECT status, quantity, quantity_microunits, category, evidence_r2_key, reason, branch_id, product_id, batch_id
      FROM stock_losses WHERE id = ? AND tenant_id = ? LIMIT 1`,
   )
     .bind(lossId, tenantId)
     .first<{
       status: StockLossStatus;
       quantity: number;
+      quantity_microunits: number;
       category: StockLossCategory;
       evidence_r2_key: string | null;
       reason: string;
@@ -330,15 +356,26 @@ export async function runApproveStockLossHttp(
     ).bind(userId, lossId, tenantId),
     env.DB.prepare(
       `UPDATE branch_product_stock
-       SET stock = stock + ?, updated_at = CURRENT_TIMESTAMP, version = version + 1
+       SET stock = stock + ?,
+           stock_microunits = stock_microunits + ?,
+           updated_at = CURRENT_TIMESTAMP, version = version + 1
        WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
-    ).bind(plan.adjustmentQty, tenantId, row.branch_id, row.product_id),
+    ).bind(
+      plan.adjustmentQty,
+      Math.round(plan.adjustmentQty * 1000000),
+      tenantId,
+      row.branch_id,
+      row.product_id,
+    ),
     env.DB.prepare(
       `INSERT INTO inventory_movements (
            id, tenant_id, branch_id, product_id, batch_id, movement_type, quantity_delta,
-           unit_cost_cents, stock_after, user_id, reference_id
-         ) VALUES (?, ?, ?, ?, ?, 'AJUSTE', ?, 0,
+           quantity_delta_microunits, unit_cost_cents, stock_after,
+           stock_after_microunits, user_id, reference_id
+         ) VALUES (?, ?, ?, ?, ?, 'AJUSTE', ?, ?, 0,
            (SELECT stock FROM branch_product_stock
+            WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+           (SELECT stock_microunits FROM branch_product_stock
             WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
            ?, ?)`,
     ).bind(
@@ -348,6 +385,10 @@ export async function runApproveStockLossHttp(
       row.product_id,
       row.batch_id,
       plan.adjustmentQty,
+      Math.round(plan.adjustmentQty * 1000000),
+      tenantId,
+      row.branch_id,
+      row.product_id,
       tenantId,
       row.branch_id,
       row.product_id,

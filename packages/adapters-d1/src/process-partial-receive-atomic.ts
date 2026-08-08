@@ -2,7 +2,7 @@
  * Sprint 20 — recepción parcial OC + CxP + stock/lotes/PMP en una batch.
  */
 import { planCreateAp, planPartialReceive, type PurchaseOrderStatus } from '@kipuspay/domain-cash';
-import { refreshAvgCostCents } from '@kipuspay/domain-inventory';
+import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 
 export interface PartialReceiveLineInput {
@@ -49,7 +49,7 @@ export async function processPartialReceiveAtomic(
 
   const itemsRes = await db
     .prepare(
-      `SELECT product_id, quantity_ordered, quantity_received, unit_cost_cents
+      `SELECT product_id, quantity_ordered, quantity_received, quantity_received_microunits, unit_cost_cents
        FROM purchase_order_items WHERE purchase_order_id = ?`,
     )
     .bind(input.purchaseOrderId)
@@ -57,12 +57,16 @@ export async function processPartialReceiveAtomic(
       product_id: string;
       quantity_ordered: number;
       quantity_received: number;
+      quantity_received_microunits: number;
       unit_cost_cents: number;
     }>();
   const items = itemsRes.results ?? [];
   const orderedQtyByProduct = new Map(items.map((i) => [i.product_id, i.quantity_ordered]));
   const previouslyReceivedQtyByProduct = new Map(
     items.map((i) => [i.product_id, i.quantity_received ?? 0]),
+  );
+  const previouslyReceivedQtyMicrounitsByProduct = new Map(
+    items.map((i) => [i.product_id, i.quantity_received_microunits ?? 0]),
   );
 
   const receivePlan = planPartialReceive({
@@ -148,13 +152,14 @@ export async function processPartialReceiveAtomic(
     );
 
     for (const line of input.lines) {
+      const qtyMicrounits = Math.round(line.quantity * QUANTITY_SCALE);
       plan.add(
         db
           .prepare(
             `INSERT INTO purchase_receipt_lines (
                  id, tenant_id, receipt_id, product_id, batch_number, expiry_date,
-                 quantity, unit_cost_cents
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                 quantity, quantity_microunits, unit_cost_cents
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             crypto.randomUUID(),
@@ -164,18 +169,26 @@ export async function processPartialReceiveAtomic(
             line.batchNumber ?? null,
             line.expiryDate ?? null,
             line.quantity,
+            qtyMicrounits,
             line.unitCostCents,
           ),
       );
       const prev = previouslyReceivedQtyByProduct.get(line.productId) ?? 0;
+      const prevMicrounits = previouslyReceivedQtyMicrounitsByProduct.get(line.productId) ?? 0;
       plan.add(
         db
           .prepare(
             `UPDATE purchase_order_items
-             SET quantity_received = ?
+             SET quantity_received = ?,
+                 quantity_received_microunits = ?
              WHERE purchase_order_id = ? AND product_id = ?`,
           )
-          .bind(prev + line.quantity, input.purchaseOrderId, line.productId),
+          .bind(
+            prev + line.quantity,
+            prevMicrounits + qtyMicrounits,
+            input.purchaseOrderId,
+            line.productId,
+          ),
       );
     }
 
@@ -239,15 +252,25 @@ function addInboundStock(
     expiryDate: string | null;
   },
 ): void {
+  const qtyMicrounits = Math.round(s.qty * QUANTITY_SCALE);
   if (s.batchId && s.batchNumber) {
     plan.add(
       db
         .prepare(
           `INSERT INTO inventory_batches (
-               id, tenant_id, branch_id, product_id, batch_number, expiration_date, stock
-             ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+               id, tenant_id, branch_id, product_id, batch_number, expiration_date, stock, stock_microunits
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(s.batchId, tenantId, branchId, s.productId, s.batchNumber, s.expiryDate, s.qty),
+        .bind(
+          s.batchId,
+          tenantId,
+          branchId,
+          s.productId,
+          s.batchNumber,
+          s.expiryDate,
+          s.qty,
+          qtyMicrounits,
+        ),
     );
   }
 
@@ -256,21 +279,23 @@ function addInboundStock(
       db
         .prepare(
           `UPDATE branch_product_stock
-           SET stock = stock + ?, pmp_unit_cost_cents = ?,
+           SET stock = stock + ?,
+               stock_microunits = stock_microunits + ?,
+               pmp_unit_cost_cents = ?,
                updated_at = CURRENT_TIMESTAMP, version = version + 1
            WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
         )
-        .bind(s.qty, s.newPmp, tenantId, branchId, s.productId),
+        .bind(s.qty, qtyMicrounits, s.newPmp, tenantId, branchId, s.productId),
     );
   } else {
     plan.add(
       db
         .prepare(
           `INSERT INTO branch_product_stock (
-               tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents, version
-             ) VALUES (?, ?, ?, ?, ?, 1)`,
+               tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents, version
+             ) VALUES (?, ?, ?, ?, ?, ?, 1)`,
         )
-        .bind(tenantId, branchId, s.productId, s.qty, s.newPmp),
+        .bind(tenantId, branchId, s.productId, s.qty, qtyMicrounits, s.newPmp),
     );
   }
 
@@ -279,9 +304,12 @@ function addInboundStock(
       .prepare(
         `INSERT INTO inventory_movements (
              id, tenant_id, branch_id, product_id, batch_id, movement_type, quantity_delta,
-             unit_cost_cents, stock_after, user_id, reference_id
-           ) VALUES (?, ?, ?, ?, ?, 'COMPRA', ?, ?,
+             quantity_delta_microunits, unit_cost_cents, stock_after,
+             stock_after_microunits, user_id, reference_id
+           ) VALUES (?, ?, ?, ?, ?, 'COMPRA', ?, ?, ?,
              (SELECT stock FROM branch_product_stock
+              WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+             (SELECT stock_microunits FROM branch_product_stock
               WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
              ?, ?)`,
       )
@@ -292,7 +320,11 @@ function addInboundStock(
         s.productId,
         s.batchId,
         s.qty,
+        qtyMicrounits,
         s.unitCostCents,
+        tenantId,
+        branchId,
+        s.productId,
         tenantId,
         branchId,
         s.productId,

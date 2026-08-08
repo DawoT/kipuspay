@@ -5,7 +5,7 @@
 /* eslint-disable complexity -- orquestador multi-rama 07/NV_RETURN + PMP + cash + E-D; split diferido */
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
 import { assertCreditNoteAllowed, defaultSunatStatus } from '@kipuspay/domain-fiscal-pe';
-import { refreshAvgCostCents } from '@kipuspay/domain-inventory';
+import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import {
   assertReturnReason,
   assertReturnWithinWindow,
@@ -421,10 +421,10 @@ export async function processReturnAtomic(
         db
           .prepare(
             `INSERT INTO sale_return_items (
-                 id, tenant_id, return_id, original_sale_item_id, batch_id, qty,
+                 id, tenant_id, return_id, original_sale_item_id, batch_id, qty, qty_microunits,
                  unit_price_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
                  unit_price_without_tax_cents, line_total_cents
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             crypto.randomUUID(),
@@ -433,6 +433,7 @@ export async function processReturnAtomic(
             line.originalSaleItemId,
             line.batchId,
             line.qty,
+            Math.round(line.qty * QUANTITY_SCALE),
             line.unitPriceCents,
             line.igvAffectationCode,
             line.igvAmountCents,
@@ -444,26 +445,43 @@ export async function processReturnAtomic(
     }
 
     for (const sp of stockPlans) {
+      const qtyMicrounits = Math.round(sp.line.qty * QUANTITY_SCALE);
       if (sp.exists) {
         plan.add(
           db
             .prepare(
               `UPDATE branch_product_stock
-               SET stock = stock + ?, pmp_unit_cost_cents = ?,
+               SET stock = stock + ?,
+                   stock_microunits = stock_microunits + ?,
+                   pmp_unit_cost_cents = ?,
                    version = version + 1, updated_at = CURRENT_TIMESTAMP
                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
             )
-            .bind(sp.line.qty, sp.newPmp, tenantId, origin.branch_id, sp.line.productId),
+            .bind(
+              sp.line.qty,
+              qtyMicrounits,
+              sp.newPmp,
+              tenantId,
+              origin.branch_id,
+              sp.line.productId,
+            ),
         );
       } else {
         plan.add(
           db
             .prepare(
               `INSERT INTO branch_product_stock (
-                   tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents, version
-                 ) VALUES (?, ?, ?, ?, ?, 1)`,
+                   tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents, version
+                 ) VALUES (?, ?, ?, ?, ?, ?, 1)`,
             )
-            .bind(tenantId, origin.branch_id, sp.line.productId, sp.line.qty, sp.newPmp),
+            .bind(
+              tenantId,
+              origin.branch_id,
+              sp.line.productId,
+              sp.line.qty,
+              qtyMicrounits,
+              sp.newPmp,
+            ),
         );
       }
       plan.add(
@@ -471,9 +489,12 @@ export async function processReturnAtomic(
           .prepare(
             `INSERT INTO inventory_movements (
                  id, tenant_id, branch_id, product_id, batch_id, movement_type, quantity_delta,
-                 unit_cost_cents, stock_after, user_id, reference_id
-               ) VALUES (?, ?, ?, ?, ?, 'DEVOLUCION_NC', ?, ?,
+                 quantity_delta_microunits, unit_cost_cents, stock_after,
+                 stock_after_microunits, user_id, reference_id
+               ) VALUES (?, ?, ?, ?, ?, 'DEVOLUCION_NC', ?, ?, ?,
                  (SELECT stock FROM branch_product_stock
+                  WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                 (SELECT stock_microunits FROM branch_product_stock
                   WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                  ?, ?)`,
           )
@@ -484,7 +505,11 @@ export async function processReturnAtomic(
             sp.line.productId,
             sp.line.batchId,
             sp.line.qty,
+            qtyMicrounits,
             sp.line.unitCostCents,
+            tenantId,
+            origin.branch_id,
+            sp.line.productId,
             tenantId,
             origin.branch_id,
             sp.line.productId,

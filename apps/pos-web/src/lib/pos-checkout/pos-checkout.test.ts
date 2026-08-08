@@ -15,6 +15,14 @@ describe('pos-checkout cart', () => {
     const lines = addOrBumpLine([line('a', 1000)], line('a', 1000));
     expect(cartTotalCents(lines)).toBe(2000);
   });
+
+  it('agrupa por producto+UOM sin cruzar presentaciones', () => {
+    const base = { ...line('a', 1000), uomId: 'u-base', enteredQuantityMicrounits: 1_000_000 };
+    const pack = { ...line('a', 1000), uomId: 'u-pack', enteredQuantityMicrounits: 1_000_000 };
+    const lines = addOrBumpLine(addOrBumpLine([], base), pack);
+    expect(lines).toHaveLength(2);
+    expect(addOrBumpLine(lines, base)[0]?.enteredQuantityMicrounits).toBe(2_000_000);
+  });
 });
 
 describe('chargeCartOffline', () => {

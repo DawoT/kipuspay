@@ -50,8 +50,8 @@ async function seedNvFixture(tenantId: string): Promise<{
     ).bind(productId, tenantId, `SKU-${tenantId}`, 'Producto'),
     env.DB.prepare(
       `INSERT INTO branch_product_stock
-         (tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents)
-       VALUES (?, ?, ?, 10, 400)`,
+         (tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents)
+       VALUES (?, ?, ?, 10, 10000000, 400)`,
     ).bind(tenantId, branchId, productId),
     env.DB.prepare(
       `INSERT INTO payment_methods (id, tenant_id, code, name) VALUES (?, ?, 'CASH', 'Efectivo')`,
@@ -185,7 +185,9 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
   it('chaos concurrent-writers: Promise.all N ventas mismo SKU (stock coherente)', async () => {
     const fixture = await seedNvFixture('t-acid-conc');
     await env.DB.prepare(
-      `UPDATE branch_product_stock SET stock = 5 WHERE tenant_id = ? AND product_id = ?`,
+      `UPDATE branch_product_stock
+        SET stock = 5, stock_microunits = 5000000
+        WHERE tenant_id = ? AND product_id = ?`,
     )
       .bind('t-acid-conc', fixture.productId)
       .run();
@@ -226,7 +228,9 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
   it('chaos concurrent-writers: sobre-demanda no deja stock negativo', async () => {
     const fixture = await seedNvFixture('t-acid-race');
     await env.DB.prepare(
-      `UPDATE branch_product_stock SET stock = 2 WHERE tenant_id = ? AND product_id = ?`,
+      `UPDATE branch_product_stock
+        SET stock = 2, stock_microunits = 2000000
+        WHERE tenant_id = ? AND product_id = ?`,
     )
       .bind('t-acid-race', fixture.productId)
       .run();
@@ -271,7 +275,9 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
         fixture.productId,
       ),
       env.DB.prepare(
-        `UPDATE branch_product_stock SET stock = 1 WHERE tenant_id = ? AND product_id = ?`,
+        `UPDATE branch_product_stock
+          SET stock = 1, stock_microunits = 1000000
+          WHERE tenant_id = ? AND product_id = ?`,
       ).bind('t-acid-oversell', fixture.productId),
     ]);
 
@@ -672,5 +678,144 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
       .first<{ balance_due_cents: number; status: string }>();
     expect(ar?.balance_due_cents).toBe(680);
     expect(ar?.status).toBe('PARTIALLY_PAID');
+  });
+});
+
+describe('processOfflineSaleAtomic S31 UOM (F2)', () => {
+  async function seedUomFixture(tenantId: string): Promise<{
+    branchId: string;
+    sessionId: string;
+    userId: string;
+    productId: string;
+    paymentMethodId: string;
+    uomId: string;
+  }> {
+    const fixture = await seedNvFixture(tenantId);
+    const uomId = `uom-ter-${tenantId}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO product_uoms (
+           id, tenant_id, product_id, uom_code, factor_numerator, factor_denominator, is_base
+         ) VALUES (?, ?, ?, 'TER', 1, 3, 0)`,
+      ).bind(uomId, tenantId, fixture.productId),
+    ]);
+    return { ...fixture, uomId };
+  }
+
+  function uomPayload(
+    fixture: Awaited<ReturnType<typeof seedUomFixture>>,
+    offlineSaleId: string,
+    enteredQuantityMicrounits: number,
+    amountCents: number,
+  ): OfflineSalePayload {
+    return {
+      offlineSaleId,
+      branchId: fixture.branchId,
+      cashRegisterSessionId: fixture.sessionId,
+      documentType: 'NV',
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '00000000',
+      clientName: 'Cliente',
+      items: [
+        {
+          productId: fixture.productId,
+          uomId: fixture.uomId,
+          enteredQuantityMicrounits,
+        },
+      ],
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents }],
+    };
+  }
+
+  it('denominador 1/3: descuenta stock_microunits con aritmética entera, sin drift REAL', async () => {
+    const fixture = await seedUomFixture('t-uom-third');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE products SET stock_microunits = 10000000 WHERE id = ? AND tenant_id = ?`,
+      ).bind(fixture.productId, 't-uom-third'),
+      env.DB.prepare(
+        `UPDATE branch_product_stock
+           SET stock_microunits = 10000000, stock = 10.000001
+           WHERE tenant_id = ? AND product_id = ?`,
+      ).bind('t-uom-third', fixture.productId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    // 1 tercia = 1/3 base → 333_333 µ (half-up de 1_000_000/3)
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      't-uom-third',
+      fixture.userId,
+      uomPayload(fixture, 'off-uom-third', 1_000_000, 393),
+      { nowMs: now, catalogUomEnabled: true },
+    );
+    expect(result.status).toBe('SUCCESS');
+
+    const stock = await env.DB.prepare(
+      `SELECT stock, stock_microunits FROM branch_product_stock
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-uom-third', fixture.productId)
+      .first<{ stock: number; stock_microunits: number }>();
+    // 10_000_000 - 333_333 = 9_666_667 exacto (entero), independiente del REAL 10.000001
+    expect(stock?.stock_microunits).toBe(9_666_667);
+    // Espejo REAL coherente con la fuente canónica.
+    expect(Math.abs(stock!.stock - stock!.stock_microunits * 0.000001)).toBeLessThan(1e-6);
+  });
+
+  it('denominador 1/3: 3 ventas de 1/3 consumen exactamente 1 base sin drift acumulado', async () => {
+    const fixture = await seedUomFixture('t-uom-3x');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE branch_product_stock
+           SET stock_microunits = 1000000, stock = 0.9999995
+           WHERE tenant_id = ? AND product_id = ?`,
+      ).bind('t-uom-3x', fixture.productId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    for (let i = 0; i < 3; i++) {
+      const r = await processOfflineSaleAtomic(
+        env.DB,
+        't-uom-3x',
+        fixture.userId,
+        uomPayload(fixture, `off-uom-3x-${i}`, 1_000_000, 393),
+        { nowMs: now, catalogUomEnabled: true },
+      );
+      expect(r.status).toBe('SUCCESS');
+    }
+
+    const stock = await env.DB.prepare(
+      `SELECT stock_microunits FROM branch_product_stock
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-uom-3x', fixture.productId)
+      .first<{ stock_microunits: number }>();
+    // 1_000_000 - 3 × 333_333 = 1 µ residual exacto.
+    expect(stock?.stock_microunits).toBe(1);
+  });
+
+  it('disponibilidad usa microunits: rechaza qty fraccional > stock real en µ', async () => {
+    const fixture = await seedUomFixture('t-uom-insuf');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE branch_product_stock
+           SET stock_microunits = 333333, stock = 0.333333
+           WHERE tenant_id = ? AND product_id = ?`,
+      ).bind('t-uom-insuf', fixture.productId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    // 2 tercias = 666_666 µ > 333_333 µ disponibles.
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        't-uom-insuf',
+        fixture.userId,
+        uomPayload(fixture, 'off-uom-insuf', 2_000_000, 787),
+        { nowMs: now, catalogUomEnabled: true },
+      ),
+    ).rejects.toThrow(/Stock insuficiente/);
   });
 });

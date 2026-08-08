@@ -12,6 +12,7 @@ import {
   type OrderItemStatus,
   type OrderStatus,
 } from '@kipuspay/domain-sales';
+import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 
 export interface OrderBillingPortionInput {
@@ -227,23 +228,29 @@ export async function processOrderBillingAtomic(
 
     for (const delta of stockDeltas) {
       const qty = -delta.qtyDelta;
+      const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
       plan.add(
         db
           .prepare(
             `UPDATE branch_product_stock
-             SET stock = stock - ?, updated_at = CURRENT_TIMESTAMP, version = version + 1
-             WHERE tenant_id = ? AND branch_id = ? AND product_id = ? AND stock >= ?`,
+             SET stock = stock - ?,
+                 stock_microunits = stock_microunits - ?,
+                 updated_at = CURRENT_TIMESTAMP, version = version + 1
+             WHERE tenant_id = ? AND branch_id = ? AND product_id = ? AND stock_microunits >= ?`,
           )
-          .bind(qty, tenantId, order.branch_id, delta.productId, qty),
+          .bind(qty, qtyMicrounits, tenantId, order.branch_id, delta.productId, qtyMicrounits),
       );
       plan.add(
         db
           .prepare(
             `INSERT INTO inventory_movements (
                  id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-                 unit_cost_cents, stock_after, user_id, reference_id
-               ) VALUES (?, ?, ?, ?, 'VENTA', ?, 0,
+                 quantity_delta_microunits, unit_cost_cents, stock_after,
+                 stock_after_microunits, user_id, reference_id
+               ) VALUES (?, ?, ?, ?, 'VENTA', ?, ?, 0,
                  (SELECT stock FROM branch_product_stock
+                  WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                 (SELECT stock_microunits FROM branch_product_stock
                   WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                  ?, ?)`,
           )
@@ -253,6 +260,10 @@ export async function processOrderBillingAtomic(
             order.branch_id,
             delta.productId,
             delta.qtyDelta,
+            -qtyMicrounits,
+            tenantId,
+            order.branch_id,
+            delta.productId,
             tenantId,
             order.branch_id,
             delta.productId,

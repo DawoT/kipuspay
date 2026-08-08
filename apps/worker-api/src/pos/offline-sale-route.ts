@@ -38,6 +38,10 @@ export function isPricingPromotionsEnabled(env: WorkerEnv | undefined): boolean 
   return flagOn(env?.FEATURE_PRICING_PROMOTIONS);
 }
 
+export function isCatalogUomEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_CATALOG_UOM);
+}
+
 /* eslint-disable complexity -- HTTP error map multi-código S17/S18 */
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
   if (error instanceof InsufficientStockError) {
@@ -204,6 +208,7 @@ export async function runOfflineSaleHttp(
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
+      catalogUomEnabled: isCatalogUomEnabled(env),
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),
         inventoryBom: isInventoryBomEnabled(env),

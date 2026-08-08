@@ -17,6 +17,15 @@ section: "5"
 3. **Tolerancias explícitas** (vuelto, conciliación de pagos) definidas por el servidor; nunca comparaciones `==` de flotantes.
 4. **Conversión S/ ↔ centavos** ocurre **una sola vez** en el límite de entrada/salida (payload → D1 y D1 → reporte), nunca en el motor de cálculo.
 
+### 5.0.0 Representación de cantidades físicas (ADR-0015)
+
+Toda cantidad física canónica se almacena como `INTEGER *_microunits`, con
+`QUANTITY_SCALE = 1_000_000` microunidades por unidad base. Factores UOM son
+racionales (`factor_numerator/factor_denominator`), nunca `REAL`; la conversión
+se hace half-up en servidor y rechaza overflow fuera de safe integer. `REAL`
+queda permitido para ratios no monetarios, pero no como fuente de verdad de
+stock, venta, lote, BOM, conteo, transferencia, recepción, devolución o rollup.
+
 ### 5.0.1 Invariante de aislamiento tenant (DAT-12)
 
 Toda FK entre tablas tenant-owned debe incluir `(tenant_id, parent_id)` y apuntar a

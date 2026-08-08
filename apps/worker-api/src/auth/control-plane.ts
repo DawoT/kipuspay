@@ -49,6 +49,9 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_PURCHASING_THREE_WAY?: string;
   /** Sprint 30: promociones y tramos (ADR-0014). */
   readonly FEATURE_PRICING_PROMOTIONS?: string;
+  /** Sprint 31: variantes/UOM exactas (ADR-0015). */
+  readonly FEATURE_CATALOG_VARIANTS?: string;
+  readonly FEATURE_CATALOG_UOM?: string;
   /** Sprint 18 inventory capabilities. */
   readonly FEATURE_INVENTORY_BATCHES?: string;
   readonly FEATURE_INVENTORY_BOM?: string;

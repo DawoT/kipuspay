@@ -127,10 +127,19 @@ export async function runCreateOrderHttp(
       env
         .DB!.prepare(
           `INSERT INTO order_items (
-             id, tenant_id, order_id, product_id, product_name, quantity, unit_price_cents, status
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+             id, tenant_id, order_id, product_id, product_name, quantity, quantity_microunits, unit_price_cents, status
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
         )
-        .bind(crypto.randomUUID(), tenantId, orderId, it.productId, it.name, it.qty, it.priceCents),
+        .bind(
+          crypto.randomUUID(),
+          tenantId,
+          orderId,
+          it.productId,
+          it.name,
+          it.qty,
+          Math.round(it.qty * 1000000),
+          it.priceCents,
+        ),
     ),
   ];
   await env.DB.batch(stmts);

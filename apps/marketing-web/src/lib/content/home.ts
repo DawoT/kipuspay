@@ -159,6 +159,10 @@ export const HOME = {
       a: 'Si, en el plan Crece: 2x1, porcentaje, umbrales y precios por tramo. La caja solo elige la promocion; el precio final siempre lo calcula KipusPay en el servidor, con anti-apilamiento configurable.',
     },
     {
+      q: '¿Maneja tallas, colores, cajas y packs?',
+      a: 'Si, en el plan Crece. Cada variante tiene stock, lotes y precio propios; las cajas, packs y fracciones se convierten con factores exactos en el servidor. Una presentacion editada no cambia tickets ni devoluciones anteriores.',
+    },
+    {
       q: '¿Necesito comprar un equipo especial?',
       a: 'No. Funciona en la tablet, el celular o la computadora que ya tienes. Conectar una impresora termica es opcional y se configura despues de tu primera venta.',
     },

@@ -6,6 +6,19 @@
 export type StockQuantity = number;
 export type Cents = number;
 
+export {
+  assertVariantTopology,
+  convertEnteredToBaseMicrounits,
+  normalizeUomCode,
+  QTY_OVERFLOW,
+  QUANTITY_SCALE,
+  resolveVariantUnitPriceCents,
+  UOM_CODE_INVALID,
+  UOM_FACTOR_INVALID,
+  VARIANT_NESTING_FORBIDDEN,
+  VARIANT_SELF_PARENT,
+} from './variants-uom.js';
+
 export interface StockBatch {
   readonly batchId: string;
   readonly productId: string;

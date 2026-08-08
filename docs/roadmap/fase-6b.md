@@ -61,13 +61,16 @@ sprints: "28–32"
 ---
 
 #### Sprint 31 — Variantes/combinaciones y unidades de medida
+**Estado:** Cerrado — GOV-APROBADO (`docs/ops/s31-variants-uom-qg.md`)  
 **Capabilities:** `catalog.variants`, `catalog.uom`  
-**Referencia:** Arquitectura §5.3 regla 16; Sprint 18 (PMP, conteo, listas) · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin/caja), Staff Mobile (Modo Dueño)
+**Referencia:** Arquitectura §5.0/§5.3 regla 16/§6; ADR-0015; Sprint 18 (PMP, conteo, listas) · **Agentes:** Staff Backend Datos (owner), Staff Frontend (Admin/caja), Staff Mobile (Modo Dueño)
 
 **Entregables:**
-- **Variantes:** SKU padre + variantes como filas `products` con `parent_product_id`; stock propio; precio derivado con override; conteo físico y listas por variante.
-- **UM:** `product_uoms` con factor de conversión y costo base; la venta registra cantidad en UM base; PMP por base.
-- Kits BOM (Sprint 18) con variantes se resuelven a nivel de variante.
+- **Variantes:** padre agrupador + variantes de un nivel como filas `products`; SKU/stock/lotes/conteo/BOM propios; lista padre/variante y override server-side.
+- **UM:** factores racionales; `INTEGER *_microunits` como cantidad física canónica; snapshots de venta inmutables; PMP/costo por unidad base.
+- Kits BOM (Sprint 18) explícitos por variante y componentes FEFO dentro del plan ACID.
+- Flags independientes default off, Admin/audit, caja UOM-aware y Modo Dueño.
+- Chaos `variants-uom-bom-batch` 500 ciclos y GTM-16 descongelado.
 
 **Criterios de aceptación:** 0 stock cruzado entre variantes; conversión UM exacta (redondeo servidor, nunca `toFixed`); conteo de variante impacta solo su stock; venta por UM distinta descuenta la cantidad base correcta.
 

@@ -64,6 +64,11 @@ import {
   runUpdatePromotionHttp,
 } from './pricing/pricing-promotions-routes.js';
 import {
+  runListVariantsUomHttp,
+  runUpdateVariantHttp,
+  runUpsertProductUomHttp,
+} from './catalog/catalog-variants-uom-routes.js';
+import {
   runOwnerUncapturedPaymentsHttp,
   runPaymentCaptureGetHttp,
   runPaymentChargeHttp,
@@ -517,6 +522,40 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
+  });
+
+  // Sprint 31 — catálogo padre/variantes + UOM racionales.
+  app.get('/api/catalog/variants-uom', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListVariantsUomHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.patch('/api/catalog/variants/:id', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runUpdateVariantHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      c.req.param('id'),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/catalog/uoms', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runUpsertProductUomHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
   });
 
   app.get('/api/owner/transfers/pending', async (c) => {

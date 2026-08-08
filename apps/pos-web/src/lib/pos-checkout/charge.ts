@@ -118,7 +118,9 @@ export async function chargeCartOffline(
     clientName: ctx.clientName || 'Cliente',
     items: lines.map((l) => ({
       productId: l.productId,
-      quantity: l.quantity,
+      ...(l.uomId && l.enteredQuantityMicrounits !== undefined
+        ? { uomId: l.uomId, enteredQuantityMicrounits: l.enteredQuantityMicrounits }
+        : { quantity: l.quantity }),
       ...(l.promotionIds?.length ? { promotionIds: l.promotionIds } : {}),
     })),
     payments: [

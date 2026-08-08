@@ -31,7 +31,12 @@ import {
   discountRequiresAuthz,
   planCreateAr,
 } from '@kipuspay/domain-cash';
-import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
+import {
+  convertEnteredToBaseMicrounits,
+  ExpiredBatchError,
+  InsufficientBatchStockError,
+  QUANTITY_SCALE,
+} from '@kipuspay/domain-inventory';
 import {
   assertOfflineCapturePolicy,
   assertOfflineLoyaltyPolicy,
@@ -107,6 +112,8 @@ interface ProductRow {
   pmp_unit_cost_cents: number | null;
   allow_negative_stock: number | boolean;
   branch_stock: number;
+  branch_stock_microunits: number;
+  parent_product_id: string | null;
 }
 
 interface CatalogEntry {
@@ -115,6 +122,7 @@ interface CatalogEntry {
   name: string;
   type: string;
   pmpUnitCostCents: number;
+  parentProductId: string | null;
 }
 
 function isUniqueConstraint(error: unknown): boolean {
@@ -177,12 +185,20 @@ async function loadCatalogAndStock(
   productIds: readonly string[],
 ): Promise<{
   catalog: Map<string, CatalogEntry>;
-  stockByProduct: Map<string, { stock: number; allowNegative: boolean; hasBranchRow: boolean }>;
+  stockByProduct: Map<
+    string,
+    { stock: number; stockMicrounits: number; allowNegative: boolean; hasBranchRow: boolean }
+  >;
 }> {
   const catalog = new Map<string, CatalogEntry>();
   const stockByProduct = new Map<
     string,
-    { stock: number; allowNegative: boolean; hasBranchRow: boolean }
+    {
+      stock: number;
+      stockMicrounits: number;
+      allowNegative: boolean;
+      hasBranchRow: boolean;
+    }
   >();
   if (productIds.length === 0) return { catalog, stockByProduct };
 
@@ -190,14 +206,20 @@ async function loadCatalogAndStock(
   const params = [branchId, tenantId, ...productIds];
   const { results } = await db
     .prepare(
-      `SELECT p.id, p.name, p.product_type, p.price_cents, p.cost_cents, p.allow_negative_stock,
+      `SELECT p.id, p.name, p.product_type,
+              COALESCE(p.variant_price_override_cents, parent.price_cents, p.price_cents) AS price_cents,
+              p.cost_cents, p.allow_negative_stock, p.parent_product_id,
               COALESCE(bps.stock, p.stock) AS branch_stock,
+              COALESCE(bps.stock_microunits, p.stock_microunits) AS branch_stock_microunits,
               bps.pmp_unit_cost_cents AS pmp_unit_cost_cents,
               CASE WHEN bps.product_id IS NULL THEN 0 ELSE 1 END AS has_branch_row
        FROM products p
+       LEFT JOIN products parent
+         ON parent.tenant_id = p.tenant_id AND parent.id = p.parent_product_id
        LEFT JOIN branch_product_stock bps
          ON bps.tenant_id = p.tenant_id AND bps.product_id = p.id AND bps.branch_id = ?
-       WHERE p.tenant_id = ? AND p.id IN (${placeholders}) AND p.deleted_at IS NULL AND p.is_active = 1`,
+       WHERE p.tenant_id = ? AND p.id IN (${placeholders}) AND p.deleted_at IS NULL
+         AND p.is_active = 1 AND p.is_sellable = 1`,
     )
     .bind(...params)
     .all<ProductRow & { has_branch_row: number }>();
@@ -216,9 +238,11 @@ async function loadCatalogAndStock(
       name: row.name,
       type: row.product_type,
       pmpUnitCostCents: pmp,
+      parentProductId: row.parent_product_id,
     });
     stockByProduct.set(row.id, {
       stock: row.branch_stock,
+      stockMicrounits: row.branch_stock_microunits,
       allowNegative: row.allow_negative_stock === 1,
       hasBranchRow: row.has_branch_row === 1,
     });
@@ -233,20 +257,107 @@ async function loadCatalogAndStock(
   return { catalog, stockByProduct };
 }
 
+function requiredQuantity(item: OfflineSalePayload['items'][number]): number {
+  if (!Number.isFinite(item.quantity) || item.quantity === undefined || item.quantity <= 0) {
+    throw new Error('INVALID_QUANTITY');
+  }
+  return item.quantity;
+}
+
+async function normalizeUomItems(
+  db: D1DatabaseLike,
+  tenantId: string,
+  payload: OfflineSalePayload,
+  enabled: boolean,
+): Promise<OfflineSalePayload> {
+  const usesUom = payload.items.some(
+    (item) => item.uomId !== undefined || item.enteredQuantityMicrounits !== undefined,
+  );
+  if (usesUom && !enabled) throw new Error('FEATURE_OFF');
+
+  const items = await Promise.all(
+    payload.items.map(async (item) => {
+      if (!item.uomId || item.enteredQuantityMicrounits === undefined) {
+        const quantity = requiredQuantity(item);
+        return {
+          ...item,
+          quantity,
+          enteredQuantityMicrounits: Math.round(quantity * QUANTITY_SCALE),
+          baseQuantityMicrounits: Math.round(quantity * QUANTITY_SCALE),
+          resolvedUomCode: 'UND',
+          resolvedFactorNumerator: 1,
+          resolvedFactorDenominator: 1,
+        };
+      }
+      const uom = await db
+        .prepare(
+          `SELECT uom_code, factor_numerator, factor_denominator
+           FROM product_uoms
+           WHERE tenant_id = ? AND product_id = ? AND id = ? LIMIT 1`,
+        )
+        .bind(tenantId, item.productId, item.uomId)
+        .first<{
+          uom_code: string;
+          factor_numerator: number;
+          factor_denominator: number;
+        }>();
+      if (!uom) throw new Error('UOM_NOT_FOUND');
+      const baseQuantityMicrounits = convertEnteredToBaseMicrounits({
+        enteredQuantityMicrounits: item.enteredQuantityMicrounits,
+        factorNumerator: uom.factor_numerator,
+        factorDenominator: uom.factor_denominator,
+      });
+      return {
+        ...item,
+        quantity: baseQuantityMicrounits / QUANTITY_SCALE,
+        baseQuantityMicrounits,
+        resolvedUomCode: uom.uom_code,
+        resolvedFactorNumerator: uom.factor_numerator,
+        resolvedFactorDenominator: uom.factor_denominator,
+      };
+    }),
+  );
+  const aggregated = new Map<string, (typeof items)[number]>();
+  for (const item of items) {
+    const key = `${item.productId}\u0000${item.uomId ?? 'BASE'}`;
+    const previous = aggregated.get(key);
+    if (!previous) {
+      aggregated.set(key, item);
+      continue;
+    }
+    aggregated.set(key, {
+      ...previous,
+      quantity: requiredQuantity(previous) + requiredQuantity(item),
+      enteredQuantityMicrounits:
+        (previous.enteredQuantityMicrounits ?? 0) + (item.enteredQuantityMicrounits ?? 0),
+      baseQuantityMicrounits:
+        (previous.baseQuantityMicrounits ?? 0) + (item.baseQuantityMicrounits ?? 0),
+      discountAmountCents: (previous.discountAmountCents ?? 0) + (item.discountAmountCents ?? 0),
+      promotionIds: [...new Set([...(previous.promotionIds ?? []), ...(item.promotionIds ?? [])])],
+    });
+  }
+  return { ...payload, items: [...aggregated.values()] };
+}
+
 function assertStockAvailable(
   payload: OfflineSalePayload,
   catalog: Map<string, { type: string }>,
-  stockByProduct: Map<string, { stock: number; allowNegative: boolean }>,
+  stockByProduct: Map<string, { stockMicrounits: number; allowNegative: boolean }>,
 ): void {
   if (payload.documentType === 'NV_RETURN') return;
   for (const item of payload.items) {
     const stock = stockByProduct.get(item.productId)!;
+    const qtyMicrounits = Math.round(requiredQuantity(item) * QUANTITY_SCALE);
     if (
       catalog.get(item.productId)!.type === 'physical' &&
       !stock.allowNegative &&
-      stock.stock < item.quantity
+      stock.stockMicrounits < qtyMicrounits
     ) {
-      throw new InsufficientStockError(item.productId, item.quantity, stock.stock);
+      throw new InsufficientStockError(
+        item.productId,
+        qtyMicrounits / QUANTITY_SCALE,
+        stock.stockMicrounits / QUANTITY_SCALE,
+      );
     }
   }
 }
@@ -260,6 +371,8 @@ export interface ProcessOfflineSaleOptions {
   readonly s18?: S18SaleCaps;
   /** Sprint 30 — FEATURE_PRICING_PROMOTIONS. */
   readonly pricingPromotionsEnabled?: boolean;
+  /** Sprint 31 — FEATURE_CATALOG_UOM. */
+  readonly catalogUomEnabled?: boolean;
 }
 
 /**
@@ -293,6 +406,7 @@ export async function processOfflineSaleAtomic(
   const pricingPromotionsEnabled = opts.pricingPromotionsEnabled === true;
 
   assertOfflineSaleShape(payload);
+  payload = await normalizeUomItems(db, tenantId, payload, opts.catalogUomEnabled === true);
 
   const hasPromoIds = payload.items.some((i) => (i.promotionIds?.length ?? 0) > 0);
   if (hasPromoIds && !pricingPromotionsEnabled) {
@@ -349,6 +463,7 @@ export async function processOfflineSaleAtomic(
         pid,
         entry.priceCents,
         true,
+        entry.parentProductId,
       );
       catalog.set(pid, { ...entry, priceCents: resolved });
     }
@@ -362,7 +477,7 @@ export async function processOfflineSaleAtomic(
       const entry = catalog.get(item.productId)!;
       if (entry.type !== 'kit') continue;
       const comps = await loadBomComponents(db, tenantId, item.productId);
-      const exploded = planBomExplosion(comps, item.quantity);
+      const exploded = planBomExplosion(comps, requiredQuantity(item));
       for (const line of exploded) {
         bomDebits.set(
           line.componentProductId,
@@ -378,9 +493,14 @@ export async function processOfflineSaleAtomic(
     }
     for (const [compId, qty] of bomDebits) {
       const st = stockByProduct.get(compId);
-      if (!st) throw new InsufficientStockError(compId, qty, 0);
-      if (!st.allowNegative && st.stock < qty) {
-        throw new InsufficientStockError(compId, qty, st.stock);
+      const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
+      if (!st) throw new InsufficientStockError(compId, qtyMicrounits / QUANTITY_SCALE, 0);
+      if (!st.allowNegative && st.stockMicrounits < qtyMicrounits) {
+        throw new InsufficientStockError(
+          compId,
+          qtyMicrounits / QUANTITY_SCALE,
+          st.stockMicrounits / QUANTITY_SCALE,
+        );
       }
     }
   }
@@ -399,7 +519,20 @@ export async function processOfflineSaleAtomic(
         if (batches.length === 0) continue;
         fefoByProduct.set(
           item.productId,
-          planFefoForQty(batches, item.productId, item.quantity, nowIso),
+          planFefoForQty(batches, item.productId, requiredQuantity(item), nowIso),
+        );
+      }
+      for (const [componentProductId, componentQty] of bomDebits) {
+        const batches = await loadBatchesForProduct(
+          db,
+          tenantId,
+          payload.branchId,
+          componentProductId,
+        );
+        if (batches.length === 0) continue;
+        fefoByProduct.set(
+          componentProductId,
+          planFefoForQty(batches, componentProductId, componentQty, nowIso),
         );
       }
     } catch (err) {
@@ -432,7 +565,7 @@ export async function processOfflineSaleAtomic(
           promotionIds?: readonly string[];
         } = {
           productId: item.productId,
-          quantity: item.quantity,
+          quantity: requiredQuantity(item),
           unitPriceCents: entry.priceCents,
           categoryId: null,
           priceListId,
@@ -634,7 +767,7 @@ export async function processOfflineSaleAtomic(
       const manualDiscountCents = originalItem?.discountAmountCents ?? 0;
       try {
         assertDiscountAuthorized({
-          lineSubtotalCents: line.quantity * line.unitPriceCents,
+          lineSubtotalCents: line.subtotalCents + line.discountCents,
           discountCents: manualDiscountCents,
           policy,
           authorizationTokenHash: payload.discountAuthorizationTokenHash ?? null,
@@ -647,7 +780,7 @@ export async function processOfflineSaleAtomic(
       }
       if (
         discountRequiresAuthz({
-          lineSubtotalCents: line.quantity * line.unitPriceCents,
+          lineSubtotalCents: line.subtotalCents + line.discountCents,
           discountCents: manualDiscountCents,
           policy,
           authorizationTokenHash: payload.discountAuthorizationTokenHash ?? null,
@@ -699,7 +832,10 @@ export async function processOfflineSaleAtomic(
 
   const qtyByProduct = new Map<string, number>();
   for (const item of payload.items) {
-    qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.quantity);
+    qtyByProduct.set(
+      item.productId,
+      (qtyByProduct.get(item.productId) ?? 0) + requiredQuantity(item),
+    );
   }
 
   // SYN-06: preparar OFFLINE_OVERSELL antes del batch (hash-chain sobre stock preflight).
@@ -984,6 +1120,13 @@ export async function processOfflineSaleAtomic(
 
       for (const line of saleLines) {
         const product = catalog.get(line.productId)!;
+        const source = payload.items.find((item) => item.productId === line.productId)!;
+        const baseQuantityMicrounits = Math.round(line.quantity * QUANTITY_SCALE);
+        const sourceBaseMicrounits = source.baseQuantityMicrounits ?? baseQuantityMicrounits;
+        const enteredQuantityMicrounits = Math.round(
+          ((source.enteredQuantityMicrounits ?? sourceBaseMicrounits) * baseQuantityMicrounits) /
+            sourceBaseMicrounits,
+        );
         plan.add(
           db
             .prepare(
@@ -991,8 +1134,10 @@ export async function processOfflineSaleAtomic(
                    id, tenant_id, sale_id, product_id, product_name, product_type,
                    quantity, unit_price_cents, unit_cost_cents, discount_amount_cents,
                    subtotal_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
-                   total_amount_cents, is_uncatalogued, batch_id
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?)`,
+                   total_amount_cents, is_uncatalogued, batch_id, sold_uom_id, sold_uom_code,
+                   entered_quantity_microunits, factor_numerator, factor_denominator,
+                   base_quantity_microunits
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
             )
             .bind(
               crypto.randomUUID(),
@@ -1009,6 +1154,12 @@ export async function processOfflineSaleAtomic(
               line.igvCents,
               line.totalCents,
               line.batchId ?? null,
+              source.uomId ?? null,
+              source.resolvedUomCode ?? 'UND',
+              enteredQuantityMicrounits,
+              source.resolvedFactorNumerator ?? 1,
+              source.resolvedFactorDenominator ?? 1,
+              baseQuantityMicrounits,
             ),
         );
       }
@@ -1030,7 +1181,8 @@ export async function processOfflineSaleAtomic(
       for (const [productId, qty] of stockDebits) {
         const before = stockByProduct.get(productId)!;
         const allow = isReturn || before.allowNegative ? 1 : 0;
-        const signedQty = isReturn ? -qty : qty;
+        const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
+        const signedQtyMicrounits = isReturn ? -qtyMicrounits : qtyMicrounits;
         const delta = isReturn ? qty : -qty;
         const isBomComp = bomDebits.has(productId);
         const movementType = isReturn ? 'DEVOLUCION_NC' : isBomComp ? 'VENTA_BOM' : 'VENTA';
@@ -1039,25 +1191,37 @@ export async function processOfflineSaleAtomic(
             db
               .prepare(
                 `UPDATE branch_product_stock
-                   SET stock = stock - ?, updated_at = CURRENT_TIMESTAMP, version = version + 1
+                   SET stock_microunits = stock_microunits - ?,
+                       stock = (stock_microunits - ?) * 0.000001,
+                       updated_at = CURRENT_TIMESTAMP, version = version + 1
                    WHERE tenant_id = ? AND branch_id = ? AND product_id = ?
-                     AND (stock >= ? OR ? = 1)`,
+                     AND (stock_microunits >= ? OR ? = 1)`,
               )
-              .bind(signedQty, tenantId, payload.branchId, productId, isReturn ? 0 : qty, allow),
+              .bind(
+                signedQtyMicrounits,
+                signedQtyMicrounits,
+                tenantId,
+                payload.branchId,
+                productId,
+                isReturn ? 0 : qtyMicrounits,
+                allow,
+              ),
           );
         } else {
           plan.add(
             db
               .prepare(
                 `INSERT INTO branch_product_stock (
-                     tenant_id, branch_id, product_id, stock, pmp_unit_cost_cents, version
-                   ) VALUES (?, ?, ?, ?, ?, 1)`,
+                     tenant_id, branch_id, product_id, stock, stock_microunits,
+                     pmp_unit_cost_cents, version
+                   ) VALUES (?, ?, ?, ?, ?, ?, 1)`,
               )
               .bind(
                 tenantId,
                 payload.branchId,
                 productId,
-                before.stock - signedQty,
+                (before.stockMicrounits - signedQtyMicrounits) * 0.000001,
+                before.stockMicrounits - signedQtyMicrounits,
                 catalog.get(productId)!.pmpUnitCostCents,
               ),
           );
@@ -1065,23 +1229,28 @@ export async function processOfflineSaleAtomic(
         const fefoAllocs = fefoByProduct.get(productId);
         if (fefoAllocs && !isReturn) {
           for (const alloc of fefoAllocs) {
+            const allocMicrounits = Math.round(alloc.qty * QUANTITY_SCALE);
             plan.add(
               db
                 .prepare(
                   `UPDATE inventory_batches
-                   SET stock = stock - ?
-                   WHERE id = ? AND tenant_id = ? AND stock >= ?`,
+                   SET stock_microunits = stock_microunits - ?,
+                       stock = (stock_microunits - ?) * 0.000001
+                   WHERE id = ? AND tenant_id = ? AND stock_microunits >= ?`,
                 )
-                .bind(alloc.qty, alloc.batchId, tenantId, alloc.qty),
+                .bind(allocMicrounits, allocMicrounits, alloc.batchId, tenantId, allocMicrounits),
             );
             plan.add(
               db
                 .prepare(
                   `INSERT INTO inventory_movements (
                        id, tenant_id, branch_id, product_id, batch_id, movement_type, quantity_delta,
-                       unit_cost_cents, stock_after, user_id, reference_id
-                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+                       quantity_delta_microunits, unit_cost_cents, stock_after,
+                       stock_after_microunits, user_id, reference_id
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
                        (SELECT stock FROM branch_product_stock
+                        WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                       (SELECT stock_microunits FROM branch_product_stock
                         WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                        ?, ?)`,
                 )
@@ -1093,7 +1262,11 @@ export async function processOfflineSaleAtomic(
                   alloc.batchId,
                   movementType,
                   -alloc.qty,
+                  -Math.round(alloc.qty * QUANTITY_SCALE),
                   catalog.get(productId)!.pmpUnitCostCents,
+                  tenantId,
+                  payload.branchId,
+                  productId,
                   tenantId,
                   payload.branchId,
                   productId,
@@ -1108,9 +1281,12 @@ export async function processOfflineSaleAtomic(
               .prepare(
                 `INSERT INTO inventory_movements (
                      id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-                     unit_cost_cents, stock_after, user_id, reference_id
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?,
+                     quantity_delta_microunits, unit_cost_cents, stock_after,
+                     stock_after_microunits, user_id, reference_id
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,
                      (SELECT stock FROM branch_product_stock
+                      WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                     (SELECT stock_microunits FROM branch_product_stock
                       WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                      ?, ?)`,
               )
@@ -1121,7 +1297,11 @@ export async function processOfflineSaleAtomic(
                 productId,
                 movementType,
                 delta,
+                isReturn ? qtyMicrounits : -qtyMicrounits,
                 catalog.get(productId)!.pmpUnitCostCents,
+                tenantId,
+                payload.branchId,
+                productId,
                 tenantId,
                 payload.branchId,
                 productId,

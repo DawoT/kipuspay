@@ -1,14 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isOwnerModeEnabled, isInventoryOpsEnabled } from '$lib/features';
+  import {
+    isCatalogUomEnabled,
+    isCatalogVariantsEnabled,
+    isInventoryOpsEnabled,
+    isOwnerModeEnabled,
+  } from '$lib/features';
 
   const ownerOn = isOwnerModeEnabled();
   const invOn = isInventoryOpsEnabled();
+  const variantsOn = isCatalogVariantsEnabled() || isCatalogUomEnabled();
 
   let branchId = $state('b-demo');
   let status = $state('');
   let alerts = $state<
     { kind: string; productId: string; detail: string; suggestReorderQty?: number }[]
+  >([]);
+  let variants = $state<
+    { id: string; name: string; uom_code?: string; stock_microunits: number }[]
   >([]);
 
   async function loadAlerts() {
@@ -30,6 +39,14 @@
         return;
       }
       alerts = json.alerts ?? [];
+      if (variantsOn) {
+        const catalogRes = await fetch(
+          `${apiBase.replace(/\/$/, '') || 'https://api.kipuspay.local'}/api/catalog/variants-uom`,
+          { headers: { authorization: auth } },
+        );
+        const catalogJson = (await catalogRes.json()) as { items?: typeof variants };
+        variants = catalogRes.ok ? (catalogJson.items ?? []) : [];
+      }
       status = `${alerts.length} alerta(s)`;
     } catch {
       status = 'red offline — reintento en staging';
@@ -69,6 +86,20 @@
         <li>Sin alertas</li>
       {/each}
     </ul>
+    {#if variantsOn}
+      <h2>Stock por variante</h2>
+      <p>Vista agregada; la fuente canónica permanece en microunidades base por variante.</p>
+      <ul data-testid="owner-variant-stock">
+        {#each variants as variant}
+          <li>
+            <strong>{variant.name}</strong> · {variant.uom_code ?? 'BASE'} ·
+            {variant.stock_microunits / 1_000_000}
+          </li>
+        {:else}
+          <li>Sin variantes configuradas</li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 </section>
 

@@ -17,6 +17,8 @@ export interface S18SaleCaps {
   readonly pricingLists: boolean;
 }
 
+// Lista variante→padre agrega una rama explícita; mantener orden visible para auditoría.
+// eslint-disable-next-line complexity
 export async function resolveServerUnitPriceCents(
   db: D1DatabaseLike,
   tenantId: string,
@@ -25,6 +27,7 @@ export async function resolveServerUnitPriceCents(
   productId: string,
   defaultPriceCents: number,
   enabled: boolean,
+  parentProductId: string | null = null,
 ): Promise<number> {
   if (!enabled) return defaultPriceCents;
 
@@ -36,13 +39,22 @@ export async function resolveServerUnitPriceCents(
     .bind(branchId, tenantId)
     .first<{ price_list_id: string | null }>();
   if (branch?.price_list_id) {
-    const row = await db
+    let row = await db
       .prepare(
         `SELECT price_cents FROM product_prices
          WHERE tenant_id = ? AND price_list_id = ? AND product_id = ? LIMIT 1`,
       )
       .bind(tenantId, branch.price_list_id, productId)
       .first<{ price_cents: number }>();
+    if (!row && parentProductId) {
+      row = await db
+        .prepare(
+          `SELECT price_cents FROM product_prices
+           WHERE tenant_id = ? AND price_list_id = ? AND product_id = ? LIMIT 1`,
+        )
+        .bind(tenantId, branch.price_list_id, parentProductId)
+        .first<{ price_cents: number }>();
+    }
     if (row) branchPrice = row.price_cents;
   }
 
@@ -52,19 +64,28 @@ export async function resolveServerUnitPriceCents(
       .bind(customerId, tenantId)
       .first<{ price_list_id: string | null }>();
     if (cust?.price_list_id) {
-      const row = await db
+      let row = await db
         .prepare(
           `SELECT price_cents FROM product_prices
            WHERE tenant_id = ? AND price_list_id = ? AND product_id = ? LIMIT 1`,
         )
         .bind(tenantId, cust.price_list_id, productId)
         .first<{ price_cents: number }>();
+      if (!row && parentProductId) {
+        row = await db
+          .prepare(
+            `SELECT price_cents FROM product_prices
+             WHERE tenant_id = ? AND price_list_id = ? AND product_id = ? LIMIT 1`,
+          )
+          .bind(tenantId, cust.price_list_id, parentProductId)
+          .first<{ price_cents: number }>();
+      }
       if (row) customerPrice = row.price_cents;
     }
   }
 
   if (branchPrice === null && customerPrice === null) {
-    const def = await db
+    let def = await db
       .prepare(
         `SELECT pp.price_cents FROM price_lists pl
          INNER JOIN product_prices pp ON pp.price_list_id = pl.id AND pp.tenant_id = pl.tenant_id
@@ -74,6 +95,18 @@ export async function resolveServerUnitPriceCents(
       )
       .bind(tenantId, productId)
       .first<{ price_cents: number }>();
+    if (!def && parentProductId) {
+      def = await db
+        .prepare(
+          `SELECT pp.price_cents FROM price_lists pl
+           INNER JOIN product_prices pp ON pp.price_list_id = pl.id AND pp.tenant_id = pl.tenant_id
+           WHERE pl.tenant_id = ? AND pl.is_default = 1 AND pl.is_active = 1
+             AND pl.deleted_at IS NULL AND pp.product_id = ?
+           LIMIT 1`,
+        )
+        .bind(tenantId, parentProductId)
+        .first<{ price_cents: number }>();
+    }
     if (def) {
       return resolveUnitPriceCents({
         branchPriceCents: null,

@@ -132,3 +132,13 @@ export function isSalesReturnsEnabled(): boolean {
 export function isPricingPromotionsEnabled(): boolean {
   return flagOn(pub(PF + 'PRICING_PROMOTIONS'));
 }
+
+/** Sprint 31 — catálogo padre/variantes. */
+export function isCatalogVariantsEnabled(): boolean {
+  return flagOn(pub(PF + 'CATALOG_VARIANTS'));
+}
+
+/** Sprint 31 — unidades de medida racionales. */
+export function isCatalogUomEnabled(): boolean {
+  return flagOn(pub(PF + 'CATALOG_UOM'));
+}

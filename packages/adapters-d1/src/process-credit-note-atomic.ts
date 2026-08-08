@@ -9,6 +9,7 @@ import {
   type CreditNoteRequest,
 } from '@kipuspay/domain-fiscal-pe';
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
+import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
@@ -203,14 +204,17 @@ export async function processCreditNoteAtomic(
     for (const item of request.items) {
       const restore = stockRestoreQuantity(item);
       if (restore <= 0) continue;
+      const restoreMicrounits = Math.round(restore * QUANTITY_SCALE);
       plan.add(
         db
           .prepare(
             `UPDATE branch_product_stock
-               SET stock = stock + ?, version = version + 1, updated_at = CURRENT_TIMESTAMP
+               SET stock = stock + ?,
+                   stock_microunits = stock_microunits + ?,
+                   version = version + 1, updated_at = CURRENT_TIMESTAMP
                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
           )
-          .bind(restore, tenantId, origin.branch_id, item.productId),
+          .bind(restore, restoreMicrounits, tenantId, origin.branch_id, item.productId),
       );
     }
 

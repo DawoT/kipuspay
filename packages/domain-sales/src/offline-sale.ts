@@ -33,7 +33,16 @@ export interface OfflinePaymentPayload {
 
 export interface OfflineSaleItemPayload {
   readonly productId: string;
-  readonly quantity: number;
+  /** Compatibilidad offline pre-S31: unidades base. */
+  readonly quantity?: number | undefined;
+  /** S31/ADR-0015: identidad UOM; factor siempre server-side. */
+  readonly uomId?: string | undefined;
+  readonly enteredQuantityMicrounits?: number | undefined;
+  /** Solo motor ACID después de resolver UOM; nunca del cliente HTTP. */
+  readonly baseQuantityMicrounits?: number | undefined;
+  readonly resolvedUomCode?: string | undefined;
+  readonly resolvedFactorNumerator?: number | undefined;
+  readonly resolvedFactorDenominator?: number | undefined;
   readonly discountAmountCents?: number | undefined;
   /** Sprint 30: IDs de promoción (servidor impone el precio; ADR-0014). */
   readonly promotionIds?: readonly string[] | undefined;
@@ -91,11 +100,28 @@ function assertPromotionIds(item: OfflineSaleItemPayload): void {
   }
 }
 
+function assertItemQuantity(item: OfflineSaleItemPayload): void {
+  const hasUomIdentity = item.enteredQuantityMicrounits !== undefined || item.uomId !== undefined;
+  if (hasUomIdentity) {
+    if (
+      !item.uomId?.trim() ||
+      !Number.isSafeInteger(item.enteredQuantityMicrounits) ||
+      (item.enteredQuantityMicrounits ?? 0) <= 0
+    ) {
+      throw new Error('INVALID_UOM_QUANTITY');
+    }
+    return;
+  }
+  if (!Number.isSafeInteger(item.quantity) || item.quantity === undefined || item.quantity <= 0) {
+    throw new Error('INVALID_QUANTITY');
+  }
+}
+
 function assertItems(items: readonly OfflineSaleItemPayload[]): void {
   if (!items?.length) throw new Error('EMPTY_ITEMS');
   for (const item of items) {
     requireNonEmpty(item.productId, 'MISSING_PRODUCT_ID');
-    if (!Number.isFinite(item.quantity) || item.quantity <= 0) throw new Error('INVALID_QUANTITY');
+    assertItemQuantity(item);
     if (
       item.discountAmountCents !== undefined &&
       (!Number.isInteger(item.discountAmountCents) || item.discountAmountCents < 0)
@@ -104,6 +130,14 @@ function assertItems(items: readonly OfflineSaleItemPayload[]): void {
     }
     assertPromotionIds(item);
   }
+}
+
+function requireResolvedQuantity(item: OfflineSaleItemPayload): number {
+  const quantity = item.quantity;
+  if (!Number.isFinite(quantity) || quantity === undefined || quantity <= 0) {
+    throw new Error('INVALID_QUANTITY');
+  }
+  return quantity;
 }
 
 function assertPayments(payments: readonly OfflinePaymentPayload[]): void {
@@ -208,6 +242,7 @@ export function computeNvLineTotals(
   for (const item of items) {
     const product = catalog.get(item.productId);
     if (!product) throw new Error(`Product not found: ${item.productId}`);
+    const quantity = requireResolvedQuantity(item);
     const unitPriceCents =
       item.serverUnitPriceCents !== undefined ? item.serverUnitPriceCents : product.priceCents;
     if (!Number.isInteger(unitPriceCents) || unitPriceCents < 0) {
@@ -217,14 +252,14 @@ export function computeNvLineTotals(
       throw new Error('INVALID_UNIT_COST');
     }
     const discountCents = item.discountAmountCents ?? 0;
-    const subtotalCents = Math.round(item.quantity * unitPriceCents) - discountCents;
+    const subtotalCents = Math.round(quantity * unitPriceCents) - discountCents;
     if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
     const igvCents = Math.round((subtotalCents * 18) / 100);
     const totalCents = subtotalCents + igvCents;
     const unitCostCents = product.costCents;
     lines.push({
       productId: item.productId,
-      quantity: item.quantity,
+      quantity,
       unitPriceCents,
       discountCents,
       subtotalCents,
@@ -236,7 +271,7 @@ export function computeNvLineTotals(
     totalTaxableCents += subtotalCents;
     totalIgvCents += igvCents;
     totalDiscountCents += discountCents;
-    totalCogsCents += Math.round(unitCostCents * item.quantity);
+    totalCogsCents += Math.round(unitCostCents * quantity);
     totalAmountCents += totalCents;
   }
 

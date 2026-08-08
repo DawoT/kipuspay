@@ -3,7 +3,7 @@
  * Match factura↔OC↔recepción; CxP por monto facturado; true-up PMP; SUPPLIER_PRICE_DIFF.
  */
 import { assertThreeWayMatch, planCreateAp, type ThreeWayLineInput } from '@kipuspay/domain-cash';
-import { refreshAvgCostCents } from '@kipuspay/domain-inventory';
+import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 
 export interface SupplierInvoiceLineInput {
@@ -222,8 +222,9 @@ export async function processSupplierInvoiceMatchAtomic(
         .prepare(
           `INSERT INTO supplier_invoices (
                id, tenant_id, branch_id, supplier_id, purchase_order_id, invoice_number,
-               status, total_cents, igv_cents, matched_qty, matched_amount_cents, price_diff_override
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               status, total_cents, igv_cents, matched_qty, matched_qty_microunits,
+               matched_amount_cents, price_diff_override
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           invoiceId,
@@ -240,6 +241,7 @@ export async function processSupplierInvoiceMatchAtomic(
           input.totalCents,
           input.igvCents,
           matchPlan.matchedQty,
+          Math.round(matchPlan.matchedQty * QUANTITY_SCALE),
           matchPlan.matchedAmountCents,
           priceDiffOverride ? 1 : 0,
         ),
@@ -270,8 +272,8 @@ export async function processSupplierInvoiceMatchAtomic(
         db
           .prepare(
             `INSERT INTO supplier_invoice_lines (
-                 id, tenant_id, invoice_id, product_id, invoiced_qty, unit_cost_cents
-               ) VALUES (?, ?, ?, ?, ?, ?)`,
+                 id, tenant_id, invoice_id, product_id, invoiced_qty, invoiced_qty_microunits, unit_cost_cents
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             crypto.randomUUID(),
@@ -279,6 +281,7 @@ export async function processSupplierInvoiceMatchAtomic(
             invoiceId,
             line.productId,
             line.invoicedQty,
+            Math.round(line.invoicedQty * QUANTITY_SCALE),
             line.invoiceUnitCostCents,
           ),
       );
@@ -298,12 +301,15 @@ export async function processSupplierInvoiceMatchAtomic(
         db
           .prepare(
             `INSERT INTO inventory_movements (
-                 id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-                 unit_cost_cents, stock_after, user_id, reference_id
-               ) VALUES (?, ?, ?, ?, 'AJUSTE', 0, ?,
-                 (SELECT stock FROM branch_product_stock
-                  WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
-                 ?, ?)`,
+               id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
+               quantity_delta_microunits, unit_cost_cents, stock_after,
+               stock_after_microunits, user_id, reference_id
+             ) VALUES (?, ?, ?, ?, 'AJUSTE', 0, 0, ?,
+               (SELECT stock FROM branch_product_stock
+                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+               (SELECT stock_microunits FROM branch_product_stock
+                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+               ?, ?)`,
           )
           .bind(
             crypto.randomUUID(),
@@ -311,6 +317,9 @@ export async function processSupplierInvoiceMatchAtomic(
             branchId,
             t.productId,
             t.invoiceUnitCostCents,
+            tenantId,
+            branchId,
+            t.productId,
             tenantId,
             branchId,
             t.productId,

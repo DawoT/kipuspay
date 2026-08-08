@@ -27,6 +27,42 @@ describe('assertOfflineSaleShape', () => {
     expect(() => assertOfflineSaleShape(basePayload())).not.toThrow();
   });
 
+  it('acepta identidad UOM exacta sin quantity legado', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            uomId: 'u-pack',
+            enteredQuantityMicrounits: 2_000_000,
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rechaza cantidad UOM no segura o sin uomId', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', enteredQuantityMicrounits: 1 }],
+      }),
+    ).toThrow('INVALID_UOM_QUANTITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            uomId: 'u-pack',
+            enteredQuantityMicrounits: Number.MAX_SAFE_INTEGER + 1,
+          },
+        ],
+      }),
+    ).toThrow('INVALID_UOM_QUANTITY');
+  });
+
   it('rechaza captureStatus inválido', () => {
     const badPay = {
       paymentMethodId: 'pm1',
@@ -173,6 +209,12 @@ describe('nv line totals', () => {
 
   it('rechaza descuento excesivo y producto ausente', () => {
     const catalog = new Map([['p1', { priceCents: 100, costCents: 0 }]]);
+    expect(() =>
+      computeNvLineTotals(
+        [{ productId: 'p1', uomId: 'pack', enteredQuantityMicrounits: 1_000_000 }],
+        catalog,
+      ),
+    ).toThrow('INVALID_QUANTITY');
     expect(() =>
       computeNvLineTotals([{ productId: 'p1', quantity: 1, discountAmountCents: 200 }], catalog),
     ).toThrow(/DISCOUNT_EXCEEDS_SUBTOTAL/);

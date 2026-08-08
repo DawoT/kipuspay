@@ -21,6 +21,10 @@ import {
   type PromotionsAntiStackChaosResult,
 } from './promotions-anti-stack.js';
 import {
+  runVariantsUomBomBatchChaosScenario,
+  type VariantsUomChaosResult,
+} from './variants-uom-bom-batch.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -47,6 +51,7 @@ export type ChaosScenarioId =
   | 'sales-returns-window'
   | 'purchasing-three-way-late-invoice'
   | 'promotions-anti-stack'
+  | 'variants-uom-bom-batch'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -65,6 +70,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'sales-returns-window': 28,
   'purchasing-three-way-late-invoice': 29,
   'promotions-anti-stack': 30,
+  'variants-uom-bom-batch': 31,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -110,6 +116,7 @@ export interface ChaosDeps {
   readonly runSalesReturnsWindow?: () => Promise<SalesReturnsChaosResult>;
   readonly runPurchasingThreeWayLateInvoice?: () => Promise<ThreeWayChaosResult>;
   readonly runPromotionsAntiStack?: () => Promise<PromotionsAntiStackChaosResult>;
+  readonly runVariantsUomBomBatch?: () => Promise<VariantsUomChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -192,6 +199,8 @@ async function dispatchReadyScenario(
       return runPurchasingThreeWayLateInvoiceChaos(deps.runPurchasingThreeWayLateInvoice);
     case 'promotions-anti-stack':
       return runPromotionsAntiStackChaosScenario(deps.runPromotionsAntiStack);
+    case 'variants-uom-bom-batch':
+      return runVariantsUomBomBatchChaosScenario(deps.runVariantsUomBomBatch);
     default:
       return Promise.reject(
         new Error(
@@ -273,3 +282,9 @@ export {
   runPromotionsAntiStackChaos,
   runPromotionsAntiStackChaosScenario,
 } from './promotions-anti-stack.js';
+
+export {
+  judgeVariantsUomBomBatch,
+  runVariantsUomBomBatchChaos,
+  runVariantsUomBomBatchChaosScenario,
+} from './variants-uom-bom-batch.js';

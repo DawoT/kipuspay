@@ -65,6 +65,7 @@ export async function rematerializeProductRollups(
     .prepare(
       `SELECT si.product_id AS product_id,
               SUM(CASE WHEN s.document_type IN ('07','08','NV_RETURN') THEN -si.quantity ELSE si.quantity END) AS qty,
+              SUM(CASE WHEN s.document_type IN ('07','08','NV_RETURN') THEN -si.base_quantity_microunits ELSE si.base_quantity_microunits END) AS qty_microunits,
               SUM(CASE WHEN s.document_type IN ('07','08','NV_RETURN') THEN -si.total_amount_cents ELSE si.total_amount_cents END) AS gross,
               SUM(CASE WHEN s.document_type IN ('07','08','NV_RETURN') THEN -1 ELSE 1 END * si.unit_cost_cents * si.quantity) AS cogs
        FROM sales s
@@ -76,7 +77,13 @@ export async function rematerializeProductRollups(
        GROUP BY si.product_id`,
     )
     .bind(tenantId, branchId, reportDate)
-    .all<{ product_id: string; qty: number; gross: number; cogs: number }>();
+    .all<{
+      product_id: string;
+      qty: number;
+      qty_microunits: number;
+      gross: number;
+      cogs: number;
+    }>();
 
   const stmts: D1Bound[] = [
     db
@@ -91,10 +98,19 @@ export async function rematerializeProductRollups(
       db
         .prepare(
           `INSERT INTO daily_product_rollups (
-             tenant_id, branch_id, report_date, product_id, qty, gross_cents, cogs_cents
-           ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             tenant_id, branch_id, report_date, product_id, qty, qty_microunits, gross_cents, cogs_cents
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .bind(tenantId, branchId, reportDate, row.product_id, row.qty, row.gross, row.cogs),
+        .bind(
+          tenantId,
+          branchId,
+          reportDate,
+          row.product_id,
+          row.qty,
+          row.qty_microunits,
+          row.gross,
+          row.cogs,
+        ),
     );
   }
   await db.batch(stmts);
