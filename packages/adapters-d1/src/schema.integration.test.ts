@@ -69,6 +69,7 @@ import sprint35StoreCreditSql from '../migrations/0028_sprint35_store_credit.sql
 import sprint36InstallmentsSql from '../migrations/0029_sprint36_installments.sql?raw';
 import sprint37CommissionsSql from '../migrations/0030_sprint37_commissions.sql?raw';
 import sprint38LocationsSql from '../migrations/0031_sprint38_inventory_locations.sql?raw';
+import sprint39SerialsSql from '../migrations/0032_sprint39_inventory_serials.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -1052,6 +1053,36 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint38LocationsSql).toMatch(/FOREIGN KEY \(tenant_id, branch_id, location_id\)/);
     expect(sprint38LocationsSql).toMatch(/inventory\.locations\.sprint38/);
     expect(sprint38LocationsSql).not.toMatch(/\bqty REAL\b/);
+  });
+
+  it('migración 0032 up: seriales, leases y manifiestos cumplen DAT-12', () => {
+    expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_numbers/);
+    expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_number_events/);
+    expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_terminal_leases/);
+    expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_manifests/);
+    expect(sprint39SerialsSql).toMatch(/CREATE TABLE IF NOT EXISTS serial_manifest_items/);
+    expect(sprint39SerialsSql).toMatch(/serial_number_normalized TEXT NOT NULL/);
+    expect(sprint39SerialsSql).toMatch(/quantity_microunits INTEGER NOT NULL/);
+    expect(sprint39SerialsSql).toMatch(/CHECK \(quantity_microunits = 1000000\)/);
+    expect(sprint39SerialsSql).toMatch(
+      /CHECK \(status IN \('AVAILABLE','RESERVED','SOLD','IN_TRANSIT','RETURNED_INSPECTION','LOST','DAMAGED','RETURNED_SUPPLIER'\)\)/,
+    );
+    expect(sprint39SerialsSql).toMatch(/UNIQUE \(tenant_id, serial_number_normalized\)/);
+    expect(sprint39SerialsSql).toMatch(/UNIQUE \(tenant_id, id\)/);
+    expect(sprint39SerialsSql).toMatch(
+      /FOREIGN KEY \(tenant_id, product_id\) REFERENCES products\(tenant_id, id\)/,
+    );
+    expect(sprint39SerialsSql).toMatch(
+      /FOREIGN KEY \(tenant_id, branch_id\) REFERENCES branches\(tenant_id, id\)/,
+    );
+    expect(sprint39SerialsSql).toMatch(
+      /FOREIGN KEY \(tenant_id, serial_id\) REFERENCES serial_numbers\(tenant_id, id\)/,
+    );
+    expect(sprint39SerialsSql).toMatch(/UNIQUE \(tenant_id, serial_id\)/);
+    expect(sprint39SerialsSql).toMatch(/inventory\.serials\.sprint39/);
+    expect(sprint39SerialsSql).not.toMatch(
+      /FOREIGN KEY \((product_id|branch_id|serial_id)\) REFERENCES/,
+    );
   });
 
   it('migración 0029 up: installments DAT-12 cents ADR-0020 COM-06', async () => {

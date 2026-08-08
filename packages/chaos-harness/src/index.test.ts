@@ -17,6 +17,7 @@ import {
   judgeStoreCreditIssueRedeem,
   judgeCommissionAccrualPayout,
   judgeInventoryLocationConservation,
+  judgeInventorySerialAssignment,
   runArCompensateCycles,
   runRollupIdempotentCycles,
   runLayawayConvertCancelChaos,
@@ -26,6 +27,7 @@ import {
   runStoreCreditIssueRedeemChaos,
   runCommissionAccrualPayoutChaos,
   runInventoryLocationConservationChaos,
+  runInventorySerialAssignmentChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -37,6 +39,20 @@ describe('chaos-harness contrato §13.5', () => {
     const result = runInventoryLocationConservationChaos(500);
     expect(judgeInventoryLocationConservation(result)).toBe('PASS');
     await expect(runChaosScenario('inventory-location-conservation', 38)).resolves.toBe('PASS');
+  });
+
+  it('Sprint 39 inventory-serial-assignment está activo y bloquea antes del sprint', async () => {
+    expect(SCENARIO_ACTIVE_FROM['inventory-serial-assignment']).toBe(39);
+    expect(() => assertScenarioReady('inventory-serial-assignment', 38)).toThrow(
+      ChaosScenarioNotReadyError,
+    );
+    const result = runInventorySerialAssignmentChaos(500);
+    expect(judgeInventorySerialAssignment(result)).toBe('PASS');
+    await expect(
+      runChaosScenario('inventory-serial-assignment', 39, {
+        runInventorySerialAssignment: () => Promise.resolve(result),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('rechaza concurrent-writers antes del Sprint 4', () => {

@@ -227,6 +227,66 @@ describe('assertOfflineSaleShape', () => {
     ).not.toThrow();
   });
 
+  it('exige serialId y leaseToken opaco juntos para una unidad serializada', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', quantity: 1, serialId: 'serial-1' }],
+      }),
+    ).toThrow('MISSING_SERIAL_LEASE_TOKEN');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [{ productId: 'p1', quantity: 1, serialLeaseToken: 'opaque_kp_7FXQm19w' }],
+      }),
+    ).toThrow('MISSING_SERIAL_ID');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1,
+            serialId: 'serial-1',
+            serialLeaseToken: 'serial-1',
+          },
+        ],
+      }),
+    ).toThrow('INVALID_SERIAL_LEASE_TOKEN');
+  });
+
+  it('limita cada identidad serial a exactamente una unidad', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 2,
+            serialId: 'serial-1',
+            serialLeaseToken: 'opaque_kp_7FXQm19w',
+          },
+        ],
+      }),
+    ).toThrow('INVALID_SERIAL_CARDINALITY');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            quantity: 1,
+            baseQuantityMicrounits: 500_000,
+            resolvedFactorNumerator: 1,
+            resolvedFactorDenominator: 1,
+            serialId: 'serial-1',
+            serialLeaseToken: 'opaque_kp_7FXQm19w',
+          },
+        ],
+      }),
+    ).toThrow('INVALID_SERIAL_CARDINALITY');
+  });
+
   it('rechaza captureStatus inválido', () => {
     const badPay = {
       paymentMethodId: 'pm1',
@@ -425,6 +485,25 @@ describe('aggregateSaleItems', () => {
       { productId: 'p1', quantity: 1 },
     ]);
     expect(merged).toHaveLength(3);
+  });
+
+  it('no fusiona identidades seriales del mismo producto', () => {
+    const merged = aggregateSaleItems([
+      {
+        productId: 'p1',
+        quantity: 1,
+        serialId: 'serial-1',
+        serialLeaseToken: 'opaque_kp_7FXQm19w',
+      },
+      {
+        productId: 'p1',
+        quantity: 1,
+        serialId: 'serial-2',
+        serialLeaseToken: 'opaque_kp_H4v2bL8q',
+      },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged.map((item) => item.serialId)).toEqual(['serial-1', 'serial-2']);
   });
 
   it('suma entered/base/descuento ausentes como 0', () => {

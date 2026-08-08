@@ -29,7 +29,7 @@ sprints: "38–42"
 
 #### Sprint 39 — Números de serie
 **Capabilities:** `inventory.serials`  
-**Referencia:** Arquitectura §5.3 regla 24 · **Agentes:** Staff Backend Datos (owner), Staff Frontend (caja), Staff QA
+**Referencia:** Arquitectura §5.6 regla 24 · ADR-0023 · **Agentes:** Staff Backend Datos (owner), Staff Frontend (caja), Staff QA
 
 **Entregables:**
 - `serial_numbers` con estados `AVAILABLE → SOLD → RETURNED | IN_TRANSIT`; asignación en recepción.

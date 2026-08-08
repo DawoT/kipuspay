@@ -66,6 +66,46 @@ describe('reporting flags + catalog', () => {
     );
   });
 
+  it('Sprint 39 publica y ejecuta inventory-serial-warranty de forma aislada', async () => {
+    const env = mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [
+      {
+        serial_number: 'SN-0001',
+        product_id: 'p1',
+        status: 'SOLD',
+        sale_item_id: 'si1',
+      },
+    ]);
+    const catalog = runReportsCatalogHttp(env);
+
+    expect(catalog.status).toBe(200);
+    expect((catalog.body as { reports: unknown[] }).reports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'inventory-serial-warranty',
+          source: 'serial_numbers',
+        }),
+      ]),
+    );
+
+    const report = await runReportHttp(env, 't1', 'inventory-serial-warranty', {
+      reportDate: '2026-08-08',
+      branchId: 'b1',
+    });
+    expect(report.status).toBe(200);
+    const body = report.body as {
+      items: Array<{ serial_number: string; status: string; sale_item_id: string }>;
+    };
+    expect(body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          serial_number: 'SN-0001',
+          status: 'SOLD',
+          sale_item_id: 'si1',
+        }),
+      ]),
+    );
+  });
+
   it('merma → REPORT_UNAVAILABLE; day-summary JSON; csv exige export flag', async () => {
     const merma = await runReportHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }), 't1', 'merma', {
       reportDate: '2026-08-04',

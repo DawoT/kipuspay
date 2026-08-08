@@ -37,7 +37,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 21. **Cuotas / pago en partes (`sales.installments`, FASE 6C; ADR-0020):** 1 AR + N cuotas (schedule); Σ principal = saldo; interés COM-06 **no** reduce CxC; pago Zero-Trust + `idempotency_key`; OVERDUE on-read (0 corta caja); `credit_limit` (regla 3); `audit_events` `INSTALLMENT`.
 22. **Comisiones de vendedor (`sales.commissions`, FASE 6C; ADR-0021):** rates→accrual por `seller_id` (servidor); NC setea `reversed_at` (COM-07, 0 DELETE); payout Zero-Trust; GL **6311/2111**; **nómina OOS**; `audit_events` `COMMISSION`.
 23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D; ADR-0022):** `inventory_location_stock` es fuente granular y `branch_product_stock` agregado compatible (`branch = Σ ubicaciones activas`, INTEGER microunits); dual-write en el mismo batch incluso con flag UI off; `DEFAULT` determinista para backfill/oversell; lotes multi-rack; conteo esperado server-side; transferencia intra-sucursal idempotente conserva agregado/PMP y audita `LOCATION_TRANSFER`; picking guiado OC.
-24. **Números de serie (`inventory.serials`, FASE 6D):** asignación en recepción, venta con `serial_number` por `sale_item`, devolución revierte la serie a disponible; garantía/audit; duplicados = 422; `audit_events` `SERIAL_ASSIGN`.
+24. **Números de serie (`inventory.serials`, FASE 6D; ADR-0023):** identidad, historial, leases offline y DDL canónico viven una sola vez en §5.6.
 25. **Venta por peso variable (`inventory.scale`, FASE 6D):** captura de peso en caja (balanza USB o manual), precio por unidad de base, redondeo de monto en servidor; el peso lo fija la caja pero el precio/monto final lo recalcula el servidor. **Heartbeat anti desconexión silenciosa (edge 2C):** el Staff Hardware mantiene un **heartbeat continuo** hacia la balanza (WebUSB); si la conexión se pierde (suspensión de la tablet, cable movido), el POS **nunca lee 0.00 silencioso** — cambia de inmediato a una interfaz **roja "Peso Manual"** que exige al cajero teclear el peso para poder cobrar; si el peso se teclea manualmente, se registra `WEIGHT_OVERRIDE` en `audit_events` y, si supera el umbral del tenant, requiere **PIN de supervisor** (reusa authz de reglas 2/17) antes de continuar.
 26. **Etiquetas de precio/estantería (`catalog.price_labels`, FASE 6D):** plantillas de etiqueta (producto, precio vigente según lista, código de barras) impresas vía `PrinterTransport` (§7.5); reimpresión en lote; nunca edita precios, solo los imprime.
 27. **Export/restore total del negocio (`data.backup`, FASE 6D/6F):** export completo versionado y cifrado de todos los datos del tenant + restore con dry-run; **respaldar la promesa GTM §5.7.1 ("tus datos son tuyos")**; RPO/RTO base; eslabón de la regla 32 (DR).
@@ -328,7 +328,7 @@ CREATE TABLE sale_reprints (
 |---|---|
 | Base (FASE 6, sprints 17–20) | `DISCOUNT_OVERRIDE`, `CREDIT_OVERRIDE`, `CASH_CLOSE`, `VOID`, `NC`, `FORMALIZATION_CHANGE`, `ORDER_ITEM_CANCEL`, `TRANSFER_VARIANCE` + `PRICE_CHANGE`, `PRODUCT_EDIT`, `PERMISSION_CHANGE`, `REPRINT`, `STOCK_ADJUST`, `MERMA_APPROVE`, `CASH_MOVEMENT`, `CONFIG_CHANGE` |
 | FASE 6B (28–32) | `RETURN`, `SUPPLIER_PRICE_DIFF`, `PROMOTION_CHANGE`, `LAYAWAY_CANCEL`, `JOURNAL_POST` |
-| FASE 6C-6F (33–49) | `QUOTE_CREATE`, `QUOTE_SEND`, `QUOTE_APPROVE`, `QUOTE_CANCEL`, `QUOTE_CONVERT`, `QUOTE_EXPIRE`, `SUPPLIER_RETURN`, `STORE_CREDIT_ISSUE`, `STORE_CREDIT_REDEEM`, `INSTALLMENT`, `COMMISSION`, `LOCATION_TRANSFER`, `SERIAL_ASSIGN`, `WEIGHT_OVERRIDE`, `PRICE_LABEL_REPRINT`, `DATA_BACKUP`, `DATA_RESTORE`, `CUSTOMER_ORDER_CANCEL`, `RECURRING_CANCEL`, `FORECAST_*`, `LPDP_ERASE`, `DR_SIMULATION` |
+| FASE 6C-6F (33–49) | `QUOTE_CREATE`, `QUOTE_SEND`, `QUOTE_APPROVE`, `QUOTE_CANCEL`, `QUOTE_CONVERT`, `QUOTE_EXPIRE`, `SUPPLIER_RETURN`, `STORE_CREDIT_ISSUE`, `STORE_CREDIT_REDEEM`, `INSTALLMENT`, `COMMISSION`, `LOCATION_TRANSFER`, `SERIAL_ASSIGN`, `SERIAL_TRANSITION`, `WEIGHT_OVERRIDE`, `PRICE_LABEL_REPRINT`, `DATA_BACKUP`, `DATA_RESTORE`, `CUSTOMER_ORDER_CANCEL`, `RECURRING_CANCEL`, `FORECAST_*`, `LPDP_ERASE`, `DR_SIMULATION` |
 | Sprint 24 (edge A, fidelidad) | `LOYALTY_RESERVATION_EXPIRED` |
 | Sprint 49 (insights) | `INSIGHT_GENERATED`, `AI_QUOTA_EXCEEDED` |
 | FASE 6G (50–53) | `SHIFT_TRANSFER`, `TEAM_INVITE`, `QUICK_ADD`, `GENERIC_LINE`, `HARDWARE_DIAG` |
@@ -751,17 +751,7 @@ CREATE TABLE inventory_location_batch_stock (
 );
 
 -- FASE 6D / Sprint 39 — números de serie
-CREATE TABLE serial_numbers (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    branch_id TEXT NOT NULL,
-    product_id TEXT NOT NULL,
-    serial_number TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'AVAILABLE',  -- AVAILABLE | SOLD | RETURNED | IN_TRANSIT
-    sale_item_id TEXT,
-    supplier_invoice_id TEXT,
-    UNIQUE (tenant_id, product_id, serial_number)
-);
+-- DDL canónico movido a §5.6 (ADR-0023) para mantener una única definición.
 
 -- FASE 6D / Sprint 40 — venta por peso variable
 -- sale_items.qty REAL (ya existente) es la base; para productos type 'WEIGH':

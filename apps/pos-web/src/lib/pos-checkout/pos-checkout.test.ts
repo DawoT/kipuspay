@@ -23,6 +23,26 @@ describe('pos-checkout cart', () => {
     expect(lines).toHaveLength(2);
     expect(addOrBumpLine(lines, base)[0]?.enteredQuantityMicrounits).toBe(2_000_000);
   });
+
+  it('mantiene una línea por identidad serial y conserva su lease opaco', () => {
+    const serialOne = {
+      ...line('phone', 100_000),
+      serialId: 'serial-1',
+      serialLeaseToken: 'opaque_kp_7FXQm19w',
+    };
+    const serialTwo = {
+      ...line('phone', 100_000),
+      serialId: 'serial-2',
+      serialLeaseToken: 'opaque_kp_H4v2bL8q',
+    };
+    const lines = addOrBumpLine(addOrBumpLine([], serialOne), serialTwo);
+    expect(lines).toHaveLength(2);
+    expect(lines.map((item) => item.serialId)).toEqual(['serial-1', 'serial-2']);
+    expect(lines.map((item) => item.serialLeaseToken)).toEqual([
+      'opaque_kp_7FXQm19w',
+      'opaque_kp_H4v2bL8q',
+    ]);
+  });
 });
 
 describe('chargeCartOffline', () => {
