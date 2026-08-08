@@ -154,6 +154,30 @@ function isQuotaExceeded(error: unknown): boolean {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStoredPrintItem(value: unknown): value is StoredPrintItem {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.itemId === 'string' &&
+    value.payload instanceof Uint8Array &&
+    ['PENDING', 'ACKNOWLEDGED', 'FAILED'].includes(String(value.status)) &&
+    (value.lastError === null || typeof value.lastError === 'string')
+  );
+}
+
+function isStoredPrintJob(value: unknown): value is StoredPrintJob {
+  if (!isRecord(value) || !Array.isArray(value.items)) return false;
+  return (
+    typeof value.jobId === 'string' &&
+    ['SALE_TICKET', 'PRICE_LABEL_BATCH'].includes(String(value.kind)) &&
+    typeof value.blocksCashClose === 'boolean' &&
+    value.items.every((item: unknown) => isStoredPrintItem(item))
+  );
+}
+
 /** Opens and hydrates the production IndexedDB outbox before exposing synchronous close-Z counts. */
 export async function createBrowserGenericPrintOutbox(
   dbName = 'kipus_print_outbox',
@@ -163,7 +187,7 @@ export async function createBrowserGenericPrintOutbox(
   }
   const storeName = 'generic_print_jobs';
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(dbName, 2);
+    const request: IDBOpenDBRequest = indexedDB.open(dbName, 2);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(storeName)) {
         request.result.createObjectStore(storeName);
@@ -173,8 +197,17 @@ export async function createBrowserGenericPrintOutbox(
     request.onerror = () => reject(request.error ?? new Error('PRINT_OUTBOX_IDB_OPEN_FAILED'));
   });
   const rows = await new Promise<StoredPrintJob[]>((resolve, reject) => {
-    const request = db['transaction'](storeName, 'readonly').objectStore(storeName).getAll();
-    request.onsuccess = () => resolve(request.result as StoredPrintJob[]);
+    const request = db['transaction'](storeName, 'readonly')
+      .objectStore(storeName)
+      .getAll() as IDBRequest<unknown>;
+    request.onsuccess = () => {
+      const result: unknown = request.result;
+      if (!Array.isArray(result) || !result.every((row: unknown) => isStoredPrintJob(row))) {
+        reject(new Error('PRINT_OUTBOX_IDB_DATA_INVALID'));
+        return;
+      }
+      resolve(result);
+    };
     request.onerror = () => reject(request.error ?? new Error('PRINT_OUTBOX_IDB_READ_FAILED'));
   });
   const storage = new Map<string, StoredPrintJob>(

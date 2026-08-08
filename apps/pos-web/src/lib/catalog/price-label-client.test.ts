@@ -53,11 +53,14 @@ describe('catalog.price_labels POS seams', () => {
     expect(body).not.toHaveProperty('priceCents');
     expect(body).not.toHaveProperty('customerId');
     const headers = new Headers(calls[0]?.[1]?.headers);
-    expect(Object.fromEntries(headers.entries())).toEqual({
-      'content-type': 'application/json',
-      'x-terminal-id': 'terminal-1',
-      'x-terminal-session-id': 'terminal-session-1',
-    });
+    expect([...headers.keys()].sort()).toEqual([
+      'content-type',
+      'x-terminal-id',
+      'x-terminal-session-id',
+    ]);
+    expect(headers.get('content-type')).toBe('application/json');
+    expect(headers.get('x-terminal-id')).toBe('terminal-1');
+    expect(headers.get('x-terminal-session-id')).toBe('terminal-session-1');
   });
 
   it('fails locally when verified terminal context is absent', async () => {

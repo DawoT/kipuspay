@@ -236,6 +236,8 @@ function secureRandomBytes(length: number): Uint8Array {
 
 function bytesToHex(bytes: Uint8Array): string {
   let value = '';
-  for (const byte of bytes) value += byte.toString(16).padStart(2, '0');
+  bytes.forEach((byte: number): void => {
+    value += byte.toString(16).padStart(2, '0');
+  });
   return value;
 }
