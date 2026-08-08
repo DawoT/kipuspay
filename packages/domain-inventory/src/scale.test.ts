@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return -- RED contract imports an intentionally missing module */
 import { describe, expect, it } from 'vitest';
 import {
   WEIGHT_SCALE,

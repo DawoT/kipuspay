@@ -29,6 +29,7 @@ export {
 
 export {
   assertCreditNoteAllowed,
+  stockRestoreMicrounits,
   stockRestoreQuantity,
   type CreditNoteOrigin,
   type CreditNoteRequest,

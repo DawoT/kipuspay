@@ -2,7 +2,7 @@
  * processOfflineSaleAtomic — NV/CPE hot path (Arquitectura §6 / §5 / SYN-12).
  * Preflight fuera del batch; una sola db.batch vía runD1AtomicPlan.
  */
-/* eslint-disable complexity -- motor ACID multi-rama NV/CPE/return; split diferido */
+/* eslint-disable complexity, no-secrets/no-secrets -- motor ACID y nombres SQL canónicos */
 import {
   aggregateSaleItems,
   assertAndApplyPromotions,
@@ -37,6 +37,7 @@ import {
   planStoreCreditIssue,
 } from '@kipuspay/domain-cash';
 import {
+  calculateWeightedSubtotalCents,
   convertEnteredToBaseMicrounits,
   ExpiredBatchError,
   InsufficientBatchStockError,
@@ -65,7 +66,10 @@ import {
 } from './process-store-credit-atomic.js';
 import { appendInstallmentPlanToBatch } from './process-installment-atomic.js';
 import { appendCommissionAccrualToBatch } from './process-commission-atomic.js';
-import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import {
+  appendLocationBatchStockDeltaToPlan,
+  appendLocationStockDeltaToPlan,
+} from './process-inventory-location-atomic.js';
 import {
   appendSerialTransitionToPlan,
   hashSerialLeaseToken,
@@ -83,6 +87,7 @@ import {
   type S18SaleCaps,
 } from './s18-sale-inventory.js';
 import { loadPromotionsByIds } from './load-promotions.js';
+import { resolveActiveTerminalSession } from './process-inventory-scale-atomic.js';
 
 async function requireLiveAuthToken(
   db: D1DatabaseLike,
@@ -164,7 +169,7 @@ async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<
   const row = await db
     .prepare(
       `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+       WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1`,
     )
     .bind(tenantId)
     .first<{ row_hash: string }>();
@@ -285,6 +290,10 @@ function requiredQuantity(item: OfflineSalePayload['items'][number]): number {
   return item.quantity;
 }
 
+function isPhysicalStockType(productType: string): boolean {
+  return productType === 'physical' || productType === 'WEIGH';
+}
+
 async function normalizeUomItems(
   db: D1DatabaseLike,
   tenantId: string,
@@ -293,6 +302,24 @@ async function normalizeUomItems(
 ): Promise<OfflineSalePayload> {
   const items = await Promise.all(
     payload.items.map(async (item) => {
+      if (item.weightMeasurement) {
+        const weightMicrounits = item.weightMeasurement.weightMicrounits;
+        return {
+          productId: item.productId,
+          saleItemId: item.saleItemId,
+          weightMeasurement: item.weightMeasurement,
+          discountAmountCents: item.discountAmountCents,
+          promotionIds: item.promotionIds,
+          serialId: item.serialId,
+          serialLeaseToken: item.serialLeaseToken,
+          quantity: weightMicrounits / QUANTITY_SCALE,
+          enteredQuantityMicrounits: weightMicrounits,
+          baseQuantityMicrounits: weightMicrounits,
+          resolvedUomCode: 'BASE',
+          resolvedFactorNumerator: 1,
+          resolvedFactorDenominator: 1,
+        };
+      }
       const preResolved =
         item.baseQuantityMicrounits !== undefined &&
         item.resolvedFactorNumerator !== undefined &&
@@ -373,7 +400,7 @@ function assertStockAvailable(
     const stock = stockByProduct.get(item.productId)!;
     const qtyMicrounits = Math.round(requiredQuantity(item) * QUANTITY_SCALE);
     if (
-      catalog.get(item.productId)!.type === 'physical' &&
+      isPhysicalStockType(catalog.get(item.productId)!.type) &&
       !stock.allowNegative &&
       stock.stockMicrounits < qtyMicrounits
     ) {
@@ -384,6 +411,161 @@ function assertStockAvailable(
       );
     }
   }
+}
+
+interface PreparedWeightMeasurement {
+  readonly saleItemId: string;
+  readonly measurementId: string;
+  readonly productId: string;
+  readonly weightMicrounits: number;
+  readonly unitPricePerBaseCents: number;
+  readonly subtotalCents: number;
+  readonly measurementSource: 'DEVICE' | 'MANUAL';
+  readonly scaleProtocol: 'WEBHID' | 'WEB_SERIAL' | 'WEBUSB' | null;
+  readonly scaleDeviceId: string | null;
+  readonly heartbeatSequence: number | null;
+  readonly observedAt: string;
+  readonly authorizationTokenId: string | null;
+}
+
+async function prepareWeightMeasurements(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  payload: OfflineSalePayload,
+  catalog: ReadonlyMap<string, CatalogEntry>,
+  nowMs: number,
+  enabled: boolean,
+  terminalId: string,
+): Promise<readonly PreparedWeightMeasurement[]> {
+  const hasWeightedProduct = payload.items.some(
+    (item) => catalog.get(item.productId)?.type === 'WEIGH',
+  );
+  const hasMeasurement = payload.items.some((item) => item.weightMeasurement !== undefined);
+  if (!hasWeightedProduct && !hasMeasurement) return [];
+  if (!enabled) throw new Error('FEATURE_OFF');
+  if (!terminalId.trim()) throw new Error('SCALE_TERMINAL_REQUIRED');
+  await resolveActiveTerminalSession(db, {
+    tenantId,
+    userId,
+    terminalId,
+    cashRegisterSessionId: payload.cashRegisterSessionId,
+    branchId: payload.branchId,
+  });
+
+  const policy = await db
+    .prepare(
+      `SELECT manual_weight_threshold_microunits
+       FROM tenant_weight_policies WHERE tenant_id = ? LIMIT 1`,
+    )
+    .bind(tenantId)
+    .first<{ manual_weight_threshold_microunits: number }>();
+  const threshold = policy?.manual_weight_threshold_microunits ?? 0;
+  const seenLineIds = new Set<string>();
+  const seenMeasurementIds = new Set<string>();
+  const prepared: PreparedWeightMeasurement[] = [];
+  for (const item of payload.items) {
+    const product = catalog.get(item.productId)!;
+    const measurement = item.weightMeasurement;
+    if (product.type !== 'WEIGH') {
+      if (measurement) throw new Error('WEIGH_PRODUCT_REQUIRED');
+      continue;
+    }
+    if (!measurement || !item.saleItemId) throw new Error('WEIGHT_MEASUREMENT_REQUIRED');
+    if (seenLineIds.has(item.saleItemId) || seenMeasurementIds.has(measurement.measurementId)) {
+      throw new Error('WEIGHT_MEASUREMENT_CARDINALITY');
+    }
+    seenLineIds.add(item.saleItemId);
+    seenMeasurementIds.add(measurement.measurementId);
+    if (!Number.isSafeInteger(measurement.weightMicrounits) || measurement.weightMicrounits <= 0) {
+      throw new Error('SCALE_WEIGHT_INVALID');
+    }
+    const observedAtMs = Date.parse(measurement.observedAt);
+    if (!Number.isFinite(observedAtMs)) throw new Error('WEIGHT_OBSERVED_AT_INVALID');
+
+    let authorizationTokenId: string | null = null;
+    if (measurement.measurementSource === 'DEVICE') {
+      if (
+        measurement.stable !== true ||
+        !measurement.scaleDeviceId ||
+        !measurement.scaleProtocol ||
+        !Number.isSafeInteger(measurement.heartbeatSequence)
+      ) {
+        throw new Error('SCALE_READING_UNSTABLE');
+      }
+      if (nowMs - observedAtMs >= 2_000 || observedAtMs > nowMs) {
+        throw new Error('SCALE_HEARTBEAT_STALE');
+      }
+      const device = await db
+        .prepare(
+          `SELECT last_heartbeat_at, last_heartbeat_sequence FROM scale_devices
+           WHERE tenant_id = ? AND id = ? AND terminal_id = ? AND protocol = ?
+             AND status = 'ACTIVE' LIMIT 1`,
+        )
+        .bind(tenantId, measurement.scaleDeviceId, terminalId, measurement.scaleProtocol)
+        .first<{ last_heartbeat_at: string | null; last_heartbeat_sequence: number | null }>();
+      const heartbeatMs = device?.last_heartbeat_at ? Date.parse(device.last_heartbeat_at) : NaN;
+      if (!device) throw new Error('SCALE_DEVICE_SCOPE_MISMATCH');
+      if (!Number.isFinite(heartbeatMs) || nowMs - heartbeatMs >= 2_000 || heartbeatMs > nowMs) {
+        throw new Error('SCALE_HEARTBEAT_STALE');
+      }
+    } else {
+      if (
+        measurement.stable === false ||
+        measurement.scaleDeviceId !== undefined ||
+        measurement.scaleProtocol !== undefined ||
+        measurement.heartbeatSequence !== undefined
+      ) {
+        throw new Error('WEIGHT_SOURCE_MISMATCH');
+      }
+      const tokenRequired = measurement.weightMicrounits > threshold;
+      if (tokenRequired || measurement.authorizationToken) {
+        if (!measurement.authorizationToken?.trim()) throw new Error('WEIGHT_OVERRIDE_REQUIRED');
+        const tokenHash = await sha256Hex(measurement.authorizationToken);
+        const token = await db
+          .prepare(
+            `SELECT id FROM authorization_tokens
+             WHERE tenant_id = ? AND token_hash = ? AND action = 'WEIGHT_OVERRIDE'
+               AND actor_user_id = ? AND terminal_id = ? AND sale_id IS NULL
+               AND offline_sale_id = ? AND sale_item_id = ? AND measurement_id = ?
+               AND used_at IS NULL AND expires_at > datetime(?, 'unixepoch')
+               AND datetime(expires_at) <= datetime(created_at, '+90 seconds')
+             LIMIT 1`,
+          )
+          .bind(
+            tenantId,
+            tokenHash,
+            userId,
+            terminalId,
+            payload.offlineSaleId,
+            item.saleItemId,
+            measurement.measurementId,
+            Math.floor(nowMs / 1000),
+          )
+          .first<{ id: string }>();
+        if (!token) throw new Error('WEIGHT_OVERRIDE_INVALID');
+        authorizationTokenId = token.id;
+      }
+    }
+    prepared.push({
+      saleItemId: item.saleItemId,
+      measurementId: measurement.measurementId,
+      productId: item.productId,
+      weightMicrounits: measurement.weightMicrounits,
+      unitPricePerBaseCents: product.priceCents,
+      subtotalCents: calculateWeightedSubtotalCents({
+        unitPricePerBaseCents: product.priceCents,
+        weightMicrounits: measurement.weightMicrounits,
+      }),
+      measurementSource: measurement.measurementSource,
+      scaleProtocol: measurement.scaleProtocol ?? null,
+      scaleDeviceId: measurement.scaleDeviceId ?? null,
+      heartbeatSequence: measurement.heartbeatSequence ?? null,
+      observedAt: measurement.observedAt,
+      authorizationTokenId,
+    });
+  }
+  return prepared;
 }
 
 export interface ProcessOfflineSaleOptions {
@@ -409,6 +591,9 @@ export interface ProcessOfflineSaleOptions {
   readonly salesInstallmentsEnabled?: boolean;
   /** Sprint 37 — FEATURE_SALES_COMMISSIONS. */
   readonly salesCommissionsEnabled?: boolean;
+  /** Sprint 40 — inventory.scale; terminal identity is supplied by trusted HTTP context. */
+  readonly inventoryScaleEnabled?: boolean;
+  readonly terminalId?: string;
   /** Sprint 39: exact physical identities; REQUIRED products fail closed without these. */
   readonly serialAssignments?: readonly {
     readonly productId: string;
@@ -529,6 +714,19 @@ export async function processOfflineSaleAtomic(
       catalog.set(pid, { ...entry, priceCents: resolved });
     }
   }
+  const weightedMeasurements = await prepareWeightMeasurements(
+    db,
+    tenantId,
+    userId,
+    payload,
+    catalog,
+    nowMs,
+    opts.inventoryScaleEnabled === true,
+    opts.terminalId ?? '',
+  );
+  const weightedByLineId = new Map(
+    weightedMeasurements.map((measurement) => [measurement.saleItemId, measurement]),
+  );
 
   // BOM: stock a descontar = componentes; kit no debitar stock propio.
   const bomDebits = new Map<string, number>();
@@ -570,18 +768,18 @@ export async function processOfflineSaleAtomic(
 
   // FEFO preflight
   const fefoByProduct = new Map<string, ReturnType<typeof planFefoForQty>>();
+  const fefoByLine = new Map<string, ReturnType<typeof planFefoForQty>>();
   const nowIso = new Date(nowMs).toISOString();
   if (s18.inventoryBatches && !isReturnDoc) {
     try {
       for (const item of payload.items) {
         const entry = catalog.get(item.productId)!;
-        if (entry.type !== 'physical') continue;
+        if (!isPhysicalStockType(entry.type)) continue;
         const batches = await loadBatchesForProduct(db, tenantId, payload.branchId, item.productId);
         if (batches.length === 0) continue;
-        fefoByProduct.set(
-          item.productId,
-          planFefoForQty(batches, item.productId, requiredQuantity(item), nowIso),
-        );
+        const allocations = planFefoForQty(batches, item.productId, requiredQuantity(item), nowIso);
+        if (item.saleItemId) fefoByLine.set(item.saleItemId, allocations);
+        else fefoByProduct.set(item.productId, allocations);
       }
       for (const [componentProductId, componentQty] of bomDebits) {
         const batches = await loadBatchesForProduct(
@@ -648,7 +846,7 @@ export async function processOfflineSaleAtomic(
     });
   }
 
-  const totals = computeNvLineTotals(
+  let totals = computeNvLineTotals(
     itemsForTotals,
     new Map(
       [...catalog.entries()].map(([id, p]) => [
@@ -657,6 +855,41 @@ export async function processOfflineSaleAtomic(
       ]),
     ),
   );
+  if (weightedMeasurements.length > 0) {
+    const lines = totals.lines.map((line) => {
+      const weighted = line.sourceLineId ? weightedByLineId.get(line.sourceLineId) : undefined;
+      if (!weighted) return line;
+      const subtotalCents = weighted.subtotalCents - line.discountCents;
+      if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
+      const igvCents = Math.round((subtotalCents * 18) / 100);
+      const totalCents = subtotalCents + igvCents;
+      return {
+        ...line,
+        quantity: weighted.weightMicrounits / QUANTITY_SCALE,
+        unitPriceCents: weighted.unitPricePerBaseCents,
+        subtotalCents,
+        igvCents,
+        totalCents,
+        unitCostCents: catalog.get(weighted.productId)!.pmpUnitCostCents,
+      };
+    });
+    totals = {
+      lines,
+      totalTaxableCents: lines.reduce((sum, line) => sum + line.subtotalCents, 0),
+      totalIgvCents: lines.reduce((sum, line) => sum + line.igvCents, 0),
+      totalDiscountCents: lines.reduce((sum, line) => sum + line.discountCents, 0),
+      totalCogsCents: lines.reduce(
+        (sum, line) =>
+          sum +
+          calculateWeightedSubtotalCents({
+            unitPricePerBaseCents: line.unitCostCents,
+            weightMicrounits: Math.round(line.quantity * QUANTITY_SCALE),
+          }),
+        0,
+      ),
+      totalAmountCents: lines.reduce((sum, line) => sum + line.totalCents, 0),
+    };
+  }
   let saleLines: readonly NvLineCents[] = totals.lines;
   if (fefoByProduct.size > 0) {
     saleLines = splitNvLinesByFefo(totals.lines, fefoByProduct);
@@ -1035,7 +1268,7 @@ export async function processOfflineSaleAtomic(
   let chainPrev = await previousAuditHash(db, tenantId);
   if (!isReturn) {
     for (const [productId, qty] of qtyByProduct) {
-      if (catalog.get(productId)!.type !== 'physical') continue;
+      if (!isPhysicalStockType(catalog.get(productId)!.type)) continue;
       const st = stockByProduct.get(productId)!;
       if (st.allowNegative && st.stock < qty) {
         const id = crypto.randomUUID();
@@ -1157,6 +1390,27 @@ export async function processOfflineSaleAtomic(
   // G5: tail de la cadena audit_events tras los audits planeados en este batch
   // (OFFLINE_OVERSELL → LOYALTY_*). Journal/store-credit/converts encadenan aquí.
   let auditTail: string | null = loyaltyPlan?.rowHash ?? chainPrev;
+  const weightAuditPlans: Array<{
+    measurement: PreparedWeightMeasurement;
+    prevHash: string | null;
+    rowHash: string;
+  }> = [];
+  for (const measurement of weightedMeasurements) {
+    const weightAuditAction = measurement.authorizationTokenId
+      ? 'WEIGHT_OVERRIDE'
+      : 'WEIGHT_MEASUREMENT';
+    const rowHash = await computeAuditHash({
+      action: weightAuditAction,
+      entity_id: measurement.measurementId,
+      sale_id: saleId,
+      sale_item_id: measurement.saleItemId,
+      product_id: measurement.productId,
+      weight_microunits: measurement.weightMicrounits,
+      prev_hash: auditTail,
+    });
+    weightAuditPlans.push({ measurement, prevHash: auditTail, rowHash });
+    auditTail = rowHash;
+  }
   const journalPrevHash = auditTail;
 
   try {
@@ -1168,9 +1422,10 @@ export async function processOfflineSaleAtomic(
         /* reserva previa: no re-descontar */
       } else
         for (const [productId, qty] of qtyByProduct) {
-          if (catalog.get(productId)!.type !== 'physical') continue;
+          if (!isPhysicalStockType(catalog.get(productId)!.type)) continue;
           const st = stockByProduct.get(productId)!;
           const allow = isReturn || st.allowNegative ? 1 : 0;
+          const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
           const guardId = crypto.randomUUID();
           stockGuardIds.push(guardId);
           plan.add(
@@ -1180,14 +1435,45 @@ export async function processOfflineSaleAtomic(
                VALUES (
                  ?,
                  COALESCE(
-                   (SELECT CASE WHEN stock >= ? OR ? = 1 THEN 1 ELSE 0 END
+                   (SELECT CASE WHEN
+                      (stock_microunits >= ? OR ? = 1)
+                      AND (? = 1 OR NOT EXISTS (
+                        SELECT 1
+                        FROM inventory_location_stock
+                        WHERE tenant_id = ? AND branch_id = ? AND location_id = ?
+                          AND product_id = ?
+                      ) OR COALESCE((
+                        SELECT quantity_microunits
+                        FROM inventory_location_stock
+                        WHERE tenant_id = ? AND branch_id = ? AND location_id = ?
+                          AND product_id = ?
+                      ), 0) >= ?)
+                    THEN 1 ELSE 0 END
                     FROM branch_product_stock
                     WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                    CASE WHEN ? = 1 THEN 1 ELSE 0 END
                  )
                )`,
               )
-              .bind(guardId, qty, allow, tenantId, payload.branchId, productId, allow),
+              .bind(
+                guardId,
+                qtyMicrounits,
+                allow,
+                allow,
+                tenantId,
+                payload.branchId,
+                `loc-default:${tenantId}:${payload.branchId}`,
+                productId,
+                tenantId,
+                payload.branchId,
+                `loc-default:${tenantId}:${payload.branchId}`,
+                productId,
+                qtyMicrounits,
+                tenantId,
+                payload.branchId,
+                productId,
+                allow,
+              ),
           );
         }
 
@@ -1314,18 +1600,30 @@ export async function processOfflineSaleAtomic(
           ),
       );
 
-      const saleItemByProduct = new Map<string, string>();
+      const saleItemIdsByProduct = new Map<string, string[]>();
+      const saleItemBySerialId = new Map<string, string>();
       for (const line of saleLines) {
         const product = catalog.get(line.productId)!;
-        const source = payload.items.find((item) => item.productId === line.productId)!;
+        const source =
+          (line.sourceLineId
+            ? payload.items.find((item) => item.saleItemId === line.sourceLineId)
+            : undefined) ?? payload.items.find((item) => item.productId === line.productId)!;
         const baseQuantityMicrounits = Math.round(line.quantity * QUANTITY_SCALE);
         const sourceBaseMicrounits = source.baseQuantityMicrounits ?? baseQuantityMicrounits;
         const enteredQuantityMicrounits = Math.round(
           ((source.enteredQuantityMicrounits ?? sourceBaseMicrounits) * baseQuantityMicrounits) /
             sourceBaseMicrounits,
         );
-        const saleItemId = crypto.randomUUID();
-        saleItemByProduct.set(line.productId, saleItemId);
+        const saleItemId = line.sourceLineId ?? crypto.randomUUID();
+        const productLineIds = saleItemIdsByProduct.get(line.productId) ?? [];
+        productLineIds.push(saleItemId);
+        saleItemIdsByProduct.set(line.productId, productLineIds);
+        if (source.serialId) saleItemBySerialId.set(source.serialId, saleItemId);
+        const weighted = weightedByLineId.get(saleItemId);
+        const weightedAllocations = weighted ? (fefoByLine.get(saleItemId) ?? []) : [];
+        const effectiveBatchId =
+          line.batchId ??
+          (weightedAllocations.length === 1 ? weightedAllocations[0]!.batchId : null);
         plan.add(
           db
             .prepare(
@@ -1352,7 +1650,7 @@ export async function processOfflineSaleAtomic(
               line.subtotalCents,
               line.igvCents,
               line.totalCents,
-              line.batchId ?? null,
+              effectiveBatchId,
               source.uomId ?? null,
               source.resolvedUomCode ?? 'UND',
               enteredQuantityMicrounits,
@@ -1364,8 +1662,119 @@ export async function processOfflineSaleAtomic(
         );
       }
 
+      for (const weightAudit of weightAuditPlans) {
+        const measurement = weightAudit.measurement;
+        if (measurement.authorizationTokenId) {
+          const tokenGuardId = crypto.randomUUID();
+          stockGuardIds.push(tokenGuardId);
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO atomic_guards (id, ok)
+                 SELECT ?, CASE WHEN EXISTS (
+                   SELECT 1 FROM authorization_tokens
+                   WHERE id = ? AND tenant_id = ? AND action = 'WEIGHT_OVERRIDE'
+                     AND actor_user_id = ? AND terminal_id = ? AND sale_id IS NULL
+                     AND offline_sale_id = ? AND sale_item_id = ? AND measurement_id = ?
+                     AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                     AND datetime(expires_at) <= datetime(created_at, '+90 seconds')
+                 ) THEN 1 ELSE 0 END`,
+              )
+              .bind(
+                tokenGuardId,
+                measurement.authorizationTokenId,
+                tenantId,
+                userId,
+                opts.terminalId,
+                payload.offlineSaleId,
+                measurement.saleItemId,
+                measurement.measurementId,
+              ),
+          );
+          plan.add(
+            db
+              .prepare(
+                `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP, sale_id = ?
+                 WHERE id = ? AND tenant_id = ? AND used_at IS NULL`,
+              )
+              .bind(saleId, measurement.authorizationTokenId, tenantId),
+          );
+        }
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO weight_measurements (
+                 id, tenant_id, sale_item_id, product_id, terminal_id, scale_device_id,
+                 operation_type, operation_id, idempotency_key, weight_microunits,
+                 unit_price_per_base_cents, subtotal_cents, measurement_source,
+                 scale_protocol, heartbeat_sequence, observed_at, authorization_token_id
+               ) VALUES (?, ?, ?, ?, ?, ?, 'SALE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+              measurement.measurementId,
+              tenantId,
+              measurement.saleItemId,
+              measurement.productId,
+              opts.terminalId,
+              measurement.scaleDeviceId,
+              saleId,
+              `${payload.offlineSaleId}:${measurement.measurementId}`,
+              measurement.weightMicrounits,
+              measurement.unitPricePerBaseCents,
+              measurement.subtotalCents,
+              measurement.measurementSource,
+              measurement.scaleProtocol,
+              measurement.heartbeatSequence,
+              measurement.observedAt,
+              measurement.authorizationTokenId,
+            ),
+        );
+        const auditGuardId = crypto.randomUUID();
+        stockGuardIds.push(auditGuardId);
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO atomic_guards (id, ok)
+               SELECT ?, CASE WHEN COALESCE((
+                 SELECT row_hash FROM audit_events
+                 WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1
+               ), '') = COALESCE(?, '') THEN 1 ELSE 0 END`,
+            )
+            .bind(auditGuardId, tenantId, weightAudit.prevHash),
+        );
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO audit_events (
+                 id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+                 payload_json, prev_hash, row_hash
+               ) VALUES (?, ?, ?, ?, ?, 'weight_measurement', ?, ?, ?, ?)`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              tenantId,
+              payload.branchId,
+              userId,
+              measurement.authorizationTokenId ? 'WEIGHT_OVERRIDE' : 'WEIGHT_MEASUREMENT',
+              measurement.measurementId,
+              JSON.stringify({
+                saleId,
+                saleItemId: measurement.saleItemId,
+                productId: measurement.productId,
+                weightMicrounits: measurement.weightMicrounits,
+                authorizationTokenId: measurement.authorizationTokenId,
+              }),
+              weightAudit.prevHash,
+              weightAudit.rowHash,
+            ),
+        );
+      }
+
       for (const serial of preparedSerials) {
-        const saleItemId = saleItemByProduct.get(serial.productId);
+        const productLineIds = saleItemIdsByProduct.get(serial.productId) ?? [];
+        const saleItemId =
+          saleItemBySerialId.get(serial.serialId) ??
+          (productLineIds.length === 1 ? productLineIds[0] : undefined);
         if (!saleItemId) throw new Error('SERIAL_SALE_ITEM_REQUIRED');
         await appendSerialTransitionToPlan(plan, db, {
           tenantId,
@@ -1421,8 +1830,8 @@ export async function processOfflineSaleAtomic(
       for (const [productId, qty] of qtyByProduct) {
         const typ = catalog.get(productId)!.type;
         if (typ === 'kit' && s18.inventoryBom) continue;
-        if (typ !== 'physical' && typ !== 'kit') continue;
-        if (typ === 'physical' || !s18.inventoryBom) {
+        if (!isPhysicalStockType(typ) && typ !== 'kit') continue;
+        if (isPhysicalStockType(typ) || !s18.inventoryBom) {
           stockDebits.set(productId, (stockDebits.get(productId) ?? 0) + qty);
         }
       }
@@ -1483,11 +1892,24 @@ export async function processOfflineSaleAtomic(
           branchId: payload.branchId,
           productId,
           deltaMicrounits: isReturn ? qtyMicrounits : -qtyMicrounits,
+          initialQuantityMicrounits: before.stockMicrounits,
         });
-        const fefoAllocs = fefoByProduct.get(productId);
-        if (fefoAllocs && !isReturn) {
+        const fefoAllocs = [
+          ...(fefoByProduct.get(productId) ?? []),
+          ...payload.items
+            .filter((item) => item.productId === productId && item.saleItemId)
+            .flatMap((item) => fefoByLine.get(item.saleItemId!) ?? []),
+        ];
+        if (fefoAllocs.length > 0 && !isReturn) {
           for (const alloc of fefoAllocs) {
             const allocMicrounits = Math.round(alloc.qty * QUANTITY_SCALE);
+            appendLocationBatchStockDeltaToPlan(plan, db, {
+              tenantId,
+              branchId: payload.branchId,
+              productId,
+              batchId: alloc.batchId,
+              deltaMicrounits: -allocMicrounits,
+            });
             plan.add(
               db
                 .prepare(

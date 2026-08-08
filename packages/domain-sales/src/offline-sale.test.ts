@@ -24,6 +24,97 @@ const basePayload = (): OfflineSalePayload => ({
 });
 
 describe('assertOfflineSaleShape', () => {
+  it('accepts measurement facts without client price, factor, quantity, or subtotal', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            saleItemId: 'line-weight-1',
+            weightMeasurement: {
+              measurementId: 'measurement-1',
+              weightMicrounits: 500_000,
+              measurementSource: 'DEVICE',
+              scaleProtocol: 'WEBUSB',
+              scaleDeviceId: 'scale-1',
+              heartbeatSequence: 7,
+              observedAt: '2026-08-08T12:00:00.000Z',
+              stable: true,
+            },
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it('preserves two weighted line identities for the same product', () => {
+    const lines = aggregateSaleItems([
+      {
+        productId: 'p1',
+        saleItemId: 'line-weight-1',
+        weightMeasurement: {
+          measurementId: 'measurement-1',
+          weightMicrounits: 500_000,
+          measurementSource: 'MANUAL',
+          observedAt: '2026-08-08T12:00:00.000Z',
+        },
+      },
+      {
+        productId: 'p1',
+        saleItemId: 'line-weight-2',
+        weightMeasurement: {
+          measurementId: 'measurement-2',
+          weightMicrounits: 250_000,
+          measurementSource: 'MANUAL',
+          observedAt: '2026-08-08T12:00:00.000Z',
+        },
+      },
+    ]);
+
+    expect(lines).toHaveLength(2);
+    expect(lines.map((line) => line.saleItemId)).toEqual(['line-weight-1', 'line-weight-2']);
+  });
+
+  it.each([
+    { weightMicrounits: 0, measurementSource: 'MANUAL', error: 'SCALE_WEIGHT_INVALID' },
+    // eslint-disable-next-line no-secrets/no-secrets -- asserted domain error code
+    { weightMicrounits: 1, measurementSource: 'IMPORTED', error: 'WEIGHT_SOURCE_INVALID' },
+  ])('rejects invalid normalized weight facts: $error', ({ error, ...measurement }) => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        items: [
+          {
+            productId: 'p1',
+            saleItemId: 'line-weight-invalid',
+            weightMeasurement: {
+              measurementId: 'measurement-invalid',
+              observedAt: '2026-08-08T12:00:00.000Z',
+              ...measurement,
+            } as unknown as OfflineSalePayload['items'][number]['weightMeasurement'],
+          },
+        ],
+      }),
+    ).toThrow(error);
+  });
+
+  it('rejects a duplicate weighted line identity', () => {
+    const weighted = {
+      productId: 'p1',
+      saleItemId: 'line-weight-1',
+      weightMeasurement: {
+        measurementId: 'measurement-1',
+        weightMicrounits: 500_000,
+        measurementSource: 'MANUAL' as const,
+        observedAt: '2026-08-08T12:00:00.000Z',
+      },
+    };
+    expect(() => aggregateSaleItems([weighted, weighted])).toThrow(
+      'WEIGHT_LINE_IDENTITY_DUPLICATE',
+    );
+  });
+
   it('acepta payload NV mínimo', () => {
     expect(() => assertOfflineSaleShape(basePayload())).not.toThrow();
   });

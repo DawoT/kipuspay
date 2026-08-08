@@ -26,6 +26,8 @@ export interface CreditNoteRequest {
   readonly items: readonly {
     readonly productId: string;
     readonly quantity: number;
+    readonly originalSaleItemId?: string;
+    readonly quantityMicrounits?: number;
     readonly isUncatalogued: boolean;
   }[];
 }
@@ -66,4 +68,17 @@ export function stockRestoreQuantity(item: {
   readonly isUncatalogued: boolean;
 }): number {
   return item.isUncatalogued ? 0 : item.quantity;
+}
+
+export function stockRestoreMicrounits(item: {
+  readonly quantity: number;
+  readonly quantityMicrounits?: number;
+  readonly isUncatalogued: boolean;
+}): number {
+  if (item.isUncatalogued) return 0;
+  const microunits = item.quantityMicrounits ?? Math.round(item.quantity * 1_000_000);
+  if (!Number.isSafeInteger(microunits) || microunits <= 0) {
+    throw new Error('INVALID_NC_QUANTITY');
+  }
+  return microunits;
 }

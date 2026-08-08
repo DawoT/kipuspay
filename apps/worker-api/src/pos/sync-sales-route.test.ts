@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { processSyncSalesBatch } from '@kipuspay/adapters-d1';
+import { describe, expect, it, vi } from 'vitest';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isOfflineSyncEnabled, runSyncSalesHttp } from './sync-sales-route.js';
+
+vi.mock('@kipuspay/adapters-d1', () => ({
+  processSyncSalesBatch: vi.fn(() => Promise.resolve({ results: [] })),
+}));
 
 describe('sync-sales-route flags', () => {
   it('FEATURE_OFFLINE_SYNC default off', () => {
@@ -29,5 +34,53 @@ describe('sync-sales-route flags', () => {
       { sales: [] },
     );
     expect(empty.status).toBe(400);
+  });
+
+  it('passes the same inventory.scale capability and trusted terminal to sync reconciliation', async () => {
+    await runSyncSalesHttp(
+      {
+        FEATURE_OFFLINE_SYNC: '1',
+        FEATURE_INVENTORY_SCALE: '1',
+        FEATURE_INVENTORY_BATCHES: '1',
+        DB: {},
+      } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        sales: [
+          {
+            offlineSaleId: 'off-weight',
+            branchId: 'b1',
+            cashRegisterSessionId: 's1',
+            documentType: 'NV',
+            series: 'NV01',
+            clientDocumentType: '1',
+            clientDocumentNumber: '1',
+            clientName: 'C',
+            items: [{ productId: 'p1', quantity: 1 }],
+            payments: [{ paymentMethodId: 'pm', amountCents: 118 }],
+          },
+        ],
+      },
+      Date.now(),
+      'terminal-trusted',
+    );
+
+    expect(vi.mocked(processSyncSalesBatch)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      't1',
+      'u1',
+      expect.anything(),
+      expect.any(Number),
+      undefined,
+      false,
+      'terminal-trusted',
+      expect.objectContaining({
+        inventoryScaleEnabled: true,
+        terminalId: 'terminal-trusted',
+      }),
+    );
+    const options = vi.mocked(processSyncSalesBatch).mock.calls.at(-1)?.[8];
+    expect(options?.s18?.inventoryBatches).toBe(true);
   });
 });

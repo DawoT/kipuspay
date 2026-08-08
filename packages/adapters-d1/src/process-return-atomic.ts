@@ -187,7 +187,8 @@ export async function processReturnAtomic(
 
   const itemsRes = await db
     .prepare(
-      `SELECT id, product_id, quantity, unit_price_cents, unit_cost_cents, batch_id,
+      `SELECT id, product_id, product_type, quantity, base_quantity_microunits,
+              unit_price_cents, unit_cost_cents, batch_id,
               is_uncatalogued, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
               total_amount_cents
        FROM sale_items WHERE tenant_id = ? AND sale_id = ?`,
@@ -197,6 +198,8 @@ export async function processReturnAtomic(
       id: string;
       product_id: string | null;
       quantity: number;
+      product_type: string;
+      base_quantity_microunits: number | null;
       unit_price_cents: number;
       unit_cost_cents: number;
       batch_id: string | null;
@@ -211,14 +214,15 @@ export async function processReturnAtomic(
   const returnedRes = await db
     .prepare(
       `SELECT sri.original_sale_item_id AS original_sale_item_id,
-              COALESCE(SUM(sri.qty), 0) AS qty
+              COALESCE(SUM(sri.qty), 0) AS qty,
+              COALESCE(SUM(sri.qty_microunits), 0) AS qty_microunits
        FROM sale_return_items sri
        JOIN sales_returns sr ON sr.id = sri.return_id AND sr.tenant_id = sri.tenant_id
        WHERE sri.tenant_id = ? AND sr.sale_id = ?
        GROUP BY sri.original_sale_item_id`,
     )
     .bind(tenantId, input.originSaleId)
-    .all<{ original_sale_item_id: string; qty: number }>();
+    .all<{ original_sale_item_id: string; qty: number; qty_microunits: number }>();
   const alreadyByItem = new Map(
     (returnedRes.results ?? []).map((r) => [r.original_sale_item_id, r.qty]),
   );
@@ -229,6 +233,9 @@ export async function processReturnAtomic(
       id: row.id,
       productId: row.product_id ?? '',
       quantity: row.quantity,
+      productType: row.product_type,
+      baseQuantityMicrounits:
+        row.base_quantity_microunits ?? Math.round(row.quantity * QUANTITY_SCALE),
       unitPriceCents: row.unit_price_cents,
       unitCostCents: row.unit_cost_cents,
       batchId: row.batch_id,
@@ -238,6 +245,9 @@ export async function processReturnAtomic(
       icbperAmountCents: row.icbper_amount_cents,
       totalAmountCents: row.total_amount_cents,
       alreadyReturnedQty: alreadyByItem.get(row.id) ?? 0,
+      alreadyReturnedMicrounits:
+        (returnedRes.results ?? []).find((returned) => returned.original_sale_item_id === row.id)
+          ?.qty_microunits ?? 0,
     })),
   );
   const refundAmountCents = sumReturnRefundCents(planned);
@@ -250,7 +260,7 @@ export async function processReturnAtomic(
       .filter((line) => line.restoreStock && Boolean(line.productId))
       .map((line) => ({
         productId: line.productId,
-        quantityMicrounits: Math.round(line.qty * QUANTITY_SCALE),
+        quantityMicrounits: line.qtyMicrounits,
         serialIds: input.serialIdsBySaleItemId?.[line.originalSaleItemId] ?? [],
       })),
     'SOLD',
@@ -395,6 +405,40 @@ export async function processReturnAtomic(
     reason: input.reason.trim(),
     prev: prevHash?.row_hash ?? null,
   });
+  const weightReversalPlans: Array<{
+    measurementId: string;
+    originalSaleItemId: string;
+    restoredWeightMicrounits: number;
+    prevHash: string;
+    rowHash: string;
+  }> = [];
+  let reversalPrevHash = rowHash;
+  for (const line of planned.filter((candidate) => candidate.reversesWeightMeasurement)) {
+    const measurement = await db
+      .prepare(
+        `SELECT id FROM weight_measurements
+         WHERE tenant_id = ? AND sale_item_id = ? LIMIT 1`,
+      )
+      .bind(tenantId, line.originalSaleItemId)
+      .first<{ id: string }>();
+    if (!measurement) throw new Error('WEIGHT_MEASUREMENT_REQUIRED');
+    const reversalRowHash = await sha256Hex({
+      action: 'WEIGHT_MEASUREMENT_REVERSED',
+      entity_id: measurement.id,
+      return_id: returnId,
+      original_sale_item_id: line.originalSaleItemId,
+      restored_weight_microunits: line.qtyMicrounits,
+      prev: reversalPrevHash,
+    });
+    weightReversalPlans.push({
+      measurementId: measurement.id,
+      originalSaleItemId: line.originalSaleItemId,
+      restoredWeightMicrounits: line.qtyMicrounits,
+      prevHash: reversalPrevHash,
+      rowHash: reversalRowHash,
+    });
+    reversalPrevHash = reversalRowHash;
+  }
 
   const sunatStatus = defaultSunatStatus(docType);
   const issuedAt = new Date(nowMs).toISOString().replace('T', ' ').substring(0, 19);
@@ -488,8 +532,10 @@ export async function processReturnAtomic(
             `INSERT INTO sale_return_items (
                  id, tenant_id, return_id, original_sale_item_id, batch_id, qty, qty_microunits,
                  unit_price_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
-                 unit_price_without_tax_cents, line_total_cents
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 unit_price_without_tax_cents, line_total_cents, original_weight_measurement_id
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 (SELECT id FROM weight_measurements
+                  WHERE tenant_id = ? AND sale_item_id = ? LIMIT 1))`,
           )
           .bind(
             returnItemId,
@@ -505,6 +551,8 @@ export async function processReturnAtomic(
             line.icbperAmountCents,
             line.unitPriceWithoutTaxCents,
             line.lineTotalCents,
+            tenantId,
+            line.originalSaleItemId,
           ),
       );
       for (const serialId of input.serialIdsBySaleItemId?.[line.originalSaleItemId] ?? []) {
@@ -531,7 +579,7 @@ export async function processReturnAtomic(
     }
 
     for (const sp of stockPlans) {
-      const qtyMicrounits = Math.round(sp.line.qty * QUANTITY_SCALE);
+      const qtyMicrounits = sp.line.qtyMicrounits;
       if (sp.exists) {
         plan.add(
           db
@@ -577,6 +625,25 @@ export async function processReturnAtomic(
         deltaMicrounits: qtyMicrounits,
         batchId: sp.line.batchId,
       });
+      if (sp.line.batchId) {
+        plan.add(
+          db
+            .prepare(
+              `UPDATE inventory_batches
+               SET stock_microunits = stock_microunits + ?,
+                   stock = (stock_microunits + ?) * 0.000001
+               WHERE id = ? AND tenant_id = ? AND branch_id = ? AND product_id = ?`,
+            )
+            .bind(
+              qtyMicrounits,
+              qtyMicrounits,
+              sp.line.batchId,
+              tenantId,
+              origin.branch_id,
+              sp.line.productId,
+            ),
+        );
+      }
       plan.add(
         db
           .prepare(
@@ -704,6 +771,33 @@ export async function processReturnAtomic(
           rowHash,
         ),
     );
+    for (const reversal of weightReversalPlans) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO audit_events (
+               id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+               payload_json, prev_hash, row_hash
+             ) VALUES (
+               ?, ?, ?, ?, 'WEIGHT_MEASUREMENT_REVERSED', 'weight_measurement', ?, ?, ?, ?
+             )`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            tenantId,
+            origin.branch_id,
+            userId,
+            reversal.measurementId,
+            JSON.stringify({
+              returnId,
+              originalSaleItemId: reversal.originalSaleItemId,
+              restoredWeightMicrounits: reversal.restoredWeightMicrounits,
+            }),
+            reversal.prevHash,
+            reversal.rowHash,
+          ),
+      );
+    }
 
     if (issueStoreCredit && storeCreditAccount && origin.customer_id) {
       const issue = planStoreCreditIssue({

@@ -264,9 +264,10 @@ Abre solo los archivos que esta tabla te señale.
 | `serial_number_events` | §5.6 | [`docs/architecture/05-6-inventory-serials.md`](docs/architecture/05-6-inventory-serials.md) | 67 |
 | `serial_terminal_leases` | §5.6 | [`docs/architecture/05-6-inventory-serials.md`](docs/architecture/05-6-inventory-serials.md) | 89 |
 | `serial_manifests` | §5.6 | [`docs/architecture/05-6-inventory-serials.md`](docs/architecture/05-6-inventory-serials.md) | 108 |
-| `tenant_weight_policies` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 70 |
-| `scale_devices` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 82 |
-| `weight_measurements` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 109 |
+| `tenant_weight_policies` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 78 |
+| `pos_terminal_sessions` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 90 |
+| `scale_devices` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 115 |
+| `weight_measurements` | §5.7 | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) | 146 |
 | `atomic_guards` | §6 | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) | 33 |
 | `daily_financial_rollups` | §9 | [`docs/architecture/09-reporting.md`](docs/architecture/09-reporting.md) | 15 |
 | `daily_product_rollups` | §9 | [`docs/architecture/09-reporting.md`](docs/architecture/09-reporting.md) | 35 |

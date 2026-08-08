@@ -141,6 +141,17 @@ import {
   runReleaseSerialLeaseHttp,
   runSearchSerialsHttp,
 } from './inventory/inventory-serial-routes.js';
+import {
+  runAuthorizeManualWeightHttp,
+  runConfigureWeightPolicyHttp,
+  runDiagnoseScaleDeviceHttp,
+  runDisableScaleDeviceHttp,
+  runHeartbeatScaleDeviceHttp,
+  runListScaleDevicesHttp,
+  runRegisterScaleDeviceHttp,
+  runRegisterTerminalSessionHttp,
+  runSubmitWeightHttp,
+} from './inventory/inventory-scale-routes.js';
 import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
 import {
   isAdvancedReportId,
@@ -1122,6 +1133,94 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
   });
+  // Sprint 40 — weight policy, terminal-owned devices and normalized measurements.
+  const scaleActor = (c: {
+    get(name: 'jwt'): VerifiedJwtClaims | undefined;
+    get(name: 'user'): UserSession | undefined;
+    req: { header(name: string): string | undefined };
+  }) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    return {
+      tenantId: jwt?.tenantId ?? '',
+      userId: user?.userId ?? jwt?.sub ?? '',
+      role: user?.role ?? '',
+      terminalId: c.req.header('x-terminal-id') ?? '',
+      terminalSessionId: c.req.header('x-terminal-session-id') ?? '',
+    };
+  };
+  app.get('/api/inventory/scale/devices', async (c) => {
+    const result = await runListScaleDevicesHttp(c.env, scaleActor(c));
+    return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/devices', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runRegisterScaleDeviceHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/terminal-sessions', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runRegisterTerminalSessionHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/devices/heartbeat', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runHeartbeatScaleDeviceHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/diagnostics', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runDiagnoseScaleDeviceHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/devices/disable', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runDisableScaleDeviceHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
+  });
+  app.put('/api/inventory/scale/policy', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runConfigureWeightPolicyHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/authorize-manual', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runAuthorizeManualWeightHttp(
+      c.env,
+      scaleActor(c),
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 500 | 503);
+  });
+  app.post('/api/inventory/scale/measurements', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runSubmitWeightHttp(c.env, scaleActor(c), body as Record<string, unknown>);
+    return c.json(result.body, result.status as 201 | 400 | 403 | 404 | 422 | 500 | 503);
+  });
   app.post('/api/inventory/counts/submit-review', async (c) => {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json();
@@ -1545,6 +1644,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 401 | 503);
   });
 
+  app.onError((_error, c) => c.json({ code: 'INTERNAL_ERROR' }, 500));
   return app;
 }
 

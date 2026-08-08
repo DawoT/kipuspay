@@ -47,6 +47,7 @@ import {
   DOWN_0030_SPRINT37_COMMISSIONS,
   DOWN_0031_SPRINT38_INVENTORY_LOCATIONS,
   DOWN_0032_SPRINT39_INVENTORY_SERIALS,
+  DOWN_0033_SPRINT40_INVENTORY_SCALE,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -71,6 +72,8 @@ import sprint36InstallmentsSql from '../migrations/0029_sprint36_installments.sq
 import sprint37CommissionsSql from '../migrations/0030_sprint37_commissions.sql?raw';
 import sprint38LocationsSql from '../migrations/0031_sprint38_inventory_locations.sql?raw';
 import sprint39SerialsSql from '../migrations/0032_sprint39_inventory_serials.sql?raw';
+import sprint40ScaleSql from '../migrations/0033_sprint40_inventory_scale.sql?raw';
+import sprint40ScaleDownSql from '../migrations-down/0033_sprint40_inventory_scale.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -1092,6 +1095,181 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint39SerialsSql).not.toMatch(
       /FOREIGN KEY \((product_id|branch_id|serial_id)\) REFERENCES/,
     );
+  });
+
+  it('migración 0033 up: peso variable aplica DDL y protección down', async () => {
+    expect(sprint40ScaleSql).toMatch(/CREATE TABLE tenant_weight_policies/);
+    expect(sprint40ScaleSql).toMatch(/CREATE TABLE scale_devices/);
+    expect(sprint40ScaleSql).toMatch(/CREATE TABLE weight_measurements/);
+    expect(sprint40ScaleSql).toMatch(/inventory\.scale\.sprint40/);
+    expect(DOWN_0033_SPRINT40_INVENTORY_SCALE).toMatch(/RAISE|atomic_guards/);
+    const row = await env.DB.prepare(
+      `SELECT value FROM schema_meta WHERE key = 'inventory.scale.sprint40'`,
+    ).first<{ value: string }>();
+    expect(row?.value).toBe('1');
+    expect(sprint40ScaleDownSql.trim()).toBe(DOWN_0033_SPRINT40_INVENTORY_SCALE.trim());
+  });
+
+  it('migración 0033 runtime: WEIGH, append-only y DAT-12 quedan enforced', async () => {
+    const tenantA = 't-scale-a';
+    const tenantB = 't-scale-b';
+    const a = await seedTenantBranchSession(tenantA);
+    const b = await seedTenantBranchSession(tenantB);
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO pos_terminals (id, tenant_id, branch_id, label)
+         VALUES ('term-scale-a', ?, ?, 'Caja A')`,
+      ).bind(tenantA, a.branchId),
+      env.DB.prepare(
+        `INSERT INTO pos_terminals (id, tenant_id, branch_id, label)
+         VALUES ('term-scale-b', ?, ?, 'Caja B')`,
+      ).bind(tenantB, b.branchId),
+      env.DB.prepare(
+        `INSERT INTO products (
+           id, tenant_id, sku, name, product_type, unit_code, price_cents, stock_microunits
+         ) VALUES ('product-scale-a', ?, 'SCALE-A', 'Pesable A', 'WEIGH', 'KGM', 199, 5000000)`,
+      ).bind(tenantA),
+      env.DB.prepare(
+        `INSERT INTO products (
+           id, tenant_id, sku, name, product_type, unit_code, price_cents, stock_microunits
+         ) VALUES ('product-scale-b', ?, 'SCALE-B', 'Pesable B', 'WEIGH', 'KGM', 299, 5000000)`,
+      ).bind(tenantB),
+      env.DB.prepare(
+        `INSERT INTO sales (
+           id, tenant_id, branch_id, cash_register_session_id, user_id,
+           client_document_type, client_document_number, client_name,
+           document_type, series, number, total_amount_cents, issued_at_lima, sunat_status
+         ) VALUES ('sale-scale-a', ?, ?, ?, ?, '0', '-', 'ANONIMO',
+                   'NV', 'NV01', 40001, 100, CURRENT_TIMESTAMP, 'NOT_APPLICABLE')`,
+      ).bind(tenantA, a.branchId, a.sessionId, a.userId),
+      env.DB.prepare(
+        `INSERT INTO sales (
+           id, tenant_id, branch_id, cash_register_session_id, user_id,
+           client_document_type, client_document_number, client_name,
+           document_type, series, number, total_amount_cents, issued_at_lima, sunat_status
+         ) VALUES ('sale-scale-b', ?, ?, ?, ?, '0', '-', 'ANONIMO',
+                   'NV', 'NV01', 40002, 150, CURRENT_TIMESTAMP, 'NOT_APPLICABLE')`,
+      ).bind(tenantB, b.branchId, b.sessionId, b.userId),
+    ]);
+
+    const saleItemSql = `INSERT INTO sale_items (
+      id, tenant_id, sale_id, product_id, product_name, product_type, quantity,
+      unit_price_cents, subtotal_cents, igv_amount_cents, total_amount_cents,
+      base_quantity_microunits
+    ) VALUES (?, ?, ?, ?, 'Pesable', 'WEIGH', 1, 199, 100, 0, 100, ?)`;
+    await expect(
+      env.DB.prepare(saleItemSql)
+        .bind('line-scale-invalid', tenantA, 'sale-scale-a', 'product-scale-a', 0)
+        .run(),
+    ).rejects.toThrow(/WEIGHT_MICROUNITS_REQUIRED/);
+    await env.DB.batch([
+      env.DB.prepare(saleItemSql).bind(
+        'line-scale-a',
+        tenantA,
+        'sale-scale-a',
+        'product-scale-a',
+        500000,
+      ),
+      env.DB.prepare(saleItemSql).bind(
+        'line-scale-b',
+        tenantB,
+        'sale-scale-b',
+        'product-scale-b',
+        500000,
+      ),
+      env.DB.prepare(
+        `INSERT INTO scale_devices (
+           id, tenant_id, terminal_id, protocol, device_fingerprint
+         ) VALUES ('device-scale-a', ?, 'term-scale-a', 'WEBHID', 'fingerprint-a')`,
+      ).bind(tenantA),
+      env.DB.prepare(
+        `INSERT INTO scale_devices (
+           id, tenant_id, terminal_id, protocol, device_fingerprint
+         ) VALUES ('device-scale-b', ?, 'term-scale-b', 'WEBUSB', 'fingerprint-b')`,
+      ).bind(tenantB),
+    ]);
+    await expect(
+      env.DB.prepare(
+        `UPDATE sale_items SET base_quantity_microunits = 0 WHERE id = 'line-scale-a'`,
+      ).run(),
+    ).rejects.toThrow(/WEIGHT_MICROUNITS_REQUIRED/);
+
+    const measurementSql = `INSERT INTO weight_measurements (
+      id, tenant_id, sale_item_id, product_id, terminal_id, scale_device_id,
+      operation_type, operation_id, idempotency_key, weight_microunits,
+      unit_price_per_base_cents, subtotal_cents, measurement_source,
+      scale_protocol, observed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'SALE', ?, ?, 500000, 199, 100,
+              'DEVICE', 'WEBHID', CURRENT_TIMESTAMP)`;
+    await env.DB.prepare(measurementSql)
+      .bind(
+        'measurement-scale-a',
+        tenantA,
+        'line-scale-a',
+        'product-scale-a',
+        'term-scale-a',
+        'device-scale-a',
+        'sale-scale-a',
+        'idem-scale-a',
+      )
+      .run();
+    await expect(
+      env.DB.prepare(
+        `UPDATE weight_measurements SET weight_microunits = 600000
+         WHERE id = 'measurement-scale-a'`,
+      ).run(),
+    ).rejects.toThrow(/WEIGHT_MEASUREMENTS_APPEND_ONLY/);
+    await expect(
+      env.DB.prepare(`DELETE FROM weight_measurements WHERE id = 'measurement-scale-a'`).run(),
+    ).rejects.toThrow(/WEIGHT_MEASUREMENTS_APPEND_ONLY/);
+
+    const crossTenantCases = [
+      ['measurement-cross-terminal', 'line-scale-a', 'product-scale-a', 'term-scale-b', null],
+      ['measurement-cross-product', 'line-scale-a', 'product-scale-b', 'term-scale-a', null],
+      ['measurement-cross-line', 'line-scale-b', 'product-scale-a', 'term-scale-a', null],
+      [
+        'measurement-cross-device',
+        'line-scale-a',
+        'product-scale-a',
+        'term-scale-a',
+        'device-scale-b',
+      ],
+    ] as const;
+    for (const [id, lineId, productId, terminalId, deviceId] of crossTenantCases) {
+      await expect(
+        env.DB.prepare(measurementSql)
+          .bind(id, tenantA, lineId, productId, terminalId, deviceId, 'sale-scale-a', `idem-${id}`)
+          .run(),
+      ).rejects.toThrow();
+    }
+  });
+
+  it('down 0033 aborta con datos activos y revierte un estado vacío', async () => {
+    await expect(env.DB.exec(DOWN_0033_SPRINT40_INVENTORY_SCALE)).rejects.toThrow();
+
+    await env.DB.exec(`DROP TRIGGER weight_measurements_no_delete`);
+    await env.DB.prepare(`DELETE FROM weight_measurements`).run();
+    await env.DB.prepare(`DELETE FROM scale_devices`).run();
+    await env.DB.prepare(`DELETE FROM tenant_weight_policies`).run();
+    await env.DB.prepare(
+      `UPDATE sale_items SET product_type = 'physical' WHERE product_type = 'WEIGH'`,
+    ).run();
+    await env.DB.prepare(
+      `UPDATE products SET product_type = 'physical' WHERE product_type = 'WEIGH'`,
+    ).run();
+
+    await env.DB.exec(DOWN_0033_SPRINT40_INVENTORY_SCALE);
+    const tables = await env.DB.prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'table' AND name IN (
+         'tenant_weight_policies', 'scale_devices', 'weight_measurements'
+       )`,
+    ).all<{ name: string }>();
+    expect(tables.results).toEqual([]);
+    const authColumns = await env.DB.prepare(`PRAGMA table_info(authorization_tokens)`).all<{
+      name: string;
+    }>();
+    expect(authColumns.results.some((column) => column.name === 'action')).toBe(false);
   });
 
   it('down 0032 aborta con lease activo, estado no colapsable o drift', async () => {

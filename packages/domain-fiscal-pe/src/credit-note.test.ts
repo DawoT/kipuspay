@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { assertCreditNoteAllowed, stockRestoreQuantity } from './credit-note.js';
+import {
+  assertCreditNoteAllowed,
+  stockRestoreMicrounits,
+  stockRestoreQuantity,
+} from './credit-note.js';
 
 describe('assertCreditNoteAllowed', () => {
   const origin = {
@@ -82,5 +86,37 @@ describe('stockRestoreQuantity E-B', () => {
   it('uncatalogued → 0 stock restore', () => {
     expect(stockRestoreQuantity({ quantity: 2, isUncatalogued: true })).toBe(0);
     expect(stockRestoreQuantity({ quantity: 2, isUncatalogued: false })).toBe(2);
+  });
+
+  it('uses exact WEIGH microunits instead of reconstructing a decimal quantity', () => {
+    expect(
+      stockRestoreMicrounits({
+        quantity: 0.333333,
+        quantityMicrounits: 333_333,
+        isUncatalogued: false,
+      }),
+    ).toBe(333_333);
+  });
+
+  it('falls back to quantity and rejects invalid stock restoration facts', () => {
+    expect(
+      stockRestoreMicrounits({
+        quantity: 0.25,
+        isUncatalogued: false,
+      }),
+    ).toBe(250_000);
+    expect(
+      stockRestoreMicrounits({
+        quantity: 1,
+        quantityMicrounits: 0,
+        isUncatalogued: true,
+      }),
+    ).toBe(0);
+    expect(() =>
+      stockRestoreMicrounits({
+        quantity: 0,
+        isUncatalogued: false,
+      }),
+    ).toThrow('INVALID_NC_QUANTITY');
   });
 });

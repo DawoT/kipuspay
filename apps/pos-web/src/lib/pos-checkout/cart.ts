@@ -14,6 +14,18 @@ export interface CartLine {
   /** Sprint 39: one physical unit and its opaque terminal lease. */
   readonly serialId?: string;
   readonly serialLeaseToken?: string;
+  /** Sprint 40: each weighing is a distinct line; facts only, never client money. */
+  readonly saleItemId?: string;
+  readonly weightMeasurement?: {
+    readonly measurementId: string;
+    readonly weightMicrounits: number;
+    readonly measurementSource: 'DEVICE' | 'MANUAL';
+    readonly scaleProtocol?: 'WEBHID' | 'WEB_SERIAL' | 'WEBUSB';
+    readonly scaleDeviceId?: string;
+    readonly heartbeatSequence?: number;
+    readonly observedAt: string;
+    readonly authorizationToken?: string;
+  };
 }
 
 export function lineTotalCents(line: CartLine): number {
@@ -29,7 +41,8 @@ export function addOrBumpLine(lines: readonly CartLine[], next: CartLine): CartL
     (line) =>
       line.productId === next.productId &&
       line.uomId === next.uomId &&
-      line.serialId === next.serialId,
+      line.serialId === next.serialId &&
+      line.weightMeasurement?.measurementId === next.weightMeasurement?.measurementId,
   );
   if (idx < 0) return [...lines, next];
   const prev = lines[idx];

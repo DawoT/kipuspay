@@ -53,6 +53,11 @@ export function isInventoryOpsEnabled(): boolean {
   return flagOn(pub(PF + 'INVENTORY_BATCHES')) || flagOn(pub(PF + 'INVENTORY_BOM'));
 }
 
+/** Sprint 40 — balanza y venta por peso variable. */
+export function isInventoryScaleEnabled(): boolean {
+  return flagOn(pub(PF + 'INVENTORY_SCALE'));
+}
+
 /** Sprint 19 — comandas / KDS / split. */
 export function isOrdersKdsEnabled(): boolean {
   return flagOn(pub(PF + 'ORDERS_KDS'));

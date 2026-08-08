@@ -34,16 +34,21 @@ medición ni delimitaba la autorización de un peso manual.
    confiable no acepta bytes, unidad, precio ni subtotal aportados por el dispositivo.
 4. Una lectura queda stale a los `2_000 ms`; desconexión o heartbeat stale obliga a
    peso manual y jamás produce un peso cero.
-5. El umbral manual del tenant es `0` por defecto. Superarlo exige un token
-   `WEIGHT_OVERRIDE`, de un uso, ligado a tenant, terminal, venta, línea y medición,
-   con vigencia máxima de 90 segundos.
+5. El umbral manual del tenant es `0` por defecto. Superarlo exige un token opaco
+   `WEIGHT_OVERRIDE`, persistido solo como SHA-256, de un uso, ligado al cajero
+   consumidor, terminal, venta, línea y medición, con vigencia máxima de 90 segundos.
+   El supervisor aprobador se registra por separado y no sustituye al consumidor.
 6. La política vive en `tenant_weight_policies`, no como columna de `tenants`.
    `scale_devices` registra protocolo, fingerprint, configuración y estado con scope
-   compuesto tenant+terminal.
+   compuesto tenant+terminal. Toda cabecera de terminal es solo candidata:
+   `pos_terminal_sessions` debe demostrar una asignación activa a tenant + usuario +
+   sucursal + sesión de caja abierta + terminal activo.
 7. Cada línea `WEIGH` tiene exactamente una medición persistida. Líneas distintas del
    mismo producto conservan identidades de medición distintas.
 8. La venta offline conserva medición e identidad, pero el servidor vuelve a resolver
    producto, precio, autorización, cantidad, stock y total antes de confirmar.
+9. El heartbeat se escribe por endpoint autenticado para el dispositivo exacto de la
+   sesión registrada; protocolo, orden de secuencia y frescura fallan cerrados.
 
 ## Alternativas consideradas
 

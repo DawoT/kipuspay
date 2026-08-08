@@ -47,6 +47,16 @@ export {
   type SerialLease,
   type SerialState,
 } from './serials.js';
+export {
+  WEIGHT_SCALE,
+  calculateWeightedSubtotalCents,
+  normalizeScaleReading,
+  requiresWeightOverride,
+  type RawScaleReading,
+  type ScaleInputUnit,
+  type ScaleProtocol,
+  type ScaleReading,
+} from './scale.js';
 
 export interface StockBatch {
   readonly batchId: string;

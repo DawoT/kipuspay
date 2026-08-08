@@ -1,6 +1,39 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 
+export const DOWN_0033_SPRINT40_INVENTORY_SCALE = `
+INSERT /* RAISE(ABORT via atomic_guards CHECK) */ INTO atomic_guards(id, ok) SELECT 'inventory.scale.sprint40.down', CASE WHEN EXISTS (SELECT 1 FROM weight_measurements) OR EXISTS (SELECT 1 FROM scale_devices) OR EXISTS (SELECT 1 FROM pos_terminal_sessions) OR EXISTS (SELECT 1 FROM tenant_weight_policies) OR EXISTS (SELECT 1 FROM products WHERE product_type = 'WEIGH') OR EXISTS (SELECT 1 FROM authorization_tokens WHERE action IS NOT NULL OR actor_user_id IS NOT NULL OR terminal_id IS NOT NULL OR sale_id IS NOT NULL OR offline_sale_id IS NOT NULL OR sale_item_id IS NOT NULL OR measurement_id IS NOT NULL) THEN 0 ELSE 1 END;
+DROP TRIGGER IF EXISTS sale_items_weigh_quantity_guard_update;
+DROP TRIGGER IF EXISTS sale_items_weigh_quantity_guard_insert;
+DROP TRIGGER IF EXISTS weight_measurements_no_delete;
+DROP TRIGGER IF EXISTS weight_measurements_no_update;
+DROP TRIGGER IF EXISTS products_product_type_guard_update;
+DROP TRIGGER IF EXISTS products_product_type_guard_insert;
+DROP INDEX IF EXISTS idx_weight_measurements_audit;
+DROP INDEX IF EXISTS idx_sale_return_items_weight_measurement;
+DROP INDEX IF EXISTS idx_weight_measurements_operation;
+DROP INDEX IF EXISTS idx_weight_measurements_product;
+DROP INDEX IF EXISTS idx_scale_devices_terminal;
+DROP INDEX IF EXISTS idx_pos_terminal_sessions_actor;
+DROP INDEX IF EXISTS uq_pos_terminal_sessions_active_cash_session;
+DROP INDEX IF EXISTS uq_pos_terminal_sessions_active_terminal;
+DROP INDEX IF EXISTS idx_authorization_tokens_weight_scope;
+DROP TABLE IF EXISTS weight_measurements;
+DROP TABLE IF EXISTS scale_devices;
+DROP TABLE IF EXISTS pos_terminal_sessions;
+DROP TABLE IF EXISTS tenant_weight_policies;
+ALTER TABLE sale_return_items DROP COLUMN original_weight_measurement_id;
+ALTER TABLE authorization_tokens DROP COLUMN measurement_id;
+ALTER TABLE authorization_tokens DROP COLUMN sale_item_id;
+ALTER TABLE authorization_tokens DROP COLUMN offline_sale_id;
+ALTER TABLE authorization_tokens DROP COLUMN sale_id;
+ALTER TABLE authorization_tokens DROP COLUMN terminal_id;
+ALTER TABLE authorization_tokens DROP COLUMN actor_user_id;
+ALTER TABLE authorization_tokens DROP COLUMN action;
+DELETE FROM schema_meta WHERE key = 'inventory.scale.sprint40';
+DELETE FROM atomic_guards WHERE id = 'inventory.scale.sprint40.down';
+`;
+
 export const DOWN_0032_SPRINT39_INVENTORY_SERIALS = `
 INSERT INTO atomic_guards(id, ok) SELECT 'inventory.serials.sprint39.down', CASE WHEN EXISTS (SELECT 1 FROM serial_terminal_leases WHERE status = 'ACTIVE') OR EXISTS (SELECT 1 FROM serial_numbers WHERE status <> 'AVAILABLE' OR current_sale_item_id IS NOT NULL) OR EXISTS (SELECT 1 FROM inventory_location_stock stock JOIN products product ON product.tenant_id = stock.tenant_id AND product.id = stock.product_id AND product.serial_tracking_mode = 'REQUIRED' LEFT JOIN serial_numbers serial ON serial.tenant_id = stock.tenant_id AND serial.branch_id = stock.branch_id AND serial.location_id = stock.location_id AND serial.product_id = stock.product_id GROUP BY stock.tenant_id, stock.branch_id, stock.location_id, stock.product_id, stock.quantity_microunits HAVING stock.quantity_microunits <> COUNT(serial.id) * 1000000) OR EXISTS (SELECT 1 FROM serial_numbers serial LEFT JOIN inventory_location_stock stock ON stock.tenant_id = serial.tenant_id AND stock.branch_id = serial.branch_id AND stock.location_id = serial.location_id AND stock.product_id = serial.product_id WHERE stock.product_id IS NULL) THEN 0 ELSE 1 END;
 DROP TRIGGER IF EXISTS serial_number_events_no_delete;

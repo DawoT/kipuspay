@@ -45,8 +45,61 @@ export interface LocationStockDeltaInput {
   readonly branchId: string;
   readonly productId: string;
   readonly deltaMicrounits: number;
+  readonly initialQuantityMicrounits?: number;
   readonly locationId?: string | null;
   readonly batchId?: string | null;
+}
+
+export function appendLocationBatchStockDeltaToPlan(
+  plan: AtomicPlanBuilder,
+  db: D1DatabaseLike,
+  input: LocationStockDeltaInput & { readonly batchId: string },
+): void {
+  const locationId = input.locationId || defaultLocationId(input.tenantId, input.branchId);
+  plan.add(
+    db
+      .prepare(
+        `INSERT INTO inventory_location_batch_stock (
+           tenant_id, branch_id, location_id, product_id, batch_id, quantity_microunits
+         )
+         SELECT ?, ?, ?, ?, ?, 0
+         WHERE NOT EXISTS (
+           SELECT 1 FROM inventory_location_batch_stock
+           WHERE tenant_id = ? AND branch_id = ? AND location_id = ?
+             AND product_id = ? AND batch_id = ?
+         )`,
+      )
+      .bind(
+        input.tenantId,
+        input.branchId,
+        locationId,
+        input.productId,
+        input.batchId,
+        input.tenantId,
+        input.branchId,
+        locationId,
+        input.productId,
+        input.batchId,
+      ),
+  );
+  plan.add(
+    db
+      .prepare(
+        `UPDATE inventory_location_batch_stock
+         SET quantity_microunits = quantity_microunits + ?,
+             version = version + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE tenant_id = ? AND branch_id = ? AND location_id = ?
+           AND product_id = ? AND batch_id = ?`,
+      )
+      .bind(
+        input.deltaMicrounits,
+        input.tenantId,
+        input.branchId,
+        locationId,
+        input.productId,
+        input.batchId,
+      ),
+  );
 }
 
 /**
@@ -83,7 +136,7 @@ export function appendLocationStockDeltaToPlan(
         `INSERT INTO inventory_location_stock (
            tenant_id, branch_id, location_id, product_id, quantity_microunits
          )
-         SELECT ?, ?, ?, ?, 0
+         SELECT ?, ?, ?, ?, ?
          WHERE NOT EXISTS (
            SELECT 1 FROM inventory_location_stock
            WHERE tenant_id = ? AND branch_id = ? AND location_id = ? AND product_id = ?
@@ -94,6 +147,7 @@ export function appendLocationStockDeltaToPlan(
         input.branchId,
         locationId,
         input.productId,
+        input.initialQuantityMicrounits ?? 0,
         input.tenantId,
         input.branchId,
         locationId,
@@ -111,50 +165,7 @@ export function appendLocationStockDeltaToPlan(
       .bind(input.deltaMicrounits, input.tenantId, input.branchId, locationId, input.productId),
   );
   if (input.batchId) {
-    plan.add(
-      db
-        .prepare(
-          `INSERT INTO inventory_location_batch_stock (
-             tenant_id, branch_id, location_id, product_id, batch_id, quantity_microunits
-           )
-           SELECT ?, ?, ?, ?, ?, 0
-           WHERE NOT EXISTS (
-             SELECT 1 FROM inventory_location_batch_stock
-             WHERE tenant_id = ? AND branch_id = ? AND location_id = ?
-               AND product_id = ? AND batch_id = ?
-           )`,
-        )
-        .bind(
-          input.tenantId,
-          input.branchId,
-          locationId,
-          input.productId,
-          input.batchId,
-          input.tenantId,
-          input.branchId,
-          locationId,
-          input.productId,
-          input.batchId,
-        ),
-    );
-    plan.add(
-      db
-        .prepare(
-          `UPDATE inventory_location_batch_stock
-           SET quantity_microunits = quantity_microunits + ?,
-               version = version + 1, updated_at = CURRENT_TIMESTAMP
-           WHERE tenant_id = ? AND branch_id = ? AND location_id = ?
-             AND product_id = ? AND batch_id = ?`,
-        )
-        .bind(
-          input.deltaMicrounits,
-          input.tenantId,
-          input.branchId,
-          locationId,
-          input.productId,
-          input.batchId,
-        ),
-    );
+    appendLocationBatchStockDeltaToPlan(plan, db, { ...input, batchId: input.batchId, locationId });
   }
   return locationId;
 }

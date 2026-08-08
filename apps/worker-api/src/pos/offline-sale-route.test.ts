@@ -192,6 +192,54 @@ describe('runOfflineSaleHttp', () => {
       }),
     );
   });
+
+  it('passes trusted terminal and inventory.scale capability to the atomic engine', async () => {
+    await runOfflineSaleHttp(
+      {
+        FEATURE_ACID_OFFLINE_SALE: '1',
+        FEATURE_INVENTORY_SCALE: '1',
+        DB: {},
+      } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'weighted-sale',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        items: [
+          {
+            productId: 'p1',
+            saleItemId: 'line-1',
+            weightMeasurement: {
+              measurementId: 'measure-1',
+              weightMicrounits: 500_000,
+              measurementSource: 'MANUAL',
+              observedAt: '2026-08-08T12:00:00.000Z',
+            },
+          },
+        ],
+        payments: [{ paymentMethodId: 'pm', amountCents: 118 }],
+      },
+      false,
+      'terminal-trusted',
+    );
+
+    expect(vi.mocked(processOfflineSaleAtomic)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      't1',
+      'u1',
+      expect.anything(),
+      expect.objectContaining({
+        inventoryScaleEnabled: true,
+        terminalId: 'terminal-trusted',
+      }),
+    );
+  });
 });
 
 describe('POST /api/pos/offline-sale auth', () => {

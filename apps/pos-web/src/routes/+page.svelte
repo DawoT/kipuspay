@@ -3,6 +3,7 @@
   import { formatCents } from '$lib/cents';
   import {
     isInventorySerialsEnabled,
+    isInventoryScaleEnabled,
     isPosCheckoutEnabled,
     isPrintTemplatesEnabled,
     isSalesCommissionsEnabled,
@@ -39,6 +40,7 @@
   const checkoutOn = isPosCheckoutEnabled();
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
+  const scaleOn = isInventoryScaleEnabled();
   const demoProduct = {
     productId: 'p1',
     name: 'Producto demo',
@@ -59,6 +61,19 @@
   let serialStatus = $state('');
   let serialBusy = $state(false);
   let serialInput = $state<HTMLInputElement>();
+  type ScaleState =
+    | 'CONNECTING'
+    | 'STABLE'
+    | 'UNSTABLE'
+    | 'STALE'
+    | 'DISCONNECTED'
+    | 'MANUAL_REQUIRED';
+  let scaleState = $state<ScaleState>('DISCONNECTED');
+  let scaleWeightMicrounits = $state<number | null>(null);
+  let scaleSequence = $state(0);
+  let manualWeightGrams = $state('');
+  let weightAuthorizationToken = $state('');
+  const manualThresholdMicrounits = 250_000;
 
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
   const correlatives = new OfflineCorrelativeStore(1);
@@ -200,6 +215,76 @@
     terminalRegistered = false;
   }
 
+  function connectScale() {
+    scaleState = 'CONNECTING';
+    scaleWeightMicrounits = null;
+    queueMicrotask(() => {
+      scaleSequence += 1;
+      scaleWeightMicrounits = 750_000;
+      scaleState = 'STABLE';
+    });
+  }
+
+  function disconnectScale() {
+    scaleWeightMicrounits = null;
+    scaleState = 'MANUAL_REQUIRED';
+  }
+
+  function captureDeviceWeight() {
+    if (scaleState !== 'STABLE' || !scaleWeightMicrounits || scaleWeightMicrounits <= 0) return;
+    const measurementId = crypto.randomUUID();
+    const saleItemId = crypto.randomUUID();
+    lines = addOrBumpLine(lines, {
+      productId: 'weigh-demo',
+      name: 'Manzana por peso',
+      unitPriceCents: 100,
+      quantity: 1,
+      saleItemId,
+      weightMeasurement: {
+        measurementId,
+        weightMicrounits: scaleWeightMicrounits,
+        measurementSource: 'DEVICE',
+        scaleProtocol: 'WEBHID',
+        scaleDeviceId: 'scale-demo',
+        heartbeatSequence: scaleSequence,
+        observedAt: new Date().toISOString(),
+      },
+    });
+    scaleWeightMicrounits = null;
+    scaleState = 'UNSTABLE';
+  }
+
+  function captureManualWeight() {
+    const grams = Number(manualWeightGrams);
+    const weightMicrounits = Number.isSafeInteger(grams) ? grams * 1_000 : 0;
+    if (weightMicrounits <= 0) {
+      scaleState = 'MANUAL_REQUIRED';
+      return;
+    }
+    if (weightMicrounits > manualThresholdMicrounits && !weightAuthorizationToken.trim()) {
+      scaleState = 'MANUAL_REQUIRED';
+      return;
+    }
+    lines = addOrBumpLine(lines, {
+      productId: 'weigh-demo',
+      name: 'Manzana por peso',
+      unitPriceCents: 100,
+      quantity: 1,
+      saleItemId: crypto.randomUUID(),
+      weightMeasurement: {
+        measurementId: crypto.randomUUID(),
+        weightMicrounits,
+        measurementSource: 'MANUAL',
+        observedAt: new Date().toISOString(),
+        ...(weightAuthorizationToken.trim()
+          ? { authorizationToken: weightAuthorizationToken.trim() }
+          : {}),
+      },
+    });
+    manualWeightGrams = '';
+    weightAuthorizationToken = '';
+  }
+
   async function addScannedSerial(event?: KeyboardEvent) {
     if (event && event.key !== 'Enter') return;
     event?.preventDefault();
@@ -299,6 +384,61 @@
       {/if}
     </section>
   {/if}
+  {#if scaleOn}
+    <section
+      class:manual={scaleState === 'MANUAL_REQUIRED'}
+      class="scale-panel"
+      aria-labelledby="scale-title"
+      data-testid="scale-checkout"
+    >
+      <header>
+        <div>
+          <p class="scale-eyebrow">Instrumento 01 · Balanza</p>
+          <h2 id="scale-title">Captura de peso</h2>
+        </div>
+        <p class="scale-state" aria-live="assertive" data-testid="scale-state">
+          <svg aria-hidden="true" viewBox="0 0 16 16">
+            <circle cx="8" cy="8" r="5"></circle>
+          </svg>
+          {scaleState}
+        </p>
+      </header>
+      <output class="weight-readout" aria-live="polite">
+        <span>Peso neto</span>
+        <strong>{scaleWeightMicrounits ? scaleWeightMicrounits / 1_000 : '—'}</strong>
+        <span>g</span>
+      </output>
+      <div class="scale-actions">
+        <button type="button" onclick={connectScale}>
+          {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar balanza'}
+        </button>
+        <button type="button" onclick={captureDeviceWeight} disabled={scaleState !== 'STABLE'}>
+          Capturar pesada
+        </button>
+        <button type="button" class="secondary" onclick={disconnectScale}>Peso manual</button>
+      </div>
+      {#if scaleState === 'MANUAL_REQUIRED'}
+        <div class="manual-entry">
+          <p role="alert">La lectura del dispositivo no es cobrable. Ingresa un peso manual válido.</p>
+          <label for="manual-weight">Peso manual (gramos enteros)</label>
+          <input
+            id="manual-weight"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            bind:value={manualWeightGrams}
+          />
+          <label for="weight-auth">Autorización de supervisor si supera 250 g</label>
+          <input
+            id="weight-auth"
+            type="password"
+            autocomplete="off"
+            bind:value={weightAuthorizationToken}
+          />
+          <button type="button" onclick={captureManualWeight}>Agregar peso manual</button>
+        </div>
+      {/if}
+    </section>
+  {/if}
   <p data-testid="status">{status}</p>
   <p data-testid="message">{message}</p>
   <p data-testid="feedback-ms">{Math.round(lastFeedbackMs)}</p>
@@ -315,6 +455,116 @@
 {/if}
 
 <style>
+  .scale-panel {
+    --instrument-bg: #f3f7f5;
+    --instrument-ink: #16332c;
+    --instrument-line: #71867e;
+    --instrument-action: #196b57;
+    --instrument-fault: #9f2f27;
+    max-width: 42rem;
+    margin: 1.25rem 0;
+    padding: 1rem;
+    border: 1px solid var(--instrument-line);
+    border-top: 5px solid var(--instrument-action);
+    background: var(--instrument-bg);
+    color: var(--instrument-ink);
+  }
+  .scale-panel.manual {
+    border-color: var(--instrument-fault);
+    border-top-color: var(--instrument-fault);
+    background: #fff5f3;
+  }
+  .scale-panel header,
+  .scale-state,
+  .weight-readout,
+  .scale-actions {
+    display: flex;
+    align-items: center;
+  }
+  .scale-panel header {
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .scale-panel h2,
+  .scale-state,
+  .scale-eyebrow {
+    margin: 0;
+  }
+  .scale-eyebrow {
+    font: 700 0.72rem/1.2 ui-monospace, monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .scale-state {
+    gap: 0.4rem;
+    font: 750 0.78rem/1 ui-monospace, monospace;
+  }
+  .scale-state svg {
+    width: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+  }
+  .manual .scale-state {
+    color: var(--instrument-fault);
+  }
+  .weight-readout {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    border-block: 1px solid var(--instrument-line);
+    font-family: ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .weight-readout strong {
+    font-size: clamp(2.5rem, 10vw, 4.5rem);
+    line-height: 1;
+  }
+  .scale-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .scale-panel button,
+  .scale-panel input {
+    min-height: 44px;
+    padding: 0.55rem 0.75rem;
+    font: inherit;
+  }
+  .scale-panel button {
+    border: 1px solid var(--instrument-action);
+    background: var(--instrument-action);
+    color: white;
+    font-weight: 750;
+    cursor: pointer;
+  }
+  .scale-panel button.secondary {
+    background: transparent;
+    color: var(--instrument-ink);
+  }
+  .scale-panel button:active {
+    transform: translateY(1px);
+    filter: brightness(0.88);
+  }
+  .scale-panel button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .scale-panel button:focus-visible,
+  .scale-panel input:focus-visible {
+    outline: 3px solid #ffb29a;
+    outline-offset: 2px;
+  }
+  .manual-entry {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .manual-entry p {
+    color: var(--instrument-fault);
+    font-weight: 750;
+  }
   .serial-panel {
     max-width: 42rem;
     margin: 1.25rem 0;
@@ -383,6 +633,11 @@
     font-weight: 700;
   }
   @media (max-width: 560px) {
+    .scale-panel header,
+    .scale-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
     .terminal-row,
     .scanner-row {
       grid-template-columns: 1fr;
@@ -393,6 +648,7 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
+    .scale-panel *,
     .serial-panel * {
       scroll-behavior: auto;
       transition: none;

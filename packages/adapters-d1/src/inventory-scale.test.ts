@@ -1,10 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return -- RED contract imports an intentionally missing module */
 import { describe, expect, it } from 'vitest';
 import { AtomicPlanBuilder, type D1Bound, type D1DatabaseLike } from './index.js';
 import {
   appendWeightMeasurementToPlan,
   assertWeightedMeasurementCoverage,
+  configureTenantWeightPolicy,
+  createWeightOverrideAuthorization,
+  diagnoseScaleDevice,
+  disableScaleDevice,
+  listScaleDevices,
+  registerScaleDevice,
   reconcileWeightedSync,
+  submitWeightMeasurementAtomic,
   validateWeightOverrideAuthorization,
 } from './process-inventory-scale-atomic.js';
 
@@ -24,7 +30,146 @@ function recordingDb(sql: string[]): D1DatabaseLike {
   };
 }
 
+function recordingDbWithParams(boundParams: unknown[][]): D1DatabaseLike {
+  return {
+    prepare() {
+      const bound: D1Bound = {
+        bind: (...params) => {
+          boundParams.push(params);
+          return bound;
+        },
+        all: () => Promise.resolve({ results: [], success: true, meta: {} }),
+        first: () => Promise.resolve(null),
+        run: () => Promise.resolve({ results: [], success: true, meta: {} }),
+      };
+      return { bind: (...params) => bound.bind(...params) };
+    },
+    batch: () => Promise.resolve([]),
+  };
+}
+
+function managedDb(calls: { sql: string; params: unknown[] }[]): D1DatabaseLike {
+  return {
+    prepare(sql) {
+      const bound: D1Bound = {
+        bind: (...params) => {
+          calls.push({ sql, params });
+          return bound;
+        },
+        all: () => Promise.resolve({ results: [], success: true, meta: {} }),
+        first: <T>() =>
+          Promise.resolve({
+            id: 'scale-a',
+            protocol: 'WEBHID',
+            terminal_id: 'terminal-a',
+            status: 'ACTIVE',
+          } as T),
+        run: () => Promise.resolve({ results: [], success: true, meta: {} }),
+      };
+      return { bind: (...params) => bound.bind(...params) };
+    },
+    batch: () => Promise.resolve([]),
+  };
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 describe('inventory.scale ACID contract', () => {
+  it('stores only a SHA-256 digest for the opaque 90-second authorization token', async () => {
+    const boundParams: unknown[][] = [];
+    const db = recordingDbWithParams(boundParams);
+    const result = await createWeightOverrideAuthorization(db, {
+      tenantId: 'tenant-a',
+      actorUserId: 'supervisor-a',
+      terminalId: 'terminal-a',
+      offlineSaleId: 'offline-a',
+      saleItemId: 'line-a',
+      measurementId: 'measure-a',
+      action: 'WEIGHT_OVERRIDE',
+      ttlSeconds: 90,
+    });
+    const flattened = boundParams.flat();
+    expect(result.authorizationToken).toMatch(/^weight_/);
+    expect(flattened).not.toContain(result.authorizationToken);
+    expect(flattened).toContain(await sha256Hex(result.authorizationToken));
+  });
+
+  it('configures policy and manages only allowlisted terminal-owned scale devices', async () => {
+    const calls: { sql: string; params: unknown[] }[] = [];
+    const db = managedDb(calls);
+    await configureTenantWeightPolicy(db, {
+      tenantId: 'tenant-a',
+      manualWeightThresholdMicrounits: 250_000,
+    });
+    await registerScaleDevice(db, {
+      tenantId: 'tenant-a',
+      terminalId: 'terminal-a',
+      protocol: 'WEBHID',
+      deviceFingerprint: 'hid:1234:5678:profile-a',
+      profile: {
+        profileId: 'profile-a',
+        vendorId: 0x1234,
+        productId: 0x5678,
+        reportId: 3,
+      },
+    });
+    await listScaleDevices(db, { tenantId: 'tenant-a', terminalId: 'terminal-a' });
+    await diagnoseScaleDevice(db, {
+      tenantId: 'tenant-a',
+      terminalId: 'terminal-a',
+      deviceId: 'scale-a',
+    });
+    await disableScaleDevice(db, {
+      tenantId: 'tenant-a',
+      terminalId: 'terminal-a',
+      deviceId: 'scale-a',
+    });
+    expect(
+      calls
+        .filter(
+          (call) =>
+            call.sql.includes('tenant_weight_policies') ||
+            call.sql.includes('scale_devices') ||
+            call.sql.includes('pos_terminals'),
+        )
+        .every((call) => call.sql.includes('tenant_id')),
+    ).toBe(true);
+    expect(calls.some((call) => call.sql.includes('terminal_id = ?'))).toBe(true);
+    await expect(
+      registerScaleDevice(db, {
+        tenantId: 'tenant-a',
+        terminalId: 'terminal-a',
+        protocol: 'BLUETOOTH' as 'WEBHID',
+        deviceFingerprint: 'unknown',
+        profile: { profileId: 'profile-a', vendorId: 1, productId: 2, reportId: 1 },
+      }),
+    ).rejects.toThrow('SCALE_PROTOCOL_NOT_ALLOWED');
+  });
+
+  it('rejects a stale device frame before resolving trusted sale facts', async () => {
+    const sql: string[] = [];
+    await expect(
+      submitWeightMeasurementAtomic(recordingDb(sql), {
+        tenantId: 'tenant-a',
+        actorUserId: 'cashier-a',
+        terminalId: 'terminal-a',
+        saleItemId: 'line-a',
+        productId: 'product-a',
+        measurementId: 'measurement-a',
+        weightMicrounits: 1_000_000,
+        measurementSource: 'DEVICE',
+        scaleProtocol: 'WEB_SERIAL',
+        scaleDeviceId: 'scale-a',
+        heartbeatSequence: 1,
+        observedAt: new Date(Date.now() - 2_001).toISOString(),
+      }),
+    ).rejects.toThrow('SCALE_HEARTBEAT_STALE');
+    expect(sql).toEqual([]);
+  });
+
   it('requires exactly one measurement for each weighted line', () => {
     expect(() =>
       assertWeightedMeasurementCoverage(
@@ -136,7 +281,7 @@ describe('inventory.scale ACID contract', () => {
     ).toThrow('WEIGHT_OVERRIDE_ALREADY_USED');
   });
 
-  it('plans measurement, stock, audit and one-shot token consumption in one batch', async () => {
+  it('plans resolved measurement, audit guard and one-shot token consumption without double stock', async () => {
     const sql: string[] = [];
     const db = recordingDb(sql);
     const plan = new AtomicPlanBuilder(db, 'guard-weight');
@@ -157,8 +302,22 @@ describe('inventory.scale ACID contract', () => {
     expect(sql.some((statement) => statement.includes('INSERT INTO weight_measurements'))).toBe(
       true,
     );
-    expect(sql.some((statement) => statement.includes('stock_microunits'))).toBe(true);
+    expect(sql.some((statement) => statement.includes('UPDATE branch_product_stock'))).toBe(false);
+    expect(sql.some((statement) => statement.includes('UPDATE sale_items'))).toBe(false);
+    expect(
+      sql.some(
+        (statement) =>
+          statement.includes('INSERT INTO atomic_guards') &&
+          statement.includes("action = 'WEIGHT_OVERRIDE'"),
+      ),
+    ).toBe(true);
     expect(sql.some((statement) => statement.includes("'WEIGHT_OVERRIDE'"))).toBe(true);
+    expect(
+      sql.some(
+        (statement) =>
+          statement.includes('INSERT INTO audit_events') && statement.includes("'WEIGHT_OVERRIDE'"),
+      ),
+    ).toBe(true);
     expect(
       sql.some(
         (statement) =>

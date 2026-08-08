@@ -56,7 +56,9 @@ export function assertReturnWithinWindow(input: {
 
 export interface ReturnLineRequest {
   readonly originalSaleItemId: string;
-  readonly qty: number;
+  readonly qty?: number;
+  /** WEIGH uses this integer source of truth; HTTP decimal qty is ignored. */
+  readonly qtyMicrounits?: number;
 }
 
 export interface OriginalSaleItem {
@@ -73,12 +75,16 @@ export interface OriginalSaleItem {
   readonly totalAmountCents: number;
   /** Qty already returned against this line. */
   readonly alreadyReturnedQty: number;
+  readonly productType?: string;
+  readonly baseQuantityMicrounits?: number;
+  readonly alreadyReturnedMicrounits?: number;
 }
 
 export interface PlannedReturnLine {
   readonly originalSaleItemId: string;
   readonly productId: string;
   readonly qty: number;
+  readonly qtyMicrounits: number;
   readonly unitPriceCents: number;
   readonly unitCostCents: number;
   readonly batchId: string | null;
@@ -89,8 +95,10 @@ export interface PlannedReturnLine {
   readonly lineTotalCents: number;
   readonly unitPriceWithoutTaxCents: number;
   readonly restoreStock: boolean;
+  readonly reversesWeightMeasurement: boolean;
 }
 
+// eslint-disable-next-line complexity -- legacy unit and exact WEIGH return reconciliation
 export function planReturnLines(
   requests: readonly ReturnLineRequest[],
   originals: readonly OriginalSaleItem[],
@@ -99,21 +107,35 @@ export function planReturnLines(
   const byId = new Map(originals.map((o) => [o.id, o]));
   const planned: PlannedReturnLine[] = [];
   for (const req of requests) {
-    if (!(req.qty > 0) || !Number.isFinite(req.qty)) {
-      throw new Error(RETURN_QTY_EXCEEDED);
-    }
     const orig = byId.get(req.originalSaleItemId);
     if (!orig) throw new Error('RETURN_ITEM_NOT_FOUND');
-    const remaining = orig.quantity - orig.alreadyReturnedQty;
-    if (req.qty > remaining + 1e-9) throw new Error(RETURN_QTY_EXCEEDED);
-    const ratio = orig.quantity > 0 ? req.qty / orig.quantity : 0;
+    const weighted = orig.productType === 'WEIGH';
+    const originalMicrounits = orig.baseQuantityMicrounits ?? Math.round(orig.quantity * 1_000_000);
+    const returnedMicrounits =
+      orig.alreadyReturnedMicrounits ?? Math.round(orig.alreadyReturnedQty * 1_000_000);
+    const qtyMicrounits = weighted
+      ? req.qtyMicrounits
+      : (req.qtyMicrounits ?? Math.round((req.qty ?? 0) * 1_000_000));
+    if (
+      !Number.isSafeInteger(qtyMicrounits) ||
+      (qtyMicrounits ?? 0) <= 0 ||
+      (weighted && req.qtyMicrounits === undefined)
+    ) {
+      throw new Error(RETURN_QTY_EXCEEDED);
+    }
+    if (qtyMicrounits! > originalMicrounits - returnedMicrounits) {
+      throw new Error(RETURN_QTY_EXCEEDED);
+    }
+    const qty = qtyMicrounits! / 1_000_000;
+    const ratio = originalMicrounits > 0 ? qtyMicrounits! / originalMicrounits : 0;
     const lineTotalCents = Math.round(orig.totalAmountCents * ratio);
     const igvAmountCents = Math.round(orig.igvAmountCents * ratio);
     const icbperAmountCents = Math.round(orig.icbperAmountCents * ratio);
     planned.push({
       originalSaleItemId: orig.id,
       productId: orig.productId,
-      qty: req.qty,
+      qty,
+      qtyMicrounits: qtyMicrounits!,
       unitPriceCents: orig.unitPriceCents,
       unitCostCents: orig.unitCostCents,
       batchId: orig.batchId,
@@ -122,11 +144,9 @@ export function planReturnLines(
       igvAmountCents,
       icbperAmountCents,
       lineTotalCents,
-      unitPriceWithoutTaxCents: Math.max(
-        0,
-        orig.unitPriceCents - Math.round(igvAmountCents / req.qty),
-      ),
+      unitPriceWithoutTaxCents: Math.max(0, orig.unitPriceCents - Math.round(igvAmountCents / qty)),
       restoreStock: !orig.isUncatalogued,
+      reversesWeightMeasurement: weighted,
     });
   }
   return planned;

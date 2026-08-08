@@ -18,11 +18,28 @@ describe('Sprint 40 inventory.scale migration contract', () => {
 
   it('registers scale devices by tenant and terminal with canonical transport metadata', () => {
     expect(scaleSql).toContain('CREATE TABLE scale_devices');
+    expect(scaleSql).toContain('last_heartbeat_sequence INTEGER');
     expect(scaleSql).toContain("protocol IN ('WEBHID','WEB_SERIAL','WEBUSB')");
     expect(scaleSql).toContain('device_fingerprint TEXT NOT NULL');
     expect(scaleSql).toContain("config_json TEXT NOT NULL DEFAULT '{}'");
     expect(scaleSql).toContain("status IN ('ACTIVE','DISCONNECTED','DISABLED')");
     expect(scaleSql).toContain('UNIQUE (tenant_id, terminal_id, device_fingerprint)');
+  });
+
+  it('binds a terminal to an active cashier session and branch with DAT-12 keys', () => {
+    expect(scaleSql).toContain('CREATE TABLE pos_terminal_sessions');
+    expect(scaleSql).toContain("status IN ('ACTIVE','REVOKED')");
+    expect(scaleSql).toContain(
+      'FOREIGN KEY (tenant_id, terminal_id) REFERENCES pos_terminals(tenant_id, id)',
+    );
+    expect(scaleSql).toMatch(
+      /FOREIGN KEY \(tenant_id, cash_register_session_id\)\s+REFERENCES cash_register_sessions\(tenant_id, id\)/,
+    );
+    expect(scaleSql).toContain('FOREIGN KEY (tenant_id, user_id) REFERENCES users(tenant_id, id)');
+    expect(scaleSql).toContain(
+      'FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id)',
+    );
+    expect(scaleSql).toContain('CREATE UNIQUE INDEX uq_pos_terminal_sessions_active_terminal');
   });
 
   it('models WEIGH as stock-tracked and one measurement per weighted line', () => {
@@ -44,7 +61,7 @@ describe('Sprint 40 inventory.scale migration contract', () => {
   });
 
   it('uses DAT-12 composite keys for every tenant-owned parent reference', () => {
-    expect(scaleSql.match(/UNIQUE \(tenant_id, id\)/g)).toHaveLength(3);
+    expect(scaleSql.match(/UNIQUE \(tenant_id, id\)/g)).toHaveLength(4);
     expect(scaleSql).toContain(
       'FOREIGN KEY (tenant_id, terminal_id) REFERENCES pos_terminals(tenant_id, id)',
     );
@@ -79,6 +96,7 @@ describe('Sprint 40 inventory.scale migration contract', () => {
     expect(DOWN_0033_SPRINT40_INVENTORY_SCALE).toContain('weight_measurements');
     expect(DOWN_0033_SPRINT40_INVENTORY_SCALE).toContain('scale_devices');
     expect(DOWN_0033_SPRINT40_INVENTORY_SCALE).toContain('tenant_weight_policies');
+    expect(DOWN_0033_SPRINT40_INVENTORY_SCALE).toContain('pos_terminal_sessions');
     expect(DOWN_0033_SPRINT40_INVENTORY_SCALE).toMatch(/RAISE\(ABORT/);
   });
 });

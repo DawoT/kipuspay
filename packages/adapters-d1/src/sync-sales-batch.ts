@@ -3,7 +3,11 @@
  * Ack per-venta; un FAILED no tumba el resto del chunk.
  */
 import { consolidateLocalClientProfiles, type OfflineSalePayload } from '@kipuspay/domain-sales';
-import { processOfflineSaleAtomic, type OfflineSaleResult } from './process-offline-sale-atomic.js';
+import {
+  processOfflineSaleAtomic,
+  type OfflineSaleResult,
+  type ProcessOfflineSaleOptions,
+} from './process-offline-sale-atomic.js';
 import type { InsightsKv } from './rollup-rematerialize.js';
 
 type D1DatabaseLike = Parameters<typeof processOfflineSaleAtomic>[0];
@@ -35,6 +39,7 @@ export async function processSyncSalesBatch(
   insightsKv?: InsightsKv,
   storeCreditEnabled = false,
   terminalId = '',
+  baseOptions: ProcessOfflineSaleOptions = {},
 ): Promise<SyncSalesBatchResult> {
   const consolidated = consolidateLocalClientProfiles(sales);
   const results: SyncSaleAck[] = [];
@@ -61,6 +66,7 @@ export async function processSyncSalesBatch(
         }[];
         insightsKv?: InsightsKv;
       } = {
+        ...baseOptions,
         nowMs,
         storeCreditEnabled,
         storeCreditOnline: false,

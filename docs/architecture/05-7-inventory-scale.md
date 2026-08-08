@@ -44,17 +44,25 @@ El DTO HTTP de venta solo transporta identidad y hechos normalizados:
 `measurement_source = DEVICE | MANUAL`, `scale_protocol`, `scale_device_id`,
 `observed_at`, `heartbeat_sequence` y, cuando corresponda, `authorization_token`.
 El Worker elimina cualquier `tenant_id`, `unit_price_per_base_cents`,
-`subtotal_cents`, bytes o unidad enviados por el cliente. Tenant, usuario y terminal
-proceden de JWT/sesión registrada; catálogo y precio se resuelven server-side.
+`subtotal_cents`, bytes o unidad enviados por el cliente. Tenant y usuario proceden
+del JWT; una cabecera solo identifica un terminal candidato. El servidor exige una
+`pos_terminal_sessions` activa que una tenant + usuario + sucursal + sesión de caja
+abierta + terminal activo. Catálogo y precio se resuelven server-side.
 
 `tenant_weight_policies.manual_weight_threshold_microunits` es
 `INTEGER NOT NULL DEFAULT 0`; existe una política tenant-scoped y no se modifica la
 tabla raíz `tenants`. Un peso `MANUAL` superior al umbral exige autorización
-`WEIGHT_OVERRIDE`. El token dura como máximo 90 segundos, es one-shot y queda ligado a
-`tenant_id + actor_user_id + terminal_id + sale_id/offline_sale_id + sale_item_id +
-measurement_id + action`. Scope incorrecto, expiración, replay o dependencia de
-revocación no disponible fallan cerrados. Consumo de token, medición, línea, stock,
-auditoría y venta ocurren en el mismo `db.batch`.
+`WEIGHT_OVERRIDE`. El token dura como máximo 90 segundos, es opaco, se persiste solo
+como SHA-256, es one-shot y queda ligado a `tenant_id + actor_user_id + terminal_id +
+sale_id/offline_sale_id + sale_item_id + measurement_id + action`.
+`approved_by_user_id` identifica al supervisor aprobador y `actor_user_id` al cajero
+que puede consumirlo; no son intercambiables. Scope incorrecto, expiración, replay o
+dependencia de revocación no disponible fallan cerrados. Consumo de token, medición,
+línea, stock, auditoría y venta ocurren en el mismo `db.batch`.
+
+El heartbeat autenticado actualiza solo el dispositivo de la sesión de terminal
+registrada. Dispositivo/terminal ajeno, protocolo distinto, secuencia no creciente u
+observación stale fallan cerrados; una venta `DEVICE` exige heartbeat fresco.
 
 Offline no cambia autoridad: la cola conserva los campos normalizados y la identidad
 de medición, pero al sincronizar el servidor revalida flag, producto `WEIGH`, precio,
@@ -79,6 +87,31 @@ CREATE TABLE tenant_weight_policies (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 );
 
+CREATE TABLE pos_terminal_sessions (
+    id TEXT PRIMARY KEY NOT NULL,
+    tenant_id TEXT NOT NULL,
+    terminal_id TEXT NOT NULL,
+    cash_register_session_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','REVOKED')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at DATETIME,
+    UNIQUE (tenant_id, id),
+    FOREIGN KEY (tenant_id, terminal_id) REFERENCES pos_terminals(tenant_id, id),
+    FOREIGN KEY (tenant_id, cash_register_session_id)
+      REFERENCES cash_register_sessions(tenant_id, id),
+    FOREIGN KEY (tenant_id, user_id) REFERENCES users(tenant_id, id),
+    FOREIGN KEY (tenant_id, branch_id) REFERENCES branches(tenant_id, id)
+);
+
+CREATE UNIQUE INDEX uq_pos_terminal_sessions_active_terminal
+  ON pos_terminal_sessions(tenant_id, terminal_id)
+  WHERE status = 'ACTIVE';
+CREATE UNIQUE INDEX uq_pos_terminal_sessions_active_cash_session
+  ON pos_terminal_sessions(tenant_id, cash_register_session_id)
+  WHERE status = 'ACTIVE';
+
 CREATE TABLE scale_devices (
     id TEXT PRIMARY KEY NOT NULL,
     tenant_id TEXT NOT NULL,
@@ -89,6 +122,9 @@ CREATE TABLE scale_devices (
     status TEXT NOT NULL DEFAULT 'ACTIVE'
       CHECK (status IN ('ACTIVE','DISCONNECTED','DISABLED')),
     last_heartbeat_at DATETIME,
+    last_heartbeat_sequence INTEGER CHECK (
+      last_heartbeat_sequence IS NULL OR last_heartbeat_sequence >= 0
+    ),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (tenant_id, id),
@@ -97,6 +133,7 @@ CREATE TABLE scale_devices (
 );
 
 ALTER TABLE authorization_tokens ADD COLUMN action TEXT;
+ALTER TABLE authorization_tokens ADD COLUMN actor_user_id TEXT;
 ALTER TABLE authorization_tokens ADD COLUMN terminal_id TEXT;
 ALTER TABLE authorization_tokens ADD COLUMN sale_id TEXT;
 ALTER TABLE authorization_tokens ADD COLUMN offline_sale_id TEXT;

@@ -5,7 +5,7 @@
  */
 import {
   assertCreditNoteAllowed,
-  stockRestoreQuantity,
+  stockRestoreMicrounits,
   type CreditNoteRequest,
 } from '@kipuspay/domain-fiscal-pe';
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
@@ -151,16 +151,110 @@ export async function processCreditNoteAtomic(
   }
 
   const issuedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const resolvedStockItems = await Promise.all(
+    request.items.map(async (item) => {
+      const restoreMicrounits = stockRestoreMicrounits(item);
+      if (restoreMicrounits === 0) {
+        return {
+          item,
+          restoreMicrounits,
+          batchId: null as string | null,
+          measurementId: null as string | null,
+        };
+      }
+      if (!item.originalSaleItemId) {
+        const product = await db
+          .prepare(`SELECT product_type FROM products WHERE tenant_id = ? AND id = ? LIMIT 1`)
+          .bind(tenantId, item.productId)
+          .first<{ product_type: string }>();
+        if (product?.product_type === 'WEIGH') throw new Error('NC_ORIGINAL_LINE_REQUIRED');
+        return {
+          item,
+          restoreMicrounits,
+          batchId: null as string | null,
+          measurementId: null as string | null,
+        };
+      }
+      const originalLine = await db
+        .prepare(
+          `SELECT si.product_id, si.product_type, si.base_quantity_microunits, si.batch_id,
+                  wm.id AS measurement_id
+           FROM sale_items si
+           LEFT JOIN weight_measurements wm
+             ON wm.tenant_id = si.tenant_id AND wm.sale_item_id = si.id
+           WHERE si.tenant_id = ? AND si.sale_id = ? AND si.id = ? LIMIT 1`,
+        )
+        .bind(tenantId, originSaleId, item.originalSaleItemId)
+        .first<{
+          product_id: string;
+          product_type: string;
+          base_quantity_microunits: number;
+          batch_id: string | null;
+          measurement_id: string | null;
+        }>();
+      if (!originalLine || originalLine.product_id !== item.productId) {
+        throw new Error('NC_ORIGINAL_LINE_INVALID');
+      }
+      if (
+        originalLine.product_type === 'WEIGH' &&
+        (!item.quantityMicrounits ||
+          !originalLine.measurement_id ||
+          restoreMicrounits > originalLine.base_quantity_microunits)
+      ) {
+        throw new Error('NC_WEIGHT_QUANTITY_INVALID');
+      }
+      return {
+        item,
+        restoreMicrounits,
+        batchId: originalLine.batch_id,
+        measurementId: originalLine.measurement_id,
+      };
+    }),
+  );
+  const weightReversalAudits: Array<{
+    measurementId: string;
+    originalSaleItemId: string;
+    restoredWeightMicrounits: number;
+    prevHash: string;
+    rowHash: string;
+  }> = [];
+  let reversalPrevHash = rowHash;
+  for (const resolved of resolvedStockItems) {
+    if (!resolved.measurementId || !resolved.item.originalSaleItemId) continue;
+    const reversalHash = await crypto.subtle
+      .digest(
+        'SHA-256',
+        new TextEncoder().encode(
+          JSON.stringify({
+            action: 'WEIGHT_MEASUREMENT_REVERSED',
+            entity_id: resolved.measurementId,
+            credit_note_id: ncId,
+            restored_weight_microunits: resolved.restoreMicrounits,
+            prev: reversalPrevHash,
+          }),
+        ),
+      )
+      .then((buf) =>
+        [...new Uint8Array(buf)].map((byte) => byte.toString(16).padStart(2, '0')).join(''),
+      );
+    weightReversalAudits.push({
+      measurementId: resolved.measurementId,
+      originalSaleItemId: resolved.item.originalSaleItemId,
+      restoredWeightMicrounits: resolved.restoreMicrounits,
+      prevHash: reversalPrevHash,
+      rowHash: reversalHash,
+    });
+    reversalPrevHash = reversalHash;
+  }
   const preparedSerials = await loadSerialsForStockOperation(
     db,
     tenantId,
     origin.branch_id,
-    request.items
-      .map((item) => ({ item, restore: stockRestoreQuantity(item) }))
-      .filter(({ restore }) => restore > 0)
-      .map(({ item, restore }) => ({
+    resolvedStockItems
+      .filter(({ restoreMicrounits }) => restoreMicrounits > 0)
+      .map(({ item, restoreMicrounits }) => ({
         productId: item.productId,
-        quantityMicrounits: Math.round(restore * QUANTITY_SCALE),
+        quantityMicrounits: restoreMicrounits,
         serialIds: options.serialIdsByProduct?.[item.productId] ?? [],
       })),
     'SOLD',
@@ -213,32 +307,31 @@ export async function processCreditNoteAtomic(
         ),
     );
 
-    if (gate.requiresNoCdrAudit) {
-      plan.add(
-        db
-          .prepare(
-            `INSERT INTO audit_events (
-                 id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-                 payload_json, prev_hash, row_hash
-               ) VALUES (?, ?, ?, ?, 'CREDIT_NOTE_NO_CDR', 'sale', ?, ?, ?, ?)`,
-          )
-          .bind(
-            auditId,
-            tenantId,
-            origin.branch_id,
-            userId,
-            originSaleId,
-            JSON.stringify({ sourceStatus: origin.sunat_status, total: request.amountCents }),
-            prevHash?.row_hash ?? null,
-            rowHash,
-          ),
-      );
-    }
+    plan.add(
+      db
+        .prepare(
+          `INSERT INTO audit_events (
+               id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+               payload_json, prev_hash, row_hash
+             ) VALUES (?, ?, ?, ?, ?, 'sale', ?, ?, ?, ?)`,
+        )
+        .bind(
+          auditId,
+          tenantId,
+          origin.branch_id,
+          userId,
+          gate.requiresNoCdrAudit ? 'CREDIT_NOTE_NO_CDR' : 'CREDIT_NOTE',
+          originSaleId,
+          JSON.stringify({ sourceStatus: origin.sunat_status, total: request.amountCents }),
+          prevHash?.row_hash ?? null,
+          rowHash,
+        ),
+    );
 
-    for (const item of request.items) {
-      const restore = stockRestoreQuantity(item);
-      if (restore <= 0) continue;
-      const restoreMicrounits = Math.round(restore * QUANTITY_SCALE);
+    for (const resolved of resolvedStockItems) {
+      const { item, restoreMicrounits } = resolved;
+      if (restoreMicrounits <= 0) continue;
+      const restore = restoreMicrounits / QUANTITY_SCALE;
       plan.add(
         db
           .prepare(
@@ -255,7 +348,54 @@ export async function processCreditNoteAtomic(
         branchId: origin.branch_id,
         productId: item.productId,
         deltaMicrounits: restoreMicrounits,
+        batchId: resolved.batchId,
       });
+      if (resolved.batchId) {
+        plan.add(
+          db
+            .prepare(
+              `UPDATE inventory_batches
+               SET stock_microunits = stock_microunits + ?,
+                   stock = (stock_microunits + ?) * 0.000001
+               WHERE id = ? AND tenant_id = ? AND branch_id = ? AND product_id = ?`,
+            )
+            .bind(
+              restoreMicrounits,
+              restoreMicrounits,
+              resolved.batchId,
+              tenantId,
+              origin.branch_id,
+              item.productId,
+            ),
+        );
+      }
+    }
+    for (const reversal of weightReversalAudits) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO audit_events (
+               id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+               payload_json, prev_hash, row_hash
+             ) VALUES (
+               ?, ?, ?, ?, 'WEIGHT_MEASUREMENT_REVERSED', 'weight_measurement', ?, ?, ?, ?
+             )`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            tenantId,
+            origin.branch_id,
+            userId,
+            reversal.measurementId,
+            JSON.stringify({
+              creditNoteSaleId: ncId,
+              originalSaleItemId: reversal.originalSaleItemId,
+              restoredWeightMicrounits: reversal.restoredWeightMicrounits,
+            }),
+            reversal.prevHash,
+            reversal.rowHash,
+          ),
+      );
     }
     for (const serial of preparedSerials) {
       await appendSerialTransitionToPlan(plan, db, {
@@ -322,7 +462,7 @@ export async function processCreditNoteAtomic(
         branchId: origin.branch_id,
         saleId: originSaleId,
         nowIso: issuedAt,
-        prevAuditHash: prevHash?.row_hash ?? null,
+        prevAuditHash: reversalPrevHash,
         chartOn,
         accountsByCode: chartAccounts,
         postDate: issuedAt.slice(0, 10),

@@ -43,6 +43,7 @@ export function isCatalogUomEnabled(env: WorkerEnv | undefined): boolean {
 }
 
 import {
+  isInventoryScaleEnabled,
   isLedgerChartOfAccountsEnabled,
   isLedgerStoreCreditEnabled,
   isSalesCommissionsEnabled,
@@ -105,6 +106,14 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
         code: msg.includes('INVALID') ? 'AUTH_TOKEN_INVALID' : 'AUTH_TOKEN_REQUIRED',
       },
     };
+  }
+  if (
+    msg === 'SCALE_TERMINAL_REQUIRED' ||
+    msg === 'TERMINAL_SESSION_FORBIDDEN' ||
+    msg === 'SCALE_DEVICE_SCOPE_MISMATCH' ||
+    msg === 'WEIGHT_OVERRIDE_INVALID'
+  ) {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
   }
   if (msg.startsWith('LOYALTY_') || msg.startsWith('STORE_CREDIT_')) {
     return { status: 422, body: { error: msg, code: msg } };
@@ -238,6 +247,8 @@ export async function runOfflineSaleHttp(
       storeCreditActorIsAdminOrOwner: actorIsAdminOrOwner,
       salesInstallmentsEnabled: isSalesInstallmentsEnabled(env),
       salesCommissionsEnabled: isSalesCommissionsEnabled(env),
+      inventoryScaleEnabled: isInventoryScaleEnabled(env),
+      terminalId: terminalId.trim(),
       serialAssignments,
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),

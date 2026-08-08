@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- RED contract imports an intentionally missing module */
 import { describe, expect, it } from 'vitest';
 import {
   judgeInventoryScaleHeartbeat,
@@ -31,9 +30,31 @@ describe('inventory-scale-heartbeat chaos contract', () => {
           zeroNeverSynthesized: true,
           offlineServerParity: true,
           measurementIdentityPreserved: true,
+          unstableRejected: true,
+          suspendedForcedManual: true,
+          reorderedRejected: true,
+          corruptFrameRejected: true,
+          duplicateReplayRejected: true,
+          tokenReplayRejected: true,
+          wrongTenantRejected: true,
+          wrongTerminalRejected: true,
+          tamperedPriceIgnored: true,
+          tamperedWeightIgnored: true,
+          exactReturnMicrounits: true,
         }),
       ]),
     );
+    expect(new Set(first.samples.map((sample) => sample.protocol))).toEqual(
+      new Set(['WEBHID', 'WEB_SERIAL', 'WEBUSB']),
+    );
+    expect(first.samples).toHaveLength(500);
+    expect(
+      first.samples.every(
+        (sample) =>
+          sample.acceptedWeightMicrounits > 0 &&
+          sample.returnedWeightMicrounits === sample.acceptedWeightMicrounits,
+      ),
+    ).toBe(true);
     expect(judgeInventoryScaleHeartbeat(first)).toBe('PASS');
     await expect(runInventoryScaleHeartbeatChaosScenario()).resolves.toBe('PASS');
   });

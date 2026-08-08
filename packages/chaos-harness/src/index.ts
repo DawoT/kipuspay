@@ -61,6 +61,10 @@ import {
   type InventorySerialChaosResult,
 } from './inventory-serial-assignment.js';
 import {
+  runInventoryScaleHeartbeatChaosScenario,
+  type InventoryScaleHeartbeatChaosResult,
+} from './inventory-scale-heartbeat.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -97,6 +101,7 @@ export type ChaosScenarioId =
   | 'commission-accrual-payout'
   | 'inventory-location-conservation'
   | 'inventory-serial-assignment'
+  | 'inventory-scale-heartbeat'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -125,6 +130,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'commission-accrual-payout': 37,
   'inventory-location-conservation': 38,
   'inventory-serial-assignment': 39,
+  'inventory-scale-heartbeat': 40,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -180,6 +186,7 @@ export interface ChaosDeps {
   readonly runCommissionAccrualPayout?: () => Promise<CommissionChaosResult>;
   readonly runInventoryLocationConservation?: () => Promise<InventoryLocationChaosResult>;
   readonly runInventorySerialAssignment?: () => Promise<InventorySerialChaosResult>;
+  readonly runInventoryScaleHeartbeat?: () => Promise<InventoryScaleHeartbeatChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -282,6 +289,8 @@ async function dispatchReadyScenario(
       return runInventoryLocationConservationChaosScenario(deps.runInventoryLocationConservation);
     case 'inventory-serial-assignment':
       return runInventorySerialAssignmentChaosScenario(deps.runInventorySerialAssignment);
+    case 'inventory-scale-heartbeat':
+      return runInventoryScaleHeartbeatChaosScenario(deps.runInventoryScaleHeartbeat);
     default:
       return Promise.reject(
         new Error(
@@ -427,3 +436,10 @@ export {
   runInventorySerialAssignmentChaosScenario,
   type InventorySerialChaosResult,
 } from './inventory-serial-assignment.js';
+
+export {
+  judgeInventoryScaleHeartbeat,
+  runInventoryScaleHeartbeatChaos,
+  runInventoryScaleHeartbeatChaosScenario,
+  type InventoryScaleHeartbeatChaosResult,
+} from './inventory-scale-heartbeat.js';

@@ -52,3 +52,8 @@ export function isInventoryLocationsEnabled(env: WorkerEnv | undefined): boolean
 export function isInventorySerialsEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_INVENTORY_SERIALS);
 }
+
+/** Sprint 40 — venta por peso y balanza (default off). */
+export function isInventoryScaleEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_INVENTORY_SCALE);
+}

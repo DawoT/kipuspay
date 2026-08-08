@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { advanceFormalization, enabledDocumentTypesFor } from '@kipuspay/domain-fiscal-pe';
+  import { isInventoryScaleEnabled } from '$lib/features';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -16,10 +17,21 @@
   let pendingMode = $state<FormalizationMode | null>(null);
   let error = $state('');
   let notice = $state('');
+  const scaleOn = isInventoryScaleEnabled();
+  let scaleThreshold = $state('250000');
+  let scaleProtocol = $state<'WEBHID' | 'WEB_SERIAL' | 'WEBUSB'>('WEBHID');
+  let scaleFingerprint = $state('');
+  let scaleProfileId = $state('');
+  let scaleVendorId = $state('');
+  let scaleProductId = $state('');
+  let scaleDeviceId = $state('');
+  let scaleStatus = $state('');
+  let terminalId = $state('');
 
   onMount(() => {
     session = readTenantSession(sessionStorage);
     focus = $page.url.searchParams.get('focus') ?? '';
+    terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
   });
 
   function requestAdvance(to: FormalizationMode) {
@@ -58,6 +70,46 @@
     notice = session.brandQrEnabled
       ? 'Pie de marca KipusPay activado en comprobantes y Vitrina.'
       : 'Pie de marca KipusPay desactivado (opt-out).';
+  }
+
+  async function scaleRequest(path: string, method: string, body?: Record<string, unknown>) {
+    scaleStatus = 'Procesando…';
+    try {
+      const response = await fetch(path, {
+        method,
+        headers: {
+          authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo',
+          'content-type': 'application/json',
+          'x-terminal-id': terminalId,
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      const result = (await response.json()) as Record<string, unknown>;
+      scaleStatus = response.ok ? JSON.stringify(result) : String(result.code ?? 'Operación rechazada');
+    } catch {
+      scaleStatus = 'No se pudo contactar al servicio de balanzas.';
+    }
+  }
+
+  function saveScalePolicy() {
+    void scaleRequest('/api/inventory/scale/policy', 'PUT', {
+      manualWeightThresholdMicrounits: Number(scaleThreshold),
+    });
+  }
+
+  function registerScale() {
+    void scaleRequest('/api/inventory/scale/devices', 'POST', {
+      protocol: scaleProtocol,
+      deviceFingerprint: scaleFingerprint,
+      profile: {
+        profileId: scaleProfileId,
+        vendorId: Number(scaleVendorId),
+        productId: Number(scaleProductId),
+        reportId: 1,
+        endpoint: 1,
+        baudRate: 9600,
+      },
+    });
   }
 </script>
 
@@ -128,6 +180,84 @@
     <a href="/admin/series">Abrir búsqueda y gestión de series</a>
   </section>
 
+  {#if scaleOn}
+    <section id="balanza" class="scale-config" aria-labelledby="scale-config-title">
+      <p class="instrument-label">Hardware · Balanza</p>
+      <h2 id="scale-config-title">Política y dispositivo</h2>
+      <div class="scale-grid">
+        <label>
+          Umbral manual (microunidades)
+          <input bind:value={scaleThreshold} inputmode="numeric" pattern="[0-9]*" />
+        </label>
+        <button type="button" onclick={saveScalePolicy}>Guardar umbral</button>
+        <label>
+          Protocolo
+          <select bind:value={scaleProtocol}>
+            <option value="WEBHID">WebHID</option>
+            <option value="WEB_SERIAL">Web Serial</option>
+            <option value="WEBUSB">WebUSB</option>
+          </select>
+        </label>
+        <label>
+          Huella allowlisted
+          <input bind:value={scaleFingerprint} autocomplete="off" />
+        </label>
+        <label>
+          Perfil
+          <input bind:value={scaleProfileId} autocomplete="off" />
+        </label>
+        <label>
+          Vendor ID
+          <input bind:value={scaleVendorId} inputmode="numeric" />
+        </label>
+        <label>
+          Product ID
+          <input bind:value={scaleProductId} inputmode="numeric" />
+        </label>
+        <button
+          type="button"
+          onclick={registerScale}
+          disabled={!terminalId ||
+            !scaleFingerprint ||
+            !scaleProfileId ||
+            !scaleVendorId ||
+            !scaleProductId}
+        >
+          Registrar dispositivo
+        </button>
+        <label>
+          ID de dispositivo
+          <input bind:value={scaleDeviceId} autocomplete="off" />
+        </label>
+        <button
+          type="button"
+          onclick={() =>
+            scaleRequest('/api/inventory/scale/diagnostics', 'POST', {
+              deviceId: scaleDeviceId,
+            })}
+          disabled={!scaleDeviceId}
+        >
+          Ejecutar diagnóstico
+        </button>
+        <button
+          type="button"
+          class="danger"
+          onclick={() =>
+            scaleRequest('/api/inventory/scale/devices/disable', 'POST', {
+              deviceId: scaleDeviceId,
+            })}
+          disabled={!scaleDeviceId}
+        >
+          Deshabilitar
+        </button>
+      </div>
+      <p class="hint">Terminal propietario: {terminalId || 'No registrado en este navegador'}</p>
+      {#if scaleStatus}
+        <p role="status" aria-live="polite" class="diagnostic">{scaleStatus}</p>
+      {/if}
+    </section>
+  {/if}
+
   {#if error}
     <p class="err" role="alert">{error}</p>
   {/if}
@@ -169,7 +299,56 @@
     margin-top: 0.8rem;
   }
   button {
+    min-height: 44px;
     padding: 0.7rem 1rem;
+  }
+  .scale-config {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 1px solid #526172;
+    border-top: 4px solid #d99a3d;
+    background: #171e27;
+  }
+  .instrument-label {
+    margin: 0;
+    color: #d99a3d;
+    font: 700 0.72rem/1.2 ui-monospace, monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .scale-config h2 {
+    margin-top: 0.25rem;
+  }
+  .scale-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: end;
+  }
+  .scale-grid label {
+    display: grid;
+    gap: 0.3rem;
+    font-weight: 700;
+  }
+  .scale-grid input,
+  .scale-grid select {
+    min-height: 44px;
+    padding: 0.55rem;
+    border: 1px solid #718096;
+    background: #0f141b;
+    color: inherit;
+    font: inherit;
+  }
+  .scale-grid .danger {
+    border: 1px solid #c55b52;
+    background: transparent;
+    color: #ff9e95;
+  }
+  .diagnostic {
+    padding: 0.65rem;
+    background: #0f141b;
+    font-family: ui-monospace, monospace;
+    overflow-wrap: anywhere;
   }
   .modal {
     position: fixed;
@@ -188,5 +367,15 @@
   }
   .ok {
     color: #3d9a6a;
+  }
+  @media (max-width: 560px) {
+    .scale-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scale-config * {
+      transition: none;
+    }
   }
 </style>

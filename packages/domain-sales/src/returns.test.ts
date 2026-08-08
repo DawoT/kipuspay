@@ -78,6 +78,29 @@ describe('return policy window §5.3', () => {
 });
 
 describe('planReturnLines', () => {
+  it('restores an exact weighted microunit quantity without float reconstruction', () => {
+    const lines = planReturnLines(
+      [{ originalSaleItemId: 'si-1', qtyMicrounits: 333_333 }],
+      [
+        item({
+          quantity: 0.5,
+          baseQuantityMicrounits: 500_000,
+          alreadyReturnedQty: 0,
+          alreadyReturnedMicrounits: 0,
+          productType: 'WEIGH',
+          totalAmountCents: 118,
+          igvAmountCents: 18,
+        }),
+      ],
+    );
+    expect(lines[0]).toMatchObject({
+      qtyMicrounits: 333_333,
+      qty: 0.333333,
+      restoreStock: true,
+      reversesWeightMeasurement: true,
+    });
+  });
+
   it('planifica líneas y suma refund', () => {
     const lines = planReturnLines([{ originalSaleItemId: 'si-1', qty: 1 }], [item()]);
     expect(lines).toHaveLength(1);

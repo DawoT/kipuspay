@@ -33,6 +33,25 @@ export interface OfflinePaymentPayload {
 
 export interface OfflineSaleItemPayload {
   readonly productId: string;
+  /** Stable client line identity; mandatory for a WEIGH measurement. */
+  readonly saleItemId?: string | undefined;
+  /**
+   * Untrusted measurement facts only. Product type, price, base UOM, policy,
+   * subtotal and physical stock quantity are resolved by the adapter.
+   */
+  readonly weightMeasurement?:
+    | {
+        readonly measurementId: string;
+        readonly weightMicrounits: number;
+        readonly measurementSource: 'DEVICE' | 'MANUAL';
+        readonly scaleProtocol?: 'WEBHID' | 'WEB_SERIAL' | 'WEBUSB' | undefined;
+        readonly scaleDeviceId?: string | undefined;
+        readonly heartbeatSequence?: number | undefined;
+        readonly observedAt: string;
+        readonly stable?: boolean | undefined;
+        readonly authorizationToken?: string | undefined;
+      }
+    | undefined;
   /** Compatibilidad offline pre-S31: unidades base. */
   readonly quantity?: number | undefined;
   /** S31/ADR-0015: identidad UOM; factor siempre server-side. */
@@ -174,7 +193,22 @@ function assertPreResolvedQuantity(item: OfflineSaleItemPayload): void {
   }
 }
 
+// eslint-disable-next-line complexity -- legacy/UOM/serial/WEIGH union validator
 function assertItemQuantity(item: OfflineSaleItemPayload): void {
+  if (item.weightMeasurement) {
+    const measurement = item.weightMeasurement;
+    requireNonEmpty(item.saleItemId, 'WEIGHT_SALE_ITEM_ID_REQUIRED');
+    requireNonEmpty(measurement.measurementId, 'WEIGHT_MEASUREMENT_ID_REQUIRED');
+    requireNonEmpty(measurement.observedAt, 'WEIGHT_OBSERVED_AT_REQUIRED');
+    if (!isPositiveSafeInt(measurement.weightMicrounits)) {
+      throw new Error('SCALE_WEIGHT_INVALID');
+    }
+    if (measurement.measurementSource !== 'DEVICE' && measurement.measurementSource !== 'MANUAL') {
+      // eslint-disable-next-line no-secrets/no-secrets -- domain error code
+      throw new Error('WEIGHT_SOURCE_INVALID');
+    }
+    return;
+  }
   const hasUomIdentity = item.enteredQuantityMicrounits !== undefined || item.uomId !== undefined;
   if (hasUomIdentity) {
     if (
@@ -220,13 +254,19 @@ function requireResolvedQuantity(item: OfflineSaleItemPayload): number {
 }
 
 function saleItemAggregationKey(item: OfflineSaleItemPayload): string {
-  return [item.productId, item.uomId ?? 'BASE', item.serialId ?? ''].join('\u0000');
+  return [
+    item.productId,
+    item.uomId ?? 'BASE',
+    item.serialId ?? '',
+    item.weightMeasurement ? (item.saleItemId ?? item.weightMeasurement.measurementId) : '',
+  ].join('\u0000');
 }
 
 /**
  * Agrupa ítems por (productId, uomId) igual que el motor ACID (S31 UOM / convert snapshot).
  * Fuerza de verdad compartida entre normalizeUomItems y los converts quote/apartado.
  */
+// eslint-disable-next-line complexity -- identity-aware merge across legacy/UOM/serial/WEIGH
 export function aggregateSaleItems(
   items: readonly OfflineSaleItemPayload[],
 ): OfflineSaleItemPayload[] {
@@ -237,6 +277,9 @@ export function aggregateSaleItems(
     if (!previous) {
       aggregated.set(key, item);
       continue;
+    }
+    if (item.weightMeasurement || previous.weightMeasurement) {
+      throw new Error('WEIGHT_LINE_IDENTITY_DUPLICATE');
     }
     aggregated.set(key, {
       ...previous,
@@ -309,6 +352,8 @@ export function toLimaTimestamp(validatedTimeMs: number): string {
 }
 
 export interface NvLineCents {
+  /** Stable source identity; prevents same-product weighted lines from collapsing. */
+  readonly sourceLineId?: string;
   readonly productId: string;
   readonly quantity: number;
   readonly unitPriceCents: number;
@@ -370,6 +415,7 @@ export function computeNvLineTotals(
     const totalCents = subtotalCents + igvCents;
     const unitCostCents = product.costCents;
     lines.push({
+      ...(item.saleItemId ? { sourceLineId: item.saleItemId } : {}),
       productId: item.productId,
       quantity,
       unitPriceCents,
@@ -400,13 +446,15 @@ export function computeNvLineTotals(
 /**
  * Parte líneas NV por FEFO y asigna batchId. Recalcula subtotales/IGV por tramo.
  */
+// eslint-disable-next-line complexity -- exact residual-cent allocation across FEFO splits
 export function splitNvLinesByFefo(
   lines: readonly NvLineCents[],
   allocationsByProduct: ReadonlyMap<string, readonly { batchId: string; qty: number }[]>,
 ): NvLineCents[] {
   const out: NvLineCents[] = [];
   for (const line of lines) {
-    const allocs = allocationsByProduct.get(line.productId);
+    const allocs =
+      allocationsByProduct.get(line.sourceLineId ?? '') ?? allocationsByProduct.get(line.productId);
     if (!allocs || allocs.length === 0) {
       out.push({ ...line, batchId: line.batchId ?? null });
       continue;
@@ -435,6 +483,7 @@ export function splitNvLinesByFefo(
         totalLeft -= totalCents;
       }
       out.push({
+        ...(line.sourceLineId ? { sourceLineId: line.sourceLineId } : {}),
         productId: line.productId,
         quantity: a.qty,
         unitPriceCents: line.unitPriceCents,

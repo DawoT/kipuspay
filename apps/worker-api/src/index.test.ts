@@ -64,6 +64,31 @@ describe('worker-api', () => {
     expect(res.status).toBe(401);
   });
 
+  it.each([
+    ['GET', '/api/inventory/scale/devices'],
+    ['POST', '/api/inventory/scale/devices'],
+    ['POST', '/api/inventory/scale/diagnostics'],
+    ['POST', '/api/inventory/scale/devices/disable'],
+    ['PUT', '/api/inventory/scale/policy'],
+    ['POST', '/api/inventory/scale/authorize-manual'],
+    ['POST', '/api/inventory/scale/measurements'],
+  ])('registers Sprint 40 scale route %s %s', async (method, path) => {
+    const res = await authedApp.request(
+      path,
+      {
+        method,
+        headers: {
+          authorization: 'Bearer tok',
+          'content-type': 'application/json',
+          'x-terminal-id': 'terminal-1',
+        },
+        ...(method === 'GET' ? {} : { body: '{}' }),
+      },
+      { FEATURE_INVENTORY_SCALE: '1' },
+    );
+    expect(res.status).not.toBe(404);
+  });
+
   it('POST /v1/webhooks/stripe sin secret/firma → 400 (sin JWT)', async () => {
     const res = await createApp().request('/v1/webhooks/stripe', {
       method: 'POST',

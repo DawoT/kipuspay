@@ -45,6 +45,51 @@ describe('pos-checkout cart', () => {
       'opaque_kp_H4v2bL8q',
     ]);
   });
+
+  it('never merges repeated weighted lines and queues normalized measurement facts', async () => {
+    const first = {
+      ...line('apple', 100),
+      saleItemId: 'line-weight-1',
+      weightMeasurement: {
+        measurementId: 'measure-1',
+        weightMicrounits: 500_000,
+        measurementSource: 'MANUAL' as const,
+        observedAt: '2026-08-08T17:00:00.000Z',
+      },
+    };
+    const second = {
+      ...first,
+      saleItemId: 'line-weight-2',
+      weightMeasurement: { ...first.weightMeasurement, measurementId: 'measure-2' },
+    };
+    const lines = addOrBumpLine(addOrBumpLine([], first), second);
+    expect(lines).toHaveLength(2);
+    const queue = new OfflineQueueStore(createMemoryOfflineIdb());
+    await chargeCartOffline(
+      lines,
+      {
+        formalizationMode: 'INTERNAL_CONTROL',
+        taxRegime: 'RG',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '00000000',
+        clientName: 'Cliente',
+        paymentMethodId: 'pm1',
+      },
+      queue,
+    );
+    const pending = await queue.listPending();
+    expect(pending[0]?.payload.items[0]).toMatchObject({
+      saleItemId: 'line-weight-1',
+      weightMeasurement: {
+        measurementId: 'measure-1',
+        weightMicrounits: 500_000,
+        measurementSource: 'MANUAL',
+      },
+    });
+  });
 });
 
 describe('chargeCartOffline', () => {
