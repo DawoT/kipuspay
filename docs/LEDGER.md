@@ -5281,3 +5281,63 @@ aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff Principal A, Staff 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+
+```
+id: 0296
+timestamp_utc: 2026-08-08T03:10:00Z
+sprint_fase: Sprint 32 - FASE 6B (sales.layaway) - correccion green_commit_sha
+agente_responsable: Staff Backend ACID / Staff QA
+tipo: Correccion de especificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0292]
+referencias_documentales: [docs/LEDGER.md, docs/ops/s32-layaway-journal-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0016-layaway-journal-posting.md]
+prev_id: 0295
+prev_hash: 3328739a5145cee35ff3f2e9261bdf711a0a81c3da6b99e88cd2e4f14b7c612e
+entry_hash: 01bdddddb7d5f8e7a17e00ed45464a23d4001687c23fd0c0934baed07985d571
+ticket_or_adr: ADR-0016, Roadmap Sprint 32, Arquitectura §5.3 regla 17
+test_ids: [layaway, journal, journal-post, schema.integration, layaway-routes, journal-routes, layaway-convert-cancel, journal-balance-export, features, quote-layaway-convert.integration]
+entregable_afectado: Entrada 0292 - Sprint 32 sales.layaway green_commit_sha
+descripcion: Corrige la entrada 0292: green_commit_sha apuntaba a 3e04233 (S31, previo a la implementacion, donde layaway no existia) en vez del commit real donde aterrizo la implementacion y la correccion G1-G5 del convert (total con IGV, items pre-resueltos microunits, remainder = total IGV - anticipo, audit LAYAWAY_CONVERT encadenado). V-20 salta la reachability de 0292 porque queda supersedida por esta CORRIGE.
+evidencia: RED: entrada 0292 con green_commit_sha 3e04233; convert de apartado usaba columna inexistente customers.document_type y remainder sin IGV. GREEN: 897141c con 7 integration tests de convert (quote/layaway) pasando, verify SUITE GREEN, quality Quality Gate OK.
+red_commit_sha: 897141cc096fa1235a10031110c45d0f2b540837
+red_run_id: run-red-0296-corrige-0292-green-sha
+expected_failure: AssertionError: green_commit_sha de 0292 no apunta al commit de la implementacion
+green_commit_sha: 897141cc096fa1235a10031110c45d0f2b540837
+green_run_id: run-green-0296-corrige-0292-green-sha
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
+```
+id: 0297
+timestamp_utc: 2026-08-08T03:11:00Z
+sprint_fase: Sprint 33 - FASE 6C (sales.quotes) - correccion green_commit_sha
+agente_responsable: Staff Backend ACID / Staff QA
+tipo: Correccion de especificacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0293]
+referencias_documentales: [docs/LEDGER.md, docs/ops/s33-quotes-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0017-quotes-com05-snapshot.md]
+prev_id: 0296
+prev_hash: 01bdddddb7d5f8e7a17e00ed45464a23d4001687c23fd0c0934baed07985d571
+entry_hash: 6d19760df1e38fbb3bacaeb37ccba786bc1745285a7502c3a8732387cc20eb87
+ticket_or_adr: ADR-0017, Roadmap Sprint 33, Arquitectura §5.3 regla 18
+test_ids: [quotes, messaging, schema.integration, quote-routes, quote-convert-expire, features, quote-layaway-convert.integration]
+entregable_afectado: Entrada 0293 - Sprint 33 sales.quotes green_commit_sha
+descripcion: Corrige la entrada 0293: green_commit_sha apuntaba a 3e04233 (S31, previo a la implementacion, donde quotes no existia) en vez del commit real donde aterrizo la implementacion y la correccion G1-G5 del convert (pago total con IGV 18%, snapshot conserva subtotal, items pre-resueltos sin re-resolucion, EXPIRED atomico + audit QUOTE_EXPIRE, QUOTE_CONVERT encadenado). V-20 salta la reachability de 0293 porque queda supersedida por esta CORRIGE.
+evidencia: RED: entrada 0293 con green_commit_sha 3e04233; convert de cotizacion usaba columna inexistente customers.document_type y pagaba sin IGV. GREEN: 897141c con 7 integration tests de convert (quote/layaway) pasando, verify SUITE GREEN, quality Quality Gate OK.
+red_commit_sha: 897141cc096fa1235a10031110c45d0f2b540837
+red_run_id: run-red-0297-corrige-0293-green-sha
+expected_failure: AssertionError: green_commit_sha de 0293 no apunta al commit de la implementacion
+green_commit_sha: 897141cc096fa1235a10031110c45d0f2b540837
+green_run_id: run-green-0297-corrige-0293-green-sha
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
