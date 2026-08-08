@@ -167,3 +167,8 @@ export function isPurchasingReturnsEnabled(): boolean {
 export function isLedgerStoreCreditEnabled(): boolean {
   return flagOn(pub(PF + 'LEDGER_STORE_CREDIT'));
 }
+
+/** Sprint 36 — cuotas / pago en partes. */
+export function isSalesInstallmentsEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_INSTALLMENTS'));
+}

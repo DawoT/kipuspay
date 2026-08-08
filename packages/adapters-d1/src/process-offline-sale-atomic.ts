@@ -63,6 +63,7 @@ import {
   ensureStoreCreditAccount,
   loadStoreCreditAccount,
 } from './process-store-credit-atomic.js';
+import { appendInstallmentPlanToBatch } from './process-installment-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { rematerializeDailyRollupIfClosedDay, type InsightsKv } from './rollup-rematerialize.js';
 import {
@@ -396,6 +397,8 @@ export interface ProcessOfflineSaleOptions {
   readonly storeCreditEnabled?: boolean;
   readonly storeCreditOnline?: boolean;
   readonly storeCreditActorIsAdminOrOwner?: boolean;
+  /** Sprint 36 — FEATURE_SALES_INSTALLMENTS. */
+  readonly salesInstallmentsEnabled?: boolean;
   /** Extra statements en el mismo batch (p.ej. marcar sale_deposits CONVERTED). */
   readonly afterSaleStatements?: (
     plan: { add(statement: D1Bound): unknown },
@@ -443,6 +446,7 @@ export async function processOfflineSaleAtomic(
   const storeCreditOn = opts.storeCreditEnabled === true;
   const storeCreditOnline = opts.storeCreditOnline !== false;
   const storeCreditAdmin = opts.storeCreditActorIsAdminOrOwner === true;
+  const installmentsOn = opts.salesInstallmentsEnabled === true;
 
   assertOfflineSaleShape(payload);
   payload = await normalizeUomItems(db, tenantId, payload, opts.catalogUomEnabled === true);
@@ -1710,6 +1714,24 @@ export async function processOfflineSaleAtomic(
           postDate: limaTs.slice(0, 10),
         });
         auditTail = storeCreditIssueResult.rowHash;
+      }
+
+      if (installmentsOn && payload.installmentPlan && creditPayments.length > 0) {
+        const creditSaleCents = creditPayments.reduce((s, p) => s + p.amountCents, 0);
+        const down =
+          payload.installmentPlan.downPaymentCents ??
+          Math.max(0, totals.totalAmountCents - creditSaleCents);
+        const installmentResult = await appendInstallmentPlanToBatch(plan, db, {
+          tenantId,
+          userId,
+          branchId: payload.branchId,
+          saleId,
+          saleTotalCents: totals.totalAmountCents,
+          downPaymentCents: down,
+          items: payload.installmentPlan.items,
+          prevAuditHash: auditTail,
+        });
+        auditTail = installmentResult.rowHash;
       }
 
       // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).

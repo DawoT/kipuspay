@@ -34,7 +34,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 18. **Cotizaciones/presupuestos (`sales.quotes`, FASE 6C; ADR-0017):** congela precios server-side (regla 1) con vencimiento; **no emite doc fiscal ni reserva stock**; estados `DRAFT → SENT → APPROVED → CONVERTED | EXPIRED | CANCELLED`; solo `CONVERTED` genera venta (`processOfflineSaleAtomic`, sin `skipStockDeduction`); `audit_events` `QUOTE_*`. **COM-05:** `quote_items.unit_price_cents` snapshot rige al convertir **aunque** la lista cambie; expirada → nueva cotización/pricing + re-aprobación. Cantidades en `INTEGER *_microunits` (DAT-12).
 19. **Devolución a proveedor (`purchasing.returns`, FASE 6C; ADR-0018):** NC del proveedor (ref externa, 0 CPE/cupo); `OPEN → CLOSED | CANCELLED`; close revierte stock (`DEVOLUCION_PROVEEDOR`) + PMP outbound + CxP; mismatch = 422 o `SUPPLIER_PRICE_DIFF`; `audit_events` `SUPPLIER_RETURN`. **Forward-only (regla 9).** Microunits DAT-12.
 20. **Crédito de tienda / vales / gift cards (`ledger.store_credit`, FASE 6C; ADR-0019):** saldo por cliente (solo servidor); venta de vale = venta (doc+cupo); canje impone `min(balance, due)` (0 monto cliente); NC sin reembolso+consent → ISSUE (0 AR/cash); GL **2102** (no 2101); `audit_events` `STORE_CREDIT_ISSUE`/`STORE_CREDIT_REDEEM`.
-21. **Cuotas / pago en partes (`sales.installments`, FASE 6C):** venta a crédito con plan de pagos (`sale_installments`: abono + saldo + vencimiento); cada pago actualiza CxC y el arqueo; atraso → alerta Modo Dueño; respeta `credit_limit` (regla 3); `audit_events` `INSTALLMENT`.
+21. **Cuotas / pago en partes (`sales.installments`, FASE 6C; ADR-0020):** 1 AR + N cuotas (schedule); Σ principal = saldo; interés COM-06 **no** reduce CxC; pago Zero-Trust + `idempotency_key`; OVERDUE on-read (0 corta caja); `credit_limit` (regla 3); `audit_events` `INSTALLMENT`.
 22. **Comisiones de vendedor (`sales.commissions`, FASE 6C):** comisión por `seller_id` a nivel venta/ítem (%, monto o por categoría); reporte Dueño y conciliación de pagos; **la nómina queda fuera** — no se emite planilla ni retenciones laborales; `audit_events` `COMMISSION`.
 23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D):** stock por ubicación/rack dentro de la sucursal; conteo físico por ubicación; transferencia intra-sucursal; picking guiado para OC; el stock "de venta" es la suma por ubicaciones activas.
 24. **Números de serie (`inventory.serials`, FASE 6D):** asignación en recepción, venta con `serial_number` por `sale_item`, devolución revierte la serie a disponible; garantía/audit; duplicados = 422; `audit_events` `SERIAL_ASSIGN`.
@@ -663,34 +663,26 @@ CREATE TABLE store_credit_transactions (
     FOREIGN KEY (tenant_id, sale_id) REFERENCES sales(tenant_id, id)
 );
 
--- FASE 6C / Sprint 36 — cuotas / pago en partes
--- COM-06: la cuota separa principal (base imponible+IGV) del interés; el interés se asienta
--- por separado con su IGV financiero y NUNCA reduce CxC 1:1 (Σcuotas > venta si hay interés).
+-- FASE 6C / Sprint 36 — cuotas (ADR-0020 / DAT-12 / COM-06; principal≠interés CxC)
 CREATE TABLE sale_installments (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    sale_id TEXT NOT NULL,
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sale_id TEXT NOT NULL,
     installment_number INTEGER NOT NULL,
-    principal_cents INTEGER NOT NULL,     -- parte de la venta (base+IGV)
-    interest_cents INTEGER NOT NULL DEFAULT 0,  -- interés financiero del tramo
-    amount_cents INTEGER NOT NULL,        -- principal + interest (total a cobrar del tramo)
-    due_date DATE NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING',  -- PENDING | PAID | OVERDUE | CANCELLED
-    paid_at DATETIME,
-    UNIQUE (tenant_id, sale_id, installment_number),
-    FOREIGN KEY (sale_id) REFERENCES sales(id),  -- COM-04
-    CHECK (status IN ('PENDING','PAID','OVERDUE','CANCELLED'))
+    principal_cents INTEGER NOT NULL, interest_cents INTEGER NOT NULL DEFAULT 0,
+    amount_cents INTEGER NOT NULL, due_date DATE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING', paid_at DATETIME,
+    CHECK (status IN ('PENDING','PAID','OVERDUE','CANCELLED')),
+    CHECK (principal_cents >= 0), CHECK (interest_cents >= 0), CHECK (amount_cents > 0),
+    CHECK (amount_cents = principal_cents + interest_cents),
+    UNIQUE (tenant_id, id), UNIQUE (tenant_id, sale_id, installment_number),
+    FOREIGN KEY (tenant_id, sale_id) REFERENCES sales(tenant_id, id)
 );
--- COM-06: pago por cuota idempotente (anti doble aplicación)
 CREATE TABLE sale_installment_payments (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    sale_installment_id TEXT NOT NULL,
-    amount_cents INTEGER NOT NULL,
-    idempotency_key TEXT NOT NULL,
+    id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sale_installment_id TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL, idempotency_key TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (tenant_id, idempotency_key),
-    FOREIGN KEY (sale_installment_id) REFERENCES sale_installments(id)
+    CHECK (amount_cents > 0),
+    UNIQUE (tenant_id, id), UNIQUE (tenant_id, idempotency_key),
+    FOREIGN KEY (tenant_id, sale_installment_id) REFERENCES sale_installments(tenant_id, id)
 );
 
 -- FASE 6C / Sprint 37 — comisiones de vendedor

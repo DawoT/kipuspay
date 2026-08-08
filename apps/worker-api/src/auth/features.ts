@@ -32,3 +32,8 @@ export function isLedgerArApEnabled(env: WorkerEnv | undefined): boolean {
 export function isLedgerStoreCreditEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_LEDGER_STORE_CREDIT);
 }
+
+/** Sprint 36 — cuotas / pago en partes (FEATURE_SALES_INSTALLMENTS, default off). */
+export function isSalesInstallmentsEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_SALES_INSTALLMENTS);
+}

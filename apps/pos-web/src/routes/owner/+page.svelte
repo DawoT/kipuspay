@@ -5,6 +5,7 @@
     isFiscalCircuitBreakerEnabled,
     isLedgerStoreCreditEnabled,
     isOwnerModeEnabled,
+    isSalesInstallmentsEnabled,
     isSalesLayawayEnabled,
     isSalesQuotesEnabled,
   } from '$lib/features';
@@ -24,6 +25,7 @@
   const layawayOn = isSalesLayawayEnabled();
   const quotesOn = isSalesQuotesEnabled();
   const storeCreditOn = isLedgerStoreCreditEnabled();
+  const installmentsOn = isSalesInstallmentsEnabled();
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
@@ -43,6 +45,16 @@
     expiredCents: number;
     openBalanceCents: number;
   } | null>(null);
+  let overdueInstallments = $state<
+    {
+      id: string;
+      saleId: string;
+      installmentNumber: number;
+      amountCents: number;
+      dueDate: string;
+      status: string;
+    }[]
+  >([]);
 
   const idb = createMemoryOwnerRollupIdb();
 
@@ -177,6 +189,29 @@
     expiredQuotes = json.items ?? [];
   }
 
+  async function loadOverdueInstallments() {
+    if (!installmentsOn) return;
+    const apiBase =
+      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
+      'https://api.kipuspay.local';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const res = await fetch(`${apiBase}/api/owner/installments/overdue`, {
+      headers: { authorization: auth },
+    }).catch(() => null);
+    if (!res?.ok) return;
+    const json = (await res.json()) as {
+      items?: {
+        id: string;
+        saleId: string;
+        installmentNumber: number;
+        amountCents: number;
+        dueDate: string;
+        status: string;
+      }[];
+    };
+    overdueInstallments = json.items ?? [];
+  }
+
   onMount(() => {
     if (!enabled) return;
     void refresh(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -184,6 +219,7 @@
     void loadOverdueLayaways();
     void loadExpiredQuotes();
     void loadStoreCreditReport();
+    void loadOverdueInstallments();
     const onOnline = () => void refresh(true);
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -235,6 +271,20 @@
           {#each expiredQuotes as item (item.id)}
             <li>
               {item.id} · S/ {formatCents(item.snapshotTotalCents)} · vence {item.validUntil ?? '—'}
+            </li>
+          {/each}
+        </ul>
+      </aside>
+    {/if}
+    {#if installmentsOn && overdueInstallments.length > 0}
+      <aside class="overdue" data-testid="owner-installments-overdue">
+        <h2>Cuotas vencidas</h2>
+        <p class="lede">El atraso no corta la caja.</p>
+        <ul>
+          {#each overdueInstallments as item (item.id)}
+            <li>
+              {item.saleId} · cuota {item.installmentNumber} · S/
+              {formatCents(item.amountCents)} · vence {item.dueDate}
             </li>
           {/each}
         </ul>

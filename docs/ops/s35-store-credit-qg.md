@@ -46,5 +46,5 @@ owner: "@DawoT"
 
 ## Residuales
 
-- Cuotas / comisiones → Sprints 36–37.
+- Comisiones → Sprint 37.
 - Seriales → Sprint 39.

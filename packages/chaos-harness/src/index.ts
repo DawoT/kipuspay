@@ -45,6 +45,10 @@ import {
   type StoreCreditChaosResult,
 } from './store-credit-issue-redeem.js';
 import {
+  runInstallmentPayIdempotentChaosScenario,
+  type InstallmentChaosResult,
+} from './installment-pay-idempotent.js';
+import {
   runConcurrentWritersChaos,
   runDuplicateRetryChaos,
   type ConcurrentWritersResult,
@@ -77,6 +81,7 @@ export type ChaosScenarioId =
   | 'quote-convert-expire'
   | 'supplier-return-receive'
   | 'store-credit-issue-redeem'
+  | 'installment-pay-idempotent'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -101,6 +106,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'quote-convert-expire': 33,
   'supplier-return-receive': 34,
   'store-credit-issue-redeem': 35,
+  'installment-pay-idempotent': 36,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -152,6 +158,7 @@ export interface ChaosDeps {
   readonly runQuoteConvertExpire?: () => Promise<QuoteChaosResult>;
   readonly runSupplierReturnReceive?: () => Promise<SupplierReturnChaosResult>;
   readonly runStoreCreditIssueRedeem?: () => Promise<StoreCreditChaosResult>;
+  readonly runInstallmentPayIdempotent?: () => Promise<InstallmentChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -246,6 +253,8 @@ async function dispatchReadyScenario(
       return runSupplierReturnReceiveChaosScenario(deps.runSupplierReturnReceive);
     case 'store-credit-issue-redeem':
       return runStoreCreditIssueRedeemChaosScenario(deps.runStoreCreditIssueRedeem);
+    case 'installment-pay-idempotent':
+      return runInstallmentPayIdempotentChaosScenario(deps.runInstallmentPayIdempotent);
     default:
       return Promise.reject(
         new Error(
@@ -363,3 +372,10 @@ export {
   runStoreCreditIssueRedeemChaos,
   runStoreCreditIssueRedeemChaosScenario,
 } from './store-credit-issue-redeem.js';
+
+export {
+  judgeInstallmentPayIdempotent,
+  runInstallmentPayIdempotentChaos,
+  runInstallmentPayIdempotentChaosScenario,
+  type InstallmentChaosResult,
+} from './installment-pay-idempotent.js';

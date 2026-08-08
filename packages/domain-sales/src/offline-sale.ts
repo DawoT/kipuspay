@@ -88,6 +88,18 @@ export interface OfflineSalePayload {
   readonly useStoreCredit?: boolean | undefined;
   /** Sprint 35: venta de vale/gift card (ISSUE en el mismo batch). */
   readonly storeCreditIssue?: boolean | undefined;
+  /** Sprint 36: plan de cuotas sobre venta a crédito (schedule; 0 CPE propio). */
+  readonly installmentPlan?:
+    | {
+        readonly downPaymentCents?: number;
+        readonly items: readonly {
+          readonly installmentNumber: number;
+          readonly principalCents: number;
+          readonly interestCents: number;
+          readonly dueDateIso: string;
+        }[];
+      }
+    | undefined;
 }
 
 const ISSUED_AT_SKEW_MS = 6 * 3600 * 1000;
@@ -379,7 +391,7 @@ export function splitNvLinesByFefo(
         ? taxableLeft
         : Math.round((line.subtotalCents * a.qty) / line.quantity);
       const igvCents = isLast ? igvLeft : Math.round((line.igvCents * a.qty) / line.quantity);
-      const totalCents = isLast ? totalLeft : Math.round((line.totalCents * a.qty) / line.quantity);
+      const totalCents = isLast ? totalLeft : subtotalCents + igvCents;
       if (!isLast) {
         discountLeft -= discountCents;
         taxableLeft -= subtotalCents;

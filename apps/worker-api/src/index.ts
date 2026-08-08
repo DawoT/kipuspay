@@ -61,6 +61,11 @@ import {
   runOwnerStoreCreditHttp,
 } from './ledger/store-credit-routes.js';
 import {
+  runCreateInstallmentPlanHttp,
+  runOwnerInstallmentsOverdueHttp,
+  runPayInstallmentHttp,
+} from './sales/installment-routes.js';
+import {
   runCancelOrderItemHttp,
   runCreateOrderHttp,
   runFireOrderHttp,
@@ -738,6 +743,37 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.get('/api/owner/ledger/store-credit', async (c) => {
     const jwt = c.get('jwt');
     const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+  app.post('/api/sales/installments', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateInstallmentPlanHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/sales/installments/pay', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runPayInstallmentHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role,
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/owner/installments/overdue', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
 

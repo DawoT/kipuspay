@@ -47,7 +47,8 @@ export type JournalSourceType =
   | 'LAYAWAY'
   | 'SALES_RETURN'
   | 'SUPPLIER_RETURN'
-  | 'STORE_CREDIT';
+  | 'STORE_CREDIT'
+  | 'INSTALLMENT';
 
 export interface JournalLinePlan {
   readonly code: string;
@@ -492,6 +493,54 @@ export function planSupplierReturnJournal(input: {
   ];
   return {
     sourceType: 'SUPPLIER_RETURN',
+    sourceId: input.sourceId,
+    postDate: input.postDate,
+    balancedCents: assertJournalBalanced(lines),
+    lines,
+  };
+}
+
+/** Pago de cuota: Dr caja; Cr 1212 (principal); Cr 7011 (interés si > 0). COM-06. */
+export function planInstallmentPayJournal(input: {
+  readonly sourceId: string;
+  readonly postDate: string;
+  readonly principalCents: number;
+  readonly interestCents: number;
+}): JournalEntryPlan {
+  if (!Number.isInteger(input.principalCents) || input.principalCents < 0) {
+    throw new Error(JOURNAL_INVALID_LINE);
+  }
+  if (!Number.isInteger(input.interestCents) || input.interestCents < 0) {
+    throw new Error(JOURNAL_INVALID_LINE);
+  }
+  const total = input.principalCents + input.interestCents;
+  if (total <= 0) throw new Error(JOURNAL_INVALID_LINE);
+  const lines: JournalLinePlan[] = [
+    {
+      code: GL.CASH,
+      debitCents: total,
+      creditCents: 0,
+      memo: `installment:${input.sourceId}:cash`,
+    },
+  ];
+  if (input.principalCents > 0) {
+    lines.push({
+      code: GL.AR,
+      debitCents: 0,
+      creditCents: input.principalCents,
+      memo: `installment:${input.sourceId}:principal`,
+    });
+  }
+  if (input.interestCents > 0) {
+    lines.push({
+      code: GL.SALES,
+      debitCents: 0,
+      creditCents: input.interestCents,
+      memo: `installment:${input.sourceId}:interest`,
+    });
+  }
+  return {
+    sourceType: 'INSTALLMENT',
     sourceId: input.sourceId,
     postDate: input.postDate,
     balancedCents: assertJournalBalanced(lines),

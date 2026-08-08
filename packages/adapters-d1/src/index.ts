@@ -139,6 +139,7 @@ export * from './process-partial-receive-atomic.js';
 export * from './process-supplier-invoice-match-atomic.js';
 export * from './process-supplier-return-atomic.js';
 export * from './process-store-credit-atomic.js';
+export * from './process-installment-atomic.js';
 export * from './process-payment-capture-atomic.js';
 export * from './process-webhook-delivery-atomic.js';
 export * from './accounting-export-reader.js';

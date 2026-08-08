@@ -5341,3 +5341,82 @@ aprobaciones: [Staff Backend ACID A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+
+```
+id: 0298
+timestamp_utc: 2026-08-08T04:20:00Z
+schema_version: 2
+sprint_fase: Sprint 36 — FASE 6C (sales.installments)
+agente_responsable: Staff Backend ACID / Staff Frontend / Staff Security / Staff QA
+tipo: Entregable nuevo
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0297]
+referencias_documentales: [docs/roadmap/fase-6c.md, docs/ops/s36-installments-qg.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/06-acid-engine.md, docs/adr/ADR-0020-installments-ar-schedule.md, docs/GTM.md]
+prev_id: 0297
+prev_hash: 6d19760df1e38fbb3bacaeb37ccba786bc1745285a7502c3a8732387cc20eb87
+entry_hash: 80fb508ff4062f39f3e28cba7b26c71e10c1ffdee519d2d896e10395b0d8aa56
+ticket_or_adr: ADR-0020, Roadmap Sprint 36, Arquitectura §5.3 regla 21, GTM-22, DDL 0029
+test_ids: [installments, journal, schema.integration, installment-pay-idempotent, features, protected-routes]
+entregable_afectado: Sprint 36 sales.installments GOV-APROBADO
+descripcion: >
+  Cierra Sprint 36 (FASE 6C): ADR-0020 (schedule sobre AR, principal-only
+  CxC COM-06, Zero-Trust pay, DAT-12 cents); mig 0029 sale_installments/
+  payments; ACID plan/pay; NC full cancela PENDING; flags default off;
+  chaos 500; GTM-22 descongelado.
+evidencia: >
+  RED: installments.ts/mig 0029 inexistentes; fence FK simple. GREEN: dominio
+  installments + journal INSTALLMENT; schema 0029; worker installment-routes;
+  chaos 500/0; verify SUITE GREEN; quality OK.
+red_commit_sha: 52ab156878ba94493114192349200d0331feb308
+red_run_id: run-red-0298-sprint36-installments
+expected_failure: Error: Cannot find module installments / migration 0029 inexistente / sale_installments FK simple
+green_commit_sha: 52ab156878ba94493114192349200d0331feb308
+green_run_id: run-green-0298-sprint36-installments
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Frontend R, Staff Principal A, Staff Security V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+
+```
+id: 0299
+timestamp_utc: 2026-08-08T04:22:00Z
+schema_version: 2
+sprint_fase: Auditoría General Monorepo — GOV-APROBADO
+agente_responsable: Staff Backend ACID / Staff Domain / Staff Security / Staff Frontend / Staff QA
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0298]
+referencias_documentales: [docs/LEDGER.md, AGENTS.md, docs/ARCHITECTURE.md, docs/PROCESS.md, docs/GTM.md]
+prev_id: 0298
+prev_hash: 80fb508ff4062f39f3e28cba7b26c71e10c1ffdee519d2d896e10395b0d8aa56
+entry_hash: 724c91ee4c17c6a24ce8c8055b5e9281eedae1d0e8cca103ab63d0fd9430cdfa
+ticket_or_adr: GOV-APROBADO, Monorepo General Audit 2026, CAL-01, CAL-05, DAT-12
+test_ids: [returns, index, three-way, offline-sale, promotions, installments, schema.integration, protected-routes]
+entregable_afectado: Monorepo completo (Data D1, Domain Sales/Cash/Inventory, Worker API, POS Web)
+descripcion: >
+  Auditoría General del Monorepo con 4 subagentes Staff. Remediados 5 hallazgos de código:
+  1) process-return-atomic (assertNcCanIssueStoreCredit sin try/catch redundante);
+  2) domain-inventory (guard PMP no negativo en refreshAvgCostOnOutboundCents);
+  3) domain-cash (three-way matching incluye invoiceIgvCents en total matcheado);
+  4) domain-sales (splitNvLinesByFefo totalCents = subtotalCents + igvCents sin derivas 1 centavo);
+  5) domain-sales (promotions renombrado de variables a *_cents para CAL-01).
+  Sincronizados s36-installments-qg.md y INDEX.md (V-15/V-18 GREEN).
+evidencia: >
+  RED: 5 hallazgos con posibles derivas de redondeo / PMP negativo / linters.
+  GREEN: 482 archivos escaneados CAL-01 GREEN; 25/25 checks verify.sh SUITE GREEN;
+  quality.sh 8/8 Quality Gate OK (Zero lints, zero tsc errors, 100% tests PASS, bundle 93.17 kB).
+red_commit_sha: 52ab156878ba94493114192349200d0331feb308
+red_run_id: run-red-0299-general-monorepo-audit
+expected_failure: Potenciales derivas de 1 centavo en FEFO split / PMP outbound sin guarda / linter errors
+green_commit_sha: 52ab156878ba94493114192349200d0331feb308
+green_run_id: run-green-0299-general-monorepo-audit
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID A, Staff Domain A, Staff Security A, Staff Frontend A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

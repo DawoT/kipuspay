@@ -114,6 +114,7 @@ export {
   planCashCountJournal,
   planLayawayDepositJournal,
   planLayawayRefundJournal,
+  planInstallmentPayJournal,
   planSaleJournal,
   planSalesReturnJournal,
   planStoreCreditAdjustJournal,

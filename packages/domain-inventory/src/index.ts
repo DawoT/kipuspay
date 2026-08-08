@@ -179,6 +179,7 @@ export function refreshAvgCostOnOutboundCents(input: {
   if (remaining === 0) return 0;
   const newValue =
     prevStock * input.previousPmpCents - input.outboundQty * input.outboundUnitCostCents;
+  if (newValue <= 0) return 0;
   return Math.round(newValue / remaining);
 }
 

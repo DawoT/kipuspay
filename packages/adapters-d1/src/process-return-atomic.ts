@@ -29,6 +29,7 @@ import {
   appendStoreCreditIssueToPlan,
   ensureStoreCreditAccount,
 } from './process-store-credit-atomic.js';
+import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface ProcessReturnInput {
@@ -342,19 +343,17 @@ export async function processReturnAtomic(
   const cashRefund = paymentMethod === 'cash' && !arCompensate;
   const storeCreditOn = options.storeCreditEnabled === true;
   const wantsStoreCredit = input.consentStoreCredit === true && storeCreditOn;
-  if (wantsStoreCredit) {
-    try {
+  let issueStoreCredit = false;
+  if (wantsStoreCredit && Boolean(origin.customer_id)) {
+    if (!arCompensate && !cashRefund) {
       assertNcCanIssueStoreCredit({
         consentStoreCredit: true,
-        arCompensate: Boolean(arCompensate),
-        cashRefund,
+        arCompensate: false,
+        cashRefund: false,
       });
-    } catch {
-      // AR o cash: no ISSUE (evitar doble beneficio). S28 sigue.
+      issueStoreCredit = true;
     }
   }
-  const issueStoreCredit =
-    wantsStoreCredit && !arCompensate && !cashRefund && Boolean(origin.customer_id);
   const refundMovementId = cashRefund ? crypto.randomUUID() : null;
   const returnId = crypto.randomUUID();
   const documentSaleId = crypto.randomUUID();
@@ -616,6 +615,11 @@ export async function processReturnAtomic(
             tenantId,
           ),
       );
+      appendCancelPendingInstallmentsOnArClosed(plan, db, {
+        tenantId,
+        saleId: input.originSaleId,
+        nextArBalanceCents: arCompensate.nextBalanceCents,
+      });
     }
 
     plan.add(

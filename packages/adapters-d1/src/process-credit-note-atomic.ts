@@ -11,6 +11,7 @@ import {
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
 import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 
 export interface CreditNoteResult {
@@ -250,6 +251,11 @@ export async function processCreditNoteAtomic(
             tenantId,
           ),
       );
+      appendCancelPendingInstallmentsOnArClosed(plan, db, {
+        tenantId,
+        saleId: originSaleId,
+        nextArBalanceCents: arCompensate.nextBalanceCents,
+      });
     }
 
     appendUsageMeterToPlan(plan, db, {

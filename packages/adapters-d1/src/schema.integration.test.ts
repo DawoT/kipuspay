@@ -43,6 +43,7 @@ import {
   DOWN_0026_SPRINT33_QUOTES,
   DOWN_0027_SPRINT34_SUPPLIER_RETURNS,
   DOWN_0028_SPRINT35_STORE_CREDIT,
+  DOWN_0029_SPRINT36_INSTALLMENTS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -63,6 +64,7 @@ import sprint32LayawayJournalSql from '../migrations/0025_sprint32_layaway_journ
 import sprint33QuotesSql from '../migrations/0026_sprint33_quotes.sql?raw';
 import sprint34SupplierReturnsSql from '../migrations/0027_sprint34_supplier_returns.sql?raw';
 import sprint35StoreCreditSql from '../migrations/0028_sprint35_store_credit.sql?raw';
+import sprint36InstallmentsSql from '../migrations/0029_sprint36_installments.sql?raw';
 
 async function seedTenantBranchSession(tenantId: string): Promise<{
   branchId: string;
@@ -1022,6 +1024,22 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     expect(sprint31VariantsUomSql).toMatch(/catalog\.variants_uom\.sprint31/);
   });
 
+  it('migración 0029 up: installments DAT-12 cents ADR-0020 COM-06', async () => {
+    expect(sprint36InstallmentsSql).toMatch(/CREATE TABLE IF NOT EXISTS sale_installments/);
+    expect(sprint36InstallmentsSql).toMatch(/CREATE TABLE IF NOT EXISTS sale_installment_payments/);
+    expect(sprint36InstallmentsSql).toMatch(
+      /CHECK \(amount_cents = principal_cents \+ interest_cents\)/,
+    );
+    expect(sprint36InstallmentsSql).toMatch(
+      /FOREIGN KEY \(tenant_id, sale_id\) REFERENCES sales\(tenant_id, id\)/,
+    );
+    expect(sprint36InstallmentsSql).toMatch(
+      /FOREIGN KEY \(tenant_id, sale_installment_id\) REFERENCES sale_installments\(tenant_id, id\)/,
+    );
+    expect(sprint36InstallmentsSql).toMatch(/sales\.installments\.sprint36/);
+    expect(sprint36InstallmentsSql).not.toMatch(/FOREIGN KEY \(sale_id\) REFERENCES sales\(id\)/);
+  });
+
   it('migración 0028 up: store_credit DAT-12 cents ADR-0019', async () => {
     expect(sprint35StoreCreditSql).toMatch(/CREATE TABLE IF NOT EXISTS store_credit_accounts/);
     expect(sprint35StoreCreditSql).toMatch(/CREATE TABLE IF NOT EXISTS store_credit_transactions/);
@@ -1133,6 +1151,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0029_SPRINT36_INSTALLMENTS);
     await env.DB.exec(DOWN_0028_SPRINT35_STORE_CREDIT);
     await env.DB.exec(DOWN_0027_SPRINT34_SUPPLIER_RETURNS);
     await env.DB.exec(DOWN_0026_SPRINT33_QUOTES);

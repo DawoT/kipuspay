@@ -264,10 +264,10 @@ function applyOneRule(
   if (!Number.isInteger(unitPriceCents) || unitPriceCents < 0) {
     throw new Error('INVALID_UNIT_PRICE');
   }
-  const lineGross = Math.round(quantity * unitPriceCents);
+  const lineGrossCents = Math.round(quantity * unitPriceCents);
 
   if (rule.kind === 'percent') {
-    const promoDiscountCents = Math.round((lineGross * rule.percent) / 100);
+    const promoDiscountCents = Math.round((lineGrossCents * rule.percent) / 100);
     return { unitPriceCents, promoDiscountCents };
   }
 
@@ -279,12 +279,12 @@ function applyOneRule(
   }
 
   if (rule.kind === 'threshold') {
-    const amountOk = rule.minAmountCents === undefined || lineGross >= rule.minAmountCents;
+    const amountOk = rule.minAmountCents === undefined || lineGrossCents >= rule.minAmountCents;
     const qtyOk = rule.minQty === undefined || quantity + 1e-9 >= rule.minQty;
     if (!amountOk || !qtyOk) {
       return { unitPriceCents, promoDiscountCents: 0 };
     }
-    const promoDiscountCents = Math.round((lineGross * rule.percent) / 100);
+    const promoDiscountCents = Math.round((lineGrossCents * rule.percent) / 100);
     return { unitPriceCents, promoDiscountCents };
   }
 
@@ -350,8 +350,8 @@ export function assertAndApplyPromotions(input: {
       promoDiscountCents += applied.promoDiscountCents;
     }
 
-    const gross = Math.round(line.quantity * unitPriceCents);
-    if (promoDiscountCents > gross) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
+    const grossCents = Math.round(line.quantity * unitPriceCents);
+    if (promoDiscountCents > grossCents) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
 
     out.push({
       productId: line.productId,

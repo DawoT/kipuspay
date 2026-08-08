@@ -15,6 +15,7 @@ import {
   planSalesReturnJournal,
   planStoreCreditAdjustJournal,
   planStoreCreditExpireJournal,
+  planInstallmentPayJournal,
   planSupplierInvoiceJournal,
   planSupplierReturnJournal,
 } from './journal.js';
@@ -221,5 +222,19 @@ describe('journal posting', () => {
         adjustSign: 'DEBIT',
       }).balancedCents,
     ).toBe(0);
+  });
+
+  it('posts installment pay: Dr cash, Cr AR principal, Cr sales interest', () => {
+    const plan = planInstallmentPayJournal({
+      sourceId: 'inst1',
+      postDate: '2026-08-08',
+      principalCents: 4_000,
+      interestCents: 200,
+    });
+    expect(plan.sourceType).toBe('INSTALLMENT');
+    expect(plan.balancedCents).toBe(0);
+    expect(plan.lines.map((line) => `${line.code}:${line.debitCents}:${line.creditCents}`)).toEqual(
+      ['1011:4200:0', '1212:0:4000', '7011:0:200'],
+    );
   });
 });

@@ -60,16 +60,16 @@ sprints: "33–37"
 ---
 
 #### Sprint 36 — Cuotas / pago en partes
-**Estado:** Planificado  
+**Estado:** Cerrado — GOV-APROBADO (`docs/ops/s36-installments-qg.md`)  
 **Capabilities:** `sales.installments`  
-**Referencia:** Arquitectura §5.3 regla 21; regla 3 (credit_limit) · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja), Staff Mobile (alertas Dueño)
+**Referencia:** Arquitectura §5.3 regla 21; regla 3 (credit_limit); ADR-0020 · **Agentes:** Staff Backend ACID (owner), Staff Frontend (caja), Staff Mobile (alertas Dueño)
 
 **Entregables:**
-- `sale_installments`: plan por venta a crédito (abono inicial + cuotas con vencimiento); cada pago actualiza CxC y arqueo.
-- Estado `OVERDUE` → alerta Modo Dueño; no se corta la caja por atraso.
-- Aplicación de pago de cuota idempotente (reusa idempotency de pagos).
+- `sale_installments`: plan por venta a crédito (abono inicial + cuotas con vencimiento); cada pago actualiza CxC (solo principal, COM-06) y arqueo.
+- Estado `OVERDUE` on-read → alerta Modo Dueño; no se corta la caja por atraso.
+- Aplicación de pago de cuota idempotente (`idempotency_key`).
 
-**Criterios de aceptación:** 0 doble aplicación de pago de cuota; límite de crédito respetado al crear el plan; cuota vencida visible en Modo Dueño; cobro de cuota descuenta saldo 1:1.
+**Criterios de aceptación:** 0 doble aplicación de pago de cuota; límite de crédito respetado al crear el plan; cuota vencida visible en Modo Dueño; cobro de cuota descuenta **principal** 1:1 en CxC (interés aparte).
 
 **Quality Gate:** Staff QA (pagos idempotentes) + Staff Security; Staff PM descongela claim "pago en partes" tras gate.
 

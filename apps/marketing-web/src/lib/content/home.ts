@@ -175,6 +175,10 @@ export const HOME = {
       a: 'Si, en Crece/Cadena. Vender un vale es una venta (comprobante y cupo). Al canjearlo KipusPay aplica el saldo en el servidor, no el monto que teclea la caja. Si el cliente devuelve sin reembolso en efectivo, puede pasar a credito de tienda con su consentimiento.',
     },
     {
+      q: '¿Puedo cobrar una venta a credito en cuotas?',
+      a: 'Si, en Crece/Cadena. Armas un plan sobre la cuenta por cobrar: solo el capital baja lo que te deben; el interes se registra aparte. Si se atrasa una cuota, el Dueño lo ve y la caja sigue vendiendo. No es un apartado ni un vale.',
+    },
+    {
       q: '¿Puedo emitir cotizaciones o presupuestos?',
       a: 'Si. La cotizacion congela el precio que calcula KipusPay y no emite comprobante ni reserva stock. Al convertir a venta se respeta ese precio aunque la lista haya cambiado; si vencio, hay que recotizar.',
     },

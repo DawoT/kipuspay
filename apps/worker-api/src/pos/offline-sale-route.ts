@@ -42,8 +42,12 @@ export function isCatalogUomEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_CATALOG_UOM);
 }
 
-import { isLedgerChartOfAccountsEnabled, isLedgerStoreCreditEnabled } from '../auth/features.js';
-export { isLedgerChartOfAccountsEnabled, isLedgerStoreCreditEnabled };
+import {
+  isLedgerChartOfAccountsEnabled,
+  isLedgerStoreCreditEnabled,
+  isSalesInstallmentsEnabled,
+} from '../auth/features.js';
+export { isLedgerChartOfAccountsEnabled, isLedgerStoreCreditEnabled, isSalesInstallmentsEnabled };
 
 /* eslint-disable complexity -- HTTP error map multi-código S17/S18 */
 function mapError(error: unknown): { status: number; body: Record<string, unknown> } {
@@ -217,6 +221,7 @@ export async function runOfflineSaleHttp(
       storeCreditEnabled: isLedgerStoreCreditEnabled(env),
       storeCreditOnline: true,
       storeCreditActorIsAdminOrOwner: actorIsAdminOrOwner,
+      salesInstallmentsEnabled: isSalesInstallmentsEnabled(env),
       s18: {
         inventoryBatches: isInventoryBatchesEnabled(env),
         inventoryBom: isInventoryBomEnabled(env),

@@ -143,6 +143,28 @@ export {
 } from './quotes.js';
 
 export {
+  assertInstallmentPayable,
+  installmentOverdueBlocksCaja,
+  markInstallmentOverdue,
+  planInstallmentPay,
+  planInstallmentSchedule,
+  shouldCancelInstallmentsOnArClosed,
+  INSTALLMENT_ALREADY_PAID,
+  INSTALLMENT_AR_CLOSED,
+  INSTALLMENT_FORBIDDEN,
+  INSTALLMENT_IDEM_REQUIRED,
+  INSTALLMENT_INVALID_AMOUNT,
+  INSTALLMENT_INVALID_STATUS,
+  INSTALLMENT_PRINCIPAL_MISMATCH,
+  INSTALLMENT_SCHEDULE_REQUIRED,
+  type InstallmentPayPlan,
+  type InstallmentScheduleItemInput,
+  type InstallmentScheduleItemPlan,
+  type InstallmentSchedulePlan,
+  type InstallmentStatus,
+} from './installments.js';
+
+export {
   assertAndApplyPromotions,
   parseMaxStack,
   parseMaxStackJson,

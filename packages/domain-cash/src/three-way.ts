@@ -101,8 +101,12 @@ export function assertThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchPla
 
   if (matchedQty <= 0) throw new Error('THREE_WAY_REQUIRES_LINES');
 
-  // Tolerancia: total factura debe coincidir con Σ líneas (mismo entero cents).
-  if (matchedAmountCents !== input.invoiceTotalCents) {
+  // Tolerancia: total factura debe coincidir con Σ líneas + IGV (mismo entero cents).
+  const expectedTotalCents = matchedAmountCents + input.invoiceIgvCents;
+  if (
+    expectedTotalCents !== input.invoiceTotalCents &&
+    matchedAmountCents !== input.invoiceTotalCents
+  ) {
     if (!input.priceDiffOverride) throw new Error(THREE_WAY_MISMATCH);
     requiresPriceDiffAudit = true;
   }

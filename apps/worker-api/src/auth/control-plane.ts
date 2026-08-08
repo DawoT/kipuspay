@@ -61,6 +61,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_PURCHASING_RETURNS?: string;
   /** Sprint 35: crédito de tienda / gift cards (ADR-0019). */
   readonly FEATURE_LEDGER_STORE_CREDIT?: string;
+  /** Sprint 36: cuotas / pago en partes. */
+  readonly FEATURE_SALES_INSTALLMENTS?: string;
   /** Sprint 18 inventory capabilities. */
   readonly FEATURE_INVENTORY_BATCHES?: string;
   readonly FEATURE_INVENTORY_BOM?: string;
