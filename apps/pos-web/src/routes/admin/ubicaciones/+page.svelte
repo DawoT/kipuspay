@@ -239,7 +239,11 @@
         <button
           type="button"
           onclick={transfer}
-          disabled={busy || !productId || sourceLocationId === destinationLocationId}
+          disabled={busy ||
+            !productId ||
+            !sourceLocationId ||
+            !destinationLocationId ||
+            sourceLocationId === destinationLocationId}
         >
           Transferir
         </button>
