@@ -5648,3 +5648,46 @@ aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0307
+timestamp_utc: 2026-08-08T17:26:00Z
+schema_version: 2
+sprint_fase: Sprint 39 — FASE 6D (inventory.serials)
+agente_responsable: Staff Principal / Staff Backend ACID / Staff Frontend caja / Staff Security / Staff QA
+tipo: Implementacion de capability
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0306]
+referencias_documentales: [docs/ops/s39-inventory-serials-qg.md, docs/adr/ADR-0023-serial-identity-offline-lease.md, docs/architecture/05-6-inventory-serials.md, docs/roadmap/fase-6d.md, docs/GTM.md]
+prev_id: 0306
+prev_hash: fcc0c1d17acbef7d77fd0bb26fbff6fe158cfbf35f9c0ebdd6fbdc0071e53b97
+entry_hash: 1054fde135a4533d51f17ab8132ac5af9921d745b898ffe6ebddeab3f61077c6
+ticket_or_adr: ADR-0023, Roadmap Sprint 39, DDL 0032, GTM-17
+test_ids: [serials, inventory-serial, inventory-serial-assignment, inventory-serial-routes, inventory-ops-routes, serial-client, schema.integration]
+entregable_afectado: Sprint 39 inventory.serials GOV-APROBADO
+descripcion: >
+  Cierra inventory.serials con identidad tenant-global normalizada, cardinalidad exacta
+  en microunidades, historial append-only, manifests y leases opacos exclusivos por
+  terminal. Todos los writers de stock usan guards versionados y db.batch para
+  proyeccion, evento, manifiesto, audit hash-chain y agregado/localizacion. La caja
+  offline conserva serial ID + token, y el servidor valida terminal activo de la
+  misma sucursal antes de consumir. Incluye UI POS/Admin, garantia reproducible,
+  flags default-off, RBAC, down fail-closed y claim GTM acotado.
+evidencia: >
+  RED a1e988e: contratos de dominio, API y chaos fallaban por modulos ausentes.
+  GREEN 670e093: scripts/verify.sh RESULT SUITE GREEN; scripts/quality.sh 8/8
+  Quality Gate OK; 103.72 kB gzip; D1 integration GREEN; Security Review sin
+  critical/high y hallazgo medium de branch binding corregido; chaos
+  inventory-serial-assignment 500 ciclos, 0 drift, 0 doble ownership y 0 fantasmas.
+red_commit_sha: a1e988e3291d3aee2d33698c50b70dbac0a6e0a3
+red_run_id: run-red-s39-contract-20260808T1638Z
+expected_failure: Modulos seriales, migracion 0032, rutas y escenario chaos ausentes
+
+green_commit_sha: 670e093b27046dd037ad647acb319b200295f336
+green_run_id: run-green-s39-quality-20260808T172540Z
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Backend ACID A, Staff Security V, Staff QA V, Staff PM Claim]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
