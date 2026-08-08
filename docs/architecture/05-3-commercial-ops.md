@@ -39,7 +39,7 @@ Extiende el DDL base con entidades de operación. Implementación por sprints Ro
 23. **Ubicaciones de inventario (`inventory.locations`, FASE 6D; ADR-0022):** `inventory_location_stock` es fuente granular y `branch_product_stock` agregado compatible (`branch = Σ ubicaciones activas`, INTEGER microunits); dual-write en el mismo batch incluso con flag UI off; `DEFAULT` determinista para backfill/oversell; lotes multi-rack; conteo esperado server-side; transferencia intra-sucursal idempotente conserva agregado/PMP y audita `LOCATION_TRANSFER`; picking guiado OC.
 24. **Números de serie (`inventory.serials`, FASE 6D; ADR-0023):** identidad, historial, leases offline y DDL canónico viven una sola vez en §5.6.
 25. **Venta por peso variable (`inventory.scale`, FASE 6D):** captura de peso en caja (balanza USB o manual), precio por unidad de base, redondeo de monto en servidor; el peso lo fija la caja pero el precio/monto final lo recalcula el servidor. **Heartbeat anti desconexión silenciosa (edge 2C):** el Staff Hardware mantiene un **heartbeat continuo** hacia la balanza (WebUSB); si la conexión se pierde (suspensión de la tablet, cable movido), el POS **nunca lee 0.00 silencioso** — cambia de inmediato a una interfaz **roja "Peso Manual"** que exige al cajero teclear el peso para poder cobrar; si el peso se teclea manualmente, se registra `WEIGHT_OVERRIDE` en `audit_events` y, si supera el umbral del tenant, requiere **PIN de supervisor** (reusa authz de reglas 2/17) antes de continuar.
-26. **Etiquetas de precio/estantería (`catalog.price_labels`, FASE 6D):** plantillas de etiqueta (producto, precio vigente según lista, código de barras) impresas vía `PrinterTransport` (§7.5); reimpresión en lote; nunca edita precios, solo los imprime.
+26. **Etiquetas de precio/estantería (`catalog.price_labels`, FASE 6D):** contrato, autoridad de snapshots, DDL y transporte canónicos viven una sola vez en §5.8 (ADR-0025).
 27. **Export/restore total del negocio (`data.backup`, FASE 6D/6F):** export completo versionado y cifrado de todos los datos del tenant + restore con dry-run; **respaldar la promesa GTM §5.7.1 ("tus datos son tuyos")**; RPO/RTO base; eslabón de la regla 32 (DR).
 28. **Preventa / pedido a cliente (`orders.customer_orders`, FASE 6E):** reserva de ítems sin pago previo → aviso al cliente → venta al retiro; distinto de `orders.lifecycle` (food service); cumplimiento parcial permitido; `audit_events` `CUSTOMER_ORDER_*`. **COM-05:** el precio se congela al crear el pedido (`customer_order_items.unit_price_cents` snapshot); la venta que cumple el pedido hereda esos precios incluso si cambiaron; `reserved_until` caducada → se liberan `reserved_qty` y la venta final se cotiza con pricing actual.
 29. **Ventas recurrentes / membresías (`sales.recurring`, FASE 6E):** generación programada de venta/NV por plan con **idempotencia** (cada ocurrencia = doc fiscal propio); cancelación y proporcionalidad; adaptada a la vertical Servicios; `audit_events` `RECURRING_*`.
@@ -758,14 +758,8 @@ CREATE TABLE inventory_location_batch_stock (
 -- producto WEIGH stock-tracked y una medición exacta por sale_item.
 
 -- FASE 6D / Sprint 41 — etiquetas de precio
-CREATE TABLE price_label_templates (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    template_json TEXT NOT NULL,          -- campos: producto, precio vigente, barcode, shelf
-    paper_width_mm INTEGER NOT NULL DEFAULT 58,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+-- Contrato y DDL canónicos movidos a §5.8 (ADR-0025): snapshot autoritativo,
+-- retry inmutable, reimpresión explícita y ACK por ítem.
 
 -- FASE 6G / Sprint 25 — config de terminales POS (fuente del printRouter)
 -- La adaptabilidad de ticketera (58/80mm) es config del DISPOSITIVO, no del ticket:

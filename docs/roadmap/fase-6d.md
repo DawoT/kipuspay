@@ -61,7 +61,7 @@ sprints: "38–42"
 
 #### Sprint 41 — Etiquetas de precio / estantería
 **Capabilities:** `catalog.price_labels`  
-**Referencia:** Arquitectura §5.3 regla 26; §7.5 PrinterTransport · **Agentes:** Staff Frontend (owner), Staff Hardware, Staff Data
+**Referencia:** Arquitectura §5.8 regla 26; §7.5 PrinterTransport · ADR-0025 · **Agentes:** Staff Frontend (owner), Staff Hardware, Staff Data
 
 **Entregables:**
 - `price_label_templates` (producto, precio vigente según lista, barcode, ancho 58/80mm).
