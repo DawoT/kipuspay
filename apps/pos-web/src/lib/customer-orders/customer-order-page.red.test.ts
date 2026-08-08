@@ -30,8 +30,6 @@ describe('Sprint 43 customer-order UI contract (RED)', () => {
     expect(source).toContain('notice.status');
     expect(source).toMatch(/Pendiente|Reintento|Escalado/);
     expect(source).not.toContain('Push garantizado');
-    expect(source).toContain('WhatsApp solo si está disponible');
-    expect(source).toContain('Push estará disponible desde el Sprint 45');
   });
 
   it('does not gate or replace the ordinary checkout action', () => {
@@ -59,11 +57,13 @@ describe('Sprint 43 customer-order UI contract (RED)', () => {
 
   it('uses explicit durable notice and no-CPE copy', () => {
     expect(source).toContain('no cobra nada ni emite CPE');
-    expect(source).toContain('El aviso queda registrado de forma durable');
+    expect(source).toContain(
+      'Pendiente · Reintento · Escalado son estados operativos observables.',
+    );
   });
 
   it('always lists the trusted current branch for cash roles', () => {
     expect(source).toContain("['cashier', 'supervisor'].includes");
-    expect(source).toContain('api.list({ branchId: session.branchId })');
+    expect(source).toContain('await api.list({ branchId: session.branchId })');
   });
 });

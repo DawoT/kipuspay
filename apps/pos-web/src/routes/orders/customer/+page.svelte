@@ -309,23 +309,21 @@
     {/if}
     {#if alert}<p class="alert" role="alert">{alert}</p>{/if}
 
-    <section class="trust-strip" aria-label="Condiciones del servicio">
-      <strong>Reserva operativa</strong>
-      <span>El aviso queda registrado de forma durable.</span>
-      <span>WhatsApp solo si está disponible.</span>
-      <span>Push estará disponible desde el Sprint 45.</span>
+    <section class="notice" data-testid="customer-orders-off">
+      <strong>Pedidos de cliente desactivados</strong>
+      <p>Activa FEATURE_CUSTOMER_ORDERS tras conciliar inventario y terminales autorizados.</p>
     </section>
-
-    <div class="workspace">
+  {:else}
+    <div class="grid">
       <section class="queue" aria-labelledby="queue-title">
         <div class="section-head">
           <div><p class="step">01</p><h2 id="queue-title">Cola de retiro</h2></div>
-          <button type="button" onclick={refresh} disabled={!online || loading}>Actualizar</button>
+          <button type="button" data-testid="customer-orders-refresh" onclick={refresh} disabled={!online || loading}>Actualizar</button>
         </div>
         <label for="order-search">Buscar por código o cliente</label>
-        <input id="order-search" type="search" bind:value={query} autocomplete="off" />
+        <input id="order-search" type="search" data-testid="customer-orders-search" bind:value={query} autocomplete="off" />
         <label for="status-filter">Filtrar estado</label>
-        <select id="status-filter" bind:value={statusFilter}>
+        <select id="status-filter" data-testid="customer-orders-status-filter" bind:value={statusFilter}>
           <option value="ALL">Todos</option>
           <option value="OPEN">Abiertos</option>
           <option value="PARTIAL">Parciales</option>
@@ -335,7 +333,7 @@
         </select>
         <div class="order-list">
           {#each visibleOrders as order (order.id)}
-            <button class:selected={selected?.id === order.id} class="order-card" type="button" onclick={() => selectOrder(order.id)}>
+            <button class:selected={selected?.id === order.id} class="order-card" data-testid="customer-order-card" type="button" onclick={() => selectOrder(order.id)}>
               <span><strong>{order.id}</strong><small>Cliente {order.customer_id}</small></span>
               <span><b>{order.status}</b><small>Tiempo restante: {timeRemaining(order.reserved_until)}</small></span>
             </button>
@@ -380,13 +378,13 @@
           {#if access.canFulfill}
             <div class="cash-fields">
               <label for="cash-session">Sesión de caja</label>
-              <input id="cash-session" bind:value={cashRegisterSessionId} />
+              <input id="cash-session" data-testid="customer-orders-cash-session" bind:value={cashRegisterSessionId} />
               <label for="payment-method">Medio de pago</label>
-              <input id="payment-method" bind:value={paymentMethodId} />
+              <input id="payment-method" data-testid="customer-orders-payment-method" bind:value={paymentMethodId} />
             </div>
             <div class="actions">
-              <button type="button" onclick={cacheLease} disabled={!online}>Preparar lease</button>
-              <button type="button" class="primary" onclick={fulfillPending} disabled={!online || !validCachedLease}>
+              <button type="button" data-testid="customer-orders-prepare-lease" onclick={cacheLease} disabled={!online}>Preparar lease</button>
+              <button type="button" class="primary" data-testid="customer-orders-fulfill" onclick={fulfillPending} disabled={!online || !validCachedLease}>
                 Cumplir parcialmente
               </button>
             </div>
@@ -398,7 +396,7 @@
               <strong>Requiere aprobación de supervisor</strong>
               <p>La recotización usa precios actuales del servidor y continúa como checkout ordinario.</p>
               {#if access.canApproveReprice}
-                <button type="button" onclick={repriceExpired} disabled={!online || !session.userId || !session.terminal}>
+                <button type="button" data-testid="customer-orders-reprice" onclick={repriceExpired} disabled={!online || !session.userId || !session.terminal}>
                   Autorizar y preparar recotización
                 </button>
               {/if}
@@ -407,8 +405,8 @@
 
           {#if access.canCancel}
             <label for="cancel-reason">Motivo de cancelación</label>
-            <textarea id="cancel-reason" bind:value={cancelReason}></textarea>
-            <button type="button" onclick={cancelOrder} disabled={!cancelReason.trim()}>Cancelar pedido</button>
+            <textarea id="cancel-reason" data-testid="customer-orders-cancel-reason" bind:value={cancelReason}></textarea>
+            <button type="button" data-testid="customer-orders-cancel" onclick={cancelOrder} disabled={!cancelReason.trim()}>Cancelar pedido</button>
           {/if}
         {:else}
           <p>Selecciona un pedido para ver cantidades, snapshot y vencimiento.</p>
@@ -418,11 +416,11 @@
       <aside class="create" aria-labelledby="create-title">
         <p class="step">03</p><h2 id="create-title">Crear desde carrito</h2>
         {#if access.canCreate}
-          <label for="customer">Cliente</label><input id="customer" bind:value={customerId} />
-          <label for="product">Producto del carrito</label><input id="product" bind:value={productId} />
+          <label for="customer">Cliente</label><input id="customer" data-testid="customer-orders-customer-id" bind:value={customerId} />
+          <label for="product">Producto del carrito</label><input id="product" data-testid="customer-orders-product-id" bind:value={productId} />
           <label for="create-quantity">Cantidad en microunidades</label>
-          <input id="create-quantity" type="number" min="1" bind:value={createQuantity} />
-          <button class="primary" type="button" onclick={createFromCart} disabled={!online || !session.branchId || !customerId || !productId}>
+          <input id="create-quantity" data-testid="customer-orders-create-quantity" type="number" min="1" bind:value={createQuantity} />
+          <button class="primary" type="button" data-testid="customer-orders-create" onclick={createFromCart} disabled={!online || !session.branchId || !customerId || !productId}>
             Crear desde carrito
           </button>
         {:else}
@@ -431,17 +429,17 @@
         <div class="pending">
           <strong>Cumplimiento pendiente: {pending.length}</strong>
           <p>Los intentos sobreviven a F5. Un conflicto nunca se convierte silenciosamente en venta ordinaria.</p>
-          <button type="button" onclick={fulfillPending} disabled={!online || pending.length === 0}>Reintentar envío</button>
+          <button type="button" data-testid="customer-orders-retry-pending" onclick={fulfillPending} disabled={!online || pending.length === 0}>Reintentar envío</button>
         </div>
       </aside>
     </div>
-    <p class="announcer" aria-live="polite" aria-atomic="true">{message}</p>
+    <p class="announcer" data-testid="customer-orders-message" aria-live="polite" aria-atomic="true">{message}</p>
   {/if}
 </main>
 
 <style>
   :global(body) { overflow-x: hidden; }
-  .pickup-shell { max-width: 1320px; margin: 0 auto; padding: 1.5rem 1rem 5rem; color: var(--text-main); }
+  .customer-orders { max-width: 1320px; margin: 0 auto; padding: 1.5rem 1rem 5rem; color: var(--text-main); }
   .masthead, .section-head, .actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
   .masthead { border-bottom: 3px solid var(--accent-primary); padding-bottom: 1rem; }
   .eyebrow, .step { color: var(--accent-primary); font: 750 .75rem/1.2 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
