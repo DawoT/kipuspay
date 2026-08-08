@@ -40,4 +40,16 @@ describe('generic non-cash-blocking print outbox', () => {
     expect(outbox.countCashBlockingJobs()).toBe(0);
     expect(outbox.canCloseCashRegister()).toBe(true);
   });
+
+  it('reports malformed persisted values without reading their fields', async () => {
+    const storage = new Map<unknown, unknown>([
+      ['print_jobs/corrupt', null],
+      ['print_jobs/also-corrupt', { blocksCashClose: true, items: 'invalid' }],
+    ]);
+    const outbox = createGenericPrintOutbox({ storage });
+
+    expect(outbox.countCashBlockingJobs()).toBe(0);
+    expect(outbox.canCloseCashRegister()).toBe(true);
+    await expect(outbox.hasCorruption()).resolves.toBe(true);
+  });
 });

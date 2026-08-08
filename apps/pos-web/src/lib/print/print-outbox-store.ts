@@ -139,10 +139,77 @@ export function createMemoryPrintIdb(opts?: {
       return Promise.resolve([...store.keys()]);
     },
     estimate() {
-      const usage = [...store.values()].reduce((n, r) => n + JSON.stringify(r).length, 0);
+      const usage = [...store.values()].reduce((total, record) => {
+        const serialized: unknown = JSON.stringify(record);
+        return total + (typeof serialized === 'string' ? serialized.length : 0);
+      }, 0);
       return Promise.resolve({ usage, quota });
     },
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isPrintTicketSnapshot(value: unknown): value is PrintJobRecord['ticket'] {
+  if (!isRecord(value) || !Array.isArray(value.items)) return false;
+  return (
+    typeof value.enterprise === 'string' &&
+    typeof value.ruc === 'string' &&
+    typeof value.documentType === 'string' &&
+    typeof value.series === 'string' &&
+    typeof value.number === 'number' &&
+    typeof value.totalCents === 'number' &&
+    typeof value.lineWidth === 'number' &&
+    value.items.every(
+      (item: unknown) =>
+        isRecord(item) &&
+        typeof item.name === 'string' &&
+        typeof item.qty === 'number' &&
+        typeof item.totalCents === 'number',
+    ) &&
+    (value.digestValue === undefined || typeof value.digestValue === 'string') &&
+    (value.qrPayload === undefined || typeof value.qrPayload === 'string')
+  );
+}
+
+function hasPrintJobIdentity(value: Record<string, unknown>): boolean {
+  return (
+    (value.jobId === undefined || typeof value.jobId === 'string') &&
+    (value.kind === undefined || value.kind === 'SALE_TICKET') &&
+    (value.blocksCashClose === undefined || value.blocksCashClose === true) &&
+    typeof value.saleId === 'string' &&
+    isPrintTicketSnapshot(value.ticket)
+  );
+}
+
+function hasPrintJobState(value: Record<string, unknown>): boolean {
+  const validStatus =
+    value.status === 'PENDING' || value.status === 'PRINTED' || value.status === 'FAILED';
+  const validAdapter =
+    value.preferredAdapter === null ||
+    value.preferredAdapter === 'webusb' ||
+    value.preferredAdapter === 'wss_lan' ||
+    value.preferredAdapter === 'bluetooth' ||
+    value.preferredAdapter === 'system_print' ||
+    value.preferredAdapter === 'whatsapp';
+  return (
+    (value.escPosBase64 === null || typeof value.escPosBase64 === 'string') &&
+    validStatus &&
+    validAdapter &&
+    (value.lastError === null || typeof value.lastError === 'string')
+  );
+}
+
+function isPrintJobRecord(value: unknown): value is PrintJobRecord {
+  if (!isRecord(value)) return false;
+  return (
+    hasPrintJobIdentity(value) &&
+    hasPrintJobState(value) &&
+    typeof value.enqueuedAtMs === 'number' &&
+    typeof value.updatedAtMs === 'number'
+  );
 }
 
 /** Adaptador nativo de browser IndexedDB para producción web (fallback a memoria si SSR/Node). */
@@ -168,10 +235,17 @@ export function createBrowserPrintIdb(dbName = 'kipus_print_outbox'): PrintIdbPo
   return {
     async get(key) {
       const db = await openDb();
-      return new Promise((resolve, reject) => {
+      return new Promise<PrintJobRecord | undefined>((resolve, reject) => {
         const tx = db['transaction'](storeName, 'readonly');
-        const req = tx.objectStore(storeName).get(key);
-        req.onsuccess = () => resolve(req.result as PrintJobRecord | undefined);
+        const req = tx.objectStore(storeName).get(key) as unknown as IDBRequest<unknown>;
+        req.onsuccess = () => {
+          const result: unknown = req.result;
+          if (result === undefined || isPrintJobRecord(result)) {
+            resolve(result);
+            return;
+          }
+          reject(new Error('IDB_GET_DATA_INVALID'));
+        };
         req.onerror = () => reject(req.error ?? new Error('IDB_GET_FAILED'));
       });
     },
@@ -195,10 +269,17 @@ export function createBrowserPrintIdb(dbName = 'kipus_print_outbox'): PrintIdbPo
     },
     async keys() {
       const db = await openDb();
-      return new Promise((resolve, reject) => {
+      return new Promise<readonly string[]>((resolve, reject) => {
         const tx = db['transaction'](storeName, 'readonly');
-        const req = tx.objectStore(storeName).getAllKeys();
-        req.onsuccess = () => resolve((req.result as string[]).map(String));
+        const req = tx.objectStore(storeName).getAllKeys() as unknown as IDBRequest<unknown>;
+        req.onsuccess = () => {
+          const result: unknown = req.result;
+          if (!Array.isArray(result) || !result.every((key: unknown) => typeof key === 'string')) {
+            reject(new Error('IDB_KEYS_DATA_INVALID'));
+            return;
+          }
+          resolve(result);
+        };
         req.onerror = () => reject(req.error ?? new Error('IDB_KEYS_FAILED'));
       });
     },

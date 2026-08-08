@@ -5,6 +5,15 @@ import {
   priceLabelUiState,
 } from './price-label-client.js';
 
+function requestFromFetchCall(
+  call: [input: RequestInfo | URL, init?: RequestInit] | undefined,
+): Request {
+  if (!call) throw new Error('expected fetch call');
+  const input =
+    typeof call[0] === 'string' && call[0].startsWith('/') ? `https://pos.test${call[0]}` : call[0];
+  return new Request(input, call[1]);
+}
+
 describe('catalog.price_labels POS seams', () => {
   const terminalContext = () => ({
     verified: true as const,
@@ -30,7 +39,7 @@ describe('catalog.price_labels POS seams', () => {
   });
 
   it('submits only product identities and optional list, never a price or customer', async () => {
-    const fetcher = vi.fn(() =>
+    const fetcher = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(() =>
       Promise.resolve(new Response(JSON.stringify(batchDto('batch-1')), { status: 201 })),
     );
     const client = createPriceLabelClient({ fetcher, online: () => true, terminalContext });
@@ -40,8 +49,8 @@ describe('catalog.price_labels POS seams', () => {
       priceListId: 'list-1',
       idempotencyKey: 'request-1',
     });
-    const calls = fetcher.mock.calls as unknown as readonly [unknown, RequestInit][];
-    const rawBody = calls[0]?.[1]?.body;
+    const call = fetcher.mock.calls[0];
+    const rawBody = call?.[1]?.body;
     if (typeof rawBody !== 'string') throw new Error('expected JSON request body');
     const body = JSON.parse(rawBody) as Record<string, unknown>;
     expect(body).toEqual({
@@ -52,8 +61,8 @@ describe('catalog.price_labels POS seams', () => {
     });
     expect(body).not.toHaveProperty('priceCents');
     expect(body).not.toHaveProperty('customerId');
-    const headers = new Headers(calls[0]?.[1]?.headers);
-    expect([...headers.keys()].sort()).toEqual([
+    const headers = requestFromFetchCall(call).headers;
+    expect(Array.from(headers.keys()).sort()).toEqual([
       'content-type',
       'x-terminal-id',
       'x-terminal-session-id',
@@ -128,9 +137,7 @@ describe('catalog.price_labels POS seams', () => {
     await expect(client.createBatch({})).rejects.toThrow('PRICE_LABEL_ONLINE_REQUIRED');
     await expect(
       client.reprintBatch({ batchId: 'batch-1', idempotencyKey: 'offline-reprint' }),
-    ).rejects.toThrow(
-      'PRICE_LABEL_ONLINE_REQUIRED',
-    );
+    ).rejects.toThrow('PRICE_LABEL_ONLINE_REQUIRED');
     await expect(client.retryBatch({ batchId: 'batch-1' })).resolves.toMatchObject({
       batchId: 'batch-1',
       mode: 'RETRY_SNAPSHOT',

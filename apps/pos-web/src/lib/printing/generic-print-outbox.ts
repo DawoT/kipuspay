@@ -27,8 +27,6 @@ interface StoredPrintJob {
   readonly items: readonly StoredPrintItem[];
 }
 
-type PrintStorage = Map<string, StoredPrintJob>;
-
 export interface GenericPrintOutbox {
   enqueue(job: GenericPrintJobInput): Promise<void>;
   acknowledge(jobId: string, itemId: string): Promise<void>;
@@ -53,10 +51,13 @@ export function createGenericPrintOutbox(input: {
     set(key: string, value: StoredPrintJob): Promise<void>;
   };
 }): GenericPrintOutbox {
-  const storage = input.storage as PrintStorage;
+  const storage = input.storage;
   const quota = input.quota ?? { usage: 0, quota: Number.MAX_SAFE_INTEGER };
 
-  const get = (jobId: string) => storage.get(keyFor(jobId));
+  const get = (jobId: string): StoredPrintJob | undefined => {
+    const value: unknown = storage.get(keyFor(jobId));
+    return isStoredPrintJob(value) ? value : undefined;
+  };
   const active = (job: StoredPrintJob) =>
     job.items.some((item) => item.status === 'PENDING' || item.status === 'FAILED');
 
@@ -81,12 +82,14 @@ export function createGenericPrintOutbox(input: {
       const key = keyFor(job.jobId);
       const previous = storage.get(key);
       storage.set(key, stored);
-      return input.persistence?.set(key, stored).catch((error: unknown) => {
-        if (previous) storage.set(key, previous);
-        else storage.delete(key);
-        if (isQuotaExceeded(error)) throw new Error('PRINT_OUTBOX_QUOTA_EXCEEDED');
-        throw error;
-      }) ?? Promise.resolve();
+      return (
+        input.persistence?.set(key, stored).catch((error: unknown) => {
+          if (previous) storage.set(key, previous);
+          else storage.delete(key);
+          if (isQuotaExceeded(error)) throw new Error('PRINT_OUTBOX_QUOTA_EXCEEDED');
+          throw error;
+        }) ?? Promise.resolve()
+      );
     },
     acknowledge(jobId, itemId) {
       const job = get(jobId);
@@ -116,21 +119,21 @@ export function createGenericPrintOutbox(input: {
     },
     pendingItemIds(jobId) {
       return Promise.resolve(
-        get(jobId)?.items
-          .filter((item) => item.status !== 'ACKNOWLEDGED')
-          .map((item) => item.itemId) ?? []
+        get(jobId)
+          ?.items.filter((item) => item.status !== 'ACKNOWLEDGED')
+          .map((item) => item.itemId) ?? [],
       );
     },
     countCashBlockingJobs() {
       let count = 0;
       for (const value of storage.values()) {
-        if (value.blocksCashClose && active(value)) count += 1;
+        if (isStoredPrintJob(value) && value.blocksCashClose && active(value)) count += 1;
       }
       return count;
     },
     canCloseCashRegister() {
       for (const value of storage.values()) {
-        if (value.blocksCashClose && active(value)) return false;
+        if (isStoredPrintJob(value) && value.blocksCashClose && active(value)) return false;
       }
       return true;
     },
@@ -140,7 +143,7 @@ export function createGenericPrintOutbox(input: {
     },
     hasCorruption() {
       for (const value of storage.values()) {
-        if (!value.jobId || !Array.isArray(value.items)) return Promise.resolve(true);
+        if (!isStoredPrintJob(value)) return Promise.resolve(true);
       }
       return Promise.resolve(false);
     },
@@ -210,9 +213,7 @@ export async function createBrowserGenericPrintOutbox(
     };
     request.onerror = () => reject(request.error ?? new Error('PRINT_OUTBOX_IDB_READ_FAILED'));
   });
-  const storage = new Map<string, StoredPrintJob>(
-    rows.map((row) => [keyFor(row.jobId), row]),
-  );
+  const storage = new Map<string, StoredPrintJob>(rows.map((row) => [keyFor(row.jobId), row]));
   const estimate =
     typeof navigator !== 'undefined' && navigator.storage?.estimate
       ? await navigator.storage.estimate()

@@ -67,6 +67,38 @@ describe('print outbox IDB', () => {
     expect(await fallbackIdb.get('k1')).toBeUndefined();
     expect(await fallbackIdb.estimate()).toBeDefined();
   });
+
+  it('rechaza registros y listas de claves IDB malformados', async () => {
+    const requestWithResult = (result: unknown) => ({
+      result,
+      error: null,
+      set onsuccess(handler: () => void) {
+        queueMicrotask(handler);
+      },
+      set onerror(_handler: () => void) {},
+    });
+    const db = {
+      transaction: () => ({
+        objectStore: () => ({
+          get: () => requestWithResult({ saleId: 42 }),
+          getAllKeys: () => requestWithResult(['print_jobs/valid', { invalid: true }]),
+        }),
+      }),
+    };
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('indexedDB', {
+      open: () => requestWithResult(db),
+    });
+
+    try {
+      const { createBrowserPrintIdb } = await import('./print-outbox-store.js');
+      const idb = createBrowserPrintIdb('malformed-print-idb');
+      await expect(idb.get('print_jobs/bad')).rejects.toThrow('IDB_GET_DATA_INVALID');
+      await expect(idb.keys()).rejects.toThrow('IDB_KEYS_DATA_INVALID');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe('offload compile', () => {
@@ -143,6 +175,38 @@ describe('offload client (sync fallback)', () => {
     const p = client.compileEscPos(snap);
     await expect(p).rejects.toThrow('WORKER_BOOM');
     client.dispose();
+  });
+
+  it('rechaza respuestas malformadas del worker', async () => {
+    let messageHandler: ((event: MessageEvent<unknown>) => void) | null = null;
+    class MalformedWorker {
+      set onmessage(handler: (event: MessageEvent<unknown>) => void) {
+        messageHandler = handler;
+      }
+      set onerror(_handler: (event: ErrorEvent) => void) {}
+      postMessage(request: { requestId: string }) {
+        messageHandler?.(
+          new MessageEvent('message', {
+            data: { type: 'INVALID', requestId: request.requestId },
+          }),
+        );
+      }
+      terminate() {}
+    }
+    vi.stubGlobal('Worker', MalformedWorker);
+    const client = createOffloadClient();
+    let rejected: Error | undefined;
+    const pending = client.compileEscPos(snap);
+    void pending.catch((error: unknown) => {
+      if (error instanceof Error) rejected = error;
+    });
+    await Promise.resolve();
+    const rejectionMessage = rejected?.message;
+    client.dispose();
+    await pending.catch(() => undefined);
+    vi.unstubAllGlobals();
+
+    expect(rejectionMessage).toBe('WORKER_RESPONSE_INVALID');
   });
 });
 

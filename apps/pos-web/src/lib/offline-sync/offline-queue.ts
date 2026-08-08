@@ -120,7 +120,10 @@ export function createMemoryOfflineIdb(opts?: {
       return Promise.resolve([...store.keys()]);
     },
     estimate() {
-      const usage = [...store.values()].reduce((n, r) => n + JSON.stringify(r).length, 0);
+      const usage = [...store.values()].reduce((total, record) => {
+        const serialized: unknown = JSON.stringify(record);
+        return total + (typeof serialized === 'string' ? serialized.length : 0);
+      }, 0);
       return Promise.resolve({ usage, quota });
     },
   };
