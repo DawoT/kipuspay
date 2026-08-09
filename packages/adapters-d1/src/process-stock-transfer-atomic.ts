@@ -14,6 +14,7 @@ import {
   type TransferStatus,
 } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { sha256Hex } from './crypto.js';
 import {
   appendLocationStockDeltaToPlan,
   defaultLocationId,
@@ -709,9 +710,4 @@ async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<
     .bind(tenantId)
     .first<{ row_hash: string }>();
   return row?.row_hash ?? null;
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

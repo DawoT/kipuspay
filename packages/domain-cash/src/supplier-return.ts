@@ -3,7 +3,7 @@
  * Puro, sin D1. INTEGER cents + microunits. 0 CPE / 0 cupo.
  */
 
-const QUANTITY_SCALE = 1_000_000;
+import { roundCentsFromMicrounitsCents } from '@kipuspay/domain-inventory';
 
 export const SUPPLIER_RETURN_ITEMS_REQUIRED = 'SUPPLIER_RETURN_ITEMS_REQUIRED';
 export const SUPPLIER_RETURN_INVALID_AMOUNT = 'SUPPLIER_RETURN_INVALID_AMOUNT';
@@ -173,7 +173,12 @@ function lineCents(item: SupplierReturnItemInput): number {
   if (!Number.isInteger(item.unitCostCents) || item.unitCostCents < 0) {
     throw new Error(SUPPLIER_RETURN_INVALID_AMOUNT);
   }
-  return Math.floor(
-    (item.baseQuantityMicrounits * item.unitCostCents + QUANTITY_SCALE / 2) / QUANTITY_SCALE,
-  );
+  try {
+    return roundCentsFromMicrounitsCents({
+      quantityMicrounits: item.baseQuantityMicrounits,
+      unitPriceCents: item.unitCostCents,
+    });
+  } catch {
+    throw new Error(SUPPLIER_RETURN_INVALID_AMOUNT);
+  }
 }

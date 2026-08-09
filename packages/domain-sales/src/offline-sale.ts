@@ -2,6 +2,8 @@
  * Contratos de venta offline (Arquitectura §6) — puro, sin D1/Hono.
  */
 
+import { applyIgvCents, IGV_RATE_PER_MILLE } from './taxes.js';
+
 export class InsufficientStockError extends Error {
   readonly productId: string;
   readonly requested: number;
@@ -474,7 +476,7 @@ export function splitNvLinesByFefo(
       const subtotalCents = isLast
         ? taxableLeft
         : Math.round((line.subtotalCents * a.qty) / line.quantity);
-      const igvCents = isLast ? igvLeft : Math.round((line.igvCents * a.qty) / line.quantity);
+      const igvCents = isLast ? igvLeft : applyIgvCents(subtotalCents, IGV_RATE_PER_MILLE);
       const totalCents = isLast ? totalLeft : subtotalCents + igvCents;
       if (!isLast) {
         discountLeft -= discountCents;

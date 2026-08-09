@@ -30,6 +30,7 @@ import {
 } from './process-inventory-serial-atomic.js';
 import { processReturnAtomic } from './process-return-atomic.js';
 import { resolveServerUnitPriceCents } from './s18-sale-inventory.js';
+import { sha256HexOf } from './crypto.js';
 
 export interface LayawayItemInput {
   readonly productId: string;
@@ -77,14 +78,6 @@ export interface ProcessLayawayOptions {
   readonly catalogUomEnabled?: boolean;
   readonly pricingListsEnabled?: boolean;
   readonly nowMs?: number;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function limaDate(nowMs: number): string {
@@ -701,7 +694,7 @@ export async function processLayawayConvertAtomic(
           )
           .bind(saleId, tenantId, deposit.id),
       );
-      const rowHash = await sha256Hex({
+      const rowHash = await sha256HexOf({
         action: 'LAYAWAY_CONVERT',
         entity_id: deposit.id,
         sale_id: saleId,
@@ -835,7 +828,7 @@ export async function processLayawayCancelAtomic(
   const accounts = journalOn ? await loadChartAccountsByCode(db, tenantId) : new Map();
   const prevHash = await previousAuditHash(db, tenantId);
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'LAYAWAY_CANCEL',
     entity_id: deposit.id,
     prev: prevHash,

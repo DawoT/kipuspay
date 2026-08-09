@@ -16,6 +16,7 @@ import {
   type InstallmentStatus,
 } from '@kipuspay/domain-sales';
 import { runD1AtomicPlan, type D1Bound, type D1DatabaseLike } from './index.js';
+import { sha256HexOf } from './crypto.js';
 import {
   appendJournalToPlan,
   loadChartAccountsByCode,
@@ -52,14 +53,6 @@ export interface ProcessInstallmentPayInput {
   readonly actorIsSupervisorOrAbove: boolean;
   readonly clientPrincipalCents?: number;
   readonly clientInterestCents?: number;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function previousInstallmentAuditHash(
@@ -143,7 +136,7 @@ export async function appendInstallmentPlanToBatch(
     );
   }
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'INSTALLMENT',
     entity_id: input.saleId,
     count: installmentIds.length,
@@ -451,7 +444,7 @@ export async function processInstallmentPayAtomic(
       );
     }
     const auditId = crypto.randomUUID();
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'INSTALLMENT',
       entity_id: paymentId,
       installment_id: row.id,

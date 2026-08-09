@@ -6,6 +6,7 @@ import {
   type CustomerOrderStatus,
 } from '@kipuspay/domain-sales';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { sha256Hex } from './crypto.js';
 import {
   resolveActiveTerminalSession,
   type ActiveTerminalSession,
@@ -67,11 +68,6 @@ async function requireCustomerOrderTerminalSession(
   } catch {
     fail('CUSTOMER_ORDER_LEASE_INVALID');
   }
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function opaqueToken(): string {

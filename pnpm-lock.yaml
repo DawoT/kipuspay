@@ -453,6 +453,10 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
 
   packages/domain-cash:
+    dependencies:
+      '@kipuspay/domain-inventory':
+        specifier: workspace:*
+        version: link:../domain-inventory
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10
@@ -532,6 +536,10 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
 
   packages/domain-sales:
+    dependencies:
+      '@kipuspay/domain-inventory':
+        specifier: workspace:*
+        version: link:../domain-inventory
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

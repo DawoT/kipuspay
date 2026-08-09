@@ -3,8 +3,11 @@ import {
   assertVariantTopology,
   convertEnteredToBaseMicrounits,
   normalizeUomCode,
+  QUANTITY_PRICE_INPUT_INVALID,
+  QUANTITY_PRICE_OVERFLOW,
   QUANTITY_SCALE,
   resolveVariantUnitPriceCents,
+  roundCentsFromMicrounitsCents,
 } from './variants-uom.js';
 
 describe('variants/uom quantity model', () => {
@@ -64,6 +67,51 @@ describe('variants/uom quantity model', () => {
     expect(() => normalizeUomCode('')).toThrow('UOM_CODE_INVALID');
     expect(() => normalizeUomCode('PACK_PACK_PACK')).toThrow('UOM_CODE_INVALID');
     expect(() => normalizeUomCode('CAJA!')).toThrow('UOM_CODE_INVALID');
+  });
+
+  it('rounds microunits × cents to cents half-up exactly', () => {
+    expect(
+      roundCentsFromMicrounitsCents({
+        quantityMicrounits: QUANTITY_SCALE,
+        unitPriceCents: 100,
+      }),
+    ).toBe(100);
+    expect(
+      roundCentsFromMicrounitsCents({
+        quantityMicrounits: 500_000,
+        unitPriceCents: 1,
+      }),
+    ).toBe(1);
+    expect(
+      roundCentsFromMicrounitsCents({
+        quantityMicrounits: 1,
+        unitPriceCents: 1,
+      }),
+    ).toBe(0);
+  });
+
+  it('rejects non-safe-integer quantity and price', () => {
+    expect(() =>
+      roundCentsFromMicrounitsCents({ quantityMicrounits: 1.5, unitPriceCents: 1 }),
+    ).toThrow(QUANTITY_PRICE_INPUT_INVALID);
+    expect(() =>
+      roundCentsFromMicrounitsCents({ quantityMicrounits: -1, unitPriceCents: 1 }),
+    ).toThrow(QUANTITY_PRICE_INPUT_INVALID);
+    expect(() =>
+      roundCentsFromMicrounitsCents({
+        quantityMicrounits: QUANTITY_SCALE,
+        unitPriceCents: -1,
+      }),
+    ).toThrow(QUANTITY_PRICE_INPUT_INVALID);
+  });
+
+  it('throws overflow when microunits × cents exceeds MAX_SAFE_INTEGER', () => {
+    expect(() =>
+      roundCentsFromMicrounitsCents({
+        quantityMicrounits: Number.MAX_SAFE_INTEGER,
+        unitPriceCents: Number.MAX_SAFE_INTEGER,
+      }),
+    ).toThrow(QUANTITY_PRICE_OVERFLOW);
   });
 
   it('rejects self parent and nested variants', () => {

@@ -4,6 +4,7 @@
  */
 
 import { assertReturnWithinWindow, type ReturnPolicy } from './returns.js';
+import { roundCentsFromMicrounitsCents } from '@kipuspay/domain-inventory';
 
 export const LAYAWAY_ITEMS_REQUIRED = 'LAYAWAY_ITEMS_REQUIRED';
 export const LAYAWAY_INVALID_AMOUNT = 'LAYAWAY_INVALID_AMOUNT';
@@ -12,8 +13,6 @@ export const LAYAWAY_INVALID_STATUS = 'LAYAWAY_INVALID_STATUS';
 export const LAYAWAY_INSUFFICIENT_DEPOSIT = 'LAYAWAY_INSUFFICIENT_DEPOSIT';
 export const LAYAWAY_ALREADY_CONVERTED = 'LAYAWAY_ALREADY_CONVERTED';
 export const LAYAWAY_ALREADY_TERMINAL = 'LAYAWAY_ALREADY_TERMINAL';
-
-const QUANTITY_SCALE = 1_000_000;
 
 export type LayawayStatus = 'OPEN' | 'OVERDUE' | 'CONVERTED' | 'CANCELLED';
 
@@ -143,9 +142,14 @@ function lineCents(item: LayawayItemInput): number {
   if (!Number.isInteger(item.unitPriceCents) || item.unitPriceCents < 0) {
     throw new Error(LAYAWAY_INVALID_AMOUNT);
   }
-  return Math.floor(
-    (item.baseQuantityMicrounits * item.unitPriceCents + QUANTITY_SCALE / 2) / QUANTITY_SCALE,
-  );
+  try {
+    return roundCentsFromMicrounitsCents({
+      quantityMicrounits: item.baseQuantityMicrounits,
+      unitPriceCents: item.unitPriceCents,
+    });
+  } catch {
+    throw new Error(LAYAWAY_INVALID_AMOUNT);
+  }
 }
 
 function assertNonNegCents(n: number, code: string): void {

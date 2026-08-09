@@ -37,6 +37,7 @@ import {
   loadSerialsForStockOperation,
 } from './process-inventory-serial-atomic.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
+import { sha256HexOf } from './crypto.js';
 
 export interface ProcessReturnInput {
   readonly originSaleId: string;
@@ -86,14 +87,6 @@ function parseIssuedAtMs(issuedAtLima: string): number {
   const ms = Date.parse(iso.endsWith('Z') ? iso : `${iso}Z`);
   if (!Number.isFinite(ms)) throw new Error('ORIGIN_ISSUED_AT_INVALID');
   return ms;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function processReturnAtomic(
@@ -398,7 +391,7 @@ export async function processReturnAtomic(
     )
     .bind(tenantId)
     .first<{ row_hash: string }>();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'RETURN',
     entity_id: returnId,
     origin: input.originSaleId,
@@ -422,7 +415,7 @@ export async function processReturnAtomic(
       .bind(tenantId, line.originalSaleItemId)
       .first<{ id: string }>();
     if (!measurement) throw new Error('WEIGHT_MEASUREMENT_REQUIRED');
-    const reversalRowHash = await sha256Hex({
+    const reversalRowHash = await sha256HexOf({
       action: 'WEIGHT_MEASUREMENT_REVERSED',
       entity_id: measurement.id,
       return_id: returnId,

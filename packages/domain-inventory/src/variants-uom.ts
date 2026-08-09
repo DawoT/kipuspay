@@ -4,6 +4,9 @@ export const QUANTITY_SCALE = 1_000_000;
 export const UOM_FACTOR_INVALID = 'UOM_FACTOR_INVALID';
 export const UOM_CODE_INVALID = 'UOM_CODE_INVALID';
 export const QTY_OVERFLOW = 'QTY_OVERFLOW';
+export const QUANTITY_PRICE_INPUT_INVALID = 'QUANTITY_PRICE_INPUT_INVALID';
+// eslint-disable-next-line no-secrets/no-secrets -- domain error code
+export const QUANTITY_PRICE_OVERFLOW = 'QUANTITY_PRICE_OVERFLOW';
 export const VARIANT_SELF_PARENT = 'VARIANT_SELF_PARENT';
 export const VARIANT_NESTING_FORBIDDEN = 'VARIANT_NESTING_FORBIDDEN';
 
@@ -32,6 +35,28 @@ export function convertEnteredToBaseMicrounits(input: {
   const rounded = (numerator * 2n + denominator) / (denominator * 2n);
   if (rounded > BigInt(Number.MAX_SAFE_INTEGER) || rounded <= 0n) {
     throw new Error(QTY_OVERFLOW);
+  }
+  return Number(rounded);
+}
+
+/** Línea en cents: half-up exacto de microunits × precio cents / QUANTITY_SCALE (B1). */
+export function roundCentsFromMicrounitsCents(input: {
+  readonly quantityMicrounits: number;
+  readonly unitPriceCents: number;
+}): number {
+  if (
+    !Number.isSafeInteger(input.quantityMicrounits) ||
+    input.quantityMicrounits < 0 ||
+    !Number.isSafeInteger(input.unitPriceCents) ||
+    input.unitPriceCents < 0
+  ) {
+    throw new Error(QUANTITY_PRICE_INPUT_INVALID);
+  }
+  const rounded =
+    (BigInt(input.quantityMicrounits) * BigInt(input.unitPriceCents) + BigInt(QUANTITY_SCALE / 2)) /
+    BigInt(QUANTITY_SCALE);
+  if (rounded > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(QUANTITY_PRICE_OVERFLOW);
   }
   return Number(rounded);
 }

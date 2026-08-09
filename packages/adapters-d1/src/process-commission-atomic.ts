@@ -17,6 +17,7 @@ import {
   type CommissionRateRow,
 } from '@kipuspay/domain-sales';
 import { runD1AtomicPlan, type D1Bound, type D1DatabaseLike } from './index.js';
+import { sha256HexOf } from './crypto.js';
 import {
   appendJournalToPlan,
   loadChartAccountsByCode,
@@ -26,14 +27,6 @@ import {
 export interface ProcessCommissionOptions {
   readonly ledgerChartOfAccountsEnabled?: boolean;
   readonly nowMs?: number;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function previousCommissionAuditHash(
@@ -121,7 +114,7 @@ export async function appendCommissionAccrualToBatch(
       .bind(accrualId, input.tenantId, input.saleId, accrual.sellerId, accrual.amountCents),
   );
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'COMMISSION',
     entity_id: accrualId,
     sale_id: input.saleId,
@@ -228,7 +221,7 @@ export async function appendCommissionReverseWithJournal(
     });
     if (!rev.reverse) continue;
     const auditId = crypto.randomUUID();
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'COMMISSION',
       entity_id: row.id,
       kind: 'REVERSE',
@@ -344,7 +337,7 @@ export async function processCommissionRateUpsertAtomic(
           ),
       );
     }
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'COMMISSION',
       entity_id: rateId,
       kind: 'RATE',
@@ -453,7 +446,7 @@ export async function processCommissionPayoutAtomic(
           payoutPlan.grossCents,
         ),
     );
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'COMMISSION',
       entity_id: payoutId,
       kind: 'PAYOUT_OPEN',
@@ -526,7 +519,7 @@ export async function processCommissionPayoutPayAtomic(
         )
         .bind(tenantId, row.id),
     );
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'COMMISSION',
       entity_id: row.id,
       kind: 'PAID',
@@ -599,7 +592,7 @@ export async function processCommissionPayoutVoidAtomic(
         )
         .bind(tenantId, row.id),
     );
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'COMMISSION',
       entity_id: row.id,
       kind: 'VOID',

@@ -11,6 +11,7 @@ import {
   redeemStoreCreditSourceRef,
 } from '@kipuspay/domain-cash';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { sha256HexOf } from './crypto.js';
 import {
   appendJournalToPlan,
   loadChartAccountsByCode,
@@ -58,14 +59,6 @@ export interface StoreCreditAccountRow {
   readonly id: string;
   readonly balance_cents: number;
   readonly expires_at: string | null;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function previousStoreCreditAuditHash(
@@ -168,7 +161,7 @@ export async function appendStoreCreditIssueToPlan(
   if (existing) return { txnId: existing.id, rowHash: input.prevAuditHash ?? '' };
   const txnId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: input.auditAction ?? 'STORE_CREDIT_ISSUE',
     entity_id: txnId,
     source_ref: input.sourceRef,
@@ -257,7 +250,7 @@ export async function appendStoreCreditRedeemToPlan(
   const txnId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const guardId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'STORE_CREDIT_REDEEM',
     entity_id: txnId,
     sale_id: input.saleId,
@@ -426,7 +419,7 @@ export async function processStoreCreditExpireAtomic(
   const postDate = new Date(nowMs).toISOString().slice(0, 10);
   const txnId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'STORE_CREDIT_EXPIRE',
     entity_id: txnId,
     amount: planned.amountCents,
@@ -510,7 +503,7 @@ export async function processStoreCreditAdjustAtomic(
   const postDate = new Date(nowMs).toISOString().slice(0, 10);
   const txnId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'STORE_CREDIT_ISSUE',
     entity_id: txnId,
     adjust: input.adjustSign,

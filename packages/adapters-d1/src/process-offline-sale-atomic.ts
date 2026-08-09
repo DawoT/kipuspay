@@ -88,6 +88,7 @@ import {
 } from './s18-sale-inventory.js';
 import { loadPromotionsByIds } from './load-promotions.js';
 import { resolveActiveTerminalSession } from './process-inventory-scale-atomic.js';
+import { sha256Hex } from './crypto.js';
 
 async function requireLiveAuthToken(
   db: D1DatabaseLike,
@@ -154,11 +155,6 @@ interface CatalogEntry {
 function isUniqueConstraint(error: unknown): boolean {
   const msg = String(error);
   return /UNIQUE|constraint/i.test(msg);
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function computeAuditHash(event: Record<string, unknown>): Promise<string> {

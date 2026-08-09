@@ -23,6 +23,7 @@ import {
   type ProcessOfflineSaleOptions,
 } from './process-offline-sale-atomic.js';
 import { resolveServerUnitPriceCents } from './s18-sale-inventory.js';
+import { sha256HexOf } from './crypto.js';
 
 export interface QuoteItemInput {
   readonly productId: string;
@@ -74,14 +75,6 @@ interface QuoteRow {
   readonly sale_id: string | null;
 }
 
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
   const row = await db
     .prepare(
@@ -120,7 +113,7 @@ async function persistExpiredIfNeeded(
   if (next !== quote.status && next === 'EXPIRED') {
     // G4: expire + QUOTE_EXPIRE audit en un solo batch (nunca UPDATE suelto).
     const prevHash = await previousAuditHash(db, tenantId);
-    const rowHash = await sha256Hex({
+    const rowHash = await sha256HexOf({
       action: 'QUOTE_EXPIRE',
       entity_id: quote.id,
       prev: prevHash,
@@ -296,7 +289,7 @@ export async function processQuoteCreateAtomic(
   });
   const quoteId = crypto.randomUUID();
   const prevHash = await previousAuditHash(db, tenantId);
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'QUOTE_CREATE',
     entity_id: quoteId,
     prev: prevHash,
@@ -395,7 +388,7 @@ async function transitionQuote<TStatus extends 'SENT' | 'APPROVED' | 'CANCELLED'
   );
   assertFn(loaded.status as QuoteStatus);
   const prevHash = await previousAuditHash(db, tenantId);
-  const rowHash = await sha256Hex({ action, entity_id: quoteId, prev: prevHash });
+  const rowHash = await sha256HexOf({ action, entity_id: quoteId, prev: prevHash });
   await runD1AtomicPlan(db, (builder) => {
     builder.add(
       db
@@ -581,7 +574,7 @@ export async function processQuoteConvertAtomic(
           )
           .bind(saleId, tenantId, quote.id),
       );
-      const rowHash = await sha256Hex({
+      const rowHash = await sha256HexOf({
         action: 'QUOTE_CONVERT',
         entity_id: quote.id,
         sale_id: saleId,

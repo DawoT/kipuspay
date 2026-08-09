@@ -3,7 +3,7 @@
  * Puro, sin D1. Microunidades + cents. 0 CPE y 0 reserva hasta convertir.
  */
 
-const QUANTITY_SCALE = 1_000_000;
+import { roundCentsFromMicrounitsCents } from '@kipuspay/domain-inventory';
 
 export const QUOTE_ITEMS_REQUIRED = 'QUOTE_ITEMS_REQUIRED';
 export const QUOTE_INVALID_AMOUNT = 'QUOTE_INVALID_AMOUNT';
@@ -104,7 +104,12 @@ function lineCents(item: QuoteItemInput): number {
   if (!Number.isInteger(item.unitPriceCents) || item.unitPriceCents < 0) {
     throw new Error(QUOTE_INVALID_AMOUNT);
   }
-  return Math.floor(
-    (item.baseQuantityMicrounits * item.unitPriceCents + QUANTITY_SCALE / 2) / QUANTITY_SCALE,
-  );
+  try {
+    return roundCentsFromMicrounitsCents({
+      quantityMicrounits: item.baseQuantityMicrounits,
+      unitPriceCents: item.unitPriceCents,
+    });
+  } catch {
+    throw new Error(QUOTE_INVALID_AMOUNT);
+  }
 }

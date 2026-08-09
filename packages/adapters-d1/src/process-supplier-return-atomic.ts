@@ -22,6 +22,7 @@ import {
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
+import { sha256HexOf } from './crypto.js';
 import {
   appendSerialTransitionToPlan,
   appendSerialManifestItemToPlan,
@@ -84,14 +85,6 @@ interface ReturnItemRow {
   readonly base_quantity_microunits: number;
   readonly unit_cost_cents: number;
   readonly line_total_cents: number;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
@@ -345,7 +338,7 @@ export async function processSupplierReturnCreateAtomic(
     'AVAILABLE',
   );
   const prevHash = await previousAuditHash(db, tenantId);
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'SUPPLIER_RETURN',
     entity_id: returnId,
     prev: prevHash,
@@ -453,7 +446,7 @@ export async function processSupplierReturnCancelAtomic(
   const row = await loadReturn(db, tenantId, input.returnId);
   assertSupplierReturnCancelAllowed({ status: row.status as SupplierReturnStatus });
   const prevHash = await previousAuditHash(db, tenantId);
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'SUPPLIER_RETURN',
     entity_id: row.id,
     prev: prevHash,
@@ -636,7 +629,7 @@ export async function processSupplierReturnCloseAtomic(
     : new Map<string, string>();
   const prevHash = await previousAuditHash(db, tenantId);
   const auditAction = closePlan.requiresPriceDiffAudit ? 'SUPPLIER_PRICE_DIFF' : 'SUPPLIER_RETURN';
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: auditAction,
     entity_id: row.id,
     prev: prevHash,

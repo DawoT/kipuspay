@@ -98,6 +98,25 @@ export interface PlannedReturnLine {
   readonly reversesWeightMeasurement: boolean;
 }
 
+/** Prorrateo exacto en cents: half-up BigInt de cents × microunits / microunits (M3). */
+function prorateCents(
+  cents: number,
+  numeratorMicrounits: number,
+  denominatorMicrounits: number,
+): number {
+  if (denominatorMicrounits <= 0) return 0;
+  if (!Number.isSafeInteger(cents) || cents < 0) {
+    throw new Error(RETURN_QTY_EXCEEDED);
+  }
+  const result =
+    (BigInt(cents) * BigInt(numeratorMicrounits) + BigInt(denominatorMicrounits / 2)) /
+    BigInt(denominatorMicrounits);
+  if (result > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(RETURN_QTY_EXCEEDED);
+  }
+  return Number(result);
+}
+
 // eslint-disable-next-line complexity -- legacy unit and exact WEIGH return reconciliation
 export function planReturnLines(
   requests: readonly ReturnLineRequest[],
@@ -127,10 +146,18 @@ export function planReturnLines(
       throw new Error(RETURN_QTY_EXCEEDED);
     }
     const qty = qtyMicrounits! / 1_000_000;
-    const ratio = originalMicrounits > 0 ? qtyMicrounits! / originalMicrounits : 0;
-    const lineTotalCents = Math.round(orig.totalAmountCents * ratio);
-    const igvAmountCents = Math.round(orig.igvAmountCents * ratio);
-    const icbperAmountCents = Math.round(orig.icbperAmountCents * ratio);
+    const lineTotalCents = prorateCents(orig.totalAmountCents, qtyMicrounits!, originalMicrounits);
+    const igvAmountCents = prorateCents(orig.igvAmountCents, qtyMicrounits!, originalMicrounits);
+    const icbperAmountCents = prorateCents(
+      orig.icbperAmountCents,
+      qtyMicrounits!,
+      originalMicrounits,
+    );
+    const subtotalCents = lineTotalCents - igvAmountCents - icbperAmountCents;
+    const unitPriceWithoutTaxCents = Number(
+      (BigInt(Math.max(0, subtotalCents)) * BigInt(1_000_000) + BigInt(qtyMicrounits!) / 2n) /
+        BigInt(qtyMicrounits!),
+    );
     planned.push({
       originalSaleItemId: orig.id,
       productId: orig.productId,
@@ -144,7 +171,7 @@ export function planReturnLines(
       igvAmountCents,
       icbperAmountCents,
       lineTotalCents,
-      unitPriceWithoutTaxCents: Math.max(0, orig.unitPriceCents - Math.round(igvAmountCents / qty)),
+      unitPriceWithoutTaxCents,
       restoreStock: !orig.isUncatalogued,
       reversesWeightMeasurement: weighted,
     });

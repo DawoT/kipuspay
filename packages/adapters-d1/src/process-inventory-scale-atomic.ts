@@ -5,13 +5,9 @@
 /* eslint-disable no-secrets/no-secrets -- canonical domain and SQL identifiers */
 import { calculateWeightedSubtotalCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { sha256Hex } from './crypto.js';
 
 const SCALE_PROTOCOLS = new Set(['WEBHID', 'WEB_SERIAL', 'WEBUSB']);
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 export async function createWeightOverrideAuthorization(
   db: D1DatabaseLike,

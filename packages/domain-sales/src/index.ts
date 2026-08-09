@@ -1,6 +1,8 @@
 export type Cents = number;
 
-export const IGV_RATE_PER_MILLE = 180;
+import { applyIgvCents, IGV_RATE_PER_MILLE } from './taxes.js';
+
+export { applyIgvCents, IGV_RATE_PER_MILLE } from './taxes.js';
 
 export interface SaleLine {
   readonly productId: string;
@@ -22,13 +24,14 @@ export function computeSubtotalCents(lines: readonly SaleLine[]): Cents {
   return subtotal;
 }
 
-export function applyIgvCents(baseCents: Cents, ratePerMille: number): Cents {
-  return Math.round((baseCents * ratePerMille) / 1000);
-}
-
 export function buildSaleTotals(lines: readonly SaleLine[]): SaleTotals {
-  const subtotalCents = computeSubtotalCents(lines);
-  const igvCents = applyIgvCents(subtotalCents, IGV_RATE_PER_MILLE);
+  let subtotalCents = 0;
+  let igvCents = 0;
+  for (const line of lines) {
+    const lineSubtotalCents = line.priceCents * line.qty;
+    subtotalCents += lineSubtotalCents;
+    igvCents += applyIgvCents(lineSubtotalCents, IGV_RATE_PER_MILLE);
+  }
   return {
     subtotalCents,
     igvCents,
@@ -229,3 +232,23 @@ export {
   type CustomerOrderStatus,
   type CustomerOrderTerminalStatus,
 } from './customer-orders.js';
+
+export {
+  computeRecurringCatchUp,
+  computeRecurringPeriod,
+  computeRecurringProration,
+  computeRecurringRetry,
+  decideRecurringCancellation,
+  decideRecurringDelinquency,
+  RECURRING_TIMEZONE,
+  resolveRecurringOccurrenceItems,
+  transitionRecurringStatus,
+  versionRecurringPlan,
+  type RecurringAfterGracePolicy,
+  type RecurringCancellationMode,
+  type RecurringFrequency,
+  type RecurringPlanItem,
+  type RecurringPlanVersion,
+  type RecurringPricingPolicy,
+  type RecurringStatus,
+} from './recurring-sales.js';

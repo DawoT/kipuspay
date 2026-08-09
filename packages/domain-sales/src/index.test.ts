@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyIgvCents, buildSaleTotals, computeSubtotalCents } from './index.js';
+import {
+  applyIgvCents,
+  buildSaleTotals,
+  computeSubtotalCents,
+  IGV_RATE_PER_MILLE,
+} from './index.js';
 
 describe('computeSubtotalCents', () => {
   it('suma precio por cantidad en centavos sin redondeo', () => {
@@ -29,5 +34,17 @@ describe('buildSaleTotals', () => {
     expect(totals.subtotalCents).toBe(10000);
     expect(totals.igvCents).toBe(1800);
     expect(totals.totalCents).toBe(11800);
+  });
+
+  it('suma el IGV por línea en vez de aplicar la tasa al agregado (M1)', () => {
+    const perLine = buildSaleTotals([
+      { productId: 'a', priceCents: 6, qty: 1 },
+      { productId: 'b', priceCents: 6, qty: 1 },
+    ]);
+    expect(perLine.subtotalCents).toBe(12);
+    expect(perLine.igvCents).toBe(2);
+    const aggregated = applyIgvCents(12, IGV_RATE_PER_MILLE);
+    expect(aggregated).toBe(2);
+    expect(perLine.igvCents).toBe(aggregated);
   });
 });

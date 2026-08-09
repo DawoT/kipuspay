@@ -11,6 +11,7 @@ import {
 import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
+import { sha256HexOf } from './crypto.js';
 
 export interface SupplierInvoiceLineInput {
   readonly productId: string;
@@ -140,14 +141,6 @@ async function loadAlreadyInvoiced(
   return new Map((res.results ?? []).map((r) => [r.product_id, r.qty]));
 }
 
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 export async function processSupplierInvoiceMatchAtomic(
   db: D1DatabaseLike,
   tenantId: string,
@@ -217,7 +210,7 @@ export async function processSupplierInvoiceMatchAtomic(
     )
     .bind(tenantId)
     .first<{ row_hash: string }>();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: matchPlan.requiresPriceDiffAudit ? 'SUPPLIER_PRICE_DIFF' : 'SUPPLIER_INVOICE_MATCH',
     entity_id: invoiceId,
     prev: prevHash?.row_hash ?? null,

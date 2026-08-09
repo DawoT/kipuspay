@@ -4,6 +4,7 @@
  */
 import { canTransitionSerial, type SerialState } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { sha256Hex } from './crypto.js';
 
 const SERIAL_STATUSES = new Set([
   'AVAILABLE',
@@ -17,11 +18,6 @@ const SERIAL_STATUSES = new Set([
 ]);
 
 const serialAuditTails = new WeakMap<AtomicPlanBuilder, Map<string, Promise<string | null>>>();
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 async function appendSerialAuditToPlan(
   plan: AtomicPlanBuilder,

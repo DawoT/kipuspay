@@ -8,17 +8,10 @@ import {
   type JournalSourceType,
 } from '@kipuspay/domain-cash';
 import type { D1Bound, D1DatabaseLike } from './index.js';
+import { sha256HexOf } from './crypto.js';
 
 export interface JournalPlanSink {
   add(statement: D1Bound): unknown;
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(JSON.stringify(payload)),
-  );
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function ensureChartSeeded(db: D1DatabaseLike, tenantId: string): Promise<void> {
@@ -76,7 +69,7 @@ export async function appendJournalToPlan(
 ): Promise<{ auditId: string; rowHash: string; journalEntryId: string }> {
   const journalEntryId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'JOURNAL_POST',
     entity_id: journalEntryId,
     source_type: input.entry.sourceType,

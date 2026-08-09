@@ -9,14 +9,10 @@ import {
 import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
 import { processReturnAtomic } from './process-return-atomic.js';
 import { processSyncSalesBatch } from './sync-sales-batch.js';
+import { sha256Hex } from './crypto.js';
 
 const NOW_MS = Date.parse('2026-08-08T17:00:00.000Z');
 const NOW_ISO = new Date(NOW_MS).toISOString();
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 async function seedWeightedSale(tenantId: string) {
   const branchId = `branch-${tenantId}`;

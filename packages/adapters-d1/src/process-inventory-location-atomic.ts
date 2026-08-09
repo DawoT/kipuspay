@@ -4,6 +4,7 @@
  */
 import { assertLocationCanDeactivate, planLocationTransfer } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { sha256HexOf } from './crypto.js';
 import {
   appendSerialTransitionToPlan,
   loadSerialsForStockOperation,
@@ -17,12 +18,6 @@ export interface LocationAtomicActorInput {
 function assertPrivileged(input: LocationAtomicActorInput): void {
   if (!input.actorIsAdminOrOwner) throw new Error('LOCATION_FORBIDDEN');
   if (!input.branchId.trim()) throw new Error('LOCATION_BRANCH_REQUIRED');
-}
-
-async function sha256Hex(payload: Record<string, unknown>): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(payload));
-  const buf = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
@@ -184,7 +179,7 @@ export async function createInventoryLocationAtomic(
   if (!code) throw new Error('LOCATION_CODE_REQUIRED');
   const locationId = crypto.randomUUID();
   const prevHash = await previousAuditHash(db, tenantId);
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'CONFIG_CHANGE',
     entity_id: locationId,
     kind: 'LOCATION_CREATE',
@@ -240,7 +235,7 @@ export async function updateInventoryLocationAtomic(
     throw new Error('LOCATION_DEFAULT_IMMUTABLE');
   }
   const prevHash = await previousAuditHash(db, tenantId);
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'CONFIG_CHANGE',
     entity_id: input.locationId,
     kind: 'LOCATION_UPDATE',
@@ -402,7 +397,7 @@ export async function processInventoryLocationTransferAtomic(
     batchId: input.batchId ?? null,
     quantityMicrounits: input.quantityMicrounits,
   };
-  const rowHash = await sha256Hex({
+  const rowHash = await sha256HexOf({
     action: 'LOCATION_TRANSFER',
     entity_id: transferId,
     ...payload,
