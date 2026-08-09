@@ -60,15 +60,19 @@
 
   let currentTheme = $state<'dark' | 'light'>('dark');
 
-  function toggleTheme() {
-    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  $effect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', currentTheme);
-      try {
-        localStorage.setItem('kipus_theme', currentTheme);
-      } catch {
-        // Storage access may be blocked in restricted contexts.
-      }
+      document.body.setAttribute('data-theme', currentTheme);
+    }
+  });
+
+  function toggleTheme() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('kipus_theme', currentTheme);
+    } catch {
+      // Storage access may be blocked in restricted contexts.
     }
   }
 
@@ -83,7 +87,6 @@
     } catch {
       // Storage access may be blocked
     }
-    document.documentElement.setAttribute('data-theme', currentTheme);
 
     if (isMobilePosEnabled() || isMobilePushEnabled()) {
       try {
@@ -204,8 +207,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    color: #14161c;
+    box-shadow: 0 4px 12px rgba(217, 154, 61, 0.35);
   }
 
   .brand-text {
@@ -224,7 +227,7 @@
 
   .brand-subtitle {
     font-size: 0.6875rem;
-    color: #a5b4fc;
+    color: var(--accent-primary);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -234,7 +237,7 @@
     display: flex;
     align-items: center;
     gap: 0.375rem;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-button-sec);
     padding: 0.25rem;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-subtle);
@@ -259,14 +262,14 @@
 
   .nav-link:hover {
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--bg-glass-hover);
   }
 
   .nav-link.active {
-    color: #ffffff;
+    color: #14161c;
     background: var(--accent-gradient);
-    font-weight: 600;
-    box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(217, 154, 61, 0.35);
   }
 
   .header-status {
