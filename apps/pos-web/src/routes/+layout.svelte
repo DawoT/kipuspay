@@ -60,32 +60,56 @@
 
   let currentTheme = $state<'dark' | 'light'>('dark');
 
-  $effect(() => {
+  function applyTheme(theme: 'dark' | 'light') {
+    console.log('[Theme] Applying theme:', theme);
+    currentTheme = theme;
     if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', currentTheme);
-      document.body.setAttribute('data-theme', currentTheme);
-    }
-  });
-
-  function toggleTheme() {
-    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    try {
-      localStorage.setItem('kipus_theme', currentTheme);
-    } catch {
-      // Storage access may be blocked in restricted contexts.
+      document.documentElement.setAttribute('data-theme', theme);
+      document.body.setAttribute('data-theme', theme);
+      try {
+        localStorage.setItem('kipus_theme', theme);
+      } catch {
+        // Storage access may be blocked in restricted contexts.
+      }
     }
   }
 
+  function toggleTheme(e?: Event) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    console.log('[Theme] Toggling from', currentTheme, 'to', nextTheme);
+    applyTheme(nextTheme);
+  }
+
   onMount(async () => {
-    try {
-      const savedTheme = localStorage.getItem('kipus_theme') as 'dark' | 'light' | null;
-      if (savedTheme === 'light' || savedTheme === 'dark') {
-        currentTheme = savedTheme;
-      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        currentTheme = 'light';
+    if (typeof document !== 'undefined') {
+      const activeTheme = document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null;
+      if (activeTheme === 'light' || activeTheme === 'dark') {
+        currentTheme = activeTheme;
+      } else {
+        try {
+          const savedTheme = localStorage.getItem('kipus_theme') as 'dark' | 'light' | null;
+          if (savedTheme === 'light' || savedTheme === 'dark') {
+            applyTheme(savedTheme);
+          } else {
+            applyTheme('dark');
+          }
+        } catch {
+          applyTheme('dark');
+        }
       }
-    } catch {
-      // Storage access may be blocked
+
+      window.addEventListener('click', (e) => {
+        const target = (e.target as HTMLElement)?.closest('.theme-toggle-btn');
+        if (target) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleTheme();
+        }
+      });
     }
 
     if (isMobilePosEnabled() || isMobilePushEnabled()) {
