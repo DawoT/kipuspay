@@ -9,7 +9,7 @@ sprints: "43–45"
 
 ### FASE 6E — Servicios y Fuerza de Venta (KipusPay v8.1, sprints 43–45)
 
-> Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Pedido de cliente: Arquitectura §5.10; membresías: §5.11; regla 30: §5.3. **Capabilities, no forks** (ADR-ARCH-002).
+> Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Pedido de cliente: Arquitectura §5.10; membresías: §5.11; regla 30: §5.12. **Capabilities, no forks** (ADR-ARCH-002).
 
 #### Sprint 43 — Preventa / pedido a cliente con retiro
 **Estado:** Software GREEN local condicionado; claim/producción/piloto NO-GO hasta QA humana, aprobación PM, firmas A+V y piloto externo de entrega
@@ -46,21 +46,26 @@ sprints: "43–45"
 ---
 
 #### Sprint 45 — Notificaciones push + caja móvil Android
+**Estado:** Gobernanza fijada y contratos RED; implementación/claim/producción NO-GO
 **Capabilities:** `mobile.push`, `client.mobile_pos`  
-**Referencia:** Arquitectura §5.3 regla 30; §7.5 (offloading) · **Agentes:** Staff Mobile (owner), Staff Frontend, Staff SRE, Staff Hardware
+**Compatibilidad:** `owner.push_alerts` es alias legado del motor `mobile.push`, no una tercera capability
+**Referencia:** Arquitectura §5.12 regla 30 · ADR-0029 · §7.5 (offloading) · GTM-26 congelado · **Agentes:** Staff Mobile (owner), Staff Frontend, Staff SRE, Staff Hardware
 
 **Frontera heredada de Sprint 44:** push no forma parte de ventas recurrentes GREEN
 local. Sprint 45 debe probar consentimiento, entrega real y dispositivo; Sprint 44 no
 promete recordatorio push, autocobro, tarjeta guardada ni continuidad post-gracia.
 
 **Entregables:**
-- `push_subscriptions` + Web Push/FCM: alertas Modo Dueño reales (arqueo, quiebre, discrepancias, cuotas vencidas) — no solo polling.
-- **Caja móvil** como terminal PWA que reusa el core (multi-caja portátil, Android); sin fork de dominio.
-- Suscripción/consentimiento de push explícito (LPDP, Sprint 47).
+- DDL objetivo 0038 para consentimiento, suscripciones cifradas, eventos y entregas; Web Push VAPID + FCM HTTP v1 detrás de `PUSH_KMS`, módulo FCM web vendorizado lazy con licencia/hash/SBOM y cero npm runtime.
+- Registro canónico de alertas: cierre/descuadre, quiebre, cuotas/CxC vencidas, expiry de pedido y gracia recurrente. Billing reminders permanecen separados y todo fallo push deja intacta la operación origen.
+- Consentimiento explícito de usuario/empleado resuelto en S45, independiente del consentimiento de clientes de S47. Lockscreen `REDACTED` por defecto; montos solo con política tenant + opt-in Owner y nunca PII/fiscal/token.
+- `ACCEPTED` de provider y `DISPLAYED` por ACK firmado/opaco/one-shot ≤300 s son estados distintos; SLO evento→display p95 <10 s y ≥99% en red normal, excluyendo offline/doze solo con etiqueta.
+- **Caja móvil** como terminal PWA Android que reusa core, RBAC, sesión/revocación, impresión fallback y cola offline; un solo Service Worker y cero fork de rol/dominio/vertical.
+- Baseline actual limitado a ADR/especificación/registro/mapa/GTM y tests RED. Migración física, transportes, SW, rutas, UI, chaos y cierre pertenecen al ciclo GREEN posterior.
 
-**Criterios de aceptación:** push entregado en <10s en red normal; caja móvil pasa la suite de gama baja (Sprint 6/14) sin pérdida de cola; 0 push sin consentimiento; modos offline idénticos al POS.
+**Criterios de aceptación:** contratos RED fallan por módulos 0038/transporte/API/SW/chaos ausentes. Para GREEN: push DISPLAYED p95 <10s y ≥99% en red normal; caja móvil pasa 500 ventas en gama baja sin pérdida de cola; 0 push sin consentimiento, PII/secreto o duplicado visible; modos offline idénticos al POS.
 
-**Quality Gate:** Staff Mobile + Staff QA (dispositivo) + Staff Security (PII).
+**Quality Gate:** abierto/NO-GO. Requiere Staff Mobile + Staff QA (dispositivo Android físico) + Staff Security (PII), Web Push/FCM staging real, chaos 500 y firmas A+V independientes.
 
 ---
 

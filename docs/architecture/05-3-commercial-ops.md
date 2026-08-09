@@ -799,16 +799,9 @@ CREATE TABLE pos_terminals (
 -- scheduler exactly-once, gracia y prorrateo mediante NC/NV_RETURN.
 
 -- FASE 6E / Sprint 45 — notificaciones push + caja móvil
-CREATE TABLE push_subscriptions (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    endpoint TEXT NOT NULL,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
--- Caja móvil: reusa el core (PWA terminal); sin tablas nuevas de dominio.
+-- Contrato y DDL objetivo canónicos movidos a §5.12 (ADR-0029):
+-- consentimiento S45, Web Push VAPID + FCM HTTP v1, privacidad lockscreen,
+-- outbox/ACK DISPLAYED y caja móvil PWA sobre el mismo core y Service Worker.
 ```
 
 #### DDL adicional (v8.1, FASE 6F — analítica predictiva + compliance)

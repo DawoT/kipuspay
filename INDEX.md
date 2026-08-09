@@ -81,65 +81,53 @@ Abre solo los archivos que esta tabla te señale.
 | `data.backup` | 38–42 | Export / restore del negocio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 208 |
 | `orders.customer_orders` | 43–45 | Preventa / pedido a cliente | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 214 |
 | `sales.recurring` | 43–45 | Recurrentes / membresías | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 215 |
-| `mobile.push` | 43–45 | Push + caja móvil | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 216 |
-| `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 222 |
-| `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 223 |
-| `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
-| `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 230 |
-| `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
-| `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 232 |
-| `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 233 |
-| `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 234 |
+| `mobile.push` | 43–45 | Motor push operacional (owner.push_alerts = alias legado) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 216 |
+| `client.mobile_pos` | 43–45 | Caja móvil PWA sobre el POS único | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 217 |
+| `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 223 |
+| `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
+| `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 225 |
+| `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
+| `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 232 |
+| `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 233 |
+| `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 234 |
+| `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 235 |
 
 ## Sprints → fase, archivo y estado
 
 | Sprint | FASE | Archivo | Línea | Especificación | Entrega |
 |---|---|---|---|---|---|
-| 0 | 0 | [`docs/roadmap/fase-0.md`](docs/roadmap/fase-0.md) | 12 | Actualizada (ADR-0001, CAL-01..08, monorepo, D1 humo) | Cerrado |
-| 1 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 12 | Actualizada (M1 dinero cents, §5.0 / §5.5 migraciones) | Cerrado |
-| 2 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 23 | Actualizada (auth fail-closed, plan guard, IdP — §3) | Cerrado |
-| 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | Actualizada (webhooks pasarela + invalidación — §4) | Cerrado |
-| 4 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 45 | Actualizada (motor ACID + reconciliación — §6) | Cerrado |
-| 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | Actualizada (Motor Fiscal Dual + ADR-FISCAL-001 v2) | Cerrado |
-| 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 34 | Actualizada (Resumen Diario, plazos, baja y alertas) | Cerrado |
-| 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 53 | Actualizada (P4 CRM LWW + dedup SYN-11 enmendada + edge D rollup) | Cerrado |
-| 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | Actualizada (caja por modo + plantillas CPE/NV + Vitrina + print 58/80) | Cerrado |
-| 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 25 | Actualizada (ledger CxC/CxP/OC/egresos + Modo Dueño + offline rollup + owner.push_alerts; GTM-03/11 freeze) | Cerrado |
-| 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 40 | Actualizada (M3 rollups §9 + cron multi-shard + catálogo CSV + GTM-03/11 unfreeze) | Cerrado |
-| 10 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 12 | Actualizada (sitio marketing + 5 landings + /comparar + claim-gate GTM) | Cerrado |
-| 11 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 27 | Actualizada (precios §4.1 + onboarding §6.2 + Admin Config §3.3.1 + primera venta) | Cerrado |
-| 12 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 43 | Actualizada (referidos §7.1 + marca POS §7.2 + casos/blog §7.3 + métricas §9) | Cerrado |
-| 13 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 54 | Actualizada (seguridad §5.7.1 + guion §8 + support_sla_enterprise / GTM-02) | Cerrado |
-| 14 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 12 | Actualizada (carga + caos evidencia + auditoría seguridad) | Cerrado |
-| 15 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 23 | Actualizada (WCAG AA + marca + rollback + Go/No-Go) | Cerrado |
-| 16 | 5 | — | — | Actualizada (estabilización 30d + métricas reales GTM §9) | En progreso |
-| 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | Actualizada (M6/M7 caja dura + audit) | Cerrado |
-| 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | Actualizada (M2/M4/M5 PMP + stock) | Cerrado |
-| 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | Actualizada (comandas / KDS / split bill) | Cerrado |
-| 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | Actualizada (transferencias + recepción OC parcial) | Cerrado |
-| 21 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 14 | Actualizada (importadores Bsale/Alegra/CSV, dry-run→commit idempotente, external_entity_map) | Cerrado |
-| 22 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 29 | Actualizada (cobro local Yape/Plin/MP/Culqi/Niubiz) | Cerrado |
-| 23 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 45 | Actualizada (Contasis/Concar + API keys/webhooks Cadena+) | Cerrado |
-| 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 61 | Base (WhatsApp/loyalty) | Cerrado |
-| 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | Actualizada (P3 print outbox §7.5 + pos_terminals config 58/80mm) | Cerrado |
-| 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | Actualizada (P1 breaker §8.1) | Cerrado |
-| 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | Actualizada (P2 cupo §4.1) | Cerrado |
-| 28 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 14 | Actualizada (sales.returns + GTM-05) | Cerrado |
-| 29 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 31 | Actualizada (purchasing.three_way + GTM-13) | Cerrado |
-| 30 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 47 | Actualizada (pricing.promotions + GTM-15) | Cerrado |
-| 31 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 63 | Actualizada (catalog.variants/uom + GTM-16) | Cerrado |
-| 32 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 81 | Actualizada (sales.layaway + ledger.chart_of_accounts + GTM-14/17) | Cerrado |
-| 33 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 14 | Actualizada (sales.quotes + GTM-19) | Cerrado |
-| 34 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 30 | Actualizada (purchasing.returns + GTM-20) | Cerrado |
-| 35 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 46 | Actualizada (ledger.store_credit + GTM-21) | Cerrado |
-| 36 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 62 | Actualizada (sales.installments + GTM-22) | Cerrado |
-| 37 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 78 | Actualizada (sales.commissions + GTM-23) | Cerrado |
-| 38 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 14 | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial) | Cerrado |
-| 39–42 | 6D | — | — | Actualizada (FASE 6D reglas 24–27) | Planificado |
-| 43–45 | 6E | — | — | Actualizada (S43–S44 software GREEN local condicionado; S45 regla 30 en §5.3) | S43–S44 claim/producción NO-GO; S45 planificado |
-| 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
-| 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
-| 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
+| 0 | 0 | [`docs/roadmap/fase-0.md`](docs/roadmap/fase-0.md) | 12 | sin fila de estado | — |
+| 1 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 12 | sin fila de estado | — |
+| 2 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 23 | sin fila de estado | — |
+| 3 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 34 | sin fila de estado | — |
+| 4 | 1 | [`docs/roadmap/fase-1.md`](docs/roadmap/fase-1.md) | 45 | sin fila de estado | — |
+| 5 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 12 | sin fila de estado | — |
+| 5b | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 34 | sin fila de estado | — |
+| 6 | 2 | [`docs/roadmap/fase-2.md`](docs/roadmap/fase-2.md) | 53 | sin fila de estado | — |
+| 7 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 12 | sin fila de estado | — |
+| 8 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 25 | sin fila de estado | — |
+| 9 | 3 | [`docs/roadmap/fase-3.md`](docs/roadmap/fase-3.md) | 40 | sin fila de estado | — |
+| 10 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 12 | sin fila de estado | — |
+| 11 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 27 | sin fila de estado | — |
+| 12 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 43 | sin fila de estado | — |
+| 13 | 4 | [`docs/roadmap/fase-4.md`](docs/roadmap/fase-4.md) | 54 | sin fila de estado | — |
+| 14 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 12 | sin fila de estado | — |
+| 15 | 5 | [`docs/roadmap/fase-5.md`](docs/roadmap/fase-5.md) | 23 | sin fila de estado | — |
+| 17 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 14 | sin fila de estado | — |
+| 18 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 32 | sin fila de estado | — |
+| 19 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 52 | sin fila de estado | — |
+| 20 | 6 | [`docs/roadmap/fase-6.md`](docs/roadmap/fase-6.md) | 68 | sin fila de estado | — |
+| 28 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 14 | sin fila de estado | — |
+| 29 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 31 | sin fila de estado | — |
+| 30 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 47 | sin fila de estado | — |
+| 31 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 63 | sin fila de estado | — |
+| 32 | 6B | [`docs/roadmap/fase-6b.md`](docs/roadmap/fase-6b.md) | 81 | sin fila de estado | — |
+| 33 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 14 | sin fila de estado | — |
+| 34 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 30 | sin fila de estado | — |
+| 35 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 46 | sin fila de estado | — |
+| 36 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 62 | sin fila de estado | — |
+| 37 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 78 | sin fila de estado | — |
+| 38 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 14 | sin fila de estado | — |
 | 39 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 30 | sin fila de estado | — |
 | 40 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 46 | sin fila de estado | — |
 | 41 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 62 | sin fila de estado | — |
@@ -150,15 +138,27 @@ Abre solo los archivos que esta tabla te señale.
 | 46 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 14 | sin fila de estado | — |
 | 47 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 29 | sin fila de estado | — |
 | 48 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 44 | sin fila de estado | — |
+| 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | sin fila de estado | — |
 | 50 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 14 | sin fila de estado | — |
 | 51 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 29 | sin fila de estado | — |
 | 52 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 45 | sin fila de estado | — |
 | 53 | 6G | [`docs/roadmap/fase-6g.md`](docs/roadmap/fase-6g.md) | 60 | sin fila de estado | — |
+| 21 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 14 | sin fila de estado | — |
+| 22 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 29 | sin fila de estado | — |
+| 23 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 45 | sin fila de estado | — |
+| 24 | 7 | [`docs/roadmap/fase-7.md`](docs/roadmap/fase-7.md) | 61 | sin fila de estado | — |
+| 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | sin fila de estado | — |
+| 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | sin fila de estado | — |
+| 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | sin fila de estado | — |
 
 ## Tablas DDL → capítulo y línea
 
 | Tabla | Sección | Archivo | Línea |
 |---|---|---|---|
+| `push_consents` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 96 |
+| `push_subscriptions` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 121 |
+| `push_events` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 154 |
+| `push_deliveries` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 184 |
 | `usage_counters` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 203 |
 | `usage_events` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 212 |
 | `billing_overages` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 223 |
@@ -209,12 +209,11 @@ Abre solo los archivos que esta tabla te señale.
 | `inventory_location_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 733 |
 | `inventory_location_batch_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 744 |
 | `pos_terminals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 768 |
-| `push_subscriptions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 802 |
-| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 818 |
-| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 833 |
-| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 851 |
-| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 869 |
-| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 884 |
+| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 811 |
+| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 826 |
+| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 844 |
+| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 862 |
+| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 877 |
 | `external_entity_map` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 27 |
 | `payment_captures` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 41 |
 | `api_keys` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 59 |
@@ -318,6 +317,7 @@ Abre solo los archivos que esta tabla te señale.
 | COM-08 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | COM-09 | §5.10 | Pedido de cliente: reserva, aviso, fulfillment y DDL 0036 | [`docs/architecture/05-10-customer-orders.md`](docs/architecture/05-10-customer-orders.md) |
 | COM-10 | §5.11 | Membresía: pricing versionado, calendario, settlement, gracia y prorrateo | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) |
+| COM-11 | §5.12 | Push: consentimiento, privacidad, entrega/ACK, DDL 0038 y caja móvil | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) |
 | COM-12 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | DAT-01 | §5.4 | `branch_id TEXT NULL` en `sunat_daily_summaries` | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | DAT-02 | §6 | Estado SUNAT + deadline (compartida con FIS-02) | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
@@ -399,4 +399,4 @@ Abre solo los archivos que esta tabla te señale.
 | `pos-web` | SvelteKit | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 99 |
 | `worker-api` | Hono composition root | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 100 |
 
-<!-- generado desde: 26 archivo(s) de especificación + 17 de proceso/roadmap -->
+<!-- generado desde: 27 archivo(s) de especificación + 17 de proceso/roadmap -->

@@ -213,7 +213,8 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 |---|---|---|
 | `orders.customer_orders` | 43–45 | Preventa / pedido a cliente |
 | `sales.recurring` | 43–45 | Recurrentes / membresías |
-| `mobile.push`, `client.mobile_pos` | 43–45 | Push + caja móvil |
+| `mobile.push` | 43–45 | Motor push operacional (owner.push_alerts = alias legado) |
+| `client.mobile_pos` | 43–45 | Caja móvil PWA sobre el POS único |
 
 **Capabilities canónicas (FASE 6F, reglas 31–33, sprints 46–49):**
 
