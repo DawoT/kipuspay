@@ -6093,3 +6093,46 @@ aprobaciones: [Staff Mobile R software local Android fisico pendiente, Staff Fro
 estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
+
+```
+id: 0317
+timestamp_utc: 2026-08-09T02:30:00Z
+schema_version: 2
+sprint_fase: Sprint 45 — FASE 6E (correccion de procedencia GREEN)
+agente_responsable: Staff Mobile / Staff Backend / Staff QA
+tipo: Corrección
+subtipo: procedencia y evidencia final del quality gate
+relacion: CORRIGE
+referencias_entradas: [0316]
+referencias_documentales: [docs/ops/s45-mobile-push-pos-qg.md, docs/roadmap/fase-6e.md]
+prev_id: 0316
+prev_hash: 97dd9e1fac1633d4415ee02744dccc71833eeade6c771377f08b8e7f6a07d57e
+entry_hash: bab955c8f9f0db3bf32118a8bdec3835d60bfcd4f99fbd6cdf97b95772ed9f46
+ticket_or_adr: ADR-0029, Roadmap Sprint 45, CAL-05, GTM-26
+test_ids: [apps/worker-api/src/push/mobile-push-dispatcher.test.ts, apps/worker-api/src/push/mobile-push-routes.red.test.ts, apps/worker-api/src/push/mobile-push-routes.test.ts, apps/worker-api/src/referrals/referral-routes.test.ts, V-20, SUITE]
+entregable_afectado: Procedencia GREEN y conteo de cobertura del Quality Gate Sprint 45
+descripcion: >
+  Corrige exclusivamente la procedencia GREEN, el run ID y el conteo Worker API
+  declarados por 0316. El commit 7e6b367219897276b1573e5c7357262c5ceca8b2
+  fue precursor de implementacion y no cerro el gate porque quality fallo cobertura
+  Worker API con 69.59%. El GREEN final es
+  732564e19a2008187f00c7899066cfb947a5bd68.
+evidencia: >
+  RED contractual 76744aae9b7a91b235784d9fe896602bc8f9fe23 permanece sin cambio.
+  El run run-green-s45-mobile-push-pos-732564e sobre
+  732564e19a2008187f00c7899066cfb947a5bd68 ejecuta Worker API en 61 archivos:
+  623 tests y 73.53% statements; scripts/quality.sh exit 0 Quality Gate OK.
+  Permanecen pendientes Web Push/FCM staging real, Android fisico de gama baja
+  bajo doze/storage/background y firmas Mobile+QA+Security A+V independientes;
+  GTM-26, produccion y piloto continúan NO-GO y la evidencia no es certificacion
+  externa.
+red_commit_sha: 76744aae9b7a91b235784d9fe896602bc8f9fe23
+red_run_id: run-red-s45-mobile-push-pos-76744aa
+expected_failure: Quality Gate del precursor 7e6b367 fallo cobertura Worker API con 69.59%
+green_commit_sha: 732564e19a2008187f00c7899066cfb947a5bd68
+green_run_id: run-green-s45-mobile-push-pos-732564e
+ancestry_verified: true
+aprobaciones: [Staff Mobile R software local Android fisico pendiente, Staff Backend R cobertura local, Staff QA V pendiente, Staff Security V independiente pendiente, Staff Growth Claim NO-GO]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```

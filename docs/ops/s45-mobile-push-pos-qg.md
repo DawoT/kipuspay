@@ -22,11 +22,13 @@ documento no autoriza GTM-26, producción, piloto ni una certificación externa.
 | Hito | Run ID | Commit completo | Evidencia |
 |---|---|---|---|
 | RED contractual | `run-red-s45-mobile-push-pos-76744aa` | `76744aae9b7a91b235784d9fe896602bc8f9fe23` | Contratos de DDL/down 0038, outbox/dispatcher, workerd, VAPID/FCM/KMS, rutas/RBAC/ACK, PWA/SW, caja móvil y chaos fallaban por implementación productiva ausente |
-| GREEN local | `run-green-s45-mobile-push-pos-7e6b367` | `7e6b367219897276b1573e5c7357262c5ceca8b2` | Implementación local de 0038, atomicidad, transporte aislado, API, PWA/SW, polling, low-end emulado y chaos |
+| Precursor de implementación | `run-precursor-s45-mobile-push-pos-7e6b367` | `7e6b367219897276b1573e5c7357262c5ceca8b2` | Implementación funcional completa, pero `scripts/quality.sh` falló el umbral de cobertura Worker API con 69.59%; no constituye el GREEN del gate |
+| GREEN local del gate | `run-green-s45-mobile-push-pos-732564e` | `732564e19a2008187f00c7899066cfb947a5bd68` | Cobertura final añadida; Worker API 623 tests, 73.53% statements y `scripts/quality.sh` exit 0 |
 
 Ancestría verificada:
 `76744aae9b7a91b235784d9fe896602bc8f9fe23` →
-`7e6b367219897276b1573e5c7357262c5ceca8b2` → `HEAD`.
+`7e6b367219897276b1573e5c7357262c5ceca8b2` →
+`732564e19a2008187f00c7899066cfb947a5bd68` → `HEAD`.
 
 **Expected failure RED:** faltaban migración/down 0038, atomicidad y workerd,
 consentimiento/revocación, provider/KMS, rutas y ACK, artefacto PWA/SW, persistencia
@@ -36,7 +38,7 @@ de 500 ventas offline y chaos que preservara privacidad, aislamiento e idempoten
 
 | Suite/check | Resultado observado |
 |---|---|
-| Worker API | 606 tests en la suite actual; satisface el requisito de 604 o posterior |
+| Worker API | 623 tests en 61 archivos; 73.53% statements |
 | Worker KMS | 28 tests |
 | Adapters D1 unit | 281 tests |
 | Adapters D1 workerd | 200 tests GREEN; migración/atomicidad/replay/revocación/concurrencia/ACK/privacidad |
