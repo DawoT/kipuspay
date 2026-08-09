@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./process-offline-sale-atomic": "./src/process-offline-sale-atomic.ts",
     "./process-order-billing-atomic": "./src/process-order-billing-atomic.ts",
-    "./process-customer-order-atomic": "./src/process-customer-order-atomic.ts"
+    "./process-customer-order-atomic": "./src/process-customer-order-atomic.ts",
+    "./process-recurring-sale-atomic": "./src/process-recurring-sale-atomic.ts"
   },
   "scripts": {
     "lint": "eslint src --max-warnings 0",

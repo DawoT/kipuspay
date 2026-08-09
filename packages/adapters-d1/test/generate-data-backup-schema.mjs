@@ -221,6 +221,11 @@ const introducedAfterSprint42 = new Set([
   'customer_order_items',
   'customer_order_notifications',
   'customer_orders',
+  'recurring_occurrence_items',
+  'recurring_occurrences',
+  'recurring_plan_items',
+  'recurring_plans',
+  'recurring_proration_adjustments',
 ]);
 const epochTables = registry.filter(
   (entry) =>
@@ -327,6 +332,10 @@ CREATE TABLE tenant_data_epochs (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, CHECK (epoch >= 0),
   FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 );
+ALTER TABLE authorization_tokens ADD COLUMN backup_id TEXT;
+CREATE INDEX idx_authorization_tokens_backup_scope
+  ON authorization_tokens(tenant_id, backup_id, token_hash, expires_at)
+  WHERE used_at IS NULL;
 CREATE INDEX idx_data_backups_lifecycle ON data_backups(tenant_id, status, created_at);
 CREATE INDEX idx_data_backups_expiry ON data_backups(status, expires_at);
 CREATE INDEX idx_backup_chunks_backup ON data_backup_chunks(tenant_id, backup_id, table_name, ordinal);
@@ -363,6 +372,8 @@ DROP INDEX IF EXISTS idx_backup_objects_backup;
 DROP INDEX IF EXISTS idx_backup_chunks_backup;
 DROP INDEX IF EXISTS idx_data_backups_expiry;
 DROP INDEX IF EXISTS idx_data_backups_lifecycle;
+DROP INDEX IF EXISTS idx_authorization_tokens_backup_scope;
+ALTER TABLE authorization_tokens DROP COLUMN backup_id;
 DROP TABLE data_backup_table_manifests;
 DROP TABLE restore_dry_runs;
 DROP TABLE data_backup_objects;

@@ -309,11 +309,6 @@
     {/if}
     {#if alert}<p class="alert" role="alert">{alert}</p>{/if}
 
-    <section class="notice" data-testid="customer-orders-off">
-      <strong>Pedidos de cliente desactivados</strong>
-      <p>Activa FEATURE_CUSTOMER_ORDERS tras conciliar inventario y terminales autorizados.</p>
-    </section>
-  {:else}
     <div class="grid">
       <section class="queue" aria-labelledby="queue-title">
         <div class="section-head">

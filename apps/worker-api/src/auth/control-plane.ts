@@ -78,6 +78,9 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_DATA_BACKUP?: string;
   /** Sprint 43: pedidos de cliente con reserva, default-off. */
   readonly FEATURE_ORDERS_CUSTOMER_ORDERS?: string;
+  /** Sprint 44: ventas recurrentes; ejecución manual solo con guard de entorno. */
+  readonly FEATURE_SALES_RECURRING?: string;
+  readonly RECURRING_MANUAL_RUN_ENABLED?: string;
   readonly BACKUPS?: R2Bucket;
   readonly BACKUP_WORKFLOW?: Workflow<{
     readonly tenantId: string;

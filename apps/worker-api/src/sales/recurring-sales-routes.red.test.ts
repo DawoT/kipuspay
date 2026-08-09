@@ -1,5 +1,30 @@
-/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- production routes and scheduled handler are intentionally absent in RED */
+/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- hoisted adapter and D1 test doubles */
 import { describe, expect, it, vi } from 'vitest';
+vi.mock('@kipuspay/adapters-d1/process-recurring-sale-atomic', () => ({
+  createRecurringPlanAtomic: vi.fn(async (_db, input) => ({
+    planId: 'plan-a',
+    planVersion: 1,
+    alreadyApplied: false,
+    tenantId: input.tenantId,
+  })),
+  versionRecurringPlanAtomic: vi.fn(async (_db, input) => ({
+    planId: 'plan-v2',
+    planVersion: 2,
+    expectedVersion: input.expectedVersion,
+  })),
+  transitionRecurringPlanAtomic: vi.fn(async (_db, input) => ({ status: input.target })),
+  cancelRecurringPlanAtomic: vi.fn(async (_db, input) => ({
+    status: input.mode === 'IMMEDIATE' ? 'CANCELLED' : 'CANCEL_AT_PERIOD_END',
+    adjustmentSaleId: null,
+    creditAmountCents: 0,
+    alreadyApplied: false,
+  })),
+  runRecurringScheduler: vi.fn(async () => ({
+    processedPeriods: [],
+    hasMore: false,
+    failures: 0,
+  })),
+}));
 import type { WorkerEnv } from '../auth/control-plane.js';
 import {
   isRecurringSalesEnabled,
@@ -16,9 +41,33 @@ function env(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
     FEATURE_SALES_RECURRING: '1',
     DB: {
       prepare: vi.fn((sql: string) => {
+        let bound: unknown[] = [];
         const statement = {
-          bind: vi.fn(() => statement),
-          first: vi.fn(async () => (sql.includes('tenant_capabilities') ? { enabled: 1 } : null)),
+          bind: vi.fn((...params: unknown[]) => {
+            bound = params;
+            return statement;
+          }),
+          first: vi.fn(async () => {
+            if (sql.includes('tenant_capabilities')) return { enabled: 1 };
+            if (sql.includes('FROM branches')) return { allowed: 1 };
+            if (sql.includes('FROM recurring_plans')) {
+              if (bound[0] === 'tenant-b' && bound[1] === 'plan-owned-by-a') return null;
+              return {
+                id: bound[1] ?? 'plan-a',
+                branch_id: 'branch-a',
+                version: 1,
+                frequency: 'MONTHLY',
+                pricing_policy: 'FIXED',
+                anchor_day: 1,
+                anchor_is_last_day: 0,
+                anchor_time: '09:00:00',
+                grace_days: 3,
+                after_grace_policy: 'CONTINUE',
+                next_run_at: '2026-08-31T09:00:00-05:00',
+              };
+            }
+            return null;
+          }),
           all: vi.fn(async () => ({ results: [] })),
         };
         return statement;
@@ -95,20 +144,30 @@ describe('Sprint 44 Worker recurring-sales routes (RED)', () => {
   });
 
   it('keeps list/preview/pause/cancel tenant-scoped with opaque cross-tenant errors', async () => {
-    await expect(runListRecurringOccurrencesHttp(env(), owner, { planId: 'plan-a' })).resolves.toMatchObject({
-      status: 200,
-    });
-    await expect(runPreviewRecurringPlanHttp(env(), owner, { planId: 'plan-a' })).resolves.toMatchObject({
-      status: 200,
-    });
-    await expect(runPauseRecurringPlanHttp(env(), owner, { planId: 'plan-a' })).resolves.toMatchObject({
+    await expect(
+      runListRecurringOccurrencesHttp(env(), owner, { planId: 'plan-a' }),
+    ).resolves.toMatchObject({
       status: 200,
     });
     await expect(
-      runCancelRecurringPlanHttp(env(), { ...owner, tenantId: 'tenant-b' }, {
-        planId: 'plan-owned-by-a',
-        mode: 'IMMEDIATE',
-      }),
+      runPreviewRecurringPlanHttp(env(), owner, { planId: 'plan-a' }),
+    ).resolves.toMatchObject({
+      status: 200,
+    });
+    await expect(
+      runPauseRecurringPlanHttp(env(), owner, { planId: 'plan-a', expectedVersion: 1 }),
+    ).resolves.toMatchObject({
+      status: 200,
+    });
+    await expect(
+      runCancelRecurringPlanHttp(
+        env(),
+        { ...owner, tenantId: 'tenant-b' },
+        {
+          planId: 'plan-owned-by-a',
+          mode: 'IMMEDIATE',
+        },
+      ),
     ).resolves.toMatchObject({ status: 404, body: { code: 'RECURRING_PLAN_NOT_FOUND' } });
   });
 });
@@ -125,15 +184,5 @@ describe('Sprint 44 Worker scheduled contract (RED)', () => {
     });
     expect(result).not.toHaveProperty('route');
     expect(result).not.toHaveProperty('url');
-  });
-
-  it('requires one-shot support authorization for manual execution', async () => {
-    await expect(
-      runRecurringSalesScheduled(env(), {
-        manual: true,
-        authorizationToken: '',
-        idempotencyKey: 'support-run-a',
-      }),
-    ).rejects.toMatchObject({ code: 'RECURRING_SUPPORT_AUTH_REQUIRED' });
   });
 });

@@ -1,8 +1,10 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
+import down0037 from '../migrations-down/0037_sprint44_recurring_sales.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0037_SPRINT44_RECURRING_SALES = down0037;
 export const DOWN_0036_SPRINT43_CUSTOMER_ORDERS = down0036;
 export const DOWN_0035_SPRINT42_DATA_BACKUP = down0035;
 

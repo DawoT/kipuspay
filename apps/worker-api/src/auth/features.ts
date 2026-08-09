@@ -67,3 +67,8 @@ export function isCatalogPriceLabelsEnabled(env: WorkerEnv | undefined): boolean
 export function isCustomerOrdersEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_ORDERS_CUSTOMER_ORDERS);
 }
+
+/** Sprint 44 — ventas recurrentes/membresías (default off). */
+export function isRecurringSalesEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_SALES_RECURRING);
+}

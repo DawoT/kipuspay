@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, no-secrets/no-secrets -- migration and production adapter are intentionally absent in RED */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, no-secrets/no-secrets -- compact D1 statement mock */
 import { describe, expect, it, vi } from 'vitest';
 import migration0037 from '../migrations/0037_sprint44_recurring_sales.sql?raw';
 import down0037 from '../migrations-down/0037_sprint44_recurring_sales.sql?raw';
@@ -60,11 +60,71 @@ function db() {
   return {
     batch,
     prepare: vi.fn((sql: string) => {
+      const settlementRow = {
+        id: 'plan-a',
+        tenant_id: 'tenant-a',
+        plan_key: 'membership-a',
+        plan_version: 1,
+        customer_id: 'customer-a',
+        branch_id: 'branch-a',
+        created_by_user_id: 'user-a',
+        document_type: '03',
+        pricing_policy: 'FIXED',
+        frequency: 'MONTHLY',
+        anchor_day: 1,
+        anchor_is_last_day: 0,
+        anchor_time: '00:00:00',
+        status: 'ACTIVE',
+        after_grace_policy: 'CONTINUE',
+        grace_days: 3,
+        catch_up_limit: 3,
+        next_run_at: '2026-08-01T00:00:00-05:00',
+        retry_count: 0,
+        version: 2,
+        effective_from: '2026-08-01T00:00:00-05:00',
+        tenant_formalization_mode: 'FULL_CPE',
+        tenant_tax_regime: 'RER',
+        customer_document_type: '1',
+        customer_document_number: '44000001',
+        customer_name: 'Customer',
+        customer_active: 1,
+        customer_erased: 0,
+        plan_item_id: 'item-a',
+        line_number: 1,
+        product_id: 'service-a',
+        product_uom_id: 'uom-a',
+        entered_quantity_microunits: 1_000_000,
+        factor_numerator: 1,
+        factor_denominator: 1,
+        base_quantity_microunits: 1_000_000,
+        fixed_unit_price_cents: 1_000,
+        price_list_id: null,
+        product_name: 'Service',
+        product_type: 'service',
+        current_unit_price_cents: 1_000,
+        cost_cents: 0,
+        igv_affectation_code_default: '10',
+        branch_stock_microunits: 0,
+        branch_stock_version: 0,
+        location_id: null,
+        location_stock_microunits: null,
+        batch_id: null,
+        batch_stock_microunits: null,
+        serial_id: null,
+        serial_version: null,
+        series_id: 'series-a',
+        series: 'B001',
+        current_number: 0,
+      };
       const statement = {
         sql,
         bind: vi.fn(() => statement),
         first: vi.fn().mockResolvedValue(null),
-        all: vi.fn().mockResolvedValue({ results: [], success: true, meta: {} }),
+        all: vi.fn().mockResolvedValue({
+          results: sql.includes('FROM recurring_plans rp') ? [settlementRow] : [],
+          success: true,
+          meta: {},
+        }),
         run: vi.fn().mockResolvedValue({ results: [], success: true, meta: {} }),
       };
       return statement;
@@ -115,7 +175,7 @@ describe('Sprint 44 scheduler and atomic settlement contract (RED)', () => {
     ]) {
       expect(statements).toContain(target);
     }
-    expect(statements.match(/accounts_receivable/g)).toHaveLength(1);
+    expect(statements.match(/INSERT INTO accounts_receivable \(/g)).toHaveLength(1);
     expect(statements).not.toMatch(/card|tokenized|autocharg/i);
   });
 
@@ -131,6 +191,6 @@ describe('Sprint 44 scheduler and atomic settlement contract (RED)', () => {
       }),
     ).rejects.toMatchObject({ code: expect.stringMatching(/^RECURRING_/) });
     expect(d1.batch).toHaveBeenCalledTimes(1);
-    expect(await cancelRecurringPlanAtomic).toBeTypeOf('function');
+    expect(cancelRecurringPlanAtomic).toBeTypeOf('function');
   });
 });

@@ -17,6 +17,7 @@ export default defineConfig({
     reuseExistingServer: true,
     env: {
       PUBLIC_FEATURE_ORDERS_CUSTOMER_ORDERS: '1',
+      PUBLIC_FEATURE_SALES_RECURRING: '1',
     },
   },
 });

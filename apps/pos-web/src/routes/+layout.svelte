@@ -11,7 +11,7 @@
     showCashOperatingNavigation,
     showCustomerOrderNavigation,
   } from '$lib/customer-orders/customer-order-access';
-  import { isCustomerOrdersEnabled } from '$lib/features';
+  import { isCustomerOrdersEnabled, isRecurringSalesEnabled } from '$lib/features';
 
   let { children } = $props();
   let authenticatedSession = $state<AdminAuthenticatedSession | null>(null);
@@ -34,6 +34,10 @@
       role: authenticatedSession?.role ?? '',
     })
       ? [{ href: '/orders/customer', label: 'Pedidos retiro', icon: '🛍️' }]
+      : []),
+    ...(isRecurringSalesEnabled() &&
+    ['owner', 'admin'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+      ? [{ href: '/admin/membresias', label: 'Membresías', icon: '↻' }]
       : []),
     { href: '/admin/ubicaciones', label: 'Ubicaciones', icon: '📦' },
     { href: '/admin/etiquetas', label: 'Etiquetas', icon: '🏷️' },

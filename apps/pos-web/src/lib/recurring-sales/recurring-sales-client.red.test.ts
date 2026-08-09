@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- production client is intentionally absent in RED */
 import { describe, expect, it, vi } from 'vitest';
 import { createRecurringSalesApi } from './recurring-sales-client.js';
 
@@ -37,19 +36,39 @@ describe('Sprint 44 POS recurring-sales client contract (RED)', () => {
   });
 
   it('supports list, preview, pause, resume, cancel and occurrence history', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ status: 'PAUSED', occurrences: [] }), {
+    const ok = (body: Record<string, unknown>) =>
+      new Response(JSON.stringify(body), {
         status: 200,
         headers: { 'content-type': 'application/json' },
-      }),
-    );
+      });
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(ok({ plans: [] }))
+      .mockResolvedValueOnce(
+        ok({
+          planId: 'plan-a',
+          nextRunAt: '2026-09-01T09:00:00-05:00',
+          items: [],
+          serverAuthoritative: true,
+        }),
+      )
+      .mockResolvedValueOnce(ok({ status: 'PAUSED' }))
+      .mockResolvedValueOnce(ok({ status: 'ACTIVE' }))
+      .mockResolvedValueOnce(
+        ok({
+          status: 'CANCEL_AT_PERIOD_END',
+          creditAmountCents: 0,
+        }),
+      )
+      .mockResolvedValueOnce(ok({ occurrences: [], retry: { count: 0, status: 'SAFE' } }));
     const api = createRecurringSalesApi({ authenticatedFetch: fetchFn });
+    await api.list({ branchId: 'branch-a' });
     await api.preview({ planId: 'plan-a' });
     await api.pause({ planId: 'plan-a', expectedVersion: 1 });
     await api.resume({ planId: 'plan-a', expectedVersion: 2 });
     await api.cancel({ planId: 'plan-a', mode: 'AT_PERIOD_END', expectedVersion: 3 });
     await api.occurrences({ planId: 'plan-a' });
-    expect(fetchFn).toHaveBeenCalledTimes(5);
+    expect(fetchFn).toHaveBeenCalledTimes(6);
   });
 
   it('rejects malformed success DTOs without exposing internal retry details', async () => {

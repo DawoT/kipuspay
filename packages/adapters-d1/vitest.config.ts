@@ -37,6 +37,8 @@ export default defineConfig({
         'src/reserve-loyalty-atomic.ts',
         'src/process-customer-order-atomic.ts',
         'src/customer-order-test-fixture.ts',
+        'src/process-recurring-sale-atomic.ts',
+        'src/recurring-sales-test-fixture.ts',
       ],
       thresholds: {
         lines: 70,

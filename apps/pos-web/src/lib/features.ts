@@ -202,3 +202,8 @@ export function isCatalogPriceLabelsEnabled(): boolean {
 export function isCustomerOrdersEnabled(): boolean {
   return flagOn(pub(PF + 'ORDERS_CUSTOMER_ORDERS'));
 }
+
+/** Sprint 44 — membresías; siempre apagado si falta PUBLIC_*. */
+export function isRecurringSalesEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_RECURRING'));
+}

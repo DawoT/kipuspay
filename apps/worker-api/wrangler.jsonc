@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kipuspay-worker-api",
   "main": "src/worker.ts",
-  "compatibility_date": "2026-07-01",
+  "compatibility_date": "2026-08-08",
   "compatibility_flags": ["nodejs_compat"],
   "kv_namespaces": [
     {
@@ -71,8 +71,12 @@
     },
   ],
   "triggers": {
-    // 3:00 AM Lima = 08:00 UTC (UTC-5).
-    "crons": ["0 8 * * *"],
+    "crons": ["0 8 * * *", "*/5 * * * *"],
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
   },
   "vars": {
     "FQDN": "https://api.kipuspay.local",
@@ -120,5 +124,7 @@
     "FEATURE_CATALOG_PRICE_LABELS": "0",
     "FEATURE_DATA_BACKUP": "0",
     "FEATURE_ORDERS_CUSTOMER_ORDERS": "0",
+    "FEATURE_SALES_RECURRING": "0",
+    "RECURRING_MANUAL_RUN_ENABLED": "0",
   },
 }

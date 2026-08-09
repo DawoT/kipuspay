@@ -85,6 +85,10 @@ import { runQuotaExceededChaos, type QuotaExceededResult } from './quota-exceede
 import { runLowEndDeviceChaos, type LowEndDeviceResult } from './low-end-device.js';
 import { runArCompensateChaos, type ArCompensateChaosResult } from './ar-compensate.js';
 import { runRollupIdempotentChaos, type RollupIdempotentResult } from './rollup-idempotent.js';
+import {
+  runRecurringSalesChaosScenario,
+  type RecurringSalesChaosResult,
+} from './recurring-sales.js';
 
 export type ChaosScenarioId =
   | 'network-adversarial'
@@ -111,6 +115,7 @@ export type ChaosScenarioId =
   | 'price-label-printing'
   | 'data-backup'
   | 'customer-orders'
+  | 'recurring-sales'
   | 'concurrent-writers'
   | 'duplicate-retry'
   | 'deadline';
@@ -143,6 +148,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'price-label-printing': 41,
   'data-backup': 42,
   'customer-orders': 43,
+  'recurring-sales': 44,
   'concurrent-writers': 4,
   'duplicate-retry': 4,
   deadline: 5,
@@ -202,6 +208,7 @@ export interface ChaosDeps {
   readonly runPriceLabelPrinting?: () => Promise<PriceLabelPrintingChaosResult>;
   readonly runDataBackup?: () => Promise<DataBackupChaosResult>;
   readonly runCustomerOrders?: () => Promise<CustomerOrderChaosResult>;
+  readonly runRecurringSales?: () => Promise<RecurringSalesChaosResult>;
 }
 
 function requireDep<T>(value: T | undefined, message: string): T {
@@ -312,6 +319,8 @@ async function dispatchReadyScenario(
       return runDataBackupChaosScenario(deps.runDataBackup);
     case 'customer-orders':
       return runCustomerOrderChaosScenario(deps.runCustomerOrders);
+    case 'recurring-sales':
+      return runRecurringSalesChaosScenario(deps.runRecurringSales);
     default:
       return Promise.reject(
         new Error(
@@ -488,3 +497,12 @@ export {
   runCustomerOrderChaosScenario,
   type CustomerOrderChaosResult,
 } from './customer-orders.js';
+
+export {
+  RECURRING_SALES_FAILURES,
+  RECURRING_SALES_FAULTS,
+  judgeRecurringSalesChaos,
+  runRecurringSalesChaos,
+  runRecurringSalesChaosScenario,
+  type RecurringSalesChaosResult,
+} from './recurring-sales.js';

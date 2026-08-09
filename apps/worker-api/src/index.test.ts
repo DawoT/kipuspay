@@ -64,6 +64,22 @@ describe('worker-api', () => {
     expect(res.status).toBe(401);
   });
 
+  it('does not expose recurring manual control through public fetch', async () => {
+    const res = await createApp().request('/internal/support/recurring/run', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer raw-support-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId: 'tenant-a',
+        planId: 'plan-a',
+        idempotencyKey: 'manual-a',
+      }),
+    });
+    expect(res.status).toBe(404);
+  });
+
   it.each([
     ['GET', '/api/inventory/scale/devices'],
     ['POST', '/api/inventory/scale/devices'],

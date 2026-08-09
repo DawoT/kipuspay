@@ -215,6 +215,19 @@ import {
   runRepriceExpiredCustomerOrderHttp,
   type CustomerOrderActor,
 } from './orders/customer-order-routes.js';
+import {
+  runCancelRecurringPlanHttp,
+  runCreateRecurringPlanHttp,
+  runGetRecurringPlanHttp,
+  runListRecurringOccurrencesHttp,
+  runListRecurringPlansHttp,
+  runPauseRecurringPlanHttp,
+  runPreviewRecurringCancellationHttp,
+  runPreviewRecurringPlanHttp,
+  runResumeRecurringPlanHttp,
+  runUpdateRecurringPlanHttp,
+  type RecurringSalesActor,
+} from './sales/recurring-sales-routes.js';
 
 export type { WorkerEnv as Env };
 
@@ -245,6 +258,12 @@ function definedOr<T>(value: T | undefined, fallback: T): T {
   return value === undefined ? fallback : value;
 }
 
+function objectBody(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 function trustedCustomerOrderActor(c: {
   get(name: 'jwt'): VerifiedJwtClaims | undefined;
   get(name: 'user'): UserSession | undefined;
@@ -261,6 +280,22 @@ function trustedCustomerOrderActor(c: {
     permissions: definedOr(user?.permissions, []),
     terminalId: definedOr(c.req.header('x-terminal-id'), ''),
     terminalSessionId: definedOr(c.req.header('x-terminal-session-id'), ''),
+  };
+}
+
+function trustedRecurringSalesActor(c: {
+  get(name: 'jwt'): VerifiedJwtClaims | undefined;
+  get(name: 'user'): UserSession | undefined;
+}): RecurringSalesActor {
+  const jwt = c.get('jwt');
+  const user = c.get('user');
+  return {
+    tenantId: definedOr(jwt?.tenantId, ''),
+    userId: definedOr(user?.userId, definedOr(jwt?.sub, '')),
+    role: definedOr(user?.role, ''),
+    branchId: definedOr(user?.branchId, ''),
+    allowedBranches: definedOr(user?.allowedBranches, []),
+    permissions: definedOr(user?.permissions, []),
   };
 }
 
@@ -792,6 +827,81 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       trustedCustomerOrderActor(c),
       await c.req.json(),
     );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+
+  // Sprint 44 — membresías. Solo Owner/Admin autenticados; importes siempre servidor.
+  app.get('/api/admin/recurring-plans', async (c) => {
+    const response = await runListRecurringPlansHttp(c.env, trustedRecurringSalesActor(c), {
+      ...(c.req.query('branchId') ? { branchId: c.req.query('branchId') } : {}),
+      ...(c.req.query('status') ? { status: c.req.query('status') } : {}),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.get('/api/admin/recurring-plans/:id', async (c) => {
+    const response = await runGetRecurringPlanHttp(c.env, trustedRecurringSalesActor(c), {
+      planId: c.req.param('id'),
+      ...(c.req.query('branchId') ? { branchId: c.req.query('branchId') } : {}),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.get('/api/admin/recurring-plans/:id/occurrences', async (c) => {
+    const response = await runListRecurringOccurrencesHttp(c.env, trustedRecurringSalesActor(c), {
+      planId: c.req.param('id'),
+      ...(c.req.query('branchId') ? { branchId: c.req.query('branchId') } : {}),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.get('/api/admin/recurring-plans/:id/preview', async (c) => {
+    const response = await runPreviewRecurringPlanHttp(c.env, trustedRecurringSalesActor(c), {
+      planId: c.req.param('id'),
+      ...(c.req.query('branchId') ? { branchId: c.req.query('branchId') } : {}),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/admin/recurring-plans', async (c) => {
+    const response = await runCreateRecurringPlanHttp(
+      c.env,
+      trustedRecurringSalesActor(c),
+      await c.req.json(),
+    );
+    return c.json(response.body, response.status as 201 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.put('/api/admin/recurring-plans/:id', async (c) => {
+    const body = objectBody(await c.req.json());
+    const response = await runUpdateRecurringPlanHttp(c.env, trustedRecurringSalesActor(c), {
+      ...body,
+      planId: c.req.param('id'),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/admin/recurring-plans/:id/pause', async (c) => {
+    const response = await runPauseRecurringPlanHttp(c.env, trustedRecurringSalesActor(c), {
+      ...objectBody(await c.req.json()),
+      planId: c.req.param('id'),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/admin/recurring-plans/:id/resume', async (c) => {
+    const response = await runResumeRecurringPlanHttp(c.env, trustedRecurringSalesActor(c), {
+      ...objectBody(await c.req.json()),
+      planId: c.req.param('id'),
+    });
+    return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
+  });
+  app.post('/api/admin/recurring-plans/:id/cancel-preview', async (c) => {
+    const response = await runPreviewRecurringCancellationHttp(
+      c.env,
+      trustedRecurringSalesActor(c),
+      { ...objectBody(await c.req.json()), planId: c.req.param('id') },
+    );
+    return c.json(response.body, response.status as 200 | 403 | 404 | 422 | 500 | 503);
+  });
+  app.post('/api/admin/recurring-plans/:id/cancel', async (c) => {
+    const response = await runCancelRecurringPlanHttp(c.env, trustedRecurringSalesActor(c), {
+      ...objectBody(await c.req.json()),
+      planId: c.req.param('id'),
+    });
     return c.json(response.body, response.status as 200 | 403 | 404 | 409 | 422 | 500 | 503);
   });
 

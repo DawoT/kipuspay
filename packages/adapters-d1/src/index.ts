@@ -154,3 +154,4 @@ export * from './meter-overage-cron.js';
 export * from './price-labels.js';
 export * from './data-backup.js';
 export * from './process-customer-order-atomic.js';
+export * from './process-recurring-sale-atomic.js';

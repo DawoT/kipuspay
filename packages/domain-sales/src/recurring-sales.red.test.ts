@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- production contract module is intentionally absent in RED */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- retained RED contract imports */
 import { describe, expect, it } from 'vitest';
 import {
   computeRecurringPeriod,
@@ -43,14 +43,14 @@ describe('Sprint 44 recurring-sales temporal and pricing contract (RED)', () => 
   it.each([
     ['DAILY', '2026-08-09T09:30:00-05:00'],
     ['WEEKLY', '2026-08-15T09:30:00-05:00'],
-  ] as const)('derives deterministic %s next-run from the prior boundary', (frequency, expected) => {
-    expect(
-      computeRecurringPeriod(
-        { ...fixedPlan, frequency },
-        '2026-08-08T09:30:00-05:00',
-      ).periodEnd,
-    ).toBe(expected);
-  });
+  ] as const)(
+    'derives deterministic %s next-run from the prior boundary',
+    (frequency, expected) => {
+      expect(
+        computeRecurringPeriod({ ...fixedPlan, frequency }, '2026-08-08T09:30:00-05:00').periodEnd,
+      ).toBe(expected);
+    },
+  );
 
   it('defaults to FIXED and preserves its server snapshot across catalog drift', () => {
     expect(

@@ -22,6 +22,7 @@ import {
   judgePriceLabelPrinting,
   judgeDataBackupChaos,
   judgeCustomerOrderChaos,
+  judgeRecurringSalesChaos,
   runArCompensateCycles,
   runRollupIdempotentCycles,
   runLayawayConvertCancelChaos,
@@ -36,6 +37,7 @@ import {
   runPriceLabelPrintingChaos,
   runDataBackupChaos,
   runCustomerOrderChaos,
+  runRecurringSalesChaos,
   runChaosScenario,
   SCENARIO_ACTIVE_FROM,
 } from './index.js';
@@ -97,6 +99,14 @@ describe('chaos-harness contrato §13.5', () => {
     const result = await runCustomerOrderChaos(500);
     expect(judgeCustomerOrderChaos(result)).toBe('PASS');
     await expect(runChaosScenario('customer-orders', 43)).resolves.toBe('PASS');
+  });
+
+  it('Sprint 44 recurring-sales está activo y bloquea antes del sprint', async () => {
+    expect(SCENARIO_ACTIVE_FROM['recurring-sales']).toBe(44);
+    expect(() => assertScenarioReady('recurring-sales', 43)).toThrow(ChaosScenarioNotReadyError);
+    const result = await runRecurringSalesChaos(500);
+    expect(judgeRecurringSalesChaos(result)).toBe('PASS');
+    await expect(runChaosScenario('recurring-sales', 44)).resolves.toBe('PASS');
   });
 
   it('rechaza concurrent-writers antes del Sprint 4', () => {

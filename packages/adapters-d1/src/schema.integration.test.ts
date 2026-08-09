@@ -51,6 +51,7 @@ import {
   DOWN_0034_SPRINT41_PRICE_LABELS,
   DOWN_0035_SPRINT42_DATA_BACKUP,
   DOWN_0036_SPRINT43_CUSTOMER_ORDERS,
+  DOWN_0037_SPRINT44_RECURRING_SALES,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -1478,6 +1479,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0037_SPRINT44_RECURRING_SALES);
     await env.DB.exec(DOWN_0036_SPRINT43_CUSTOMER_ORDERS);
     await env.DB.exec(DOWN_0035_SPRINT42_DATA_BACKUP);
     await env.DB.exec(DOWN_0034_SPRINT41_PRICE_LABELS);

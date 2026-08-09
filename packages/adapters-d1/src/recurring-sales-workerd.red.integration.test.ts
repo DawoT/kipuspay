@@ -91,9 +91,32 @@ describe('Sprint 44 recurring-sales workerd concurrency (RED)', () => {
       fixture.runScheduler(),
       cancelRecurringPlanAtomic(env.DB, fixture.immediateCancelInput('cancel-a')),
     ]);
-    expect(await fixture.countProrationAdjustments()).toBeLessThanOrEqual(1);
-    expect(await fixture.countReturnDocuments()).toBeLessThanOrEqual(1);
+    expect(await fixture.countProrationAdjustments()).toBe(1);
+    expect(await fixture.countReturnDocuments()).toBe(1);
     expect(await fixture.originalSaleWasMutated()).toBe(false);
     expect(await fixture.auditChainIsLinear()).toBe(true);
+  });
+
+  it('keeps the scheduler outside ordinary checkout and below the local 50ms budget', async () => {
+    const fixture = await seedRecurringSalesFixture(env.DB, {
+      tenantId: 'tenant-recurring-checkout-benchmark',
+    });
+    const checkoutDurations: number[] = [];
+    for (let cycle = 0; cycle < 20; cycle += 1) {
+      const scheduler = fixture.runScheduler();
+      const started = performance.now();
+      const checkout = await env.DB.prepare(
+        `SELECT COUNT(*) AS value FROM cash_register_sessions
+         WHERE tenant_id = ? AND status = 'OPEN'`,
+      )
+        .bind(fixture.tenantId)
+        .first<{ value: number }>();
+      checkoutDurations.push(performance.now() - started);
+      expect(checkout?.value).toBe(1);
+      await scheduler;
+    }
+    const ordered = checkoutDurations.toSorted((left, right) => left - right);
+    const p95 = ordered[Math.ceil(ordered.length * 0.95) - 1]!;
+    expect(p95).toBeLessThan(50);
   });
 });

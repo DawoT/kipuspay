@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
-  new URL('../../routes/admin/memberships/+page.svelte', import.meta.url),
+  new URL('../../routes/admin/membresias/+page.svelte', import.meta.url),
   'utf8',
 );
 
@@ -10,14 +10,17 @@ describe('Sprint 44 memberships Admin contract (RED)', () => {
   it('distinguishes membership from KipusPay billing, installments, layaway, and orders', () => {
     expect(source).toContain('Membresías');
     expect(source).toContain('Genera una venta y una deuda por período');
-    expect(source).not.toMatch(/Suscripción de KipusPay|Cuotas de esta venta|Apartado|Pedido con retiro/);
+    expect(source).not.toMatch(
+      /Suscripción de KipusPay|Cuotas de esta venta|Apartado|Pedido con retiro/,
+    );
   });
 
   it('explains FIXED versus CURRENT and never asks for card data', () => {
     expect(source).toContain('Precio fijo');
     expect(source).toContain('Precio vigente');
     expect(source).toContain('El servidor calcula el importe');
-    expect(source).not.toMatch(/número de tarjeta|CVV|token de tarjeta|autocobro/i);
+    expect(source).toContain('Sin autocobro');
+    expect(source).not.toMatch(/número de tarjeta|CVV|token de tarjeta/i);
   });
 
   it('shows schedule, grace, occurrence snapshot, retry and proration history', () => {
