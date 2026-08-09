@@ -58,7 +58,33 @@
     { href: '/owner', label: 'Modo Dueño', icon: 'shield' as IconName },
   ]);
 
+  let currentTheme = $state<'dark' | 'light'>('dark');
+
+  function toggleTheme() {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      try {
+        localStorage.setItem('kipus_theme', currentTheme);
+      } catch {
+        // Storage access may be blocked in restricted contexts.
+      }
+    }
+  }
+
   onMount(async () => {
+    try {
+      const savedTheme = localStorage.getItem('kipus_theme') as 'dark' | 'light' | null;
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        currentTheme = savedTheme;
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        currentTheme = 'light';
+      }
+    } catch {
+      // Storage access may be blocked
+    }
+    document.documentElement.setAttribute('data-theme', currentTheme);
+
     if (isMobilePosEnabled() || isMobilePushEnabled()) {
       try {
         await registerUnifiedPosServiceWorker();
@@ -103,6 +129,15 @@
     </nav>
 
     <div class="header-status">
+      <button
+        type="button"
+        class="theme-toggle-btn"
+        onclick={toggleTheme}
+        aria-label="Cambiar modo claro y oscuro"
+        title={`Cambiar a modo ${currentTheme === 'dark' ? 'claro' : 'oscuro'}`}
+      >
+        <Icon name={currentTheme === 'dark' ? 'sun' : 'moon'} size={18} />
+      </button>
       <div class="badge badge-success">
         <span class="pulse-dot"></span>
         <span>EDGE D1 CONECTADO</span>
@@ -117,13 +152,32 @@
 
 <style>
   .app-header {
-    background: rgba(15, 23, 42, 0.85);
+    background: var(--bg-glass);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
     z-index: 100;
+  }
+
+  .theme-toggle-btn {
+    background: var(--bg-button-sec);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    padding: 0.45rem 0.6rem;
+    min-height: 38px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+  }
+
+  .theme-toggle-btn:hover {
+    background: var(--bg-glass-hover);
+    border-color: var(--border-strong);
   }
 
   .header-container {

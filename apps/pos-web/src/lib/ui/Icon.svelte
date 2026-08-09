@@ -31,7 +31,9 @@
     | 'minus'
     | 'edit'
     | 'pause'
-    | 'play';
+    | 'play'
+    | 'sun'
+    | 'moon';
 
   interface Props {
     name: IconName;
@@ -159,6 +161,11 @@
     <rect x="14" y="4" width="4" height="16" rx="1" />
   {:else if name === 'play'}
     <polygon points="5 3 19 12 5 21 5 3" />
+  {:else if name === 'sun'}
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  {:else if name === 'moon'}
+    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
   {/if}
 </svg>
 
