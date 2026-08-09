@@ -64,13 +64,16 @@ membresía en bloqueo de la caja ordinaria.
   coordinación con venta, fiscal, CxC, stock, uso, auditoría y devoluciones.
 - **Invariantes tocadas:** dinero INTEGER cents, cantidades INTEGER microunits,
   DAT-12, `db.batch([...])`, servidor autoritativo, capability model y offline-first.
-- **Activación:** baseline contractual RED en Sprint 44; capability default-off y
-  GTM-25 congelado hasta GREEN, staging, chaos 500 y firmas RACI.
+- **Activación:** software GREEN local condicionado en Sprint 44; capability
+  default-off y GTM-25 congelado/condicionado hasta cron/staging/canary Cloudflare
+  real, QA humana, aprobación PM y firmas A+V independientes.
 
 ## Evidencia de cierre
 
-- Tests/checks: contratos RED de dominio, schema/workerd, scheduler/atomicidad,
-  Worker scheduled/RBAC, POS Admin/cliente y chaos 500; `scripts/verify.sh`.
-- Ledger: pendiente de implementación GREEN; este baseline no agrega entrada.
-- Firmas RACI: `R` Staff Backend ACID/Data · `A` Staff Principal/PM ·
-  `V` Staff QA/Security independiente.
+- Tests/checks: RED→GREEN de dominio, schema/workerd, scheduler/atomicidad, Worker
+  scheduled/RPC/RBAC, POS Admin/cliente, E2E recurrente 5/5 y chaos 500;
+  `scripts/quality.sh` GREEN local. Evidencia exacta en
+  `docs/ops/s44-recurring-sales-qg.md`.
+- Ledger: entrada 0315 registra implementación GREEN local condicionada.
+- Firmas RACI externas pendientes: `A` Staff PM · `V` Staff QA/Security
+  independiente. No existe cron/staging/canary Cloudflare real.

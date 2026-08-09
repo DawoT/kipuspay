@@ -29,24 +29,29 @@ sprints: "43–45"
 ---
 
 #### Sprint 44 — Ventas recurrentes / membresías
-**Estado:** Baseline de gobernanza + contratos RED; producción/claim NO-GO
+**Estado:** Software GREEN local condicionado; claim/producción/rollout NO-GO hasta cron/staging/canary Cloudflare real, QA humana, aprobación PM y firmas A+V independientes
 **Capabilities:** `sales.recurring`  
-**Referencia:** Arquitectura §5.11 regla 29 · ADR-0028 · GTM-25 congelado · vertical Servicios · **Agentes:** Staff Backend ACID (owner), Staff Data, Staff Frontend (Admin), Staff Growth (gating)
+**Referencia:** Arquitectura §5.11 regla 29 · ADR-0028 · GTM-25 congelado/condicionado · QG `docs/ops/s44-recurring-sales-qg.md` · vertical Servicios · **Agentes:** Staff Backend ACID (owner), Staff Data, Staff Frontend (Admin), Staff Growth (gating)
 
 **Entregables:**
-- `recurring_plans` (frecuencia, doc_type NV/03/01, items con precio servidor) + cron con **idempotencia** (cada ocurrencia = doc fiscal propio).
-- Cancelación y proporcionalidad; atraso de pago no corta el servicio al instante (periodo de gracia, GTM §4.3).
-- `audit_events` `RECURRING_*`.
+- Migración/down 0037 DAT-12, calendario civil Lima, planes versionados FIXED/CURRENT, lease/catch-up idempotente y `audit_events` `RECURRING_*`.
+- Cada ocurrencia liquida venta, CPE/NV, una CxC, usage y stock físico en un batch; servicios no tocan stock y todo fallo deja el período reintentable.
+- Cancelación inmediata genera NC/NV_RETURN prorrateada sin mutar origen; mora y gracia nunca bloquean caja ordinaria. Capability default-off, sin autocobro ni tarjeta/token guardado.
+- Cron recurrente `*/5 * * * *` coexiste con rollup diario `0 8 * * *` mediante dispatch exacto; soporte manual solo por Worker RPC privado y ruta pública 404.
 
-**Criterios de aceptación:** en este baseline, RED enfocado por módulos/migración ausentes y `scripts/verify.sh` GREEN. El cierre futuro exige 0 duplicado por tenant×plan×period_start; cada ocurrencia crea venta, CPE/NV y una CxC en un batch; FIXED/CURRENT server-authoritative; cancelación inmediata usa NC/NV_RETURN sin mutar origen; cupo §4.1 aplica por doc emitido; mora/gracia nunca bloquea checkout ordinario.
+**Criterios de aceptación:** RED→GREEN con ancestría verificada aunque auditorías concurrentes no-S44 queden entre commits; 0 duplicado por tenant×plan×period_start; settlement, FIXED/CURRENT, calendario/catch-up, lease/retry, gracia, prorrateo, aislamiento y RPC privado cubiertos por unit/workerd/Worker/POS/E2E/chaos. El E2E recurrente local es 5/5; el E2E completo es 11/16 y conserva cinco fallos legacy no relacionados de home/checkout/etiquetas, por lo que no se declara full E2E GREEN.
 
-**Quality Gate:** permanece abierto. Staff QA certifica cron idempotente/concurrente, workerd y chaos 500; Staff PM y verificador independiente firman. Staff Growth mantiene GTM-25 congelado hasta staging y gate completo.
+**Quality Gate:** software GREEN local: Worker 586, adapters 271 unit + 194 workerd, POS 135, chaos 99 y dominio regression 234; recurring puro 32 con 100% líneas/95.87% ramas; chaos 500 balanceado, Playwright recurrente 5/5 con Chrome del sistema, bundle 136.67 kB gzip y `scripts/quality.sh` exit 0. Security Review encontró dos MEDIUM, remediados en GREEN mediante filtro exacto de plan y RPC privado; no hubo segunda revisión limpia. Sin cron/staging/canary Cloudflare real ni QA humana + aprobación PM A+V, Staff Growth mantiene GTM-25 congelado/condicionado y producción NO-GO.
 
 ---
 
 #### Sprint 45 — Notificaciones push + caja móvil Android
 **Capabilities:** `mobile.push`, `client.mobile_pos`  
 **Referencia:** Arquitectura §5.3 regla 30; §7.5 (offloading) · **Agentes:** Staff Mobile (owner), Staff Frontend, Staff SRE, Staff Hardware
+
+**Frontera heredada de Sprint 44:** push no forma parte de ventas recurrentes GREEN
+local. Sprint 45 debe probar consentimiento, entrega real y dispositivo; Sprint 44 no
+promete recordatorio push, autocobro, tarjeta guardada ni continuidad post-gracia.
 
 **Entregables:**
 - `push_subscriptions` + Web Push/FCM: alertas Modo Dueño reales (arqueo, quiebre, discrepancias, cuotas vencidas) — no solo polling.

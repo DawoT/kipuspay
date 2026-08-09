@@ -136,7 +136,7 @@ Abre solo los archivos que esta tabla te señale.
 | 37 | 6C | [`docs/roadmap/fase-6c.md`](docs/roadmap/fase-6c.md) | 78 | Actualizada (sales.commissions + GTM-23) | Cerrado |
 | 38 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 14 | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial) | Cerrado |
 | 39–42 | 6D | — | — | Actualizada (FASE 6D reglas 24–27) | Planificado |
-| 43–45 | 6E | — | — | Actualizada (S43 software GREEN local condicionado; reglas 29–30 S44–45 en §5.3) | S43 claim/producción NO-GO; S44–45 planificados |
+| 43–45 | 6E | — | — | Actualizada (S43–S44 software GREEN local condicionado; S45 regla 30 en §5.3) | S43–S44 claim/producción NO-GO; S45 planificado |
 | 46–48 | 6F | — | — | Actualizada (FASE 6F reglas 31–32) | Planificado |
 | 49 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 59 | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica) | Planificado |
 | 50–53 | 6G | — | — | Actualizada (FASE 6G reglas 34–37 — flujo del cliente) | Planificado |
@@ -146,7 +146,7 @@ Abre solo los archivos que esta tabla te señale.
 | 42 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 80 | sin fila de estado | — |
 | 43 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 14 | sin fila de estado | — |
 | 44 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 31 | sin fila de estado | — |
-| 45 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 47 | sin fila de estado | — |
+| 45 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 48 | sin fila de estado | — |
 | 46 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 14 | sin fila de estado | — |
 | 47 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 29 | sin fila de estado | — |
 | 48 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 44 | sin fila de estado | — |

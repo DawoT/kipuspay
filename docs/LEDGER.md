@@ -5999,3 +5999,54 @@ aprobaciones: [Staff Backend ACID A, Staff Domain A, Staff Principal A, Staff QA
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0315
+timestamp_utc: 2026-08-09T01:02:53Z
+schema_version: 2
+sprint_fase: Sprint 44 — FASE 6E (sales.recurring)
+agente_responsable: Staff Backend ACID / Staff Data / Staff Frontend / Staff SRE / Staff Security / Staff QA / Staff PM / Staff Growth
+tipo: Implementacion de capability
+subtipo: quality-gate-condicionado
+relacion: IMPLEMENTA
+referencias_entradas: [0314]
+referencias_documentales: [docs/ops/s44-recurring-sales-qg.md, docs/runbooks/recurring-sales-incident.md, docs/adr/ADR-0028-recurring-sales-settlement.md, docs/architecture/05-11-recurring-sales.md, docs/roadmap/fase-6e.md, docs/GTM.md]
+prev_id: 0314
+prev_hash: 87156c1d43636a5bb10b3c74621cf5a06c153832683af8523aba6c545a4b687e
+entry_hash: dcff2d449b5ea84348093121a020e974d4d40f01146313df115189c4054def21
+ticket_or_adr: ADR-0028, Roadmap Sprint 44, DDL 0037, COM-10, DAT-12, SYN-12, GTM-25
+test_ids: [packages/domain-sales/src/recurring-sales.test.ts, packages/adapters-d1/src/recurring-sales-schema.test.ts, packages/adapters-d1/src/recurring-sales-scheduler.integration.test.ts, apps/worker-api/src/sales/recurring-sales-manual-rpc.test.ts, apps/worker-api/src/worker-scheduled.test.ts, apps/pos-web/src/lib/recurring-sales/recurring-sales-client.red.test.ts, apps/pos-web/tests/e2e/recurring-sales.spec.ts, packages/chaos-harness/src/recurring-sales.red.test.ts, V-20, SUITE]
+entregable_afectado: Sprint 44 sales.recurring software GREEN local; claim/produccion/rollout NO-GO
+descripcion: >
+  Implementa ventas recurrentes con DDL/down 0037 DAT-12, calendario civil Lima,
+  pricing versionado FIXED/CURRENT server-authoritative, lease/catch-up idempotente,
+  settlement atomico de venta-CPE/NV-CxC-usage-stock, gracia sin bloqueo de caja,
+  prorrateo NC/NV_RETURN, Admin, RPC privado, cron coexistente y chaos. Mantiene la
+  capability default-off; no guarda tarjeta/token, no autocobra y reserva push a S45.
+evidencia: >
+  RED edd2a3a5e24134c936a43a98251d29d9b75a2996: contratos fallaban por ausencia
+  de migracion 0037, dominio, settlement/workerd, scheduler, Worker, POS y chaos.
+  GREEN 991ba979af68d2b97dd32186b2e5c0a27e44943d: Worker 586; adapters 271 unit
+  + 194 workerd integration; POS 135; chaos 99 con 500 ciclos deterministas
+  balanceados; domain regression 234; recurring puro 32 con 100% lineas/95.87%
+  ramas; E2E recurrente 5/5 con Chrome del sistema; bundle POS 136.67 kB gzip;
+  scripts/quality.sh exit 0 Quality Gate OK. E2E completo 11/16: cinco fallos legacy
+  no relacionados de home/checkout/etiquetas, por lo que no se afirma full E2E GREEN.
+  Security Review encontro dos MEDIUM (token plan-scoped ejecutaba otro plan vencido
+  y ruta publica token-only), remediados con filtro exacto y Worker RPC privado/404,
+  sin segunda revision limpia. La regresion de cron se corrigio preservando
+  0 8 * * * y */5 * * * * con dispatch exacto. Los commits concurrentes
+  d84bb5476a013694d8227550eadebe7faf217e4f y
+  c6f9255933bc8afa5c090013ba04f1e4fb2742a8 son auditorias ajenas a Sprint 44.
+  Sin cron/staging/canary Cloudflare real ni QA humana + aprobacion PM A+V:
+  software GREEN local, GTM-25 y produccion/rollout NO-GO.
+red_commit_sha: edd2a3a5e24134c936a43a98251d29d9b75a2996
+red_run_id: run-red-s44-recurring-sales-edd2a3a
+expected_failure: AssertionError por ausencia de DDL 0037 dominio calendario FIXED CURRENT settlement atomico scheduler lease rutas RPC privado Admin E2E y chaos sin bloqueo POS
+green_commit_sha: 991ba979af68d2b97dd32186b2e5c0a27e44943d
+green_run_id: run-green-s44-security-quality-991ba97
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R software local, Staff Data R software local, Staff Frontend R software local, Staff SRE cron local sin staging real, Staff Security remediacion sin segunda review, Staff QA V humana pendiente, Staff PM A pendiente, Staff Growth Claim NO-GO]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```

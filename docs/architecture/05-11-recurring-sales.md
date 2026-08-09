@@ -10,10 +10,11 @@ section: "5.11"
 
 #### Regla 29 — Membresía de cliente (`sales.recurring`, ADR-0028)
 
-Sprint 44 publica en esta etapa únicamente la gobernanza y los tests contractuales
-RED. La capability permanece default-off; todavía no existen la migración 0037, los
-módulos de producción, el scheduler, las rutas, la UI ni el chaos ejecutable. Este
-baseline no cierra el sprint ni autoriza el claim GTM-25.
+Sprint 44 tiene software GREEN local condicionado: migración 0037, dominio, settlement
+atómico D1, scheduler, rutas Admin, RPC privado, UI, E2E local y chaos ejecutable. La
+capability permanece default-off y el claim GTM-25/rollout siguen NO-GO por falta de
+cron/staging/canary Cloudflare real y firmas humanas independientes QA+PM A+V. La
+evidencia y los residuales están en `docs/ops/s44-recurring-sales-qg.md`.
 
 Una **membresía de cliente** es una instrucción del tenant para generar, por cada
 período de servicio, una venta ordinaria con su NV/CPE y una única cuenta por cobrar.
@@ -119,11 +120,10 @@ la venta original: invoca el motor normal de devoluciones para crear `07` cuando
 origen es CPE o `NV_RETURN` cuando es NV, con su fiscalidad, CxC, cupo y auditoría
 habituales. Replay de cancelación devuelve el mismo ajuste/documento.
 
-##### DDL objetivo — migración `0037_sprint44_recurring_sales.sql`
+##### DDL implementado — migración `0037_sprint44_recurring_sales.sql`
 
-Este es el target canónico para una fase GREEN posterior. La migración, su down
-protegido, el registry KPBK1 y los triggers de epoch todavía no existen en este
-baseline RED.
+La migración, su down protegido, el registry KPBK1 y los triggers de epoch forman
+parte de la implementación GREEN local condicionada de Sprint 44.
 
 ```sql
 CREATE TABLE recurring_plans (
@@ -303,9 +303,9 @@ cinco tablas se clasifican `BUSINESS` en el registry KPBK1 generado. Cada mutaci
 autoritativa incrementa `tenant_data_epochs` mediante triggers de la migración para
 que un backup snapshot no mezcle épocas.
 
-##### Contratos RED de Sprint 44
+##### Contratos RED→GREEN de Sprint 44
 
-Los tests RED deben fallar por módulos/migración ausentes, no por sintaxis, y cubrir:
+Los tests RED fallaron por módulos/migración ausentes, no por sintaxis, y GREEN cubre:
 
 - dominio temporal Lima, anclas, FIXED/CURRENT, safe integer, gracia y prorrateo;
 - schema/workerd DAT-12, down protegido, registry/epoch, leases y concurrencia;
