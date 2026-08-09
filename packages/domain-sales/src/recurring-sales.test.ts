@@ -248,6 +248,22 @@ describe('recurring lifecycle policies', () => {
     ).toMatchObject({ unusedServiceDays: 0, creditAmountCents: 0, createsReturn: false });
   });
 
+  it('prorates over a leap-year March using civil ordinal leap adjustment', () => {
+    const result = computeRecurringProration({
+      lineTotalCents: 1_000,
+      periodStart: '2028-02-01T00:00:00-05:00',
+      periodEnd: '2028-03-01T00:00:00-05:00',
+      cancelledAt: '2028-02-28T00:00:00-05:00',
+      mode: 'IMMEDIATE',
+    });
+    expect(result).toMatchObject({
+      serviceDays: 29,
+      unusedServiceDays: 1,
+      rationalDenominator: 29,
+    });
+    expect(result.creditAmountCents).toBe(Math.round((1_000 * 1) / 29));
+  });
+
   it('computes grace deadline and preserves ordinary checkout', () => {
     expect(
       decideRecurringDelinquency({
@@ -414,5 +430,33 @@ describe('recurring lifecycle policies', () => {
       '1900-02-28T09:30:00-05:00',
     );
     expect(p2.periodEnd).toBe('1901-02-28T09:30:00-05:00');
+  });
+
+  it('preserves an explicit last-day anchor across a leap annual boundary', () => {
+    const lastDayAnnual = {
+      ...plan,
+      frequency: 'ANNUALLY' as const,
+      anchorDay: 29,
+      anchorIsLastDay: true,
+    };
+    expect(computeRecurringPeriod(lastDayAnnual, '2024-02-29T09:30:00-05:00').periodEnd).toBe(
+      '2025-02-28T09:30:00-05:00',
+    );
+  });
+
+  it('rejects an annual anchor above 31', () => {
+    expect(() =>
+      computeRecurringPeriod(
+        { ...plan, frequency: 'ANNUALLY' as const, anchorDay: 32 },
+        '2026-08-31T09:30:00-05:00',
+      ),
+    ).toThrow('RECURRING_INVALID_ANCHOR');
+  });
+
+  it('rolls a weekly boundary across the December-to-January civil year edge', () => {
+    const weekly = { ...plan, frequency: 'WEEKLY' as const };
+    expect(computeRecurringPeriod(weekly, '2026-12-30T09:30:00-05:00').periodEnd).toBe(
+      '2027-01-06T09:30:00-05:00',
+    );
   });
 });
