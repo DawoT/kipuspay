@@ -6136,3 +6136,47 @@ aprobaciones: [Staff Mobile R software local Android fisico pendiente, Staff Bac
 estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
+```
+id: 0318
+timestamp_utc: 2026-08-09T03:10:00Z
+schema_version: 2
+sprint_fase: Sprint 44/45 — FASE 6E (remediacion de hallazgos de auditoria)
+agente_responsable: Staff Backend ACID / Staff QA
+tipo: Corrección
+subtipo: cobertura y limpieza de warnings
+relacion: CORRIGE
+referencias_entradas: [0315, 0316]
+referencias_documentales: [packages/domain-sales/src/recurring-sales.ts, packages/domain-sales/src/recurring-sales.test.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/orders/customer/+page.svelte, docs/ops/s44-recurring-sales-qg.md]
+prev_id: 0317
+prev_hash: bab955c8f9f0db3bf32118a8bdec3835d60bfcd4f99fbd6cdf97b95772ed9f46
+entry_hash: 7980453e9e5e31adc03b3d9ccaef0469e8e04ad9cd1094f8c9ce31301a1f3cd1
+ticket_or_adr: Roadmap Sprint 44/45, CAL-05
+test_ids: [packages/domain-sales/src/recurring-sales.test.ts, V-20, SUITE, svelte-check]
+entregable_afectado: Cobertura de domain-sales/recurring-sales.ts y bundle CSS de pos-web
+descripcion: >
+  Remedia dos hallazgos menores de la auditoria staff sobre S44 y S45. En
+  recurring-sales.ts se anaden tres pruebas de calendario civil: ancla
+  explicita de ultimo dia a traves de frontera bisiesta anual (2024-02-29 ->
+  2025-02-28), rechazo de ancla anual >31 (RECURRING_INVALID_ANCHOR) y
+  prorrateo IMMEDIATE que cruza marzo de anio bisiesto (2028-02-01/03-01 con
+  cancelacion el 2028-02-28) cubriendo el ajuste de ordinal civil
+  (month > 2 && isLeapYear). Las ramas restantes reportadas (lineas 107 y 272)
+  son defensivas por diseno: el bucle while de addCivilDays y el fallback ?? 0
+  de priorMonths son inalcanzables con months validados. En pos-web se elimina
+  CSS muerto (empty-icon, trust-strip, workspace, customer-orders) que el
+  svelte-check marcaba como unused.
+evidencia: >
+  RED: recurring-sales.ts 95.14% de ramas con las lineas 154-160/270-272 sin
+  cubrir; svelte-check reportaba 6 warnings de CSS unused en 2 archivos.
+  GREEN: domain-sales 29/29 tests PASS y recurring-sales.ts al 100% statements,
+  98.05% branches, 100% functions/lines; global domain-sales 96.3% branches
+  (umbral 95%). svelte-check 0 errores y 0 warnings. scripts/verify.sh SUITE
+  GREEN (V-20 incluido) y scripts/quality.sh exit 0 Quality Gate OK con chaos
+  101/101, adapters-d1 200 workerd y bundle POS bajo CAL-06. Sin cambios de
+  contrato: las entradas 0315 y 0316 permanecen vigentes como software GREEN
+  local; GTM-25/26, produccion y piloto continúan NO-GO.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R cobertura local, Staff QA V svelte-check 0 warnings]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```
