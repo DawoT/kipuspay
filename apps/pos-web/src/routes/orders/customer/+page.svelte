@@ -434,7 +434,6 @@
 
 <style>
   :global(body) { overflow-x: hidden; }
-  .customer-orders { max-width: 1320px; margin: 0 auto; padding: 1.5rem 1rem 5rem; color: var(--text-main); }
   .masthead, .section-head, .actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
   .masthead { border-bottom: 3px solid var(--accent-primary); padding-bottom: 1rem; }
   .eyebrow, .step { color: var(--accent-primary); font: 750 .75rem/1.2 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
@@ -444,8 +443,6 @@
   .connection, .warning, .alert, .announcer { padding: .8rem 1rem; border: 1px solid var(--border-subtle); border-left: 5px solid var(--accent-primary); }
   .connection.offline, .alert { border-left-color: #e4572e; }
   .warning { margin: 1rem 0; border-left-color: #d99b16; }
-  .trust-strip { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; padding: .9rem; background: var(--surface-card); border: 1px solid var(--border-subtle); }
-  .workspace { display: grid; grid-template-columns: minmax(16rem, .8fr) minmax(25rem, 1.5fr) minmax(15rem, .75fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); }
   .queue, .detail, .create { min-width: 0; padding: 1rem; background: var(--surface-card); }
   label { display: block; margin-top: .7rem; font-weight: 700; }
   input, select, textarea, button { min-height: 44px; max-width: 100%; box-sizing: border-box; border: 1px solid var(--border-strong, #64748b); border-radius: var(--radius-sm); padding: .55rem .7rem; font: inherit; color: inherit; background: var(--surface-card); }
@@ -466,11 +463,10 @@
   .notice, .expired, .pending, .lease-state { margin-top: .9rem; padding: .75rem; border: 1px solid var(--border-subtle); display: grid; gap: .25rem; }
   .actions { margin-top: .8rem; justify-content: flex-start; flex-wrap: wrap; }
   .announcer { margin-top: 1rem; }
-  @media (max-width: 1000px) { .workspace { grid-template-columns: 1fr 1.4fr; } .create { grid-column: 1 / -1; } }
+  @media (max-width: 1000px) { .create { grid-column: 1 / -1; } }
   @media (max-width: 650px) {
     .pickup-shell { padding-inline: .65rem; }
     .masthead, .section-head { align-items: flex-start; flex-direction: column; }
-    .workspace { grid-template-columns: minmax(0, 1fr); }
     .create { grid-column: auto; }
     dl { grid-template-columns: 1fr 1fr; }
     .actions button { width: 100%; }

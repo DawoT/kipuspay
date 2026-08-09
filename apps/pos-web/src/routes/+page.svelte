@@ -947,9 +947,6 @@
     color: var(--text-dim);
     gap: 0.5rem;
   }
-  .empty-icon {
-    font-size: 2.5rem;
-  }
   .cart-item-row {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border-subtle);
