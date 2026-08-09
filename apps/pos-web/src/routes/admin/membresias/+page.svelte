@@ -232,7 +232,7 @@
 
 <svelte:head><title>Membresías · KipusPay</title></svelte:head>
 
-<main class="memberships">
+<main class="memberships" data-testid="memberships-root">
   <header class="hero">
     <div>
       <p class="eyebrow">Administración · calendario Lima</p>
@@ -263,8 +263,8 @@
     {#if alert}<p role="alert" class="alert">{alert}</p>{/if}
     <div class="toolbar">
       <label for="branch">Sucursal explícita</label>
-      <input id="branch" bind:value={branchId} autocomplete="off" />
-      <button type="button" onclick={refresh} disabled={!online || loading || !branchId.trim()}>
+      <input id="branch" data-testid="memberships-branch-input" bind:value={branchId} autocomplete="off" />
+      <button type="button" data-testid="memberships-refresh-btn" onclick={refresh} disabled={!online || loading || !branchId.trim()}>
         {loading ? 'Cargando…' : 'Actualizar calendario'}
       </button>
     </div>
@@ -274,7 +274,7 @@
         <h2 id="calendar-title">Calendario de próxima ejecución</h2>
         <div class="plan-list">
           {#each plans as plan (plan.id)}
-            <button class="plan" class:selected={selected?.id === plan.id} type="button" onclick={() => openPlan(plan)}>
+            <button class="plan" class:selected={selected?.id === plan.id} data-testid="memberships-plan-card" type="button" onclick={() => openPlan(plan)}>
               <span><strong>{plan.customer_id}</strong><small>{plan.document_type} · {plan.pricing_policy}</small></span>
               <span><b>{plan.status}</b><small>Próxima ejecución: {date(plan.next_run_at)}</small></span>
               <span><small>Gracia: {plan.grace_days} días</small><small>CxC: {money(plan.balance_due_cents)}</small></span>
@@ -306,13 +306,13 @@
             {/if}
           </div>
           <div class="actions">
-            <button type="button" onclick={previewNextRun} disabled={!online}>Vista previa de próxima ejecución</button>
-            <button type="button" onclick={editSelected}>Editar siguiente versión</button>
-            <button type="button" onclick={pauseOrResume} disabled={!online}>
+            <button type="button" data-testid="memberships-preview-next-btn" onclick={previewNextRun} disabled={!online}>Vista previa de próxima ejecución</button>
+            <button type="button" data-testid="memberships-edit-btn" onclick={editSelected}>Editar siguiente versión</button>
+            <button type="button" data-testid="memberships-pause-resume-btn" onclick={pauseOrResume} disabled={!online}>
               {selected.status === 'PAUSED' ? 'Reanudar membresía' : 'Pausar membresía'}
             </button>
-            <button type="button" onclick={cancelAtEnd} disabled={!online}>Cancelar al final del período</button>
-            <button class="danger" type="button" onclick={previewImmediateCancellation} disabled={!online}>
+            <button type="button" data-testid="memberships-cancel-at-end-btn" onclick={cancelAtEnd} disabled={!online}>Cancelar al final del período</button>
+            <button class="danger" type="button" data-testid="memberships-cancel-immediate-btn" onclick={previewImmediateCancellation} disabled={!online}>
               Cancelar ahora y calcular crédito
             </button>
           </div>
@@ -342,25 +342,26 @@
 
       <aside aria-labelledby="create-title">
         <h2 id="create-title">Crear membresía</h2>
-        <label for="customer">Cliente</label><input id="customer" bind:value={customerId} />
-        <label for="product">Producto o servicio</label><input id="product" bind:value={productId} />
-        <label for="uom">Unidad</label><input id="uom" bind:value={productUomId} />
+        <label for="customer">Cliente</label><input id="customer" data-testid="memberships-customer-input" bind:value={customerId} />
+        <label for="product">Producto o servicio</label><input id="product" data-testid="memberships-product-input" bind:value={productId} />
+        <label for="uom">Unidad</label><input id="uom" data-testid="memberships-uom-input" bind:value={productUomId} />
         <label for="quantity">Cantidad en microunidades</label>
-        <input id="quantity" type="number" min="1" bind:value={quantityMicrounits} />
+        <input id="quantity" data-testid="memberships-quantity-input" type="number" min="1" bind:value={quantityMicrounits} />
         <label for="document">Tipo de documento</label>
-        <select id="document" bind:value={documentType}>
+        <select id="document" data-testid="memberships-document-select" bind:value={documentType}>
           <option value="NV">Nota de venta</option><option value="03">Boleta</option><option value="01">Factura</option>
         </select>
         <label for="pricing">Semántica de precio</label>
-        <select id="pricing" bind:value={pricingPolicy}>
+        <select id="pricing" data-testid="memberships-pricing-select" bind:value={pricingPolicy}>
           <option value="FIXED">Precio fijo (FIXED)</option><option value="CURRENT">Precio vigente (CURRENT)</option>
         </select>
         <label for="frequency">Frecuencia</label>
-        <select id="frequency" bind:value={frequency}>
+        <select id="frequency" data-testid="memberships-frequency-select" bind:value={frequency}>
           <option value="DAILY">Diaria</option><option value="WEEKLY">Semanal</option><option value="MONTHLY">Mensual</option>
+          <option value="ANNUALLY">Anual</option>
         </select>
-        <label for="grace">Días de gracia</label><input id="grace" type="number" min="0" bind:value={graceDays} />
-        <button class="primary" type="button" onclick={createPlan} disabled={!online || !branchId || !customerId || !productId || !productUomId}>
+        <label for="grace">Días de gracia</label><input id="grace" data-testid="memberships-grace-input" type="number" min="0" bind:value={graceDays} />
+        <button class="primary" type="button" data-testid="memberships-create-btn" onclick={createPlan} disabled={!online || !branchId || !customerId || !productId || !productUomId}>
           {editing ? 'Guardar nueva versión' : 'Crear con precio del servidor'}
         </button>
       </aside>
@@ -385,8 +386,8 @@
         La venta original no se modifica.
       </p>
       <div class="actions">
-        <button type="button" onclick={closePreview}>Volver sin cancelar</button>
-        <button class="danger" type="button" onclick={confirmImmediateCancellation}>Confirmar cancelación</button>
+        <button type="button" data-testid="memberships-modal-close-btn" onclick={closePreview}>Volver sin cancelar</button>
+        <button class="danger" type="button" data-testid="memberships-modal-confirm-btn" onclick={confirmImmediateCancellation}>Confirmar cancelación</button>
       </div>
     </div>
   {/if}

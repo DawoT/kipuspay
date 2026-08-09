@@ -2,9 +2,10 @@ export const RECURRING_TIMEZONE = 'America/Lima' as const;
 const LIMA_OFFSET = '-05:00';
 const MICROUNITS_PER_UNIT = 1_000_000;
 
-export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ANNUALLY';
 export type RecurringPricingPolicy = 'FIXED' | 'CURRENT';
-export type RecurringStatus = 'ACTIVE' | 'PAUSED' | 'GRACE' | 'CANCEL_AT_PERIOD_END' | 'CANCELLED';
+export type RecurringStatus =
+  'ACTIVE' | 'PAUSED' | 'GRACE' | 'CANCEL_AT_PERIOD_END' | 'CANCELLED' | 'TERMINATED';
 export type RecurringAfterGracePolicy = 'CONTINUE' | 'PAUSE_FUTURE_EXECUTION';
 export type RecurringCancellationMode = 'IMMEDIATE' | 'AT_PERIOD_END';
 
@@ -146,6 +147,20 @@ function nextMonthlyBoundary(plan: RecurringPlanVersion, start: LimaCivil): Lima
   };
 }
 
+function nextAnnualBoundary(plan: RecurringPlanVersion, start: LimaCivil): LimaCivil {
+  const year = start.year + 1;
+  const month = start.month;
+  assertSafeInteger(plan.anchorDay, 'RECURRING_INVALID_ANCHOR', 1);
+  if (plan.anchorDay > 31) throw new Error('RECURRING_INVALID_ANCHOR');
+  const lastDay = daysInMonth(year, month);
+  return {
+    ...start,
+    year,
+    month,
+    day: plan.anchorIsLastDay ? lastDay : Math.min(plan.anchorDay, lastDay),
+  };
+}
+
 export function computeRecurringPeriod(
   plan: RecurringPlanVersion,
   periodStart: string,
@@ -157,7 +172,9 @@ export function computeRecurringPeriod(
       ? addCivilDays(start, 1)
       : plan.frequency === 'WEEKLY'
         ? addCivilDays(start, 7)
-        : nextMonthlyBoundary(plan, start);
+        : plan.frequency === 'ANNUALLY'
+          ? nextAnnualBoundary(plan, start)
+          : nextMonthlyBoundary(plan, start);
   const periodEnd = formatLimaTimestamp(end);
   return { periodStart, periodEnd, nextRunAt: periodEnd };
 }
@@ -369,11 +386,12 @@ export function computeRecurringRetry(input: {
 }
 
 const ALLOWED_TRANSITIONS: Readonly<Record<RecurringStatus, readonly RecurringStatus[]>> = {
-  ACTIVE: ['PAUSED', 'GRACE', 'CANCEL_AT_PERIOD_END', 'CANCELLED'],
-  PAUSED: ['ACTIVE', 'CANCEL_AT_PERIOD_END', 'CANCELLED'],
-  GRACE: ['ACTIVE', 'PAUSED', 'CANCEL_AT_PERIOD_END', 'CANCELLED'],
-  CANCEL_AT_PERIOD_END: ['CANCELLED'],
+  ACTIVE: ['PAUSED', 'GRACE', 'CANCEL_AT_PERIOD_END', 'CANCELLED', 'TERMINATED'],
+  PAUSED: ['ACTIVE', 'CANCEL_AT_PERIOD_END', 'CANCELLED', 'TERMINATED'],
+  GRACE: ['ACTIVE', 'PAUSED', 'CANCEL_AT_PERIOD_END', 'CANCELLED', 'TERMINATED'],
+  CANCEL_AT_PERIOD_END: ['CANCELLED', 'TERMINATED'],
   CANCELLED: [],
+  TERMINATED: [],
 };
 
 export function transitionRecurringStatus(

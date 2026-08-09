@@ -388,4 +388,31 @@ describe('recurring lifecycle policies', () => {
       }),
     ).toThrow('RECURRING_INVALID_PLAN_VERSION');
   });
+
+  it('computes annual recurring period and status transition to TERMINATED', () => {
+    const annualPlan = { ...plan, frequency: 'ANNUALLY' as const };
+    const period = computeRecurringPeriod(annualPlan, '2024-02-29T09:30:00-05:00');
+    expect(period.periodEnd).toBe('2025-02-28T09:30:00-05:00');
+
+    expect(transitionRecurringStatus('ACTIVE', 'TERMINATED')).toBe('TERMINATED');
+    expect(transitionRecurringStatus('GRACE', 'TERMINATED')).toBe('TERMINATED');
+    expect(transitionRecurringStatus('CANCEL_AT_PERIOD_END', 'TERMINATED')).toBe('TERMINATED');
+    expect(transitionRecurringStatus('TERMINATED', 'TERMINATED')).toBe('TERMINATED');
+    expect(() => transitionRecurringStatus('TERMINATED', 'ACTIVE')).toThrow(
+      'RECURRING_INVALID_STATUS_TRANSITION',
+    );
+  });
+
+  it('handles leap year century boundaries and multi-month civil day additions', () => {
+    const p1 = computeRecurringPeriod(
+      { ...plan, frequency: 'ANNUALLY' as const },
+      '2000-02-29T09:30:00-05:00',
+    );
+    expect(p1.periodEnd).toBe('2001-02-28T09:30:00-05:00');
+    const p2 = computeRecurringPeriod(
+      { ...plan, frequency: 'ANNUALLY' as const },
+      '1900-02-28T09:30:00-05:00',
+    );
+    expect(p2.periodEnd).toBe('1901-02-28T09:30:00-05:00');
+  });
 });

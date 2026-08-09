@@ -1,8 +1,9 @@
 type FetchPort = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export type RecurringPricingPolicy = 'FIXED' | 'CURRENT';
-export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY';
-export type RecurringStatus = 'ACTIVE' | 'GRACE' | 'PAUSED' | 'CANCEL_AT_PERIOD_END' | 'CANCELLED';
+export type RecurringFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ANNUALLY';
+export type RecurringStatus =
+  'ACTIVE' | 'GRACE' | 'PAUSED' | 'CANCEL_AT_PERIOD_END' | 'CANCELLED' | 'TERMINATED';
 
 export interface RecurringItemRequest {
   readonly productId: string;
