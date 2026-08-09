@@ -69,6 +69,11 @@
       "service": "kipuspay-worker-kms",
       "entrypoint": "BackupKmsService",
     },
+    {
+      "binding": "PUSH_KMS",
+      "service": "kipuspay-worker-kms",
+      "entrypoint": "PushTransportService",
+    },
   ],
   "triggers": {
     "crons": ["0 8 * * *", "*/5 * * * *"],
@@ -126,5 +131,8 @@
     "FEATURE_ORDERS_CUSTOMER_ORDERS": "0",
     "FEATURE_SALES_RECURRING": "0",
     "RECURRING_MANUAL_RUN_ENABLED": "0",
+    "FEATURE_MOBILE_PUSH": "0",
+    "FEATURE_CLIENT_MOBILE_POS": "0",
+    "PUSH_VAPID_PUBLIC_KEY": "",
   },
 }

@@ -1,7 +1,7 @@
 /* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 export const KPBK1_CHUNK_LIMIT_BYTES = 4 * 1024 * 1024;
 
-export type BackupClassification = 'BUSINESS' | 'DERIVED' | 'EPHEMERAL' | 'SECRET';
+export type BackupClassification = 'BUSINESS' | 'DERIVED' | 'EPHEMERAL' | 'SECRET' | 'SENSITIVE';
 export type JsonPrimitive = string | number | boolean | null;
 export type BackupRow = Readonly<Record<string, JsonPrimitive>>;
 

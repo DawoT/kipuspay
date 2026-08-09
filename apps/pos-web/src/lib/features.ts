@@ -207,3 +207,13 @@ export function isCustomerOrdersEnabled(): boolean {
 export function isRecurringSalesEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_RECURRING'));
 }
+
+/** Sprint 45 — motor push operacional; siempre default-off. */
+export function isMobilePushEnabled(): boolean {
+  return flagOn(pub(PF + 'MOBILE_PUSH'));
+}
+
+/** Sprint 45 — instalación Android del POS único; siempre default-off. */
+export function isMobilePosEnabled(): boolean {
+  return flagOn(pub(PF + 'CLIENT_MOBILE_POS'));
+}

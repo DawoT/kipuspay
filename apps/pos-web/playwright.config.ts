@@ -18,6 +18,8 @@ export default defineConfig({
     env: {
       PUBLIC_FEATURE_ORDERS_CUSTOMER_ORDERS: '1',
       PUBLIC_FEATURE_SALES_RECURRING: '1',
+      PUBLIC_FEATURE_MOBILE_PUSH: '1',
+      PUBLIC_FEATURE_CLIENT_MOBILE_POS: '1',
     },
   },
 });

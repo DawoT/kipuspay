@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, no-secrets/no-secrets -- absent 0038 export is the intentional RED boundary */
+/* eslint-disable no-secrets/no-secrets -- migration identifiers are not secrets */
 import { describe, expect, it } from 'vitest';
 import down0038 from '../migrations-down/0038_sprint45_mobile_push.sql?raw';
 import migration0038 from '../migrations/0038_sprint45_mobile_push.sql?raw';
@@ -14,6 +14,9 @@ describe('Sprint 45 mobile push DDL 0038 contract (RED)', () => {
       expect(migration0038).toContain('tenant_id TEXT NOT NULL');
       expect(migration0038).toContain('UNIQUE (tenant_id, id)');
     }
+    expect(migration0038).toContain('CREATE TABLE push_privacy_settings');
+    expect(migration0038).toContain('amounts_enabled INTEGER NOT NULL DEFAULT 0');
+    expect(migration0038).toContain('UNIQUE (tenant_id)');
     expect(migration0038).toContain("('WEB_PUSH','FCM_HTTP_V1')");
     expect(migration0038).toContain("'ACCEPTED','DISPLAYED'");
     expect(migration0038).toContain('ttl_seconds INTEGER NOT NULL');
@@ -24,6 +27,17 @@ describe('Sprint 45 mobile push DDL 0038 contract (RED)', () => {
     expect(migration0038).toContain('ack_consumed_at DATETIME');
     expect(migration0038).toContain('deep_link_kind TEXT NOT NULL');
     expect(migration0038).toContain('deep_link_entity_id TEXT NOT NULL');
+    expect(migration0038).toContain('target_user_id TEXT');
+    expect(migration0038).toContain('target_branch_id TEXT');
+    expect(migration0038).toContain(
+      "(target_scope = 'OPERATIONAL_MOBILE' AND target_user_id IS NOT NULL AND target_branch_id IS NOT NULL)",
+    );
+    expect(migration0038).toContain(
+      'FOREIGN KEY (tenant_id, target_user_id) REFERENCES users(tenant_id, id)',
+    );
+    expect(migration0038).toContain(
+      'FOREIGN KEY (tenant_id, target_branch_id) REFERENCES branches(tenant_id, id)',
+    );
   });
 
   it('stores only encrypted endpoint/token credentials with key versions and fingerprints', () => {
@@ -43,6 +57,7 @@ describe('Sprint 45 mobile push DDL 0038 contract (RED)', () => {
     expect(migration0038).toContain('idx_push_deliveries_slo');
     const registry = new Map(D1_BACKUP_TABLES.map((entry) => [entry.name, entry]));
     expect(registry.get('push_consents')).toMatchObject({ classification: 'SENSITIVE' });
+    expect(registry.get('push_privacy_settings')).toMatchObject({ classification: 'SENSITIVE' });
     expect(registry.get('push_subscriptions')).toMatchObject({ classification: 'SENSITIVE' });
     expect(registry.get('push_events')).toMatchObject({ classification: 'BUSINESS' });
     expect(registry.get('push_deliveries')).toMatchObject({ classification: 'BUSINESS' });

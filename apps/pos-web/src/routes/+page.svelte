@@ -39,6 +39,7 @@
     writeTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const checkoutOn = isPosCheckoutEnabled();
   const commissionsOn = isSalesCommissionsEnabled();
@@ -433,7 +434,7 @@
           </div>
           <div class="products-grid">
             <button type="button" class="product-item-btn" onclick={addDemo} data-testid="add-line">
-              <div class="product-icon">📦</div>
+              <div class="product-icon"><Icon name="package" size={24} /></div>
               <div class="product-info">
                 <span class="product-name">{demoProduct.name}</span>
                 <span class="product-price tabular-nums">S/ {formatCents(demoProduct.unitPriceCents)}</span>
@@ -537,13 +538,16 @@
 
             <div class="scale-actions-row">
               <button type="button" class="secondary" onclick={connectScale}>
-                {scaleState === 'CONNECTING' ? 'Conectando…' : '🔌 Conectar Balanza'}
+                <Icon name="wifi" size={16} />
+                {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar Balanza'}
               </button>
               <button type="button" class="primary" onclick={captureDeviceWeight} disabled={scaleState !== 'STABLE'}>
-                ⚖️ Capturar Pesada
+                <Icon name="scale" size={16} />
+                Capturar Pesada
               </button>
               <button type="button" class="secondary" onclick={disconnectScale}>
-                ⌨️ Peso Manual
+                <Icon name="edit" size={16} />
+                Peso Manual
               </button>
             </div>
 
@@ -595,7 +599,7 @@
           <div class="cart-items-scroll">
             {#if lines.length === 0}
               <div class="empty-cart">
-                <span class="empty-icon">🛒</span>
+                <Icon name="cart" size={36} />
                 <p>El carrito está vacío</p>
               </div>
             {:else}
@@ -662,7 +666,8 @@
               onclick={onCharge}
               disabled={lines.length === 0}
             >
-              💳 COBRAR (S/ {formatCents(totalCents)})
+              <Icon name="credit-card" size={20} />
+              COBRAR (S/ {formatCents(totalCents)})
             </button>
           </div>
         </section>

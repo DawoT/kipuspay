@@ -112,6 +112,7 @@ while (progressed) {
 }
 
 const secret = new Set(['api_keys', 'authorization_tokens', 'users', 'webhook_endpoints']);
+const sensitive = new Set(['push_consents', 'push_subscriptions']);
 const derived = new Set(['daily_financial_rollups', 'daily_product_rollups']);
 const ephemeral = new Set([
   'billing_overages',
@@ -124,7 +125,6 @@ const ephemeral = new Set([
   'growth_events',
   'loyalty_reservations',
   'pos_terminal_sessions',
-  'push_subscriptions',
   'restore_dry_runs',
   'serial_terminal_leases',
   'tenant_data_epochs',
@@ -142,11 +142,13 @@ for (const name of [...paths.keys()].sort()) {
   if (!table) continue;
   const classification = secret.has(name)
     ? 'SECRET'
-    : derived.has(name)
-      ? 'DERIVED'
-      : ephemeral.has(name)
-        ? 'EPHEMERAL'
-        : 'BUSINESS';
+    : sensitive.has(name)
+      ? 'SENSITIVE'
+      : derived.has(name)
+        ? 'DERIVED'
+        : ephemeral.has(name)
+          ? 'EPHEMERAL'
+          : 'BUSINESS';
   const path = paths.get(name);
   const joins = [];
   let currentAlias = 't0';
@@ -182,9 +184,11 @@ for (const name of [...paths.keys()].sort()) {
           reason:
             classification === 'SECRET'
               ? 'contains credential or authentication material'
-              : classification === 'DERIVED'
-                ? 'rebuildable from authoritative business records'
-                : 'operational control-plane state',
+              : classification === 'SENSITIVE'
+                ? 'contains encrypted device credential material or consent data'
+                : classification === 'DERIVED'
+                  ? 'rebuildable from authoritative business records'
+                  : 'operational control-plane state',
         },
   );
 }
@@ -221,6 +225,10 @@ const introducedAfterSprint42 = new Set([
   'customer_order_items',
   'customer_order_notifications',
   'customer_orders',
+  'push_consents',
+  'push_deliveries',
+  'push_events',
+  'push_subscriptions',
   'recurring_occurrence_items',
   'recurring_occurrences',
   'recurring_plan_items',

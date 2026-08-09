@@ -1,5 +1,6 @@
 <script lang="ts">
   import { isInventoryLocationsEnabled } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
 
   type LocationRow = {
     id: string;
@@ -164,7 +165,8 @@
       class="btn btn-secondary csv-btn"
       href={`${apiBase()}/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`}
     >
-      📊 Exportar CSV
+      <Icon name="download" size={16} />
+      Exportar CSV
     </a>
   </header>
 
@@ -181,13 +183,14 @@
         <input id="branch-id-input" bind:value={branchId} placeholder="b-demo" />
       </div>
       <button type="button" class="btn btn-primary" onclick={refresh} disabled={busy}>
-        {busy ? 'Cargando…' : '🔄 Actualizar Mapa'}
+        <Icon name="refresh" size={16} />
+        {busy ? 'Cargando…' : 'Actualizar Mapa'}
       </button>
     </section>
 
     {#if message}
       <div class="feedback-banner" class:success-banner={message.includes('creada') || message.includes('registrada') || message.includes('desactivada')}>
-        <span>ℹ️ {message}</span>
+        <span><Icon name="alert" size={16} /> {message}</span>
       </div>
     {/if}
 
@@ -228,13 +231,14 @@
                 onclick={() => deactivate(location.id)}
                 disabled={busy}
               >
-                🗑️ Desactivar
+                <Icon name="trash" size={14} />
+                Desactivar
               </button>
             {/if}
           </article>
         {:else}
           <div class="glass-panel empty-racks-box">
-            <span class="empty-icon">📦</span>
+            <Icon name="package" size={32} />
             <p>No hay racks registrados. Crea la primera ubicación para comenzar la gestión de putaway.</p>
           </div>
         {/each}
@@ -262,7 +266,8 @@
             <input id="name-input" bind:value={name} placeholder="Ej. Pasillo 1 · Nivel 2" />
           </div>
           <button type="button" class="btn btn-primary" onclick={createLocation} disabled={busy || !code.trim()}>
-            ➕ Crear Ubicación
+            <Icon name="plus" size={16} />
+            Crear Ubicación
           </button>
         </div>
       </section>
@@ -316,10 +321,12 @@
                 !destinationLocationId ||
                 sourceLocationId === destinationLocationId}
             >
-              🚀 Transferir Stock
+              <Icon name="arrow-right" size={16} />
+              Transferir Stock
             </button>
             <button class="btn btn-secondary" type="button" onclick={pick} disabled={busy || !productId}>
-              📦 Picking FEFO
+              <Icon name="package" size={16} />
+              Picking FEFO
             </button>
           </div>
         </div>

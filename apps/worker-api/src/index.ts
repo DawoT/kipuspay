@@ -161,7 +161,21 @@ import {
   runRetirePriceLabelTemplateHttp,
   runUpsertPriceLabelTemplateHttp,
 } from './catalog/price-label-routes.js';
-import { runSendOwnerPushHttp, runSubscribePushHttp } from './owner/push-routes.js';
+import {
+  acknowledgeDisplayedHttp,
+  grantPushConsentHttp,
+  listPushDevicesHttp,
+  getPushPrivacyPolicyHttp,
+  revokePushConsentHttp,
+  revokePushDeviceHttp,
+  rotatePushDeviceHttp,
+  sendTestPushHttp,
+  subscribePushDeviceHttp,
+  updatePushPrivacyHttp,
+  updatePushPrivacyPolicyHttp,
+  type PushActor,
+  type PushHttpResult,
+} from './push/mobile-push-routes.js';
 import {
   isAdvancedReportId,
   runDailyRollupsCronHttp,
@@ -297,6 +311,32 @@ function trustedRecurringSalesActor(c: {
     allowedBranches: definedOr(user?.allowedBranches, []),
     permissions: definedOr(user?.permissions, []),
   };
+}
+
+function trustedPushActor(c: {
+  get(name: 'jwt'): VerifiedJwtClaims | undefined;
+  get(name: 'user'): UserSession | undefined;
+}): PushActor {
+  const jwt = c.get('jwt');
+  const user = c.get('user');
+  return {
+    tenantId: jwt?.tenantId ?? '',
+    userId: user?.userId ?? jwt?.sub ?? '',
+    role: user?.role ?? '',
+    branchId: user?.branchId ?? '',
+    ...(jwt?.authTime === undefined
+      ? {}
+      : { deviceFingerprint: `jwt-session:${jwt.tenantId}:${jwt.sub}:${jwt.authTime}` }),
+  };
+}
+
+function pushResponse(result: PushHttpResult): Response {
+  return result.status === 204
+    ? new Response(null, { status: 204 })
+    : new Response(JSON.stringify(result.body), {
+        status: result.status,
+        headers: { 'content-type': 'application/json; charset=UTF-8' },
+      });
 }
 
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
@@ -1632,28 +1672,57 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runOwnerDaySummaryHttp(c.env, jwt?.tenantId ?? '', date);
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
   });
-  app.post('/api/owner/push/subscribe', async (c) => {
-    const jwt = c.get('jwt');
-    const user = c.get('user');
-    const body: unknown = await c.req.json();
-    const result = await runSubscribePushHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      user?.userId ?? jwt?.sub ?? '',
-      body as Record<string, unknown>,
-    );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
-  });
-  app.post('/api/owner/push/send', async (c) => {
-    const jwt = c.get('jwt');
-    const body: unknown = await c.req.json();
-    const result = await runSendOwnerPushHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      body as Record<string, unknown>,
-    );
-    return c.json(result.body, result.status as 200 | 404 | 503);
-  });
+  // Sprint 45 — authenticated Zero-Trust mobile push. Identity/scope are never body-derived.
+  app.post('/api/push/consents', async (c) =>
+    pushResponse(await grantPushConsentHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.delete('/api/push/consents', async (c) =>
+    pushResponse(await revokePushConsentHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.post('/api/push/subscriptions', async (c) =>
+    pushResponse(await subscribePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.put('/api/push/subscriptions/rotate', async (c) =>
+    pushResponse(await rotatePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.delete('/api/push/subscriptions', async (c) =>
+    pushResponse(await revokePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.get('/api/push/devices', async (c) =>
+    pushResponse(await listPushDevicesHttp(c.env, trustedPushActor(c))),
+  );
+  app.patch('/api/push/privacy', async (c) =>
+    pushResponse(await updatePushPrivacyHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.get('/api/push/privacy', async (c) =>
+    pushResponse(await getPushPrivacyPolicyHttp(c.env, trustedPushActor(c))),
+  );
+  app.put('/api/push/privacy-policy', async (c) =>
+    pushResponse(await updatePushPrivacyPolicyHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.post('/api/push/test', async (c) =>
+    pushResponse(await sendTestPushHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  app.post('/api/push/ack', async (c) =>
+    pushResponse(await acknowledgeDisplayedHttp(c.env, trustedPushActor(c), await c.req.json())),
+  );
+  // Compatibility paths map to the same engine and purpose, never a second transport.
+  app.post('/api/owner/push/subscribe', async (c) =>
+    pushResponse(
+      await subscribePushDeviceHttp(c.env, trustedPushActor(c), {
+        ...objectBody(await c.req.json()),
+        purpose: 'OWNER_ALERTS',
+      }),
+    ),
+  );
+  app.post('/api/owner/push/send', async (c) =>
+    pushResponse(
+      await sendTestPushHttp(c.env, trustedPushActor(c), {
+        ...objectBody(await c.req.json()),
+        purpose: 'OWNER_ALERTS',
+      }),
+    ),
+  );
 
   // Reporting rollups / catálogo / CSV (Sprint 9) — flags default off
   const reportQueryOpts = (c: {

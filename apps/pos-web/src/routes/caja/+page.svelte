@@ -19,6 +19,7 @@
   } from '$lib/tenant/session';
   import { createBrowserPrintIdb, PrintOutboxStore } from '$lib/print/print-outbox-store';
   import { createPrinterTransport } from '$lib/print/printer-transport';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const blindOn = isCashBlindZEnabled();
   const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
@@ -107,7 +108,8 @@
         <h1 class="page-title">Cierre Z Ciego</h1>
       </div>
       <a href="/caja/devolucion" class="btn btn-secondary nav-link-btn" data-testid="caja-link-devolucion">
-        ↩️ Devolución
+        <Icon name="arrow-right" size={16} />
+        Devolución
       </a>
     </div>
 
@@ -117,7 +119,7 @@
 
     {#if !blindOn}
       <div class="banner-box off-banner" data-testid="caja-feature-off">
-        <span class="banner-icon">⚠️</span>
+        <span class="banner-icon"><Icon name="alert" size={20} /></span>
         <div>
           <strong>FEATURE_CASH_BLIND_Z desactivado</strong>
           <p>Activa el flag operacional para cerrar caja en producción.</p>
@@ -161,7 +163,7 @@
           {#each PEN_DENOMS as d}
             <div class="denom-row-card">
               <div class="denom-label">
-                <span class="denom-icon">{d >= 1000 ? '💵' : '🪙'}</span>
+                <span class="denom-icon"><Icon name="dollar" size={18} /></span>
                 <span class="denom-amount tabular-nums">S/ {formatCents(d)}</span>
               </div>
               <div class="denom-input-wrapper">
@@ -206,7 +208,8 @@
         data-testid="caja-confirm-z"
         onclick={onConfirmClose}
       >
-        🔒 Confirmar Cierre Z
+        <Icon name="lock" size={18} />
+        Confirmar Cierre Z
       </button>
 
       <!-- Status & Revelation Area -->

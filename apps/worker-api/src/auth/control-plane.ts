@@ -81,6 +81,52 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 44: ventas recurrentes; ejecución manual solo con guard de entorno. */
   readonly FEATURE_SALES_RECURRING?: string;
   readonly RECURRING_MANUAL_RUN_ENABLED?: string;
+  /** Sprint 45: push operacional y cliente PWA móvil; ambos default-off. */
+  readonly FEATURE_MOBILE_PUSH?: string;
+  readonly FEATURE_CLIENT_MOBILE_POS?: string;
+  readonly PUSH_VAPID_PUBLIC_KEY?: string;
+  readonly PUSH_KMS?: {
+    encryptEnvelope(input: Record<string, unknown>): Promise<{
+      ciphertext: string;
+      keyVersion: string;
+      fingerprint: string;
+    }>;
+    sendWebPush(input: Record<string, unknown>): Promise<{
+      provider: 'WEB_PUSH';
+      status: 'ACCEPTED' | 'RETRY' | 'FAILED' | 'INVALID';
+      responseCode: string;
+      providerMessageIdHash: string;
+      retryAfterSeconds: number | null;
+      invalidateSubscription: boolean;
+    }>;
+    sendFcm(input: Record<string, unknown>): Promise<{
+      provider: 'FCM_HTTP_V1';
+      status: 'ACCEPTED' | 'RETRY' | 'FAILED' | 'INVALID';
+      responseCode: string;
+      providerMessageIdHash: string;
+      retryAfterSeconds: number | null;
+      invalidateSubscription: boolean;
+    }>;
+    issueAckReceipt(input: {
+      tenantId: string;
+      userId: string;
+      deliveryId: string;
+      subscriptionId: string;
+      deviceFingerprint: string;
+      issuedAtSeconds: number;
+      expiresAtSeconds: number;
+    }): Promise<{ token: string; receiptHash: string; keyVersion: string }>;
+    verifyAckReceipt(input: { token: string; nowSeconds: number }): Promise<{
+      tenantId: string;
+      userId: string;
+      deliveryId: string;
+      subscriptionId: string;
+      deviceFingerprint: string;
+      issuedAtSeconds: number;
+      expiresAtSeconds: number;
+      nonce: string;
+    }>;
+  };
   readonly BACKUPS?: R2Bucket;
   readonly BACKUP_WORKFLOW?: Workflow<{
     readonly tenantId: string;

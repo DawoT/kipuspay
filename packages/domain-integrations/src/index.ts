@@ -122,6 +122,7 @@ export {
 } from './messaging.js';
 
 export * from './data-backup-contract.js';
+export * from './mobile-push.js';
 
 /**
  * Puerto de importación de catálogo (S21, §5.4).

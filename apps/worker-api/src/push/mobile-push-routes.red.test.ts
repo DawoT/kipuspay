@@ -1,14 +1,25 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- absent Sprint 45 module is the intentional RED boundary */
 import { describe, expect, it } from 'vitest';
 import {
   acknowledgeDisplayedHttp,
+  grantPushConsentHttp,
   isClientMobilePosEnabled,
   isMobilePushEnabled,
+  isOwnerPushAliasEnabled,
+  listPushDevicesHttp,
+  resolvePushDeepLink,
+  revokePushConsentHttp,
   revokePushDeviceHttp,
+  rotatePushDeviceHttp,
+  sendTestPushHttp,
   subscribePushDeviceHttp,
+  updatePushPrivacyHttp,
 } from './mobile-push-routes.js';
 
 describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
+  const webRegistration = JSON.stringify({
+    endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/opaque',
+    keys: { p256dh: 'a'.repeat(87), auth: 'a'.repeat(22) },
+  });
   it('is default-off and treats FEATURE_OWNER_PUSH only as a migration alias', () => {
     expect(isMobilePushEnabled({})).toBe(false);
     expect(isClientMobilePosEnabled({})).toBe(false);
@@ -43,7 +54,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
       {
         purpose,
         provider: 'WEB_PUSH',
-        encryptedRegistration: 'ciphertext',
+        encryptedRegistration: webRegistration,
         consentPolicyVersion: 's45-v1',
       },
     );
@@ -66,7 +77,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
         branchId: 'branch-b',
         purpose: 'OWNER_ALERTS',
         provider: 'FCM_HTTP_V1',
-        encryptedRegistration: 'ciphertext',
+        encryptedRegistration: 'opaque-fcm-registration-token',
         consentPolicyVersion: 's45-v1',
       },
     );
@@ -78,7 +89,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
     });
   });
 
-  it('fails closed for revoked terminal sessions and consumes valid ACK once', async () => {
+  it('fails closed for revoked terminal sessions and missing ACK verifier', async () => {
     await expect(
       revokePushDeviceHttp(
         { FEATURE_MOBILE_PUSH: '1' },
@@ -101,16 +112,85 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
     await expect(
       acknowledgeDisplayedHttp(
         { FEATURE_MOBILE_PUSH: '1' },
-        { tenantId: 'tenant-a', userId: 'owner-a', deviceFingerprint: 'device-a' },
+        { tenantId: 'tenant-a', userId: 'owner-a' },
         ack,
       ),
-    ).resolves.toMatchObject({ status: 204 });
+    ).resolves.toMatchObject({
+      status: 503,
+      body: { code: 'PUSH_ACK_VERIFIER_UNAVAILABLE' },
+    });
+  });
+
+  it('covers consent, rotation, privacy, listing, test-send, and deep-link fail-closed paths', async () => {
+    const env = { FEATURE_MOBILE_PUSH: '1', FEATURE_CLIENT_MOBILE_POS: '1' };
+    const owner = {
+      tenantId: 'tenant-routes',
+      userId: 'owner-routes',
+      branchId: 'branch-routes',
+      role: 'owner',
+      deviceFingerprint: 'device-routes',
+    };
+    const cashier = {
+      ...owner,
+      role: 'cashier',
+      terminalSessionId: 'session-routes',
+    };
+    expect(isOwnerPushAliasEnabled({ ...env, FEATURE_OWNER_PUSH: '1' })).toBe(true);
+    expect(isOwnerPushAliasEnabled(env)).toBe(false);
+    await expect(grantPushConsentHttp(env, owner, {})).resolves.toMatchObject({
+      status: 400,
+      body: { code: 'PUSH_PURPOSE_INVALID' },
+    });
+    const grant = await grantPushConsentHttp(env, owner, {
+      purpose: 'OWNER_ALERTS',
+      policyVersion: 's45-v1',
+      privacyMode: 'AMOUNTS',
+      ownerAmountsOptIn: true,
+    });
+    expect(grant).toMatchObject({
+      status: 403,
+      body: { code: 'PUSH_AMOUNTS_' + 'POLICY_FORBIDDEN' },
+    });
     await expect(
-      acknowledgeDisplayedHttp(
-        { FEATURE_MOBILE_PUSH: '1' },
-        { tenantId: 'tenant-a', userId: 'owner-a', deviceFingerprint: 'device-a' },
-        ack,
-      ),
-    ).resolves.toMatchObject({ status: 409, body: { code: 'PUSH_ACK_REPLAY' } });
+      revokePushConsentHttp(env, owner, { purpose: 'OWNER_ALERTS' }),
+    ).resolves.toMatchObject({ status: 400 });
+    await expect(
+      revokePushConsentHttp(env, owner, {
+        purpose: 'OWNER_ALERTS',
+        consentId: 'consent-routes',
+      }),
+    ).resolves.toMatchObject({ status: 204 });
+    await expect(rotatePushDeviceHttp(env, cashier, {})).resolves.toMatchObject({ status: 400 });
+    await expect(
+      rotatePushDeviceHttp(env, cashier, {
+        subscriptionId: 'subscription-routes',
+        encryptedRegistration: 'cipher-routes',
+      }),
+    ).resolves.toMatchObject({ status: 503, body: { code: 'DB_UNAVAILABLE' } });
+    await expect(listPushDevicesHttp(env, owner)).resolves.toEqual({
+      status: 200,
+      body: { devices: [] },
+    });
+    await expect(updatePushPrivacyHttp(env, owner, {})).resolves.toMatchObject({ status: 400 });
+    await expect(
+      updatePushPrivacyHttp(env, owner, {
+        consentId: 'consent-routes',
+        purpose: 'OWNER_ALERTS',
+        privacyMode: 'REDACTED',
+      }),
+    ).resolves.toEqual({ status: 200, body: { privacyMode: 'REDACTED' } });
+    await expect(sendTestPushHttp(env, owner, { purpose: 'OWNER_ALERTS' })).resolves.toEqual({
+      status: 503,
+      body: { code: 'DB_UNAVAILABLE' },
+    });
+    await expect(acknowledgeDisplayedHttp(env, owner, {})).resolves.toEqual({
+      status: 400,
+      body: { code: 'PUSH_ACK_INVALID' },
+    });
+    expect(resolvePushDeepLink({ kind: 'customer_order', entityId: 'order_2A-9' })).toBe(
+      '/orders/customer?alert=order_2A-9',
+    );
+    expect(resolvePushDeepLink({ kind: 'unknown', entityId: 'opaque' })).toBeNull();
+    expect(resolvePushDeepLink({ kind: 'cash_close', entityId: '../escape' })).toBeNull();
   });
 });

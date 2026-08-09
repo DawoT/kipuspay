@@ -38,6 +38,8 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'INVENTORY_SERIALS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'ORDERS_CUSTOMER_ORDERS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_RECURRING', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'MOBILE_PUSH', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'CLIENT_MOBILE_POS', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -75,6 +77,8 @@ describe('features flags default off', () => {
     expect(mod.isInventorySerialsEnabled()).toBe(false);
     expect(mod.isCustomerOrdersEnabled()).toBe(false);
     expect(mod.isRecurringSalesEnabled()).toBe(false);
+    expect(mod.isMobilePushEnabled()).toBe(false);
+    expect(mod.isMobilePosEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

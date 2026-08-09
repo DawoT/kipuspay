@@ -1,0 +1,21 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/kipuspay-fcm-registration-adapter@1.0.0",
+      "name": "kipuspay-fcm-registration-adapter",
+      "version": "1.0.0",
+      "purl": "pkg:generic/kipuspay-fcm-registration-adapter@1.0.0",
+      "licenses": [{ "license": { "id": "Apache-2.0" } }],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "76a5b0cb6a2ce72815519587a197b37ecbb11c6e36dcc8637ea0b170cef08689"
+        }
+      ]
+    }
+  ]
+}

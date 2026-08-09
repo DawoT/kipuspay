@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- absent Sprint 45 module is the intentional RED boundary */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- Vitest asymmetric matchers are intentionally untyped */
 import { describe, expect, it } from 'vitest';
 import { MOBILE_PUSH_FAULTS, judgeMobilePushChaos, runMobilePushChaos } from './mobile-push.js';
 

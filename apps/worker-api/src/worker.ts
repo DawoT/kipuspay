@@ -8,6 +8,7 @@ import {
   type RecurringManualRpcInput,
   type RecurringManualRpcResult,
 } from './sales/recurring-sales-scheduled.js';
+import { runMobilePushDispatcher } from './push/mobile-push-dispatcher.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
@@ -41,6 +42,16 @@ export default {
         scheduledTime: event.scheduledTime,
         cron: event.cron,
       });
+      try {
+        await runMobilePushDispatcher(env, { scheduledTime: event.scheduledTime });
+      } catch {
+        console.warn(
+          JSON.stringify({
+            event: 'mobile_push_dispatch_failed',
+            reason: 'DISPATCH_UNAVAILABLE',
+          }),
+        );
+      }
       return;
     }
     console.warn(
