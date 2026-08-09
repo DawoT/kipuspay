@@ -6050,3 +6050,46 @@ aprobaciones: [Staff Backend ACID R software local, Staff Data R software local,
 estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
+
+```
+id: 0316
+timestamp_utc: 2026-08-09T02:20:00Z
+schema_version: 2
+sprint_fase: Sprint 45 — FASE 6E (mobile.push + client.mobile_pos)
+agente_responsable: Staff Mobile / Staff Frontend / Staff Backend / Staff Data / Staff SRE / Staff Security / Staff QA / Staff Hardware / Staff Growth
+tipo: Implementacion de capabilities
+subtipo: quality-gate-condicionado
+relacion: IMPLEMENTA
+referencias_entradas: [0315]
+referencias_documentales: [docs/ops/s45-mobile-push-pos-qg.md, docs/runbooks/mobile-push-incident.md, docs/adr/ADR-0029-mobile-push-pos.md, docs/architecture/05-12-mobile-push-pos.md, docs/roadmap/fase-6e.md, docs/GTM.md]
+prev_id: 0315
+prev_hash: dcff2d449b5ea84348093121a020e974d4d40f01146313df115189c4054def21
+entry_hash: 97dd9e1fac1633d4415ee02744dccc71833eeade6c771377f08b8e7f6a07d57e
+ticket_or_adr: ADR-0029, Roadmap Sprint 45, DDL 0038, COM-11, DAT-12, GTM-26
+test_ids: [packages/domain-integrations/src/mobile-push.red.test.ts, packages/domain-contracts-sync/src/mobile-push-outbox.red.test.ts, packages/adapters-d1/src/mobile-push-schema.red.test.ts, packages/adapters-d1/src/mobile-push-workerd.red.integration.test.ts, apps/worker-kms/src/mobile-push-transport.red.test.ts, apps/worker-api/src/push/mobile-push-routes.red.test.ts, apps/pos-web/src/lib/mobile/mobile-push-pwa.red.test.ts, apps/pos-web/tests/e2e/mobile-pwa-a11y.spec.ts, apps/pos-web/tests/e2e/mobile-low-end-emulated.spec.ts, packages/chaos-harness/src/mobile-push.red.test.ts, V-20, SUITE]
+entregable_afectado: Sprint 45 mobile.push y client.mobile_pos software GREEN local; claim/produccion/piloto NO-GO
+descripcion: >
+  Implementa DDL/down 0038, outbox y dispatch con lease, Web Push/FCM HTTP v1 tras
+  PUSH_KMS, consentimiento y revocacion fail-closed, privacidad REDACTED, ACK
+  DISPLAYED one-shot, rutas RBAC, polling fallback y una PWA Android con un unico
+  Service Worker y cola offline compartida. Ambas capabilities quedan default-off.
+evidencia: >
+  RED 76744aae9b7a91b235784d9fe896602bc8f9fe23: contratos fallaban por ausencia
+  de DDL 0038, atomicidad/workerd, transportes/KMS, API/ACK, PWA/SW y chaos.
+  GREEN 7e6b367219897276b1573e5c7357262c5ceca8b2: verify y quality GREEN; Worker
+  606, KMS 28, adapters 281 unit + 200 workerd, POS 144, chaos 101; chaos movil
+  500 seed 1170276334 con p95 simulado 4412 ms e invariantes en cero; a11y 360/375,
+  low-end emulado con 500 ventas exactas, bundle 142.32 kB gzip y Security Review
+  final sin hallazgos medium+. Sin Web Push/FCM staging real, Android fisico de gama
+  baja bajo doze/storage/background ni A+V Mobile+QA+Security independiente: la
+  evidencia local no es certificacion externa; GTM-26, produccion y piloto NO-GO.
+red_commit_sha: 76744aae9b7a91b235784d9fe896602bc8f9fe23
+red_run_id: run-red-s45-mobile-push-pos-76744aa
+expected_failure: AssertionError por ausencia de DDL 0038 atomicidad workerd consentimiento revocacion transportes VAPID FCM KMS rutas RBAC ACK PWA Service Worker low-end y chaos
+green_commit_sha: 7e6b367219897276b1573e5c7357262c5ceca8b2
+green_run_id: run-green-s45-mobile-push-pos-7e6b367
+ancestry_verified: true
+aprobaciones: [Staff Mobile R software local Android fisico pendiente, Staff Frontend R software local, Staff Backend y Data R software local, Staff SRE staging providers pendiente, Staff Security review local sin medium+ V independiente pendiente, Staff QA V pendiente, Staff Hardware V pendiente, Staff Growth Claim NO-GO]
+estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
+estado: Vigente
+```

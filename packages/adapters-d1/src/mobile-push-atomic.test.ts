@@ -19,7 +19,8 @@ function createMockDb(
         bind(...params: readonly unknown[]) {
           const bound = {
             bind: () => bound,
-            run: () => Promise.resolve({ success: true, meta: { duration: 0, changes: 1 } }),
+            run: () =>
+              Promise.resolve({ results: [], success: true, meta: { duration: 0, changes: 1 } }),
             first<T>() {
               return Promise.resolve(firstImpl(sql, params) as T | null);
             },
@@ -36,7 +37,7 @@ function createMockDb(
       };
     },
     batch() {
-      return Promise.resolve([{ success: true, meta: { duration: 0, changes: 1 } }]);
+      return Promise.resolve([{ results: [], success: true, meta: { duration: 0, changes: 1 } }]);
     },
   };
 }

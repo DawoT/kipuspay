@@ -190,7 +190,61 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
     expect(resolvePushDeepLink({ kind: 'customer_order', entityId: 'order_2A-9' })).toBe(
       '/orders/customer?alert=order_2A-9',
     );
+    expect(resolvePushDeepLink({ kind: 'cash_close', entityId: 'c1' })).toBe('/caja?alert=c1');
+    expect(resolvePushDeepLink({ kind: 'cash_discrepancy', entityId: 'c2' })).toBe(
+      '/caja?alert=c2',
+    );
+    expect(resolvePushDeepLink({ kind: 'inventory', entityId: 'inv1' })).toBe(
+      '/owner/stock?alert=inv1',
+    );
+    expect(resolvePushDeepLink({ kind: 'installment', entityId: 'inst1' })).toBe(
+      '/caja/cuotas?alert=inst1',
+    );
+    expect(resolvePushDeepLink({ kind: 'accounts_receivable', entityId: 'ar1' })).toBe(
+      '/ledger/receivables?alert=ar1',
+    );
+    expect(resolvePushDeepLink({ kind: 'recurring_sale', entityId: 'rs1' })).toBe(
+      '/admin/membresias?alert=rs1',
+    );
+    expect(resolvePushDeepLink({ kind: 'billing', entityId: 'b1' })).toBe(
+      '/settings/billing?alert=b1',
+    );
     expect(resolvePushDeepLink({ kind: 'unknown', entityId: 'opaque' })).toBeNull();
     expect(resolvePushDeepLink({ kind: 'cash_close', entityId: '../escape' })).toBeNull();
+
+    // Additional coverage for grant, update, subscribe, revoke, test-send routes
+    await expect(
+      grantPushConsentHttp(env, owner, {
+        purpose: 'OWNER_ALERTS',
+        policyVersion: 's45-v1',
+        deviceFingerprint: 'df-1',
+      }),
+    ).resolves.toMatchObject({ status: 201 });
+    await expect(
+      updatePushPrivacyHttp(env, owner, {
+        consentId: 'c1',
+        purpose: 'OWNER_ALERTS',
+        privacyMode: 'AMOUNTS',
+        ownerAmountsOptIn: true,
+      }),
+    ).resolves.toMatchObject({ status: 403 });
+    await expect(
+      subscribePushDeviceHttp(env, owner, { purpose: 'INVALID' }),
+    ).resolves.toMatchObject({ status: 400 });
+    await expect(
+      subscribePushDeviceHttp(env, owner, {
+        purpose: 'OWNER_ALERTS',
+        provider: 'INVALID',
+        encryptedRegistration: 'reg',
+        consentPolicyVersion: 'v1',
+      }),
+    ).resolves.toMatchObject({ status: 400 });
+    await expect(revokePushConsentHttp(env, owner, { purpose: 'INVALID' })).resolves.toMatchObject({
+      status: 400,
+    });
+    await expect(sendTestPushHttp(env, owner, {})).resolves.toMatchObject({ status: 503 });
+    await expect(sendTestPushHttp(env, owner, { purpose: 'INVALID' })).resolves.toMatchObject({
+      status: 503,
+    });
   });
 });

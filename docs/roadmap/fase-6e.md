@@ -46,10 +46,10 @@ sprints: "43–45"
 ---
 
 #### Sprint 45 — Notificaciones push + caja móvil Android
-**Estado:** Gobernanza fijada y contratos RED; implementación/claim/producción NO-GO
+**Estado:** Software GREEN local condicionado; claim/producción/piloto NO-GO hasta Web Push/FCM staging real, Android físico y firmas Mobile+QA+Security A+V independientes
 **Capabilities:** `mobile.push`, `client.mobile_pos`  
 **Compatibilidad:** `owner.push_alerts` es alias legado del motor `mobile.push`, no una tercera capability
-**Referencia:** Arquitectura §5.12 regla 30 · ADR-0029 · §7.5 (offloading) · GTM-26 congelado · **Agentes:** Staff Mobile (owner), Staff Frontend, Staff SRE, Staff Hardware
+**Referencia:** Arquitectura §5.12 regla 30 · ADR-0029 · §7.5 (offloading) · GTM-26 congelado/condicionado · QG `docs/ops/s45-mobile-push-pos-qg.md` · **Agentes:** Staff Mobile (owner), Staff Frontend, Staff SRE, Staff Hardware
 
 **Frontera heredada de Sprint 44:** push no forma parte de ventas recurrentes GREEN
 local. Sprint 45 debe probar consentimiento, entrega real y dispositivo; Sprint 44 no
@@ -61,11 +61,11 @@ promete recordatorio push, autocobro, tarjeta guardada ni continuidad post-graci
 - Consentimiento explícito de usuario/empleado resuelto en S45, independiente del consentimiento de clientes de S47. Lockscreen `REDACTED` por defecto; montos solo con política tenant + opt-in Owner y nunca PII/fiscal/token.
 - `ACCEPTED` de provider y `DISPLAYED` por ACK firmado/opaco/one-shot ≤300 s son estados distintos; SLO evento→display p95 <10 s y ≥99% en red normal, excluyendo offline/doze solo con etiqueta.
 - **Caja móvil** como terminal PWA Android que reusa core, RBAC, sesión/revocación, impresión fallback y cola offline; un solo Service Worker y cero fork de rol/dominio/vertical.
-- Baseline actual limitado a ADR/especificación/registro/mapa/GTM y tests RED. Migración física, transportes, SW, rutas, UI, chaos y cierre pertenecen al ciclo GREEN posterior.
+- Implementación local GREEN de migración/down 0038, outbox/dispatcher, transportes aislados detrás de `PUSH_KMS`, rutas/RBAC/ACK, PWA/SW/caja móvil, polling fallback y chaos determinista. Capabilities default-off.
 
-**Criterios de aceptación:** contratos RED fallan por módulos 0038/transporte/API/SW/chaos ausentes. Para GREEN: push DISPLAYED p95 <10s y ≥99% en red normal; caja móvil pasa 500 ventas en gama baja sin pérdida de cola; 0 push sin consentimiento, PII/secreto o duplicado visible; modos offline idénticos al POS.
+**Criterios de aceptación:** RED→GREEN con ancestría verificada; suites locales cubren 0038/workerd, consentimiento/revocación, VAPID/FCM/KMS, rutas/RBAC/ACK, un SW, polling, 360/375 px, 500 ventas offline emuladas y chaos 500 con cero push sin consentimiento, PII/secreto, duplicado visible, ACK falso, cruce tenant, venta o cola perdida y operación origen bloqueada. El SLO de proveedor y la prueba de gama baja solo cierran con staging y Android físico.
 
-**Quality Gate:** abierto/NO-GO. Requiere Staff Mobile + Staff QA (dispositivo Android físico) + Staff Security (PII), Web Push/FCM staging real, chaos 500 y firmas A+V independientes.
+**Quality Gate:** software GREEN local: RED `76744aa`, GREEN `7e6b367`, `scripts/verify.sh` y `scripts/quality.sh` GREEN; Worker 604 o posterior, KMS y workerd GREEN; chaos 500 seed 1170276334 con p95 simulado 4412 ms e invariantes en cero; PWA a11y 360/375, 500 ventas exactas en low-end emulado y bundle 142.32 kB gzip. Security Review final sin hallazgos medium+. No existe Web Push/FCM staging real, Android físico de gama baja con doze/storage/background ni firma independiente Mobile+QA+Security A+V: GTM-26, producción y piloto permanecen NO-GO; no es certificación externa.
 
 ---
 

@@ -1,13 +1,116 @@
-import { describe, expect, it } from 'vitest';
+import type { ClaimedPushDelivery } from '@kipuspay/adapters-d1';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WorkerEnv } from '../auth/control-plane.js';
 // @ts-expect-error -- Vite raw source import is supported by Vitest.
 import dispatcherSource from './mobile-push-dispatcher.ts?raw';
 import {
   computePushRetryDelaySeconds,
   pushDeliveryObservation,
+  runMobilePushDispatcher,
   sanitizeProviderResult,
 } from './mobile-push-dispatcher.js';
 
+const adapters = vi.hoisted(() => ({ claimPushDeliveries: vi.fn() }));
+vi.mock('@kipuspay/adapters-d1', () => adapters);
+
+interface RecordedStatement {
+  readonly sql: string;
+  readonly bindings: readonly unknown[];
+}
+
+function delivery(
+  id: string,
+  provider: ClaimedPushDelivery['provider'],
+  attemptCount = 0,
+): ClaimedPushDelivery {
+  return {
+    id,
+    tenantId: 'tenant-a',
+    eventId: `event-${id}`,
+    subscriptionId: `subscription-${id}`,
+    provider,
+    attemptCount,
+    ttlSeconds: 120,
+    collapseKey: `collapse-${id}`,
+  };
+}
+
+function dispatcherEnv(contexts: Readonly<Record<string, Record<string, unknown> | null>>) {
+  const batches: RecordedStatement[][] = [];
+  const prepare = vi.fn((sql: string) => {
+    const statement: RecordedStatement & {
+      bind(...args: unknown[]): typeof statement;
+      all<T>(): Promise<{ results: T[] }>;
+      first<T>(): Promise<T | null>;
+    } = {
+      sql,
+      bindings: [],
+      bind(...args: unknown[]) {
+        (statement.bindings as unknown[]).push(...args);
+        return statement;
+      },
+      all<T>() {
+        return Promise.resolve({ results: [{ tenant_id: 'tenant-a' } as T] });
+      },
+      first<T>() {
+        const firstArg = statement.bindings[0];
+        const id = typeof firstArg === 'string' ? firstArg : '';
+        return Promise.resolve((contexts[id] ?? null) as T | null);
+      },
+    };
+    return statement;
+  });
+  const sendWebPush = vi.fn();
+  const sendFcm = vi.fn();
+  const issueAckReceipt = vi.fn(({ deliveryId }: { deliveryId: string }) =>
+    Promise.resolve({
+      token: `receipt-${deliveryId}`,
+      receiptHash: `hash-${deliveryId}`,
+      keyVersion: 'ack-v1',
+    }),
+  );
+  const env = {
+    FEATURE_MOBILE_PUSH: '1',
+    DB: {
+      prepare,
+      batch: vi.fn((statements: RecordedStatement[]) => {
+        batches.push(statements);
+        return Promise.resolve([]);
+      }),
+    },
+    PUSH_KMS: { sendWebPush, sendFcm, issueAckReceipt },
+  } as unknown as WorkerEnv;
+  return { env, batches, sendWebPush, sendFcm, issueAckReceipt };
+}
+
+function context(id: string, expiresAt = '2026-08-08T20:10:00.000Z') {
+  return {
+    id,
+    tenant_id: 'tenant-a',
+    subscription_id: `subscription-${id}`,
+    user_id: 'user-a',
+    device_fingerprint: 'device-a',
+    provider: id.startsWith('fcm') ? 'FCM_HTTP_V1' : 'WEB_PUSH',
+    endpoint_token_ciphertext: `cipher-${id}`,
+    credential_ciphertext: null,
+    encryption_key_version: 'kms-v1',
+    event_type: 'CASH_CLOSE',
+    amount_cents: 12_500,
+    deep_link_kind: 'cash_close',
+    deep_link_entity_id: 'close-a',
+    expires_at: expiresAt,
+    privacy_mode: 'AMOUNTS',
+    tenant_amounts_policy_enabled: 1,
+    owner_amounts_opt_in: 1,
+    role: 'owner',
+  };
+}
+
 describe('Sprint 45 push dispatcher policy', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('honors Retry-After and bounds exponential jitter below the TTL', () => {
     expect(computePushRetryDelaySeconds(2, 90, 300, 0)).toBe(90);
     expect(computePushRetryDelaySeconds(20, null, 120, 1)).toBeLessThanOrEqual(120);
@@ -99,5 +202,126 @@ describe('Sprint 45 push dispatcher policy', () => {
     expect(dispatcherSource).toContain(
       "e.target_scope = 'OWNER_ALERTS' AND u.role IN ('owner','admin')",
     );
+  });
+
+  it('materializes, claims, and completes accepted Web Push and retried FCM deliveries', async () => {
+    const accepted = delivery('web-accepted', 'WEB_PUSH');
+    const retried = delivery('fcm-retry', 'FCM_HTTP_V1', 2);
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [accepted, retried],
+      hasMore: false,
+    });
+    const fixture = dispatcherEnv({
+      [accepted.id]: context(accepted.id),
+      [retried.id]: context(retried.id),
+    });
+    fixture.sendWebPush.mockResolvedValue({
+      provider: 'WEB_PUSH',
+      status: 'ACCEPTED',
+      responseCode: '201',
+      providerMessageIdHash: 'provider-web-1',
+      retryAfterSeconds: null,
+      invalidateSubscription: false,
+    });
+    fixture.sendFcm.mockRejectedValue(new Error('provider unavailable'));
+
+    await expect(
+      runMobilePushDispatcher(fixture.env, {
+        scheduledTime: Date.parse('2026-08-08T20:00:00.000Z'),
+        pageSize: 500,
+      }),
+    ).resolves.toEqual({ tenants: 1, claimed: 2, accepted: 1, retry: 1, failed: 0 });
+
+    expect(adapters.claimPushDeliveries).toHaveBeenCalledWith(
+      fixture.env.DB,
+      expect.objectContaining({ tenantId: 'tenant-a', limit: 100 }),
+    );
+    expect(fixture.sendWebPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encryptedSubscription: 'cipher-web-accepted',
+        payload: expect.objectContaining({
+          deliveryId: 'web-accepted',
+          receipt: 'receipt-web-accepted',
+        }) as unknown,
+      }),
+    );
+    expect(fixture.sendFcm).toHaveBeenCalledWith(
+      expect.objectContaining({ encryptedToken: 'cipher-fcm-retry' }),
+    );
+    const completions = fixture.batches.filter((batch) =>
+      batch.some(({ sql }) => sql.includes('UPDATE push_deliveries')),
+    );
+    expect(completions.map((batch) => batch[0]?.bindings[0])).toEqual(['ACCEPTED', 'RETRY']);
+    expect(completions[0]?.[0]?.bindings).toContain('hash-web-accepted');
+    expect(completions[1]?.[0]?.bindings).toContain('NETWORK_ERROR');
+  });
+
+  it.each([
+    ['404', 'FAILED'],
+    ['410', 'FAILED'],
+  ] as const)('invalidates a subscription after provider HTTP %s', async (responseCode, status) => {
+    const claimed = delivery(`web-${responseCode}`, 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [claimed],
+      hasMore: false,
+    });
+    const fixture = dispatcherEnv({ [claimed.id]: context(claimed.id) });
+    fixture.sendWebPush.mockResolvedValue({
+      provider: 'WEB_PUSH',
+      status: 'INVALID',
+      responseCode,
+      providerMessageIdHash: '',
+      retryAfterSeconds: null,
+      invalidateSubscription: true,
+    });
+
+    await expect(
+      runMobilePushDispatcher(fixture.env, {
+        scheduledTime: Date.parse('2026-08-08T20:00:00.000Z'),
+      }),
+    ).resolves.toMatchObject({ claimed: 1, failed: 1 });
+
+    const completion = fixture.batches.find((batch) =>
+      batch.some(({ sql }) => sql.includes('UPDATE push_deliveries')),
+    );
+    expect(completion).toHaveLength(2);
+    expect(completion?.[0]?.bindings[0]).toBe(status);
+    expect(completion?.[1]?.sql).toContain("SET status = 'INVALID'");
+  });
+
+  it('expires an elapsed lease result and skips a lease whose context is no longer active', async () => {
+    const expired = delivery('web-expired', 'WEB_PUSH');
+    const staleLease = delivery('web-stale-lease', 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [expired, staleLease],
+      hasMore: true,
+    });
+    adapters.claimPushDeliveries.mockResolvedValueOnce({ deliveries: [], hasMore: false });
+    const fixture = dispatcherEnv({
+      [expired.id]: context(expired.id, '2026-08-08T19:59:59.000Z'),
+      [staleLease.id]: null,
+    });
+    fixture.sendWebPush.mockResolvedValue({
+      provider: 'WEB_PUSH',
+      status: 'FAILED',
+      responseCode: '503',
+      providerMessageIdHash: '',
+      retryAfterSeconds: null,
+      invalidateSubscription: false,
+    });
+
+    await expect(
+      runMobilePushDispatcher(fixture.env, {
+        scheduledTime: Date.parse('2026-08-08T20:00:00.000Z'),
+      }),
+    ).resolves.toEqual({ tenants: 1, claimed: 2, accepted: 0, retry: 0, failed: 1 });
+
+    expect(adapters.claimPushDeliveries).toHaveBeenCalledTimes(2);
+    expect(fixture.issueAckReceipt).toHaveBeenCalledTimes(1);
+    const completion = fixture.batches.find((batch) =>
+      batch.some(({ sql }) => sql.includes('UPDATE push_deliveries')),
+    );
+    expect(completion?.[0]?.bindings[0]).toBe('EXPIRED');
+    expect(completion?.[0]?.bindings).toContain('TTL_EXPIRED');
   });
 });
