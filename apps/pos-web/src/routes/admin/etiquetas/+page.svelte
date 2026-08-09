@@ -382,44 +382,19 @@
 </main>
 
 <style>
-  :global(body) {
-    margin: 0;
-    background-color: var(--theme-bg, var(--bg-primary, #080c14));
-    color: var(--theme-text, var(--text-main, #f8fafc));
-    font-family: var(--font-sans, system-ui, sans-serif);
-  }
-
   .label-shell {
-    --card-bg: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
-    --card-border: var(--border-subtle, rgba(255, 255, 255, 0.08));
-    --input-bg: rgba(15, 23, 42, 0.6);
-    --input-border: var(--border-strong, rgba(255, 255, 255, 0.16));
-    --text-primary: var(--text-main, #f8fafc);
-    --text-secondary: var(--text-muted, #94a3b8);
-    --accent-color: var(--accent-primary, #6366f1);
-    --accent-hover: var(--accent-primary-hover, #4f46e5);
+    --card-bg: var(--bg-glass-card);
+    --card-border: var(--border-subtle);
+    --input-bg: var(--bg-input);
+    --input-border: var(--border-strong);
+    --text-primary: var(--text-main);
+    --text-secondary: var(--text-muted);
+    --accent-color: var(--accent-primary);
+    --accent-hover: var(--accent-primary-hover);
 
     max-width: 1280px;
     margin: 0 auto;
     padding: 1.5rem 1rem 5rem;
-  }
-
-  /* Responsive theme overrides for Light Mode */
-  @media (prefers-color-scheme: light) {
-    :global(body) {
-      background-color: #f1f5f9;
-      color: #0f172a;
-    }
-    .label-shell {
-      --card-bg: #ffffff;
-      --card-border: #cbd5e1;
-      --input-bg: #f8fafc;
-      --input-border: #94a3b8;
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --accent-color: #4f46e5;
-      --accent-hover: #4338ca;
-    }
   }
 
   .masthead,

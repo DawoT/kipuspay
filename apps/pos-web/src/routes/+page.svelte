@@ -799,7 +799,7 @@
     gap: 0.75rem;
   }
   .product-item-btn {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-glass-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 1rem;
@@ -807,24 +807,32 @@
     align-items: center;
     gap: 0.875rem;
     text-align: left;
+    color: var(--text-main);
     transition: all var(--transition-smooth);
+    cursor: pointer;
   }
   .product-item-btn:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
     transform: translateY(-2px);
   }
   .product-icon {
     font-size: 1.75rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .product-info {
     display: flex;
     flex-direction: column;
     flex: 1;
+    color: var(--text-main);
   }
   .product-name {
     font-weight: 600;
     font-size: 0.9375rem;
+    color: var(--text-main);
   }
   .product-price {
     color: var(--emerald-green);

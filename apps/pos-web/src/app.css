@@ -186,6 +186,7 @@ button,
   font-size: 0.9375rem;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
+  color: var(--text-main);
   cursor: pointer;
   transition: all var(--transition-fast);
   text-decoration: none;
