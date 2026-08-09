@@ -311,25 +311,34 @@
       <div class="section-head">
         <div>
           <p class="step">03 · Vista previa</p>
-
           <h2 id="preview-title">Papel {width} mm</h2>
         </div>
       </div>
-      <div class:wide={width === '80'} class="label-paper">
-        <div class="paper-header">
-          <span>KIPUSPAY</span>
-          <span>{templateVersion}</span>
-        </div>
-        <strong class="paper-title">{selectedProducts[0]?.name ?? 'Selecciona un producto'}</strong>
-        <span class="paper-sub">Precio resuelto por servidor</span>
-        <div class="paper-footer">
-          <code class="paper-sku">{selectedProducts[0]?.sku ?? 'SKU —'}</code>
-          <span class="paper-width">{width} mm</span>
-        </div>
+      <div class:wide={width === '80'} class:has-product={selectedProducts.length > 0} class="label-paper">
+        {#if selectedProducts.length === 0}
+          <div class="paper-empty">
+            <Icon name="tag" size={20} />
+            <span>Selecciona un producto de la lista para ver la vista previa</span>
+          </div>
+        {:else}
+          <div class="paper-header">
+            <span>KIPUSPAY</span>
+            <span>{templateVersion}</span>
+          </div>
+          <strong class="paper-title">{selectedProducts[0].name}</strong>
+          <div class="paper-price-pending" title="El servidor fijará el precio al crear el lote">
+            <Icon name="lock" size={10} />
+            <span class="paper-price-mask">S/ &bull;&bull;&bull;.&bull;&bull;</span>
+          </div>
+          <div class="paper-footer">
+            <code class="paper-sku">{selectedProducts[0].sku}</code>
+            <span class="paper-width">{width} mm</span>
+          </div>
+        {/if}
       </div>
       <p class="trust">
         <Icon name="shield" size={12} />
-        La vista previa no calcula dinero en el navegador; los montos son sellados por el servidor.
+        El precio se fija en el servidor al crear el lote. No se calcula en el navegador.
       </p>
     </aside>
   </div>
@@ -778,15 +787,37 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    border: 1px dashed #64748b;
+    border: 1px dashed #94a3b8;
     background: #fffef8;
     color: #0f172a;
     border-radius: 4px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .label-paper.has-product {
+    border-color: #d99a3d;
+    box-shadow:
+      0 10px 25px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(217, 154, 61, 0.25);
   }
 
   .label-paper.wide {
     aspect-ratio: 80 / 38;
+  }
+
+  .paper-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    height: 100%;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-align: center;
+    padding: 0.5rem;
   }
 
   .paper-header {
@@ -805,10 +836,21 @@
     margin: 0.2rem 0;
   }
 
-  .paper-sub {
-    font-size: 0.68rem;
-    color: #475569;
-    font-weight: 500;
+  .paper-price-pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(217, 154, 61, 0.12);
+    border: 1px dashed rgba(217, 154, 61, 0.5);
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    color: #92641e;
+    width: fit-content;
+  }
+
+  .paper-price-mask {
+    font: 700 0.92rem/1 var(--font-mono, monospace);
+    letter-spacing: 0.03em;
   }
 
   .paper-footer {
