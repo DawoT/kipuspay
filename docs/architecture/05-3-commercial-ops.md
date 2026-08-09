@@ -794,21 +794,9 @@ CREATE TABLE pos_terminals (
 -- INTEGER microunits, DAT-12, parciales múltiples, avisos durables y leases offline.
 
 -- FASE 6E / Sprint 44 — ventas recurrentes / membresías
--- COM-09: cada ocurrencia re-resuelve el precio del ítem (regla 1); la idempotencia
--- plan×run_date es física (anti duplicado de ocurrencia), no solo un criterio.
-CREATE TABLE recurring_plans (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    customer_id TEXT NOT NULL,
-    branch_id TEXT NOT NULL,
-    doc_type TEXT NOT NULL DEFAULT 'NV',  -- NV | 03 (boleta) | 01 (factura)
-    frequency TEXT NOT NULL,              -- DAILY | WEEKLY | MONTHLY
-    next_run DATE NOT NULL,
-    items_json TEXT NOT NULL,             -- [{product_id, qty, unit_price_cents}]
-    status TEXT NOT NULL DEFAULT 'ACTIVE',-- ACTIVE | PAUSED | CANCELLED
-    created_by_user_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+-- Contrato y DDL objetivo canónicos movidos a §5.11 (ADR-0028):
+-- pricing FIXED/CURRENT, períodos Lima, liquidación venta+CPE/NV+CxC,
+-- scheduler exactly-once, gracia y prorrateo mediante NC/NV_RETURN.
 
 -- FASE 6E / Sprint 45 — notificaciones push + caja móvil
 CREATE TABLE push_subscriptions (
@@ -819,20 +807,6 @@ CREATE TABLE push_subscriptions (
     p256dh TEXT NOT NULL,
     auth TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
--- COM-09: ocurrencias ejecutadas del plan recurrente (idempotencia física por plan×fecha)
-CREATE TABLE recurring_occurrences (
-    id TEXT PRIMARY KEY,
-    tenant_id TEXT NOT NULL,
-    plan_id TEXT NOT NULL,
-    run_date DATE NOT NULL,
-    sale_id TEXT,
-    idempotency_key TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (plan_id, run_date),
-    UNIQUE (tenant_id, idempotency_key),
-    FOREIGN KEY (plan_id) REFERENCES recurring_plans(id),
-    FOREIGN KEY (sale_id) REFERENCES sales(id)
 );
 -- Caja móvil: reusa el core (PWA terminal); sin tablas nuevas de dominio.
 ```

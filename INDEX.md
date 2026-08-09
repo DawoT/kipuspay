@@ -146,7 +146,7 @@ Abre solo los archivos que esta tabla te señale.
 | 42 | 6D | [`docs/roadmap/fase-6d.md`](docs/roadmap/fase-6d.md) | 80 | sin fila de estado | — |
 | 43 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 14 | sin fila de estado | — |
 | 44 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 31 | sin fila de estado | — |
-| 45 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 46 | sin fila de estado | — |
+| 45 | 6E | [`docs/roadmap/fase-6e.md`](docs/roadmap/fase-6e.md) | 47 | sin fila de estado | — |
 | 46 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 14 | sin fila de estado | — |
 | 47 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 29 | sin fila de estado | — |
 | 48 | 6F | [`docs/roadmap/fase-6f.md`](docs/roadmap/fase-6f.md) | 44 | sin fila de estado | — |
@@ -209,14 +209,12 @@ Abre solo los archivos que esta tabla te señale.
 | `inventory_location_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 733 |
 | `inventory_location_batch_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 744 |
 | `pos_terminals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 768 |
-| `recurring_plans` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 799 |
-| `push_subscriptions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 814 |
-| `recurring_occurrences` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 824 |
-| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 844 |
-| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 859 |
-| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 877 |
-| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 895 |
-| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 910 |
+| `push_subscriptions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 802 |
+| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 818 |
+| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 833 |
+| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 851 |
+| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 869 |
+| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 884 |
 | `external_entity_map` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 27 |
 | `payment_captures` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 41 |
 | `api_keys` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 59 |
@@ -277,6 +275,11 @@ Abre solo los archivos que esta tabla te señale.
 | `customer_order_items` | §5.10 | [`docs/architecture/05-10-customer-orders.md`](docs/architecture/05-10-customer-orders.md) | 160 |
 | `customer_order_fulfillments` | §5.10 | [`docs/architecture/05-10-customer-orders.md`](docs/architecture/05-10-customer-orders.md) | 209 |
 | `customer_order_notifications` | §5.10 | [`docs/architecture/05-10-customer-orders.md`](docs/architecture/05-10-customer-orders.md) | 248 |
+| `recurring_plans` | §5.11 | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) | 129 |
+| `recurring_plan_items` | §5.11 | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) | 177 |
+| `recurring_occurrences` | §5.11 | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) | 201 |
+| `recurring_occurrence_items` | §5.11 | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) | 229 |
+| `recurring_proration_adjustments` | §5.11 | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) | 260 |
 | `atomic_guards` | §6 | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) | 33 |
 | `daily_financial_rollups` | §9 | [`docs/architecture/09-reporting.md`](docs/architecture/09-reporting.md) | 15 |
 | `daily_product_rollups` | §9 | [`docs/architecture/09-reporting.md`](docs/architecture/09-reporting.md) | 35 |
@@ -314,6 +317,7 @@ Abre solo los archivos que esta tabla te señale.
 | COM-07 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | COM-08 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | COM-09 | §5.10 | Pedido de cliente: reserva, aviso, fulfillment y DDL 0036 | [`docs/architecture/05-10-customer-orders.md`](docs/architecture/05-10-customer-orders.md) |
+| COM-10 | §5.11 | Membresía: pricing versionado, calendario, settlement, gracia y prorrateo | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) |
 | COM-12 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | DAT-01 | §5.4 | `branch_id TEXT NULL` en `sunat_daily_summaries` | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | DAT-02 | §6 | Estado SUNAT + deadline (compartida con FIS-02) | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
@@ -395,4 +399,4 @@ Abre solo los archivos que esta tabla te señale.
 | `pos-web` | SvelteKit | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 99 |
 | `worker-api` | Hono composition root | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 100 |
 
-<!-- generado desde: 25 archivo(s) de especificación + 17 de proceso/roadmap -->
+<!-- generado desde: 26 archivo(s) de especificación + 17 de proceso/roadmap -->

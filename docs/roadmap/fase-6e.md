@@ -9,7 +9,7 @@ sprints: "43–45"
 
 ### FASE 6E — Servicios y Fuerza de Venta (KipusPay v8.1, sprints 43–45)
 
-> Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Pedido de cliente: Arquitectura §5.10; reglas 29–30: §5.3. **Capabilities, no forks** (ADR-ARCH-002).
+> Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Pedido de cliente: Arquitectura §5.10; membresías: §5.11; regla 30: §5.3. **Capabilities, no forks** (ADR-ARCH-002).
 
 #### Sprint 43 — Preventa / pedido a cliente con retiro
 **Estado:** Software GREEN local condicionado; claim/producción/piloto NO-GO hasta QA humana, aprobación PM, firmas A+V y piloto externo de entrega
@@ -29,17 +29,18 @@ sprints: "43–45"
 ---
 
 #### Sprint 44 — Ventas recurrentes / membresías
+**Estado:** Baseline de gobernanza + contratos RED; producción/claim NO-GO
 **Capabilities:** `sales.recurring`  
-**Referencia:** Arquitectura §5.3 regla 29; vertical Servicios · **Agentes:** Staff Backend ACID (owner), Staff Data, Staff Frontend (Admin), Staff Growth (gating)
+**Referencia:** Arquitectura §5.11 regla 29 · ADR-0028 · GTM-25 congelado · vertical Servicios · **Agentes:** Staff Backend ACID (owner), Staff Data, Staff Frontend (Admin), Staff Growth (gating)
 
 **Entregables:**
 - `recurring_plans` (frecuencia, doc_type NV/03/01, items con precio servidor) + cron con **idempotencia** (cada ocurrencia = doc fiscal propio).
 - Cancelación y proporcionalidad; atraso de pago no corta el servicio al instante (periodo de gracia, GTM §4.3).
 - `audit_events` `RECURRING_*`.
 
-**Criterios de aceptación:** 0 duplicado de ocurrencia (idempotency key por plan×fecha); cada ocurrencia emite su CPE/NV; cancelación no deja ocurrencias huérfanas; cupo §4.1 aplica por doc emitido.
+**Criterios de aceptación:** en este baseline, RED enfocado por módulos/migración ausentes y `scripts/verify.sh` GREEN. El cierre futuro exige 0 duplicado por tenant×plan×period_start; cada ocurrencia crea venta, CPE/NV y una CxC en un batch; FIXED/CURRENT server-authoritative; cancelación inmediata usa NC/NV_RETURN sin mutar origen; cupo §4.1 aplica por doc emitido; mora/gracia nunca bloquea checkout ordinario.
 
-**Quality Gate:** Staff QA (cron idempotente) + Staff PM; Staff Growth vende "membresías" en Servicios solo tras gate.
+**Quality Gate:** permanece abierto. Staff QA certifica cron idempotente/concurrente, workerd y chaos 500; Staff PM y verificador independiente firman. Staff Growth mantiene GTM-25 congelado hasta staging y gate completo.
 
 ---
 
