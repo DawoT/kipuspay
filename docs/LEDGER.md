@@ -5949,3 +5949,53 @@ estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
 
+```
+id: 0314
+timestamp_utc: 2026-08-08T23:59:00Z
+schema_version: 2
+sprint_fase: Sprints 36-40 — Remediación de hallazgos B1/M1/M2/M3/M6 de la auditoría
+agente_responsable: Staff Backend ACID / Staff Domain / Staff Principal / Staff QA
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0313]
+referencias_documentales: [docs/architecture/06-acid-engine.md, docs/architecture/05-3-commercial-ops.md, docs/architecture/05-ddl-conventions.md, AGENTS.md]
+prev_id: 0313
+prev_hash: 0e9303d40a1c631c7452b81097c63ca21a494b7cc398aca6465b27e0de5c474a
+entry_hash: 87156c1d43636a5bb10b3c74621cf5a06c153832683af8523aba6c545a4b687e
+ticket_or_adr: CAL-01, CAL-05, CAL-06, DAT-12, ADR-ARCH-002
+test_ids: [variants-uom, index.test, process-offline-sale-atomic.integration, process-commission.integration, process-installment.integration, returns, scale-client, hardware, V-13, V-15, SUITE]
+entregable_afectado: Sprints 36-40 domain-inventory/domain-sales/domain-cash/adapters-d1 (remediación B1/M1/M2/M3/M6)
+descripcion: >
+  Remediación de los hallazgos de la auditoría de calidad e integridad:
+  B1) helper canónico BigInt roundCentsFromMicrounitsCents en domain-inventory
+  (variants-uom.ts) con errores QUANTITY_PRICE_INPUT_INVALID/QUANTITY_PRICE_OVERFLOW,
+  reemplazando 5 copias float en quotes/layaway/supplier-return/process-quote-atomic/
+  process-supplier-return-atomic; domain-sales y domain-cash dependen de
+  @kipuspay/domain-inventory. M1) IGV canónico por ítem: buildSaleTotals recalcula
+  per-line con IGV_RATE_PER_MILLE=180 vía taxes.ts, ya no sobre el agregado. M2)
+  splitNvLinesByFefo calcula IGV por tramo con residual en el último. M3) returns
+  planReturnLines prorratea en BigInt half-up sin división de dinero por qty float.
+  M6) DRY de sha256Hex: módulo compartido crypto.ts con sha256Hex (string) y
+  sha256HexOf (payload), reemplazando 15 copias locales idénticas en adapters-d1.
+  Preserva atomicidad D1 (db.batch), cero float monetario y cero forks verticales.
+evidencia: >
+  RED: 5 copias float de redondeo, IGV agregado, FEFO prorrateado y 15 copias de
+  sha256Hex; ramas try/catch de M1/B1 sin test directo. GREEN d84bb547:
+  scripts/verify.sh RESULT SUITE GREEN (25/25); typecheck adapters-d1/domain-sales/
+  domain-cash/domain-inventory limpio; domain-sales branches 96.05% >= 95 y 234/234
+  tests PASS; adapters-d1 269/270 unit PASS (único fallo pre-existente
+  recurring-sales.red.test.ts del WIP sprint-44, NO bloqueante); integration D1
+  183/186 (3 fallos pre-existentes recurring-sales + schema down sprint-44).
+  quality.sh GREEN en lint/typecheck/prettier de la remediación; el gate global
+  queda RED solo por el WIP sprint-44 (recurring-sales), ajeno a esta entrada.
+red_commit_sha: edd2a3a5e24134c936a43a98251d29d9b75a2996
+red_run_id: run-red-0314-audit-remediation-b1-m6
+expected_failure: Redondeo float en quotes/layaway/supplier-return, IGV agregado, FEFO prorrateado y 15 copias locales de sha256Hex
+green_commit_sha: d84bb5476a013694d8227550eadebe7faf217e4f
+green_run_id: run-green-0314-audit-remediation-20260808T2359Z
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID A, Staff Domain A, Staff Principal A, Staff QA V software local; gate global condicionado al WIP sprint-44]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
