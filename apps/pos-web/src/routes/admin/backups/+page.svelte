@@ -7,6 +7,7 @@
     type BackupSummary,
   } from '$lib/data-backup-client';
   import { readAdminAuthenticatedSession } from '$lib/admin/authenticated-session';
+  import Icon from '$lib/ui/Icon.svelte';
 
   let role = $state<'owner' | 'admin'>('admin');
   let items = $state<readonly BackupSummary[]>([]);
@@ -163,63 +164,87 @@
 
 <svelte:head><title>Respaldos · Admin · KipusPay</title></svelte:head>
 
-<section class="workbench" aria-labelledby="backup-title">
-  <header>
-    <div>
-      <p class="eyebrow">Admin · Operaciones de datos</p>
-      <h1 id="backup-title">Respaldos verificables</h1>
+<main class="backup-shell" aria-labelledby="backup-title">
+  <header class="masthead">
+    <div class="masthead-title">
+      <div class="badge-tag">
+        <Icon name="download" size={14} />
+        <span>Admin · Operaciones de datos</span>
+      </div>
+      <h1 id="backup-title">Respaldos cifrados verificables</h1>
       <p class="scope">
-        Incluye únicamente datos sincronizados del servidor y evidencia R2 referenciada. No incluye
-        datos locales ni secretos.
+        Incluye únicamente datos sincronizados del servidor y evidencia R2 referenciada. No incluye datos locales ni secretos.
       </p>
     </div>
-    <span class:offline={!online} class="network">
-      {online ? 'En línea · operaciones habilitadas' : 'Sin conexión · historial solamente'}
-    </span>
+    <div class:offline={!online} class="connection" role="status">
+      <Icon name={online ? 'wifi' : 'wifi-off'} size={16} />
+      <span>{online ? 'En línea · exportaciones habilitadas' : 'Sin conexión · historial en caché'}</span>
+    </div>
   </header>
 
   {#if !enabled}
-    <p role="alert" class="alert">La función de respaldos está desactivada para este negocio.</p>
+    <div class="alert-box alert-off" role="alert">
+      <Icon name="alert" size={18} />
+      <span>La función de respaldos está desactivada para este negocio.</span>
+    </div>
   {:else}
-    <section class="queue-warning" class:visible={warning.visible} aria-labelledby="queue-title">
-      <h2 id="queue-title">Cobertura antes de exportar</h2>
-      <p>
-        <strong>{pendingOfflineSales} ventas offline pendientes</strong> en este navegador no están
-        incluidas. Sincronízalas antes de crear el respaldo si deseas incorporarlas.
-      </p>
-      <p>La venta, el cobro y el cierre Z permanecen disponibles.</p>
-    </section>
+    {#if warning.visible}
+      <div class="queue-warning glass-card">
+        <div class="warning-head">
+          <Icon name="alert" size={20} class="icon-amber" />
+          <h2>Cobertura requerida antes de exportar</h2>
+        </div>
+        <p>
+          <strong>{pendingOfflineSales} ventas offline pendientes</strong> en este navegador no están incluidas. Sincronízalas antes de crear el respaldo si deseas incorporarlas.
+        </p>
+        <p class="hint">La venta, el cobro y el cierre Z permanecen disponibles.</p>
+      </div>
+    {/if}
 
-    <div class="toolbar" aria-label="Acciones de respaldo">
-      <button type="button" disabled={!online || busy} onclick={createBackup}>
-        Crear exportación
-      </button>
-      <button type="button" disabled={!online || busy} onclick={refresh}>Actualizar historial</button>
+    <div class="toolbar glass-card">
+      <div class="action-buttons">
+        <button type="button" class="btn-primary" disabled={!online || busy} onclick={createBackup}>
+          <Icon name="download" size={16} />
+          <span>Crear exportación</span>
+        </button>
+        <button type="button" class="btn-secondary" disabled={!online || busy} onclick={refresh}>
+          <Icon name="refresh" size={16} />
+          <span>Actualizar historial</span>
+        </button>
+      </div>
+
       {#if role === 'owner'}
-        <label class="reauth">
-          Token de reautenticación reciente
+        <div class="reauth-field">
+          <label for="step-up">
+            <Icon name="key" size={14} />
+            <span>Token de reautenticación recente</span>
+          </label>
           <input
+            id="step-up"
             type="password"
             autocomplete="off"
             bind:value={stepUpToken}
-            placeholder="Solo en memoria"
+            placeholder="Solo en memoria para descargar"
           />
-        </label>
+        </div>
       {/if}
     </div>
 
-    <p class="live" aria-live="polite">
+    <p class="status-msg live" aria-live="polite">
       {loading ? 'Cargando historial…' : notice || `${items.length} respaldos disponibles.`}
     </p>
-    {#if error}<p role="alert" class="alert">{error}</p>{/if}
+    {#if error}<p role="alert" class="alert-box alert-error">{error}</p>{/if}
 
-    <div class="operations">
-      <section class="history" aria-labelledby="history-title">
-        <h2 id="history-title">Historial y progreso</h2>
+    <div class="operations-grid">
+      <section class="history-card glass-card" aria-labelledby="history-title">
+        <div class="card-head">
+          <Icon name="clock" size={18} class="icon-accent" />
+          <h2 id="history-title">Historial y progreso ({items.length})</h2>
+        </div>
         {#if items.length === 0 && !loading}
           <p>No hay exportaciones registradas.</p>
         {:else}
-          <ul>
+          <ul class="backup-list">
             {#each items as backup (backup.id)}
               <li>
                 <button
@@ -227,10 +252,15 @@
                   class:selected={selected?.id === backup.id}
                   onclick={() => (selected = backup)}
                   aria-label={`Ver respaldo ${backup.id}, estado ${backup.status}`}
+                  class="backup-item-btn"
                 >
-                  <span class="status-text">{backup.status}</span>
-                  <code>{backup.id}</code>
-                  <time>{backup.created_at ?? 'Fecha pendiente'}</time>
+                  <div class="backup-item-head">
+                    <span class="status-pill" class:ready={backup.status === 'READY'}>
+                      {backup.status}
+                    </span>
+                    <code>{backup.id}</code>
+                  </div>
+                  <time class="backup-time">{backup.created_at ?? 'Fecha pendiente'}</time>
                 </button>
               </li>
             {/each}
@@ -238,182 +268,398 @@
         {/if}
       </section>
 
-      <section class="detail" aria-labelledby="detail-title">
-        <h2 id="detail-title">Detalle y recuperación</h2>
+      <section class="detail-card glass-card" aria-labelledby="detail-title">
+        <div class="card-head">
+          <Icon name="shield" size={18} class="icon-accent" />
+          <h2 id="detail-title">Detalle y recuperación</h2>
+        </div>
         {#if selected}
-          <dl>
-            <div><dt>Estado</dt><dd>{selected.status}</dd></div>
-            <div><dt>Formato</dt><dd>{selected.format_version ?? 'KPBK1'}</dd></div>
-            <div><dt>Schema</dt><dd>{selected.schema_version ?? 'Pendiente'}</dd></div>
-            <div><dt>Registry</dt><dd>{selected.registry_version ?? 'Pendiente'}</dd></div>
-            <div><dt>Versión de clave</dt><dd>{selected.kek_version ?? 'Protegida'}</dd></div>
-            <div><dt>Tamaño</dt><dd>{selected.plaintext_size_bytes ?? 'Pendiente'} bytes</dd></div>
-            <div><dt>Hash global</dt><dd class="hash">{selected.global_hash ?? 'Pendiente'}</dd></div>
+          <dl class="spec-dl">
+            <div><dt>Estado</dt><dd><strong>{selected.status}</strong></dd></div>
+            <div><dt>Formato</dt><dd><code>{selected.format_version ?? 'KPBK1'}</code></dd></div>
+            <div><dt>Schema</dt><dd><code>{selected.schema_version ?? 'Pendiente'}</code></dd></div>
+            <div><dt>Registry</dt><dd><code>{selected.registry_version ?? 'Pendiente'}</code></dd></div>
+            <div><dt>Clave KEK</dt><dd><code>{selected.kek_version ?? 'Protegida'}</code></dd></div>
+            <div><dt>Tamaño cifrado</dt><dd><strong>{selected.plaintext_size_bytes ?? 'Pendiente'} bytes</strong></dd></div>
+            <div><dt>Hash global SHA-256</dt><dd><code class="hash-code">{selected.global_hash ?? 'Pendiente'}</code></dd></div>
           </dl>
-          <p class="evidence">
-            Cobertura: datos BUSINESS sincronizados. Exclusiones: sesiones, tokens, secretos, datos
-            derivados y ventas offline pendientes. Objetos: solo evidencia referenciada.
+          <p class="evidence-text">
+            <Icon name="shield" size={14} />
+            <span>Cobertura: datos de negocio sincronizados. Exclusiones: sesiones, tokens, secretos y ventas offline pendientes.</span>
           </p>
-          <div class="detail-actions">
-            {#if role === 'owner'}
+          {#if role === 'owner'}
+            <div class="detail-actions">
               <button
                 type="button"
+                class="btn-primary"
                 disabled={!online || busy || selected.status !== 'READY' || !stepUpToken}
                 onclick={() => download(selected!)}
               >
-                Descargar KPBK1
+                <Icon name="download" size={16} />
+                <span>Descargar KPBK1</span>
               </button>
               <button
                 type="button"
+                class="btn-secondary"
                 disabled={!online || busy || selected.status !== 'READY' || !stepUpToken}
                 onclick={() => dryRun(selected!)}
               >
-                Ejecutar simulación
+                <Icon name="refresh" size={16} />
+                <span>Ejecutar simulación</span>
               </button>
-            {/if}
-          </div>
-          <p class="recovery">
-            La simulación verifica integridad y compatibilidad; no restaura, no bloquea producción y
-            no revive sesiones, tokens ni secretos.
+            </div>
+          {/if}
+          <p class="recovery-hint">
+            La simulación verifica integridad del payload cifrado; no altera datos en producción ni reactiva tokens o secretos.
           </p>
         {:else}
-          <p>Selecciona un respaldo para revisar su evidencia.</p>
+          <p class="empty">Selecciona un respaldo del historial para revisar su detalle de integridad.</p>
         {/if}
       </section>
     </div>
   {/if}
-</section>
+</main>
 
 <style>
-  .workbench {
-    max-width: 72rem;
-    padding: 1rem;
-    overflow-wrap: anywhere;
+  .backup-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 5rem;
   }
-  header,
-  .toolbar,
-  .detail-actions {
+
+  .masthead {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .badge-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.65rem;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-full, 9999px);
+    color: var(--accent-primary, #6366f1);
+    font: 600 0.72rem/1.2 var(--font-mono, monospace);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    margin: 0.2rem 0;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-family: var(--font-heading, sans-serif);
+    font-weight: 800;
+    color: var(--text-main, #f8fafc);
+  }
+
+  .scope {
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .connection {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--emerald-green, #10b981);
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--emerald-green, #10b981);
+    border-radius: var(--radius-md, 12px);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .connection.offline {
+    color: var(--rose-red, #f43f5e);
+    border-color: var(--rose-red, #f43f5e);
+    background: rgba(244, 63, 94, 0.1);
+  }
+
+  .glass-card {
+    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 12px);
+    padding: 1.25rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .queue-warning {
+    border-left: 4px solid var(--amber-gold, #f59e0b);
+    margin-bottom: 1.25rem;
+  }
+
+  .warning-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .warning-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-main, #f8fafc);
+  }
+
+  .toolbar {
+    display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
   }
-  .eyebrow,
-  .status-text,
-  dt {
-    font: 700 0.75rem/1.3 ui-monospace, monospace;
-    letter-spacing: 0.06em;
+
+  .action-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .reauth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .reauth-field label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted, #94a3b8);
     text-transform: uppercase;
   }
-  .scope,
-  .evidence,
-  .recovery {
-    color: #aab5c2;
+
+  .reauth-field input {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
   }
-  .network,
-  .queue-warning,
-  .alert,
-  .live {
-    border: 1px solid #526172;
+
+  .btn-primary {
+    background: var(--accent-gradient, #6366f1);
+    color: #ffffff;
+    border: none;
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-sm, 8px);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .btn-secondary {
+    background: var(--bg-button-sec, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    color: var(--text-main, #f8fafc);
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--radius-sm, 8px);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .alert-box {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: var(--radius-md, 12px);
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+  }
+
+  .alert-error {
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid var(--rose-red, #f43f5e);
+    color: var(--rose-red, #f43f5e);
+  }
+
+  .alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--emerald-green, #10b981);
+    color: var(--emerald-green, #10b981);
+  }
+
+  .operations-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.35fr;
+    gap: 1.25rem;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  }
+
+  .card-head h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-family: var(--font-heading, sans-serif);
+    color: var(--text-main, #f8fafc);
+  }
+
+  .backup-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 26rem;
+    overflow-y: auto;
+  }
+
+  .backup-item-btn {
+    width: 100%;
+    text-align: left;
     padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-sm, 8px);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: all 0.15s ease;
   }
-  .network.offline,
-  .alert {
-    border-color: #d96a3c;
+
+  .backup-item-btn.selected {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--accent-primary, #6366f1);
   }
-  .queue-warning {
-    border-left: 4px solid #d99a3d;
+
+  .backup-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
+
+  .status-pill {
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font: 700 0.7rem/1 var(--font-mono, monospace);
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--amber-gold, #f59e0b);
+  }
+
+  .status-pill.ready {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--emerald-green, #10b981);
+  }
+
+  .backup-time {
+    font-size: 0.78rem;
+    color: var(--text-muted, #94a3b8);
+  }
+
+  .spec-dl {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .spec-dl div {
+    display: grid;
+    grid-template-columns: 10rem 1fr;
+    gap: 0.5rem;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    font-size: 0.88rem;
+  }
+
+  dt {
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-main, #f8fafc);
+  }
+
+  .hash-code {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.78rem;
+    word-break: break-all;
+    color: var(--accent-primary, #6366f1);
+  }
+
+  .evidence-text,
+  .recovery-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--text-muted, #94a3b8);
+    line-height: 1.4;
+    margin-bottom: 1rem;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .empty {
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.88rem;
+    text-align: center;
+    padding: 2rem 1rem;
+  }
+
   button,
   input {
     min-height: 44px;
     min-width: 44px;
-    padding: 0.65rem 0.9rem;
-    font: inherit;
   }
-  button:focus-visible,
-  input:focus-visible {
-    outline: 3px solid #d99a3d;
-    outline-offset: 2px;
-  }
-  button:disabled {
-    opacity: 0.55;
-  }
-  .reauth {
-    display: grid;
-    gap: 0.25rem;
-    font-weight: 700;
-  }
-  .reauth input {
-    border: 1px solid #718096;
-    background: #0f141b;
-    color: inherit;
-  }
-  .operations {
-    display: grid;
-    grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.4fr);
-    gap: 1rem;
-  }
-  .history,
-  .detail {
-    border: 1px solid #526172;
-    padding: 0.85rem;
-    min-width: 0;
-  }
-  ul {
-    list-style: none;
-    padding: 0;
-  }
-  li button {
-    width: 100%;
-    display: grid;
-    gap: 0.25rem;
-    text-align: left;
-    border: 0;
-    border-bottom: 1px solid #526172;
-    background: transparent;
-  }
-  li button.selected {
-    border-left: 4px solid #d99a3d;
-    background: #171e27;
-  }
-  dl div {
-    display: grid;
-    grid-template-columns: 9rem minmax(0, 1fr);
-    gap: 0.5rem;
-    border-bottom: 1px solid #354151;
-    padding: 0.45rem 0;
-  }
-  dd {
-    margin: 0;
-  }
-  .hash,
-  code {
-    font-family: ui-monospace, monospace;
-    word-break: break-all;
-  }
-  @media (max-width: 700px) {
-    .operations {
+
+  @media (max-width: 800px) {
+    .operations-grid {
       grid-template-columns: 1fr;
     }
-  }
-  @media (max-width: 375px) {
-    .workbench {
-      padding: 0.6rem;
-      max-width: 100%;
-      overflow-x: hidden;
-    }
-    header,
-    .toolbar,
-    .detail-actions {
-      align-items: stretch;
+    .masthead {
       flex-direction: column;
-    }
-    dl div {
-      grid-template-columns: 1fr;
+      align-items: flex-start;
     }
   }
+
+  @media (max-width: 375px) {
+    .backup-shell {
+      padding-inline: 0.5rem;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

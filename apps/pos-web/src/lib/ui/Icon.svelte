@@ -33,7 +33,8 @@
     | 'pause'
     | 'play'
     | 'sun'
-    | 'moon';
+    | 'moon'
+    | 'key';
 
   interface Props {
     name: IconName;
@@ -166,6 +167,9 @@
     <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
   {:else if name === 'moon'}
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+  {:else if name === 'key'}
+    <path d="m21 2-2 2m-1.5 1.5L14 9.5M10.5 13a5 5 0 1 1 7.07-7.07 5 5 0 0 1-7.07 7.07Z" />
+    <path d="m9 11-6 6v3h3l2.5-2.5" />
   {/if}
 </svg>
 

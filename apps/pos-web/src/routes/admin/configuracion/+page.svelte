@@ -10,6 +10,7 @@
     type FormalizationMode,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import Icon from '$lib/ui/Icon.svelte';
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let focus = $state('');
@@ -55,7 +56,7 @@
         formalizationMode: next,
       };
       writeTenantSession(sessionStorage, session);
-      notice = `Etapa actualizada a ${next}. Las NV históricas no se convierten. Docs: ${enabledDocumentTypesFor(next).join(', ')}.`;
+      notice = `Etapa actualizada a ${next}. Las NV históricas no se convierten. Comprobantes habilitados: ${enabledDocumentTypesFor(next).join(', ')}.`;
       confirmOpen = false;
       pendingMode = null;
     } catch (err) {
@@ -113,277 +114,612 @@
   }
 </script>
 
-<section class="admin-config" data-testid="admin-config">
-  <h1>Admin · Configuración</h1>
-  <p class="lede">
-    Configuración profunda del negocio (GTM §3.3.1). El cobro nunca se bloquea desde aquí.
-  </p>
+<svelte:head><title>Configuración · KipusPay</title></svelte:head>
 
-  <section id="negocio">
-    <h2>Datos del negocio</h2>
-    <p data-testid="admin-trade-name">{session.tradeName}</p>
-    <p data-testid="admin-tenant-id">{session.tenantId}</p>
-  </section>
-
-  <section id="facturacion" class:focus={focus === 'facturacion'}>
-    <h2>Etapa de formalización</h2>
-    <p data-testid="admin-mode">Actual: {session.formalizationMode}</p>
-    <p class="hint">
-      Avance confirmado, sin convertir notas de venta históricas. Emisión electrónica vía KipusPay
-      por defecto.
-    </p>
-    <div class="actions">
-      <button
-        type="button"
-        data-testid="advance-formalizing"
-        disabled={session.formalizationMode !== 'INTERNAL_CONTROL'}
-        onclick={() => requestAdvance('FORMALIZING')}
-      >
-        Activar facturación (FORMALIZING)
-      </button>
-      <button
-        type="button"
-        data-testid="advance-issuer"
-        disabled={session.formalizationMode !== 'FORMALIZING'}
-        onclick={() => requestAdvance('ELECTRONIC_ISSUER')}
-      >
-        Marcar emisor electrónico
-      </button>
+<main class="config-shell" data-testid="admin-config">
+  <header class="masthead">
+    <div class="badge-tag">
+      <Icon name="settings" size={14} />
+      <span>Admin · Gobernanza & Parámetros</span>
     </div>
-  </section>
-
-  <section id="marca">
-    <h2>Marca en el punto de venta</h2>
-    <p class="hint">
-      Pie “Emitido con KipusPay” + QR en boletas/NV y Vitrina (GTM §7.2). Default activado; puedes
-      optar por no mostrarlo.
+    <h1>Configuración del negocio</h1>
+    <p class="lede">
+      Configuración profunda del negocio (GTM §3.3.1). El cobro de ventas nunca se bloquea desde aquí.
     </p>
-    <p data-testid="brand-qr-state">
-      {session.brandQrEnabled ? 'Activado' : 'Desactivado'}
-    </p>
-    <button type="button" data-testid="toggle-brand-qr" onclick={toggleBrandQr}>
-      {session.brandQrEnabled ? 'Desactivar marca' : 'Activar marca'}
-    </button>
-  </section>
+  </header>
 
-  <section id="fiscal-status">
-    <h2>Estado fiscal</h2>
-    <p data-testid="fiscal-status">
-      Envíos y RC pendientes: se muestran cuando el worker-fiscal está enlazado al tenant. Hoy: sin
-      cola local (soft-launch).
-    </p>
-  </section>
+  {#if error}
+    <div class="alert-box alert-error" role="alert">
+      <Icon name="alert" size={18} />
+      <span>{error}</span>
+    </div>
+  {/if}
+  {#if notice}
+    <div class="alert-box alert-success" role="status">
+      <Icon name="check" size={18} />
+      <span>{notice}</span>
+    </div>
+  {/if}
 
-  <section id="respaldos">
-    <h2>Respaldo y recuperación</h2>
-    <p class="hint">
-      Exportaciones cifradas del servidor, cobertura verificable y simulación de recuperación.
-    </p>
-    <a href="/admin/backups">Abrir centro de respaldos</a>
-  </section>
+  <div class="config-grid">
+    <section id="negocio" class="glass-card">
+      <div class="card-head">
+        <Icon name="building" size={20} class="icon-accent" />
+        <h2>Datos del negocio</h2>
+      </div>
+      <div class="info-rows">
+        <div class="info-row">
+          <span class="info-label">Nombre Comercial</span>
+          <strong data-testid="admin-trade-name" class="info-value">{session.tradeName}</strong>
+        </div>
+        <div class="info-row">
+          <span class="info-label">ID de Tenant (Multitenancy DAT-12)</span>
+          <code data-testid="admin-tenant-id" class="info-code">{session.tenantId}</code>
+        </div>
+      </div>
+    </section>
 
-  <section id="series">
-    <h2>Identidad serial</h2>
-    <p class="hint">Configura productos en Catálogo y administra leases/disposiciones por serie.</p>
-    <a href="/admin/series">Abrir búsqueda y gestión de series</a>
-  </section>
+    <section id="facturacion" class="glass-card" class:focus={focus === 'facturacion'}>
+      <div class="card-head">
+        <Icon name="file-text" size={20} class="icon-accent" />
+        <h2>Etapa de formalización</h2>
+      </div>
+      <p class="mode-badge" data-testid="admin-mode">
+        <Icon name="shield" size={14} />
+        <span>Actual: {session.formalizationMode}</span>
+      </p>
+      <p class="hint">
+        Avance confirmado, sin convertir notas de venta históricas. Emisión electrónica vía KipusPay por defecto.
+      </p>
+      <div class="actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          data-testid="advance-formalizing"
+          disabled={session.formalizationMode !== 'INTERNAL_CONTROL'}
+          onclick={() => requestAdvance('FORMALIZING')}
+        >
+          <Icon name="arrow-right" size={16} />
+          <span>Activar facturación (FORMALIZING)</span>
+        </button>
+        <button
+          type="button"
+          class="btn-secondary"
+          data-testid="advance-issuer"
+          disabled={session.formalizationMode !== 'FORMALIZING'}
+          onclick={() => requestAdvance('ELECTRONIC_ISSUER')}
+        >
+          <Icon name="check" size={16} />
+          <span>Marcar emisor electrónico</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="marca" class="glass-card">
+      <div class="card-head">
+        <Icon name="tag" size={20} class="icon-accent" />
+        <h2>Marca en el punto de venta</h2>
+      </div>
+      <p class="hint">
+        Pie “Emitido con KipusPay” + QR en boletas/NV y Vitrina (GTM §7.2). Default activado; puedes optar por no mostrarlo.
+      </p>
+      <div class="status-toggle-row">
+        <p data-testid="brand-qr-state" class="state-pill" class:active={session.brandQrEnabled}>
+          <Icon name={session.brandQrEnabled ? 'check' : 'x'} size={14} />
+          <span>{session.brandQrEnabled ? 'Activado' : 'Desactivado'}</span>
+        </p>
+        <button type="button" class="btn-primary-sm" data-testid="toggle-brand-qr" onclick={toggleBrandQr}>
+          {session.brandQrEnabled ? 'Desactivar marca' : 'Activar marca'}
+        </button>
+      </div>
+    </section>
+
+    <section id="fiscal-status" class="glass-card">
+      <div class="card-head">
+        <Icon name="shield" size={20} class="icon-accent" />
+        <h2>Estado fiscal y SUNAT</h2>
+      </div>
+      <p data-testid="fiscal-status" class="hint">
+        Envíos y RC pendientes: se muestran cuando el worker-fiscal está enlazado al tenant. Hoy: sin cola local (soft-launch).
+      </p>
+    </section>
+
+    <section id="respaldos" class="glass-card">
+      <div class="card-head">
+        <Icon name="download" size={20} class="icon-accent" />
+        <h2>Respaldo y recuperación</h2>
+      </div>
+      <p class="hint">
+        Exportaciones cifradas del servidor, cobertura verificable y simulación de recuperación.
+      </p>
+      <a href="/admin/backups" class="link-btn">
+        <span>Abrir centro de respaldos</span>
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </section>
+
+    <section id="series" class="glass-card">
+      <div class="card-head">
+        <Icon name="barcode" size={20} class="icon-accent" />
+        <h2>Identidad serial</h2>
+      </div>
+      <p class="hint">Configura productos en Catálogo y administra leases/disposiciones por serie.</p>
+      <a href="/admin/series" class="link-btn">
+        <span>Abrir búsqueda y gestión de series</span>
+        <Icon name="arrow-right" size={16} />
+      </a>
+    </section>
+  </div>
 
   {#if scaleOn}
-    <section id="balanza" class="scale-config" aria-labelledby="scale-config-title">
-      <p class="instrument-label">Hardware · Balanza</p>
-      <h2 id="scale-config-title">Política y dispositivo</h2>
+    <section id="balanza" class="glass-card scale-card" aria-labelledby="scale-config-title">
+      <div class="card-head">
+        <Icon name="scale" size={22} class="icon-amber" />
+        <div>
+          <p class="instrument-label">Hardware · Balanza</p>
+          <h2 id="scale-config-title">Política y dispositivo</h2>
+        </div>
+      </div>
       <div class="scale-grid">
-        <label>
-          Umbral manual (microunidades)
-          <input bind:value={scaleThreshold} inputmode="numeric" pattern="[0-9]*" />
-        </label>
-        <button type="button" onclick={saveScalePolicy}>Guardar umbral</button>
-        <label>
-          Protocolo
-          <select bind:value={scaleProtocol}>
-            <option value="WEBHID">WebHID</option>
+        <div class="field">
+          <label for="scale-threshold">Umbral manual (microunidades)</label>
+          <input id="scale-threshold" bind:value={scaleThreshold} inputmode="numeric" pattern="[0-9]*" />
+        </div>
+        <button type="button" class="btn-secondary" onclick={saveScalePolicy}>
+          <Icon name="check" size={16} />
+          <span>Guardar umbral</span>
+        </button>
+
+        <div class="field">
+          <label for="scale-protocol">Protocolo de balanza</label>
+          <select id="scale-protocol" bind:value={scaleProtocol}>
+            <option value="WEBHID">WebHID (Recomendado)</option>
             <option value="WEB_SERIAL">Web Serial</option>
             <option value="WEBUSB">WebUSB</option>
           </select>
-        </label>
-        <label>
-          Huella allowlisted
-          <input bind:value={scaleFingerprint} autocomplete="off" />
-        </label>
-        <label>
-          Perfil
-          <input bind:value={scaleProfileId} autocomplete="off" />
-        </label>
-        <label>
-          Vendor ID
-          <input bind:value={scaleVendorId} inputmode="numeric" />
-        </label>
-        <label>
-          Product ID
-          <input bind:value={scaleProductId} inputmode="numeric" />
-        </label>
+        </div>
+
+        <div class="field">
+          <label for="scale-fp">Huella allowlisted</label>
+          <input id="scale-fp" bind:value={scaleFingerprint} autocomplete="off" placeholder="Fingerprint SHA256" />
+        </div>
+
+        <div class="field">
+          <label for="scale-profile">Perfil de balanza</label>
+          <input id="scale-profile" bind:value={scaleProfileId} autocomplete="off" placeholder="id-perfil" />
+        </div>
+
+        <div class="field">
+          <label for="scale-vendor">Vendor ID (HEX/DEC)</label>
+          <input id="scale-vendor" bind:value={scaleVendorId} inputmode="numeric" placeholder="1155" />
+        </div>
+
+        <div class="field">
+          <label for="scale-product">Product ID (HEX/DEC)</label>
+          <input id="scale-product" bind:value={scaleProductId} inputmode="numeric" placeholder="22352" />
+        </div>
+
         <button
           type="button"
+          class="btn-primary-sm"
           onclick={registerScale}
-          disabled={!terminalId ||
-            !scaleFingerprint ||
-            !scaleProfileId ||
-            !scaleVendorId ||
-            !scaleProductId}
+          disabled={!terminalId || !scaleFingerprint || !scaleProfileId || !scaleVendorId || !scaleProductId}
         >
-          Registrar dispositivo
+          <Icon name="plus" size={16} />
+          <span>Registrar dispositivo</span>
         </button>
-        <label>
-          ID de dispositivo
-          <input bind:value={scaleDeviceId} autocomplete="off" />
-        </label>
-        <button
-          type="button"
-          onclick={() =>
-            scaleRequest('/api/inventory/scale/diagnostics', 'POST', {
-              deviceId: scaleDeviceId,
-            })}
-          disabled={!scaleDeviceId}
-        >
-          Ejecutar diagnóstico
-        </button>
-        <button
-          type="button"
-          class="danger"
-          onclick={() =>
-            scaleRequest('/api/inventory/scale/devices/disable', 'POST', {
-              deviceId: scaleDeviceId,
-            })}
-          disabled={!scaleDeviceId}
-        >
-          Deshabilitar
-        </button>
+
+        <div class="field">
+          <label for="scale-device-id">ID de dispositivo registrado</label>
+          <input id="scale-device-id" bind:value={scaleDeviceId} autocomplete="off" placeholder="dev_xxx" />
+        </div>
+
+        <div class="device-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick={() =>
+              scaleRequest('/api/inventory/scale/diagnostics', 'POST', {
+                deviceId: scaleDeviceId,
+              })}
+            disabled={!scaleDeviceId}
+          >
+            <Icon name="refresh" size={16} />
+            <span>Ejecutar diagnóstico</span>
+          </button>
+          <button
+            type="button"
+            class="btn-danger"
+            onclick={() =>
+              scaleRequest('/api/inventory/scale/devices/disable', 'POST', {
+                deviceId: scaleDeviceId,
+              })}
+            disabled={!scaleDeviceId}
+          >
+            <Icon name="trash" size={16} />
+            <span>Deshabilitar</span>
+          </button>
+        </div>
       </div>
-      <p class="hint">Terminal propietario: {terminalId || 'No registrado en este navegador'}</p>
+      <p class="terminal-hint">
+        <Icon name="shield" size={14} />
+        <span>Terminal propietario: {terminalId || 'No registrado en este navegador'}</span>
+      </p>
       {#if scaleStatus}
-        <p role="status" aria-live="polite" class="diagnostic">{scaleStatus}</p>
+        <div role="status" aria-live="polite" class="diagnostic">
+          <code>{scaleStatus}</code>
+        </div>
       {/if}
     </section>
   {/if}
-
-  {#if error}
-    <p class="err" role="alert">{error}</p>
-  {/if}
-  {#if notice}
-    <p class="ok" role="status">{notice}</p>
-  {/if}
-</section>
+</main>
 
 {#if confirmOpen && pendingMode}
-  <div class="modal" role="dialog" aria-modal="true" data-testid="stage-confirm">
-    <p>
-      ¿Confirmas avanzar a <strong>{pendingMode}</strong>? Las NV ya emitidas siguen siendo control
-      interno; no se reescriben.
-    </p>
-    <button type="button" class="primary" data-testid="confirm-stage" onclick={confirmAdvance}>
-      Confirmar
-    </button>
-    <button type="button" data-testid="cancel-stage" onclick={cancelAdvance}>Cancelar</button>
+  <div class="modal-backdrop">
+    <div class="modal glass-card" role="dialog" aria-modal="true" data-testid="stage-confirm">
+      <div class="modal-head">
+        <Icon name="alert" size={24} class="icon-amber" />
+        <h3>Confirmar avance de formalización</h3>
+      </div>
+      <p>
+        ¿Confirmas avanzar a <strong>{pendingMode}</strong>? Las notas de venta ya emitidas siguen siendo de control interno y no se reescriben.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary-sm" data-testid="confirm-stage" onclick={confirmAdvance}>
+          Confirmar
+        </button>
+        <button type="button" class="btn-secondary" data-testid="cancel-stage" onclick={cancelAdvance}>
+          Cancelar
+        </button>
+      </div>
+    </div>
   </div>
 {/if}
 
 <style>
-  .admin-config {
-    padding: 1.25rem;
-    max-width: 40rem;
+  .config-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 5rem;
   }
-  .lede,
+
+  .masthead {
+    margin-bottom: 1.75rem;
+  }
+
+  .badge-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.65rem;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-full, 9999px);
+    color: var(--accent-primary, #6366f1);
+    font: 600 0.72rem/1.2 var(--font-mono, monospace);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    margin: 0.2rem 0;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-family: var(--font-heading, sans-serif);
+    font-weight: 800;
+    color: var(--text-main, #f8fafc);
+  }
+
+  .lede {
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.92rem;
+    margin: 0;
+  }
+
+  .alert-box {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: var(--radius-md, 12px);
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+  }
+
+  .alert-error {
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid var(--rose-red, #f43f5e);
+    color: var(--rose-red, #f43f5e);
+  }
+
+  .alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--emerald-green, #10b981);
+    color: var(--emerald-green, #10b981);
+  }
+
+  .glass-card {
+    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md, 12px);
+    padding: 1.35rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .card-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-family: var(--font-heading, sans-serif);
+    font-weight: 700;
+    color: var(--text-main, #f8fafc);
+  }
+
+  :global(.icon-accent) {
+    color: var(--accent-primary, #6366f1);
+  }
+
+  :global(.icon-amber) {
+    color: var(--amber-gold, #f59e0b);
+  }
+
+  .info-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .info-value {
+    font-size: 1rem;
+    color: var(--text-main, #f8fafc);
+  }
+
+  .info-code {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.88rem;
+    color: var(--accent-primary, #6366f1);
+    background: rgba(99, 102, 241, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm, 8px);
+    word-break: break-all;
+  }
+
+  .mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius-sm, 8px);
+    color: var(--amber-gold, #f59e0b);
+    font: 700 0.82rem/1 var(--font-mono, monospace);
+    margin-bottom: 0.65rem;
+  }
+
   .hint {
-    color: #8b9aab;
+    font-size: 0.86rem;
+    color: var(--text-muted, #94a3b8);
+    line-height: 1.45;
+    margin-bottom: 0.85rem;
   }
-  .focus {
-    outline: 2px solid #d99a3d;
-    outline-offset: 6px;
-  }
+
   .actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 0.8rem;
+    flex-direction: column;
+    gap: 0.5rem;
   }
-  button {
-    min-height: 44px;
-    padding: 0.7rem 1rem;
+
+  .status-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
-  .scale-config {
-    margin-top: 1.5rem;
-    padding: 1rem;
-    border: 1px solid #526172;
-    border-top: 4px solid #d99a3d;
-    background: #171e27;
-  }
-  .instrument-label {
+
+  .state-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-full, 9999px);
+    font-size: 0.78rem;
+    font-weight: 700;
     margin: 0;
-    color: #d99a3d;
-    font: 700 0.72rem/1.2 ui-monospace, monospace;
-    letter-spacing: 0.1em;
+    background: rgba(244, 63, 94, 0.12);
+    color: var(--rose-red, #f43f5e);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+  }
+
+  .state-pill.active {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--emerald-green, #10b981);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .btn-primary-sm,
+  .btn-secondary,
+  .btn-danger,
+  .link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm, 8px);
+    font: 600 0.86rem/1.2 var(--font-sans, sans-serif);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .btn-primary-sm {
+    background: var(--accent-gradient, var(--accent-primary));
+    color: #ffffff;
+    border: none;
+  }
+
+  .btn-primary-sm:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  .btn-secondary {
+    background: var(--bg-button-sec, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    color: var(--text-main, #f8fafc);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--bg-glass-hover);
+    border-color: var(--border-strong);
+  }
+
+  .btn-danger {
+    background: rgba(244, 63, 94, 0.12);
+    border: 1px solid var(--rose-red, #f43f5e);
+    color: var(--rose-red, #f43f5e);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(244, 63, 94, 0.2);
+  }
+
+  .link-btn {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: var(--accent-primary, #6366f1);
+  }
+
+  .link-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
+  }
+
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .scale-card {
+    margin-top: 1.5rem;
+  }
+
+  .instrument-label {
+    font: 700 0.72rem/1.2 var(--font-mono, monospace);
+    color: var(--amber-gold, #f59e0b);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    margin: 0;
   }
-  .scale-config h2 {
-    margin-top: 0.25rem;
-  }
+
   .scale-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
     align-items: end;
+    margin-bottom: 1rem;
   }
-  .scale-grid label {
-    display: grid;
-    gap: 0.3rem;
-    font-weight: 700;
+
+  .field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted, #94a3b8);
+    margin-bottom: 0.3rem;
   }
-  .scale-grid input,
-  .scale-grid select {
-    min-height: 44px;
-    padding: 0.55rem;
-    border: 1px solid #718096;
-    background: #0f141b;
-    color: inherit;
-    font: inherit;
+
+  .device-actions {
+    display: flex;
+    gap: 0.5rem;
   }
-  .scale-grid .danger {
-    border: 1px solid #c55b52;
-    background: transparent;
-    color: #ff9e95;
+
+  .terminal-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-muted, #94a3b8);
+    margin: 0;
   }
+
   .diagnostic {
-    padding: 0.65rem;
-    background: #0f141b;
-    font-family: ui-monospace, monospace;
-    overflow-wrap: anywhere;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm, 8px);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.82rem;
+    color: var(--emerald-green, #10b981);
+    overflow-x: auto;
   }
-  .modal {
+
+  /* Modal Backdrop */
+  .modal-backdrop {
     position: fixed;
-    inset: auto 1rem 1rem;
-    background: #141a22;
-    border: 1px solid #d99a3d;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 1rem;
+    z-index: 200;
   }
-  .primary {
-    background: #d99a3d;
-    color: #14161c;
-    font-weight: 700;
+
+  .modal {
+    max-width: 440px;
+    width: 100%;
   }
-  .err {
-    color: #d96a3c;
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
   }
-  .ok {
-    color: #3d9a6a;
+
+  .modal-head h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--text-main, #f8fafc);
   }
-  @media (max-width: 560px) {
-    .scale-grid {
+
+  .modal-actions {
+    display: flex;
+    gap: 0.65rem;
+    justify-content: flex-end;
+    margin-top: 1.25rem;
+  }
+
+  @media (max-width: 600px) {
+    .config-grid {
       grid-template-columns: 1fr;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .scale-config * {
-      transition: none;
     }
   }
 </style>
