@@ -6180,3 +6180,58 @@ aprobaciones: [Staff Backend ACID R cobertura local, Staff QA V svelte-check 0 w
 estado_gov: SOFTWARE-GREEN-CLAIM-NO-GO
 estado: Vigente
 ```
+
+```
+id: 0319
+timestamp_utc: 2026-08-10T03:35:00Z
+schema_version: 2
+sprint_fase: Sprint 46 — FASE 6F (analytics.forecasting + GTM-01)
+agente_responsable: Staff Data (owner) / Staff Backend ACID / Staff Frontend / Staff Security / Staff SRE / Staff Growth (gating)
+tipo: Implementacion de capability
+subtipo: quality-gate-claim-descongelado
+relacion: IMPLEMENTA
+referencias_entradas: [0318]
+referencias_documentales: [docs/ops/s46-forecasting-qg.md, docs/adr/ADR-0030-forecasting-holt-winters.md, docs/architecture/05-3-commercial-ops.md, docs/roadmap/fase-6f.md, docs/GTM.md]
+prev_id: 0318
+prev_hash: 7980453e9e5e31adc03b3d9ccaef0469e8e04ad9cd1094f8c9ce31301a1f3cd1
+entry_hash: 6b15fe19a7fde518049cea5e206a4a6c4e416359df352f628109e3dd6537a739
+ticket_or_adr: ADR-0030, Roadmap Sprint 46, Arquitectura §5.3 regla 31, DAT-12, Principio 9, GTM-01, DDL 0039
+test_ids: [packages/domain-analytics/src/forecast.test.ts, packages/domain-analytics/src/metrics.test.ts, packages/domain-analytics/src/breakage.test.ts, packages/adapters-d1/src/forecast-repository.test.ts, apps/worker-api/src/analytics/forecasting-routes.test.ts, apps/worker-api/src/analytics/forecast-scheduled.test.ts, apps/worker-api/src/reports/report-routes.test.ts, apps/pos-web/src/lib/forecasting/forecasting-client.test.ts, apps/pos-web/src/lib/forecasting/forecast-page.test.ts, apps/pos-web/tests/e2e/forecasting.spec.ts, V-20, SUITE]
+entregable_afectado: Sprint 46 analytics.forecasting software GREEN local; GTM-01 descongelado con disclaimer; produccion/piloto NO-GO
+descripcion: >
+  Implementa analitica predictiva determinista sobre daily_product_rollups (D1,
+  exacto) con Holt-Winters triple smoothing (ADR-0030): forecast de ventas por
+  sucursal/producto y deteccion de quiebre, salida solo como sugerencias al Dueno
+  (reposicion, alertas) — nunca decisiones automaticas de precio/stock. Migracion/
+  down 0039 DAT-12 con forecast_outputs versionado (model_version) e indice tenant-
+  first; reescritura idempotente DELETE+INSERT en un db.batch (D1 unica calculadora,
+  Principio 9). Gating a plan Cadena: 403 PLAN_REQUIRES_CADENA semantico + 402 Plan
+  Guard solo por trial/past_due, sin tocar arqueo. Feature flag default-off,
+  cron 30 8 * * *, Analytics Engine solo dashboards muestreados (nunca fuente de
+  forecast/facturacion), reporte forecast tier cadena y UI Previsiones en Modo Dueno
+  con disclaimer. Tras el gate, la claim GTM-01 "analitica predictiva" de Cadena se
+  descongela segun Roadmap FASE 6F; la capability permanece default-off.
+evidencia: >
+  RED 191e2cb5c0f51a814da8de1e826218a35e737dc5: contrato de gobernanza (ADR-0030,
+  regla 31, migracion/down 0039, fase-6f, flag/cron) declarado sin implementacion
+  productiva: faltaban dominio-analytics, repo D1, rutas, cron, catálogo tier, UI y
+  tests. GREEN 399292d5496e99de8e6d8b8682d52d046a760bae: Worker API 641 tests en 63
+  archivos, domain-analytics 40 tests, adapters forecast repo 6 tests, POS 9 unit +
+  E2E 2/2, chaos sprints 4-9 PASS, bench p95 0.0014 ms < 50 ms, bundle POS 177.69 kB
+  gzip bajo CAL-06, marketing/deps GREEN y scripts/verify.sh RESULT SUITE GREEN
+  (V-00..V-24). Security Review final 0 hallazgos medium+. quality.sh completo queda
+  condicionado solo por WIP ajeno preservado: prettier falla en app.css y 5 tests RED
+  de contratos de otras capabilities (recurring-sales-admin 4, customer-order-page 1)
+  sobre paginas no commiteadas ajenas a este sprint. Sin cron/staging/canary
+  Cloudflare real ni QA humana + aprobacion PM A+V independientes: produccion y
+  piloto NO-GO; la claim GTM-01 se descongela solo con disclaimer y default-off.
+red_commit_sha: 191e2cb5c0f51a814da8de1e826218a35e737dc5
+red_run_id: run-red-s46-forecasting-191e2cb
+expected_failure: AssertionError por ausencia de migracion 0039, dominio Holt-Winters/quiebre, repo D1 idempotente, cron con flag, gating Cadena semantico, catálogo tier, UI Previsiones y E2E
+green_commit_sha: 399292d5496e99de8e6d8b8682d52d046a760bae
+green_run_id: run-green-s46-forecasting-399292d
+ancestry_verified: true
+aprobaciones: [Staff Data R software local metricas MAPE, Staff Backend ACID R atomicidad e idempotencia, Staff Frontend R UI y degradacion, Staff Security V review sin medium+, Staff SRE cron local staging pendiente, Staff QA V humana pendiente, Staff PM A pendiente, Staff Growth GTM-01 descongelado con disclaimer produccion/piloto NO-GO]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

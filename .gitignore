@@ -17,6 +17,7 @@ build/
 apps/*/build/
 apps/*/.svelte-kit/
 apps/*/.wrangler/
+packages/*/.wrangler/
 apps/*/functions/
 coverage/
 *coverage/
