@@ -52,3 +52,17 @@ rules:
     severity: ERROR
     languages:
       - generic
+
+  - id: kipus-pii-customers-full-profile
+    message: Lectura de perfil PII completo de customers (LPDP-04, §5.3 regla 32a): name+email+phone+address exige guard de pii_erased y tenant_id del JWT. Leer solo las columnas necesarias o anonimizar.
+    severity: ERROR
+    languages:
+      - generic
+    pattern-regex: SELECT[^;]*name[^;]*email[^;]*phone[^;]*address\s+FROM\s+customers(?!\s*[^;]*pii_erased)[^;]*;
+
+  - id: kipus-pii-export-no-tenant
+    message: Export de PII sin forzar tenant_id del JWT (LPDP-04): toda consulta de customers debe filtrar por tenant_id verificado, nunca del payload.
+    severity: ERROR
+    languages:
+      - generic
+    pattern-regex: SELECT[^;]*\*\s+FROM\s+customers(?!\s*[^;]*WHERE[^;]*tenant_id[^;]*=)[^;]*;

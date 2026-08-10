@@ -221,6 +221,7 @@ writeFileSync(
 // before tables introduced by later sprints exist. Later migrations own their
 // corresponding epoch triggers.
 const introducedAfterSprint42 = new Set([
+  'consent_records',
   'customer_order_fulfillments',
   'customer_order_items',
   'customer_order_notifications',
