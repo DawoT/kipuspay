@@ -2,9 +2,11 @@
 /* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
 import down0037 from '../migrations-down/0037_sprint44_recurring_sales.sql?raw';
 import down0038 from '../migrations-down/0038_sprint45_mobile_push.sql?raw';
+import down0039 from '../migrations-down/0039_sprint46_forecasting.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0039_SPRINT46_FORECASTING = down0039;
 export const DOWN_0038_SPRINT45_MOBILE_PUSH = down0038;
 export const DOWN_0037_SPRINT44_RECURRING_SALES = down0037;
 export const DOWN_0036_SPRINT43_CUSTOMER_ORDERS = down0036;

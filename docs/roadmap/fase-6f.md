@@ -20,7 +20,7 @@ sprints: "46–49"
 - `forecast_outputs` versionados (`model_version`); salida = **sugerencias** al Dueño (reposición, alertas) — nunca decisiones automáticas de precio/stock.
 - Gated a plan **Cadena**; disclaimer en UI ("estimación, no garantía").
 
-**Criterios de aceptación:** forecast no muta D1 de ventas ni stock; 0 acción automática sobre precio/inventario; métricas de precisión (MAPE) publicadas; gating Cadena respetado (plan inferior = 402 sin tocar arqueo).
+**Criterios de aceptación:** forecast no muta D1 de ventas ni stock; 0 acción automática sobre precio/inventario; métricas de precisión (MAPE) publicadas; gating Cadena respetado — plan inferior = **403 `PLAN_REQUIRES_CADENA`** semántico (patrón Sprint 23/ADR-0030) y **402 Plan Guard** solo por trial/past_due, **sin tocar arqueo**.
 
 **Quality Gate:** Staff Data (métricas) + Staff PM; Staff Growth **descongela** claim "analítica predictiva" en GTM §4.1 solo tras este gate.
 

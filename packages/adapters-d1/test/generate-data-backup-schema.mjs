@@ -112,7 +112,7 @@ while (progressed) {
 }
 
 const secret = new Set(['api_keys', 'authorization_tokens', 'users', 'webhook_endpoints']);
-const sensitive = new Set(['push_consents', 'push_subscriptions']);
+const sensitive = new Set(['push_consents', 'push_privacy_settings', 'push_subscriptions']);
 const derived = new Set(['daily_financial_rollups', 'daily_product_rollups']);
 const ephemeral = new Set([
   'billing_overages',
@@ -225,6 +225,7 @@ const introducedAfterSprint42 = new Set([
   'customer_order_items',
   'customer_order_notifications',
   'customer_orders',
+  'forecast_outputs',
   'push_consents',
   'push_deliveries',
   'push_events',
