@@ -6,6 +6,7 @@
   import { isPosCheckoutEnabled } from '$lib/features';
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import { createMemoryOfflineIdb, OfflineQueueStore } from '$lib/offline-sync/offline-queue';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const enabled = isPosCheckoutEnabled();
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
@@ -34,12 +35,140 @@
   }
 </script>
 
-{#if !enabled}
-  <p data-testid="kiosk-off">Kiosko off (FEATURE_POS_CHECKOUT).</p>
-{:else}
-  <h1>Kiosko</h1>
-  <p>Total: S/ {formatCents(1180)}</p>
-  <p data-testid="kiosk-status">{status}</p>
-  <p data-testid="kiosk-message">{message}</p>
-  <button type="button" data-testid="kiosk-pay" onclick={pay}>Confirmar pago</button>
-{/if}
+<svelte:head><title>Kiosko de Autoatención · KipusPay</title></svelte:head>
+
+<div class="kiosk-container" data-testid="kiosk-root">
+  {#if !enabled}
+    <div class="feature-off-banner" data-testid="kiosk-off">
+      <Icon name="info" size={18} />
+      <span>Kiosko desactivado (<code>FEATURE_POS_CHECKOUT</code> off).</span>
+    </div>
+  {:else}
+    <div class="glass-card kiosk-card">
+      <div class="kiosk-header">
+        <div class="brand-badge">
+          <Icon name="store" size={24} />
+        </div>
+        <p class="page-eyebrow">Autoatención</p>
+        <h1 class="page-title">Kiosko de pedidos</h1>
+        <p class="page-lede">Realiza tu pedido y pago directo en autoservicio.</p>
+      </div>
+
+      <div class="cart-summary">
+        <div class="cart-item">
+          <span class="item-name">Item kiosko demo</span>
+          <span class="item-price tabular-nums">S/ {formatCents(1180)}</span>
+        </div>
+        <div class="total-row">
+          <span>Total a pagar</span>
+          <span class="total-amount tabular-nums">S/ {formatCents(1180)}</span>
+        </div>
+      </div>
+
+      {#if message}
+        <div class="status-alert {status === 'charged' ? 'info' : 'danger'}" aria-live="polite" data-testid="kiosk-message">
+          <Icon name={status === 'charged' ? 'check' : 'alert'} size={16} />
+          <span>{message}</span>
+        </div>
+      {/if}
+
+      <div class="status-line" data-testid="kiosk-status">
+        Estado: <strong>{status}</strong>
+      </div>
+
+      <button
+        type="button"
+        class="primary pay-btn"
+        data-testid="kiosk-pay"
+        onclick={pay}
+        disabled={status === 'confirming'}
+      >
+        <Icon name="credit-card" size={18} />
+        {status === 'confirming' ? 'Procesando…' : 'Confirmar pago'}
+      </button>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .kiosk-container {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+
+  .kiosk-card {
+    max-width: 28rem;
+    width: 100%;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .kiosk-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .brand-badge {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: var(--radius-full);
+    background: rgba(217, 154, 61, 0.15);
+    border: 1px solid var(--border-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .cart-summary {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9375rem;
+    color: var(--text-main);
+  }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.75rem;
+    font-weight: 700;
+  }
+
+  .total-amount {
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+    color: var(--accent-primary);
+  }
+
+  .status-line {
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  .pay-btn {
+    width: 100%;
+    padding: 0.875rem;
+    font-size: 1.05rem;
+  }
+</style>

@@ -8,6 +8,7 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const returnsOn = isSalesReturnsEnabled();
   const storeCreditOn = isLedgerStoreCreditEnabled();
@@ -59,91 +60,95 @@
   }
 </script>
 
-<section class="caja-return" data-testid="caja-devolucion">
-  <h1>Devolución</h1>
-  <p class="lede">
-    Devolvé ítems de una venta dentro de la ventana N días. Genera NC (07) o NV_RETURN según
-    formalización. Motivo obligatorio.
-  </p>
+<svelte:head><title>Devolución · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="caja-devolucion">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="rotate-ccw" size={12} /> Caja · Devolución</p>
+      <h1 class="page-title">Devolución</h1>
+      <p class="page-lede">Devuelve ítems dentro de la ventana N días. Genera NC (07) o NV_RETURN según formalización. Motivo obligatorio.</p>
+    </div>
+  </div>
+
+  {#if resultMsg}
+    <div class="status-alert {status === 'ok' ? 'info' : 'danger'}" aria-live="polite" data-testid="caja-return-msg">
+      <Icon name={status === 'ok' ? 'check' : 'alert'} size={16} />
+      <span>{resultMsg}</span>
+    </div>
+  {/if}
+
+  {#if refundCents !== null}
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-label">Reembolso</span>
+        <span class="stat-value emerald" data-testid="caja-return-refund">{formatCents(refundCents)}</span>
+      </div>
+    </div>
+  {/if}
 
   {#if !returnsOn}
-    <p class="off" data-testid="caja-returns-off">
-      PUBLIC_FEATURE_SALES_RETURNS desactivado. Activá el flag para devoluciones en caja.
-    </p>
+    <div class="feature-off-banner" data-testid="caja-returns-off">
+      <Icon name="info" size={18} />
+      <span><code>PUBLIC_FEATURE_SALES_RETURNS</code> desactivado.</span>
+    </div>
   {:else}
-    <p data-testid="caja-returns-tenant">Tenant {session.tenantId}</p>
+    <p class="tenant-line" data-testid="caja-returns-tenant">Tenant {session.tenantId}</p>
 
-    <label>
-      ID venta origen
-      <input bind:value={originSaleId} data-testid="caja-return-sale-id" />
-    </label>
-    <label>
-      Serie documento
-      <input bind:value={series} data-testid="caja-return-series" />
-    </label>
-    <label>
-      ID ítem original
-      <input bind:value={itemId} data-testid="caja-return-item-id" />
-    </label>
-    <label>
-      Cantidad
-      <input type="number" min="0.001" step="any" bind:value={qty} data-testid="caja-return-qty" />
-    </label>
-    <label>
-      Motivo (obligatorio)
-      <input bind:value={reason} data-testid="caja-return-reason" />
-    </label>
-    {#if storeCreditOn}
-      <label>
-        <input
-          type="checkbox"
-          bind:checked={consentStoreCredit}
-          data-testid="caja-return-store-credit"
-        />
-        Convertir reembolso en crédito de tienda (sin efectivo ni CxC)
-      </label>
-    {/if}
-
-    <button type="button" data-testid="caja-return-confirm" onclick={onConfirmReturn}>
-      Confirmar devolución
-    </button>
-
-    {#if status}
-      <p data-testid="caja-return-status">{status}</p>
-    {/if}
-    {#if resultMsg}
-      <p data-testid="caja-return-msg">{resultMsg}</p>
-    {/if}
-    {#if refundCents !== null}
-      <p data-testid="caja-return-refund">Reembolso: {formatCents(refundCents)}</p>
-    {/if}
+    <div class="glass-card return-card">
+      <div class="card-header">
+        <h2>Procesar devolución</h2>
+        <span class="badge badge-danger">Reversa</span>
+      </div>
+      <div class="two-col">
+        <div class="field-group">
+          <label for="ret-sale">ID venta origen</label>
+          <input id="ret-sale" bind:value={originSaleId} data-testid="caja-return-sale-id" />
+        </div>
+        <div class="field-group">
+          <label for="ret-series">Serie documento</label>
+          <input id="ret-series" bind:value={series} data-testid="caja-return-series" />
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="field-group">
+          <label for="ret-item">ID ítem original</label>
+          <input id="ret-item" bind:value={itemId} data-testid="caja-return-item-id" />
+        </div>
+        <div class="field-group">
+          <label for="ret-qty">Cantidad</label>
+          <input id="ret-qty" type="number" min="0.001" step="any" bind:value={qty} data-testid="caja-return-qty" />
+        </div>
+      </div>
+      <div class="field-group">
+        <label for="ret-reason">Motivo (obligatorio)</label>
+        <input id="ret-reason" bind:value={reason} data-testid="caja-return-reason" placeholder="Escribe el motivo de la devolución" />
+      </div>
+      {#if storeCreditOn}
+        <label class="checkbox-row">
+          <input type="checkbox" bind:checked={consentStoreCredit} data-testid="caja-return-store-credit" />
+          <span>Convertir reembolso en crédito de tienda (sin efectivo ni CxC)</span>
+        </label>
+      {/if}
+      <button type="button" class="primary danger-btn" data-testid="caja-return-confirm" onclick={onConfirmReturn} disabled={status === 'enviando'}>
+        <Icon name="rotate-ccw" size={14} />
+        {status === 'enviando' ? 'Procesando…' : 'Confirmar devolución'}
+      </button>
+    </div>
   {/if}
-</section>
+</div>
 
 <style>
-  .caja-return {
-    max-width: 32rem;
-    margin: 1.5rem auto;
-    padding: 1rem;
-    font-family: ui-sans-serif, system-ui, sans-serif;
+  .return-card {
+    padding: 1.25rem;
+    max-width: 40rem;
   }
-  .lede {
-    color: #444;
-    margin-bottom: 1rem;
-  }
-  .off {
-    color: #8a1f1f;
-  }
-  label {
-    display: block;
-    margin: 0.5rem 0;
-  }
-  input {
-    display: block;
-    width: 100%;
-    margin-top: 0.25rem;
-  }
-  button {
-    margin-top: 1rem;
-  }
+  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.875rem; cursor: pointer; font-size: 0.875rem; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .checkbox-row input { width: auto; cursor: pointer; accent-color: var(--accent-primary); }
+  .tenant-line { font-size: 0.8125rem; color: var(--text-dim); font-family: var(--font-mono); }
+  .danger-btn { background: rgba(217, 106, 60, 0.15); color: var(--rose-red); border: 1px solid rgba(217, 106, 60, 0.35); }
+  .danger-btn:hover { background: rgba(217, 106, 60, 0.25); }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
 </style>

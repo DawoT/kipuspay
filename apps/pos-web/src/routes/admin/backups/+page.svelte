@@ -340,10 +340,10 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.25rem 0.65rem;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(217, 154, 61, 0.12);
+    border: 1px solid rgba(217, 154, 61, 0.3);
     border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
     font: 600 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -369,9 +369,9 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.6rem 0.9rem;
-    border: 1px solid var(--emerald-green, #10b981);
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--emerald-green, #10b981);
+    border: 1px solid var(--emerald-green);
+    background: rgba(46, 158, 116, 0.1);
+    color: var(--emerald-green);
     border-radius: var(--radius-md, 12px);
     font-size: 0.82rem;
     font-weight: 600;
@@ -379,19 +379,12 @@
   }
 
   .connection.offline {
-    color: var(--rose-red, #f43f5e);
-    border-color: var(--rose-red, #f43f5e);
-    background: rgba(244, 63, 94, 0.1);
+    color: var(--rose-red);
+    border-color: var(--rose-red);
+    background: rgba(217, 106, 60, 0.1);
   }
 
-  .glass-card {
-    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    border-radius: var(--radius-md, 12px);
-    padding: 1.25rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
+
 
   .queue-warning {
     border-left: 4px solid var(--amber-gold, #f59e0b);
@@ -447,7 +440,7 @@
   }
 
   .btn-primary {
-    background: var(--accent-gradient, #6366f1);
+    background: var(--accent-gradient, var(--accent-primary));
     color: #ffffff;
     border: none;
     padding: 0.65rem 1.25rem;
@@ -494,11 +487,6 @@
     color: var(--rose-red, #f43f5e);
   }
 
-  .alert-success {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid var(--emerald-green, #10b981);
-    color: var(--emerald-green, #10b981);
-  }
 
   .operations-grid {
     display: grid;
@@ -548,8 +536,8 @@
   }
 
   .backup-item-btn.selected {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: var(--accent-primary, #6366f1);
+    background: rgba(217, 154, 61, 0.12);
+    border-color: var(--accent-primary);
   }
 
   .backup-item-head {
@@ -610,7 +598,7 @@
     font-family: var(--font-mono, monospace);
     font-size: 0.78rem;
     word-break: break-all;
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
   }
 
   .evidence-text,

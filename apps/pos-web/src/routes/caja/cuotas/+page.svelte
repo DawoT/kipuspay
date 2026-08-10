@@ -7,11 +7,13 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const installmentsOn = isSalesInstallmentsEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
   let installmentId = $state('');
   let message = $state('');
+  let messageOk = $state(false);
   let lastPaymentId = $state('');
 
   const apiBase = () =>
@@ -43,6 +45,7 @@
       error?: string;
       code?: string;
     };
+    messageOk = res.ok;
     if (!res.ok) {
       message = json.error ?? json.code ?? `Error ${res.status}`;
       return;
@@ -52,44 +55,65 @@
   }
 </script>
 
-<section data-testid="caja-cuotas">
-  <h1>Cuotas / pago en partes</h1>
-  <p class="lede">
-    Solo Supervisor+ cobra cuotas. El servidor aplica el principal a CxC; el interés no reduce el AR.
-  </p>
-  {#if !installmentsOn}
-    <p data-testid="caja-cuotas-off">PUBLIC_FEATURE_SALES_INSTALLMENTS desactivado.</p>
-  {:else}
-    <p data-testid="caja-cuotas-tenant">Tenant {session.tenantId}</p>
-    <label>
-      ID cuota
-      <input bind:value={installmentId} data-testid="caja-cuotas-id" />
-    </label>
-    <button type="button" data-testid="caja-cuotas-pay" onclick={() => void payInstallment()}
-      >Cobrar cuota</button
-    >
-    {#if message}
-      <p data-testid="caja-cuotas-msg">{message}</p>
-    {/if}
+<svelte:head><title>Cuotas · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="caja-cuotas">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="calendar" size={12} /> Ventas · Cuotas</p>
+      <h1 class="page-title">Pago de cuotas</h1>
+      <p class="page-lede">Solo Supervisor+ cobra cuotas. El principal va a CxC; el interés no reduce el AR.</p>
+    </div>
+  </div>
+
+  {#if message}
+    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite" data-testid="caja-cuotas-msg">
+      <Icon name={messageOk ? 'check' : 'alert'} size={16} />
+      <span>{message}</span>
+    </div>
   {/if}
-</section>
+
+  {#if !installmentsOn}
+    <div class="feature-off-banner" data-testid="caja-cuotas-off">
+      <Icon name="info" size={18} />
+      <span><code>PUBLIC_FEATURE_SALES_INSTALLMENTS</code> desactivado.</span>
+    </div>
+  {:else}
+    <p class="tenant-line" data-testid="caja-cuotas-tenant">Tenant {session.tenantId}</p>
+
+    <div class="glass-card cuotas-card">
+      <div class="card-header">
+        <h2>Cobrar cuota</h2>
+        <span class="section-tag">Terminal</span>
+      </div>
+      <div class="field-group">
+        <label for="cuota-id">ID de cuota</label>
+        <input id="cuota-id" bind:value={installmentId} data-testid="caja-cuotas-id" placeholder="ID de la cuota a cobrar" />
+      </div>
+      <button type="button" class="primary" data-testid="caja-cuotas-pay" onclick={() => void payInstallment()} disabled={!installmentId}>
+        <Icon name="dollar" size={14} />
+        Cobrar cuota
+      </button>
+    </div>
+  {/if}
+</div>
 
 <style>
-  section {
-    max-width: 28rem;
+  .cuotas-card {
     padding: 1.25rem;
+    max-width: 28rem;
   }
-  .lede {
-    color: #444;
-    margin-bottom: 1rem;
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.875rem;
   }
-  label {
-    display: block;
-    margin-bottom: 0.75rem;
-  }
-  input {
-    display: block;
-    width: 100%;
-    margin-top: 0.25rem;
+
+  .tenant-line {
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
   }
 </style>

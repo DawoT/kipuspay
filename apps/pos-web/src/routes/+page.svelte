@@ -880,7 +880,7 @@
     text-transform: uppercase;
   }
   .weight-display-box {
-    background: rgba(15, 23, 42, 0.8);
+    background: var(--bg-primary);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 1rem;
@@ -1066,8 +1066,8 @@
   }
 
   .status-box {
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.25);
+    background: rgba(217, 154, 61, 0.1);
+    border: 1px solid rgba(217, 154, 61, 0.2);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.75rem;
     display: flex;

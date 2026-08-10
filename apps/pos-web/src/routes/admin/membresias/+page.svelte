@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
+  import Icon from '$lib/ui/Icon.svelte';
   import {
     createRecurringSalesApi,
     type RecurringFrequency,
@@ -230,147 +231,214 @@
   });
 </script>
 
-<svelte:head><title>Membresías · KipusPay</title></svelte:head>
+<svelte:head><title>Membresías · Admin · KipusPay</title></svelte:head>
 
-<main class="memberships" data-testid="memberships-root">
-  <header class="hero">
+<div class="page-shell" data-testid="memberships-root">
+  <div class="page-masthead">
     <div>
-      <p class="eyebrow">Administración · calendario Lima</p>
-      <h1>Membresías</h1>
-      <p class="lede">Genera una venta y una deuda por período. Cada período emite su NV o CPE.</p>
+      <p class="page-eyebrow"><Icon name="calendar" size={12} /> Admin · Ventas recurrentes</p>
+      <h1 class="page-title">Membresías</h1>
+      <p class="page-lede">Genera una venta y una deuda por período. Cada período emite su NV o CPE.</p>
     </div>
-    <output class:offline={!online} aria-live="polite">
-      {online ? 'En línea · estado del servidor' : 'Sin conexión · acciones deshabilitadas'}
-    </output>
-  </header>
+    <div class="connection-badge" class:offline={!online} aria-live="polite">
+      <Icon name={online ? 'wifi' : 'wifi-off'} size={14} />
+      <span>{online ? 'En línea' : 'Sin conexión'}</span>
+    </div>
+  </div>
 
-  <section class="explanation" aria-label="Cómo funcionan las membresías">
-    <p><strong>Sin autocobro:</strong> no guardamos tarjeta ni mandato de pago.</p>
-    <p><strong>Precio fijo:</strong> conserva el importe que el servidor resolvió al crear la versión.</p>
-    <p><strong>Precio vigente:</strong> CURRENT puede cambiar con el catálogo en cada ejecución.</p>
-    <p>El servidor calcula el importe, impuestos, documento y deuda.</p>
-    <p>La mora de esta membresía no bloquea la caja ni el checkout ordinario.</p>
-    <p>El Período de gracia solo regula futuras ejecuciones; después puede pausarse según la política.</p>
-  </section>
+  <!-- Info boxes -->
+  <div class="info-pills">
+    <div class="info-pill"><Icon name="shield" size={14} /> <span>Sin autocobro — sin tarjeta ni mandato de pago</span></div>
+    <div class="info-pill"><Icon name="dollar" size={14} /> <span>Precio FIXED: importe fijo al crear versión. CURRENT: sigue el catálogo</span></div>
+    <div class="info-pill"><Icon name="info" size={14} /> <span>La mora no bloquea la caja ni el checkout ordinario</span></div>
+  </div>
 
   {#if !enabled}
-    <p role="alert" class="alert">Membresías está desactivado para este entorno.</p>
+    <div class="feature-off-banner" role="alert">Membresías está desactivado para este entorno.</div>
   {:else if !session}
-    <p role="alert" class="alert">No hay una sesión autenticada válida. Acceso cerrado.</p>
+    <div class="status-alert danger" role="alert">No hay una sesión autenticada válida. Acceso cerrado.</div>
   {:else if !roleAllowed}
-    <p role="alert" class="alert">Solo Owner o Admin pueden administrar membresías.</p>
+    <div class="status-alert danger" role="alert">Solo Owner o Admin pueden administrar membresías.</div>
   {:else}
-    {#if alert}<p role="alert" class="alert">{alert}</p>{/if}
-    <div class="toolbar">
-      <label for="branch">Sucursal explícita</label>
-      <input id="branch" data-testid="memberships-branch-input" bind:value={branchId} autocomplete="off" />
-      <button type="button" data-testid="memberships-refresh-btn" onclick={refresh} disabled={!online || loading || !branchId.trim()}>
-        {loading ? 'Cargando…' : 'Actualizar calendario'}
+    {#if alert}
+      <div class="status-alert danger" role="alert">{alert}</div>
+    {/if}
+
+    <!-- Toolbar -->
+    <div class="toolbar-bar">
+      <div class="field-inline">
+        <label for="branch">Sucursal</label>
+        <input id="branch" data-testid="memberships-branch-input" bind:value={branchId} autocomplete="off" placeholder="ID sucursal" />
+      </div>
+      <button type="button" class="secondary" data-testid="memberships-refresh-btn" onclick={refresh} disabled={!online || loading || !branchId.trim()}>
+        <Icon name="refresh" size={14} />
+        {loading ? 'Cargando…' : 'Actualizar'}
       </button>
     </div>
 
-    <div class="workspace">
-      <section aria-labelledby="calendar-title">
-        <h2 id="calendar-title">Calendario de próxima ejecución</h2>
+    <div class="workspace-grid">
+      <!-- Columna 1: Calendario -->
+      <section class="glass-card section-pad" aria-labelledby="calendar-title">
+        <div class="card-header">
+          <h2 id="calendar-title">Calendario</h2>
+          <span class="badge badge-warning">{plans.length}</span>
+        </div>
         <div class="plan-list">
           {#each plans as plan (plan.id)}
-            <button class="plan" class:selected={selected?.id === plan.id} data-testid="memberships-plan-card" type="button" onclick={() => openPlan(plan)}>
-              <span><strong>{plan.customer_id}</strong><small>{plan.document_type} · {plan.pricing_policy}</small></span>
-              <span><b>{plan.status}</b><small>Próxima ejecución: {date(plan.next_run_at)}</small></span>
-              <span><small>Gracia: {plan.grace_days} días</small><small>CxC: {money(plan.balance_due_cents)}</small></span>
+            <button class="plan-card" class:active={selected?.id === plan.id} data-testid="memberships-plan-card" type="button" onclick={() => openPlan(plan)}>
+              <div class="plan-main">
+                <strong class="plan-customer">{plan.customer_id}</strong>
+                <span class="badge {plan.status === 'ACTIVE' ? 'badge-success' : plan.status === 'PAUSED' ? 'badge-muted' : 'badge-danger'} badge-sm">{plan.status}</span>
+              </div>
+              <div class="plan-meta">
+                <span>{plan.document_type} · {plan.pricing_policy}</span>
+                <span class="tabular-nums">{money(plan.balance_due_cents)}</span>
+              </div>
+              <div class="plan-next">
+                <Icon name="clock" size={12} />
+                <span>{date(plan.next_run_at)}</span>
+              </div>
             </button>
           {:else}
-            <p>No hay membresías para esta sucursal.</p>
+            <div class="empty-state">
+              <Icon name="info" size={22} />
+              <span>No hay membresías para esta sucursal.</span>
+            </div>
           {/each}
         </div>
       </section>
 
-      <section aria-labelledby="detail-title">
-        <h2 id="detail-title">Detalle y control</h2>
+      <!-- Columna 2: Detalle -->
+      <section class="glass-card section-pad" aria-labelledby="detail-title">
+        <div class="card-header">
+          <h2 id="detail-title">Detalle y control</h2>
+          {#if selected}<span class="badge badge-indigo">{selected.status}</span>{/if}
+        </div>
         {#if selected}
-          <dl>
-            <div><dt>Estado</dt><dd>{selected.status}</dd></div>
+          <dl class="detail-grid">
             <div><dt>Próxima ejecución</dt><dd>{date(selected.next_run_at)}</dd></div>
             <div><dt>Documento</dt><dd>{selected.document_type}</dd></div>
             <div><dt>Política</dt><dd>{selected.pricing_policy}</dd></div>
             <div><dt>Período de gracia</dt><dd>{selected.grace_days} días</dd></div>
-            <div><dt>Cuentas por cobrar</dt><dd>{money(selected.balance_due_cents)}</dd></div>
+            <div><dt>Cuentas por cobrar</dt><dd class="tabular-nums">{money(selected.balance_due_cents)}</dd></div>
           </dl>
-          <div class="status-note">
-            {#if selected.retry_count > 0}
-              <strong>Reintento pendiente</strong>
-              <span>{date(selected.next_retry_at)} · estado seguro {selected.last_error_code ?? 'PENDIENTE'}</span>
-            {:else}
-              <strong>Sin reintento pendiente</strong>
-              <span>La próxima ejecución conserva su calendario civil.</span>
-            {/if}
-          </div>
-          <div class="actions">
-            <button type="button" data-testid="memberships-preview-next-btn" onclick={previewNextRun} disabled={!online}>Vista previa de próxima ejecución</button>
-            <button type="button" data-testid="memberships-edit-btn" onclick={editSelected}>Editar siguiente versión</button>
-            <button type="button" data-testid="memberships-pause-resume-btn" onclick={pauseOrResume} disabled={!online}>
-              {selected.status === 'PAUSED' ? 'Reanudar membresía' : 'Pausar membresía'}
-            </button>
-            <button type="button" data-testid="memberships-cancel-at-end-btn" onclick={cancelAtEnd} disabled={!online}>Cancelar al final del período</button>
-            <button class="danger" type="button" data-testid="memberships-cancel-immediate-btn" onclick={previewImmediateCancellation} disabled={!online}>
-              Cancelar ahora y calcular crédito
-            </button>
-          </div>
-          {#if nextPreview}
-            <div class="status-note" role="status">
-              <strong>{String(nextPreview.pricingPolicy)} · Precio del servidor</strong>
-              <span>{date(nextPreview.periodStart)} → {date(nextPreview.periodEnd)}</span>
+
+          {#if selected.retry_count > 0}
+            <div class="status-alert warning">
+              <Icon name="alert" size={14} />
+              <span>Reintento pendiente · {date(selected.next_retry_at)} · {selected.last_error_code ?? 'PENDIENTE'}</span>
             </div>
           {/if}
-          <h3>Historial y reintentos</h3>
-          <div class="history">
+
+          {#if nextPreview}
+            <div class="status-alert info" role="status">
+              <Icon name="clock" size={14} />
+              <span>{String(nextPreview.pricingPolicy)} · {date(nextPreview.periodStart)} → {date(nextPreview.periodEnd)}</span>
+            </div>
+          {/if}
+
+          <div class="action-grid">
+            <button type="button" class="secondary" data-testid="memberships-preview-next-btn" onclick={previewNextRun} disabled={!online}>
+              Vista previa siguiente
+            </button>
+            <button type="button" class="secondary" data-testid="memberships-edit-btn" onclick={editSelected}>
+              Editar versión
+            </button>
+            <button type="button" class="secondary" data-testid="memberships-pause-resume-btn" onclick={pauseOrResume} disabled={!online}>
+              {selected.status === 'PAUSED' ? 'Reanudar' : 'Pausar'}
+            </button>
+            <button type="button" class="secondary" data-testid="memberships-cancel-at-end-btn" onclick={cancelAtEnd} disabled={!online}>
+              Cancelar al período
+            </button>
+            <button class="danger-btn" type="button" data-testid="memberships-cancel-immediate-btn" onclick={previewImmediateCancellation} disabled={!online}>
+              Cancelar ahora + crédito
+            </button>
+          </div>
+
+          <h3 class="history-title">Historial de ocurrencias</h3>
+          <div class="history-list">
             {#each occurrences as occurrence}
-              <article>
-                <strong>{String(occurrence.document_type ?? 'Documento')}</strong>
-                <span>{date(occurrence.period_start)} → {date(occurrence.period_end)}</span>
-                <span>Precio aplicado: {money(occurrence.total_amount_cents)}</span>
-                <span>Deuda: {money(occurrence.balance_due_cents)} · {String(occurrence.receivable_status ?? '')}</span>
-              </article>
+              <div class="occurrence-row">
+                <span class="badge badge-indigo badge-sm">{String(occurrence.document_type ?? 'DOC')}</span>
+                <span class="occ-dates">{date(occurrence.period_start)} → {date(occurrence.period_end)}</span>
+                <span class="tabular-nums">{money(occurrence.total_amount_cents)}</span>
+                <span class="occ-debt tabular-nums">Deuda: {money(occurrence.balance_due_cents)}</span>
+              </div>
             {:else}
-              <p>Todavía no hay ocurrencias emitidas.</p>
+              <p class="no-occurrences">Todavía no hay ocurrencias emitidas.</p>
             {/each}
           </div>
         {:else}
-          <p>Selecciona una membresía para ver estado, gracia, CxC, items e historial.</p>
+          <div class="empty-state">
+            <Icon name="list" size={24} />
+            <span>Selecciona una membresía para ver estado, gracia, CxC e historial.</span>
+          </div>
         {/if}
       </section>
 
-      <aside aria-labelledby="create-title">
-        <h2 id="create-title">Crear membresía</h2>
-        <label for="customer">Cliente</label><input id="customer" data-testid="memberships-customer-input" bind:value={customerId} />
-        <label for="product">Producto o servicio</label><input id="product" data-testid="memberships-product-input" bind:value={productId} />
-        <label for="uom">Unidad</label><input id="uom" data-testid="memberships-uom-input" bind:value={productUomId} />
-        <label for="quantity">Cantidad en microunidades</label>
-        <input id="quantity" data-testid="memberships-quantity-input" type="number" min="1" bind:value={quantityMicrounits} />
-        <label for="document">Tipo de documento</label>
-        <select id="document" data-testid="memberships-document-select" bind:value={documentType}>
-          <option value="NV">Nota de venta</option><option value="03">Boleta</option><option value="01">Factura</option>
-        </select>
-        <label for="pricing">Semántica de precio</label>
-        <select id="pricing" data-testid="memberships-pricing-select" bind:value={pricingPolicy}>
-          <option value="FIXED">Precio fijo (FIXED)</option><option value="CURRENT">Precio vigente (CURRENT)</option>
-        </select>
-        <label for="frequency">Frecuencia</label>
-        <select id="frequency" data-testid="memberships-frequency-select" bind:value={frequency}>
-          <option value="DAILY">Diaria</option><option value="WEEKLY">Semanal</option><option value="MONTHLY">Mensual</option>
-          <option value="ANNUALLY">Anual</option>
-        </select>
-        <label for="grace">Días de gracia</label><input id="grace" data-testid="memberships-grace-input" type="number" min="0" bind:value={graceDays} />
-        <button class="primary" type="button" data-testid="memberships-create-btn" onclick={createPlan} disabled={!online || !branchId || !customerId || !productId || !productUomId}>
+      <!-- Columna 3: Crear -->
+      <aside class="glass-card section-pad" aria-labelledby="create-title">
+        <div class="card-header">
+          <h2 id="create-title">{editing ? 'Editar versión' : 'Crear membresía'}</h2>
+          <Icon name="plus" size={16} />
+        </div>
+        <div class="field-group">
+          <label for="customer">Cliente</label>
+          <input id="customer" data-testid="memberships-customer-input" bind:value={customerId} />
+        </div>
+        <div class="field-group">
+          <label for="product">Producto o servicio</label>
+          <input id="product" data-testid="memberships-product-input" bind:value={productId} />
+        </div>
+        <div class="field-group">
+          <label for="uom">Unidad de medida</label>
+          <input id="uom" data-testid="memberships-uom-input" bind:value={productUomId} />
+        </div>
+        <div class="field-group">
+          <label for="quantity">Cantidad (microunidades)</label>
+          <input id="quantity" data-testid="memberships-quantity-input" type="number" min="1" bind:value={quantityMicrounits} />
+        </div>
+        <div class="field-group">
+          <label for="document">Tipo de documento</label>
+          <select id="document" data-testid="memberships-document-select" bind:value={documentType}>
+            <option value="NV">Nota de venta</option>
+            <option value="03">Boleta</option>
+            <option value="01">Factura</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="pricing">Política de precio</label>
+          <select id="pricing" data-testid="memberships-pricing-select" bind:value={pricingPolicy}>
+            <option value="FIXED">Precio fijo (FIXED)</option>
+            <option value="CURRENT">Precio vigente (CURRENT)</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="frequency">Frecuencia</label>
+          <select id="frequency" data-testid="memberships-frequency-select" bind:value={frequency}>
+            <option value="DAILY">Diaria</option>
+            <option value="WEEKLY">Semanal</option>
+            <option value="MONTHLY">Mensual</option>
+            <option value="ANNUALLY">Anual</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="grace">Días de gracia</label>
+          <input id="grace" data-testid="memberships-grace-input" type="number" min="0" bind:value={graceDays} />
+        </div>
+        <button class="primary" type="button" data-testid="memberships-create-btn" onclick={createPlan}
+          disabled={!online || !branchId || !customerId || !productId || !productUomId}>
+          <Icon name="plus" size={14} />
           {editing ? 'Guardar nueva versión' : 'Crear con precio del servidor'}
         </button>
       </aside>
     </div>
   {/if}
 
+  <!-- Modal cancelación inmediata -->
   {#if preview}
     <div
-      class="confirm"
+      class="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-title"
@@ -378,58 +446,202 @@
       bind:this={previewPanel}
       onkeydown={(event) => event.key === 'Escape' && closePreview()}
     >
-      <h2 id="confirm-title">Confirmar cancelación inmediata</h2>
-      <p>Crédito proporcional: <strong>{money(preview.creditAmountCents)}</strong></p>
-      <p>
-        Resultado:
-        <strong>{preview.adjustmentDocumentType === '07' ? 'Nota de crédito' : 'NV_RETURN'}</strong>.
-        La venta original no se modifica.
-      </p>
-      <div class="actions">
-        <button type="button" data-testid="memberships-modal-close-btn" onclick={closePreview}>Volver sin cancelar</button>
-        <button class="danger" type="button" data-testid="memberships-modal-confirm-btn" onclick={confirmImmediateCancellation}>Confirmar cancelación</button>
+      <div class="glass-card modal-card">
+        <h2 id="confirm-title">Confirmar cancelación inmediata</h2>
+        <p>Crédito proporcional: <strong class="tabular-nums">{money(preview.creditAmountCents)}</strong></p>
+        <p>
+          Resultado: <strong>{preview.adjustmentDocumentType === '07' ? 'Nota de crédito' : 'NV_RETURN'}</strong>.
+          La venta original no se modifica.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="secondary" data-testid="memberships-modal-close-btn" onclick={closePreview}>Volver sin cancelar</button>
+          <button class="danger-btn" type="button" data-testid="memberships-modal-confirm-btn" onclick={confirmImmediateCancellation}>Confirmar cancelación</button>
+        </div>
       </div>
     </div>
   {/if}
 
-  <p class="announcer" role="status" aria-live="polite" aria-atomic="true">{message}</p>
-</main>
+  <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{message}</p>
+</div>
 
 <style>
-  .memberships { max-width: 1320px; margin: 0 auto; color: var(--text-main); }
-  .hero, .toolbar, .actions { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
-  .hero { padding-bottom: 1rem; border-bottom: 3px solid var(--accent-primary); }
-  .eyebrow { color: var(--accent-primary); font: 750 .75rem/1.2 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
-  h1 { margin: .2rem 0; font-size: clamp(2.2rem, 7vw, 4.4rem); line-height: .95; }
-  h2 { margin-top: 0; }
-  .lede, small { color: var(--text-muted); }
-  output, .alert, .announcer, .status-note { padding: .75rem; border: 1px solid var(--border-subtle); border-left: 5px solid var(--accent-primary); }
-  output.offline, .alert { border-left-color: #e4572e; }
-  .explanation { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 1rem 0; background: var(--border-subtle); border: 1px solid var(--border-subtle); }
-  .explanation p { margin: 0; padding: .8rem; background: var(--surface-card); }
-  .toolbar { margin: 1rem 0; justify-content: flex-start; }
-  .workspace { display: grid; grid-template-columns: .85fr 1.25fr .8fr; gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); }
-  .workspace > * { min-width: 0; padding: 1rem; background: var(--surface-card); }
-  label { display: block; margin-top: .65rem; font-weight: 700; }
-  input, select, button { min-height: 44px; box-sizing: border-box; max-width: 100%; border: 1px solid var(--border-strong, #64748b); border-radius: var(--radius-sm); padding: .55rem .7rem; color: inherit; background: var(--surface-card); font: inherit; }
-  input, select { width: 100%; }
-  button { cursor: pointer; font-weight: 750; }
-  button:disabled { opacity: .55; cursor: not-allowed; }
-  button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #ff9f43; outline-offset: 2px; }
-  .primary { margin-top: 1rem; width: 100%; background: var(--accent-primary); color: white; }
-  .danger { border-color: #ef6a5b; color: #ffb4aa; }
-  .plan-list, .history { display: grid; gap: .6rem; }
-  .plan { width: 100%; display: grid; gap: .4rem; text-align: left; }
-  .plan span, .history article { display: grid; gap: .15rem; }
-  .plan.selected { box-shadow: inset 4px 0 var(--accent-primary); }
-  dl { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-  dl div { padding: .6rem; background: color-mix(in srgb, var(--accent-primary) 8%, transparent); }
-  dt { color: var(--text-muted); font-size: .75rem; } dd { margin: .2rem 0 0; font-weight: 800; }
-  .status-note, .history article { margin: .7rem 0; }
-  .confirm { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 200; width: min(34rem, calc(100vw - 2rem)); padding: 1.25rem; background: var(--surface-card); border: 2px solid #ef6a5b; box-shadow: 0 1.5rem 5rem #000a; }
-  .announcer { margin-top: 1rem; }
-  @media (max-width: 900px) { .workspace { grid-template-columns: 1fr 1fr; } aside { grid-column: 1 / -1; } .explanation { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px) { .workspace, .explanation { grid-template-columns: minmax(0, 1fr); } aside { grid-column: auto; } .hero { align-items: flex-start; flex-direction: column; } .actions button { width: 100%; } }
-  @media (max-width: 375px) { .memberships { width: 100%; } dl { grid-template-columns: 1fr; } }
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+  .connection-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: rgba(46, 158, 116, 0.12);
+    border: 1px solid rgba(46, 158, 116, 0.3);
+    color: var(--emerald-green);
+  }
+  .connection-badge.offline {
+    background: rgba(217, 106, 60, 0.12);
+    border-color: rgba(217, 106, 60, 0.3);
+    color: var(--rose-red);
+  }
+
+  .info-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .info-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    padding: 0.375rem 0.75rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+  }
+
+  .toolbar-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .field-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 12rem;
+  }
+
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: 0.85fr 1.25fr 0.8fr;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .section-pad { padding: 1.25rem; }
+
+  .plan-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
+
+  .plan-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    width: 100%;
+    font: inherit;
+    color: inherit;
+  }
+  .plan-card:hover { border-color: var(--accent-primary); background: var(--bg-glass-hover); }
+  .plan-card.active { border-color: var(--accent-primary); background: rgba(217, 154, 61, 0.08); box-shadow: inset 3px 0 var(--accent-primary); }
+
+  .plan-main { display: flex; justify-content: space-between; align-items: center; }
+  .plan-customer { font-weight: 700; font-size: 0.875rem; color: var(--text-main); }
+  .plan-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
+  .plan-next { display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-dim); }
+
+  .badge-sm { font-size: 0.625rem; padding: 0.1rem 0.375rem; }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .detail-grid div {
+    padding: 0.5rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+  .detail-grid dt { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.2rem; }
+  .detail-grid dd { margin: 0; font-weight: 700; font-size: 0.9375rem; }
+
+  .action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .danger-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--rose-red);
+    color: var(--rose-red);
+    background: rgba(217, 106, 60, 0.08);
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    cursor: pointer;
+    font: inherit;
+    min-height: 38px;
+    transition: all var(--transition-fast);
+    width: 100%;
+  }
+  .danger-btn:hover { background: rgba(217, 106, 60, 0.15); }
+
+  .history-title { font-size: 0.9375rem; font-weight: 700; margin: 1rem 0 0.5rem; color: var(--text-main); }
+
+  .history-list { display: flex; flex-direction: column; gap: 0.375rem; }
+
+  .occurrence-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.625rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+  }
+  .occ-dates { flex: 1; color: var(--text-muted); }
+  .occ-debt { color: var(--text-dim); }
+  .no-occurrences { color: var(--text-muted); font-size: 0.875rem; }
+
+  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.75rem; }
+  .field-group label { font-weight: 700; font-size: 0.8125rem; color: var(--text-muted); }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem 1rem;
+    color: var(--text-dim);
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    backdrop-filter: blur(4px);
+  }
+  .modal-card {
+    width: min(34rem, calc(100vw - 2rem));
+    padding: 1.5rem;
+    border: 1px solid var(--rose-red);
+  }
+  .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+
+  @media (max-width: 1000px) { .workspace-grid { grid-template-columns: 1fr 1fr; } aside { grid-column: 1 / -1; } }
+  @media (max-width: 650px) { .workspace-grid { grid-template-columns: 1fr; } .detail-grid { grid-template-columns: 1fr; } .action-grid { grid-template-columns: 1fr; } }
 </style>

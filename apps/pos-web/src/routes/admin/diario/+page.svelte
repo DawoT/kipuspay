@@ -137,10 +137,10 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.25rem 0.65rem;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(217, 154, 61, 0.12);
+    border: 1px solid rgba(217, 154, 61, 0.3);
     border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
     font: 600 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -196,7 +196,7 @@
   }
 
   .btn-primary {
-    background: var(--accent-gradient, #6366f1);
+    background: var(--accent-gradient, var(--accent-primary));
     color: #ffffff;
     border: none;
     padding: 0.65rem 1.25rem;
@@ -229,13 +229,13 @@
   }
 
   .mutate-banner {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: var(--accent-primary, #6366f1);
-    color: var(--accent-primary, #6366f1);
+    background: rgba(217, 154, 61, 0.1);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
   }
 
   .table-container {
-    background: var(--bg-input, rgba(15, 23, 42, 0.6));
+    background: var(--bg-input);
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-sm, 8px);
     overflow: hidden;
@@ -243,7 +243,7 @@
 
   .table-head {
     padding: 0.65rem 1rem;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-glass);
     border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     font-size: 0.82rem;
     color: var(--text-muted, #94a3b8);

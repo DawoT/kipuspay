@@ -1,6 +1,7 @@
 <script lang="ts">
   import { env } from '$env/dynamic/public';
   import { isAccountingExportEnabled, isIntegrationsApiEnabled } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const exportOn = isAccountingExportEnabled();
   const apiOn = isIntegrationsApiEnabled();
@@ -34,12 +35,8 @@
     });
     const text = await res.text();
     if (!res.ok) {
-      try {
-        const j = JSON.parse(text) as { error?: string };
-        exportMessage = j.error ?? text;
-      } catch {
-        exportMessage = text;
-      }
+      try { const j = JSON.parse(text) as { error?: string }; exportMessage = j.error ?? text; }
+      catch { exportMessage = text; }
       return;
     }
     exportMessage = `Export ${target} OK (${text.length} bytes)`;
@@ -47,212 +44,264 @@
   }
 
   async function createKey() {
-    keysMessage = '';
-    createdKey = '';
+    keysMessage = ''; createdKey = '';
     const res = await fetch(`${apiBase()}/api/integrations/api-keys`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: '{}',
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: auth() }, body: '{}',
     });
     const json = (await res.json()) as { apiKey?: string; error?: string };
-    if (res.ok && json.apiKey) {
-      createdKey = json.apiKey;
-      keysMessage = 'API key creada — guárdala ahora';
-    } else {
-      keysMessage = json.error ?? 'error';
-    }
+    if (res.ok && json.apiKey) { createdKey = json.apiKey; keysMessage = 'API key creada — guárdala ahora'; }
+    else { keysMessage = json.error ?? 'error'; }
   }
 
   async function listKeys() {
     keysMessage = '';
-    const res = await fetch(`${apiBase()}/api/integrations/api-keys`, {
-      headers: { authorization: auth() },
-    });
+    const res = await fetch(`${apiBase()}/api/integrations/api-keys`, { headers: { authorization: auth() } });
     const json = await res.json();
     keysJson = JSON.stringify(json, null, 2);
     keysMessage = res.ok ? 'Keys listadas' : 'error';
   }
 
   async function createWebhook() {
-    webhookMessage = '';
-    createdSecret = '';
+    webhookMessage = ''; createdSecret = '';
     const res = await fetch(`${apiBase()}/api/integrations/webhooks`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({
-        url: webhookUrl,
-        events: ['sale.created', 'cpe.accepted', 'cpe.rejected'],
-      }),
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: auth() },
+      body: JSON.stringify({ url: webhookUrl, events: ['sale.created', 'cpe.accepted', 'cpe.rejected'] }),
     });
     const json = (await res.json()) as { secret?: string; id?: string; error?: string };
-    if (res.ok && json.secret) {
-      createdSecret = json.secret;
-      webhookMessage = `Endpoint ${json.id} creado — guarda el secret`;
-    } else {
-      webhookMessage = json.error ?? 'error';
-    }
+    if (res.ok && json.secret) { createdSecret = json.secret; webhookMessage = `Endpoint ${json.id} creado — guarda el secret`; }
+    else { webhookMessage = json.error ?? 'error'; }
   }
 
   async function listWebhooks() {
     webhookMessage = '';
-    const res = await fetch(`${apiBase()}/api/integrations/webhooks`, {
-      headers: { authorization: auth() },
-    });
+    const res = await fetch(`${apiBase()}/api/integrations/webhooks`, { headers: { authorization: auth() } });
     const json = await res.json();
     endpointsJson = JSON.stringify(json, null, 2);
     webhookMessage = res.ok ? 'Endpoints listados' : 'error';
   }
 </script>
 
-<section class="admin-integrations" data-testid="admin-integraciones">
-  <h1>Admin · Integraciones</h1>
-  <p class="lede">
-    Export Contasis/Concar y API pública (Cadena+). Soft-launch detrás de flags.
-  </p>
+<svelte:head><title>Integraciones · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="admin-integraciones">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="link" size={12} /> Admin · Integraciones</p>
+      <h1 class="page-title">Integraciones</h1>
+      <p class="page-lede">Export contable Contasis/Concar, API keys y Webhooks — Cadena+.</p>
+    </div>
+  </div>
 
   {#if !exportOn && !apiOn}
-    <p data-testid="integrations-off">Integraciones desactivadas (feature flags off).</p>
+    <div class="feature-off-banner" data-testid="integrations-off">
+      <Icon name="info" size={18} />
+      <span>Integraciones desactivadas (feature flags off).</span>
+    </div>
   {:else}
-    {#if exportOn}
-      <section data-testid="export-block">
-        <h2>Export contable</h2>
-        <p>Asientos por rango y sucursal (solo lectura).</p>
-        <label>
-          Desde
-          <input bind:value={fromDate} type="date" />
-        </label>
-        <label>
-          Hasta
-          <input bind:value={toDate} type="date" />
-        </label>
-        <label>
-          Sucursal
-          <input bind:value={branchId} />
-        </label>
-        <label>
-          Formato
-          <select bind:value={target}>
-            <option value="contasis">Contasis (CSV)</option>
-            <option value="concar">Concar (XML)</option>
-          </select>
-        </label>
-        <button type="button" onclick={runExport}>Exportar</button>
-        {#if exportMessage}
-          <p data-testid="export-message">{exportMessage}</p>
-        {/if}
-        {#if exportPreview}
-          <pre data-testid="export-preview">{exportPreview}</pre>
-        {/if}
-      </section>
-    {/if}
+    <div class="integ-grid">
+      {#if exportOn}
+        <!-- Export contable -->
+        <section class="glass-card section-pad" data-testid="export-block">
+          <div class="card-header">
+            <h2>Export contable</h2>
+            <span class="section-tag">Contasis / Concar</span>
+          </div>
+          <p class="section-desc">Asientos por rango y sucursal (solo lectura).</p>
+          <div class="two-col">
+            <div class="field-group">
+              <label for="int-from">Desde</label>
+              <input id="int-from" type="date" bind:value={fromDate} />
+            </div>
+            <div class="field-group">
+              <label for="int-to">Hasta</label>
+              <input id="int-to" type="date" bind:value={toDate} />
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="int-branch">Sucursal</label>
+            <input id="int-branch" bind:value={branchId} />
+          </div>
+          <div class="field-group">
+            <label for="int-target">Formato</label>
+            <select id="int-target" bind:value={target}>
+              <option value="contasis">Contasis (CSV)</option>
+              <option value="concar">Concar (XML)</option>
+            </select>
+          </div>
+          <button type="button" class="primary" onclick={runExport}>
+            <Icon name="download" size={14} />
+            Exportar
+          </button>
+          {#if exportMessage}
+            <p class="feedback-msg" data-testid="export-message">{exportMessage}</p>
+          {/if}
+          {#if exportPreview}
+            <pre class="code-preview" data-testid="export-preview">{exportPreview}</pre>
+          {/if}
+        </section>
+      {/if}
 
-    {#if apiOn}
-      <section data-testid="keys-block">
-        <h2>API keys</h2>
-        <p>Una sola vista del plaintext al crear. Revoca en servidor para corte inmediato.</p>
-        <button type="button" onclick={createKey}>Crear API key</button>
-        <button type="button" onclick={listKeys}>Listar</button>
-        {#if createdKey}
-          <p data-testid="created-api-key"><code>{createdKey}</code></p>
-        {/if}
-        {#if keysMessage}
-          <p data-testid="keys-message">{keysMessage}</p>
-        {/if}
-        {#if keysJson}
-          <pre>{keysJson}</pre>
-        {/if}
-      </section>
+      {#if apiOn}
+        <!-- API Keys -->
+        <section class="glass-card section-pad" data-testid="keys-block">
+          <div class="card-header">
+            <h2>API Keys</h2>
+            <Icon name="key" size={16} />
+          </div>
+          <p class="section-desc">Una sola vista del plaintext al crear. Revoca en servidor para corte inmediato.</p>
+          <div class="btn-row">
+            <button type="button" class="primary" onclick={createKey}>
+              <Icon name="plus" size={14} />
+              Crear API key
+            </button>
+            <button type="button" class="secondary" onclick={listKeys}>
+              <Icon name="list" size={14} />
+              Listar
+            </button>
+          </div>
+          {#if createdKey}
+            <div class="secret-box" data-testid="created-api-key">
+              <Icon name="key" size={14} />
+              <code>{createdKey}</code>
+            </div>
+          {/if}
+          {#if keysMessage}
+            <p class="feedback-msg" data-testid="keys-message">{keysMessage}</p>
+          {/if}
+          {#if keysJson}
+            <pre class="code-preview">{keysJson}</pre>
+          {/if}
+        </section>
 
-      <section data-testid="webhooks-block">
-        <h2>Webhooks</h2>
-        <p>HTTPS obligatorio. Eventos: sale.created, cpe.accepted, cpe.rejected.</p>
-        <label>
-          URL
-          <input bind:value={webhookUrl} />
-        </label>
-        <button type="button" onclick={createWebhook}>Registrar endpoint</button>
-        <button type="button" onclick={listWebhooks}>Listar</button>
-        {#if createdSecret}
-          <p data-testid="created-webhook-secret"><code>{createdSecret}</code></p>
-        {/if}
-        {#if webhookMessage}
-          <p data-testid="webhook-message">{webhookMessage}</p>
-        {/if}
-        {#if endpointsJson}
-          <pre>{endpointsJson}</pre>
-        {/if}
-      </section>
-    {/if}
+        <!-- Webhooks -->
+        <section class="glass-card section-pad" data-testid="webhooks-block">
+          <div class="card-header">
+            <h2>Webhooks</h2>
+            <Icon name="link" size={16} />
+          </div>
+          <p class="section-desc">HTTPS obligatorio. Eventos: sale.created, cpe.accepted, cpe.rejected.</p>
+          <div class="field-group">
+            <label for="int-webhook-url">URL del endpoint</label>
+            <input id="int-webhook-url" bind:value={webhookUrl} />
+          </div>
+          <div class="btn-row">
+            <button type="button" class="primary" onclick={createWebhook}>
+              <Icon name="plus" size={14} />
+              Registrar endpoint
+            </button>
+            <button type="button" class="secondary" onclick={listWebhooks}>
+              <Icon name="list" size={14} />
+              Listar
+            </button>
+          </div>
+          {#if createdSecret}
+            <div class="secret-box" data-testid="created-webhook-secret">
+              <Icon name="key" size={14} />
+              <code>{createdSecret}</code>
+            </div>
+          {/if}
+          {#if webhookMessage}
+            <p class="feedback-msg" data-testid="webhook-message">{webhookMessage}</p>
+          {/if}
+          {#if endpointsJson}
+            <pre class="code-preview">{endpointsJson}</pre>
+          {/if}
+        </section>
+      {/if}
+    </div>
   {/if}
-</section>
+</div>
 
 <style>
-  .admin-integrations {
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
-    font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
-    color: #1a1f16;
-    background:
-      radial-gradient(ellipse at 10% 0%, #e8f0e4 0%, transparent 55%),
-      linear-gradient(180deg, #f7f5ef 0%, #efe8dc 100%);
-    min-height: 100vh;
+  .integ-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
   }
-  h1 {
-    font-size: clamp(1.75rem, 4vw, 2.25rem);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    margin: 0 0 0.35rem;
+
+  .section-pad { padding: 1.25rem; }
+
+  .section-desc {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.875rem;
   }
-  .lede {
-    margin: 0 0 1.75rem;
-    color: #4a5240;
-    font-size: 1rem;
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.875rem;
   }
-  section + section {
-    margin-top: 2rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid #c9d0c0;
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
   }
-  h2 {
-    font-size: 1.15rem;
-    margin: 0 0 0.35rem;
-  }
-  label {
-    display: block;
-    margin: 0.65rem 0;
-    font-size: 0.9rem;
-  }
-  input,
+
   select {
-    display: block;
     width: 100%;
-    margin-top: 0.25rem;
-    padding: 0.45rem 0.55rem;
-    border: 1px solid #a8b39a;
-    border-radius: 0;
-    background: #fffdf8;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    color: var(--text-main);
     font: inherit;
-  }
-  button {
-    margin: 0.4rem 0.4rem 0.4rem 0;
-    padding: 0.5rem 0.9rem;
-    border: 1px solid #2f3a28;
-    background: #2f3a28;
-    color: #f7f5ef;
-    font: inherit;
+    font-size: 0.875rem;
     cursor: pointer;
   }
-  pre {
-    margin-top: 0.75rem;
-    padding: 0.75rem;
-    background: #1a1f16;
-    color: #e8f0e4;
-    overflow: auto;
-    font-size: 0.75rem;
-    max-height: 16rem;
+
+  .btn-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.875rem;
   }
-  code {
+
+  .secret-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    background: rgba(217, 154, 61, 0.1);
+    border: 1px solid rgba(217, 154, 61, 0.3);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    color: var(--accent-primary);
+  }
+
+  .secret-box code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     word-break: break-all;
+    color: var(--text-main);
+  }
+
+  .feedback-msg {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0.5rem 0;
+  }
+
+  .code-preview {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    color: var(--text-main);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    max-height: 14rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  @media (max-width: 600px) {
+    .integ-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
   }
 </style>

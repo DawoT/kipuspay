@@ -57,8 +57,66 @@
   }
 </script>
 
-<h1>Offline sync harness</h1>
-<p data-testid="status">{status}</p>
-<p data-testid="pending">{pendingCount}</p>
-<p data-testid="message">{message}</p>
-<button type="button" data-testid="run" onclick={runHarness}>Encolar y sync</button>
+<svelte:head><title>Offline Sync Harness · Dev · KipusPay</title></svelte:head>
+
+<div class="page-shell">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow">Dev · Herramienta interna</p>
+      <h1 class="page-title">Offline Sync Harness</h1>
+      <p class="page-lede">Simula encolado de ventas offline y despacho chunked en background.</p>
+    </div>
+  </div>
+
+  <div class="glass-card harness-card">
+    <div class="card-header">
+      <h2>Estado de simulación</h2>
+      <span class="badge {status === 'synced' ? 'badge-success' : status === 'enqueued' ? 'badge-warning' : 'badge-muted'}" data-testid="status">
+        {status}
+      </span>
+    </div>
+    <div class="info-rows">
+      <div class="info-row">
+        <span class="info-label">Ventas pendientes en cola</span>
+        <strong class="tabular-nums" data-testid="pending">{pendingCount}</strong>
+      </div>
+      {#if message}
+        <div class="info-row" data-testid="message">
+          <span class="info-label">Resultado</span>
+          <span>{message}</span>
+        </div>
+      {/if}
+    </div>
+    <button type="button" class="primary run-btn" data-testid="run" onclick={runHarness}>
+      Encolar y sync
+    </button>
+  </div>
+</div>
+
+<style>
+  .harness-card {
+    padding: 1.25rem;
+    max-width: 28rem;
+  }
+
+  .info-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.625rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+  }
+
+  .info-label { color: var(--text-muted); }
+  .run-btn { width: 100%; margin-top: 0.5rem; }
+</style>

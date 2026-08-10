@@ -1,5 +1,6 @@
 <script lang="ts">
   import { isStockTransfersEnabled } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const xferOn = isStockTransfersEnabled();
   let fromBranchId = $state('b-origen');
@@ -12,6 +13,7 @@
   let qtyShrink = $state(0);
   let shrinkReason = $state('');
   let message = $state('');
+  let messageOk = $state(false);
 
   const apiBase = () =>
     (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
@@ -23,15 +25,12 @@
     const res = await fetch(`${apiBase()}/api/inventory/transfers`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({
-        fromBranchId,
-        toBranchId,
-        lines: [{ productId, qtySent }],
-      }),
+      body: JSON.stringify({ fromBranchId, toBranchId, lines: [{ productId, qtySent }] }),
     });
     const json = (await res.json()) as { id?: string; error?: string };
+    messageOk = res.ok;
     if (res.ok && json.id) transferId = json.id;
-    message = res.ok ? `Transferencia ${json.id} DRAFT` : (json.error ?? 'error');
+    message = res.ok ? `Transferencia ${json.id} · DRAFT` : (json.error ?? 'error');
   }
 
   async function ship() {
@@ -42,6 +41,7 @@
       body: JSON.stringify({ transferId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
     message = res.ok ? `Enviada · ${json.status}` : (json.error ?? 'error');
   }
 
@@ -56,10 +56,11 @@
       }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
     message = res.ok ? `Recibida · ${json.status}` : (json.error ?? 'error');
   }
 
-  async function cancel() {
+  async function cancelTransfer() {
     message = '';
     const res = await fetch(`${apiBase()}/api/inventory/transfers/cancel`, {
       method: 'POST',
@@ -67,98 +68,171 @@
       body: JSON.stringify({ transferId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
     message = res.ok ? `Cancelada · ${json.status}` : (json.error ?? 'error');
   }
 </script>
 
-<section class="admin-xfer" data-testid="admin-transferencias">
-  <h1>Transferencias entre sucursales</h1>
-  <p class="lede">Crear, enviar, recibir o cancelar (Sprint 20 · conservación origen+destino+merma).</p>
+<svelte:head><title>Transferencias entre sucursales · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="admin-transferencias">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="truck" size={12} /> Inventario · Transferencias</p>
+      <h1 class="page-title">Transferencias entre sucursales</h1>
+      <p class="page-lede">Crear, enviar, recibir o cancelar transferencias. Conservación total origen + destino + merma.</p>
+    </div>
+  </div>
+
+  {#if message}
+    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+      <Icon name={messageOk ? 'check' : 'alert'} size={16} />
+      <span>{message}</span>
+    </div>
+  {/if}
 
   {#if !xferOn}
-    <p data-testid="admin-xfer-off">PUBLIC_FEATURE_STOCK_TRANSFERS desactivado.</p>
+    <div class="feature-off-banner" data-testid="admin-xfer-off">
+      <Icon name="info" size={18} />
+      <span><code>PUBLIC_FEATURE_STOCK_TRANSFERS</code> desactivado.</span>
+    </div>
   {:else}
-    <label>
-      Origen
-      <input bind:value={fromBranchId} data-testid="admin-xfer-from" />
-    </label>
-    <label>
-      Destino
-      <input bind:value={toBranchId} data-testid="admin-xfer-to" />
-    </label>
-    <label>
-      Producto
-      <input bind:value={productId} data-testid="admin-xfer-product" />
-    </label>
-    <label>
-      Cantidad enviada
-      <input type="number" bind:value={qtySent} data-testid="admin-xfer-qty" />
-    </label>
-    <button type="button" data-testid="admin-xfer-create" onclick={createTransfer}>
-      Crear borrador
-    </button>
+    <div class="xfer-layout">
+      <!-- Nueva transferencia -->
+      <section class="glass-card section-pad">
+        <div class="card-header">
+          <h2>Nueva transferencia</h2>
+          <span class="section-tag">DRAFT</span>
+        </div>
+        <div class="field-group">
+          <label for="xfer-from">Sucursal origen</label>
+          <input id="xfer-from" bind:value={fromBranchId} data-testid="xfer-from" />
+        </div>
+        <div class="field-group">
+          <label for="xfer-to">Sucursal destino</label>
+          <input id="xfer-to" bind:value={toBranchId} data-testid="xfer-to" />
+        </div>
+        <div class="field-group">
+          <label for="xfer-product">Producto</label>
+          <input id="xfer-product" bind:value={productId} data-testid="xfer-product" />
+        </div>
+        <div class="field-group">
+          <label for="xfer-qty-sent">Cantidad enviada</label>
+          <input id="xfer-qty-sent" type="number" bind:value={qtySent} data-testid="xfer-qty-sent" />
+        </div>
+        <button type="button" class="primary" onclick={createTransfer}>
+          <Icon name="truck" size={14} />
+          Crear transferencia
+        </button>
+      </section>
 
-    <h2>Operar transferencia</h2>
-    <label>
-      Transfer ID
-      <input bind:value={transferId} data-testid="admin-xfer-id" />
-    </label>
-    <button type="button" data-testid="admin-xfer-ship" onclick={ship}>Enviar</button>
-    <button type="button" data-testid="admin-xfer-cancel" onclick={cancel}>Cancelar</button>
+      <!-- Gestionar existente -->
+      <section class="glass-card section-pad">
+        <div class="card-header">
+          <h2>Gestionar</h2>
+          <span class="section-tag">ID de transferencia</span>
+        </div>
+        <div class="field-group">
+          <label for="xfer-id">Transfer ID</label>
+          <input id="xfer-id" bind:value={transferId} data-testid="xfer-id" placeholder="ID creado arriba" />
+        </div>
+        <div class="btn-row">
+          <button type="button" class="primary" onclick={ship} disabled={!transferId}>
+            <Icon name="arrow-right" size={14} />
+            Enviar
+          </button>
+          <button type="button" class="secondary danger-sec" onclick={cancelTransfer} disabled={!transferId}>
+            <Icon name="x" size={14} />
+            Cancelar
+          </button>
+        </div>
 
-    <h2>Recibir</h2>
-    <label>
-      Line ID
-      <input bind:value={lineId} data-testid="admin-xfer-line" />
-    </label>
-    <label>
-      Recibido
-      <input type="number" bind:value={qtyReceived} data-testid="admin-xfer-received" />
-    </label>
-    <label>
-      Merma
-      <input type="number" bind:value={qtyShrink} data-testid="admin-xfer-shrink" />
-    </label>
-    <label>
-      Motivo merma
-      <textarea bind:value={shrinkReason} data-testid="admin-xfer-reason" rows="2"></textarea>
-    </label>
-    <button type="button" data-testid="admin-xfer-receive" onclick={receive}>Recibir</button>
+        <div class="separator"></div>
 
-    {#if message}
-      <p data-testid="admin-xfer-msg">{message}</p>
-    {/if}
+        <div class="card-header">
+          <h3>Recepción</h3>
+          <span class="section-tag">Línea</span>
+        </div>
+        <div class="field-group">
+          <label for="xfer-line-id">Line ID</label>
+          <input id="xfer-line-id" bind:value={lineId} data-testid="xfer-line-id" />
+        </div>
+        <div class="two-col">
+          <div class="field-group">
+            <label for="xfer-qty-recv">Qty recibida</label>
+            <input id="xfer-qty-recv" type="number" bind:value={qtyReceived} data-testid="xfer-qty-recv" />
+          </div>
+          <div class="field-group">
+            <label for="xfer-qty-shrink">Merma</label>
+            <input id="xfer-qty-shrink" type="number" bind:value={qtyShrink} data-testid="xfer-qty-shrink" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="xfer-shrink-reason">Motivo merma</label>
+          <input id="xfer-shrink-reason" bind:value={shrinkReason} data-testid="xfer-shrink-reason" placeholder="Opcional" />
+        </div>
+        <button type="button" class="success" onclick={receive} disabled={!transferId || !lineId}>
+          <Icon name="check" size={14} />
+          Confirmar recepción
+        </button>
+      </section>
+    </div>
   {/if}
-</section>
+</div>
 
 <style>
-  .admin-xfer {
-    max-width: 36rem;
-    margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
-    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  .xfer-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
   }
-  .lede {
-    color: #445;
-    margin-bottom: 1.25rem;
+
+  .section-pad {
+    padding: 1.25rem;
   }
-  label {
-    display: block;
-    margin: 0.75rem 0;
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.875rem;
   }
-  input,
-  textarea {
-    display: block;
-    width: 100%;
-    margin-top: 0.25rem;
-    padding: 0.4rem 0.5rem;
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
   }
-  button {
-    margin: 0.35rem 0.35rem 0.35rem 0;
-    padding: 0.45rem 0.85rem;
+
+  .btn-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.875rem;
   }
-  h2 {
-    margin-top: 1.5rem;
-    font-size: 1.1rem;
+
+  .separator {
+    border-top: 1px solid var(--border-subtle);
+    margin: 0.875rem 0;
+  }
+
+  .danger-sec {
+    border-color: rgba(217, 106, 60, 0.35);
+    color: var(--rose-red);
+  }
+
+  .danger-sec:hover {
+    background: rgba(217, 106, 60, 0.1);
+    border-color: var(--rose-red);
+  }
+
+  @media (max-width: 600px) {
+    .xfer-layout {
+      grid-template-columns: 1fr;
+    }
+    .two-col {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

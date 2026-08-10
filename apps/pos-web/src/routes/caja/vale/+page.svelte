@@ -7,6 +7,7 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const creditOn = isLedgerStoreCreditEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -14,6 +15,7 @@
   let customerName = $state('Cliente vale');
   let amountCents = $state(11800);
   let message = $state('');
+  let messageOk = $state(false);
 
   const apiBase = () =>
     (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
@@ -49,6 +51,7 @@
       error?: string;
       code?: string;
     };
+    messageOk = res.ok;
     if (!res.ok) {
       message = json.error ?? json.code ?? `Error ${res.status}`;
       return;
@@ -57,30 +60,73 @@
   }
 </script>
 
-<section data-testid="caja-vale">
-  <h1>Vale / gift card</h1>
-  <p class="lede">
-    La venta del vale se registra como venta (doc + cupo). El saldo lo impone el servidor.
-  </p>
-  {#if !creditOn}
-    <p data-testid="caja-vale-off">PUBLIC_FEATURE_LEDGER_STORE_CREDIT desactivado.</p>
-  {:else}
-    <p data-testid="caja-vale-tenant">Tenant {session.tenantId}</p>
-    <label>
-      Documento cliente
-      <input bind:value={customerDoc} data-testid="caja-vale-customer" />
-    </label>
-    <label>
-      Nombre
-      <input bind:value={customerName} data-testid="caja-vale-name" />
-    </label>
-    <label>
-      Monto (cents)
-      <input type="number" bind:value={amountCents} data-testid="caja-vale-amount" />
-    </label>
-    <button type="button" data-testid="caja-vale-issue" onclick={issueVale}>Emitir vale</button>
-    {#if message}
-      <p data-testid="caja-vale-msg">{message}</p>
-    {/if}
+<svelte:head><title>Vale / Gift card · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="caja-vale">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="gift" size={12} /> Caja · Crédito de tienda</p>
+      <h1 class="page-title">Vale / Gift card</h1>
+      <p class="page-lede">La venta del vale se registra como comprobante con cupo. El saldo lo impone el servidor.</p>
+    </div>
+  </div>
+
+  {#if message}
+    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite" data-testid="caja-vale-msg">
+      <Icon name={messageOk ? 'check' : 'alert'} size={16} />
+      <span>{message}</span>
+    </div>
   {/if}
-</section>
+
+  {#if !creditOn}
+    <div class="feature-off-banner" data-testid="caja-vale-off">
+      <Icon name="info" size={18} />
+      <span><code>PUBLIC_FEATURE_LEDGER_STORE_CREDIT</code> desactivado.</span>
+    </div>
+  {:else}
+    <p class="tenant-line" data-testid="caja-vale-tenant">Tenant {session.tenantId}</p>
+
+    <div class="glass-card vale-card">
+      <div class="card-header">
+        <h2>Emitir vale de consumo</h2>
+        <span class="badge badge-success">Crédito tienda</span>
+      </div>
+      <div class="field-group">
+        <label for="vale-doc">RUC / DNI cliente</label>
+        <input id="vale-doc" bind:value={customerDoc} data-testid="caja-vale-customer" />
+      </div>
+      <div class="field-group">
+        <label for="vale-name">Nombre o razón social</label>
+        <input id="vale-name" bind:value={customerName} data-testid="caja-vale-name" />
+      </div>
+      <div class="field-group">
+        <label for="vale-amount">Monto del vale (céntimos)</label>
+        <input id="vale-amount" type="number" bind:value={amountCents} data-testid="caja-vale-amount" />
+      </div>
+      <button type="button" class="primary" data-testid="caja-vale-issue" onclick={issueVale}>
+        <Icon name="gift" size={14} />
+        Emitir vale
+      </button>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .vale-card {
+    padding: 1.25rem;
+    max-width: 30rem;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .tenant-line {
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+</style>

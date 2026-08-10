@@ -392,10 +392,10 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.25rem 0.65rem;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(217, 154, 61, 0.12);
+    border: 1px solid rgba(217, 154, 61, 0.3);
     border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
     font: 600 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -440,7 +440,7 @@
   }
 
   .glass-card {
-    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
+    background: var(--bg-glass-card);
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-md, 12px);
     padding: 1.35rem;
@@ -470,7 +470,7 @@
   }
 
   :global(.icon-accent) {
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
   }
 
   :global(.icon-amber) {
@@ -505,8 +505,8 @@
   .info-code {
     font-family: var(--font-mono, monospace);
     font-size: 0.88rem;
-    color: var(--accent-primary, #6366f1);
-    background: rgba(99, 102, 241, 0.1);
+    color: var(--accent-primary);
+    background: rgba(217, 154, 61, 0.1);
     padding: 0.25rem 0.5rem;
     border-radius: var(--radius-sm, 8px);
     word-break: break-all;
@@ -613,13 +613,13 @@
   }
 
   .link-btn {
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.25);
-    color: var(--accent-primary, #6366f1);
+    background: rgba(217, 154, 61, 0.1);
+    border: 1px solid rgba(217, 154, 61, 0.2);
+    color: var(--accent-primary);
   }
 
   .link-btn:hover {
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba(217, 154, 61, 0.15);
   }
 
   button:disabled {
@@ -671,7 +671,7 @@
   .diagnostic {
     margin-top: 0.75rem;
     padding: 0.75rem;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--bg-glass);
     border-radius: var(--radius-sm, 8px);
     font-family: var(--font-mono, monospace);
     font-size: 0.82rem;
@@ -683,7 +683,7 @@
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(8px);
     display: flex;
     align-items: center;

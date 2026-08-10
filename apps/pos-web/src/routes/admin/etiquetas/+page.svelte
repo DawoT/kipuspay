@@ -426,10 +426,10 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.25rem 0.65rem;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(217, 154, 61, 0.12);
+    border: 1px solid rgba(217, 154, 61, 0.3);
     border-radius: var(--radius-full, 9999px);
-    color: var(--accent-color);
+    color: var(--accent-primary);
     font: 600 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -440,7 +440,7 @@
     font: 700 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--accent-color);
+    color: var(--accent-primary);
     margin: 0 0 0.25rem 0;
   }
 
@@ -547,9 +547,9 @@
   .search:focus-visible,
   select:focus-visible,
   input[type='number']:focus-visible {
-    outline: 2px solid var(--accent-color);
+    outline: 2px solid var(--accent-primary);
     outline-offset: 1px;
-    border-color: var(--accent-color);
+    border-color: var(--accent-primary);
   }
 
   .product-list {
@@ -573,8 +573,8 @@
   }
 
   .product-row.selected {
-    background: rgba(99, 102, 241, 0.12);
-    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(217, 154, 61, 0.12);
+    border-color: rgba(217, 154, 61, 0.4);
   }
 
   .product-check {
@@ -587,7 +587,7 @@
   .product-check input[type='checkbox'] {
     width: 1.2rem;
     height: 1.2rem;
-    accent-color: var(--accent-color);
+    accent-color: var(--accent-primary);
     cursor: pointer;
   }
 
@@ -676,7 +676,7 @@
     gap: 0.3rem;
     margin-top: 0.35rem;
     font: 600 0.75rem/1.2 var(--font-mono, monospace);
-    color: var(--accent-color);
+    color: var(--accent-primary);
   }
 
   .format-fieldset {
@@ -715,8 +715,8 @@
   }
 
   .format-switch label.active {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: var(--accent-color);
+    background: rgba(217, 154, 61, 0.12);
+    border-color: var(--accent-primary);
     color: var(--text-primary);
   }
 
@@ -732,19 +732,19 @@
     width: 100%;
     margin-top: 1rem;
     padding: 0.8rem 1rem;
-    background: var(--accent-gradient, var(--accent-color));
+    background: var(--accent-gradient, var(--accent-primary));
     border: none;
     border-radius: var(--radius-md, 12px);
     color: #ffffff;
     font: 700 0.95rem/1.2 var(--font-heading, sans-serif);
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 4px 14px rgba(217, 154, 61, 0.35);
     transition: transform 0.15s ease, opacity 0.15s ease;
   }
 
   .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+    box-shadow: 0 6px 20px rgba(217, 154, 61, 0.45);
   }
 
   .btn-primary:disabled {
@@ -890,7 +890,7 @@
     height: 0.75rem;
     border-radius: var(--radius-full, 9999px);
     overflow: hidden;
-    accent-color: var(--accent-color);
+    accent-color: var(--accent-primary);
   }
 
   .batch-id {
@@ -927,18 +927,7 @@
     font-size: 0.88rem;
   }
 
-  :global(.spin) {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
+  /* .spin y @keyframes spin están definidos globalmente en app.css */
 
   @media (max-width: 900px) {
     .workbench {

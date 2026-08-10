@@ -100,6 +100,8 @@
   }
 </script>
 
+<svelte:head><title>Cierre Z · Caja · KipusPay</title></svelte:head>
+
 <div class="caja-page-container">
   <section class="glass-panel caja-card" data-testid="caja-blind-z">
     <div class="card-header-bar">

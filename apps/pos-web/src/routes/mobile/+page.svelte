@@ -12,6 +12,7 @@
     updateBrowserPushPrivacy,
     type PushPurpose,
   } from '$lib/mobile/mobile-push-client';
+  import Icon from '$lib/ui/Icon.svelte';
 
   interface InstallPromptEvent extends Event {
     prompt(): Promise<void>;
@@ -178,208 +179,194 @@
 
 <svelte:head>
   <title>Dispositivo móvil · KipusPay</title>
-  <meta
-    name="description"
-    content="Instalación y notificaciones del terminal móvil KipusPay"
-  />
+  <meta name="description" content="Instalación y notificaciones del terminal móvil KipusPay" />
 </svelte:head>
 
-{#if !mobilePosOn && !mobilePushOn}
-  <section class="mobile-card" aria-labelledby="mobile-disabled-title">
-    <p class="eyebrow">Capability desactivada</p>
-    <h1 id="mobile-disabled-title">Dispositivo móvil no habilitado</h1>
-    <p>La caja principal sigue funcionando normalmente.</p>
-    <a class="action secondary" href="/">Volver al POS</a>
-  </section>
-{:else}
-  <div class="mobile-shell">
-    <header>
-      <p class="eyebrow">Terminal server-bound</p>
-      <h1>Configura este dispositivo</h1>
-      <p>
-        Usa el mismo checkout, permisos, sesión, impresión y cola offline del POS. No se crea un rol
-        móvil separado.
-      </p>
-    </header>
+<div class="page-shell">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="smartphone" size={12} /> Terminal Server-Bound</p>
+      <h1 class="page-title">Configura este dispositivo</h1>
+      <p class="page-lede">Usa el mismo checkout, permisos, sesión e impresión del POS.</p>
+    </div>
+  </div>
 
-    <section class="mobile-card" aria-labelledby="device-title">
-      <h2 id="device-title">1. Dispositivo</h2>
-      <dl>
-        <div><dt>Estado</dt><dd>{terminal?.verified ? 'Vinculado' : 'Pendiente'}</dd></div>
-        <div><dt>Terminal</dt><dd>{terminal?.terminalId ?? 'Sin terminal activa'}</dd></div>
-        <div><dt>Red</dt><dd>{online ? 'Conectado' : 'Offline · cola preservada'}</dd></div>
-      </dl>
-      {#if mobilePosOn}
-        <button type="button" class="primary" onclick={installApp}>Instalar KipusPay</button>
-      {/if}
-    </section>
-
-    {#if mobilePushOn}
-      <section class="mobile-card" aria-labelledby="privacy-title">
-        <h2 id="privacy-title">2. Privacidad y notificaciones</h2>
-        <p>
-          En la pantalla bloqueada se muestran categorías generales. Por defecto no se muestran
-          montos, clientes, documentos ni datos fiscales.
-        </p>
-        <label class="privacy-choice">
-          <input
-            type="checkbox"
-            bind:checked={amountsMode}
-            disabled={!consentId || purpose !== 'OWNER_ALERTS'}
-            onchange={updatePrivacy}
-          />
-          Mostrar montos (requiere política del tenant y opt-in del owner)
-        </label>
-        <button type="button" class="primary" disabled={!canRegister} onclick={requestNotifications}>
-          Activar notificaciones
-        </button>
-        <p class="hint">Permiso del navegador: {permission}</p>
-        <div class="actions">
-          <button type="button" class="secondary" disabled={!subscriptionId} onclick={rotateRegistration}>
-            Rotar registro
-          </button>
-          <button type="button" class="secondary" disabled={!subscriptionId} onclick={unsubscribe}>
-            Revocar dispositivo
-          </button>
-          <button type="button" class="secondary" onclick={refreshDevices}>
-            Dispositivos ({deviceCount})
-          </button>
-        </div>
-      </section>
-
-      <section class="mobile-card" aria-labelledby="test-title">
-        <h2 id="test-title">3. Prueba y recuperación</h2>
-        <p>
-          Si push, FCM o background sync fallan, KipusPay cambia a consulta periódica y avisos dentro
-          de la app. Las ventas, CPE, cierre Z y sincronización no se bloquean.
-        </p>
-        <div class="actions">
-          <button type="button" class="secondary" onclick={showLocalTest}>Probar aviso local</button>
-          <button type="button" class="secondary" disabled={!subscriptionId} onclick={sendServerTest}>
-            Probar push servidor
-          </button>
-          <a class="action secondary" href="/">Continuar vendiendo</a>
-        </div>
-      </section>
+  {#if !mobilePosOn && !mobilePushOn}
+    <div class="feature-off-banner" aria-labelledby="mobile-disabled-title">
+      <Icon name="info" size={18} />
+      <div>
+        <strong id="mobile-disabled-title">Dispositivo móvil no habilitado</strong>
+        <p>La caja principal sigue funcionando normalmente.</p>
+      </div>
+    </div>
+  {:else}
+    {#if status}
+      <div class="status-alert info" role="status" aria-live="polite">
+        <Icon name="check" size={16} />
+        <span>{status}</span>
+      </div>
     {/if}
 
-    <p class="status" role="status" aria-live="polite" aria-atomic="true">{status}</p>
-  </div>
-{/if}
+    <div class="mobile-grid">
+      <section class="glass-card section-pad" aria-labelledby="device-title">
+        <div class="card-header">
+          <h2 id="device-title">1. Dispositivo</h2>
+          <span class="badge {terminal?.verified ? 'badge-success' : 'badge-warning'}">
+            {terminal?.verified ? 'Vinculado' : 'Pendiente'}
+          </span>
+        </div>
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-label">Terminal</span>
+            <span class="info-val">{terminal?.terminalId ?? 'Sin terminal activa'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Red</span>
+            <span class="info-val">{online ? 'Conectado' : 'Offline · cola preservada'}</span>
+          </div>
+        </div>
+        {#if mobilePosOn}
+          <button type="button" class="primary install-btn" onclick={installApp}>
+            <Icon name="download" size={14} />
+            Instalar KipusPay
+          </button>
+        {/if}
+      </section>
+
+      {#if mobilePushOn}
+        <section class="glass-card section-pad" aria-labelledby="privacy-title">
+          <div class="card-header">
+            <h2 id="privacy-title">2. Notificaciones</h2>
+            <Icon name="shield" size={16} />
+          </div>
+          <p class="section-desc">
+            En la pantalla bloqueada no se muestran por defecto montos ni datos fiscales de clientes.
+          </p>
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              bind:checked={amountsMode}
+              disabled={!consentId || purpose !== 'OWNER_ALERTS'}
+              onchange={updatePrivacy}
+            />
+            <span>Mostrar montos (requiere opt-in del owner)</span>
+          </label>
+          <button type="button" class="primary full-btn" disabled={!canRegister} onclick={requestNotifications}>
+            Activar notificaciones
+          </button>
+          <p class="hint-text">Permiso del navegador: {permission}</p>
+
+          <div class="btn-row">
+            <button type="button" class="secondary" disabled={!subscriptionId} onclick={rotateRegistration}>
+              Rotar registro
+            </button>
+            <button type="button" class="secondary" disabled={!subscriptionId} onclick={unsubscribe}>
+              Revocar
+            </button>
+            <button type="button" class="secondary" onclick={refreshDevices}>
+              Dispositivos ({deviceCount})
+            </button>
+          </div>
+        </section>
+
+        <section class="glass-card section-pad full-col" aria-labelledby="test-title">
+          <div class="card-header">
+            <h2 id="test-title">3. Prueba y recuperación</h2>
+            <Icon name="refresh" size={16} />
+          </div>
+          <p class="section-desc">
+            Si push o sync fallan, KipusPay conmuta a avisos en app. Las ventas y la caja no se bloquean.
+          </p>
+          <div class="btn-row">
+            <button type="button" class="secondary" onclick={showLocalTest}>Probar aviso local</button>
+            <button type="button" class="secondary" disabled={!subscriptionId} onclick={sendServerTest}>
+              Probar push servidor
+            </button>
+            <a class="link-action" href="/">Continuar vendiendo</a>
+          </div>
+        </section>
+      {/if}
+    </div>
+  {/if}
+</div>
 
 <style>
-  .mobile-shell,
-  .mobile-card {
-    max-width: 42rem;
-    margin-inline: auto;
-  }
-  .mobile-shell {
+  .mobile-grid {
     display: grid;
-    gap: 1rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
   }
-  header,
-  .mobile-card {
-    padding: 1.1rem;
-    border: 1px solid #475569;
-    border-radius: 1rem;
-    background: #111827;
+
+  .full-col {
+    grid-column: 1 / -1;
   }
-  header {
-    border-top: 4px solid #818cf8;
-  }
-  .eyebrow {
-    color: #a5b4fc;
-    font: 700 0.75rem/1.2 ui-monospace, monospace;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  h1,
-  h2,
-  p {
-    margin-block: 0 0.75rem;
-  }
-  dl {
-    display: grid;
+
+  .section-pad { padding: 1.25rem; }
+  .section-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.875rem; }
+
+  .info-list {
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    margin-block: 0 1rem;
+    margin-bottom: 1rem;
   }
-  dl div {
-    display: grid;
-    grid-template-columns: 7rem 1fr;
-    gap: 0.5rem;
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
   }
-  dt {
-    color: #cbd5e1;
-    font-weight: 700;
-  }
-  dd {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-  button,
-  .action {
-    min-height: 48px;
-    padding: 0.75rem 1rem;
-  }
-  .privacy-choice {
-    min-height: 48px;
+
+  .info-label { color: var(--text-dim); }
+  .info-val { font-family: var(--font-mono); color: var(--text-main); font-weight: 600; }
+
+  .checkbox-row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-block: 0.75rem;
-    color: #f8fafc;
+    gap: 0.5rem;
+    margin-bottom: 0.875rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-muted);
   }
-  .privacy-choice input {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-  .action {
+
+  .checkbox-row input { width: auto; accent-color: var(--accent-primary); }
+
+  .install-btn, .full-btn { width: 100%; }
+
+  .hint-text { font-size: 0.75rem; color: var(--text-dim); margin: 0.5rem 0 0.875rem; }
+
+  .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  .link-action {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    border: 1px solid #64748b;
-    border-radius: 0.75rem;
-    color: #f8fafc;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-button-sec);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
     text-decoration: none;
+    transition: all var(--transition-fast);
+    min-height: 38px;
+    white-space: nowrap;
   }
-  .hint {
-    color: #cbd5e1;
+
+  .link-action:hover {
+    background: var(--bg-glass-hover);
+    border-color: var(--accent-primary);
   }
-  .status {
-    min-height: 48px;
-    padding: 0.8rem 1rem;
-    border-left: 4px solid #34d399;
-    background: #111827;
-  }
-  :global(:focus-visible) {
-    outline: 3px solid #fbbf24;
-    outline-offset: 3px;
-  }
-  @media (max-width: 375px) {
-    .mobile-shell {
-      gap: 0.75rem;
-    }
-    header,
-    .mobile-card {
-      padding: 0.9rem;
-    }
-    .actions,
-    .actions > * {
-      width: 100%;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      scroll-behavior: auto !important;
-      transition: none !important;
-      animation: none !important;
-    }
+
+  @media (max-width: 600px) {
+    .mobile-grid { grid-template-columns: 1fr; }
+    .full-col { grid-column: auto; }
   }
 </style>

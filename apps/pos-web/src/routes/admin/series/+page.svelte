@@ -201,10 +201,10 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.25rem 0.65rem;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(217, 154, 61, 0.12);
+    border: 1px solid rgba(217, 154, 61, 0.3);
     border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
     font: 600 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -284,12 +284,12 @@
   }
 
   .btn-primary {
-    background: var(--accent-gradient, #6366f1);
+    background: var(--accent-gradient, var(--accent-primary));
     color: #ffffff;
   }
 
   .btn-primary-sm {
-    background: var(--accent-primary, #6366f1);
+    background: var(--accent-primary);
     color: #ffffff;
   }
 
@@ -331,11 +331,11 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem;
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(217, 154, 61, 0.1);
+    border: 1px solid rgba(217, 154, 61, 0.3);
     border-radius: var(--radius-sm, 8px);
     font-size: 0.85rem;
-    color: var(--accent-primary, #6366f1);
+    color: var(--accent-primary);
   }
 
   .alert-box {

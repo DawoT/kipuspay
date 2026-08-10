@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { isOrdersKdsEnabled } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
 
   const enabled = isOrdersKdsEnabled();
@@ -48,7 +49,7 @@
       }
     };
     ws.onerror = () => {
-      error = 'KDS WebSocket error';
+      error = 'KDS WebSocket error — reconectando';
     };
   }
 
@@ -73,55 +74,141 @@
   onDestroy(() => ws?.close());
 </script>
 
-{#if !enabled}
-  <p data-testid="kds-off">KDS desactivado (FEATURE_ORDERS_KDS off).</p>
-{:else}
-  <main data-testid="kds">
-    <h1>KDS — cocina</h1>
-    <label>
-      Sucursal
-      <input data-testid="kds-branch" bind:value={branchId} />
-    </label>
-    <button type="button" data-testid="kds-reconnect" onclick={connect}>Reconectar</button>
-    {#if error}
-      <p data-testid="kds-error">{error}</p>
+<svelte:head><title>KDS Cocina · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="kds-root">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="box" size={12} /> KDS · Kitchen Display System</p>
+      <h1 class="page-title">Display de Cocina (KDS)</h1>
+      <p class="page-lede">Monitoreo en tiempo real de comandas recibidas y marcación de despacho a garzón.</p>
+    </div>
+    {#if enabled}
+      <button type="button" class="secondary" data-testid="kds-reconnect" onclick={connect}>
+        <Icon name="refresh" size={14} />
+        Reconectar WS
+      </button>
     {/if}
-    <ul data-testid="kds-events">
-      {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
-        <li>
-          <span>{ev.type}</span>
-          <span>{ev.orderId}</span>
-          {#if ev.type === 'ITEM_FIRED'}
-            <button
-              type="button"
-              data-testid="kds-ready"
-              onclick={() => markReady(ev.orderId, ev.orderItemId)}
-            >
-              Listo
-            </button>
-          {/if}
-        </li>
-      {/each}
-    </ul>
-  </main>
-{/if}
+  </div>
+
+  {#if !enabled}
+    <div class="feature-off-banner" data-testid="kds-off">
+      <Icon name="info" size={18} />
+      <span>KDS desactivado (<code>FEATURE_ORDERS_KDS</code> off).</span>
+    </div>
+  {:else}
+    {#if error}
+      <div class="status-alert danger" aria-live="polite" data-testid="kds-error">
+        <Icon name="alert" size={16} />
+        <span>{error}</span>
+      </div>
+    {/if}
+
+    <div class="kds-layout" data-testid="kds">
+      <div class="glass-card section-pad branch-card">
+        <div class="field-group">
+          <label for="kds-branch-input">Sucursal activa</label>
+          <input id="kds-branch-input" data-testid="kds-branch" bind:value={branchId} />
+        </div>
+      </div>
+
+      <div class="glass-card section-pad events-card">
+        <div class="card-header">
+          <h2>Comandas en cola</h2>
+          <span class="badge {events.length > 0 ? 'badge-warning' : 'badge-success'}">
+            {events.length} evento(s)
+          </span>
+        </div>
+
+        {#if events.length === 0}
+          <div class="empty-state">
+            <Icon name="check" size={28} />
+            <span>Cocina al día — sin comandas pendientes</span>
+          </div>
+        {:else}
+          <ul class="kds-event-list" data-testid="kds-events">
+            {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
+              <li class="kds-event-item">
+                <span class="badge {ev.type === 'ITEM_FIRED' ? 'badge-warning' : 'badge-success'}">
+                  {ev.type}
+                </span>
+                <span class="order-ref">
+                  <Icon name="file-text" size={14} />
+                  {ev.orderId}
+                </span>
+                {#if ev.type === 'ITEM_FIRED'}
+                  <button
+                    type="button"
+                    class="success mark-btn"
+                    data-testid="kds-ready"
+                    onclick={() => markReady(ev.orderId, ev.orderItemId)}
+                  >
+                    <Icon name="check" size={14} />
+                    Listo
+                  </button>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    </div>
+  {/if}
+</div>
 
 <style>
-  main {
-    max-width: 36rem;
-    margin: 2rem auto;
-    display: grid;
-    gap: 0.75rem;
+  .kds-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
   }
-  ul {
+
+  .section-pad { padding: 1.25rem; }
+  .field-group { display: flex; flex-direction: column; gap: 0.375rem; }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem;
+    color: var(--emerald-green);
+    font-size: 0.9375rem;
+  }
+
+  .kds-event-list {
     list-style: none;
     padding: 0;
-    display: grid;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
   }
-  li {
+
+  .kds-event-item {
     display: flex;
-    gap: 0.75rem;
     align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    flex-wrap: wrap;
+  }
+
+  .order-ref {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-main);
+    flex: 1;
+  }
+
+  .mark-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
   }
 </style>

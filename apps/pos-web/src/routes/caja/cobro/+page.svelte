@@ -8,6 +8,7 @@
     isPosCheckoutEnabled,
     isPricingPromotionsEnabled,
   } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
 
   /** Copy normativa §5.4 edge 2B (misma cadena que MANUAL_CAPTURE_AMBER_COPY). */
   const MANUAL_CAPTURE_AMBER_COPY =
@@ -151,152 +152,231 @@
   }
 </script>
 
-<section class="caja-cobro" data-testid="caja-cobro-local">
-  <h1>Cobro local</h1>
-  <p class="lede">
-    Efectivo, Yape/Plin/MP QR o tarjeta Culqi/Niubiz (Sprint 22). Montos los impone el servidor.
-  </p>
+<svelte:head><title>Cobro · Caja · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="caja-cobro-local">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="credit-card" size={12} /> Caja · Cobro</p>
+      <h1 class="page-title">Cobro local</h1>
+      <p class="page-lede">Efectivo, Yape/Plin/MP QR o tarjeta Culqi/Niubiz. Montos los impone el servidor.</p>
+    </div>
+    <div class="connection-badge" class:offline={!online}>
+      <Icon name={online ? 'wifi' : 'wifi-off'} size={14} />
+      <span>{online ? 'En línea' : 'Sin conexión'}</span>
+    </div>
+  </div>
 
   {#if !checkoutOn && !walletsOn && !cardsOn}
-    <p data-testid="caja-cobro-off">Activa flags de cobro / wallets / tarjeta.</p>
+    <div class="feature-off-banner" data-testid="caja-cobro-off">
+      <Icon name="info" size={18} />
+      <span>Activa flags de cobro / wallets / tarjeta para operar.</span>
+    </div>
   {:else}
-    <label>
-      Método
-      <select bind:value={methodCode} data-testid="caja-cobro-method">
-        <option value="cash">Efectivo</option>
-        {#if walletsOn}
-          <option value="yape">Yape</option>
-          <option value="plin">Plin</option>
-          <option value="mercadopago_qr">Mercado Pago QR</option>
-        {/if}
-        {#if cardsOn}
-          <option value="culqi">Culqi</option>
-          <option value="niubiz">Niubiz</option>
-        {/if}
-        <option value="card_manual">Tarjeta manual</option>
-      </select>
-    </label>
-    <label>
-      payment_method_id
-      <input bind:value={paymentMethodId} data-testid="caja-cobro-pm-id" />
-    </label>
-    <label class="online">
-      <input type="checkbox" checked={online} disabled data-testid="caja-cobro-online" />
-      En línea (detectado por el navegador)
-    </label>
-
     {#if amber}
-      <p class="amber" data-testid="caja-cobro-amber" role="alert">{amber}</p>
-    {/if}
-
-    <button type="button" data-testid="caja-cobro-charge" onclick={chargeOnline}>
-      Cobrar
-    </button>
-
-    {#if captureId}
-      <p data-testid="caja-cobro-capture">QR / captura: {captureId} (PENDING→CAPTURED)</p>
+      <div class="status-alert warning" role="alert" data-testid="caja-cobro-amber">
+        <Icon name="alert" size={16} />
+        <span>{amber}</span>
+      </div>
     {/if}
     {#if message}
-      <p data-testid="caja-cobro-msg">{message}</p>
+      <div class="status-alert info" aria-live="polite" data-testid="caja-cobro-msg">
+        <Icon name="check" size={16} />
+        <span>{message}</span>
+      </div>
     {/if}
-  {/if}
 
-  {#if whatsappOn || loyaltyOn}
-    <h2>Cliente · WhatsApp y puntos</h2>
-    <label>
-      customer_id
-      <input bind:value={customerId} data-testid="caja-customer-id" />
-    </label>
-  {/if}
+    <div class="cobro-grid">
+      <!-- Método de pago -->
+      <div class="glass-card section-pad">
+        <div class="card-header">
+          <h2>Método de pago</h2>
+          <Icon name="credit-card" size={16} />
+        </div>
+        <div class="field-group">
+          <label for="cobro-method">Selecciona método</label>
+          <select id="cobro-method" bind:value={methodCode} data-testid="caja-cobro-method">
+            <option value="cash">Efectivo</option>
+            {#if walletsOn}
+              <option value="yape">Yape</option>
+              <option value="plin">Plin</option>
+              <option value="mercadopago_qr">Mercado Pago QR</option>
+            {/if}
+            {#if cardsOn}
+              <option value="culqi">Culqi</option>
+              <option value="niubiz">Niubiz</option>
+            {/if}
+            <option value="card_manual">Tarjeta manual</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="cobro-pmid">ID método de pago</label>
+          <input id="cobro-pmid" bind:value={paymentMethodId} data-testid="caja-cobro-pm-id" />
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" checked={online} disabled data-testid="caja-cobro-online" />
+          <span>En línea (detectado por el navegador)</span>
+        </label>
+        <button type="button" class="primary charge-btn" data-testid="caja-cobro-charge" onclick={chargeOnline}>
+          <Icon name="credit-card" size={14} />
+          Cobrar
+        </button>
+        {#if captureId}
+          <div class="capture-box" data-testid="caja-cobro-capture">
+            <Icon name="check" size={14} />
+            <span class="capture-id">QR / captura: {captureId} (PENDING→CAPTURED)</span>
+          </div>
+        {/if}
+      </div>
 
-  {#if promosOn}
-    <h2>Promoción</h2>
-    <label>
-      ID de promoción (servidor impone el precio)
-      <input bind:value={promotionId} data-testid="caja-promo-id" />
-    </label>
-    <p data-testid="caja-promo-hint">
-      Se envía solo el ID en la venta offline; no se confía en el precio de pantalla.
-      {#if promotionId.trim()}
-        · promo activa: {promotionId.trim()}
+      <!-- Cliente, WhatsApp y Puntos -->
+      {#if whatsappOn || loyaltyOn}
+        <div class="glass-card section-pad">
+          <div class="card-header">
+            <h2>Cliente</h2>
+            <Icon name="user" size={16} />
+          </div>
+          <div class="field-group">
+            <label for="cobro-customer">ID Cliente</label>
+            <input id="cobro-customer" bind:value={customerId} data-testid="caja-customer-id" />
+          </div>
+          {#if whatsappOn}
+            <label class="checkbox-row">
+              <input type="checkbox" bind:checked={waOptedIn} data-testid="caja-wa-optin" />
+              <span>Opt-in WhatsApp (comprobante)</span>
+            </label>
+            <button type="button" class="secondary" data-testid="caja-wa-save" onclick={saveWhatsAppOptIn}>
+              Guardar opt-in
+            </button>
+            {#if waMsg}
+              <p class="result-note" data-testid="caja-wa-msg">{waMsg}</p>
+            {/if}
+          {/if}
+
+          {#if loyaltyOn}
+            <div class="field-group" style="margin-top:1rem">
+              <label for="cobro-loyalty-key">Sale idempotency key</label>
+              <input id="cobro-loyalty-key" bind:value={saleIdempotencyKey} data-testid="caja-loyalty-key" />
+            </div>
+            <div class="two-col">
+              <div class="field-group">
+                <label for="cobro-loyalty-pts">Puntos a reservar</label>
+                <input id="cobro-loyalty-pts" type="number" bind:value={loyaltyPoints} data-testid="caja-loyalty-points" />
+              </div>
+              <div class="field-group">
+                <label for="cobro-loyalty-authz">Authz token hash (canje)</label>
+                <input id="cobro-loyalty-authz" bind:value={authzTokenHash} data-testid="caja-loyalty-authz" />
+              </div>
+            </div>
+            <button type="button" class="secondary" data-testid="caja-loyalty-reserve" onclick={reserveLoyalty}>
+              Reservar puntos
+            </button>
+            {#if loyaltyMsg}
+              <p class="result-note" data-testid="caja-loyalty-msg">{loyaltyMsg}</p>
+            {/if}
+          {/if}
+        </div>
       {/if}
-    </p>
-  {/if}
 
-  {#if whatsappOn}
-    <label class="online">
-      <input type="checkbox" bind:checked={waOptedIn} data-testid="caja-wa-optin" />
-      Opt-in WhatsApp (comprobante)
-    </label>
-    <button type="button" data-testid="caja-wa-save" onclick={saveWhatsAppOptIn}>
-      Guardar opt-in
-    </button>
-    {#if waMsg}
-      <p data-testid="caja-wa-msg">{waMsg}</p>
-    {/if}
+      <!-- Promociones -->
+      {#if promosOn}
+        <div class="glass-card section-pad">
+          <div class="card-header">
+            <h2>Promoción</h2>
+            <Icon name="percent" size={16} />
+          </div>
+          <div class="field-group">
+            <label for="cobro-promo">ID de promoción</label>
+            <input id="cobro-promo" bind:value={promotionId} data-testid="caja-promo-id" placeholder="p-demo" />
+          </div>
+          <p class="promo-hint" data-testid="caja-promo-hint">
+            Se envía solo el ID en la venta offline; no se confía en el precio de pantalla.
+            {#if promotionId.trim()}
+              <strong> · Promo activa: {promotionId.trim()}</strong>
+            {/if}
+          </p>
+        </div>
+      {/if}
+    </div>
   {/if}
-
-  {#if loyaltyOn}
-    <label>
-      sale_idempotency_key
-      <input bind:value={saleIdempotencyKey} data-testid="caja-loyalty-key" />
-    </label>
-    <label>
-      Puntos a reservar
-      <input type="number" bind:value={loyaltyPoints} data-testid="caja-loyalty-points" />
-    </label>
-    <label>
-      Authz token hash (canje)
-      <input bind:value={authzTokenHash} data-testid="caja-loyalty-authz" />
-    </label>
-    <button type="button" data-testid="caja-loyalty-reserve" onclick={reserveLoyalty}>
-      Reservar puntos
-    </button>
-    {#if loyaltyMsg}
-      <p data-testid="caja-loyalty-msg">{loyaltyMsg}</p>
-    {/if}
-  {/if}
-</section>
+</div>
 
 <style>
-  .caja-cobro {
-    max-width: 36rem;
-    margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
-    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  .cobro-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
   }
-  .lede {
-    color: #445;
-    margin-bottom: 1.25rem;
+
+  .section-pad { padding: 1.25rem; }
+  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  .charge-btn { width: 100%; margin-top: 0.25rem; }
+
+  .connection-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: rgba(46, 158, 116, 0.12);
+    border: 1px solid rgba(46, 158, 116, 0.3);
+    color: var(--emerald-green);
   }
-  h2 {
-    margin-top: 2rem;
-    font-size: 1.1rem;
+  .connection-badge.offline {
+    background: rgba(217, 106, 60, 0.12);
+    border-color: rgba(217, 106, 60, 0.3);
+    color: var(--rose-red);
   }
-  label {
-    display: block;
-    margin: 0.75rem 0;
-  }
-  input,
-  select {
-    display: block;
-    width: 100%;
-    margin-top: 0.25rem;
-    padding: 0.4rem 0.5rem;
-  }
-  .online input {
-    display: inline;
-    width: auto;
-  }
-  .amber {
-    background: #fff3cd;
-    color: #664d03;
-    border: 1px solid #ffecb5;
-    padding: 0.75rem 1rem;
-    margin: 1rem 0;
-  }
-  button {
+
+  .capture-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-top: 0.75rem;
-    padding: 0.45rem 0.85rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(46, 158, 116, 0.1);
+    border: 1px solid rgba(46, 158, 116, 0.3);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    color: var(--emerald-green);
+  }
+
+  .capture-id {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-bottom: 0.75rem;
+  }
+  .checkbox-row input { width: auto; accent-color: var(--accent-primary); }
+
+  .promo-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .result-note {
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  @media (max-width: 700px) {
+    .cobro-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
   }
 </style>

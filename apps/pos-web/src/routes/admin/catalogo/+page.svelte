@@ -4,6 +4,7 @@
     isCatalogVariantsEnabled,
     isInventorySerialsEnabled,
   } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
@@ -16,8 +17,10 @@
   let denominator = $state(1);
   let isBase = $state(true);
   let message = $state('');
+  let messageOk = $state(false);
   let catalog = $state<unknown[]>([]);
   let serialTrackingMode = $state('NONE');
+  let loading = $state(false);
 
   const apiBase = () =>
     (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
@@ -26,12 +29,15 @@
   const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
 
   async function loadCatalog() {
+    loading = true;
     const response = await fetch(`${apiBase()}/api/catalog/variants-uom`, {
       headers: { authorization: auth() },
     });
     const json = (await response.json()) as { items?: unknown[]; error?: string };
     message = response.ok ? '' : (json.error ?? `Error ${response.status}`);
+    messageOk = response.ok;
     catalog = response.ok ? (json.items ?? []) : [];
+    loading = false;
   }
 
   async function saveVariant() {
@@ -44,6 +50,7 @@
       }),
     });
     const json = (await response.json()) as { error?: string };
+    messageOk = response.ok;
     message = response.ok ? 'Variante guardada.' : (json.error ?? `Error ${response.status}`);
     if (response.ok) await loadCatalog();
   }
@@ -61,6 +68,7 @@
       }),
     });
     const json = (await response.json()) as { error?: string };
+    messageOk = response.ok;
     message = response.ok ? 'Unidad guardada.' : (json.error ?? `Error ${response.status}`);
     if (response.ok) await loadCatalog();
   }
@@ -72,6 +80,7 @@
       body: JSON.stringify({ productId, serialTrackingMode }),
     });
     const json = (await response.json()) as { error?: string; action?: string };
+    messageOk = response.ok;
     message = response.ok
       ? 'Seguimiento serial guardado por el servidor.'
       : [json.error, json.action].filter(Boolean).join(' ');
@@ -80,104 +89,290 @@
 
 <svelte:head><title>Catálogo exacto · KipusPay</title></svelte:head>
 
-<main class="catalog-shell" data-testid="admin-catalogo">
-  <header>
-    <p class="eyebrow">Catálogo · Variantes y unidades</p>
-    <h1>Cada presentación,<br />una cantidad exacta.</h1>
-    <p class="lede">
-      Organiza familias de producto y factores racionales. El stock siempre queda en la
-      unidad base de cada variante.
-    </p>
-    <a class="catalog-link" href="/admin/etiquetas">Etiquetas de precio</a>
-  </header>
+<div class="page-shell" data-testid="admin-catalogo">
+  <!-- Masthead -->
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="layers" size={12} /> Catálogo · Variantes & UOM</p>
+      <h1 class="page-title">Catálogo exacto</h1>
+      <p class="page-lede">
+        Organiza familias de producto y factores racionales. El stock siempre queda en la
+        unidad base de cada variante.
+      </p>
+    </div>
+    <a class="btn-etiquetas" href="/admin/etiquetas">
+      <Icon name="tag" size={14} />
+      Etiquetas de precio
+    </a>
+  </div>
+
+  {#if message}
+    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+      <Icon name={messageOk ? 'check' : 'alert'} size={16} />
+      <span>{message}</span>
+    </div>
+  {/if}
 
   {#if !variantsOn && !uomOn && !serialsOn}
-    <aside class="off" data-testid="catalog-off">
-      Activa una capability de catálogo o PUBLIC_FEATURE_INVENTORY_SERIALS para editar.
-    </aside>
+    <div class="feature-off-banner" data-testid="catalog-off">
+      <Icon name="info" size={18} />
+      <span>
+        Activa una capability de catálogo o <code>PUBLIC_FEATURE_INVENTORY_SERIALS</code> para editar.
+      </span>
+    </div>
   {:else}
-    <section class="workbench">
-      <div class="rail">
-        <label>Producto o variante <input bind:value={productId} placeholder="ID del producto" /></label>
+    <div class="workbench">
+      <!-- Rail: form -->
+      <aside class="glass-card rail">
+        <div class="card-header">
+          <h2>Editor</h2>
+          <span class="section-tag">Configuración</span>
+        </div>
+
+        <div class="field-group">
+          <label for="productId-input">Producto o variante</label>
+          <input
+            id="productId-input"
+            bind:value={productId}
+            placeholder="ID del producto"
+          />
+        </div>
+
         {#if variantsOn}
-          <fieldset>
-            <legend>Familia</legend>
-            <label>Producto padre <input bind:value={parentProductId} placeholder="Vacío = padre" /></label>
-            <label>Precio propio (céntimos) <input bind:value={overrideCents} inputmode="numeric" /></label>
-            <button type="button" onclick={saveVariant}>Guardar variante</button>
-          </fieldset>
-        {/if}
-        {#if uomOn}
-          <fieldset>
-            <legend>Presentación</legend>
-            <label>Código <input bind:value={uomCode} maxlength="12" /></label>
-            <div class="ratio" aria-label="Factor racional">
-              <label>Numerador <input type="number" min="1" bind:value={numerator} /></label>
-              <span>/</span>
-              <label>Denominador <input type="number" min="1" bind:value={denominator} /></label>
+          <fieldset class="card-section">
+            <legend>Familia de variante</legend>
+            <div class="field-group">
+              <label for="parent-input">Producto padre</label>
+              <input id="parent-input" bind:value={parentProductId} placeholder="Vacío = es padre" />
             </div>
-            <label class="check"><input type="checkbox" bind:checked={isBase} /> Unidad base 1/1</label>
-            <button type="button" onclick={saveUom}>Guardar unidad</button>
+            <div class="field-group">
+              <label for="price-input">Precio propio (céntimos)</label>
+              <input id="price-input" bind:value={overrideCents} inputmode="numeric" placeholder="Dejar vacío = hereda" />
+            </div>
+            <button type="button" class="primary" onclick={saveVariant}>
+              <Icon name="check" size={14} />
+              Guardar variante
+            </button>
           </fieldset>
         {/if}
+
+        {#if uomOn}
+          <fieldset class="card-section">
+            <legend>Presentación (UOM)</legend>
+            <div class="field-group">
+              <label for="uom-code-input">Código</label>
+              <input id="uom-code-input" bind:value={uomCode} maxlength="12" />
+            </div>
+            <div class="ratio-row" aria-label="Factor racional">
+              <div class="field-group">
+                <label for="uom-num-input">Numerador</label>
+                <input id="uom-num-input" type="number" min="1" bind:value={numerator} />
+              </div>
+              <span class="ratio-sep">/</span>
+              <div class="field-group">
+                <label for="uom-den-input">Denominador</label>
+                <input id="uom-den-input" type="number" min="1" bind:value={denominator} />
+              </div>
+            </div>
+            <label class="checkbox-row">
+              <input type="checkbox" bind:checked={isBase} />
+              <span>Unidad base 1/1</span>
+            </label>
+            <button type="button" class="primary" onclick={saveUom}>
+              <Icon name="check" size={14} />
+              Guardar unidad
+            </button>
+          </fieldset>
+        {/if}
+
         {#if serialsOn}
-          <fieldset>
+          <fieldset class="card-section">
             <legend>Identidad serial</legend>
-            <label>
-              Seguimiento
-              <select bind:value={serialTrackingMode}>
+            <div class="field-group">
+              <label for="serial-select">Seguimiento</label>
+              <select id="serial-select" bind:value={serialTrackingMode}>
                 <option value="NONE">Sin serie</option>
                 <option value="REQUIRED">Serie obligatoria (una unidad)</option>
               </select>
-            </label>
-            <button type="button" onclick={saveSerialTracking}>Guardar seguimiento serial</button>
-            <a href="/admin/series">Buscar y gestionar series</a>
+            </div>
+            <button type="button" class="primary" onclick={saveSerialTracking}>
+              <Icon name="barcode" size={14} />
+              Guardar seguimiento serial
+            </button>
+            <a class="link-inline" href="/admin/series">
+              <Icon name="arrow-right" size={13} />
+              Buscar y gestionar series
+            </a>
           </fieldset>
         {/if}
-      </div>
+      </aside>
 
-      <div class="ledger">
-        <div class="ledger-head">
+      <!-- Ledger: catalog map -->
+      <section class="glass-card ledger">
+        <div class="card-header">
           <h2>Mapa del catálogo</h2>
-          <button class="secondary" type="button" onclick={loadCatalog}>Actualizar</button>
+          <button type="button" class="secondary" onclick={loadCatalog} disabled={loading}>
+            <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+            {loading ? 'Cargando…' : 'Actualizar'}
+          </button>
         </div>
         {#if catalog.length === 0}
-          <p class="empty">Carga el catálogo para revisar padres, variantes y presentaciones.</p>
+          <div class="ledger-empty">
+            <Icon name="layers" size={28} />
+            <span>Carga el catálogo para revisar padres, variantes y presentaciones.</span>
+          </div>
         {:else}
-          <pre>{JSON.stringify(catalog, null, 2)}</pre>
+          <pre class="json-view">{JSON.stringify(catalog, null, 2)}</pre>
         {/if}
-      </div>
-    </section>
-    {#if message}<p class="message" aria-live="polite">{message}</p>{/if}
+      </section>
+    </div>
   {/if}
-</main>
+</div>
 
 <style>
-  :global(body) { background: #edf3f0; color: #16332c; }
-  .catalog-shell { max-width: 1120px; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
-  header { border-left: 7px solid #ff6b35; padding-left: 1.5rem; margin-bottom: 2rem; }
-  .eyebrow, legend { font: 700 .72rem/1.2 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: #196b57; }
-  h1 { margin: .35rem 0; font: 800 clamp(2.3rem, 6vw, 4.8rem)/.92 system-ui, sans-serif; letter-spacing: -.055em; }
-  .lede { max-width: 57ch; color: #48655e; }
-  .workbench { display: grid; grid-template-columns: minmax(270px, .8fr) minmax(0, 1.4fr); gap: 1rem; }
-  .rail, .ledger, .off { background: #fff; border: 1px solid #c9d9d4; box-shadow: 0 12px 34px rgb(22 51 44 / 8%); }
-  .rail, .ledger { padding: 1.25rem; }
-  fieldset { border: 0; border-top: 1px solid #dce7e3; margin: 1.25rem 0 0; padding: 1.25rem 0 0; }
-  label { display: grid; gap: .38rem; margin-bottom: .85rem; font-weight: 650; }
-  input, select { width: 100%; box-sizing: border-box; border: 1px solid #9bb8ae; background: #f8fbfa; padding: .72rem; color: inherit; }
-  input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #ffb29a; outline-offset: 2px; }
-  .ratio { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .65rem; }
-  .check { grid-template-columns: auto 1fr; align-items: center; }
-  .check input { width: auto; }
-  button { border: 0; background: #196b57; color: white; padding: .78rem 1rem; font-weight: 750; cursor: pointer; }
-  .secondary { background: transparent; color: #196b57; border: 1px solid #9bb8ae; }
-  .catalog-link { display: inline-flex; min-height: 44px; align-items: center; color: #196b57; font-weight: 750; }
-  .ledger-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-  h2 { margin: 0; font-size: 1.15rem; }
-  pre { overflow: auto; padding: 1rem; background: #16332c; color: #dff5ed; font-size: .76rem; }
-  .empty, .message, .off { color: #57716a; }
-  .off { padding: 1.25rem; }
-  .message { border-left: 4px solid #ff6b35; padding-left: .8rem; }
-  @media (max-width: 720px) { .workbench { grid-template-columns: 1fr; } }
-  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+  .workbench {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.5fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .rail {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .ledger {
+    padding: 1.25rem;
+  }
+
+  .card-section {
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    margin: 1rem 0 0;
+    padding: 1rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .card-section legend {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-primary);
+    padding: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .ratio-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: end;
+    gap: 0.625rem;
+  }
+
+  .ratio-sep {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .checkbox-row input {
+    width: auto;
+    cursor: pointer;
+    accent-color: var(--accent-primary);
+  }
+
+  .ledger-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    color: var(--text-dim);
+    font-size: 0.9375rem;
+    text-align: center;
+  }
+
+  .json-view {
+    overflow: auto;
+    padding: 1rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    max-height: 60vh;
+  }
+
+  .btn-etiquetas {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-button-sec);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    min-height: 38px;
+  }
+
+  .btn-etiquetas:hover {
+    background: var(--bg-glass-hover);
+    border-color: var(--accent-primary);
+  }
+
+  .link-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 0.25rem;
+    transition: color var(--transition-fast);
+  }
+
+  .link-inline:hover {
+    color: var(--accent-primary-hover);
+  }
+
+  @media (max-width: 800px) {
+    .workbench {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>

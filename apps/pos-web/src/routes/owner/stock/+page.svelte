@@ -6,6 +6,7 @@
     isInventoryOpsEnabled,
     isOwnerModeEnabled,
   } from '$lib/features';
+  import Icon from '$lib/ui/Icon.svelte';
 
   const ownerOn = isOwnerModeEnabled();
   const invOn = isInventoryOpsEnabled();
@@ -13,6 +14,7 @@
 
   let branchId = $state('b-demo');
   let status = $state('');
+  let loading = $state(false);
   let alerts = $state<
     { kind: string; productId: string; detail: string; suggestReorderQty?: number }[]
   >([]);
@@ -21,7 +23,8 @@
   >([]);
 
   async function loadAlerts() {
-    status = 'cargando';
+    loading = true;
+    status = 'Cargando…';
     const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
     const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
     const url = new URL(`${apiBase.replace(/\/$/, '') || 'https://api.kipuspay.local'}/api/owner/stock-alerts`);
@@ -36,6 +39,7 @@
       if (!res.ok) {
         status = json.error ?? 'error';
         alerts = [];
+        loading = false;
         return;
       }
       alerts = json.alerts ?? [];
@@ -49,84 +53,215 @@
       }
       status = `${alerts.length} alerta(s)`;
     } catch {
-      status = 'red offline — reintento en staging';
+      status = 'Sin conexión — red offline';
       alerts = [];
     }
+    loading = false;
   }
 
   onMount(() => {
     if (ownerOn && invOn) void loadAlerts();
   });
+
+  function alertBadgeClass(kind: string): string {
+    if (kind === 'STOCKOUT' || kind === 'CRITICAL') return 'badge-danger';
+    if (kind === 'REORDER_POINT' || kind === 'EXPIRING') return 'badge-warning';
+    return 'badge-muted';
+  }
 </script>
 
-<section class="owner-stock" data-testid="owner-stock-alerts">
-  <h1>Alertas de stock</h1>
-  <p class="lede">
-    Quiebre, punto de reposición y lotes por vencer (Sprint 18 · GTM farmacia tras Quality Gate).
-  </p>
+<svelte:head><title>Alertas de stock · KipusPay</title></svelte:head>
+
+<div class="page-shell" data-testid="owner-stock-alerts">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="alert" size={12} /> Modo Dueño · Inventario</p>
+      <h1 class="page-title">Alertas de stock</h1>
+      <p class="page-lede">Quiebre, punto de reposición y lotes por vencer.</p>
+    </div>
+    {#if ownerOn && invOn}
+      <button type="button" class="secondary" data-testid="owner-stock-refresh" onclick={loadAlerts} disabled={loading}>
+        <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+        Actualizar
+      </button>
+    {/if}
+  </div>
 
   {#if !ownerOn || !invOn}
-    <p data-testid="owner-stock-off">Activa FEATURE_OWNER_MODE e inventario para ver alertas.</p>
+    <div class="feature-off-banner" data-testid="owner-stock-off">
+      <Icon name="info" size={18} />
+      <span>Activa <code>FEATURE_OWNER_MODE</code> e inventario para ver alertas.</span>
+    </div>
   {:else}
-    <label>
-      Sucursal
-      <input data-testid="owner-stock-branch" bind:value={branchId} />
-    </label>
-    <button type="button" data-testid="owner-stock-refresh" onclick={loadAlerts}>Actualizar</button>
-    <p data-testid="owner-stock-status">{status}</p>
-    <ul data-testid="owner-stock-list">
-      {#each alerts as a}
-        <li>
-          <strong>{a.kind}</strong> · {a.productId} · {a.detail}
-          {#if a.suggestReorderQty}
-            · sugerencia OC: {a.suggestReorderQty}
-          {/if}
-        </li>
+    <div class="stock-controls">
+      <div class="glass-card branch-card">
+        <div class="field-group">
+          <label for="stock-branch">Sucursal</label>
+          <input id="stock-branch" data-testid="owner-stock-branch" bind:value={branchId} />
+        </div>
+      </div>
+      {#if status}
+        <p class="status-line" data-testid="owner-stock-status">{status}</p>
+      {/if}
+    </div>
+
+    <!-- Alertas -->
+    <div class="glass-card alerts-card">
+      <div class="card-header">
+        <h2>Alertas activas</h2>
+        <span class="badge {alerts.length > 0 ? 'badge-danger' : 'badge-success'}">
+          {alerts.length}
+        </span>
+      </div>
+      {#if alerts.length === 0}
+        <div class="empty-state">
+          <Icon name="check" size={28} />
+          <span>Sin alertas — stock saludable</span>
+        </div>
       {:else}
-        <li>Sin alertas</li>
-      {/each}
-    </ul>
+        <ul class="alert-list" data-testid="owner-stock-list">
+          {#each alerts as a}
+            <li class="alert-item">
+              <span class="badge {alertBadgeClass(a.kind)}">{a.kind}</span>
+              <span class="alert-product">{a.productId}</span>
+              <span class="alert-detail">{a.detail}</span>
+              {#if a.suggestReorderQty}
+                <span class="alert-reorder">
+                  <Icon name="truck" size={12} />
+                  Sugerencia OC: {a.suggestReorderQty}
+                </span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+
     {#if variantsOn}
-      <h2>Stock por variante</h2>
-      <p>Vista agregada; la fuente canónica permanece en microunidades base por variante.</p>
-      <ul data-testid="owner-variant-stock">
-        {#each variants as variant}
-          <li>
-            <strong>{variant.name}</strong> · {variant.uom_code ?? 'BASE'} ·
-            {variant.stock_microunits / 1_000_000}
-          </li>
+      <div class="glass-card variants-card">
+        <div class="card-header">
+          <h2>Stock por variante</h2>
+          <span class="section-tag">Microunidades base</span>
+        </div>
+        <p class="hint-text">Vista agregada; la fuente canónica permanece en microunidades base por variante.</p>
+        {#if variants.length === 0}
+          <div class="empty-state">
+            <Icon name="layers" size={28} />
+            <span>Sin variantes configuradas</span>
+          </div>
         {:else}
-          <li>Sin variantes configuradas</li>
-        {/each}
-      </ul>
+          <ul class="variant-list" data-testid="owner-variant-stock">
+            {#each variants as variant}
+              <li class="variant-item">
+                <span class="variant-name">{variant.name}</span>
+                <span class="badge badge-muted">{variant.uom_code ?? 'BASE'}</span>
+                <span class="variant-stock tabular-nums">{variant.stock_microunits / 1_000_000}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
     {/if}
   {/if}
-</section>
+</div>
 
 <style>
-  .owner-stock {
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
-    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  .stock-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
   }
-  h1 {
-    font-family: 'Fraunces', Georgia, serif;
-    margin: 0 0 0.5rem;
+
+  .branch-card {
+    padding: 1rem;
   }
-  .lede {
-    color: #3d4450;
+
+  .alerts-card,
+  .variants-card {
+    padding: 1.25rem;
   }
-  button {
-    margin-top: 0.75rem;
-    padding: 0.55rem 1rem;
-    background: #1a2332;
-    color: #f8f6f1;
-    border: 0;
-    cursor: pointer;
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
-  ul {
-    margin-top: 1rem;
-    padding-left: 1.1rem;
+
+  .status-line {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .hint-text {
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    margin-bottom: 0.875rem;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem;
+    color: var(--text-dim);
+    font-size: 0.9375rem;
+  }
+
+  .alert-list,
+  .variant-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .alert-item,
+  .variant-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    flex-wrap: wrap;
+  }
+
+  .alert-product {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--text-main);
+    font-weight: 600;
+  }
+
+  .alert-detail {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    flex: 1;
+  }
+
+  .alert-reorder {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+  }
+
+  .variant-name {
+    font-weight: 600;
+    color: var(--text-main);
+    flex: 1;
+  }
+
+  .variant-stock {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--emerald-green);
   }
 </style>
