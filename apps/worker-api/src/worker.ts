@@ -9,6 +9,7 @@ import {
   type RecurringManualRpcResult,
 } from './sales/recurring-sales-scheduled.js';
 import { runMobilePushDispatcher } from './push/mobile-push-dispatcher.js';
+import { runForecastScheduled } from './analytics/forecast-scheduled.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
@@ -16,6 +17,7 @@ export { BackupWorkflow } from './backup/backup-workflow-entrypoint.js';
 
 const DAILY_ROLLUP_CRON = '0 8 * * *';
 const RECURRING_SALES_CRON = '*/5 * * * *';
+const FORECAST_CRON = '30 8 * * *';
 
 /** Private service-binding entrypoint; intentionally has no fetch method. */
 export class RecurringManualControl extends WorkerEntrypoint<WorkerEnv> {
@@ -35,6 +37,10 @@ export default {
   async scheduled(event: ScheduledEvent, env: WorkerEnv, _ctx: ExecutionContext): Promise<void> {
     if (event.cron === DAILY_ROLLUP_CRON) {
       await runDailyRollupsCronHttp(env, { scheduledTimeMs: event.scheduledTime });
+      return;
+    }
+    if (event.cron === FORECAST_CRON) {
+      await runForecastScheduled(env, { scheduledTime: event.scheduledTime });
       return;
     }
     if (event.cron === RECURRING_SALES_CRON) {

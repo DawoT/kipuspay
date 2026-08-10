@@ -4,7 +4,7 @@
 import { expireLoyaltyReservationsAtomic, reserveLoyaltyPointsAtomic } from '@kipuspay/adapters-d1';
 import { createWhatsAppMessagingSender } from '@kipuspay/adapters-messaging';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { assertCadenaPlusPlan, type HttpResult } from '../integrations/integration-routes.js';
+import { assertCadenaPlusPlan, type HttpResult } from '../auth/plan-cadena.js';
 import { runSendOwnerPushHttp } from '../owner/push-routes.js';
 
 export function isLoyaltyPointsEnabled(env: WorkerEnv | undefined): boolean {

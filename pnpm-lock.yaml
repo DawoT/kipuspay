@@ -160,6 +160,9 @@ importers:
       '@kipuspay/adapters-stripe':
         specifier: workspace:*
         version: link:../../packages/adapters-stripe
+      '@kipuspay/domain-analytics':
+        specifier: workspace:*
+        version: link:../../packages/domain-analytics
       '@kipuspay/domain-billing':
         specifier: workspace:*
         version: link:../../packages/domain-billing
@@ -265,6 +268,9 @@ importers:
       '@kipuspay/adapters-stripe':
         specifier: workspace:*
         version: link:../adapters-stripe
+      '@kipuspay/domain-analytics':
+        specifier: workspace:*
+        version: link:../domain-analytics
       '@kipuspay/domain-billing':
         specifier: workspace:*
         version: link:../domain-billing
@@ -423,6 +429,21 @@ importers:
       '@kipuspay/domain-sales':
         specifier: workspace:*
         version: link:../domain-sales
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^10.8.0
+        version: 10.8.0(supports-color@10.2.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
+
+  packages/domain-analytics:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

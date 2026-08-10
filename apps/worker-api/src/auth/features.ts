@@ -72,3 +72,8 @@ export function isCustomerOrdersEnabled(env: WorkerEnv | undefined): boolean {
 export function isRecurringSalesEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_SALES_RECURRING);
 }
+
+/** Sprint 46 — analítica predictiva (FEATURE_ANALYTICS_FORECASTING, default off). */
+export function isAnalyticsForecastingEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_ANALYTICS_FORECASTING);
+}

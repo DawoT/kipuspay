@@ -143,6 +143,22 @@ describe('reporting flags + catalog', () => {
     expect((csvOn.body as string).startsWith('\uFEFF')).toBe(true);
   });
 
+  it('Sprint 46 cataloga forecast (cadena) y remite a /api/forecasting/ en la ejecución', async () => {
+    const catalog = runReportsCatalogHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }));
+    expect(catalog.status).toBe(200);
+    expect((catalog.body as { reports: unknown[] }).reports).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'forecast', tier: 'cadena', source: 'forecast_outputs' }),
+      ]),
+    );
+
+    const res = await runReportHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }), 't1', 'forecast', {
+      reportDate: '2026-08-04',
+    });
+    expect(res.status).toBe(404);
+    expect((res.body as { code: string }).code).toBe('USE_FORECASTING_API');
+  });
+
   it('bad date / unknown / DB unavailable / catalog off', async () => {
     expect(
       (

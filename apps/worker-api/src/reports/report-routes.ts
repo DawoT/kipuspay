@@ -74,6 +74,8 @@ export function listCatalogEntries(): readonly {
     { id: 'aging-ar-ap', tier: 'cadena', source: 'accounts_receivable/payable' },
     { id: 'merma', tier: 'crece', source: 'stock_losses' },
     { id: 'commissions-pending', tier: 'crece', source: 'commission_accruals' },
+    // Sprint 46 — analítica predictiva (Cadena+)
+    { id: 'forecast', tier: 'cadena', source: 'forecast_outputs' },
   ];
 }
 
@@ -119,6 +121,16 @@ export async function runReportHttp(
   const reportDate = opts.reportDate ?? '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
     return { status: 400, body: { error: 'Invalid reportDate', code: 'BAD_REQUEST' } };
+  }
+  if (reportId === 'forecast') {
+    // Sprint 46: el pronóstico vive en /api/forecasting/ (Cadena+, ADR-0030).
+    return {
+      status: 404,
+      body: {
+        error: 'Use /api/forecasting/ (Cadena+ plan) for predictive analytics',
+        code: 'USE_FORECASTING_API',
+      },
+    };
   }
   if (!ARRIVAL_REPORTS.has(reportId) && !ADVANCED_REPORTS.has(reportId)) {
     return { status: 404, body: { error: 'Unknown report', code: 'NOT_FOUND' } };

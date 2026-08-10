@@ -22,14 +22,13 @@ import {
   type PublicApiEventType,
 } from '@kipuspay/domain-integrations';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { assertCadenaPlusPlan, isCadenaPlusPlan } from '../auth/plan-cadena.js';
 
 export interface HttpResult {
   status: number;
   body: Record<string, unknown> | string;
   contentType?: string;
 }
-
-const CADENA_PLUS: ReadonlySet<string> = new Set(['cadena', 'enterprise']);
 
 /** SEC-06: timeout del fetch saliente del webhook (ventana anti-replay ≤ 300 s). */
 const WEBHOOK_TIMEOUT_MS = 15_000;
@@ -71,23 +70,6 @@ function apiPepper(env: WorkerEnv): string | null {
 /** C7: operaciones de mantenimiento solo para rol admin/owner (nunca por omisión). */
 function isAdminRole(role: string | undefined): boolean {
   return role === 'owner' || role === 'admin';
-}
-
-export async function assertCadenaPlusPlan(
-  env: WorkerEnv,
-  tenantId: string,
-): Promise<HttpResult | null> {
-  const row = await env
-    .DB!.prepare(`SELECT plan_id FROM tenants WHERE id = ? LIMIT 1`)
-    .bind(tenantId)
-    .first<{ plan_id: string }>();
-  if (!row || !CADENA_PLUS.has(row.plan_id)) {
-    return {
-      status: 403,
-      body: { error: 'Requires Cadena plan', code: 'PLAN_REQUIRES_CADENA' },
-    };
-  }
-  return null;
 }
 
 function randomToken(bytes = 24): string {
@@ -388,7 +370,7 @@ async function resolveApiKeyTenant(
         .DB!.prepare(`SELECT plan_id FROM tenants WHERE id = ? LIMIT 1`)
         .bind(row.tenant_id)
         .first<{ plan_id: string }>();
-      if (!plan || !CADENA_PLUS.has(plan.plan_id)) {
+      if (!plan || !isCadenaPlusPlan(plan.plan_id)) {
         return {
           status: 403,
           body: { error: 'Requires Cadena plan', code: 'PLAN_REQUIRES_CADENA' },

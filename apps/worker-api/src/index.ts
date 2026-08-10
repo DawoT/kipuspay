@@ -208,6 +208,11 @@ import {
   runMessagingOptInHttp,
 } from './loyalty/loyalty-messaging-routes.js';
 import {
+  runListForecastsHttp,
+  runRefreshForecastHttp,
+  runStockAlertsHttp,
+} from './analytics/forecasting-routes.js';
+import {
   runBackupStatusHttp,
   runCreateBackupHttp,
   runDownloadBackupHttp,
@@ -1916,6 +1921,32 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/loyalty/cron/expire', async (c) => {
     const result = await runExpireLoyaltyCronHttp(c.env);
     return c.json(result.body, result.status as 200 | 404 | 422 | 503);
+  });
+
+  // Sprint 46 — analítica predictiva (Cadena+; 402 Plan Guard vía /api/forecasting/)
+  app.get('/api/forecasting/alerts/:branchId', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runStockAlertsHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      c.req.param('branchId'),
+      c.req.query(),
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
+  });
+  app.get('/api/forecasting/:branchId', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListForecastsHttp(c.env, jwt?.tenantId ?? '', c.req.param('branchId'));
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
+  });
+  app.post('/api/forecasting/refresh/:branchId', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runRefreshForecastHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      c.req.param('branchId'),
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
   });
 
   // Sprint 27 — sobregiro Stripe Metered (fuera del hot path)

@@ -23,6 +23,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly DB?: D1Database;
   /** Alias local de DB para dedup SEC-08 (Arquitectura §4). */
   readonly WEBHOOK_EVENTS_DB?: D1Database;
+  /** Analytics Engine — solo features de dashboards (ADR-0030, Principio 9). */
+  readonly ANALYTICS_ENGINE?: AnalyticsEngineDataset;
   readonly STRIPE_WEBHOOK_SECRET?: string;
   readonly FQDN?: string;
   /** Proceso §5.1: motor ACID offline desactivable sin rollback de código. */
@@ -84,6 +86,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 45: push operacional y cliente PWA móvil; ambos default-off. */
   readonly FEATURE_MOBILE_PUSH?: string;
   readonly FEATURE_CLIENT_MOBILE_POS?: string;
+  /** Sprint 46: analítica predictiva (Holt-Winters), default-off. */
+  readonly FEATURE_ANALYTICS_FORECASTING?: string;
   readonly PUSH_VAPID_PUBLIC_KEY?: string;
   readonly PUSH_KMS?: {
     encryptEnvelope(input: Record<string, unknown>): Promise<{

@@ -19,10 +19,13 @@ vi.mock('cloudflare:workers', () => {
   };
 });
 
-const { runDailyRollupsCronHttp, runRecurringSalesScheduled } = vi.hoisted(() => ({
-  runDailyRollupsCronHttp: vi.fn(),
-  runRecurringSalesScheduled: vi.fn(),
-}));
+const { runDailyRollupsCronHttp, runRecurringSalesScheduled, runForecastScheduled } = vi.hoisted(
+  () => ({
+    runDailyRollupsCronHttp: vi.fn(),
+    runRecurringSalesScheduled: vi.fn(),
+    runForecastScheduled: vi.fn(),
+  }),
+);
 
 vi.mock('./reports/report-routes.js', () => ({
   isAdvancedReportId: vi.fn(() => false),
@@ -34,12 +37,16 @@ vi.mock('./sales/recurring-sales-scheduled.js', () => ({
   runRecurringManualRpc: vi.fn(),
   runRecurringSalesScheduled,
 }));
+vi.mock('./analytics/forecast-scheduled.js', () => ({
+  runForecastScheduled,
+}));
 
 import type { WorkerEnv } from './auth/control-plane.js';
 import worker from './worker.js';
 
 const DAILY_ROLLUP_CRON = '0 8 * * *';
 const RECURRING_CRON = '*/5 * * * *';
+const FORECAST_CRON = '30 8 * * *';
 const scheduledTime = Date.parse('2026-08-09T08:00:00.000Z');
 
 function event(cron: string): ScheduledEvent {
@@ -65,11 +72,19 @@ describe('Worker scheduled dispatch', () => {
       catchUpCapped: false,
       tenants: 0,
     });
+    runForecastScheduled.mockResolvedValue({
+      status: 'COMPLETE',
+      tenants: 0,
+      candidates: 0,
+      written: 0,
+      insufficient: 0,
+      failures: 0,
+    });
   });
 
-  it('preserves both configured cron triggers', () => {
+  it('preserves all three configured cron triggers', () => {
     expect(wranglerConfig).toMatch(
-      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*\]/,
+      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*\]/,
     );
   });
 
@@ -79,6 +94,17 @@ describe('Worker scheduled dispatch', () => {
     expect(runDailyRollupsCronHttp).toHaveBeenCalledWith(expect.anything(), {
       scheduledTimeMs: scheduledTime,
     });
+    expect(runRecurringSalesScheduled).not.toHaveBeenCalled();
+    expect(runForecastScheduled).not.toHaveBeenCalled();
+  });
+
+  it('routes the forecast cron exactly once at 08:30', async () => {
+    await worker.scheduled(event(FORECAST_CRON), env(), {} as ExecutionContext);
+    expect(runForecastScheduled).toHaveBeenCalledOnce();
+    expect(runForecastScheduled).toHaveBeenCalledWith(expect.anything(), {
+      scheduledTime,
+    });
+    expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
     expect(runRecurringSalesScheduled).not.toHaveBeenCalled();
   });
 
@@ -90,9 +116,10 @@ describe('Worker scheduled dispatch', () => {
       cron: RECURRING_CRON,
     });
     expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
+    expect(runForecastScheduled).not.toHaveBeenCalled();
   });
 
-  it('keeps either scheduler independent when the other feature is off', async () => {
+  it('keeps each scheduler independent when the other features are off', async () => {
     await worker.scheduled(
       event(RECURRING_CRON),
       env({ FEATURE_REPORTING_ROLLUPS: '0' }),
@@ -109,16 +136,23 @@ describe('Worker scheduled dispatch', () => {
     );
     expect(runDailyRollupsCronHttp).toHaveBeenCalledOnce();
     expect(runRecurringSalesScheduled).not.toHaveBeenCalled();
+    expect(runForecastScheduled).not.toHaveBeenCalled();
   });
 
-  it('does not overlap handlers when both cron expressions fire at 08:00 UTC', async () => {
+  it('does not overlap handlers when multiple cron expressions fire at 08:00 UTC', async () => {
     await worker.scheduled(event(DAILY_ROLLUP_CRON), env(), {} as ExecutionContext);
     expect(runDailyRollupsCronHttp).toHaveBeenCalledTimes(1);
     expect(runRecurringSalesScheduled).toHaveBeenCalledTimes(0);
+    expect(runForecastScheduled).toHaveBeenCalledTimes(0);
+
+    await worker.scheduled(event(FORECAST_CRON), env(), {} as ExecutionContext);
+    expect(runDailyRollupsCronHttp).toHaveBeenCalledTimes(1);
+    expect(runForecastScheduled).toHaveBeenCalledTimes(1);
 
     await worker.scheduled(event(RECURRING_CRON), env(), {} as ExecutionContext);
     expect(runDailyRollupsCronHttp).toHaveBeenCalledTimes(1);
     expect(runRecurringSalesScheduled).toHaveBeenCalledTimes(1);
+    expect(runForecastScheduled).toHaveBeenCalledTimes(1);
   });
 
   it('fails unknown cron safe with a structured warning and no handlers', async () => {
@@ -126,6 +160,7 @@ describe('Worker scheduled dispatch', () => {
     await worker.scheduled(event('1 2 3 4 5'), env(), {} as ExecutionContext);
     expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
     expect(runRecurringSalesScheduled).not.toHaveBeenCalled();
+    expect(runForecastScheduled).not.toHaveBeenCalled();
     expect(warning).toHaveBeenCalledWith(
       JSON.stringify({
         event: 'worker_scheduled_unknown_cron',

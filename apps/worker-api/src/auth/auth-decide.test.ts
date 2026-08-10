@@ -51,6 +51,13 @@ describe('plan-routes', () => {
     expect(isPremiumFeatureRoute('/api/reports/day-summary')).toBe(false);
   });
 
+  it('marca analítica predictiva (forecasting) como premium, nunca checkout-critical', () => {
+    expect(isPremiumFeatureRoute('/api/forecasting/b1')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/forecasting/alerts/b1')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/forecasting/refresh/b1')).toBe(true);
+    expect(isCheckoutCriticalRoute('/api/forecasting/b1')).toBe(false);
+  });
+
   it('billing cron no es premium ni checkout-critical (Arranque puede meter)', () => {
     expect(isPremiumFeatureRoute('/api/billing/cron/meter-overage')).toBe(false);
     expect(isCheckoutCriticalRoute('/api/billing/cron/meter-overage')).toBe(false);
@@ -134,6 +141,19 @@ describe('decideAuthGate (autorización negativa)', () => {
     const r = decideAuthGate(
       baseOk({
         path: '/api/owner/dashboard',
+        tenant: activeTenant({
+          subscriptionStatus: 'trial',
+          trialEndsAt: '2026-01-01T00:00:00Z',
+        }),
+      }),
+    );
+    expect(r).toMatchObject({ ok: false, status: 402, code: 'TRIAL_EXPIRED' });
+  });
+
+  it('402 en forecasting con trial vencido (Plan Guard Cadena+)', () => {
+    const r = decideAuthGate(
+      baseOk({
+        path: '/api/forecasting/b1',
         tenant: activeTenant({
           subscriptionStatus: 'trial',
           trialEndsAt: '2026-01-01T00:00:00Z',

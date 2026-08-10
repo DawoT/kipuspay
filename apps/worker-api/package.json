@@ -28,6 +28,7 @@
     "@kipuspay/adapters-messaging": "workspace:*",
     "@kipuspay/adapters-payments-pe": "workspace:*",
     "@kipuspay/adapters-stripe": "workspace:*",
+    "@kipuspay/domain-analytics": "workspace:*",
     "@kipuspay/domain-billing": "workspace:*",
     "@kipuspay/domain-cash": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",

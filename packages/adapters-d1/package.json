@@ -10,7 +10,8 @@
     "./process-order-billing-atomic": "./src/process-order-billing-atomic.ts",
     "./process-customer-order-atomic": "./src/process-customer-order-atomic.ts",
     "./process-mobile-push-atomic": "./src/process-mobile-push-atomic.ts",
-    "./process-recurring-sale-atomic": "./src/process-recurring-sale-atomic.ts"
+    "./process-recurring-sale-atomic": "./src/process-recurring-sale-atomic.ts",
+    "./forecast-repository": "./src/forecast-repository.ts"
   },
   "scripts": {
     "lint": "eslint src --max-warnings 0",
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "@kipuspay/adapters-stripe": "workspace:*",
+    "@kipuspay/domain-analytics": "workspace:*",
     "@kipuspay/domain-billing": "workspace:*",
     "@kipuspay/domain-cash": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",
