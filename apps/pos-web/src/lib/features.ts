@@ -217,3 +217,8 @@ export function isMobilePushEnabled(): boolean {
 export function isMobilePosEnabled(): boolean {
   return flagOn(pub(PF + 'CLIENT_MOBILE_POS'));
 }
+
+/** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
+export function isAnalyticsForecastingEnabled(): boolean {
+  return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));
+}

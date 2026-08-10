@@ -5,6 +5,7 @@
   const enabled = isOwnerModeEnabled();
   const tabs = [
     { href: '/owner', label: 'Hoy', testid: 'tab-hoy' },
+    { href: '/owner/previsiones', label: 'Previsiones', testid: 'tab-previsiones' },
     { href: '/owner/finanzas', label: 'Finanzas', testid: 'tab-finanzas' },
     { href: '/owner/yo', label: 'Yo', testid: 'tab-yo' },
   ] as const;
@@ -72,7 +73,7 @@
     position: sticky;
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0.25rem;
     padding: 0.75rem;
     background: color-mix(in srgb, var(--owner-surface) 92%, black);
