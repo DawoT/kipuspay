@@ -156,3 +156,4 @@ export * from './data-backup.js';
 export * from './process-customer-order-atomic.js';
 export * from './process-recurring-sale-atomic.js';
 export * from './process-mobile-push-atomic.js';
+export * from './customer-repository.js';

@@ -27,6 +27,9 @@ const PREMIUM_PREFIXES = [
   '/api/messaging/',
   // Sprint 46 — analítica predictiva Cadena+
   '/api/forecasting/',
+  // Sprint 47 — LPDP (derechos de datos personales) Cadena+
+  '/api/customers',
+  '/api/customers/',
 ] as const;
 
 function matchesPrefix(path: string, prefix: string): boolean {

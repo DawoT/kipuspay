@@ -208,6 +208,14 @@ import {
   runMessagingOptInHttp,
 } from './loyalty/loyalty-messaging-routes.js';
 import {
+  runEraseCustomerHttp,
+  runExportCustomerHttp,
+  runListConsentsHttp,
+  runListCustomersHttp,
+  runWriteConsentHttp,
+  type LpdpActor,
+} from './customers/customer-lpdp-routes.js';
+import {
   runListForecastsHttp,
   runRefreshForecastHttp,
   runStockAlertsHttp,
@@ -299,6 +307,22 @@ function trustedCustomerOrderActor(c: {
     permissions: definedOr(user?.permissions, []),
     terminalId: definedOr(c.req.header('x-terminal-id'), ''),
     terminalSessionId: definedOr(c.req.header('x-terminal-session-id'), ''),
+  };
+}
+
+function trustedLpdpActor(c: {
+  get(name: 'jwt'): VerifiedJwtClaims | undefined;
+  get(name: 'user'): UserSession | undefined;
+}): LpdpActor | undefined {
+  const jwt = c.get('jwt');
+  const user = c.get('user');
+  if (!jwt?.tenantId) return undefined;
+  const branchId = definedOr(user?.branchId, '');
+  return {
+    tenantId: jwt.tenantId,
+    userId: definedOr(user?.userId, definedOr(jwt.sub, '')),
+    role: definedOr(user?.role, ''),
+    ...(branchId === '' ? {} : { branchId }),
   };
 }
 
@@ -1947,6 +1971,41 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.req.param('branchId'),
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
+  });
+
+  // Sprint 47 — LPDP (FEATURE_LPDP, default-off; ADR-0031).
+  app.get('/api/customers', async (c) => {
+    const result = await runListCustomersHttp(
+      c.env,
+      trustedLpdpActor(c),
+      c.req.query('limit'),
+      c.req.query('offset'),
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/customers/:id/consents', async (c) => {
+    const result = await runListConsentsHttp(c.env, trustedLpdpActor(c), c.req.param('id'));
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/customers/:id/consent', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runWriteConsentHttp(
+      c.env,
+      trustedLpdpActor(c),
+      c.req.param('id'),
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/customers/:id/export', async (c) => {
+    const result = await runExportCustomerHttp(c.env, trustedLpdpActor(c), c.req.param('id'));
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.post('/api/customers/:id/erase', async (c) => {
+    const result = await runEraseCustomerHttp(c.env, trustedLpdpActor(c), c.req.param('id'));
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
 
   // Sprint 27 — sobregiro Stripe Metered (fuera del hot path)

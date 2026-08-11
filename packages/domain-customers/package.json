@@ -1,0 +1,24 @@
+{
+  "name": "@kipuspay/domain-customers",
+  "version": "0.0.0",
+  "private": true,
+  "description": "KipusPay — dominio LPDP: inventario de PII, consentimiento por propósito, derechos de acceso/borrado y anonimización",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "test:unit": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "build": "true"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.8.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

@@ -157,6 +157,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 24 — WhatsApp receipt + loyalty points. */
   readonly FEATURE_MESSAGING_WHATSAPP?: string;
   readonly FEATURE_LOYALTY_POINTS?: string;
+  /** Sprint 47 — LPDP: inventario/consentimiento/export/erase de datos personales. */
+  readonly FEATURE_LPDP?: string;
   readonly WA_ACCESS_TOKEN?: string;
   readonly WA_PHONE_NUMBER_ID?: string;
   readonly WA_API_BASE?: string;

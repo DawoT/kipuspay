@@ -140,5 +140,6 @@
     "FEATURE_MOBILE_PUSH": "0",
     "FEATURE_CLIENT_MOBILE_POS": "0",
     "PUSH_VAPID_PUBLIC_KEY": "",
+    "FEATURE_LPDP": "0",
   },
 }

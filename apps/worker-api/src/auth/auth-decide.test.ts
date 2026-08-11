@@ -58,6 +58,13 @@ describe('plan-routes', () => {
     expect(isCheckoutCriticalRoute('/api/forecasting/b1')).toBe(false);
   });
 
+  it('marca LPDP (customers) como premium, nunca checkout-critical', () => {
+    expect(isPremiumFeatureRoute('/api/customers')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/customers/c1/export')).toBe(true);
+    expect(isPremiumFeatureRoute('/api/customers/c1/erase')).toBe(true);
+    expect(isCheckoutCriticalRoute('/api/customers/c1/erase')).toBe(false);
+  });
+
   it('billing cron no es premium ni checkout-critical (Arranque puede meter)', () => {
     expect(isPremiumFeatureRoute('/api/billing/cron/meter-overage')).toBe(false);
     expect(isCheckoutCriticalRoute('/api/billing/cron/meter-overage')).toBe(false);

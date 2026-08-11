@@ -77,3 +77,8 @@ export function isRecurringSalesEnabled(env: WorkerEnv | undefined): boolean {
 export function isAnalyticsForecastingEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_ANALYTICS_FORECASTING);
 }
+
+/** Sprint 47 — LPDP datos personales (FEATURE_LPDP, default off). */
+export function isLpdpEnabled(env: WorkerEnv | undefined): boolean {
+  return flagOn(env?.FEATURE_LPDP);
+}
