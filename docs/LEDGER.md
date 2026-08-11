@@ -6235,3 +6235,49 @@ aprobaciones: [Staff Data R software local metricas MAPE, Staff Backend ACID R a
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0320
+timestamp_utc: 2026-08-10T21:30:00Z
+schema_version: 2
+sprint_fase: Sprint 47 — FASE 6F (compliance.lpdp)
+agente_responsable: Staff Security (owner) / Staff Data / Staff Growth (gating)
+tipo: Entregable nuevo
+subtipo: plan-de-trabajo-handoff
+relacion: amplia
+referencias_entradas: [0319]
+referencias_documentales: [docs/ops/s47-lpdp-plan.md, docs/roadmap/fase-6f.md, docs/adr/ADR-0031-lpdp-privacy.md, docs/GTM.md]
+prev_id: 0319
+prev_hash: 6b15fe19a7fde518049cea5e206a4a6c4e416359df352f628109e3dd6537a739
+entry_hash: 8f94396818b4e47221ec933df608bad98eadaf6e8b993218891d68ec0a0e75d3
+ticket_or_adr: ADR-0031, Roadmap Sprint 47, Arquitectura §5.3 regla 32a, DDL 0040, GTM-09
+test_ids: [V-18, SUITE]
+entregable_afectado: docs/ops/s47-lpdp-plan.md (nuevo; estado del sprint 47 y plan de los hitos 3 y 4)
+descripcion: >
+  Documenta el estado del Sprint 47 LPDP al cierre del backend (commit 093977e
+  pusheado a main) y el plan de lo que falta para el siguiente agente. Hito 1
+  (gobernanza, 5e3bacb) e Hito 2 (backend, 093977e: domain-customers con 100%
+  cobertura, adaptador D1 idempotente en un db.batch, rutas /api/customers con
+  tenant del JWT y flag FEATURE_LPDP default-off) quedan cerrados y verificados:
+  unit 291/291, integracion 207/207 (incluye fix del down-total DOWN_0039/0040)
+  y verify.sh SUITE GREEN. Pendientes: Hito 3 (panel clientes pos-web en Modo
+  Dueno/Admin con consentimientos GRANT/REVOKE, export y erase con doble
+  confirmacion, gated por FEATURE_LPDP; runbook DPO en docs/runbooks; copy GTM
+  sin jerga) y Hito 4 (simulacro de solicitud LPDP, E2E, QG documental en
+  docs/ops, entrada de ledger y publicacion de la politica de privacidad por
+  Staff Growth solo tras el gate). Claim GTM-09 sigue congelada hasta el QG.
+evidencia: >
+  GREEN: verify.sh RESULT SUITE GREEN (V-18 valida el front-matter y las citas
+  .md del doc nuevo; V-13/V-16 verifican la cadena del ledger). Se corrigio la
+  referencia del ADR-0031 al nombre real ADR-0031-lpdp-privacy.md y las citas de
+  entregables pendientes se describen en prosa sin citar archivos inexistentes.
+red_commit_sha: 5e3bacba3c35a6357c583ed94b5bc2ca4fc3de47
+red_run_id: run-red-s47-lpdp-5e3bacb
+expected_failure: backend LPDP ausente en gobernanza: faltaban dominio-customers, adaptador D1 y rutas /api/customers
+green_commit_sha: 093977e31b84e067bc3eacc36c3b6570a83caa48
+green_run_id: run-green-s47-lpdp-093977e
+ancestry_verified: true
+aprobaciones: [Staff Security R estado y plan, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
