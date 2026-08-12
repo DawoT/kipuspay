@@ -12,6 +12,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isSalesCommissionsEnabled } from '../auth/features.js';
+import { parseFiniteNumber } from '../http/money-input.js';
 
 export { isSalesCommissionsEnabled };
 
@@ -97,9 +98,12 @@ export async function runUpsertCommissionRateHttp(
   }
   const sellerId = typeof body.sellerId === 'string' ? body.sellerId : '';
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const ratePercent = Number(body.ratePercent ?? 0);
-  if (!sellerId || !branchId) {
-    return { status: 400, body: { error: 'sellerId and branchId required', code: 'BAD_REQUEST' } };
+  const ratePercent = parseFiniteNumber(body.ratePercent);
+  if (ratePercent === null || !sellerId || !branchId) {
+    return {
+      status: 400,
+      body: { error: 'sellerId, branchId and ratePercent (number) required', code: 'BAD_REQUEST' },
+    };
   }
   try {
     const result = await processCommissionRateUpsertAtomic(env.DB, tenantId, userId, {

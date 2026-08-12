@@ -7,6 +7,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isLedgerStoreCreditEnabled } from '../auth/features.js';
+import { parseMoneyInteger } from '../http/money-input.js';
 
 export { isLedgerStoreCreditEnabled };
 
@@ -121,7 +122,13 @@ export async function runAdjustStoreCreditHttp(
   }
   const customerId = typeof body.customerId === 'string' ? body.customerId : '';
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const amountCents = Number(body.amountCents);
+  const amountCents = parseMoneyInteger(body.amountCents);
+  if (amountCents === null) {
+    return {
+      status: 400,
+      body: { error: 'amountCents must be an integer number', code: 'BAD_REQUEST' },
+    };
+  }
   const adjustSign = body.adjustSign === 'DEBIT' ? 'DEBIT' : 'CREDIT';
   const authorizedByUserId =
     typeof body.authorizedByUserId === 'string' ? body.authorizedByUserId : userId;

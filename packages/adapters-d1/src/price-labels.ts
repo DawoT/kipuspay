@@ -404,7 +404,7 @@ async function loadBatch(
       productId: String(row.product_id),
       ordinal: Number(row.ordinal),
       productName: String(row.product_name_snapshot),
-      priceCents: Number(row.price_cents),
+      priceCents: row.price_cents as number,
       barcodeType: String(row.barcode_type) as PriceLabelBarcodeType,
       barcodeValue: String(row.barcode_value_snapshot),
       templateVersion: Number(row.template_version),

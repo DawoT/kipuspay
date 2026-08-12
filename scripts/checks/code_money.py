@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 GLOBS = ("packages/**/*.ts", "packages/**/*.js", "apps/**/*.ts", "apps/**/*.svelte")
 TO_FIXED = re.compile(r"\.toFixed\s*\(")
 FLOAT_ON_MONEY = re.compile(
-    r"\b(?:parseFloat|Number)\s*\(\s*([a-zA-Z_]\w*_(?:cents|amount|total|price|paid|balance))"
+    r"\b(?:parseFloat|Number)\s*\(\s*([a-zA-Z_][\w.]*_(?:cents|amount|total|price|paid|balance))"
 )
 SUSPECT_TYPED = re.compile(r"\b(?:const|let|var)\s+(\w*(?:total|price|amount|igv|balance|paid)\w*)\s*:\s*number\b")
 CENTS_OK = re.compile(r"(?:amount|total|price|paid|balance|igv|change|subtotal|debt|fee|cost|revenue|margin)\w*_cents\b")

@@ -3,6 +3,55 @@
  */
 import { processSupplierInvoiceMatchAtomic } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { parseFiniteNumber, parseMoneyInteger } from '../http/money-input.js';
+
+interface InvoiceLine {
+  readonly productId: string;
+  readonly invoicedQty: number;
+  readonly invoiceUnitCostCents: number;
+}
+
+interface MatchInput {
+  readonly purchaseOrderId: string;
+  readonly invoiceNumber: string;
+  readonly totalCents: number;
+  readonly igvCents: number;
+  readonly lines: readonly InvoiceLine[];
+}
+
+function parseInvoiceLines(value: unknown): InvoiceLine[] {
+  if (!Array.isArray(value)) return [];
+  const lines: InvoiceLine[] = [];
+  for (const raw of value) {
+    const line = raw as Record<string, unknown>;
+    const productId = typeof line.productId === 'string' ? line.productId.trim() : '';
+    const invoicedQty = parseFiniteNumber(line.invoicedQty);
+    const invoiceUnitCostCents = parseMoneyInteger(line.invoiceUnitCostCents);
+    if (productId.length > 0 && invoicedQty !== null && invoiceUnitCostCents !== null) {
+      lines.push({ productId, invoicedQty, invoiceUnitCostCents });
+    }
+  }
+  return lines;
+}
+
+function matchInput(
+  purchaseOrderId: string,
+  invoiceNumber: string,
+  lines: readonly InvoiceLine[],
+  totalCents: number | null,
+  igvCents: number | null,
+): MatchInput | null {
+  if (
+    !purchaseOrderId ||
+    !invoiceNumber ||
+    lines.length === 0 ||
+    totalCents === null ||
+    igvCents === null
+  ) {
+    return null;
+  }
+  return { purchaseOrderId, invoiceNumber, lines, totalCents, igvCents };
+}
 
 export function isPurchasingThreeWayEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_THREE_WAY === '1' || env?.FEATURE_PURCHASING_THREE_WAY === 'true';
@@ -76,7 +125,7 @@ function parseMatchBody(body: {
       invoiceNumber: string;
       totalCents: number;
       igvCents: number;
-      lines: { productId: string; invoicedQty: number; invoiceUnitCostCents: number }[];
+      lines: readonly InvoiceLine[];
       priceDiffOverride: boolean;
       overrideReason: string | null;
       authorizedByUserId: string | null;
@@ -84,20 +133,21 @@ function parseMatchBody(body: {
   const purchaseOrderId = body.purchaseOrderId?.trim() ?? '';
   const invoiceNumber = body.invoiceNumber?.trim() ?? '';
   const branchId = body.branchId?.trim() ?? '';
-  const lines = (body.lines ?? [])
-    .map((l) => ({
-      productId: (l.productId ?? '').trim(),
-      invoicedQty: Number(l.invoicedQty),
-      invoiceUnitCostCents: Number(l.invoiceUnitCostCents),
-    }))
-    .filter((l) => l.productId.length > 0);
-  if (!purchaseOrderId || !invoiceNumber || lines.length === 0) {
+  const parsed = matchInput(
+    purchaseOrderId,
+    invoiceNumber,
+    parseInvoiceLines(body.lines),
+    parseMoneyInteger(body.totalCents),
+    parseMoneyInteger(body.igvCents ?? 0),
+  );
+  if (!parsed) {
     return {
       ok: false,
       result: {
         status: 400,
         body: {
-          error: 'purchaseOrderId, invoiceNumber and lines required',
+          error:
+            'purchaseOrderId, invoiceNumber and lines required; invoicedQty, invoiceUnitCostCents, totalCents and igvCents must be numbers',
           code: 'BAD_REQUEST',
         },
       },
@@ -105,12 +155,8 @@ function parseMatchBody(body: {
   }
   return {
     ok: true,
-    purchaseOrderId,
+    ...parsed,
     branchId,
-    invoiceNumber,
-    totalCents: Number(body.totalCents),
-    igvCents: Number(body.igvCents ?? 0),
-    lines,
     priceDiffOverride: body.priceDiffOverride === true,
     overrideReason: body.overrideReason ?? null,
     authorizedByUserId: body.authorizedByUserId ?? null,

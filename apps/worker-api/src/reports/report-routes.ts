@@ -401,12 +401,17 @@ function reportToCsv(reportId: string, payload: Record<string, unknown>): string
     const rows = ar.map((r) => [
       'AR',
       cellValue(r.status),
-      Number(r.n ?? 0),
-      Number(r.balance_due_cents ?? 0),
+      typeof r.n === 'number' ? r.n : 0,
+      typeof r.balance_due_cents === 'number' ? r.balance_due_cents : 0,
     ]);
     const ap = (payload.ap as Array<Record<string, unknown>>) ?? [];
     for (const r of ap) {
-      rows.push(['AP', cellValue(r.status), Number(r.n ?? 0), Number(r.balance_due_cents ?? 0)]);
+      rows.push([
+        'AP',
+        cellValue(r.status),
+        typeof r.n === 'number' ? r.n : 0,
+        typeof r.balance_due_cents === 'number' ? r.balance_due_cents : 0,
+      ]);
     }
     return toCsv(['ledger', 'status', 'count', 'balance_due_cents'], rows);
   }

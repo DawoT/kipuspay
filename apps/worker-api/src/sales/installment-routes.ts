@@ -5,11 +5,36 @@ import {
   listOverdueInstallments,
   processInstallmentPayAtomic,
   processInstallmentPlanAtomic,
+  type InstallmentPlanItemInput,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isSalesInstallmentsEnabled } from '../auth/features.js';
+import { isMoneyInteger, parseMoneyInteger } from '../http/money-input.js';
 
 export { isSalesInstallmentsEnabled };
+
+function parseInstallmentItems(value: unknown): InstallmentPlanItemInput[] | null {
+  if (!Array.isArray(value)) return null;
+  const items: InstallmentPlanItemInput[] = [];
+  for (const raw of value) {
+    const item = raw as Record<string, unknown>;
+    if (
+      !isMoneyInteger(item.installmentNumber) ||
+      !isMoneyInteger(item.principalCents) ||
+      !isMoneyInteger(item.interestCents) ||
+      typeof item.dueDateIso !== 'string'
+    ) {
+      return null;
+    }
+    items.push({
+      installmentNumber: item.installmentNumber,
+      principalCents: item.principalCents,
+      interestCents: item.interestCents,
+      dueDateIso: item.dueDateIso,
+    });
+  }
+  return items;
+}
 
 export interface HttpResult {
   status: number;
@@ -64,6 +89,7 @@ function supervisorOrAbove(role: string | undefined): boolean {
   return role === 'supervisor' || role === 'admin' || role === 'owner';
 }
 
+// eslint-disable-next-line complexity -- create: authz + validación de items/dinero en un solo handler
 export async function runCreateInstallmentPlanHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -81,19 +107,17 @@ export async function runCreateInstallmentPlanHttp(
   }
   const saleId = typeof body.saleId === 'string' ? body.saleId : '';
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const items = Array.isArray(body.items)
-    ? body.items.map((raw) => {
-        const item = raw as Record<string, unknown>;
-        return {
-          installmentNumber: Number(item.installmentNumber),
-          principalCents: Number(item.principalCents),
-          interestCents: Number(item.interestCents ?? 0),
-          dueDateIso: typeof item.dueDateIso === 'string' ? item.dueDateIso : '',
-        };
-      })
-    : [];
-  if (!saleId || items.length === 0) {
-    return { status: 400, body: { error: 'saleId and items required', code: 'BAD_REQUEST' } };
+  const items = parseInstallmentItems(body.items);
+  const downPaymentCents = parseMoneyInteger(body.downPaymentCents ?? 0);
+  if (!saleId || items === null || items.length === 0 || downPaymentCents === null) {
+    return {
+      status: 400,
+      body: {
+        error:
+          'saleId and items required; installmentNumber, principalCents, interestCents and downPaymentCents must be integer numbers',
+        code: 'BAD_REQUEST',
+      },
+    };
   }
   try {
     const result = await processInstallmentPlanAtomic(
@@ -103,7 +127,7 @@ export async function runCreateInstallmentPlanHttp(
       {
         saleId,
         branchId,
-        downPaymentCents: Number(body.downPaymentCents ?? 0),
+        downPaymentCents,
         items,
         creditOverrideTokenHash:
           typeof body.creditOverrideTokenHash === 'string' ? body.creditOverrideTokenHash : null,
