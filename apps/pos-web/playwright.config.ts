@@ -27,6 +27,7 @@ export default defineConfig({
       PUBLIC_FEATURE_OWNER_MODE: '1',
       PUBLIC_FEATURE_ANALYTICS_FORECASTING: '1',
       PUBLIC_FEATURE_LPDP: '1',
+      PUBLIC_FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '1',
     },
   },
 });

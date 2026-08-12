@@ -85,8 +85,15 @@ export async function runSyncSalesHttp(
       return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
     }
   }
-  const deleteFn = env.TENANT_KV?.delete?.bind(env.TENANT_KV);
-  const kv = deleteFn ? { delete: (key: string) => deleteFn(key) } : undefined;
+  const tenantKv = env.TENANT_KV;
+  const kv = tenantKv
+    ? {
+        get: (key: string) => tenantKv.get(key),
+        put: (key: string, value: string) =>
+          tenantKv.put ? tenantKv.put(key, value) : Promise.resolve(),
+        delete: (key: string) => (tenantKv.delete ? tenantKv.delete(key) : Promise.resolve()),
+      }
+    : undefined;
   const result = await processSyncSalesBatch(
     db,
     tenantId,

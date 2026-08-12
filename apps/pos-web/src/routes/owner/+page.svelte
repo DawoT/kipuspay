@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import {
+    isAgenticInsightsEnabled,
     isFiscalCircuitBreakerEnabled,
     isLedgerStoreCreditEnabled,
     isOwnerModeEnabled,
@@ -23,6 +24,12 @@
   import Icon from '$lib/ui/Icon.svelte';
 
   const enabled = isOwnerModeEnabled();
+  let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
+  let briefingBullets: string[] = $derived(
+    briefing
+      ? ((JSON.parse(briefing.briefing) as { bullets?: string[] }).bullets ?? [])
+      : [],
+  );
   const fiscalEa = isFiscalCircuitBreakerEnabled();
   const layawayOn = isSalesLayawayEnabled();
   const quotesOn = isSalesQuotesEnabled();
@@ -92,6 +99,17 @@
     snap = view.snapshot;
     banner = view.banner;
     fromCache = view.fromCache;
+  }
+
+  async function loadBriefing() {
+    if (!isAgenticInsightsEnabled() || typeof fetch === 'undefined') return;
+    try {
+      const response = await fetch('/api/insights/briefing');
+      if (!response.ok) return;
+      briefing = (await response.json()) as { reportDate: string; briefing: string };
+    } catch {
+      briefing = null;
+    }
   }
 
   function loadDemoBacklog() {
@@ -249,6 +267,7 @@
     void loadOverdueLayaways();
     void loadExpiredQuotes();
     void loadStoreCreditReport();
+    void loadBriefing();
     void loadOverdueInstallments();
     void loadCommissionsReport();
     const onOnline = () => void refresh(true);
@@ -295,6 +314,20 @@
     <p class="source-note" data-testid="hoy-source">
       {fromCache ? 'Desde cache local' : 'Actualizado al conectar'} · no en vivo
     </p>
+
+    {#if isAgenticInsightsEnabled() && briefing}
+      <section class="glass-card section-pad" data-testid="owner-briefing">
+        <div class="card-head">
+          <h2>Resumen del servidor</h2>
+          <span class="briefing-stale">Datos del {briefing.reportDate}, no en vivo.</span>
+        </div>
+        <ul class="briefing-bullets">
+          {#each briefingBullets as bullet}
+            <li>{bullet}</li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
 
     <div class="owner-sections-grid">
       {#if layawayOn && overdueLayaways.length > 0}
@@ -468,6 +501,25 @@
     color: var(--text-dim);
     font-family: var(--font-mono);
     margin-top: -0.5rem;
+  }
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .briefing-stale {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .briefing-bullets {
+    margin: 0.75rem 0 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.4rem;
+    font-size: 0.9rem;
   }
 
   .owner-sections-grid {

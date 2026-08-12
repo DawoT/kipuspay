@@ -115,6 +115,7 @@ const secret = new Set(['api_keys', 'authorization_tokens', 'users', 'webhook_en
 const sensitive = new Set(['push_consents', 'push_privacy_settings', 'push_subscriptions']);
 const derived = new Set(['daily_financial_rollups', 'daily_product_rollups']);
 const ephemeral = new Set([
+  'ai_usage_counters',
   'billing_overages',
   'data_backup_chunks',
   'data_backup_objects',
@@ -221,12 +222,14 @@ writeFileSync(
 // before tables introduced by later sprints exist. Later migrations own their
 // corresponding epoch triggers.
 const introducedAfterSprint42 = new Set([
+  'ai_usage_counters',
   'consent_records',
   'customer_order_fulfillments',
   'customer_order_items',
   'customer_order_notifications',
   'customer_orders',
   'forecast_outputs',
+  'insight_log',
   'push_consents',
   'push_deliveries',
   'push_events',

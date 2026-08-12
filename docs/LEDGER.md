@@ -6425,3 +6425,51 @@ aprobaciones: [Staff SRE R, Staff Backend ACID R, Staff Principal V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0324
+timestamp_utc: 2026-08-12T06:30:00Z
+schema_version: 2
+sprint_fase: Sprint 49 — FASE 6F (analytics.agentic_insights)
+agente_responsable: Staff Data (owner) / Staff Backend ACID / Staff Security / Staff SRE / Staff Frontend
+tipo: Entregable nuevo
+subtipo: agentic-insights
+relacion: amplia
+referencias_entradas: [0323]
+referencias_documentales: [docs/ops/s49-insights-qg.md, packages/domain-analytics/src/insights/, packages/adapters-d1/src/insights-repository.ts, apps/worker-api/src/analytics/insights-routes.ts, apps/worker-api/src/analytics/briefing-scheduled.ts, apps/worker-api/src/ai/ai-gateway.ts, apps/pos-web/src/routes/owner/asistente/, docs/GTM.md]
+prev_id: 0323
+prev_hash: 4b8ee71d42754ecf0286d90bfd1d36217bd5f041742da3c942be09207a2718a4
+entry_hash: 2a89f2b93a384aa8f8353ef2e8022690d5866cda43816c3908491c1acfaad21e
+ticket_or_adr: Roadmap FASE 6F Sprint 49 (regla 33, PERF-12) — pipeline determinista + briefing
+test_ids: [V-13, V-15, V-16, SUITE, insights/*.test.ts, insights-repository.integration.test.ts, insights-schema.test.ts, ai-gateway.test.ts, insights-routes.test.ts, briefing-scheduled.test.ts, insights.spec.ts]
+entregable_afectado: docs/ops/s49-insights-qg.md (nuevo) — cierre del Sprint 49 y de la FASE 6F
+descripcion: >
+  Entrega analytics.agentic_insights (default-off): migracion 0041
+  (insight_log append-only con UNIQUE(tenant,idempotency_key), triggers de
+  epoch, y ai_usage_counters con cupo; registry BUSINESS/EPHEMERAL; down
+  protegido); dominio puro en domain-analytics/insights (intent-router
+  whitelist, sql-schema estricto con LIMIT 50 forzoso y TOO_WIDE edge A,
+  pii-filter recursivo edge C, nlp-guard anti-alucinacion con hechos
+  verbatim, briefing determinista); port AiGateway (Workers AI por binding
+  real; determinista en tests/CI, el LLM nunca se llama en local);
+  insights-repository (runInsightSelect en sesion first-unconstrained
+  PERF-12, appendInsightLog idempotente, consumeAiUsage con cupo
+  AI_QUOTA_EXCEEDED, listBriefingFacts); rutas POST /api/insights/chat SSE
+  (edge B idempotencia por KV TTL 10 min sin re-invocar el LLM ni meterizar)
+  y GET /api/insights/briefing (banner de antiguedad, nunca en vivo); cron
+  30 3 * * * briefing-scheduled (KV insights:{tenant}:{fecha}, 1 query del
+  cupo); UI Modo Dueno: pestana Asistente + card de resumen en el dashboard
+  (edge D invalidacion ya cableada en rollup-rematerialize); GTM claim
+  "Gerente de Operaciones" descongelada con 3 proof points.
+evidencia: >
+  RED: modulos/rutas/cron/UI ausentes (tests nuevos fallaron por import
+  inexistente). GREEN: domain-analytics 60, adapters-d1 workerd 219
+  (0041+repo), worker-api 688, pos-web 168 unit + E2E 28/28 (insights 2/2),
+  lint/typecheck/format GREEN, verify.sh SUITE GREEN, quality.sh Quality
+  Gate OK. Claim descongelada; produccion/piloto NO-GO hasta Workers AI,
+  cron y KV reales + A/V independientes. Cierra la FASE 6F.
+ancestry_verified: true
+aprobaciones: [Staff Data R, Staff Backend ACID R, Staff Security R, Staff SRE R, Staff Frontend R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

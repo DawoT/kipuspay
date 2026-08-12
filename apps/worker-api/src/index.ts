@@ -231,6 +231,11 @@ import {
 } from './backup/backup-routes.js';
 import { runDrSimulationHttp } from './backup/dr-routes.js';
 import {
+  runBriefingHttp,
+  runInsightChatHttp,
+  type InsightsEnv,
+} from './analytics/insights-routes.js';
+import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
   runDispatchCustomerOrderNoticeHttp,
@@ -2082,6 +2087,38 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       },
     );
     return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
+  });
+
+  // Sprint 49 — insights (analytics.agentic_insights, Cadena+, default-off).
+  app.post('/api/insights/chat', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runInsightChatHttp(
+      c.env as unknown as InsightsEnv,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    if (result instanceof Response) return result;
+    return c.json(result.body, result.status as 400 | 402 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/insights/briefing', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runBriefingHttp(
+      c.env as unknown as InsightsEnv,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      c.req.query('date') ?? null,
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
   });
 
   // Public API (API key) — Cadena+; no JWT middleware

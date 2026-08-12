@@ -78,6 +78,13 @@ export function isAnalyticsForecastingEnabled(env: WorkerEnv | undefined): boole
   return flagOn(env?.FEATURE_ANALYTICS_FORECASTING);
 }
 
+/** Sprint 49 — inteligencia del negocio (FEATURE_ANALYTICS_AGENTIC_INSIGHTS, default off). */
+export function isAgenticInsightsEnabled(
+  env: { readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_ANALYTICS_AGENTIC_INSIGHTS);
+}
+
 /** Sprint 47 — LPDP datos personales (FEATURE_LPDP, default off). */
 export function isLpdpEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_LPDP);

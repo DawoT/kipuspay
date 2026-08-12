@@ -17,3 +17,9 @@ export { computeMapePercent, holdoutSplit } from './metrics.js';
 
 export { detectBreakage } from './breakage.js';
 export type { BreakageInput, BreakageResult, BreakageStatus } from './breakage.js';
+
+export * from './insights/intent-router.js';
+export * from './insights/sql-schema.js';
+export * from './insights/pii-filter.js';
+export * from './insights/nlp-guard.js';
+export * from './insights/briefing.js';

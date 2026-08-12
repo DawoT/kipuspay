@@ -10,6 +10,7 @@ import {
 } from './sales/recurring-sales-scheduled.js';
 import { runMobilePushDispatcher } from './push/mobile-push-dispatcher.js';
 import { runForecastScheduled } from './analytics/forecast-scheduled.js';
+import { runBriefingScheduled } from './analytics/briefing-scheduled.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
@@ -18,6 +19,7 @@ export { BackupWorkflow } from './backup/backup-workflow-entrypoint.js';
 const DAILY_ROLLUP_CRON = '0 8 * * *';
 const RECURRING_SALES_CRON = '*/5 * * * *';
 const FORECAST_CRON = '30 8 * * *';
+const BRIEFING_CRON = '30 3 * * *';
 
 /** Private service-binding entrypoint; intentionally has no fetch method. */
 export class RecurringManualControl extends WorkerEntrypoint<WorkerEnv> {
@@ -41,6 +43,28 @@ export default {
     }
     if (event.cron === FORECAST_CRON) {
       await runForecastScheduled(env, { scheduledTime: event.scheduledTime });
+      return;
+    }
+    if (event.cron === BRIEFING_CRON) {
+      const briefingKv = env.TENANT_KV
+        ? {
+            get: (key: string) => env.TENANT_KV.get(key),
+            put: (key: string, value: string) =>
+              env.TENANT_KV.put ? env.TENANT_KV.put(key, value) : Promise.resolve(),
+            delete: (key: string) =>
+              env.TENANT_KV.delete ? env.TENANT_KV.delete(key) : Promise.resolve(),
+          }
+        : null;
+      await runBriefingScheduled(
+        {
+          ...(env.FEATURE_ANALYTICS_AGENTIC_INSIGHTS
+            ? { FEATURE_ANALYTICS_AGENTIC_INSIGHTS: env.FEATURE_ANALYTICS_AGENTIC_INSIGHTS }
+            : {}),
+          ...(env.DB ? { DB: env.DB } : {}),
+          ...(briefingKv ? { TENANT_KV: briefingKv } : {}),
+        },
+        { scheduledTime: event.scheduledTime },
+      );
       return;
     }
     if (event.cron === RECURRING_SALES_CRON) {

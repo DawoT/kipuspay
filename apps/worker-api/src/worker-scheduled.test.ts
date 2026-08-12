@@ -82,9 +82,9 @@ describe('Worker scheduled dispatch', () => {
     });
   });
 
-  it('preserves all three configured cron triggers', () => {
+  it('preserves all four configured cron triggers', () => {
     expect(wranglerConfig).toMatch(
-      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*\]/,
+      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*\]/,
     );
   });
 

@@ -5,6 +5,8 @@
 import type { D1Bound, D1DatabaseLike } from './index.js';
 
 export interface InsightsKv {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { readonly expirationTtl?: number }): Promise<void>;
   delete(key: string): Promise<void>;
 }
 

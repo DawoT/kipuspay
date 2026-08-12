@@ -88,6 +88,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_CLIENT_MOBILE_POS?: string;
   /** Sprint 46: analítica predictiva (Holt-Winters), default-off. */
   readonly FEATURE_ANALYTICS_FORECASTING?: string;
+  readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string;
+  readonly AI_MODEL?: string;
   readonly PUSH_VAPID_PUBLIC_KEY?: string;
   readonly PUSH_KMS?: {
     encryptEnvelope(input: Record<string, unknown>): Promise<{

@@ -223,6 +223,11 @@ export function isLpdpEnabled(): boolean {
   return flagOn(pub(PF + 'LPDP'));
 }
 
+/** Sprint 49 — inteligencia del negocio (asistente + briefing); siempre default-off. */
+export function isAgenticInsightsEnabled(): boolean {
+  return flagOn(pub(PF + 'ANALYTICS_AGENTIC_INSIGHTS'));
+}
+
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));

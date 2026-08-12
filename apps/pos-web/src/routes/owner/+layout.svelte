@@ -1,11 +1,15 @@
 <script lang="ts">
-  import { isOwnerModeEnabled } from '$lib/features';
+  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
   import { page } from '$app/stores';
 
   const enabled = isOwnerModeEnabled();
+  const insightsEnabled = isAgenticInsightsEnabled();
   const tabs = [
     { href: '/owner', label: 'Hoy', testid: 'tab-hoy' },
     { href: '/owner/previsiones', label: 'Previsiones', testid: 'tab-previsiones' },
+    ...(insightsEnabled
+      ? [{ href: '/owner/asistente', label: 'Asistente', testid: 'tab-asistente' }]
+      : []),
     { href: '/owner/finanzas', label: 'Finanzas', testid: 'tab-finanzas' },
     { href: '/owner/yo', label: 'Yo', testid: 'tab-yo' },
   ] as const;
