@@ -7,6 +7,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',
+    // El Service Worker intercepta GETs same-origin y esquivaba los mocks
+    // page.route de los fixtures (regresión s43/s44): bloqueado por defecto.
+    // Los specs que prueban el SW (mobile-low-end) lo re-habilitan con test.use.
+    serviceWorkers: 'block',
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
       : {},
@@ -22,6 +26,7 @@ export default defineConfig({
       PUBLIC_FEATURE_CLIENT_MOBILE_POS: '1',
       PUBLIC_FEATURE_OWNER_MODE: '1',
       PUBLIC_FEATURE_ANALYTICS_FORECASTING: '1',
+      PUBLIC_FEATURE_LPDP: '1',
     },
   },
 });

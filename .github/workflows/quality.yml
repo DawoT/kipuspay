@@ -47,3 +47,39 @@ jobs:
       - name: Presupuesto de bundle del POS (CAL-06)
         working-directory: apps/pos-web
         run: pnpm bundle
+
+  e2e-pos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: E2E POS (Playwright + Chrome del sistema)
+        # El SW se bloquea por defecto en playwright.config (serviceWorkers: 'block')
+        # para que los mocks page.route funcionen; los specs que prueban el SW lo
+        # re-habilitan con test.use. Ubuntu-latest trae Chrome en /usr/bin.
+        working-directory: apps/pos-web
+        run: pnpm exec playwright test --reporter=list
+        env:
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/google-chrome
+
+      - name: Subir trazas E2E (solo si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/pos-web/test-results/
+          if-no-files-found: ignore

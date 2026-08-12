@@ -30,9 +30,9 @@ El sprint-47 implementa la capability `compliance.lpdp` (Roadmap FASE 6F, Sprint
   - `inventory.ts` — inventario PII (LPDP-04): qué campos son PII por entidad.
 - **`packages/adapters-d1/src/customer-repository.ts`** (nuevo): `listCustomers`, `getCustomer`, `listConsents`, `writeConsent` (idempotente), `eraseCustomer` en **un solo `db.batch`** (perfil → `pii_erased`, snapshots `[ANONYMIZED]`/`00000000`, revocación de consents, audit `LPDP_ERASE` con cadena `prev_hash`/`row_hash`), `exportCustomer`. **7 tests de integración workerd GREEN** (207/207 suite).
 - **`apps/worker-api`**: rutas nuevas bajo `src/customers/customer-lpdp-routes.ts`:
-  - `GET /api/customers` (listado, sin PII), `GET/POST /api/customers/:id/consents|consent`.
+  - `GET /api/customers` (listado **sin PII**: solo id + documento fiscal + estado, LPDP-04), `GET/POST /api/customers/:id/consents|consent`.
   - `GET /api/customers/:id/export` (LPDP-02, fail-closed si erasure), `POST /api/customers/:id/erase` (solo owner/admin/supervisor).
-  - `tenant_id` **siempre del JWT** (nunca del body/query), flag `FEATURE_LPDP` **default-off**, Plan Guard premium (402) + 403 semántico.
+  - `tenant_id` **siempre del JWT** (nunca del body/query), flag `FEATURE_LPDP` **default-off**, **403 semántico por rol** (owner/admin/supervisor; sin gating por plan: la spec regla 32a no lo exige — corregido respecto al borrador que citaba "Plan Guard 402", patrón s46 que no aplica aquí).
   - 9 tests unit + suite 660 GREEN.
 - **Fix preexistente sprint-46**: `schema.integration.test.ts` — el down total ahora incluye `DOWN_0039` (forecasting) y `DOWN_0040` (LPDP); antes quedaba un trigger de forecast vivo tras el drop.
 - **Verificado**: unit 291/291, integración 207/207, `scripts/verify.sh` SUITE GREEN (V-00..V-24), bundle bajo CAL-06.
@@ -41,11 +41,11 @@ El sprint-47 implementa la capability `compliance.lpdp` (Roadmap FASE 6F, Sprint
 
 ### Hito 3 — UI + Runbook + Copy (Staff Security / Staff Data / Staff Growth)
 
-1. **Panel clientes pos-web** (`apps/pos-web`), en **Modo Dueño/Admin** (patrón `src/routes/owner/`, `src/routes/admin/`). **No existe módulo de clientes aún** — crear ruta nueva tipo `admin/clientes` (o `owner/clientes`, seguir patrón del shell admin `src/lib/admin/app-shell-session.ts` y `src/lib/features.ts`):
-   - Listado de clientes (sin PII expuesta en lista), detalle con consentimientos por propósito (GRANT/REVOKE), botón export (descarga JSON), botón erase con **confirmación doble** (incluye anonimización irreversible + retención fiscal SUNAT ~5 años).
+1. **Panel clientes pos-web** (`apps/pos-web`), en **Modo Dueño/Admin** (patrón `src/routes/owner/`, `src/routes/admin/`). Ruta nueva `admin/clientes` (patrón del shell admin `src/lib/admin/app-shell-session.ts` y `src/lib/features.ts`):
+   - Listado de clientes **sin PII** (solo documento fiscal + estado; el listado del backend ya proyecta mínimo, LPDP-04), detalle con consentimientos por propósito (GRANT/REVOKE), botón export (descarga JSON con la PII del titular, LPDP-02), botón erase con **confirmación doble** (incluye anonimización irreversible + retención fiscal SUNAT ~5 años).
    - Gated por `FEATURE_LPDP` (default-off) igual que el backend.
-   - Copy sin jerga (la privacidad es claim GTM-09, se vende al cliente final).
-   - Tests: unit del client + (si aplica) E2E. Sigue el patrón de `forecasting-page.test.ts` y `e2e/forecasting.spec.ts`.
+   - Copy sin jerga (la privacidad es claim GTM-09, se vende al cliente final; copy en GTM §5.7.2).
+   - Tests: unit del client + contrato de página + E2E `tests/e2e/lpdp.spec.ts`. Sigue el patrón de `forecasting-page.test.ts` y `e2e/forecasting.spec.ts`.
 2. **Runbook DPO**: crear en `docs/runbooks/` (plantilla `docs/runbooks/TEMPLATE.md`) un runbook de atención a solicitudes de exportación (LPDP-02, vía API existente), borrado (LPDP-03), qué se retiene por SUNAT, cómo verificar el simulacro.
 3. **Copy GTM**: redactar copy legal/UX de privacidad en `docs/GTM.md` (sin jerga) — **no publicar política de privacidad pública todavía**: solo tras QG (ver Hito 4).
 

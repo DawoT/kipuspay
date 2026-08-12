@@ -15,6 +15,7 @@ export const CUSTOMER_PII_CATALOG = [
 export type CustomerPiiCatalogField = (typeof CUSTOMER_PII_CATALOG)[number];
 
 export interface CustomerRow {
+  readonly id: string;
   readonly tenantId: string;
   readonly documentTypeCode: string;
   readonly documentNumber: string;
@@ -27,12 +28,25 @@ export interface CustomerRow {
 }
 
 export interface PiiInventoryEntry {
+  readonly id: string;
   readonly documentTypeCode: string;
   readonly documentNumber: string;
   readonly name: string | null;
   readonly email: string | null;
   readonly phone: string | null;
   readonly address: string | null;
+  readonly piiErased: boolean;
+}
+
+/**
+ * Fila del listado de clientes (GET /api/customers). Proyección mínima sin PII:
+ * solo identificación fiscal + estado de anonimización — el DPO navega al
+ * detalle por id; el acceso a PII es exclusivo del export (LPDP-02).
+ */
+export interface CustomerListItem {
+  readonly id: string;
+  readonly documentTypeCode: string;
+  readonly documentNumber: string;
   readonly piiErased: boolean;
 }
 
@@ -44,6 +58,7 @@ export interface PiiInventoryEntry {
 export function projectPiiInventory(customer: CustomerRow): PiiInventoryEntry {
   if (customer.piiErased || customer.deleted) {
     return {
+      id: customer.id,
       documentTypeCode: customer.documentTypeCode,
       documentNumber: customer.documentNumber,
       name: null,
@@ -54,6 +69,7 @@ export function projectPiiInventory(customer: CustomerRow): PiiInventoryEntry {
     };
   }
   return {
+    id: customer.id,
     documentTypeCode: customer.documentTypeCode,
     documentNumber: customer.documentNumber,
     name: customer.name,
@@ -61,6 +77,19 @@ export function projectPiiInventory(customer: CustomerRow): PiiInventoryEntry {
     phone: customer.phone,
     address: customer.address,
     piiErased: false,
+  };
+}
+
+/**
+ * Proyección del listado: identificación fiscal + estado, sin campos PII.
+ * Una fila anonimizada mantiene el documento fiscal retenido (00000000).
+ */
+export function projectCustomerListItem(customer: CustomerRow): CustomerListItem {
+  return {
+    id: customer.id,
+    documentTypeCode: customer.documentTypeCode,
+    documentNumber: customer.documentNumber,
+    piiErased: customer.piiErased || customer.deleted,
   };
 }
 

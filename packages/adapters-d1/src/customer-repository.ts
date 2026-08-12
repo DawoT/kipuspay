@@ -13,17 +13,18 @@ import {
   buildCustomerExport,
   planConsentChange,
   planCustomerErase,
-  projectPiiInventory,
+  projectCustomerListItem,
   type ConsentChangePlan,
   type ConsentRecord,
   type CustomerExportPayload,
+  type CustomerListItem,
   type ErasePlan,
-  type PiiInventoryEntry,
 } from '@kipuspay/domain-customers';
 import type { D1Bound, D1DatabaseLike } from './index.js';
 import { sha256HexOf } from './crypto.js';
 
 export interface CustomerInventoryRow {
+  readonly id: string;
   readonly document_type_code: string;
   readonly document_number: string;
   readonly name: string | null;
@@ -91,30 +92,16 @@ function toConsentRecord(row: ConsentRow): ConsentRecord {
   };
 }
 
-function toInventoryEntry(row: CustomerInventoryRow): PiiInventoryEntry {
-  return projectPiiInventory({
-    tenantId: '',
-    documentTypeCode: row.document_type_code,
-    documentNumber: row.document_number,
-    name: row.name,
-    email: row.email,
-    phone: row.phone,
-    address: row.address,
-    piiErased: row.pii_erased === 1,
-    deleted: false,
-  });
-}
-
-/** Lista el inventario PII de clientes de un tenant (LPDP-04: tenant del JWT). */
+/** Lista clientes del tenant (LPDP-04) en proyección mínima sin PII. */
 export async function listCustomers(
   db: D1DatabaseLike,
   tenantId: string,
   limit = 100,
   offset = 0,
-): Promise<readonly PiiInventoryEntry[]> {
+): Promise<readonly CustomerListItem[]> {
   const rows = await db
     .prepare(
-      `SELECT document_type_code, document_number, name, email, phone, address, pii_erased
+      `SELECT id, document_type_code, document_number, pii_erased
        FROM customers
        WHERE tenant_id = ?
        ORDER BY created_at DESC
@@ -122,7 +109,20 @@ export async function listCustomers(
     )
     .bind(tenantId, limit, offset)
     .all<CustomerInventoryRow>();
-  return (rows.results ?? []).map(toInventoryEntry);
+  return (rows.results ?? []).map((row) =>
+    projectCustomerListItem({
+      id: row.id,
+      tenantId: '',
+      documentTypeCode: row.document_type_code,
+      documentNumber: row.document_number,
+      name: null,
+      email: null,
+      phone: null,
+      address: null,
+      piiErased: row.pii_erased === 1,
+      deleted: false,
+    }),
+  );
 }
 
 /** Devuelve un cliente por id (para detalle, export y erase). tenant_id forzado. */
@@ -133,7 +133,7 @@ export async function getCustomer(
 ): Promise<CustomerInventoryRow | null> {
   return db
     .prepare(
-      `SELECT document_type_code, document_number, name, email, phone, address, pii_erased
+      `SELECT id, document_type_code, document_number, name, email, phone, address, pii_erased
        FROM customers
        WHERE tenant_id = ? AND id = ?`,
     )

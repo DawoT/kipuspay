@@ -218,6 +218,11 @@ export function isMobilePosEnabled(): boolean {
   return flagOn(pub(PF + 'CLIENT_MOBILE_POS'));
 }
 
+/** Sprint 47 — LPDP (datos personales); siempre default-off. */
+export function isLpdpEnabled(): boolean {
+  return flagOn(pub(PF + 'LPDP'));
+}
+
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));

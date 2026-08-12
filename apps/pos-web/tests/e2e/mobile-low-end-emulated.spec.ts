@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+// Este spec ejercita el Service Worker (registro + update): re-habilita el SW
+// que el config global bloquea para que los mocks page.route funcionen.
+test.use({ serviceWorkers: 'allow' });
+
 test('EMULATED software low-end harness preserves 500 offline sales through reload and SW update', async ({
   page,
 }) => {

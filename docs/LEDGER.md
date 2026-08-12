@@ -6281,3 +6281,49 @@ aprobaciones: [Staff Security R estado y plan, Staff Principal V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0321
+timestamp_utc: 2026-08-12T03:30:00Z
+schema_version: 2
+sprint_fase: Sprint 47 — FASE 6F (compliance.lpdp)
+agente_responsable: Staff Security (owner) / Staff Data / Staff Frontend / Staff Growth (gating)
+tipo: Entregable nuevo
+subtipo: cierre-de-sprint
+relacion: amplia
+referencias_entradas: [0320]
+referencias_documentales: [docs/ops/s47-lpdp-qg.md, docs/runbooks/lpdp-dpo.md, docs/GTM.md, docs/ROADMAP.md, apps/pos-web/src/routes/admin/clientes/+page.svelte]
+prev_id: 0320
+prev_hash: 8f94396818b4e47221ec933df608bad98eadaf6e8b993218891d68ec0a0e75d3
+entry_hash: 18077c10b5e6d416a6c8e2f8683ec832f8a7742394a765be8e4cfb1e052d0682
+ticket_or_adr: ADR-0031, Roadmap Sprint 47, Arquitectura §5.3 regla 32a (LPDP-01..04), GTM-09
+test_ids: [V-13, V-16, V-18, SUITE, customer-panel.red.test.ts, customer-lpdp-client.test.ts, lpdp.spec.ts]
+entregable_afectado: docs/ops/s47-lpdp-qg.md (nuevo) — cierre del Sprint 47 LPDP
+descripcion: >
+  Cierra el Sprint 47 LPDP (Hitos 3 y 4 del plan docs/ops/s47-lpdp-plan.md):
+  panel Admin -> Clientes en pos-web (listado sin PII por proyeccion minima
+  LPDP-04, consentimientos por proposito GRANT/REVOKE, export JSON LPDP-02 y
+  erase con confirmacion doble LPDP-03, gated FEATURE_LPDP default-off), runbook
+  DPO (docs/runbooks/lpdp-dpo.md), copy de privacidad sin jerga en GTM §5.7.2 y
+  simulacro de solicitud LPDP. El listado del backend dejo de exponer
+  nombre/email/telefono/direccion (hallazgo F-1.1 del harness de auditoria) y el
+  plan se corrigio para eliminar el "Plan Guard 402" inexistente (la spec regla
+  32a no exige gating por plan: 403 por rol). Se cerraron ademas las regresiones
+  E2E s43/s44 detectadas por la auditoria: serviceWorkers bloqueado por defecto en
+  Playwright (los mocks page.route eran esquivados por el SW), nav RBAC de owner
+  restaurado, touch targets 44/48px, contraste AA y title en home; la suite E2E
+  completa queda 28/28 y se anade el job e2e-pos al CI (quality.yml).
+evidencia: >
+  RED: 5e3bacb (gobernanza contractual, backend ausente); E2E s43/s44 10/10 en
+  rojo por SW bypass y regresion del WIP 33098d9; V-21 no detectaba Number() sobre
+  dinero punteado; el listado /api/customers exponia PII completa sin id.
+  GREEN: 093977e (backend) + cierre: domain-customers 14/14 con 100% cobertura,
+  adapters 291 unit + 207 workerd, worker-api 664, pos-web 163 unit y E2E 28/28
+  (incluye lpdp 5/5), verify.sh SUITE GREEN (V-00..V-24 con V-21 ampliado),
+  quality.sh Quality Gate OK. Claim GTM-09 descongelada con copy §5.7.2;
+  produccion/piloto NO-GO hasta staging real, QA humana y A+V independientes.
+ancestry_verified: true
+aprobaciones: [Staff Security R, Staff Frontend R, Staff Data R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

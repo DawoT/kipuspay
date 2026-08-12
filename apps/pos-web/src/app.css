@@ -23,11 +23,11 @@ body[data-theme='dark'] {
   --emerald-gradient: linear-gradient(135deg, #2e9e74 0%, #0f6b4c 100%);
 
   --amber-gold: #d99a3d;
-  --rose-red: #d96a3c;
+  --rose-red: #e88a5e;
 
   --text-main: #f3efe6;
   --text-muted: #9aa3ad;
-  --text-dim: #656d78;
+  --text-dim: #8a94a3;
 
   --font-sans: 'Schibsted Grotesk', 'Inter', system-ui, -apple-system, sans-serif;
   --font-heading: 'Fraunces', 'Schibsted Grotesk', serif;
@@ -75,7 +75,7 @@ body[data-theme='light'] {
 
   --text-main: #14161c;
   --text-muted: #4a5260;
-  --text-dim: #717a8a;
+  --text-dim: #5c6573;
 
   --shadow-sm: 0 1px 4px rgba(20, 22, 28, 0.08);
   --shadow-md: 0 8px 24px rgba(20, 22, 28, 0.08);

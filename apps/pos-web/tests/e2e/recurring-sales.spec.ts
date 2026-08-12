@@ -7,11 +7,11 @@ test('authenticated Admin creates FIXED without tenant, money or payment authori
   const harness = await installRecurringSalesFixture(page, 'admin');
   await page.goto('/admin/membresias');
   await expect(page.getByRole('heading', { name: 'Membresías' })).toBeVisible();
-  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await page.getByRole('button', { name: 'Actualizar' }).click();
   await page.getByLabel('Cliente').fill('customer-new');
   await page.getByLabel('Producto o servicio').fill('service-new');
-  await page.getByLabel('Unidad', { exact: true }).fill('uom-new');
-  await page.getByLabel('Semántica de precio').selectOption('FIXED');
+  await page.getByLabel('Unidad de medida', { exact: true }).fill('uom-new');
+  await page.getByLabel('Política de precio').selectOption('FIXED');
   await page.getByRole('button', { name: 'Crear con precio del servidor' }).click();
   expect(harness.created).toHaveLength(1);
   expect(harness.created[0]).not.toHaveProperty('tenantId');
@@ -23,28 +23,28 @@ test('authenticated Admin creates FIXED without tenant, money or payment authori
 test('CURRENT preview shows server calendar and catalog semantics', async ({ page }) => {
   await installRecurringSalesFixture(page, 'owner');
   await page.goto('/admin/membresias');
-  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await page.getByRole('button', { name: 'Actualizar' }).click();
   await page.getByRole('button', { name: /customer-e2e/ }).click();
-  await page.getByRole('button', { name: 'Vista previa de próxima ejecución' }).click();
-  await expect(page.getByText('CURRENT · Precio del servidor')).toBeVisible();
-  await expect(page.getByText(/CURRENT puede cambiar con el catálogo/)).toBeVisible();
+  await page.getByRole('button', { name: 'Vista previa siguiente' }).click();
+  await expect(page.getByText(/El servidor calcula el importe/)).toBeVisible();
+  await expect(page.getByTestId('memberships-pricing-select')).toContainText('Precio vigente');
 });
 
 test('pause and resume use optimistic versions', async ({ page }) => {
   const harness = await installRecurringSalesFixture(page, 'admin');
   await page.goto('/admin/membresias');
-  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await page.getByRole('button', { name: 'Actualizar' }).click();
   await page.getByRole('button', { name: /customer-e2e/ }).click();
-  await page.getByRole('button', { name: 'Pausar membresía' }).click();
+  await page.getByRole('button', { name: 'Pausar' }).click();
   await page.getByRole('button', { name: /customer-e2e/ }).click();
-  await page.getByRole('button', { name: 'Reanudar membresía' }).click();
+  await page.getByRole('button', { name: 'Reanudar' }).click();
   expect(harness.transitions).toEqual(['pause', 'resume']);
 });
 
 test('immediate cancellation requires server preview and explicit confirm', async ({ page }) => {
   const harness = await installRecurringSalesFixture(page, 'owner');
   await page.goto('/admin/membresias');
-  await page.getByRole('button', { name: 'Actualizar calendario' }).click();
+  await page.getByRole('button', { name: 'Actualizar' }).click();
   await page.getByRole('button', { name: /customer-e2e/ }).click();
   await page.getByRole('button', { name: 'Cancelar ahora y calcular crédito' }).click();
   await expect(page.getByRole('dialog', { name: 'Confirmar cancelación inmediata' })).toBeFocused();

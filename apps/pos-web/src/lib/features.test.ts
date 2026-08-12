@@ -40,6 +40,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'SALES_RECURRING', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'MOBILE_PUSH', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'CLIENT_MOBILE_POS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'LPDP', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -79,6 +80,7 @@ describe('features flags default off', () => {
     expect(mod.isRecurringSalesEnabled()).toBe(false);
     expect(mod.isMobilePushEnabled()).toBe(false);
     expect(mod.isMobilePosEnabled()).toBe(false);
+    expect(mod.isLpdpEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

@@ -37,7 +37,9 @@ export {
 export {
   CUSTOMER_PII_CATALOG,
   isPiiCatalogField,
+  projectCustomerListItem,
   projectPiiInventory,
+  type CustomerListItem,
   type CustomerPiiCatalogField,
   type CustomerRow,
   type PiiInventoryEntry,

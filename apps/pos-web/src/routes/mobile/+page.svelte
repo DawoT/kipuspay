@@ -337,11 +337,12 @@
 
   .checkbox-row input { width: auto; accent-color: var(--accent-primary); }
 
-  .install-btn, .full-btn { width: 100%; }
+  .install-btn, .full-btn { width: 100%; min-height: 48px; }
 
   .hint-text { font-size: 0.75rem; color: var(--text-dim); margin: 0.5rem 0 0.875rem; }
 
   .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .btn-row button, .btn-row .link-action { min-height: 48px; }
 
   .link-action {
     display: inline-flex;
@@ -350,6 +351,7 @@
     padding: 0.5rem 1rem;
     background: var(--bg-button-sec);
     border: 1px solid var(--border-subtle);
+    min-height: 48px;
     border-radius: var(--radius-md);
     color: var(--accent-primary);
     font-size: 0.875rem;

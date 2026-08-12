@@ -83,7 +83,9 @@ owner: "@DawoT"
 | 38     | 6D   | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial)                                               | Cerrado                                         |
 | 39–42  | 6D   | Actualizada (FASE 6D reglas 24–27)                                                                          | Planificado                                     |
 | 43–45  | 6E   | Actualizada (S43–S44 GREEN local condicionado; S45 regla 30 en §5.12 + ADR-0029 + GTM-26)                  | S43–S44 claim/producción NO-GO; S45 baseline RED/NO-GO |
-| 46–48  | 6F   | Actualizada (FASE 6F reglas 31–32)                                                                          | Planificado                                     |
+| 46     | 6F   | Actualizada (Sprint 46 regla 31 — forecasting; ADR-0030; GTM-01 descongelado)                              | Software GREEN local; QG `docs/ops/s46-forecasting-qg.md`; producción/piloto NO-GO |
+| 47     | 6F   | Actualizada (Sprint 47 regla 32a — LPDP; ADR-0031; GTM-09 descongelado)                                    | Software GREEN local; QG `docs/ops/s47-lpdp-qg.md`; producción/piloto NO-GO |
+| 48     | 6F   | Actualizada (Sprint 48 regla 32b — DR/BCP)                                                                  | Planificado                                     |
 | 49     | 6F   | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica)                                       | Planificado                                     |
 | 50–53  | 6G   | Actualizada (FASE 6G reglas 34–37 — flujo del cliente)                                                      | Planificado                                     |
 

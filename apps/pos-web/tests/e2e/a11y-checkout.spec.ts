@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 test('pantalla de cobro sin violaciones axe critical/serious', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'KipusPay POS' })).toBeVisible();
+  await expect(page.getByTestId('tenant-name')).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   const blocking = results.violations.filter((v) =>
     ['critical', 'serious'].includes(v.impact ?? ''),

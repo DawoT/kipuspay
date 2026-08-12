@@ -14,6 +14,7 @@
   } from '$lib/customer-orders/customer-order-access';
   import {
     isCustomerOrdersEnabled,
+    isLpdpEnabled,
     isMobilePosEnabled,
     isMobilePushEnabled,
     isRecurringSalesEnabled,
@@ -76,7 +77,7 @@
               { href: '/caja/apartado', label: 'Apartados', icon: 'clock' as IconName },
               { href: '/caja/cuotas', label: 'Cuotas', icon: 'calendar' as IconName },
             ]
-          : [{ href: '/', label: 'POS Terminal', icon: 'cart' as IconName }]),
+          : []),
         ...(showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role: authenticatedSession?.role ?? '' })
           ? [{ href: '/orders/customer', label: 'Pedidos retiro', icon: 'package' as IconName }]
           : []),
@@ -96,6 +97,9 @@
         { href: '/admin/credito-tienda', label: 'Crédito tienda', icon: 'dollar' as IconName },
         ...(isRecurringSalesEnabled() && ['owner', 'admin'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
           ? [{ href: '/admin/membresias', label: 'Membresías', icon: 'star' as IconName }]
+          : []),
+        ...(isLpdpEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+          ? [{ href: '/admin/clientes', label: 'Clientes', icon: 'user' as IconName }]
           : []),
         { href: '/admin/integraciones', label: 'Integraciones', icon: 'link' as IconName },
       ],
@@ -462,9 +466,9 @@
   }
 
   .sidebar-toggle {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
     background: var(--bg-button-sec);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -512,10 +516,11 @@
     align-items: center;
     gap: 0.625rem;
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem 0.75rem;
     background: transparent;
     border: none;
     border-radius: 0;
+    min-height: 48px;
     color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 700;
@@ -587,16 +592,14 @@
     display: flex;
     align-items: center;
     gap: 0.625rem;
-    padding: 0.4375rem 0.625rem;
+    padding: 0.6875rem 0.625rem;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     font-size: 0.8125rem;
     font-weight: 500;
     text-decoration: none;
     transition: all var(--transition-fast);
-    white-space: nowrap;
-    overflow: hidden;
-    min-height: 34px;
+    min-height: 48px;
   }
 
   .nav-item:hover {
@@ -641,7 +644,7 @@
     transition: all var(--transition-fast);
     width: 100%;
     text-align: left;
-    min-height: 36px;
+    min-height: 48px;
   }
 
   .theme-toggle-btn:hover {
@@ -653,7 +656,8 @@
   .theme-toggle-btn.icon-only {
     width: auto;
     padding: 0.45rem 0.6rem;
-    min-height: 38px;
+    min-height: 48px;
+    min-width: 48px;
     justify-content: center;
   }
 

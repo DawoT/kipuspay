@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { formatCents } from '$lib/cents';
-  import {
+  import { formatCents } from '$lib/cents';  import {
     isInventorySerialsEnabled,
     isInventoryScaleEnabled,
     isPosCheckoutEnabled,
@@ -386,6 +385,8 @@
     }
   }
 </script>
+
+<svelte:head><title>POS · KipusPay</title></svelte:head>
 
 <div class="pos-layout">
   <!-- Top Bar Meta / Banner -->

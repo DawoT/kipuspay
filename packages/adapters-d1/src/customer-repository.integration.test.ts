@@ -95,13 +95,22 @@ async function seedCustomer(
 }
 
 describe('customer-repository LPDP (Sprint 47)', () => {
-  it('inventario PII aislado por tenant del JWT (LPDP-04)', async () => {
+  it('inventario aislado por tenant y listado sin PII (LPDP-04)', async () => {
     const t = uniqueId('t');
     await seedCustomer(t, uniqueId('c'), '12345678', 'Ana Pérez', 'ana@a.com');
     await seedCustomer(uniqueId('t'), uniqueId('c'), '87654321', 'Otro', 'otro@b.com');
     const inventory = await listCustomers(env.DB, t);
     expect(inventory).toHaveLength(1);
-    expect(inventory[0]).toMatchObject({ documentNumber: '12345678', name: 'Ana Pérez' });
+    expect(inventory[0]).toMatchObject({
+      documentNumber: '12345678',
+      documentTypeCode: '1',
+      piiErased: false,
+    });
+    expect(inventory[0]).not.toHaveProperty('name');
+    expect(inventory[0]).not.toHaveProperty('email');
+    expect(inventory[0]).not.toHaveProperty('phone');
+    expect(inventory[0]).not.toHaveProperty('address');
+    expect(inventory[0]?.id).toBeTruthy();
   });
 
   it('registra y revoca consentimiento por propósito (LPDP-01)', async () => {

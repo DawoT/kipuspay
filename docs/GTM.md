@@ -450,6 +450,28 @@ Esta sección se ubica deliberadamente justo antes del pricing: la secuencia psi
 
 ---
 
+### 5.7.2 Copy de privacidad LPDP (redactado en Sprint 47; publicación tras QG)
+
+> La capability `compliance.lpdp` (Arquitectura §5.3 regla 32a, LPDP-01..04) respalda
+> esta copia. **No publicar política de privacidad pública ni copy de landing hasta el
+> QG del Sprint 47** (claim GTM-09 congelado). Este copy es el que usa el panel de
+> Clientes (Admin → Clientes) y el que Staff Growth puede adaptar para la política.
+
+**Panel de clientes (Admin → Clientes):**
+
+- Listado: *"Aquí ves solo la identificación. El nombre, correo y teléfono viven en la copia de datos."*
+- Anonimización: *"Anonimizar borra los datos personales; los comprobantes fiscales se conservan como exige SUNAT (~5 años)."*
+- Export: *"Descargar copia de sus datos"* — *"la copia de datos es el derecho del titular a llevarse lo que guardamos de él."*
+- Erase (confirmación doble): *"Se borran el nombre, correo, teléfono y dirección. Los comprobantes fiscales se conservan como exige SUNAT, pero sin el nombre del cliente."* + *"Esto no se puede deshacer."*
+
+**Principios de copy (anti-jerga):**
+
+- Nunca "PII", "LPDP", "anonimización de snapshots", "retention fiscal" como tecnicismo:
+  decir *"datos personales"*, *"borramos su nombre, correo y teléfono"*, *"los comprobantes se conservan sin su nombre"*.
+- El consentimiento se pide **por propósito** y se explica en una frase: *"Mensajes por WhatsApp"*, *"Promociones y avisos comerciales"*.
+- Jamás prometer *"borrado cuando quieras"*: la retención fiscal SUNAT (~5 años) se menciona siempre junto al borrado.
+- El export jamás se presenta como "descarga instantánea de todo": es la copia de los datos del titular, por documento de identidad.
+
 ### 5.8 Sección de Pricing (ver estructura completa en sección 4)
 
 Presentar los 4 planes en tarjetas, con el plan **Crece** marcado como "Más elegido" (anclaje de precio — dirige la decisión hacia el plan de mejor margen sin presionar). Toggle mensual/anual con el ahorro anual visible como badge ("2 meses gratis").
