@@ -24,7 +24,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
       - name: Semgrep (invariantes de dominio, CAL-03)
-        uses: returntocorp/semgrep-action@v2
+        uses: returntocorp/semgrep-action@v1
         with:
           config: semgrep/rules/invariants.yml
           target: packages apps
