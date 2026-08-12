@@ -18,6 +18,7 @@ import {
   isLedgerArApEnabled,
   isPricingListsEnabled,
   isPricingPromotionsEnabled,
+  loadActiveShards,
 } from './offline-sale-route.js';
 
 export function isOfflineSyncEnabled(env: WorkerEnv): boolean {
@@ -104,6 +105,7 @@ export async function runSyncSalesHttp(
     isLedgerStoreCreditEnabled(env),
     terminalId.trim(),
     {
+      activeShards: await loadActiveShards(env),
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
       catalogUomEnabled: isCatalogUomEnabled(env),

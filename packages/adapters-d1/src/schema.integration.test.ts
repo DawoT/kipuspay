@@ -58,6 +58,7 @@ import {
   DOWN_0041_SPRINT49_INSIGHTS,
   DOWN_0042_SPRINT50_QUICK_ADD,
   DOWN_0043_SPRINT51_SHIFT_HANDOFF,
+  DOWN_0044_SPRINT52_ONBOARDING_TOUR,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -1485,6 +1486,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0044_SPRINT52_ONBOARDING_TOUR);
     await env.DB.exec(DOWN_0043_SPRINT51_SHIFT_HANDOFF);
     await env.DB.exec(DOWN_0042_SPRINT50_QUICK_ADD);
     await env.DB.exec(DOWN_0041_SPRINT49_INSIGHTS);

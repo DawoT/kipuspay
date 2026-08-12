@@ -25,8 +25,10 @@ async function seedWeightedSale(tenantId: string) {
   const locationId = `loc-default:${tenantId}:${branchId}`;
   await env.DB.batch([
     env.DB.prepare(
-      `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
-       VALUES (?, 'Scale SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL')`,
+      `INSERT INTO tenants
+         (id, business_name, vertical_type, shard_id, formalization_mode, enabled_document_types)
+       VALUES (?, 'Scale SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL',
+               '["NV","NV_RETURN","01","03","07","08"]')`,
     ).bind(tenantId),
     env.DB.prepare(
       `INSERT INTO branches (id, tenant_id, code, name, address)

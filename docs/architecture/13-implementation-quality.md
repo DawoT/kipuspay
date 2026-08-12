@@ -188,7 +188,9 @@ bloquea el merge por sí solo (`AGENTS §5`).
    **220 kB** gz para `apps/pos-web`; se re-baselinea solo con ADR).
 2. **Cero dependencia npm runtime nueva en el POS** (invariante 10, §7.5): un check de
    diff en CI compara `apps/pos-web/package.json` contra el baseline; cualquier `dependencies`
-   nueva sin ADR rompe CI (CAL-06). Las dependencias de **dev** no se limitan.
+   nueva sin ADR rompe CI (CAL-06). Las dependencias de **dev** no se limitan. El baseline
+   autoriza solo dominios puros del monorepo sin deps transitivas npm (p. ej.
+   `@kipuspay/domain-onboarding`, ADR-0032).
 3. **Offloading:** QR, ticket y ESC/POS se resuelven con Web Platform APIs o código
    vendorizado en `apps/pos-web/src/vendor/`; el vendor se marca y se mide en el bundle.
 

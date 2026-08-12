@@ -243,6 +243,11 @@ export function isTeamInviteEnabled(): boolean {
   return flagOn(pub(PF + 'TEAM_INVITE'));
 }
 
+/** Sprint 52 — Product Tour + setup checklist; siempre default-off. */
+export function isOnboardingTourEnabled(): boolean {
+  return flagOn(pub(PF + 'ONBOARDING_TOUR'));
+}
+
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));

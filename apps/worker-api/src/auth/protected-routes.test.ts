@@ -111,6 +111,104 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/customers/c1/consent' },
   { method: 'GET', path: '/api/customers/c1/export' },
   { method: 'POST', path: '/api/customers/c1/erase' },
+  // Rutas de sprints posteriores (paridad con app.routes; Sprint 2 exige 100%)
+  { method: 'GET', path: '/api/auth/session' },
+  { method: 'POST', path: '/api/v1/sync/sales' },
+  { method: 'POST', path: '/api/fiscal/void-boleta' },
+  { method: 'GET', path: '/api/fiscal/owner-alerts' },
+  { method: 'GET', path: '/api/fiscal/owner-backlog' },
+  { method: 'POST', path: '/api/fiscal/credit-note-ea' },
+  { method: 'POST', path: '/api/fiscal/cron' },
+  { method: 'POST', path: '/api/cash/sessions/blind-close' },
+  { method: 'POST', path: '/api/cash/movements' },
+  { method: 'POST', path: '/api/cash/reprints' },
+  { method: 'POST', path: '/api/sales/returns' },
+  { method: 'GET', path: '/api/sales/returns/policy' },
+  { method: 'GET', path: '/api/sales/returns' },
+  { method: 'GET', path: '/api/orders/customer-orders' },
+  { method: 'GET', path: '/api/orders/customer-orders/co1' },
+  { method: 'GET', path: '/api/admin/recurring-plans' },
+  { method: 'GET', path: '/api/admin/recurring-plans/rp1' },
+  { method: 'GET', path: '/api/admin/recurring-plans/rp1/occurrences' },
+  { method: 'GET', path: '/api/admin/recurring-plans/rp1/preview' },
+  { method: 'POST', path: '/api/admin/recurring-plans' },
+  { method: 'PUT', path: '/api/admin/recurring-plans/rp1' },
+  { method: 'POST', path: '/api/admin/recurring-plans/rp1/pause' },
+  { method: 'POST', path: '/api/admin/recurring-plans/rp1/resume' },
+  { method: 'POST', path: '/api/admin/recurring-plans/rp1/cancel-preview' },
+  { method: 'POST', path: '/api/admin/recurring-plans/rp1/cancel' },
+  { method: 'POST', path: '/api/purchasing/invoices/match' },
+  { method: 'GET', path: '/api/owner/purchasing/three-way' },
+  { method: 'GET', path: '/api/pricing/promotions' },
+  { method: 'POST', path: '/api/pricing/promotions' },
+  { method: 'PATCH', path: '/api/pricing/promotions/p1' },
+  { method: 'POST', path: '/api/catalog/quick-add' },
+  { method: 'GET', path: '/api/catalog/scan/abc123' },
+  { method: 'POST', path: '/api/cash/shifts/pin' },
+  { method: 'POST', path: '/api/cash/shifts/transfer' },
+  { method: 'POST', path: '/api/team/invites' },
+  { method: 'POST', path: '/api/team/resolve' },
+  { method: 'GET', path: '/api/onboarding/setup-progress' },
+  { method: 'POST', path: '/api/growth/events' },
+  { method: 'GET', path: '/api/catalog/variants-uom' },
+  { method: 'PATCH', path: '/api/catalog/variants/v1' },
+  { method: 'POST', path: '/api/catalog/uoms' },
+  { method: 'POST', path: '/api/inventory/counts' },
+  { method: 'GET', path: '/api/inventory/scale/devices' },
+  { method: 'POST', path: '/api/inventory/scale/devices' },
+  { method: 'POST', path: '/api/inventory/scale/terminal-sessions' },
+  { method: 'POST', path: '/api/inventory/scale/devices/heartbeat' },
+  { method: 'POST', path: '/api/inventory/scale/diagnostics' },
+  { method: 'POST', path: '/api/inventory/scale/devices/disable' },
+  { method: 'PUT', path: '/api/inventory/scale/policy' },
+  { method: 'POST', path: '/api/inventory/scale/authorize-manual' },
+  { method: 'POST', path: '/api/inventory/scale/measurements' },
+  { method: 'GET', path: '/api/catalog/price-labels/templates' },
+  { method: 'POST', path: '/api/catalog/price-labels/templates' },
+  { method: 'POST', path: '/api/catalog/price-labels/templates/retire' },
+  { method: 'POST', path: '/api/catalog/price-labels/batches' },
+  { method: 'POST', path: '/api/catalog/price-labels/batches/reprint' },
+  { method: 'POST', path: '/api/catalog/price-labels/batches/ack' },
+  { method: 'POST', path: '/api/inventory/counts/submit-review' },
+  { method: 'POST', path: '/api/inventory/counts/approve' },
+  { method: 'POST', path: '/api/inventory/losses' },
+  { method: 'POST', path: '/api/inventory/losses/approve' },
+  { method: 'POST', path: '/api/inventory/losses/reject' },
+  { method: 'GET', path: '/api/owner/stock-alerts' },
+  { method: 'POST', path: '/api/push/consents' },
+  { method: 'DELETE', path: '/api/push/consents' },
+  { method: 'POST', path: '/api/push/subscriptions' },
+  { method: 'PUT', path: '/api/push/subscriptions/rotate' },
+  { method: 'DELETE', path: '/api/push/subscriptions' },
+  { method: 'GET', path: '/api/push/devices' },
+  { method: 'PATCH', path: '/api/push/privacy' },
+  { method: 'GET', path: '/api/push/privacy' },
+  { method: 'PUT', path: '/api/push/privacy-policy' },
+  { method: 'POST', path: '/api/push/test' },
+  { method: 'POST', path: '/api/push/ack' },
+  { method: 'GET', path: '/api/reports/advanced/r1' },
+  { method: 'GET', path: '/api/reports/r1' },
+  { method: 'GET', path: '/api/payments/captures/cap2' },
+  { method: 'DELETE', path: '/api/integrations/api-keys/k2' },
+  { method: 'DELETE', path: '/api/integrations/webhooks/ep2' },
+  { method: 'GET', path: '/api/forecasting/alerts/b1' },
+  { method: 'GET', path: '/api/forecasting/b1' },
+  { method: 'POST', path: '/api/forecasting/refresh/b1' },
+  { method: 'POST', path: '/api/customers/c1/consent' },
+  { method: 'POST', path: '/api/customers/c1/erase' },
+  { method: 'POST', path: '/api/orders/customer-orders' },
+  { method: 'POST', path: '/api/orders/customer-orders/leases' },
+  { method: 'POST', path: '/api/orders/customer-orders/fulfill' },
+  { method: 'POST', path: '/api/orders/customer-orders/cancel' },
+  { method: 'POST', path: '/api/orders/customer-orders/expire' },
+  { method: 'POST', path: '/api/orders/customer-orders/reprice-authorizations' },
+  { method: 'POST', path: '/api/orders/customer-orders/reprice-handoff' },
+  { method: 'POST', path: '/api/orders/customer-orders/notices/dispatch' },
+  { method: 'POST', path: '/api/inventory/serials/leases/release' },
+  { method: 'POST', path: '/api/dr/simulation' },
+  { method: 'POST', path: '/api/insights/chat' },
+  { method: 'GET', path: '/api/insights/briefing' },
+  { method: 'PATCH', path: '/api/tenant/formalization' },
 ];
 
 const tenant: AuthTenantSnapshot = {
@@ -138,9 +236,66 @@ function requestInit(
   return { method, headers };
 }
 
+/**
+ * Normaliza un template Hono (app.routes) a la forma canónica de la matriz:
+ *  - `/api/backups/:id`        → `/api/backups/*`
+ *  - `/api/catalog/scan/:raw`  → `/api/catalog/scan/*`
+ *  - `/api/reports/advanced/:reportId` → `/api/reports/advanced/*`
+ * La matriz puede usar un path concreto (`/api/backups/backup-1`) o el mismo
+ * wildcard; lo importante es que el prefijo estático coincida.
+ */
+function normalizeTemplate(path: string): string {
+  return path
+    .split('/')
+    .map((segment) => (segment.startsWith(':') ? '*' : segment))
+    .join('/');
+}
+
+/**
+ * Un template registrado (`/api/backups/:id` → `/api/backups/*`) está cubierto
+ * por una entrada de la matriz si los segmentos estáticos coinciden; donde el
+ * template declara un wildcard (param), la matriz puede tener cualquier valor
+ * concreto. Las query strings de la matriz no participan de la comparación.
+ */
+function templateCoveredByMatrix(templateNormalized: string, matrixPath: string): boolean {
+  const templateSegments = templateNormalized.split('?')[0]!.split('/').filter(Boolean);
+  const matrixSegments = matrixPath.split('?')[0]!.split('/').filter(Boolean);
+  if (templateSegments.length !== matrixSegments.length) return false;
+  for (let i = 0; i < templateSegments.length; i += 1) {
+    const t = templateSegments[i]!;
+    if (t === '*') continue;
+    if (t !== matrixSegments[i]) return false;
+  }
+  return true;
+}
+
+/** Rutas /api/* registradas en el router real (fuente de verdad de paridad). */
+function registeredApiRoutes(app: ReturnType<typeof createApp>): string[] {
+  const routes = (app as unknown as { routes: Array<{ method: string; path: string }> }).routes;
+  return routes
+    .filter((r) => r.path.startsWith('/api/') && r.method !== 'ALL' && r.method !== 'OPTIONS')
+    .map((r) => `${r.method} ${normalizeTemplate(r.path)}`);
+}
+
 describe('matriz rutas protegidas worker-api', () => {
   it('catálogo de rutas /api/* cubiertas por esta suite', () => {
     expect(PROTECTED_ROUTES.length).toBeGreaterThan(0);
+  });
+
+  it('PARIDAD: toda ruta /api/* registrada tiene cobertura en la matriz (Sprint 2)', () => {
+    const app = createApp(authed);
+    const registered = registeredApiRoutes(app);
+    const matrix = PROTECTED_ROUTES.map((r) => ({
+      method: r.method,
+      path: r.path,
+    }));
+    const uncovered = registered.filter((registeredRoute) => {
+      const [method, path] = registeredRoute.split(' ');
+      return !matrix.some(
+        (m) => m.method === method && templateCoveredByMatrix(path ?? '', m.path),
+      );
+    });
+    expect(uncovered).toEqual([]);
   });
 
   it.each(PROTECTED_ROUTES)('$method $path → 401 sin Bearer', async ({ method, path }) => {

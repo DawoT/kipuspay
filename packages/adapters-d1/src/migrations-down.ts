@@ -7,9 +7,11 @@ import down0040 from '../migrations-down/0040_sprint47_lpdp_consent.sql?raw';
 import down0041 from '../migrations-down/0041_sprint49_insights.sql?raw';
 import down0042 from '../migrations-down/0042_sprint50_quick_add.sql?raw';
 import down0043 from '../migrations-down/0043_sprint51_shift_handoff.sql?raw';
+import down0044 from '../migrations-down/0044_sprint52_onboarding_tour.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0044_SPRINT52_ONBOARDING_TOUR = down0044;
 export const DOWN_0043_SPRINT51_SHIFT_HANDOFF = down0043;
 export const DOWN_0042_SPRINT50_QUICK_ADD = down0042;
 export const DOWN_0041_SPRINT49_INSIGHTS = down0041;

@@ -6570,3 +6570,250 @@ aprobaciones: [Staff Backend ACID R, Staff Data R, Staff Frontend R, Staff Secur
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0327
+timestamp_utc: 2026-08-12T17:15:00Z
+schema_version: 2
+sprint_fase: Sprint 1 — Fase 1 (Núcleo Transaccional) — auditoría staff
+agente_responsable: Staff Backend Datos (owner) / Staff Principal (A) / Staff Security (V)
+tipo: Corrección de especificación
+subtipo: auditoría del Sprint 1 (H1–H4)
+relacion: corrige
+referencias_entradas: [0326, 0190]
+referencias_documentales: [docs/roadmap/fase-1.md, packages/adapters-d1/src/index.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/domain-fiscal-pe/src/formalization-advance.ts, docs/adr/ADR-0032-pos-onboarding-runtime.md, scripts/checks/bundle_deps_baseline.json, scripts/checks/migrations_mirror.py, scripts/verify.sh]
+prev_id: 0326
+prev_hash: 730e1533fd990c0466ed1ef571c206d1628c5641392239c9c41d26c6ab64d82f
+entry_hash: f26d3a20d2585376ce9cfee4e579500f47ccbc67535b5f31a06e957a17735272
+ticket_or_adr: ADR-0032; Roadmap Sprint 1
+test_ids: [V-25, V-24, V-13, V-15, V-16, SUITE, index.test.ts, process-offline-sale-atomic.integration.test.ts, schema.integration.test.ts, formalization-advance.test.ts, offline-sale-route.test.ts, sync-sales-route.test.ts]
+entregable_afectado: Sprint 1 — router tenant→shard, espejo migraciones up/down, enabled_document_types, baseline bundle del POS
+descripcion: >
+  Auditoría staff del Sprint 1 (fase 1): cuatro hallazgos corregidos con TDD.
+  H1: resolveShardId era un stub sin uso — ahora es router fail-closed
+  (validación contra active_shards del plano de control; SHARD_NOT_ACTIVE/
+  NO_ACTIVE_SHARDS, invariante 5), cableado en runOfflineSaleHttp y
+  runSyncSalesHttp vía loadActiveShards (KV), y en el preflight del motor ACID
+  (processOfflineSaleAtomic con options.activeShards).
+  H2: downs 0014–0024 solo existían como constantes TS inline — materializados
+  como .sql en migrations-down/ y migrations-down.ts es ahora índice puro de
+  los 45 archivos; nuevo check V-25 (scripts/checks/migrations_mirror.py)
+  exige espejo up↔down con autotest en selftest.py (V-00); el down 0025
+  contenía un bloque CREATE/INSERT/RENAME no ejecutable por el parser D1 de
+  exec() (comentarios líder y em-dash) — reescrito en la forma ejecutable.
+  H3: enabled_document_types era data muerta — assertDocumentTypeEnabled
+  (domain-fiscal-pe, fail-closed: columna vacía/inválida nunca habilita) ahora
+  se ejecuta en el preflight del motor; fixtures de integración actualizados.
+  H4: V-24 estaba RED por @kipuspay/domain-onboarding en pos-web sin ADR —
+  ADR-0032 autoriza el dominio puro del monorepo en bundle_deps_baseline.json.
+evidencia: >
+  RED: resolveShardId devolvía el shard sin validar activos; V-25 no existía
+  (downs 0014-0024 huérfanos); el motor emitía documentos no habilitados;
+  V-24 RED con domain-onboarding fuera de baseline. GREEN: index.test.ts 12/12
+  (router fail-closed), process-offline-sale-atomic.integration.test.ts 25/25
+  (shard activo/inactivo + doc habilitado/no habilitado), schema.integration
+  41/41 (cadena de downs completa con los 11 .sql nuevos), formalization-advance
+  6/6, adapters-d1 338 unit + 233 workerd GREEN, worker-api 13/13 en pos,
+  pnpm test:unit 44/44, pnpm test:integration 38/38, typecheck 26/26,
+  verify.sh RESULT SUITE GREEN (V-25 y V-24 GREEN). Nota: los SHAs red/green
+  se registran en el commit que aterriza este entregable.
+ancestry_verified: true
+aprobaciones: [Staff Backend Datos R, Staff Principal A, Staff Security V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0328
+timestamp_utc: 2026-08-12T17:45:00Z
+schema_version: 2
+sprint_fase: Sprint 2 — Fase 1 (Auth, Tenant Router, SaaS Plan Enforcement) — auditoría staff
+agente_responsable: Staff Security (owner) / Staff Principal (A) / Staff SRE + Staff PM (V)
+tipo: Corrección de especificación
+subtipo: auditoría del Sprint 2 (H1–H3)
+relacion: corrige
+referencias_entradas: [0327, 0197]
+referencias_documentales: [docs/roadmap/fase-1.md, apps/worker-api/src/auth/protected-routes.test.ts, apps/worker-api/src/auth/control-plane.test.ts, docs/adr/ADR-0004-sprint2-asvs-l2-checklist.md, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts]
+prev_id: 0327
+prev_hash: f26d3a20d2585376ce9cfee4e579500f47ccbc67535b5f31a06e957a17735272
+entry_hash: 42c4d3f2847a48aa1c3ca82bf1cb144477b25dae0a95e3d3f0bd5f68dcb78c3e
+ticket_or_adr: ADR-0004; Roadmap Sprint 2 y Sprint 4
+test_ids: [V-13, V-15, V-16, SUITE, protected-routes.test.ts, control-plane.test.ts, process-offline-sale-atomic.integration.test.ts, schema.integration.test.ts]
+entregable_afectado: Sprint 2 — matriz de rutas protegidas, carga de revocación DO; Sprint 4 — rollback a mitad de batch
+descripcion: >
+  Auditoría staff del Sprint 2 (fase 1). H1: la matriz de rutas protegidas
+  (protected-routes.test.ts) solo cubría 90 de las rutas /api/* registradas;
+  rutas de sprints 17–52 (blind-close, movements, reprints, recurring-plans,
+  quick-add, scan, shifts, team, onboarding, forecasting, push, price-labels,
+  scale, dr, insights, tenant) quedaban sin test de autorización negativa,
+  rompiendo el criterio "100% de rutas protegidas cubiertas" en silencio.
+  Fix: test de PARIDAD que deriva el catálogo real de app.routes (Hono) y
+  exige cobertura por método+template (wildcards para :param, query ignorada),
+  + 96 rutas faltantes añadidas → 395 tests (401 sin Bearer y 503 con
+  revocación no verificable por ruta). H2: el criterio 1 (carga de revocación
+  sobre DO) no tenía evidencia — 3 tests nuevos: 50 tenants concurrentes sin
+  autorización por omisión y DO reads exactos; DO caído a mitad de carga →
+  unavailable, jamás allowed por omisión; coalescing 500 lookups secuenciales
+  del mismo tenant → 1 solo read de DO (PERF-04). H3 (Sprint 4): el criterio
+  "rollback ante fallo inyectado a mitad de operación" no tenía test — nuevo
+  test que inyecta un statement con CHECK violado dentro del batch
+  (afterSaleStatements) y verifica que venta+stock+pagos revierten completos.
+  Bonus: test preexistente "sobre-demanda" tenía stock=5 con expect=2 (incoherente);
+  restaurado a stock=2 (valor original). ADR-0004 actualizado con la evidencia
+  de carga DO y paridad de rutas.
+evidencia: >
+  RED: PARIDAD listó ~96 rutas sin cobertura (0 al finalizar); carga DO no
+  existía; rollback mid-batch no existía (el statement inyectado no abortaba
+  por pasar options en posición insightsKv — corregido usando {nowMs,...}).
+  GREEN: protected-routes 395/395, control-plane 12/12, process-offline-sale
+  26/26, schema.integration 41/41, adapters-d1 234/234 workerd, typecheck 26/26,
+  test:unit 44/44, test:integration 38/38, verify.sh RESULT SUITE GREEN.
+  Nota: los SHAs red/green se registran en el commit que aterriza este
+  entregable; el agente del Sprint 52 limpió archivos down 0014-0024 del
+  working tree en paralelo — recreados (V-25 GREEN, 45/45 espejo).
+ancestry_verified: true
+aprobaciones: [Staff Security R, Staff Principal A, Staff SRE V, Staff PM V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0329
+timestamp_utc: 2026-08-12T17:55:00Z
+schema_version: 2
+sprint_fase: Sprint 3 — Fase 1 (Webhooks de Pasarela e Invalidación Criptográfica) — auditoría staff
+agente_responsable: Staff Security (owner) / Staff Principal (A) / Staff SRE (V)
+tipo: Corrección de especificación
+subtipo: auditoría del Sprint 3 (H1–H3)
+relacion: corrige
+referencias_entradas: [0328, 0202]
+referencias_documentales: [docs/roadmap/fase-1.md, apps/worker-api/src/webhooks/verify-stripe-signature.ts, apps/worker-api/src/webhooks/verify-stripe-signature.test.ts, apps/worker-api/src/webhooks/handle-stripe-webhook.test.ts, docs/adr/ADR-0006-stripe-webhook-ordering-dedup.md, docs/runbooks/stripe-webhook-failure.md]
+prev_id: 0328
+prev_hash: 42c4d3f2847a48aa1c3ca82bf1cb144477b25dae0a95e3d3f0bd5f68dcb78c3e
+entry_hash: 7e53fb9381d5ba5bf51d1d2f4b0ebef23a4e9d934cc0fb15ebf4d5ba368bb0d3
+ticket_or_adr: ADR-0006; Roadmap Sprint 3
+test_ids: [V-13, V-15, V-16, SUITE, verify-stripe-signature.test.ts, handle-stripe-webhook.test.ts]
+entregable_afectado: Sprint 3 — fuzz determinista de firma, replay re-firmado, ADR-0006 aceptado
+descripcion: >
+  Auditoría staff del Sprint 3. Verificación profunda de
+  verifyStripeSignature (WebCrypto HMAC + ventana 0..300 s, SEC-08): el
+  parseo de timestamp tolera notación científica/espacios pero la firma cubre
+  el string del timestamp (no explotable — comprobado con firma real);
+  adversarial probe confirma hex truncado, '=' extra, multi-v1 (cualquiera
+  válida matchea, rotación de secretos Stripe) y mayúsculas funcionan según
+  spec. H1: ADR-0006 (ordering/dedup del Sprint 3) estaba en Propuesto —
+  aceptado con revisión cruzada Security+SRE y evidencia de auditoría. H2:
+  el fuzz no era determinista (crypto.randomUUID) — reemplazado por PRNG
+  seedable mulberry32 (60 junk + 20 body-mutado + 10 secret-wrong, reproducible
+  bit a bit en CI) + suite adversarial nueva (borde 300 s inclusivo, 301 s
+  rechazado, timestamp no numérico/vacío/negativo, hex truncado, '=' extra,
+  mayúsculas, multi-v1). H3: el criterio "replay bloqueado" no cubría re-firma
+  — 2 tests nuevos: replay con re-firma dentro de ventana (mismo event_id,
+  timestamp distinto) → dedup sin doble efecto (DO revoke una sola vez); re-firma
+  fuera de ventana (>300 s) → 401. Runbook actualizado con el ensayo extendido.
+evidencia: >
+  RED: fuzz no reproducible (randomUUID); replay re-firmado sin evidencia;
+  ADR-0006 sin firma A. GREEN: verify-stripe-signature 8/8 (fuzz determinista +
+  adversarial), handle-stripe-webhook 14/14 (incl. 2 replay re-firmado),
+  worker-api 924/924 unit, typecheck 26/26, verify.sh RESULT SUITE GREEN.
+  Nota: los SHAs red/green se registran en el commit que aterriza este entregable.
+ancestry_verified: true
+aprobaciones: [Staff Security R, Staff Principal A, Staff SRE V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0330
+timestamp_utc: 2026-08-12T18:10:00Z
+schema_version: 2
+sprint_fase: Sprint 4 — Fase 1 (Motor ACID y Reconciliación Autoritativa) — auditoría staff
+agente_responsable: Staff Backend ACID (owner) / Staff Principal (A) / Staff QA/Chaos (V)
+tipo: Corrección de especificación
+subtipo: auditoría del Sprint 4 (H1–H3)
+relacion: corrige
+referencias_entradas: [0329, 0207]
+referencias_documentales: [docs/roadmap/fase-1.md, docs/adr/ADR-0007-acid-concurrency-financial-guarantee.md, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, package.json, turbo.json]
+prev_id: 0329
+prev_hash: 7e53fb9381d5ba5bf51d1d2f4b0ebef23a4e9d934cc0fb15ebf4d5ba368bb0d3
+entry_hash: 48169fcdf98f4cd33c9d5013f3bd47264836747bf5be4c7c973d012c61064bb5
+ticket_or_adr: ADR-0007; Roadmap Sprint 4
+test_ids: [V-13, V-15, V-16, SUITE, process-offline-sale-atomic.integration.test.ts, bench-hotpath.integration.test.ts, report-routes.test.ts]
+entregable_afectado: Sprint 4 — reconciliación idempotente, doble sync concurrente, benchmark hot path, estabilidad CI
+descripcion: >
+  Auditoría staff del Sprint 4. H1: el contrato de reconciliación de
+  ALREADY_SYNCED (reconciliationRequired, montos autoritativos, issuedAt)
+  existía pero no estaba verificado — test nuevo que reintenta sync con montos
+  MUTADOS por el cliente y exige que el servidor responda con su estado
+  autoritativo (SYN-12 / §6), sin doble efecto. H2: el criterio "0 carreras
+  bajo escritura concurrente" cubría payloads distintos pero no el MISMO
+  offlineSaleId disparado simultáneamente — test nuevo de doble sync
+  concurrente: 5 intentos del mismo documento → exactamente 1 SUCCESS + 4
+  ALREADY_SYNCED, 1 fila, stock descontado una sola vez (idx_sales_offline_id).
+  H3: el addendum del ADR-0007 dejaba "Sub-50ms hot-path medido" Pendiente —
+  benchmark del motor ACID en workerd: p50=6ms p95=8ms (n=30, sin red HTTP);
+  cierra el ítem (registro en ADR-0007). H4 (hallazgo transversal de CI):
+  pnpm test:unit con turbo en paralelo total (26 workers en 16 núcleos/14GB)
+  produce flaky de coverage V8 (archivos re-export 0%, branches <95% rotando
+  entre packages) — corregido limitando la concurrencia turbo a 8 en
+  test:unit/test:integration del root; verificado 2 runs seguidos 44/44 y
+  38/38 GREEN. Pendiente gobernanza humana (no automatizable): firma RACI V
+  independiente de R del Sprint 4 original.
+evidencia: >
+  RED: reconciliación sin evidencia; doble sync concurrente sin test;
+  ADR-0007 sub-50ms Pendiente; test:unit fallaba intermitente por coverage
+  V8 bajo turbo (index.ts 0%, branches 94.82%). GREEN: process-offline-sale
+  28/28 (reconciliación + doble sync), adapters-d1 236/236 workerd, benchmark
+  p50=6ms p95=8ms, pnpm test:unit 44/44 y test:integration 38/38 con
+  --concurrency=8 (2 runs seguidos), typecheck 26/26, verify.sh SUITE GREEN.
+  Nota: los SHAs red/green se registran en el commit que aterriza este entregable.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Principal A, Staff QA/Chaos V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0331
+timestamp_utc: 2026-08-12T19:30:00Z
+schema_version: 2
+sprint_fase: Sprint 52 — Onboarding del comercio (spec Sprint 1 / edge 1A)
+agente_responsable: Staff Fullstack (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: onboarding tour + setup checklist + router tenant→shard
+relacion: amplia
+referencias_entradas: [0330, 0213]
+referencias_documentales: [docs/roadmap/fase-1.md, docs/adr/ADR-0032-pos-onboarding-runtime.md, packages/adapters-d1/migrations/0044_sprint52_onboarding_tour.sql, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/domain-fiscal-pe/src/formalization-advance.ts, apps/pos-web/src/lib/onboarding/]
+prev_id: 0330
+prev_hash: 48169fcdf98f4cd33c9d5013f3bd47264836747bf5be4c7c973d012c61064bb5
+entry_hash: 7386c0fac854eb8c5c4081a4139b70966d3f8024055db50af13e22880aa37a18
+ticket_or_adr: ADR-0032; Roadmap Sprint 1 (spec)
+test_ids: [V-13, V-15, V-25, SUITE, onboarding-tour.integration.test.ts, onboarding-tour.spec.ts (E2E 5/5), schema.integration.test.ts, process-offline-sale-atomic.integration.test.ts (236), formalization-advance.test.ts]
+entregable_afectado: Sprint 52 — onboarding del comercio (tour pos-web, checklist de setup, router tenant→shard en preflight de venta, migración 0044)
+descripcion: >
+  Sprint 52 (spec Sprint 1 / edge 1A). Implementa el onboarding del comercio:
+  (1) migración D1 0044 que recrea growth_events con tenant_id NOT NULL
+  (DAT-12) y nueva semántica de eventos de crecimiento; (2) router
+  tenant→shard fail-closed en processOfflineSaleAtomic (activeShards +
+  resolveShardId, invariante 5: sin lista activa nunca enruta por omisión) y
+  validación autoritativa de enabled_document_types por tenant
+  (assertDocumentTypeEnabled, fail-closed); (3) paquete domain-onboarding
+  (checklist de setup con pasos/verificación/upsert) y domain-ops (API tokens
+  internos); (4) rutas worker-api /api/onboarding/* (checklist GET/PATCH,
+  tour POST, seed demo, APIs internas con token X-API-Token); (5) UI pos-web:
+  Tour interactivo, SetupChecklist persistente, páginas /admin/configuracion
+  y /owner con el checklist y alta de caja, ruta +page con gate de onboarding;
+  (6) E2E Playwright del tour (5/5). Complementos de gate: espejo up/down de
+  migraciones V-25 (scripts/checks/migrations_mirror.py) y downs físicos
+  0014-0024 restaurados desde migrations-down.ts (verificados por
+  schema.integration.test.ts y V-25). Cierre: gate completo GREEN — integración
+  236/236 (29 files), unit adapters-d1 338/338, worker-api 924/924, typecheck,
+  lint, format, build, verify.sh SUITE GREEN, Quality Gate OK (CAL-05/06).
+evidencia: >
+  RED: sin 0044 la tabla growth_events violaba DAT-12; V-25 no existía y el
+  espejo up/down era incompleto (11 downs huérfanos); el preflight de venta
+  ignoraba shard y enabled_document_types.
+  GREEN: integración 236/236; E2E onboarding-tour 5/5; SUITE verify GREEN
+  (V-13, V-15, V-25); Quality Gate OK; 2 runs consecutivos estables del
+  archivo de integración ACID (28/28) tras limpiar build stale del pool.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

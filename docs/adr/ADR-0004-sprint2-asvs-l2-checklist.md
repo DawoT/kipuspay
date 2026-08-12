@@ -32,7 +32,7 @@ Se cierra Sprint 2 con este checklist verificable por tests + gitleaks + RACI.
 | V2.1 / sesión | Identidad solo desde JWT verificado | `verifyJwt` + tests `verify-jwt` / `jwt-idp.http` |
 | V2.2 | Rechazo de algoritmos inseguros (`none`) | denylist en `verifyJwt` |
 | V2.3 | Expiración / nbf / iat | `timeClaimsOk` |
-| V3.1 | Autorización fail-closed | `REVOCATION_CHECK_UNAVAILABLE` → 503 |
+| V3.1 | Autorización fail-closed | `REVOCATION_CHECK_UNAVAILABLE` → 503; carga DO: 50 tenants concurrentes sin autorización por omisión y DO caído a mitad de carga → `unavailable` (tests `control-plane.test.ts` "Sprint 2: carga de revocación sobre DO") |
 | V4.1 | Control de acceso por tenant | hint mismatch → 403; IdP user por tenant |
 | V7.1 | Secretos no en repo | Workers Secret `AUTH_JWT_HS_SECRET`; gitleaks + `no-secrets` |
 | V8.1 | Errores sin filtrar secretos | respuestas JSON con `code` estable, sin stack/secret |
@@ -57,7 +57,10 @@ insights); cobro/caja/emisión permanecen fail-open respecto a plan/trial
 
 ## Evidencia de cierre
 
-- Tests: `verify-jwt`, `idp-user`, `jwt-idp.http`, `control-plane`, `tenant-auth-middleware`, `protected-routes`.
+- Tests: `verify-jwt`, `idp-user`, `jwt-idp.http`, `control-plane` (incl. carga de
+  revocación DO: 50 tenants concurrentes, caída a mitad de carga, coalescing
+  500→1 read), `tenant-auth-middleware`, `protected-routes` (paridad catálogo↔matriz:
+  100% de rutas `/api/*` con 401/503).
 - Gitleaks / CAL-05: 0 secretos en working tree.
-- Ledger: `id: 0197`.
+- Ledger: `id: 0197` (actualizado en 0328).
 - Firmas RACI: `R` Staff Security · `A` Staff Principal · `V` Staff SRE + Staff PM.

@@ -17,6 +17,7 @@ import {
   type OfflineSalePayload,
 } from '@kipuspay/domain-sales';
 import {
+  assertDocumentTypeEnabled,
   assertEmissionAllowed,
   computeMustSubmitByIso,
   defaultSunatStatus,
@@ -56,7 +57,7 @@ import {
   type OfflineLoyaltyOutcome,
   type PaymentMethodCode,
 } from '@kipuspay/domain-integrations';
-import { runD1AtomicPlan, type D1Bound, type D1DatabaseLike } from './index.js';
+import { runD1AtomicPlan, resolveShardId, type D1Bound, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 import {
   appendStoreCreditIssueToPlan,
@@ -569,6 +570,9 @@ async function prepareWeightMeasurements(
 export interface ProcessOfflineSaleOptions {
   readonly nowMs?: number;
   readonly insightsKv?: InsightsKv;
+  /** Sprint 1 router tenant→shard: set de shards activos del plano de control.
+   *  Cuando se provee, el preflight valida tenants.shard_id contra él (fail-closed). */
+  readonly activeShards?: readonly string[];
   /** FEATURE_LEDGER_AR_AP — DAT-05 + E-D compensación. */
   readonly ledgerArApEnabled?: boolean;
   /** Sprint 18 capabilities (env FEATURE_* / tenant_capabilities). */
@@ -661,10 +665,30 @@ export async function processOfflineSaleAtomic(
   if (already) return already;
 
   const tenant = await db
-    .prepare(`SELECT formalization_mode, tax_regime FROM tenants WHERE id = ?`)
+    .prepare(
+      `SELECT formalization_mode, tax_regime, shard_id, enabled_document_types FROM tenants WHERE id = ?`,
+    )
     .bind(tenantId)
-    .first<{ formalization_mode: string; tax_regime: string }>();
+    .first<{
+      formalization_mode: string;
+      tax_regime: string;
+      shard_id: string;
+      enabled_document_types: string;
+    }>();
   if (!tenant) throw new Error('TENANT_NOT_FOUND');
+
+  // Sprint 1 router tenant→shard (Principio 1): cuando el composition root
+  // provee active_shards (plano de control), el shard del tenant debe estar
+  // activo — fail-closed, nunca enrutar por omisión (invariante 5).
+  if (opts.activeShards) {
+    resolveShardId(tenant.shard_id, opts.activeShards);
+  }
+
+  // Sprint 1: la columna enabled_document_types es autoritativa (fail-closed).
+  // Sin lista válida el tenant no puede emitir NADA; la matriz régimen×modo
+  // (assertEmissionAllowed) sigue validando arriba de esto. docType se declara
+  // más adelante en el flujo (preflight de emisión); aquí solo validamos.
+  assertDocumentTypeEnabled(payload.documentType, tenant.enabled_document_types);
 
   const session = await db
     .prepare(

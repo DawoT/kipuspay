@@ -189,6 +189,17 @@ check_bundle_budget() {
   return 0
 }
 
+# --- V-25: espejo up↔down de migraciones D1 -----------------------------------
+# Cada migración up en packages/adapters-d1/migrations/ debe tener su down en
+# migrations-down/ (Sprint 1: "migraciones up/down en CI"). Sin esto, un down
+# se pierde silenciosamente y el rollback deja el schema a medias.
+check_migrations_mirror() {
+  python3 scripts/checks/migrations_mirror.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
 # --- V-05, V-06, V-08..V-12: checks estructurales ----------------------------
 check_structural() {
   python3 scripts/checks/structural.py "${DOCS[@]}"
@@ -230,6 +241,7 @@ check_code_money
 check_code_upsert_transaction
 check_svelte_vertical_fork
 check_bundle_budget
+check_migrations_mirror
 
 echo ""
 if [ $FAIL -eq 0 ]; then

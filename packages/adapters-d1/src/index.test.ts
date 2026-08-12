@@ -22,14 +22,33 @@ describe('isD1Success', () => {
   });
 });
 
-describe('resolveShardId', () => {
-  it('devuelve el shard declarado', () => {
-    expect(resolveShardId('shard-pe-1')).toBe('shard-pe-1');
+describe('resolveShardId (router tenant→shard, Sprint 1)', () => {
+  const ACTIVE = ['D1_SHARD_01', 'D1_SHARD_02'] as const;
+
+  it('devuelve el shard declarado cuando está activo', () => {
+    expect(resolveShardId('D1_SHARD_02', ACTIVE)).toBe('D1_SHARD_02');
   });
 
   it('rechaza tenant sin shard', () => {
-    expect(() => resolveShardId(null)).toThrow(/sin shard_id/);
-    expect(() => resolveShardId('')).toThrow(/sin shard_id/);
+    expect(() => resolveShardId(null, ACTIVE)).toThrow(/sin shard_id/);
+    expect(() => resolveShardId('', ACTIVE)).toThrow(/sin shard_id/);
+    expect(() => resolveShardId('   ', ACTIVE)).toThrow(/sin shard_id/);
+  });
+
+  it('fail-closed: shard del tenant no activo nunca resuelve (invariante 5)', () => {
+    expect(() => resolveShardId('D1_SHARD_09', ACTIVE)).toThrow('SHARD_NOT_ACTIVE');
+  });
+
+  it('fail-closed: sin shards activos no hay enrutamiento posible', () => {
+    expect(() => resolveShardId('D1_SHARD_01', [])).toThrow('NO_ACTIVE_SHARDS');
+  });
+
+  it('normaliza whitespace del shard_id declarado', () => {
+    expect(resolveShardId('  D1_SHARD_01 ', ACTIVE)).toBe('D1_SHARD_01');
+  });
+
+  it('activo listado pero con otra escritura (p.ej. trailing slash) no false-positive', () => {
+    expect(() => resolveShardId('D1_SHARD_01/', ACTIVE)).toThrow('SHARD_NOT_ACTIVE');
   });
 });
 

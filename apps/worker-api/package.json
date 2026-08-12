@@ -33,6 +33,7 @@
     "@kipuspay/domain-billing": "workspace:*",
     "@kipuspay/domain-catalog": "workspace:*",
     "@kipuspay/domain-cash": "workspace:*",
+    "@kipuspay/domain-onboarding": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",
     "@kipuspay/domain-inventory": "workspace:*",
     "@kipuspay/domain-integrations": "workspace:*",

@@ -99,6 +99,13 @@ export function isTeamInviteEnabled(
   return flagOn(env?.FEATURE_TEAM_INVITE);
 }
 
+/** Sprint 52 — Product Tour + setup checklist (FEATURE_ONBOARDING_TOUR, default off). */
+export function isOnboardingTourEnabled(
+  env: { readonly FEATURE_ONBOARDING_TOUR?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_ONBOARDING_TOUR);
+}
+
 /** Sprint 49 — inteligencia del negocio (FEATURE_ANALYTICS_AGENTIC_INSIGHTS, default off). */
 export function isAgenticInsightsEnabled(
   env: { readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string } | undefined,

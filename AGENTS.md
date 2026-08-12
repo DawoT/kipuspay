@@ -124,6 +124,7 @@ Cada check emite `RESULT <ID> GREEN|RED` y la última línea es `RESULT SUITE GR
 | V-22 | Cero `UPSERT INTO` / `db.transaction(` en `*.sql`/`*.ts`/`*.svelte` (refuerza V-02/V-04 en el monorepo) |
 | V-23 | Cero fork por vertical en componentes Svelte (amplía V-07, ADR-ARCH-002) |
 | V-24 | Presupuesto de bundle del POS y zero-dependencia runtime contra `bundle_deps_baseline.json` (CAL-06, §13.8) |
+| V-25 | Espejo up↔down de migraciones D1: cada `migrations/*.sql` tiene su par en `migrations-down/` y viceversa (Sprint 1) |
 
 Un `SUITE GREEN` es condición **necesaria pero no suficiente**: los Quality Gates de implementación (Proceso §8.1) exigen además evidencia runtime.
 

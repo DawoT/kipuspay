@@ -249,6 +249,7 @@ export {
 
 export {
   advanceFormalization,
+  assertDocumentTypeEnabled,
   assertFormalizationAdvance,
   enabledDocumentTypesFor,
 } from './formalization-advance.js';

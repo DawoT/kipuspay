@@ -12,6 +12,7 @@ Emite `RESULT V-00 GREEN|RED` y sale 1 si algún detector falla.
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 
 HERE = __file__.rsplit("/", 1)[0]
@@ -33,6 +34,15 @@ def load_code_money():
 
 def load_tdd_evidence():
     spec = importlib.util.spec_from_file_location("tdd_evidence", f"{HERE}/tdd_evidence.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def load_migrations_mirror():
+    spec = importlib.util.spec_from_file_location(
+        "migrations_mirror", f"{HERE}/migrations_mirror.py"
+    )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -173,6 +183,32 @@ def main() -> int:
     expect("0202" in corr and "0203" in corr, "V-20 corriged_ids no lee referencias CORRIGE")
     expect(te.is_ancestor_of_head("N/A") is True, "V-20 N/A no debe fallar reachability")
     expect(te.is_ancestor_of_head("not-a-sha") is False, "V-20 SHA inválido debe fallar reachability")
+
+    # V-25: espejo up<->down de migraciones (Sprint 1)
+    mm = load_migrations_mirror()
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        up = f"{tmp}/up"
+        down = f"{tmp}/down"
+        os.makedirs(up)
+        os.makedirs(down)
+        open(f"{up}/0001_ddl_base_v8.sql", "w").write("")
+        open(f"{up}/0002_webhook_events.sql", "w").write("")
+        open(f"{down}/0001_ddl_base_v8.sql", "w").write("")
+        expect(
+            mm.mirror_violations(up, down) == ["falta-down:0002_webhook_events.sql"],
+            "V-25 no detectó el down faltante",
+        )
+        open(f"{down}/0003_atomic_guards.sql", "w").write("")
+        expect(
+            sorted(mm.mirror_violations(up, down))
+            == ["falta-down:0002_webhook_events.sql", "huerfano-down:0003_atomic_guards.sql"],
+            "V-25 no detectó down huérfano",
+        )
+        open(f"{down}/0002_webhook_events.sql", "w").write("")
+        open(f"{up}/0003_atomic_guards.sql", "w").write("")
+        expect(mm.mirror_violations(up, down) == [], "V-25 marcó un espejo completo como roto")
 
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")

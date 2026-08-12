@@ -1,9 +1,11 @@
 import { processSyncSalesBatch } from '@kipuspay/adapters-d1';
+import type * as AdaptersD1 from '@kipuspay/adapters-d1';
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isOfflineSyncEnabled, runSyncSalesHttp } from './sync-sales-route.js';
 
-vi.mock('@kipuspay/adapters-d1', () => ({
+vi.mock('@kipuspay/adapters-d1', async (importOriginal) => ({
+  ...(await importOriginal<typeof AdaptersD1>()),
   processSyncSalesBatch: vi.fn(() => Promise.resolve({ results: [] })),
 }));
 

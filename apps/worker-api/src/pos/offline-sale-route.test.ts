@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { processOfflineSaleAtomic } from '@kipuspay/adapters-d1';
+import type * as AdaptersD1 from '@kipuspay/adapters-d1';
 import { createApp } from '../index.js';
 import type { AuthTenantSnapshot } from '../auth/auth-decide.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -10,7 +11,8 @@ import {
   runOfflineSaleHttp,
 } from './offline-sale-route.js';
 
-vi.mock('@kipuspay/adapters-d1', () => ({
+vi.mock('@kipuspay/adapters-d1', async (importOriginal) => ({
+  ...(await importOriginal<typeof AdaptersD1>()),
   processOfflineSaleAtomic: vi.fn(() => Promise.resolve({ saleId: 'sale-m3' })),
 }));
 

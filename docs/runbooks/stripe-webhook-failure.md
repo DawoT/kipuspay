@@ -72,8 +72,12 @@ owner: "@DawoT"
 
 ## Ensayo (suite = drill)
 
-- Fuzz firmas inválidas: `verify-stripe-signature.test.ts` (≥50 → todos false).
-- Replay/dedup: `handle-stripe-webhook.test.ts` (PROCESSED → 200 deduplicated).
+- Fuzz firmas inválidas: `verify-stripe-signature.test.ts` — fuzz **determinista**
+  (PRNG seedable, reproducible en CI) ≥50 casos + adversarial (borde 300 s, hex
+  truncado, `=` extra, multi-v1, mayúsculas) → todos rechazados o según spec.
+- Replay/dedup: `handle-stripe-webhook.test.ts` (PROCESSED → 200 deduplicated;
+  **ataque replay re-firmado** — mismo event_id con timestamp nuevo dentro de
+  ventana → dedup sin doble efecto; re-firma fuera de ventana → 401).
 - Orden/reintento: `updated(active)` no des-revoca, `updated(canceled)` revoca y
   redelivery `PROCESSING` reclama sin 500.
 - Efecto fallido: DO 503 → `FAILED` + HTTP 503 `WEBHOOK_RETRYABLE`.

@@ -62,7 +62,7 @@ cero carreras de stock bajo escritores concurrentes. D1 no ofrece
 
 | Residual DoD | Estado | Nota |
 |---|---|---|
-| Sub-50ms hot-path medido | Pendiente | No fingir benchmark; medir en sprint de perf / staging |
+| Sub-50ms hot-path medido | Cerrado | Benchmark workerd (auditoría 2026-08-12): motor ACID p50=6ms p95=8ms, n=30 (sin red HTTP); objetivo producto sub-50ms p95 en motor — registrado en Ledger 0330 |
 | Firma RACI `V` independiente de `R` | Pendiente humana | Checklist "Firmado" del cierre original fue auto-referencial; requiere revisor distinto |
 | Chaos sin fixtures | Cerrado | harness fail-closed; D1 en integration (quality step 4) |
 | Ledger 0202 SHA huérfano | Cerrado | Ledger 0207 CORRIGE → `caa940a` |

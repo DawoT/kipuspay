@@ -87,6 +87,7 @@ describe('features flags default off', () => {
     expect(mod.isCatalogQuickAddEnabled()).toBe(false);
     expect(mod.isShiftHandoffEnabled()).toBe(false);
     expect(mod.isTeamInviteEnabled()).toBe(false);
+    expect(mod.isOnboardingTourEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

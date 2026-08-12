@@ -198,6 +198,36 @@ describe('handleStripeWebhook', () => {
     expect(second).toEqual({ status: 200, body: { received: true, deduplicated: true } });
   });
 
+  it('ataque replay con RE-FIRMA (mismo event_id, timestamp nuevo) → dedup sin doble efecto', async () => {
+    const { env, kv, doCalls } = createEnv({});
+    kv.set(
+      'tenant:t1',
+      JSON.stringify({ id: 't1', status: 'active', subscriptionStatus: 'active' }),
+    );
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_refirm');
+    // Entrega legítima con timestamp T
+    const sigT = await signStripeWebhookForTests(body, secret, ts);
+    const first = await handleStripeWebhook(env, body, sigT, nowMs);
+    expect(first).toEqual({ status: 200, body: { received: true } });
+    expect(doCalls).toEqual(['/revoke']);
+
+    // Ataque: re-firma dentro de la ventana (mismo body, timestamp distinto).
+    // La firma es criptográficamente válida, pero el event_id ya fue PROCESSED.
+    const sigRe = await signStripeWebhookForTests(body, secret, ts - 120);
+    const replay = await handleStripeWebhook(env, body, sigRe, nowMs);
+    expect(replay).toEqual({ status: 200, body: { received: true, deduplicated: true } });
+    expect(doCalls).toEqual(['/revoke']); // sin efecto duplicado
+    expect(kv.get('revocation:t1')).toBe('1');
+  });
+
+  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_old');
+    const sigOld = await signStripeWebhookForTests(body, secret, ts - 360); // > 300 s
+    const res = await handleStripeWebhook(env, body, sigOld, nowMs);
+    expect(res.status).toBe(401);
+  });
+
   it('redelivery mientras PROCESSING → re-claim sin 500', async () => {
     const { env, mem } = createEnv({});
     mem.rows.set('stripe:evt_inflight', {

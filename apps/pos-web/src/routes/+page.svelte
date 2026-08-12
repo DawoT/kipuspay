@@ -1,15 +1,33 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';  import {
-    isInventorySerialsEnabled,
+    isCatalogQuickAddEnabled,
+    isCatalogVariantsEnabled,
+    isInventoryOpsEnabled,
     isInventoryScaleEnabled,
+    isInventorySerialsEnabled,
+    isOnboardingTourEnabled,
+    isOrdersKdsEnabled,
     isPosCheckoutEnabled,
+    isPricingPromotionsEnabled,
     isPrintTemplatesEnabled,
     isSalesCommissionsEnabled,
+    isShiftHandoffEnabled,
     isTeamInviteEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
+  import {
+    capabilitiesFromFlags,
+  } from '$lib/onboarding/capabilities';
+  import {
+    isTourEligible,
+    readTourState,
+    recordGrowthEvent,
+    writeTourState,
+  } from '$lib/onboarding/tour-client';
+  import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
+  import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import {
@@ -126,7 +144,52 @@
     }
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
+    maybeShowTour();
   });
+
+  const tourOn = isOnboardingTourEnabled();
+  const capabilities = capabilitiesFromFlags({
+    kds: isOrdersKdsEnabled(),
+    fefo: isInventoryOpsEnabled(),
+    scale: isInventoryScaleEnabled(),
+    promotions: isPricingPromotionsEnabled(),
+    variants: isCatalogVariantsEnabled(),
+    quickAdd: isCatalogQuickAddEnabled(),
+    shiftHandoff: isShiftHandoffEnabled(),
+    teamInvite: isTeamInviteEnabled(),
+  });
+  let tourOpen = $state(false);
+  let tourSteps = $state<readonly TourStep[]>([]);
+
+  function maybeShowTour() {
+    if (!tourOn) return;
+    if (!isTourEligible({ hasSold: session.firstSaleAtIso !== null, localState: readTourState(localStorage, session.verticalType) })) {
+      return;
+    }
+    const steps = tourStepsFor({
+      vertical: session.verticalType,
+      // La demo de la caja es el rol Cajero; el Modo Dueño tiene su propia versión.
+      role: 'cashier',
+      capabilities,
+      hasSold: false,
+    });
+    if (steps.length === 0) return;
+    tourSteps = steps;
+    tourOpen = true;
+    void recordGrowthEvent('tour_started', { vertical: session.verticalType });
+  }
+
+  function onTourComplete() {
+    tourOpen = false;
+    writeTourState(localStorage, session.verticalType, 'completed');
+    void recordGrowthEvent('tour_completed', { steps: tourSteps.length });
+  }
+
+  function onTourDismiss() {
+    tourOpen = false;
+    writeTourState(localStorage, session.verticalType, 'dismissed');
+    void recordGrowthEvent('tour_dismissed', { step: 0 });
+  }
 
   async function onCharge() {
     status = 'cobrando';
@@ -747,6 +810,9 @@
         {/if}
       </div>
     </div>
+  {/if}
+  {#if tourOpen && tourSteps.length > 0}
+    <Tour steps={tourSteps} onComplete={onTourComplete} onDismiss={onTourDismiss} />
   {/if}
   {#if sellerResolveOpen}
     <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="seller-resolve-title">

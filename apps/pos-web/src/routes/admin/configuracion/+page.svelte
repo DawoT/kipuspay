@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { advanceFormalization, enabledDocumentTypesFor } from '@kipuspay/domain-fiscal-pe';
-  import { isInventoryScaleEnabled } from '$lib/features';
+  import { faqFor, type FaqItem } from '@kipuspay/domain-onboarding';
+  import { isInventoryScaleEnabled, isOnboardingTourEnabled } from '$lib/features';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -10,6 +11,11 @@
     type FormalizationMode,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import { capabilitiesFromFlags } from '$lib/onboarding/capabilities';
+  import { fetchSetupProgress, recordGrowthEvent } from '$lib/onboarding/tour-client';
+  import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
+  import { createPrinterTransport } from '$lib/print/printer-transport';
+  import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
   import Icon from '$lib/ui/Icon.svelte';
 
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -29,11 +35,59 @@
   let scaleStatus = $state('');
   let terminalId = $state('');
 
+  // Sprint 52 — Setup Checklist "segundo día" (regla 37a, GTM §6.2).
+  const onboardingOn = isOnboardingTourEnabled();
+  const capabilities = capabilitiesFromFlags({
+    kds: false,
+    fefo: false,
+    scale: scaleOn,
+    promotions: false,
+    variants: false,
+    quickAdd: false,
+    shiftHandoff: false,
+    teamInvite: false,
+  });
+  let serverState = $state<{ logo: boolean; invoicing: boolean; team: boolean; catalog: boolean } | null>(null);
+  let printerReady = $state(false);
+  let checklistDismissed = $state(false);
+  let faqOpen = $state(false);
+  let faqItems = $state<readonly FaqItem[]>([]);
+  let priorSnapshot = $state('');
+
   onMount(() => {
     session = readTenantSession(sessionStorage);
     focus = $page.url.searchParams.get('focus') ?? '';
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
+    if (onboardingOn) {
+      void loadChecklist();
+      void createPrinterTransport()
+        .preflight()
+        .then((adapters) => {
+          printerReady = adapters.length > 0;
+        });
+    }
   });
+
+  async function loadChecklist() {
+    const res = await fetchSetupProgress();
+    if (!res.ok) return;
+    serverState = res.server;
+    const snapshot = localStorage.getItem('kipuspay:setup-checkpoint') ?? '';
+    const doneIds = Object.entries(res.server)
+      .filter(([, done]) => done)
+      .map(([id]) => id);
+    if (snapshot !== JSON.stringify(doneIds)) {
+      const known = new Set(snapshot ? (JSON.parse(snapshot) as string[]) : []);
+      for (const id of doneIds) {
+        if (!known.has(id)) {
+          void recordGrowthEvent('setup_checklist_step_completed', { step: id });
+        }
+      }
+      localStorage.setItem('kipuspay:setup-checkpoint', JSON.stringify(doneIds));
+    }
+    checklistDismissed = localStorage.getItem(CHECKLIST_DISMISSED_KEY) === '1';
+    faqItems = faqFor({ capabilities });
+  }
 
   function requestAdvance(to: FormalizationMode) {
     error = '';
@@ -374,6 +428,46 @@
       </div>
     </div>
   </div>
+{/if}
+
+{#if onboardingOn && serverState && !checklistDismissed}
+  <section class="glass-card checklist-wrap" aria-labelledby="setup-checklist">
+    <SetupChecklist server={serverState} {printerReady} />
+    <div class="checklist-aux">
+      <button
+        type="button"
+        class="btn-secondary btn-sm"
+        data-testid="setup-hide"
+        onclick={() => {
+          checklistDismissed = true;
+          localStorage.setItem(CHECKLIST_DISMISSED_KEY, '1');
+        }}
+      >
+        Ocultar esta lista
+      </button>
+      <button
+        type="button"
+        class="btn-secondary btn-sm"
+        data-testid="faq-toggle"
+        onclick={() => (faqOpen = !faqOpen)}
+      >
+        Preguntas frecuentes
+      </button>
+    </div>
+    {#if faqOpen}
+      <details class="faq-box" data-testid="faq-panel" open>
+        {#each faqItems as item}
+          <div class="faq-item">
+            <p class="faq-q"><strong>{item.question}</strong></p>
+            <p class="faq-a">{item.answer}</p>
+          </div>
+        {/each}
+        {#if faqItems.length === 0}
+          <p class="faq-empty">Aún no hay preguntas para tus funciones activas.</p>
+        {/if}
+      </details>
+    {/if}
+  </section>
 {/if}
 
 <style>

@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
+  import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
+  import { isOnboardingTourEnabled } from '$lib/features';
+  import { fetchSetupProgress } from '$lib/onboarding/tour-client';
+  import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
+  import { createPrinterTransport } from '$lib/print/printer-transport';
   import {
     isAgenticInsightsEnabled,
     isFiscalCircuitBreakerEnabled,
@@ -270,10 +275,31 @@
     void loadBriefing();
     void loadOverdueInstallments();
     void loadCommissionsReport();
+    if (onboardingOn) {
+      void loadChecklist();
+      void createPrinterTransport()
+        .preflight()
+        .then((adapters) => {
+          printerReady = adapters.length > 0;
+        });
+    }
     const onOnline = () => void refresh(true);
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
   });
+
+  // Sprint 52 — Setup Checklist en el Modo Dueño (regla 37a, GTM §6.2).
+  const onboardingOn = isOnboardingTourEnabled();
+  let serverState = $state<{ logo: boolean; invoicing: boolean; team: boolean; catalog: boolean } | null>(null);
+  let printerReady = $state(false);
+  let checklistDismissed = $state(false);
+
+  async function loadChecklist() {
+    const res = await fetchSetupProgress();
+    if (!res.ok) return;
+    serverState = res.server;
+    checklistDismissed = localStorage.getItem(CHECKLIST_DISMISSED_KEY) === '1';
+  }
 </script>
 
 <svelte:head><title>Modo Dueño · Hoy · KipusPay</title></svelte:head>
@@ -288,9 +314,25 @@
       </div>
     </div>
 
+    {#if onboardingOn && serverState && !checklistDismissed}
+      <div class="status-alert info" data-testid="owner-checklist">
+        <SetupChecklist server={serverState} {printerReady} />
+        <button
+          type="button"
+          class="btn-secondary btn-sm"
+          data-testid="owner-checklist-hide"
+          onclick={() => {
+            checklistDismissed = true;
+            localStorage.setItem(CHECKLIST_DISMISSED_KEY, '1');
+          }}
+        >
+          Ocultar
+        </button>
+      </div>
+    {/if}
+
     {#if banner}
-      <div class="status-alert warning" data-testid="stale-banner">
-        <Icon name="clock" size={16} />
+      <div class="status-alert warning" data-testid="stale-banner">        <Icon name="clock" size={16} />
         <span>{banner}</span>
       </div>
     {/if}

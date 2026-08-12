@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceFormalization,
+  assertDocumentTypeEnabled,
   assertFormalizationAdvance,
   enabledDocumentTypesFor,
   type FormalizationMode,
@@ -33,5 +34,21 @@ describe('formalization-advance', () => {
     expect(enabledDocumentTypesFor('INTERNAL_CONTROL')).toEqual(['NV', 'NV_RETURN']);
     expect(enabledDocumentTypesFor('FORMALIZING')).toContain('03');
     expect(enabledDocumentTypesFor('ELECTRONIC_ISSUER')).toContain('01');
+  });
+
+  it('habilita solo lo declarado (fail-closed)', () => {
+    expect(() => assertDocumentTypeEnabled('01', '["NV","03"]')).toThrow(
+      'DOCUMENT_TYPE_NOT_ENABLED',
+    );
+    expect(() => assertDocumentTypeEnabled('NV', '["NV","03"]')).not.toThrow();
+    expect(() => assertDocumentTypeEnabled('03', '["NV","03"]')).not.toThrow();
+  });
+
+  it('columna vacia/invalida nunca habilita por omision', () => {
+    expect(() => assertDocumentTypeEnabled('NV', null)).toThrow('DOCUMENT_TYPE_NOT_ENABLED');
+    expect(() => assertDocumentTypeEnabled('NV', '')).toThrow('DOCUMENT_TYPE_NOT_ENABLED');
+    expect(() => assertDocumentTypeEnabled('NV', 'no-json')).toThrow('DOCUMENT_TYPE_NOT_ENABLED');
+    expect(() => assertDocumentTypeEnabled('NV', '[]')).toThrow('DOCUMENT_TYPE_NOT_ENABLED');
+    expect(() => assertDocumentTypeEnabled('NV', '{"a":1}')).toThrow('DOCUMENT_TYPE_NOT_ENABLED');
   });
 });

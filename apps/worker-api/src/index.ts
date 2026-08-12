@@ -238,6 +238,7 @@ import {
 import { runQuickAddHttp, runScanLookupHttp } from './catalog/quick-add-routes.js';
 import { runIssueShiftPinHttp, runShiftTransferHttp } from './cash/shift-routes.js';
 import { runResolveSellerHttp, runTeamInviteHttp } from './team/team-routes.js';
+import { runGrowthEventHttp, runSetupProgressHttp } from './onboarding/onboarding-routes.js';
 import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
@@ -1360,6 +1361,32 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         : {},
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
+  });
+  // Sprint 52 — onboarding.tour (default-off): setup checklist + métrica GTM §6.2.
+  app.get('/api/onboarding/setup-progress', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runSetupProgressHttp(c.env, {
+      tenantId: jwt?.tenantId ?? '',
+      userId: jwt?.sub ?? '',
+      role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+    });
+    return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+  app.post('/api/growth/events', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runGrowthEventHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
   });
   app.get('/api/catalog/variants-uom', async (c) => {
     const jwt = c.get('jwt');

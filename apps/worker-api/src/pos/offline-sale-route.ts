@@ -1,4 +1,4 @@
-import { processOfflineSaleAtomic } from '@kipuspay/adapters-d1';
+import { parseActiveShards, processOfflineSaleAtomic } from '@kipuspay/adapters-d1';
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
 import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -136,6 +136,12 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
   ) {
     return { status: 422, body: { error: msg, code: msg } };
   }
+  if (msg === 'SHARD_NOT_ACTIVE' || msg === 'NO_ACTIVE_SHARDS' || msg.includes('sin shard_id')) {
+    return {
+      status: 503,
+      body: { error: msg, code: 'SHARD_ROUTING_UNAVAILABLE' },
+    };
+  }
   return { status: 500, body: { error: msg, code: 'OFFLINE_SALE_FAILED' } };
 }
 /* eslint-enable complexity */
@@ -204,6 +210,16 @@ async function runPostCommitSaleHooks(
 /* eslint-enable complexity */
 
 /**
+ * Sprint 1 router tenant→shard: set de shards activos del plano de control
+ * (KV active_shards). Local/dev sin la clave → ['D1_SHARD_01'] (parseActiveShards).
+ */
+export async function loadActiveShards(env: WorkerEnv | undefined): Promise<readonly string[]> {
+  const raw =
+    typeof env?.TENANT_KV?.get === 'function' ? await env.TENANT_KV.get('active_shards') : null;
+  return parseActiveShards(raw);
+}
+
+/**
  * Pipeline HTTP de venta offline (feature flag + DB + motor ACID).
  */
 export async function runOfflineSaleHttp(
@@ -238,6 +254,7 @@ export async function runOfflineSaleHttp(
         terminalId: terminalId.trim(),
       }));
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
+      activeShards: await loadActiveShards(env),
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
       catalogUomEnabled: isCatalogUomEnabled(env),

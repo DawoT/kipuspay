@@ -25,10 +25,26 @@ export function isD1Success(result: D1Result<unknown>): boolean {
   return result.success;
 }
 
-/** Resuelve shard_id de un tenant (Sprint 1 — router mínimo). */
-export function resolveShardId(shardId: string | null | undefined): string {
-  if (shardId === null || shardId === undefined || shardId.trim() === '') {
+/**
+ * Router tenant→shard (Sprint 1 — Principio 1, Dynamic Sharding).
+ * Fail-closed (invariante 5): el shard del tenant debe estar en el set de
+ * shards activos para resolver; nunca se enruta por omisión. El set activo
+ * lo provee el plano de control (KV `active_shards`); local/dev usa
+ * `parseActiveShards` para derivarlo.
+ */
+export function resolveShardId(
+  tenantShardId: string | null | undefined,
+  activeShards: readonly string[],
+): string {
+  const shardId = tenantShardId?.trim();
+  if (!shardId) {
     throw new Error('tenant sin shard_id: no se puede enrutar');
+  }
+  if (activeShards.length === 0) {
+    throw new Error('NO_ACTIVE_SHARDS: sin shards activos no hay enrutamiento');
+  }
+  if (!activeShards.includes(shardId)) {
+    throw new Error(`SHARD_NOT_ACTIVE: ${shardId} no está en active_shards`);
   }
   return shardId;
 }

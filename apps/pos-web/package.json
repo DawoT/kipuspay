@@ -19,7 +19,8 @@
   "dependencies": {
     "@kipuspay/domain-fiscal-pe": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*",
-    "@kipuspay/print-templates": "workspace:*"
+    "@kipuspay/print-templates": "workspace:*",
+    "@kipuspay/domain-onboarding": "workspace:*"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

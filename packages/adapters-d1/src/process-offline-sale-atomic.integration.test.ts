@@ -21,9 +21,17 @@ async function seedNvFixture(tenantId: string): Promise<{
 
   await env.DB.batch([
     env.DB.prepare(
-      `INSERT INTO tenants (id, business_name, vertical_type, shard_id, formalization_mode)
-       VALUES (?, ?, ?, ?, ?)`,
-    ).bind(tenantId, 'ACID SAC', 'retail', 'shard-1', 'INTERNAL_CONTROL'),
+      `INSERT INTO tenants
+         (id, business_name, vertical_type, shard_id, formalization_mode, enabled_document_types)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      tenantId,
+      'ACID SAC',
+      'retail',
+      'shard-1',
+      'INTERNAL_CONTROL',
+      '["NV","NV_RETURN","01","03","07","08"]',
+    ),
     env.DB.prepare(
       `INSERT INTO branches (id, tenant_id, code, name, address) VALUES (?, ?, ?, ?, ?)`,
     ).bind(branchId, tenantId, 'C01', 'Centro', 'Lima'),
@@ -146,6 +154,59 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     expect(stock?.stock).toBe(9);
   });
 
+  it('Sprint 4: ALREADY_SYNCED devuelve reconciliación autoritativa completa', async () => {
+    const fixture = await seedNvFixture('t-acid-rec');
+    const payload = nvPayload(fixture, 'off-rec', 2, 2360);
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+
+    const first = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-rec',
+      fixture.userId,
+      payload,
+      now,
+    );
+    expect(first.status).toBe('SUCCESS');
+    if (first.status !== 'SUCCESS') return;
+    const saleId = first.saleId;
+
+    // Sync duplicado con montos MUTADOS por el cliente (el servidor manda):
+    // el reintento intenta 1 unidad × 1180, pero la venta ya fue 2 × 2360.
+    const mutated = {
+      ...nvPayload(fixture, 'off-rec', 1, 1180),
+      issuedAt: '2026-08-04T15:00:00.000Z',
+    };
+    const second = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-rec',
+      fixture.userId,
+      mutated,
+      now,
+    );
+
+    expect(second.status).toBe('ALREADY_SYNCED');
+    if (second.status !== 'ALREADY_SYNCED') return;
+    // Contrato de reconciliación (SYN-12 / §6): el servidor es la autoridad.
+    expect(second.reconciliationRequired).toBe(true);
+    expect(second.saleId).toBe(saleId);
+    expect(second.authoritativeTotalAmount).toBe(2360);
+    expect(second.authoritativeIssuedAt).toBeTruthy();
+
+    // Sin doble efecto: una sola venta, stock descontado una sola vez.
+    const count = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ? AND offline_client_sale_id = ?`,
+    )
+      .bind('t-acid-rec', 'off-rec')
+      .first<{ n: number }>();
+    expect(count?.n).toBe(1);
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-rec', fixture.productId)
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(8);
+  });
+
   it('stock insuficiente → InsufficientStockError', async () => {
     const fixture = await seedNvFixture('t-acid-stock');
     const payload = nvPayload(fixture, 'off-stock', 99, 116820);
@@ -180,6 +241,111 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     await expect(
       processOfflineSaleAtomic(env.DB, 't-acid-skew', fixture.userId, payload, now),
     ).rejects.toThrow(/ISSUED_AT_SKEW_VIOLATION/);
+  });
+
+  it('shard del tenant no activo → SHARD_NOT_ACTIVE sin persistir (router Sprint 1)', async () => {
+    const fixture = await seedNvFixture('t-acid-shard');
+    const payload = nvPayload(fixture, 'off-shard', 1, 1180);
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+
+    await expect(
+      processOfflineSaleAtomic(env.DB, 't-acid-shard', fixture.userId, payload, {
+        nowMs: now,
+        activeShards: ['D1_SHARD_01'],
+      }),
+    ).rejects.toThrow('SHARD_NOT_ACTIVE');
+
+    const sales = await env.DB.prepare(`SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ?`)
+      .bind('t-acid-shard')
+      .first<{ n: number }>();
+    expect(sales?.n).toBe(0);
+  });
+
+  it('shard del tenant activo → venta procede (router Sprint 1)', async () => {
+    const fixture = await seedNvFixture('t-acid-shard-ok');
+    const payload = nvPayload(fixture, 'off-shard-ok', 1, 1180);
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-shard-ok',
+      fixture.userId,
+      payload,
+      { nowMs: now, activeShards: ['shard-1', 'D1_SHARD_01'] },
+    );
+    expect(result.status).toBe('SUCCESS');
+  });
+
+  it('documento no habilitado en enabled_document_types → DOCUMENT_TYPE_NOT_ENABLED', async () => {
+    const fixture = await seedNvFixture('t-acid-docoff');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants
+          SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG',
+              enabled_document_types = '["NV","03"]'
+          WHERE id = ?`,
+      ).bind('t-acid-docoff'),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-docoff', ?, ?, '01', 'F001', 0, 'INTERNAL')`,
+      ).bind('t-acid-docoff', fixture.branchId),
+    ]);
+
+    const payload = {
+      ...nvPayload(fixture, 'off-docoff', 1, 1180),
+      documentType: '01' as const,
+      series: 'F001',
+      clientDocumentType: '6',
+      clientDocumentNumber: '20123456789',
+      clientName: 'ACME SAC',
+    };
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+
+    await expect(
+      processOfflineSaleAtomic(env.DB, 't-acid-docoff', fixture.userId, payload, now),
+    ).rejects.toThrow('DOCUMENT_TYPE_NOT_ENABLED');
+
+    const sales = await env.DB.prepare(`SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ?`)
+      .bind('t-acid-docoff')
+      .first<{ n: number }>();
+    expect(sales?.n).toBe(0);
+  });
+
+  it('documento habilitado en la columna del tenant → venta procede (Sprint 1)', async () => {
+    const fixture = await seedNvFixture('t-acid-docon');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants
+          SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG',
+              enabled_document_types = '["NV","01"]'
+          WHERE id = ?`,
+      ).bind('t-acid-docon'),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-docon', ?, ?, '01', 'F001', 0, 'INTERNAL')`,
+      ).bind('t-acid-docon', fixture.branchId),
+    ]);
+
+    const payload = {
+      ...nvPayload(fixture, 'off-docon', 1, 1180),
+      documentType: '01' as const,
+      series: 'F001',
+      clientDocumentType: '6',
+      clientDocumentNumber: '20123456789',
+      clientName: 'ACME SAC',
+    };
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-docon',
+      fixture.userId,
+      payload,
+      now,
+    );
+    expect(result.status).toBe('SUCCESS');
   });
 
   it('chaos concurrent-writers: Promise.all N ventas mismo SKU (stock coherente)', async () => {
@@ -234,7 +400,6 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     )
       .bind('t-acid-race', fixture.productId)
       .run();
-
     const now = Date.parse('2026-08-04T15:00:00.000Z');
     const attempts = await Promise.all(
       Array.from({ length: 5 }, async (_, i) => {
@@ -266,6 +431,51 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
     expect(successes).toBe(2);
     expect(stock?.stock).toBe(0);
     expect(saleCount?.n).toBe(2);
+  });
+
+  it('Sprint 4: MISMO offlineSaleId concurrente → 1 SUCCESS, resto ALREADY_SYNCED, stock exacto', async () => {
+    const fixture = await seedNvFixture('t-acid-doublesync');
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const payload = nvPayload(fixture, 'off-doublesync', 2, 2360);
+
+    // 5 sincronizaciones simultáneas del mismo documento offline.
+    const attempts = await Promise.all(
+      Array.from({ length: 5 }, async () => {
+        try {
+          const r = await processOfflineSaleAtomic(
+            env.DB,
+            't-acid-doublesync',
+            fixture.userId,
+            payload,
+            now,
+          );
+          return r.status;
+        } catch {
+          return 'ERROR';
+        }
+      }),
+    );
+
+    const successes = attempts.filter((s) => s === 'SUCCESS').length;
+    const already = attempts.filter((s) => s === 'ALREADY_SYNCED').length;
+    expect(successes).toBe(1);
+    expect(already).toBe(4);
+    expect(attempts.filter((s) => s === 'ERROR')).toEqual([]);
+
+    const count = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ? AND offline_client_sale_id = ?`,
+    )
+      .bind('t-acid-doublesync', 'off-doublesync')
+      .first<{ n: number }>();
+    expect(count?.n).toBe(1);
+
+    // stock descontado UNA sola vez (2 unidades)
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-doublesync', fixture.productId)
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(8);
   });
 
   it('allow_negative_stock: oversell acepta y audita OFFLINE_OVERSELL (SYN-06)', async () => {
@@ -514,6 +724,62 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
       .bind('t-acid-nc', fixture.productId)
       .first<{ stock: number }>();
     expect(afterStock?.stock).toBe(beforeStock?.stock); // E-B: no restore
+  });
+  it('Sprint 4: fallo inyectado A MITAD del batch revierte todo (venta, stock, pagos)', async () => {
+    const fixture = await seedNvFixture('t-acid-midroll');
+    const payload = nvPayload(fixture, 'off-midroll', 2, 2360);
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+
+    // Statement intermedio dentro del batch (después de los writes de
+    // venta/stock) que viola CHECK (document_type IN ...) → el batch
+    // completo debe abortar sin efectos parciales.
+    await expect(
+      processOfflineSaleAtomic(env.DB, 't-acid-midroll', fixture.userId, payload, {
+        nowMs: now,
+        afterSaleStatements: (plan) => {
+          plan.add(
+            env.DB.prepare(
+              `INSERT INTO sales (
+                 id, tenant_id, branch_id, cash_register_session_id, user_id,
+                 client_document_type, client_document_number, client_name,
+                 document_type, series, number, total_amount_cents, issued_at_lima
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'XX', 'NV99', 1, 0, ?)`,
+            ).bind(
+              'sale-midroll-fail',
+              't-acid-midroll',
+              fixture.branchId,
+              fixture.sessionId,
+              fixture.userId,
+              '1',
+              '00000000',
+              'Cliente',
+              now,
+            ),
+          );
+        },
+      }),
+    ).rejects.toThrow();
+
+    const sales = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ? AND offline_client_sale_id = ?`,
+    )
+      .bind('t-acid-midroll', 'off-midroll')
+      .first<{ n: number }>();
+    expect(sales?.n).toBe(0);
+
+    const payments = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM sale_payments WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind('t-acid-midroll', 'sale-midroll')
+      .first<{ n: number }>();
+    expect(payments?.n).toBe(0);
+
+    const stock = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind('t-acid-midroll', fixture.productId)
+      .first<{ stock: number }>();
+    expect(stock?.stock).toBe(10);
   });
 });
 

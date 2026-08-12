@@ -43,3 +43,30 @@ export function enabledDocumentTypesFor(mode: FormalizationMode): readonly Enabl
   if (mode === 'FORMALIZING') return ['NV', 'NV_RETURN', '03', '07', '08'];
   return ['NV', 'NV_RETURN', '01', '03', '07', '08', '12'];
 }
+
+/**
+ * Fail-closed (invariante 5): el documento a emitir debe estar en la columna
+ * `tenants.enabled_document_types` (JSON array). Una columna vacía, inválida o
+ * ausente NUNCA habilita por omisión: sin lista autoritativa no hay emisión.
+ */
+export function assertDocumentTypeEnabled(
+  documentType: EnabledDocCode,
+  enabledDocumentTypesRaw: string | null | undefined,
+): void {
+  if (!enabledDocumentTypesRaw?.trim()) {
+    throw new Error('DOCUMENT_TYPE_NOT_ENABLED');
+  }
+  let enabled: unknown;
+  try {
+    enabled = JSON.parse(enabledDocumentTypesRaw);
+  } catch {
+    throw new Error('DOCUMENT_TYPE_NOT_ENABLED');
+  }
+  if (!Array.isArray(enabled) || enabled.length === 0) {
+    throw new Error('DOCUMENT_TYPE_NOT_ENABLED');
+  }
+  const codes: string[] = enabled.map((x) => String(x).trim());
+  if (!codes.includes(documentType)) {
+    throw new Error('DOCUMENT_TYPE_NOT_ENABLED');
+  }
+}

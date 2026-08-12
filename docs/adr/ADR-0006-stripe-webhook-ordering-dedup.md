@@ -9,12 +9,12 @@ owner: "@DawoT"
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto |
-| Fecha | 2026-08-04 |
-| Decisores | Pendiente de aprobación Staff Principal |
+| Estado | Aceptado |
+| Fecha | 2026-08-04 (aceptado 2026-08-12 en auditoría Sprint 3) |
+| Decisores | Staff Principal |
 | Consultados | Staff Security, Staff SRE |
 | Informados | Escuadrón |
-| Relaciona | Arquitectura §4 · SEC-08 · ADR-0005 · Ledger 0202 |
+| Relaciona | Arquitectura §4 · SEC-08 · ADR-0005 · Ledger 0202 · Ledger 0329 |
 
 ## Contexto
 
@@ -50,8 +50,8 @@ evento, dejando una ventana TOCTOU frente a redelivery concurrente.
 
 ## Evidencia de cierre
 
-- Tests: `handle-stripe-webhook.test.ts` (updated stale, past_due, canceled, redelivery PROCESSING, external).
-- Checks: `@kipuspay/worker-api` 64/64 tests, typecheck, lint, `scripts/verify.sh`
+- Tests: `handle-stripe-webhook.test.ts` (updated stale, past_due, canceled, redelivery PROCESSING, external, replay re-firmado dentro/fuera de ventana) y `verify-stripe-signature.test.ts` (fuzz determinista seedable + adversarial: borde 300 s, hex truncado, `=` extra, multi-v1, mayúsculas).
+- Checks: `@kipuspay/worker-api` GREEN (14/14 webhook), typecheck, lint, `scripts/verify.sh`
   SUITE GREEN y `scripts/quality.sh` Quality Gate OK.
-- Ledger: `id: 0202` con evidencia RED/GREEN y SHAs verificables.
-- Firmas RACI: `R` Staff Security · `A` pendiente · `V` Staff SRE.
+- Ledger: `id: 0202` con evidencia RED/GREEN y SHAs verificables; auditoría Sprint 3 en `id: 0329`.
+- Firmas RACI: `R` Staff Security · `A` Staff Principal · `V` Staff SRE (revisión cruzada Security + SRE, QG Sprint 3).
