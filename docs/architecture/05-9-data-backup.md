@@ -129,13 +129,24 @@ objeto, registry y pertenencia tenant. Produce un diff acotado por tabla y objet
 DELETE de tablas BUSINESS** y cero put/delete de objetos. KMS unavailable, tamper,
 schema desconocido o tenant distinto falla cerrado. No existe restore apply en S42.
 
+##### Restore apply y DR (Sprint 48)
+
+`platform.dr` (regla 32b) añade la restauración **aplicada** a un shard DR aislado:
+`applyRestoreRowsToShard` reutiliza las filas YA validadas por `verifyRestoreDryRun`
+(port `collectRestoreRows` — nunca vuelve a descifrar), aplica en orden topológico
+(FKs) con `INSERT OR IGNORE` (idempotente por PK, sin `UPSERT INTO`) y verifica
+RPO=0 tx, RPO≤1d rollups y replay de colas sin duplicados (`verifyDrReplay`).
+El simulacro (`POST /api/dr/simulation`, owner + step-up, flag `FEATURE_PLATFORM_DR`)
+mide `rto_ms` contra el objetivo de 30 min y registra `DR_SIMULATION_*` en el audit.
+
 ##### Claim y criterios de activación
 
 “Tus datos son tuyos” no significa “incluye secretos”, “incluye cambios offline aún no
 sincronizados”, “ciphertext reproducible” ni “restore aplicado”. “Exporta todo tu
 historial” permanece bloqueado hasta GREEN, evidencia runtime, firma Staff Security +
 Staff SRE y Quality Gate. Sprint 42 solo puede afirmar export cifrado verificable y
-dry-run cuando ese gate cierre; restauración aplicable y DR/RTO pertenecen a Sprint 48.
+dry-run cuando ese gate cierre; la restauración aplicada a shard DR y el RTO se
+entregan en el Sprint 48 (regla 32b).
 
 #### DDL objetivo de migración 0035 (no implementada en Sprint 42 baseline)
 

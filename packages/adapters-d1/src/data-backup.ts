@@ -37,7 +37,10 @@ export type BackupAuditAction =
   | 'BACKUP_DOWNLOADED'
   | 'RESTORE_DRY_RUN_STARTED'
   | 'RESTORE_DRY_RUN_PASSED'
-  | 'RESTORE_DRY_RUN_FAILED';
+  | 'RESTORE_DRY_RUN_FAILED'
+  | 'DR_SIMULATION_STARTED'
+  | 'DR_SIMULATION_PASSED'
+  | 'DR_SIMULATION_FAILED';
 
 export async function appendBackupAudit(
   db: BackupD1,
@@ -493,6 +496,13 @@ export interface RestoreDryRunVerificationInput {
   readonly write?: (...args: readonly unknown[]) => unknown;
   readonly putObject?: (...args: readonly unknown[]) => unknown;
   readonly acquireLock?: (...args: readonly unknown[]) => unknown;
+  /**
+   * S48 (platform.dr): port de colección de las filas YA validadas (hash, FK,
+   * checks, cadena de auditoría). Se invoca al final, tras toda la validación;
+   * el restore apply a un shard DR reutiliza las mismas garantías sin volver a
+   * descifrar ni a duplicar la lógica.
+   */
+  readonly collectRestoreRows?: (rows: ReadonlyMap<string, BackupRow[]>) => Promise<void> | void;
 }
 
 interface RestoreDifference {
@@ -843,6 +853,7 @@ export async function verifyRestoreDryRun(input: RestoreDryRunVerificationInput)
       }
     }
   }
+  if (input.collectRestoreRows) await input.collectRestoreRows(tableRows);
   return {
     status: 'PASSED',
     insertCount,

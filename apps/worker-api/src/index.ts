@@ -229,6 +229,7 @@ import {
   type BackupActor,
   type BackupHttpResult,
 } from './backup/backup-routes.js';
+import { runDrSimulationHttp } from './backup/dr-routes.js';
 import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
@@ -2065,6 +2066,22 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         (task) => c.executionCtx.waitUntil(task),
       ),
     );
+  });
+
+  // Sprint 48 — platform.dr: simulacro DR anual (owner + step-up, default-off).
+  app.post('/api/dr/simulation', async (c) => {
+    const body: { backupId?: string } = await c.req.json();
+    const result = await runDrSimulationHttp(
+      c.env,
+      trustedBackupActor(c.get('user'), c.get('jwt')),
+      {
+        ...(typeof body.backupId === 'string' && body.backupId ? { backupId: body.backupId } : {}),
+        ...(c.req.header('x-step-up-token')
+          ? { stepUpToken: c.req.header('x-step-up-token')! }
+          : {}),
+      },
+    );
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
   });
 
   // Public API (API key) — Cadena+; no JWT middleware

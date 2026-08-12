@@ -45,6 +45,11 @@ if (Number(sprint) < 9 && scenario === 'rollup-idempotent') {
   process.exit(2);
 }
 
+if (Number(sprint) < 48 && scenario === 'dr-failover') {
+  console.error(`Escenario dr-failover activo desde fase DR/BCP (sprint≥48)`);
+  process.exit(2);
+}
+
 const unit = spawnSync(
   'pnpm',
   ['--filter', '@kipuspay/chaos-harness', 'test:unit'],

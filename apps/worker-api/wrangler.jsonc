@@ -41,6 +41,12 @@
       "migrations_dir": "../../packages/adapters-d1/migrations",
     },
     {
+      "binding": "DR_DB",
+      "database_name": "kipuspay-dr",
+      "database_id": "00000000-0000-0000-0000-0000000000d1",
+      "migrations_dir": "../../packages/adapters-d1/migrations",
+    },
+    {
       "binding": "WEBHOOK_EVENTS_DB",
       "database_name": "kipuspay-local",
       "database_id": "00000000-0000-0000-0000-000000000002",
@@ -134,6 +140,7 @@
     "FEATURE_INVENTORY_SCALE": "0",
     "FEATURE_CATALOG_PRICE_LABELS": "0",
     "FEATURE_DATA_BACKUP": "0",
+    "FEATURE_PLATFORM_DR": "0",
     "FEATURE_ORDERS_CUSTOMER_ORDERS": "0",
     "FEATURE_SALES_RECURRING": "0",
     "RECURRING_MANUAL_RUN_ENABLED": "0",

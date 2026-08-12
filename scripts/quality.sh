@@ -44,6 +44,9 @@ node scripts/chaos/run.mjs --scenario ar-compensate --sprint 8
 step "4g/8 Chaos rollup idempotent (§13.5 rollup-idempotent fail-closed)"
 node scripts/chaos/run.mjs --scenario rollup-idempotent --sprint 9
 
+step "4g2/8 Chaos DR failover (Sprint 48 — game day)"
+node scripts/chaos/run.mjs --scenario dr-failover --sprint 48
+
 step "4h/8 Marketing copy lint (GTM §1 anti-jerga)"
 python3 scripts/checks/marketing_copy.py
 

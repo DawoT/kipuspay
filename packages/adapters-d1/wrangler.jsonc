@@ -11,5 +11,11 @@
       "database_id": "00000000-0000-0000-0000-000000000001",
       "migrations_dir": "migrations",
     },
+    {
+      "binding": "DR_DB",
+      "database_name": "kipuspay-test-dr",
+      "database_id": "00000000-0000-0000-0000-0000000000a1",
+      "migrations_dir": "migrations",
+    },
   ],
 }

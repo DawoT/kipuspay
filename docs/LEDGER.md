@@ -6378,3 +6378,50 @@ aprobaciones: [Staff Backend ACID R, Staff Fiscal R, Staff Security R, Staff SRE
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0323
+timestamp_utc: 2026-08-12T05:30:00Z
+schema_version: 2
+sprint_fase: Sprint 48 — FASE 6F (platform.dr)
+agente_responsable: Staff SRE (owner) / Staff Backend ACID / Staff Principal (V)
+tipo: Entregable nuevo
+subtipo: dr-bcp
+relacion: amplia
+referencias_entradas: [0322]
+referencias_documentales: [docs/ops/s48-dr-bcp-qg.md, docs/runbooks/dr-bcp-recovery.md, packages/adapters-d1/src/dr-restore.ts, apps/worker-api/src/backup/dr-routes.ts, packages/chaos-harness/src/dr-failover.ts, docs/architecture/05-3-commercial-ops.md, docs/architecture/05-9-data-backup.md]
+prev_id: 0322
+prev_hash: 18aada33258b0e1c8af79085db4fddcf7f3fd2e69454df2fbd91ae9361f2e467
+entry_hash: 4b8ee71d42754ecf0286d90bfd1d36217bd5f041742da3c942be09207a2718a4
+ticket_or_adr: Roadmap FASE 6F Sprint 48 (regla 32b, regla 27) — RPO=0/RPO<=1d/RTO<=30min
+test_ids: [V-13, V-15, V-16, SUITE, dr-restore.integration.test.ts, dr-routes.test.ts, dr-failover.test.ts]
+entregable_afectado: docs/ops/s48-dr-bcp-qg.md (nuevo) — cierre del Sprint 48 DR/BCP
+descripcion: >
+  Entrega platform.dr (default-off): restore APPLY a un shard DR aislado
+  (binding DR_DB por composicion, jamas produccion viva) que reutiliza las
+  filas YA validadas por verifyRestoreDryRun via el port collectRestoreRows
+  (sin re-descifrar), aplica en orden topologico por FKs (Kahn) con
+  INSERT OR IGNORE por PK en db.batch <=100 stmts (idempotente, sin UPSERT
+  INTO); verifyDrReplay verifica RPO=0 tx (conteo sales == manifest),
+  RPO<=1d rollups (MAX(report_date) >= ayer Lima) y replay de colas sin
+  duplicados (offline sales, store-credit source_ref, fiscal outbox);
+  simulacro anual POST /api/dr/simulation (owner + step-up token
+  PLATFORM_DR_SIMULATION) mide rto_ms contra RTO_TARGET_MS (30 min) y
+  registra DR_SIMULATION_STARTED/PASSED/FAILED en audit_events; game day
+  chaos dr-failover (500 ciclos, fault injection rpoTxLoss/rpoRollupStale/
+  replayDuplicate); runbook docs/runbooks/dr-bcp-recovery.md; spec regla
+  32b/5.9 actualizada con el RTO objetivo y el restore apply.
+evidencia: >
+  RED: applyRestoreRowsToShard/verifyDrReplay/ruta/chaos ausentes (los tests
+  nuevos fallaron antes de implementar; RPO=0 falla si faltan tx).
+  GREEN: adapters-d1 workerd 215 (dr-restore 5/5), worker-api 676 (dr-routes
+  6/6: flag off 404, sin step-up 401, no-owner 403, backup ausente 404, sin
+  DR_DB 503, validacion 422), chaos-harness 106 (dr-failover 5/5 + 500 ciclos
+  PASS), unit 38/38, verify.sh SUITE GREEN, quality.sh Quality Gate OK.
+  Claim DR/BCP Cadena descongelado; produccion/piloto NO-GO hasta staging
+  real (R2/Workflow/KMS) y A+V independientes.
+ancestry_verified: true
+aprobaciones: [Staff SRE R, Staff Backend ACID R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

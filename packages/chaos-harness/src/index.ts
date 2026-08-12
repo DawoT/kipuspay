@@ -69,6 +69,7 @@ import {
   type PriceLabelPrintingChaosResult,
 } from './price-label-printing.js';
 import { runDataBackupChaosScenario, type DataBackupChaosResult } from './data-backup-chaos.js';
+import { runDrFailoverChaosScenario, type DrFailoverChaosResult } from './dr-failover.js';
 import { runCustomerOrderChaosScenario, type CustomerOrderChaosResult } from './customer-orders.js';
 import {
   runConcurrentWritersChaos,
@@ -114,6 +115,7 @@ export type ChaosScenarioId =
   | 'inventory-scale-heartbeat'
   | 'price-label-printing'
   | 'data-backup'
+  | 'dr-failover'
   | 'customer-orders'
   | 'recurring-sales'
   | 'concurrent-writers'
@@ -147,6 +149,7 @@ export const SCENARIO_ACTIVE_FROM: Readonly<Record<ChaosScenarioId, number | nul
   'inventory-scale-heartbeat': 40,
   'price-label-printing': 41,
   'data-backup': 42,
+  'dr-failover': 48,
   'customer-orders': 43,
   'recurring-sales': 44,
   'concurrent-writers': 4,
@@ -207,6 +210,7 @@ export interface ChaosDeps {
   readonly runInventoryScaleHeartbeat?: () => Promise<InventoryScaleHeartbeatChaosResult>;
   readonly runPriceLabelPrinting?: () => Promise<PriceLabelPrintingChaosResult>;
   readonly runDataBackup?: () => Promise<DataBackupChaosResult>;
+  readonly runDrFailover?: () => Promise<DrFailoverChaosResult>;
   readonly runCustomerOrders?: () => Promise<CustomerOrderChaosResult>;
   readonly runRecurringSales?: () => Promise<RecurringSalesChaosResult>;
 }
@@ -317,6 +321,8 @@ async function dispatchReadyScenario(
       return runPriceLabelPrintingChaosScenario(deps.runPriceLabelPrinting);
     case 'data-backup':
       return runDataBackupChaosScenario(deps.runDataBackup);
+    case 'dr-failover':
+      return runDrFailoverChaosScenario(deps.runDrFailover);
     case 'customer-orders':
       return runCustomerOrderChaosScenario(deps.runCustomerOrders);
     case 'recurring-sales':
@@ -488,6 +494,14 @@ export {
   runDataBackupChaosScenario,
   type DataBackupChaosResult,
 } from './data-backup-chaos.js';
+
+export {
+  judgeDrFailoverChaos,
+  runDrFailoverChaos,
+  runDrFailoverChaosScenario,
+  type DrFailoverChaosResult,
+  type DrFailoverFault,
+} from './dr-failover.js';
 
 export {
   CUSTOMER_ORDER_FAILURES,

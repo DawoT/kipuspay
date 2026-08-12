@@ -53,7 +53,7 @@ describe('production restore validation loader', () => {
       validateReadyBackup(
         {
           DB: dbWith(null) as never,
-          BACKUPS: {} as never,
+          BACKUPS: { get: () => Promise.resolve(null) },
           BACKUP_KMS: {},
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },
@@ -66,7 +66,7 @@ describe('production restore validation loader', () => {
       validateReadyBackup(
         {
           DB: dbWith(ready) as never,
-          BACKUPS: {} as never,
+          BACKUPS: { get: () => Promise.resolve(null) },
           BACKUP_KMS: {
             unwrapDek: vi.fn().mockRejectedValue(new Error('provider secret')),
           },
@@ -82,7 +82,7 @@ describe('production restore validation loader', () => {
       validateReadyBackup(
         {
           DB: dbWith(ready) as never,
-          BACKUPS: { get: vi.fn().mockResolvedValue(null) } as never,
+          BACKUPS: { get: vi.fn().mockResolvedValue(null) },
           BACKUP_KMS: { unwrap },
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },
@@ -99,7 +99,7 @@ describe('production restore validation loader', () => {
               customMetadata: { nonce: 'not-hex' },
               arrayBuffer: () => Promise.resolve(new Uint8Array(16).buffer),
             }),
-          } as never,
+          },
           BACKUP_KMS: { unwrap },
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },
@@ -119,7 +119,7 @@ describe('production restore validation loader', () => {
       validateReadyBackup(
         {
           DB: dbWith(ready) as never,
-          BACKUPS: malformedBucket as never,
+          BACKUPS: malformedBucket,
           BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(new Uint8Array(32)) },
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },
@@ -136,7 +136,7 @@ describe('production restore validation loader', () => {
       validateReadyBackup(
         {
           DB: dbWith(ready) as never,
-          BACKUPS: tamperedBucket as never,
+          BACKUPS: tamperedBucket,
           BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(new Uint8Array(32)) },
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },
@@ -184,7 +184,7 @@ describe('production restore validation loader', () => {
       validateReadyBackup(
         {
           DB: dbWith(ready) as never,
-          BACKUPS: bucket as never,
+          BACKUPS: bucket,
           BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(dek) },
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },
@@ -212,7 +212,7 @@ describe('production restore validation loader', () => {
               customMetadata: { nonce: matchingEncrypted.nonceHex },
               arrayBuffer: () => Promise.resolve(matchingSealed.buffer),
             }),
-          } as never,
+          },
           BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(dek) },
         },
         { tenantId: 'tenant-a', backupId: 'backup-a' },

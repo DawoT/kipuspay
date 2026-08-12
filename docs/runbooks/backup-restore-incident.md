@@ -14,6 +14,9 @@ owner: "@DawoT"
 | Ultima ensayada | Solo simulación local Sprint 42; staging real pendiente |
 | Relaciona | Arquitectura §5.9 regla 27 · ADR-0026 · Proceso §9.1 · Sprint 42/48 |
 
+> Para la recuperación completa de un shard (pérdida de D1) usar
+> [`dr-bcp-recovery.md`](dr-bcp-recovery.md) (Sprint 48, RPO/RTO y game day).
+
 ## Sintomas
 
 - Backup detenido en `PENDING`, `SNAPSHOTTING` o `UPLOADING`, reintentos por

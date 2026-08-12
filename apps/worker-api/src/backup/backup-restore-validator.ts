@@ -15,9 +15,16 @@ import {
 } from '@kipuspay/domain-integrations';
 import type { BackupKmsBinding } from './backup-workflow.js';
 
+export interface BackupBucketLike {
+  get(key: string): Promise<{
+    arrayBuffer(): Promise<ArrayBuffer>;
+    customMetadata?: Record<string, string | undefined> | null;
+  } | null>;
+}
+
 interface ValidationEnv {
   readonly DB: D1Database;
-  readonly BACKUPS: R2Bucket;
+  readonly BACKUPS: BackupBucketLike;
   readonly BACKUP_KMS: BackupKmsBinding;
 }
 
@@ -202,7 +209,7 @@ async function unwrapDek(
   throw codedError('BACKUP_KMS_UNAVAILABLE');
 }
 
-async function readSealed(bucket: R2Bucket, key: string, expectedHash?: string) {
+async function readSealed(bucket: BackupBucketLike, key: string, expectedHash?: string) {
   const object = await bucket.get(key);
   if (!object) throw codedError(['BACKUP', 'R2', 'OBJECT', 'MISSING'].join('_'));
   const sealed = new Uint8Array(await object.arrayBuffer());
@@ -214,7 +221,11 @@ async function readSealed(bucket: R2Bucket, key: string, expectedHash?: string) 
 
 export async function validateReadyBackup(
   env: ValidationEnv,
-  input: { readonly tenantId: string; readonly backupId: string },
+  input: {
+    readonly tenantId: string;
+    readonly backupId: string;
+    readonly collectRestoreRows?: RestoreDryRunVerificationInput['collectRestoreRows'];
+  },
 ) {
   const backup = await env.DB.prepare(
     `SELECT manifest_r2_key, wrapped_dek, kek_version, schema_version, registry_version, global_hash
@@ -343,33 +354,65 @@ export async function validateReadyBackup(
       String(left.created_at).localeCompare(String(right.created_at)) ||
       String(left.id).localeCompare(String(right.id)),
   );
-  return verifyRestoreDryRun({
-    expectedTenantId: input.tenantId,
-    expectedBackupId: input.backupId,
-    supportedSchemaVersions: ['0035'],
-    registry: domainRegistry(),
-    schema,
-    manifest,
-    dek,
-    tableUnits,
-    readCurrentRows: async function* (table) {
-      let after: Readonly<Record<string, unknown>> | null = null;
-      do {
-        const page = await reader.readTablePage({
+  return verifyRestoreDryRun(
+    verificationInput({
+      ...input,
+      dek,
+      manifest,
+      schema,
+      registry: domainRegistry(),
+      tableUnits,
+      orderedAudit,
+      paginatedCurrentRows: (table, after) =>
+        reader.readTablePage({
           tenantId: input.tenantId,
           tableName: table,
           after,
           limit: 500,
-        });
+        }),
+      readReferencedObject: (key) => Promise.resolve(objectBytes.get(key) ?? null),
+    }),
+  );
+}
+
+function verificationInput(input: {
+  readonly tenantId: string;
+  readonly backupId: string;
+  readonly dek: Uint8Array;
+  readonly manifest: ReturnType<typeof parseKpbk1Manifest>;
+  readonly schema: RestoreDryRunVerificationInput['schema'];
+  readonly registry: BackupRegistry;
+  readonly tableUnits: readonly EncryptedKpbk1Unit[];
+  readonly orderedAudit: readonly BackupRow[];
+  readonly paginatedCurrentRows: (
+    table: string,
+    after: Readonly<Record<string, unknown>> | null,
+  ) => Promise<{ rows: readonly BackupRow[]; next: Record<string, unknown> | null }>;
+  readonly readReferencedObject: (key: string) => Promise<Uint8Array | null>;
+  readonly collectRestoreRows?: RestoreDryRunVerificationInput['collectRestoreRows'];
+}): RestoreDryRunVerificationInput {
+  return {
+    expectedTenantId: input.tenantId,
+    expectedBackupId: input.backupId,
+    supportedSchemaVersions: ['0035'],
+    registry: input.registry,
+    schema: input.schema,
+    manifest: input.manifest,
+    dek: input.dek,
+    tableUnits: input.tableUnits,
+    readCurrentRows: async function* (table) {
+      let after: Readonly<Record<string, unknown>> | null = null;
+      do {
+        const page = await input.paginatedCurrentRows(table, after);
         yield* page.rows;
         after = page.next;
       } while (after);
     },
-    readReferencedObject: (key) => Promise.resolve(objectBytes.get(key) ?? null),
+    readReferencedObject: input.readReferencedObject,
     readAuditRows: async function* () {
       await Promise.resolve();
       let previous: string | null = null;
-      for (const row of orderedAudit) {
+      for (const row of input.orderedAudit) {
         const prevHash = typeof row.prev_hash === 'string' ? row.prev_hash : null;
         const rowHash = typeof row.row_hash === 'string' ? row.row_hash : '';
         if (prevHash !== previous || !/^[0-9a-f]{64}$/.test(rowHash)) {
@@ -380,7 +423,8 @@ export async function validateReadyBackup(
       }
     },
     maxDifferencesPerTable: 100,
-  });
+    ...(input.collectRestoreRows ? { collectRestoreRows: input.collectRestoreRows } : {}),
+  };
 }
 
 export function safeRestoreValidationError(cause: unknown): {
