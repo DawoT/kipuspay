@@ -1,10 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
-import {
-  ALREADY_ERASED,
-  ANONYMIZED_DOCUMENT,
-  ANONYMIZED_NAME,
-} from '@kipuspay/domain-customers';
+import { ALREADY_ERASED, ANONYMIZED_DOCUMENT, ANONYMIZED_NAME } from '@kipuspay/domain-customers';
 import {
   eraseCustomer,
   exportCustomer,
@@ -191,7 +187,10 @@ describe('customer-repository LPDP (Sprint 47)', () => {
     )
       .bind(t, saleId1)
       .first<{ client_name: string; client_document_number: string }>();
-    expect(saleRow).toEqual({ client_name: ANONYMIZED_NAME, client_document_number: ANONYMIZED_DOCUMENT });
+    expect(saleRow).toEqual({
+      client_name: ANONYMIZED_NAME,
+      client_document_number: ANONYMIZED_DOCUMENT,
+    });
   });
 
   it('erase es idempotente fail-closed: ALREADY_ERASED en fila ya anonimizada', async () => {

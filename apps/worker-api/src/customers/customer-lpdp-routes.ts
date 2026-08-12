@@ -65,7 +65,9 @@ export async function runListCustomersHttp(
   if (!isLpdpEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!actorOk(actor, false)) return forbidden();
-  const limit = Number.isInteger(Number(limitRaw)) ? Math.min(Math.max(Number(limitRaw), 1), 200) : 100;
+  const limit = Number.isInteger(Number(limitRaw))
+    ? Math.min(Math.max(Number(limitRaw), 1), 200)
+    : 100;
   const offset = Number.isInteger(Number(offsetRaw)) ? Math.max(Number(offsetRaw), 0) : 0;
   try {
     const items = await listCustomers(env.DB, actor!.tenantId, limit, offset);
@@ -84,7 +86,8 @@ export async function runListConsentsHttp(
   if (!isLpdpEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!actorOk(actor, false)) return forbidden();
-  if (!customerId) return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
+  if (!customerId)
+    return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
   try {
     const consents = await listConsents(env.DB, actor!.tenantId, customerId);
     return { status: 200, body: { customerId, consents } };
@@ -109,7 +112,14 @@ export async function runWriteConsentHttp(
     return { status: 400, body: { error: 'customerId and purpose required', code: 'BAD_REQUEST' } };
   }
   try {
-    const result = await writeConsent(env.DB, actor!.tenantId, customerId, purpose, granted, new Date().toISOString());
+    const result = await writeConsent(
+      env.DB,
+      actor!.tenantId,
+      customerId,
+      purpose,
+      granted,
+      new Date().toISOString(),
+    );
     return { status: 200, body: { customerId, purpose, ...result } };
   } catch (e) {
     return mapErr(e);
@@ -125,7 +135,8 @@ export async function runExportCustomerHttp(
   if (!isLpdpEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!actorOk(actor, false)) return forbidden();
-  if (!customerId) return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
+  if (!customerId)
+    return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
   try {
     const payload = await exportCustomer(env.DB, actor!.tenantId, customerId);
     return { status: 200, body: payload as unknown as Record<string, unknown> };
@@ -143,7 +154,8 @@ export async function runEraseCustomerHttp(
   if (!isLpdpEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!actorOk(actor, true)) return forbidden();
-  if (!customerId) return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
+  if (!customerId)
+    return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
   try {
     const result = await eraseCustomer(env.DB, {
       tenantId: actor!.tenantId,

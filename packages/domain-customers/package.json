@@ -12,7 +12,6 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --coverage",
     "test:unit": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
     "build": "true"
   },
   "devDependencies": {

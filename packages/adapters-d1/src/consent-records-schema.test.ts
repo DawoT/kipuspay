@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- versioned SQL identifiers */
 import { describe, expect, it } from 'vitest';
 import down0040 from '../migrations-down/0040_sprint47_lpdp_consent.sql?raw';
 import migration0040 from '../migrations/0040_sprint47_lpdp_consent.sql?raw';
@@ -10,7 +9,9 @@ describe('Sprint 47 LPDP consent schema', () => {
     expect(migration0040).toContain('CREATE TABLE consent_records');
     expect(migration0040).toContain('UNIQUE (tenant_id, id)');
     expect(migration0040).toContain('UNIQUE (tenant_id, customer_id, purpose)');
-    expect(migration0040).toContain('FOREIGN KEY (tenant_id, customer_id) REFERENCES customers(tenant_id, id)');
+    expect(migration0040).toContain(
+      'FOREIGN KEY (tenant_id, customer_id) REFERENCES customers(tenant_id, id)',
+    );
     expect(migration0040).toMatch(/granted INTEGER NOT NULL DEFAULT 0/);
     expect(migration0040).toContain('granted_at DATETIME');
     expect(migration0040).toContain('revoked_at DATETIME');
@@ -39,6 +40,6 @@ describe('Sprint 47 LPDP consent schema', () => {
     expect(down0040.indexOf('DROP TABLE consent_records')).toBeGreaterThan(
       down0040.indexOf('DROP INDEX IF EXISTS idx_consent_records_tenant_customer'),
     );
-    expect(down0040).toContain('DELETE FROM schema_meta WHERE key = \'compliance.lpdp.sprint47\'');
+    expect(down0040).toContain("DELETE FROM schema_meta WHERE key = 'compliance.lpdp.sprint47'");
   });
 });

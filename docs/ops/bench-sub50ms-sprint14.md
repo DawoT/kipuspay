@@ -9,11 +9,11 @@ owner: "@DawoT"
 
 | Campo | Valor |
 |---|---|
-| Fecha UTC | 2026-08-10T03:25:12.340Z |
+| Fecha UTC | 2026-08-12T01:19:06.165Z |
 | Iteraciones | 200 |
 | P50 | 0.0007 ms |
-| P95 | 0.0014 ms |
-| Max | 0.0223 ms |
+| P95 | 0.0011 ms |
+| Max | 0.155 ms |
 | Presupuesto | 50 ms |
 | Dentro de presupuesto | SI |
 
@@ -30,8 +30,8 @@ No incluye red D1 ni Workers; el P95 Edge se valida en staging con el mismo pres
   "iters": 200,
   "budgetMs": 50,
   "p50Ms": 0.0007,
-  "p95Ms": 0.0014,
-  "maxMs": 0.0223,
+  "p95Ms": 0.0011,
+  "maxMs": 0.155,
   "withinBudget": true,
   "note": "Microbench local CPU-only; load multi-tenant = staging game-day (runbook)."
 }

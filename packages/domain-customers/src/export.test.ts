@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildCustomerExport,
-  CUSTOMER_ERASED,
-  type CustomerProfileForExport,
-} from './export.js';
+import { buildCustomerExport, CUSTOMER_ERASED, type CustomerProfileForExport } from './export.js';
 
 const customer: CustomerProfileForExport = {
   id: 'c1',
@@ -39,8 +35,18 @@ const sales = [
 ];
 
 const consents = [
-  { purpose: 'marketing', granted: true, grantedAtIso: '2026-08-01T00:00:00.000Z', revokedAtIso: null },
-  { purpose: 'messaging_whatsapp', granted: false, grantedAtIso: null, revokedAtIso: '2026-08-02T00:00:00.000Z' },
+  {
+    purpose: 'marketing',
+    granted: true,
+    grantedAtIso: '2026-08-01T00:00:00.000Z',
+    revokedAtIso: null,
+  },
+  {
+    purpose: 'messaging_whatsapp',
+    granted: false,
+    grantedAtIso: null,
+    revokedAtIso: '2026-08-02T00:00:00.000Z',
+  },
 ];
 
 describe('export LPDP-02', () => {

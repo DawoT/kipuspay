@@ -8,7 +8,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "svelte-kit sync && eslint src --max-warnings 0",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "svelte-kit sync && vitest run --coverage",
     "test:unit": "svelte-kit sync && vitest run --coverage",

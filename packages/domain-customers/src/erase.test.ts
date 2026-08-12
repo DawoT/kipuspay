@@ -20,7 +20,12 @@ const customer: CustomerForErase = {
 
 const snapshots: readonly FiscalSnapshotForErase[] = [
   { saleId: 's1', tenantId: 't1', clientName: 'Ana Pérez', clientDocumentNumber: '12345678' },
-  { saleId: 's2', tenantId: 't1', clientName: ANONYMIZED_NAME, clientDocumentNumber: ANONYMIZED_DOCUMENT },
+  {
+    saleId: 's2',
+    tenantId: 't1',
+    clientName: ANONYMIZED_NAME,
+    clientDocumentNumber: ANONYMIZED_DOCUMENT,
+  },
   { saleId: 's3', tenantId: 't2', clientName: 'Otro tenant', clientDocumentNumber: '87654321' },
 ];
 

@@ -16,7 +16,9 @@ vi.mock('@kipuspay/adapters-d1', () => ({
     ]),
   ),
   listConsents: vi.fn(() =>
-    Promise.resolve([{ purpose: 'marketing', granted: true, grantedAtIso: 'g', revokedAtIso: null }]),
+    Promise.resolve([
+      { purpose: 'marketing', granted: true, grantedAtIso: 'g', revokedAtIso: null },
+    ]),
   ),
   writeConsent: vi.fn(() => Promise.resolve({ kind: 'GRANT' })),
   exportCustomer: vi.fn(() =>
@@ -43,7 +45,10 @@ function envWith(flags: Partial<WorkerEnv>): WorkerEnv {
     FEATURE_LPDP: flags.FEATURE_LPDP,
     DB: {
       prepare: () => ({
-        bind: () => ({ all: () => Promise.resolve({ results: [] }), first: () => Promise.resolve(null) }),
+        bind: () => ({
+          all: () => Promise.resolve({ results: [] }),
+          first: () => Promise.resolve(null),
+        }),
         all: () => Promise.resolve({ results: [] }),
         first: () => Promise.resolve(null),
       }),
@@ -84,12 +89,10 @@ describe('customer LPDP (Sprint 47)', () => {
   });
 
   it('consent: registra propósito', async () => {
-    const res = await runWriteConsentHttp(
-      envWith({ FEATURE_LPDP: '1' }),
-      adminActor,
-      'c1',
-      { purpose: 'marketing', granted: true },
-    );
+    const res = await runWriteConsentHttp(envWith({ FEATURE_LPDP: '1' }), adminActor, 'c1', {
+      purpose: 'marketing',
+      granted: true,
+    });
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ kind: 'GRANT' });
   });

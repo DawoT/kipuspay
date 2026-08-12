@@ -69,12 +69,7 @@ describe('consent LPDP-01', () => {
       revokedAtIso: null,
     };
     expect(isConsentActive(active, '2026-08-10T00:00:00.000Z')).toBe(true);
-    expect(
-      isConsentActive(
-        { ...active, granted: false },
-        '2026-08-10T00:00:00.000Z',
-      ),
-    ).toBe(false);
+    expect(isConsentActive({ ...active, granted: false }, '2026-08-10T00:00:00.000Z')).toBe(false);
     expect(
       isConsentActive(
         { ...active, revokedAtIso: '2026-08-09T00:00:00.000Z' },

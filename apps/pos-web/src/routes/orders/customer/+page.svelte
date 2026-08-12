@@ -433,7 +433,7 @@
 </main>
 
 <style>
-  .pickup-shell { width: 100%; color: var(--text-main); }
+  .pickup-shell { width: 100%; overflow-x: hidden; color: var(--text-main); }
   .masthead { border-bottom: 3px solid var(--accent-primary); padding-bottom: 1rem; }
   .eyebrow, .step { color: var(--accent-primary); font: 750 .75rem/1.2 ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
   h1 { margin: .2rem 0; font-size: clamp(2rem, 5vw, 3.7rem); line-height: 1; }

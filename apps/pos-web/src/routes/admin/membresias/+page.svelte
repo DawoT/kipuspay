@@ -249,8 +249,9 @@
   <!-- Info boxes -->
   <div class="info-pills">
     <div class="info-pill"><Icon name="shield" size={14} /> <span>Sin autocobro — sin tarjeta ni mandato de pago</span></div>
-    <div class="info-pill"><Icon name="dollar" size={14} /> <span>Precio FIXED: importe fijo al crear versión. CURRENT: sigue el catálogo</span></div>
-    <div class="info-pill"><Icon name="info" size={14} /> <span>La mora no bloquea la caja ni el checkout ordinario</span></div>
+    <div class="info-pill"><Icon name="dollar" size={14} /> <span>Precio fijo: importe fijo al crear versión. Precio vigente: sigue el catálogo</span></div>
+    <div class="info-pill"><Icon name="dollar" size={14} /> <span>El servidor calcula el importe, impuestos, documento y deuda</span></div>
+    <div class="info-pill"><Icon name="info" size={14} /> <span>La mora de esta membresía no bloquea la caja ni el checkout ordinario</span></div>
   </div>
 
   {#if !enabled}
@@ -348,10 +349,10 @@
               {selected.status === 'PAUSED' ? 'Reanudar' : 'Pausar'}
             </button>
             <button type="button" class="secondary" data-testid="memberships-cancel-at-end-btn" onclick={cancelAtEnd} disabled={!online}>
-              Cancelar al período
+              Cancelar al final del período
             </button>
             <button class="danger-btn" type="button" data-testid="memberships-cancel-immediate-btn" onclick={previewImmediateCancellation} disabled={!online}>
-              Cancelar ahora + crédito
+              Cancelar ahora y calcular crédito
             </button>
           </div>
 
@@ -361,7 +362,7 @@
               <div class="occurrence-row">
                 <span class="badge badge-indigo badge-sm">{String(occurrence.document_type ?? 'DOC')}</span>
                 <span class="occ-dates">{date(occurrence.period_start)} → {date(occurrence.period_end)}</span>
-                <span class="tabular-nums">{money(occurrence.total_amount_cents)}</span>
+                <span class="occ-price">Precio aplicado: <strong class="tabular-nums">{money(occurrence.total_amount_cents)}</strong></span>
                 <span class="occ-debt tabular-nums">Deuda: {money(occurrence.balance_due_cents)}</span>
               </div>
             {:else}
@@ -583,11 +584,12 @@
     font-weight: 700;
     cursor: pointer;
     font: inherit;
-    min-height: 38px;
+    min-height: 44px;
     transition: all var(--transition-fast);
     width: 100%;
   }
   .danger-btn:hover { background: rgba(217, 106, 60, 0.15); }
+  .danger-btn:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
 
   .history-title { font-size: 0.9375rem; font-weight: 700; margin: 1rem 0 0.5rem; color: var(--text-main); }
 
@@ -605,6 +607,7 @@
     font-size: 0.8125rem;
   }
   .occ-dates { flex: 1; color: var(--text-muted); }
+  .occ-price { color: var(--text-main); }
   .occ-debt { color: var(--text-dim); }
   .no-occurrences { color: var(--text-muted); font-size: 0.875rem; }
 
@@ -644,4 +647,6 @@
 
   @media (max-width: 1000px) { .workspace-grid { grid-template-columns: 1fr 1fr; } aside { grid-column: 1 / -1; } }
   @media (max-width: 650px) { .workspace-grid { grid-template-columns: 1fr; } .detail-grid { grid-template-columns: 1fr; } .action-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 375px) { .info-pills { flex-direction: column; align-items: stretch; } .info-pill { justify-content: flex-start; } .toolbar-bar { flex-direction: column; align-items: stretch; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 </style>

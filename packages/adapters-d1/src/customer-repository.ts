@@ -243,15 +243,7 @@ function consentUpdateStatements(
        revoked_at = excluded.revoked_at`,
   );
   if (plan.kind === 'GRANT') {
-    return stmt.bind(
-      consentId,
-      tenantId,
-      customerId,
-      purpose,
-      1,
-      plan.grantedAtIso,
-      null,
-    );
+    return stmt.bind(consentId, tenantId, customerId, purpose, 1, plan.grantedAtIso, null);
   }
   return stmt.bind(consentId, tenantId, customerId, purpose, 0, null, plan.revokedAtIso);
 }
@@ -278,10 +270,7 @@ export async function writeConsent(
  * Ejecuta el erase/anonimización (LPDP-03) en un solo db.batch: anula el perfil
  * PII, sella los snapshots fiscales y revoca consentimientos. Nunca destruye CPE/XML.
  */
-export async function eraseCustomer(
-  db: D1DatabaseLike,
-  input: EraseInput,
-): Promise<EraseResult> {
+export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Promise<EraseResult> {
   const customer = await db
     .prepare(
       `SELECT id, pii_erased, deleted_at
@@ -292,7 +281,12 @@ export async function eraseCustomer(
     .first<CustomerForEraseRow>();
 
   if (!customer) throw new Error('CUSTOMER_NOT_FOUND');
-  assertNotErased({ id: customer.id, tenantId: input.tenantId, piiErased: customer.pii_erased === 1, deleted: customer.deleted_at !== null });
+  assertNotErased({
+    id: customer.id,
+    tenantId: input.tenantId,
+    piiErased: customer.pii_erased === 1,
+    deleted: customer.deleted_at !== null,
+  });
 
   const prevAudit = await db
     .prepare(

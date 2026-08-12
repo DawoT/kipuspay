@@ -5,6 +5,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '$env/static/public': fileURLToPath(new URL('./tests/env-static-public.ts', import.meta.url)),
+      '$env/dynamic/public': fileURLToPath(
+        new URL('./tests/env-dynamic-public.ts', import.meta.url),
+      ),
     },
   },
   test: {

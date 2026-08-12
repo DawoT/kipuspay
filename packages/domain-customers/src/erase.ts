@@ -10,12 +10,7 @@ export const ANONYMIZED_DOCUMENT = '00000000';
 export const ALREADY_ERASED = 'ALREADY_ERASED';
 
 /** Columnas PII del perfil que se anonimizan a NULL en customers. */
-export const CUSTOMER_PII_NULLABLE_FIELDS = [
-  'name',
-  'email',
-  'phone',
-  'address',
-] as const;
+export const CUSTOMER_PII_NULLABLE_FIELDS = ['name', 'email', 'phone', 'address'] as const;
 export type CustomerPiiField = (typeof CUSTOMER_PII_NULLABLE_FIELDS)[number];
 
 export interface CustomerForErase {
@@ -80,7 +75,9 @@ export function planCustomerErase(
         row.clientName !== ANONYMIZED_NAME || row.clientDocumentNumber !== ANONYMIZED_DOCUMENT,
     )
     .map(
-      (row): {
+      (
+        row,
+      ): {
         saleId: string;
         clientName: typeof ANONYMIZED_NAME;
         clientDocumentNumber: typeof ANONYMIZED_DOCUMENT;
