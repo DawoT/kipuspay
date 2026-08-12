@@ -120,6 +120,7 @@ export async function chargeCartOffline(
     clientName: ctx.clientName || 'Cliente',
     items: lines.map((l) => ({
       productId: l.productId,
+      ...(l.isUncatalogued ? { isUncatalogued: true, manualPriceCents: l.manualPriceCents } : {}),
       ...(l.saleItemId ? { saleItemId: l.saleItemId } : {}),
       ...(l.weightMeasurement ? { weightMeasurement: l.weightMeasurement } : {}),
       ...(l.uomId && l.enteredQuantityMicrounits !== undefined

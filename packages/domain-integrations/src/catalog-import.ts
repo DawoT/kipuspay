@@ -102,6 +102,9 @@ export function mapExternalTax(externalTaxName: string | null | undefined): TaxM
 function validateProduct(row: NormalizedProductRow): string | null {
   if (row.sku.trim() === '') return 'producto requiere sku';
   if (row.name.trim() === '') return 'producto requiere nombre';
+  if (row.barcode?.trim().startsWith('EMP-')) {
+    return 'barcode EMP- está reservado para badges de vendedor (regla 34/36)';
+  }
   if (!(row.priceCents > 0)) {
     return row.priceCents < 0 ? 'precio no puede ser negativo' : 'producto requiere precio';
   }

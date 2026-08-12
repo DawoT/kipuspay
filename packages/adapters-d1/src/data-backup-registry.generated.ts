@@ -2722,6 +2722,7 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
       'is_active',
       'deleted_at',
       'created_at',
+      'badge_barcode',
     ],
     r2References: [],
     tenantFrom: '"users" AS t0',

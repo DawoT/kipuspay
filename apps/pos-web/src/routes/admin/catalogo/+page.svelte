@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    isCatalogQuickAddEnabled,
     isCatalogUomEnabled,
     isCatalogVariantsEnabled,
     isInventorySerialsEnabled,
@@ -9,6 +10,11 @@
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
   const serialsOn = isInventorySerialsEnabled();
+  const quickAddOn = isCatalogQuickAddEnabled();
+  let scanBarcode = $state('');
+  let scanName = $state('');
+  let scanPriceCents = $state('');
+  let scanMessage = $state('');
   let productId = $state('');
   let parentProductId = $state('');
   let overrideCents = $state('');
@@ -23,10 +29,41 @@
   let loading = $state(false);
 
   const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
+    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') || '';
   const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
   const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
+
+  async function quickAdd() {
+    const barcode = scanBarcode.trim();
+    const name = scanName.trim();
+    const priceCents = Number(scanPriceCents);
+    if (!barcode || !name || !Number.isSafeInteger(priceCents) || priceCents <= 0) {
+      scanMessage = 'Código, nombre y precio (entero) son obligatorios.';
+      return;
+    }
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase()}/api/catalog/quick-add`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ barcode, name, priceCents }),
+      });
+    } catch {
+      scanMessage = 'No se pudo conectar para crear el producto.';
+      return;
+    }
+    const json = (await response.json()) as { code?: string; created?: boolean; error?: string };
+    if (!response.ok) {
+      scanMessage = json.error ?? `Error ${response.status}`;
+      return;
+    }
+    scanMessage = json.created
+      ? `Producto creado (código ${barcode}).`
+      : `Producto existente actualizado (código ${barcode}).`;
+    scanBarcode = '';
+    scanName = '';
+    scanPriceCents = '';
+  }
 
   async function loadCatalog() {
     loading = true;
@@ -105,6 +142,30 @@
       Etiquetas de precio
     </a>
   </div>
+
+  {#if quickAddOn}
+    <section class="glass-card section-pad scan-panel" data-testid="quick-add-panel" aria-labelledby="quick-add-title">
+      <div class="card-header">
+        <h2 id="quick-add-title">Escáner rápido</h2>
+        <span class="badge badge-warning">~3s</span>
+      </div>
+      <p class="scan-hint">Escanea (o escribe) un código de barras: si existe editas precio/stock; si no, creas el producto al instante. El prefijo EMP- es de vendedores y jamás crea un producto.</p>
+      <div class="scan-form">
+        <label class="sr-only" for="scan-barcode">Código de barras</label>
+        <input id="scan-barcode" data-testid="quick-add-barcode" bind:value={scanBarcode} placeholder="Código (EAN/UPC o EMP-…)" autocomplete="off" />
+        <label class="sr-only" for="scan-name">Nombre</label>
+        <input id="scan-name" data-testid="quick-add-name" bind:value={scanName} placeholder="Nombre del artículo" />
+        <label class="sr-only" for="scan-price">Precio en cents</label>
+        <input id="scan-price" data-testid="quick-add-price" type="number" min="1" bind:value={scanPriceCents} placeholder="Precio (cents)" />
+        <button type="button" class="primary" data-testid="quick-add-submit" onclick={quickAdd}>
+          Crear o actualizar
+        </button>
+      </div>
+      {#if scanMessage}
+        <p class="scan-message" role="status" data-testid="quick-add-message">{scanMessage}</p>
+      {/if}
+    </section>
+  {/if}
 
   {#if message}
     <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">

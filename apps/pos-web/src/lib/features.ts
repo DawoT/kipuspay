@@ -228,6 +228,11 @@ export function isAgenticInsightsEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_AGENTIC_INSIGHTS'));
 }
 
+/** Sprint 50 — alta rápida de catálogo (escáner); siempre default-off. */
+export function isCatalogQuickAddEnabled(): boolean {
+  return flagOn(pub(PF + 'CATALOG_QUICK_ADD'));
+}
+
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));

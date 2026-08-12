@@ -5,9 +5,11 @@ import down0038 from '../migrations-down/0038_sprint45_mobile_push.sql?raw';
 import down0039 from '../migrations-down/0039_sprint46_forecasting.sql?raw';
 import down0040 from '../migrations-down/0040_sprint47_lpdp_consent.sql?raw';
 import down0041 from '../migrations-down/0041_sprint49_insights.sql?raw';
+import down0042 from '../migrations-down/0042_sprint50_quick_add.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0042_SPRINT50_QUICK_ADD = down0042;
 export const DOWN_0041_SPRINT49_INSIGHTS = down0041;
 export const DOWN_0040_SPRINT47_LPDP_CONSENT = down0040;
 export const DOWN_0039_SPRINT46_FORECASTING = down0039;

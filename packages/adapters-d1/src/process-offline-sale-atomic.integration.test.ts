@@ -867,3 +867,92 @@ describe('processOfflineSaleAtomic S31 UOM (F2)', () => {
     ).rejects.toThrow(/Stock insuficiente/);
   });
 });
+
+describe('línea genérica (Sprint 50 / edge 2A)', () => {
+  it('venta genérica offline: manualPriceCents ≤ umbral, IGV default, GENERIC_LINE, sin stock', async () => {
+    const tenantId = 't-generic';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, max_percent_without_auth, max_amount_without_auth_cents)
+       VALUES (?, 5, 2000)`,
+    )
+      .bind(tenantId)
+      .run();
+    const stockBefore = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .first<{ stock: number }>();
+
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-generic-1', 1, 1770),
+        items: [{ productId: '', isUncatalogued: true, manualPriceCents: 1500, quantity: 1 }],
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
+    );
+    expect(result.status).toBe('SUCCESS');
+
+    const item = await env.DB.prepare(
+      `SELECT product_id, is_uncatalogued, unit_price_cents, unit_cost_cents,
+                subtotal_cents, igv_amount_cents, total_amount_cents
+         FROM sale_items WHERE sale_id = ?`,
+    )
+      .bind(result.saleId)
+      .first<{
+        product_id: string | null;
+        is_uncatalogued: number;
+        unit_price_cents: number;
+        unit_cost_cents: number;
+        subtotal_cents: number;
+        igv_amount_cents: number;
+        total_amount_cents: number;
+      }>();
+    expect(item?.product_id).toBeNull();
+    expect(item?.is_uncatalogued).toBe(1);
+    expect(item?.unit_price_cents).toBe(1500);
+    expect(item?.unit_cost_cents).toBe(0);
+    expect(item?.subtotal_cents).toBe(1500);
+    expect(item?.igv_amount_cents).toBe(270); // IGV default 18%
+    expect(item?.total_amount_cents).toBe(1770);
+
+    const audit = await env.DB.prepare(
+      `SELECT action, payload_json FROM audit_events WHERE action = 'GENERIC_LINE' AND entity_type = 'sale_item'`,
+    ).first<{ action: string; payload_json: string }>();
+    expect(audit?.action).toBe('GENERIC_LINE');
+    expect(JSON.parse(audit?.payload_json ?? '{}')).toMatchObject({ isUncatalogued: true });
+
+    const stockAfter = await env.DB.prepare(
+      `SELECT stock FROM branch_product_stock WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .first<{ stock: number }>();
+    expect(stockAfter?.stock).toBe(stockBefore?.stock);
+  });
+
+  it('rechaza manualPriceCents sobre el umbral sin authz', async () => {
+    const tenantId = 't-generic-limit';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, max_percent_without_auth, max_amount_without_auth_cents)
+       VALUES (?, 5, 1000)`,
+    )
+      .bind(tenantId)
+      .run();
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        {
+          ...nvPayload(fixture, 'off-generic-2', 1, 1770),
+          items: [{ productId: '', isUncatalogued: true, manualPriceCents: 1500, quantity: 1 }],
+        },
+        { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
+      ),
+    ).rejects.toThrow('GENERIC_LINE_PRICE_EXCEEDS_THRESHOLD');
+  });
+});

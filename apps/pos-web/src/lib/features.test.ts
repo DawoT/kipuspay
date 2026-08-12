@@ -42,6 +42,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'CLIENT_MOBILE_POS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'LPDP', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'ANALYTICS_AGENTIC_INSIGHTS', '');
+    vi.stubEnv('PUBLIC_FEATURE_' + 'CATALOG_QUICK_ADD', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -83,6 +84,7 @@ describe('features flags default off', () => {
     expect(mod.isMobilePosEnabled()).toBe(false);
     expect(mod.isLpdpEnabled()).toBe(false);
     expect(mod.isAgenticInsightsEnabled()).toBe(false);
+    expect(mod.isCatalogQuickAddEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

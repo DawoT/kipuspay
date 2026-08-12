@@ -235,6 +235,7 @@ import {
   runInsightChatHttp,
   type InsightsEnv,
 } from './analytics/insights-routes.js';
+import { runQuickAddHttp, runScanLookupHttp } from './catalog/quick-add-routes.js';
 import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
@@ -1263,6 +1264,36 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // Sprint 31 — catálogo padre/variantes + UOM racionales.
+  // Sprint 50 — catalog.quick_add (default-off): alta/upsert por barcode y lector compartido.
+  app.post('/api/catalog/quick-add', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runQuickAddHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 200 | 201 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/catalog/scan/:raw', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runScanLookupHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      c.req.param('raw') ?? '',
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 422 | 503);
+  });
   app.get('/api/catalog/variants-uom', async (c) => {
     const jwt = c.get('jwt');
     const result = await runListVariantsUomHttp(c.env, jwt?.tenantId ?? '');

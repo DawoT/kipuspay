@@ -5,6 +5,9 @@ export interface CartLine {
   readonly name: string;
   readonly unitPriceCents: number;
   readonly quantity: number;
+  /** Sprint 50 (regla 34b): línea genérica sin catálogo — productId '' + precio manual. */
+  readonly isUncatalogued?: boolean;
+  readonly manualPriceCents?: number;
   /** Sprint 31: identidad y cantidad en la UOM elegida (cliente no envía factor). */
   readonly uomId?: string;
   readonly uomCode?: string;
@@ -25,6 +28,18 @@ export interface CartLine {
     readonly heartbeatSequence?: number;
     readonly observedAt: string;
     readonly authorizationToken?: string;
+  };
+}
+
+/** Sprint 50: línea genérica de venta rápida (regla 34b) — sin catálogo. */
+export function genericLine(name: string, manualPriceCents: number, quantity = 1): CartLine {
+  return {
+    productId: '',
+    name,
+    unitPriceCents: manualPriceCents,
+    manualPriceCents,
+    isUncatalogued: true,
+    quantity,
   };
 }
 

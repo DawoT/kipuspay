@@ -23,6 +23,7 @@
     "wrangler": "^4.118.0"
   },
   "dependencies": {
+    "@kipuspay/domain-catalog": "workspace:*",
     "@kipuspay/adapters-d1": "workspace:*",
     "@kipuspay/adapters-accounting": "workspace:*",
     "@kipuspay/adapters-messaging": "workspace:*",
@@ -30,6 +31,7 @@
     "@kipuspay/adapters-stripe": "workspace:*",
     "@kipuspay/domain-analytics": "workspace:*",
     "@kipuspay/domain-billing": "workspace:*",
+    "@kipuspay/domain-catalog": "workspace:*",
     "@kipuspay/domain-cash": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",
     "@kipuspay/domain-inventory": "workspace:*",

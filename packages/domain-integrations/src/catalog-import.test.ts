@@ -218,6 +218,12 @@ describe('planCatalogImport (dry-run: no escribe)', () => {
     expect(plan.conflicts.at(0)?.reason).toBe('precio no puede ser negativo');
   });
 
+  it('Sprint 50: barcode EMP- se rechaza (namespace reservado de vendedores)', () => {
+    const plan = planCatalogImport(input([productRow({ barcode: 'EMP-12345' })]));
+    expect(plan.actions).toHaveLength(0);
+    expect(plan.conflicts.at(0)?.reason).toMatch(/EMP- está reservado/);
+  });
+
   it('mezcla creates, skips y conflictos en un solo lote', () => {
     const keys = new Map([[externalKeyFor('customer', 'c-1'), 'cust-7']]);
     const plan = planCatalogImport({

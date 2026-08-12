@@ -732,3 +732,88 @@ describe('splitNvLinesByFefo', () => {
     expect(splitNvLinesByFefo(totals.lines, new Map()).map((l) => l.batchId)).toEqual([null]);
   });
 });
+
+describe('línea genérica sin catálogo (Sprint 50 / regla 34b)', () => {
+  it('assertOfflineSaleShape acepta línea genérica con manualPriceCents', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        offlineSaleId: 'gen-1',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '12345678',
+        clientName: 'Cliente',
+        items: [{ productId: '', isUncatalogued: true, manualPriceCents: 1500, quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm1', amountCents: 1770 }],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rechaza línea genérica sin manualPriceCents o con producto', () => {
+    const base = {
+      offlineSaleId: 'gen-2',
+      branchId: 'b1',
+      cashRegisterSessionId: 's1',
+      documentType: 'NV' as const,
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '12345678',
+      clientName: 'Cliente',
+      payments: [{ paymentMethodId: 'pm1', amountCents: 1770 }],
+    };
+    expect(() =>
+      assertOfflineSaleShape({
+        ...base,
+        items: [{ productId: '', isUncatalogued: true, quantity: 1 }],
+      }),
+    ).toThrow('GENERIC_LINE_MISSING_MANUAL_PRICE');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...base,
+        items: [{ productId: 'p1', isUncatalogued: true, manualPriceCents: 1500, quantity: 1 }],
+      }),
+    ).toThrow('GENERIC_LINE_WITH_PRODUCT');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...base,
+        items: [{ productId: '', isUncatalogued: true, manualPriceCents: 0, quantity: 1 }],
+      }),
+    ).toThrow('GENERIC_LINE_MISSING_MANUAL_PRICE');
+  });
+
+  it('computeNvLineTotals: línea genérica sin catálogo, IGV 18%, COGS 0', () => {
+    const totals = computeNvLineTotals(
+      [{ productId: '', isUncatalogued: true, manualPriceCents: 1500, quantity: 2 }],
+      new Map(),
+    );
+    const line = totals.lines[0];
+    expect(line).toMatchObject({
+      productId: '',
+      unitPriceCents: 1500,
+      unitCostCents: 0,
+      subtotalCents: 3000,
+      igvCents: 540,
+      totalCents: 3540,
+    });
+    expect(totals.totalCogsCents).toBe(0);
+  });
+
+  it('computeNvLineTotals: descuento de línea genérica no excede el subtotal', () => {
+    expect(() =>
+      computeNvLineTotals(
+        [
+          {
+            productId: '',
+            isUncatalogued: true,
+            manualPriceCents: 100,
+            discountAmountCents: 200,
+            quantity: 1,
+          },
+        ],
+        new Map(),
+      ),
+    ).toThrow('DISCOUNT_EXCEEDS_SUBTOTAL');
+  });
+});

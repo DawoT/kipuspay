@@ -15,7 +15,7 @@ test('authenticated cashier sees gated navigation and creates an unpaid reservat
   await page.getByLabel('Cliente', { exact: true }).fill('customer-new');
   await page.getByLabel('Producto del carrito').fill('product-new');
   await page.getByRole('button', { name: 'Crear desde carrito' }).click();
-  await expect(page.getByText(/Sin pago al crear/)).toBeVisible();
+  await expect(page.getByText(/Sin pago al crear/).first()).toBeVisible();
   expect(harness.lastCreateBody).not.toHaveProperty('tenantId');
   expect(JSON.stringify(harness.lastCreateBody)).not.toContain('unitPrice');
   expect(harness.lastRequestHeaders['x-terminal-id']).toBe('terminal-e2e');

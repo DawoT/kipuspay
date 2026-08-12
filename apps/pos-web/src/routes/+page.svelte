@@ -8,7 +8,7 @@
     isSalesCommissionsEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
-  import { addOrBumpLine, cartTotalCents, type CartLine } from '$lib/pos-checkout/cart';
+  import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import {
     leaseScannedSerialLine,
@@ -68,6 +68,11 @@
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let lines = $state<CartLine[]>([{ ...demoProduct, quantity: 1 }]);
+  let quickSaleOpen = $state(false);
+  let quickName = $state('');
+  let quickPriceCents = $state(1500);
+  let quickError = $state('');
+  const QUICK_SALE_MAX_CENTS = 2000;
   let sellerId = $state('');
   let status = $state('listo');
   let message = $state('');
@@ -187,6 +192,22 @@
 
   function addDemo() {
     lines = addOrBumpLine(lines, { ...demoProduct, quantity: 1 });
+  }
+
+  function addQuickSale() {
+    const name = quickName.trim();
+    if (!name || !Number.isInteger(quickPriceCents) || quickPriceCents <= 0) {
+      quickError = 'Ingresa un nombre y un precio válido.';
+      return;
+    }
+    if (quickPriceCents > QUICK_SALE_MAX_CENTS) {
+      quickError = `El precio máximo sin autorización es S/ ${formatCents(QUICK_SALE_MAX_CENTS)}.`;
+      return;
+    }
+    lines = addOrBumpLine(lines, genericLine(name, quickPriceCents));
+    quickSaleOpen = false;
+    quickName = '';
+    quickError = '';
   }
 
   function removeLine(productId: string) {
@@ -670,6 +691,15 @@
               <Icon name="credit-card" size={20} />
               COBRAR (S/ {formatCents(totalCents)})
             </button>
+            <button
+              type="button"
+              class="secondary charge-btn quick-sale-btn"
+              data-testid="quick-sale"
+              onclick={() => (quickSaleOpen = true)}
+            >
+              <Icon name="plus" size={18} />
+              VENTA RÁPIDA (sin catálogo)
+            </button>
           </div>
         </section>
 
@@ -685,6 +715,27 @@
             </div>
           </div>
         {/if}
+      </div>
+    </div>
+  {/if}
+  {#if quickSaleOpen}
+    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="quick-sale-title">
+      <div class="modal-card">
+        <h2 id="quick-sale-title">Venta rápida sin catálogo</h2>
+        <p class="quick-hint">Cobras algo que aún no está en tu catálogo. El servidor calcula impuestos; esta línea no descuenta stock y queda marcada para catalogar.</p>
+        <label for="quick-name">Nombre del artículo</label>
+        <input id="quick-name" data-testid="quick-sale-name" bind:value={quickName} placeholder="Ej.: empanada de queso" />
+        <label for="quick-price">Precio (máx. S/ {formatCents(QUICK_SALE_MAX_CENTS)})</label>
+        <input id="quick-price" data-testid="quick-sale-price" type="number" min="1" bind:value={quickPriceCents} />
+        {#if quickError}
+          <p class="quick-error" role="alert">{quickError}</p>
+        {/if}
+        <div class="modal-actions">
+          <button type="button" class="secondary" onclick={() => (quickSaleOpen = false)}>Cancelar</button>
+          <button type="button" class="primary" data-testid="quick-sale-add" onclick={addQuickSale}>
+            Agregar al carrito
+          </button>
+        </div>
       </div>
     </div>
   {/if}
@@ -1102,6 +1153,63 @@
     padding: 1rem;
     border-radius: var(--radius-sm);
     overflow-x: auto;
+  }
+
+  .quick-sale-btn {
+    margin-top: 0.5rem;
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .modal-card {
+    width: min(26rem, 100%);
+    background: var(--surface-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    display: grid;
+    gap: 0.6rem;
+  }
+  .modal-card h2 {
+    margin: 0;
+  }
+  .modal-card label {
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .modal-card input {
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    padding: 0.55rem 0.7rem;
+    font: inherit;
+    background: var(--surface-card);
+    color: inherit;
+  }
+  .quick-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .quick-error {
+    color: var(--rose-red);
+    font-size: 0.85rem;
+    margin: 0;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  .modal-actions button {
+    min-height: 44px;
   }
 
   @media (max-width: 900px) {

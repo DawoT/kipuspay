@@ -19,8 +19,8 @@ body[data-theme='dark'] {
   --accent-primary-hover: #eeb765;
   --accent-gradient: linear-gradient(135deg, #d99a3d 0%, #eeb765 100%);
 
-  --emerald-green: #2e9e74;
-  --emerald-gradient: linear-gradient(135deg, #2e9e74 0%, #0f6b4c 100%);
+  --emerald-green: #3dbb86;
+  --emerald-gradient: linear-gradient(135deg, #3dbb86 0%, #0f6b4c 100%);
 
   --amber-gold: #d99a3d;
   --rose-red: #e88a5e;

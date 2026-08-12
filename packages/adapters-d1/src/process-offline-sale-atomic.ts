@@ -393,6 +393,7 @@ function assertStockAvailable(
 ): void {
   if (payload.documentType === 'NV_RETURN') return;
   for (const item of payload.items) {
+    if (item.isUncatalogued === true) continue; // línea genérica: sin stock
     const stock = stockByProduct.get(item.productId)!;
     const qtyMicrounits = Math.round(requiredQuantity(item) * QUANTITY_SCALE);
     if (
@@ -435,7 +436,7 @@ async function prepareWeightMeasurements(
   terminalId: string,
 ): Promise<readonly PreparedWeightMeasurement[]> {
   const hasWeightedProduct = payload.items.some(
-    (item) => catalog.get(item.productId)?.type === 'WEIGH',
+    (item) => item.isUncatalogued !== true && catalog.get(item.productId)?.type === 'WEIGH',
   );
   const hasMeasurement = payload.items.some((item) => item.weightMeasurement !== undefined);
   if (!hasWeightedProduct && !hasMeasurement) return [];
@@ -461,6 +462,7 @@ async function prepareWeightMeasurements(
   const seenMeasurementIds = new Set<string>();
   const prepared: PreparedWeightMeasurement[] = [];
   for (const item of payload.items) {
+    if (item.isUncatalogued === true) continue;
     const product = catalog.get(item.productId)!;
     const measurement = item.weightMeasurement;
     if (product.type !== 'WEIGH') {
@@ -676,7 +678,9 @@ export async function processOfflineSaleAtomic(
   const issuedMs = resolveIssuedAtMs(payload.issuedAt, nowMs);
   const limaTs = toLimaTimestamp(issuedMs);
 
-  const productIds = [...new Set(payload.items.map((i) => i.productId))];
+  const productIds = [
+    ...new Set(payload.items.filter((i) => i.isUncatalogued !== true).map((i) => i.productId)),
+  ];
   const { catalog, stockByProduct } = await loadCatalogAndStock(
     db,
     tenantId,
@@ -729,6 +733,7 @@ export async function processOfflineSaleAtomic(
   const isReturnDoc = payload.documentType === 'NV_RETURN' || payload.documentType === '07';
   if (s18.inventoryBom && !isReturnDoc) {
     for (const item of payload.items) {
+      if (item.isUncatalogued === true) continue;
       const entry = catalog.get(item.productId)!;
       if (entry.type !== 'kit') continue;
       const comps = await loadBomComponents(db, tenantId, item.productId);
@@ -769,6 +774,7 @@ export async function processOfflineSaleAtomic(
   if (s18.inventoryBatches && !isReturnDoc) {
     try {
       for (const item of payload.items) {
+        if (item.isUncatalogued === true) continue;
         const entry = catalog.get(item.productId)!;
         if (!isPhysicalStockType(entry.type)) continue;
         const batches = await loadBatchesForProduct(db, tenantId, payload.branchId, item.productId);
@@ -809,25 +815,27 @@ export async function processOfflineSaleAtomic(
       .first<{ price_list_id: string | null }>();
     const priceListId = branchList?.price_list_id ?? null;
     const applied = assertAndApplyPromotions({
-      lines: payload.items.map((item) => {
-        const entry = catalog.get(item.productId)!;
-        const line: {
-          productId: string;
-          quantity: number;
-          unitPriceCents: number;
-          categoryId: null;
-          priceListId: string | null;
-          promotionIds?: readonly string[];
-        } = {
-          productId: item.productId,
-          quantity: requiredQuantity(item),
-          unitPriceCents: entry.priceCents,
-          categoryId: null,
-          priceListId,
-        };
-        if (item.promotionIds?.length) line.promotionIds = item.promotionIds;
-        return line;
-      }),
+      lines: payload.items
+        .filter((item) => item.isUncatalogued !== true)
+        .map((item) => {
+          const entry = catalog.get(item.productId)!;
+          const line: {
+            productId: string;
+            quantity: number;
+            unitPriceCents: number;
+            categoryId: null;
+            priceListId: string | null;
+            promotionIds?: readonly string[];
+          } = {
+            productId: item.productId,
+            quantity: requiredQuantity(item),
+            unitPriceCents: entry.priceCents,
+            categoryId: null,
+            priceListId,
+          };
+          if (item.promotionIds?.length) line.promotionIds = item.promotionIds;
+          return line;
+        }),
       promotionsById,
       nowMs,
     });
@@ -1170,6 +1178,23 @@ export async function processOfflineSaleAtomic(
     }
   }
 
+  // Sprint 50 (regla 34b): el precio manual de una línea genérica debe estar
+  // dentro del umbral sin authz (max_amount_without_auth_cents, regla 2/17).
+  for (const item of payload.items) {
+    if (item.isUncatalogued !== true) continue;
+    const policyRow = await db
+      .prepare(
+        `SELECT max_amount_without_auth_cents
+         FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
+      )
+      .bind(tenantId)
+      .first<{ max_amount_without_auth_cents: number }>();
+    const limitCents = policyRow?.max_amount_without_auth_cents ?? 2000;
+    if ((item.manualPriceCents ?? 0) > limitCents) {
+      throw new Error('GENERIC_LINE_PRICE_EXCEEDS_THRESHOLD');
+    }
+  }
+
   // E-D preflight: NV_RETURN sobre venta con CxC abierta.
   let arCompensate:
     | {
@@ -1203,6 +1228,7 @@ export async function processOfflineSaleAtomic(
 
   const qtyByProduct = new Map<string, number>();
   for (const item of payload.items) {
+    if (item.isUncatalogued === true) continue; // línea genérica: sin stock
     qtyByProduct.set(
       item.productId,
       (qtyByProduct.get(item.productId) ?? 0) + requiredQuantity(item),
@@ -1641,7 +1667,8 @@ export async function processOfflineSaleAtomic(
       const saleItemIdsByProduct = new Map<string, string[]>();
       const saleItemBySerialId = new Map<string, string>();
       for (const line of saleLines) {
-        const product = catalog.get(line.productId)!;
+        const isGenericLine = line.productId === '';
+        const product = isGenericLine ? undefined : catalog.get(line.productId)!;
         const source =
           (line.sourceLineId
             ? payload.items.find((item) => item.saleItemId === line.sourceLineId)
@@ -1662,6 +1689,72 @@ export async function processOfflineSaleAtomic(
         const effectiveBatchId =
           line.batchId ??
           (weightedAllocations.length === 1 ? weightedAllocations[0]!.batchId : null);
+        if (isGenericLine) {
+          // Sprint 50 (regla 34b): línea genérica — product_id NULL, sin stock,
+          // sin PMP; audit GENERIC_LINE con la cadena de hashes.
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO sale_items (
+                     id, tenant_id, sale_id, product_id, product_name, product_type,
+                     quantity, unit_price_cents, unit_cost_cents, discount_amount_cents,
+                     subtotal_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
+                     total_amount_cents, is_uncatalogued, batch_id, sold_uom_id, sold_uom_code,
+                     entered_quantity_microunits, factor_numerator, factor_denominator,
+                     base_quantity_microunits, seller_id
+                   ) VALUES (?, ?, ?, NULL, 'Venta rápida', 'service', ?, ?, 0, ?, ?, '10', ?, 0, ?, 1, ?, ?, 'UND', ?, 1, 1, ?, ?)`,
+              )
+              .bind(
+                saleItemId,
+                tenantId,
+                saleId,
+                line.quantity,
+                line.unitPriceCents,
+                line.discountCents,
+                line.subtotalCents,
+                line.igvCents,
+                line.totalCents,
+                effectiveBatchId,
+                source.uomId ?? null,
+                enteredQuantityMicrounits,
+                baseQuantityMicrounits,
+                payload.sellerId?.trim() || null,
+              ),
+          );
+          const genericAuditId = crypto.randomUUID();
+          const genericRowHash = await computeAuditHash({
+            action: 'GENERIC_LINE',
+            entity_id: saleItemId,
+            sale_id: saleId,
+            sale_item_id: saleItemId,
+            prev_hash: auditTail,
+          });
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO audit_events (
+                     id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+                     payload_json, prev_hash, row_hash
+                   ) VALUES (?, ?, ?, ?, 'GENERIC_LINE', 'sale_item', ?, ?, ?, ?)`,
+              )
+              .bind(
+                genericAuditId,
+                tenantId,
+                payload.branchId,
+                userId,
+                saleItemId,
+                JSON.stringify({
+                  manualPriceCents: line.unitPriceCents,
+                  quantity: line.quantity,
+                  isUncatalogued: true,
+                }),
+                auditTail,
+                genericRowHash,
+              ),
+          );
+          auditTail = genericRowHash;
+          continue;
+        }
         plan.add(
           db
             .prepare(
@@ -1679,8 +1772,8 @@ export async function processOfflineSaleAtomic(
               tenantId,
               saleId,
               line.productId,
-              product.name,
-              product.type,
+              product!.name,
+              product!.type,
               line.quantity,
               line.unitPriceCents,
               line.unitCostCents,

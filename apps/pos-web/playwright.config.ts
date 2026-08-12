@@ -21,6 +21,7 @@ export default defineConfig({
     reuseExistingServer: true,
     env: {
       PUBLIC_FEATURE_ORDERS_CUSTOMER_ORDERS: '1',
+      PUBLIC_FEATURE_POS_CHECKOUT: '1',
       PUBLIC_FEATURE_SALES_RECURRING: '1',
       PUBLIC_FEATURE_MOBILE_PUSH: '1',
       PUBLIC_FEATURE_CLIENT_MOBILE_POS: '1',
@@ -28,6 +29,7 @@ export default defineConfig({
       PUBLIC_FEATURE_ANALYTICS_FORECASTING: '1',
       PUBLIC_FEATURE_LPDP: '1',
       PUBLIC_FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '1',
+      PUBLIC_FEATURE_CATALOG_QUICK_ADD: '1',
     },
   },
 });

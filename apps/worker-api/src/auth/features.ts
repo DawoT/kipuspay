@@ -78,6 +78,13 @@ export function isAnalyticsForecastingEnabled(env: WorkerEnv | undefined): boole
   return flagOn(env?.FEATURE_ANALYTICS_FORECASTING);
 }
 
+/** Sprint 50 — alta rápida de catálogo (FEATURE_CATALOG_QUICK_ADD, default off). */
+export function isCatalogQuickAddEnabled(
+  env: { readonly FEATURE_CATALOG_QUICK_ADD?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_CATALOG_QUICK_ADD);
+}
+
 /** Sprint 49 — inteligencia del negocio (FEATURE_ANALYTICS_AGENTIC_INSIGHTS, default off). */
 export function isAgenticInsightsEnabled(
   env: { readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string } | undefined,

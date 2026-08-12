@@ -35,6 +35,14 @@ export interface OfflinePaymentPayload {
 
 export interface OfflineSaleItemPayload {
   readonly productId: string;
+  /**
+   * Línea genérica sin catálogo (Sprint 50 / regla 34b): `productId: ''` +
+   * `isUncatalogued: true` + `manualPriceCents` propuesto por el cajero
+   * (dentro del umbral sin authz). El servidor aplica el IGV default del
+   * tenant; jamás toca stock ni PMP. `''` se mapea a product_id NULL.
+   */
+  readonly isUncatalogued?: boolean | undefined;
+  readonly manualPriceCents?: number | undefined;
   /** Stable client line identity; mandatory for a WEIGH measurement. */
   readonly saleItemId?: string | undefined;
   /**
@@ -234,6 +242,10 @@ function assertItemQuantity(item: OfflineSaleItemPayload): void {
 function assertItems(items: readonly OfflineSaleItemPayload[]): void {
   if (!items?.length) throw new Error('EMPTY_ITEMS');
   for (const item of items) {
+    if (item.isUncatalogued === true) {
+      assertGenericLineItem(item);
+      continue;
+    }
     requireNonEmpty(item.productId, 'MISSING_PRODUCT_ID');
     assertItemQuantity(item);
     if (
@@ -244,6 +256,25 @@ function assertItems(items: readonly OfflineSaleItemPayload[]): void {
     }
     assertPromotionIds(item);
     assertSerialIdentity(item);
+  }
+}
+
+/** Línea genérica (regla 34b): sin producto ('' → NULL), precio manual entero > 0. */
+function assertGenericLineItem(item: OfflineSaleItemPayload): void {
+  if (item.productId !== '') throw new Error('GENERIC_LINE_WITH_PRODUCT');
+  if (
+    item.manualPriceCents === undefined ||
+    !Number.isInteger(item.manualPriceCents) ||
+    item.manualPriceCents <= 0
+  ) {
+    throw new Error('GENERIC_LINE_MISSING_MANUAL_PRICE');
+  }
+  assertItemQuantity(item);
+  if (
+    item.discountAmountCents !== undefined &&
+    (!Number.isInteger(item.discountAmountCents) || item.discountAmountCents < 0)
+  ) {
+    throw new Error('INVALID_DISCOUNT_CENTS');
   }
 }
 
@@ -420,6 +451,67 @@ export interface NvTotals {
  * Totales NV server-side (IGV 18%, Math.round).
  * `catalog` ya trae precio de lista resuelto y PMP/costo snapshot (Zero-Trust).
  */
+
+/**
+ * Línea genérica (regla 34b): precio manual validado por assertItems; sin
+ * catálogo, sin stock, sin PMP; IGV default del tenant (18% NV).
+ */
+function genericLineTotals(item: OfflineSaleItemPayload): NvLineCents {
+  const quantity = requireResolvedQuantity(item);
+  const unitPriceCents = item.manualPriceCents!;
+  const discountCents = item.discountAmountCents ?? 0;
+  const subtotalCents = Math.round(quantity * unitPriceCents) - discountCents;
+  if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
+  const igvCents = Math.round((subtotalCents * 18) / 100);
+  const totalCents = subtotalCents + igvCents;
+  return {
+    ...(item.saleItemId ? { sourceLineId: item.saleItemId } : {}),
+    productId: '',
+    quantity,
+    unitPriceCents,
+    discountCents,
+    subtotalCents,
+    igvCents,
+    totalCents,
+    unitCostCents: 0,
+    batchId: null,
+  };
+}
+
+function catalogLineTotals(
+  item: OfflineSaleItemPayload,
+  catalog: ReadonlyMap<string, CatalogPriceCost>,
+): NvLineCents {
+  const product = catalog.get(item.productId);
+  if (!product) throw new Error(`Product not found: ${item.productId}`);
+  const quantity = requireResolvedQuantity(item);
+  const unitPriceCents =
+    item.serverUnitPriceCents !== undefined ? item.serverUnitPriceCents : product.priceCents;
+  if (!Number.isInteger(unitPriceCents) || unitPriceCents < 0) {
+    throw new Error('INVALID_UNIT_PRICE');
+  }
+  if (!Number.isInteger(product.costCents) || product.costCents < 0) {
+    throw new Error('INVALID_UNIT_COST');
+  }
+  const discountCents = item.discountAmountCents ?? 0;
+  const subtotalCents = Math.round(quantity * unitPriceCents) - discountCents;
+  if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
+  const igvCents = Math.round((subtotalCents * 18) / 100);
+  const totalCents = subtotalCents + igvCents;
+  return {
+    ...(item.saleItemId ? { sourceLineId: item.saleItemId } : {}),
+    productId: item.productId,
+    quantity,
+    unitPriceCents,
+    discountCents,
+    subtotalCents,
+    igvCents,
+    totalCents,
+    unitCostCents: product.costCents,
+    batchId: null,
+  };
+}
+
 export function computeNvLineTotals(
   items: readonly OfflineSaleItemPayload[],
   catalog: ReadonlyMap<string, CatalogPriceCost>,
@@ -432,40 +524,14 @@ export function computeNvLineTotals(
   let totalAmountCents = 0;
 
   for (const item of items) {
-    const product = catalog.get(item.productId);
-    if (!product) throw new Error(`Product not found: ${item.productId}`);
-    const quantity = requireResolvedQuantity(item);
-    const unitPriceCents =
-      item.serverUnitPriceCents !== undefined ? item.serverUnitPriceCents : product.priceCents;
-    if (!Number.isInteger(unitPriceCents) || unitPriceCents < 0) {
-      throw new Error('INVALID_UNIT_PRICE');
-    }
-    if (!Number.isInteger(product.costCents) || product.costCents < 0) {
-      throw new Error('INVALID_UNIT_COST');
-    }
-    const discountCents = item.discountAmountCents ?? 0;
-    const subtotalCents = Math.round(quantity * unitPriceCents) - discountCents;
-    if (subtotalCents < 0) throw new Error('DISCOUNT_EXCEEDS_SUBTOTAL');
-    const igvCents = Math.round((subtotalCents * 18) / 100);
-    const totalCents = subtotalCents + igvCents;
-    const unitCostCents = product.costCents;
-    lines.push({
-      ...(item.saleItemId ? { sourceLineId: item.saleItemId } : {}),
-      productId: item.productId,
-      quantity,
-      unitPriceCents,
-      discountCents,
-      subtotalCents,
-      igvCents,
-      totalCents,
-      unitCostCents,
-      batchId: null,
-    });
-    totalTaxableCents += subtotalCents;
-    totalIgvCents += igvCents;
-    totalDiscountCents += discountCents;
-    totalCogsCents += Math.round(unitCostCents * quantity);
-    totalAmountCents += totalCents;
+    const line =
+      item.isUncatalogued === true ? genericLineTotals(item) : catalogLineTotals(item, catalog);
+    lines.push(line);
+    totalTaxableCents += line.subtotalCents;
+    totalIgvCents += line.igvCents;
+    totalDiscountCents += line.discountCents;
+    totalCogsCents += Math.round(line.unitCostCents * line.quantity);
+    totalAmountCents += line.totalCents;
   }
 
   return {

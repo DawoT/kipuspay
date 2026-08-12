@@ -6473,3 +6473,50 @@ aprobaciones: [Staff Data R, Staff Backend ACID R, Staff Security R, Staff SRE R
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0325
+timestamp_utc: 2026-08-12T07:30:00Z
+schema_version: 2
+sprint_fase: Sprint 50 — FASE 6G (catalog.quick_add + sales.quick_line)
+agente_responsable: Staff Backend ACID (owner) / Staff Data / Staff Frontend/Design
+tipo: Entregable nuevo
+subtipo: quick-add
+relacion: amplia
+referencias_entradas: [0324]
+referencias_documentales: [docs/ops/s50-quick-add-qg.md, packages/domain-catalog/src/scan-classifier.ts, packages/domain-sales/src/offline-sale.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, apps/worker-api/src/catalog/quick-add-routes.ts, apps/pos-web/src/lib/scan/barcode-scanner.ts, docs/GTM.md]
+prev_id: 0324
+prev_hash: 2a89f2b93a384aa8f8353ef2e8022690d5866cda43816c3908491c1acfaad21e
+entry_hash: 40549d913dcf6ca608326bbcf8a18e673bf31a22bc34fe967e57ae635131f5f4
+ticket_or_adr: Roadmap FASE 6G Sprint 50 (regla 34, edges 1A/2A)
+test_ids: [V-13, V-15, V-16, SUITE, scan-classifier.test.ts, offline-sale.test.ts, quick-add-schema.test.ts, quick-add-routes.test.ts, barcode-scanner.test.ts, quick-sale.spec.ts]
+entregable_afectado: docs/ops/s50-quick-add-qg.md (nuevo) — cierre del Sprint 50
+descripcion: >
+  Entrega catalog.quick_add + sales.quick_line (default-off): migracion 0042
+  (users.badge_barcode con indice unico parcial y uq_products_barcode_tenant
+  con NOT LIKE 'EMP-%'); paquete nuevo domain-catalog con scan-classifier
+  (edge 1A: EMP- -> VENDOR_SCOPE, digitos -> PRODUCT_SCOPE, UNKNOWN
+  fail-closed, 500 escaneos mixtos 0 falsos positivos; isReservedBarcode);
+  linea generica en domain-sales (OfflineSaleItemPayload con isUncatalogued +
+  manualPriceCents, assertGenericLineItem, computeNvLineTotals sin catalogo
+  ni stock con IGV 18% y COGS 0); motor ACID (skips en stock/weight/BOM/FEFO/
+  promos, validacion del umbral max_amount_without_auth_cents regla 2/17,
+  INSERT sale_items product_id NULL + is_uncatalogued=1 + audit GENERIC_LINE
+  con hash-chain); rutas POST /api/catalog/quick-add (upsert por barcode,
+  200/201, EMP- 422) y GET /api/catalog/scan/:raw (producto o vendedor por
+  badge_barcode); CatalogImporter rechaza EMP-; UI: boton VENTA RAPIDA en la
+  caja (modal con tope S/20), panel Escaner rapido en admin/catalogo y lector
+  barcode-scanner zero-dep (BarcodeDetector + fallback manual); GTM claim
+  "sube tu catalogo con la camara" descongelada.
+evidencia: >
+  RED: modulos/migracion/rutas/UI ausentes (tests nuevos fallaron por import).
+  GREEN: domain-catalog 5/5 100%, domain-sales 245, domain-integrations 29,
+  adapters-d1 305 unit + 221 workerd (edge 2A 2/2), worker-api 694
+  (quick-add-routes 7/7), pos-web 176 unit + E2E 30/30 (quick-sale 2/2),
+  lint/typecheck/format GREEN, verify.sh SUITE GREEN. Claim descongelada;
+  produccion/piloto NO-GO hasta staging real y A+V.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Data R, Staff Frontend R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
