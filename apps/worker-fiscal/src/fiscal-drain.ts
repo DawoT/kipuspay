@@ -1,5 +1,9 @@
 /**
  * Drain FIFO fiscal_outbox por must_submit_by — XML desde R2 (§8.1).
+ * B4 (47b): cada fila se reclama atómicamente (PENDING/FAILED → PROCESSING con
+ * next_attempt_at como marca de claim); dos drains concurrentes nunca envían el
+ * mismo XML (el segundo no ve PENDING/FAILED). Las filas PROCESSING huérfanas
+ * (crash del drain) se reclaman tras 10 minutos.
  */
 import {
   classifyFiscalError,
@@ -8,6 +12,7 @@ import {
 } from '@kipuspay/adapters-sunat';
 
 export const POISON_RETRY_THRESHOLD = 5;
+export const CLAIM_STALE_AFTER_MINUTES = 10;
 
 export interface FiscalXmlR2 {
   get(key: string): Promise<{ text(): Promise<string> } | null>;
@@ -22,6 +27,8 @@ interface D1Bound {
 
 interface D1Prepared {
   bind(...params: unknown[]): D1Bound;
+  all<T = unknown>(): Promise<{ results?: readonly T[] }>;
+  run(): Promise<unknown>;
 }
 
 export interface FiscalDrainDb {
@@ -58,20 +65,39 @@ export async function putFiscalXml(
   return key;
 }
 
-/** Selecciona PENDING/FAILED ordenados por must_submit_by IS NULL, must_submit_by ASC. */
-export async function selectOutboxFifo(
-  db: FiscalDrainDb,
-  limit: number,
-): Promise<readonly OutboxRow[]> {
+/**
+ * Reclama atómicamente hasta `limit` filas (PENDING/FAILED, o PROCESSING
+ * huérfanas con más de CLAIM_STALE_AFTER_MINUTES). El UPDATE es una sola
+ * sentencia: dos drains concurrentes no pueden reclamar la misma fila.
+ */
+export async function claimFiscalRows(db: FiscalDrainDb, limit: number): Promise<number> {
+  const res = await db
+    .prepare(
+      `UPDATE fiscal_outbox
+       SET status = 'PROCESSING', next_attempt_at = CURRENT_TIMESTAMP
+       WHERE id IN (
+         SELECT id FROM fiscal_outbox
+         WHERE (status IN ('PENDING','FAILED')
+                OR (status = 'PROCESSING' AND next_attempt_at < datetime('now', ?)))
+         ORDER BY must_submit_by IS NULL, must_submit_by ASC
+         LIMIT ?
+       )`,
+    )
+    .bind(`-${CLAIM_STALE_AFTER_MINUTES} minutes`, limit)
+    .run();
+  return typeof res === 'object' && res !== null && 'meta' in res
+    ? ((res as { meta?: { changes?: number } }).meta?.changes ?? 0)
+    : 0;
+}
+
+/** Lee las filas reclamadas por este drain (status = PROCESSING). */
+export async function selectClaimedRows(db: FiscalDrainDb): Promise<readonly OutboxRow[]> {
   const res = await db
     .prepare(
       `SELECT id, tenant_id, sale_id, attempt_count, must_submit_by, r2_xml_key, status, document_type
        FROM fiscal_outbox
-       WHERE status IN ('PENDING','FAILED')
-       ORDER BY must_submit_by IS NULL, must_submit_by ASC
-       LIMIT ?`,
+       WHERE status = 'PROCESSING'`,
     )
-    .bind(limit)
     .all<OutboxRow>();
   return res.results ?? [];
 }
@@ -85,7 +111,8 @@ export async function drainFiscalOutbox(input: {
   readonly limit?: number;
 }): Promise<DrainResult> {
   const transport = input.transport ?? createMockPseTransport();
-  const rows = await selectOutboxFifo(input.db, input.limit ?? 20);
+  const claimed = await claimFiscalRows(input.db, input.limit ?? 20);
+  const rows = claimed > 0 ? await selectClaimedRows(input.db) : [];
   let processed = 0;
   let quarantined = 0;
   let skippedOpenBreaker = 0;
@@ -101,13 +128,17 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, last_error = ?
-           WHERE id = ? AND tenant_id = ?`,
+           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
         )
         .bind('POISON_RETRY', 'retry_count_exceeded', row.id, row.tenant_id)
         .run();
       await input.db
-        .prepare(`UPDATE sales SET sunat_status = 'QUARANTINED' WHERE id = ? AND tenant_id = ?`)
-        .bind(row.sale_id, row.tenant_id)
+        .prepare(
+          `UPDATE sales SET sunat_status = 'QUARANTINED'
+           WHERE id = ? AND tenant_id = ?
+             AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
+        )
+        .bind(row.sale_id, row.tenant_id, row.id, row.tenant_id)
         .run();
       quarantined += 1;
       processed += 1;
@@ -118,7 +149,7 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ?`,
+           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
         )
         .bind('MISSING_R2_XML', row.id, row.tenant_id)
         .run();
@@ -132,7 +163,7 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ?`,
+           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
         )
         .bind('R2_MISS', row.id, row.tenant_id)
         .run();
@@ -160,7 +191,7 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ?`,
+           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
         )
         .bind('INFRA', row.id, row.tenant_id)
         .run();
@@ -172,13 +203,17 @@ export async function drainFiscalOutbox(input: {
       await input.db
         .prepare(
           `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ?`,
+           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
         )
         .bind('BUSINESS_4XX', row.id, row.tenant_id)
         .run();
       await input.db
-        .prepare(`UPDATE sales SET sunat_status = 'REJECTED' WHERE id = ? AND tenant_id = ?`)
-        .bind(row.sale_id, row.tenant_id)
+        .prepare(
+          `UPDATE sales SET sunat_status = 'REJECTED'
+           WHERE id = ? AND tenant_id = ?
+             AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
+        )
+        .bind(row.sale_id, row.tenant_id, row.id, row.tenant_id)
         .run();
       quarantined += 1;
       rejected += 1;
@@ -188,13 +223,18 @@ export async function drainFiscalOutbox(input: {
 
     await input.db
       .prepare(
-        `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1 WHERE id = ? AND tenant_id = ?`,
+        `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1
+         WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
       )
       .bind(row.id, row.tenant_id)
       .run();
     await input.db
-      .prepare(`UPDATE sales SET sunat_status = 'ACCEPTED' WHERE id = ? AND tenant_id = ?`)
-      .bind(row.sale_id, row.tenant_id)
+      .prepare(
+        `UPDATE sales SET sunat_status = 'ACCEPTED'
+         WHERE id = ? AND tenant_id = ?
+           AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
+      )
+      .bind(row.sale_id, row.tenant_id, row.id, row.tenant_id)
       .run();
     accepted += 1;
     processed += 1;

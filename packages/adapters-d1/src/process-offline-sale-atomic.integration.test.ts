@@ -679,6 +679,54 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
     expect(ar?.balance_due_cents).toBe(680);
     expect(ar?.status).toBe('PARTIALLY_PAID');
   });
+
+  it('race de cupo de crédito: dos ventas concurrentes nunca exceden el límite (B1)', async () => {
+    const tenantId = 't-credit-race';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO customers (
+             id, tenant_id, document_type_code, document_number, name, profile_updated_at, is_active, credit_limit_cents
+           ) VALUES (?, ?, '1', '12345678', 'Cliente Cupo', '2026-08-01T00:00:00.000Z', 1, 5000)`,
+      ).bind('cust-race', tenantId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const saleA = {
+      ...nvPayload(fixture, 'off-race-a', 3, 3540),
+      clientDocumentNumber: '12345678',
+      clientName: 'Cliente Cupo',
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 3540, isCredit: true }],
+    };
+    const saleB = { ...saleA, offlineSaleId: 'off-race-b' };
+
+    // Dos POS sincronizan en paralelo: ambos preflights ven CxC abierta = 0 y
+    // aprueban; el guard del batch debe abortar el segundo commit (ok=0 → CHECK).
+    const results = await Promise.allSettled([
+      processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, saleA, {
+        nowMs: now,
+        ledgerArApEnabled: true,
+      }),
+      processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, saleB, {
+        nowMs: now,
+        ledgerArApEnabled: true,
+      }),
+    ]);
+    const successes = results.filter(
+      (r): r is PromiseFulfilledResult<{ status: string }> =>
+        r.status === 'fulfilled' && r.value.status === 'SUCCESS',
+    ).length;
+    expect(successes).toBe(1);
+
+    const open = await env.DB.prepare(
+      `SELECT COALESCE(SUM(balance_due_cents), 0) AS s
+         FROM accounts_receivable
+         WHERE tenant_id = ? AND balance_due_cents > 0`,
+    )
+      .bind(tenantId)
+      .first<{ s: number }>();
+    expect(open?.s ?? 0).toBeLessThanOrEqual(5000);
+  });
 });
 
 describe('processOfflineSaleAtomic S31 UOM (F2)', () => {

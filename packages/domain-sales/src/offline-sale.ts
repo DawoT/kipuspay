@@ -336,14 +336,47 @@ export function assertOfflineSaleShape(payload: OfflineSalePayload): void {
   assertPayments(payload.payments);
 }
 
-/** SYN-04/SEC-06: ventana ±6h; fuera → error (nunca re-fechar). */
+/**
+ * SYN-04/SEC-06: ventana ±6h; fuera → error (nunca re-fechar).
+ * B6 (47b): un `issuedAt` naive (sin Z ni offset, el formato típico del POS
+ * offline) se interpreta como hora local LIMA (UTC-5), no como UTC — antes se
+ * desplazaba 5 h y podía caer en el día fiscal equivocado o violar el skew.
+ * El instante de emisión offline se conserva (el rollup del día cerrado debe
+ * re-materializarse con la fecha real de la venta, edge D).
+ */
 export function resolveIssuedAtMs(issuedAt: string | undefined, nowMs: number): number {
-  const clientTime = issuedAt ? new Date(issuedAt).getTime() : nowMs;
+  if (issuedAt === undefined) return nowMs;
+  const clientTime = parseIssuedAtLimaMs(issuedAt);
   if (!Number.isFinite(clientTime)) throw new Error('INVALID_ISSUED_AT');
   if (nowMs - clientTime > ISSUED_AT_SKEW_MS || clientTime > nowMs + ISSUED_AT_SKEW_MS) {
     throw new Error('ISSUED_AT_SKEW_VIOLATION');
   }
   return clientTime;
+}
+
+/** Naive (sin zona) = hora local Lima (UTC-5): 14:00 sin Z ⇒ 14:00 Lima ⇒ 19:00 UTC. */
+function parseIssuedAtLimaMs(issuedAt: string): number {
+  // Con zona si termina en Z o si el tramo tras la T lleva +/offset.
+  const tIndex = issuedAt.indexOf('T');
+  const tail = tIndex >= 0 ? issuedAt.slice(tIndex) : '';
+  const hasZone = issuedAt.endsWith('Z') || tail.includes('+') || tail.includes('-');
+  if (hasZone) return Date.parse(issuedAt);
+  // Componente por componente: Date.parse sin zona usa la TZ del host (CI corre
+  // en UTC), lo que desplazaría la hora 5 h según la máquina.
+  const datePart = issuedAt.slice(0, 10);
+  const timePart = issuedAt.slice(11);
+  const dateParts = datePart.split('-').map((v) => Number(v));
+  const timeParts = timePart.split(':').map((v) => Number(v));
+  if (dateParts.length < 3 || timeParts.length < 2) return Date.parse(issuedAt);
+  const y = dateParts[0]!;
+  const mo = dateParts[1]!;
+  const d = dateParts[2]!;
+  const h = timeParts[0]!;
+  const mi = timeParts[1]!;
+  const s = timeParts[2];
+  if (![y, mo, d, h, mi].every((v) => Number.isFinite(v))) return Date.parse(issuedAt);
+  const utc = Date.UTC(y, mo - 1, d, h, mi, Number.isFinite(s) ? s : 0);
+  return Number.isFinite(utc) ? utc + 5 * 3600 * 1000 : Number.NaN;
 }
 
 export function toLimaTimestamp(validatedTimeMs: number): string {

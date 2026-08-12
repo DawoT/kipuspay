@@ -64,7 +64,9 @@ export async function readBreakerOpen(
     return true;
   }
   const raw = await kv.get(key);
-  const open = raw === '1' || raw === 'open';
+  // B8 (47b): whitelist estricta — '0' = closed; TODO lo demás (null, '1',
+  // 'true', 'OPEN', valor corrupto) = OPEN (fail-closed, nunca acceso por omisión).
+  const open = raw !== '0';
   isolateCache.set(key, { open, expiresAtMs: nowMs + BREAKER_ISOLATE_TTL_MS });
   return open;
 }

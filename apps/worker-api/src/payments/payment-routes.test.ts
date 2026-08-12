@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { settleCaptureAtomic } from '@kipuspay/adapters-d1';
 import {
   isCardAcquirerEnabled,
   isQrWalletsEnabled,
@@ -7,6 +8,10 @@ import {
   runPaymentWebhookHttp,
 } from './payment-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
+
+beforeEach(() => {
+  vi.mocked(settleCaptureAtomic).mockClear();
+});
 
 vi.mock('@kipuspay/adapters-d1', () => ({
   createPendingCaptureAtomic: vi.fn(() =>
@@ -224,5 +229,70 @@ describe('runPaymentWebhookHttp', () => {
       Math.floor(Date.now() / 1000),
     );
     expect(res.status).toBe(404);
+  });
+
+  it('B2: webhook antes del capture (POS aún no creó el PENDING) → 202 retryable, sin dedup', async () => {
+    const env = mockEnv();
+    const db = env.DB as unknown as { prepare(sql: string): { bind(): unknown } };
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      const stmt = original(sql) as { bind(): unknown; first<T>(): Promise<T | null> };
+      if (sql.includes('FROM payment_captures')) {
+        const custom = {
+          ...stmt,
+          first: <T>() => Promise.resolve(null as T | null),
+        };
+        custom.bind = () => custom;
+        return custom;
+      }
+      return stmt;
+    };
+    verifyWebhook.mockResolvedValueOnce({
+      ok: true,
+      chargeId: 'cap-no-existe',
+      status: 'CAPTURED',
+      reference: 'ref-no-existe',
+    });
+    const res = await runPaymentWebhookHttp(
+      env,
+      'yape',
+      '{"chargeId":"cap-no-existe","status":"CAPTURED"}',
+      'sig',
+      Math.floor(Date.now() / 1000),
+    );
+    expect(res.status).toBe(202);
+    expect(res.body.code).toBe('CAPTURE_NOT_MATERIALIZED');
+    // Sin settle y sin marcar dedup: el proveedor debe poder reintentar.
+    expect(settleCaptureAtomic).toHaveBeenCalledTimes(0);
+  });
+
+  it('B2: falla de la DB de dedup → 503 retryable, nunca 200 ok sin efecto', async () => {
+    const env = mockEnv();
+    const db = env.DB as unknown as { prepare(sql: string): { bind(): unknown } };
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      const stmt = original(sql) as { bind(): unknown; run(): Promise<unknown> };
+      if (sql.includes('INSERT INTO webhook_events')) {
+        const custom = { ...stmt, run: () => Promise.reject(new Error('DB_DOWN')) };
+        custom.bind = () => custom;
+        return custom;
+      }
+      return stmt;
+    };
+    verifyWebhook.mockResolvedValueOnce({
+      ok: true,
+      chargeId: 'cap1',
+      status: 'CAPTURED',
+      reference: 'ref1',
+    });
+    const res = await runPaymentWebhookHttp(
+      env,
+      'yape',
+      '{"chargeId":"cap1","status":"CAPTURED"}',
+      'sig',
+      Math.floor(Date.now() / 1000),
+    );
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('WEBHOOK_DEDUP_FAILED');
   });
 });

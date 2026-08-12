@@ -9,6 +9,95 @@ export interface JwtVerifyEnv {
 
 const textEncoder = new TextEncoder();
 
+/** JWK del IdP (el lib webworker no tipa `kid`). */
+interface JwkEntry extends JsonWebKey {
+  readonly kid?: string;
+}
+
+/** Caché JWKS por isolate (TTL 5 min); fail-closed si no se puede renovar. */
+const JWKS_CACHE_TTL_MS = 5 * 60 * 1000;
+let jwksCache: { keys: Map<string, JwkEntry>; fetchedAt: number } | null = null;
+
+async function loadJwks(url: string): Promise<Map<string, JwkEntry> | null> {
+  const now = Date.now();
+  if (jwksCache && now - jwksCache.fetchedAt < JWKS_CACHE_TTL_MS) return jwksCache.keys;
+  let body: { keys?: JwkEntry[] };
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    body = await res.json();
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(body.keys)) return null;
+  const keys = new Map<string, JwkEntry>();
+  for (const key of body.keys) {
+    const kid = typeof key.kid === 'string' && key.kid.length > 0 ? key.kid : null;
+    const use = typeof key.use === 'string' ? key.use : null;
+    if (kid && (use === null || use === 'sig')) keys.set(kid, key);
+  }
+  if (keys.size === 0) return null;
+  jwksCache = { keys, fetchedAt: now };
+  return keys;
+}
+
+function resolveJwksKey(
+  jwks: ReadonlyMap<string, JwkEntry>,
+  header: Record<string, unknown>,
+  alg: string,
+): JwkEntry | null {
+  const kid = claimString(header, 'kid');
+  if (kid) return jwks.get(kid) ?? null;
+  if (jwks.size === 1) {
+    const [only] = [...jwks.values()];
+    return only && (!only.alg || only.alg === alg) ? only : null;
+  }
+  return null;
+}
+
+async function verifyAsymmetric(
+  alg: string,
+  key: JwkEntry,
+  headerB64: string,
+  payloadB64: string,
+  sigB64: string,
+): Promise<boolean> {
+  if (key.alg && key.alg !== alg) return false;
+  const message = textEncoder.encode(`${headerB64}.${payloadB64}`);
+  const signature = b64urlToBytes(sigB64);
+  try {
+    if (alg === 'RS256' && key.kty === 'RSA') {
+      const algorithm = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' } as const;
+      const imported = await crypto.subtle.importKey('jwk', key, algorithm, false, ['verify']);
+      return crypto.subtle.verify(algorithm, imported, signature, message);
+    }
+    if (alg === 'ES256' && key.kty === 'EC' && key.crv === 'P-256') {
+      const algorithm = { name: 'ECDSA', hash: 'SHA-256' } as const;
+      const imported = await crypto.subtle.importKey('jwk', key, algorithm, false, ['verify']);
+      return crypto.subtle.verify(algorithm, imported, signature, message);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyViaJwks(
+  env: JwtVerifyEnv,
+  alg: string,
+  header: Record<string, unknown>,
+  headerB64: string,
+  payloadB64: string,
+  sigB64: string,
+): Promise<boolean> {
+  if (alg.startsWith('HS')) return false;
+  const jwks = await loadJwks(env.AUTH_JWT_JWKS_URL!);
+  if (!jwks) return false;
+  const key = resolveJwksKey(jwks, header, alg);
+  if (!key) return false;
+  return verifyAsymmetric(alg, key, headerB64, payloadB64, sigB64);
+}
+
 function b64urlToBytes(input: string): Uint8Array {
   const padded = input.replace(/-/g, '+').replace(/_/g, '/');
   const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
@@ -113,8 +202,9 @@ export async function verifyJwt(
   if (!alg || alg.toLowerCase() === 'none') return null;
 
   if (env.AUTH_JWT_JWKS_URL) {
-    if (alg.startsWith('HS')) return null;
-    return null;
+    const ok = await verifyViaJwks(env, alg, header, headerB64, payloadB64, sigB64);
+    if (!ok || !timeClaimsOk(payload, nowMs)) return null;
+    return identityClaims(payload);
   }
 
   if (alg !== 'HS256' || !env.AUTH_JWT_HS_SECRET) return null;

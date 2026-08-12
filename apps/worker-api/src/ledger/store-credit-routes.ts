@@ -105,6 +105,57 @@ export async function runExpireStoreCreditHttp(
   }
 }
 
+interface AdjustBodyParsed {
+  readonly customerId: string;
+  readonly branchId: string;
+  readonly amountCents: number;
+  readonly adjustSign: 'CREDIT' | 'DEBIT';
+  readonly idempotencyKey: string | null;
+  readonly authorizedByUserId: string;
+}
+
+function parseAdjustBody(
+  body: Record<string, unknown>,
+  userId: string,
+): { ok: true; parsed: AdjustBodyParsed } | { ok: false; result: HttpResult } {
+  const customerId = typeof body.customerId === 'string' ? body.customerId : '';
+  const branchId = typeof body.branchId === 'string' ? body.branchId : '';
+  const amountCents = parseMoneyInteger(body.amountCents);
+  if (amountCents === null) {
+    return {
+      ok: false,
+      result: {
+        status: 400,
+        body: { error: 'amountCents must be an integer number', code: 'BAD_REQUEST' },
+      },
+    };
+  }
+  if (!customerId || !branchId) {
+    return {
+      ok: false,
+      result: {
+        status: 400,
+        body: { error: 'customerId and branchId required', code: 'BAD_REQUEST' },
+      },
+    };
+  }
+  return {
+    ok: true,
+    parsed: {
+      customerId,
+      branchId,
+      amountCents,
+      adjustSign: body.adjustSign === 'DEBIT' ? 'DEBIT' : 'CREDIT',
+      idempotencyKey:
+        typeof body.idempotencyKey === 'string' && body.idempotencyKey.length > 0
+          ? body.idempotencyKey
+          : null,
+      authorizedByUserId:
+        typeof body.authorizedByUserId === 'string' ? body.authorizedByUserId : userId,
+    },
+  };
+}
+
 export async function runAdjustStoreCreditHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -120,30 +171,14 @@ export async function runAdjustStoreCreditHttp(
   if (!privileged(role)) {
     return { status: 403, body: { error: 'Admin/Owner required', code: 'FORBIDDEN' } };
   }
-  const customerId = typeof body.customerId === 'string' ? body.customerId : '';
-  const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const amountCents = parseMoneyInteger(body.amountCents);
-  if (amountCents === null) {
-    return {
-      status: 400,
-      body: { error: 'amountCents must be an integer number', code: 'BAD_REQUEST' },
-    };
-  }
-  const adjustSign = body.adjustSign === 'DEBIT' ? 'DEBIT' : 'CREDIT';
-  const authorizedByUserId =
-    typeof body.authorizedByUserId === 'string' ? body.authorizedByUserId : userId;
-  if (!customerId || !branchId) {
-    return {
-      status: 400,
-      body: { error: 'customerId and branchId required', code: 'BAD_REQUEST' },
-    };
-  }
+  const parsed = parseAdjustBody(body, userId);
+  if (!parsed.ok) return parsed.result;
   try {
     const result = await processStoreCreditAdjustAtomic(
       env.DB,
       tenantId,
       userId,
-      { customerId, branchId, amountCents, adjustSign, authorizedByUserId },
+      { ...parsed.parsed },
       opts(env),
     );
     return { status: 200, body: { ...result } };

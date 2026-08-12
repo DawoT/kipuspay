@@ -233,6 +233,48 @@ export async function runPaymentWebhookHttp(
 
     const eventId = `${acquirer}:${verified.chargeId}:${verified.status}`;
     const dedupDb = env.WEBHOOK_EVENTS_DB ?? env.DB;
+
+    const row = await env.DB.prepare(
+      `SELECT id, tenant_id, status FROM payment_captures
+       WHERE acquirer = ? AND (id = ? OR acquirer_ref = ?) LIMIT 1`,
+    )
+      .bind(acquirer, verified.chargeId, verified.reference)
+      .first<{ id: string; tenant_id: string; status: string }>();
+
+    // B2 (47b): el webhook puede llegar ANTES de que el POS cree el capture
+    // PENDING (o con la DB de dedup caída). Jamás ackear 200 sin materializar:
+    // - capture aún no existe → 202 retryable y SIN dedup (el proveedor reintenta
+    //   y el retry encontrará el PENDING cuando exista).
+    // - dedup falla después del settle → 503 retryable (settle idempotente por
+    //   guardState; el retry recibe dedup-ack).
+    if (!row) {
+      return {
+        status: 202,
+        body: { ok: false, code: 'CAPTURE_NOT_MATERIALIZED', retryable: true },
+      };
+    }
+    if (row.status !== 'PENDING') {
+      // Ya materializado en estado terminal: dedup-ack para frenar reintentos.
+      try {
+        await dedupDb
+          .prepare(
+            `INSERT INTO webhook_events (id, source, event_id, payload_hash)
+             VALUES (?, ?, ?, ?)`,
+          )
+          .bind(crypto.randomUUID(), acquirer, eventId, signatureHeader.slice(0, 64))
+          .run();
+      } catch {
+        // Estado terminal persistido: ack seguro aunque el dedup falle.
+      }
+      return { status: 200, body: { ok: true, dedup: true } };
+    }
+
+    const next = verified.status === 'FAILED' ? 'FAILED' : 'CAPTURED';
+    await settleCaptureAtomic(env.DB, row.tenant_id, {
+      captureId: row.id,
+      toStatus: next,
+      acquirerRef: verified.reference,
+    });
     try {
       await dedupDb
         .prepare(
@@ -242,22 +284,7 @@ export async function runPaymentWebhookHttp(
         .bind(crypto.randomUUID(), acquirer, eventId, signatureHeader.slice(0, 64))
         .run();
     } catch {
-      return { status: 200, body: { ok: true, dedup: true } };
-    }
-
-    const row = await env.DB.prepare(
-      `SELECT id, tenant_id, status FROM payment_captures
-       WHERE acquirer = ? AND (id = ? OR acquirer_ref = ?) LIMIT 1`,
-    )
-      .bind(acquirer, verified.chargeId, verified.reference)
-      .first<{ id: string; tenant_id: string; status: string }>();
-    if (row && row.status === 'PENDING') {
-      const next = verified.status === 'FAILED' ? 'FAILED' : 'CAPTURED';
-      await settleCaptureAtomic(env.DB, row.tenant_id, {
-        captureId: row.id,
-        toStatus: next,
-        acquirerRef: verified.reference,
-      });
+      return { status: 503, body: { error: 'WEBHOOK_DEDUP_FAILED', code: 'WEBHOOK_DEDUP_FAILED' } };
     }
 
     return { status: 200, body: { ok: true } };

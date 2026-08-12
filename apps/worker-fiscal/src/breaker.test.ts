@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { BREAKER_FAILURE_THRESHOLD } from '@kipuspay/domain-fiscal-pe';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { BREAKER_FAILURE_THRESHOLD, breakerKvKey } from '@kipuspay/domain-fiscal-pe';
 import {
   coalesceInfraFailure,
   flushCoalesce,
@@ -13,6 +13,7 @@ import {
   writeBreakerOpenToKv,
   type BreakerKvLike,
 } from './breaker-read-cache.js';
+import { reportInfraFailure, type FiscalWorkerEnv } from './index.js';
 import {
   memoryBreakerGet,
   memoryBreakerIncrement,
@@ -97,5 +98,52 @@ describe('breaker read cache + coalesce + memory DO', () => {
 
   it('jitter > base', () => {
     expect(jitterMs(100, () => 0.9)).toBeGreaterThanOrEqual(100);
+  });
+
+  it('B7: reportInfraFailure envía al DO SOLO cuando cierra la ventana (1 delta, sin inflado)', async () => {
+    const captured: { count: number }[] = [];
+    const doFetch = vi.fn(async (input: Request) => {
+      captured.push(JSON.parse(await input.text()) as { count: number });
+      return new Response('{}', { status: 200 });
+    });
+    const env = {
+      FEATURE_FISCAL_CIRCUIT_BREAKER: '1',
+      FISCAL_CIRCUIT_BREAKER_DO: {
+        idFromName: (name: string) => name,
+        get: () => ({ fetch: doFetch }),
+      },
+    } as unknown as FiscalWorkerEnv;
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      // 5 fallos dentro de la ventana (5s): el DO NO debe recibir nada aún.
+      for (let i = 0; i < 5; i += 1) {
+        await reportInfraFailure(env, 'submit');
+      }
+      expect(doFetch).toHaveBeenCalledTimes(0);
+      // Al cruzar la ventana: exactamente 1 envío con el delta acumulado (5).
+      vi.spyOn(Date, 'now').mockReturnValue(now + 6_000);
+      await reportInfraFailure(env, 'submit');
+      expect(doFetch).toHaveBeenCalledTimes(1);
+      expect(captured[0]?.count).toBe(5);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('B8: KV con valor inesperado → fail-closed OPEN (whitelist estricta 1/0)', async () => {
+    const kv = memoryKv();
+    for (const [raw, expected] of [
+      ['1', true],
+      ['0', false],
+      ['true', true],
+      ['OPEN', true],
+      ['corrupted', true],
+    ] as const) {
+      await kv.put(breakerKvKey('KIPUSPAY_PSE_DIRECT', 'submit'), raw);
+      resetBreakerReadCacheForTests();
+      const open = await readBreakerOpen(kv, 'KIPUSPAY_PSE_DIRECT', 'submit');
+      expect(open, `raw=${raw}`).toBe(expected);
+    }
   });
 });

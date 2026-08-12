@@ -498,11 +498,23 @@ describe('assertOfflineSaleShape', () => {
 describe('resolveIssuedAtMs and lima stamp', () => {
   const now = Date.parse('2026-08-04T15:00:00.000Z');
 
-  it('acepta issuedAt dentro de ±6h y usa now si falta', () => {
+  it('acepta issuedAt con zona dentro de ±6h y usa now si falta', () => {
     expect(resolveIssuedAtMs('2026-08-04T14:00:00.000Z', now)).toBe(
       Date.parse('2026-08-04T14:00:00.000Z'),
     );
     expect(resolveIssuedAtMs(undefined, now)).toBe(now);
+  });
+
+  it('B6: timestamp naive (sin Z) es hora local LIMA, no UTC (sin desvío de 5 h)', () => {
+    // 10:00 sin Z = 10:00 Lima = 15:00 UTC (antes se leía como 10:00 UTC = 05:00 Lima).
+    expect(resolveIssuedAtMs('2026-08-04T10:00:00', now)).toBe(
+      Date.parse('2026-08-04T15:00:00.000Z'),
+    );
+    // La normalización es determinista e independiente de la TZ del host:
+    // 04:30 sin Z = 04:30 Lima = 09:30 UTC, dentro de la ventana ±6h.
+    expect(resolveIssuedAtMs('2026-08-04T04:30:00', now)).toBe(
+      Date.parse('2026-08-04T09:30:00.000Z'),
+    );
   });
 
   it('rechaza skew > 6h e issuedAt inválido', () => {

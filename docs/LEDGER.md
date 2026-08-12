@@ -6327,3 +6327,54 @@ aprobaciones: [Staff Security R, Staff Frontend R, Staff Data R, Staff Principal
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0322
+timestamp_utc: 2026-08-12T04:45:00Z
+schema_version: 2
+sprint_fase: Sprint 47b — Remediación de bugs del harness
+agente_responsable: Staff Backend ACID (owner) / Staff Fiscal / Staff Security / Staff SRE
+tipo: Corrección de especificación
+subtipo: remediacion-de-auditoria
+relacion: corrige
+referencias_entradas: [0321]
+referencias_documentales: [docs/ops/s47b-remediation-qg.md, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/adapters-d1/src/process-store-credit-atomic.ts, apps/worker-api/src/payments/payment-routes.ts, apps/worker-api/src/auth/verify-jwt.ts, apps/worker-fiscal/src/fiscal-drain.ts, packages/domain-sales/src/offline-sale.ts]
+prev_id: 0321
+prev_hash: 18077c10b5e6d416a6c8e2f8683ec832f8a7742394a765be8e4cfb1e052d0682
+entry_hash: 18aada33258b0e1c8af79085db4fddcf7f3fd2e69454df2fbd91ae9361f2e467
+ticket_or_adr: Harness de auditoría (8 hallazgos B1..B8) — SEC-01, SYN-04, regla 20, §8.1
+test_ids: [V-13, V-16, SUITE, process-offline-sale-atomic.integration.test.ts, process-store-credit.integration.test.ts, payment-routes.test.ts, verify-jwt.test.ts, fiscal-drain.test.ts, breaker.test.ts, offline-sale.test.ts]
+entregable_afectado: docs/ops/s47b-remediation-qg.md (nuevo) — cierre del sprint 47b
+descripcion: >
+  Corrige los 8 bugs del harness con TDD (RED->GREEN por bug): B1 race de cupo
+  de credito con guard atomic_guards en el batch (limite vs CxC COMMITTED);
+  B2 webhook de pago sin ack-200 sin efecto (202 CAPTURE_NOT_MATERIALIZED sin
+  dedup, 503 si la DB de dedup cae, settle antes del dedup, estado terminal
+  dedup-ack); B3 idempotencia del ADJUST de store credit con sourceRef
+  determinista por idempotencyKey + ALREADY_ADJUSTED + guardState NOT EXISTS;
+  B4 doble-drain fiscal con claim atomico por fila (PENDING/FAILED ->
+  PROCESSING, huérfanas reclamadas tras 10 min via next_attempt_at) y
+  ACCEPTED/REJECTED/QUARANTINED condicionados al claim; B5 JWKS implementado
+  (RS256/ES256 via Web Crypto, cache 5 min, fail-closed, kid, kty/alg
+  validados, HS denegado; antes devolvia null con AUTH_JWT_JWKS_URL
+  configurado); B6 timestamps naive del POS interpretados como Lima UTC-5
+  componente a componente (independiente de la TZ del host; antes se leian
+  como UTC con 5 h de desvio en el dia fiscal); B7 telemetria del breaker
+  envia al DO solo cuando la ventana de coalesce cierra (antes flush forzado
+  por fallo inflaba el contador); B8 KV del breaker fail-closed: solo '0' es
+  cerrado, cualquier otro valor abre (antes fail-open con valores
+  inesperados).
+evidencia: >
+  RED: los 8 tests nuevos fallaron antes del fix (B1 dos ventas concurrentes
+  excedian el cupo; B2 webhook devolvia 200 sin settle; B3 retry duplicaba el
+  debito; B4 dos drains enviaban el mismo XML; B5 RS256 valido devolvia null;
+  B6 naive 10:00 = 05:00 Lima; B7/B8 DO inflado y KV fail-open).
+  GREEN: domain-sales 241, domain-customers 14 (100%), adapters-d1 293 unit +
+  210 workerd, worker-api 670, worker-fiscal 13, pos-web 163; lint 23/23,
+  typecheck 23/23, format GREEN, verify.sh SUITE GREEN (V-00..V-24), chaos
+  PASS, bundle CAL-06. Produccion/piloto NO-GO hasta staging real y A+V.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Fiscal R, Staff Security R, Staff SRE R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

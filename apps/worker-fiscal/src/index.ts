@@ -6,7 +6,7 @@ import {
 import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
 import { readBreakerOpen, type BreakerKvLike } from './breaker-read-cache.js';
-import { coalesceInfraFailure, flushCoalesce } from './breaker-coalesce.js';
+import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
 
 export { FiscalCircuitBreaker };
@@ -66,17 +66,17 @@ export async function submitViaMockPse(request: FiscalSubmitRequest): Promise<{
   return { verdict, sunatStatus };
 }
 
-async function reportInfraFailure(env: FiscalWorkerEnv, endpoint: FiscalEndpoint): Promise<void> {
+export async function reportInfraFailure(
+  env: FiscalWorkerEnv,
+  endpoint: FiscalEndpoint,
+): Promise<void> {
   if (!isFiscalCircuitBreakerEnabled(env)) return;
   const key = breakerDoName('KIPUSPAY_PSE_DIRECT', endpoint);
-  const now = Date.now();
-  const flushed = coalesceInfraFailure(key, now);
-  const force = flushCoalesce(key);
-  const count = flushed + force;
-  if (count <= 0) {
-    coalesceInfraFailure(key, now);
-    return;
-  }
+  // B7 (47b): solo se envía cuando la ventana de coalesce cierra (delta real).
+  // Antes, flushCoalesce forzado en CADA fallo destruía el bucket y el DO
+  // recibía un incremento por fallo (doble/inflado conteo) más una re-invocación.
+  const count = coalesceInfraFailure(key, Date.now());
+  if (count <= 0) return;
   const ns = env.FISCAL_CIRCUIT_BREAKER_DO;
   if (!ns) return;
   const stub = ns.get(ns.idFromName(key));

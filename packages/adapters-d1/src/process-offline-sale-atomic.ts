@@ -1013,6 +1013,7 @@ export async function processOfflineSaleAtomic(
 
   // S17: enforce credit_limit_cents (Arquitectura §5.3 / capability ledger.credit_limit_cents).
   const authTokensToConsume: string[] = [];
+  let creditOverrideVerified = false;
   if (creditPayments.length > 0 && customerId) {
     const custCredit = await db
       .prepare(`SELECT credit_limit_cents FROM customers WHERE tenant_id = ? AND id = ? LIMIT 1`)
@@ -1045,8 +1046,10 @@ export async function processOfflineSaleAtomic(
     if (projected > limit) {
       const tokenId = await requireLiveAuthToken(db, tenantId, payload.creditOverrideTokenHash);
       authTokensToConsume.push(tokenId);
+      creditOverrideVerified = true;
     }
   }
+  const creditGuardCents = creditPayments.reduce((s, p) => s + p.amountCents, 0);
 
   let storeCreditRedeemPlan:
     | {
@@ -1472,6 +1475,45 @@ export async function processOfflineSaleAtomic(
               ),
           );
         }
+
+      // B1 (47b): guard anti-carrera del cupo de crédito. El preflight es el
+      // primer filtro (y valida el token de override); este guard recomputa el
+      // límite contra la CxC COMMITTED en tiempo de batch: si dos POS aprueban
+      // el mismo preflight en paralelo, el segundo batch ve la CxC del primero
+      // (ok=0 → CHECK aborta todo el batch, sin efectos parciales).
+      if (ledgerOn && creditGuardCents > 0 && customerId) {
+        const creditGuardId = crypto.randomUUID();
+        stockGuardIds.push(creditGuardId);
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO atomic_guards (id, ok)
+               VALUES (
+                 ?,
+                 (SELECT CASE WHEN ? = 1 OR
+                   COALESCE(
+                     (SELECT credit_limit_cents FROM customers WHERE tenant_id = ? AND id = ?),
+                     0
+                   ) >=
+                   COALESCE(
+                     (SELECT SUM(balance_due_cents) FROM accounts_receivable
+                      WHERE tenant_id = ? AND customer_id = ? AND balance_due_cents > 0),
+                     0
+                   ) + ?
+                 THEN 1 ELSE 0 END)
+               )`,
+            )
+            .bind(
+              creditGuardId,
+              creditOverrideVerified ? 1 : 0,
+              tenantId,
+              customerId,
+              tenantId,
+              customerId,
+              creditGuardCents,
+            ),
+        );
+      }
 
       for (const audit of oversellAudits) {
         plan.add(

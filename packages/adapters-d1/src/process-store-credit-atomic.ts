@@ -53,6 +53,12 @@ export interface ProcessStoreCreditAdjustInput {
   readonly amountCents: number;
   readonly adjustSign: 'CREDIT' | 'DEBIT';
   readonly authorizedByUserId: string;
+  /**
+   * Clave de idempotencia del request (B3, 47b): el sourceRef del ADJUST se
+   * deriva de ella, de modo que un reintento por timeout de red NO genera un
+   * segundo asiento. Null → se genera un UUID (comportamiento previo).
+   */
+  readonly idempotencyKey?: string | null;
 }
 
 export interface StoreCreditAccountRow {
@@ -487,7 +493,11 @@ export async function processStoreCreditAdjustAtomic(
   userId: string,
   input: ProcessStoreCreditAdjustInput,
   options: ProcessStoreCreditOptions = {},
-): Promise<{ status: 'SUCCESS'; txnId: string; nextBalanceCents: number }> {
+): Promise<{
+  status: 'SUCCESS' | 'ALREADY_ADJUSTED';
+  txnId: string;
+  nextBalanceCents: number;
+}> {
   const account = await ensureStoreCreditAccount(db, tenantId, input.customerId);
   const planned = planStoreCreditAdjust({
     currentBalanceCents: account.balance_cents,
@@ -496,7 +506,17 @@ export async function processStoreCreditAdjustAtomic(
     authorizedByUserId: input.authorizedByUserId,
   });
   const nowMs = options.nowMs ?? Date.now();
-  const sourceRef = `adjust:${account.id}:${nowMs}:${input.adjustSign}`;
+  // B3 (47b): sourceRef determinista por idempotencyKey — el reintento de un
+  // ajuste (timeout de red) debe ser NO-OP, nunca un segundo débito/crédito.
+  const sourceRef = `adjust:${input.idempotencyKey ?? crypto.randomUUID()}`;
+  const existing = await loadExistingStoreCreditTxn(db, tenantId, sourceRef);
+  if (existing) {
+    return {
+      status: 'ALREADY_ADJUSTED',
+      txnId: existing.id,
+      nextBalanceCents: account.balance_cents,
+    };
+  }
   const prevHash = await previousStoreCreditAuditHash(db, tenantId);
   const chartOn = options.ledgerChartOfAccountsEnabled === true;
   const accountsByCode = chartOn ? await loadChartAccountsByCode(db, tenantId) : new Map();
@@ -510,73 +530,96 @@ export async function processStoreCreditAdjustAtomic(
     amount: planned.amountCents,
     prev: prevHash,
   });
-  await runD1AtomicPlan(db, async (plan) => {
-    plan.add(
-      db
-        .prepare(
-          `UPDATE store_credit_accounts SET balance_cents = ?
+  try {
+    await runD1AtomicPlan(db, async (plan) => {
+      // Guard anti-carrera: aborta el batch si otra tx con el mismo source_ref
+      // se commiteó entre el preflight y este batch (UNIQUE + CHECK ok=1).
+      plan.guardState(
+        `SELECT 1 WHERE NOT EXISTS (
+           SELECT 1 FROM store_credit_transactions
+           WHERE tenant_id = ? AND source_ref = ?
+         )`,
+        [tenantId, sourceRef],
+      );
+      plan.add(
+        db
+          .prepare(
+            `UPDATE store_credit_accounts SET balance_cents = ?
            WHERE tenant_id = ? AND id = ? AND balance_cents = ?`,
-        )
-        .bind(planned.nextBalanceCents, tenantId, account.id, account.balance_cents),
-    );
-    plan.add(
-      db
-        .prepare(
-          `INSERT INTO store_credit_transactions (
+          )
+          .bind(planned.nextBalanceCents, tenantId, account.id, account.balance_cents),
+      );
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO store_credit_transactions (
                id, tenant_id, store_credit_account_id, type, amount_cents, source_ref,
                adjust_sign, created_by_user_id, authorized_by_user_id
              ) VALUES (?, ?, ?, 'ADJUST', ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          txnId,
-          tenantId,
-          account.id,
-          planned.amountCents,
-          sourceRef,
-          input.adjustSign,
-          userId,
-          input.authorizedByUserId,
-        ),
-    );
-    plan.add(
-      db
-        .prepare(
-          `INSERT INTO audit_events (
+          )
+          .bind(
+            txnId,
+            tenantId,
+            account.id,
+            planned.amountCents,
+            sourceRef,
+            input.adjustSign,
+            userId,
+            input.authorizedByUserId,
+          ),
+      );
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO audit_events (
                id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
                payload_json, prev_hash, row_hash
              ) VALUES (?, ?, ?, ?, 'STORE_CREDIT_ISSUE', 'store_credit_transaction', ?, ?, ?, ?)`,
-        )
-        .bind(
-          auditId,
+          )
+          .bind(
+            auditId,
+            tenantId,
+            input.branchId,
+            userId,
+            txnId,
+            JSON.stringify({
+              type: 'ADJUST',
+              adjustSign: input.adjustSign,
+              amountCents: planned.amountCents,
+            }),
+            prevHash,
+            rowHash,
+          ),
+      );
+      if (chartOn) {
+        await appendJournalToPlan(plan, db, {
           tenantId,
-          input.branchId,
+          branchId: input.branchId,
           userId,
-          txnId,
-          JSON.stringify({
-            type: 'ADJUST',
-            adjustSign: input.adjustSign,
+          accountsByCode,
+          prevAuditHash: prevHash,
+          entry: planStoreCreditAdjustJournal({
+            sourceId: txnId,
+            postDate,
             amountCents: planned.amountCents,
+            adjustSign: input.adjustSign,
           }),
-          prevHash,
-          rowHash,
-        ),
-    );
-    if (chartOn) {
-      await appendJournalToPlan(plan, db, {
-        tenantId,
-        branchId: input.branchId,
-        userId,
-        accountsByCode,
-        prevAuditHash: prevHash,
-        entry: planStoreCreditAdjustJournal({
-          sourceId: txnId,
-          postDate,
-          amountCents: planned.amountCents,
-          adjustSign: input.adjustSign,
-        }),
-      });
+        });
+      }
+    });
+  } catch {
+    // Perdedor de la carrera de dedup: el batch fue abortado por el guard o por
+    // el UNIQUE(source_ref); responder idempotente, no 500.
+    const winner = await loadExistingStoreCreditTxn(db, tenantId, sourceRef);
+    if (winner) {
+      return {
+        status: 'ALREADY_ADJUSTED',
+        txnId: winner.id,
+        nextBalanceCents: account.balance_cents,
+      };
     }
-  });
+    throw new Error('STORE_CREDIT_ADJUST_RACE_ABORTED');
+  }
   return { status: 'SUCCESS', txnId, nextBalanceCents: planned.nextBalanceCents };
 }
 
