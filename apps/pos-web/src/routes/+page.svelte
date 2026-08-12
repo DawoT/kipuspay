@@ -6,8 +6,10 @@
     isPosCheckoutEnabled,
     isPrintTemplatesEnabled,
     isSalesCommissionsEnabled,
+    isTeamInviteEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
+  import { resolveSeller } from '$lib/cash/shift-handoff';
   import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import {
@@ -69,6 +71,11 @@
   let session = $state<PosTenantSession>(defaultTenantSession());
   let lines = $state<CartLine[]>([{ ...demoProduct, quantity: 1 }]);
   let quickSaleOpen = $state(false);
+  const teamOn = isTeamInviteEnabled();
+  let sellerResolveOpen = $state(false);
+  let sellerIdentifier = $state('');
+  let sellerResolveMsg = $state('');
+  let sellerResolvedName = $state('');
   let quickName = $state('');
   let quickPriceCents = $state(1500);
   let quickError = $state('');
@@ -208,6 +215,19 @@
     quickSaleOpen = false;
     quickName = '';
     quickError = '';
+  }
+
+  async function onResolveSeller() {
+    sellerResolveMsg = '';
+    const res = await resolveSeller(sellerIdentifier);
+    if (!res.ok) {
+      sellerResolveMsg = res.message;
+      return;
+    }
+    sellerId = res.userId;
+    sellerResolvedName = res.email;
+    sellerResolveOpen = false;
+    sellerIdentifier = '';
   }
 
   function removeLine(productId: string) {
@@ -434,6 +454,16 @@
           placeholder="ID Vendedor (opcional)"
           data-testid="seller-id"
         />
+        {#if teamOn}
+          <button
+            type="button"
+            class="secondary seller-resolve-btn"
+            data-testid="seller-resolve"
+            onclick={() => (sellerResolveOpen = true)}
+          >
+            {sellerResolvedName || 'Vincular por badge / PIN'}
+          </button>
+        {/if}
       </div>
     {/if}
   </header>
@@ -715,6 +745,31 @@
             </div>
           </div>
         {/if}
+      </div>
+    </div>
+  {/if}
+  {#if sellerResolveOpen}
+    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="seller-resolve-title">
+      <div class="modal-card">
+        <h2 id="seller-resolve-title">Vincular vendedor</h2>
+        <p class="quick-hint">Escanea el badge <code>EMP-…</code> o teclea el PIN de caja de 4 dígitos. La venta queda atribuida en menos de un segundo.</p>
+        <label for="seller-resolve-input">Badge o PIN</label>
+        <input
+          id="seller-resolve-input"
+          data-testid="seller-resolve-input"
+          bind:value={sellerIdentifier}
+          autocomplete="off"
+          placeholder="EMP-12345 o 1234"
+        />
+        {#if sellerResolveMsg}
+          <p class="quick-error" role="alert">{sellerResolveMsg}</p>
+        {/if}
+        <div class="modal-actions">
+          <button type="button" class="secondary" onclick={() => (sellerResolveOpen = false)}>Cancelar</button>
+          <button type="button" class="primary" data-testid="seller-resolve-confirm" onclick={onResolveSeller}>
+            Vincular
+          </button>
+        </div>
       </div>
     </div>
   {/if}

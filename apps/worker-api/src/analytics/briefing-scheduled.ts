@@ -70,6 +70,7 @@ export async function runBriefingScheduled(
           suggestedReorderQty: 0,
         })),
         cashExceptions: facts.cashExceptions,
+        cashShifts: facts.cashShifts,
       });
       await env.TENANT_KV.put(`insights:${tenantId}:${reportDate}`, JSON.stringify(briefing));
       await consumeAiUsage(env.DB, tenantId, reportDate, 0, estimateTokens(briefing));

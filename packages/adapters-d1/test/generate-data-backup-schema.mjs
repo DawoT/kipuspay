@@ -223,6 +223,7 @@ writeFileSync(
 // corresponding epoch triggers.
 const introducedAfterSprint42 = new Set([
   'ai_usage_counters',
+  'cash_register_shifts',
   'consent_records',
   'customer_order_fulfillments',
   'customer_order_items',

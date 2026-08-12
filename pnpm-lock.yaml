@@ -292,6 +292,9 @@ importers:
       '@kipuspay/domain-inventory':
         specifier: workspace:*
         version: link:../domain-inventory
+      '@kipuspay/domain-ops':
+        specifier: workspace:*
+        version: link:../domain-ops
       '@kipuspay/domain-sales':
         specifier: workspace:*
         version: link:../domain-sales
@@ -578,6 +581,25 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
 
   packages/domain-inventory:
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^10.8.0
+        version: 10.8.0(supports-color@10.2.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
+
+  packages/domain-ops:
+    dependencies:
+      '@kipuspay/domain-catalog':
+        specifier: workspace:*
+        version: link:../domain-catalog
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

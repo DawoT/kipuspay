@@ -138,6 +138,7 @@ export interface BriefingFacts {
   readonly sales: { readonly grossSalesCents: number; readonly docCount: number };
   readonly breakage: readonly { readonly productName: string }[];
   readonly cashExceptions: readonly { readonly branchCode: string; readonly diffCents: number }[];
+  readonly cashShifts: readonly { readonly operator: string; readonly cashDiffCents: number }[];
 }
 
 export async function listBriefingFacts(
@@ -170,6 +171,19 @@ export async function listBriefingFacts(
     )
     .bind(tenantId, reportDate)
     .all<{ branch_code: string; diff_cents: number }>();
+  const shifts = await db
+    .prepare(
+      `SELECT u.email AS operator, s.cash_diff_cents
+       FROM cash_register_shifts s
+       JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
+       WHERE s.tenant_id = ?
+         AND (s.ended_at IS NULL OR date(s.ended_at) = ?)
+         AND s.cash_diff_cents IS NOT NULL AND s.cash_diff_cents <> 0
+       ORDER BY s.started_at
+       LIMIT 10`,
+    )
+    .bind(tenantId, reportDate)
+    .all<{ operator: string; cash_diff_cents: number }>();
   return {
     sales: {
       grossSalesCents: sales?.gross_sales_cents ?? 0,
@@ -179,6 +193,10 @@ export async function listBriefingFacts(
     cashExceptions: (cash.results ?? []).map((row) => ({
       branchCode: row.branch_code,
       diffCents: row.diff_cents,
+    })),
+    cashShifts: (shifts.results ?? []).map((row) => ({
+      operator: row.operator,
+      cashDiffCents: row.cash_diff_cents,
     })),
   };
 }

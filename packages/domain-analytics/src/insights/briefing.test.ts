@@ -41,4 +41,25 @@ describe('insights briefing determinista (Sprint 49)', () => {
     expect(withCash.bullets[2]).toMatch(/C02/);
     expect(withCash.bullets[2]).toMatch(/-5000/);
   });
+
+  it('edge 1C: atribuye la diferencia al turno correcto (viñeta por tramo)', () => {
+    const briefing = buildBriefing({
+      ...input,
+      cashShifts: [
+        { operator: 'ana@tienda.pe', cashDiffCents: 5000 },
+        { operator: 'luis@tienda.pe', cashDiffCents: -2000 },
+      ],
+    });
+    expect(briefing.bullets).toHaveLength(4);
+    expect(briefing.bullets[3]).toMatch(/Por turnos:/);
+    expect(briefing.bullets[3]).toContain('ana@tienda.pe');
+    expect(briefing.bullets[3]).toContain('faltan S/ 5000');
+    expect(briefing.bullets[3]).toContain('luis@tienda.pe');
+    expect(briefing.bullets[3]).toContain('sobran S/ 2000');
+  });
+
+  it('sin tramos con diferencia no añade viñeta de turnos', () => {
+    const briefing = buildBriefing({ ...input, cashShifts: [] });
+    expect(briefing.bullets).toHaveLength(3);
+  });
 });

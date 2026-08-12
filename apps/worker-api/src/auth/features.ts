@@ -85,6 +85,20 @@ export function isCatalogQuickAddEnabled(
   return flagOn(env?.FEATURE_CATALOG_QUICK_ADD);
 }
 
+/** Sprint 51 — handoff de turno (FEATURE_SHIFT_HANDOFF, default off). */
+export function isShiftHandoffEnabled(
+  env: { readonly FEATURE_SHIFT_HANDOFF?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_SHIFT_HANDOFF);
+}
+
+/** Sprint 51 — equipo e invitaciones (FEATURE_TEAM_INVITE, default off). */
+export function isTeamInviteEnabled(
+  env: { readonly FEATURE_TEAM_INVITE?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_TEAM_INVITE);
+}
+
 /** Sprint 49 — inteligencia del negocio (FEATURE_ANALYTICS_AGENTIC_INSIGHTS, default off). */
 export function isAgenticInsightsEnabled(
   env: { readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string } | undefined,

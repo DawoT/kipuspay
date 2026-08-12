@@ -6520,3 +6520,53 @@ aprobaciones: [Staff Backend ACID R, Staff Data R, Staff Frontend R, Staff Princ
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0326
+timestamp_utc: 2026-08-12T10:30:00Z
+schema_version: 2
+sprint_fase: Sprint 51 — FASE 6G (ops.shift_handoff + ops.team_invite)
+agente_responsable: Staff Backend ACID (owner) / Staff Data / Staff Frontend/Design / Staff Security
+tipo: Entregable nuevo
+subtipo: shift-handoff
+relacion: amplia
+referencias_entradas: [0325]
+referencias_documentales: [docs/ops/s51-shift-handoff-qg.md, packages/domain-ops/src/shift-handoff.ts, packages/domain-ops/src/team-invite.ts, packages/adapters-d1/src/process-shift-handoff-atomic.ts, apps/worker-api/src/cash/shift-routes.ts, apps/worker-api/src/team/team-routes.ts, apps/pos-web/src/routes/caja/handoff/+page.svelte, apps/pos-web/src/routes/admin/equipo/+page.svelte, docs/GTM.md]
+prev_id: 0325
+prev_hash: 40549d913dcf6ca608326bbcf8a18e673bf31a22bc34fe967e57ae635131f5f4
+entry_hash: 730e1533fd990c0466ed1ef571c206d1628c5641392239c9c41d26c6ab64d82f
+ticket_or_adr: Roadmap FASE 6G Sprint 51 (reglas 35-36, edges 1A/1C)
+test_ids: [V-13, V-15, V-16, SUITE, shift-handoff.test.ts, team-invite.test.ts, process-shift-handoff-atomic.test.ts, process-shift-handoff-atomic.integration.test.ts, shift-handoff-schema.test.ts, shift-routes.test.ts, team-routes.test.ts, briefing.test.ts, shift-handoff.test.ts, shift-handoff.spec.ts]
+entregable_afectado: docs/ops/s51-shift-handoff-qg.md (nuevo) — cierre del Sprint 51
+descripcion: >
+  Entrega ops.shift_handoff + ops.team_invite (default-off): migracion 0043
+  (cash_register_shifts con FK compuesta tenant+sesion, users.pin_hash,
+  tenant_discount_policies.interim_required, triggers de epoch y down
+  protegido); paquete nuevo domain-ops (PIN temporal 6 digitos hash+TTL 5 min
+  verificado server-side, badge EMP- generado unico por tenant con
+  reintentos, PIN de caja 4 digitos, email de invitacion validado y
+  normalizado); motor processShiftHandoffAtomic (issue pin atómico, transfer
+  con guard SQL dentro del batch que consume el PIN single-use, sesion sigue
+  OPEN, conteo intermedio con cash_diff_cents auditado en SHIFT_TRANSFER sin
+  bloquear, invitacion unica por email con TEAM_INVITE, resolveSeller por
+  badge o pin_hash fail-closed); rutas POST /api/cash/shifts/pin y /transfer,
+  POST /api/team/invites y /resolve con flags default-off y roles; briefing
+  del Modo Dueno con desglose por turno (edge 1C: viñeta "Por turnos" con
+  operador y diferencia de cash_register_shifts); UI: pagina /caja/handoff
+  (genera PIN una sola vez y transfiere), /admin/equipo (invitacion que
+  expone badge+PIN una sola vez), atribucion del vendedor en el carrito por
+  badge/PIN en <1s (resolve) y nav; GTM claims "cambia de turno sin cerrar
+  caja" y "atribuye la venta al vendedor con su badge" descongeladas.
+evidencia: >
+  RED: migracion/dominio/motor/rutas/UI ausentes (tests nuevos fallaron por
+  import o schema). GREEN: domain-ops 27/27 (97% stmts, 96% branches),
+  domain-analytics 66 (briefing edge 1C), adapters-d1 330 unit + 226 workerd
+  (motor 20 unit + 5 integracion; branches 71.7% >= 70), worker-api 713
+  (rutas 19/19), pos-web 185 unit + E2E 33/33 (shift-handoff 3/3),
+  lint/typecheck/format GREEN, verify.sh SUITE GREEN. Claims descongeladas;
+  produccion/piloto NO-GO hasta staging real y A+V.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Data R, Staff Frontend R, Staff Security R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

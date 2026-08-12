@@ -18,6 +18,7 @@
     isMobilePosEnabled,
     isMobilePushEnabled,
     isRecurringSalesEnabled,
+    isTeamInviteEnabled,
   } from '$lib/features';
   import { registerUnifiedPosServiceWorker } from '$lib/mobile/mobile-push-pwa';
 
@@ -102,6 +103,9 @@
           ? [{ href: '/admin/clientes', label: 'Clientes', icon: 'user' as IconName }]
           : []),
         { href: '/admin/integraciones', label: 'Integraciones', icon: 'link' as IconName },
+        ...(isTeamInviteEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+          ? [{ href: '/admin/equipo', label: 'Equipo', icon: 'user' as IconName }]
+          : []),
       ],
     },
     {

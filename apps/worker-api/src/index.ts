@@ -236,6 +236,8 @@ import {
   type InsightsEnv,
 } from './analytics/insights-routes.js';
 import { runQuickAddHttp, runScanLookupHttp } from './catalog/quick-add-routes.js';
+import { runIssueShiftPinHttp, runShiftTransferHttp } from './cash/shift-routes.js';
+import { runResolveSellerHttp, runTeamInviteHttp } from './team/team-routes.js';
 import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
@@ -1293,6 +1295,71 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.req.param('raw') ?? '',
     );
     return c.json(result.body, result.status as 200 | 403 | 404 | 422 | 503);
+  });
+  // Sprint 51 — ops.shift_handoff + ops.team_invite (default-off).
+  app.post('/api/cash/shifts/pin', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runIssueShiftPinHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/cash/shifts/transfer', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runShiftTransferHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 409 | 422 | 503);
+  });
+  app.post('/api/team/invites', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runTeamInviteHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 200 | 201 | 400 | 403 | 404 | 409 | 422 | 503);
+  });
+  app.post('/api/team/resolve', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runResolveSellerHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
   });
   app.get('/api/catalog/variants-uom', async (c) => {
     const jwt = c.get('jwt');

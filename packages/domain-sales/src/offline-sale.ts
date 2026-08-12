@@ -43,6 +43,8 @@ export interface OfflineSaleItemPayload {
    */
   readonly isUncatalogued?: boolean | undefined;
   readonly manualPriceCents?: number | undefined;
+  /** Sprint 51: override de vendedor POR ÍTEM (gana sobre el sellerId del carrito). */
+  readonly sellerId?: string | undefined;
   /** Stable client line identity; mandatory for a WEIGH measurement. */
   readonly saleItemId?: string | undefined;
   /**

@@ -16,12 +16,19 @@ export interface CashExceptionFact {
   readonly diffCents: number;
 }
 
+/** Edge 1C (Sprint 51): un tramo de cash_register_shifts con diferencia ≠ 0. */
+export interface CashShiftFact {
+  readonly operator: string;
+  readonly cashDiffCents: number;
+}
+
 export interface BriefingInput {
   readonly tenantId: string;
   readonly reportDate: string;
   readonly sales: { readonly grossSalesCents: number; readonly docCount: number };
   readonly breakage: readonly BreakageFact[];
   readonly cashExceptions: readonly CashExceptionFact[];
+  readonly cashShifts?: readonly CashShiftFact[];
 }
 
 export interface Briefing {
@@ -40,9 +47,19 @@ export function buildBriefing(input: BriefingInput): Briefing {
     input.cashExceptions.length > 0
       ? `Diferencia de caja en ${input.cashExceptions[0]?.branchCode}: S/ ${input.cashExceptions[0]?.diffCents}.`
       : 'Sin diferencias de caja pendientes.';
+  const cashShifts = input.cashShifts ?? [];
+  const shifts =
+    cashShifts.length > 0
+      ? `Por turnos: ${cashShifts
+          .map((shift) => {
+            const sign = shift.cashDiffCents >= 0 ? 'faltan' : 'sobran';
+            return `${shift.operator}: ${sign} S/ ${Math.abs(shift.cashDiffCents)}`;
+          })
+          .join(', ')}.`
+      : null;
   return {
     reportDate: input.reportDate,
-    bullets: [sales, breakage, cash],
+    bullets: [sales, breakage, cash, ...(shifts ? [shifts] : [])],
     disclaimer: `Datos del día ${input.reportDate}, calculados por el servidor.`,
   };
 }

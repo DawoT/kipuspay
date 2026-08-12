@@ -85,6 +85,8 @@ describe('features flags default off', () => {
     expect(mod.isLpdpEnabled()).toBe(false);
     expect(mod.isAgenticInsightsEnabled()).toBe(false);
     expect(mod.isCatalogQuickAddEnabled()).toBe(false);
+    expect(mod.isShiftHandoffEnabled()).toBe(false);
+    expect(mod.isTeamInviteEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });

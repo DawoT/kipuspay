@@ -1718,7 +1718,7 @@ export async function processOfflineSaleAtomic(
                 source.uomId ?? null,
                 enteredQuantityMicrounits,
                 baseQuantityMicrounits,
-                payload.sellerId?.trim() || null,
+                source.sellerId?.trim() || payload.sellerId?.trim() || null,
               ),
           );
           const genericAuditId = crypto.randomUUID();
@@ -1788,7 +1788,7 @@ export async function processOfflineSaleAtomic(
               source.resolvedFactorNumerator ?? 1,
               source.resolvedFactorDenominator ?? 1,
               baseQuantityMicrounits,
-              payload.sellerId?.trim() || null,
+              source.sellerId?.trim() || payload.sellerId?.trim() || null,
             ),
         );
       }

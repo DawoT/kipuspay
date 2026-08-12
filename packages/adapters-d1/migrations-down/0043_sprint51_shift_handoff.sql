@@ -1,0 +1,11 @@
+INSERT /* SHIFTHANDOFF_DOWN_PROTECTED: RAISE(ABORT via atomic_guards CHECK) */ INTO atomic_guards(id, ok) SELECT 'ops.shift_handoff.sprint51.down', CASE WHEN EXISTS (SELECT 1 FROM cash_register_shifts WHERE ended_at IS NULL) THEN 0 ELSE 1 END;
+DROP TRIGGER IF EXISTS backup_epoch_cash_register_shifts_delete;
+DROP TRIGGER IF EXISTS backup_epoch_cash_register_shifts_update;
+DROP TRIGGER IF EXISTS backup_epoch_cash_register_shifts_insert;
+DROP INDEX IF EXISTS uq_shifts_open_pin;
+DROP INDEX IF EXISTS idx_shifts_session;
+DROP TABLE cash_register_shifts;
+ALTER TABLE tenant_discount_policies DROP COLUMN interim_required;
+ALTER TABLE users DROP COLUMN pin_hash;
+DELETE FROM schema_meta WHERE key = 'ops.shift_handoff.sprint51';
+DELETE FROM atomic_guards WHERE id = 'ops.shift_handoff.sprint51.down';

@@ -233,6 +233,16 @@ export function isCatalogQuickAddEnabled(): boolean {
   return flagOn(pub(PF + 'CATALOG_QUICK_ADD'));
 }
 
+/** Sprint 51 — handoff de turno; siempre default-off. */
+export function isShiftHandoffEnabled(): boolean {
+  return flagOn(pub(PF + 'SHIFT_HANDOFF'));
+}
+
+/** Sprint 51 — equipo e invitaciones; siempre default-off. */
+export function isTeamInviteEnabled(): boolean {
+  return flagOn(pub(PF + 'TEAM_INVITE'));
+}
+
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));
