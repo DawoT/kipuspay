@@ -54,7 +54,7 @@ async function jsonResponse<T>(response: Response): Promise<T> {
 }
 
 function apiBaseUrl(raw: string | undefined): string {
-  return (raw ?? '').replace(/\/$/, '') || 'https://api.kipuspay.local';
+  return (raw ?? '').replace(/\/$/, '') || 'http://localhost:8787';
 }
 
 export function createForecastingClient(dependencies: ForecastingClientDependencies) {

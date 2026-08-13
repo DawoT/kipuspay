@@ -31,7 +31,7 @@ function isMode(v: string | null): v is FormalizationMode {
 export function defaultTenantSession(): PosTenantSession {
   return {
     tenantId: 'demo',
-    tradeName: 'Demo KipusPay',
+    tradeName: 'Mi Tienda',
     formalizationMode: 'INTERNAL_CONTROL',
     verticalType: 'retail',
     onboardingStartedAtIso: null,

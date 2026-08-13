@@ -1,14 +1,25 @@
 <script lang="ts">
-  import { tick } from 'svelte';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import Modal from '$lib/ui/Modal.svelte';
+  import Money from '$lib/ui/Money.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import CardHeader from '$lib/ui/CardHeader.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
   import {
     createRecurringSalesApi,
+    type RecurringCancellationPreview,
     type RecurringFrequency,
+    type RecurringOccurrence,
     type RecurringPlanSummary,
     type RecurringPricingPolicy,
   } from '$lib/recurring-sales/recurring-sales-client';
   import { isRecurringSalesEnabled } from '$lib/features';
+import { resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isRecurringSalesEnabled();
   const sessionState = readAdminAuthenticatedSessionState();
@@ -18,7 +29,7 @@
     session
       ? createRecurringSalesApi({
           authenticatedFetch: session.authenticatedFetch,
-          apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+          apiBase: resolveApiBase(localStorage),
         })
       : null,
   );
@@ -26,7 +37,7 @@
   let branchId = $state('');
   let plans = $state<RecurringPlanSummary[]>([]);
   let selected = $state<RecurringPlanSummary | null>(null);
-  let occurrences = $state<Record<string, unknown>[]>([]);
+  let occurrences = $state<RecurringOccurrence[]>([]);
   let loading = $state(false);
   let online = $state(true);
   let message = $state('Indica una sucursal para cargar sus membresías.');
@@ -39,16 +50,9 @@
   let frequency = $state<RecurringFrequency>('MONTHLY');
   let quantityMicrounits = $state(1_000_000);
   let graceDays = $state(3);
-  let preview = $state<Record<string, unknown> | null>(null);
+  let preview = $state<RecurringCancellationPreview | null>(null);
   let nextPreview = $state<Record<string, unknown> | null>(null);
   let editing = $state(false);
-  let previewPanel = $state<HTMLElement | null>(null);
-
-  function money(value: unknown): string {
-    return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(
-      typeof value === 'number' ? value / 100 : 0,
-    );
-  }
 
   function date(value: unknown): string {
     if (typeof value !== 'string') return 'Sin fecha';
@@ -81,7 +85,7 @@
     preview = null;
     try {
       const history = await api.occurrences({ planId: plan.id, branchId: plan.branch_id });
-      occurrences = history.occurrences as Record<string, unknown>[];
+      occurrences = history.occurrences;
       message = `Membresía ${plan.id} abierta con su historial de ocurrencias.`;
     } catch {
       occurrences = [];
@@ -192,8 +196,6 @@
         branchId: selected.branch_id,
         expectedVersion: selected.version,
       });
-      await tick();
-      previewPanel?.focus();
       message = 'Vista previa calculada por el servidor. Revisa el crédito antes de confirmar.';
     } catch {
       alert = 'No se pudo calcular el crédito. No se realizó ninguna cancelación.';
@@ -240,10 +242,10 @@
       <h1 class="page-title">Membresías</h1>
       <p class="page-lede">Genera una venta y una deuda por período. Cada período emite su NV o CPE.</p>
     </div>
-    <div class="connection-badge" class:offline={!online} aria-live="polite">
+    <Badge variant={online ? 'online' : 'offline'}>
       <Icon name={online ? 'wifi' : 'wifi-off'} size={14} />
       <span>{online ? 'En línea' : 'Sin conexión'}</span>
-    </div>
+    </Badge>
   </div>
 
   <!-- Info boxes -->
@@ -257,12 +259,12 @@
   {#if !enabled}
     <div class="feature-off-banner" role="alert">Membresías está desactivado para este entorno.</div>
   {:else if !session}
-    <div class="status-alert danger" role="alert">No hay una sesión autenticada válida. Acceso cerrado.</div>
+    <StatusMessage tone="danger" role="alert">No hay una sesión autenticada válida. Acceso cerrado.</StatusMessage>
   {:else if !roleAllowed}
-    <div class="status-alert danger" role="alert">Solo Owner o Admin pueden administrar membresías.</div>
+    <StatusMessage tone="danger" role="alert">Solo Owner o Admin pueden administrar membresías.</StatusMessage>
   {:else}
     {#if alert}
-      <div class="status-alert danger" role="alert">{alert}</div>
+      <StatusMessage tone="danger" role="alert">{alert}</StatusMessage>
     {/if}
 
     <!-- Toolbar -->
@@ -271,29 +273,35 @@
         <label for="branch">Sucursal</label>
         <input id="branch" data-testid="memberships-branch-input" bind:value={branchId} autocomplete="off" placeholder="ID sucursal" />
       </div>
-      <button type="button" class="secondary" data-testid="memberships-refresh-btn" onclick={refresh} disabled={!online || loading || !branchId.trim()}>
-        <Icon name="refresh" size={14} />
+      <Button
+        variant="secondary"
+        data-testid="memberships-refresh-btn"
+        onclick={refresh}
+        disabled={!online || loading || !branchId.trim()}
+        icon="refresh"
+      >
         {loading ? 'Cargando…' : 'Actualizar'}
-      </button>
+      </Button>
     </div>
 
     <div class="workspace-grid">
       <!-- Columna 1: Calendario -->
       <section class="glass-card section-pad" aria-labelledby="calendar-title">
-        <div class="card-header">
-          <h2 id="calendar-title">Calendario</h2>
-          <span class="badge badge-warning">{plans.length}</span>
-        </div>
+        <CardHeader title="Calendario">
+          <Badge variant="warning">{plans.length}</Badge>
+        </CardHeader>
         <div class="plan-list">
           {#each plans as plan (plan.id)}
             <button class="plan-card" class:active={selected?.id === plan.id} data-testid="memberships-plan-card" type="button" onclick={() => openPlan(plan)}>
               <div class="plan-main">
                 <strong class="plan-customer">{plan.customer_id}</strong>
-                <span class="badge {plan.status === 'ACTIVE' ? 'badge-success' : plan.status === 'PAUSED' ? 'badge-muted' : 'badge-danger'} badge-sm">{plan.status}</span>
+                <Badge variant={plan.status === 'ACTIVE' ? 'success' : plan.status === 'PAUSED' ? 'muted' : 'danger'}>
+                  {plan.status}
+                </Badge>
               </div>
               <div class="plan-meta">
                 <span>{plan.document_type} · {plan.pricing_policy}</span>
-                <span class="tabular-nums">{money(plan.balance_due_cents)}</span>
+                <Money cents={plan.balance_due_cents} />
               </div>
               <div class="plan-next">
                 <Icon name="clock" size={12} />
@@ -301,189 +309,182 @@
               </div>
             </button>
           {:else}
-            <div class="empty-state">
-              <Icon name="info" size={22} />
-              <span>No hay membresías para esta sucursal.</span>
-            </div>
+            <EmptyState icon="info" title="Sin membresías" description="No hay membresías para esta sucursal." />
           {/each}
         </div>
       </section>
 
       <!-- Columna 2: Detalle -->
       <section class="glass-card section-pad" aria-labelledby="detail-title">
-        <div class="card-header">
-          <h2 id="detail-title">Detalle y control</h2>
-          {#if selected}<span class="badge badge-indigo">{selected.status}</span>{/if}
-        </div>
+        <CardHeader title="Detalle y control">
+          {#if selected}
+            <Badge variant="indigo">{selected.status}</Badge>
+          {/if}
+        </CardHeader>
         {#if selected}
           <dl class="detail-grid">
             <div><dt>Próxima ejecución</dt><dd>{date(selected.next_run_at)}</dd></div>
             <div><dt>Documento</dt><dd>{selected.document_type}</dd></div>
             <div><dt>Política</dt><dd>{selected.pricing_policy}</dd></div>
             <div><dt>Período de gracia</dt><dd>{selected.grace_days} días</dd></div>
-            <div><dt>Cuentas por cobrar</dt><dd class="tabular-nums">{money(selected.balance_due_cents)}</dd></div>
+            <div><dt>Cuentas por cobrar</dt><dd><Money cents={selected.balance_due_cents} /></dd></div>
           </dl>
 
           {#if selected.retry_count > 0}
-            <div class="status-alert warning">
+            <StatusMessage tone="warning">
               <Icon name="alert" size={14} />
               <span>Reintento pendiente · {date(selected.next_retry_at)} · {selected.last_error_code ?? 'PENDIENTE'}</span>
-            </div>
+            </StatusMessage>
           {/if}
 
           {#if nextPreview}
-            <div class="status-alert info" role="status">
+            <StatusMessage tone="info" role="status">
               <Icon name="clock" size={14} />
               <span>{String(nextPreview.pricingPolicy)} · {date(nextPreview.periodStart)} → {date(nextPreview.periodEnd)}</span>
-            </div>
+            </StatusMessage>
           {/if}
 
           <div class="action-grid">
-            <button type="button" class="secondary" data-testid="memberships-preview-next-btn" onclick={previewNextRun} disabled={!online}>
+            <Button
+              variant="secondary"
+              data-testid="memberships-preview-next-btn"
+              onclick={previewNextRun}
+              disabled={!online}
+            >
               Vista previa siguiente
-            </button>
-            <button type="button" class="secondary" data-testid="memberships-edit-btn" onclick={editSelected}>
+            </Button>
+            <Button
+              variant="secondary"
+              data-testid="memberships-edit-btn"
+              onclick={editSelected}
+            >
               Editar versión
-            </button>
-            <button type="button" class="secondary" data-testid="memberships-pause-resume-btn" onclick={pauseOrResume} disabled={!online}>
+            </Button>
+            <Button
+              variant="secondary"
+              data-testid="memberships-pause-resume-btn"
+              onclick={pauseOrResume}
+              disabled={!online}
+            >
               {selected.status === 'PAUSED' ? 'Reanudar' : 'Pausar'}
-            </button>
-            <button type="button" class="secondary" data-testid="memberships-cancel-at-end-btn" onclick={cancelAtEnd} disabled={!online}>
+            </Button>
+            <Button
+              variant="secondary"
+              data-testid="memberships-cancel-at-end-btn"
+              onclick={cancelAtEnd}
+              disabled={!online}
+            >
               Cancelar al final del período
-            </button>
-            <button class="danger-btn" type="button" data-testid="memberships-cancel-immediate-btn" onclick={previewImmediateCancellation} disabled={!online}>
+            </Button>
+            <Button
+              variant="danger"
+              data-testid="memberships-cancel-immediate-btn"
+              onclick={previewImmediateCancellation}
+              disabled={!online}
+            >
               Cancelar ahora y calcular crédito
-            </button>
+            </Button>
           </div>
 
           <h3 class="history-title">Historial de ocurrencias</h3>
           <div class="history-list">
             {#each occurrences as occurrence}
               <div class="occurrence-row">
-                <span class="badge badge-indigo badge-sm">{String(occurrence.document_type ?? 'DOC')}</span>
+                <Badge variant="indigo">{String(occurrence.document_type ?? 'DOC')}</Badge>
                 <span class="occ-dates">{date(occurrence.period_start)} → {date(occurrence.period_end)}</span>
-                <span class="occ-price">Precio aplicado: <strong class="tabular-nums">{money(occurrence.total_amount_cents)}</strong></span>
-                <span class="occ-debt tabular-nums">Deuda: {money(occurrence.balance_due_cents)}</span>
+                <span class="occ-price">Precio aplicado: <Money cents={occurrence.total_amount_cents} /></span>
+                <span class="occ-debt">Deuda: <Money cents={occurrence.balance_due_cents} /></span>
               </div>
             {:else}
               <p class="no-occurrences">Todavía no hay ocurrencias emitidas.</p>
             {/each}
           </div>
         {:else}
-          <div class="empty-state">
-            <Icon name="list" size={24} />
-            <span>Selecciona una membresía para ver estado, gracia, CxC e historial.</span>
-          </div>
+          <EmptyState icon="list" title="Sin selección" description="Selecciona una membresía para ver estado, gracia, CxC e historial." />
         {/if}
       </section>
 
       <!-- Columna 3: Crear -->
       <aside class="glass-card section-pad" aria-labelledby="create-title">
-        <div class="card-header">
-          <h2 id="create-title">{editing ? 'Editar versión' : 'Crear membresía'}</h2>
+        <CardHeader title={editing ? 'Editar versión' : 'Crear membresía'}>
           <Icon name="plus" size={16} />
-        </div>
-        <div class="field-group">
-          <label for="customer">Cliente</label>
-          <input id="customer" data-testid="memberships-customer-input" bind:value={customerId} />
-        </div>
-        <div class="field-group">
-          <label for="product">Producto o servicio</label>
-          <input id="product" data-testid="memberships-product-input" bind:value={productId} />
-        </div>
-        <div class="field-group">
-          <label for="uom">Unidad de medida</label>
-          <input id="uom" data-testid="memberships-uom-input" bind:value={productUomId} />
-        </div>
-        <div class="field-group">
-          <label for="quantity">Cantidad (microunidades)</label>
+        </CardHeader>
+        <Field label="Cliente" id="customer">
+          <Input id="customer" data-testid="memberships-customer-input" bind:value={customerId} />
+        </Field>
+        <Field label="Producto o servicio" id="product">
+          <Input id="product" data-testid="memberships-product-input" bind:value={productId} />
+        </Field>
+        <Field label="Unidad de medida" id="uom">
+          <Input id="uom" data-testid="memberships-uom-input" bind:value={productUomId} />
+        </Field>
+        <Field label="Cantidad (microunidades)" id="quantity">
           <input id="quantity" data-testid="memberships-quantity-input" type="number" min="1" bind:value={quantityMicrounits} />
-        </div>
-        <div class="field-group">
-          <label for="document">Tipo de documento</label>
+        </Field>
+        <Field label="Tipo de documento" id="document">
           <select id="document" data-testid="memberships-document-select" bind:value={documentType}>
             <option value="NV">Nota de venta</option>
             <option value="03">Boleta</option>
             <option value="01">Factura</option>
           </select>
-        </div>
-        <div class="field-group">
-          <label for="pricing">Política de precio</label>
+        </Field>
+        <Field label="Política de precio" id="pricing">
           <select id="pricing" data-testid="memberships-pricing-select" bind:value={pricingPolicy}>
             <option value="FIXED">Precio fijo (FIXED)</option>
             <option value="CURRENT">Precio vigente (CURRENT)</option>
           </select>
-        </div>
-        <div class="field-group">
-          <label for="frequency">Frecuencia</label>
+        </Field>
+        <Field label="Frecuencia" id="frequency">
           <select id="frequency" data-testid="memberships-frequency-select" bind:value={frequency}>
             <option value="DAILY">Diaria</option>
             <option value="WEEKLY">Semanal</option>
             <option value="MONTHLY">Mensual</option>
             <option value="ANNUALLY">Anual</option>
           </select>
-        </div>
-        <div class="field-group">
-          <label for="grace">Días de gracia</label>
+        </Field>
+        <Field label="Días de gracia" id="grace">
           <input id="grace" data-testid="memberships-grace-input" type="number" min="0" bind:value={graceDays} />
-        </div>
-        <button class="primary" type="button" data-testid="memberships-create-btn" onclick={createPlan}
-          disabled={!online || !branchId || !customerId || !productId || !productUomId}>
-          <Icon name="plus" size={14} />
+        </Field>
+        <Button
+          variant="primary"
+          data-testid="memberships-create-btn"
+          onclick={createPlan}
+          disabled={!online || !branchId || !customerId || !productId || !productUomId}
+          icon="plus"
+        >
           {editing ? 'Guardar nueva versión' : 'Crear con precio del servidor'}
-        </button>
+        </Button>
       </aside>
     </div>
   {/if}
 
   <!-- Modal cancelación inmediata -->
-  {#if preview}
-    <div
-      class="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-title"
-      tabindex="-1"
-      bind:this={previewPanel}
-      onkeydown={(event) => event.key === 'Escape' && closePreview()}
-    >
-      <div class="glass-card modal-card">
-        <h2 id="confirm-title">Confirmar cancelación inmediata</h2>
-        <p>Crédito proporcional: <strong class="tabular-nums">{money(preview.creditAmountCents)}</strong></p>
-        <p>
-          Resultado: <strong>{preview.adjustmentDocumentType === '07' ? 'Nota de crédito' : 'NV_RETURN'}</strong>.
-          La venta original no se modifica.
-        </p>
-        <div class="modal-actions">
-          <button type="button" class="secondary" data-testid="memberships-modal-close-btn" onclick={closePreview}>Volver sin cancelar</button>
-          <button class="danger-btn" type="button" data-testid="memberships-modal-confirm-btn" onclick={confirmImmediateCancellation}>Confirmar cancelación</button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <Modal
+    open={preview !== null}
+    title="Confirmar cancelación inmediata"
+    tone="danger"
+    confirmText="Confirmar cancelación"
+    cancelText="Volver sin cancelar"
+    cancelTestid="memberships-modal-close-btn"
+    confirmTestid="memberships-modal-confirm-btn"
+    onConfirm={confirmImmediateCancellation}
+    onCancel={closePreview}
+  >
+    {#if preview}
+      <p>
+        Crédito proporcional: <Money cents={preview.creditAmountCents} />
+      </p>
+      <p>
+        Resultado: <strong>{preview.adjustmentDocumentType === '07' ? 'Nota de crédito' : 'NV_RETURN'}</strong>.
+        La venta original no se modifica.
+      </p>
+    {/if}
+  </Modal>
 
   <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{message}</p>
 </div>
 
 <style>
-  .connection-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--radius-full);
-    font-size: 0.8125rem;
-    font-weight: 600;
-    background: rgba(46, 158, 116, 0.12);
-    border: 1px solid rgba(46, 158, 116, 0.3);
-    color: var(--emerald-green);
-  }
-  .connection-badge.offline {
-    background: rgba(217, 106, 60, 0.12);
-    border-color: rgba(217, 106, 60, 0.3);
-    color: var(--rose-red);
-  }
-
   .info-pills {
     display: flex;
     flex-wrap: wrap;
@@ -524,8 +525,6 @@
     align-items: start;
   }
 
-  .section-pad { padding: 1.25rem; }
-
   .plan-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
 
   .plan-card {
@@ -551,8 +550,6 @@
   .plan-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
   .plan-next { display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-dim); }
 
-  .badge-sm { font-size: 0.625rem; padding: 0.1rem 0.375rem; }
-
   .detail-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -575,22 +572,6 @@
     margin: 1rem 0;
   }
 
-  .danger-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--rose-red);
-    color: var(--rose-red);
-    background: rgba(217, 106, 60, 0.08);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-    cursor: pointer;
-    font: inherit;
-    min-height: 44px;
-    transition: all var(--transition-fast);
-    width: 100%;
-  }
-  .danger-btn:hover { background: rgba(217, 106, 60, 0.15); }
-  .danger-btn:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
-
   .history-title { font-size: 0.9375rem; font-weight: 700; margin: 1rem 0 0.5rem; color: var(--text-main); }
 
   .history-list { display: flex; flex-direction: column; gap: 0.375rem; }
@@ -610,38 +591,6 @@
   .occ-price { color: var(--text-main); }
   .occ-debt { color: var(--text-dim); }
   .no-occurrences { color: var(--text-muted); font-size: 0.875rem; }
-
-  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.75rem; }
-  .field-group label { font-weight: 700; font-size: 0.8125rem; color: var(--text-muted); }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 2rem 1rem;
-    color: var(--text-dim);
-    font-size: 0.875rem;
-    text-align: center;
-  }
-
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    backdrop-filter: blur(4px);
-  }
-  .modal-card {
-    width: min(34rem, calc(100vw - 2rem));
-    padding: 1.5rem;
-    border: 1px solid var(--rose-red);
-  }
-  .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
 
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 

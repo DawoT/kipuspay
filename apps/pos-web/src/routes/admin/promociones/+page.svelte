@@ -1,6 +1,9 @@
 <script lang="ts">
   import { isPricingPromotionsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const promosOn = isPricingPromotionsEnabled();
   let name = $state('2x1 fin de semana');
@@ -13,10 +16,8 @@
   let listJson = $state('');
   let loading = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function createPromo() {
     message = '';
@@ -67,16 +68,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !promosOn}
     <div class="feature-off-banner" data-testid="admin-promos-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_PRICING_PROMOTIONS</code> desactivado.</span>
+      <span>Las promociones no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="promos-layout">
@@ -118,14 +119,12 @@
         </div>
 
         <div class="btn-row">
-          <button type="button" class="primary" data-testid="promo-create" onclick={createPromo} disabled={loading}>
-            <Icon name="plus" size={14} />
-            Crear promoción
-          </button>
-          <button type="button" class="secondary" data-testid="promo-list" onclick={listPromos} disabled={loading}>
-            <Icon name="list" size={14} />
-            Listar
-          </button>
+          <Button variant="primary" icon="plus" data-testid="promo-create" onclick={createPromo} disabled={loading}>
+          Crear promoción
+        </Button>
+          <Button variant="secondary" icon="list" data-testid="promo-list" onclick={listPromos} disabled={loading}>
+          Listar
+        </Button>
         </div>
       </section>
 
@@ -151,16 +150,7 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
   .mono-area {
     font-family: var(--font-mono);
@@ -168,11 +158,6 @@
     resize: vertical;
   }
 
-  .btn-row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
 
   .json-view {
     overflow: auto;

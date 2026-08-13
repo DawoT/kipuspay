@@ -45,6 +45,20 @@ export interface RecurringPlanSummary {
   readonly balance_due_cents: number;
 }
 
+export interface RecurringCancellationPreview {
+  readonly previewId: string;
+  readonly creditAmountCents: number;
+  readonly adjustmentDocumentType: '07' | 'NV_RETURN';
+}
+
+export interface RecurringOccurrence {
+  readonly document_type: string;
+  readonly period_start: string;
+  readonly period_end: string;
+  readonly total_amount_cents: number;
+  readonly balance_due_cents: number;
+}
+
 export class RecurringSalesClientError extends Error {
   constructor(
     readonly code: string,
@@ -99,6 +113,18 @@ function isPlan(value: unknown): value is RecurringPlanSummary {
     ) &&
     (row.next_retry_at === null || typeof row.next_retry_at === 'string') &&
     (row.last_error_code === null || typeof row.last_error_code === 'string'),
+  );
+}
+
+function isOccurrence(value: unknown): value is RecurringOccurrence {
+  const row = object(value);
+  return Boolean(
+    row &&
+      nonEmpty(row.document_type) &&
+      nonEmpty(row.period_start) &&
+      nonEmpty(row.period_end) &&
+      safeInteger(row.total_amount_cents) &&
+      safeInteger(row.balance_due_cents),
   );
 }
 
@@ -265,8 +291,8 @@ export function createRecurringSalesApi(input: {
       readonly expectedVersion: number;
       readonly branchId?: string;
       readonly cancelledAt?: string;
-    }) {
-      return request(
+    }): Promise<RecurringCancellationPreview> {
+      const row = await request(
         `/api/admin/recurring-plans/${encodeURIComponent(action.planId)}/cancel-preview`,
         { method: 'POST', body: JSON.stringify(action) },
         (row) =>
@@ -275,6 +301,7 @@ export function createRecurringSalesApi(input: {
           ['07', 'NV_RETURN'].includes(String(row.adjustmentDocumentType)) &&
           row.confirmationRequired === true,
       );
+      return row as unknown as RecurringCancellationPreview;
     },
     async cancel(action: {
       readonly planId: string;
@@ -298,9 +325,13 @@ export function createRecurringSalesApi(input: {
       const path = `/api/admin/recurring-plans/${encodeURIComponent(action.planId)}/occurrences${
         params.size ? `?${params}` : ''
       }`;
-      return request(path, { method: 'GET' }, (row) => {
-        return Array.isArray(row.occurrences) && object(row.retry) !== null;
+      const row = await request(path, { method: 'GET' }, (value) => {
+        return Array.isArray(value.occurrences) && object(value.retry) !== null;
       });
+      const occurrences = Array.isArray(row.occurrences)
+        ? row.occurrences.filter(isOccurrence)
+        : [];
+      return { occurrences, retry: object(row.retry) };
     },
   };
 }

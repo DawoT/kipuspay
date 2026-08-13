@@ -2,6 +2,7 @@
  * Backlog v10 P1c — cliente de percepciones `02` / retenciones `20`
  * (ADR-FISCAL-005). Los montos se calculan siempre server-side.
  */
+import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
 
 export interface PerceptionInput {
   readonly branchId: string;
@@ -33,8 +34,8 @@ async function post(
   path: string,
   body: Record<string, unknown>,
 ): Promise<WithholdingIssued | { ok: false; message: string }> {
-  const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
-  const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = resolveApiBase();
+  const auth = resolveApiAuth().authorization ?? '';
   try {
     const res = await fetch(`${apiBase.replace(/\/$/, '')}${path}`, {
       method: 'POST',

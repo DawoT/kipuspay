@@ -8,6 +8,12 @@
     type PosTenantSession,
   } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import CardHeader from '$lib/ui/CardHeader.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const quotesOn = isSalesQuotesEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -20,10 +26,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
   const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
 
   onMount(() => {
@@ -108,87 +112,103 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite" data-testid="quote-msg">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite" data-testid="quote-msg">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !quotesOn}
     <div class="feature-off-banner" data-testid="caja-quote-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_SALES_QUOTES</code> desactivado.</span>
+      <span>Las cotizaciones no están activas para esta tienda.</span>
     </div>
   {:else}
-    <p class="tenant-line" data-testid="caja-quote-tenant">Tenant {session.tenantId}</p>
+    <p class="tenant-line" data-testid="caja-quote-tenant">Tienda: {session.tradeName}</p>
 
     <div class="quote-layout">
       <!-- Crear -->
       <section class="glass-card section-pad">
-        <div class="card-header">
-          <h2>Nueva cotización</h2>
+        <CardHeader title="Nueva cotización">
           <span class="section-tag">Crear</span>
-        </div>
-        <div class="field-group">
-          <label for="q-product">Producto</label>
-          <input id="q-product" bind:value={productId} data-testid="quote-product" />
-        </div>
-        <div class="field-group">
-          <label for="q-qty">Cantidad (microunidades)</label>
+        </CardHeader>
+        <Field label="Producto" id="q-product">
+          <Input id="q-product" bind:value={productId} data-testid="quote-product" />
+        </Field>
+        <Field label="Cantidad" id="q-qty">
           <input id="q-qty" type="number" bind:value={enteredMicrounits} data-testid="quote-qty" />
-        </div>
-        <div class="field-group">
-          <label for="q-valid">Válida hasta</label>
+        </Field>
+        <Field label="Válida hasta" id="q-valid">
           <input id="q-valid" type="date" bind:value={validUntil} data-testid="quote-valid" />
-        </div>
-        <button type="button" class="primary" data-testid="quote-create" onclick={() => void createQuote()}>
-          <Icon name="plus" size={14} />
+        </Field>
+        <Button
+          variant="primary"
+          data-testid="quote-create"
+          onclick={() => void createQuote()}
+          icon="plus"
+        >
           Crear cotización
-        </button>
+        </Button>
       </section>
 
       <!-- Acciones -->
       <section class="glass-card section-pad">
-        <div class="card-header">
-          <h2>Gestionar</h2>
+        <CardHeader title="Gestionar">
           <span class="section-tag">Acciones</span>
-        </div>
-        <div class="field-group">
-          <label for="q-id">ID cotización</label>
-          <input id="q-id" bind:value={quoteId} data-testid="quote-id" placeholder="ID creado arriba" />
-        </div>
+        </CardHeader>
+        <Field label="ID cotización" id="q-id">
+          <Input id="q-id" bind:value={quoteId} data-testid="quote-id" placeholder="ID creado arriba" />
+        </Field>
         <div class="btn-row">
-          <button type="button" class="secondary" data-testid="quote-send" onclick={() => void send()} disabled={!quoteId}>
-            <Icon name="arrow-right" size={14} />
+          <Button
+            variant="secondary"
+            data-testid="quote-send"
+            onclick={() => void send()}
+            disabled={!quoteId}
+            icon="arrow-right"
+          >
             Enviar
-          </button>
-          <button type="button" class="primary" data-testid="quote-approve" onclick={() => void approve()} disabled={!quoteId}>
-            <Icon name="check" size={14} />
+          </Button>
+          <Button
+            variant="primary"
+            data-testid="quote-approve"
+            onclick={() => void approve()}
+            disabled={!quoteId}
+            icon="check"
+          >
             Aprobar
-          </button>
+          </Button>
         </div>
 
         <div class="separator"></div>
 
-        <div class="field-group">
-          <label for="q-series">Serie al convertir</label>
-          <input id="q-series" bind:value={series} data-testid="quote-series" />
-        </div>
-        <button type="button" class="success" data-testid="quote-convert" onclick={() => void convert()} disabled={!quoteId}>
-          <Icon name="receipt" size={14} />
+        <Field label="Serie al convertir" id="q-series">
+          <Input id="q-series" bind:value={series} data-testid="quote-series" />
+        </Field>
+        <Button
+          variant="success"
+          data-testid="quote-convert"
+          onclick={() => void convert()}
+          disabled={!quoteId}
+          icon="receipt"
+        >
           Convertir a venta
-        </button>
+        </Button>
 
         <div class="separator"></div>
 
-        <div class="field-group">
-          <label for="q-reason">Motivo cancelación</label>
-          <input id="q-reason" bind:value={reason} data-testid="quote-reason" placeholder="Opcional" />
-        </div>
-        <button type="button" class="secondary danger-sec" data-testid="quote-cancel" onclick={() => void cancel()} disabled={!quoteId}>
-          <Icon name="x" size={14} />
+        <Field label="Motivo cancelación" id="q-reason">
+          <Input id="q-reason" bind:value={reason} data-testid="quote-reason" placeholder="Opcional" />
+        </Field>
+        <Button
+          variant="danger"
+          data-testid="quote-cancel"
+          onclick={() => void cancel()}
+          disabled={!quoteId}
+          icon="x"
+        >
           Cancelar
-        </button>
+        </Button>
       </section>
     </div>
   {/if}
@@ -202,21 +222,6 @@
     align-items: start;
   }
 
-  .section-pad { padding: 1.25rem; }
-
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
-
-  .btn-row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.5rem;
-  }
 
   .separator {
     border-top: 1px solid var(--border-subtle);
@@ -227,15 +232,6 @@
     font-size: 0.8125rem;
     color: var(--text-dim);
     font-family: var(--font-mono);
-  }
-
-  .danger-sec {
-    border-color: rgba(217, 106, 60, 0.35);
-    color: var(--rose-red);
-  }
-  .danger-sec:hover {
-    background: rgba(217, 106, 60, 0.1);
-    border-color: var(--rose-red);
   }
 
   @media (max-width: 600px) {

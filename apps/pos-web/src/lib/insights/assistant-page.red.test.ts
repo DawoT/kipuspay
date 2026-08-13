@@ -5,12 +5,13 @@ const source = readFileSync(
   new URL('../../routes/owner/asistente/+page.svelte', import.meta.url),
   'utf8',
 );
+const buttonSource = readFileSync(new URL('../ui/Button.svelte', import.meta.url), 'utf8');
 
 describe('Sprint 49 assistant UI contract (GREEN)', () => {
   it('gates detrás de OWNER_MODE y AGENTIC_INSIGHTS', () => {
     expect(source).toContain('isOwnerModeEnabled()');
     expect(source).toContain('isAgenticInsightsEnabled()');
-    expect(source).toContain('FEATURE_ANALYTICS_AGENTIC_INSIGHTS off');
+    expect(source).toContain('El asistente no está activo para este negocio.');
   });
 
   it('briefing con banner de antigüedad, nunca en vivo', () => {
@@ -31,7 +32,8 @@ describe('Sprint 49 assistant UI contract (GREEN)', () => {
     expect(source).toMatch(/aria-live="polite"/);
     expect(source).toMatch(/role="alert"/);
     expect(source).toMatch(/role="status"/);
-    expect(source).toMatch(/min-height: 44px/);
+    expect(source).toMatch(/import Button from '\$lib\/ui\/Button.svelte'/);
+    expect(buttonSource).toMatch(/min-height: 44px/);
     expect(source).toMatch(/prefers-reduced-motion/);
   });
 });

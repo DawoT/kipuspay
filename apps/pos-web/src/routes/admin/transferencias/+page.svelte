@@ -1,6 +1,9 @@
 <script lang="ts">
   import { isStockTransfersEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const xferOn = isStockTransfersEnabled();
   let fromBranchId = $state('b-origen');
@@ -15,10 +18,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function createTransfer() {
     message = '';
@@ -85,16 +86,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !xferOn}
     <div class="feature-off-banner" data-testid="admin-xfer-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_STOCK_TRANSFERS</code> desactivado.</span>
+      <span>Las transferencias no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="xfer-layout">
@@ -120,10 +121,9 @@
           <label for="xfer-qty-sent">Cantidad enviada</label>
           <input id="xfer-qty-sent" type="number" bind:value={qtySent} data-testid="xfer-qty-sent" />
         </div>
-        <button type="button" class="primary" onclick={createTransfer}>
-          <Icon name="truck" size={14} />
+        <Button variant="primary" icon="truck" onclick={createTransfer}>
           Crear transferencia
-        </button>
+        </Button>
       </section>
 
       <!-- Gestionar existente -->
@@ -137,14 +137,12 @@
           <input id="xfer-id" bind:value={transferId} data-testid="xfer-id" placeholder="ID creado arriba" />
         </div>
         <div class="btn-row">
-          <button type="button" class="primary" onclick={ship} disabled={!transferId}>
-            <Icon name="arrow-right" size={14} />
-            Enviar
-          </button>
-          <button type="button" class="secondary danger-sec" onclick={cancelTransfer} disabled={!transferId}>
-            <Icon name="x" size={14} />
-            Cancelar
-          </button>
+          <Button variant="primary" icon="arrow-right" onclick={ship} disabled={!transferId}>
+          Enviar
+        </Button>
+          <Button variant="danger" icon="x" onclick={cancelTransfer} disabled={!transferId}>
+          Cancelar
+        </Button>
         </div>
 
         <div class="separator"></div>
@@ -171,10 +169,9 @@
           <label for="xfer-shrink-reason">Motivo merma</label>
           <input id="xfer-shrink-reason" bind:value={shrinkReason} data-testid="xfer-shrink-reason" placeholder="Opcional" />
         </div>
-        <button type="button" class="success" onclick={receive} disabled={!transferId || !lineId}>
-          <Icon name="check" size={14} />
+        <Button variant="success" icon="check" onclick={receive} disabled={!transferId || !lineId}>
           Confirmar recepción
-        </button>
+        </Button>
       </section>
     </div>
   {/if}
@@ -188,50 +185,21 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
 
-  .btn-row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.875rem;
-  }
 
   .separator {
     border-top: 1px solid var(--border-subtle);
     margin: 0.875rem 0;
   }
 
-  .danger-sec {
-    border-color: rgba(217, 106, 60, 0.35);
-    color: var(--rose-red);
-  }
 
-  .danger-sec:hover {
-    background: rgba(217, 106, 60, 0.1);
-    border-color: var(--rose-red);
-  }
+
+
 
   @media (max-width: 600px) {
     .xfer-layout {
-      grid-template-columns: 1fr;
-    }
-    .two-col {
       grid-template-columns: 1fr;
     }
   }

@@ -6,6 +6,17 @@
     isInventorySerialsEnabled,
   } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import Fieldset from '$lib/ui/Fieldset.svelte';
+  import MoneyInput from '$lib/ui/MoneyInput.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import { formatCents } from '$lib/cents';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import CardHeader from '$lib/ui/CardHeader.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
@@ -13,11 +24,11 @@
   const quickAddOn = isCatalogQuickAddEnabled();
   let scanBarcode = $state('');
   let scanName = $state('');
-  let scanPriceCents = $state('');
+  let scanPriceCents = $state<number | null>(null);
   let scanMessage = $state('');
   let productId = $state('');
   let parentProductId = $state('');
-  let overrideCents = $state('');
+  let overrideCents = $state<number | null>(null);
   let uomCode = $state('UND');
   let numerator = $state(1);
   let denominator = $state(1);
@@ -27,17 +38,79 @@
   let catalog = $state<unknown[]>([]);
   let serialTrackingMode = $state('NONE');
   let loading = $state(false);
+  let lookupProduct = $state<{
+    id: string;
+    sku: string;
+    barcode: string;
+    name: string;
+    priceCents: number;
+    productType: string;
+  } | null>(null);
+  let lookupMsg = $state('');
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') || '';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
   const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
+
+  async function scanLookup() {
+    const raw = scanBarcode.trim();
+    lookupMsg = '';
+    lookupProduct = null;
+    if (!raw) {
+      lookupMsg = 'Ingresa el código a buscar.';
+      return;
+    }
+    let response: Response;
+    try {
+      response = await fetch(`${apiBase()}/api/catalog/scan/${encodeURIComponent(raw)}`, {
+        headers: { authorization: auth() },
+      });
+    } catch {
+      lookupMsg = 'No se pudo conectar para buscar el código.';
+      return;
+    }
+    const json = (await response.json()) as {
+      code?: string;
+      error?: string;
+      product?: {
+        id: string;
+        sku: string;
+        barcode: string;
+        name: string;
+        price_cents: number;
+        product_type: string;
+      };
+    };
+    if (!response.ok) {
+      lookupMsg =
+        json.code === 'NOT_FOUND'
+          ? 'No existe un producto con ese código: usa la alta rápida para crearlo.'
+          : (json.error ?? `Error ${response.status}`);
+      return;
+    }
+    const product = json.product;
+    if (!product) {
+      lookupMsg = 'El código no corresponde a un producto.';
+      return;
+    }
+    lookupProduct = {
+      id: product.id,
+      sku: product.sku,
+      barcode: product.barcode,
+      name: product.name,
+      priceCents: product.price_cents,
+      productType: product.product_type,
+    };
+    scanName = product.name;
+    scanPriceCents = product.price_cents;
+    lookupMsg = 'Producto encontrado: ajusta nombre o precio y guarda.';
+  }
 
   async function quickAdd() {
     const barcode = scanBarcode.trim();
     const name = scanName.trim();
-    const priceCents = Number(scanPriceCents);
-    if (!barcode || !name || !Number.isSafeInteger(priceCents) || priceCents <= 0) {
+    const priceCents = scanPriceCents;
+    if (!barcode || !name || priceCents === null || !Number.isSafeInteger(priceCents) || priceCents <= 0) {
       scanMessage = 'Código, nombre y precio (entero) son obligatorios.';
       return;
     }
@@ -62,7 +135,7 @@
       : `Producto existente actualizado (código ${barcode}).`;
     scanBarcode = '';
     scanName = '';
-    scanPriceCents = '';
+    scanPriceCents = null;
   }
 
   async function loadCatalog() {
@@ -83,7 +156,7 @@
       headers: headers(),
       body: JSON.stringify({
         parentProductId: parentProductId || null,
-        variantPriceOverrideCents: overrideCents === '' ? null : parseInt(overrideCents, 10),
+        variantPriceOverrideCents: overrideCents === null ? null : overrideCents,
       }),
     });
     const json = (await response.json()) as { error?: string };
@@ -145,40 +218,84 @@
 
   {#if quickAddOn}
     <section class="glass-card section-pad scan-panel" data-testid="quick-add-panel" aria-labelledby="quick-add-title">
-      <div class="card-header">
-        <h2 id="quick-add-title">Escáner rápido</h2>
-        <span class="badge badge-warning">~3s</span>
-      </div>
+      <CardHeader title="Escáner rápido">
+        <Badge variant="warning">~3s</Badge>
+      </CardHeader>
       <p class="scan-hint">Escanea (o escribe) un código de barras: si existe editas precio/stock; si no, creas el producto al instante. El prefijo EMP- es de vendedores y jamás crea un producto.</p>
       <div class="scan-form">
         <label class="sr-only" for="scan-barcode">Código de barras</label>
-        <input id="scan-barcode" data-testid="quick-add-barcode" bind:value={scanBarcode} placeholder="Código (EAN/UPC o EMP-…)" autocomplete="off" />
+        <Input
+          id="scan-barcode"
+          class="scan-input"
+          data-testid="quick-add-barcode"
+          bind:value={scanBarcode}
+          placeholder="Código (EAN/UPC o EMP-…)"
+          autocomplete="off"
+        />
         <label class="sr-only" for="scan-name">Nombre</label>
-        <input id="scan-name" data-testid="quick-add-name" bind:value={scanName} placeholder="Nombre del artículo" />
-        <label class="sr-only" for="scan-price">Precio en cents</label>
-        <input id="scan-price" data-testid="quick-add-price" type="number" min="1" bind:value={scanPriceCents} placeholder="Precio (cents)" />
-        <button type="button" class="primary" data-testid="quick-add-submit" onclick={quickAdd}>
+        <Input
+          id="scan-name"
+          class="scan-input"
+          data-testid="quick-add-name"
+          bind:value={scanName}
+          placeholder="Nombre del artículo"
+        />
+        <label class="sr-only" for="scan-price">Precio</label>
+        <MoneyInput
+          id="scan-price"
+          class="scan-input"
+          data-testid="quick-add-price"
+          bind:value={scanPriceCents}
+          min={1}
+          placeholder="Precio (S/ 0.00)"
+        />
+        <Button
+          variant="secondary"
+          data-testid="quick-add-lookup"
+          onclick={scanLookup}
+        >
+          Buscar
+        </Button>
+        <Button
+          variant="primary"
+          data-testid="quick-add-submit"
+          onclick={quickAdd}
+        >
           Crear o actualizar
-        </button>
+        </Button>
       </div>
+      {#if lookupMsg}
+        <StatusMessage tone="info" role="status" data-testid="quick-add-lookup-msg">
+          {lookupMsg}
+        </StatusMessage>
+      {/if}
+      {#if lookupProduct}
+        <div class="lookup-card" data-testid="quick-add-lookup-product">
+          <span class="lookup-name">{lookupProduct.name}</span>
+          <span class="lookup-price tabular-nums">S/ {formatCents(lookupProduct.priceCents)}</span>
+          <span class="lookup-sku">SKU {lookupProduct.sku || '—'} · {lookupProduct.barcode}</span>
+        </div>
+      {/if}
       {#if scanMessage}
-        <p class="scan-message" role="status" data-testid="quick-add-message">{scanMessage}</p>
+        <StatusMessage tone="info" role="status" data-testid="quick-add-message">
+          {scanMessage}
+        </StatusMessage>
       {/if}
     </section>
   {/if}
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'}>
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !variantsOn && !uomOn && !serialsOn}
     <div class="feature-off-banner" data-testid="catalog-off">
       <Icon name="info" size={18} />
       <span>
-        Activa una capability de catálogo o <code>PUBLIC_FEATURE_INVENTORY_SERIALS</code> para editar.
+        Activa una función de catálogo o de series para editar.
       </span>
     </div>
   {:else}
@@ -190,40 +307,33 @@
           <span class="section-tag">Configuración</span>
         </div>
 
-        <div class="field-group">
-          <label for="productId-input">Producto o variante</label>
-          <input
+        <Field label="Producto o variante" id="productId-input">
+          <Input
             id="productId-input"
             bind:value={productId}
             placeholder="ID del producto"
           />
-        </div>
+        </Field>
 
         {#if variantsOn}
-          <fieldset class="card-section">
-            <legend>Familia de variante</legend>
-            <div class="field-group">
-              <label for="parent-input">Producto padre</label>
-              <input id="parent-input" bind:value={parentProductId} placeholder="Vacío = es padre" />
-            </div>
-            <div class="field-group">
-              <label for="price-input">Precio propio (céntimos)</label>
-              <input id="price-input" bind:value={overrideCents} inputmode="numeric" placeholder="Dejar vacío = hereda" />
-            </div>
-            <button type="button" class="primary" onclick={saveVariant}>
-              <Icon name="check" size={14} />
+          <Fieldset title="Familia de variante">
+            <Field label="Producto padre" id="parent-input">
+              <Input id="parent-input" bind:value={parentProductId} placeholder="Vacío = es padre" />
+            </Field>
+            <Field label="Precio propio" id="price-input">
+              <MoneyInput id="price-input" bind:value={overrideCents} placeholder="Vacío = hereda" />
+            </Field>
+            <Button variant="primary" onclick={saveVariant} icon="check">
               Guardar variante
-            </button>
-          </fieldset>
+            </Button>
+          </Fieldset>
         {/if}
 
         {#if uomOn}
-          <fieldset class="card-section">
-            <legend>Presentación (UOM)</legend>
-            <div class="field-group">
-              <label for="uom-code-input">Código</label>
-              <input id="uom-code-input" bind:value={uomCode} maxlength="12" />
-            </div>
+          <Fieldset title="Presentación (UOM)">
+            <Field label="Código" id="uom-code-input">
+              <Input id="uom-code-input" bind:value={uomCode} maxlength="12" />
+            </Field>
             <div class="ratio-row" aria-label="Factor racional">
               <div class="field-group">
                 <label for="uom-num-input">Numerador</label>
@@ -239,32 +349,28 @@
               <input type="checkbox" bind:checked={isBase} />
               <span>Unidad base 1/1</span>
             </label>
-            <button type="button" class="primary" onclick={saveUom}>
-              <Icon name="check" size={14} />
+            <Button variant="primary" onclick={saveUom} icon="check">
               Guardar unidad
-            </button>
-          </fieldset>
+            </Button>
+          </Fieldset>
         {/if}
 
         {#if serialsOn}
-          <fieldset class="card-section">
-            <legend>Identidad serial</legend>
-            <div class="field-group">
-              <label for="serial-select">Seguimiento</label>
+          <Fieldset title="Identidad serial">
+            <Field label="Seguimiento" id="serial-select">
               <select id="serial-select" bind:value={serialTrackingMode}>
                 <option value="NONE">Sin serie</option>
                 <option value="REQUIRED">Serie obligatoria (una unidad)</option>
               </select>
-            </div>
-            <button type="button" class="primary" onclick={saveSerialTracking}>
-              <Icon name="barcode" size={14} />
+            </Field>
+            <Button variant="primary" onclick={saveSerialTracking} icon="barcode">
               Guardar seguimiento serial
-            </button>
+            </Button>
             <a class="link-inline" href="/admin/series">
               <Icon name="arrow-right" size={13} />
               Buscar y gestionar series
             </a>
-          </fieldset>
+          </Fieldset>
         {/if}
       </aside>
 
@@ -272,16 +378,12 @@
       <section class="glass-card ledger">
         <div class="card-header">
           <h2>Mapa del catálogo</h2>
-          <button type="button" class="secondary" onclick={loadCatalog} disabled={loading}>
-            <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+          <Button variant="secondary" onclick={loadCatalog} busy={loading} icon="refresh">
             {loading ? 'Cargando…' : 'Actualizar'}
-          </button>
+          </Button>
         </div>
         {#if catalog.length === 0}
-          <div class="ledger-empty">
-            <Icon name="layers" size={28} />
-            <span>Carga el catálogo para revisar padres, variantes y presentaciones.</span>
-          </div>
+          <EmptyState icon="layers" title="Sin catálogo" description="Carga el catálogo para revisar padres, variantes y presentaciones." />
         {:else}
           <pre class="json-view">{JSON.stringify(catalog, null, 2)}</pre>
         {/if}
@@ -307,33 +409,6 @@
 
   .ledger {
     padding: 1.25rem;
-  }
-
-  .card-section {
-    border: none;
-    border-top: 1px solid var(--border-subtle);
-    margin: 1rem 0 0;
-    padding: 1rem 0 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-
-  .card-section legend {
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent-primary);
-    padding: 0;
-    margin-bottom: 0.5rem;
-  }
-
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
   }
 
   .ratio-row {
@@ -366,18 +441,6 @@
     width: auto;
     cursor: pointer;
     accent-color: var(--accent-primary);
-  }
-
-  .ledger-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 3rem 1.5rem;
-    color: var(--text-dim);
-    font-size: 0.9375rem;
-    text-align: center;
   }
 
   .json-view {
@@ -435,5 +498,30 @@
     .workbench {
       grid-template-columns: 1fr;
     }
+  }
+
+  .lookup-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.875rem 1rem;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
+  }
+
+  .lookup-name {
+    font-weight: 700;
+  }
+
+  .lookup-price {
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: var(--emerald-green);
+  }
+
+  .lookup-sku {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
   }
 </style>

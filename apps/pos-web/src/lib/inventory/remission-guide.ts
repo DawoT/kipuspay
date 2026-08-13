@@ -2,6 +2,7 @@
  * Backlog v10 P1b — cliente de la Guía de Remisión `31` (ADR-FISCAL-004).
  * El servidor es la única autoridad del correlativo y del guard.
  */
+import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
 
 export interface RemissionGuideInput {
   readonly branchId: string;
@@ -32,8 +33,8 @@ export interface RemissionGuideIssued {
 export async function issueRemissionGuide(
   input: RemissionGuideInput,
 ): Promise<RemissionGuideIssued | { ok: false; message: string }> {
-  const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
-  const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = resolveApiBase();
+  const auth = resolveApiAuth().authorization ?? '';
   if (!input.branchId.trim() || !input.series.trim() || input.items.length === 0) {
     return { ok: false, message: 'Sucursal, serie y al menos un ítem son requeridos.' };
   }

@@ -48,8 +48,6 @@ test('offline sync: encolar N → sync background → cola vacía (cero spinner 
   // Cobro y sync en background completan atómicamente.
   await expect(page.getByTestId('status')).toHaveText('synced', { timeout: 10_000 });
   await expect(page.getByTestId('message')).toContainText('Cola vacía tras sync');
-  // eslint-disable-next-line no-console
-  console.log('SYNC_REQUESTS ' + JSON.stringify(syncRequests));
   await expect(page.getByTestId('pending')).toHaveText('0');
   expect(syncRequests.length, `requests: ${JSON.stringify(syncRequests)}`).toBeGreaterThan(0);
 });

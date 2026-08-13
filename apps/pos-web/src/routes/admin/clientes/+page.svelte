@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/ui/Icon.svelte';
+  import Skeleton from '$lib/ui/Skeleton.svelte';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { isLpdpEnabled } from '$lib/features';
   import {
@@ -7,6 +8,7 @@
     type ConsentDto,
     type CustomerListItemDto,
   } from '$lib/customers/customer-lpdp-client';
+  import { resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isLpdpEnabled();
   const sessionState = readAdminAuthenticatedSessionState();
@@ -18,7 +20,7 @@
     session
       ? createLpdpClient({
           authenticatedFetch: session.authenticatedFetch,
-          apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+          apiBase: resolveApiBase(localStorage),
         })
       : null,
   );
@@ -212,10 +214,16 @@
               </div>
             </button>
           {:else}
-            <div class="empty-state">
-              <Icon name="user" size={22} />
-              <span>{loading ? 'Cargando…' : 'No hay clientes para esta sucursal.'}</span>
-            </div>
+            {#if loading}
+              <div class="section-pad">
+                <Skeleton lines={3} />
+              </div>
+            {:else}
+              <div class="empty-state">
+                <Icon name="user" size={22} />
+                <span>No hay clientes para esta sucursal.</span>
+              </div>
+            {/if}
           {/each}
         </div>
       </section>

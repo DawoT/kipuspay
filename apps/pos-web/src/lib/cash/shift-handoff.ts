@@ -3,6 +3,7 @@
  * El servidor es la única autoridad del PIN: el cliente nunca ve hashes y el
  * PIN claro se muestra una sola vez en la UI.
  */
+import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
 
 export interface IssueShiftPinResultOk {
   ok: true;
@@ -23,11 +24,11 @@ export interface ShiftTransferResultOk {
 export type ShiftTransferResult = ShiftTransferResultOk | { ok: false; message: string };
 
 function apiBase(): string {
-  return (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
+  return resolveApiBase();
 }
 
 function authHeader(): string {
-  return (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  return resolveApiAuth().authorization ?? '';
 }
 
 async function post(path: string, body: Record<string, unknown>): Promise<Response> {

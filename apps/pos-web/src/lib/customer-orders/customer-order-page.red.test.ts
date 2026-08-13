@@ -52,7 +52,7 @@ describe('Sprint 43 customer-order UI contract (RED)', () => {
     expect(source).toContain('Cumplimiento pendiente');
     expect(source).toContain('Reintentar envío');
     expect(source).toContain('Crear desde carrito');
-    expect(source).toContain('Sin lease vigente');
+    expect(source).toContain('Sin reserva vigente');
   });
 
   it('uses explicit durable notice and no-CPE copy', () => {

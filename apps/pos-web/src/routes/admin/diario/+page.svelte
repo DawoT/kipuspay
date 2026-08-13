@@ -1,6 +1,8 @@
 <script lang="ts">
   import { isLedgerChartOfAccountsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const journalOn = isLedgerChartOfAccountsEnabled();
   let fromDate = $state('2026-08-01');
@@ -10,10 +12,8 @@
   let message = $state('');
   let mutateMsg = $state('');
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function loadJournal() {
     message = '';
@@ -57,7 +57,7 @@
   {#if !journalOn}
     <div class="alert-box alert-off" data-testid="admin-diario-off">
       <Icon name="alert" size={18} />
-      <span>PUBLIC_FEATURE_LEDGER_CHART_OF_ACCOUNTS desactivado.</span>
+      <span>El diario contable no está activo para este negocio.</span>
     </div>
   {:else}
     <div class="journal-workbench glass-card">
@@ -88,14 +88,16 @@
       </div>
 
       <div class="actions">
-        <button type="button" class="btn-primary" data-testid="journal-load" onclick={() => void loadJournal()}>
+        <Button variant="primary" data-testid="journal-load" onclick={() =>
+          void loadJournal()}>
           <Icon name="search" size={16} />
-          <span>Leer Asientos</span>
-        </button>
-        <button type="button" class="btn-secondary" data-testid="journal-mutate" onclick={() => void tryMutate()}>
+          Leer Asientos
+        </Button>
+        <Button variant="secondary" data-testid="journal-mutate" onclick={() =>
+          void tryMutate()}>
           <Icon name="lock" size={16} />
-          <span>Intentar mutar (Prueba de inmutabilidad)</span>
-        </button>
+          Intentar mutar (Prueba de inmutabilidad)
+        </Button>
       </div>
 
       {#if message}
@@ -132,20 +134,6 @@
     margin-bottom: 1.5rem;
   }
 
-  .badge-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.65rem;
-    background: rgba(217, 154, 61, 0.12);
-    border: 1px solid rgba(217, 154, 61, 0.3);
-    border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary);
-    font: 600 0.72rem/1.2 var(--font-mono, monospace);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
 
   h1 {
     margin: 0.2rem 0;
@@ -195,25 +183,9 @@
     margin-bottom: 1.25rem;
   }
 
-  .btn-primary {
-    background: var(--accent-gradient, var(--accent-primary));
-    color: #ffffff;
-    border: none;
-    padding: 0.65rem 1.25rem;
-    border-radius: var(--radius-sm, 8px);
-    font-weight: 700;
-    cursor: pointer;
-  }
 
-  .btn-secondary {
-    background: var(--bg-button-sec, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    color: var(--text-main, #f8fafc);
-    padding: 0.65rem 1.25rem;
-    border-radius: var(--radius-sm, 8px);
-    font-weight: 600;
-    cursor: pointer;
-  }
+
+
 
   .message-banner {
     display: flex;

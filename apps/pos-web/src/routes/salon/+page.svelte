@@ -1,6 +1,8 @@
 <script lang="ts">
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
 
   const enabled = isOrdersKdsEnabled();
@@ -82,21 +84,21 @@
   {#if !enabled}
     <div class="feature-off-banner" data-testid="salon-off">
       <Icon name="info" size={18} />
-      <span>Comandas desactivadas (<code>FEATURE_ORDERS_KDS</code> off).</span>
+      <span>Las comandas no están activas para esta tienda.</span>
     </div>
   {:else}
     {#if error}
-      <div class="status-alert danger" aria-live="polite" data-testid="salon-error">
+      <StatusMessage tone="danger" aria-live="polite" data-testid="salon-error">
         <Icon name="alert" size={16} />
         <span>{error}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     {#if status}
-      <div class="status-alert info" aria-live="polite" data-testid="salon-status">
+      <StatusMessage tone="info" aria-live="polite" data-testid="salon-status">
         <Icon name="check" size={16} />
         <span>Estado: {status}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     <div class="glass-card salon-card" data-testid="salon">
@@ -118,10 +120,9 @@
           <input id="salon-qty-input" data-testid="salon-qty" type="number" min="1" bind:value={quantity} />
         </div>
       </div>
-      <button type="button" class="primary fire-btn" data-testid="salon-fire" onclick={createAndFire}>
-        <Icon name="plus" size={14} />
+      <Button variant="primary" size="full" data-testid="salon-fire" onclick={createAndFire} icon="plus">
         Enviar a cocina
-      </button>
+      </Button>
 
       {#if orderId}
         <div class="order-id-box" data-testid="salon-order-id">
@@ -139,9 +140,6 @@
     max-width: 32rem;
   }
 
-  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-  .fire-btn { width: 100%; margin-top: 0.5rem; }
 
   .order-id-box {
     margin-top: 1rem;
@@ -183,5 +181,5 @@
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) {  }
 </style>

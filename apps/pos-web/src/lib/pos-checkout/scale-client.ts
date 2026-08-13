@@ -2,7 +2,42 @@ import type { ScaleProtocol, ScaleReading } from '../scale/types.js';
 
 export type { ScaleProtocol, ScaleReading } from '../scale/types.js';
 
-// eslint-disable-next-line complexity -- three protocol decoders share one normalized boundary
+function decodeSerialFrame(frameInput: unknown): { weightMicrounits: number; stable: boolean } {
+  const frame = frameInput as { frame?: unknown; checksumValid?: unknown };
+  const match = typeof frame.frame === 'string' ? /ST,GS,\+(\d+) g/.exec(frame.frame) : null;
+  if (!match || frame.checksumValid !== true) throw new Error('SCALE_FRAME_INVALID');
+  return { weightMicrounits: Number(match[1]) * 1_000, stable: true };
+}
+
+function decodeHidOrUsbFrame(
+  protocol: ScaleProtocol,
+  frameInput: unknown,
+): { weightMicrounits: number; stable: boolean } {
+  const frame = frameInput as {
+    reportId?: unknown;
+    endpoint?: unknown;
+    magnitude?: unknown;
+    unit?: unknown;
+    stable?: unknown;
+  };
+  if (typeof frame.magnitude !== 'number' || !Number.isSafeInteger(frame.magnitude)) {
+    throw new Error('SCALE_FRAME_INVALID');
+  }
+  if (protocol === 'WEBHID' && !Number.isSafeInteger(frame.reportId)) {
+    throw new Error('SCALE_FRAME_INVALID');
+  }
+  if (protocol === 'WEBUSB' && !Number.isSafeInteger(frame.endpoint)) {
+    throw new Error('SCALE_FRAME_INVALID');
+  }
+  const weightMicrounits =
+    frame.unit === 'GRAM'
+      ? frame.magnitude * 1_000
+      : frame.unit === 'MILLIGRAM'
+        ? frame.magnitude
+        : 0;
+  return { weightMicrounits, stable: frame.stable === true };
+}
+
 export function decodeScaleFrame(input: {
   readonly protocol: ScaleProtocol;
   readonly deviceId: string;
@@ -10,39 +45,11 @@ export function decodeScaleFrame(input: {
   readonly observedAtEpochMs: number;
   readonly frame: unknown;
 }): ScaleReading {
-  let weightMicrounits: number;
-  let stable: boolean;
-  if (input.protocol === 'WEB_SERIAL') {
-    const frame = input.frame as { frame?: unknown; checksumValid?: unknown };
-    const match = typeof frame.frame === 'string' ? /ST,GS,\+(\d+) g/.exec(frame.frame) : null;
-    if (!match || frame.checksumValid !== true) throw new Error('SCALE_FRAME_INVALID');
-    weightMicrounits = Number(match[1]) * 1_000;
-    stable = true;
-  } else {
-    const frame = input.frame as {
-      reportId?: unknown;
-      endpoint?: unknown;
-      magnitude?: unknown;
-      unit?: unknown;
-      stable?: unknown;
-    };
-    if (typeof frame.magnitude !== 'number' || !Number.isSafeInteger(frame.magnitude)) {
-      throw new Error('SCALE_FRAME_INVALID');
-    }
-    if (input.protocol === 'WEBHID' && !Number.isSafeInteger(frame.reportId)) {
-      throw new Error('SCALE_FRAME_INVALID');
-    }
-    if (input.protocol === 'WEBUSB' && !Number.isSafeInteger(frame.endpoint)) {
-      throw new Error('SCALE_FRAME_INVALID');
-    }
-    weightMicrounits =
-      frame.unit === 'GRAM'
-        ? frame.magnitude * 1_000
-        : frame.unit === 'MILLIGRAM'
-          ? frame.magnitude
-          : 0;
-    stable = frame.stable === true;
-  }
+  const { weightMicrounits, stable } =
+    input.protocol === 'WEB_SERIAL'
+      ? decodeSerialFrame(input.frame)
+      : decodeHidOrUsbFrame(input.protocol, input.frame);
+
   if (!stable || !Number.isSafeInteger(weightMicrounits) || weightMicrounits <= 0) {
     throw new Error('SCALE_FRAME_INVALID');
   }

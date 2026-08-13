@@ -1,6 +1,9 @@
 <script lang="ts">
   import { isInventorySerialsEnabled, isPartialReceiveEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const recvOn = isPartialReceiveEnabled();
   const serialsOn = isInventorySerialsEnabled();
@@ -18,10 +21,8 @@
   let serialScan = $state('');
   let serialNumbers = $state<string[]>([]);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function partialReceive() {
     message = '';
@@ -102,16 +103,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !recvOn}
     <div class="feature-off-banner" data-testid="admin-po-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE</code> desactivado.</span>
+      <span>La recepción parcial no está activa para este negocio.</span>
     </div>
   {:else}
     <div class="recv-layout">
@@ -139,7 +140,7 @@
             <input id="po-qty" type="number" bind:value={quantity} data-testid="admin-po-qty" />
           </div>
           <div class="field-group">
-            <label for="po-cost">Costo unit. (cents)</label>
+            <label for="po-cost">Costo unitario</label>
             <input id="po-cost" type="number" bind:value={unitCostCents} data-testid="admin-po-cost" />
           </div>
         </div>
@@ -153,10 +154,9 @@
             <input id="po-expiry" type="date" bind:value={expiryDate} data-testid="admin-po-expiry" />
           </div>
         </div>
-        <button type="button" class="primary" data-testid="admin-po-receive" onclick={partialReceive}>
-          <Icon name="check" size={14} />
+        <Button variant="primary" icon="check" data-testid="admin-po-receive" onclick={partialReceive}>
           Registrar recepción
-        </button>
+        </Button>
       </section>
 
       <!-- Series -->
@@ -187,15 +187,9 @@
             />
           </div>
           <p class="serial-count" aria-live="polite">{serialNumbers.length} serie(s) listas.</p>
-          <button
-            type="button"
-            class="primary"
-            disabled={!purchaseReceiptLineId.trim() || serialNumbers.length === 0}
-            onclick={createSerialManifest}
-          >
-            <Icon name="barcode" size={14} />
-            Asignar series a recepción
-          </button>
+          <Button variant="primary" icon="barcode" disabled={!purchaseReceiptLineId.trim() || serialNumbers.length === 0} onclick={createSerialManifest}>
+          Asignar series a recepción
+        </Button>
         </section>
       {/if}
     </div>
@@ -210,22 +204,8 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
 
   .serial-count {
     font-size: 0.875rem;
@@ -257,9 +237,6 @@
 
   @media (max-width: 600px) {
     .recv-layout {
-      grid-template-columns: 1fr;
-    }
-    .two-col {
       grid-template-columns: 1fr;
     }
   }

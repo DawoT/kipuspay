@@ -6,17 +6,19 @@
   const insightsEnabled = isAgenticInsightsEnabled();
   const tabs = [
     { href: '/owner', label: 'Hoy', testid: 'tab-hoy' },
+    { href: '/owner/locales', label: 'Locales', testid: 'tab-locales' },
+    { href: '/owner/alertas', label: 'Alertas', testid: 'tab-alertas' },
+    { href: '/owner/finanzas', label: 'Finanzas', testid: 'tab-finanzas' },
+    { href: '/owner/yo', label: 'Yo', testid: 'tab-yo' },
     { href: '/owner/previsiones', label: 'Previsiones', testid: 'tab-previsiones' },
     ...(insightsEnabled
       ? [{ href: '/owner/asistente', label: 'Asistente', testid: 'tab-asistente' }]
       : []),
-    { href: '/owner/finanzas', label: 'Finanzas', testid: 'tab-finanzas' },
-    { href: '/owner/yo', label: 'Yo', testid: 'tab-yo' },
   ] as const;
 </script>
 
 {#if !enabled}
-  <p data-testid="owner-off">Modo Dueño desactivado (FEATURE_OWNER_MODE off).</p>
+  <p data-testid="owner-off">El Modo Dueño no está activo para este negocio.</p>
 {:else}
   <div class="owner-shell" data-testid="owner-shell" data-theme="owner-dark">
     <header class="owner-brand">
@@ -34,20 +36,12 @@
           {tab.label}
         </a>
       {/each}
-      <a href="/owner/locales" data-testid="tab-locales" class="gated" aria-disabled="true">
-        Locales
-      </a>
     </nav>
   </div>
 {/if}
 
 <style>
   .owner-shell {
-    --owner-bg: #0f1419;
-    --owner-fg: #e8eef4;
-    --owner-muted: #8b9aab;
-    --owner-accent: #3d9a6a;
-    --owner-surface: #1a222c;
     min-height: 100dvh;
     background:
       radial-gradient(120% 80% at 10% -10%, #1c3a2e 0%, transparent 55%),
@@ -57,7 +51,7 @@
     flex-direction: column;
     max-width: 28rem;
     margin: 0 auto;
-    font-family: 'Segoe UI', 'Avenir Next', sans-serif;
+    font-family: var(--font-sans);
   }
   .owner-brand {
     padding: 1.25rem 1.25rem 0.5rem;
@@ -67,6 +61,7 @@
     font-size: 1.6rem;
     font-weight: 700;
     letter-spacing: -0.02em;
+    font-family: var(--font-heading);
   }
   .mode {
     margin: 0.15rem 0 0;
@@ -81,20 +76,22 @@
     gap: 0.25rem;
     padding: 0.75rem;
     background: color-mix(in srgb, var(--owner-surface) 92%, black);
-    border-top: 1px solid #2a3542;
+    border-top: 1px solid var(--owner-border);
   }
   .owner-tabs a {
     text-align: center;
     text-decoration: none;
     color: var(--owner-muted);
-    padding: 0.65rem 0.25rem;
+    /* S15-H1: target táctil ≥44px (WCAG 2.1 AA) — antes ~36px. */
+    padding: 0.85rem 0.25rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.8rem;
   }
   .owner-tabs a.active {
     color: var(--owner-accent);
     font-weight: 600;
-  }
-  .owner-tabs a.gated {
-    opacity: 0.45;
   }
 </style>

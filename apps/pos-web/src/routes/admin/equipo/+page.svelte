@@ -1,5 +1,6 @@
 <script lang="ts">
   import { isTeamInviteEnabled } from '$lib/features';
+  import Button from '$lib/ui/Button.svelte';
   import { inviteTeamMember } from '$lib/cash/shift-handoff';
   import Icon from '$lib/ui/Icon.svelte';
 
@@ -49,8 +50,8 @@
       <div class="banner-box off-banner" data-testid="team-feature-off">
         <span class="banner-icon"><Icon name="alert" size={20} /></span>
         <div>
-          <strong>FEATURE_TEAM_INVITE desactivado</strong>
-          <p>Activa el flag operacional para invitar equipo.</p>
+          <strong>La invitación de equipo está desactivada</strong>
+          <p>Contacta a tu proveedor para activarla.</p>
         </div>
       </div>
     {:else}
@@ -71,10 +72,9 @@
         <input id="team-branch" bind:value={branchId} data-testid="team-branch" placeholder="branch-1" />
       </div>
 
-      <button type="button" class="primary invite-btn" data-testid="team-invite" onclick={onInvite}>
-        <Icon name="user" size={16} />
-        Invitar
-      </button>
+      <Button variant="primary" size="full" icon="user" data-testid="team-invite" onclick={onInvite}>
+          Invitar
+        </Button>
 
       {#if status || resultMsg}
         <div class="result-card" data-testid="team-result">
@@ -150,10 +150,7 @@
     color: #fbbf24;
   }
 
-  .invite-btn {
-    width: 100%;
-    padding: 0.875rem;
-  }
+
 
   .result-card {
     background: rgba(15, 23, 42, 0.8);

@@ -3,6 +3,9 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
+  // Contención del preview bajo carga: acotado a 4 workers evita timeouts
+  // intermitentes del webServer con la suite completa.
+  workers: 4,
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:4173',
@@ -39,6 +42,7 @@ export default defineConfig({
       PUBLIC_FEATURE_SALE_TIP: '1',
       PUBLIC_FEATURE_CASH_DRAWER: '1',
       PUBLIC_FEATURE_CATALOG_SELLABLE: '1',
+      PUBLIC_FEATURE_PRINT_TEMPLATES: '1',
       PUBLIC_FEATURE_HARDWARE_DIAGNOSTICS: '1',
       PUBLIC_FEATURE_SALES_COMMISSIONS: '1',
       PUBLIC_FEATURE_VITRINA: '1',

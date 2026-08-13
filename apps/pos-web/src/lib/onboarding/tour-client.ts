@@ -11,6 +11,7 @@ import {
   tourStorageKey,
   type SetupServerState,
 } from '@kipuspay/domain-onboarding';
+import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
 
 export interface SetupProgressResponse {
   readonly ok: true;
@@ -19,11 +20,11 @@ export interface SetupProgressResponse {
 }
 
 function apiBase(): string {
-  return (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
+  return resolveApiBase();
 }
 
 function authHeader(): string {
-  return (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  return resolveApiAuth().authorization ?? '';
 }
 
 export async function fetchSetupProgress(): Promise<

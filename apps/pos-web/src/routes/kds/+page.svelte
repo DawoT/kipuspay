@@ -2,6 +2,9 @@
   import { onDestroy, onMount } from 'svelte';
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
 
   const enabled = isOrdersKdsEnabled();
@@ -79,29 +82,28 @@
 <div class="page-shell" data-testid="kds-root">
   <div class="page-masthead">
     <div>
-      <p class="page-eyebrow"><Icon name="box" size={12} /> KDS · Kitchen Display System</p>
+      <p class="page-eyebrow"><Icon name="box" size={12} /> KDS · Pantalla de cocina</p>
       <h1 class="page-title">Display de Cocina (KDS)</h1>
       <p class="page-lede">Monitoreo en tiempo real de comandas recibidas y marcación de despacho a garzón.</p>
     </div>
     {#if enabled}
-      <button type="button" class="secondary" data-testid="kds-reconnect" onclick={connect}>
-        <Icon name="refresh" size={14} />
+      <Button variant="secondary" data-testid="kds-reconnect" onclick={connect} icon="refresh">
         Reconectar WS
-      </button>
+      </Button>
     {/if}
   </div>
 
   {#if !enabled}
     <div class="feature-off-banner" data-testid="kds-off">
       <Icon name="info" size={18} />
-      <span>KDS desactivado (<code>FEATURE_ORDERS_KDS</code> off).</span>
+      <span>El display de cocina está desactivado para esta tienda.</span>
     </div>
   {:else}
     {#if error}
-      <div class="status-alert danger" aria-live="polite" data-testid="kds-error">
+      <StatusMessage tone="danger" aria-live="polite" data-testid="kds-error">
         <Icon name="alert" size={16} />
         <span>{error}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     <div class="kds-layout" data-testid="kds">
@@ -163,18 +165,7 @@
     gap: 1.25rem;
   }
 
-  .section-pad { padding: 1.25rem; }
-  .field-group { display: flex; flex-direction: column; gap: 0.375rem; }
 
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 3rem;
-    color: var(--emerald-green);
-    font-size: 0.9375rem;
-  }
 
   .kds-event-list {
     list-style: none;

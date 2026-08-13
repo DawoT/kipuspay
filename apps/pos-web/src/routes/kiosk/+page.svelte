@@ -7,6 +7,8 @@
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import { createMemoryOfflineIdb, OfflineQueueStore } from '$lib/offline-sync/offline-queue';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
   const enabled = isPosCheckoutEnabled();
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
@@ -41,7 +43,7 @@
   {#if !enabled}
     <div class="feature-off-banner" data-testid="kiosk-off">
       <Icon name="info" size={18} />
-      <span>Kiosko desactivado (<code>FEATURE_POS_CHECKOUT</code> off).</span>
+      <span>El kiosko está desactivado para esta tienda.</span>
     </div>
   {:else}
     <div class="glass-card kiosk-card">
@@ -56,7 +58,7 @@
 
       <div class="cart-summary">
         <div class="cart-item">
-          <span class="item-name">Item kiosko demo</span>
+          <span class="item-name">Producto de ejemplo</span>
           <span class="item-price tabular-nums">S/ {formatCents(1180)}</span>
         </div>
         <div class="total-row">
@@ -66,10 +68,10 @@
       </div>
 
       {#if message}
-        <div class="status-alert {status === 'charged' ? 'info' : 'danger'}" aria-live="polite" data-testid="kiosk-message">
+        <StatusMessage tone={status === 'charged' ? 'info' : 'danger'} aria-live="polite" data-testid="kiosk-message">
           <Icon name={status === 'charged' ? 'check' : 'alert'} size={16} />
           <span>{message}</span>
-        </div>
+        </StatusMessage>
       {/if}
 
       <div class="status-line" data-testid="kiosk-status">

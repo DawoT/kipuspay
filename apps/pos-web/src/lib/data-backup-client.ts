@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 export interface BackupSummary {
   readonly id: string;
   readonly status: string;

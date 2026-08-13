@@ -9,14 +9,48 @@
     type OwnerRollupSnapshot,
   } from '$lib/owner-offline-rollup/cache';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   const rankingLive = isReportingCatalogEnabled();
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
-  let branches = $state<Array<{ branch_id: string; net_sales_cents: number }>>([]);
+  let branches = $state<Array<{ branch_id: string; net_sales_cents: number; doc_count: number }>>([]);
 
   const idb = createMemoryOwnerRollupIdb();
+
+  const emptyDay = {
+    totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
+    branches: [] as Array<{ branch_id: string; net_sales_cents: number; doc_count: number }>,
+    claimFrozen: true,
+  };
+
+  async function loadRanking(reportDate: string) {
+    if (!rankingLive) return emptyDay;
+    const apiBase = resolveApiBase(localStorage);
+    const authorization = resolveApiAuth(localStorage).authorization ?? '';
+    try {
+      const res = await fetch(
+        `${(apiBase)}/api/owner/day-summary?date=${reportDate}`,
+        { headers: { authorization } },
+      );
+      if (!res.ok) return emptyDay;
+      const json = (await res.json()) as {
+        totals?: { grossSalesCents: number; netSalesCents: number; docCount: number };
+        branches?: Array<{ branch_id: string; net_sales_cents: number; doc_count: number }>;
+        rankingClaimFrozen?: boolean;
+      };
+      return {
+        totals: json.totals ?? emptyDay.totals,
+        branches: json.branches ?? [],
+        claimFrozen: json.rankingClaimFrozen ?? false,
+      };
+    } catch {
+      return emptyDay;
+    }
+  }
 
   onMount(() => {
     if (!enabled) return;
@@ -26,19 +60,9 @@
         idb,
         online: typeof navigator !== 'undefined' ? navigator.onLine : true,
         nowMs: Date.now(),
-        fetchDaySummary: async () => {
-          if (!rankingLive) {
-            return {
-              totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
-              branches: [{ branch_id: 'local' }],
-              rankingClaimFrozen: true,
-            };
-          }
-          return {
-            totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
-            branches: [{ branch_id: 'local', net_sales_cents: 0 }],
-            rankingClaimFrozen: false,
-          };
+        fetchDaySummary: async (reportDate) => {
+          const ranking = await loadRanking(reportDate);
+          return { totals: ranking.totals, branches: ranking.branches };
         },
       },
       'tenant',
@@ -50,13 +74,10 @@
       if (view.fromCache && view.snapshot) {
         banner = formatStaleBanner(view.snapshot.cachedAtMs, Date.now());
       }
-      if (rankingLive) {
-        branches = [
-          {
-            branch_id: view.snapshot?.branchId ?? 'local',
-            net_sales_cents: view.snapshot?.netSalesCents ?? 0,
-          },
-        ];
+    });
+    void loadRanking(today).then((ranking) => {
+      if (rankingLive && ranking.branches.length > 0) {
+        branches = ranking.branches;
       }
     });
   });
@@ -72,24 +93,24 @@
         <h1 class="page-title">Ranking de locales</h1>
         <p class="page-lede">
           {rankingLive
-            ? 'Ranking por sucursal desde rollups D1 (GTM-03). Nunca se presenta como tiempo real.'
-            : 'Ranking por sucursal no está en vivo. Activa FEATURE_REPORTING_CATALOG tras QG Sprint 9.'}
+            ? 'Ranking por sucursal calculado por el servidor.'
+            : 'El ranking por sucursal no está disponible para este negocio.'}
         </p>
       </div>
     </div>
 
     {#if banner}
-      <div class="status-alert warning" data-testid="stale-banner">
+      <StatusMessage tone="warning" data-testid="stale-banner">
         <Icon name="clock" size={16} />
         <span>{banner}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     {#if rankingLive}
       <div class="glass-card locales-card">
         <div class="card-header">
           <h2>Ventas netas por sucursal</h2>
-          <span class="section-tag">Rollup D1</span>
+          <span class="section-tag">Resumen del servidor</span>
         </div>
         {#if branches.length === 0}
           <div class="empty-ranking">
@@ -114,10 +135,10 @@
       </div>
     {:else}
       {#if snap}
-        <div class="status-alert info">
+        <StatusMessage tone="info">
           <Icon name="clock" size={16} />
           <span>Último cache local disponible — ranking no activo.</span>
-        </div>
+        </StatusMessage>
       {/if}
     {/if}
   </div>

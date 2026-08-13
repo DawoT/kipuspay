@@ -2,6 +2,8 @@
   import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { createInsightsClient, type BriefingDto } from '$lib/insights/insights-client';
+  import Button from '$lib/ui/Button.svelte';
+import { resolveApiBase } from '$lib/auth/api-client';
 
   const ownerEnabled = isOwnerModeEnabled();
   const insightsEnabled = isAgenticInsightsEnabled();
@@ -11,7 +13,7 @@
     session
       ? createInsightsClient({
           authenticatedFetch: session.authenticatedFetch,
-          apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+          apiBase: resolveApiBase(localStorage),
         })
       : null,
   );
@@ -60,9 +62,9 @@
 <svelte:head><title>Asistente · Modo Dueño · KipusPay</title></svelte:head>
 
 {#if !ownerEnabled}
-  <p data-testid="owner-off">Modo Dueño desactivado (FEATURE_OWNER_MODE off).</p>
+  <p data-testid="owner-off">El Modo Dueño no está activo para este negocio.</p>
 {:else if !insightsEnabled}
-  <p data-testid="insights-off">Asistente desactivado (FEATURE_ANALYTICS_AGENTIC_INSIGHTS off).</p>
+  <p data-testid="insights-off">El asistente no está activo para este negocio.</p>
 {:else if !session}
   <p data-testid="insights-off">Sin sesión autenticada.</p>
 {:else}
@@ -104,9 +106,9 @@
           rows="2"
           placeholder="Ej.: ¿cómo van las ventas de ayer?"
         ></textarea>
-        <button type="submit" class="primary" data-testid="assistant-ask" disabled={pending || !question.trim()}>
+        <Button variant="primary" type="submit" data-testid="assistant-ask" disabled={pending || !question.trim()} busy={pending}>
           {pending ? 'Calculando…' : 'Preguntar'}
-        </button>
+        </Button>
       </form>
       {#if error}
         <p class="error" role="alert" data-testid="assistant-error">{error}</p>
@@ -121,16 +123,14 @@
 
 <style>
   .assistant { display: grid; gap: 1rem; padding: 1rem 1.25rem; }
-  .card { background: var(--owner-surface); border: 1px solid #2a3542; border-radius: 0.75rem; padding: 1rem; }
+  .card { background: var(--owner-surface); border: 1px solid var(--owner-border); border-radius: 0.75rem; padding: 1rem; }
   .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
   h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
   .muted { color: var(--owner-muted); font-size: 0.8rem; }
   .bullets { margin: 0.5rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; font-size: 0.92rem; }
-  textarea { width: 100%; min-height: 3.5rem; border-radius: 0.5rem; border: 1px solid #2a3542; background: #0f1419; color: var(--owner-fg); padding: 0.6rem; font: inherit; }
-  button { margin-top: 0.6rem; min-height: 44px; border-radius: 0.5rem; border: none; background: var(--owner-accent); color: white; font-weight: 700; padding: 0.6rem 1rem; cursor: pointer; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  textarea { width: 100%; min-height: 3.5rem; border-radius: 0.5rem; border: 1px solid var(--owner-border); background: var(--owner-bg); color: var(--owner-fg); padding: 0.6rem; font: inherit; }
   .error { color: #ff8a7a; font-size: 0.85rem; margin: 0.6rem 0 0; }
-  .answer { margin: 0.8rem 0 0; padding: 0.75rem; background: #0f1419; border-radius: 0.5rem; border-left: 3px solid var(--owner-accent); }
+  .answer { margin: 0.8rem 0 0; padding: 0.75rem; background: var(--owner-bg); border-radius: 0.5rem; border-left: 3px solid var(--owner-accent); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>

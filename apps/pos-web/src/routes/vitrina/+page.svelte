@@ -29,7 +29,7 @@
   {#if !enabled}
     <div class="feature-off-banner" data-testid="vitrina-off">
       <Icon name="info" size={18} />
-      <span>Vitrina desactivada (<code>FEATURE_VITRINA</code> off).</span>
+      <span>La vitrina está desactivada para esta tienda.</span>
     </div>
   {:else}
     <div class="glass-card vitrina-card" data-testid="vitrina">

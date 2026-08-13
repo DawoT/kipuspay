@@ -27,7 +27,7 @@ test('partial fulfillment survives offline and F5 before replay', async ({ page,
   await page.goto('/orders/customer');
   await page.getByRole('button', { name: /order-e2e/ }).click();
   await page.getByLabel('Cantidad a cumplir').fill('1000000');
-  await page.getByRole('button', { name: 'Preparar lease' }).click();
+  await page.getByRole('button', { name: 'Preparar retiro' }).click();
   await expect(page.getByText('Cumplimiento pendiente: 1')).toBeVisible();
 
   await context.setOffline(true);
@@ -50,11 +50,11 @@ test('expired cached lease becomes a recoverable conflict without a sale request
   harness.leaseTtlSeconds = 1;
   await page.goto('/orders/customer');
   await page.getByRole('button', { name: /order-e2e/ }).click();
-  await page.getByRole('button', { name: 'Preparar lease' }).click();
+  await page.getByRole('button', { name: 'Preparar retiro' }).click();
   await page.waitForTimeout(1_100);
   await page.reload();
   await page.getByRole('button', { name: /order-e2e/ }).click();
-  await expect(page.getByText(/Sin lease vigente/)).toBeVisible();
+  await expect(page.getByText(/Sin reserva vigente/)).toBeVisible();
   await page.getByRole('button', { name: 'Reintentar envío' }).click();
   await expect(page.getByRole('alert')).toContainText('Conflicto recuperable');
   expect(harness.fulfillCalls).toBe(0);

@@ -8,6 +8,12 @@
     type PosTenantSession,
   } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import CardHeader from '$lib/ui/CardHeader.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const installmentsOn = isSalesInstallmentsEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -16,10 +22,8 @@
   let messageOk = $state(false);
   let lastPaymentId = $state('');
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   onMount(() => {
     session = readTenantSession(sessionStorage);
@@ -67,33 +71,36 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite" data-testid="caja-cuotas-msg">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite" data-testid="caja-cuotas-msg">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !installmentsOn}
     <div class="feature-off-banner" data-testid="caja-cuotas-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_SALES_INSTALLMENTS</code> desactivado.</span>
+      <span>Las cuotas no están activas para esta tienda.</span>
     </div>
   {:else}
-    <p class="tenant-line" data-testid="caja-cuotas-tenant">Tenant {session.tenantId}</p>
+    <p class="tenant-line" data-testid="caja-cuotas-tenant">Tienda: {session.tradeName}</p>
 
     <div class="glass-card cuotas-card">
-      <div class="card-header">
-        <h2>Cobrar cuota</h2>
+      <CardHeader title="Cobrar cuota">
         <span class="section-tag">Terminal</span>
-      </div>
-      <div class="field-group">
-        <label for="cuota-id">ID de cuota</label>
-        <input id="cuota-id" bind:value={installmentId} data-testid="caja-cuotas-id" placeholder="ID de la cuota a cobrar" />
-      </div>
-      <button type="button" class="primary" data-testid="caja-cuotas-pay" onclick={() => void payInstallment()} disabled={!installmentId}>
-        <Icon name="dollar" size={14} />
+      </CardHeader>
+      <Field label="ID de cuota" id="cuota-id">
+        <Input id="cuota-id" bind:value={installmentId} data-testid="caja-cuotas-id" placeholder="ID de la cuota a cobrar" />
+      </Field>
+      <Button
+        variant="primary"
+        data-testid="caja-cuotas-pay"
+        onclick={() => void payInstallment()}
+        disabled={!installmentId}
+        icon="dollar"
+      >
         Cobrar cuota
-      </button>
+      </Button>
     </div>
   {/if}
 </div>
@@ -102,13 +109,6 @@
   .cuotas-card {
     padding: 1.25rem;
     max-width: 28rem;
-  }
-
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
   }
 
   .tenant-line {

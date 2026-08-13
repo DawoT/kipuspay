@@ -13,6 +13,9 @@
     type PushPurpose,
   } from '$lib/mobile/mobile-push-client';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
 
   interface InstallPromptEvent extends Event {
     prompt(): Promise<void>;
@@ -185,7 +188,7 @@
 <div class="page-shell">
   <div class="page-masthead">
     <div>
-      <p class="page-eyebrow"><Icon name="smartphone" size={12} /> Terminal Server-Bound</p>
+      <p class="page-eyebrow"><Icon name="smartphone" size={12} /> Dispositivo del terminal</p>
       <h1 class="page-title">Configura este dispositivo</h1>
       <p class="page-lede">Usa el mismo checkout, permisos, sesión e impresión del POS.</p>
     </div>
@@ -201,10 +204,10 @@
     </div>
   {:else}
     {#if status}
-      <div class="status-alert info" role="status" aria-live="polite">
+      <StatusMessage tone="info" role="status" aria-live="polite">
         <Icon name="check" size={16} />
         <span>{status}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     <div class="mobile-grid">
@@ -226,10 +229,9 @@
           </div>
         </div>
         {#if mobilePosOn}
-          <button type="button" class="primary install-btn" onclick={installApp}>
-            <Icon name="download" size={14} />
+          <Button variant="primary" size="lg" style="width:100%" onclick={installApp} icon="download">
             Instalar KipusPay
-          </button>
+          </Button>
         {/if}
       </section>
 
@@ -251,21 +253,21 @@
             />
             <span>Mostrar montos (requiere opt-in del owner)</span>
           </label>
-          <button type="button" class="primary full-btn" disabled={!canRegister} onclick={requestNotifications}>
+          <Button variant="primary" size="lg" style="width:100%" disabled={!canRegister} onclick={requestNotifications}>
             Activar notificaciones
-          </button>
+          </Button>
           <p class="hint-text">Permiso del navegador: {permission}</p>
 
           <div class="btn-row">
-            <button type="button" class="secondary" disabled={!subscriptionId} onclick={rotateRegistration}>
+            <Button variant="secondary" size="lg" disabled={!subscriptionId} onclick={rotateRegistration}>
               Rotar registro
-            </button>
-            <button type="button" class="secondary" disabled={!subscriptionId} onclick={unsubscribe}>
+            </Button>
+            <Button variant="secondary" size="lg" disabled={!subscriptionId} onclick={unsubscribe}>
               Revocar
-            </button>
-            <button type="button" class="secondary" onclick={refreshDevices}>
+            </Button>
+            <Button variant="secondary" size="lg" onclick={refreshDevices}>
               Dispositivos ({deviceCount})
-            </button>
+            </Button>
           </div>
         </section>
 
@@ -278,10 +280,10 @@
             Si push o sync fallan, KipusPay conmuta a avisos en app. Las ventas y la caja no se bloquean.
           </p>
           <div class="btn-row">
-            <button type="button" class="secondary" onclick={showLocalTest}>Probar aviso local</button>
-            <button type="button" class="secondary" disabled={!subscriptionId} onclick={sendServerTest}>
+            <Button variant="secondary" size="lg" onclick={showLocalTest}>Probar aviso local</Button>
+            <Button variant="secondary" size="lg" disabled={!subscriptionId} onclick={sendServerTest}>
               Probar push servidor
-            </button>
+            </Button>
             <a class="link-action" href="/">Continuar vendiendo</a>
           </div>
         </section>
@@ -302,7 +304,6 @@
     grid-column: 1 / -1;
   }
 
-  .section-pad { padding: 1.25rem; }
   .section-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.875rem; }
 
   .info-list {
@@ -337,12 +338,10 @@
 
   .checkbox-row input { width: auto; accent-color: var(--accent-primary); }
 
-  .install-btn, .full-btn { width: 100%; min-height: 48px; }
 
   .hint-text { font-size: 0.75rem; color: var(--text-dim); margin: 0.5rem 0 0.875rem; }
 
-  .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .btn-row button, .btn-row .link-action { min-height: 48px; }
+  .btn-row .link-action { min-height: 48px; }
 
   .link-action {
     display: inline-flex;

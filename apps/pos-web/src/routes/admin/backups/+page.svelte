@@ -8,6 +8,11 @@
   } from '$lib/data-backup-client';
   import { readAdminAuthenticatedSession } from '$lib/admin/authenticated-session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import Skeleton from '$lib/ui/Skeleton.svelte';
 
   let role = $state<'owner' | 'admin'>('admin');
   let items = $state<readonly BackupSummary[]>([]);
@@ -167,26 +172,26 @@
 <main class="backup-shell" aria-labelledby="backup-title">
   <header class="masthead">
     <div class="masthead-title">
-      <div class="badge-tag">
+      <Badge variant="indigo">
         <Icon name="download" size={14} />
         <span>Admin · Operaciones de datos</span>
-      </div>
+      </Badge>
       <h1 id="backup-title">Respaldos cifrados verificables</h1>
       <p class="scope">
         Incluye únicamente datos sincronizados del servidor y evidencia R2 referenciada. No incluye datos locales ni secretos.
       </p>
     </div>
-    <div class:offline={!online} class="connection" role="status">
+    <Badge variant={online ? 'online' : 'offline'} role="status">
       <Icon name={online ? 'wifi' : 'wifi-off'} size={16} />
       <span>{online ? 'En línea · exportaciones habilitadas' : 'Sin conexión · historial en caché'}</span>
-    </div>
+    </Badge>
   </header>
 
   {#if !enabled}
-    <div class="alert-box alert-off" role="alert">
+    <StatusMessage tone="danger" role="alert">
       <Icon name="alert" size={18} />
       <span>La función de respaldos está desactivada para este negocio.</span>
-    </div>
+    </StatusMessage>
   {:else}
     {#if warning.visible}
       <div class="queue-warning glass-card">
@@ -203,14 +208,22 @@
 
     <div class="toolbar glass-card">
       <div class="action-buttons">
-        <button type="button" class="btn-primary" disabled={!online || busy} onclick={createBackup}>
-          <Icon name="download" size={16} />
-          <span>Crear exportación</span>
-        </button>
-        <button type="button" class="btn-secondary" disabled={!online || busy} onclick={refresh}>
-          <Icon name="refresh" size={16} />
-          <span>Actualizar historial</span>
-        </button>
+        <Button
+          variant="primary"
+          disabled={!online || busy}
+          onclick={createBackup}
+          icon="download"
+        >
+          Crear exportación
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={!online || busy}
+          onclick={refresh}
+          icon="refresh"
+        >
+          Actualizar historial
+        </Button>
       </div>
 
       {#if role === 'owner'}
@@ -233,7 +246,9 @@
     <p class="status-msg live" aria-live="polite">
       {loading ? 'Cargando historial…' : notice || `${items.length} respaldos disponibles.`}
     </p>
-    {#if error}<p role="alert" class="alert-box alert-error">{error}</p>{/if}
+    {#if error}
+      <StatusMessage tone="danger" role="alert">{error}</StatusMessage>
+    {/if}
 
     <div class="operations-grid">
       <section class="history-card glass-card" aria-labelledby="history-title">
@@ -241,8 +256,12 @@
           <Icon name="clock" size={18} class="icon-accent" />
           <h2 id="history-title">Historial y progreso ({items.length})</h2>
         </div>
-        {#if items.length === 0 && !loading}
-          <p>No hay exportaciones registradas.</p>
+        {#if loading}
+          <div class="section-pad">
+            <Skeleton lines={3} />
+          </div>
+        {:else if items.length === 0}
+          <EmptyState icon="database" title="Sin exportaciones" description="No hay exportaciones registradas." />
         {:else}
           <ul class="backup-list">
             {#each items as backup (backup.id)}
@@ -255,9 +274,9 @@
                   class="backup-item-btn"
                 >
                   <div class="backup-item-head">
-                    <span class="status-pill" class:ready={backup.status === 'READY'}>
+                    <Badge variant={backup.status === 'READY' ? 'success' : 'muted'}>
                       {backup.status}
-                    </span>
+                    </Badge>
                     <code>{backup.id}</code>
                   </div>
                   <time class="backup-time">{backup.created_at ?? 'Fecha pendiente'}</time>
@@ -277,11 +296,11 @@
           <dl class="spec-dl">
             <div><dt>Estado</dt><dd><strong>{selected.status}</strong></dd></div>
             <div><dt>Formato</dt><dd><code>{selected.format_version ?? 'KPBK1'}</code></dd></div>
-            <div><dt>Schema</dt><dd><code>{selected.schema_version ?? 'Pendiente'}</code></dd></div>
-            <div><dt>Registry</dt><dd><code>{selected.registry_version ?? 'Pendiente'}</code></dd></div>
-            <div><dt>Clave KEK</dt><dd><code>{selected.kek_version ?? 'Protegida'}</code></dd></div>
+            <div><dt>Versión de datos</dt><dd><code>{selected.schema_version ?? 'Pendiente'}</code></dd></div>
+            <div><dt>Índice</dt><dd><code>{selected.registry_version ?? 'Pendiente'}</code></dd></div>
+            <div><dt>Clave de cifrado</dt><dd><code>{selected.kek_version ?? 'Protegida'}</code></dd></div>
             <div><dt>Tamaño cifrado</dt><dd><strong>{selected.plaintext_size_bytes ?? 'Pendiente'} bytes</strong></dd></div>
-            <div><dt>Hash global SHA-256</dt><dd><code class="hash-code">{selected.global_hash ?? 'Pendiente'}</code></dd></div>
+            <div><dt>Firma de integridad</dt><dd><code class="hash-code">{selected.global_hash ?? 'Pendiente'}</code></dd></div>
           </dl>
           <p class="evidence-text">
             <Icon name="shield" size={14} />
@@ -289,31 +308,29 @@
           </p>
           {#if role === 'owner'}
             <div class="detail-actions">
-              <button
-                type="button"
-                class="btn-primary"
+              <Button
+                variant="primary"
                 disabled={!online || busy || selected.status !== 'READY' || !stepUpToken}
                 onclick={() => download(selected!)}
+                icon="download"
               >
-                <Icon name="download" size={16} />
-                <span>Descargar KPBK1</span>
-              </button>
-              <button
-                type="button"
-                class="btn-secondary"
+                Descargar respaldo
+              </Button>
+              <Button
+                variant="secondary"
                 disabled={!online || busy || selected.status !== 'READY' || !stepUpToken}
                 onclick={() => dryRun(selected!)}
+                icon="refresh"
               >
-                <Icon name="refresh" size={16} />
-                <span>Ejecutar simulación</span>
-              </button>
+                Ejecutar simulación
+              </Button>
             </div>
           {/if}
           <p class="recovery-hint">
             La simulación verifica integridad del payload cifrado; no altera datos en producción ni reactiva tokens o secretos.
           </p>
         {:else}
-          <p class="empty">Selecciona un respaldo del historial para revisar su detalle de integridad.</p>
+          <EmptyState icon="shield" title="Sin selección" description="Selecciona un respaldo del historial para revisar su detalle de integridad." />
         {/if}
       </section>
     </div>
@@ -335,21 +352,6 @@
     margin-bottom: 1.5rem;
   }
 
-  .badge-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.65rem;
-    background: rgba(217, 154, 61, 0.12);
-    border: 1px solid rgba(217, 154, 61, 0.3);
-    border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary);
-    font: 600 0.72rem/1.2 var(--font-mono, monospace);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-
   h1 {
     margin: 0.2rem 0;
     font-size: clamp(1.75rem, 4vw, 2.5rem);
@@ -363,28 +365,6 @@
     font-size: 0.9rem;
     margin: 0;
   }
-
-  .connection {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 0.9rem;
-    border: 1px solid var(--emerald-green);
-    background: rgba(46, 158, 116, 0.1);
-    color: var(--emerald-green);
-    border-radius: var(--radius-md, 12px);
-    font-size: 0.82rem;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .connection.offline {
-    color: var(--rose-red);
-    border-color: var(--rose-red);
-    background: rgba(217, 106, 60, 0.1);
-  }
-
-
 
   .queue-warning {
     border-left: 4px solid var(--amber-gold, #f59e0b);
@@ -438,55 +418,6 @@
     padding: 0.45rem 0.75rem;
     font-size: 0.85rem;
   }
-
-  .btn-primary {
-    background: var(--accent-gradient, var(--accent-primary));
-    color: #ffffff;
-    border: none;
-    padding: 0.65rem 1.25rem;
-    border-radius: var(--radius-sm, 8px);
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .btn-secondary {
-    background: var(--bg-button-sec, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    color: var(--text-main, #f8fafc);
-    padding: 0.65rem 1.25rem;
-    border-radius: var(--radius-sm, 8px);
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .alert-box {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.85rem 1.1rem;
-    border-radius: var(--radius-md, 12px);
-    font-size: 0.88rem;
-    font-weight: 600;
-    margin-bottom: 1.25rem;
-  }
-
-  .alert-error {
-    background: rgba(244, 63, 94, 0.1);
-    border: 1px solid var(--rose-red, #f43f5e);
-    color: var(--rose-red, #f43f5e);
-  }
-
 
   .operations-grid {
     display: grid;
@@ -547,19 +478,6 @@
     gap: 0.5rem;
   }
 
-  .status-pill {
-    padding: 0.15rem 0.45rem;
-    border-radius: 4px;
-    font: 700 0.7rem/1 var(--font-mono, monospace);
-    background: rgba(245, 158, 11, 0.15);
-    color: var(--amber-gold, #f59e0b);
-  }
-
-  .status-pill.ready {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--emerald-green, #10b981);
-  }
-
   .backup-time {
     font-size: 0.78rem;
     color: var(--text-muted, #94a3b8);
@@ -617,13 +535,6 @@
     gap: 0.75rem;
     margin-bottom: 0.85rem;
     flex-wrap: wrap;
-  }
-
-  .empty {
-    color: var(--text-muted, #94a3b8);
-    font-size: 0.88rem;
-    text-align: center;
-    padding: 2rem 1rem;
   }
 
   button,

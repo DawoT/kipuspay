@@ -2,6 +2,9 @@
   import { formatCents } from '$lib/cents';
   import { isPurchasingThreeWayEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
   let purchaseOrderId = $state('oc-demo');
@@ -18,10 +21,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function matchInvoice() {
     message = '';
@@ -75,16 +76,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !threeWayOn}
     <div class="feature-off-banner" data-testid="admin-three-way-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_PURCHASING_THREE_WAY</code> desactivado.</span>
+      <span>La conciliación de compras no está activa para este negocio.</span>
     </div>
   {:else}
     <div class="invoice-layout">
@@ -124,17 +125,17 @@
             <input id="inv-qty" type="number" bind:value={invoicedQty} data-testid="inv-qty" />
           </div>
           <div class="field-group">
-            <label for="inv-cost">Costo unit. (cents)</label>
+            <label for="inv-cost">Costo unitario</label>
             <input id="inv-cost" type="number" bind:value={invoiceUnitCostCents} data-testid="inv-cost" />
           </div>
         </div>
         <div class="two-col">
           <div class="field-group">
-            <label for="inv-total">Total (cents)</label>
+            <label for="inv-total">Total</label>
             <input id="inv-total" type="number" bind:value={totalCents} data-testid="inv-total" />
           </div>
           <div class="field-group">
-            <label for="inv-igv">IGV (cents)</label>
+            <label for="inv-igv">IGV</label>
             <input id="inv-igv" type="number" bind:value={igvCents} data-testid="inv-igv" />
           </div>
         </div>
@@ -164,10 +165,9 @@
             </div>
           </div>
         {/if}
-        <button type="button" class="primary match-btn" data-testid="inv-match-btn" onclick={matchInvoice}>
-          <Icon name="clipboard-check" size={14} />
+        <Button variant="primary" size="full" icon="clipboard-check" data-testid="inv-match-btn" onclick={matchInvoice}>
           Confirmar match 3-way
-        </button>
+        </Button>
       </section>
     </div>
   {/if}
@@ -181,22 +181,8 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
 
   .checkbox-row {
     display: flex;
@@ -221,10 +207,7 @@
     margin-bottom: 0.75rem;
   }
 
-  .match-btn {
-    width: 100%;
-    margin-top: 0.5rem;
-  }
+
 
   .link-action {
     display: inline-flex;
@@ -259,8 +242,5 @@
       grid-template-columns: 1fr;
     }
 
-    .two-col {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

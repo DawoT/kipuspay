@@ -55,15 +55,14 @@ describe('forecasting POS seams (Sprint 46)', () => {
         disclaimer: 'Estimación, no garantía',
       }),
     );
-    const client = createForecastingClient({ fetcher, apiBase: '', authorization: '' });
+    const client = createForecastingClient({ fetcher, apiBase: 'https://api.test', authorization: '' });
     const res = await client.alerts('b-demo', { leadTimeDays: 3, safetyStockDays: 6 });
     expect(res.items[0]?.status).toBe('STOCKOUT_RISK');
     const calls = fetcher.mock.calls as [RequestInfo | URL, RequestInit][];
     const requested = calls[0]?.[0];
     const requestedUrl = requested instanceof URL ? requested.toString() : (requested ?? '');
     expect(requestedUrl).toContain(
-      // eslint-disable-next-line no-secrets/no-secrets -- URL de prueba local no es secreto
-      'https://api.kipuspay.local/api/forecasting/alerts/b-demo?leadTimeDays=3&safetyStockDays=6',
+      'https://api.test/api/forecasting/alerts/b-demo?leadTimeDays=3&safetyStockDays=6',
     );
   });
 
@@ -73,13 +72,13 @@ describe('forecasting POS seams (Sprint 46)', () => {
       .mockResolvedValue(
         jsonResponse({ written: 4, insufficient: 1, disclaimer: 'Estimación, no garantía' }),
       );
-    const client = createForecastingClient({ fetcher, apiBase: '', authorization: '' });
+    const client = createForecastingClient({ fetcher, apiBase: 'https://api.test', authorization: '' });
     const res = await client.refresh('b-demo');
     expect(res.written).toBe(4);
     expect(res.insufficient).toBe(1);
     const calls = fetcher.mock.calls as [string, RequestInit][];
     expect(calls[0]?.[1].method).toBe('POST');
-    expect(calls[0]?.[0]).toBe('https://api.kipuspay.local/api/forecasting/refresh/b-demo');
+    expect(calls[0]?.[0]).toBe('https://api.test/api/forecasting/refresh/b-demo');
   });
 
   it('surfaces 403 PLAN_REQUIRES_CADENA and 402 Plan Guard codes without auth', async () => {

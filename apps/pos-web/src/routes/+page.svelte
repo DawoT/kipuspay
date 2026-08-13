@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import { formatCents } from '$lib/cents';  import {
     isCatalogQuickAddEnabled,
     isCatalogVariantsEnabled,
@@ -15,6 +16,7 @@
     isCatalogSellableEnabled,
     isSalesCommissionsEnabled,
     isSaleTipEnabled,
+    isSaleFeedbackEnabled,
     isShiftHandoffEnabled,
     isTeamInviteEnabled,
     isHardwareDiagnosticsEnabled,
@@ -22,6 +24,9 @@
   } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
 import { createPrinterTransport } from '$lib/print/printer-transport';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
+  import { readLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
   import {
     capabilitiesFromFlags,
   } from '$lib/onboarding/capabilities';
@@ -34,6 +39,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
+  import SellableCatalog from '$lib/pos/SellableCatalog.svelte';
   import { chargeCartOffline, requiresCustomerIdentity } from '$lib/pos-checkout/charge';
   import {
     leaseScannedSerialLine,
@@ -78,6 +84,8 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     type SellableCatalogItem,
   } from '$lib/catalog/sellable-catalog-client';
 
+  import { renderQrToCanvas } from '$lib/print/qr-canvas';
+
   const checkoutOn = isPosCheckoutEnabled();
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
@@ -99,6 +107,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     hid: { requestDevice(options: { filters: readonly unknown[] }): Promise<PosHidDevice[]> };
   }
   let session = $state<PosTenantSession>(defaultTenantSession());
+  let loginUser = $state<LoginUserIdentity | null>(null);
   let lines = $state<CartLine[]>([]);
   let catalogItems = $state<SellableCatalogItem[]>([]);
   let catalogLoading = $state(true);
@@ -118,6 +127,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
   let status = $state('listo');
   let message = $state('');
   let printPreview = $state('');
+  let previewContainer = $state<HTMLDivElement>();
   // S7-H1: identidad del cliente en el cobro — nunca inventar dummy truthy.
   // El servidor exige doc+nombre para boleta ≥ S/ 700 (BOLETA_ID_REQUIRED).
   let clientDocType = $state('1');
@@ -166,12 +176,14 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     void loadSellableCatalog();
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
+    loginUser = readLoginUser(localStorage);
     maybeShowTour();
   });
 
   const tourOn = isOnboardingTourEnabled();
   const tipOn = isSaleTipEnabled();
   const drawerOn = isCashDrawerEnabled();
+  const saleFeedbackOn = isSaleFeedbackEnabled();
   let tipCents = $state(0);
   const capabilities = capabilitiesFromFlags({
     kds: isOrdersKdsEnabled(),
@@ -274,7 +286,12 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     }
 
     status = 'completado';
-    message = `Venta ${outcome.offlineSaleId} cobrada en ${Math.round(outcome.feedbackMs)} ms.`;
+    message = `Venta ${outcome.offlineSaleId} cobrada.`;
+
+    // GTM §6.5: beep + vibración breve al confirmar (opt-in, nunca bloquea).
+    if (saleFeedbackOn) {
+      playSaleSuccessFeedback();
+    }
 
     // P2: abre el cajón tras el cobro (efectivo/wallets — uso común en Perú).
     if (drawerOn) {
@@ -331,6 +348,23 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     });
   }
 
+  $effect(() => {
+    const previewHtml = printPreview;
+    const container = previewContainer;
+    if (!previewHtml || !container) return;
+    container.querySelectorAll<HTMLElement>('[data-qr], [data-brand-qr]').forEach((el) => {
+      const payload = el.dataset.qr ?? el.dataset.brandQr ?? '';
+      if (!payload || el.dataset.qrRendered === '1') return;
+      el.dataset.qrRendered = '1';
+      const canvas = document.createElement('canvas');
+      renderQrToCanvas(canvas, payload, 120);
+      canvas.setAttribute('data-testid', 'ticket-qr');
+      canvas.setAttribute('title', payload);
+      canvas.setAttribute('aria-label', 'Código QR del comprobante');
+      el.replaceChildren(canvas);
+    });
+  });
+
   const catalogOn = isCatalogSellableEnabled();
 
   async function loadSellableCatalog() {
@@ -342,8 +376,8 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     catalogError = '';
     try {
       catalogItems = await fetchSellableCatalog({
-        apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
-        authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? '',
+        apiBase: resolveApiBase(localStorage),
+        authorization: resolveApiAuth(localStorage).authorization ?? '',
       });
     } catch {
       catalogError = 'No se pudo cargar el catálogo. La venta rápida sigue disponible.';
@@ -352,18 +386,6 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     }
   }
 
-  const visibleCatalog = $derived(
-    catalogQuery.trim()
-      ? catalogItems.filter((item) => {
-          const q = catalogQuery.trim().toLowerCase();
-          return (
-            item.name.toLowerCase().includes(q) ||
-            item.sku.toLowerCase().includes(q) ||
-            (item.barcode ?? '').toLowerCase().includes(q)
-          );
-        })
-      : catalogItems,
-  );
 
   function addQuickSale() {
     const name = quickName.trim();
@@ -575,8 +597,8 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
       const line = await leaseScannedSerialLine({
         rawSerial: serialScan,
         terminalId: terminalRegistered ? terminalId : '',
-        apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
-        authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? '',
+        apiBase: resolveApiBase(localStorage),
+        authorization: resolveApiAuth(localStorage).authorization ?? '',
         resolveProduct: (productId) =>
           catalogItems.find((item) => item.productId === productId),
       });
@@ -604,6 +626,9 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
       <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
       {#if checkoutOn}
         <div class="banner-pills">
+          <span data-testid="pos-session-bar" class="badge badge-success" role="status">
+            Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}
+          </span>
           <span data-testid="formalization-banner" class="badge badge-indigo" role="status">
             {banner}
           </span>
@@ -661,8 +686,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
   {#if !checkoutOn}
     <div class="glass-panel checkout-disabled-panel">
       <div class="badge badge-danger">Caja Desactivada</div>
-      <p data-testid="checkout-off">Caja desactivada (FEATURE_POS_CHECKOUT off).</p>
-      <p class="demo-total">Total demo: S/ {formatCents(11800)}</p>
+      <p data-testid="checkout-off">El cobro está desactivado para esta tienda. Contacta a tu proveedor.</p>
     </div>
   {:else}
     <div class="pos-main-grid">
@@ -733,6 +757,14 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
             </div>
           {/if}
         </section>
+        <SellableCatalog
+          items={catalogItems}
+          loading={catalogLoading}
+          error={catalogError}
+          catalogOn={catalogOn}
+          bind:query={catalogQuery}
+          onAdd={addProduct}
+        />
 
         <!-- Serial Scanner Instrument Panel -->
         {#if serialsOn}
@@ -742,7 +774,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
                 <span class="instrument-eyebrow">Identidad por unidad</span>
                 <h2 id="serial-title">Escanear Número de Serie</h2>
               </div>
-              <span class="badge badge-indigo">Reserva D1</span>
+              <span class="badge badge-indigo">Stock reservado</span>
             </div>
 
             <div class="terminal-row">
@@ -810,7 +842,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
             <div class="card-header">
               <div>
                 <span class="instrument-eyebrow">Instrumento Balanza</span>
-                <h2 id="scale-title">Captura de Peso WebHID</h2>
+                <h2 id="scale-title">Balanza por peso</h2>
               </div>
               <div class="scale-state-badge" data-testid="scale-state">
                 <span class="pulse-dot"></span>
@@ -942,7 +974,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
             {/if}
             {#if tipOn}
               <div class="tip-input-row">
-                <label for="tip-cents">Propina (centavos)</label>
+                <label for="tip-cents">Propina</label>
                 <input
                   id="tip-cents"
                   type="number"
@@ -991,9 +1023,9 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
           <div class="glass-panel print-preview-card" data-testid="print-preview">
             <div class="card-header">
               <h3>Vista Previa Ticket Térmico 80mm</h3>
-              <span class="badge badge-indigo">ESC/POS Ready</span>
+              <span class="badge badge-indigo">Listo para imprimir</span>
             </div>
-            <div class="ticket-render-body">
+            <div class="ticket-render-body" bind:this={previewContainer}>
               {@html printPreview}
             </div>
           </div>
@@ -1057,6 +1089,27 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
       <p class="quick-error" role="alert">{quickError}</p>
     {/if}
   </Modal>
+
+  {#if checkoutOn}
+    <nav class="pos-bottom-nav" aria-label="Navegación de caja" data-testid="pos-bottom-nav">
+      <a href="/" class="pos-nav-item" class:active={page.url.pathname === '/'} data-testid="pos-nav-cobrar">
+        <Icon name="check" size={18} />
+        <span>Cobrar</span>
+      </a>
+      <a href="/caja/historial" class="pos-nav-item" data-testid="pos-nav-historial">
+        <Icon name="receipt" size={18} />
+        <span>Historial del día</span>
+      </a>
+      <a href="/caja" class="pos-nav-item" data-testid="pos-nav-caja">
+        <Icon name="lock" size={18} />
+        <span>Caja</span>
+      </a>
+      <a href="/ayuda" class="pos-nav-item" data-testid="pos-nav-ayuda">
+        <Icon name="info" size={18} />
+        <span>Ayuda</span>
+      </a>
+    </nav>
+  {/if}
 </div>
 
 <style>
@@ -1064,6 +1117,45 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+  }
+
+  .pos-bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    position: sticky;
+    bottom: 0.75rem;
+    z-index: 20;
+  }
+
+  .pos-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 88px;
+    min-height: 48px;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color var(--transition-fast), background var(--transition-fast);
+  }
+
+  .pos-nav-item:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .pos-nav-item.active {
+    color: var(--accent-primary);
   }
 
   .pos-banner-card {
@@ -1114,12 +1206,6 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     gap: 1rem;
   }
 
-  .demo-total {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--emerald-green);
-  }
-
   /* Main Grid */
   .pos-main-grid {
     display: grid;
@@ -1156,90 +1242,6 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--accent-primary);
-  }
-
-  /* Catalog Grid */
-  .catalog-card {
-    padding: 1.25rem;
-  }
-  .catalog-header {
-    margin-bottom: 0.75rem;
-  }
-  .catalog-search {
-    position: relative;
-    margin-bottom: 0.875rem;
-  }
-  .catalog-search :global(.catalog-search-icon) {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-dim);
-    pointer-events: none;
-  }
-  .catalog-search-input {
-    min-height: 44px;
-    padding-left: 2.4rem;
-  }
-  .catalog-skeleton {
-    padding: 0.25rem 0;
-  }
-  .products-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 0.75rem;
-  }
-  .product-item-btn {
-    background: var(--bg-glass-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.875rem;
-    text-align: left;
-    color: var(--text-main);
-    transition: all var(--transition-smooth);
-    cursor: pointer;
-  }
-  .product-item-btn:hover {
-    background: var(--bg-glass-hover);
-    border-color: var(--accent-primary);
-    transform: translateY(-2px);
-  }
-  .product-icon {
-    font-size: 1.75rem;
-    color: var(--text-main);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .product-info {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    color: var(--text-main);
-  }
-  .product-name {
-    font-weight: 600;
-    font-size: 0.9375rem;
-    color: var(--text-main);
-  }
-  .product-sku {
-    font-size: 0.6875rem;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    margin-top: 0.125rem;
-  }
-  .product-price {
-    color: var(--emerald-green);
-    font-weight: 700;
-    font-size: 1rem;
-  }
-  .add-badge {
-    font-size: 0.75rem;
-    font-weight: 700;
     color: var(--accent-primary);
   }
 
@@ -1459,6 +1461,16 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
     padding: 1rem;
     border-radius: var(--radius-sm);
     overflow-x: auto;
+  }
+
+  .ticket-render-body :global(canvas) {
+    width: 120px;
+    height: 120px;
+    image-rendering: pixelated;
+  }
+
+  .ticket-render-body :global([data-qr]) {
+    display: inline-block;
   }
 
   .quick-hint {

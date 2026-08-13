@@ -131,9 +131,10 @@ export function createPrinterTransport(env: PrinterTransportEnv = {}): PrinterTr
   return {
     preflight() {
       const available: PrinterStrategy[] = [];
-      if ((navigator as { usb?: unknown }).usb) available.push('webusb');
+      const nav = typeof navigator !== 'undefined' ? (navigator as { usb?: unknown; bluetooth?: unknown }) : undefined;
+      if (nav?.usb) available.push('webusb');
       if (env.wssUrl?.startsWith('wss:')) available.push('wss_lan');
-      if ((navigator as { bluetooth?: unknown }).bluetooth) available.push('bluetooth');
+      if (nav?.bluetooth) available.push('bluetooth');
       available.push('system_print');
       if (env.whatsappFallback) available.push('whatsapp');
       return Promise.resolve(available);

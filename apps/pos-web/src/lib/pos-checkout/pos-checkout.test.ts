@@ -33,7 +33,6 @@ describe('pos-checkout cart', () => {
     const serialOne = {
       ...line('phone', 100_000),
       serialId: 'serial-1',
-      // eslint-disable-next-line no-secrets/no-secrets -- opaque lease fixture, not a credential
       serialLeaseToken: 'opaque_kp_7FXQm19w',
     };
     const serialTwo = {
@@ -45,7 +44,6 @@ describe('pos-checkout cart', () => {
     expect(lines).toHaveLength(2);
     expect(lines.map((item) => item.serialId)).toEqual(['serial-1', 'serial-2']);
     expect(lines.map((item) => item.serialLeaseToken)).toEqual([
-      // eslint-disable-next-line no-secrets/no-secrets -- opaque lease fixture, not a credential
       'opaque_kp_7FXQm19w',
       'opaque_kp_H4v2bL8q',
     ]);

@@ -20,6 +20,33 @@
   import { createBrowserPrintIdb, PrintOutboxStore } from '$lib/print/print-outbox-store';
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import Modal from '$lib/ui/Modal.svelte';
+  import MoneyInput from '$lib/ui/MoneyInput.svelte';
+  import {
+    createCashMovement,
+    mintCashAuthzToken,
+    reprintSale,
+    type CashMovementType,
+    type MovementInput,
+  } from '$lib/cash/cash-movement';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+
+  const MOVEMENT_LABELS: Readonly<Record<CashMovementType, string>> = {
+    DEPOSIT_VALUES: 'Ingreso de recaudación',
+    CHANGE_FUND_IN: 'Entrada de fondo (cambio)',
+    CHANGE_FUND_OUT: 'Salida de fondo (cambio)',
+    SUPPLIER_PAYMENT: 'Pago a proveedor',
+    ADJUSTMENT: 'Ajuste de caja',
+    SALE_REFUND: 'Reembolso de venta',
+    LAYAWAY_DEPOSIT: 'Depósito de apartado',
+    LAYAWAY_REFUND: 'Devolución de apartado',
+  };
+  const MOVEMENT_TYPES = Object.keys(MOVEMENT_LABELS) as CashMovementType[];
 
   const blindOn = isCashBlindZEnabled();
   const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
@@ -36,6 +63,36 @@
   let revealedDiff = $state<number | null>(null);
   let outboxPending = $state(0);
   let preflightAdapters = $state<string[]>([]);
+
+  let movementType = $state<CashMovementType>('CHANGE_FUND_IN');
+  let movementAmountCents = $state<number | null>(null);
+  let movementBranchId = $state('b-demo');
+  let movementRef = $state('');
+  let movementReason = $state('');
+  let movementStatus = $state('');
+  let movementMsg = $state('');
+  let authzOpen = $state(false);
+  let authzPin = $state('');
+  let authzMsg = $state('');
+  let reprintSaleId = $state('');
+  let reprintBranchId = $state('b-demo');
+  let reprintReason = $state('');
+  let reprintMsg = $state('');
+  let reprintOk = $state(false);
+  let pendingMovement: MovementInput | null = null;
+
+  function buildMovementInput(): MovementInput {
+    return {
+      apiBase: resolveApiBase(localStorage),
+      authorization: resolveApiAuth(localStorage).authorization ?? '',
+      branchId: movementBranchId.trim() || 'b-demo',
+      sessionId,
+      movementType,
+      amountCents: movementAmountCents ?? 0,
+      counterpartyRef: movementRef.trim() || null,
+      reason: movementReason.trim() || null,
+    };
+  }
 
   const countLines = $derived(
     PEN_DENOMS.filter((d) => (qtyByDenom[d] ?? 0) > 0).map(
@@ -73,12 +130,12 @@
     await refreshOutbox();
     if (outboxPending > 0) {
       status = 'bloqueado';
-      resultMsg = `Print outbox pendiente (${outboxPending}). Reimprime o resuelve tickets antes del cierre Z.`;
+      resultMsg = `Impresiones pendientes (${outboxPending}). Reimprime o resuelve los tickets antes del cierre Z.`;
       return;
     }
-    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
-    const res = await submitBlindClose(apiBase || 'https://api.kipuspay.local', auth, {
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
+    const res = await submitBlindClose(apiBase, auth, {
       sessionId,
       countLines,
       differenceReason: reason.trim() || null,
@@ -89,7 +146,7 @@
       status = 'error';
       resultMsg =
         res.code === 'PRINT_OUTBOX_BLOCK'
-          ? `Bloqueado por print outbox (${res.pendingCount ?? '?'})`
+          ? `Bloqueado por impresiones pendientes (${res.pendingCount ?? '?'})`
           : res.message;
       return;
     }
@@ -97,6 +154,95 @@
     revealedExpected = res.expectedTotalCents ?? null;
     revealedDiff = res.differenceAmountCents ?? null;
     resultMsg = res.message;
+  }
+
+  async function onRegisterMovement() {
+    movementStatus = 'enviando';
+    movementMsg = '';
+    const amountCents = movementAmountCents ?? 0;
+    if (amountCents <= 0) {
+      movementStatus = 'error';
+      movementMsg = 'Ingresa un monto mayor a cero.';
+      return;
+    }
+    pendingMovement = buildMovementInput();
+    const res = await createCashMovement(pendingMovement);
+    if (!res.ok && res.code === 'AUTH_TOKEN_REQUIRED') {
+      authzPin = '';
+      authzMsg = '';
+      authzOpen = true;
+      movementStatus = 'esperando-authz';
+      movementMsg = 'Este movimiento supera el umbral de la política. Pide el PIN del supervisor.';
+      return;
+    }
+    if (!res.ok) {
+      movementStatus = 'error';
+      movementMsg = res.message;
+      return;
+    }
+    movementStatus = 'ok';
+    movementMsg = 'Movimiento registrado en la caja.';
+    movementAmountCents = null;
+    movementRef = '';
+    movementReason = '';
+  }
+
+  async function onAuthorize() {
+    authzMsg = '';
+    const input = pendingMovement;
+    if (!input) {
+      authzOpen = false;
+      return;
+    }
+    if (!authzPin.trim()) {
+      authzMsg = 'Teclea el PIN del supervisor.';
+      return;
+    }
+    const mint = await mintCashAuthzToken({
+      apiBase: input.apiBase,
+      authorization: input.authorization,
+      pin: authzPin.trim(),
+    });
+    if (!mint.ok) {
+      authzMsg = mint.message;
+      return;
+    }
+    authzOpen = false;
+    const retry = await createCashMovement({ ...input, authorizationTokenHash: mint.tokenHash });
+    if (!retry.ok) {
+      movementStatus = 'error';
+      movementMsg = retry.message;
+      return;
+    }
+    movementStatus = 'ok';
+    movementMsg = 'Movimiento registrado con autorización de supervisor.';
+    movementAmountCents = null;
+    movementRef = '';
+    movementReason = '';
+  }
+
+  async function onReprint() {
+    reprintMsg = '';
+    reprintOk = false;
+    if (!reprintSaleId.trim() || !reprintBranchId.trim()) {
+      reprintMsg = 'Ingresa el ID de la venta y la sucursal.';
+      return;
+    }
+    const res = await reprintSale({
+      apiBase: resolveApiBase(localStorage),
+      authorization: resolveApiAuth(localStorage).authorization ?? '',
+      saleId: reprintSaleId.trim(),
+      branchId: reprintBranchId.trim(),
+      reason: reprintReason.trim() || null,
+    });
+    if (!res.ok) {
+      reprintMsg = res.message;
+      return;
+    }
+    reprintOk = true;
+    reprintMsg = `Reimpresión registrada con sello ${res.watermarkLabel}.`;
+    reprintSaleId = '';
+    reprintReason = '';
   }
 </script>
 
@@ -106,13 +252,13 @@
   <section class="glass-panel caja-card" data-testid="caja-blind-z">
     <div class="card-header-bar">
       <div>
-        <span class="badge badge-indigo">Control Operativo</span>
+        <Badge variant="indigo">Control Operativo</Badge>
         <h1 class="page-title">Cierre Z Ciego</h1>
       </div>
-      <a href="/caja/devolucion" class="btn btn-secondary nav-link-btn" data-testid="caja-link-devolucion">
+      <Button variant="secondary" href="/caja/devolucion" data-testid="caja-link-devolucion">
         <Icon name="arrow-right" size={16} />
         Devolución
-      </a>
+      </Button>
     </div>
 
     <p class="lede-text">
@@ -120,40 +266,39 @@
     </p>
 
     {#if !blindOn}
-      <div class="banner-box off-banner" data-testid="caja-feature-off">
-        <span class="banner-icon"><Icon name="alert" size={20} /></span>
+      <StatusMessage tone="warning" data-testid="caja-feature-off">
+        <Icon name="alert" size={20} />
         <div>
-          <strong>FEATURE_CASH_BLIND_Z desactivado</strong>
-          <p>Activa el flag operacional para cerrar caja en producción.</p>
+          <strong>El cierre de caja está desactivado</strong>
+          <p>Contacta a tu proveedor para activarlo.</p>
         </div>
-      </div>
+      </StatusMessage>
     {:else}
       {#if printOn}
         <div class="preflight-status-card">
           <div class="status-item" data-testid="caja-print-preflight">
-            <span class="item-label">Pre-flight Impresora:</span>
+            <span class="item-label">Estado de la impresora:</span>
             <span class="item-val">
               {preflightAdapters.length ? preflightAdapters.join(' → ') : 'Detectando hardware…'}
             </span>
           </div>
           <div class="status-item" data-testid="caja-print-pending">
-            <span class="item-label">Outbox Pendiente:</span>
-            <span class="badge" class:badge-warning={outboxPending > 0} class:badge-success={outboxPending === 0}>
+            <span class="item-label">Pendientes de imprimir:</span>
+            <Badge variant={outboxPending > 0 ? 'warning' : 'success'}>
               {outboxPending} tickets
-            </span>
+            </Badge>
           </div>
         </div>
       {/if}
 
-      <div class="form-group session-group">
-        <label for="session-id-input">ID de Sesión de Caja</label>
-        <input
+      <Field label="ID de Sesión de Caja" id="session-id-input" class="session-group">
+        <Input
           id="session-id-input"
           bind:value={sessionId}
           data-testid="caja-session-id"
-          placeholder="s-demo"
+          placeholder="Sesión de caja"
         />
-      </div>
+      </Field>
 
       <!-- Denominations Grid -->
       <div class="denom-grid-container">
@@ -187,41 +332,40 @@
       <div class="counter-total-box">
         <div class="total-info">
           <span class="total-title">TOTAL ARQUEO LOCAL</span>
-          <span class="tenant-tag">Tenant: {session.tenantId}</span>
+          <span class="tenant-tag">Tienda: {session.tradeName}</span>
         </div>
         <span class="counted-amount tabular-nums">
           S/ {formatCents(countedLocal)}
         </span>
       </div>
 
-      <div class="form-group">
-        <label for="diff-reason-input">Motivo de diferencia (si aplica)</label>
-        <input
+      <Field label="Motivo de diferencia (si aplica)" id="diff-reason-input">
+        <Input
           id="diff-reason-input"
           bind:value={reason}
           data-testid="caja-diff-reason"
           placeholder="Ej. Faltante justificado por cambio de billete..."
         />
-      </div>
+      </Field>
 
-      <button
-        type="button"
-        class="primary confirm-z-btn"
+      <Button
+        variant="primary"
+        size="full"
         data-testid="caja-confirm-z"
         onclick={onConfirmClose}
+        icon="lock"
       >
-        <Icon name="lock" size={18} />
         Confirmar Cierre Z
-      </button>
+      </Button>
 
       <!-- Status & Revelation Area -->
       {#if status || resultMsg || revealedExpected !== null || revealedDiff !== null}
         <div class="result-revelation-card">
           {#if status}
             <div class="result-header">
-              <span class="badge" class:badge-warning={status === 'enviando'} class:badge-success={status === 'cerrado'} class:badge-danger={status === 'error' || status === 'bloqueado'}>
+              <Badge variant={status === 'cerrado' ? 'success' : status === 'enviando' ? 'warning' : 'danger'}>
                 {status}
-              </span>
+              </Badge>
               <span data-testid="caja-z-status" class="status-name">{status}</span>
             </div>
           {/if}
@@ -249,6 +393,103 @@
       {/if}
     {/if}
   </section>
+
+  <section class="glass-panel caja-card" data-testid="caja-movements">
+    <div class="card-header-bar">
+      <div>
+        <Badge variant="indigo">Control Operativo</Badge>
+        <h2 class="page-title">Movimientos de caja</h2>
+      </div>
+    </div>
+    <p class="lede-text">
+      Registra ingresos o salidas de efectivo. Los movimientos sobre el umbral de la política requieren el PIN del supervisor.
+    </p>
+    <div class="movement-grid">
+      <Field label="Tipo de movimiento" id="movement-type-input">
+        <select id="movement-type-input" bind:value={movementType} data-testid="movement-type" class="denom-qty-input">
+          {#each MOVEMENT_TYPES as type}
+            <option value={type}>{MOVEMENT_LABELS[type]}</option>
+          {/each}
+        </select>
+      </Field>
+      <Field label="Monto (S/)" id="movement-amount-input">
+        <MoneyInput id="movement-amount-input" bind:value={movementAmountCents} data-testid="movement-amount" min={1} />
+      </Field>
+      <Field label="Sucursal" id="movement-branch-input">
+        <Input id="movement-branch-input" bind:value={movementBranchId} data-testid="movement-branch" placeholder="Sucursal" />
+      </Field>
+      <Field label="Referencia (opcional)" id="movement-ref-input">
+        <Input id="movement-ref-input" bind:value={movementRef} data-testid="movement-ref" placeholder="Ej. Proveedor A, factura F001-1" />
+      </Field>
+    </div>
+    <Field label="Razón (opcional)" id="movement-reason-input">
+      <Input id="movement-reason-input" bind:value={movementReason} data-testid="movement-reason" placeholder="Ej. Cambio para la caja" />
+    </Field>
+    <Button variant="primary" size="full" data-testid="movement-register" onclick={onRegisterMovement} icon="plus">
+      Registrar movimiento
+    </Button>
+    {#if movementMsg}
+      <StatusMessage tone={movementStatus === 'error' ? 'danger' : 'info'} data-testid="movement-msg">
+        {movementMsg}
+      </StatusMessage>
+    {/if}
+  </section>
+
+  <section class="glass-panel caja-card" data-testid="caja-reprints">
+    <div class="card-header-bar">
+      <div>
+        <Badge variant="indigo">Control Operativo</Badge>
+        <h2 class="page-title">Reimpresión de ticket</h2>
+      </div>
+    </div>
+    <p class="lede-text">
+      Reimprime un ticket ya vendido. La copia lleva el sello obligatorio COPIA y queda registrada en la auditoría.
+    </p>
+    <div class="movement-grid">
+      <Field label="ID de venta" id="reprint-sale-input">
+        <Input id="reprint-sale-input" bind:value={reprintSaleId} data-testid="reprint-sale-id" placeholder="ID de la venta" />
+      </Field>
+      <Field label="Sucursal" id="reprint-branch-input">
+        <Input id="reprint-branch-input" bind:value={reprintBranchId} data-testid="reprint-branch" placeholder="Sucursal" />
+      </Field>
+    </div>
+    <Field label="Motivo (opcional)" id="reprint-reason-input">
+      <Input id="reprint-reason-input" bind:value={reprintReason} data-testid="reprint-reason" placeholder="Ej. El cliente pidió copia" />
+    </Field>
+    <Button variant="primary" size="full" data-testid="reprint-submit" onclick={onReprint} icon="printer">
+      Reimprimir con sello COPIA
+    </Button>
+    {#if reprintMsg}
+      <StatusMessage tone={reprintOk ? 'info' : 'danger'} data-testid="reprint-msg">
+        {reprintMsg}
+      </StatusMessage>
+    {/if}
+  </section>
+
+  <Modal
+    open={authzOpen}
+    title="Autorización de supervisor"
+    confirmText="Autorizar"
+    confirmTestid="authz-confirm"
+    onConfirm={onAuthorize}
+    onCancel={() => (authzOpen = false)}
+  >
+    <p class="quick-hint">
+      Este movimiento supera el umbral de la política de caja. El supervisor autoriza con su PIN.
+    </p>
+    <Field label="PIN del supervisor">
+      <Input
+        data-testid="authz-pin"
+        bind:value={authzPin}
+        type="password"
+        autocomplete="off"
+        placeholder="PIN de 4 dígitos"
+      />
+    </Field>
+    {#if authzMsg}
+      <p class="quick-error" role="alert" data-testid="authz-error">{authzMsg}</p>
+    {/if}
+  </Modal>
 </div>
 
 <style>
@@ -277,10 +518,7 @@
     margin-top: 0.25rem;
   }
 
-  .nav-link-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
+
 
   .lede-text {
     color: var(--text-muted);
@@ -288,16 +526,7 @@
     line-height: 1.5;
   }
 
-  .off-banner {
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    padding: 1rem;
-    border-radius: var(--radius-md);
-    display: flex;
-    gap: 0.875rem;
-    align-items: center;
-    color: #fbbf24;
-  }
+
 
   .preflight-status-card {
     background: rgba(15, 23, 42, 0.6);
@@ -323,11 +552,6 @@
   .item-val {
     font-weight: 600;
     color: var(--text-main);
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
   }
 
   /* Denominations Grid */
@@ -415,11 +639,7 @@
     text-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
   }
 
-  .confirm-z-btn {
-    width: 100%;
-    padding: 1rem;
-    font-size: 1.125rem;
-  }
+
 
   .result-revelation-card {
     background: rgba(15, 23, 42, 0.8);

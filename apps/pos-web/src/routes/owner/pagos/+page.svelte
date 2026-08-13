@@ -7,6 +7,10 @@
     isPaymentsQrWalletsEnabled,
   } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const payOn = isPaymentsQrWalletsEnabled() || isPaymentsCardAcquirerEnabled();
@@ -25,10 +29,8 @@
   async function load() {
     loading = true;
     status = 'Cargando…';
-    const apiBase =
-      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-      'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
       const res = await fetch(`${apiBase}/api/owner/payments/uncaptured`, {
         headers: { authorization: auth },
@@ -61,20 +63,19 @@
       <div>
         <p class="page-eyebrow"><Icon name="credit-card" size={12} /> Modo Dueño · Pagos</p>
         <h1 class="page-title">Pagos no conciliados</h1>
-        <p class="page-lede">MANUAL_ELECTRONIC_CAPTURE y PENDING — captura offline edge.</p>
+        <p class="page-lede">Pagos con captura manual y pendientes de conciliar.</p>
       </div>
       {#if payOn}
-        <button type="button" class="secondary" data-testid="owner-pay-refresh" onclick={load} disabled={loading}>
-          <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+        <Button variant="secondary" data-testid="owner-pay-refresh" onclick={load} disabled={loading} icon="refresh">
           Actualizar
-        </button>
+        </Button>
       {/if}
     </div>
 
     {#if !payOn}
       <div class="feature-off-banner" data-testid="owner-pay-off">
         <Icon name="info" size={18} />
-        <span>Activa Owner Mode y los flags de pagos (QR Wallets o Card Acquirer).</span>
+        <span>Los pagos no están activos para este negocio.</span>
       </div>
     {:else}
       {#if status}
@@ -88,10 +89,7 @@
           </span>
         </div>
         {#if rows.length === 0}
-          <div class="empty-state">
-            <Icon name="check" size={28} />
-            <span>Sin pagos pendientes</span>
-          </div>
+          <EmptyState icon="check" title="Sin pagos pendientes" />
         {:else}
           <ul class="pay-list" data-testid="owner-pay-list">
             {#each rows as r}
@@ -123,16 +121,7 @@
     padding: 1.25rem;
   }
 
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 3rem;
-    color: var(--emerald-green);
-    font-size: 0.9375rem;
-  }
+  
 
   .pay-list {
     list-style: none;

@@ -74,12 +74,15 @@ export async function probePrinterUsb(): Promise<DiagnosticReport> {
     if (!outcome) return report('printer_usb', 'PRINTER_COMM_FAILED', Date.now() - started);
     return report('printer_usb', outcome.causeCode, Date.now() - started, outcome.paperWidthMm);
   }
-  const nav = navigator as Navigator & {
-    usb?: {
-      requestDevice: (opts: { filters: unknown[] }) => Promise<{ open: () => Promise<void> }>;
-    };
-  };
-  if (!nav.usb) return report('printer_usb', 'PRINTER_NOT_FOUND', Date.now() - started);
+  const nav =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & {
+          usb?: {
+            requestDevice: (opts: { filters: unknown[] }) => Promise<{ open: () => Promise<void> }>;
+          };
+        })
+      : undefined;
+  if (!nav?.usb) return report('printer_usb', 'PRINTER_NOT_FOUND', Date.now() - started);
   try {
     const device = await withTimeout(10_000, nav.usb.requestDevice({ filters: [] }));
     if (!device) return report('printer_usb', 'PRINTER_COMM_FAILED', Date.now() - started);

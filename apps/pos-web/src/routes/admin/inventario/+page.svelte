@@ -2,6 +2,9 @@
   import { isGreEnabled, isInventoryOpsEnabled } from '$lib/features';
   import { issueRemissionGuide } from '$lib/inventory/remission-guide';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const invOn = isInventoryOpsEnabled();
   const greOn = isGreEnabled();
@@ -59,10 +62,8 @@
     greMsg = `GRE ${res.series}-${String(res.number).padStart(3, '0')} emitida (motivo ${res.transferReasonCode}, ${res.sunatStatus}).`;
   }
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function startCount() {
     message = '';
@@ -112,16 +113,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !invOn}
     <div class="feature-off-banner" data-testid="admin-inv-off">
       <Icon name="info" size={18} />
-      <span><code>FEATURE_INVENTORY_*</code> desactivado. Activa el flag en el dashboard de configuración.</span>
+      <span>El inventario no está activo para este negocio.</span>
     </div>
   {:else}
     <div class="inv-grid">
@@ -156,10 +157,10 @@
           <label for="system-input">Sistema (solo review)</label>
           <input type="number" id="system-input" bind:value={systemQty} data-testid="admin-inv-system" />
         </div>
-        <button type="button" class="primary" data-testid="admin-inv-count-start" onclick={startCount}>
+        <Button variant="primary" data-testid="admin-inv-count-start" onclick={startCount}>
           <Icon name="clipboard-check" size={14} />
           Abrir conteo ciego
-        </button>
+        </Button>
       </section>
 
       <!-- Merma -->
@@ -180,10 +181,10 @@
           <label for="reason-input">Motivo</label>
           <textarea id="reason-input" bind:value={reason} data-testid="admin-inv-reason" rows="3" placeholder="Describe la causa de la merma…"></textarea>
         </div>
-        <button type="button" class="primary danger-btn" data-testid="admin-inv-loss-create" onclick={createLoss}>
+        <Button variant="danger" data-testid="admin-inv-loss-create" onclick={createLoss}>
           <Icon name="alert" size={14} />
           Registrar merma
-        </button>
+        </Button>
       </section>
     </div>
   {/if}
@@ -253,7 +254,7 @@
           <input id="gre-started" type="datetime-local" bind:value={greStartedAt} data-testid="gre-started" />
         </div>
         <div class="field-group">
-          <label for="gre-qty">Cantidad (microunits) del ítem {productId}</label>
+          <label for="gre-qty">Cantidad del ítem {productId}</label>
           <input id="gre-qty" type="number" min="1" bind:value={greQtyMicrounits} data-testid="gre-qty" />
         </div>
       </div>
@@ -275,16 +276,7 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
   .hint-text {
     font-size: 0.8125rem;
@@ -293,15 +285,9 @@
     line-height: 1.4;
   }
 
-  .danger-btn {
-    background: rgba(217, 106, 60, 0.15);
-    color: var(--rose-red);
-    border: 1px solid rgba(217, 106, 60, 0.35);
-  }
 
-  .danger-btn:hover {
-    background: rgba(217, 106, 60, 0.25);
-  }
+
+
 
   .link-action {
     display: inline-flex;

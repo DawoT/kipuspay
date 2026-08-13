@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- public feature key is the contract under test */
 import { describe, expect, it, vi } from 'vitest';
 
 describe('inventory.scale public capability contract', () => {

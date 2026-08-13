@@ -8,6 +8,13 @@
     type PosTenantSession,
   } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import CardHeader from '$lib/ui/CardHeader.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import MoneyInput from '$lib/ui/MoneyInput.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const layawayOn = isSalesLayawayEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -22,10 +29,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
   const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
 
   onMount(() => { session = readTenantSession(sessionStorage); });
@@ -93,91 +98,100 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite" data-testid="layaway-msg">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite" data-testid="layaway-msg">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !layawayOn}
     <div class="feature-off-banner" data-testid="caja-layaway-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_SALES_LAYAWAY</code> desactivado.</span>
+      <span>Los apartados no están activos para esta tienda.</span>
     </div>
   {:else}
-    <p class="tenant-line" data-testid="caja-layaway-tenant">Tenant {session.tenantId}</p>
+    <p class="tenant-line" data-testid="caja-layaway-tenant">Tienda: {session.tradeName}</p>
 
     <div class="layaway-layout">
       <!-- Crear -->
       <section class="glass-card section-pad">
-        <div class="card-header">
-          <h2>Nuevo apartado</h2>
+        <CardHeader title="Nuevo apartado">
           <span class="section-tag">Crear</span>
-        </div>
-        <div class="field-group">
-          <label for="lay-product">Producto</label>
-          <input id="lay-product" bind:value={productId} data-testid="layaway-product" />
-        </div>
-        <div class="field-group">
-          <label for="lay-qty">Cantidad (microunidades)</label>
+        </CardHeader>
+        <Field label="Producto" id="lay-product">
+          <Input id="lay-product" bind:value={productId} data-testid="layaway-product" />
+        </Field>
+        <Field label="Cantidad" id="lay-qty">
           <input id="lay-qty" type="number" bind:value={enteredMicrounits} data-testid="layaway-qty" />
-        </div>
+        </Field>
         <div class="two-col">
-          <div class="field-group">
-            <label for="lay-due">Vence</label>
+          <Field label="Vence" id="lay-due">
             <input id="lay-due" type="date" bind:value={dueDate} data-testid="layaway-due" />
-          </div>
-          <div class="field-group">
-            <label for="lay-initial">Abono inicial (cents)</label>
-            <input id="lay-initial" type="number" bind:value={initialAmountCents} data-testid="layaway-initial" />
-          </div>
+          </Field>
+          <Field label="Abono inicial" id="lay-initial">
+            <MoneyInput id="lay-initial" bind:value={initialAmountCents} data-testid="layaway-initial" min={1} />
+          </Field>
         </div>
-        <button type="button" class="primary" data-testid="layaway-create" onclick={() => void createLayaway()}>
-          <Icon name="plus" size={14} />
+        <Button
+          variant="primary"
+          data-testid="layaway-create"
+          onclick={() => void createLayaway()}
+          icon="plus"
+        >
           Crear apartado
-        </button>
+        </Button>
       </section>
 
       <!-- Gestionar -->
       <section class="glass-card section-pad">
-        <div class="card-header">
-          <h2>Gestionar</h2>
+        <CardHeader title="Gestionar">
           <span class="section-tag">Acciones</span>
-        </div>
-        <div class="field-group">
-          <label for="lay-id">ID apartado</label>
-          <input id="lay-id" bind:value={depositId} data-testid="layaway-id" placeholder="ID creado arriba" />
-        </div>
-        <div class="field-group">
-          <label for="lay-extra">Abono extra (cents)</label>
-          <input id="lay-extra" type="number" bind:value={extraAmountCents} data-testid="layaway-extra" />
-        </div>
-        <button type="button" class="primary" data-testid="layaway-deposit" onclick={() => void deposit()} disabled={!depositId}>
-          <Icon name="dollar" size={14} />
+        </CardHeader>
+        <Field label="ID apartado" id="lay-id">
+          <Input id="lay-id" bind:value={depositId} data-testid="layaway-id" placeholder="ID creado arriba" />
+        </Field>
+        <Field label="Abono extra" id="lay-extra">
+          <MoneyInput id="lay-extra" bind:value={extraAmountCents} data-testid="layaway-extra" min={1} />
+        </Field>
+        <Button
+          variant="primary"
+          data-testid="layaway-deposit"
+          onclick={() => void deposit()}
+          disabled={!depositId}
+          icon="dollar"
+        >
           Abonar
-        </button>
+        </Button>
 
         <div class="separator"></div>
 
-        <div class="field-group">
-          <label for="lay-series">Serie al convertir</label>
-          <input id="lay-series" bind:value={series} data-testid="layaway-series" />
-        </div>
-        <button type="button" class="success" data-testid="layaway-convert" onclick={() => void convert()} disabled={!depositId}>
-          <Icon name="receipt" size={14} />
+        <Field label="Serie al convertir" id="lay-series">
+          <Input id="lay-series" bind:value={series} data-testid="layaway-series" />
+        </Field>
+        <Button
+          variant="success"
+          data-testid="layaway-convert"
+          onclick={() => void convert()}
+          disabled={!depositId}
+          icon="receipt"
+        >
           Convertir a venta
-        </button>
+        </Button>
 
         <div class="separator"></div>
 
-        <div class="field-group">
-          <label for="lay-reason">Motivo cancelación</label>
-          <input id="lay-reason" bind:value={reason} data-testid="layaway-reason" placeholder="Opcional" />
-        </div>
-        <button type="button" class="secondary danger-sec" data-testid="layaway-cancel" onclick={() => void cancel()} disabled={!depositId}>
-          <Icon name="x" size={14} />
+        <Field label="Motivo cancelación" id="lay-reason">
+          <Input id="lay-reason" bind:value={reason} data-testid="layaway-reason" placeholder="Opcional" />
+        </Field>
+        <Button
+          variant="danger"
+          data-testid="layaway-cancel"
+          onclick={() => void cancel()}
+          disabled={!depositId}
+          icon="x"
+        >
           Cancelar
-        </button>
+        </Button>
       </section>
     </div>
   {/if}
@@ -190,12 +204,7 @@
     gap: 1.25rem;
     align-items: start;
   }
-  .section-pad { padding: 1.25rem; }
-  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   .separator { border-top: 1px solid var(--border-subtle); margin: 0.875rem 0; }
   .tenant-line { font-size: 0.8125rem; color: var(--text-dim); font-family: var(--font-mono); }
-  .danger-sec { border-color: rgba(217, 106, 60, 0.35); color: var(--rose-red); }
-  .danger-sec:hover { background: rgba(217, 106, 60, 0.1); border-color: var(--rose-red); }
-  @media (max-width: 600px) { .layaway-layout { grid-template-columns: 1fr; } .two-col { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .layaway-layout { grid-template-columns: 1fr; }  }
 </style>

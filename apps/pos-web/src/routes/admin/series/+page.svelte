@@ -1,6 +1,8 @@
 <script lang="ts">
   import { isInventorySerialsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const serialsOn = isInventorySerialsEnabled();
   let serialNumber = $state('');
@@ -11,10 +13,8 @@
   let leaseToken = $state('');
   let message = $state('');
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   function headers(): Record<string, string> {
     return {
@@ -57,7 +57,7 @@
     };
     leaseToken = response.ok ? (body.leaseToken ?? '') : '';
     message = response.ok
-      ? 'Lease exclusivo adquirido para este terminal.'
+      ? 'Reserva exclusiva para este terminal.'
       : [body.error, body.action].filter(Boolean).join(' ');
   }
 
@@ -90,13 +90,13 @@
       <span>Inventario · Identidad Física</span>
     </div>
     <h1>Buscar, reservar y disponer series</h1>
-    <p class="lede">Escanea con lector de código de barras o teclado y Enter. El servidor decide estado, tenant y transición.</p>
+    <p class="lede">Escanea con lector de código de barras o teclado y Enter. El servidor decide el estado y transición.</p>
   </header>
 
   {#if !serialsOn}
     <div class="alert-box alert-off">
       <Icon name="alert" size={18} />
-      <span>PUBLIC_FEATURE_INVENTORY_SERIALS desactivado.</span>
+      <span>Las series no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="workbench glass-card">
@@ -126,10 +126,9 @@
           <input id="terminal-id" bind:value={terminalId} placeholder="pos-term-01" />
         </div>
 
-        <button type="submit" class="btn-primary">
-          <Icon name="search" size={16} />
-          <span>Buscar Serie</span>
-        </button>
+        <Button variant="primary" icon="search" >
+          Buscar Serie
+        </Button>
       </form>
 
       {#if message}
@@ -155,10 +154,11 @@
 
           {#if selectedSerialId}
             <div class="lease-actions">
-              <button type="button" class="btn-secondary" onclick={() => void acquireLease()}>
+              <Button variant="secondary" onclick={() =>
+          void acquireLease()}>
                 <Icon name="lock" size={16} />
-                <span>Adquirir Lease Exclusivo</span>
-              </button>
+                Reservar para este terminal
+        </Button>
 
               <div class="disposition-group">
                 <select bind:value={disposition}>
@@ -166,9 +166,10 @@
                   <option value="SCRAPPED">Dar de baja (Scrap)</option>
                   <option value="RMA_SUPPLIER">RMA a proveedor</option>
                 </select>
-                <button type="button" class="btn-primary-sm" onclick={() => void dispose()}>
-                  <span>Confirmar Disposición</span>
-                </button>
+                <Button variant="primary" onclick={() =>
+          void dispose()}>
+                  Confirmar Disposición
+        </Button>
               </div>
             </div>
           {/if}
@@ -176,7 +177,7 @@
           {#if leaseToken}
             <div class="lease-token-box">
               <Icon name="key" size={16} />
-              <span>Lease activo: <code>{leaseToken}</code></span>
+              <span>Reserva activa: <code>{leaseToken}</code></span>
             </div>
           {/if}
         </div>
@@ -196,20 +197,6 @@
     margin-bottom: 1.5rem;
   }
 
-  .badge-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.65rem;
-    background: rgba(217, 154, 61, 0.12);
-    border: 1px solid rgba(217, 154, 61, 0.3);
-    border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary);
-    font: 600 0.72rem/1.2 var(--font-mono, monospace);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
 
   h1 {
     margin: 0.2rem 0;
@@ -267,36 +254,6 @@
 
   .input-with-icon input {
     padding-left: 2.5rem;
-  }
-
-  .btn-primary,
-  .btn-primary-sm,
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 0.65rem 1.25rem;
-    border-radius: var(--radius-sm, 8px);
-    font-weight: 700;
-    cursor: pointer;
-    border: none;
-  }
-
-  .btn-primary {
-    background: var(--accent-gradient, var(--accent-primary));
-    color: #ffffff;
-  }
-
-  .btn-primary-sm {
-    background: var(--accent-primary);
-    color: #ffffff;
-  }
-
-  .btn-secondary {
-    background: var(--bg-button-sec, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    color: var(--text-main, #f8fafc);
   }
 
   .message-banner {

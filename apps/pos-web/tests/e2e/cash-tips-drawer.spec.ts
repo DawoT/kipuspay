@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockSellableCatalog } from './fixtures/sellable-catalog';
 
 test('P2: propina en el cobro — total con propina y tope visible', async ({ page }) => {
   await page.route('**/api/auth/session', (route) =>
@@ -38,6 +39,12 @@ test('P2: propina en el cobro — total con propina y tope visible', async ({ pa
   await expect(page.getByTestId('tip-cents')).toBeVisible();
   await page.getByTestId('add-line').click();
   // 1 × 11800; 5% = 590 de propina
+  await mockSellableCatalog(page);
+  await page.goto('/');
+  await expect(page.getByTestId('tip-cents')).toBeVisible();
+  await page.getByTestId('add-line-p1').click();
+  await page.getByTestId('add-line-p1').click();
+  // 2 × 11800 = 23600; 5% = 1180 de propina
   await page.getByTestId('tip-quick-0.05').click();
   await expect(page.getByTestId('tip-cents')).toHaveValue(String(Math.round(11800 * 0.05)));
 });

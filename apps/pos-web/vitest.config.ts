@@ -7,6 +7,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      $lib: path.join(root, 'src/lib'),
       '$env/dynamic/public': path.join(root, 'src/lib/test-env-public.ts'),
     },
   },

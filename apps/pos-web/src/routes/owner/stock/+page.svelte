@@ -7,6 +7,10 @@
     isOwnerModeEnabled,
   } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const invOn = isInventoryOpsEnabled();
@@ -25,9 +29,9 @@
   async function loadAlerts() {
     loading = true;
     status = 'Cargando…';
-    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
-    const url = new URL(`${apiBase.replace(/\/$/, '') || 'https://api.kipuspay.local'}/api/owner/stock-alerts`);
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
+    const url = new URL(`${apiBase.replace(/\/$/, '')}/api/owner/stock-alerts`);
     url.searchParams.set('branchId', branchId);
     url.searchParams.set('expiryWarnDays', '30');
     try {
@@ -45,7 +49,7 @@
       alerts = json.alerts ?? [];
       if (variantsOn) {
         const catalogRes = await fetch(
-          `${apiBase.replace(/\/$/, '') || 'https://api.kipuspay.local'}/api/catalog/variants-uom`,
+          `${apiBase.replace(/\/$/, '')}/api/catalog/variants-uom`,
           { headers: { authorization: auth } },
         );
         const catalogJson = (await catalogRes.json()) as { items?: typeof variants };
@@ -80,17 +84,16 @@
       <p class="page-lede">Quiebre, punto de reposición y lotes por vencer.</p>
     </div>
     {#if ownerOn && invOn}
-      <button type="button" class="secondary" data-testid="owner-stock-refresh" onclick={loadAlerts} disabled={loading}>
-        <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+      <Button variant="secondary" data-testid="owner-stock-refresh" onclick={loadAlerts} disabled={loading} icon="refresh">
         Actualizar
-      </button>
+      </Button>
     {/if}
   </div>
 
   {#if !ownerOn || !invOn}
     <div class="feature-off-banner" data-testid="owner-stock-off">
       <Icon name="info" size={18} />
-      <span>Activa <code>FEATURE_OWNER_MODE</code> e inventario para ver alertas.</span>
+      <span>Las alertas de stock no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="stock-controls">
@@ -114,10 +117,7 @@
         </span>
       </div>
       {#if alerts.length === 0}
-        <div class="empty-state">
-          <Icon name="check" size={28} />
-          <span>Sin alertas — stock saludable</span>
-        </div>
+        <EmptyState icon="check" title="Sin alertas" description="Tu stock está saludable." />
       {:else}
         <ul class="alert-list" data-testid="owner-stock-list">
           {#each alerts as a}
@@ -141,14 +141,11 @@
       <div class="glass-card variants-card">
         <div class="card-header">
           <h2>Stock por variante</h2>
-          <span class="section-tag">Microunidades base</span>
+          <span class="section-tag">Unidades base</span>
         </div>
-        <p class="hint-text">Vista agregada; la fuente canónica permanece en microunidades base por variante.</p>
+        <p class="hint-text">Vista agregada; los detalles se calculan sobre la unidad base de cada variante.</p>
         {#if variants.length === 0}
-          <div class="empty-state">
-            <Icon name="layers" size={28} />
-            <span>Sin variantes configuradas</span>
-          </div>
+          <EmptyState icon="layers" title="Sin variantes" description="Configura variantes para ver su stock." />
         {:else}
           <ul class="variant-list" data-testid="owner-variant-stock">
             {#each variants as variant}
@@ -182,11 +179,7 @@
     padding: 1.25rem;
   }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
+  
 
   .status-line {
     font-size: 0.875rem;
@@ -199,15 +192,7 @@
     margin-bottom: 0.875rem;
   }
 
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 2.5rem;
-    color: var(--text-dim);
-    font-size: 0.9375rem;
-  }
+  
 
   .alert-list,
   .variant-list {

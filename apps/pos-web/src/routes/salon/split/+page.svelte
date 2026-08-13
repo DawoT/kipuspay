@@ -1,6 +1,9 @@
 <script lang="ts">
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
 
   const enabled = isOrdersKdsEnabled();
@@ -70,21 +73,21 @@
   {#if !enabled}
     <div class="feature-off-banner" data-testid="split-off">
       <Icon name="info" size={18} />
-      <span>Split desactivado (<code>FEATURE_ORDERS_KDS</code> off).</span>
+      <span>La división de cuenta no está activa para esta tienda.</span>
     </div>
   {:else}
     {#if error}
-      <div class="status-alert danger" aria-live="polite" data-testid="split-error">
+      <StatusMessage tone="danger" aria-live="polite" data-testid="split-error">
         <Icon name="alert" size={16} />
         <span>{error}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     {#if result}
-      <div class="status-alert info" aria-live="polite" data-testid="split-result">
+      <StatusMessage tone="info" aria-live="polite" data-testid="split-result">
         <Icon name="check" size={16} />
         <span>{result}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     <div class="glass-card split-card" data-testid="split">
@@ -124,10 +127,9 @@
         <input id="sp-series" data-testid="split-series" bind:value={series} />
       </div>
 
-      <button type="button" class="primary split-btn" data-testid="split-submit" onclick={splitBill}>
-        <Icon name="percent" size={14} />
+      <Button variant="primary" size="full" data-testid="split-submit" onclick={splitBill} icon="percent">
         Cobrar split
-      </button>
+      </Button>
     </div>
   {/if}
 </div>
@@ -138,31 +140,12 @@
     max-width: 32rem;
   }
 
-  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-  .split-btn { width: 100%; margin-top: 0.5rem; }
 
-  .link-action {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--bg-button-sec);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    color: var(--accent-primary);
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all var(--transition-fast);
-    min-height: 38px;
-    white-space: nowrap;
-  }
 
   .link-action:hover {
     background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) {  }
 </style>

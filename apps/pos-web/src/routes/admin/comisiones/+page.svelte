@@ -1,6 +1,9 @@
 <script lang="ts">
   import { isSalesCommissionsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const commissionsOn = isSalesCommissionsEnabled();
   let sellerId = $state('u-demo');
@@ -12,10 +15,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function upsertRate() {
     message = '';
@@ -73,16 +74,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !commissionsOn}
     <div class="feature-off-banner" data-testid="admin-commissions-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_SALES_COMMISSIONS</code> desactivado.</span>
+      <span>Las comisiones no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="comm-layout">
@@ -101,7 +102,7 @@
           <input id="rate-pct-input" type="number" bind:value={ratePercent} data-testid="comm-rate" min="0" max="100" step="0.1" />
         </div>
         <div class="field-group">
-          <label for="rate-amt-input">Monto fijo (cents, opcional)</label>
+          <label for="rate-amt-input">Monto fijo (opcional)</label>
           <input
             id="rate-amt-input"
             type="number"
@@ -114,10 +115,9 @@
             }}
           />
         </div>
-        <button type="button" class="primary" data-testid="comm-upsert-rate" onclick={upsertRate}>
-          <Icon name="check" size={14} />
+        <Button variant="primary" icon="check" data-testid="comm-upsert-rate" onclick={upsertRate}>
           Guardar tasa
-        </button>
+        </Button>
       </section>
 
       <!-- Payout -->
@@ -134,10 +134,9 @@
           <label for="payout-end">Período fin</label>
           <input id="payout-end" type="date" bind:value={periodEndIso} data-testid="comm-period-end" />
         </div>
-        <button type="button" class="primary" data-testid="comm-create-payout" onclick={createPayout}>
-          <Icon name="plus" size={14} />
+        <Button variant="primary" icon="plus" data-testid="comm-create-payout" onclick={createPayout}>
           Crear payout OPEN
-        </button>
+        </Button>
 
         <div class="separator"></div>
 
@@ -145,10 +144,9 @@
           <label for="payout-id-input">Payout ID</label>
           <input id="payout-id-input" bind:value={payoutId} data-testid="comm-payout-id" placeholder="ID del payout creado" />
         </div>
-        <button type="button" class="success" data-testid="comm-pay" onclick={payPayout} disabled={!payoutId}>
-          <Icon name="check" size={14} />
+        <Button variant="success" icon="check" data-testid="comm-pay" onclick={payPayout} disabled={!payoutId}>
           Marcar como PAID
-        </button>
+        </Button>
       </section>
     </div>
   {/if}
@@ -162,19 +160,7 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
   .separator {
     border-top: 1px solid var(--border-subtle);

@@ -2,6 +2,9 @@
   import { formatCents } from '$lib/cents';
   import { isPurchasingReturnsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const returnsOn = isPurchasingReturnsEnabled();
   let purchaseReceiptId = $state('rcpt-demo');
@@ -15,10 +18,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function createReturn() {
     message = '';
@@ -92,16 +93,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite" data-testid="sr-message">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite" data-testid="sr-message">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !returnsOn}
     <div class="feature-off-banner" data-testid="admin-supplier-return-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_PURCHASING_RETURNS</code> desactivado.</span>
+      <span>Las devoluciones a proveedor no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="return-layout">
@@ -124,17 +125,16 @@
           <input id="sr-product" bind:value={productId} data-testid="sr-product" />
         </div>
         <div class="field-group">
-          <label for="sr-qty">Microunidades</label>
+          <label for="sr-qty">Cantidad</label>
           <input id="sr-qty" type="number" bind:value={enteredQuantityMicrounits} data-testid="sr-qty" />
         </div>
         <div class="field-group">
           <label for="sr-reason">Motivo</label>
           <input id="sr-reason" bind:value={reason} data-testid="sr-reason" />
         </div>
-        <button type="button" class="primary" data-testid="sr-create" onclick={createReturn}>
-          <Icon name="plus" size={14} />
+        <Button variant="primary" icon="plus" data-testid="sr-create" onclick={createReturn}>
           Crear OPEN
-        </button>
+        </Button>
       </section>
 
       <!-- Gestionar -->
@@ -156,14 +156,12 @@
           <input id="sr-authz" bind:value={authorizedByUserId} data-testid="sr-authz" placeholder="Requerido si override está activo" />
         </div>
         <div class="btn-row">
-          <button type="button" class="success" data-testid="sr-close" onclick={closeReturn} disabled={!returnId}>
-            <Icon name="check" size={14} />
-            Cerrar
-          </button>
-          <button type="button" class="secondary danger-sec" data-testid="sr-cancel" onclick={cancelReturn} disabled={!returnId}>
-            <Icon name="x" size={14} />
-            Cancelar
-          </button>
+          <Button variant="success" icon="check" data-testid="sr-close" onclick={closeReturn} disabled={!returnId}>
+          Cerrar
+        </Button>
+          <Button variant="danger" icon="x" data-testid="sr-cancel" onclick={cancelReturn} disabled={!returnId}>
+          Cancelar
+        </Button>
         </div>
       </section>
     </div>
@@ -178,16 +176,7 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
   .checkbox-row {
     display: flex;
@@ -208,21 +197,10 @@
     accent-color: var(--accent-primary);
   }
 
-  .btn-row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
 
-  .danger-sec {
-    border-color: rgba(217, 106, 60, 0.35);
-    color: var(--rose-red);
-  }
 
-  .danger-sec:hover {
-    background: rgba(217, 106, 60, 0.1);
-    border-color: var(--rose-red);
-  }
+
+
 
   .link-action {
     display: inline-flex;

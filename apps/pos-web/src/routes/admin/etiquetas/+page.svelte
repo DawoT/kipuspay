@@ -7,6 +7,12 @@
   } from '$lib/catalog/price-label-client';
   import { readAdminAuthenticatedSession } from '$lib/admin/authenticated-session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+import { resolveApiBase } from '$lib/auth/api-client';
 
   type ProductRow = {
     id: string;
@@ -30,7 +36,7 @@
       ? 'Sesión no autenticada. Inicia sesión de nuevo para administrar etiquetas.'
       : enabled
       ? 'Listo para crear un lote con precios resueltos por el servidor.'
-      : 'Capability de etiquetas desactivada. Activa PUBLIC_FEATURE_CATALOG_PRICE_LABELS.',
+      : 'Las etiquetas de precio no están activas para este negocio.',
   );
   let busy = $state(false);
   let batchId = $state('');
@@ -55,8 +61,7 @@
 
   const client = adminSession
     ? createPriceLabelClient({
-        apiBase:
-          (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? 'https://api.kipuspay.local',
+        apiBase: resolveApiBase(localStorage),
         fetcher: adminSession.authenticatedFetch,
         terminalContext: () => adminSession.terminal,
         online: () => online,
@@ -68,7 +73,7 @@
       online = navigator.onLine;
       if (!online) {
         statusMessage =
-          'Sin conexión. Puedes reintentar el snapshot pendiente; crear y reimprimir requieren conexión.';
+          'Sin conexión. Puedes reintentar lo pendiente; crear y reimprimir requieren conexión.';
       }
     };
     updateConnection();
@@ -108,8 +113,8 @@
       });
       batchId = result.batchId;
       templateVersion = result.items[0]?.templateVersion
-        ? `v${result.items[0].templateVersion} · snapshot`
-        : 'snapshot';
+        ? `v${result.items[0].templateVersion} · datos del servidor`
+        : 'datos del servidor';
       totalItems = result.items.length || selectedCopies;
       acknowledged = 0;
       statusMessage = `Lote ${batchId} creado. Los importes provienen del snapshot firmado por el servidor.`;
@@ -154,14 +159,14 @@
 <main class="label-shell" data-testid="price-label-workbench">
   <header class="masthead">
     <div class="masthead-title">
-      <div class="badge-tag">
+      <Badge variant="indigo">
         <Icon name="tag" size={14} />
         <span>Catálogo · Mesa de Impresión</span>
-      </div>
+      </Badge>
       <h1>Etiquetas de precio</h1>
       <p class="lede">Selecciona productos; el servidor fija lista, importe y versión antes de imprimir.</p>
     </div>
-    <div class:offline={!online} class="connection" role="status" aria-live="polite">
+    <Badge variant={!authenticated || !enabled ? 'muted' : online ? 'online' : 'offline'} role="status" aria-live="polite">
       <Icon name={!online ? 'wifi-off' : 'wifi'} size={16} />
       <span>
         {!authenticated
@@ -169,20 +174,20 @@
           : enabled
           ? online
             ? 'Con conexión · datos vigentes'
-            : 'Sin conexión · snapshot desactualizado'
-          : 'Capability desactivada'}
+            : 'Sin conexión · datos no actualizados'
+          : 'No activa'}
       </span>
-    </div>
+    </Badge>
   </header>
 
   {#if !authenticated}
-    <div class="auth-required" role="alert">
+    <StatusMessage tone="danger" role="alert">
       <Icon name="alert" size={20} />
       <span>
         No hay una sesión administrativa autenticada y un terminal verificado. Inicia sesión de
         nuevo; no se enviará ninguna solicitud con credenciales de demostración.
       </span>
-    </div>
+    </StatusMessage>
   {/if}
 
   <div class="workbench">
@@ -242,10 +247,7 @@
             </label>
           </div>
         {:else}
-          <div class="empty">
-            <Icon name="search" size={24} />
-            <p>No hay coincidencias para "{query}". Cambia el filtro de búsqueda.</p>
-          </div>
+          <EmptyState icon="search" title="Sin coincidencias" description={'No hay coincidencias para "' + query + '". Cambia el filtro de búsqueda.'} />
         {/each}
       </div>
     </section>
@@ -275,36 +277,32 @@
         </div>
       </fieldset>
 
-      <div class="field-group">
-        <label for="template">Plantilla de etiqueta</label>
+      <Field label="Plantilla de etiqueta" id="template">
         <select id="template" bind:value={templateId}>
           <option value="shelf-standard">Góndola estándar (Retail)</option>
           <option value="compact">Compacta (Farmacia / Ropa)</option>
         </select>
         <p class="meta"><Icon name="shield" size={12} /> Versión: <strong>{templateVersion}</strong></p>
-      </div>
+      </Field>
 
-      <div class="field-group">
-        <label for="price-list">Lista de precios asignada</label>
+      <Field label="Lista de precios asignada" id="price-list" hint={priceListId ? 'Se enviará la lista elegida al servidor.' : 'El servidor resolverá la lista predeterminada vigente.'}>
         <select id="price-list" bind:value={priceListId}>
           <option value="">Predeterminada del local</option>
           <option value="retail">Venta minorista explícita</option>
           <option value="wholesale">Mayorista explícita</option>
         </select>
-        <p class="hint">
-          {priceListId ? 'Se enviará la lista elegida al servidor.' : 'El servidor resolverá la lista predeterminada vigente.'}
-        </p>
-      </div>
+      </Field>
 
-      <button
-        class="btn-primary"
-        type="button"
+      <Button
+        variant="primary"
+        size="full"
+        style="margin-top: 1rem"
         disabled={!authenticated || !enabled || !ui.canCreate || selectedProducts.length === 0 || busy}
         onclick={createBatch}
+        busy={busy}
       >
-        <Icon name={busy ? 'refresh' : 'printer'} size={18} class={busy ? 'spin' : ''} />
-        <span>{busy ? 'Preparando...' : 'Crear Lote de Impresión'}</span>
-      </button>
+        {busy ? 'Preparando...' : 'Crear Lote de Impresión'}
+      </Button>
     </section>
 
     <aside class="preview glass-card" aria-labelledby="preview-title">
@@ -316,10 +314,7 @@
       </div>
       <div class:wide={width === '80'} class:has-product={selectedProducts.length > 0} class="label-paper">
         {#if selectedProducts.length === 0}
-          <div class="paper-empty">
-            <Icon name="tag" size={20} />
-            <span>Selecciona un producto de la lista para ver la vista previa</span>
-          </div>
+          <EmptyState icon="tag" title="Sin vista previa" description="Selecciona un producto de la lista para ver la vista previa" />
         {:else}
           <div class="paper-header">
             <span>KIPUSPAY</span>
@@ -362,24 +357,22 @@
       <span>{batchId || 'Todavía no hay un lote activo.'}</span>
     </p>
     <div class="actions">
-      <button
-        class="btn-secondary"
-        type="button"
+      <Button
+        variant="secondary"
         disabled={!authenticated || !batchId || acknowledged >= totalItems}
         onclick={retrySubset}
+        icon="refresh"
       >
-        <Icon name="refresh" size={16} />
-        <span>Reintentar pendientes exactas</span>
-      </button>
-      <button
-        class="btn-secondary"
-        type="button"
+        Reintentar pendientes exactas
+      </Button>
+      <Button
+        variant="secondary"
         disabled={!authenticated || !batchId || !enabled || !ui.canReprint || busy}
         onclick={reprint}
+        icon="printer"
       >
-        <Icon name="printer" size={16} />
-        <span>Crear reimpresión nueva</span>
-      </button>
+        Crear reimpresión nueva
+      </Button>
     </div>
     <p class="recovery">
       Si recargas la página, se conservan payload, estado y ACK por etiqueta. Una cuota llena no
@@ -421,21 +414,6 @@
     border-bottom: 1px solid var(--card-border);
   }
 
-  .badge-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.65rem;
-    background: rgba(217, 154, 61, 0.12);
-    border: 1px solid rgba(217, 154, 61, 0.3);
-    border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary);
-    font: 600 0.72rem/1.2 var(--font-mono, monospace);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-
   .step {
     font: 700 0.72rem/1.2 var(--font-mono, monospace);
     letter-spacing: 0.08em;
@@ -463,7 +441,6 @@
   }
 
   .lede,
-  .hint,
   .trust,
   .recovery {
     color: var(--text-secondary);
@@ -471,33 +448,6 @@
     line-height: 1.45;
   }
 
-  .connection {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 0.9rem;
-    border: 1px solid var(--emerald-green, #10b981);
-    background: rgba(16, 185, 129, 0.1);
-    color: var(--emerald-green, #10b981);
-    border-radius: var(--radius-md, 12px);
-    font-size: 0.82rem;
-    font-weight: 600;
-  }
-
-  .connection.offline {
-    color: var(--rose-red, #f43f5e);
-    border-color: var(--rose-red, #f43f5e);
-    background: rgba(244, 63, 94, 0.1);
-  }
-
-  .glass-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-md, 12px);
-    padding: 1.25rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
 
   .workbench {
     display: grid;
@@ -634,22 +584,6 @@
     font-weight: 700;
   }
 
-  .empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 2.5rem 1rem;
-    color: var(--text-secondary);
-    text-align: center;
-    font-size: 0.88rem;
-  }
-
-  .field-group {
-    margin-bottom: 1rem;
-  }
-
   label {
     display: block;
     font-size: 0.84rem;
@@ -724,59 +658,6 @@
     display: none;
   }
 
-  .btn-primary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    margin-top: 1rem;
-    padding: 0.8rem 1rem;
-    background: var(--accent-gradient, var(--accent-primary));
-    border: none;
-    border-radius: var(--radius-md, 12px);
-    color: #ffffff;
-    font: 700 0.95rem/1.2 var(--font-heading, sans-serif);
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(217, 154, 61, 0.35);
-    transition: transform 0.15s ease, opacity 0.15s ease;
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(217, 154, 61, 0.45);
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 0.65rem 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm, 8px);
-    color: var(--text-primary);
-    font: 600 0.85rem/1.2 var(--font-sans, sans-serif);
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .btn-secondary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
   /* Physical Thermal Label Preview (Realistic White Sticker Paper) */
   .label-paper {
     width: min(100%, 13rem);
@@ -804,20 +685,6 @@
 
   .label-paper.wide {
     aspect-ratio: 80 / 38;
-  }
-
-  .paper-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    height: 100%;
-    color: #94a3b8;
-    font-size: 0.72rem;
-    font-weight: 500;
-    text-align: center;
-    padding: 0.5rem;
   }
 
   .paper-header {
@@ -913,22 +780,6 @@
     font-size: 0.88rem;
   }
 
-  .auth-required {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    margin-bottom: 1.25rem;
-    padding: 0.9rem 1.1rem;
-    border: 1px solid var(--rose-red, #f43f5e);
-    background: rgba(244, 63, 94, 0.1);
-    color: var(--rose-red, #f43f5e);
-    border-radius: var(--radius-md, 12px);
-    font-weight: 600;
-    font-size: 0.88rem;
-  }
-
-  /* .spin y @keyframes spin están definidos globalmente en app.css */
-
   @media (max-width: 900px) {
     .workbench {
       grid-template-columns: 1fr 1fr;
@@ -955,9 +806,6 @@
     }
     .actions {
       flex-direction: column;
-    }
-    .actions button {
-      width: 100%;
     }
   }
 

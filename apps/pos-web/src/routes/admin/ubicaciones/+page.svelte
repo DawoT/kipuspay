@@ -1,6 +1,12 @@
 <script lang="ts">
   import { isInventoryLocationsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import Table from '$lib/ui/Table.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   type LocationRow = {
     id: string;
@@ -30,10 +36,8 @@
   let message = $state('');
   let busy = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
   const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
   const units = (microunits: number) =>
     new Intl.NumberFormat('es-PE', { maximumFractionDigits: 6 }).format(microunits / 1_000_000);
@@ -161,37 +165,44 @@
       <h1 class="page-title">Ubicaciones y Racks por Sucursal</h1>
       <p class="lede-text">Mueve, cuenta y localiza producto por estante sin alterar el agregado total de la sucursal.</p>
     </div>
-    <a
-      class="btn btn-secondary csv-btn"
+    <Button
+      variant="secondary"
       href={`${apiBase()}/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`}
+      icon="download"
     >
-      <Icon name="download" size={16} />
       Exportar CSV
-    </a>
+    </Button>
   </header>
 
   {#if !locationsOn}
     <div class="glass-panel notice-box" data-testid="admin-locations-off">
-      <span class="badge badge-warning">Capability Desactivada</span>
+      <span class="badge badge-warning">No Activa</span>
       <h2>Ubicaciones aún no habilitadas</h2>
-      <p>Activa PUBLIC_FEATURE_INVENTORY_LOCATIONS después de reconciliar el inventario por sucursal.</p>
+      <p>Contacta a tu proveedor para activarlas.</p>
     </div>
   {:else}
     <section class="glass-panel branch-bar">
       <div class="branch-input-group">
         <label for="branch-id-input">Sucursal Activa</label>
-        <input id="branch-id-input" bind:value={branchId} placeholder="b-demo" />
+        <input id="branch-id-input" bind:value={branchId} placeholder="Sucursal" />
       </div>
-      <button type="button" class="btn btn-primary" onclick={refresh} disabled={busy}>
-        <Icon name="refresh" size={16} />
+      <Button
+        variant="primary"
+        onclick={refresh}
+        disabled={busy}
+        icon="refresh"
+      >
         {busy ? 'Cargando…' : 'Actualizar Mapa'}
-      </button>
+      </Button>
     </section>
 
     {#if message}
-      <div class="feedback-banner" class:success-banner={message.includes('creada') || message.includes('registrada') || message.includes('desactivada')}>
-        <span><Icon name="alert" size={16} /> {message}</span>
-      </div>
+      <StatusMessage
+        tone={message.includes('creada') || message.includes('registrada') || message.includes('desactivada') ? 'info' : 'danger'}
+      >
+        <Icon name="alert" size={16} />
+        <span>{message}</span>
+      </StatusMessage>
     {/if}
 
     <!-- Racks Map Grid -->
@@ -225,21 +236,24 @@
             </div>
 
             {#if location.code !== 'DEFAULT'}
-              <button
-                class="btn btn-secondary deactivate-btn"
-                type="button"
+              <Button
+                variant="secondary"
+                style="margin-top: 0.5rem"
                 onclick={() => deactivate(location.id)}
                 disabled={busy}
+                icon="trash"
               >
-                <Icon name="trash" size={14} />
                 Desactivar
-              </button>
+              </Button>
             {/if}
           </article>
         {:else}
           <div class="glass-panel empty-racks-box">
-            <Icon name="package" size={32} />
-            <p>No hay racks registrados. Crea la primera ubicación para comenzar la gestión de putaway.</p>
+            <EmptyState
+              icon="package"
+              title="Sin racks"
+              description="No hay racks registrados. Crea la primera ubicación para comenzar la gestión de putaway."
+            />
           </div>
         {/each}
       </div>
@@ -265,10 +279,14 @@
             <label for="name-input">Nombre / Descripción</label>
             <input id="name-input" bind:value={name} placeholder="Ej. Pasillo 1 · Nivel 2" />
           </div>
-          <button type="button" class="btn btn-primary" onclick={createLocation} disabled={busy || !code.trim()}>
-            <Icon name="plus" size={16} />
+          <Button
+            variant="primary"
+            onclick={createLocation}
+            disabled={busy || !code.trim()}
+            icon="plus"
+          >
             Crear Ubicación
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -306,28 +324,31 @@
             <input id="product-id-input" bind:value={productId} placeholder="p1" />
           </div>
           <div>
-            <label for="quantity-microunits-input">Cantidad (Microunidades 1e6)</label>
+            <label for="quantity-microunits-input">Cantidad</label>
             <input id="quantity-microunits-input" type="number" min="1" step="1" bind:value={quantityMicrounits} />
           </div>
 
           <div class="action-buttons-row">
-            <button
-              type="button"
-              class="btn btn-primary"
+            <Button
+              variant="primary"
               onclick={transfer}
               disabled={busy ||
                 !productId ||
                 !sourceLocationId ||
                 !destinationLocationId ||
                 sourceLocationId === destinationLocationId}
+              icon="arrow-right"
             >
-              <Icon name="arrow-right" size={16} />
               Transferir Stock
-            </button>
-            <button class="btn btn-secondary" type="button" onclick={pick} disabled={busy || !productId}>
-              <Icon name="package" size={16} />
+            </Button>
+            <Button
+              variant="secondary"
+              onclick={pick}
+              disabled={busy || !productId}
+              icon="package"
+            >
               Picking FEFO
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -342,34 +363,31 @@
         </div>
       </div>
 
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>Código Rack</th>
-              <th>Producto ID</th>
-              <th>Nombre de Producto</th>
-              <th>Stock en Rack</th>
-              <th>Total Sucursal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each stock as row}
-              <tr>
-                <td><span class="badge badge-indigo">{row.location_code}</span></td>
-                <td class="tabular-nums">{row.product_id}</td>
-                <td><strong>{row.product_name}</strong></td>
-                <td class="tabular-nums">{units(row.quantity_microunits)} u</td>
-                <td class="tabular-nums">{units(row.branch_quantity_microunits)} u</td>
-              </tr>
-            {:else}
-              <tr>
-                <td colspan="5" class="empty-table-cell">No hay datos de inventario registrados para esta sucursal.</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+      <Table
+        columns={[
+          { label: 'Código Rack' },
+          { label: 'Producto ID' },
+          { label: 'Nombre de Producto' },
+          { label: 'Stock en Rack', align: 'right' },
+          { label: 'Total Sucursal', align: 'right' },
+        ]}
+        items={stock}
+        empty="No hay datos de inventario registrados para esta sucursal."
+      >
+        {#snippet cell(row: StockRow, col)}
+          {#if col.label === 'Código Rack'}
+            <Badge variant="indigo">{row.location_code}</Badge>
+          {:else if col.label === 'Producto ID'}
+            <span class="tabular-nums">{row.product_id}</span>
+          {:else if col.label === 'Nombre de Producto'}
+            <strong>{row.product_name}</strong>
+          {:else if col.label === 'Stock en Rack'}
+            <span class="tabular-nums">{units(row.quantity_microunits)} u</span>
+          {:else}
+            <span class="tabular-nums">{units(row.branch_quantity_microunits)} u</span>
+          {/if}
+        {/snippet}
+      </Table>
     </section>
   {/if}
 </div>
@@ -424,19 +442,6 @@
     width: 100%;
   }
 
-  .feedback-banner {
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: var(--radius-md);
-    padding: 0.875rem 1.25rem;
-    font-weight: 600;
-  }
-  .success-banner {
-    background: rgba(16, 185, 129, 0.12);
-    border-color: rgba(16, 185, 129, 0.3);
-    color: #34d399;
-  }
-
   .section-title-bar {
     display: flex;
     justify-content: space-between;
@@ -489,11 +494,6 @@
     color: var(--emerald-green);
   }
 
-  .deactivate-btn {
-    margin-top: 0.5rem;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
-  }
 
   .empty-racks-box {
     grid-column: 1 / -1;
@@ -540,16 +540,6 @@
 
   .stock-table-card {
     padding: 1.5rem;
-  }
-
-  .table-responsive {
-    overflow-x: auto;
-  }
-
-  .empty-table-cell {
-    text-align: center;
-    color: var(--text-dim);
-    padding: 2rem;
   }
 
   @media (max-width: 900px) {

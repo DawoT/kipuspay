@@ -2,6 +2,8 @@
   import { env } from '$env/dynamic/public';
   import { isAccountingExportEnabled, isIntegrationsApiEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const exportOn = isAccountingExportEnabled();
   const apiOn = isIntegrationsApiEnabled();
@@ -22,8 +24,8 @@
   let createdSecret = $state('');
   let endpointsJson = $state('');
 
-  const apiBase = () => env.PUBLIC_API_BASE?.replace(/\/$/, '') || 'https://api.kipuspay.local';
-  const auth = () => env.PUBLIC_DEV_AUTH ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function runExport() {
     exportMessage = '';
@@ -95,7 +97,7 @@
   {#if !exportOn && !apiOn}
     <div class="feature-off-banner" data-testid="integrations-off">
       <Icon name="info" size={18} />
-      <span>Integraciones desactivadas (feature flags off).</span>
+      <span>Las integraciones no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="integ-grid">
@@ -128,10 +130,9 @@
               <option value="concar">Concar (XML)</option>
             </select>
           </div>
-          <button type="button" class="primary" onclick={runExport}>
-            <Icon name="download" size={14} />
-            Exportar
-          </button>
+          <Button variant="primary" icon="download" onclick={runExport}>
+          Exportar
+        </Button>
           {#if exportMessage}
             <p class="feedback-msg" data-testid="export-message">{exportMessage}</p>
           {/if}
@@ -150,14 +151,12 @@
           </div>
           <p class="section-desc">Una sola vista del plaintext al crear. Revoca en servidor para corte inmediato.</p>
           <div class="btn-row">
-            <button type="button" class="primary" onclick={createKey}>
-              <Icon name="plus" size={14} />
-              Crear API key
-            </button>
-            <button type="button" class="secondary" onclick={listKeys}>
-              <Icon name="list" size={14} />
-              Listar
-            </button>
+            <Button variant="primary" icon="plus" onclick={createKey}>
+          Crear API key
+        </Button>
+            <Button variant="secondary" icon="list" onclick={listKeys}>
+          Listar
+        </Button>
           </div>
           {#if createdKey}
             <div class="secret-box" data-testid="created-api-key">
@@ -181,18 +180,16 @@
           </div>
           <p class="section-desc">HTTPS obligatorio. Eventos: sale.created, cpe.accepted, cpe.rejected.</p>
           <div class="field-group">
-            <label for="int-webhook-url">URL del endpoint</label>
+            <label for="int-webhook-url">URL de destino</label>
             <input id="int-webhook-url" bind:value={webhookUrl} />
           </div>
           <div class="btn-row">
-            <button type="button" class="primary" onclick={createWebhook}>
-              <Icon name="plus" size={14} />
-              Registrar endpoint
-            </button>
-            <button type="button" class="secondary" onclick={listWebhooks}>
-              <Icon name="list" size={14} />
-              Listar
-            </button>
+            <Button variant="primary" icon="plus" onclick={createWebhook}>
+          Registrar destino
+        </Button>
+            <Button variant="secondary" icon="list" onclick={listWebhooks}>
+          Listar
+        </Button>
           </div>
           {#if createdSecret}
             <div class="secret-box" data-testid="created-webhook-secret">
@@ -220,7 +217,6 @@
     align-items: start;
   }
 
-  .section-pad { padding: 1.25rem; }
 
   .section-desc {
     font-size: 0.875rem;
@@ -228,18 +224,7 @@
     margin-bottom: 0.875rem;
   }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
-  .two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
 
   select {
     width: 100%;
@@ -253,12 +238,6 @@
     cursor: pointer;
   }
 
-  .btn-row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.875rem;
-  }
 
   .secret-box {
     display: flex;
@@ -302,6 +281,6 @@
 
   @media (max-width: 600px) {
     .integ-grid { grid-template-columns: 1fr; }
-    .two-col { grid-template-columns: 1fr; }
+    
   }
 </style>

@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import { isOwnerModeEnabled, isStockTransfersEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const xferOn = isStockTransfersEnabled();
@@ -18,8 +21,8 @@
   async function load() {
     loading = true;
     status = 'Cargando…';
-    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') || 'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
       const res = await fetch(`${apiBase}/api/owner/transfers/pending`, { headers: { authorization: auth } });
       const json = (await res.json()) as { pending?: typeof pending; discrepancies?: typeof discrepancies; error?: string };
@@ -44,17 +47,16 @@
       <p class="page-lede">IN_TRANSIT y mermas en recepción — Cadena light.</p>
     </div>
     {#if ownerOn && xferOn}
-      <button type="button" class="secondary" data-testid="owner-xfer-refresh" onclick={load} disabled={loading}>
-        <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+      <Button variant="secondary" data-testid="owner-xfer-refresh" onclick={load} disabled={loading} icon="refresh">
         Actualizar
-      </button>
+      </Button>
     {/if}
   </div>
 
   {#if !ownerOn || !xferOn}
     <div class="feature-off-banner" data-testid="owner-xfer-off">
       <Icon name="info" size={18} />
-      <span>Activa <code>FEATURE_OWNER_MODE</code> y <code>PUBLIC_FEATURE_STOCK_TRANSFERS</code>.</span>
+      <span>Las transferencias no están activas para este negocio.</span>
     </div>
   {:else}
     {#if status}
@@ -114,7 +116,6 @@
 
 <style>
   .xfer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; }
-  .section-pad { padding: 1.25rem; }
   .status-line { font-size: 0.875rem; color: var(--text-muted); margin-top: -0.5rem; }
   .item-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.375rem; }
   .item-row { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem 0.625rem; background: var(--bg-glass); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); flex-wrap: wrap; }

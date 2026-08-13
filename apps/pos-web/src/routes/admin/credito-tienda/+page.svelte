@@ -2,6 +2,9 @@
   import { formatCents } from '$lib/cents';
   import { isLedgerStoreCreditEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
   let customerId = $state('c-demo');
@@ -11,10 +14,8 @@
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function expire() {
     message = '';
@@ -63,16 +64,16 @@
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !creditOn}
     <div class="feature-off-banner" data-testid="admin-store-credit-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_LEDGER_STORE_CREDIT</code> desactivado.</span>
+      <span>El crédito de tienda no está activo para este negocio.</span>
     </div>
   {:else}
     <div class="credit-layout">
@@ -97,7 +98,7 @@
           </span>
         </div>
         <div class="field-group">
-          <label for="credit-amount">Monto (cents)</label>
+          <label for="credit-amount">Monto</label>
           <input id="credit-amount" type="number" bind:value={amountCents} data-testid="sc-amount" min="1" />
         </div>
         <div class="field-group">
@@ -112,14 +113,12 @@
           <input id="credit-authz" bind:value={authorizedByUserId} data-testid="sc-authz" placeholder="Opcional" />
         </div>
         <div class="btn-row">
-          <button type="button" class="primary" data-testid="sc-adjust" onclick={adjust}>
-            <Icon name="check" size={14} />
-            Aplicar ajuste
-          </button>
-          <button type="button" class="secondary danger-sec" data-testid="sc-expire" onclick={expire}>
-            <Icon name="clock" size={14} />
-            Expirar crédito
-          </button>
+          <Button variant="primary" icon="check" data-testid="sc-adjust" onclick={adjust}>
+          Aplicar ajuste
+        </Button>
+          <Button variant="danger" icon="clock" data-testid="sc-expire" onclick={expire}>
+          Expirar crédito
+        </Button>
         </div>
       </section>
     </div>
@@ -134,32 +133,12 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.875rem;
-  }
 
-  .btn-row {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
 
-  .danger-sec {
-    border-color: rgba(217, 106, 60, 0.35);
-    color: var(--rose-red);
-  }
 
-  .danger-sec:hover {
-    background: rgba(217, 106, 60, 0.1);
-    border-color: var(--rose-red);
-  }
+
+
 
   @media (max-width: 600px) {
     .credit-layout {

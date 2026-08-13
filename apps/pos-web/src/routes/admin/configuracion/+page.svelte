@@ -32,6 +32,7 @@
   import Badge from '$lib/ui/Badge.svelte';
   import Modal from '$lib/ui/Modal.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let focus = $state('');
@@ -98,8 +99,8 @@
   }
 
   async function loadCashPolicy() {
-    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ?? '';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
       const res = await fetch(`${apiBase}/api/cash/policy`, { headers: { authorization: auth } });
       if (!res.ok) return;
@@ -114,8 +115,8 @@
   async function saveCashPolicy() {
     policyMsg = '';
     policyOk = false;
-    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ?? '';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
       const res = await fetch(`${apiBase}/api/cash/policy`, {
         method: 'PATCH',
@@ -229,7 +230,7 @@
       void fetch('/api/tenant/formalization', {
         method: 'PATCH',
         headers: {
-          authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo',
+          authorization: resolveApiAuth(localStorage).authorization ?? '',
           'content-type': 'application/json',
         },
         body: JSON.stringify({
@@ -275,7 +276,7 @@
       const response = await fetch(path, {
         method,
         headers: {
-          authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo',
+          authorization: resolveApiAuth(localStorage).authorization ?? '',
           'content-type': 'application/json',
           'x-terminal-id': terminalId,
         },
@@ -320,7 +321,7 @@
     </Badge>
     <h1>Configuración del negocio</h1>
     <p class="lede">
-      Configuración profunda del negocio (GTM §3.3.1). El cobro de ventas nunca se bloquea desde aquí.
+      Configuración del negocio. El cobro de ventas nunca se bloquea desde aquí.
     </p>
   </header>
 
@@ -349,7 +350,7 @@
           <strong data-testid="admin-trade-name" class="info-value">{session.tradeName}</strong>
         </div>
         <div class="info-row">
-          <span class="info-label">ID de Tenant (Multitenancy DAT-12)</span>
+          <span class="info-label">Identificador del negocio</span>
           <code data-testid="admin-tenant-id" class="info-code">{session.tenantId}</code>
         </div>
       </div>
@@ -395,7 +396,7 @@
         <h2>Marca en el punto de venta</h2>
       </div>
       <p class="hint">
-        Pie “Emitido con KipusPay” + QR en boletas/NV y Vitrina (GTM §7.2). Default activado; puedes optar por no mostrarlo.
+        Pie “Emitido con KipusPay” + QR en boletas, notas de venta y vitrina. Activado por defecto; puedes desactivarlo.
       </p>
       <div class="status-toggle-row">
         <p data-testid="brand-qr-state" class="state-pill" class:active={session.brandQrEnabled}>
@@ -463,7 +464,7 @@
       </div>
       <div class="scale-grid">
         <div class="field">
-          <label for="scale-threshold">Umbral manual (microunidades)</label>
+          <label for="scale-threshold">Umbral de peso manual</label>
           <input id="scale-threshold" bind:value={scaleThreshold} inputmode="numeric" pattern="[0-9]*" />
         </div>
         <Button variant="secondary" onclick={saveScalePolicy} icon="check">
@@ -473,9 +474,9 @@
         <div class="field">
           <label for="scale-protocol">Protocolo de balanza</label>
           <select id="scale-protocol" bind:value={scaleProtocol}>
-            <option value="WEBHID">WebHID (Recomendado)</option>
-            <option value="WEB_SERIAL">Web Serial</option>
-            <option value="WEBUSB">WebUSB</option>
+            <option value="WEBHID">Conexión directa (Recomendada)</option>
+            <option value="WEB_SERIAL">Conexión por puerto</option>
+            <option value="WEBUSB">Conexión USB</option>
           </select>
         </div>
 

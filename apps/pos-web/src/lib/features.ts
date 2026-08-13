@@ -263,6 +263,11 @@ export function isCashDrawerEnabled(): boolean {
   return flagOn(pub(PF + 'CASH_DRAWER'));
 }
 
+/** GTM §6.5 — feedback sonoro/háptico al completar venta; default-off. */
+export function isSaleFeedbackEnabled(): boolean {
+  return flagOn(pub(PF + 'SALE_FEEDBACK'));
+}
+
 /** Backlog v10 P1c — Percepciones/Retenciones; siempre default-off. */
 export function isWithholdingsEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_WITHHOLDINGS'));

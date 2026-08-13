@@ -4,6 +4,12 @@
   import { defaultTenantSession, readTenantSession, type PosTenantSession } from '$lib/tenant/session';
   import { issueShiftPin, transferShift, type ShiftTransferResult } from '$lib/cash/shift-handoff';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import MoneyInput from '$lib/ui/MoneyInput.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
   const shiftOn = isShiftHandoffEnabled();
 
@@ -14,7 +20,7 @@
   let issuedPin = $state('');
   let pinExpiresAt = $state('');
   let pinInput = $state('');
-  let interimCountCents = $state<string>('');
+  let interimCountCents = $state<number | null>(null);
   let status = $state('');
   let resultMsg = $state('');
   let transferResult = $state<ShiftTransferResult | null>(null);
@@ -46,7 +52,7 @@
   async function onTransfer() {
     status = 'enviando';
     resultMsg = '';
-    const parsed = String(interimCountCents).trim() === '' ? null : Number(interimCountCents);
+    const parsed = interimCountCents;
     if (parsed !== null && (!Number.isInteger(parsed) || parsed < 0)) {
       status = 'error';
       resultMsg = 'El conteo intermedio debe ser un entero mayor o igual a 0.';
@@ -86,27 +92,30 @@
     </p>
 
     {#if !shiftOn}
-      <div class="banner-box off-banner" data-testid="handoff-feature-off">
-        <span class="banner-icon"><Icon name="alert" size={20} /></span>
+      <StatusMessage tone="warning" data-testid="handoff-feature-off">
+        <Icon name="alert" size={20} />
         <div>
-          <strong>FEATURE_SHIFT_HANDOFF desactivado</strong>
-          <p>Activa el flag operacional para transferir turnos.</p>
+          <strong>El cambio de turno está desactivado</strong>
+          <p>Contacta a tu proveedor para activarlo.</p>
         </div>
-      </div>
+      </StatusMessage>
     {:else}
-      <div class="form-group">
-        <label for="handoff-session-id">ID de Sesión de Caja</label>
-        <input id="handoff-session-id" bind:value={sessionId} data-testid="handoff-session-id" placeholder="s-demo" />
-      </div>
-      <div class="form-group">
-        <label for="handoff-outgoing">Operador saliente (userId)</label>
-        <input id="handoff-outgoing" bind:value={outgoingUserId} data-testid="handoff-outgoing" placeholder="u-saliente" />
-      </div>
+      <Field label="ID de Sesión de Caja" id="handoff-session-id">
+        <Input id="handoff-session-id" bind:value={sessionId} data-testid="handoff-session-id" placeholder="Sesión de caja" />
+      </Field>
+      <Field label="Operador saliente (userId)" id="handoff-outgoing">
+        <Input id="handoff-outgoing" bind:value={outgoingUserId} data-testid="handoff-outgoing" placeholder="u-saliente" />
+      </Field>
 
-      <button type="button" class="primary pin-btn" data-testid="handoff-generate-pin" onclick={onGeneratePin}>
-        <Icon name="lock" size={16} />
+      <Button
+        variant="primary"
+        size="full"
+        data-testid="handoff-generate-pin"
+        onclick={onGeneratePin}
+        icon="lock"
+      >
         Generar PIN de transferencia
-      </button>
+      </Button>
 
       {#if step === 'pin-shown'}
         <div class="pin-reveal-card" data-testid="handoff-pin-reveal">
@@ -115,39 +124,40 @@
         </div>
       {/if}
 
-      <div class="form-group">
-        <label for="handoff-pin-input">PIN del saliente (teclea el operador entrante)</label>
-        <input
+      <Field label="PIN del saliente (teclea el operador entrante)" id="handoff-pin-input">
+        <Input
           id="handoff-pin-input"
           bind:value={pinInput}
           data-testid="handoff-pin-input"
           inputmode="numeric"
           placeholder="6 dígitos"
         />
-      </div>
-      <div class="form-group">
-        <label for="handoff-interim">Conteo intermedio de efectivo (opcional, según política)</label>
-        <input
+      </Field>
+      <Field label="Conteo intermedio de efectivo (opcional, según política)" id="handoff-interim">
+        <MoneyInput
           id="handoff-interim"
           bind:value={interimCountCents}
           data-testid="handoff-interim"
-          inputmode="numeric"
-          type="number"
-          min="0"
-          placeholder="En centavos (ej. 9500)"
+          min={0}
+          placeholder="Importe del conteo"
         />
-      </div>
+      </Field>
 
-      <button type="button" class="primary transfer-btn" data-testid="handoff-transfer" onclick={onTransfer}>
+      <Button
+        variant="primary"
+        size="full"
+        data-testid="handoff-transfer"
+        onclick={onTransfer}
+      >
         Transferir turno
-      </button>
+      </Button>
 
       {#if status || resultMsg || transferResult}
         <div class="result-revelation-card">
           {#if status}
-            <span class="badge" class:badge-success={status === 'transferido'} class:badge-danger={status === 'error'}>
+            <Badge variant={status === 'transferido' ? 'success' : 'danger'}>
               {status}
-            </span>
+            </Badge>
           {/if}
           {#if resultMsg}
             <p data-testid="handoff-msg" class="result-msg">{resultMsg}</p>
@@ -196,23 +206,6 @@
     color: var(--text-muted);
     font-size: 0.9375rem;
     line-height: 1.5;
-  }
-
-  .off-banner {
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    padding: 1rem;
-    border-radius: var(--radius-md);
-    display: flex;
-    gap: 0.875rem;
-    align-items: center;
-    color: #fbbf24;
-  }
-
-  .pin-btn,
-  .transfer-btn {
-    width: 100%;
-    padding: 0.875rem;
   }
 
   .pin-reveal-card {

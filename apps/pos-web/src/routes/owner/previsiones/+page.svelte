@@ -4,6 +4,10 @@
   import { createForecastingClient } from '$lib/forecasting/forecasting-client';
   import { isAnalyticsForecastingEnabled, isOwnerModeEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const forecastOn = isAnalyticsForecastingEnabled();
@@ -35,8 +39,8 @@
   let disclaimer = $state('');
 
   const client = createForecastingClient({
-    apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
-    authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo',
+    apiBase: resolveApiBase(),
+    authorization: resolveApiAuth().authorization ?? '',
   });
 
   async function load() {
@@ -103,17 +107,16 @@
       <p class="page-lede">Estimación estacional por producto y sucursal. No es garantía de venta.</p>
     </div>
     {#if ownerOn && forecastOn}
-      <button type="button" class="secondary" data-testid="owner-forecast-refresh" onclick={refresh} disabled={loading}>
-        <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+      <Button variant="secondary" data-testid="owner-forecast-refresh" onclick={refresh} disabled={loading} icon="refresh">
         Recalcular hoy
-      </button>
+      </Button>
     {/if}
   </div>
 
   {#if !ownerOn || !forecastOn}
     <div class="feature-off-banner" data-testid="owner-forecast-off">
       <Icon name="info" size={18} />
-      <span>Activa <code>FEATURE_OWNER_MODE</code> y <code>PUBLIC_FEATURE_ANALYTICS_FORECASTING</code> para ver previsiones.</span>
+      <span>Las previsiones no están activas para este negocio.</span>
     </div>
   {:else}
     <div class="forecast-controls">
@@ -141,10 +144,7 @@
         </span>
       </div>
       {#if alerts.length === 0}
-        <div class="empty-state">
-          <Icon name="check" size={28} />
-          <span>Sin riesgo — stock cubre el horizonte</span>
-        </div>
+        <EmptyState icon="check" title="Sin riesgo" description="El stock cubre el horizonte." />
       {:else}
         <ul class="alert-list" data-testid="owner-forecast-alerts">
           {#each alerts as a}
@@ -173,10 +173,7 @@
         <span class="section-tag">Hoy en adelante</span>
       </div>
       {#if items.length === 0}
-        <div class="empty-state">
-          <Icon name="trending-up" size={28} />
-          <span>Sin pronósticos — ejecuta "Recalcular hoy" o espera el cron diario.</span>
-        </div>
+        <EmptyState icon="trending-up" title="Sin pronósticos" description="Ejecuta Recalcular hoy o espera el cálculo diario." />
       {:else}
         <ul class="forecast-list" data-testid="owner-forecast-list">
           {#each items as f}
@@ -223,11 +220,7 @@
     padding: 1.25rem;
   }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
+  
 
   .forecast-list {
     list-style: none;
@@ -244,7 +237,7 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     background: color-mix(in srgb, var(--owner-surface) 55%, transparent);
-    border: 1px solid #2a3542;
+    border: 1px solid var(--owner-border);
     border-radius: 0.625rem;
     padding: 0.625rem 0.875rem;
   }
@@ -286,7 +279,7 @@
   }
 
   .model-badge {
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 0.7rem;
   }
 

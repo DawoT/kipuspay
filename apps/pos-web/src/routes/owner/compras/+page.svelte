@@ -3,6 +3,10 @@
   import { formatCents } from '$lib/cents';
   import { isPurchasingReturnsEnabled, isPurchasingThreeWayEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
   const returnsOn = isPurchasingReturnsEnabled();
@@ -16,10 +20,8 @@
   let message = $state('');
   let messageOk = $state(true);
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   onMount(() => {
     if (threeWayOn || returnsOn) void refresh();
@@ -76,24 +78,23 @@
       <p class="page-lede">OC abiertas, recepciones sin facturar, devoluciones y overrides de precio.</p>
     </div>
     {#if threeWayOn || returnsOn}
-      <button type="button" class="secondary" data-testid="owner-three-way-refresh" onclick={refresh} disabled={loading}>
-        <Icon name="refresh" size={14} class={loading ? 'spin' : ''} />
+      <Button variant="secondary" data-testid="owner-three-way-refresh" onclick={refresh} disabled={loading} icon="refresh">
         Actualizar
-      </button>
+      </Button>
     {/if}
   </div>
 
   {#if message}
-    <div class="status-alert {messageOk ? 'info' : 'danger'}" aria-live="polite">
+    <StatusMessage tone={messageOk ? 'info' : 'danger'} aria-live="polite">
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   {#if !threeWayOn && !returnsOn}
     <div class="feature-off-banner" data-testid="owner-three-way-off">
       <Icon name="info" size={18} />
-      <span><code>PUBLIC_FEATURE_PURCHASING_THREE_WAY</code> desactivado.</span>
+      <span>La conciliación de compras no está activa para este negocio.</span>
     </div>
   {:else}
     <div class="compras-grid">
@@ -184,9 +185,6 @@
     align-items: start;
   }
 
-  .section-pad {
-    padding: 1.25rem;
-  }
 
   .item-list {
     list-style: none;

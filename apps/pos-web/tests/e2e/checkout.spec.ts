@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockSellableCatalog } from './fixtures/sellable-catalog';
 
 test('home con checkout off muestra demo', async ({ page }) => {
   await page.route('**/api/catalog/sellable', (route) =>
@@ -26,4 +27,11 @@ test('home con checkout off muestra demo', async ({ page }) => {
   await expect(page.getByTestId('tenant-name')).toBeVisible();
   await page.getByTestId('add-line').click();
   await expect(page.getByTestId('total')).toContainText('118.00');
+test('home agrega productos del catálogo real y suma el total', async ({ page }) => {
+  await mockSellableCatalog(page);
+  await page.goto('/');
+  await expect(page.getByTestId('tenant-name')).toBeVisible();
+  await page.getByTestId('add-line-p2').click();
+  await page.getByTestId('add-line-p2').click();
+  await expect(page.getByTestId('total')).toContainText('50.00');
 });

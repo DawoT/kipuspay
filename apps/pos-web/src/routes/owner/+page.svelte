@@ -30,6 +30,9 @@
     type OwnerRollupSnapshot,
   } from '$lib/owner-offline-rollup/cache';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
@@ -138,10 +141,8 @@
     const item = pendingAnular;
     pendingAnular = null;
     const res = await submitAnularEa(
-      typeof window !== 'undefined' && window.location?.origin
-        ? window.location.origin
-        : 'https://api.kipuspay.local',
-      'Bearer local',
+      typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '',
+      resolveApiAuth(localStorage).authorization ?? '',
       {
         originSaleId: item.saleId,
         confirmed: true,
@@ -164,10 +165,8 @@
 
   async function loadOverdueLayaways() {
     if (!layawayOn) return;
-    const apiBase =
-      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-      'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await fetch(`${apiBase}/api/owner/layaways/overdue`, {
       headers: { authorization: auth },
     }).catch(() => null);
@@ -180,10 +179,8 @@
 
   async function loadStoreCreditReport() {
     if (!storeCreditOn) return;
-    const apiBase =
-      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-      'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await fetch(`${apiBase}/api/owner/ledger/store-credit`, {
       headers: { authorization: auth },
     }).catch(() => null);
@@ -204,10 +201,8 @@
 
   async function loadExpiredQuotes() {
     if (!quotesOn) return;
-    const apiBase =
-      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-      'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await fetch(`${apiBase}/api/owner/quotes/expired`, {
       headers: { authorization: auth },
     }).catch(() => null);
@@ -225,10 +220,8 @@
 
   async function loadOverdueInstallments() {
     if (!installmentsOn) return;
-    const apiBase =
-      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-      'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await fetch(`${apiBase}/api/owner/installments/overdue`, {
       headers: { authorization: auth },
     }).catch(() => null);
@@ -248,10 +241,8 @@
 
   async function loadCommissionsReport() {
     if (!commissionsOn) return;
-    const apiBase =
-      (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-      'https://api.kipuspay.local';
-    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    const apiBase = resolveApiBase(localStorage);
+    const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await fetch(`${apiBase}/api/owner/commissions`, {
       headers: { authorization: auth },
     }).catch(() => null);
@@ -397,7 +388,7 @@
     <RcPendingBanner />
 
     {#if onboardingOn && serverState && !checklistDismissed}
-      <div class="status-alert info" data-testid="owner-checklist">
+      <StatusMessage tone="info" data-testid="owner-checklist">
         <SetupChecklist server={serverState} {printerReady} />        <button
           type="button"
           class="btn-secondary btn-sm"
@@ -409,13 +400,14 @@
         >
           Ocultar
         </button>
-      </div>
+      </StatusMessage>
     {/if}
 
     {#if banner}
-      <div class="status-alert warning" data-testid="stale-banner">        <Icon name="clock" size={16} />
+      <StatusMessage tone="warning" data-testid="stale-banner">
+        <Icon name="clock" size={16} />
         <span>{banner}</span>
-      </div>
+      </StatusMessage>
     {/if}
 
     <!-- Stat Grid -->
@@ -567,10 +559,10 @@
           <p class="section-desc">CPE no aceptados. Anular (E-A) exige confirmación y motivo Catálogo 09.</p>
 
           {#if eaMsg}
-            <div class="status-alert info" aria-live="polite" data-testid="ea-msg">
+            <StatusMessage tone="info" aria-live="polite" data-testid="ea-msg">
               <Icon name="check" size={16} />
               <span>{eaMsg}</span>
-            </div>
+            </StatusMessage>
           {/if}
 
           <ul class="item-list">
@@ -580,14 +572,14 @@
                 <span class="badge badge-danger">{item.sunatStatus}</span>
                 <span class="item-amount tabular-nums">S/ {formatCents(item.totalCents)}</span>
                 {#if canOfferAnularEa(item.sunatStatus)}
-                  <button
-                    type="button"
-                    class="secondary btn-sm"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     data-testid="anular-ea"
                     onclick={() => { pendingAnular = item; }}
                   >
                     Anular
-                  </button>
+                  </Button>
                 {/if}
               </li>
             {/each}
@@ -603,12 +595,12 @@
                 <input id="ea-motive-input" data-testid="ea-motive" bind:value={motiveCode} />
               </div>
               <div class="btn-row">
-                <button type="button" class="primary" data-testid="ea-confirm-btn" onclick={() => void confirmAnular()}>
+                <Button variant="primary" data-testid="ea-confirm-btn" onclick={() => void confirmAnular()}>
                   Confirmar anulación
-                </button>
-                <button type="button" class="secondary" onclick={() => (pendingAnular = null)}>
+                </Button>
+                <Button variant="secondary" onclick={() => (pendingAnular = null)}>
                   Cancelar
-                </button>
+                </Button>
               </div>
             </div>
           {/if}
@@ -642,16 +634,16 @@
             </select>
           </div>
           <div class="field-group">
-            <label for="dn-amount">Monto (centavos)</label>
+            <label for="dn-amount">Monto</label>
             <input id="dn-amount" type="number" min="1" bind:value={dnAmountCents} data-testid="dn-amount" />
           </div>
           <div class="field-group">
             <label for="dn-desc">Descripción (opcional)</label>
             <input id="dn-desc" bind:value={dnDescription} data-testid="dn-desc" placeholder="Ej. Interés por pago fuera de plazo" />
           </div>
-          <button type="button" class="primary" data-testid="dn-submit" onclick={onIssueDebitNote}>
+          <Button variant="primary" data-testid="dn-submit" onclick={onIssueDebitNote}>
             Emitir nota de débito
-          </button>
+          </Button>
           {#if dnMsg}
             <p class="dn-msg" data-testid="dn-msg" class:dn-msg-ok={dnIssued}>{dnMsg}</p>
           {/if}
@@ -681,22 +673,22 @@
             </select>
           </div>
           <div class="field-group">
-            <label for="wh-base">Base (centavos)</label>
+            <label for="wh-base">Base</label>
             <input id="wh-base" type="number" min="1" bind:value={whBase} data-testid="wh-base" />
           </div>
           <div class="field-group">
             <label for="wh-sale">Venta origen (percepción)</label>
             <input id="wh-sale" bind:value={whSaleId} data-testid="wh-sale" placeholder="sale-123" />
-            <button type="button" class="primary" data-testid="wh-perception-submit" onclick={onIssuePerception}>
+            <Button variant="primary" data-testid="wh-perception-submit" onclick={onIssuePerception}>
               Emitir percepción
-            </button>
+            </Button>
           </div>
           <div class="field-group">
             <label for="wh-invoice">Factura proveedor (retención)</label>
             <input id="wh-invoice" bind:value={whInvoiceId} data-testid="wh-invoice" placeholder="si-123" />
-            <button type="button" class="primary" data-testid="wh-retention-submit" onclick={onIssueRetention}>
+            <Button variant="primary" data-testid="wh-retention-submit" onclick={onIssueRetention}>
               Emitir retención
-            </button>
+            </Button>
           </div>
           {#if whMsg}
             <p class="wh-msg" data-testid="wh-msg" class:wh-msg-ok={whIssued}>{whMsg}</p>
@@ -741,12 +733,7 @@
     align-items: start;
   }
 
-  .section-pad { padding: 1.25rem; }
 
-  .owner-section .primary {
-    min-height: 44px;
-    margin-top: 0.25rem;
-  }
 
   .section-desc {
     font-size: 0.8125rem;
@@ -847,12 +834,7 @@
     margin-bottom: 0.75rem;
   }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    margin-bottom: 0.75rem;
-  }
+
 
   .btn-row {
     display: flex;

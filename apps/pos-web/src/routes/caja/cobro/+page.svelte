@@ -9,6 +9,9 @@
     isPricingPromotionsEnabled,
   } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import { pollCaptureStatus } from '$lib/payments/payment-capture';
+import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /** Copy normativa §5.4 edge 2B (misma cadena que MANUAL_CAPTURE_AMBER_COPY). */
   const MANUAL_CAPTURE_AMBER_COPY =
@@ -37,6 +40,7 @@
   let waOptedIn = $state(true);
   let loyaltyMsg = $state('');
   let waMsg = $state('');
+  let captureStatus = $state('');
 
   onMount(() => {
     const apply = () => {
@@ -51,10 +55,8 @@
     };
   });
 
-  const apiBase = () =>
-    (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
-    'https://api.kipuspay.local';
-  const auth = () => (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+  const apiBase = () => resolveApiBase(localStorage);
+  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   function methodAllowed(): boolean {
     if (methodCode === 'cash' || methodCode === 'card_manual' || methodCode === 'credit') {
@@ -108,6 +110,22 @@
     };
     if (res.ok && json.captureId) captureId = json.captureId;
     message = res.ok ? `Captura ${json.captureId} · ${json.status}` : (json.error ?? 'error');
+    if (res.ok && json.captureId) {
+      captureStatus = json.status ?? 'PENDING';
+      void (async () => {
+        const poll = await pollCaptureStatus({
+          apiBase: apiBase(),
+          authorization: auth(),
+          captureId: String(json.captureId),
+          intervalMs: 3000,
+          maxAttempts: 10,
+        });
+        if (poll.ok && poll.dto) {
+          captureId = poll.dto.id;
+          captureStatus = poll.dto.status;
+        }
+      })();
+    }
   }
 
   async function reserveLoyalty() {
@@ -161,16 +179,16 @@
       <h1 class="page-title">Cobro local</h1>
       <p class="page-lede">Efectivo, Yape/Plin/MP QR o tarjeta Culqi/Niubiz. Montos los impone el servidor.</p>
     </div>
-    <div class="connection-badge" class:offline={!online}>
+    <Badge variant={online ? 'online' : 'offline'}>
       <Icon name={online ? 'wifi' : 'wifi-off'} size={14} />
       <span>{online ? 'En línea' : 'Sin conexión'}</span>
-    </div>
+    </Badge>
   </div>
 
   {#if !checkoutOn && !walletsOn && !cardsOn}
     <div class="feature-off-banner" data-testid="caja-cobro-off">
       <Icon name="info" size={18} />
-      <span>Activa flags de cobro / wallets / tarjeta para operar.</span>
+      <span>El cobro local no está activo para esta tienda. Contacta a tu proveedor.</span>
     </div>
   {:else}
     {#if amber}
@@ -224,7 +242,7 @@
         {#if captureId}
           <div class="capture-box" data-testid="caja-cobro-capture">
             <Icon name="check" size={14} />
-            <span class="capture-id">QR / captura: {captureId} (PENDING→CAPTURED)</span>
+            <span class="capture-id">QR / captura: {captureId} ({captureStatus || 'PENDING'})</span>
           </div>
         {/if}
       </div>
@@ -309,29 +327,7 @@
     align-items: start;
   }
 
-  .section-pad { padding: 1.25rem; }
-  .field-group { display: flex; flex-direction: column; gap: 0.375rem; margin-bottom: 0.875rem; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-
   .charge-btn { width: 100%; margin-top: 0.25rem; }
-
-  .connection-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--radius-full);
-    font-size: 0.8125rem;
-    font-weight: 600;
-    background: rgba(46, 158, 116, 0.12);
-    border: 1px solid rgba(46, 158, 116, 0.3);
-    color: var(--emerald-green);
-  }
-  .connection-badge.offline {
-    background: rgba(217, 106, 60, 0.12);
-    border-color: rgba(217, 106, 60, 0.3);
-    color: var(--rose-red);
-  }
 
   .capture-box {
     display: flex;
@@ -377,6 +373,5 @@
 
   @media (max-width: 700px) {
     .cobro-grid { grid-template-columns: 1fr; }
-    .two-col { grid-template-columns: 1fr; }
   }
 </style>

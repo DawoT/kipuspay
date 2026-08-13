@@ -106,12 +106,12 @@
       <!-- Métricas -->
       <div class="glass-card section-pad" data-testid="growth-metrics">
         <div class="card-header">
-          <h2>Métricas GTM §9</h2>
+          <h2>Rendimiento del terminal</h2>
           <Icon name="trending-up" size={16} />
         </div>
         <div class="metrics-grid">
           <div class="metric-item">
-            <span class="metric-label">TTFS (p80)</span>
+            <span class="metric-label">Respuesta de cobro</span>
             <span class="metric-value" data-testid="metric-ttfs">{metricsLabel.ttfs}</span>
           </div>
           <div class="metric-item">
@@ -156,7 +156,6 @@
     align-items: start;
   }
 
-  .section-pad { padding: 1.25rem; }
 
   .invite-text {
     font-size: 0.875rem;

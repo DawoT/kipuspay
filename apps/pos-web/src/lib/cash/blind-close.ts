@@ -69,3 +69,45 @@ export async function submitBlindClose(
 export const PEN_DENOMS: readonly number[] = [
   20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10,
 ];
+
+/**
+ * S17-H4: reporte Z imprimible — snapshot de ticket a partir del resultado del
+ * cierre ciego. Consume el mismo PrintTicketSnapshot que el pipeline de
+ * impresión (buildTicketHtml / ESC/POS); el cajero lo imprime tras confirmar.
+ */
+export interface ZTicketData {
+  readonly enterprise: string;
+  readonly ruc: string;
+  readonly documentType: 'Z';
+  readonly series: string;
+  readonly number: number;
+  readonly totalCents: number;
+  readonly lineWidth: number;
+  readonly items: readonly { name: string; qty: number; totalCents: number }[];
+}
+
+export function buildZTicketData(input: {
+  readonly enterprise: string;
+  readonly ruc: string;
+  readonly sessionId: string;
+  readonly zNumber: number;
+  readonly countedTotalCents: number;
+  readonly expectedTotalCents: number;
+  readonly differenceAmountCents: number;
+}): ZTicketData {
+  return {
+    enterprise: input.enterprise,
+    ruc: input.ruc,
+    documentType: 'Z',
+    series: 'Z',
+    number: input.zNumber,
+    totalCents: input.countedTotalCents,
+    lineWidth: 32,
+    items: [
+      { name: 'Arqueo esperado', qty: 1, totalCents: input.expectedTotalCents },
+      { name: 'Arqueo contado', qty: 1, totalCents: input.countedTotalCents },
+      { name: 'Diferencia', qty: 1, totalCents: input.differenceAmountCents },
+      { name: `Sesión ${input.sessionId}`, qty: 1, totalCents: 0 },
+    ],
+  };
+}

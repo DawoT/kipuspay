@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockSellableCatalog } from './fixtures/sellable-catalog';
 
 test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad lo desbloquea', async ({
   page,
@@ -24,10 +25,11 @@ test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad l
       }),
     }),
   );
+  await mockSellableCatalog(page);
   await page.goto('/?checkout=1');
-  // Subir el total sobre el umbral (70000 cents): producto demo 11800 × 6.
+  // Subir el total sobre el umbral (70000 cents): producto p1 (11800) × 6.
   for (let i = 0; i < 6; i++) {
-    await page.getByTestId('add-line').click();
+    await page.getByTestId('add-line-p1').click();
   }
   await expect(page.getByTestId('id-required')).toBeVisible();
 
@@ -36,4 +38,7 @@ test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad l
   await page.getByTestId('customer-name').fill('Cliente Real');
   await expect(page.getByTestId('id-required')).toBeHidden();
   await expect(page.getByTestId('charge')).toBeEnabled();
+  await page.getByTestId('charge').click();
+  await expect(page.getByTestId('print-preview')).toBeVisible();
+  await expect(page.getByTestId('ticket-qr')).toBeVisible();
 });

@@ -1,6 +1,8 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/state';
+  import { fade } from 'svelte/transition';
+  import { prefersReducedMotion } from 'svelte/motion';
   import { onMount, type ComponentProps } from 'svelte';
   import Icon from '$lib/ui/Icon.svelte';
   import {
@@ -8,6 +10,7 @@
     type AdminAuthenticatedSession,
   } from '$lib/admin/authenticated-session';
   import { loadAuthenticatedAppShellSession } from '$lib/admin/app-shell-session';
+  import { installUnauthorizedGuard } from '$lib/auth/unauthorized-guard';
   import {
     showCashOperatingNavigation,
     showCustomerOrderNavigation,
@@ -21,9 +24,12 @@
     isTeamInviteEnabled,
   } from '$lib/features';
   import { registerUnifiedPosServiceWorker } from '$lib/mobile/mobile-push-pwa';
+  import { applyThemeToDocument, readDocumentTheme } from '$lib/ui/theme';
+  import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   let { children } = $props();
   let authenticatedSession = $state<AdminAuthenticatedSession | null>(null);
+  let sessionLoaded = $state(false);
   const authenticatedSessionState = {
     get current() {
       return authenticatedSession;
@@ -63,14 +69,24 @@
 
   const navGroups = $derived<NavGroup[]>([
     {
+      id: 'inicio',
+      label: 'Inicio',
+      icon: 'home',
+      alwaysVisible: true,
+      items: [
+        { href: '/owner', label: 'Resumen del día', icon: 'home' as IconName },
+      ],
+    },
+    {
       id: 'terminal',
-      label: 'Terminal',
+      label: 'Ventas',
       icon: 'cart',
       alwaysVisible: true,
       items: [
         ...(showCashOperatingNavigation(authenticatedSession?.role ?? '')
           ? [
               { href: '/', label: 'POS Terminal', icon: 'cart' as IconName },
+              { href: '/caja/historial', label: 'Historial del día', icon: 'receipt' as IconName },
               { href: '/caja', label: 'Cierre Z', icon: 'receipt' as IconName },
               { href: '/caja/cobro', label: 'Cobro local', icon: 'credit-card' as IconName },
               { href: '/caja/devolucion', label: 'Devolución', icon: 'rotate-ccw' as IconName },
@@ -101,10 +117,6 @@
           : []),
         ...(isLpdpEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
           ? [{ href: '/admin/clientes', label: 'Clientes', icon: 'user' as IconName }]
-          : []),
-        { href: '/admin/integraciones', label: 'Integraciones', icon: 'link' as IconName },
-        ...(isTeamInviteEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
-          ? [{ href: '/admin/equipo', label: 'Equipo', icon: 'user' as IconName }]
           : []),
       ],
     },
@@ -153,7 +165,19 @@
       items: [
         { href: '/admin/diario', label: 'Diario', icon: 'file-text' as IconName },
         { href: '/admin/backups', label: 'Backups', icon: 'database' as IconName },
+      ],
+    },
+    {
+      id: 'configuracion',
+      label: 'Configuración',
+      icon: 'settings',
+      alwaysVisible: true,
+      items: [
         { href: '/admin/configuracion', label: 'Configuración', icon: 'settings' as IconName },
+        { href: '/admin/integraciones', label: 'Integraciones', icon: 'link' as IconName },
+        ...(isTeamInviteEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+          ? [{ href: '/admin/equipo', label: 'Equipo', icon: 'user' as IconName }]
+          : []),
       ],
     },
     {
@@ -184,18 +208,15 @@
   }
 
   let currentTheme = $state<'dark' | 'light'>('dark');
+  let online = $state(true);
+
+  function syncOnlineStatus() {
+    online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  }
 
   function applyTheme(theme: 'dark' | 'light') {
     currentTheme = theme;
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', theme);
-      document.body.setAttribute('data-theme', theme);
-      try {
-        localStorage.setItem('kipus_theme', theme);
-      } catch {
-        // Storage access may be blocked in restricted contexts.
-      }
-    }
+    applyThemeToDocument(theme, localStorage);
   }
 
   function toggleTheme(e?: Event) {
@@ -207,18 +228,13 @@
   }
 
   onMount(async () => {
+    syncOnlineStatus();
+    window.addEventListener('online', syncOnlineStatus);
+    window.addEventListener('offline', syncOnlineStatus);
+
     if (typeof document !== 'undefined') {
-      const activeTheme = document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null;
-      if (activeTheme === 'light' || activeTheme === 'dark') {
-        currentTheme = activeTheme;
-      } else {
-        try {
-          const savedTheme = localStorage.getItem('kipus_theme') as 'dark' | 'light' | null;
-          applyTheme(savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'dark');
-        } catch {
-          applyTheme('dark');
-        }
-      }
+      currentTheme = readDocumentTheme();
+      applyThemeToDocument(currentTheme);
 
       window.addEventListener('click', (e) => {
         const target = (e.target as HTMLElement)?.closest('.theme-toggle-btn');
@@ -245,13 +261,20 @@
       }
     }
 
+    // F5: 401 del worker → /login (JWT de cajero expirado, sesión IdP caída).
+    if (typeof window !== 'undefined' && !(window as unknown as { __kipusUnauthGuard?: boolean }).__kipusUnauthGuard) {
+      (window as unknown as { __kipusUnauthGuard?: boolean }).__kipusUnauthGuard = true;
+      const guarded = installUnauthorizedGuard({ fetcher: fetch });
+      (window as unknown as { __kipusGuardedFetch?: typeof fetch }).__kipusGuardedFetch = guarded;
+      (globalThis as unknown as { fetch?: typeof fetch }).fetch = guarded;
+    }
+
+    sessionLoaded = true;
     authenticatedSession = await loadAuthenticatedAppShellSession({
       fetcher: fetch,
       storage: localStorage,
-      apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
-      ...((import.meta.env.PUBLIC_DEV_AUTH as string | undefined)
-        ? { authorization: import.meta.env.PUBLIC_DEV_AUTH as string }
-        : {}),
+      apiBase: resolveApiBase(localStorage),
+      ...resolveApiAuth(localStorage),
     });
   });
 </script>
@@ -267,7 +290,7 @@
       {#if sidebarOpen}
         <div class="brand-text">
           <span class="brand-title">KipusPay</span>
-          <span class="brand-sub">POS & Facturación Edge</span>
+          <span class="brand-sub">POS & Facturación</span>
         </div>
       {/if}
       <button
@@ -340,10 +363,10 @@
           <span>{currentTheme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>
         {/if}
       </button>
-      <div class="status-dot" title="Edge D1 Conectado">
-        <span class="pulse-dot"></span>
+      <div class="status-dot" title={online ? 'En línea' : 'Sin conexión'}>
+        <span class="pulse-dot" class:offline={!online}></span>
         {#if sidebarOpen}
-          <span class="status-label">Edge D1</span>
+          <span class="status-label" class:offline={!online}>{online ? 'En línea' : 'Sin conexión'}</span>
         {/if}
       </div>
     </div>
@@ -361,10 +384,20 @@
         </div>
       </div>
       <div class="top-bar-right">
-        <div class="status-pill">
-          <span class="pulse-dot"></span>
-          <span>EDGE D1 CONECTADO</span>
+        <div
+          class="status-pill"
+          class:offline={!online}
+          data-testid="connection-status"
+        >
+          <span class="pulse-dot" class:offline={!online}></span>
+          <span>{online ? 'En línea' : 'Sin conexión'}</span>
         </div>
+        {#if sessionLoaded && authenticatedSession === null && !import.meta.env.PUBLIC_DEV_AUTH}
+          <a href="/login" class="login-link" data-testid="topbar-login">
+            <Icon name="key" size={14} />
+            Iniciar sesión
+          </a>
+        {/if}
         <button
           type="button"
           class="theme-toggle-btn icon-only"
@@ -378,7 +411,15 @@
     </header>
 
     <main class="page-content">
-      {@render children()}
+      {#key page.url.pathname}
+        <div
+          class="page-transition"
+          in:fade={{ duration: prefersReducedMotion.current ? 0 : 120 }}
+          out:fade={{ duration: 0 }}
+        >
+          {@render children()}
+        </div>
+      {/key}
     </main>
   </div>
 </div>
@@ -675,10 +716,14 @@
   .status-label {
     font-size: 0.6875rem;
     font-weight: 700;
-    color: #34d399;
+    color: var(--emerald-green);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
+  }
+
+  .status-label.offline {
+    color: var(--rose-red);
   }
 
   .pulse-dot {
@@ -686,16 +731,28 @@
     height: 7px;
     min-width: 7px;
     border-radius: 50%;
-    background-color: #34d399;
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+    background-color: var(--emerald-green);
+    box-shadow: 0 0 0 0 rgba(46, 158, 116, 0.7);
     animation: pulse-green 2s infinite;
     flex-shrink: 0;
   }
 
+  .pulse-dot.offline {
+    background-color: var(--rose-red);
+    box-shadow: 0 0 0 0 rgba(217, 106, 60, 0.7);
+    animation: pulse-offline 2s infinite;
+  }
+
   @keyframes pulse-green {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(52, 211, 153, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 158, 116, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(46, 158, 116, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 158, 116, 0); }
+  }
+
+  @keyframes pulse-offline {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(217, 106, 60, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(217, 106, 60, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(217, 106, 60, 0); }
   }
 
   /* ── Main Area ────────────────────────────────── */
@@ -760,15 +817,42 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    background: rgba(46, 158, 116, 0.12);
+    border: 1px solid rgba(46, 158, 116, 0.3);
     border-radius: var(--radius-full);
     padding: 0.3rem 0.75rem;
     font-size: 0.6875rem;
     font-weight: 700;
-    color: #34d399;
+    color: var(--emerald-green);
     letter-spacing: 0.05em;
     white-space: nowrap;
+  }
+
+  .status-pill.offline {
+    background: rgba(217, 106, 60, 0.12);
+    border: 1px solid rgba(217, 106, 60, 0.3);
+    color: var(--rose-red);
+  }
+
+  .login-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.45rem 0.875rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    background: var(--bg-button-sec);
+    color: var(--accent-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    min-height: 48px;
+  }
+
+  .login-link:hover {
+    background: var(--bg-glass-hover);
+    border-color: var(--accent-primary);
   }
 
   /* ── Page Content ─────────────────────────────── */

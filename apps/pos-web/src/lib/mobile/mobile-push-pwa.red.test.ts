@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- absent Sprint 45 module was the intentional RED boundary */
 import { describe, expect, it } from 'vitest';
 import unifiedWorker from '../../../static/offline-sync-sw.js?raw';
 import {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Button from '$lib/ui/Button.svelte';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { customerOrderAccess } from '$lib/customer-orders/customer-order-access';
   import {
@@ -15,6 +16,7 @@
     reconcileCustomerOrderFulfillments,
     type QueuedCustomerOrderFulfillment,
   } from '$lib/offline-sync/customer-order-fulfillment-queue';
+  import { resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isCustomerOrdersEnabled();
   const sessionState = readAdminAuthenticatedSessionState();
@@ -24,7 +26,7 @@
     ? createCustomerOrdersApi({
         authenticatedFetch: session.authenticatedFetch,
         terminalContext: () => session.terminal,
-        apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+        apiBase: resolveApiBase(localStorage),
       })
     : null);
 
@@ -127,7 +129,7 @@
       quantities = Object.fromEntries(
         selected.items.map((item) => [item.id, item.reserved_quantity_microunits]),
       );
-      message = `Pedido ${orderId} abierto. El precio mostrado es el snapshot reservado.`;
+      message = `Pedido ${orderId} abierto. El precio mostrado es el reservado.`;
     } catch (error) {
       alert = `No se pudo abrir el pedido: ${error instanceof Error ? error.message : 'error'}.`;
     }
@@ -179,9 +181,9 @@
         items,
       });
       pending = [...(await queue.listPending())];
-      message = 'Lease vigente guardado en este terminal. Ya puedes confirmar el retiro.';
+      message = 'Reserva guardada en este terminal. Ya puedes confirmar el retiro.';
     } catch (error) {
-      alert = `No se preparó el lease: ${error instanceof Error ? error.message : 'error'}.`;
+      alert = `No se pudo preparar la reserva: ${error instanceof Error ? error.message : 'error'}.`;
     }
   }
 
@@ -211,7 +213,7 @@
     } else {
       alert =
         result.conflicted > 0
-          ? 'Lease vencido o usado. Conflicto recuperable: solicita uno nuevo; no se creó una venta silenciosa.'
+          ? 'Reserva vencida o usada. Conflicto recuperable: solicita una nueva; no se creó una venta sin confirmar.'
           : 'Cumplimiento pendiente. Conservamos el intento para reintentar.';
     }
   }
@@ -378,12 +380,12 @@
               <input id="payment-method" data-testid="customer-orders-payment-method" bind:value={paymentMethodId} />
             </div>
             <div class="actions">
-              <button type="button" data-testid="customer-orders-prepare-lease" onclick={cacheLease} disabled={!online}>Preparar lease</button>
-              <button type="button" class="primary" data-testid="customer-orders-fulfill" onclick={fulfillPending} disabled={!online || !validCachedLease}>
+              <button type="button" data-testid="customer-orders-prepare-lease" onclick={cacheLease} disabled={!online}>Preparar retiro</button>
+              <Button variant="primary" data-testid="customer-orders-fulfill" onclick={fulfillPending} disabled={!online || !validCachedLease}>
                 Cumplir parcialmente
-              </button>
+              </Button>
             </div>
-            {#if !validCachedLease}<p class="lease-state">Sin lease vigente. El retiro permanece deshabilitado.</p>{/if}
+            {#if !validCachedLease}<p class="lease-state">Sin reserva vigente. El retiro permanece deshabilitado.</p>{/if}
           {/if}
 
           {#if selected.status === 'EXPIRED'}
@@ -404,7 +406,7 @@
             <button type="button" data-testid="customer-orders-cancel" onclick={cancelOrder} disabled={!cancelReason.trim()}>Cancelar pedido</button>
           {/if}
         {:else}
-          <p>Selecciona un pedido para ver cantidades, snapshot y vencimiento.</p>
+          <p>Selecciona un pedido para ver cantidades, precio reservado y vencimiento.</p>
         {/if}
       </section>
 
@@ -413,11 +415,11 @@
         {#if access.canCreate}
           <label for="customer">Cliente</label><input id="customer" data-testid="customer-orders-customer-id" bind:value={customerId} />
           <label for="product">Producto del carrito</label><input id="product" data-testid="customer-orders-product-id" bind:value={productId} />
-          <label for="create-quantity">Cantidad en microunidades</label>
+          <label for="create-quantity">Cantidad</label>
           <input id="create-quantity" data-testid="customer-orders-create-quantity" type="number" min="1" bind:value={createQuantity} />
-          <button class="primary" type="button" data-testid="customer-orders-create" onclick={createFromCart} disabled={!online || !session.branchId || !customerId || !productId}>
+          <Button variant="primary" data-testid="customer-orders-create" onclick={createFromCart} disabled={!online || !session.branchId || !customerId || !productId}>
             Crear desde carrito
-          </button>
+          </Button>
         {:else}
           <p>Tu rol tiene acceso de lectura, sin controles operativos de caja.</p>
         {/if}
@@ -442,14 +444,13 @@
   .connection, .warning, .alert, .announcer { padding: .8rem 1rem; border: 1px solid var(--border-subtle); border-left: 5px solid var(--accent-primary); }
   .connection.offline, .alert { border-left-color: #e4572e; }
   .warning { margin: 1rem 0; border-left-color: #d99b16; }
-  .queue, .detail, .create { min-width: 0; padding: 1rem; background: var(--surface-card); }
+  .queue, .detail, .create { min-width: 0; padding: 1rem; background: var(--bg-surface); }
   label { display: block; margin-top: .7rem; font-weight: 700; }
-  input, select, textarea, button { min-height: 44px; max-width: 100%; box-sizing: border-box; border: 1px solid var(--border-strong, #64748b); border-radius: var(--radius-sm); padding: .55rem .7rem; font: inherit; color: inherit; background: var(--surface-card); }
+  input, select, textarea, button { min-height: 44px; max-width: 100%; box-sizing: border-box; border: 1px solid var(--border-strong, #64748b); border-radius: var(--radius-sm); padding: .55rem .7rem; font: inherit; color: inherit; background: var(--bg-surface); }
   input, select, textarea { width: 100%; }
   button { cursor: pointer; font-weight: 750; }
   button:disabled { cursor: not-allowed; opacity: .55; }
   button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #ff9f43; outline-offset: 2px; }
-  .primary { background: var(--accent-primary); color: white; }
   .order-list { display: grid; gap: .5rem; margin-top: .8rem; max-height: 36rem; overflow-y: auto; }
   .order-card { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: .5rem; text-align: left; }
   .order-card span, .item > div { display: grid; gap: .2rem; }

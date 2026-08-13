@@ -5,6 +5,7 @@ const source = readFileSync(
   new URL('../../routes/admin/membresias/+page.svelte', import.meta.url),
   'utf8',
 );
+const buttonSource = readFileSync(new URL('../ui/Button.svelte', import.meta.url), 'utf8');
 
 describe('Sprint 44 memberships Admin contract (RED)', () => {
   it('distinguishes membership from KipusPay billing, installments, layaway, and orders', () => {
@@ -46,9 +47,11 @@ describe('Sprint 44 memberships Admin contract (RED)', () => {
   it('meets keyboard, live-region, touch, contrast, reduced-motion and narrow-screen contracts', () => {
     expect(source).toMatch(/aria-live="polite"/);
     expect(source).toMatch(/role="alert"/);
-    expect(source).toMatch(/min-height:\s*44px/);
     expect(source).toMatch(/prefers-reduced-motion/);
     expect(source).toMatch(/max-width:\s*375px/);
-    expect(source).toMatch(/:focus-visible/);
+    expect(source).toMatch(/import Button from '\$lib\/ui\/Button.svelte'/);
+    expect(source).toMatch(/import Modal from '\$lib\/ui\/Modal.svelte'/);
+    expect(buttonSource).toMatch(/min-height:\s*44px/);
+    expect(buttonSource).toMatch(/:focus-visible/);
   });
 });
