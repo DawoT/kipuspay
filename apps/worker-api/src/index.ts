@@ -2111,23 +2111,27 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // Sprint 21 — importación de catálogo Bsale/Alegra/CSV (FEATURE_CATALOG_IMPORT, FASE 7 §5.4)
   app.post('/api/integrations/catalog-import', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runCatalogImportHttp(
       c.env,
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
+      user?.role ?? '',
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
 
   // Sprint 23 — Contador + API keys/webhooks (Cadena+)
   app.post('/api/integrations/accounting/export', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runAccountingExportHttp(
       c.env,
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
+      user?.userId ?? '',
     );
     if (typeof result.body === 'string') {
       return c.body(result.body, result.status as 200, {
@@ -2189,11 +2193,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // Sprint 24 — loyalty + WhatsApp opt-in (Cadena+)
   app.post('/api/loyalty/reserve', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runLoyaltyReserveHttp(
       c.env,
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
+      user?.role ?? '',
     );
     return c.json(result.body, result.status as 200 | 201 | 400 | 403 | 404 | 422 | 503);
   });
@@ -2281,8 +2287,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   // Sprint 27 — sobregiro Stripe Metered (fuera del hot path)
   app.post('/api/billing/cron/meter-overage', async (c) => {
-    const result = await runMeterOverageCronHttp(c.env);
-    return c.json(result.body, result.status as 200 | 404 | 502 | 503);
+    const user = c.get('user');
+    const result = await runMeterOverageCronHttp(c.env, undefined, user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 403 | 404 | 502 | 503);
   });
 
   // Sprint 42 — KPBK1 export + restore dry-run (data.backup, default-off).

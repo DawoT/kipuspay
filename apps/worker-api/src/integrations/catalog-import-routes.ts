@@ -3,7 +3,11 @@
  * Dos fases: preview (dry-run, no escribe) → commit (solo lo aprobado, idempotente).
  * Flag default off → 404 FEATURE_OFF.
  */
-import type { CatalogImportRow, CatalogImportSource } from '@kipuspay/domain-integrations';
+import {
+  MAX_IMPORT_ROWS,
+  type CatalogImportRow,
+  type CatalogImportSource,
+} from '@kipuspay/domain-integrations';
 import { CatalogImporter } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -36,12 +40,19 @@ function resolveSource(value: unknown): CatalogImportSource | null {
     : null;
 }
 
+/** S21-H2: el import de catálogo modifica el catálogo maestro — solo
+ * admin/owner (nunca cajero/vendedor por omisión). */
+function isAdminRole(role: string | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 export function runCatalogImportHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: Record<string, unknown>,
+  userRole?: string,
 ): Promise<HttpResult> {
-  return importCatalog(env, tenantId, body, resolveSource(body.source));
+  return importCatalog(env, tenantId, body, resolveSource(body.source), userRole);
 }
 
 async function importCatalog(
@@ -49,16 +60,22 @@ async function importCatalog(
   tenantId: string,
   body: Record<string, unknown>,
   source: CatalogImportSource | null,
+  userRole?: string,
 ): Promise<HttpResult> {
   if (!isCatalogImportEnabled(env)) return featureOff('FEATURE_CATALOG_IMPORT');
+  if (!userRole || !isAdminRole(userRole)) {
+    return { status: 403, body: { error: 'admin role required', code: 'FORBIDDEN_ADMIN' } };
+  }
   if (!env?.DB) return dbUnavailable();
   if (!source) return badRequest('source debe ser bsale, alegra o csv');
   if (!Array.isArray(body.rows)) return badRequest('rows requerido');
   if (body.mode !== 'preview' && body.mode !== 'commit') {
     return badRequest('mode debe ser preview o commit');
   }
-
   const rows = body.rows as readonly CatalogImportRow[];
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return badRequest(`lote excede el límite de ${MAX_IMPORT_ROWS} filas`);
+  }
   const importer = new CatalogImporter(env.DB);
 
   if (body.mode === 'preview') {

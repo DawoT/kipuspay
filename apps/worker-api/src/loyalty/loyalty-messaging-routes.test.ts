@@ -106,12 +106,12 @@ describe('loyalty HTTP', () => {
       customerId: 'c1',
       saleIdempotencyKey: 's1',
       points: 5,
-    });
+    }, 'admin');
     expect(res.status).toBe(503);
   });
 
   it('bad body → 400', async () => {
-    const res = await runLoyaltyReserveHttp(envWith({ FEATURE_LOYALTY_POINTS: '1' }), 't1', {});
+    const res = await runLoyaltyReserveHttp(envWith({ FEATURE_LOYALTY_POINTS: '1' }), 't1', {}, 'admin');
     expect(res.status).toBe(400);
   });
 
@@ -120,6 +120,7 @@ describe('loyalty HTTP', () => {
       envWith({ FEATURE_LOYALTY_POINTS: '1', plan_id: 'arranque' }),
       't1',
       { customerId: 'c1', saleIdempotencyKey: 's1', points: 5 },
+      'admin',
     );
     expect(res.status).toBe(403);
     expect((res.body as { code: string }).code).toBe('PLAN_REQUIRES_CADENA');
@@ -130,6 +131,7 @@ describe('loyalty HTTP', () => {
       envWith({ FEATURE_LOYALTY_POINTS: '1', plan_id: 'cadena' }),
       't1',
       { customerId: 'c1', saleIdempotencyKey: 's1', points: 10 },
+      'admin',
     );
     expect(res.status).toBe(201);
   });
@@ -139,7 +141,7 @@ describe('loyalty HTTP', () => {
       customerId: 'c1',
       saleIdempotencyKey: 's1',
       points: 7,
-    });
+    }, 'admin');
     expect(res.status).toBe(200);
   });
 
@@ -148,7 +150,7 @@ describe('loyalty HTTP', () => {
       customerId: 'c1',
       saleIdempotencyKey: 's1',
       points: 99,
-    });
+    }, 'admin');
     expect(res.status).toBe(422);
   });
 
@@ -233,5 +235,36 @@ describe('messaging opt-in + send', () => {
 
   it('notify owner edge A', async () => {
     await notifyOwnerLoyaltyExpired(envWith({}), 't1', 'sale-1', 'res-1');
+  });
+});
+
+describe('S24-H2 guard de rol en acreditación de puntos', () => {
+  it('sin rol → 403 FORBIDDEN_ADMIN', async () => {
+    const res = await runLoyaltyReserveHttp(
+      { FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv,
+      't1',
+      { customerId: 'c1', saleIdempotencyKey: 'k1', points: 10 },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('rol cashier → 403 FORBIDDEN_ADMIN', async () => {
+    const res = await runLoyaltyReserveHttp(
+      { FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv,
+      't1',
+      { customerId: 'c1', saleIdempotencyKey: 'k1', points: 10 },
+      'cashier',
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('rol admin → pasa a validación (no 403)', async () => {
+    const res = await runLoyaltyReserveHttp(
+      { FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv,
+      't1',
+      { customerId: 'c1', saleIdempotencyKey: 'k1', points: 10 },
+      'admin',
+    );
+    expect(res.status).not.toBe(403);
   });
 });

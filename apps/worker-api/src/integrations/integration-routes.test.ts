@@ -7,6 +7,7 @@ import {
   runCreateApiKeyHttp,
   runCreateWebhookEndpointHttp,
   runDrainWebhookDeliveriesHttp,
+  runPublicSalesListHttp,
   runRevokeApiKeyHttp,
 } from './integration-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -169,5 +170,88 @@ describe('integration-routes S23', () => {
   it('C7: drain admin → 200', async () => {
     const res = await runDrainWebhookDeliveriesHttp(mockEnv('cadena'), 10, 'admin-u1', 'admin');
     expect(res.status).toBe(200);
+  });
+});
+
+describe('S23-H1 API pública fail-closed', () => {
+  it('sin pepper configurado → 503 PEPPER_UNAVAILABLE (nunca pepper dev)', async () => {
+    const env = mockEnv();
+    (env as unknown as { API_KEY_PEPPER: string }).API_KEY_PEPPER = '';
+    const res = await runPublicSalesListHttp(env, 'Bearer kp_live_0123456789abcdef');
+    expect(res.status).toBe(503);
+    expect((res.body as { code: string }).code).toBe('PEPPER_UNAVAILABLE');
+  });
+
+  it('autorización sin prefijo Bearer → 401 UNAUTHENTICATED', async () => {
+    const res = await runPublicSalesListHttp(mockEnv(), 'Token abc');
+    expect(res.status).toBe(401);
+  });
+
+  it('token con prefijo desconocido → 401 sin consultar datos', async () => {
+    const res = await runPublicSalesListHttp(mockEnv(), 'Bearer invalid_token');
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('S23-H1 candidatos api_keys', () => {
+  it('la query de candidatos filtra status=active en SQL (no agota LIMIT con revocadas)', async () => {
+    const captured: string[] = [];
+    const env = mockEnv();
+    const dbAny = env.DB as unknown as { prepare: (s: string) => unknown };
+    const originalPrepare = dbAny.prepare.bind(dbAny);
+    dbAny.prepare = (sql: string) => {
+      captured.push(sql);
+      return originalPrepare(sql);
+    };
+    const res = await runPublicSalesListHttp(env, 'Bearer kp_live_0123456789abcdef');
+    const candidatesSql = captured.find((s) => s.includes('FROM api_keys') && s.includes('key_prefix'));
+    expect(candidatesSql).toBeTruthy();
+    expect(candidatesSql).toMatch(/status\s*=\s*'active'/);
+    expect(res.status).toBe(401); // mock sin hash válido → fail-closed
+  });
+});
+
+describe('S23-H2 audit de exports contables', () => {
+  it('cada export escribe audit_events ACCOUNTING_EXPORT (append-only)', async () => {
+    const sqls: string[] = [];
+    const env = mockEnv();
+    const orig = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind((env as unknown as { DB: { prepare: (s: string) => unknown } }).DB);
+    (env.DB as unknown as { prepare: (s: string) => unknown }).prepare = (sql: string) => {
+      sqls.push(sql);
+      return orig(sql);
+    };
+    const res = await runAccountingExportHttp(env, 't1', {
+      fromDate: '2026-08-01',
+      toDate: '2026-08-31',
+      branchId: 'b1',
+      target: 'contasis',
+    }, 'u-owner');
+    expect(res.status).toBe(200);
+    const auditSql = sqls.find((s) => s.includes('INSERT INTO audit_events'));
+    expect(auditSql).toBeTruthy();
+    const bound: unknown[][] = [];
+    const orig2 = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind((env as unknown as { DB: { prepare: (s: string) => unknown } }).DB);
+    const captureStmt = (sql: string) => {
+      const stmt = orig2(sql);
+      const stmtAny = stmt as unknown as {
+        bind: (...args: unknown[]) => { run: () => Promise<unknown> };
+      };
+      const boundStmt = stmtAny.bind.bind(stmtAny);
+      (stmtAny as unknown as { bind: (...a: unknown[]) => unknown }).bind = (...a: unknown[]) => {
+        bound.push(a);
+        return boundStmt(...a);
+      };
+      return stmt;
+    };
+    (env.DB as unknown as { prepare: (s: string) => unknown }).prepare = captureStmt;
+    await runAccountingExportHttp(env, 't1', {
+      fromDate: '2026-08-01',
+      toDate: '2026-08-31',
+      branchId: 'b1',
+      target: 'contasis',
+    }, 'u-owner');
+    const auditBinds = bound.find((b) => b.includes('ACCOUNTING_EXPORT'));
+    expect(auditBinds).toBeTruthy();
+    expect(auditBinds?.[3]).toBe('u-owner');
   });
 });

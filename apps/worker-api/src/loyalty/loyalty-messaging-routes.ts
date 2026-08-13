@@ -23,6 +23,12 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
+/** S24-H2: la acreditación de puntos es una operación de negocio — solo
+ * admin/owner (nunca un cajero acredita puntos a voluntad). */
+function isAdminRole(role: string | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 function mapErr(e: unknown): HttpResult {
   const msg = e instanceof Error ? e.message : String(e);
   return { status: 422, body: { error: msg, code: msg } };
@@ -32,8 +38,12 @@ export async function runLoyaltyReserveHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: Record<string, unknown>,
+  userRole?: string,
 ): Promise<HttpResult> {
   if (!isLoyaltyPointsEnabled(env)) return featureOff('FEATURE_LOYALTY_POINTS');
+  if (!userRole || !isAdminRole(userRole)) {
+    return { status: 403, body: { error: 'admin role required', code: 'FORBIDDEN_ADMIN' } };
+  }
   if (!env?.DB) return dbUnavailable();
   const plan = await assertCadenaPlusPlan(env, tenantId);
   if (plan) return plan;

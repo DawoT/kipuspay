@@ -77,10 +77,27 @@ function randomToken(bytes = 24): string {
   return [...buf].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function previousAuditHash(db: NonNullable<WorkerEnv['DB']>, tenantId: string): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT row_hash FROM audit_events
+       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+    )
+    .bind(tenantId)
+    .first<{ row_hash: string }>();
+  return row?.row_hash ?? null;
+}
+
 export async function runAccountingExportHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: Record<string, unknown>,
+  actorUserId?: string,
 ): Promise<HttpResult> {
   if (!isAccountingExportEnabled(env)) return featureOff('FEATURE_ACCOUNTING_EXPORT');
   if (!env?.DB) return dbUnavailable();
@@ -106,6 +123,39 @@ export async function runAccountingExportHttp(
       { fromJournal },
     );
     const formatted = formatAccountingExport(target, entries);
+
+    // S23-H2: audit append-only de cada export (quién/cuándo/qué rango).
+    if (actorUserId) {
+      const payload = {
+        fromDate,
+        toDate,
+        branchId,
+        target,
+        entriesCount: entries.length,
+      };
+      const rowHash = await sha256Hex(JSON.stringify(payload));
+      const prevHash = await previousAuditHash(env.DB, tenantId);
+      await env.DB.prepare(
+        `INSERT INTO audit_events (
+           id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+           payload_json, prev_hash, row_hash
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          crypto.randomUUID(),
+          tenantId,
+          branchId,
+          actorUserId,
+          'ACCOUNTING_EXPORT',
+          'accounting',
+          `${target}:${fromDate}_${toDate}`,
+          JSON.stringify(payload),
+          prevHash,
+          rowHash,
+        )
+        .run();
+    }
+
     return {
       status: 200,
       body: formatted.body,
@@ -351,9 +401,13 @@ async function resolveApiKeyTenant(
   }
 
   // Hot-path revoke via KV (immediate).
+  // S23-H1: excluir revocadas en SQL ANTES del LIMIT 20 — si las revocadas
+  // llenan los primeros 20 candidatos de un prefijo compartido, la key activa
+  // jamás se alcanza en el loop y el cliente recibe 401 falso.
   const candidates = await env
     .DB!.prepare(
-      `SELECT id, tenant_id, key_prefix, key_hash, status FROM api_keys WHERE key_prefix = ? LIMIT 20`,
+      `SELECT id, tenant_id, key_prefix, key_hash, status FROM api_keys
+       WHERE key_prefix = ? AND status = 'active' LIMIT 20`,
     )
     .bind(prefix)
     .all<{ id: string; tenant_id: string; key_prefix: string; key_hash: string; status: string }>();

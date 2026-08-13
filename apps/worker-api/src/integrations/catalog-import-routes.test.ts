@@ -120,7 +120,7 @@ describe('runCatalogImportHttp', () => {
       source: 'csv',
       mode: 'preview',
       rows: [],
-    });
+    }, 'admin');
     expect(result.status).toBe(404);
     expect(result.body.code).toBe('FEATURE_OFF');
   });
@@ -130,7 +130,7 @@ describe('runCatalogImportHttp', () => {
       source: 'siigo',
       mode: 'preview',
       rows: [],
-    });
+    }, 'admin');
     expect(result.status).toBe(400);
   });
 
@@ -139,7 +139,7 @@ describe('runCatalogImportHttp', () => {
       source: 'csv',
       mode: 'preview',
       rows: [productRow],
-    });
+    }, 'admin');
     expect(result.status).toBe(200);
     expect(result.body.dryRun).toBe(true);
     expect(result.body.created).toBe(1);
@@ -151,7 +151,7 @@ describe('runCatalogImportHttp', () => {
       source: 'csv',
       mode: 'commit',
       rows: [{ ...productRow, taxName: 'IMPUESTO-RARO' }],
-    });
+    }, 'admin');
     expect(result.status).toBe(422);
     expect(result.body.code).toBe('IMPORT_CONFLICTS');
   });
@@ -161,9 +161,67 @@ describe('runCatalogImportHttp', () => {
       source: 'csv',
       mode: 'commit',
       rows: [productRow],
-    });
+    }, 'admin');
     expect(result.status).toBe(200);
     expect(result.body.dryRun).toBe(false);
     expect(result.body.importedCount).toBe(1);
+  });
+});
+
+describe('límite de lote (S21-H1)', () => {
+  it('rechaza lote > MAX_IMPORT_ROWS con 400 antes de tocar el importer', async () => {
+    const env = mockEnv();
+    const body = {
+      source: 'csv',
+      mode: 'preview',
+      rows: Array.from({ length: 5001 }, () => ({ entityType: 'product', externalId: 'x' })),
+    };
+    const res = await runCatalogImportHttp(env, 't1', body, 'admin');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('BAD_REQUEST');
+  });
+
+  it('lote en el límite llega al importer (sin 400)', async () => {
+    const env = mockEnv();
+    const body = {
+      source: 'csv',
+      mode: 'preview',
+      rows: Array.from({ length: 5000 }, () => ({
+        entityType: 'product',
+        externalId: 'x',
+        sku: 'S',
+        name: 'N',
+        priceCents: 100,
+        costCents: 50,
+        barcode: null,
+        unitCode: 'NIU',
+        taxName: null,
+        igvAffectationCode: '10',
+      })),
+    };
+    const res = await runCatalogImportHttp(env, 't1', body, 'admin');
+    expect(res.status).not.toBe(400);
+  });
+});
+
+describe('S21-H2 guard de rol del import', () => {
+  it('sin rol → 403 FORBIDDEN_ADMIN', async () => {
+    const res = await runCatalogImportHttp(mockEnv(), 't1', {
+      source: 'csv',
+      mode: 'preview',
+      rows: [],
+    });
+    expect(res.status).toBe(403);
+    expect((res.body as { code: string }).code).toBe('FORBIDDEN_ADMIN');
+  });
+
+  it('rol cashier → 403 FORBIDDEN_ADMIN', async () => {
+    const res = await runCatalogImportHttp(mockEnv(), 't1', { source: 'csv', mode: 'preview', rows: [] }, 'cashier');
+    expect(res.status).toBe(403);
+  });
+
+  it('rol admin → pasa al importer (no 403)', async () => {
+    const res = await runCatalogImportHttp(mockEnv(), 't1', { source: 'csv', mode: 'preview', rows: [] }, 'admin');
+    expect(res.status).not.toBe(403);
   });
 });
