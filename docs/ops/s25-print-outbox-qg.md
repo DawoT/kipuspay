@@ -26,6 +26,13 @@ owner: "@DawoT"
 | `scripts/verify.sh` | SUITE GREEN |
 | `scripts/quality.sh` | Quality Gate OK |
 
+## Auditoría FASE 8 — hallazgos cerrados (Ledger 0377)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S25-H1 | **Sin cap de payload de compilación**: snapshot con miles de items podía saturar el worker de offload (DoS local); `MAX_PRINT_ITEMS=200` + `assertPrintPayloadSize` conectado en `compileEscPosFromSnapshot` (fallback sync incluido) | `print-templates print-outbox.test.ts` 6/6 + `pos-web print` 22/22 (RED→GREEN) |
+| S25-H1 | **Verificado (sin cambio)**: outbox idempotente por `printJobKey(saleId)` con transiciones validadas y quota guardian; `OFFLOAD_TIMEOUT` 5s + fallback sync; V-24 bundle baseline GREEN | `print-templates` 35/35 |
+
 ## RACI
 
 | Rol | Quién | Firma |

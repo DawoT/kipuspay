@@ -27,6 +27,14 @@ owner: "@DawoT"
 | `scripts/verify.sh` | SUITE GREEN |
 | `scripts/quality.sh` | Quality Gate OK |
 
+## Auditoría FASE 7 — hallazgos cerrados (Ledger 0374/0375)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S24-H1 | **Phone E.164 laxo**: `startsWith('+') && length >= 10` aceptaba `+5199999999a` (letras); ahora patrón estricto E.164 (signo `+` seguido de 8–15 dígitos, sin letras ni símbolos) | `messaging.test.ts` 10/10 (RED→GREEN) |
+| S24-H1 | **URL https laxa**: `startsWith('https://')` aceptaba `http://…` y `javascript:alert(1)`; ahora URL absoluta https con host real (`new URL` + protocol + hostname con `.`) | `messaging.test.ts` 10/10 (RED→GREEN) |
+| S24-H2 | **Acreditación de puntos abierta**: `/api/loyalty/reserve` invocable por cualquier rol; ahora admin/owner only → `403 FORBIDDEN_ADMIN` (un cajero no acredita puntos a voluntad) | `loyalty-messaging-routes.test.ts` 20/20 (RED→GREEN) |
+
 ## RACI
 
 | Rol | Quién | Firma |

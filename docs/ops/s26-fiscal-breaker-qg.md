@@ -24,6 +24,13 @@ owner: "@DawoT"
 | `scripts/verify.sh` | SUITE GREEN |
 | `scripts/quality.sh` | Quality Gate OK |
 
+## Auditoría FASE 8 — hallazgos cerrados (Ledger 0377/0379)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S26-H1 | **Caída total de SUNAT sin cobertura**: solo breaker parcial existía; nuevo chaos de `drainFiscalOutbox` — transporte rechazando 100% → 0 XML marcados `SENT` (fail-closed), todo queda retryable, y post-recovery el MISMO XML se reenvía y se acepta (0 pérdida) | `fiscal-drain.test.ts` 5/5 (RED→GREEN) |
+| S26-H1 | **Verificado (sin cambio)**: CDR como única confirmación (`cdrVerdict`), breaker stale→fail-closed, half-open con probe, poison→quarantine, claim atómico B4; el enqueue de `fiscal_outbox` vive dentro del batch atómico de la venta (la venta nunca se cae por fiscal, invariante 7/8) | `worker-fiscal` 19/19 |
+
 ## RACI
 
 | Rol | Quién | Firma |

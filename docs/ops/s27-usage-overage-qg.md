@@ -26,6 +26,14 @@ owner: "@DawoT"
 | `scripts/verify.sh` | SUITE GREEN |
 | `scripts/quality.sh` | Quality Gate OK |
 
+## Auditoría FASE 8 — hallazgos cerrados (Ledger 0377/0378)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S27-H1 | **Concurrencia loyalty sin evidencia D1 real**: nuevo integration test — 2 reservas paralelas con saldo justo → a lo más 1 gana (guard atómico SQL), saldo jamás negativo, reservas ≤ balance siempre; idempotencia no duplica | `reserve-loyalty-atomic.integration.test.ts` 2/2 en D1 real (RED→GREEN) |
+| S27-H2 | **Cron de cobro Stripe sin guard**: `POST /api/billing/cron/meter-overage` COBRA sobregiros y cualquier usuario autenticado lo disparaba; ahora admin/owner only → `403 FORBIDDEN_ADMIN`, rol desde el JWT | `meter-overage-routes.test.ts` 5/5 (RED→GREEN) |
+| S27-H1 | **Verificado (sin cambio)**: idempotencia doble-cron por `stripe_idempotency_key` (UNIQUE violation → skipped, no doble cobro); cupo en mismo `db.batch` de la venta; 0 Stripe en hot path | `meter-overage-cron.test.ts` 7/7 |
+
 ## RACI
 
 | Rol | Quién | Firma |

@@ -26,6 +26,14 @@ owner: "@DawoT"
 | `scripts/verify.sh` | SUITE GREEN |
 | `scripts/quality.sh` | Quality Gate OK |
 
+## Auditoría FASE 7 — hallazgos cerrados (Ledger 0374/0375)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S23-H1 | **Candidatos api_keys sin filtro en SQL**: `LIMIT 20` sobre un prefijo compartido — keys revocadas llenaban los 20 primeros y la activa recibía `401` falso; ahora `WHERE status = 'active'` ANTES del LIMIT | `integration-routes.test.ts` 15/15 (RED→GREEN) |
+| S23-H1 | **Fail-closed pepper**: sin `API_KEY_PEPPER` (o vacío) → `503 PEPPER_UNAVAILABLE`, nunca pepper de desarrollo (ya existía, verificado con test explícito) | `integration-routes.test.ts` 15/15 |
+| S23-H2 | **Exports contables sin auditoría**: ahora cada export escribe `audit_events` `ACCOUNTING_EXPORT` append-only (actor, rango, branch, target, conteo) con cadena `prev_hash`/`row_hash`, actor propagado desde el JWT | `integration-routes.test.ts` 27/27 (RED→GREEN) |
+
 ## RACI
 
 | Rol | Quién | Firma |

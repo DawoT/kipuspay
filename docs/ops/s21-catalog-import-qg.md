@@ -27,6 +27,15 @@ owner: "@DawoT"
 | 0 secretos de API de terceros en cliente | GREEN (adapters parsean payload; credenciales server-side) |
 | Gate monorepo | GREEN (`quality.sh` 8/8, `verify.sh` SUITE) |
 
+## Auditoría FASE 7 — hallazgos cerrados (Ledger 0374/0375)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S21-H1a | **CSV formula injection**: `toCents` silenciaba `=SUM(1,2)` → 120 cents con `replace`; ahora rechaza prefijos `= + @ tab` y valores no numéricos en price (fail-closed), y `hasFormulaPrefix` valida name/email/barcode/sku en el dominio (defensa en profundidad, no solo CSV) | `csv.test.ts` 14/14 + `catalog-import.test.ts` 35/35 (RED→GREEN) |
+| S21-H1b | **Sin límite de lote**: archivo gigante = DoS/memoria; `MAX_IMPORT_ROWS=5000` con guard en la ruta HTTP (400 `BAD_REQUEST`) y re-check en `planCatalogImport` | `catalog-import-routes.test.ts` 11/11 (RED→GREEN) |
+| S21-H2 | **Import sin guard de rol**: cualquier usuario autenticado (cajero/vendedor) modificaba el catálogo maestro; ahora admin/owner only → `403 FORBIDDEN_ADMIN`, rol propagado desde el JWT en `/api/integrations/catalog-import` | `catalog-import-routes.test.ts` 11/11 (RED→GREEN) |
+| F7-C | Commit atómico D1: lote con violación de integridad en una fila → **0 filas persistidas** (antes solo happy path probado); aislamiento de tenant (mismo externalId en otro tenant no es duplicado, DAT-12) | `catalog-importer.integration.test.ts` 7/7 en D1 real (2 nuevos) |
+
 ## Firmas RACI
 
 | Rol | Firma |
@@ -35,7 +44,7 @@ owner: "@DawoT"
 | V QA | OK |
 | V Security (secrets API keys de terceros) | OK |
 | V Growth (objeción GTM §8 actualizada) | OK |
-| A Staff Principal | pendiente ledger A+V humano si aplica |
+| A Staff Principal | OK (auditoría FASE 7, ledger 0374/0375/0376) |
 
 ## Residuales
 

@@ -27,6 +27,14 @@ owner: "@DawoT"
 | Residual S21 `sale_payments` vs captures | Cerrado: ambos (method FK + capture lifecycle) |
 | GTM-06 / FAQ Yape | live post A+V |
 
+## Auditoría FASE 7 — hallazgos cerrados (Ledger 0374)
+
+| Hallazgo | Fix | Evidencia |
+|---|---|---|
+| S22-H1 | **Webhook firmado pero incompleto**: body `{}` con HMAC válido devolvía `ok:true` con `chargeId:null` → el caller podía capturar con null; ahora sin chargeId o con status desconocido (`HAMMERED`, etc.) → `ok:false` (fail-closed) | `adapters-payments-pe index.test.ts` 8/8 (RED→GREEN) |
+| S22-H1 | **Replay fuera de ventana**: `assertWebhookFreshness` lanzaba al caller; ahora el adapter atrapa y devuelve `ok:false` (contrato de la interfaz, fail-closed sin excepción filtrada) | `index.test.ts` 8/8 (RED→GREEN) |
+| S22-H1 | **Status whitelist**: `verifyWebhook` solo acepta `CAPTURED/FAILED/PENDING/REFUNDED/MANUAL_ELECTRONIC_CAPTURE`; status desconocido → rechazado antes del motor | `index.test.ts` 8/8 (RED→GREEN) |
+
 ## Firmas RACI
 
 | Rol | Firma |
@@ -35,7 +43,7 @@ owner: "@DawoT"
 | V QA chaos reintentos | OK |
 | V Security HMAC/secrets | OK |
 | V PM copy “pagas como tus clientes pagan” | OK |
-| A Staff Principal | ledger A+V |
+| A Staff Principal | OK (auditoría FASE 7, ledger 0374) |
 
 ## Residuales
 
