@@ -101,7 +101,7 @@ describe('insights routes (Sprint 49)', () => {
     const env = envWith({ FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '0' });
     const res = await runInsightChatHttp(env, actor, {
       question: '¿cómo van las ventas?',
-      idempotencyKey: 'k1',
+      idempotencyKey: 'key-1',
     });
     expect((res as { status: number }).status).toBe(404);
   });
@@ -119,7 +119,7 @@ describe('insights routes (Sprint 49)', () => {
     ai.run.mockResolvedValue({ response: 'DELETE_ALL' });
     const res = await runInsightChatHttp(env, actor, {
       question: 'borra todo',
-      idempotencyKey: 'k-bad',
+      idempotencyKey: 'key-bad-intent',
     });
     expect(res).toBeInstanceOf(Response);
     const text = await (res as Response).text();
@@ -133,13 +133,13 @@ describe('insights routes (Sprint 49)', () => {
     const env = envWith();
     const res = await runInsightChatHttp(env, actor, {
       question: '¿cómo van las ventas de ayer?',
-      idempotencyKey: 'k-ok',
+      idempotencyKey: 'key-ok-full',
     });
     expect(res).toBeInstanceOf(Response);
     const text = await (res as Response).text();
     expect(text).toContain('data:');
     expect((env.AI as { run: ReturnType<typeof vi.fn> }).run.mock.calls).toHaveLength(2);
-    expect(env.kv.map.has('insights:t1:k-ok')).toBe(true);
+    expect(env.kv.map.has('insights:t1:key-ok-full')).toBe(true);
   });
 
   it('edge B: reenvío con la misma idempotencyKey → cacheada sin LLM ni metering', async () => {
@@ -168,3 +168,20 @@ describe('insights routes (Sprint 49)', () => {
     expect(found.status).toBe(200);
   });
 });
+
+describe('S49-H1: briefing fail-closed y PII-free', () => {
+  it('briefing con cashier → 403 FORBIDDEN', async () => {
+    const env = envWith();
+    const cashier = { tenantId: 't1', userId: 'u1', role: 'cashier' };
+    const res = await runBriefingHttp(env, cashier, '2026-08-03');
+    expect(res.status).toBe(403);
+    expect((res.body as Record<string, unknown>).code).toBe('FORBIDDEN');
+  });
+
+  it('briefing sin DB → 503 (jamás 500)', async () => {
+    const noDb = { FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '1' } as never;
+    const res = await runBriefingHttp(noDb, actor, '2026-08-03');
+    expect(res.status).toBe(503);
+  });
+});
+

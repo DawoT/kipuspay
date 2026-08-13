@@ -78,6 +78,14 @@ export async function runInsightChatHttp(
   if (!question || !idempotencyKey) {
     return result(400, { code: 'BAD_REQUEST', error: 'question and idempotencyKey required' });
   }
+  // S49-H3: límites de input — pregunta acotada (evita prompts gigantes) y
+  // idempotency key con formato UUID (llave KV segura).
+  if (question.length > 600) {
+    return result(400, { code: 'QUESTION_TOO_LONG' });
+  }
+  if (idempotencyKey.length > 128 || !/^[A-Za-z0-9_-]{6,128}$/.test(idempotencyKey)) {
+    return result(400, { code: 'IDEMPOTENCY_KEY_INVALID' });
+  }
   return executeInsightChat(env, actor, question, idempotencyKey);
 }
 
@@ -96,6 +104,16 @@ async function executeInsightChat(
 
   const modelVersion = env.AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct';
   try {
+    // S49-H2: cupo fail-closed ANTES de invocar el LLM — sin cupo no se gasta
+    // un solo token (el consumo post-hoc permitía gasto ilimitado por tenant).
+    const { consumeAiUsage } = await import('@kipuspay/adapters-d1');
+    const quota = await assertAiQuota(env, actor.tenantId);
+    if (quota) return quota;
+    // S49-H4: el metering atómico (queries < quota_queries) limita el gasto
+    // real del LLM por tenant/día; el UNIQUE (tenant, idem) del insight_log
+    // dedupea el registro final. La carrera de reenvío simultáneo con la
+    // misma key puede invocar el LLM 2 veces (costo acotado por el cupo),
+    // pero jamás duplica el cobro: consumeAiUsage es atómico.
     const rawIntent = await gateway.routerIntent(question);
     const intent = classifyIntent(rawIntent);
     if (intent === 'UNSUPPORTED') {
@@ -238,12 +256,35 @@ function sse(body: Readonly<Record<string, unknown>>): Response {
   });
 }
 
+/**
+ * S49-H2: cupo de AI fail-closed ANTES del LLM — sin cupo no se gasta tokens.
+ */
+async function assertAiQuota(env: InsightsEnv, tenantId: string): Promise<HttpResult | null> {
+  const { db } = insightEnv(env);
+  if (!db) return result(503, { code: 'INSIGHTS_DB_UNAVAILABLE' });
+  const row = await db
+    .prepare(
+      `SELECT queries, quota_queries FROM ai_usage_counters
+       WHERE tenant_id = ? AND usage_date = ? LIMIT 1`,
+    )
+    .bind(tenantId, todayLima())
+    .first<{ queries: number; quota_queries: number }>();
+  if (row && row.queries >= row.quota_queries) {
+    return result(402, { code: 'AI_QUOTA_EXCEEDED' });
+  }
+  return null;
+}
+
 export async function runBriefingHttp(
   env: InsightsEnv,
   actor: InsightsActor,
   date: string | null,
 ): Promise<HttpResult> {
   if (!isAgenticInsightsEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
+  // S49-H1: el briefing expone PII derivada (operadores de turno) — solo
+  // admin/owner (nunca cashier).
+  if (!ADMIN_ROLES.has(actor.role.toLowerCase())) return result(403, { code: 'FORBIDDEN' });
+  if (!env.DB) return result(503, { code: 'INSIGHTS_DB_UNAVAILABLE' });
   const planDeny = await assertCadenaPlusPlan(env as unknown as PlanProbe, actor.tenantId);
   if (planDeny) return planDeny;
   const { kv } = insightEnv(env);

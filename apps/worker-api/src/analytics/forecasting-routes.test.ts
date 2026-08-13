@@ -54,6 +54,7 @@ describe('forecasting routes', () => {
       { FEATURE_ANALYTICS_FORECASTING: '1', DB: db } as unknown as WorkerEnv,
       't1',
       'b1',
+      'owner',
     );
     expect(result.status).toBe(200);
     const body = result.body as { items: unknown[]; disclaimer: string };
@@ -67,6 +68,7 @@ describe('forecasting routes', () => {
       { FEATURE_ANALYTICS_FORECASTING: '0', DB: buildDb([]) } as unknown as WorkerEnv,
       't1',
       'b1',
+      'owner',
     );
     expect(result.status).toBe(404);
     expect((result.body as { code: string }).code).toBe('FEATURE_OFF');
@@ -77,6 +79,7 @@ describe('forecasting routes', () => {
       { FEATURE_ANALYTICS_FORECASTING: '1' } as unknown as WorkerEnv,
       't1',
       'b1',
+      'owner',
     );
     expect(result.status).toBe(503);
   });
@@ -96,19 +99,20 @@ describe('forecasting routes', () => {
       { FEATURE_ANALYTICS_FORECASTING: '1', DB: denyDb } as unknown as WorkerEnv,
       't1',
       'b1',
+      'owner',
     );
     expect(result.status).toBe(403);
     expect((result.body as { code: string }).code).toBe('PLAN_REQUIRES_CADENA');
   });
 
   it('rejects missing branchId', async () => {
-    const result = await runListForecastsHttp(env({ DB: buildDb([]) }), 't1', '');
+    const result = await runListForecastsHttp(env({ DB: buildDb([]) }), 't1', '', 'owner');
     expect(result.status).toBe(400);
   });
 
   it('refresh writes candidates and reports counts', async () => {
     const db = buildDb([{ product_id: 'p1' }]);
-    const result = await runRefreshForecastHttp(env({ DB: db }), 't1', 'b1');
+    const result = await runRefreshForecastHttp(env({ DB: db }), 't1', 'b1', 'owner');
     expect(result.status).toBe(200);
     const body = result.body as { written: number; insufficient: number; disclaimer: string };
     // Con filas de rollup el forecast escribe (historial sintético no aplica aquí);
@@ -120,10 +124,13 @@ describe('forecasting routes', () => {
 
   it('alerts compute breakage suggestions for Cadena plan', async () => {
     const db = buildDb([{ product_id: 'p1', predicted_qty: 10, stock: 20 }]);
-    const result = await runStockAlertsHttp(env({ DB: db }), 't1', 'b1', {
-      leadTimeDays: '3',
-      safetyStockDays: '2',
-    });
+    const result = await runStockAlertsHttp(
+      env({ DB: db }),
+      't1',
+      'b1',
+      { leadTimeDays: '3', safetyStockDays: '2' },
+      'owner',
+    );
     expect(result.status).toBe(200);
     const body = result.body as { items: { status: string; daysCovered: number }[] };
     expect(body.items).toHaveLength(1);
@@ -136,7 +143,7 @@ describe('forecasting routes', () => {
     const result = await runStockAlertsHttp(env({ DB: buildDb([]) }), 't1', 'b1', {
       leadTimeDays: '-1',
       safetyStockDays: '2',
-    });
+    }, 'owner');
     expect(result.status).toBe(400);
   });
 
@@ -146,6 +153,7 @@ describe('forecasting routes', () => {
       't1',
       'b1',
       { leadTimeDays: '3', safetyStockDays: '2' },
+      'owner',
     );
     expect(result.status).toBe(404);
   });

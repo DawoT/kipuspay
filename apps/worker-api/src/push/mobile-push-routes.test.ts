@@ -5,6 +5,7 @@ import {
   getPushPrivacyPolicyHttp,
   grantPushConsentHttp,
   listPushDevicesHttp,
+  revokePushConsentHttp,
   revokePushDeviceHttp,
   rotatePushDeviceHttp,
   sendTestPushHttp,
@@ -461,3 +462,82 @@ describe('mobile push displayed acknowledgement', () => {
     });
   });
 });
+
+describe('S45-H1: push fail-closed sin DB', () => {
+  it('grant/subscribe/revoke/list/privacy sin DB → 503 (invariante 5)', async () => {
+    const noDb = {
+      FEATURE_MOBILE_PUSH: '1',
+      FEATURE_CLIENT_MOBILE_POS: '1',
+    } as unknown as WorkerEnv;
+    const grant = await grantPushConsentHttp(noDb, owner, {
+      purpose: 'OWNER_ALERTS',
+      policyVersion: 'v1',
+      privacyMode: 'REDACTED',
+    });
+    expect(grant.status).toBe(503);
+    const subscribe = await subscribePushDeviceHttp(noDb, owner, {
+      purpose: 'OWNER_ALERTS',
+      provider: 'WEB_PUSH',
+      encryptedRegistration: JSON.stringify({
+        endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/opaque',
+        keys: { p256dh: 'a'.repeat(87), auth: 'a'.repeat(22) },
+      }),
+      consentPolicyVersion: 'v1',
+    });
+    expect(subscribe.status).toBe(503);
+    const revoke = await revokePushConsentHttp(noDb, owner, {
+      purpose: 'OWNER_ALERTS',
+      consentId: 'consent-a',
+    });
+    expect(revoke.status).toBe(503);
+    const revokeDevice = await revokePushDeviceHttp(noDb, owner, {
+      subscriptionId: 'subscription-a',
+    });
+    expect(revokeDevice.status).toBe(503);
+    const list = await listPushDevicesHttp(noDb, owner);
+    expect(list.status).toBe(503);
+    const privacy = await updatePushPrivacyHttp(noDb, owner, {
+      purpose: 'OWNER_ALERTS',
+      consentId: 'consent-a',
+      privacyMode: 'REDACTED',
+    });
+    expect(privacy.status).toBe(503);
+  });
+});
+
+describe('S45-H3: re-grant de consentimiento idempotente', () => {
+  it('UNIQUE violado en el 2º grant → 200 (jamás 500)', async () => {
+    const run = vi
+      .fn()
+      .mockResolvedValueOnce({ success: true })
+      .mockRejectedValueOnce(new Error('UNIQUE constraint failed: push_consents'));
+    const env2 = {
+      FEATURE_MOBILE_PUSH: '1',
+      FEATURE_CLIENT_MOBILE_POS: '1',
+      DB: {
+        prepare: (sql: string) => ({
+          bind: () => ({
+            run,
+            first: () =>
+              Promise.resolve(
+                sql.includes('tenant_capabilities') ? { enabled: 1 } : null,
+              ),
+          }),
+        }),
+      },
+    } as unknown as WorkerEnv;
+    const first = await grantPushConsentHttp(env2, owner, {
+      purpose: 'OWNER_ALERTS',
+      policyVersion: 'v1',
+      privacyMode: 'REDACTED',
+    });
+    expect(first.status).toBe(201);
+    const regrant = await grantPushConsentHttp(env2, owner, {
+      purpose: 'OWNER_ALERTS',
+      policyVersion: 'v1',
+      privacyMode: 'REDACTED',
+    });
+    expect(regrant.status).toBe(200);
+  });
+});
+

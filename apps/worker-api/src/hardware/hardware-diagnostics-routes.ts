@@ -47,42 +47,44 @@ async function previousAuditHash(db: D1Database, tenantId: string): Promise<stri
   return row?.row_hash ?? null;
 }
 
-async function insertHardwareDiagAudit(
+async function buildHardwareDiagAuditStatement(
   db: D1Database,
   input: {
     tenantId: string;
     actorUserId: string;
     target: string;
     payload: Record<string, unknown>;
+    prevHash: string | null;
   },
-): Promise<void> {
-  const prev = await previousAuditHash(db, input.tenantId);
+): Promise<{ statement: { run(): Promise<unknown> }; rowHash: string }> {
   const id = crypto.randomUUID();
   const rowHash = await sha256Hex(
     JSON.stringify({
       action: 'HARDWARE_DIAG',
       entity_id: input.target,
-      prev_hash: prev,
+      prev_hash: input.prevHash,
       payload: input.payload,
     }),
   );
-  await db
-    .prepare(
-      `INSERT INTO audit_events (
+  return {
+    statement: db
+      .prepare(
+        `INSERT INTO audit_events (
            id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
            payload_json, prev_hash, row_hash
          ) VALUES (?, ?, NULL, ?, 'HARDWARE_DIAG', 'hardware', ?, ?, ?, ?)`,
-    )
-    .bind(
-      id,
-      input.tenantId,
-      input.actorUserId,
-      input.target,
-      JSON.stringify(input.payload),
-      prev,
-      rowHash,
-    )
-    .run();
+      )
+      .bind(
+        id,
+        input.tenantId,
+        input.actorUserId,
+        input.target,
+        JSON.stringify(input.payload),
+        input.prevHash,
+        rowHash,
+      ),
+    rowHash,
+  };
 }
 
 async function capabilityEnabled(env: HardwareDiagEnv, tenantId: string): Promise<boolean> {
@@ -139,14 +141,22 @@ export async function runReportHardwareDiagnosticsHttp(
     return { status: 400, body: { code: 'HARDWARE_DIAG_INVALID' } };
   }
   try {
+    // S53-H1: la cadena de audit se encadena EN MEMORIA y se persiste en UN
+    // solo batch (0 bifurcación bajo concurrencia, 0 parciales si falla).
+    let prevHash = await previousAuditHash(env.DB, actor.tenantId);
+    const statements: { run(): Promise<unknown> }[] = [];
     for (const report of reports) {
-      await insertHardwareDiagAudit(env.DB, {
+      const built = await buildHardwareDiagAuditStatement(env.DB, {
         tenantId: actor.tenantId,
         actorUserId: actor.userId,
         target: String(report.target),
         payload: report,
+        prevHash,
       });
+      statements.push(built.statement);
+      prevHash = built.rowHash;
     }
+    await env.DB.batch(statements as never);
     return { status: 202, body: { recorded: reports.length } };
   } catch {
     return { status: 500, body: { code: 'HARDWARE_DIAG_FAILED' } };

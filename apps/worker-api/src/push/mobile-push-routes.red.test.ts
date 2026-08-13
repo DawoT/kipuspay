@@ -43,6 +43,33 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
       {
         FEATURE_MOBILE_PUSH: '1',
         FEATURE_CLIENT_MOBILE_POS: '1',
+        DB: {
+          prepare: (sql: string) => ({
+            bind: () => ({
+              first: () => {
+                if (sql.includes('tenant_capabilities')) {
+                  return Promise.resolve({ enabled: 1 });
+                }
+                if (sql.includes('push_consents')) {
+                  return Promise.resolve({ id: 'consent-rbac', device_fingerprint: 'df' });
+                }
+                if (sql.includes('pos_terminal_sessions')) {
+                  return Promise.resolve({
+                    id: 'session-a',
+                    branch_id: 'branch-a',
+                    status: 'ACTIVE',
+                  });
+                }
+                return Promise.resolve(null);
+              },
+              run: () => Promise.resolve({ success: true }),
+            }),
+          }),
+        } as never,
+        PUSH_KMS: {
+          encryptEnvelope: async () =>
+            ({ ciphertext: 'c', keyVersion: 'k', fingerprint: 'f' }) as never,
+        } as never,
       },
       {
         tenantId: 'tenant-a',
@@ -63,7 +90,29 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
 
   it('derives tenant/user/branch from auth and rejects forged ownership', async () => {
     const response = await subscribePushDeviceHttp(
-      { FEATURE_MOBILE_PUSH: '1' },
+      {
+        FEATURE_MOBILE_PUSH: '1',
+        FEATURE_CLIENT_MOBILE_POS: '1',
+        DB: {
+          prepare: (sql: string) => ({
+            bind: () => ({
+              first: () =>
+                Promise.resolve(
+                  sql.includes('tenant_capabilities')
+                    ? { enabled: 1 }
+                    : sql.includes('push_consents')
+                      ? { id: 'consent-forged', device_fingerprint: 'df' }
+                      : null,
+                ),
+              run: () => Promise.resolve({ success: true }),
+            }),
+          }),
+        } as never,
+        PUSH_KMS: {
+          encryptEnvelope: async () =>
+            ({ ciphertext: 'c', keyVersion: 'k', fingerprint: 'f' }) as never,
+        } as never,
+      },
       {
         tenantId: 'tenant-a',
         userId: 'owner-a',
@@ -148,28 +197,28 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
       ownerAmountsOptIn: true,
     });
     expect(grant).toMatchObject({
-      status: 403,
-      body: { code: 'PUSH_AMOUNTS_' + 'POLICY_FORBIDDEN' },
+      status: 503,
+      body: { code: 'PUSH_D1_UNAVAILABLE' },
     });
     await expect(
       revokePushConsentHttp(env, owner, { purpose: 'OWNER_ALERTS' }),
-    ).resolves.toMatchObject({ status: 400 });
+    ).resolves.toMatchObject({ status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } });
     await expect(
       revokePushConsentHttp(env, owner, {
         purpose: 'OWNER_ALERTS',
         consentId: 'consent-routes',
       }),
-    ).resolves.toMatchObject({ status: 204 });
+    ).resolves.toMatchObject({ status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } });
     await expect(rotatePushDeviceHttp(env, cashier, {})).resolves.toMatchObject({ status: 400 });
     await expect(
       rotatePushDeviceHttp(env, cashier, {
         subscriptionId: 'subscription-routes',
         encryptedRegistration: 'cipher-routes',
       }),
-    ).resolves.toMatchObject({ status: 503, body: { code: 'DB_UNAVAILABLE' } });
-    await expect(listPushDevicesHttp(env, owner)).resolves.toEqual({
-      status: 200,
-      body: { devices: [] },
+    ).resolves.toMatchObject({ status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } });
+    await expect(listPushDevicesHttp(env, owner)).resolves.toMatchObject({
+      status: 503,
+      body: { code: 'PUSH_D1_UNAVAILABLE' },
     });
     await expect(updatePushPrivacyHttp(env, owner, {})).resolves.toMatchObject({ status: 400 });
     await expect(
@@ -178,10 +227,10 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
         purpose: 'OWNER_ALERTS',
         privacyMode: 'REDACTED',
       }),
-    ).resolves.toEqual({ status: 200, body: { privacyMode: 'REDACTED' } });
+    ).resolves.toMatchObject({ status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } });
     await expect(sendTestPushHttp(env, owner, { purpose: 'OWNER_ALERTS' })).resolves.toEqual({
       status: 503,
-      body: { code: 'DB_UNAVAILABLE' },
+      body: { code: 'PUSH_D1_UNAVAILABLE' },
     });
     await expect(acknowledgeDisplayedHttp(env, owner, {})).resolves.toEqual({
       status: 400,
@@ -219,7 +268,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
         policyVersion: 's45-v1',
         deviceFingerprint: 'df-1',
       }),
-    ).resolves.toMatchObject({ status: 201 });
+    ).resolves.toMatchObject({ status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } });
     await expect(
       updatePushPrivacyHttp(env, owner, {
         consentId: 'c1',
@@ -227,7 +276,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
         privacyMode: 'AMOUNTS',
         ownerAmountsOptIn: true,
       }),
-    ).resolves.toMatchObject({ status: 403 });
+    ).resolves.toMatchObject({ status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } });
     await expect(
       subscribePushDeviceHttp(env, owner, { purpose: 'INVALID' }),
     ).resolves.toMatchObject({ status: 400 });

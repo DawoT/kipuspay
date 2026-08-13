@@ -183,6 +183,7 @@ async function materializeDeliveries(env: WorkerEnv, tenantId: string, now: stri
        WHERE e.tenant_id = ? AND e.status IN ('PENDING','DISPATCHING')
          AND e.expires_at > ? AND s.status = 'ACTIVE'
          AND c.revoked_at IS NULL AND c.purpose = e.target_scope
+         AND e.created_at >= c.granted_at
          AND (
            (e.target_scope = 'OWNER_ALERTS' AND u.role IN ('owner','admin')) OR
            (s.user_id = e.target_user_id AND s.branch_id = e.target_branch_id)

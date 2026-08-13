@@ -154,11 +154,12 @@ async function authorize(
     return { result: forbidden() };
   }
   if (!env.DB) {
-    // Pure helper tests intentionally run without bindings.
+    // S45-H1: fail-closed (invariante 5) — jamás 201/204/200 sin persistir.
+    // Solo el helper test 'revoked-session' conserva su semántica.
     if (actor.terminalSessionId === 'revoked-session') {
       return { result: unavailable('REVOCATION_UNAVAILABLE') };
     }
-    return {};
+    return { result: unavailable('PUSH_D1_UNAVAILABLE') };
   }
   try {
     if (!(await tenantCapabilityEnabled(env, actor.tenantId, 'mobile.push'))) {
@@ -350,6 +351,11 @@ export async function grantPushConsentHttp(
   const deviceFingerprint = resolveDeviceFingerprint(requestedPurpose, authorization, actor);
   if (!policyVersion || !deviceFingerprint) return badRequest();
   const setting = await privacySetting(env, actor.tenantId);
+  // S45-H5: la versión de política del consentimiento DEBE ser la vigente
+  // del tenant (jamás una versión vieja/arbitraria del cliente).
+  if (setting?.policy_version && setting.policy_version !== policyVersion) {
+    return badRequest('PUSH_POLICY_VERSION_MISMATCH');
+  }
   const requestedAmounts = text(body, 'privacyMode') === 'AMOUNTS';
   const ownerOptIn = body.ownerAmountsOptIn === true;
   if (requestedAmounts && (!setting || setting.amounts_enabled !== 1 || !ownerOptIn)) {
@@ -362,7 +368,10 @@ export async function grantPushConsentHttp(
     ownerAmountsOptIn: ownerOptIn,
     role: role(actor),
   });
-  if (env.DB) {
+  if (!env.DB) {
+    return { status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } };
+  }
+  try {
     await env.DB.prepare(
       `INSERT INTO push_consents (
          id, tenant_id, user_id, purpose, policy_version, privacy_mode,
@@ -384,6 +393,13 @@ export async function grantPushConsentHttp(
         actor.userId,
       )
       .run();
+  } catch (cause) {
+    // S45-H3: re-grant del mismo (tenant,user,purpose,fingerprint,version) es
+    // idempotente — UNIQUE violado → 200 con el estado vigente (jamás 500).
+    if (cause instanceof Error && /UNIQUE|constraint/i.test(cause.message)) {
+      return { status: 200, body: { id, purpose: requestedPurpose, privacyMode } };
+    }
+    throw cause;
   }
   return { status: 201, body: { id, purpose: requestedPurpose, privacyMode } };
 }
@@ -399,7 +415,7 @@ export async function revokePushConsentHttp(
   if (authorization.result) return authorization.result;
   const consentId = text(body, 'consentId');
   if (!consentId) return badRequest();
-  if (!env.DB) return { status: 204, body: {} };
+  if (!env.DB) return { status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } };
   await revokePushConsentAtomic(env.DB, {
     tenantId: actor.tenantId,
     userId: actor.userId,
@@ -416,8 +432,6 @@ export async function subscribePushDeviceHttp(
 ): Promise<PushHttpResult> {
   const requestedPurpose = purpose(body);
   if (!requestedPurpose) return badRequest('PUSH_PURPOSE_INVALID');
-  const authorization = await authorize(env, actor, requestedPurpose);
-  if (authorization.result) return authorization.result;
   const provider = text(body, 'provider');
   const registration = text(body, 'encryptedRegistration');
   const policyVersion = text(body, 'consentPolicyVersion');
@@ -427,9 +441,14 @@ export async function subscribePushDeviceHttp(
   } catch (cause) {
     return badRequest(cause instanceof Error ? cause.message : 'PUSH_REGISTRATION_INVALID');
   }
+  const authorization = await authorize(env, actor, requestedPurpose);
+  if (authorization.result) return authorization.result;
 
   const subscriptionId = crypto.randomUUID();
-  if (env.DB) {
+  if (!env.DB) {
+    return { status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } };
+  }
+  {
     const failure = await persistPushSubscription({
       env: { ...env, DB: env.DB },
       actor,
@@ -550,7 +569,10 @@ export async function revokePushDeviceHttp(
   if (authorization.result) return authorization.result;
   const subscriptionId = text(body, 'subscriptionId');
   if (!subscriptionId) return badRequest();
-  if (env.DB) {
+  if (!env.DB) {
+    return { status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } };
+  }
+  {
     const now = new Date().toISOString();
     const terminalClause = requestedPurpose === 'OPERATIONAL_MOBILE' ? ' AND terminal_id = ?' : '';
     const params: unknown[] = [now, now, actor.tenantId, subscriptionId, actor.userId];
@@ -574,7 +596,9 @@ export async function listPushDevicesHttp(
     : 'OPERATIONAL_MOBILE';
   const authorization = await authorize(env, actor, requestedPurpose);
   if (authorization.result) return authorization.result;
-  if (!env.DB) return { status: 200, body: { devices: [] } };
+  if (!env.DB) {
+    return { status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } };
+  }
   const rows = await env.DB.prepare(
     `SELECT id, provider, status, branch_id, terminal_id, device_fingerprint,
             last_verified_at, created_at
@@ -609,7 +633,10 @@ export async function updatePushPrivacyHttp(
     ownerAmountsOptIn: ownerOptIn,
     role: role(actor),
   });
-  if (env.DB) {
+  if (!env.DB) {
+    return { status: 503, body: { code: 'PUSH_D1_UNAVAILABLE' } };
+  }
+  {
     await env.DB.prepare(
       `UPDATE push_consents
        SET privacy_mode = ?, tenant_amounts_policy_enabled = ?, owner_amounts_opt_in = ?

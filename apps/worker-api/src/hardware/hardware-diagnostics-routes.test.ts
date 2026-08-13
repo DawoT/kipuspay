@@ -18,6 +18,7 @@ function fakeEnv(overrides: Partial<Record<string, unknown>> = {}) {
         run: vi.fn(() => Promise.resolve({ success: true })),
       })),
     })),
+    batch: vi.fn(() => Promise.resolve([{ success: true }])),
     rows,
   };
   return {

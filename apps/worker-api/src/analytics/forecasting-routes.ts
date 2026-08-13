@@ -25,6 +25,10 @@ function badRequest(reason: string): HttpResult {
   return { status: 400, body: { error: reason, code: 'BAD_REQUEST' } };
 }
 
+function forbiddenRole(): HttpResult {
+  return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+}
+
 export interface ForecastRow {
   readonly product_id: string;
   readonly forecast_date: string;
@@ -65,9 +69,12 @@ export async function runListForecastsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   branchId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isAnalyticsForecastingEnabled(env)) return featureOff('FEATURE_ANALYTICS_FORECASTING');
   if (!env?.DB) return dbUnavailable();
+  // S46-H1: la analítica predictiva es Modo Dueño — nunca cashier.
+  if (role !== 'owner' && role !== 'admin') return forbiddenRole();
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
   if (!branchId) return badRequest('branchId required');
@@ -104,9 +111,12 @@ export async function runRefreshForecastHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   branchId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isAnalyticsForecastingEnabled(env)) return featureOff('FEATURE_ANALYTICS_FORECASTING');
   if (!env?.DB) return dbUnavailable();
+  // S46-H1: el refresh ESCRIBE forecast_outputs (mutación) — solo admin/owner.
+  if (role !== 'owner' && role !== 'admin') return forbiddenRole();
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
   if (!branchId) return badRequest('branchId required');
@@ -143,16 +153,27 @@ export async function runStockAlertsHttp(
   tenantId: string,
   branchId: string,
   query: Record<string, string | undefined>,
+  role = '',
 ): Promise<HttpResult> {
   if (!isAnalyticsForecastingEnabled(env)) return featureOff('FEATURE_ANALYTICS_FORECASTING');
+  if (role !== 'owner' && role !== 'admin') return forbiddenRole();
   if (!env?.DB) return dbUnavailable();
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
   const lead = Number(query.leadTimeDays ?? '');
   const safety = Number(query.safetyStockDays ?? '');
-  if (!branchId || !Number.isFinite(lead) || !Number.isFinite(safety) || lead < 0 || safety < 0) {
-    return badRequest('branchId, leadTimeDays y safetyStockDays requeridos (>= 0)');
+  if (
+    !branchId ||
+    !Number.isFinite(lead) ||
+    !Number.isFinite(safety) ||
+    lead < 0 ||
+    safety < 0 ||
+    lead > 365 ||
+    safety > 365
+  ) {
+    // S46-H1: umbrales acotados (≤ 365 días) — el reorder qty no se infla.
+    return badRequest('branchId, leadTimeDays y safetyStockDays requeridos (0..365)');
   }
 
   const rows = await env.DB.prepare(
