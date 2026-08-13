@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildShiftTransfer,
   generatePin,
@@ -186,12 +186,11 @@ describe('buildShiftTransfer', () => {
 
 describe('hashPin sin Web Crypto (fail-closed)', () => {
   it('lanza CRYPTO_SUBTLE_UNAVAILABLE si no hay subtle', async () => {
-    const original = globalThis.crypto;
-    (globalThis as { crypto?: unknown }).crypto = undefined;
+    vi.stubGlobal('crypto', undefined);
     try {
       await expect(hashPin('123456')).rejects.toThrow('CRYPTO_SUBTLE_UNAVAILABLE');
     } finally {
-      (globalThis as { crypto?: unknown }).crypto = original;
+      vi.unstubAllGlobals();
     }
   });
 });
