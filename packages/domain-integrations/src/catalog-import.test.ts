@@ -9,6 +9,7 @@ import {
   type NormalizedCustomerRow,
   type NormalizedProductRow,
   type NormalizedSeriesRow,
+  MAX_IMPORT_ROWS,
 } from './catalog-import.js';
 
 function productRow(overrides: Partial<NormalizedProductRow> = {}): NormalizedProductRow {
@@ -250,5 +251,102 @@ describe('summarizeImportPlan', () => {
       existingExternalKeys: new Map([[externalKeyFor('product', 'p-2'), 'prod-10']]),
     });
     expect(summarizeImportPlan(plan)).toEqual({ importedCount: 2, skippedCount: 1 });
+  });
+});
+
+describe('límite de lote (S21-H1)', () => {
+  it('planCatalogImport rechaza lote que excede MAX_IMPORT_ROWS sin crear acciones', () => {
+    const rows = Array.from({ length: MAX_IMPORT_ROWS + 1 }, (_, i) => ({
+      entityType: 'product' as const,
+      externalId: `p${i}`,
+      sku: `SKU-${i}`,
+      barcode: null,
+      name: `P${i}`,
+      unitCode: 'NIU',
+      priceCents: 100,
+      costCents: 50,
+      taxName: null,
+      igvAffectationCode: '10',
+    }));
+    const plan = planCatalogImport({ source: 'csv', tenantId: 't', rows });
+    expect(plan.actions).toHaveLength(0);
+    expect(plan.conflicts[0]?.reason).toMatch(/excede el límite/);
+  });
+
+  it('acepta lote exactamente en el límite', () => {
+    const rows = Array.from({ length: MAX_IMPORT_ROWS }, (_, i) => ({
+      entityType: 'product' as const,
+      externalId: `p${i}`,
+      sku: `SKU-${i}`,
+      barcode: null,
+      name: `P${i}`,
+      unitCode: 'NIU',
+      priceCents: 100,
+      costCents: 50,
+      taxName: null,
+      igvAffectationCode: '10',
+    }));
+    const plan = planCatalogImport({ source: 'csv', tenantId: 't', rows });
+    expect(plan.conflicts).toHaveLength(0);
+  });
+});
+
+describe('fórmula en filas JSON (S21-H1, defensa en profundidad)', () => {
+  it('validateCatalogRow rechaza name con prefijo de fórmula', () => {
+    const row: NormalizedProductRow = {
+      entityType: 'product',
+      externalId: 'p1',
+      sku: 'SKU-1',
+      barcode: null,
+      name: '=HYPERLINK("http://evil","Click")',
+      unitCode: 'NIU',
+      priceCents: 1000,
+      costCents: 500,
+      taxName: null,
+      igvAffectationCode: '10',
+    };
+    expect(validateCatalogRow(row)).toMatch(/fórmula/);
+  });
+
+  it('validateCatalogRow rechaza barcode con prefijo +', () => {
+    const row: NormalizedProductRow = {
+      entityType: 'product',
+      externalId: 'p1',
+      sku: 'SKU-1',
+      barcode: '+1234',
+      name: 'OK',
+      unitCode: 'NIU',
+      priceCents: 1000,
+      costCents: 500,
+      taxName: null,
+      igvAffectationCode: '10',
+    };
+    expect(validateCatalogRow(row)).toMatch(/fórmula/);
+  });
+
+  it('validateCatalogRow rechaza email de cliente con prefijo @ (correo no puede empezar @)', () => {
+    const row: NormalizedCustomerRow = {
+      entityType: 'customer',
+      externalId: 'c1',
+      documentTypeCode: '6',
+      documentNumber: '20100047218',
+      name: 'Cliente',
+      email: '@cmd|calc',
+      creditLimitCents: 0,
+    };
+    expect(validateCatalogRow(row)).toMatch(/fórmula/);
+  });
+
+  it('acepta correo legítimo con arroba interno', () => {
+    const row: NormalizedCustomerRow = {
+      entityType: 'customer',
+      externalId: 'c1',
+      documentTypeCode: '6',
+      documentNumber: '20100047218',
+      name: 'Cliente',
+      email: 'ana.otero@gmail.com',
+      creditLimitCents: 0,
+    };
+    expect(validateCatalogRow(row)).toBeNull();
   });
 });

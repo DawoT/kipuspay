@@ -79,6 +79,11 @@ export type TaxMapping =
     }
   | { readonly kind: 'unknown'; readonly externalTaxName: string };
 
+/** Tope de filas por lote de import (S21-H1): protege memoria/CPU del worker
+ * ante archivos gigantes o maliciosos. El cliente lo valida en preview; el
+ * dominio lo vuelve a aplicar en plan (defensa en profundidad). */
+export const MAX_IMPORT_ROWS = 5000;
+
 export function externalKeyFor(entityType: CatalogEntityType, externalId: string): string {
   return `${entityType}:${externalId}`;
 }
@@ -99,9 +104,24 @@ export function mapExternalTax(externalTaxName: string | null | undefined): TaxM
   return { kind: 'unknown', externalTaxName };
 }
 
+/** Prefijos que Excel interpreta como fórmula (CSV formula injection). */
+const FORMULA_PREFIX = /^[=+@\t\r]/;
+
+export function hasFormulaPrefix(value: string | null | undefined): boolean {
+  return typeof value === 'string' && FORMULA_PREFIX.test(value.trimStart());
+}
+
+function formulaReason(field: string, value: string | null | undefined): string | null {
+  return hasFormulaPrefix(value) ? `campo ${field} con prefijo de fórmula` : null;
+}
+
 function validateProduct(row: NormalizedProductRow): string | null {
   if (row.sku.trim() === '') return 'producto requiere sku';
   if (row.name.trim() === '') return 'producto requiere nombre';
+  const formula = formulaReason('sku', row.sku)
+    ?? formulaReason('name', row.name)
+    ?? formulaReason('barcode', row.barcode);
+  if (formula) return formula;
   if (row.barcode?.trim().startsWith('EMP-')) {
     return 'barcode EMP- está reservado para badges de vendedor (regla 34/36)';
   }
@@ -115,6 +135,10 @@ function validateProduct(row: NormalizedProductRow): string | null {
 function validateCustomer(row: NormalizedCustomerRow): string | null {
   if (row.documentTypeCode === '') return 'cliente requiere tipo de documento';
   if (row.documentNumber.trim() === '') return 'cliente requiere número de documento';
+  const formula = formulaReason('name', row.name)
+    ?? formulaReason('email', row.email)
+    ?? formulaReason('doc_number', row.documentNumber);
+  if (formula) return formula;
   if (!(row.creditLimitCents >= 0)) return 'límite de crédito no puede ser negativo';
   return null;
 }
@@ -161,6 +185,14 @@ export function planCatalogImport(input: CatalogImportInput): CatalogImportPlan 
   const conflicts: CatalogImportConflict[] = [];
   const seen = new Set<string>();
   const existingKeys = input.existingExternalKeys ?? new Map<string, string>();
+
+  if (input.rows.length > MAX_IMPORT_ROWS) {
+    conflicts.push({
+      row: input.rows[0]!,
+      reason: `lote excede el límite de ${MAX_IMPORT_ROWS} filas`,
+    });
+    return { source: input.source, tenantId: input.tenantId, actions, conflicts };
+  }
 
   for (const row of input.rows) {
     const validationError = validateCatalogRow(row);

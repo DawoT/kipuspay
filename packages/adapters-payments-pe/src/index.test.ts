@@ -73,16 +73,15 @@ describe('sandbox acquirer PE', () => {
     expect(ok.ok).toBe(true);
     expect(ok.chargeId).toBe('ch2');
 
-    await expect(
-      acq.verifyWebhook({
-        acquirer: 'plin',
-        rawBody,
-        signatureHeader: sig,
-        timestampSec: ts - 400,
-        nowSec: ts,
-        secret,
-      }),
-    ).rejects.toThrow('WEBHOOK_REPLAY_WINDOW');
+    const replay = await acq.verifyWebhook({
+      acquirer: 'plin',
+      rawBody,
+      signatureHeader: sig,
+      timestampSec: ts - 400,
+      nowSec: ts,
+      secret,
+    });
+    expect(replay.ok).toBe(false); // fail-closed, no lanza al caller
   });
 
   it('helpers + getStatus + bad signature', async () => {
@@ -123,5 +122,83 @@ describe('sandbox acquirer PE', () => {
       true,
     );
     expect(externalToken({ amountCents: 1, approved: true, externalReference: null })).toBe('');
+  });
+});
+
+describe('S22-H1 webhook fail-closed', () => {
+  const acquirer = new SandboxPaymentAcquirer('yape');
+  const secret = 'test-secret';
+
+  async function sign(payload: string, ts: number): Promise<string> {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+    const buf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${ts}.${payload}`));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  it('rechaza webhook firmado sin chargeId (body {}) — nunca captura con null', async () => {
+    const ts = Math.floor(Date.now() / 1000);
+    const raw = '{}';
+    const sig = await sign(raw, ts);
+    const result = await acquirer.verifyWebhook({
+      acquirer: 'yape',
+      timestampSec: ts,
+      nowSec: ts,
+      rawBody: raw,
+      signatureHeader: sig,
+      secret,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rechaza webhook firmado con status desconocido (fail-closed)', async () => {
+    const ts = Math.floor(Date.now() / 1000);
+    const raw = JSON.stringify({ chargeId: 'ch-1', status: 'HAMMERED' });
+    const sig = await sign(raw, ts);
+    const result = await acquirer.verifyWebhook({
+      acquirer: 'yape',
+      timestampSec: ts,
+      nowSec: ts,
+      rawBody: raw,
+      signatureHeader: sig,
+      secret,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('acepta webhook firmado válido (chargeId + status CAPTURED)', async () => {
+    const ts = Math.floor(Date.now() / 1000);
+    const raw = JSON.stringify({ chargeId: 'ch-2', status: 'CAPTURED', reference: 'ref-2' });
+    const sig = await sign(raw, ts);
+    const result = await acquirer.verifyWebhook({
+      acquirer: 'yape',
+      timestampSec: ts,
+      nowSec: ts,
+      rawBody: raw,
+      signatureHeader: sig,
+      secret,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.chargeId).toBe('ch-2');
+  });
+
+  it('timestamp futuro (> 300s) es replay: rechaza aun con firma válida', async () => {
+    const ts = Math.floor(Date.now() / 1000) + 400;
+    const raw = JSON.stringify({ chargeId: 'ch-3', status: 'CAPTURED' });
+    const sig = await sign(raw, ts);
+    const result = await acquirer.verifyWebhook({
+      acquirer: 'yape',
+      timestampSec: ts,
+      nowSec: Math.floor(Date.now() / 1000),
+      rawBody: raw,
+      signatureHeader: sig,
+      secret,
+    });
+    expect(result.ok).toBe(false);
   });
 });

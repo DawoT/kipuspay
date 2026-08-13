@@ -65,3 +65,51 @@ describe('messaging', () => {
     );
   });
 });
+
+describe('S24-H1 validación E.164', () => {
+  const base = {
+    tenantId: 't1',
+    customerId: 'c1',
+    saleId: 's1',
+    documentKind: 'CPE' as const,
+    optedIn: true,
+    phoneE164: '+51999999999',
+    representationUrl: 'https://tickets.kipuspay.com/CPE/1',
+  };
+
+  it('rechaza phoneE164 con letras (+5199999999a)', () => {
+    expect(() =>
+      assertSendableReceipt({ ...base, phoneE164: '+5199999999a' }),
+    ).toThrow('WHATSAPP_PHONE_INVALID');
+  });
+
+  it('rechaza phoneE164 con dígitos pero sin +', () => {
+    expect(() => assertSendableReceipt({ ...base, phoneE164: '51999999999' })).toThrow(
+      'WHATSAPP_PHONE_INVALID',
+    );
+  });
+
+  it('rechaza phoneE164 demasiado corto (menos de 10 dígitos)', () => {
+    expect(() => assertSendableReceipt({ ...base, phoneE164: '+12345' })).toThrow(
+      'WHATSAPP_PHONE_INVALID',
+    );
+  });
+
+  it('rechaza representationUrl http:// (solo https)', () => {
+    expect(() =>
+      assertSendableReceipt({ ...base, representationUrl: 'http://tickets.kipuspay.com/x' }),
+    ).toThrow('WHATSAPP_URL_NOT_HTTPS');
+  });
+
+  it('rechaza representationUrl no-URL (javascript: o texto plano)', () => {
+    expect(() =>
+      assertSendableReceipt({ ...base, representationUrl: 'javascript:alert(1)' }),
+    ).toThrow('WHATSAPP_URL_NOT_HTTPS');
+  });
+
+  it('acepta E.164 válido peruano', () => {
+    expect(() =>
+      assertSendableReceipt({ ...base, phoneE164: '+51999999999' }),
+    ).not.toThrow();
+  });
+});

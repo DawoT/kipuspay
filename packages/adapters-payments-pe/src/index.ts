@@ -95,24 +95,41 @@ export class SandboxPaymentAcquirer implements PaymentAcquirerPort {
   }
 
   async verifyWebhook(input: PaymentWebhookVerifyInput): Promise<PaymentWebhookVerifyResult> {
-    assertWebhookFreshness(input.timestampSec, input.nowSec);
+    const denied: PaymentWebhookVerifyResult = {
+      ok: false,
+      chargeId: null,
+      status: null,
+      reference: null,
+    };
+    try {
+      assertWebhookFreshness(input.timestampSec, input.nowSec);
+    } catch {
+      return denied; // replay o ts inválido → fail-closed
+    }
     if (!input.secret) {
-      return { ok: false, chargeId: null, status: null, reference: null };
+      return denied;
     }
     const expected = await hmacSha256Hex(input.secret, `${input.timestampSec}.${input.rawBody}`);
     if (!bytesEqualConstantTime(expected, input.signatureHeader)) {
       return { ok: false, chargeId: null, status: null, reference: null };
     }
-    let body: { chargeId?: string; status?: CaptureStatus; reference?: string };
+    let body: { chargeId?: string; status?: unknown; reference?: string };
     try {
       body = JSON.parse(input.rawBody) as typeof body;
     } catch {
-      return { ok: false, chargeId: null, status: null, reference: null };
+      return denied;
+    }
+    const status = body.status;
+    if (!body.chargeId || !body.status) {
+      return denied; // webhook firmado pero incompleto → nunca captura con null
+    }
+    if (status !== 'CAPTURED' && status !== 'FAILED' && status !== 'PENDING' && status !== 'REFUNDED' && status !== 'MANUAL_ELECTRONIC_CAPTURE') {
+      return denied; // status desconocido → fail-closed
     }
     return {
       ok: true,
-      chargeId: body.chargeId ?? null,
-      status: body.status ?? null,
+      chargeId: body.chargeId,
+      status,
       reference: body.reference ?? null,
     };
   }

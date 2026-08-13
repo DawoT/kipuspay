@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets */
 import { describe, expect, it } from 'vitest';
 import type { NormalizedProductRow } from '@kipuspay/domain-integrations';
 import { parseEnrichedCsv, tokenizeCsv } from './csv.js';
@@ -89,5 +90,53 @@ describe('parseEnrichedCsv', () => {
 
   it('devuelve vacío para entrada sin registros', () => {
     expect(parseEnrichedCsv('')).toEqual({ rows: [], errors: [] });
+  });
+});
+
+describe('seguridad CSV (S21-H1)', () => {
+  it('rechaza fórmula en precio (CSV formula injection): =SUM(1,2) nunca se vuelve 120 cents', () => {
+    const csv = 'entity_type,external_id,sku,name,price\nproduct,p1,SKU-1,Café,"=SUM(1,2)"';
+    const result = parseEnrichedCsv(csv);
+    expect(result.rows).toHaveLength(0);
+    expect(result.errors[0]?.reason).toMatch(/precio inválido/);
+  });
+
+  it('rechaza valor numérico con letras/operadores incrustados (no los silencia con replace)', () => {
+    const csv = 'entity_type,external_id,sku,name,price\nproduct,p1,SKU-1,Café,"12.50; DROP"';
+    const result = parseEnrichedCsv(csv);
+    expect(result.rows).toHaveLength(0);
+    expect(result.errors[0]?.reason).toMatch(/precio inválido/);
+  });
+
+  it('rechaza fórmula en campos de texto (name/email/barcode) que luego irían a Excel', () => {
+    const csv = [
+      'entity_type,external_id,sku,name,price,email',
+      'product,p1,SKU-1,=HYPERLINK("http://evil","Click"),12.50,',
+      'customer,c1,,,,"=cmd|calc|evil"',
+    ].join('\n');
+    const result = parseEnrichedCsv(csv);
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0]?.reason).toMatch(/fórmula/);
+    expect(result.errors[1]?.reason).toMatch(/fórmula/);
+  });
+
+  it('rechaza prefijos de fórmula clásicos en barcode (+, @, tab)', () => {
+    const csv = [
+      'entity_type,external_id,sku,name,price,barcode',
+      'product,p1,SKU-1,Café,12.50,+1234',
+    ].join('\n');
+    const result = parseEnrichedCsv(csv);
+    expect(result.rows).toHaveLength(0);
+    expect(result.errors[0]?.reason).toMatch(/fórmula/);
+  });
+
+  it('acepta datos legítimos con guion y arroba internos (correos, sku con -)', () => {
+    const csv = [
+      'entity_type,external_id,doc_number,name,email',
+      'customer,c1,20100047218,Ana@SAC,"ana.otero@gmail.com"',
+    ].join('\n');
+    const result = parseEnrichedCsv(csv);
+    expect(result.rows).toHaveLength(1);
+    expect(result.errors).toHaveLength(0);
   });
 });

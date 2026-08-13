@@ -69,8 +69,23 @@ export function tokenizeCsv(input: string): string[][] {
   return records.filter((r) => r.some((c) => c.trim() !== ''));
 }
 
+const FORMULA_PREFIX = /^[=+@\t\r]/;
+
+/** CSV formula injection (S21-H1): el valor empieza con un prefijo que Excel
+ * interpretaría como fórmula. Nunca se persiste tal cual a DB. */
+export function hasFormulaPrefix(value: string | null | undefined): boolean {
+  return typeof value === 'string' && FORMULA_PREFIX.test(value.trimStart());
+}
+
 function toCents(value: string): Cents | null {
-  let trimmed = value.trim().replace(/[^0-9.,-]/g, '');
+  let trimmed = value.trim();
+  // Antes de sanitizar: si quedan letras u operadores NO numéricos tras quitar
+  // separadores válidos, el valor es sospechoso (p.ej. `=SUM(1,2)`, `12.50; DROP`).
+  // Nunca silenciar con replace — rechazar (fail-closed).
+  if (FORMULA_PREFIX.test(trimmed)) return null;
+  const onlyNumericShape = trimmed.replace(/[0-9.,-]/g, '');
+  if (onlyNumericShape !== '') return null;
+  trimmed = trimmed.replace(/[^0-9.,-]/g, '');
   if (trimmed === '' || trimmed === '-') return null;
 
   const lastComma = trimmed.lastIndexOf(',');
@@ -109,9 +124,21 @@ function rowFromRecord(header: string[], record: string[]): Map<string, string> 
   return row;
 }
 
+function formulaInTextRow(row: Map<string, string>, fields: readonly string[]): string | null {
+  for (const field of fields) {
+    const value = row.get(field);
+    if (hasFormulaPrefix(value)) {
+      return `campo ${field} con prefijo de fórmula: ${value?.trim().slice(0, 40)}`;
+    }
+  }
+  return null;
+}
+
 function parseProductRow(row: Map<string, string>): CatalogImportRow | string {
   const externalId = row.get('external_id') ?? '';
   const sku = row.get('sku') ?? '';
+  const formula = formulaInTextRow(row, ['external_id', 'sku', 'name', 'barcode']);
+  if (formula) return formula;
   if (!externalId) return 'producto requiere external_id';
   if (!sku) return 'producto requiere sku';
   const priceCents = toCents(row.get('price') ?? '');
@@ -134,6 +161,8 @@ function parseProductRow(row: Map<string, string>): CatalogImportRow | string {
 function parseCustomerRow(row: Map<string, string>): CatalogImportRow | string {
   const externalId = row.get('external_id') ?? '';
   const docNumber = row.get('doc_number') ?? '';
+  const formula = formulaInTextRow(row, ['external_id', 'doc_number', 'name', 'email']);
+  if (formula) return formula;
   if (!externalId) return 'cliente requiere external_id';
   if (!docNumber) return 'cliente requiere doc_number';
   const creditLimitCents = toCents(row.get('credit_limit') ?? '0') ?? 0;

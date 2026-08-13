@@ -20,7 +20,9 @@ export type {
   TaxMapping,
 } from './catalog-import.js';
 export {
+  MAX_IMPORT_ROWS,
   externalKeyFor,
+  hasFormulaPrefix,
   mapExternalTax,
   planCatalogImport,
   summarizeImportPlan,

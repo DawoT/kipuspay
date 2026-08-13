@@ -59,22 +59,36 @@ export function receiptLegend(kind: ReceiptDocumentKind): string {
   return 'Comprobante electrónico — verifique en SUNAT / portal CPE';
 }
 
+/** S24-H1: E.164 estricto — `+` seguido de 8–15 dígitos, sin letras ni símbolos. */
+const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
+
+/** S24-H1: URL absoluta https con host — rechaza http://, javascript:, texto plano. */
+function isHttpsAbsoluteUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === 'https:' && parsed.hostname !== '' && parsed.hostname.includes('.');
+}
+
 export function assertSendableReceipt(request: MessagingSendReceiptRequest): void {
   assertWhatsAppOptIn(request.optedIn);
-  if (!request.phoneE164.startsWith('+') || request.phoneE164.length < 10) {
+  if (!E164_PATTERN.test(request.phoneE164)) {
     throw new Error('WHATSAPP_PHONE_INVALID');
   }
-  if (!request.representationUrl.startsWith('https://')) {
+  if (!isHttpsAbsoluteUrl(request.representationUrl)) {
     throw new Error('WHATSAPP_URL_NOT_HTTPS');
   }
 }
 
 export function assertSendableQuote(request: MessagingSendQuoteRequest): void {
   assertWhatsAppOptIn(request.optedIn);
-  if (!request.phoneE164.startsWith('+') || request.phoneE164.length < 10) {
+  if (!E164_PATTERN.test(request.phoneE164)) {
     throw new Error('WHATSAPP_PHONE_INVALID');
   }
-  if (!request.representationUrl.startsWith('https://')) {
+  if (!isHttpsAbsoluteUrl(request.representationUrl)) {
     throw new Error('WHATSAPP_URL_NOT_HTTPS');
   }
 }
