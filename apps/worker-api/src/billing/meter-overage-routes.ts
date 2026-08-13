@@ -10,12 +10,21 @@ export function isBillingUsageOverageEnabled(env: WorkerEnv | undefined): boolea
   );
 }
 
+/** S27-H2: el cron cobra sobregiros en Stripe — solo admin/owner. */
+function isAdminRole(role: string | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 export async function runMeterOverageCronHttp(
   env: WorkerEnv,
   opts?: { nowMs?: number },
+  userRole?: string,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!isBillingUsageOverageEnabled(env)) {
     return { status: 404, body: { error: 'FEATURE_OFF', code: 'FEATURE_OFF' } };
+  }
+  if (!userRole || !isAdminRole(userRole)) {
+    return { status: 403, body: { error: 'admin role required', code: 'FORBIDDEN_ADMIN' } };
   }
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
