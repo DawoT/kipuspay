@@ -55,6 +55,10 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 31: variantes/UOM exactas (ADR-0015). */
   readonly FEATURE_CATALOG_VARIANTS?: string;
   readonly FEATURE_CATALOG_UOM?: string;
+  /** Sprint C1: catálogo vendible para la terminal del POS. */
+  readonly FEATURE_CATALOG_SELLABLE?: string;
+  /** Sprint C2: login local del POS con PIN de cajero (ADR-0034). */
+  readonly FEATURE_AUTH_CASHIER_LOGIN?: string;
   /** Sprint 32: apartados + diario (ADR-0016). */
   readonly FEATURE_SALES_LAYAWAY?: string;
   readonly FEATURE_LEDGER_CHART_OF_ACCOUNTS?: string;

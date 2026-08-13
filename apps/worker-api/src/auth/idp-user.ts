@@ -67,9 +67,10 @@ export async function loadUserFromD1(
   const userRecord = await db
     .prepare(
       `SELECT id, role, permissions, branch_id FROM users
-       WHERE external_auth_id = ? AND tenant_id = ? AND is_active = 1 AND deleted_at IS NULL`,
+       WHERE (external_auth_id = ? OR id = ?) AND tenant_id = ?
+         AND is_active = 1 AND deleted_at IS NULL`,
     )
-    .bind(externalAuthId, tenantId)
+    .bind(externalAuthId, externalAuthId, tenantId)
     .first<UserRow>();
 
   if (!userRecord) {

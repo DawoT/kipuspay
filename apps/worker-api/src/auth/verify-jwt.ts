@@ -219,6 +219,15 @@ export async function signHs256ForTests(
   claims: Record<string, unknown>,
   header: Record<string, unknown> = { alg: 'HS256', typ: 'JWT' },
 ): Promise<string> {
+  return signHs256(secret, claims, header);
+}
+
+/** Mint de producción: JWT HS256 con claims y tiempo, firmado con WebCrypto (ADR-0034). */
+export async function signHs256(
+  secret: string,
+  claims: Record<string, unknown>,
+  header: Record<string, unknown> = { alg: 'HS256', typ: 'JWT' },
+): Promise<string> {
   const enc = (obj: Record<string, unknown>) =>
     bytesToB64url(textEncoder.encode(JSON.stringify(obj)));
   const headerB64 = enc(header);
