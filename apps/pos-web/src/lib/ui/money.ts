@@ -1,5 +1,7 @@
 import { formatCents } from '../cents.js';
 
+import { formatCents } from '$lib/cents';
+
 function isDigitsOnly(value: string): boolean {
   if (value.length === 0) return false;
   for (const ch of value) {
@@ -22,6 +24,14 @@ export function parseSolesToCents(input: string): number | null {
   if (fraction === undefined) return Number(whole);
   if (!isDigitsOnly(fraction) || fraction.length > 2) return null;
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+
+  // G2 (auditoría staff): tope de 9 dígitos enteros — 999.999.999.99 soles
+  // excede los 2^31-1 cents seguros; parse manual sin float intermedio.
+  if (whole.length > 9) return null;
+  if (fraction === undefined) return parseInt(whole, 10);
+  if (!isDigitsOnly(fraction) || fraction.length > 2) return null;
+  const fractionCents = parseInt(fraction.padEnd(2, '0'), 10);
+  return parseInt(whole, 10) * 100 + fractionCents;
 }
 
 export function formatMoney(cents: number): string {

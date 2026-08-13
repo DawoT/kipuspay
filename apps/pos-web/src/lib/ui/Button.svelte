@@ -7,6 +7,8 @@
     busy = false,
     icon,
     href,
+
+    type = 'button',
     disabled = false,
     class: className = '',
     children,
@@ -17,6 +19,8 @@
     busy?: boolean;
     icon?: IconName;
     href?: string;
+
+    type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
     class?: string;
     children?: import('svelte').Snippet;
@@ -40,6 +44,8 @@
 {:else}
   <button
     type="button"
+
+    {type}
     class={buttonClass}
     disabled={busy || disabled}
     aria-busy={busy || undefined}

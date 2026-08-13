@@ -50,3 +50,18 @@ describe('formatMoney', () => {
     expect(formatMoney(123456)).toBe('S/ 1234.56');
   });
 });
+
+
+describe('G2 auditoría — parse de soles nunca pierde precisión', () => {
+  it('rechaza monto con más de 9 dígitos enteros (overflow seguro)', () => {
+    expect(parseSolesToCents('9999999999.99')).toBeNull(); // 10 dígitos > 2^31-1 cents
+  });
+
+  it('parsea el máximo seguro sin error', () => {
+    expect(parseSolesToCents('99999999.99')).not.toBeNull();
+  });
+
+  it('0.5 → 50 cents exactos sin float', () => {
+    expect(parseSolesToCents('0.5')).toBe(50);
+  });
+});
