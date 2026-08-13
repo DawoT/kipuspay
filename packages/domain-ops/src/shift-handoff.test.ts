@@ -183,3 +183,15 @@ describe('buildShiftTransfer', () => {
     expect(result.command.cashDiffCents).toBe(0);
   });
 });
+
+describe('hashPin sin Web Crypto (fail-closed)', () => {
+  it('lanza CRYPTO_SUBTLE_UNAVAILABLE si no hay subtle', async () => {
+    const original = globalThis.crypto;
+    (globalThis as { crypto?: unknown }).crypto = undefined;
+    try {
+      await expect(hashPin('123456')).rejects.toThrow('CRYPTO_SUBTLE_UNAVAILABLE');
+    } finally {
+      (globalThis as { crypto?: unknown }).crypto = original;
+    }
+  });
+});
