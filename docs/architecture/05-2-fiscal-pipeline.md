@@ -12,6 +12,7 @@ section: "5.2"
 |---|---|---|---|
 | Factura `01` + NC/ND de factura | XML unitario firmado | Fecha emisión o hasta **3 días calendario** contados desde el día siguiente | `issued_date_lima + 3 días` fin de día Lima *(corrección off-by-one: `+1+3` daba día+4)* |
 | Boleta `03` + NC/ND de boleta | **Resumen Diario (RC)** — no se exige XML unitario de boleta al OSE como factura | Día de emisión o hasta **7 días calendario** siguientes | `issued_date_lima + 7 días` fin de día Lima |
+| Nota de Débito `08` (P1a, ADR-FISCAL-003) | ND de factura `01` → **XML unitario** (mismo plazo de la factura); ND de boleta `03` → **línea del RC** (mismo plazo de la boleta); **no toca stock** | Según el documento que ajusta | Igual que el documento origen |
 | `NV` / `NV_RETURN` | No se envía | N/A | NULL |
 
 **Jobs:**

@@ -307,6 +307,7 @@ Abre solo los archivos que esta tabla te señale.
 | FIS-10 | §6 | Reglas de negocio del motor | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | FIS-11 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | FIS-12 | §6 | Reglas de negocio del motor | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
+| FIS-13 | §5.1/§5.2 (P1a) | ND `08`: motivos catálogo 10, guard ACCEPTED, sin stock, append-only (ADR-FISCAL-003) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | COM-01 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | COM-02 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | COM-03 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
@@ -357,6 +358,7 @@ Abre solo los archivos que esta tabla te señale.
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` | [`docs/architecture/05-ddl-conventions.md`](docs/architecture/05-ddl-conventions.md) |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker | [`docs/architecture/08-credit-notes-dlq.md`](docs/architecture/08-credit-notes-dlq.md) |
+| ADR-FISCAL-003 | §5.1/§5.2 | Nota de Débito `08` completa (Backlog v10 P1a) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | LPDP-01 | §5.3 (6F) | Consentimiento explícito por propósito (`consent_records`) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-02 | §5.3 (6F) | Derecho de acceso/export de PII del cliente | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-03 | §5.3 (6F) | Derecho de borrado/anonimización (`pii_erased`); retención fiscal SUNAT | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |

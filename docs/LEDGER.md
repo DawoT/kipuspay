@@ -7084,3 +7084,101 @@ aprobaciones: [Staff Growth R, Staff Principal A, Staff Data V, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0337
+timestamp_utc: 2026-08-12T23:10:00Z
+schema_version: 2
+sprint_fase: FASE 5 (Sprints 14, 15) — Bloque A — auditoría staff
+agente_responsable: Staff QA/Chaos (owner) / Staff Principal (A) / Staff Security + Staff Design (V)
+tipo: Corrección de especificación
+subtipo: auditoría FASE 5 (S14-H1, S14-H2, S15-H1, S15-H3, S15-H4)
+relacion: corrige
+referencias_entradas: [0336, 0335]
+referencias_documentales: [docs/roadmap/fase-5.md, scripts/chaos/run.mjs, packages/chaos-harness/src/storage-device-network.test.ts, .github/workflows/security.yml, apps/pos-web/tests/e2e/a11y-critical-screens.spec.ts, apps/pos-web/src/routes/owner/+layout.svelte, apps/marketing-web/src/lib/brand/brand-cross-surface.test.ts, apps/pos-web/src/app.css, docs/ops/launch-communication-sprint15.md]
+prev_id: 0336
+prev_hash: 166e95bef7c3a6759f44dcacc05becdd45bc8058a6507ddd8f422f64acb03464
+entry_hash: 0b75f629c2192a6828a655aa95ba61cf47a2d87d690ff893bbec6da7ca4ba31f
+ticket_or_adr: Roadmap FASE 5; ADR-0011 (scope shard chaos S14)
+test_ids: [V-13, V-15, V-16, V-26, SUITE, storage-device-network.test.ts, a11y-critical-screens.spec.ts, brand-cross-surface.test.ts]
+entregable_afectado: FASE 5 — chaos runner fail-closed, deps audit CI, WCAG Dueño/Vitrina/Caja, tokens de marca, comunicación de lanzamiento
+descripcion: >
+  Auditoría FASE 5 Bloque A. S14-H1: scripts/chaos/run.mjs ignoraba --scenario
+  y corría la suite completa siempre (verde vacuo por escenario) — ahora filtra
+  por escenario (vitest -t) y valida el nombre contra el catálogo §13.5
+  (fail-closed: escenario desconocido → RED); tests nuevos para los jueces de
+  storage/device/red (quota-exceeded, low-end-device, network-adversarial) con
+  evidencia conectada. S14-H2: el escaneo de dependencias (pnpm audit high)
+  solo corría local — añadido a CI (.github/workflows/security.yml, CAL-05;
+  0 high hoy). S15-H1: WCAG 2.1 AA — solo 2 pantallas con axe; nuevos specs
+  axe para Modo Dueño (Hoy/Finanzas), Vitrina y Caja (cuotas/devoluciones)
+  con targets táctiles ≥44px; fix real: los tabs de navegación del Dueño
+  median 36px (<44px) — corregidos a min-height 44px. S15-H3: sin test de
+  auditoría cruzada de marca — nuevo brand-cross-surface.test.ts que fija el
+  mapa de tokens de identidad (tinta #14161c, sello #0f6b4c, alerta #b5461d,
+  ámbar #d99a3d) y verifica presencia en ambas superficies; el dark del POS
+  usaba variantes bright para texto (AA) y canónicos en gradiente/light —
+  verificado y documentado. S15-H4: la comunicación de lanzamiento no existía
+  — creado docs/ops/launch-communication-sprint15.md (mensaje principal,
+  audiencias/canales, prohibiciones GTM §1, cronograma, checklist).
+evidencia: >
+  RED: run.mjs daba PASS a escenarios inexistentes; deps audit fuera de CI;
+  Dueño/Vitrina/Caja sin axe; tabs Dueño 36px; sin test de marca; sin
+  comunicación de lanzamiento. GREEN: chaos runner fail-closed (escenario
+  desconocido → RED), storage-device-network 4/4, pnpm audit 0 high en CI,
+  a11y-critical-screens 5/5 (incl. fix 44px), a11y-checkout + mobile-pwa 3/3,
+  brand-cross-surface 4/4 (marketing-web 32/32), E2E pos-web 47/47,
+  pnpm test:unit 46/46, test:integration 39/39, typecheck 27/27, verify.sh
+  SUITE GREEN. Los SHAs red/green se registran en el commit que aterriza este
+  entregable. Pendientes gobernanza: firma A+V ADR-FISCAL-001 v2 y escalera de
+  impresión; A+V humano ADR-0010 (condición Go/No-Go S15); telemetría TTFS
+  server-side (backlog GTM §9); load test a escala objetivo = staging game-day
+  (ADR-0011, fuera de alcance local).
+ancestry_verified: true
+aprobaciones: [Staff QA/Chaos R, Staff Principal A, Staff Security V, Staff Design V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0338
+timestamp_utc: 2026-08-12T22:40:00Z
+schema_version: 2
+sprint_fase: Backlog v10 P1a — Nota de Débito `08` (ADR-FISCAL-003, FIS-13)
+agente_responsable: Staff Fiscal (owner) / Staff Backend ACID / Staff Frontend/Design
+tipo: Entregable nuevo
+subtipo: debit-note
+relacion: amplia
+referencias_entradas: [0337]
+referencias_documentales: [docs/adr/ADR-FISCAL-003-debit-note.md, docs/architecture/05-1-formalization-matrix.md, docs/architecture/05-2-fiscal-pipeline.md, packages/domain-fiscal-pe/src/debit-note.ts, packages/adapters-d1/src/process-debit-note-atomic.ts, apps/worker-api/src/sales/debit-note-routes.ts, apps/pos-web/src/lib/sales/debit-note.ts, docs/ops/p1a-debit-note-qg.md]
+prev_id: 0337
+prev_hash: 0b75f629c2192a6828a655aa95ba61cf47a2d87d690ff893bbec6da7ca4ba31f
+entry_hash: eff3fbfcaf2ae6b89580c5268f02a4c0ec67127a341115a517610fd494fc0135
+ticket_or_adr: ADR-FISCAL-003 (Backlog v10 P1)
+test_ids: [V-13, V-15, V-16, SUITE, debit-note.test.ts, process-debit-note-atomic.test.ts, process-debit-note-atomic.integration.test.ts, debit-note-routes.test.ts, debit-note.test.ts, debit-note.spec.ts]
+entregable_afectado: docs/ops/p1a-debit-note-qg.md (nuevo) — cierre P1a
+descripcion: >
+  Nota de Debito 08 completa (ADR-FISCAL-003, FIS-13, Backlog v10 P1a):
+  spec 05-1 regla 5 y 05-2 (ND factura -> XML unitario 3d; ND boleta -> RC
+  7d); dominio ubl debit-note (motivos catalogo 10 cerrados 01/02/03/10,
+  guard origen ACCEPTED factura/boleta, monto entero positivo, descripcion
+  opcional, 0 impacto en stock, cancelacion via NC nunca DELETE); motor
+  processDebitNoteAtomic (correlativo server-side con guardState anti-doble
+  emision, audit DEBIT_NOTE con hash-chain, must_submit_by segun documento
+  que ajusta via computeMustSubmitByIso, saldo AR +amountCents con ledger
+  activo); ruta POST /api/sales/debit-notes con FEATURE_SALES_DEBIT_NOTE
+  default-off; UI panel en Modo Dueno (form motivo catalogo 10 + monto +
+  resultado serie-numero); E2E de emision.
+evidencia: >
+  RED: dominio/motor/rutas/UI ausentes (tests nuevos fallaron por import).
+  GREEN: domain-fiscal-pe 66/66 (debit-note 8/8, 96% branches), motor unit
+  7/7 + integracion D1 2/2 (correlativo +1, audit, ventana 3-4 dias, serie
+  intacta en rechazo FISCAL_CDR_REQUIRED), rutas 4/4, pos-web 219 unit +
+  E2E 47/47 (debit-note 1/1), verify.sh SUITE GREEN. Software GREEN local,
+  capability default-off, produccion/piloto NO-GO hasta staging SUNAT real
+  y firmas A+V (misma condicion que ADR-FISCAL-001 v2, ledger 0335). Los
+  fallos de backup registry por migration 0045 de otra agente son ajenos a
+  este entregable.
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R, Staff Backend ACID R, Staff Frontend R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

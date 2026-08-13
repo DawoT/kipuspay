@@ -244,6 +244,7 @@ import {
 import { runQuickAddHttp, runScanLookupHttp } from './catalog/quick-add-routes.js';
 import { runIssueShiftPinHttp, runShiftTransferHttp } from './cash/shift-routes.js';
 import { runResolveSellerHttp, runTeamInviteHttp } from './team/team-routes.js';
+import { runDebitNoteHttp } from './sales/debit-note-routes.js';
 import { runGrowthEventHttp, runSetupProgressHttp } from './onboarding/onboarding-routes.js';
 import {
   runCancelCustomerOrderHttp,
@@ -610,6 +611,24 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  // Backlog v10 P1a — Nota de Débito (FEATURE_SALES_DEBIT_NOTE, default-off).
+  app.post('/api/sales/debit-notes', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runDebitNoteHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
   });
 
   // Sprint 28 — devoluciones (FEATURE_SALES_RETURNS); checkout-critical vía /api/sales/

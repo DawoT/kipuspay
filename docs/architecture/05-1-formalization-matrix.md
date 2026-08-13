@@ -28,9 +28,10 @@ KipusPay no asume que todo tenant es emisor electrónico desde el día 1. El ser
 
 1. `NV` **no** está en Catálogo 01 SUNAT. Impresión con leyenda: *"Nota de venta — documento de control interno. No es comprobante de pago autorizado por SUNAT."*
 2. Upgrade `INTERNAL_CONTROL` → `FORMALIZING` / `ELECTRONIC_ISSUER`: las NV históricas **no se convierten** en boletas (prohibida re-numeración). Ventas nuevas usan CPE.
-3. **PSE ≠ contingencia normativa.** Contingencia SUNAT = formatos preimpresos autorizados ante falla del sistema. KipusPay **no** emite serie B/F “en contingencia” solo porque falta `.pfx`. Default de producto: **PSE KipusPay** en modos formales (ADR-FISCAL-001).
+3. **PSE ≠ contingencia normativa.** Contingencia SUNAT = formatos preimpresos autorizados ante falla del sistema. KipusPay **no** emite serie B/F "en contingencia" solo porque falta `.pfx`. Default de producto: **PSE KipusPay** en modos formales (ADR-FISCAL-001).
 4. NRUS formalizado: ventas ≤ S/ 5 pueden omitir emisión unitaria + **boleta de consolidación diaria**; boleta ≥ **S/ 700** exige tipo+número de doc y nombres del adquirente; Factura exige RUC (`6`).
-5. **Guía de Remisión Electrónica (GRE)** y percepciones/retenciones/detracciones = **fuera de MVP v8.0** (post-MVP).
+5. **Nota de Débito `08` (Backlog v10 P1a, ADR-FISCAL-003):** la ND incrementa el valor de un comprobante **aceptado** (factura `01` o boleta `03`) por motivos del **catálogo 10** (cerrado: `01` interés por mora, `02` aumento de valor, `03` penalidades/otros conceptos, `10` ajuste de otros conceptos). Guard: origen `ACCEPTED` (sin CDR → anulación total E-A/E-B, mismo régimen que la NC §8); `amountCents > 0`; referencia encadenada por serie/número. La ND **no toca stock** (solo impuestos y saldos); se anula con una NC de la ND, nunca con `DELETE` (append-only, FIS-08). ND de factura → envío unitario XML; ND de boleta → línea del Resumen Diario (§5.2).
+6. **Guía de Remisión Electrónica (GRE)** y percepciones/retenciones/detracciones = **fuera de MVP v8.0** (post-MVP).
 
 #### ADR-FISCAL-001 v2 — Decisiones cerradas (obligatorio Sprint 5)
 

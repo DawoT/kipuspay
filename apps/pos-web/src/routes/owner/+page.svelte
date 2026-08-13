@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
-  import { isOnboardingTourEnabled } from '$lib/features';
+  import { isOnboardingTourEnabled, isDebitNoteEnabled } from '$lib/features';
   import { fetchSetupProgress } from '$lib/onboarding/tour-client';
+  import { issueDebitNote } from '$lib/sales/debit-note';
   import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
   import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
   import { createPrinterTransport } from '$lib/print/printer-transport';
@@ -301,6 +302,34 @@
     serverState = res.server;
     checklistDismissed = localStorage.getItem(CHECKLIST_DISMISSED_KEY) === '1';
   }
+
+  // Backlog v10 P1a — Nota de Débito (ADR-FISCAL-003).
+  const debitNoteOn = isDebitNoteEnabled();
+  let dnOriginSaleId = $state('');
+  let dnSeries = $state('FC01');
+  let dnMotiveCode = $state('02');
+  let dnAmountCents = $state(100);
+  let dnDescription = $state('');
+  let dnMsg = $state('');
+  let dnIssued = $state(false);
+
+  async function onIssueDebitNote() {
+    dnMsg = '';
+    dnIssued = false;
+    const res = await issueDebitNote({
+      originSaleId: dnOriginSaleId,
+      series: dnSeries,
+      motiveCode: dnMotiveCode,
+      amountCents: dnAmountCents,
+      description: dnDescription,
+    });
+    if (!res.ok) {
+      dnMsg = res.message;
+      return;
+    }
+    dnIssued = true;
+    dnMsg = `ND ${res.series}-${String(res.number).padStart(3, '0')} por S/ ${formatCents(res.amountCents)} (motivo ${res.motiveCode}).`;
+  }
 </script>
 
 <svelte:head><title>Modo Dueño · Hoy · KipusPay</title></svelte:head>
@@ -536,9 +565,52 @@
           {/if}
         </section>
       {/if}
+
+      {#if debitNoteOn}
+        <section class="glass-panel owner-section" data-testid="owner-debit-note">
+          <div class="owner-section-head">
+            <h2>Nota de débito</h2>
+            <span class="badge badge-indigo">Ajuste al alza (cat. 10)</span>
+          </div>
+          <p class="owner-section-lede">
+            Incrementa el valor de un comprobante aceptado (factura/boleta) por interés, aumento de valor o penalidades. No toca stock.
+          </p>
+          <div class="field-group">
+            <label for="dn-origin">Comprobante origen (id)</label>
+            <input id="dn-origin" bind:value={dnOriginSaleId} data-testid="dn-origin" placeholder="sale-123" />
+          </div>
+          <div class="field-group">
+            <label for="dn-series">Serie ND</label>
+            <input id="dn-series" bind:value={dnSeries} data-testid="dn-series" placeholder="FC01" />
+          </div>
+          <div class="field-group">
+            <label for="dn-motive">Motivo (catálogo 10)</label>
+            <select id="dn-motive" bind:value={dnMotiveCode} data-testid="dn-motive">
+              <option value="01">01 — Interés por mora</option>
+              <option value="02">02 — Aumento de valor</option>
+              <option value="03">03 — Penalidades / otros conceptos</option>
+              <option value="10">10 — Ajuste de otros conceptos</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="dn-amount">Monto (centavos)</label>
+            <input id="dn-amount" type="number" min="1" bind:value={dnAmountCents} data-testid="dn-amount" />
+          </div>
+          <div class="field-group">
+            <label for="dn-desc">Descripción (opcional)</label>
+            <input id="dn-desc" bind:value={dnDescription} data-testid="dn-desc" placeholder="Ej. Interés por pago fuera de plazo" />
+          </div>
+          <button type="button" class="primary" data-testid="dn-submit" onclick={onIssueDebitNote}>
+            Emitir nota de débito
+          </button>
+          {#if dnMsg}
+            <p class="dn-msg" data-testid="dn-msg" class:dn-msg-ok={dnIssued}>{dnMsg}</p>
+          {/if}
+        </section>
+      {/if}
     </div>
   </div>
-{/if}
+ {/if}
 
 <style>
   .source-note {

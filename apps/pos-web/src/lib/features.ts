@@ -248,6 +248,11 @@ export function isOnboardingTourEnabled(): boolean {
   return flagOn(pub(PF + 'ONBOARDING_TOUR'));
 }
 
+/** Backlog v10 P1a — Nota de Débito; siempre default-off. */
+export function isDebitNoteEnabled(): boolean {
+  return flagOn(pub(PF + 'SALES_DEBIT_NOTE'));
+}
+
 /** Sprint 53 — Troubleshooter de hardware (ADR-0033); siempre default-off. */
 export function isHardwareDiagnosticsEnabled(): boolean {
   return flagOn(pub(PF + 'HARDWARE_DIAGNOSTICS'));

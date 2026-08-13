@@ -37,6 +37,15 @@ export {
   type OriginSunatStatus,
 } from './credit-note.js';
 
+export {
+  assertDebitNoteAllowed,
+  debitNoteStockImpact,
+  DEBIT_NOTE_MOTIVE_CODES,
+  type DebitNoteMotiveCode,
+  type DebitNoteOrigin,
+  type DebitNoteRequest,
+} from './debit-note.js';
+
 export interface CdrEnvelope {
   readonly cdrCode: string;
   readonly cdrDescription: string;

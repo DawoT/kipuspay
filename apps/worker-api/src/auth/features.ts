@@ -106,6 +106,13 @@ export function isOnboardingTourEnabled(
   return flagOn(env?.FEATURE_ONBOARDING_TOUR);
 }
 
+/** Backlog v10 P1a — Nota de Débito (FEATURE_SALES_DEBIT_NOTE, default off). */
+export function isDebitNoteEnabled(
+  env: { readonly FEATURE_SALES_DEBIT_NOTE?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_SALES_DEBIT_NOTE);
+}
+
 /** Sprint 53 — Troubleshooter de hardware (FEATURE_HARDWARE_DIAGNOSTICS, default off). */
 export function isHardwareDiagnosticsEnabled(
   env: { readonly FEATURE_HARDWARE_DIAGNOSTICS?: string } | undefined,

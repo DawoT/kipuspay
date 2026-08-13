@@ -70,6 +70,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | FIS-10 | §6 | Reglas de negocio del motor |
 | FIS-11 | §5.4 | DDL ecosistema v9 |
 | FIS-12 | §6 | Reglas de negocio del motor |
+| FIS-13 | §5.1/§5.2 (P1a) | ND `08`: motivos catálogo 10, guard ACCEPTED, sin stock, append-only (ADR-FISCAL-003) |
 | COM-01 | §5.3 (6B) | DDL profundidad retail |
 | COM-02 | §5.4 | DDL ecosistema v9 |
 | COM-03 | §5.3 (6B) | DDL profundidad retail |
@@ -120,6 +121,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas |
 | ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker |
+| ADR-FISCAL-003 | §5.1/§5.2 | Nota de Débito `08` completa (Backlog v10 P1a) |
 | LPDP-01 | §5.3 (6F) | Consentimiento explícito por propósito (`consent_records`) |
 | LPDP-02 | §5.3 (6F) | Derecho de acceso/export de PII del cliente |
 | LPDP-03 | §5.3 (6F) | Derecho de borrado/anonimización (`pii_erased`); retención fiscal SUNAT |
