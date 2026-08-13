@@ -8,6 +8,8 @@
  * predicted_qty es cantidad (REAL permitido, V-06).
  */
 
+import { computeMapePercent, holdoutSplit } from './metrics.js';
+
 export interface DailySalesPoint {
   readonly reportDate: string;
   readonly qty: number;
@@ -182,6 +184,21 @@ export function computeForecast(
   const qtySigma = residualStddev(qtyHw.residuals);
   const z = 1.282;
 
+  // S46-H2: el MAPE se calcula contra un holdout 80/20 — la métrica de
+  // precisión que el QG afirma publicar ya no es dead code.
+  const split = holdoutSplit(points, 0.8);
+  const mape = computeMapePercent(
+    split.test.map((p) => p.qty),
+    split.test.map((_, i) => {
+      const train = split.train.slice(0, Math.max(1, split.train.length - split.test.length + i + 1));
+      const w = weightedMovingAverage(
+        train.map((p) => p.qty),
+        1,
+      );
+      return w[0] ?? 0;
+    }),
+  );
+
   return {
     status: 'OK',
     modelVersion: 'holt-winters-v1',
@@ -189,7 +206,7 @@ export function computeForecast(
     predictedGrossCents: Math.round(predictedGross),
     confidenceLowQty: positive(predictedQty - z * qtySigma),
     confidenceHighQty: predictedQty + z * qtySigma,
-    holdoutMapePercent: null,
+    holdoutMapePercent: mape,
     trainPoints: points.length,
   };
 }

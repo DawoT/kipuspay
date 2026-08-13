@@ -25,11 +25,11 @@ describe('createWhatsAppMessagingSender', () => {
     representationUrl: 'https://cpe.example/s1',
   };
 
-  it('sandbox acepta sin token', async () => {
+  it('S43-H1: sin token NUNCA afirma entrega (fail-closed, 0 ACK falso)', async () => {
     const sender = createWhatsAppMessagingSender({});
     const res = await sender.sendReceipt(baseReq);
-    expect(res.accepted).toBe(true);
-    expect(res.providerRef).toBe('sandbox:s1');
+    expect(res.accepted).toBe(false);
+    expect(res.providerRef).toBeNull();
     expect(res.templateId).toBe('kipus_nv_receipt_v1');
   });
 
@@ -68,7 +68,7 @@ describe('createWhatsAppMessagingSender', () => {
     expect(res.providerRef).toBeNull();
   });
 
-  it('sendQuote sandbox usa kipus_quote_v1 y no finge NV', async () => {
+  it('S43-H1: sendQuote sin token → fail-closed (0 sandbox fingido)', async () => {
     const sender = createWhatsAppMessagingSender({});
     const res = await sender.sendQuote!({
       tenantId: 't1',
@@ -78,8 +78,8 @@ describe('createWhatsAppMessagingSender', () => {
       optedIn: true,
       representationUrl: 'https://cdn.example/q.pdf',
     });
-    expect(res.accepted).toBe(true);
-    expect(res.providerRef).toBe('sandbox:q1');
+    expect(res.accepted).toBe(false);
+    expect(res.providerRef).toBeNull();
     expect(res.templateId).toBe('kipus_quote_v1');
   });
 

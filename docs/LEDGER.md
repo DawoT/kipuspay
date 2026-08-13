@@ -9088,3 +9088,45 @@ aprobaciones: [Staff Principal A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+---
+id: 0382
+timestamp_utc: 2026-08-14T11:00:00Z
+schema_version: 2
+sprint_fase: F5 — Cierre de pendientes del plan (401 global, IA admin, descomposición del terminal)
+agente_responsable: Staff Principal A
+tipo: Corrección de arquitectura UX
+subtipo: Guard de sesión global + IA GTM §3.3 + extracción de componente del POS
+relacion: CORRIGE
+referencias_entradas: [0381]
+referencias_documentales: [docs/GTM.md §3.3/§6.5, apps/pos-web/src/lib/auth/unauthorized-guard.ts, apps/pos-web/src/lib/pos/SellableCatalog.svelte, apps/pos-web/src/routes/+layout.svelte]
+prev_id: 0381
+prev_hash: b028b14168f200223c733e7f9508db6fe87ed8be81e3b81c259230af66507668
+entry_hash: 9fb140f4e728b80ee1b0322cce1981c452cf3f282b3534a1476aced6c2b7c360
+ticket_or_adr: Auditoría F5 (pendientes del plan)
+test_ids: [unauthorized-guard.test.ts 5/5, pos-web 294/294, e2e 60/60, typecheck 0, lint 0, V-21, SUITE]
+entregable_afectado: sesión del POS, navegación admin, terminal (decomposición)
+descripcion: >
+  Cierre de los pendientes declarados del plan. 1) Guard global de sesión
+  expirada: wrapper de fetch instalado una sola vez desde +layout que redirige
+  a /login ante un 401 de cualquier ruta /api (allowlist: bootstrap de sesión;
+  fuera de /api nunca; sin loops en /login) — el JWT de cajero (TTL 12h)
+  expirado ya no deja errores sueltos en pantalla. 2) IA admin alineada a
+  GTM §3.3: grupo Terminal renombrado a Ventas (con Historial del día), y
+  Configuración sale de Reportes a su propio grupo con Integraciones y
+  Equipo; todos los hrefs preservados (cero riesgo e2e). 3) Descomposición
+  del terminal: se extrae el grid de catálogo (markup + estilos + filtro de
+  búsqueda) a src/lib/pos/SellableCatalog.svelte; +page.svelte pasa de 1579
+  a 1428 líneas; testids y copy idénticos. 4) Touch targets: verificados y
+  ya enforced por la spec a11y (search 44px, botones ~48px, nav 48px).
+evidencia: >
+  RED: sin guard, un 401 del worker dejaba errores sueltos sin guía; sidebar
+  sin sección Configuración propia; +page.svelte de 1579 líneas.
+  GREEN: unauthorized-guard 5/5 (redirige, sin loops, allowlist, fuera de
+  /api, no-401 intactos); pos-web 294/294; e2e 60/60; typecheck 0; lint 0;
+  V-21 GREEN; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -17,6 +17,34 @@ const { values } = parseArgs({
 const scenario = values.scenario ?? 'all';
 const sprint = values.sprint ?? '4';
 
+// S14-H1: catálogo de escenarios válidos (espejo de SCENARIO_ACTIVE_FROM en
+// packages/chaos-harness/src/index.ts). Un escenario desconocido NO puede dar
+// PASS — fail-closed: sin test específico, el escenario no existe.
+const KNOWN_SCENARIOS = new Set([
+  'concurrent-writers',
+  'duplicate-retry',
+  'deadline',
+  'network-adversarial',
+  'quota-exceeded',
+  'low-end-device',
+  'ar-compensate',
+  'rollup-idempotent',
+  'inventory-location-conservation',
+  'inventory-serial-assignment',
+  'inventory-scale-heartbeat',
+  'price-label-printing',
+  'data-backup',
+  'customer-orders',
+  'recurring-sales',
+  'mobile-push',
+  'shard-do-failure',
+  'dr-failover',
+]);
+if (scenario !== 'all' && !KNOWN_SCENARIOS.has(scenario)) {
+  console.error(`RESULT chaos ${scenario} RED  escenario desconocido (catálogo §13.5)`);
+  process.exit(1);
+}
+
 if (Number(sprint) < 5 && scenario === 'deadline') {
   console.error(`Escenario deadline activo desde fase fiscal RC (sprint≥5)`);
   process.exit(2);
@@ -50,11 +78,13 @@ if (Number(sprint) < 48 && scenario === 'dr-failover') {
   process.exit(2);
 }
 
-const unit = spawnSync(
-  'pnpm',
-  ['--filter', '@kipuspay/chaos-harness', 'test:unit'],
-  { stdio: 'inherit', shell: false },
-);
+const unitArgs = ['--filter', '@kipuspay/chaos-harness', 'test:unit'];
+if (scenario !== 'all') {
+  // S14-H1: correr SOLO el escenario pedido (vitest -t) — antes ignoraba
+  // --scenario y corría la suite completa siempre (verde vacuo por escenario).
+  unitArgs.push('--', '-t', scenario);
+}
+const unit = spawnSync('pnpm', unitArgs, { stdio: 'inherit', shell: false });
 if (unit.status !== 0) process.exit(unit.status ?? 1);
 
 console.log(

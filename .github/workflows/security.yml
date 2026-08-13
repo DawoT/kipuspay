@@ -28,3 +28,19 @@ jobs:
         with:
           config: semgrep/rules/invariants.yml
           target: packages apps
+
+      - name: Dependencias (pnpm audit, CAL-05 — S14-H2)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit (0 high/critical)
+        run: pnpm audit --audit-level=high

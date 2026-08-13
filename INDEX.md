@@ -91,6 +91,8 @@ Abre solo los archivos que esta tabla te señale.
 | `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 233 |
 | `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 234 |
 | `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 235 |
+| `catalog.sellable` | C1 | Grid de catálogo vendible en la terminal (regla 38) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 236 |
+| `auth.cashier_login` | C2 | Login local del POS con PIN de cajero (ADR-0034) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 237 |
 
 ## Sprints → fase, archivo y estado
 

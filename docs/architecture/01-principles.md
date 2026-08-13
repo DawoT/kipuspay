@@ -233,6 +233,8 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | `ops.team_invite` | 51 | Equipo: invitación + PIN/badge |
 | `onboarding.tour` | 52 | Product Tour + checklist "segundo día" |
 | `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza |
+| `catalog.sellable` | C1 | Grid de catálogo vendible en la terminal (regla 38) |
+| `auth.cashier_login` | C2 | Login local del POS con PIN de cajero (ADR-0034) |
 
 > FASE 8 (sprints 25–27) no introduce capabilities de producto: añade infraestructura transversal (`print outbox` §7.5, `cupo` §4.1, `FiscalTransport/breaker` §8.1) — no forman parte del empaquetado GTM.
 

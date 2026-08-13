@@ -320,6 +320,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^5.20260801.1
         version: 5.20260801.1
+      '@kipuspay/chaos-harness':
+        specifier: workspace:*
+        version: link:../chaos-harness
       '@vitest/coverage-v8':
         specifier: ^4.1.10
         version: 4.1.10(vitest@4.1.10)

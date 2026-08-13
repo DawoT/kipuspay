@@ -50,9 +50,11 @@ export function createWhatsAppMessagingSender(
       const token = env.WA_ACCESS_TOKEN?.trim();
       const phoneId = env.WA_PHONE_NUMBER_ID?.trim();
       if (!token || !phoneId) {
+        // S43-H1: fail-closed — sin token NUNCA se afirma entrega (un ACK
+        // falso marcaría SENT sin entrega externa real).
         return {
-          accepted: true,
-          providerRef: `sandbox:${request.saleId}`,
+          accepted: false,
+          providerRef: null,
           templateId,
         };
       }
@@ -96,8 +98,8 @@ export function createWhatsAppMessagingSender(
       const phoneId = env.WA_PHONE_NUMBER_ID?.trim();
       if (!token || !phoneId) {
         return {
-          accepted: true,
-          providerRef: `sandbox:${request.quoteId}`,
+          accepted: false,
+          providerRef: null,
           templateId,
         };
       }

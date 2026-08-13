@@ -2,7 +2,7 @@
   "name": "@kipuspay/adapters-d1",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay — adaptador de persistencia D1 (repositorios, db.batch, migraciones)",
+  "description": "KipusPay \u2014 adaptador de persistencia D1 (repositorios, db.batch, migraciones)",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.1",
     "@cloudflare/workers-types": "^5.20260801.1",
+    "@kipuspay/chaos-harness": "workspace:*",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
     "typescript": "^5.9.3",

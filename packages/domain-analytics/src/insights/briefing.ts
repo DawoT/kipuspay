@@ -38,14 +38,14 @@ export interface Briefing {
 }
 
 export function buildBriefing(input: BriefingInput): Briefing {
-  const sales = `Ventas del día: S/ ${input.sales.grossSalesCents} en ${input.sales.docCount} comprobantes.`;
+  const sales = `Ventas del día: ${formatSoles(input.sales.grossSalesCents)} en ${input.sales.docCount} comprobantes.`;
   const breakage =
     input.breakage.length > 0
       ? `Queda poco stock de ${input.breakage[0]?.productName} (${input.breakage[0]?.daysCovered} días cubiertos; reponer ${input.breakage[0]?.suggestedReorderQty} unidades).`
       : 'Sin alertas de quiebre de stock.';
   const cash =
     input.cashExceptions.length > 0
-      ? `Diferencia de caja en ${input.cashExceptions[0]?.branchCode}: S/ ${input.cashExceptions[0]?.diffCents}.`
+      ? `Diferencia de caja en ${input.cashExceptions[0]?.branchCode}: ${formatSoles(input.cashExceptions[0]?.diffCents ?? 0)}.`
       : 'Sin diferencias de caja pendientes.';
   const cashShifts = input.cashShifts ?? [];
   const shifts =
@@ -53,7 +53,7 @@ export function buildBriefing(input: BriefingInput): Briefing {
       ? `Por turnos: ${cashShifts
           .map((shift) => {
             const sign = shift.cashDiffCents >= 0 ? 'faltan' : 'sobran';
-            return `${shift.operator}: ${sign} S/ ${Math.abs(shift.cashDiffCents)}`;
+            return `${shift.operator}: ${sign} ${formatSoles(Math.abs(shift.cashDiffCents))}`;
           })
           .join(', ')}.`
       : null;
@@ -63,3 +63,13 @@ export function buildBriefing(input: BriefingInput): Briefing {
     disclaimer: `Datos del día ${input.reportDate}, calculados por el servidor.`,
   };
 }
+
+/** S49-H5: cents → soles formateados (entero + 2 decimales, display server-side). */
+export function formatSoles(cents: number): string {
+  const sign = cents < 0 ? '-' : '';
+  const abs = Math.abs(Math.trunc(cents));
+  const soles = Math.floor(abs / 100);
+  const rest = abs % 100;
+  return `S/ ${sign}${soles}.${String(rest).padStart(2, '0')}`;
+}
+

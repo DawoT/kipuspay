@@ -13,7 +13,7 @@ describe('insights briefing determinista (Sprint 49)', () => {
   it('genera 3 viñetas (ventas, quiebre, excepciones) con números verbatim', () => {
     const briefing = buildBriefing(input);
     expect(briefing.bullets).toHaveLength(3);
-    expect(briefing.bullets[0]).toContain('118000');
+    expect(briefing.bullets[0]).toContain('S/ 1180.00');
     expect(briefing.bullets[1]).toContain('Café');
     expect(briefing.bullets[2]).toContain('C01');
     expect(briefing.reportDate).toBe('2026-08-03');
@@ -39,7 +39,7 @@ describe('insights briefing determinista (Sprint 49)', () => {
       cashExceptions: [{ branchCode: 'C02', diffCents: -5000 }],
     });
     expect(withCash.bullets[2]).toMatch(/C02/);
-    expect(withCash.bullets[2]).toMatch(/-5000/);
+    expect(withCash.bullets[2]).toContain('S/ -50.00');
   });
 
   it('edge 1C: atribuye la diferencia al turno correcto (viñeta por tramo)', () => {
@@ -53,9 +53,9 @@ describe('insights briefing determinista (Sprint 49)', () => {
     expect(briefing.bullets).toHaveLength(4);
     expect(briefing.bullets[3]).toMatch(/Por turnos:/);
     expect(briefing.bullets[3]).toContain('ana@tienda.pe');
-    expect(briefing.bullets[3]).toContain('faltan S/ 5000');
+    expect(briefing.bullets[3]).toContain('faltan S/ 50.00');
     expect(briefing.bullets[3]).toContain('luis@tienda.pe');
-    expect(briefing.bullets[3]).toContain('sobran S/ 2000');
+    expect(briefing.bullets[3]).toContain('sobran S/ 20.00');
   });
 
   it('sin tramos con diferencia no añade viñeta de turnos', () => {

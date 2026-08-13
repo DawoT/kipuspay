@@ -238,3 +238,27 @@ async function isTenantRevokedCached(env: any, tenantId: string): Promise<boolea
 //   (tabla tenant_certificates.private_key_kms_ref); jamás en D1/KV/R2. Rotación ≥ 2 años
 //   y en caso de compromiso (SEC-03).
 
+
+---
+
+## Login local del POS (`auth.cashier_login`, Sprint C2, ADR-0034)
+
+El cajero invitado localmente (regla 36: `users.pin_hash` + `users.badge_barcode`,
+sin `external_auth_id`) abre el POS con `POST /api/auth/cashier-login`:
+`{ tenantId, identifier, pin }` donde `identifier` es `users.id` o
+`badge_barcode EMP-…` — resuelto **dentro del tenant** — y el PIN se verifica
+server-side contra `users.pin_hash` en **tiempo constante** con lockout
+5 fallos/15 min por tenant+identifier (SEC-11); identifier desconocido responde
+`403 PIN_INVALID` idéntico al PIN incorrecto (sin enumeración). El éxito mintea
+un JWT local HS256 (`AUTH_JWT_HS_SECRET`, `sub = users.id`, claims
+`tenantId/role/branchId/auth_time`, TTL 12 h) que pasa por el mismo
+`decideAuthGate` (revocación fail-closed, SEC-01). `loadUserFromD1` resuelve
+por `(external_auth_id = ? OR id = ?)`: los JWT de IdP externo siguen por
+`external_auth_id`, los locales por `id`. El login emite **identidad**, no
+ciclo de caja: la sesión de terminal (`pos_terminal_sessions` ACTIVE + caja
+abierta) sigue viviendo en `GET /api/auth/session`. La sesión ausente o
+revocada abre `/login` sin revelar detalle ni redirección arbitraria (§5.12).
+Deuda normativa documentada (ADR-0034): los `pin_hash` emitidos por TEAM_INVITE
+son SHA-256 hex (SEC-03 pide argon2id; no hay runtime argon2 en el worker y los
+hashes existentes no son verificables con argon2) — la migración es un sprint
+propio.

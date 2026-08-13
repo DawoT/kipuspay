@@ -91,6 +91,14 @@ compatibles”.
 
 ## Residuales
 
+- **S41-H1 (decisión documentada):** el ACK por ítem es un contrato OUTBOX de
+  entrega — el servidor confía el ACK del terminal porque no hay binding
+  criptográfico con el hardware físico (sin nonce firmado por la impresora).
+  Es el diseño declarado ("ACK por ítem"), no una prueba de impresión física:
+  un supervisor puede marcar items ACKED sin imprimir. Límite aceptado
+  (evidencia de impresión NO verificable server-side); el claim GTM-17 sigue
+  congelado y el piloto físico (WebUSB/WSS con firma A+V) permanece NO-GO
+  hasta la matriz de hardware.
 - Playwright Chromium y dispositivos físicos no estuvieron disponibles en este entorno.
 - El claim GTM-17 de etiquetas permanece congelado; el software queda listo para piloto.
 - Backup/restore continúa en Sprint 42.

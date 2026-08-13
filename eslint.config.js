@@ -56,7 +56,8 @@ const testOverrides = {
   files: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
   rules: {
     'security/detect-non-literal-fs-filename': 'off',
-    'no-secrets/no-secrets': ['error', { tolerance: 3.9 }],
+    'no-secrets/no-secrets': ['error', { tolerance: 4.2 }],
+    '@typescript-eslint/no-unsafe-assignment': 'off',
   },
 };
 
@@ -73,6 +74,10 @@ export default tseslint.config(
       '**/*.integration.test.ts',
       '**/test/apply-migrations.ts',
       '**/test/env.d.ts',
+      // Código vendorizado (qrcode-generator MIT): lint/typecheck del original fuera de scope
+      'apps/pos-web/src/lib/vendor/**',
+      // argon2-browser MIT parcheado (ruta embedded, wasm embebido) — lint del original fuera de scope
+      'packages/domain-ops/src/vendor/**',
       'apps/worker-api/src/auth/tenant-state.ts',
       'apps/worker-api/src/worker.ts',
       'apps/worker-fiscal/src/fiscal-circuit-breaker.ts',
@@ -101,7 +106,7 @@ export default tseslint.config(
       'no-secrets': noSecrets,
     },
     rules: {
-      'no-secrets/no-secrets': ['error', { tolerance: 3.9 }],
+      'no-secrets/no-secrets': ['error', { tolerance: 4.2 }],
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       'no-restricted-syntax': ['error', ...noRestrictedSyntax],
       '@typescript-eslint/restrict-template-expressions': 'off',

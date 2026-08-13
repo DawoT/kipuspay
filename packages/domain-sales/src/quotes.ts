@@ -12,6 +12,10 @@ export const QUOTE_EXPIRED = 'QUOTE_EXPIRED';
 export const QUOTE_ALREADY_CONVERTED = 'QUOTE_ALREADY_CONVERTED';
 export const QUOTE_ALREADY_TERMINAL = 'QUOTE_ALREADY_TERMINAL';
 export const QUOTE_NOT_APPROVED = 'QUOTE_NOT_APPROVED';
+export const QUOTE_MISSING_VALID_UNTIL = 'QUOTE_MISSING_VALID_UNTIL';
+export const QUOTE_VALID_UNTIL_TOO_FAR = 'QUOTE_VALID_UNTIL_TOO_FAR';
+/** S33-H3: tope server de vigencia de una cotización (90 días). */
+export const QUOTE_MAX_VALID_DAYS = 90;
 
 export type QuoteStatus = 'DRAFT' | 'SENT' | 'APPROVED' | 'CONVERTED' | 'EXPIRED' | 'CANCELLED';
 
@@ -36,6 +40,16 @@ export function planQuoteCreate(input: {
   readonly nowIso: string;
 }): QuoteCreatePlan {
   if (input.items.length === 0) throw new Error(QUOTE_ITEMS_REQUIRED);
+  // S33-H3: la cotización SIEMPRE vence (0 cotización perpetua con precio
+  // congelado) y el tope es server-side: 1..QUOTE_MAX_VALID_DAYS días.
+  if (!input.validUntilIso) throw new Error(QUOTE_MISSING_VALID_UNTIL);
+  const validUntilDay = input.validUntilIso.slice(0, 10);
+  const nowDay = input.nowIso.slice(0, 10);
+  const dayDiff = Math.round(
+    (Date.parse(`${validUntilDay}T00:00:00Z`) - Date.parse(`${nowDay}T00:00:00Z`)) / 86_400_000,
+  );
+  if (dayDiff < 1) throw new Error(QUOTE_EXPIRED);
+  if (dayDiff > QUOTE_MAX_VALID_DAYS) throw new Error(QUOTE_VALID_UNTIL_TOO_FAR);
   let snapshotTotalCents = 0;
   for (const item of input.items) {
     if (!item.productId.trim()) throw new Error(QUOTE_ITEMS_REQUIRED);

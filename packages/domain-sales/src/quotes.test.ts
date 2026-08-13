@@ -6,7 +6,9 @@ import {
   QUOTE_INVALID_AMOUNT,
   QUOTE_INVALID_STATUS,
   QUOTE_ITEMS_REQUIRED,
+  QUOTE_MISSING_VALID_UNTIL,
   QUOTE_NOT_APPROVED,
+  QUOTE_VALID_UNTIL_TOO_FAR,
   assertQuoteApprovable,
   assertQuoteCancelAllowed,
   assertQuoteConvertible,
@@ -37,26 +39,26 @@ describe('planQuoteCreate', () => {
 
   it('rechaza ítems vacíos o montos inválidos', () => {
     expect(() =>
-      planQuoteCreate({ items: [], validUntilIso: null, nowIso: '2026-08-08T01:00:00.000Z' }),
+      planQuoteCreate({ items: [], validUntilIso: '2026-08-20', nowIso: '2026-08-08T01:00:00.000Z' }),
     ).toThrow(QUOTE_ITEMS_REQUIRED);
     expect(() =>
       planQuoteCreate({
         items: [{ ...item, productId: '   ' }],
-        validUntilIso: null,
+        validUntilIso: '2026-08-20',
         nowIso: '2026-08-08T01:00:00.000Z',
       }),
     ).toThrow(QUOTE_ITEMS_REQUIRED);
     expect(() =>
       planQuoteCreate({
         items: [{ ...item, unitPriceCents: -1 }],
-        validUntilIso: null,
+        validUntilIso: '2026-08-20',
         nowIso: '2026-08-08T01:00:00.000Z',
       }),
     ).toThrow(QUOTE_INVALID_AMOUNT);
     expect(() =>
       planQuoteCreate({
         items: [{ ...item, baseQuantityMicrounits: 0 }],
-        validUntilIso: null,
+        validUntilIso: '2026-08-20',
         nowIso: '2026-08-08T01:00:00.000Z',
       }),
     ).toThrow(QUOTE_INVALID_AMOUNT);
@@ -64,6 +66,19 @@ describe('planQuoteCreate', () => {
 });
 
 describe('send / approve / cancel', () => {
+  it('S33-H3: sin vencimiento → QUOTE_MISSING_VALID_UNTIL; >90 días → TOO_FAR', () => {
+    expect(() =>
+      planQuoteCreate({ items: [item], validUntilIso: null, nowIso: '2026-08-08T01:00:00.000Z' }),
+    ).toThrow(QUOTE_MISSING_VALID_UNTIL);
+    expect(() =>
+      planQuoteCreate({ items: [item], validUntilIso: '2026-12-31', nowIso: '2026-08-08T01:00:00.000Z' }),
+    ).toThrow(QUOTE_VALID_UNTIL_TOO_FAR);
+    // 90 días exactos (límite) → procede.
+    expect(() =>
+      planQuoteCreate({ items: [item], validUntilIso: '2026-11-06', nowIso: '2026-08-08T01:00:00.000Z' }),
+    ).not.toThrow();
+  });
+
   it('send solo desde DRAFT; approve desde DRAFT o SENT', () => {
     expect(() => assertQuoteSendable({ status: 'DRAFT' })).not.toThrow();
     expect(() => assertQuoteSendable({ status: 'SENT' })).toThrow(QUOTE_INVALID_STATUS);
