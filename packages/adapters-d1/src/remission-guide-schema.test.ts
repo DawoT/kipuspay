@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- nombres canónicos de tablas DDL */
 import { describe, expect, it } from 'vitest';
 import down0046 from '../migrations-down/0046_sprint_p1b_remission_guide.sql?raw';
 import migration0046 from '../migrations/0046_sprint_p1b_remission_guide.sql?raw';
