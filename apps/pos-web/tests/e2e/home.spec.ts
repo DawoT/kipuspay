@@ -5,9 +5,21 @@ test('home renderiza el total en soles', async ({ page }) => {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ items: [
-        { productId: 'p1', sku: 'SKU-1', name: 'Producto demo', unitPriceCents: 11800, costCents: 4000, stockMicrounits: 10000000, barcode: null, uomCode: 'NIU', parentProductId: null },
-      ] }),
+      body: JSON.stringify({
+        items: [
+          {
+            productId: 'p1',
+            sku: 'SKU-1',
+            name: 'Producto demo',
+            unitPriceCents: 11800,
+            costCents: 4000,
+            stockMicrounits: 10000000,
+            barcode: null,
+            uomCode: 'NIU',
+            parentProductId: null,
+          },
+        ],
+      }),
     }),
   );
   await page.goto('/');
