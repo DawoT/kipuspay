@@ -9130,3 +9130,48 @@ aprobaciones: [Staff Principal A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0383
+timestamp_utc: 2026-08-14T12:00:00Z
+schema_version: 2
+sprint_fase: Gobernanza — cierre de auditoría staff F7/F8 + working tree completo
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0382]
+referencias_documentales: [docs/ops/s21-catalog-import-qg.md, docs/ops/s22-payments-local-qg.md, docs/ops/s23-accounting-api-qg.md, docs/ops/s24-whatsapp-loyalty-qg.md, docs/ops/s25-print-outbox-qg.md, docs/ops/s26-fiscal-breaker-qg.md, docs/ops/s27-usage-overage-qg.md]
+prev_id: 0382
+prev_hash: 9fb140f4e728b80ee1b0322cce1981c452cf3f282b3534a1476aced6c2b7c360
+entry_hash: 82a32dbb0836ce3162c2127c02fa4ece3f772aa4e2179aaca9d3d3dcb404c20a
+ticket_or_adr: Auditoría FASE 7 + FASE 8 + working tree completo
+test_ids: [adapters-d1 383+288, worker-api 1071, chaos-harness 120, domain-integrations 127, adapters-importers 29, payments-pe 8, print-templates 35, worker-fiscal 19, pos-web print 22, V-13, V-21, V-24, V-25, V-27, SUITE]
+entregable_afectado: Roadmap F1→F8 + frentes paralelos (auth POS, UI, analytics, growth)
+descripcion: >
+  Cierre de gobernanza de la ronda de auditoría staff completa:
+  (1) FASE 7 (S21-S24) y FASE 8 (S25-S27) auditadas con patrón
+  Bloque A/B/C (ledger 0374-0379) y QGs actualizados (s21-s27) con
+  hallazgos/fix/evidencia RED→GREEN y firma RACI A/V.
+  (2) Working tree completo de frentes paralelos auditado y commiteado
+  por dominio (9 commits): auth POS con PIN+lockout (ADR-0034),
+  day-sales/sellable/cash-movement, motor 6D-6G + chaos-harness,
+  UI kit + a11y + QR vendorizado, marketing + V-27 pos_copy,
+  analytics con quota LLM, worker-api (caja authz S17), pos-web,
+  infra/checks.
+  (3) Gaps de auditoría corregidos con TDD RED→GREEN: G1 (payment-
+  capture aceptaba float/NaN en amount_cents — fail-closed con
+  Number.isSafeInteger), G2 (parseSolesToCents overflow con 10+
+  dígitos — tope 9 + parse manual sin float), G4 (un cajero con PIN
+  podía auto-aprobarse tokens de authz — FORBIDDEN_APPROVER, 3-way:
+  solo supervisor/admin/owner).
+evidencia: >
+  GREEN: 383+288 adapters-d1, 1071 worker-api, 120 chaos-harness,
+  127 domain-integrations, 29 importers, 8 payments-pe, 35
+  print-templates, 19 worker-fiscal; tsc limpio; 17/17 cash-routes
+  (G4), 11/11 money (G2), 5/5 payment-capture (G1); SUITE GREEN;
+  working tree limpio (0 archivos pendientes).
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
