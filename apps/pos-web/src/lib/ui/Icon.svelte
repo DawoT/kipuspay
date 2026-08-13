@@ -1,5 +1,5 @@
 <script lang="ts">
-  type IconName =
+  export type IconName =
     | 'cart'
     | 'barcode'
     | 'scale'

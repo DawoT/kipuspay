@@ -87,7 +87,12 @@ function guardMessage(code: string): string {
 function buildPaymentLine(
   ctx: ChargeContext,
   totalCents: number,
-): { paymentMethodId: string; amountCents: number; captureStatus?: string; tipCents?: number } {
+): {
+  paymentMethodId: string;
+  amountCents: number;
+  captureStatus?: 'API' | 'MANUAL';
+  tipCents?: number;
+} {
   const tip = ctx.tipCents ?? 0;
   return {
     paymentMethodId: ctx.paymentMethodId,
