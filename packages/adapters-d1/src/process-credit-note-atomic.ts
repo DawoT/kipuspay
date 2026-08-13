@@ -9,7 +9,7 @@ import {
   type CreditNoteRequest,
 } from '@kipuspay/domain-fiscal-pe';
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
-import { QUANTITY_SCALE } from '@kipuspay/domain-inventory';
+import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { loadChartAccountsByCode } from './journal-post.js';
 import { appendCancelPendingInstallmentsOnArClosed } from './process-installment-atomic.js';
@@ -160,6 +160,7 @@ export async function processCreditNoteAtomic(
           restoreMicrounits,
           batchId: null as string | null,
           measurementId: null as string | null,
+          restoreCostCents: 0,
         };
       }
       if (!item.originalSaleItemId) {
@@ -173,12 +174,13 @@ export async function processCreditNoteAtomic(
           restoreMicrounits,
           batchId: null as string | null,
           measurementId: null as string | null,
+          restoreCostCents: 0,
         };
       }
       const originalLine = await db
         .prepare(
           `SELECT si.product_id, si.product_type, si.base_quantity_microunits, si.batch_id,
-                  wm.id AS measurement_id
+                  si.unit_cost_cents, wm.id AS measurement_id
            FROM sale_items si
            LEFT JOIN weight_measurements wm
              ON wm.tenant_id = si.tenant_id AND wm.sale_item_id = si.id
@@ -190,6 +192,7 @@ export async function processCreditNoteAtomic(
           product_type: string;
           base_quantity_microunits: number;
           batch_id: string | null;
+          unit_cost_cents: number;
           measurement_id: string | null;
         }>();
       if (!originalLine || originalLine.product_id !== item.productId) {
@@ -208,6 +211,7 @@ export async function processCreditNoteAtomic(
         restoreMicrounits,
         batchId: originalLine.batch_id,
         measurementId: originalLine.measurement_id,
+        restoreCostCents: originalLine.unit_cost_cents ?? 0,
       };
     }),
   );
@@ -332,16 +336,37 @@ export async function processCreditNoteAtomic(
       const { item, restoreMicrounits } = resolved;
       if (restoreMicrounits <= 0) continue;
       const restore = restoreMicrounits / QUANTITY_SCALE;
+      // S18-H2: refresh PMP del branch — recomputa con el costo snapshot de la
+      // venta origen (unit_cost_cents) en la misma tx de la NC.
+      const pmpSnap = await db
+        .prepare(
+          `SELECT stock, pmp_unit_cost_cents FROM branch_product_stock
+           WHERE tenant_id = ? AND branch_id = ? AND product_id = ? LIMIT 1`,
+        )
+        .bind(tenantId, origin.branch_id, item.productId)
+        .first<{ stock: number; pmp_unit_cost_cents: number }>();
+      const prevStock = pmpSnap?.stock ?? 0;
+      const prevPmp = pmpSnap?.pmp_unit_cost_cents ?? 0;
+      // S18-H2: el costo restaurado es el snapshot de la venta; si el ítem no
+      // lo persiste (legacy), se reusa el PMP actual (costo neutral).
+      const restoreCost = resolved.restoreCostCents > 0 ? resolved.restoreCostCents : prevPmp;
+      const newPmp = refreshAvgCostCents({
+        previousStock: prevStock,
+        previousPmpCents: prevPmp,
+        inboundQty: restore,
+        inboundUnitCostCents: restoreCost,
+      });
       plan.add(
         db
           .prepare(
             `UPDATE branch_product_stock
                SET stock = stock + ?,
                    stock_microunits = stock_microunits + ?,
+                   pmp_unit_cost_cents = ?,
                    version = version + 1, updated_at = CURRENT_TIMESTAMP
                WHERE tenant_id = ? AND branch_id = ? AND product_id = ?`,
           )
-          .bind(restore, restoreMicrounits, tenantId, origin.branch_id, item.productId),
+          .bind(restore, restoreMicrounits, newPmp, tenantId, origin.branch_id, item.productId),
       );
       appendLocationStockDeltaToPlan(plan, db, {
         tenantId,

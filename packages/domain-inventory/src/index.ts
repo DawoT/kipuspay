@@ -131,12 +131,15 @@ export function allocateFefo(
   const sorted = [...batches]
     .filter((b) => b.productId === productId && b.qty > 0)
     .sort((a, b) => a.expiresAtUtc.localeCompare(b.expiresAtUtc));
+  // S18-H1: los lotes vencidos se saltan (nunca se venden); si TODOS están
+  // vencidos, no hay stock disponible y se reporta el primero vencido.
+  const active = sorted.filter((b) => b.expiresAtUtc >= nowIsoUtc);
+  if (active.length === 0 && sorted.length > 0) {
+    throw new ExpiredBatchError(sorted[0]!.batchId);
+  }
   let remaining = qtyNeeded;
   const out: FefoAllocation[] = [];
-  for (const batch of sorted) {
-    if (batch.expiresAtUtc < nowIsoUtc) {
-      throw new ExpiredBatchError(batch.batchId);
-    }
+  for (const batch of active) {
     const take = Math.min(batch.qty, remaining);
     out.push({ batchId: batch.batchId, qty: take });
     remaining -= take;

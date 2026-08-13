@@ -95,7 +95,7 @@ async function applyCashPolicyPatch(
   tenantId: string,
   patch: { ok: true; sets: string[]; params: unknown[] },
 ): Promise<{ ok: true; row: { tip_max_percent: number; open_drawer_on_cash: number } | null } | { ok: false; status: number; code: string }> {
-  const db = env.DB as unknown as PolicyDb;
+  const db = env.DB as PolicyDb;
   await db
     .prepare(
       `INSERT INTO tenant_discount_policies (tenant_id, tip_max_percent, open_drawer_on_cash)

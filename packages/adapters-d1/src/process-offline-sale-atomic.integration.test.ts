@@ -1,6 +1,5 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
-import { runPromotionsAntiStackChaosScenario } from '@kipuspay/chaos-harness';
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
 import { ExpiredBatchError } from '@kipuspay/domain-inventory';
 import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
@@ -1766,13 +1765,7 @@ describe('S30-H1: promoción no rompe batch_id (evidencia real del motor)', () =
 
     // S30-H1: el veredicto del chaos promotions-anti-stack exige la evidencia
     // real del motor — aquí se la damos (batch_id estable verificado arriba).
-    const verdict = await runPromotionsAntiStackChaosScenario(async () => ({
-      cycles: 500,
-      discrepancies: 0,
-      samples: [],
-      batchEvidenceVerified: true,
-    }));
-    expect(verdict).toBe('PASS');
+    expect(batch?.stock).toBe(3);
   });
 });
 

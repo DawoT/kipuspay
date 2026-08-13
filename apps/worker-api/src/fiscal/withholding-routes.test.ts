@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runPerceptionHttp, runRetentionHttp, type WithholdingEnv } from './withholding-routes.js';
 
-const processPerceptionAtomic = vi.fn();
-const processRetentionAtomic = vi.fn();
+const processPerceptionAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const processRetentionAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
   processPerceptionAtomic: (a: unknown, b: unknown, c: unknown, d: unknown, e: unknown, f: unknown, g: unknown) =>

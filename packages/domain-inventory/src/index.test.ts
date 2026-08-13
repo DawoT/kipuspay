@@ -41,7 +41,9 @@ describe('allocateFefo', () => {
       { batchId: 'old', productId: 'p1', qty: 5, expiresAtUtc: '2026-07-01T00:00:00Z' },
       { batchId: 'new', productId: 'p1', qty: 5, expiresAtUtc: '2026-12-01T00:00:00Z' },
     ];
-    expect(() => allocateFefo(batches, 'p1', 2, '2026-08-05T00:00:00Z')).toThrow(ExpiredBatchError);
+    // S18-H1: con lote bueno, el vencido se salta y se asigna del bueno.
+    const mixed = allocateFefo(batches, 'p1', 2, '2026-08-05T00:00:00Z');
+    expect(mixed).toEqual([{ batchId: 'new', qty: 2 }]);
     const ok = allocateFefo(
       [{ batchId: 'a', productId: 'p1', qty: 3, expiresAtUtc: '2026-09-01T00:00:00Z' }],
       'p1',
@@ -49,6 +51,19 @@ describe('allocateFefo', () => {
       '2026-08-05T00:00:00Z',
     );
     expect(ok).toEqual([{ batchId: 'a', qty: 2 }]);
+  });
+
+  it('S18-H1: salta lotes vencidos y usa los buenos (no bloquea la venta)', () => {
+    const batches = [
+      { batchId: 'expired', productId: 'p1', qty: 5, expiresAtUtc: '2026-07-01T00:00:00Z' },
+      { batchId: 'good', productId: 'p1', qty: 5, expiresAtUtc: '2026-12-01T00:00:00Z' },
+    ];
+    // Con stock bueno suficiente, el vencido se ignora y se asigna del bueno.
+    const ok = allocateFefo(batches, 'p1', 3, '2026-08-05T00:00:00Z');
+    expect(ok).toEqual([{ batchId: 'good', qty: 3 }]);
+
+    // Si TODO está vencido → ExpiredBatchError (nunca vender vencido).
+    expect(() => allocateFefo(batches, 'p1', 3, '2026-12-15T00:00:00Z')).toThrow(ExpiredBatchError);
   });
 });
 

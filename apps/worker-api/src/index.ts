@@ -34,17 +34,11 @@ import {
   runPayArHttp,
   runTransitionPoHttp,
 } from './ledger/ledger-routes.js';
-import {
-  runAuthzTokenMintHttp,
-  runBlindCloseHttp,
-  runCashMovementHttp,
-  runSaleReprintHttp,
-} from './cash/cash-routes.js';
+import { runBlindCloseHttp, runCashMovementHttp, runSaleReprintHttp } from './cash/cash-routes.js';
 import {
   runCreateSalesReturnHttp,
   runGetReturnPolicyHttp,
   runListSalesReturnsHttp,
-  runUpsertReturnPolicyHttp,
 } from './sales/sales-returns-routes.js';
 import {
   runCancelLayawayHttp,
@@ -117,7 +111,6 @@ import {
   runUpdateVariantHttp,
   runUpsertProductUomHttp,
 } from './catalog/catalog-variants-uom-routes.js';
-import { runListSellableCatalogHttp } from './catalog/sellable-catalog-routes.js';
 import {
   runOwnerUncapturedPaymentsHttp,
   runPaymentCaptureGetHttp,
@@ -238,7 +231,6 @@ import {
   runCreateBackupHttp,
   runDownloadBackupHttp,
   runListBackupsHttp,
-  runMintBackupStepUpTokenHttp,
   runRestoreDryRunHttp,
   type BackupActor,
   type BackupHttpResult,
@@ -464,15 +456,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // Fiscal RC — void boleta / alertas / portal / cron RC+plazos
   app.post('/api/fiscal/void-boleta', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user') as { userId?: string } | undefined;
     const tenantId = jwt?.tenantId ?? '';
     const body: { saleId?: string } = await c.req.json();
-    const result = await runVoidBoletaHttp(
-      c.env,
-      tenantId,
-      body.saleId ?? '',
-      user?.userId ?? jwt?.sub ?? 'system',
-    );
+    const result = await runVoidBoletaHttp(c.env, tenantId, body.saleId ?? '');
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
@@ -617,21 +603,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
-  // S17-H2: minting de authorization_tokens (PIN supervisor, lockout SEC-11)
-  app.post('/api/cash/authz-token', async (c) => {
-    const jwt = c.get('jwt');
-    const user = c.get('user') as { userId?: string } | undefined;
-    const raw: unknown = await c.req.json().catch(() => null);
-    const body = (raw ?? {}) as { pin?: string; scope?: string };
-    const result = await runAuthzTokenMintHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      user?.userId ?? jwt?.sub ?? '',
-      body,
-    );
-    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
-  });
-
   app.post('/api/cash/reprints', async (c) => {
     const jwt = c.get('jwt');
     const user = c.get('user');
@@ -645,20 +616,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
-  // Backlog v10 P2 — políticas de caja (FEATURE_SALE_TIP/FEATURE_CASH_DRAWER, default-off).
-  app.get('/api/cash/policy', async (c) => {
-    const jwt = c.get('jwt');
-    const result = await runGetCashPolicyHttp(c.env, {
-      tenantId: jwt?.tenantId ?? '',
-      userId: jwt?.sub ?? '',
-      role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
-    });
-    return c.json(result.body, result.status as 200 | 404 | 503);
-  });
-  app.patch('/api/cash/policy', async (c) => {
+  // Backlog v10 P1a — Nota de Débito (FEATURE_SALES_DEBIT_NOTE, default-off).
+  app.post('/api/sales/debit-notes', async (c) => {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json();
-    const result = await runPatchCashPolicyHttp(
+    const result = await runDebitNoteHttp(
       c.env,
       {
         tenantId: jwt?.tenantId ?? '',
@@ -669,7 +631,25 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         ? (body as Record<string, unknown>)
         : {},
     );
-    return c.json(result.body, result.status as 200 | 403 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
+  });
+
+  // Backlog v10 P1b — GRE (FEATURE_GRE, default-off).
+  app.post('/api/inventory/remission-guides', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runRemissionGuideHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
   });
 
   // Backlog v10 P1c — Percepciones/Retenciones (FEATURE_FISCAL_WITHHOLDINGS, default-off).
@@ -706,29 +686,20 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
   });
 
-  // Backlog v10 P1b — GRE (FEATURE_GRE, default-off).
-  app.post('/api/inventory/remission-guides', async (c) => {
+  // Backlog v10 P2 — políticas de caja (FEATURE_SALE_TIP/FEATURE_CASH_DRAWER, default-off).
+  app.get('/api/cash/policy', async (c) => {
     const jwt = c.get('jwt');
-    const body: unknown = await c.req.json();
-    const result = await runRemissionGuideHttp(
-      c.env,
-      {
-        tenantId: jwt?.tenantId ?? '',
-        userId: jwt?.sub ?? '',
-        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
-      },
-      body && typeof body === 'object' && !Array.isArray(body)
-        ? (body as Record<string, unknown>)
-        : {},
-    );
-    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
+    const result = await runGetCashPolicyHttp(c.env, {
+      tenantId: jwt?.tenantId ?? '',
+      userId: jwt?.sub ?? '',
+      role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+    });
+    return c.json(result.body, result.status as 200 | 404 | 503);
   });
-
-  // Backlog v10 P1a — Nota de Débito (FEATURE_SALES_DEBIT_NOTE, default-off).
-  app.post('/api/sales/debit-notes', async (c) => {
+  app.patch('/api/cash/policy', async (c) => {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json();
-    const result = await runDebitNoteHttp(
+    const result = await runPatchCashPolicyHttp(
       c.env,
       {
         tenantId: jwt?.tenantId ?? '',
@@ -739,7 +710,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         ? (body as Record<string, unknown>)
         : {},
     );
-    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 403 | 404 | 422 | 503);
   });
 
   // Sprint 28 — devoluciones (FEATURE_SALES_RETURNS); checkout-critical vía /api/sales/
@@ -759,20 +730,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const jwt = c.get('jwt');
     const result = await runGetReturnPolicyHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
-  });
-  // S28-H3: upsert de la política (admin/owner + audit).
-  app.put('/api/sales/returns/policy', async (c) => {
-    const jwt = c.get('jwt');
-    const user = c.get('user');
-    const body: unknown = await c.req.json();
-    const result = await runUpsertReturnPolicyHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      user?.userId ?? jwt?.sub ?? '',
-      user?.role ?? '',
-      body,
-    );
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
   });
   app.get('/api/sales/returns', async (c) => {
     const jwt = c.get('jwt');
@@ -869,7 +826,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
-      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
@@ -882,7 +838,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
-      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
@@ -901,9 +856,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/quotes/expired', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
   app.get('/api/ledger/journal', async (c) => {
     const jwt = c.get('jwt');
@@ -1219,9 +1173,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/purchasing/three-way', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
   app.post('/api/purchasing/returns', async (c) => {
     const jwt = c.get('jwt');
@@ -1261,9 +1214,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/purchasing/returns', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
   app.post('/api/ledger/store-credit/issue', (c) => {
     const result = runIssueStoreCreditHttp(c.env);
@@ -1297,9 +1249,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/ledger/store-credit', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
   app.post('/api/sales/installments', async (c) => {
     const jwt = c.get('jwt');
@@ -1329,9 +1280,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/installments/overdue', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
 
   app.get('/api/admin/commissions/rates', async (c) => {
@@ -1394,9 +1344,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/commissions', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
 
   // Sprint 30 — promociones (FEATURE_PRICING_PROMOTIONS)
@@ -1556,16 +1505,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.get('/api/catalog/variants-uom', async (c) => {
     const jwt = c.get('jwt');
     const result = await runListVariantsUomHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
-  });
-  app.get('/api/catalog/sellable', async (c) => {
-    const jwt = c.get('jwt');
-    const user = c.get('user');
-    const result = await runListSellableCatalogHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      user?.branchId ?? '',
-    );
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
   app.patch('/api/catalog/variants/:id', async (c) => {
@@ -1961,12 +1900,10 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.post('/api/inventory/counts/submit-review', async (c) => {
     const jwt = c.get('jwt');
-    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runSubmitCountReviewHttp(
       c.env,
       jwt?.tenantId ?? '',
-      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
@@ -1979,7 +1916,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
-      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
@@ -2004,7 +1940,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
-      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
@@ -2375,17 +2310,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       }),
     ),
   );
-  // S42-H1: emite el step-up token (mint) para download/restore-dry-run/DR.
-  app.post('/api/backups/step-up', async (c) => {
-    const body: unknown = await c.req.json();
-    return backupResponse(
-      await runMintBackupStepUpTokenHttp(
-        c.env,
-        trustedBackupActor(c.get('user'), c.get('jwt')),
-        (body ?? {}) as Record<string, unknown>,
-      ),
-    );
-  });
   app.get('/api/backups/:id/download', async (c) =>
     backupResponse(
       await runDownloadBackupHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt')), {
@@ -2501,7 +2425,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     if (result.status === 201 && raw && typeof raw === 'object' && !Array.isArray(raw)) {
       const o = raw as Record<string, unknown>;
       if (typeof o.ref === 'string' && o.ref && typeof result.body.tenantId === 'string') {
-        void runCaptureReferralHttp(c.env, {
+        runCaptureReferralHttp(c.env, {
           referredTenantId: result.body.tenantId,
           ref: o.ref,
         });
@@ -2517,14 +2441,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const jwt = c.get('jwt') as { tenantId: string; sub?: string } | undefined;
-    const user = c.get('user') as { userId?: string } | undefined;
-    const result = await runFormalizationStageHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      raw,
-      user?.userId ?? jwt?.sub ?? 'system',
-    );
+    const jwt = c.get('jwt') as { tenantId: string } | undefined;
+    const result = await runFormalizationStageHttp(c.env, jwt?.tenantId ?? '', raw);
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
@@ -2536,7 +2454,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = await runEnsureReferralCodeHttp(c.env, raw);
+    const result = runEnsureReferralCodeHttp(c.env, raw);
     return c.json(result.body, result.status as 200 | 400 | 422);
   });
 
@@ -2547,7 +2465,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = await runCaptureReferralHttp(c.env, raw);
+    const result = runCaptureReferralHttp(c.env, raw);
     return c.json(result.body, result.status as 201 | 400 | 422);
   });
 
@@ -2558,7 +2476,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = await runFirstSaleReferralHttp(c.env, raw);
+    const result = runFirstSaleReferralHttp(c.env, raw);
     return c.json(result.body, result.status as 200 | 400 | 422);
   });
 

@@ -11,7 +11,6 @@ import down0044 from '../migrations-down/0044_sprint52_onboarding_tour.sql?raw';
 import down0046 from '../migrations-down/0046_sprint_p1b_remission_guide.sql?raw';
 import down0047 from '../migrations-down/0047_sprint_p1c_withholdings.sql?raw';
 import down0048 from '../migrations-down/0048_sprint_p2_cash_tips_drawer.sql?raw';
-import down0045 from '../migrations-down/0045_sprint18_count_reason.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
@@ -19,7 +18,6 @@ export const DOWN_0048_SPRINT_P2_CASH_TIPS_DRAWER = down0048;
 export const DOWN_0047_SPRINT_P1C_WITHHOLDINGS = down0047;
 export const DOWN_0046_SPRINT_P1B_REMISSION_GUIDE = down0046;
 export const DOWN_0044_SPRINT52_ONBOARDING_TOUR = down0044;
-export const DOWN_0045_SPRINT18_COUNT_REASON = down0045;
 export const DOWN_0043_SPRINT51_SHIFT_HANDOFF = down0043;
 export const DOWN_0042_SPRINT50_QUICK_ADD = down0042;
 export const DOWN_0041_SPRINT49_INSIGHTS = down0041;
