@@ -80,6 +80,23 @@ function guardMessage(code: string): string {
   return code;
 }
 
+/**
+ * P2: línea de pago con propina opcional (monto = venta + propina; el servidor
+ * valida el tope). Puro.
+ */
+function buildPaymentLine(
+  ctx: ChargeContext,
+  totalCents: number,
+): { paymentMethodId: string; amountCents: number; captureStatus?: string; tipCents?: number } {
+  const tip = ctx.tipCents ?? 0;
+  return {
+    paymentMethodId: ctx.paymentMethodId,
+    amountCents: totalCents + tip,
+    ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
+    ...(tip > 0 ? { tipCents: tip } : {}),
+  };
+}
+
 export async function chargeCartOffline(
   lines: readonly CartLine[],
   ctx: ChargeContext,
@@ -153,14 +170,7 @@ export async function chargeCartOffline(
         ? { serialId: l.serialId, serialLeaseToken: l.serialLeaseToken }
         : {}),
     })),
-    payments: [
-      {
-        paymentMethodId: ctx.paymentMethodId,
-        amountCents: totalCents + (ctx.tipCents ?? 0),
-        ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
-        ...(ctx.tipCents ? { tipCents: ctx.tipCents } : {}),
-      },
-    ],
+    payments: [buildPaymentLine(ctx, totalCents)],
     ...(ctx.sellerId?.trim() ? { sellerId: ctx.sellerId.trim() } : {}),
   };
 
