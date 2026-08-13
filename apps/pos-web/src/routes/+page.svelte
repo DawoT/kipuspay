@@ -728,7 +728,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             <EmptyState
               icon="layers"
               title="Catálogo desactivado"
-              description="Activa FEATURE_CATALOG_SELLABLE para cobrar desde el catálogo. La venta rápida sigue disponible."
+              description="Activa el catálogo en Ajustes para cobrar desde el catálogo. La venta rápida sigue disponible."
             />
           {:else if visibleCatalog.length === 0}
             <EmptyState
