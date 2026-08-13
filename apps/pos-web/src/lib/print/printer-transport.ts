@@ -4,6 +4,8 @@
 import {
   base64ToBytes,
   buildTicketHtml,
+  bytesToBase64,
+  openDrawerBytes,
   type PrinterStrategy,
   type PrintTicketSnapshot,
   type SystemPrintPort,
@@ -27,6 +29,12 @@ export interface PrinterTransport {
     readonly escPosBase64: string | null;
     readonly preferredAdapter?: PrinterStrategy | null;
   }): Promise<TransportResult>;
+  /**
+   * Backlog v10 P2 — abre el cajón de efectivo por ESC/POS (`ESC p`) en el
+   * primer adaptador de hardware disponible (webusb/wss_lan/bluetooth).
+   * system_print/whatsapp no abren cajón (no son hardware de caja).
+   */
+  openDrawer(): Promise<TransportResult>;
 }
 
 function createSystemPort(): SystemPrintPort {
@@ -156,6 +164,26 @@ export function createPrinterTransport(env: PrinterTransportEnv = {}): PrinterTr
       }
       return { ok: false, adapter: 'system_print', error: lastError };
     },
+    async openDrawer() {
+      const drawerBytes = openDrawerBytes();
+      const drawerOrder: PrinterStrategy[] = ['webusb', 'wss_lan', 'bluetooth'];
+      let lastError = 'NO_ADAPTER';
+      for (const adapter of drawerOrder) {
+        try {
+          await executeSingleAdapter(
+            adapter,
+            { ticket: {} as PrintTicketSnapshot, escPosBase64: bytesToBase64(drawerBytes) },
+            drawerBytes,
+            env,
+            system,
+          );
+          return { ok: true, adapter };
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : String(e);
+        }
+      }
+      return { ok: false, adapter: 'system_print', error: lastError };
+    },
   };
 }
 
@@ -181,6 +209,23 @@ export function createMockPrinterTransport(
         }
       }
       return { ok: false, adapter: 'system_print', error: 'EMPTY_LADDER' };
+    },
+    async openDrawer() {
+      const hardware = adapters.filter(
+        (a) => a.strategy !== 'system_print' && a.strategy !== 'whatsapp',
+      );
+      for (const a of hardware) {
+        try {
+          await a.run();
+          return { ok: true, adapter: a.strategy };
+        } catch (e) {
+          const error = e instanceof Error ? e.message : String(e);
+          if (a === hardware[hardware.length - 1]) {
+            return { ok: false, adapter: a.strategy, error };
+          }
+        }
+      }
+      return { ok: false, adapter: 'system_print', error: 'NO_DRAWER_ADAPTER' };
     },
   };
 }

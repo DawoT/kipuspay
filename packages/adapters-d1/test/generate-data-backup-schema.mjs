@@ -224,6 +224,11 @@ writeFileSync(
 const introducedAfterSprint42 = new Set([
   'ai_usage_counters',
   'cash_register_shifts',
+  'perceptions',
+  'remission_guide_items',
+  'remission_guides',
+  'retentions',
+  'withholding_parameters',
   'consent_records',
   'customer_order_fulfillments',
   'customer_order_items',

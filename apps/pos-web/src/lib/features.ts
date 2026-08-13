@@ -253,6 +253,16 @@ export function isDebitNoteEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_DEBIT_NOTE'));
 }
 
+/** Backlog v10 P2 — propinas en el cobro; siempre default-off. */
+export function isSaleTipEnabled(): boolean {
+  return flagOn(pub(PF + 'SALE_TIP'));
+}
+
+/** Backlog v10 P2 — cajón de efectivo; siempre default-off. */
+export function isCashDrawerEnabled(): boolean {
+  return flagOn(pub(PF + 'CASH_DRAWER'));
+}
+
 /** Backlog v10 P1c — Percepciones/Retenciones; siempre default-off. */
 export function isWithholdingsEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_WITHHOLDINGS'));
@@ -271,4 +281,9 @@ export function isHardwareDiagnosticsEnabled(): boolean {
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));
+}
+
+/** Sprint C1 — catálogo vendible en la terminal (grid + buscador); siempre default-off. */
+export function isCatalogSellableEnabled(): boolean {
+  return flagOn(pub(PF + 'CATALOG_SELLABLE'));
 }

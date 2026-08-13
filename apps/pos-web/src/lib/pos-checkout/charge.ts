@@ -27,6 +27,8 @@ export interface ChargeContext {
   readonly captureStatus?: 'API' | 'MANUAL' | undefined;
   /** Sprint 37: atribución vendedor (opcional). */
   readonly sellerId?: string | undefined;
+  /** Backlog v10 P2: propina del cobro (sin IGV; server valida el tope). */
+  readonly tipCents?: number | undefined;
 }
 
 export interface ChargeResult {
@@ -154,8 +156,9 @@ export async function chargeCartOffline(
     payments: [
       {
         paymentMethodId: ctx.paymentMethodId,
-        amountCents: totalCents,
+        amountCents: totalCents + (ctx.tipCents ?? 0),
         ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
+        ...(ctx.tipCents ? { tipCents: ctx.tipCents } : {}),
       },
     ],
     ...(ctx.sellerId?.trim() ? { sellerId: ctx.sellerId.trim() } : {}),

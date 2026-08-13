@@ -7,10 +7,12 @@ import {
   aggregateSaleItems,
   assertAndApplyPromotions,
   assertOfflineSaleShape,
+  assertTipAllowed,
   computeNvLineTotals,
   InsufficientStockError,
   planCrmLww,
   resolveIssuedAtMs,
+  totalTipCents,
   splitNvLinesByFefo,
   toLimaTimestamp,
   type NvLineCents,
@@ -89,27 +91,9 @@ import {
 } from './s18-sale-inventory.js';
 import { loadPromotionsByIds } from './load-promotions.js';
 import { resolveActiveTerminalSession } from './process-inventory-scale-atomic.js';
+import { requireLiveAuthToken } from './auth-tokens.js';
 import { sha256Hex } from './crypto.js';
 
-async function requireLiveAuthToken(
-  db: D1DatabaseLike,
-  tenantId: string,
-  tokenHash: string | null | undefined,
-): Promise<string> {
-  if (!tokenHash?.trim()) throw new Error('AUTH_TOKEN_REQUIRED');
-  const row = await db
-    .prepare(
-      `SELECT id FROM authorization_tokens
-       WHERE tenant_id = ? AND token_hash = ?
-         AND used_at IS NULL
-         AND expires_at > datetime('now')
-       LIMIT 1`,
-    )
-    .bind(tenantId, tokenHash)
-    .first<{ id: string }>();
-  if (!row) throw new Error('AUTH_TOKEN_INVALID');
-  return row.id;
-}
 export type OfflineSaleResult =
   | {
       status: 'SUCCESS';
@@ -492,21 +476,49 @@ async function prepareWeightMeasurements(
       ) {
         throw new Error('SCALE_READING_UNSTABLE');
       }
-      if (nowMs - observedAtMs >= 2_000 || observedAtMs > nowMs) {
+      // El observedAt del dispositivo es tiempo REAL de la balanza, no el
+      // nowMs de emisión de la venta (que puede venir del cliente).
+      const readingClockMs = Date.now();
+      if (readingClockMs - observedAtMs >= 2_000 || observedAtMs > readingClockMs) {
         throw new Error('SCALE_HEARTBEAT_STALE');
       }
       const device = await db
         .prepare(
-          `SELECT last_heartbeat_at, last_heartbeat_sequence FROM scale_devices
+          `SELECT last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
+           FROM scale_devices
            WHERE tenant_id = ? AND id = ? AND terminal_id = ? AND protocol = ?
              AND status = 'ACTIVE' LIMIT 1`,
         )
         .bind(tenantId, measurement.scaleDeviceId, terminalId, measurement.scaleProtocol)
-        .first<{ last_heartbeat_at: string | null; last_heartbeat_sequence: number | null }>();
+        .first<{
+          last_heartbeat_at: string | null;
+          last_heartbeat_sequence: number | null;
+          last_weight_microunits: number | null;
+        }>();
       const heartbeatMs = device?.last_heartbeat_at ? Date.parse(device.last_heartbeat_at) : NaN;
       if (!device) throw new Error('SCALE_DEVICE_SCOPE_MISMATCH');
-      if (!Number.isFinite(heartbeatMs) || nowMs - heartbeatMs >= 2_000 || heartbeatMs > nowMs) {
+      // El heartbeat lo registra la balanza en tiempo REAL (Date.now() del
+      // dispositivo); el nowMs de la venta es el de emisión, no el del
+      // hardware. La frescura del device se valida contra el reloj real.
+      const deviceClockMs = Date.now();
+      if (
+        !Number.isFinite(heartbeatMs) ||
+        deviceClockMs - heartbeatMs >= 2_000 ||
+        heartbeatMs > deviceClockMs
+      ) {
         throw new Error('SCALE_HEARTBEAT_STALE');
+      }
+      // S40-H1: el peso DEVICE DEBE ser EXACTAMENTE la última lectura cruda
+      // registrada por la balanza en su heartbeat — jamás un valor arbitrario
+      // del cliente. Cada pesaje real = un heartbeat nuevo con su lectura.
+      const lastReading = device.last_weight_microunits;
+      if (
+        typeof lastReading !== 'number' ||
+        !Number.isInteger(lastReading) ||
+        lastReading <= 0 ||
+        lastReading !== measurement.weightMicrounits
+      ) {
+        throw new Error('WEIGHT_DEVICE_READING_MISMATCH');
       }
     } else {
       if (
@@ -961,8 +973,10 @@ export async function processOfflineSaleAtomic(
     throw new Error('FEATURE_OFF');
   }
   if (!wantsStoreCreditTender) {
+    // P2: el total a cobrar incluye la propina (fuera del valor de venta/IGV).
+    const tipSum = totalTipCents(payload.payments);
     const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
-    if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
+    if (paySum !== totals.totalAmountCents + tipSum) throw new Error('PAYMENT_TOTAL_MISMATCH');
   }
 
   const docType = payload.documentType as DocumentTypeCode;
@@ -1153,15 +1167,24 @@ export async function processOfflineSaleAtomic(
   {
     const policyRow = await db
       .prepare(
-        `SELECT max_percent_without_auth, max_amount_without_auth_cents
+        `SELECT max_percent_without_auth, max_amount_without_auth_cents, tip_max_percent
          FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
       )
       .bind(tenantId)
-      .first<{ max_percent_without_auth: number; max_amount_without_auth_cents: number }>();
+      .first<{
+        max_percent_without_auth: number;
+        max_amount_without_auth_cents: number;
+        tip_max_percent: number;
+      }>();
     const policy = {
       maxPercentWithoutAuth: policyRow?.max_percent_without_auth ?? 5,
       maxAmountWithoutAuthCents: policyRow?.max_amount_without_auth_cents ?? 2000,
     };
+    // P2: propina dentro del tope del tenant (default 25% del base gravable).
+    const tipSum = totalTipCents(payload.payments);
+    if (tipSum > 0) {
+      assertTipAllowed(totals.totalTaxableCents, tipSum, policyRow?.tip_max_percent ?? 25);
+    }
     let needsDiscountToken = false;
     for (let i = 0; i < totals.lines.length; i++) {
       const line = totals.lines[i]!;
@@ -2154,8 +2177,8 @@ export async function processOfflineSaleAtomic(
           db
             .prepare(
               `INSERT INTO sale_payments (
-                   id, tenant_id, sale_id, payment_method_id, amount_cents, reference_number
-                 ) VALUES (?, ?, ?, ?, ?, ?)`,
+                   id, tenant_id, sale_id, payment_method_id, amount_cents, reference_number, tip_cents
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
             )
             .bind(
               salePaymentId,
@@ -2164,6 +2187,7 @@ export async function processOfflineSaleAtomic(
               pay.paymentMethodId,
               pay.amountCents,
               pay.referenceNumber ?? null,
+              pay.tipCents ?? 0,
             ),
         );
         // §5.4 edge 2B: MANUAL_ELECTRONIC_CAPTURE en la misma batch (nunca inventa CAPTURED).
@@ -2437,7 +2461,13 @@ export async function processOfflineSaleAtomic(
         auditTail = installmentResult.rowHash;
       }
 
-      if (commissionsOn && payload.sellerId?.trim() && !isReturn) {
+      // S37-H2: el vendedor se resuelve por ítem (item.sellerId) o carrito
+      // (payload.sellerId) — regla 22: la venta con vendedor SIEMPRE devenga.
+      const resolvedSellerId =
+        payload.sellerId?.trim() ||
+        payload.items.find((i) => i.sellerId?.trim())?.sellerId?.trim() ||
+        '';
+      if (commissionsOn && resolvedSellerId && !isReturn) {
         const commissionLines = saleLines.map((line) => ({
           productId: line.productId,
           categoryId: null as string | null,
@@ -2448,7 +2478,7 @@ export async function processOfflineSaleAtomic(
           userId,
           branchId: payload.branchId,
           saleId,
-          sellerId: payload.sellerId.trim(),
+          sellerId: resolvedSellerId,
           lines: commissionLines,
           prevAuditHash: auditTail,
           chartOn,

@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateSaleItems,
   assertOfflineSaleShape,
+  assertTipAllowed,
   computeNvLineTotals,
   InsufficientStockError,
   resolveIssuedAtMs,
   splitNvLinesByFefo,
+  TIP_DEFAULT_MAX_PERCENT,
   toLimaTimestamp,
+  totalDueWithTip,
+  totalTipCents,
   type OfflineSalePayload,
 } from './offline-sale.js';
 
@@ -815,5 +819,65 @@ describe('línea genérica sin catálogo (Sprint 50 / regla 34b)', () => {
         new Map(),
       ),
     ).toThrow('DISCOUNT_EXCEEDS_SUBTOTAL');
+  });
+});
+
+describe('propinas (Backlog v10 P2)', () => {
+  it('assertTipAllowed: default 25% del subtotal; encima → TIP_EXCEEDS_MAX_PERCENT', () => {
+    expect(TIP_DEFAULT_MAX_PERCENT).toBe(25);
+    expect(() => assertTipAllowed(10_000, 2_500)).not.toThrow();
+    expect(() => assertTipAllowed(10_000, 2_501)).toThrow('TIP_EXCEEDS_MAX_PERCENT');
+    // redondeo del tope: 10001 * 25% = 2500.25 -> 2500
+    expect(() => assertTipAllowed(10_001, 2_500)).not.toThrow();
+  });
+
+  it('assertTipAllowed: valida subtotal, tip y política', () => {
+    expect(() => assertTipAllowed(-1, 0)).toThrow('INVALID_SUBTOTAL');
+    expect(() => assertTipAllowed(100, -1)).toThrow('INVALID_TIP_CENTS');
+    expect(() => assertTipAllowed(100, 10.5)).toThrow('INVALID_TIP_CENTS');
+    expect(() => assertTipAllowed(100, 0, 0)).toThrow('INVALID_TIP_MAX_PERCENT');
+    expect(() => assertTipAllowed(100, 0, 101)).toThrow('INVALID_TIP_MAX_PERCENT');
+  });
+
+  it('política custom: tope del tenant (p.ej. 15%)', () => {
+    expect(() => assertTipAllowed(10_000, 1_500, 15)).not.toThrow();
+    expect(() => assertTipAllowed(10_000, 1_501, 15)).toThrow('TIP_EXCEEDS_MAX_PERCENT');
+  });
+
+  it('shape: tip entero ≥ 0 y ≤ monto del pago; 0/omit = sin propina', () => {
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        payments: [{ paymentMethodId: 'pm1', amountCents: 2_600, tipCents: 240 }],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        payments: [{ paymentMethodId: 'pm1', amountCents: 2_600, tipCents: -1 }],
+      }),
+    ).toThrow('INVALID_TIP_CENTS');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        payments: [{ paymentMethodId: 'pm1', amountCents: 100, tipCents: 101 }],
+      }),
+    ).toThrow('TIP_EXCEEDS_PAYMENT');
+    expect(() =>
+      assertOfflineSaleShape({
+        ...basePayload(),
+        payments: [{ paymentMethodId: 'pm1', amountCents: 2_600, tipCents: 0 }],
+      }),
+    ).not.toThrow();
+  });
+
+  it('totalTipCents y totalDueWithTip: la propina se cobra aparte del valor de venta', () => {
+    const payments = [
+      { paymentMethodId: 'cash', amountCents: 2_600, tipCents: 240 },
+      { paymentMethodId: 'yape', amountCents: 1_000 },
+    ];
+    expect(totalTipCents(payments)).toBe(240);
+    expect(totalDueWithTip(3_360, 240)).toBe(3_600);
+    expect(totalDueWithTip(3_360, 0)).toBe(3_360);
   });
 });

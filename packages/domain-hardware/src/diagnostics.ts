@@ -5,7 +5,13 @@
  * servidor lo referencian, nunca lo re-escriben.
  */
 
-export const DIAGNOSTIC_TARGETS = ['printer_usb', 'printer_network', 'scale', 'vitrina'] as const;
+export const DIAGNOSTIC_TARGETS = [
+  'printer_usb',
+  'printer_network',
+  'scale',
+  'vitrina',
+  'cash_drawer',
+] as const;
 export type DiagnosticTarget = (typeof DIAGNOSTIC_TARGETS)[number];
 
 /**
@@ -44,7 +50,9 @@ export type DiagnosticCauseCode =
   | 'SCALE_UNSTABLE'
   | 'SCALE_COMM_FAILED'
   | 'VITRINA_NO_SCREEN'
-  | 'VITRINA_COMM_FAILED';
+  | 'VITRINA_COMM_FAILED'
+  | 'DRAWER_NOT_FOUND'
+  | 'DRAWER_COMM_FAILED';
 
 export interface DiagnosticCause {
   readonly label: string;
@@ -99,6 +107,14 @@ export const DIAGNOSTIC_CAUSES: Readonly<Record<DiagnosticCauseCode, DiagnosticC
   VITRINA_NO_SCREEN: {
     label: 'Ninguna pantalla de vitrina está activa.',
     nextStepId: 'Abre la vitrina en otra pantalla y vuelve a probar.',
+  },
+  DRAWER_NOT_FOUND: {
+    label: 'No encontramos un cajón de efectivo conectado.',
+    nextStepId: 'Conecta el cajón a la impresora y vuelve a probar.',
+  },
+  DRAWER_COMM_FAILED: {
+    label: 'El cajón no respondió al impulso de apertura.',
+    nextStepId: 'Revisa el cable del cajón y el modelo de impresora.',
   },
   VITRINA_COMM_FAILED: {
     label: 'La vitrina no respondió la prueba.',

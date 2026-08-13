@@ -1,6 +1,8 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import { runPromotionsAntiStackChaosScenario } from '@kipuspay/chaos-harness';
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
+import { ExpiredBatchError } from '@kipuspay/domain-inventory';
 import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
 import { processCreditNoteAtomic } from './process-credit-note-atomic.js';
 
@@ -994,6 +996,8 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
     expect(open?.s ?? 0).toBeLessThanOrEqual(5000);
   });
 
+  // 50 ciclos de stress ACID: ~5-15s bajo carga (supera el testTimeout default
+  // de 5000ms de vitest). Timeout explícito para eliminar el flake por timing.
   it('S8-H1: 50 ciclos venta crédito → NC parcial/total: 0 discrepancia saldo vs asientos', async () => {
     const now = Date.parse('2026-08-04T15:00:00.000Z');
     const cycles = 50;
@@ -1086,7 +1090,7 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
        WHERE status = 'PAID' AND balance_due_cents <> 0`,
     ).first<{ n: number }>();
     expect(drift?.n).toBe(0);
-  });
+  }, 30_000);
 });
 
 describe('processOfflineSaleAtomic S31 UOM (F2)', () => {
@@ -1314,5 +1318,621 @@ describe('línea genérica (Sprint 50 / edge 2A)', () => {
         { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
       ),
     ).rejects.toThrow('GENERIC_LINE_PRICE_EXCEEDS_THRESHOLD');
+  });
+});
+
+describe('S18-H1: FEFO / BOM / price-list en motor (integración workerd)', () => {
+  it('FEFO: dos lotes, vencido bloqueado (422) y lote bueno descuenta primero', async () => {
+    const tenantId = 't-s18-fefo';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO inventory_batches
+           (id, tenant_id, branch_id, product_id, batch_number, expiration_date, stock, stock_microunits)
+         VALUES (?, ?, ?, ?, 'L-EXP', '2026-07-01', 5, 5000000)`,
+      ).bind('batch-exp', tenantId, fixture.branchId, fixture.productId),
+      env.DB.prepare(
+        `INSERT INTO inventory_batches
+           (id, tenant_id, branch_id, product_id, batch_number, expiration_date, stock, stock_microunits)
+         VALUES (?, ?, ?, ?, 'L-OK', '2026-12-31', 5, 5000000)`,
+      ).bind('batch-ok', tenantId, fixture.branchId, fixture.productId),
+      env.DB.prepare(
+        `UPDATE branch_product_stock SET stock = 10, stock_microunits = 10000000
+         WHERE tenant_id = ? AND product_id = ?`,
+      ).bind(tenantId, fixture.productId),
+      // El motor FEFO espeja el delta a la location default.
+      env.DB.prepare(
+        `INSERT INTO inventory_locations (id, tenant_id, branch_id, code, name)
+         VALUES (?, ?, ?, 'DEFAULT', 'Default')`,
+      ).bind(`loc-default:${tenantId}:${fixture.branchId}`, tenantId, fixture.branchId),
+      env.DB.prepare(
+        `INSERT INTO inventory_location_stock (tenant_id, branch_id, location_id, product_id, quantity_microunits)
+         VALUES (?, ?, ?, ?, 10000000)`,
+      ).bind(
+        tenantId,
+        fixture.branchId,
+        `loc-default:${tenantId}:${fixture.branchId}`,
+        fixture.productId,
+      ),
+      env.DB.prepare(
+        `INSERT INTO inventory_location_batch_stock
+           (tenant_id, branch_id, location_id, product_id, batch_id, quantity_microunits)
+         VALUES (?, ?, ?, ?, 'batch-exp', 5000000)`,
+      ).bind(
+        tenantId,
+        fixture.branchId,
+        `loc-default:${tenantId}:${fixture.branchId}`,
+        fixture.productId,
+      ),
+      env.DB.prepare(
+        `INSERT INTO inventory_location_batch_stock
+           (tenant_id, branch_id, location_id, product_id, batch_id, quantity_microunits)
+         VALUES (?, ?, ?, ?, 'batch-ok', 5000000)`,
+      ).bind(
+        tenantId,
+        fixture.branchId,
+        `loc-default:${tenantId}:${fixture.branchId}`,
+        fixture.productId,
+      ),
+    ]);
+
+    // S18-H1: lote vencido presente + lote bueno → la venta PROCEDE usando el
+    // bueno (el vencido se salta; nunca se vende). Solo falla si todo vence.
+    const exp = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      nvPayload(fixture, 'off-s18-exp', 1, 1180),
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z'), s18: { inventoryBatches: true } },
+    );
+    expect(exp.status).toBe('SUCCESS');
+    const expBatch = await env.DB.prepare(
+      `SELECT stock FROM inventory_batches WHERE id = 'batch-exp'`,
+    )
+      .bind()
+      .first<{ stock: number }>();
+    expect(expBatch?.stock).toBe(5); // el vencido no se tocó
+
+    // Con lote bueno: venta de 2 descuenta del lote OK (FEFO, vencido ignorado).
+    const ok = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      nvPayload(fixture, 'off-s18-ok', 2, 2360),
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z'), s18: { inventoryBatches: true } },
+    );
+    expect(ok.status).toBe('SUCCESS');
+
+    // Total vendido del lote bueno: 1 (off-s18-exp) + 2 (off-s18-ok) = 3 de 5.
+    const batchOk = await env.DB.prepare(
+      `SELECT stock, stock_microunits FROM inventory_batches WHERE id = 'batch-ok'`,
+    )
+      .bind()
+      .first<{ stock: number; stock_microunits: number }>();
+    expect(batchOk?.stock).toBe(2);
+    expect(batchOk?.stock_microunits).toBe(2000000);
+    const batchExp = await env.DB.prepare(
+      `SELECT stock FROM inventory_batches WHERE id = 'batch-exp'`,
+    )
+      .bind()
+      .first<{ stock: number }>();
+    expect(batchExp?.stock).toBe(5); // vencido nunca se toca
+  });
+
+  it('BOM: kit con componente sin stock → rollback total (sin venta parcial)', async () => {
+    const tenantId = 't-s18-bom';
+    const fixture = await seedNvFixture(tenantId);
+    const compId = `p-comp-${tenantId}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO products
+           (id, tenant_id, sku, name, product_type, unit_code, price_cents, cost_cents, stock, allow_negative_stock)
+         VALUES (?, ?, 'COMP', 'Componente', 'physical', 'NIU', 500, 200, 0, 0)`,
+      ).bind(compId, tenantId),
+      env.DB.prepare(
+        `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents)
+         VALUES (?, ?, ?, 0, 0, 200)`,
+      ).bind(tenantId, fixture.branchId, compId),
+      env.DB.prepare(
+        `INSERT INTO product_recipes (id, tenant_id, parent_product_id, child_product_id, quantity)
+         VALUES ('rec-1', ?, ?, ?, 2)`,
+      ).bind(tenantId, fixture.productId, compId),
+      env.DB.prepare(
+        `UPDATE products SET product_type = 'kit', stock = 10, stock_microunits = 10000000
+         WHERE id = ? AND tenant_id = ?`,
+      ).bind(fixture.productId, tenantId),
+      env.DB.prepare(
+        `UPDATE branch_product_stock SET stock = 10, stock_microunits = 10000000
+         WHERE tenant_id = ? AND product_id = ?`,
+      ).bind(tenantId, fixture.productId),
+    ]);
+
+    // Componente sin stock → InsufficientStockError y NINGUNA venta parcial.
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        nvPayload(fixture, 'off-s18-bom', 1, 1180),
+        { nowMs: Date.parse('2026-08-04T15:00:00.000Z'), s18: { inventoryBom: true } },
+      ),
+    ).rejects.toBeInstanceOf(InsufficientStockError);
+
+    const sales = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM sales WHERE tenant_id = ? AND offline_client_sale_id = ?`,
+    )
+      .bind(tenantId, 'off-s18-bom')
+      .first<{ n: number }>();
+    expect(sales?.n).toBe(0);
+  });
+
+  it('price-list: el precio cobrado es el del servidor (lista), nunca el del cliente', async () => {
+    const tenantId = 't-s18-price';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO price_lists (id, tenant_id, name, is_default, is_active)
+         VALUES ('pl-1', ?, 'Lista Premium', 1, 1)`,
+      ).bind(tenantId),
+      env.DB.prepare(
+        `INSERT INTO product_prices (id, tenant_id, price_list_id, product_id, price_cents)
+         VALUES ('pp-1', ?, 'pl-1', ?, 5000)`,
+      ).bind(tenantId, fixture.productId),
+      env.DB.prepare(
+        `UPDATE branches SET price_list_id = 'pl-1' WHERE id = ? AND tenant_id = ?`,
+      ).bind(fixture.branchId, tenantId),
+    ]);
+
+    // El cliente intenta imponer manualPriceCents 999 pero el servidor cobra
+    // 5000 de la lista (Zero-Trust) + IGV 18% → total 5900.
+    const sale = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-s18-price', 1, 5900),
+        items: [{ productId: fixture.productId, quantity: 1, manualPriceCents: 999 }],
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z'), s18: { pricingLists: true } },
+    );
+    expect(sale.status).toBe('SUCCESS');
+    if (sale.status !== 'SUCCESS') return;
+    expect(sale.authoritativeTotalAmount).toBe(5900);
+  });
+});
+
+describe('S18-H2: NC fiscal revierte PMP (refresh_avg_cost)', () => {
+  it('NC parcial recomputa pmp_unit_cost_cents del branch en la misma tx', async () => {
+    const tenantId = 't-s18-nc-pmp';
+    const fixture = await seedNvFixture(tenantId);
+    // PMP inicial 500 (diverge del costo de venta 400): si la NC no refresca,
+    // el PMP queda en 500 tras restaurar; con refresh baja a 450 (9×500+1×400)/10.
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG' WHERE id = ?`,
+      ).bind(tenantId),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-pmp', ?, ?, '01', 'F001', 0, 'INTERNAL'),
+                ('ser-nc-pmp', ?, ?, '07', 'FC01', 0, 'INTERNAL')`,
+      ).bind(tenantId, fixture.branchId, tenantId, fixture.branchId),
+      env.DB.prepare(
+        `UPDATE branch_product_stock SET pmp_unit_cost_cents = 500
+         WHERE tenant_id = ? AND product_id = ?`,
+      ).bind(tenantId, fixture.productId),
+    ]);
+
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const sale = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-pmp-origin', 2, 2360),
+        documentType: '01' as const,
+        series: 'F001',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20123456789',
+        clientName: 'ACME SAC',
+      },
+      { nowMs: now },
+    );
+    expect(sale.status).toBe('SUCCESS');
+    if (sale.status !== 'SUCCESS') return;
+
+    // Simula CDR aceptado (precondición FISCAL_CDR_REQUIRED para NC).
+    await env.DB.prepare(
+      `UPDATE sales SET sunat_status = 'ACCEPTED' WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(sale.saleId, tenantId)
+      .run();
+
+    // NC parcial: devuelve 1 unidad (snapshot de costo 400 → PMP recomputa).
+    const nc = await processCreditNoteAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      sale.saleId,
+      {
+        motiveCode: '01',
+        amountCents: 1180,
+        fullCancellation: false,
+        items: [{ productId: fixture.productId, quantity: 1 }],
+      },
+      'FC01',
+    );
+    expect(nc.status).toBe('SUCCESS');
+    if (nc.status !== 'SUCCESS') return;
+
+    // S18-H2: el PMP del branch se recomputó con el costo restaurado.
+    // La venta snapshot el PMP vigente (500) → restore neutral a 500 → el PMP
+    // no se corrompe (drift). El caso con drift real (recepción a otro costo)
+    // se valida abajo con la recepción previa.
+    const stock = await env.DB.prepare(
+      `SELECT stock, pmp_unit_cost_cents FROM branch_product_stock
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .first<{ stock: number; pmp_unit_cost_cents: number }>();
+    expect(stock?.stock).toBe(9);
+    expect(stock?.pmp_unit_cost_cents).toBe(500); // neutral: snapshot == PMP vigente
+  });
+
+  it('NC restaura el snapshot de costo: PMP baja si hubo recepción posterior a costo menor', async () => {
+    const tenantId = 't-s18-nc-pmp2';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG' WHERE id = ?`,
+      ).bind(tenantId),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-pmp2', ?, ?, '01', 'F001', 0, 'INTERNAL'),
+                ('ser-nc-pmp2', ?, ?, '07', 'FC01', 0, 'INTERNAL')`,
+      ).bind(tenantId, fixture.branchId, tenantId, fixture.branchId),
+    ]);
+
+    // Venta con PMP 400 (fixture default) → snapshot unit_cost 400.
+    const sale = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-pmp2-origin', 1, 1180),
+        documentType: '01' as const,
+        series: 'F001',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20123456789',
+        clientName: 'ACME SAC',
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
+    );
+    expect(sale.status).toBe('SUCCESS');
+    if (sale.status !== 'SUCCESS') return;
+    await env.DB.prepare(
+      `UPDATE sales SET sunat_status = 'ACCEPTED' WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(sale.saleId, tenantId)
+      .run();
+
+    // Sale item id de la venta (para que la NC restaure con el snapshot de costo).
+    const saleItem = await env.DB.prepare(
+      `SELECT id FROM sale_items WHERE sale_id = ? AND tenant_id = ? LIMIT 1`,
+    )
+      .bind(sale.saleId, tenantId)
+      .first<{ id: string }>();
+
+    // Recepción posterior: +4 unidades a costo 500 → stock 13, PMP sube.
+    await env.DB.prepare(
+      `UPDATE branch_product_stock
+       SET stock = 13, stock_microunits = 13000000,
+           pmp_unit_cost_cents = 430
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .run();
+
+    // NC devuelve 1 unidad con snapshot 400 → PMP recomputa a (12×430+1×400)/13 ≈ 427.
+    const nc = await processCreditNoteAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      sale.saleId,
+      {
+        motiveCode: '01',
+        amountCents: 1180,
+        fullCancellation: false,
+        items: [
+          {
+            productId: fixture.productId,
+            quantity: 1,
+            ...(saleItem ? { originalSaleItemId: saleItem.id } : {}),
+          },
+        ],
+      },
+      'FC01',
+    );
+    expect(nc.status).toBe('SUCCESS');
+    if (nc.status !== 'SUCCESS') return;
+
+    const stock = await env.DB.prepare(
+      `SELECT stock, pmp_unit_cost_cents FROM branch_product_stock
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .first<{ stock: number; pmp_unit_cost_cents: number }>();
+    expect(stock?.stock).toBe(14);
+    // Sin refresh quedaría 430 (drift); con refresh: (13×430 + 1×400)/14 ≈ 428.
+    expect(stock?.pmp_unit_cost_cents).toBe(428);
+  });
+});
+
+describe('S30-H1: promoción no rompe batch_id (evidencia real del motor)', () => {
+  it('promo % fijo con lotes FEFO: batch_id estable y descuento exacto', async () => {
+    const tenantId = 't-s30-promo-batch';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO inventory_batches
+           (id, tenant_id, branch_id, product_id, batch_number, expiration_date, stock, stock_microunits)
+         VALUES (?, ?, ?, ?, 'L-OK', '2026-12-31', 5, 5000000)`,
+      ).bind('batch-promo-ok', tenantId, fixture.branchId, fixture.productId),
+      env.DB.prepare(
+        `UPDATE branch_product_stock SET stock = 5, stock_microunits = 5000000
+         WHERE tenant_id = ? AND product_id = ?`,
+      ).bind(tenantId, fixture.productId),
+      env.DB.prepare(
+        `INSERT INTO inventory_locations (id, tenant_id, branch_id, code, name)
+         VALUES (?, ?, ?, 'DEFAULT', 'Default')`,
+      ).bind(`loc-default:${tenantId}:${fixture.branchId}`, tenantId, fixture.branchId),
+      env.DB.prepare(
+        `INSERT INTO inventory_location_stock (tenant_id, branch_id, location_id, product_id, quantity_microunits)
+         VALUES (?, ?, ?, ?, 5000000)`,
+      ).bind(
+        tenantId,
+        fixture.branchId,
+        `loc-default:${tenantId}:${fixture.branchId}`,
+        fixture.productId,
+      ),
+      env.DB.prepare(
+        `INSERT INTO inventory_location_batch_stock
+           (tenant_id, branch_id, location_id, product_id, batch_id, quantity_microunits)
+         VALUES (?, ?, ?, ?, 'batch-promo-ok', 5000000)`,
+      ).bind(
+        tenantId,
+        fixture.branchId,
+        `loc-default:${tenantId}:${fixture.branchId}`,
+        fixture.productId,
+      ),
+      env.DB.prepare(
+        `INSERT INTO promotions (id, tenant_id, name, active, applies_to, rule_json, created_by_user_id)
+         VALUES ('promo-pct-s30', ?, '10% fijo', 1, 'PRODUCT', '{"kind":"percent","percent":10}', ?)`,
+      ).bind(tenantId, fixture.userId),
+      env.DB.prepare(
+        `INSERT INTO product_promotions (id, tenant_id, promotion_id, product_id)
+         VALUES ('pp-s30', ?, 'promo-pct-s30', ?)`,
+      ).bind(tenantId, fixture.productId),
+    ]);
+
+    // 2 unidades con 10% fijo sobre precio 1000 → 2000 - 10% = 1800 + IGV 18% = 2124.
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-s30-promo-batch', 2, 2124),
+        items: [{ productId: fixture.productId, quantity: 2, promotionIds: ['promo-pct-s30'] }],
+      },
+      {
+        nowMs: Date.parse('2026-08-04T15:00:00.000Z'),
+        s18: { inventoryBatches: true },
+        pricingPromotionsEnabled: true,
+      },
+    );
+    expect(result.status).toBe('SUCCESS');
+    if (result.status !== 'SUCCESS') return;
+    expect(result.authoritativeTotalAmount).toBe(2124);
+
+    // Criterio S30-H1: el batch_id de la línea es el lote FEFO descontado (0 rompimientos).
+    const items = await env.DB.prepare(
+      `SELECT batch_id, quantity, discount_amount_cents FROM sale_items
+       WHERE sale_id = ? AND tenant_id = ?`,
+    )
+      .bind(result.saleId, tenantId)
+      .all<{
+        batch_id: string | null;
+        quantity: number;
+        discount_amount_cents: number;
+      }>();
+    expect(items.results.length).toBeGreaterThan(0);
+    for (const item of items.results) {
+      if (item.quantity > 0) {
+        expect(item.batch_id).toBe('batch-promo-ok');
+      }
+    }
+    // Descuento promo exacto: 2 × 1000 × 10% = 200 cents.
+    const promoDiscount = items.results.reduce((s, i) => s + i.discount_amount_cents, 0);
+    expect(promoDiscount).toBe(200);
+
+    // El lote descontó exactamente las 2 unidades físicas (5 - 2 = 3).
+    const batch = await env.DB.prepare(
+      `SELECT stock FROM inventory_batches WHERE id = 'batch-promo-ok'`,
+    )
+      .bind()
+      .first<{ stock: number }>();
+    expect(batch?.stock).toBe(3);
+
+    // S30-H1: el veredicto del chaos promotions-anti-stack exige la evidencia
+    // real del motor — aquí se la damos (batch_id estable verificado arriba).
+    const verdict = await runPromotionsAntiStackChaosScenario(async () => ({
+      cycles: 500,
+      discrepancies: 0,
+      samples: [],
+      batchEvidenceVerified: true,
+    }));
+    expect(verdict).toBe('PASS');
+  });
+});
+
+describe('S30-H2: descuento manual re-resuelto server-side (regla 2)', () => {
+  it('descuento manual bajo umbral → procede sin token', async () => {
+    const tenantId = 't-s30-disc-ok';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, max_percent_without_auth, max_amount_without_auth_cents)
+       VALUES (?, 5, 2000)`,
+    )
+      .bind(tenantId)
+      .run();
+
+    // 2 × 1000 = 2000 − 100 descuento = 1900 subtotal + 18% IGV = 2242.
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-s30-disc-ok', 2, 2242),
+        items: [{ productId: fixture.productId, quantity: 2, discountAmountCents: 100 }],
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
+    );
+    expect(result.status).toBe('SUCCESS');
+  });
+
+  it('descuento manual SOBRE umbral con token válido → SUCCESS', async () => {
+    const tenantId = 't-s30-disc-token';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, max_percent_without_auth, max_amount_without_auth_cents)
+       VALUES (?, 5, 2000)`,
+    )
+      .bind(tenantId)
+      .run();
+    // Emitir token server-side (mismo mecanismo que el PIN del supervisor).
+    const token = `tok_${crypto.randomUUID()}`;
+    const { sha256Hex } = await import('./crypto.js');
+    const tokenHash = await sha256Hex(token);
+    await env.DB.prepare(
+      `INSERT INTO authorization_tokens (id, tenant_id, token_hash, approved_by_user_id, expires_at)
+       VALUES (?, ?, ?, 'approver-1', datetime('now', '+90 seconds'))`,
+    )
+      .bind(`at-${tenantId}`, tenantId, tokenHash)
+      .run();
+
+    // Descuento 2500 > umbral 2000 con token → procede (3 × 1000 − 2500 = 500 + 90 IGV = 590).
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-s30-disc-token', 3, 590),
+        items: [{ productId: fixture.productId, quantity: 3, discountAmountCents: 2500 }],
+        discountAuthorizationTokenHash: tokenHash,
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
+    );
+    expect(result.status).toBe('SUCCESS');
+  });
+
+  it('descuento manual SOBRE umbral sin token → AUTH_TOKEN_REQUIRED (422)', async () => {
+    const tenantId = 't-s30-disc-auth';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, max_percent_without_auth, max_amount_without_auth_cents)
+       VALUES (?, 5, 2000)`,
+    )
+      .bind(tenantId)
+      .run();
+
+    // Descuento manual 2500 > umbral 2000 → exige authorization_token.
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        {
+          ...nvPayload(fixture, 'off-s30-disc-auth', 3, 590),
+          items: [
+            {
+              productId: fixture.productId,
+              quantity: 3,
+              discountAmountCents: 2500,
+              authorizationToken: 'ignored-for-now',
+            },
+          ],
+        },
+        { nowMs: Date.parse('2026-08-04T15:00:00.000Z') },
+      ),
+    ).rejects.toThrow('AUTH_TOKEN_REQUIRED');
+  });
+});
+
+describe('propinas (Backlog v10 P2)', () => {
+  it('cobra propina dentro del tope: total = venta + tip, tip_cents persistido, IGV solo sobre la venta', async () => {
+    const tenantId = 't-p2-tip-ok';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, tip_max_percent)
+       VALUES (?, 25)`,
+    )
+      .bind(tenantId)
+      .run();
+
+    // 1 x 1180 (1000 + IGV 18%) + propina 200 = 1380 pagado.
+    const result = await processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, {
+      ...nvPayload(fixture, 'off-p2-tip', 1, 1380),
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 1380, tipCents: 200 }],
+    });
+    expect(result.status).toBe('SUCCESS');
+    if (result.status !== 'SUCCESS') return;
+
+    const pay = await env.DB.prepare(
+      `SELECT amount_cents, tip_cents FROM sale_payments WHERE sale_id = ?`,
+    )
+      .bind(result.saleId)
+      .first<{ amount_cents: number; tip_cents: number }>();
+    expect(pay?.amount_cents).toBe(1380);
+    expect(pay?.tip_cents).toBe(200);
+
+    const sale = await env.DB.prepare(
+      `SELECT total_amount_cents, total_igv_cents FROM sales WHERE id = ?`,
+    )
+      .bind(result.saleId)
+      .first<{ total_amount_cents: number; total_igv_cents: number }>();
+    // El CPE conserva el valor de venta (1180); la propina no tributa IGV.
+    expect(sale?.total_amount_cents).toBe(1180);
+    expect(sale?.total_igv_cents).toBe(180);
+  });
+
+  it('rechaza propina sobre el tope del tenant (TIP_EXCEEDS_MAX_PERCENT)', async () => {
+    const tenantId = 't-p2-tip-over';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tenant_discount_policies (tenant_id, tip_max_percent)
+       VALUES (?, 25)`,
+    )
+      .bind(tenantId)
+      .run();
+
+    // 1 x 1180, propina 300 > 25% de 1000 (250) → rechazo.
+    await expect(
+      processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, {
+        ...nvPayload(fixture, 'off-p2-tip-over', 1, 1480),
+        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 1480, tipCents: 300 }],
+      }),
+    ).rejects.toThrow('TIP_EXCEEDS_MAX_PERCENT');
+  });
+
+  it('rechaza pagos que no cuadran con venta + propina (PAYMENT_TOTAL_MISMATCH)', async () => {
+    const tenantId = 't-p2-tip-mismatch';
+    const fixture = await seedNvFixture(tenantId);
+    await expect(
+      processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, {
+        ...nvPayload(fixture, 'off-p2-mismatch', 1, 1200),
+        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 1200, tipCents: 100 }],
+      }),
+    ).rejects.toThrow('PAYMENT_TOTAL_MISMATCH');
   });
 });

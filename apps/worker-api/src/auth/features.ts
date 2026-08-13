@@ -106,6 +106,18 @@ export function isOnboardingTourEnabled(
   return flagOn(env?.FEATURE_ONBOARDING_TOUR);
 }
 
+/** Backlog v10 P2 — propinas (FEATURE_SALE_TIP, default off). */
+export function isSaleTipEnabled(env: { readonly FEATURE_SALE_TIP?: string } | undefined): boolean {
+  return flagOn(env?.FEATURE_SALE_TIP);
+}
+
+/** Backlog v10 P2 — cajón de efectivo (FEATURE_CASH_DRAWER, default off). */
+export function isCashDrawerEnabled(
+  env: { readonly FEATURE_CASH_DRAWER?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_CASH_DRAWER);
+}
+
 /** Backlog v10 P1c — Percepciones/Retenciones (FEATURE_FISCAL_WITHHOLDINGS, default off). */
 export function isWithholdingsEnabled(
   env: { readonly FEATURE_FISCAL_WITHHOLDINGS?: string } | undefined,

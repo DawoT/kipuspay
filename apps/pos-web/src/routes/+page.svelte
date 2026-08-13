@@ -11,13 +11,17 @@
     isPosCheckoutEnabled,
     isPricingPromotionsEnabled,
     isPrintTemplatesEnabled,
+    isCashDrawerEnabled,
+    isCatalogSellableEnabled,
     isSalesCommissionsEnabled,
+    isSaleTipEnabled,
     isShiftHandoffEnabled,
     isTeamInviteEnabled,
     isHardwareDiagnosticsEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
+import { createPrinterTransport } from '$lib/print/printer-transport';
   import {
     capabilitiesFromFlags,
   } from '$lib/onboarding/capabilities';
@@ -57,11 +61,22 @@
     markTenantFirstSale,
     readTenantSession,
     tenantFromSearchParams,
-    ttfsMs,
     writeTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Modal from '$lib/ui/Modal.svelte';
+  import Field from '$lib/ui/Field.svelte';
+  import Input from '$lib/ui/Input.svelte';
+  import MoneyInput from '$lib/ui/MoneyInput.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import Skeleton from '$lib/ui/Skeleton.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import {
+    fetchSellableCatalog,
+    type SellableCatalogItem,
+  } from '$lib/catalog/sellable-catalog-client';
 
   const checkoutOn = isPosCheckoutEnabled();
   const commissionsOn = isSalesCommissionsEnabled();
@@ -83,14 +98,12 @@
   interface PosNavigator extends Navigator {
     hid: { requestDevice(options: { filters: readonly unknown[] }): Promise<PosHidDevice[]> };
   }
-  const demoProduct = {
-    productId: 'p1',
-    name: 'Producto demo',
-    unitPriceCents: 11800,
-  } as const;
-
   let session = $state<PosTenantSession>(defaultTenantSession());
-  let lines = $state<CartLine[]>([{ ...demoProduct, quantity: 1 }]);
+  let lines = $state<CartLine[]>([]);
+  let catalogItems = $state<SellableCatalogItem[]>([]);
+  let catalogLoading = $state(true);
+  let catalogError = $state('');
+  let catalogQuery = $state('');
   let quickSaleOpen = $state(false);
   const teamOn = isTeamInviteEnabled();
   let sellerResolveOpen = $state(false);
@@ -98,20 +111,18 @@
   let sellerResolveMsg = $state('');
   let sellerResolvedName = $state('');
   let quickName = $state('');
-  let quickPriceCents = $state(1500);
+  let quickPriceCents = $state<number | null>(1500);
   let quickError = $state('');
   const QUICK_SALE_MAX_CENTS = 2000;
   let sellerId = $state('');
   let status = $state('listo');
   let message = $state('');
-  let lastFeedbackMs = $state(0);
   let printPreview = $state('');
   // S7-H1: identidad del cliente en el cobro — nunca inventar dummy truthy.
   // El servidor exige doc+nombre para boleta ≥ S/ 700 (BOLETA_ID_REQUIRED).
   let clientDocType = $state('1');
   let clientDocNumber = $state('');
   let clientName = $state('');
-  let lastTtfsMs = $state<number | null>(null);
   let terminalId = $state('');
   let terminalRegistered = $state(false);
   let serialScan = $state('');
@@ -152,12 +163,16 @@
     } else {
       session = readTenantSession(sessionStorage);
     }
+    void loadSellableCatalog();
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
     maybeShowTour();
   });
 
   const tourOn = isOnboardingTourEnabled();
+  const tipOn = isSaleTipEnabled();
+  const drawerOn = isCashDrawerEnabled();
+  let tipCents = $state(0);
   const capabilities = capabilitiesFromFlags({
     kds: isOrdersKdsEnabled(),
     fefo: isInventoryOpsEnabled(),
@@ -230,6 +245,8 @@
         documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
         phase: 'confirming',
         message: 'Confirma el pago',
+        // S12-H2: marca KipusPay visible en la vitrina (opt-out por tenant).
+        ...(session.brandQrEnabled ? { brandLabel: 'Emitido con KipusPay' } : {}),
       });
     }
 
@@ -246,11 +263,10 @@
         clientName: clientName.trim(),
         paymentMethodId: 'pm-cash',
         ...(commissionsOn && sellerId.trim() ? { sellerId: sellerId.trim() } : {}),
+        ...(tipOn && tipCents > 0 ? { tipCents } : {}),
       },
       queue,
     );
-
-    lastFeedbackMs = outcome.feedbackMs;
     if (!outcome.ok) {
       status = 'bloqueado';
       message = outcome.message;
@@ -260,6 +276,11 @@
     status = 'completado';
     message = `Venta ${outcome.offlineSaleId} cobrada en ${Math.round(outcome.feedbackMs)} ms.`;
 
+    // P2: abre el cajón tras el cobro (efectivo/wallets — uso común en Perú).
+    if (drawerOn) {
+      void createPrinterTransport().openDrawer();
+    }
+
     // S7-H2: sync en background — nunca bloquea el cobro (cero spinner).
     void flushPendingSales();
 
@@ -267,9 +288,6 @@
       const nextSession = markTenantFirstSale(session, new Date().toISOString());
       writeTenantSession(sessionStorage, nextSession);
       session = nextSession;
-      lastTtfsMs = ttfsMs(session);
-    } else {
-      lastTtfsMs = ttfsMs(session);
     }
 
     if (isPrintTemplatesEnabled()) {
@@ -288,18 +306,73 @@
           qty: l.quantity,
           totalCents: l.unitPriceCents * l.quantity,
         })),
+        // S12-H2: pie de marca KipusPay en comprobantes (opt-out por tenant).
+        ...(session.brandQrEnabled
+          ? {
+              brandFooter: {
+                enabled: true,
+                label: 'Emitido con KipusPay',
+                shortUrl: 'kipuspay.pe',
+                qrPayload: 'https://kipuspay.pe',
+              },
+            }
+          : {}),
       };
       printPreview = buildTicketHtml(mockTicket);
     }
   }
 
-  function addDemo() {
-    lines = addOrBumpLine(lines, { ...demoProduct, quantity: 1 });
+  function addProduct(item: SellableCatalogItem) {
+    lines = addOrBumpLine(lines, {
+      productId: item.productId,
+      name: item.name,
+      unitPriceCents: item.unitPriceCents,
+      quantity: 1,
+    });
   }
+
+  const catalogOn = isCatalogSellableEnabled();
+
+  async function loadSellableCatalog() {
+    if (!catalogOn) {
+      catalogLoading = false;
+      return;
+    }
+    catalogLoading = true;
+    catalogError = '';
+    try {
+      catalogItems = await fetchSellableCatalog({
+        apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+        authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? '',
+      });
+    } catch {
+      catalogError = 'No se pudo cargar el catálogo. La venta rápida sigue disponible.';
+    } finally {
+      catalogLoading = false;
+    }
+  }
+
+  const visibleCatalog = $derived(
+    catalogQuery.trim()
+      ? catalogItems.filter((item) => {
+          const q = catalogQuery.trim().toLowerCase();
+          return (
+            item.name.toLowerCase().includes(q) ||
+            item.sku.toLowerCase().includes(q) ||
+            (item.barcode ?? '').toLowerCase().includes(q)
+          );
+        })
+      : catalogItems,
+  );
 
   function addQuickSale() {
     const name = quickName.trim();
-    if (!name || !Number.isInteger(quickPriceCents) || quickPriceCents <= 0) {
+    if (
+      !name ||
+      quickPriceCents === null ||
+      !Number.isInteger(quickPriceCents) ||
+      quickPriceCents <= 0
+    ) {
       quickError = 'Ingresa un nombre y un precio válido.';
       return;
     }
@@ -502,11 +575,10 @@
       const line = await leaseScannedSerialLine({
         rawSerial: serialScan,
         terminalId: terminalRegistered ? terminalId : '',
-        apiBase:
-          (import.meta.env.PUBLIC_API_BASE as string | undefined) ??
-          'https://api.kipuspay.local',
-        authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo',
-        resolveProduct: (productId) => (productId === demoProduct.productId ? demoProduct : undefined),
+        apiBase: (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '',
+        authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? '',
+        resolveProduct: (productId) =>
+          catalogItems.find((item) => item.productId === productId),
       });
       lines = addOrBumpLine(lines, line);
       serialStatus = `Serie ${serialScan.trim()} agregada como una unidad.`;
@@ -596,22 +668,70 @@
     <div class="pos-main-grid">
       <!-- Left Column: Catalog & Instruments -->
       <div class="pos-instruments-col">
-        <!-- Quick Add Catalog Card -->
-        <section class="glass-panel catalog-card">
-          <div class="card-header">
-            <h2>Catálogo Rápido</h2>
-            <span class="badge badge-indigo">Items Disponibles</span>
+        <!-- Sellable Catalog Grid -->
+        <section class="glass-panel catalog-card" data-testid="sellable-catalog">
+          <div class="card-header catalog-header">
+            <h2>Catálogo</h2>
+            {#if !catalogLoading && catalogItems.length > 0}
+              <span class="badge badge-indigo">{catalogItems.length} items</span>
+            {/if}
           </div>
-          <div class="products-grid">
-            <button type="button" class="product-item-btn" onclick={addDemo} data-testid="add-line">
-              <div class="product-icon"><Icon name="package" size={24} /></div>
-              <div class="product-info">
-                <span class="product-name">{demoProduct.name}</span>
-                <span class="product-price tabular-nums">S/ {formatCents(demoProduct.unitPriceCents)}</span>
-              </div>
-              <span class="add-badge">+ Añadir</span>
-            </button>
-          </div>
+
+          {#if catalogOn}
+            <div class="catalog-search">
+              <Icon name="search" size={16} class="catalog-search-icon" />
+              <input
+                type="search"
+                class="catalog-search-input"
+                placeholder="Buscar por nombre, SKU o código"
+                aria-label="Buscar productos"
+                autocomplete="off"
+                bind:value={catalogQuery}
+              />
+            </div>
+          {/if}
+
+          {#if catalogLoading}
+            <div class="catalog-skeleton">
+              <Skeleton lines={4} />
+            </div>
+          {:else if catalogError}
+            <StatusMessage tone="warning" role="status">
+              <Icon name="alert" size={16} />
+              <span>{catalogError}</span>
+            </StatusMessage>
+          {:else if !catalogOn}
+            <EmptyState
+              icon="layers"
+              title="Catálogo desactivado"
+              description="Activa FEATURE_CATALOG_SELLABLE para cobrar desde el catálogo. La venta rápida sigue disponible."
+            />
+          {:else if visibleCatalog.length === 0}
+            <EmptyState
+              icon="search"
+              title={catalogQuery ? 'Sin coincidencias' : 'Catálogo vacío'}
+              description={catalogQuery ? 'Prueba con otro nombre, SKU o código.' : 'Sube tu catálogo para empezar a cobrar. La venta rápida sigue disponible.'}
+            />
+          {:else}
+            <div class="products-grid">
+              {#each visibleCatalog as item (item.productId)}
+                <button
+                  type="button"
+                  class="product-item-btn"
+                  onclick={() => addProduct(item)}
+                  data-testid="add-line-{item.productId}"
+                >
+                  <div class="product-icon"><Icon name="package" size={24} /></div>
+                  <div class="product-info">
+                    <span class="product-name">{item.name}</span>
+                    <span class="product-sku">{item.sku}</span>
+                    <span class="product-price tabular-nums">S/ {formatCents(item.unitPriceCents)}</span>
+                  </div>
+                  <span class="add-badge">+ Añadir</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </section>
 
         <!-- Serial Scanner Instrument Panel -->
@@ -804,55 +924,65 @@
               </span>
             </div>
 
-            <!-- Transaction Metrics Badges -->
-            <div class="metrics-row">
-              <div class="metric-pill">
-                <span class="metric-label">Latencia UI</span>
-                <span data-testid="feedback-ms" class="metric-value tabular-nums">{Math.round(lastFeedbackMs)} ms</span>
-              </div>
-              {#if lastTtfsMs !== null}
-                <div class="metric-pill">
-                  <span class="metric-label">TTFS</span>
-                  <span data-testid="ttfs-ms" class="metric-value tabular-nums">{lastTtfsMs} ms</span>
-                </div>
-              {/if}
-            </div>
-
             <!-- Status Alerts -->
             {#if status}
-              <div class="status-box">
+              <StatusMessage tone="warning">
                 <span data-testid="status" class="status-tag">{status}</span>
                 {#if message}
                   <span data-testid="message" class="status-msg">{message}</span>
                 {/if}
-              </div>
+              </StatusMessage>
             {/if}
 
             <!-- Primary Action Button -->
             {#if requiresCustomerIdentity(totalCents, clientDocNumber, clientName)}
-              <div class="id-required-box" role="alert" data-testid="id-required">
+              <StatusMessage tone="warning" role="alert" data-testid="id-required">
                 Boleta ≥ S/ 700 requiere documento y nombre del cliente (SUNAT).
+              </StatusMessage>
+            {/if}
+            {#if tipOn}
+              <div class="tip-input-row">
+                <label for="tip-cents">Propina (centavos)</label>
+                <input
+                  id="tip-cents"
+                  type="number"
+                  min="0"
+                  bind:value={tipCents}
+                  data-testid="tip-cents"
+                  placeholder="0"
+                />
+                {#each [0.05, 0.1, 0.15] as frac}
+                  <button
+                    type="button"
+                    class="secondary tip-quick"
+                    data-testid={`tip-quick-${frac}`}
+                    onclick={() => (tipCents = Math.round(totalCents * frac))}
+                  >
+                    {Math.round(frac * 100)}%
+                  </button>
+                {/each}
               </div>
             {/if}
-            <button
-              type="button"
-              class="primary charge-btn"
+            <Button
+              variant="primary"
+              size="xl"
               data-testid="charge"
               onclick={onCharge}
               disabled={lines.length === 0}
+              icon="credit-card"
             >
-              <Icon name="credit-card" size={20} />
               COBRAR (S/ {formatCents(totalCents)})
-            </button>
-            <button
-              type="button"
-              class="secondary charge-btn quick-sale-btn"
+            </Button>
+            <Button
+              variant="secondary"
+              size="xl"
               data-testid="quick-sale"
+              style="margin-top: 0.5rem"
               onclick={() => (quickSaleOpen = true)}
+              icon="plus"
             >
-              <Icon name="plus" size={18} />
               VENTA RÁPIDA (sin catálogo)
-            </button>
+            </Button>
           </div>
         </section>
 
@@ -874,52 +1004,59 @@
   {#if tourOpen && tourSteps.length > 0}
     <Tour steps={tourSteps} onComplete={onTourComplete} onDismiss={onTourDismiss} />
   {/if}
-  {#if sellerResolveOpen}
-    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="seller-resolve-title">
-      <div class="modal-card">
-        <h2 id="seller-resolve-title">Vincular vendedor</h2>
-        <p class="quick-hint">Escanea el badge <code>EMP-…</code> o teclea el PIN de caja de 4 dígitos. La venta queda atribuida en menos de un segundo.</p>
-        <label for="seller-resolve-input">Badge o PIN</label>
-        <input
-          id="seller-resolve-input"
-          data-testid="seller-resolve-input"
-          bind:value={sellerIdentifier}
-          autocomplete="off"
-          placeholder="EMP-12345 o 1234"
-        />
-        {#if sellerResolveMsg}
-          <p class="quick-error" role="alert">{sellerResolveMsg}</p>
-        {/if}
-        <div class="modal-actions">
-          <button type="button" class="secondary" onclick={() => (sellerResolveOpen = false)}>Cancelar</button>
-          <button type="button" class="primary" data-testid="seller-resolve-confirm" onclick={onResolveSeller}>
-            Vincular
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
-  {#if quickSaleOpen}
-    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="quick-sale-title">
-      <div class="modal-card">
-        <h2 id="quick-sale-title">Venta rápida sin catálogo</h2>
-        <p class="quick-hint">Cobras algo que aún no está en tu catálogo. El servidor calcula impuestos; esta línea no descuenta stock y queda marcada para catalogar.</p>
-        <label for="quick-name">Nombre del artículo</label>
-        <input id="quick-name" data-testid="quick-sale-name" bind:value={quickName} placeholder="Ej.: empanada de queso" />
-        <label for="quick-price">Precio (máx. S/ {formatCents(QUICK_SALE_MAX_CENTS)})</label>
-        <input id="quick-price" data-testid="quick-sale-price" type="number" min="1" bind:value={quickPriceCents} />
-        {#if quickError}
-          <p class="quick-error" role="alert">{quickError}</p>
-        {/if}
-        <div class="modal-actions">
-          <button type="button" class="secondary" onclick={() => (quickSaleOpen = false)}>Cancelar</button>
-          <button type="button" class="primary" data-testid="quick-sale-add" onclick={addQuickSale}>
-            Agregar al carrito
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <Modal
+    open={sellerResolveOpen}
+    title="Vincular vendedor"
+    confirmText="Vincular"
+    confirmTestid="seller-resolve-confirm"
+    onConfirm={onResolveSeller}
+    onCancel={() => (sellerResolveOpen = false)}
+  >
+    <p class="quick-hint">
+      Escanea el badge <code>EMP-…</code> o teclea el PIN de caja de 4 dígitos. La venta queda atribuida en menos de un segundo.
+    </p>
+    <Field label="Badge o PIN">
+      <Input
+        data-testid="seller-resolve-input"
+        bind:value={sellerIdentifier}
+        autocomplete="off"
+        placeholder="EMP-12345 o 1234"
+      />
+    </Field>
+    {#if sellerResolveMsg}
+      <p class="quick-error" role="alert">{sellerResolveMsg}</p>
+    {/if}
+  </Modal>
+
+  <Modal
+    open={quickSaleOpen}
+    title="Venta rápida sin catálogo"
+    confirmText="Agregar al carrito"
+    confirmTestid="quick-sale-add"
+    onConfirm={addQuickSale}
+    onCancel={() => (quickSaleOpen = false)}
+  >
+    <p class="quick-hint">
+      Cobras algo que aún no está en tu catálogo. El servidor calcula impuestos; esta línea no descuenta stock y queda marcada para catalogar.
+    </p>
+    <Field label="Nombre del artículo">
+      <Input
+        data-testid="quick-sale-name"
+        bind:value={quickName}
+        placeholder="Ej.: empanada de queso"
+      />
+    </Field>
+    <Field label="Precio (máx. S/ {formatCents(QUICK_SALE_MAX_CENTS)})">
+      <MoneyInput
+        data-testid="quick-sale-price"
+        bind:value={quickPriceCents}
+        min={1}
+      />
+    </Field>
+    {#if quickError}
+      <p class="quick-error" role="alert">{quickError}</p>
+    {/if}
+  </Modal>
 </div>
 
 <style>
@@ -1026,6 +1163,28 @@
   .catalog-card {
     padding: 1.25rem;
   }
+  .catalog-header {
+    margin-bottom: 0.75rem;
+  }
+  .catalog-search {
+    position: relative;
+    margin-bottom: 0.875rem;
+  }
+  .catalog-search :global(.catalog-search-icon) {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+  .catalog-search-input {
+    min-height: 44px;
+    padding-left: 2.4rem;
+  }
+  .catalog-skeleton {
+    padding: 0.25rem 0;
+  }
   .products-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1066,6 +1225,12 @@
     font-weight: 600;
     font-size: 0.9375rem;
     color: var(--text-main);
+  }
+  .product-sku {
+    font-size: 0.6875rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    margin-top: 0.125rem;
   }
   .product-price {
     color: var(--emerald-green);
@@ -1271,42 +1436,9 @@
     font-size: 2.25rem;
     font-weight: 800;
     color: var(--emerald-green);
-    text-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+    text-shadow: 0 0 16px rgba(46, 158, 116, 0.25);
   }
 
-  .metrics-row {
-    display: flex;
-    gap: 0.75rem;
-  }
-  .metric-pill {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 0.375rem 0.625rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .metric-label {
-    font-size: 0.6875rem;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-  .metric-value {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--accent-primary);
-  }
-
-  .status-box {
-    background: rgba(217, 154, 61, 0.1);
-    border: 1px solid rgba(217, 154, 61, 0.2);
-    border-radius: var(--radius-sm);
-    padding: 0.5rem 0.75rem;
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
   .status-tag {
     font-size: 0.75rem;
     font-weight: 700;
@@ -1316,21 +1448,6 @@
   .status-msg {
     font-size: 0.8125rem;
     color: var(--text-main);
-  }
-
-  .id-required-box {
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    background: #fdf3e3;
-    border: 1px solid #e8b94e;
-    color: #7a4f01;
-    font-size: 0.85rem;
-    margin-bottom: 0.5rem;
-  }
-  .charge-btn {    width: 100%;
-    padding: 1rem;
-    font-size: 1.125rem;
-    letter-spacing: 0.02em;
   }
 
   .print-preview-card {
@@ -1344,44 +1461,6 @@
     overflow-x: auto;
   }
 
-  .quick-sale-btn {
-    margin-top: 0.5rem;
-  }
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 300;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-  }
-  .modal-card {
-    width: min(26rem, 100%);
-    background: var(--surface-card);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
-    padding: 1.25rem;
-    display: grid;
-    gap: 0.6rem;
-  }
-  .modal-card h2 {
-    margin: 0;
-  }
-  .modal-card label {
-    font-weight: 700;
-    font-size: 0.85rem;
-  }
-  .modal-card input {
-    min-height: 44px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-strong);
-    padding: 0.55rem 0.7rem;
-    font: inherit;
-    background: var(--surface-card);
-    color: inherit;
-  }
   .quick-hint {
     font-size: 0.85rem;
     color: var(--text-muted);
@@ -1391,14 +1470,6 @@
     color: var(--rose-red);
     font-size: 0.85rem;
     margin: 0;
-  }
-  .modal-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-  }
-  .modal-actions button {
-    min-height: 44px;
   }
 
   @media (max-width: 900px) {

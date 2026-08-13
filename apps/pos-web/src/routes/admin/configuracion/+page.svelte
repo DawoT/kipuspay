@@ -5,11 +5,13 @@
   import { faqFor, type FaqItem } from '@kipuspay/domain-onboarding';
   import { causeLabel, nextStepFor, type DiagnosticReport } from '@kipuspay/domain-hardware';
   import {
+    isCashDrawerEnabled,
     isHardwareDiagnosticsEnabled,
     isInventoryScaleEnabled,
     isOnboardingTourEnabled,
+    isSaleTipEnabled,
   } from '$lib/features';
-  import { runAllDiagnostics, runPrintTest } from '$lib/hardware/diagnostics';
+  import { probeDrawer, runAllDiagnostics, runPrintTest } from '$lib/hardware/diagnostics';
   import { reportDiagnostics } from '$lib/hardware/diagnostics-client';
   import { probePrinterNetwork, probePrinterUsb, probeScale, probeVitrina } from '$lib/hardware/diagnostics';
   import {
@@ -26,6 +28,10 @@
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
   import Icon from '$lib/ui/Icon.svelte';
+  import Button from '$lib/ui/Button.svelte';
+  import Badge from '$lib/ui/Badge.svelte';
+  import Modal from '$lib/ui/Modal.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let focus = $state('');
@@ -70,6 +76,63 @@
     await reportDiagnostics([report]);
     hwPrintBusy = false;
   }
+
+  // P2 — cajón de efectivo: prueba y política.
+  const drawerOn = isCashDrawerEnabled();
+  const tipPolicyOn = isSaleTipEnabled();
+  let hwDrawerBusy = $state(false);
+  let drawerReport = $state<DiagnosticReport | null>(null);
+  let tipMaxPercent = $state(25);
+  let openDrawerOnCash = $state(true);
+  let policyMsg = $state('');
+  let policyOk = $state(false);
+
+  async function runDrawerProbe() {
+    if (hwDrawerBusy) return;
+    hwDrawerBusy = true;
+    hwLogNotice = '';
+    const report = await probeDrawer();
+    drawerReport = report;
+    await reportDiagnostics([report]);
+    hwDrawerBusy = false;
+  }
+
+  async function loadCashPolicy() {
+    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ?? '';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    try {
+      const res = await fetch(`${apiBase}/api/cash/policy`, { headers: { authorization: auth } });
+      if (!res.ok) return;
+      const data = (await res.json()) as { tipMaxPercent?: number; openDrawerOnCash?: boolean };
+      if (typeof data.tipMaxPercent === 'number') tipMaxPercent = data.tipMaxPercent;
+      if (typeof data.openDrawerOnCash === 'boolean') openDrawerOnCash = data.openDrawerOnCash;
+    } catch {
+      // política opcional: la caja no depende de ella.
+    }
+  }
+
+  async function saveCashPolicy() {
+    policyMsg = '';
+    policyOk = false;
+    const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ?? '';
+    const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
+    try {
+      const res = await fetch(`${apiBase}/api/cash/policy`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', authorization: auth },
+        body: JSON.stringify({ tipMaxPercent, openDrawerOnCash }),
+      });
+      const data = (await res.json()) as { error?: string; code?: string };
+      if (!res.ok) {
+        policyMsg = data.error ?? data.code ?? 'No se pudo guardar la política.';
+        return;
+      }
+      policyOk = true;
+      policyMsg = 'Política de propina y cajón guardada.';
+    } catch {
+      policyMsg = 'Sin conexión con el servidor.';
+    }
+  }
   let scaleThreshold = $state('250000');
   let scaleProtocol = $state<'WEBHID' | 'WEB_SERIAL' | 'WEBUSB'>('WEBHID');
   let scaleFingerprint = $state('');
@@ -111,6 +174,9 @@
         .then((adapters) => {
           printerReady = adapters.length > 0;
         });
+    }
+    if (drawerOn || tipPolicyOn) {
+      void loadCashPolicy();
     }
   });
 
@@ -248,10 +314,10 @@
 
 <main class="config-shell" data-testid="admin-config">
   <header class="masthead">
-    <div class="badge-tag">
+    <Badge variant="indigo">
       <Icon name="settings" size={14} />
       <span>Admin · Gobernanza & Parámetros</span>
-    </div>
+    </Badge>
     <h1>Configuración del negocio</h1>
     <p class="lede">
       Configuración profunda del negocio (GTM §3.3.1). El cobro de ventas nunca se bloquea desde aquí.
@@ -259,16 +325,16 @@
   </header>
 
   {#if error}
-    <div class="alert-box alert-error" role="alert">
+    <StatusMessage tone="danger" role="alert">
       <Icon name="alert" size={18} />
       <span>{error}</span>
-    </div>
+    </StatusMessage>
   {/if}
   {#if notice}
-    <div class="alert-box alert-success" role="status">
+    <StatusMessage tone="info" role="status">
       <Icon name="check" size={18} />
       <span>{notice}</span>
-    </div>
+    </StatusMessage>
   {/if}
 
   <div class="config-grid">
@@ -302,26 +368,24 @@
         Avance confirmado, sin convertir notas de venta históricas. Emisión electrónica vía KipusPay por defecto.
       </p>
       <div class="actions">
-        <button
-          type="button"
-          class="btn-secondary"
+        <Button
+          variant="secondary"
           data-testid="advance-formalizing"
           disabled={session.formalizationMode !== 'INTERNAL_CONTROL'}
           onclick={() => requestAdvance('FORMALIZING')}
+          icon="arrow-right"
         >
-          <Icon name="arrow-right" size={16} />
-          <span>Activar facturación (FORMALIZING)</span>
-        </button>
-        <button
-          type="button"
-          class="btn-secondary"
+          Activar facturación (FORMALIZING)
+        </Button>
+        <Button
+          variant="secondary"
           data-testid="advance-issuer"
           disabled={session.formalizationMode !== 'FORMALIZING'}
           onclick={() => requestAdvance('ELECTRONIC_ISSUER')}
+          icon="check"
         >
-          <Icon name="check" size={16} />
-          <span>Marcar emisor electrónico</span>
-        </button>
+          Marcar emisor electrónico
+        </Button>
       </div>
     </section>
 
@@ -338,9 +402,14 @@
           <Icon name={session.brandQrEnabled ? 'check' : 'x'} size={14} />
           <span>{session.brandQrEnabled ? 'Activado' : 'Desactivado'}</span>
         </p>
-        <button type="button" class="btn-primary-sm" data-testid="toggle-brand-qr" onclick={toggleBrandQr}>
+        <Button
+          variant="primary"
+          size="sm"
+          data-testid="toggle-brand-qr"
+          onclick={toggleBrandQr}
+        >
           {session.brandQrEnabled ? 'Desactivar marca' : 'Activar marca'}
-        </button>
+        </Button>
       </div>
     </section>
 
@@ -365,10 +434,10 @@
       <p class="hint">
         Exportaciones cifradas del servidor, cobertura verificable y simulación de recuperación.
       </p>
-      <a href="/admin/backups" class="link-btn">
-        <span>Abrir centro de respaldos</span>
+      <Button variant="secondary" href="/admin/backups">
+        Abrir centro de respaldos
         <Icon name="arrow-right" size={16} />
-      </a>
+      </Button>
     </section>
 
     <section id="series" class="glass-card">
@@ -377,10 +446,10 @@
         <h2>Identidad serial</h2>
       </div>
       <p class="hint">Configura productos en Catálogo y administra leases/disposiciones por serie.</p>
-      <a href="/admin/series" class="link-btn">
-        <span>Abrir búsqueda y gestión de series</span>
+      <Button variant="secondary" href="/admin/series">
+        Abrir búsqueda y gestión de series
         <Icon name="arrow-right" size={16} />
-      </a>
+      </Button>
     </section>
   </div>
 
@@ -397,10 +466,9 @@
           <label for="scale-threshold">Umbral manual (microunidades)</label>
           <input id="scale-threshold" bind:value={scaleThreshold} inputmode="numeric" pattern="[0-9]*" />
         </div>
-        <button type="button" class="btn-secondary" onclick={saveScalePolicy}>
-          <Icon name="check" size={16} />
-          <span>Guardar umbral</span>
-        </button>
+        <Button variant="secondary" onclick={saveScalePolicy} icon="check">
+          Guardar umbral
+        </Button>
 
         <div class="field">
           <label for="scale-protocol">Protocolo de balanza</label>
@@ -431,15 +499,15 @@
           <input id="scale-product" bind:value={scaleProductId} inputmode="numeric" placeholder="22352" />
         </div>
 
-        <button
-          type="button"
-          class="btn-primary-sm"
+        <Button
+          variant="primary"
+          size="sm"
           onclick={registerScale}
           disabled={!terminalId || !scaleFingerprint || !scaleProfileId || !scaleVendorId || !scaleProductId}
+          icon="plus"
         >
-          <Icon name="plus" size={16} />
-          <span>Registrar dispositivo</span>
-        </button>
+          Registrar dispositivo
+        </Button>
 
         <div class="field">
           <label for="scale-device-id">ID de dispositivo registrado</label>
@@ -447,30 +515,28 @@
         </div>
 
         <div class="device-actions">
-          <button
-            type="button"
-            class="btn-secondary"
+          <Button
+            variant="secondary"
             onclick={() =>
               scaleRequest('/api/inventory/scale/diagnostics', 'POST', {
                 deviceId: scaleDeviceId,
               })}
             disabled={!scaleDeviceId}
+            icon="refresh"
           >
-            <Icon name="refresh" size={16} />
-            <span>Ejecutar diagnóstico</span>
-          </button>
-          <button
-            type="button"
-            class="btn-danger"
+            Ejecutar diagnóstico
+          </Button>
+          <Button
+            variant="danger"
             onclick={() =>
               scaleRequest('/api/inventory/scale/devices/disable', 'POST', {
                 deviceId: scaleDeviceId,
               })}
             disabled={!scaleDeviceId}
+            icon="trash"
           >
-            <Icon name="trash" size={16} />
-            <span>Deshabilitar</span>
-          </button>
+            Deshabilitar
+          </Button>
         </div>
       </div>
       <p class="terminal-hint">
@@ -499,61 +565,67 @@
         <span>Prueba cada equipo y sigue el paso sugerido si algo falla.</span>
       </p>
       <div class="device-actions">
-        <button
-          type="button"
-          class="btn-secondary"
+        <Button
+          variant="secondary"
           onclick={() => runHardwareProbe('printer_usb')}
           disabled={hwBusyTarget !== ''}
           data-testid="hw-probe-usb"
+          busy={hwBusyTarget === 'printer_usb'}
         >
-          <Icon name="refresh" size={16} />
-          <span>{hwBusyTarget === 'printer_usb' ? 'Probando…' : 'Probar impresora USB'}</span>
-        </button>
-        <button
-          type="button"
-          class="btn-secondary"
+          {hwBusyTarget === 'printer_usb' ? 'Probando…' : 'Probar impresora USB'}
+        </Button>
+        <Button
+          variant="secondary"
           onclick={() => runHardwareProbe('printer_network')}
           disabled={hwBusyTarget !== ''}
           data-testid="hw-probe-network"
+          busy={hwBusyTarget === 'printer_network'}
         >
-          <Icon name="refresh" size={16} />
-          <span>
-            {hwBusyTarget === 'printer_network' ? 'Buscando…' : 'Buscar impresoras en mi red'}
-          </span>
-        </button>
-        <button
-          type="button"
-          class="btn-secondary"
+          {hwBusyTarget === 'printer_network' ? 'Buscando…' : 'Buscar impresoras en mi red'}
+        </Button>
+        <Button
+          variant="secondary"
           onclick={() => runHardwareProbe('scale')}
           disabled={hwBusyTarget !== ''}
           data-testid="hw-probe-scale"
+          busy={hwBusyTarget === 'scale'}
         >
-          <Icon name="refresh" size={16} />
-          <span>{hwBusyTarget === 'scale' ? 'Probando…' : 'Probar balanza'}</span>
-        </button>
-        <button
-          type="button"
-          class="btn-secondary"
+          {hwBusyTarget === 'scale' ? 'Probando…' : 'Probar balanza'}
+        </Button>
+        <Button
+          variant="secondary"
           onclick={() => runHardwareProbe('vitrina')}
           disabled={hwBusyTarget !== ''}
           data-testid="hw-probe-vitrina"
+          busy={hwBusyTarget === 'vitrina'}
         >
-          <Icon name="refresh" size={16} />
-          <span>{hwBusyTarget === 'vitrina' ? 'Probando…' : 'Probar vitrina'}</span>
-        </button>
+          {hwBusyTarget === 'vitrina' ? 'Probando…' : 'Probar vitrina'}
+        </Button>
       </div>
 
       <div class="device-actions">
-        <button
-          type="button"
-          class="btn-primary-sm"
+        <Button
+          variant="primary"
+          size="sm"
           onclick={runHardwarePrintTest}
           disabled={hwPrintBusy}
           data-testid="hw-print-test"
+          busy={hwPrintBusy}
         >
-          <Icon name="barcode" size={16} />
-          <span>{hwPrintBusy ? 'Imprimiendo…' : 'Imprimir prueba'}</span>
-        </button>
+          {hwPrintBusy ? 'Imprimiendo…' : 'Imprimir prueba'}
+        </Button>
+        {#if drawerOn}
+          <Button
+            variant="secondary"
+            size="sm"
+            onclick={runDrawerProbe}
+            disabled={hwDrawerBusy}
+            data-testid="hw-drawer-test"
+            busy={hwDrawerBusy}
+          >
+            {hwDrawerBusy ? 'Abriendo…' : 'Probar cajón de efectivo'}
+          </Button>
+        {/if}
       </div>
 
       {#each ['printer_usb', 'printer_network', 'scale', 'vitrina'] as kind}
@@ -603,43 +675,92 @@
       {/if}
 
       {#if hwLogNotice}
-        <div class="alert-box alert-error" role="alert">
-          <span>{hwLogNotice}</span>
+        <StatusMessage tone="danger" role="alert">
+          {hwLogNotice}
+        </StatusMessage>
+      {/if}
+
+      {#if drawerReport}
+        <div
+          class="diagnostic"
+          class:diag-ok={drawerReport.ok}
+          class:diag-bad={!drawerReport.ok}
+          role="status"
+          aria-live="polite"
+          data-testid="hw-report-drawer"
+        >
+          <p class="diag-status">
+            {#if drawerReport.ok}
+              ✓ Cajón abierto.
+            {:else}
+              ✗ {causeLabel(drawerReport.causeCode)}
+            {/if}
+          </p>
+          {#if drawerReport.nextStepId}
+            <p class="diag-next">Siguiente paso: {drawerReport.nextStepId}</p>
+          {/if}
+        </div>
+      {/if}
+
+      {#if drawerOn || tipPolicyOn}
+        <div class="policy-box" data-testid="cash-policy">
+          <h3>Política de caja (P2)</h3>
+          <div class="field-group">
+            <label for="tip-max-percent">Tope de propina (% del subtotal)</label>
+            <input
+              id="tip-max-percent"
+              type="number"
+              min="1"
+              max="100"
+              bind:value={tipMaxPercent}
+              data-testid="tip-max-percent"
+            />
+          </div>
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              bind:checked={openDrawerOnCash}
+              data-testid="open-drawer-on-cash"
+            />
+            Abrir cajón tras cobros en efectivo y wallets (yape/plin/QR)
+          </label>
+          <Button variant="primary" size="sm" onclick={saveCashPolicy} data-testid="save-cash-policy">
+            Guardar política
+          </Button>
+          {#if policyMsg}
+            <p class="policy-msg" class:policy-ok={policyOk} data-testid="cash-policy-msg">{policyMsg}</p>
+          {/if}
         </div>
       {/if}
     </section>
   {/if}
 </main>
 
-{#if confirmOpen && pendingMode}
-  <div class="modal-backdrop">
-    <div class="modal glass-card" role="dialog" aria-modal="true" data-testid="stage-confirm">
-      <div class="modal-head">
-        <Icon name="alert" size={24} class="icon-amber" />
-        <h3>Confirmar avance de formalización</h3>
-      </div>
-      <p>
-        ¿Confirmas avanzar a <strong>{pendingMode}</strong>? Las notas de venta ya emitidas siguen siendo de control interno y no se reescriben.
-      </p>
-      <div class="modal-actions">
-        <button type="button" class="btn-primary-sm" data-testid="confirm-stage" onclick={confirmAdvance}>
-          Confirmar
-        </button>
-        <button type="button" class="btn-secondary" data-testid="cancel-stage" onclick={cancelAdvance}>
-          Cancelar
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
+<Modal
+  open={confirmOpen && pendingMode !== null}
+  title="Confirmar avance de formalización"
+  confirmText="Confirmar"
+  cancelText="Cancelar"
+  confirmTestid="confirm-stage"
+  cancelTestid="cancel-stage"
+  data-testid="stage-confirm"
+  onConfirm={confirmAdvance}
+  onCancel={cancelAdvance}
+>
+  {#if pendingMode}
+    <p>
+      ¿Confirmas avanzar a <strong>{pendingMode}</strong>? Las notas de venta ya emitidas siguen siendo de control interno y no se reescriben.
+    </p>
+  {/if}
+</Modal>
 
 {#if onboardingOn && serverState && !checklistDismissed}
   <section class="glass-card checklist-wrap" aria-labelledby="setup-checklist">
     <SetupChecklist server={serverState} {printerReady} />
     <div class="checklist-aux">
-      <button
-        type="button"
-        class="btn-secondary btn-sm"
+      <Button
+        variant="secondary"
+        size="sm"
         data-testid="setup-hide"
         onclick={() => {
           checklistDismissed = true;
@@ -647,15 +768,15 @@
         }}
       >
         Ocultar esta lista
-      </button>
-      <button
-        type="button"
-        class="btn-secondary btn-sm"
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
         data-testid="faq-toggle"
         onclick={() => (faqOpen = !faqOpen)}
       >
         Preguntas frecuentes
-      </button>
+      </Button>
     </div>
     {#if faqOpen}
       <details class="faq-box" data-testid="faq-panel" open>
@@ -684,21 +805,6 @@
     margin-bottom: 1.75rem;
   }
 
-  .badge-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.65rem;
-    background: rgba(217, 154, 61, 0.12);
-    border: 1px solid rgba(217, 154, 61, 0.3);
-    border-radius: var(--radius-full, 9999px);
-    color: var(--accent-primary);
-    font: 600 0.72rem/1.2 var(--font-mono, monospace);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-
   h1 {
     margin: 0.2rem 0;
     font-size: clamp(1.75rem, 4vw, 2.5rem);
@@ -711,29 +817,6 @@
     color: var(--text-muted, #94a3b8);
     font-size: 0.92rem;
     margin: 0;
-  }
-
-  .alert-box {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.85rem 1.1rem;
-    border-radius: var(--radius-md, 12px);
-    font-size: 0.88rem;
-    font-weight: 600;
-    margin-bottom: 1.25rem;
-  }
-
-  .alert-error {
-    background: rgba(244, 63, 94, 0.1);
-    border: 1px solid var(--rose-red, #f43f5e);
-    color: var(--rose-red, #f43f5e);
-  }
-
-  .alert-success {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid var(--emerald-green, #10b981);
-    color: var(--emerald-green, #10b981);
   }
 
   .glass-card {
@@ -862,68 +945,6 @@
     border-color: rgba(16, 185, 129, 0.3);
   }
 
-  .btn-primary-sm,
-  .btn-secondary,
-  .btn-danger,
-  .link-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 0.6rem 1rem;
-    border-radius: var(--radius-sm, 8px);
-    font: 600 0.86rem/1.2 var(--font-sans, sans-serif);
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.15s ease;
-  }
-
-  .btn-primary-sm {
-    background: var(--accent-gradient, var(--accent-primary));
-    color: #ffffff;
-    border: none;
-  }
-
-  .btn-primary-sm:hover:not(:disabled) {
-    filter: brightness(1.1);
-  }
-
-  .btn-secondary {
-    background: var(--bg-button-sec, rgba(255, 255, 255, 0.05));
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    color: var(--text-main, #f8fafc);
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: var(--bg-glass-hover);
-    border-color: var(--border-strong);
-  }
-
-  .btn-danger {
-    background: rgba(244, 63, 94, 0.12);
-    border: 1px solid var(--rose-red, #f43f5e);
-    color: var(--rose-red, #f43f5e);
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    background: rgba(244, 63, 94, 0.2);
-  }
-
-  .link-btn {
-    background: rgba(217, 154, 61, 0.1);
-    border: 1px solid rgba(217, 154, 61, 0.2);
-    color: var(--accent-primary);
-  }
-
-  .link-btn:hover {
-    background: rgba(217, 154, 61, 0.15);
-  }
-
-  button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
   .scale-card {
     margin-top: 1.5rem;
   }
@@ -988,44 +1009,6 @@
   .diag-next {
     margin: 0.35rem 0 0;
     opacity: 0.85;
-  }
-
-  /* Modal Backdrop */
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    z-index: 200;
-  }
-
-  .modal {
-    max-width: 440px;
-    width: 100%;
-  }
-
-  .modal-head {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .modal-head h3 {
-    margin: 0;
-    font-size: 1.15rem;
-    color: var(--text-main, #f8fafc);
-  }
-
-  .modal-actions {
-    display: flex;
-    gap: 0.65rem;
-    justify-content: flex-end;
-    margin-top: 1.25rem;
   }
 
   @media (max-width: 600px) {

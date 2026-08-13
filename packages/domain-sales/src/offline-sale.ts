@@ -31,6 +31,12 @@ export interface OfflinePaymentPayload {
    * 'API' si el adquirente confirmó en línea; 'MANUAL' = cajero verificó visualmente sin red.
    */
   readonly captureStatus?: 'API' | 'MANUAL' | undefined;
+  /**
+   * Backlog v10 P2 — propina del pago (sin IGV, línea informativa del ticket).
+   * Server-side en cents; el tope lo impone la política del tenant
+   * (`tip_max_percent`, default 25% del subtotal).
+   */
+  readonly tipCents?: number | undefined;
 }
 
 export interface OfflineSaleItemPayload {
@@ -330,6 +336,16 @@ export function aggregateSaleItems(
   return [...aggregated.values()];
 }
 
+function assertPaymentTip(pay: OfflinePaymentPayload): void {
+  if (pay.tipCents === undefined) return;
+  if (!Number.isInteger(pay.tipCents) || pay.tipCents < 0) {
+    throw new Error('INVALID_TIP_CENTS');
+  }
+  if (pay.tipCents > pay.amountCents) {
+    throw new Error('TIP_EXCEEDS_PAYMENT');
+  }
+}
+
 function assertPayments(payments: readonly OfflinePaymentPayload[]): void {
   if (!payments?.length) throw new Error('EMPTY_PAYMENTS');
   for (const pay of payments) {
@@ -337,6 +353,7 @@ function assertPayments(payments: readonly OfflinePaymentPayload[]): void {
     if (!Number.isInteger(pay.amountCents) || pay.amountCents < 0) {
       throw new Error('INVALID_PAYMENT_CENTS');
     }
+    assertPaymentTip(pay);
     if (
       pay.captureStatus !== undefined &&
       pay.captureStatus !== 'API' &&
@@ -345,6 +362,42 @@ function assertPayments(payments: readonly OfflinePaymentPayload[]): void {
       throw new Error('INVALID_CAPTURE_STATUS');
     }
   }
+}
+
+/** Backlog v10 P2 — tope de propina por política del tenant (default 25%). */
+export const TIP_DEFAULT_MAX_PERCENT = 25;
+
+/**
+ * Valida la propina contra el subtotal de la venta (server-side, invariante
+ * 1/7): `tipCents` entero ≥ 0 y ≤ `maxPercent`% del subtotal. La propina NO
+ * tributa IGV: se cobra aparte y solo aparece como línea informativa.
+ */
+export function assertTipAllowed(
+  subtotalCents: number,
+  tipCents: number,
+  maxPercent: number = TIP_DEFAULT_MAX_PERCENT,
+): void {
+  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
+    throw new Error('INVALID_SUBTOTAL');
+  }
+  if (!Number.isInteger(tipCents) || tipCents < 0) {
+    throw new Error('INVALID_TIP_CENTS');
+  }
+  if (!Number.isInteger(maxPercent) || maxPercent <= 0 || maxPercent > 100) {
+    throw new Error('INVALID_TIP_MAX_PERCENT');
+  }
+  const maxTip = Math.round((subtotalCents * maxPercent) / 100);
+  if (tipCents > maxTip) throw new Error('TIP_EXCEEDS_MAX_PERCENT');
+}
+
+/** Suma la propina declarada en los pagos (0 si no hay). */
+export function totalTipCents(payments: readonly OfflinePaymentPayload[]): number {
+  return payments.reduce((sum, pay) => sum + (pay.tipCents ?? 0), 0);
+}
+
+/** Total a cobrar: valor de venta + propina (el CPE conserva el valor de venta). */
+export function totalDueWithTip(totalCents: number, tipCents: number): number {
+  return totalCents + tipCents;
 }
 
 export function assertOfflineSaleShape(payload: OfflineSalePayload): void {

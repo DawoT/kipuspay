@@ -7678,3 +7678,54 @@ aprobaciones: [Staff Fiscal R, Staff Backend ACID R, Staff Frontend R, Staff Pri
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0351
+timestamp_utc: 2026-08-13T03:10:00Z
+schema_version: 2
+sprint_fase: Backlog v10 P2 — Propinas + Cajón de efectivo (Arquitectura §5.3 regla 11)
+agente_responsable: Staff Backend ACID (owner) / Staff Hardware/Frontend / Staff Fiscal
+tipo: Entregable nuevo
+subtipo: cash-tips-drawer
+relacion: amplia
+referencias_entradas: [0350]
+referencias_documentales: [docs/architecture/05-3-commercial-ops.md (regla 11), packages/domain-sales/src/offline-sale.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/print-templates/src/build-escpos.ts, apps/pos-web/src/lib/print/printer-transport.ts, apps/worker-api/src/cash/cash-policy-routes.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/admin/configuracion/+page.svelte, docs/ops/p2-cash-tips-drawer-qg.md]
+prev_id: 0350
+prev_hash: d06bd5a5432b72055936aceef066cd76ce1b24c1f4e7881c61d467b5b33af57f
+entry_hash: 93b93221314fabe2ba548c26fe64a104ff567201645b5c2144b6ba1912e88fa3
+ticket_or_adr: Backlog v10 P2
+test_ids: [V-13, V-15, V-16, SUITE, offline-sale.test.ts, cash-tips-drawer-schema.test.ts, process-offline-sale-atomic.integration.test.ts, print-templates.test.ts, diagnostics.test.ts, cash-policy-routes.test.ts, cash-tips-drawer.spec.ts]
+entregable_afectado: docs/ops/p2-cash-tips-drawer-qg.md (nuevo) — cierre P2
+descripcion: >
+  Propinas y cajon de efectivo (Backlog v10 P2, 05.3 regla 11): migracion 0048
+  (sale_payments.tip_cents DEFAULT 0, tenant_discount_policies.tip_max_percent
+  DEFAULT 25 y open_drawer_on_cash DEFAULT 1, down protegido, registry con
+  withholding_parameters corregido en el set del generador); dominio
+  domain-sales (tipCents por pago, assertTipAllowed con tope 25% del base
+  gravable, totalDueWithTip, totalTipCents, shape con INVALID_TIP_CENTS y
+  TIP_EXCEEDS_PAYMENT); motor processOfflineSaleAtomic (tip_cents persistido
+  por pago, PAYMENT_TOTAL_MISMATCH = venta + propina, TIP_EXCEEDS_MAX_PERCENT
+  desde la politica del tenant, IGV solo sobre la venta); print
+  (build-escpos linea PROPINA informativa sin IGV, openDrawerBytes ESC p
+  0x1b 0x70 0x00 0x19 0xfa, PrinterTransport.openDrawer con escalera solo
+  hardware, probeDrawer en el troubleshooter con target cash_drawer y causas
+  DRAWER_NOT_FOUND/COMM_FAILED); rutas GET/PATCH /api/cash/policy
+  (FEATURE_SALE_TIP/FEATURE_CASH_DRAWER default-off, owner/admin); UI: campo
+  Propina con botones rapidos en la caja + apertura de cajon fire-and-forget
+  tras el cobro (efectivo y wallets, uso comun en Peru) + toggles de politica
+  y boton Probar cajon en Admin/Configuracion; E2E 3/3.
+evidencia: >
+  RED: dominio/schema/motor/print/rutas/UI ausentes (tests nuevos fallaron por
+  import o schema). GREEN: domain-sales 251/251 (95.7% branches), adapters-d1
+  integracion 34/34 (propinas 3/3: tip persistido, IGV solo venta, tope,
+  mismatch), print-templates 9/9, domain-hardware 19/19 (cash_drawer),
+  worker-api 1017 (cash-policy 5/5 + paridad 419), pos-web 239 unit + E2E
+  56/56 (tips/drawer 3/3), verify.sh SUITE GREEN. Software GREEN local,
+  capabilities default-off, produccion/piloto NO-GO hasta QA humana con
+  hardware real y A+V. Los fallos de inventory-scale-branches (unit) y del
+  peso (integracion) pertenecen al trabajo en curso de otra agente
+  (refactor S40-H1) y quedan fuera de este commit.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Hardware/Frontend R, Staff Fiscal R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

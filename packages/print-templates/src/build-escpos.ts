@@ -45,6 +45,11 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
   cmd.push(...encoder.encode(`\nTOTAL: S/ ${formatTicketCents(data.totalCents)}\n\n`));
   cmd.push(0x1b, 0x45, 0x00);
 
+  // P2: propina como línea informativa (fuera del valor de venta, sin IGV).
+  if (data.tipCents !== undefined && data.tipCents > 0) {
+    cmd.push(...encoder.encode(`PROPINA: S/ ${formatTicketCents(data.tipCents)}\n\n`));
+  }
+
   if (!isNv && data.digestValue) {
     cmd.push(
       ...encoder.encode(`Hash: ${sanitizePrinterText(data.digestValue).slice(0, lineWidth)}\n`),
@@ -75,4 +80,13 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
 
   cmd.push(0x1d, 0x56, 0x42, 0x04);
   return new Uint8Array(cmd);
+}
+
+/**
+ * Backlog v10 P2 — apertura del cajón de efectivo por ESC/POS (`ESC p`).
+ * Comando estándar: 0x1b 0x70 <m=0> <t1=0x19> <t2=0xFA> (impulso 50ms/200ms
+ * según Epson). Zero-dep.
+ */
+export function openDrawerBytes(): Uint8Array {
+  return new Uint8Array([0x1b, 0x70, 0x00, 0x19, 0xfa]);
 }

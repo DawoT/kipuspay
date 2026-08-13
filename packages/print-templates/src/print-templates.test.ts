@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEscPosPayload } from './build-escpos.js';
+import { buildEscPosPayload, openDrawerBytes } from './build-escpos.js';
 import { buildTicketHtml } from './build-html.js';
 import { CPE_TICKET_LEGEND, NV_TICKET_LEGEND, legendForDocument } from './legends.js';
 import { resolveLineWidth } from './line-width.js';
@@ -137,5 +137,24 @@ describe('print-templates', () => {
       ),
     );
     expect(esc.indexOf('control interno')).toBeLessThan(esc.indexOf('Emitido con KipusPay'));
+  });
+});
+
+describe('Backlog v10 P2 — propina y cajón', () => {
+  it('ticket con propina muestra la línea informativa (sin IGV)', () => {
+    const text = new TextDecoder().decode(
+      buildEscPosPayload({ ...ticket(), tipCents: 240 }),
+    );
+    expect(text).toContain('PROPINA: S/ 2.40');
+  });
+
+  it('ticket sin propina no imprime la línea', () => {
+    const text = new TextDecoder().decode(buildEscPosPayload(ticket()));
+    expect(text).not.toContain('PROPINA');
+  });
+
+  it('openDrawerBytes emite ESC p con impulso estándar', () => {
+    const bytes = openDrawerBytes();
+    expect(Array.from(bytes)).toEqual([0x1b, 0x70, 0x00, 0x19, 0xfa]);
   });
 });

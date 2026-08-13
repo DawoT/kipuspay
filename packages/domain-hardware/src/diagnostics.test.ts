@@ -11,8 +11,14 @@ import {
 } from './diagnostics.js';
 
 describe('diagnostics domain (regla 37b / ADR-0033)', () => {
-  it('cubre los 4 targets del roadmap FASE 6G', () => {
-    expect(DIAGNOSTIC_TARGETS).toEqual(['printer_usb', 'printer_network', 'scale', 'vitrina']);
+  it('cubre los 5 targets del roadmap FASE 6G + P2 (cash_drawer)', () => {
+    expect(DIAGNOSTIC_TARGETS).toEqual([
+      'printer_usb',
+      'printer_network',
+      'scale',
+      'vitrina',
+      'cash_drawer',
+    ]);
   });
 
   it('cada causa tiene label no-técnico y nextStep accionable; OK no tiene nextStep', () => {
@@ -139,5 +145,7 @@ function targetToDefaultCause(target: DiagnosticTarget): DiagnosticCauseCode {
       return 'SCALE_NOT_FOUND';
     case 'vitrina':
       return 'VITRINA_NO_SCREEN';
+    case 'cash_drawer':
+      return 'DRAWER_NOT_FOUND';
   }
 }

@@ -11,6 +11,7 @@ import {
   type DiagnosticReport,
 } from '@kipuspay/domain-hardware';
 import type { PrinterTransportEnv } from '../print/printer-transport.js';
+import { createPrinterTransport } from '../print/printer-transport.js';
 import { VITRINA_CHANNEL } from '../vitrina/channel.js';
 
 export const PRINT_TEST_TIMEOUT_MS = 30_000;
@@ -168,4 +169,15 @@ export async function runPrintTest(): Promise<DiagnosticReport> {
 
 export async function runAllDiagnostics(env: PrinterTransportEnv): Promise<DiagnosticReport[]> {
   return Promise.all([probePrinterUsb(), probePrinterNetwork(env), probeScale(), probeVitrina()]);
+}
+
+/** P2: prueba del cajón de efectivo (ESC p por el transport). */
+export async function probeDrawer(): Promise<DiagnosticReport> {
+  const started = Date.now();
+  const result = await createPrinterTransport().openDrawer();
+  const durationMs = Date.now() - started;
+  if (result.ok) return report('cash_drawer', 'OK', durationMs);
+  const cause: 'DRAWER_NOT_FOUND' | 'DRAWER_COMM_FAILED' =
+    result.error === 'NO_ADAPTER' ? 'DRAWER_NOT_FOUND' : 'DRAWER_COMM_FAILED';
+  return report('cash_drawer', cause, durationMs);
 }
