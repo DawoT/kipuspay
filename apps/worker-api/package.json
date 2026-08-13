@@ -2,7 +2,7 @@
   "name": "@kipuspay/worker-api",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay — composition root de la API (Hono) en Cloudflare Workers.",
+  "description": "KipusPay \u2014 composition root de la API (Hono) en Cloudflare Workers.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -23,20 +23,20 @@
     "wrangler": "^4.118.0"
   },
   "dependencies": {
-    "@kipuspay/domain-catalog": "workspace:*",
-    "@kipuspay/adapters-d1": "workspace:*",
     "@kipuspay/adapters-accounting": "workspace:*",
+    "@kipuspay/adapters-d1": "workspace:*",
     "@kipuspay/adapters-messaging": "workspace:*",
     "@kipuspay/adapters-payments-pe": "workspace:*",
     "@kipuspay/adapters-stripe": "workspace:*",
     "@kipuspay/domain-analytics": "workspace:*",
     "@kipuspay/domain-billing": "workspace:*",
-    "@kipuspay/domain-catalog": "workspace:*",
     "@kipuspay/domain-cash": "workspace:*",
-    "@kipuspay/domain-onboarding": "workspace:*",
+    "@kipuspay/domain-catalog": "workspace:*",
     "@kipuspay/domain-fiscal-pe": "workspace:*",
-    "@kipuspay/domain-inventory": "workspace:*",
+    "@kipuspay/domain-hardware": "workspace:*",
     "@kipuspay/domain-integrations": "workspace:*",
+    "@kipuspay/domain-inventory": "workspace:*",
+    "@kipuspay/domain-onboarding": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*",
     "hono": "^4.12.34"
   }

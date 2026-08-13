@@ -2,7 +2,7 @@
   "name": "@kipuspay/pos-web",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay — POS web (SvelteKit), cliente Edge sin librerías de render de terceros (ADR-002).",
+  "description": "KipusPay \u2014 POS web (SvelteKit), cliente Edge sin librer\u00edas de render de terceros (ADR-002).",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -18,9 +18,10 @@
   },
   "dependencies": {
     "@kipuspay/domain-fiscal-pe": "workspace:*",
+    "@kipuspay/domain-hardware": "workspace:*",
+    "@kipuspay/domain-onboarding": "workspace:*",
     "@kipuspay/domain-sales": "workspace:*",
-    "@kipuspay/print-templates": "workspace:*",
-    "@kipuspay/domain-onboarding": "workspace:*"
+    "@kipuspay/print-templates": "workspace:*"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

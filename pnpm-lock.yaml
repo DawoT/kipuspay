@@ -96,6 +96,9 @@ importers:
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../../packages/domain-fiscal-pe
+      '@kipuspay/domain-hardware':
+        specifier: workspace:*
+        version: link:../../packages/domain-hardware
       '@kipuspay/domain-onboarding':
         specifier: workspace:*
         version: link:../../packages/domain-onboarding
@@ -178,6 +181,9 @@ importers:
       '@kipuspay/domain-fiscal-pe':
         specifier: workspace:*
         version: link:../../packages/domain-fiscal-pe
+      '@kipuspay/domain-hardware':
+        specifier: workspace:*
+        version: link:../../packages/domain-hardware
       '@kipuspay/domain-integrations':
         specifier: workspace:*
         version: link:../../packages/domain-integrations
@@ -553,6 +559,21 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
 
   packages/domain-fiscal-pe:
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^10.8.0
+        version: 10.8.0(supports-color@10.2.2)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
+
+  packages/domain-hardware:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

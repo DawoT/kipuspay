@@ -1,6 +1,10 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
-import { buildDailySummary, triggerRcFromCashClose } from './build-daily-summary.js';
+import {
+  buildDailySummary,
+  runDailySummarySweep,
+  triggerRcFromCashClose,
+} from './build-daily-summary.js';
 import { processFiscalDeadlines } from './process-fiscal-deadlines.js';
 import { voidBoletaAtomic } from './void-boleta-atomic.js';
 
@@ -167,6 +171,13 @@ describe('fiscal RC / plazos / baja / chaos deadline', () => {
     await env.DB.prepare(`UPDATE sales SET must_submit_by = ? WHERE id = ?`)
       .bind(new Date(must).toISOString(), saleId)
       .run();
+    // F5b-3: fila en cola fiscal — DEADLINE_EXCEEDED debe marcarla FAILED.
+    await env.DB.prepare(
+      `INSERT INTO fiscal_outbox (id, tenant_id, sale_id, status, must_submit_by)
+       VALUES (?, ?, ?, 'PENDING', ?)`,
+    )
+      .bind(`outbox-${saleId}`, tenantId, saleId, new Date(must).toISOString())
+      .run();
 
     const steps: { alert: 'T24H' | 'T6H' | 'DEADLINE_EXCEEDED'; suggestCreditNoteEa: boolean }[] =
       [];
@@ -198,6 +209,13 @@ describe('fiscal RC / plazos / baja / chaos deadline', () => {
       .first<{ sunat_status: string }>();
     expect(sale?.sunat_status).toBe('DEADLINE_EXCEEDED');
 
+    // F5b-3: la fila de la cola fiscal queda FAILED con last_error DEADLINE_EXCEEDED.
+    const outbox = await env.DB.prepare(`SELECT status, last_error FROM fiscal_outbox WHERE id = ?`)
+      .bind(`outbox-${saleId}`)
+      .first<{ status: string; last_error: string | null }>();
+    expect(outbox?.status).toBe('FAILED');
+    expect(outbox?.last_error).toBe('DEADLINE_EXCEEDED');
+
     const alerts = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM fiscal_owner_alerts WHERE tenant_id = ?`,
     )
@@ -207,6 +225,111 @@ describe('fiscal RC / plazos / baja / chaos deadline', () => {
     // CA: 0 vencimiento silencioso
     expect(steps.some((s) => s.alert === 'DEADLINE_EXCEEDED' && s.suggestCreditNoteEa)).toBe(true);
     expect(alerts!.n).toBeGreaterThan(0);
+  });
+
+  it('F5b-4: 2ª corrida NO re-emite alertas (dedup flags) — 0 vencimiento silencioso', async () => {
+    const tenantId = 't-dl-dup';
+    const { saleId } = await seedBoletaTenant(tenantId);
+    const must = Date.parse('2026-08-10T12:00:00.000Z');
+    await env.DB.prepare(`UPDATE sales SET must_submit_by = ? WHERE id = ?`)
+      .bind(new Date(must).toISOString(), saleId)
+      .run();
+
+    const t24a = await processFiscalDeadlines(env.DB, must - 20 * 3600 * 1000, { tenantId });
+    expect(t24a.actions[0]?.alert).toBe('T24H');
+    const alertsAfterFirst = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM fiscal_owner_alerts WHERE tenant_id = ?`,
+    )
+      .bind(tenantId)
+      .first<{ n: number }>();
+    expect(alertsAfterFirst?.n).toBe(1);
+
+    // Segunda corrida en la misma ventana: flag alert_t24_sent=1 → sin acción.
+    const t24b = await processFiscalDeadlines(env.DB, must - 19 * 3600 * 1000, { tenantId });
+    expect(t24b.actions).toEqual([]);
+    const alertsAfterSecond = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM fiscal_owner_alerts WHERE tenant_id = ?`,
+    )
+      .bind(tenantId)
+      .first<{ n: number }>();
+    expect(alertsAfterSecond?.n).toBe(1);
+  });
+
+  it('F5b-4: sweep multi-tenant sin tenantId barre todos y respeta límite', async () => {
+    const now = Date.parse('2026-08-10T12:00:00.000Z');
+    const t1 = 't-mt-1';
+    const t2 = 't-mt-2';
+    const { saleId: s1 } = await seedBoletaTenant(t1);
+    const { saleId: s2 } = await seedBoletaTenant(t2);
+    // Ambas en ventana T24H (deadline +23h / +22h: dentro de T24, fuera de T6),
+    // con deadlines distintos para orden determinista (ORDER BY must_submit_by ASC).
+    // s1 (deadline +22h, más próxima) se procesa primero con limit=1.
+    await env.DB.prepare(`UPDATE sales SET must_submit_by = ? WHERE id = ?`)
+      .bind(new Date(now + 22 * 3600 * 1000).toISOString(), s1)
+      .run();
+    await env.DB.prepare(`UPDATE sales SET must_submit_by = ? WHERE id = ?`)
+      .bind(new Date(now + 23 * 3600 * 1000).toISOString(), s2)
+      .run();
+
+    // Límite 1 con scope por tenant: solo la venta más próxima (s1) se procesa.
+    const limited = await processFiscalDeadlines(env.DB, now, { tenantId: t1, limit: 1 });
+    expect(limited.scanned).toBe(1);
+    expect(limited.actions.length).toBe(1);
+    expect(limited.actions[0]?.alert).toBe('T24H');
+
+    // Sweep global sin tenantId: s2 recibe su T24H y s1 (ya alertada) NO se re-emite.
+    const full = await processFiscalDeadlines(env.DB, now, { limit: 100 });
+    const fullForOurTenants = full.actions.filter((a) => a.saleId === s1 || a.saleId === s2);
+    expect(fullForOurTenants.length).toBe(1);
+    expect(fullForOurTenants[0]?.saleId).toBe(s2);
+
+    // Invariante del criterio: exactamente 1 alerta por venta, 0 silencios.
+    const perSale = await env.DB.prepare(
+      `SELECT sale_id, COUNT(*) AS n FROM fiscal_owner_alerts
+       WHERE tenant_id IN (?, ?) GROUP BY sale_id ORDER BY sale_id`,
+    )
+      .bind(t1, t2)
+      .all<{ sale_id: string; n: number }>();
+    expect(perSale.results).toHaveLength(2);
+    expect(perSale.results.every((r) => r.n === 1)).toBe(true);
+  });
+
+  it('F5b-1: sweep multi-tenant construye RC de TODOS los tenants con boletas del día', async () => {
+    const t1 = 't-sweep-1';
+    const t2 = 't-sweep-2';
+    await seedBoletaTenant(t1);
+    await seedBoletaTenant(t2);
+    const nowMs = Date.parse('2026-08-02T12:00:00.000Z');
+
+    const sweep = await runDailySummarySweep(env.DB, {
+      summaryDate: '2026-08-01',
+      nowMs,
+    });
+
+    // El sweep es global: al menos incluye a nuestros 2 tenants.
+    const ours = sweep.results.filter((r) => r.tenantId === t1 || r.tenantId === t2);
+    expect(ours).toHaveLength(2);
+    expect(ours.every((r) => r.status === 'SUCCESS')).toBe(true);
+    expect(sweep.tenantsWithPending).toBeGreaterThanOrEqual(2);
+
+    // Cada RC existe por emisor/día (branch_id NULL — FIS-03).
+    const summaries = await env.DB.prepare(
+      `SELECT tenant_id, branch_id, rc_type, status FROM sunat_daily_summaries
+       WHERE summary_date = '2026-08-01' AND tenant_id IN (?, ?) ORDER BY tenant_id`,
+    )
+      .bind(t1, t2)
+      .all<{ tenant_id: string; branch_id: string | null; rc_type: string; status: string }>();
+    expect(summaries.results).toHaveLength(2);
+    expect(summaries.results.every((s) => s.rc_type === 'PRIMARY')).toBe(true);
+    expect(summaries.results.every((s) => s.branch_id === null)).toBe(true);
+
+    // Segunda corrida: ALREADY_EXISTS (idempotente), 0 duplicados.
+    const again = await runDailySummarySweep(env.DB, {
+      summaryDate: '2026-08-01',
+      nowMs,
+    });
+    const oursAgain = again.results.filter((r) => r.tenantId === t1 || r.tenantId === t2);
+    expect(oursAgain).toEqual([]); // ya RC construido → ya no están "pending"
   });
 
   it('NRUS ≤500 entra en RC consolidado (omisión unitaria contada)', async () => {

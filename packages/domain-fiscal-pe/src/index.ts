@@ -21,6 +21,7 @@ export const DEFAULT_PSE_MODE: PseMode = 'KIPUSPAY_PSE';
 
 export {
   assertValidFacturaXml,
+  assertWellFormedXml,
   buildUblInvoiceXml,
   hashUblXml,
   type UblInvoiceInput,

@@ -319,6 +319,7 @@ Abre solo los archivos que esta tabla te señale.
 | COM-10 | §5.11 | Membresía: pricing versionado, calendario, settlement, gracia y prorrateo | [`docs/architecture/05-11-recurring-sales.md`](docs/architecture/05-11-recurring-sales.md) |
 | COM-11 | §5.12 | Push: consentimiento, privacidad, entrega/ACK, DDL 0038 y caja móvil | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) |
 | COM-12 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
+| COM-13 | §5.3 (6G) | Capabilities flujo del cliente: tour/checklist (S52) + diagnóstico de hardware `HARDWARE_DIAG` (S53) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | DAT-01 | §5.4 | `branch_id TEXT NULL` en `sunat_daily_summaries` | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | DAT-02 | §6 | Estado SUNAT + deadline (compartida con FIS-02) | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | DAT-03 | §5.3 (def. Ledger 0165) | Versión v8.1 en comentario DDL | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |

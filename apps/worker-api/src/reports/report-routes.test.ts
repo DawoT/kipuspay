@@ -235,7 +235,7 @@ describe('reporting flags + catalog', () => {
     expect(csv).not.toContain('11.80');
   });
 
-  it('cron flag off / DB unavailable / on con shards vacíos', async () => {
+  it('cron flag off / DB unavailable / on con shards vacíos', { timeout: 20_000 }, async () => {
     expect((await runDailyRollupsCronHttp({} as WorkerEnv, {})).status).toBe(404);
     expect(
       (

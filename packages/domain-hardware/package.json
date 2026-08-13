@@ -1,0 +1,24 @@
+{
+  "name": "@kipuspay/domain-hardware",
+  "version": "0.0.0",
+  "private": true,
+  "description": "KipusPay — dominio de diagnóstico de hardware: report canónico, causas con copy no-técnico y paso siguiente, ancho de papel 58/80 y payload de auditoría HARDWARE_DIAG (regla 37b, ADR-0033)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage",
+    "test:unit": "vitest run --coverage",
+    "build": "true"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.8.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

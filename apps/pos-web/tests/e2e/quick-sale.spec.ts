@@ -16,6 +16,11 @@ test('caja: venta rápida agrega línea genérica sin bloquear el cobro', async 
     }),
   );
   await page.goto('/');
+  // El tour del S52 se abre en la demo (capability quick_add); se cierra para
+  // no interferir con el dialog de venta rápida.
+  if (await page.getByTestId('tour').isVisible()) {
+    await page.getByTestId('tour-next').click();
+  }
   await page.getByTestId('quick-sale').click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByTestId('quick-sale-name').fill('Empanada de queso');

@@ -5,6 +5,7 @@
   import { isOnboardingTourEnabled } from '$lib/features';
   import { fetchSetupProgress } from '$lib/onboarding/tour-client';
   import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
+  import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import {
     isAgenticInsightsEnabled,
@@ -314,10 +315,12 @@
       </div>
     </div>
 
+    <!-- F5b-5: boletas del día sin RC ≠ cierre Z (banner Dueño) -->
+    <RcPendingBanner />
+
     {#if onboardingOn && serverState && !checklistDismissed}
       <div class="status-alert info" data-testid="owner-checklist">
-        <SetupChecklist server={serverState} {printerReady} />
-        <button
+        <SetupChecklist server={serverState} {printerReady} />        <button
           type="button"
           class="btn-secondary btn-sm"
           data-testid="owner-checklist-hide"

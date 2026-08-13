@@ -6817,3 +6817,162 @@ aprobaciones: [Staff Principal, Staff QA]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0332
+timestamp_utc: 2026-08-12T19:10:00Z
+schema_version: 2
+sprint_fase: FASE 2 (Sprints 5, 5b, 6) — Bloque A — auditoría staff
+agente_responsable: Staff Fiscal (owner) / Staff Principal (A) / Staff SRE + Staff QA (V)
+tipo: Corrección de especificación
+subtipo: auditoría FASE 2 Bloque A (F5-1, F5-3, F5b-2, F5b-3, F5b-4, F5b-6, F6-3, F6-4)
+relacion: corrige
+referencias_entradas: [0331, 0330]
+referencias_documentales: [docs/roadmap/fase-2.md, packages/domain-fiscal-pe/src/ubl-invoice.ts, apps/worker-fiscal/src/fiscal-drain.ts, apps/worker-api/src/fiscal/fiscal-rc-routes.ts, packages/adapters-d1/src/fiscal-rc.integration.test.ts, apps/worker-api/src/analytics/briefing-scheduled.test.ts, apps/pos-web/src/lib/offline-sync/offline-sync.test.ts]
+prev_id: 0331
+prev_hash: 7386c0fac854eb8c5c4081a4139b70966d3f8024055db50af13e22880aa37a18
+entry_hash: d3da6597f9b4b07ebbddb829a547f75c3e0992ebbbbb78a3384b7ac5109062af
+ticket_or_adr: Roadmap FASE 2; ADR-FISCAL-001 v2 (EN REVISION, firma humana pendiente)
+test_ids: [V-13, V-15, V-16, SUITE, ubl-invoice.test.ts, fiscal-drain.test.ts, fiscal-rc-routes.test.ts, fiscal-rc.integration.test.ts, briefing-scheduled.test.ts, offline-sync.test.ts]
+entregable_afectado: FASE 2 Bloque A — validación XML real, hash fiscal real, tests HTTP RC/portal, dedup plazos, briefing post-invalidación, caos de red contra dispatcher real
+descripcion: >
+  Auditoría FASE 2 Bloque A (código testable sin decisión de producto).
+  F5-1: assertValidFacturaXml era solo 5 string.includes — nuevo validador de
+  well-formedness XML zero-dep (assertWellFormedXml, parser stack-based:
+  single root, tags balanceados, atributos con comillas, entidades, CDATA,
+  comentarios) integrado a assertValidFacturaXml; rama muerta eliminada;
+  cobertura branches 95.23% (>=95). F5-3: xmlHash literal 'drain' → hash
+  SHA-256 real del XML viaja al transporte (hashFiscalXml + test de contrato).
+  F5b-2: tests HTTP de void boleta — 200, 503 sin DB, 422 VOID_AFTER_RC_SENT
+  (edge E-C), 404 SALE_NOT_FOUND, 400 código estable. F5b-3: test del UPDATE
+  fiscal_outbox → FAILED/DEADLINE_EXCEEDED en el sweep de plazos. F5b-4: dedup
+  de alertas en 2ª corrida (flags) + sweep multi-tenant con límite (1 alerta
+  por venta, 0 silencios). F5b-6: portal CPE — secret fallback hardcodeado
+  'kipuspay-cpe-portal-dev' ELIMINADO por fail-closed (503 sin CPE_PORTAL_SECRET;
+  token predecible de 1 año era riesgo); tests 401/404/200. F6-4: briefing
+  regenerado tras invalidación KV refleja cifras integradas. F6-3: el caos de
+  red "500 ciclos" era simulación sintética — ahora 500 ciclos contra el
+  dispatcher REAL (dispatchPendingSalesChunked) con transporte adversario
+  determinista (PRNG seedable: 20% network error, 5% ALREADY_SYNCED): 0 pérdida,
+  0 duplicación, nada descartado; flush 2 recupera RETRY.
+evidencia: >
+  RED: XML malformado pasaba assertValidFacturaXml; xmlHash='drain'; void/portal
+  sin tests HTTP; alertas sin dedup verificado; briefing post-invalidación sin
+  evidencia; caos 500 ciclos era simulación en memoria sin dispatcher; secret
+  portal hardcodeado. GREEN: domain-fiscal-pe 58/58 (branches 95.23%),
+  worker-fiscal 14/14, worker-api fiscal+analytics+webhooks+pos+auth 530/530,
+  fiscal-rc.integration 7/7, offline-sync.integration 4/4, pos-web 207/207,
+  typecheck 27/27, verify.sh SUITE GREEN. Nota: baseline bundle actualizado
+  con @kipuspay/domain-hardware (ADR-0033 del Sprint 52, aceptado) para cerrar
+  V-24; los SHAs red/green se registran en el commit que aterriza este entregable.
+  Pendiente gobernanza humana: firma A+V de ADR-FISCAL-001 v2 (EN REVISION).
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R, Staff Principal A, Staff SRE V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0333
+timestamp_utc: 2026-08-12T20:05:00Z
+schema_version: 2
+sprint_fase: FASE 2 (Sprints 5, 5b, 6) — Bloque B — wiring de producción
+agente_responsable: Staff Fiscal (owner) / Staff Principal (A) / Staff SRE + Staff Frontend (V)
+tipo: Corrección de especificación
+subtipo: auditoría FASE 2 Bloque B (F5-2, F5b-1, F5b-5, F6-1, F6-2)
+relacion: corrige
+referencias_entradas: [0332, 0331]
+referencias_documentales: [docs/roadmap/fase-2.md, apps/worker-fiscal/src/index.ts, apps/worker-api/src/worker.ts, apps/worker-api/src/fiscal/fiscal-rc-routes.ts, apps/worker-api/wrangler.jsonc, apps/pos-web/src/lib/offline-sync/offline-queue.ts, apps/pos-web/src/lib/offline-sync/chunked-sync-dispatcher.ts, apps/pos-web/src/routes/dev/offline-sync-harness/+page.svelte, apps/pos-web/src/lib/fiscal/RcPendingBanner.svelte]
+prev_id: 0332
+prev_hash: d3da6597f9b4b07ebbddb829a547f75c3e0992ebbbbb78a3384b7ac5109062af
+entry_hash: 7c09e70312e2d224278dd8ce4d47a6b5560be63e6f36013b650ed5b73fc4094f
+ticket_or_adr: Roadmap FASE 2; ADR-FISCAL-001 v2 (firma humana pendiente)
+test_ids: [V-13, V-15, V-16, SUITE, index.test.ts (worker-fiscal), worker-scheduled.test.ts, fiscal-rc-routes.test.ts, fiscal-rc.integration.test.ts, offline-sync.test.ts]
+entregable_afectado: FASE 2 Bloque B — transporte PSE HTTP tras flag, crons fiscales, banner RC Dueño, cola offline IDB real + sync HTTP real
+descripcion: >
+  Auditoría FASE 2 Bloque B (wiring de producción, decisión del staff).
+  F5-2: selectFiscalTransport — flag FEATURE_FISCAL_TRANSPORT_PLUGINS + endpoint
+  FISCAL_PSE_ENDPOINT_URL → createHttpPseTransport (HTTP real); cualquier otro
+  caso → MOCK_STAGING explícito (nunca se mezcla; claim PSE comercial sigue
+  congelado hasta CDR en staging). Cableado en submit y drain del worker.
+  F5b-1: crons fiscales en worker.ts — FISCAL_DEADLINES_CRON '0 */6 * * *'
+  (alertas T-24h/T-6h/DEADLINE) y FISCAL_RC_CRON '0 13 * * *' (08:00 Lima,
+  día previo) vía runDailySummarySweep multi-tenant (nuevo en
+  build-daily-summary: lista tenants con boletas del día sin RC y construye
+  cada RC; idempotente ALREADY_EXISTS); wrangler.jsonc con 6 crons.
+  F5b-5: banner Dueño — GET /api/owner/rc-pending-banner (boletas del día
+  Lima sin RC) + componente RcPendingBanner.svelte en Modo Dueño ("boletas
+  del día sin RC ≠ cierre Z"). F6-1: createBrowserOfflineIdb — adaptador
+  IndexedDB nativo zero-dep para la cola de ventas (patrón print-outbox,
+  fallback memoria SSR, validación de registros). F6-2: createHttpSyncTransport
+  — POST /api/v1/sync/sales con bearer token, fail-closed ante shape inválida
+  (SYNC_HTTP_BAD_SHAPE) y errores HTTP (SYNC_HTTP_<status>); harness dev
+  actualizado a IDB real + transporte HTTP real.
+evidencia: >
+  RED: transporte HTTP real sin cablear; crons fiscales inexistentes; banner
+  RC sin endpoint ni UI; cola de ventas solo en memoria; sync solo en harness
+  con transporte fake. GREEN: worker-fiscal 18/18 (selectFiscalTransport 7/7),
+  worker-scheduled 9/9 (2 crons nuevos, día Lima previo verificado),
+  fiscal-rc-routes 14/14 (banner + portal + void), fiscal-rc.integration 8/8
+  (sweep multi-tenant 2 tenants + idempotencia), offline-sync 21/21 (IDB
+  browser + transporte HTTP + caos 500 ciclos), pos-web svelte-check 0
+  errores, pnpm test:unit 46/46, test:integration 39/39, verify.sh SUITE
+  GREEN. Los SHAs red/green se registran en el commit que aterriza este
+  entregable. Pendiente gobernanza humana: firma A+V ADR-FISCAL-001 v2.
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R, Staff Principal A, Staff SRE V, Staff Frontend V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0334
+timestamp_utc: 2026-08-12T21:30:00Z
+schema_version: 2
+sprint_fase: Sprint 53 — Troubleshooter de hardware (FASE 6G, cierre del roadmap)
+agente_responsable: Staff Hardware (owner) / Staff Principal (A) / Staff QA/Chaos (V) / Staff Design (C) / Staff PM (C)
+tipo: Entregable nuevo
+subtipo: diagnóstico de hardware + log HARDWARE_DIAG + cierre de FASE 6G
+relacion: amplia
+referencias_entradas: [0331, 0213]
+referencias_documentales: [docs/roadmap/fase-6g.md, docs/architecture/05-3-commercial-ops.md, docs/adr/ADR-0033-hardware-diagnostics-probe.md, packages/domain-hardware/, apps/pos-web/src/lib/hardware/, apps/worker-api/src/hardware/hardware-diagnostics-routes.ts, docs/ops/s53-hardware-diagnostics-qg.md]
+prev_id: 0331
+prev_hash: 7c09e70312e2d224278dd8ce4d47a6b5560be63e6f36013b650ed5b73fc4094f
+entry_hash: 5866478f279cf432f7f8033b7b3a83df87d629f093688f8affa1a3087533a46c
+ticket_or_adr: ADR-0033; Roadmap FASE 6G Sprint 53; GTM §4.1
+test_ids: [V-08, V-13, V-15, V-18, V-25, SUITE, domain-hardware (19), hardware-diagnostics-routes.test.ts (7), hardware-diagnostics.spec.ts (3, E2E 41/41), process-shift-handoff-atomic.integration.test.ts (5), quality.sh]
+entregable_afectado: Sprint 53 — asistente visual de diagnóstico (Admin → Configuración), 4 botones normativos, causa + paso siguiente sin jerga técnica, ancho 58/80, prueba de impresión <30s, log HARDWARE_DIAG en audit_events con lectura admin; cierre de la FASE 6G y del roadmap
+descripcion: >
+  Sprint 53 (FASE 6G, último del roadmap). Implementa la regla 37b y el ADR-0033:
+  (1) paquete domain-hardware con report canónico (target/ok/causeCode/nextStep/
+  durationMs/testedAtIso/paperWidthMm), catálogo de causas con copy no-técnico y
+  paso siguiente (findJargonViolations con word-boundary: cero WebUSB/WSS/IP),
+  resolvePaperWidth 58/80 (preferencia > probe > null) y payload de auditoría;
+  (2) probes cliente en lib/hardware con seam window.__KIPUS_TEST_HARDWARE__ para
+  E2E deterministas (printer USB vía requestDevice, red vía WSS con allowlist
+  fail-closed, balanza, vitrina con handshake ping/ACK en BroadcastChannel,
+  prueba de impresión con tope 30s); (3) UI sección #hardware en
+  admin/configuracion con los 4 botones del roadmap y estados ✓/✗; (4) rutas
+  worker-api POST/GET /api/hardware/diagnostics con triple gate (flag default-off
+  + capability tenant_capabilities.hardware.diagnostics + rol admin/owner) y
+  persistencia en audit_events con cadena prev_hash/row_hash; (5) Registry §0.4
+  fila COM-13 (FASE 6G/HARDWARE_DIAG, V-08) y flag FEATURE_HARDWARE_DIAGNOSTICS
+  en wrangler.jsonc; (6) QG docs/ops/s53-hardware-diagnostics-qg.md y GTM §4.1
+  descongelado-condicionado. Arreglos de estabilidad del gate: edge handoff
+  determinista (opened_at fijo + tiebreaker ended_at IS NULL), offline-sync E2E
+  con route mock same-origin (CSP connect-src 'self'), quick-sale E2E con
+  dismiss del tour, complexity CAL-08 de assertWellFormedXml (30→≤12) y deuda
+  pendiente de commits previos (worker-fiscal F5-2/F5-3, fiscal-rc, ubl-invoice,
+  offline-sync F6-3) consolidada en este commit.
+evidencia: >
+  RED: sin domain-hardware los tests fallaban por import; el copy técnico se
+  filtraba a la UI; el edge handoff era dependiente de la hora del sistema
+  (opened_at CURRENT_TIMESTAMP real vs nowIso del test); el E2E offline-sync
+  fallaba por CSP y el de quick-sale por el tour del S52.
+  GREEN: domain-hardware 19/19 (97.7% stmts, 96.9% branches); integración
+  adapters-d1 239/239; worker-api 952/952; pos-web 212/212 + E2E 41/41
+  (hardware 3/3); lint/typecheck/format 0; verify.sh SUITE GREEN (V-08, V-13,
+  V-15, V-18, V-25); Quality Gate OK (CAL-03/05/06, bundle 203.81 kB gzipped).
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA/Chaos, Staff Design, Staff PM]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

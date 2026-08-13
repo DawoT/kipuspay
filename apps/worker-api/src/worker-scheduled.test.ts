@@ -19,13 +19,17 @@ vi.mock('cloudflare:workers', () => {
   };
 });
 
-const { runDailyRollupsCronHttp, runRecurringSalesScheduled, runForecastScheduled } = vi.hoisted(
-  () => ({
-    runDailyRollupsCronHttp: vi.fn(),
-    runRecurringSalesScheduled: vi.fn(),
-    runForecastScheduled: vi.fn(),
-  }),
-);
+const {
+  runDailyRollupsCronHttp,
+  runRecurringSalesScheduled,
+  runForecastScheduled,
+  runFiscalCronHttp,
+} = vi.hoisted(() => ({
+  runDailyRollupsCronHttp: vi.fn(),
+  runRecurringSalesScheduled: vi.fn(),
+  runForecastScheduled: vi.fn(),
+  runFiscalCronHttp: vi.fn(),
+}));
 
 vi.mock('./reports/report-routes.js', () => ({
   isAdvancedReportId: vi.fn(() => false),
@@ -40,6 +44,9 @@ vi.mock('./sales/recurring-sales-scheduled.js', () => ({
 vi.mock('./analytics/forecast-scheduled.js', () => ({
   runForecastScheduled,
 }));
+vi.mock('./fiscal/fiscal-rc-routes.js', () => ({
+  runFiscalCronHttp,
+}));
 
 import type { WorkerEnv } from './auth/control-plane.js';
 import worker from './worker.js';
@@ -47,6 +54,8 @@ import worker from './worker.js';
 const DAILY_ROLLUP_CRON = '0 8 * * *';
 const RECURRING_CRON = '*/5 * * * *';
 const FORECAST_CRON = '30 8 * * *';
+const FISCAL_DEADLINES_CRON = '0 */6 * * *';
+const FISCAL_RC_CRON = '0 13 * * *';
 const scheduledTime = Date.parse('2026-08-09T08:00:00.000Z');
 
 function event(cron: string): ScheduledEvent {
@@ -82,10 +91,37 @@ describe('Worker scheduled dispatch', () => {
     });
   });
 
-  it('preserves all four configured cron triggers', () => {
+  it('preserves all six configured cron triggers', () => {
     expect(wranglerConfig).toMatch(
-      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*\]/,
+      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*,\s*"0 \*\/6 \* \* \*"\s*,\s*"0 13 \* \* \*"\s*\]/,
     );
+  });
+
+  it('F5b-1: routes the fiscal deadlines cron (cada 6h) exactly once', async () => {
+    await worker.scheduled(event(FISCAL_DEADLINES_CRON), env(), {} as ExecutionContext);
+    expect(runFiscalCronHttp).toHaveBeenCalledOnce();
+    expect(runFiscalCronHttp).toHaveBeenCalledWith(expect.anything(), {
+      action: 'deadlines',
+      nowMs: scheduledTime,
+    });
+    expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
+    expect(runRecurringSalesScheduled).not.toHaveBeenCalled();
+  });
+
+  it('F5b-1: routes the RC daily cron with día Lima previo (13:00 UTC)', async () => {
+    vi.clearAllMocks();
+    const rcTime = Date.parse('2026-08-09T13:00:00.000Z');
+    const evt = { cron: FISCAL_RC_CRON, scheduledTime: rcTime } as ScheduledEvent;
+    await worker.scheduled(evt, env(), {} as ExecutionContext);
+    expect(runFiscalCronHttp).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(runFiscalCronHttp).mock.calls[0]![1] as {
+      action: string;
+      summaryDate?: string;
+    };
+    expect(call.action).toBe('daily-summary-sweep');
+    // 13:00 UTC − 5h (Lima) − 24h = 2026-08-08 (día Lima previo).
+    expect(call.summaryDate).toBe('2026-08-08');
+    expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
   });
 
   it('routes the daily cron exactly once with existing reporting semantics', async () => {

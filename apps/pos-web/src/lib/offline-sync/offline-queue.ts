@@ -91,6 +91,110 @@ function isQuotaExceeded(error: unknown): boolean {
   );
 }
 
+function isOfflineQueueRecord(value: unknown): value is OfflineQueueRecord {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.offlineSaleId === 'string' &&
+    typeof v.payload === 'object' &&
+    v.payload !== null &&
+    (v.status === 'PENDING' || v.status === 'RETRY') &&
+    typeof v.enqueuedAtMs === 'number'
+  );
+}
+
+/**
+ * F6-1: adaptador IndexedDB nativo (zero-dep, Web Platform) para la cola de
+ * ventas offline en producción. Fallback a memoria si no hay browser IDB
+ * (SSR/Node/tests). Sigue el patrón probado de print-outbox-store.
+ */
+export function createBrowserOfflineIdb(dbName = 'kipus_offline_sales'): OfflineIdbPort {
+  if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+    return createMemoryOfflineIdb();
+  }
+  const storeName = 'offline_sales';
+  const openDb = (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(dbName, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.createObjectStore(storeName);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error ?? new Error('IDB_OPEN_FAILED'));
+    });
+  };
+
+  return {
+    async get(key) {
+      const db = await openDb();
+      return new Promise<OfflineQueueRecord | undefined>((resolve, reject) => {
+        const tx = db['transaction'](storeName, 'readonly');
+        const req = tx.objectStore(storeName).get(key) as unknown as IDBRequest<unknown>;
+        req.onsuccess = () => {
+          const result: unknown = req.result;
+          if (result === undefined || isOfflineQueueRecord(result)) {
+            resolve(result);
+            return;
+          }
+          reject(new Error('IDB_GET_DATA_INVALID'));
+        };
+        req.onerror = () => reject(req.error ?? new Error('IDB_GET_FAILED'));
+      });
+    },
+    async set(key, value) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db['transaction'](storeName, 'readwrite');
+        const req = tx.objectStore(storeName).put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error ?? new Error('IDB_SET_FAILED'));
+      });
+    },
+    async del(key) {
+      const db = await openDb();
+      return new Promise((resolve, reject) => {
+        const tx = db['transaction'](storeName, 'readwrite');
+        const req = tx.objectStore(storeName).delete(key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error ?? new Error('IDB_DEL_FAILED'));
+      });
+    },
+    async keys() {
+      const db = await openDb();
+      return new Promise<readonly string[]>((resolve, reject) => {
+        const tx = db['transaction'](storeName, 'readonly');
+        const req = tx.objectStore(storeName).getAllKeys() as unknown as IDBRequest<unknown>;
+        req.onsuccess = () => {
+          const result: unknown = req.result;
+          if (!Array.isArray(result) || !result.every((key: unknown) => typeof key === 'string')) {
+            reject(new Error('IDB_KEYS_DATA_INVALID'));
+            return;
+          }
+          resolve(result);
+        };
+        req.onerror = () => reject(req.error ?? new Error('IDB_KEYS_FAILED'));
+      });
+    },
+    async estimate() {
+      if (typeof navigator !== 'undefined' && navigator.storage?.estimate) {
+        const est = await navigator.storage.estimate();
+        return { usage: est.usage ?? 0, quota: est.quota ?? 10_000_000 };
+      }
+      // Sin StorageManager: estimación por tamaño serializado de las claves.
+      const keys = await this.keys();
+      let usage = 0;
+      for (const key of keys) {
+        const row = await this.get(key);
+        if (row) usage += JSON.stringify(row).length;
+      }
+      return { usage, quota: 10_000_000 };
+    },
+  };
+}
+
 /** Fake IDB en memoria para unit/chaos. */
 export function createMemoryOfflineIdb(opts?: {
   readonly quota?: number;

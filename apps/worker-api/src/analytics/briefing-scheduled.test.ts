@@ -89,4 +89,35 @@ describe('briefing cron (Sprint 49)', () => {
     expect(isBriefingEnabled({ FEATURE_ANALYTICS_AGENTIC_INSIGHTS: 'true' })).toBe(false);
     expect(isBriefingEnabled(undefined)).toBe(false);
   });
+
+  it('F6-4: briefing regenerado tras invalidación KV refleja cifras integradas (edge D)', async () => {
+    const kv = memoryKv();
+    // Estado previo: cache de briefing con cifras DESACTUALIZADAS (venta del
+    // día cerrado aún no integrada). El rematerialize del sync borró la key.
+    kv.map.set(
+      'insights:t1:2026-08-02',
+      JSON.stringify({ bullets: ['cifras viejas'], reportDate: '2026-08-02' }),
+    );
+    void kv.delete('insights:t1:2026-08-02'); // invalida (rollup-rematerialize)
+
+    // El cron de briefing regenera DESPUÉS del sync tardío: debe leer los
+    // rollups ya rematerializados (gross 118000) y NO las cifras viejas.
+    const res = await runBriefingScheduled(
+      { FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '1', DB: memoryDb(['t1']), TENANT_KV: kv },
+      { scheduledTime: Date.parse('2026-08-04T03:30:00.000Z') },
+    );
+    expect(res.status).toBe('COMPLETE');
+    expect(res.written).toBe(1);
+
+    const fresh = JSON.parse(kv.map.get('insights:t1:2026-08-02') ?? '{}') as {
+      bullets?: unknown[];
+      reportDate?: string;
+    };
+    expect(fresh.reportDate).toBe('2026-08-02');
+    expect(fresh.bullets).toHaveLength(3);
+    // El briefing se construye sobre facts del rollup integrado (mock devuelve
+    // gross_sales_cents 118000 → bullet de ventas presente).
+    const bullets = fresh.bullets!.map((b) => JSON.stringify(b));
+    expect(bullets.some((b) => b.includes('venta') || b.includes('Ventas'))).toBe(true);
+  });
 });

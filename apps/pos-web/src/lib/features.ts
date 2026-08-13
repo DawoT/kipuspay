@@ -248,6 +248,11 @@ export function isOnboardingTourEnabled(): boolean {
   return flagOn(pub(PF + 'ONBOARDING_TOUR'));
 }
 
+/** Sprint 53 — Troubleshooter de hardware (ADR-0033); siempre default-off. */
+export function isHardwareDiagnosticsEnabled(): boolean {
+  return flagOn(pub(PF + 'HARDWARE_DIAGNOSTICS'));
+}
+
 /** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
 export function isAnalyticsForecastingEnabled(): boolean {
   return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));

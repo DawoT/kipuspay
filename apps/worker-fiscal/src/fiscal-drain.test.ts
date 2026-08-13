@@ -111,6 +111,53 @@ function memoryDb(rows: OutboxRow[]): FiscalDrainDb & { state: MockRow[] } {
 }
 
 describe('fiscal drain FIFO', () => {
+  it('F5-3: xmlHash enviado al transporte es el SHA-256 REAL del XML (no literal)', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    const xml = '<?xml version="1.0"?><Invoice><cbc:ID>F001-1</cbc:ID></Invoice>';
+    r2.map.set('xml-key-1', xml);
+    db.state.push({
+      id: 'f1',
+      tenant_id: 't1',
+      sale_id: 's1',
+      status: 'PENDING',
+      attempt_count: 0,
+      must_submit_by: '2026-08-20T00:00:00.000Z',
+      document_type: '01',
+      r2_xml_key: 'xml-key-1',
+      created_at: new Date().toISOString(),
+    } as unknown as MockRow);
+
+    const submittedHashes: string[] = [];
+    const transport: FiscalTransport = {
+      mode: 'MOCK_STAGING',
+      submit: (input) => {
+        submittedHashes.push(input.xmlHash);
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+        });
+      },
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+    };
+    const result = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+
+    const expectedHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(xml));
+    const expectedHex = [...new Uint8Array(expectedHash)]
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    expect(submittedHashes).toHaveLength(1);
+    expect(submittedHashes[0]).toBe(expectedHex);
+    expect(submittedHashes[0]).not.toBe('drain');
+    expect(result.accepted).toBe(1);
+  });
+
   it('factura cercana a deadline antes que cola masiva', () => {
     const rows: OutboxRow[] = [
       {

@@ -82,6 +82,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | COM-10 | §5.11 | Membresía: pricing versionado, calendario, settlement, gracia y prorrateo |
 | COM-11 | §5.12 | Push: consentimiento, privacidad, entrega/ACK, DDL 0038 y caja móvil |
 | COM-12 | §5.4 | DDL ecosistema v9 |
+| COM-13 | §5.3 (6G) | Capabilities flujo del cliente: tour/checklist (S52) + diagnóstico de hardware `HARDWARE_DIAG` (S53) |
 | DAT-01 | §5.4 | `branch_id TEXT NULL` en `sunat_daily_summaries` |
 | DAT-02 | §6 | Estado SUNAT + deadline (compartida con FIS-02) |
 | DAT-03 | §5.3 (def. Ledger 0165) | Versión v8.1 en comentario DDL |

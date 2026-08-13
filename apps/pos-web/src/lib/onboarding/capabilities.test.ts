@@ -12,11 +12,13 @@ describe('capabilitiesFromFlags (ADR-ARCH-002)', () => {
       quickAdd: true,
       shiftHandoff: false,
       teamInvite: true,
+      hardwareDiagnostics: true,
     });
     expect(set.has('kds')).toBe(true);
     expect(set.has('scale')).toBe(true);
     expect(set.has('quick_add')).toBe(true);
     expect(set.has('team_invite')).toBe(true);
+    expect(set.has('hardware.diagnostics')).toBe(true);
     expect(set.has('fefo')).toBe(false);
     expect(set.has('promotions')).toBe(false);
     expect(set.has('shift_handoff')).toBe(false);
@@ -32,6 +34,7 @@ describe('capabilitiesFromFlags (ADR-ARCH-002)', () => {
       quickAdd: false,
       shiftHandoff: false,
       teamInvite: false,
+      hardwareDiagnostics: false,
     });
     expect(set.size).toBe(0);
   });

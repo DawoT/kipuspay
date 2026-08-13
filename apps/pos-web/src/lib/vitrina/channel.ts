@@ -28,10 +28,28 @@ export function subscribeVitrina(onSnap: (s: VitrinaSnapshot) => void): () => vo
     return () => undefined;
   }
   const ch = new BroadcastChannel(VITRINA_CHANNEL);
-  ch.onmessage = (ev: MessageEvent<VitrinaSnapshot>) => {
+  ch.onmessage = (ev: MessageEvent<VitrinaSnapshot | VitrinaDiagMessage>) => {
+    if (isVitrinaDiagMessage(ev.data)) {
+      if (ev.data.type === 'KIPUS_DIAG_PING') {
+        ch.postMessage({ type: 'KIPUS_DIAG_ACK', nonce: ev.data.nonce });
+      }
+      return;
+    }
     onSnap(ev.data);
   };
   return () => ch.close();
+}
+
+/** Mensajes de diagnóstico (regla 37b): la pantalla de vitrina responde al ping. */
+export interface VitrinaDiagMessage {
+  readonly type: 'KIPUS_DIAG_PING' | 'KIPUS_DIAG_ACK';
+  readonly nonce: string;
+}
+
+export function isVitrinaDiagMessage(data: unknown): data is VitrinaDiagMessage {
+  if (typeof data !== 'object' || data === null || !('type' in data)) return false;
+  const type = data.type;
+  return type === 'KIPUS_DIAG_PING' || type === 'KIPUS_DIAG_ACK';
 }
 
 /** Mensaje por defecto según fase de pedido/cobro. */

@@ -14,6 +14,12 @@ import {
 export const POISON_RETRY_THRESHOLD = 5;
 export const CLAIM_STALE_AFTER_MINUTES = 10;
 
+/** SHA-256 hex del XML fiscal (F5-3): el hash real viaja al transporte. */
+export async function hashFiscalXml(xml: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(xml));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export interface FiscalXmlR2 {
   get(key: string): Promise<{ text(): Promise<string> } | null>;
   put(key: string, value: string): Promise<void>;
@@ -171,11 +177,14 @@ export async function drainFiscalOutbox(input: {
       continue;
     }
     const xml = await obj.text();
+    // F5-3: el hash que viaja al transporte es el SHA-256 REAL del XML
+    // (antes literal 'drain'); integridad verificable por el PSE/OSE.
+    const xmlHash = await hashFiscalXml(xml);
     const outcome = await transport.submit({
       tenantId: row.tenant_id,
       saleId: row.sale_id,
       xml,
-      xmlHash: 'drain',
+      xmlHash,
       documentType: (row.document_type as '01' | '03' | '07' | '08') || '01',
     });
 

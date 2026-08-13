@@ -106,6 +106,13 @@ export function isOnboardingTourEnabled(
   return flagOn(env?.FEATURE_ONBOARDING_TOUR);
 }
 
+/** Sprint 53 — Troubleshooter de hardware (FEATURE_HARDWARE_DIAGNOSTICS, default off). */
+export function isHardwareDiagnosticsEnabled(
+  env: { readonly FEATURE_HARDWARE_DIAGNOSTICS?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_HARDWARE_DIAGNOSTICS);
+}
+
 /** Sprint 49 — inteligencia del negocio (FEATURE_ANALYTICS_AGENTIC_INSIGHTS, default off). */
 export function isAgenticInsightsEnabled(
   env: { readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string } | undefined,

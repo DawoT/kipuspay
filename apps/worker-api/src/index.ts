@@ -17,6 +17,7 @@ import {
   runCpePortalHttp,
   runFiscalCronHttp,
   runOwnerAlertsHttp,
+  runRcPendingBannerHttp,
   runVoidBoletaHttp,
 } from './fiscal/fiscal-rc-routes.js';
 import { runCreditNoteEaHttp, runOwnerBacklogHttp } from './fiscal/owner-ea-routes.js';
@@ -153,6 +154,11 @@ import {
   runRegisterTerminalSessionHttp,
   runSubmitWeightHttp,
 } from './inventory/inventory-scale-routes.js';
+import {
+  runListHardwareDiagnosticsHttp,
+  runReportHardwareDiagnosticsHttp,
+  type HardwareDiagActor,
+} from './hardware/hardware-diagnostics-routes.js';
 import {
   runAcknowledgePriceLabelItemsHttp,
   runCreatePriceLabelBatchHttp,
@@ -486,6 +492,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } = await c.req.json();
     const result = await runFiscalCronHttp(c.env, body);
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
+  // F5b-5: banner Dueño "boletas del día sin RC ≠ cierre Z"
+  app.get('/api/owner/rc-pending-banner', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runRcPendingBannerHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 404 | 503);
   });
 
   // Ledger CxC/CxP/OC/egresos + Modo Dueño read (Sprint 8) — flags default off
@@ -1666,6 +1679,29 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       scaleActor(c),
       body as Record<string, unknown>,
     );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
+  });
+  // Sprint 53 — Troubleshooter de hardware (regla 37b, ADR-0033).
+  const hardwareDiagActor = (c: {
+    get(name: 'jwt'): VerifiedJwtClaims | undefined;
+    get(name: 'user'): UserSession | undefined;
+  }): HardwareDiagActor => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    return {
+      tenantId: jwt?.tenantId ?? '',
+      userId: user?.userId ?? jwt?.sub ?? '',
+      role: user?.role ?? '',
+    };
+  };
+  app.post('/api/hardware/diagnostics', async (c) => {
+    const body: unknown = await c.req.json();
+    const result = await runReportHardwareDiagnosticsHttp(c.env, hardwareDiagActor(c), body);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 500 | 503);
+  });
+  app.get('/api/hardware/diagnostics', async (c) => {
+    const limit = Number(c.req.query('limit') ?? '20');
+    const result = await runListHardwareDiagnosticsHttp(c.env, hardwareDiagActor(c), limit);
     return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
   });
   app.put('/api/inventory/scale/policy', async (c) => {

@@ -199,3 +199,55 @@ export async function buildDailySummary(
 export function triggerRcFromCashClose(): never {
   throw new Error('CASH_CLOSE_MUST_NOT_TRIGGER_RC');
 }
+
+export interface DailySummarySweepResult {
+  readonly summaryDate: string;
+  readonly tenantsWithPending: number;
+  readonly results: readonly {
+    readonly tenantId: string;
+    readonly status: BuildDailySummaryResult['status'];
+    readonly ticketCount?: number;
+  }[];
+}
+
+/**
+ * F5b-1: sweep multi-tenant del RC diario — lista tenants con boletas del día
+ * aún sin RC (PENDING/PROCESSING/ACCEPTED/DEADLINE_EXCEEDED, daily_summary_id
+ * NULL) y construye su RC. El cron llama esto con summaryDate = día Lima previo.
+ */
+export async function runDailySummarySweep(
+  db: D1DatabaseLike,
+  input: { readonly summaryDate: string; readonly nowMs: number; readonly limit?: number },
+): Promise<DailySummarySweepResult> {
+  const limit = input.limit ?? 500;
+  const pending = await db
+    .prepare(
+      `SELECT DISTINCT tenant_id
+       FROM sales
+       WHERE deleted_at IS NULL
+         AND document_type IN ('03','12')
+         AND sunat_status IN ('PENDING','PROCESSING','ACCEPTED','DEADLINE_EXCEEDED')
+         AND daily_summary_id IS NULL
+         AND date(issued_at_lima) = ?
+       ORDER BY tenant_id
+       LIMIT ?`,
+    )
+    .bind(input.summaryDate, limit)
+    .all<{ tenant_id: string }>();
+
+  const tenants = pending.results ?? [];
+  const results: DailySummarySweepResult['results'][number][] = [];
+  for (const row of tenants) {
+    const r = await buildDailySummary(db, {
+      tenantId: row.tenant_id,
+      summaryDate: input.summaryDate,
+      nowMs: input.nowMs,
+    });
+    results.push({
+      tenantId: row.tenant_id,
+      status: r.status,
+      ...(r.ticketCount !== undefined ? { ticketCount: r.ticketCount } : {}),
+    });
+  }
+  return { summaryDate: input.summaryDate, tenantsWithPending: tenants.length, results };
+}

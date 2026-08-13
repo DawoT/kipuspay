@@ -42,8 +42,8 @@ async function seedHandoffFixture(
     ).bind(incomingUserId, tenantId, branchId, `in-${tenantId}@example.com`, 'cashier'),
     env.DB.prepare(
       `INSERT INTO cash_register_sessions
-         (id, tenant_id, branch_id, cash_register_id, user_id, opening_balance_cents, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'OPEN')`,
+         (id, tenant_id, branch_id, cash_register_id, user_id, opening_balance_cents, status, opened_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'OPEN', '2026-08-12T08:00:00.000Z')`,
     ).bind(sessionId, tenantId, branchId, registerId, outgoingUserId, openingBalanceCents),
     env.DB.prepare(
       `INSERT INTO tenant_discount_policies (tenant_id, interim_required) VALUES (?, ?)`,
@@ -83,7 +83,8 @@ describe('shift handoff — edge de integración (Sprint 51)', () => {
 
     const shifts = await env.DB.prepare(
       `SELECT user_id, started_at, ended_at FROM cash_register_shifts
-         WHERE tenant_id = ? AND cash_register_session_id = ? ORDER BY started_at`,
+         WHERE tenant_id = ? AND cash_register_session_id = ?
+         ORDER BY started_at, ended_at IS NULL`,
     )
       .bind(tenantId, sessionId)
       .all<{ user_id: string; started_at: string; ended_at: string | null }>();

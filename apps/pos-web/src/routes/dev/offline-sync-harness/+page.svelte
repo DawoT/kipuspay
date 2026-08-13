@@ -1,7 +1,8 @@
 <script lang="ts">
   import {
     CHUNK_SIZE,
-    createMemoryOfflineIdb,
+    createBrowserOfflineIdb,
+    createHttpSyncTransport,
     dispatchPendingSalesChunked,
     OfflineQueueStore,
   } from '$lib/offline-sync';
@@ -30,29 +31,30 @@
     // Cobro crítico: encola y retorna sin await de red (cero spinner bloqueante).
     status = 'enqueued';
     message = 'Cobro OK — sync en background';
-    const idb = createMemoryOfflineIdb();
+    // F6-1/F6-2: IDB real (persistente entre recargas) + transporte HTTP real
+    // contra la API de sync; fallback a memoria si no hay browser IDB.
+    const idb = createBrowserOfflineIdb();
     const queue = new OfflineQueueStore(idb);
     const n = CHUNK_SIZE + 5;
     for (let i = 0; i < n; i++) await queue.enqueue(sale(`h-${i}`));
     pendingCount = (await queue.listPending()).length;
 
     void (async () => {
+      const apiBase = (localStorage.getItem('kipuspay_api_base') ?? 'http://localhost:8787').replace(
+        /\/$/,
+        '',
+      );
       await dispatchPendingSalesChunked(
         queue,
-        {
-          postSales: (sales) =>
-            Promise.resolve({
-              results: sales.map((s) => ({
-                offlineSaleId: s.offlineSaleId,
-                status: 'SUCCESS' as const,
-              })),
-            }),
-        },
+        createHttpSyncTransport({
+          endpointUrl: `${apiBase}/api/v1/sync/sales`,
+          bearerToken: localStorage.getItem('kipuspay_token') ?? undefined,
+        }),
         { sleepFn: () => Promise.resolve() },
       );
       pendingCount = (await queue.listPending()).length;
       status = 'synced';
-      message = 'Cola vacía tras sync';
+      message = 'Cola vacía tras sync (o pendientes en RETRY por red)';
     })();
   }
 </script>

@@ -14,6 +14,7 @@
     isSalesCommissionsEnabled,
     isShiftHandoffEnabled,
     isTeamInviteEnabled,
+    isHardwareDiagnosticsEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
@@ -157,6 +158,7 @@
     quickAdd: isCatalogQuickAddEnabled(),
     shiftHandoff: isShiftHandoffEnabled(),
     teamInvite: isTeamInviteEnabled(),
+    hardwareDiagnostics: isHardwareDiagnosticsEnabled(),
   });
   let tourOpen = $state(false);
   let tourSteps = $state<readonly TourStep[]>([]);

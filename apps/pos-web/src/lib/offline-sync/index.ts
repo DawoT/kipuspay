@@ -10,6 +10,7 @@ export {
 export {
   OfflineQueueBlockedError,
   OfflineQueueStore,
+  createBrowserOfflineIdb,
   createMemoryOfflineIdb,
   type OfflineIdbPort,
   type OfflineQueueRecord,
@@ -19,6 +20,7 @@ export {
 export {
   CHUNK_SIZE,
   BACKOFF_BASE_MS,
+  createHttpSyncTransport,
   dispatchPendingSalesChunked,
   type DispatchReport,
   type SyncAck,

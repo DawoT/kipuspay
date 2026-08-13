@@ -19,6 +19,53 @@ export interface SyncTransport {
   postSales(sales: readonly OfflineSalePayload[]): Promise<{ results: readonly SyncAck[] }>;
 }
 
+/**
+ * F6-2: SyncTransport HTTP real contra POST /api/v1/sync/sales.
+ * fetchImpl inyectable para tests; bearer token opcional.
+ */
+export function createHttpSyncTransport(opts: {
+  readonly endpointUrl: string;
+  readonly fetchImpl?: typeof fetch;
+  readonly bearerToken?: string;
+}): SyncTransport {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  return {
+    async postSales(sales) {
+      const res = await fetchImpl(opts.endpointUrl, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(opts.bearerToken ? { authorization: `Bearer ${opts.bearerToken}` } : {}),
+        },
+        body: JSON.stringify({ sales }),
+      });
+      if (!res.ok) {
+        throw new Error(`SYNC_HTTP_${res.status}`);
+      }
+      const body = (await res.json()) as { results?: unknown };
+      const results = body.results;
+      if (!Array.isArray(results)) {
+        throw new Error('SYNC_HTTP_BAD_SHAPE');
+      }
+      const validated = results.filter(
+        (r): r is SyncAck =>
+          typeof r === 'object' &&
+          r !== null &&
+          typeof (r as SyncAck).offlineSaleId === 'string' &&
+          ((r as SyncAck).status === 'SUCCESS' ||
+            (r as SyncAck).status === 'ALREADY_SYNCED' ||
+            (r as SyncAck).status === 'FAILED'),
+      );
+      // Fail-closed: sin acks válidos para el payload enviado, la respuesta
+      // no es de fiar → el dispatcher reintentará (nunca borra por error).
+      if (validated.length === 0 && results.length > 0) {
+        throw new Error('SYNC_HTTP_BAD_SHAPE');
+      }
+      return { results: validated };
+    },
+  };
+}
+
 export interface DispatchReport {
   readonly total: number;
   readonly succeeded: number;

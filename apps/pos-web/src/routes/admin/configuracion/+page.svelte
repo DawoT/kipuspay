@@ -3,7 +3,15 @@
   import { page } from '$app/stores';
   import { advanceFormalization, enabledDocumentTypesFor } from '@kipuspay/domain-fiscal-pe';
   import { faqFor, type FaqItem } from '@kipuspay/domain-onboarding';
-  import { isInventoryScaleEnabled, isOnboardingTourEnabled } from '$lib/features';
+  import { causeLabel, nextStepFor, type DiagnosticReport } from '@kipuspay/domain-hardware';
+  import {
+    isHardwareDiagnosticsEnabled,
+    isInventoryScaleEnabled,
+    isOnboardingTourEnabled,
+  } from '$lib/features';
+  import { runAllDiagnostics, runPrintTest } from '$lib/hardware/diagnostics';
+  import { reportDiagnostics } from '$lib/hardware/diagnostics-client';
+  import { probePrinterNetwork, probePrinterUsb, probeScale, probeVitrina } from '$lib/hardware/diagnostics';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -25,6 +33,42 @@
   let error = $state('');
   let notice = $state('');
   const scaleOn = isInventoryScaleEnabled();
+  // Sprint 53 — Troubleshooter de hardware (regla 37b, ADR-0033).
+  const hardwareOn = isHardwareDiagnosticsEnabled();
+  let hwReports = $state<Record<string, DiagnosticReport>>({});
+  let hwBusyTarget = $state('');
+  let hwPrintReport = $state<DiagnosticReport | null>(null);
+  let hwPrintBusy = $state(false);
+  let hwLogNotice = $state('');
+
+  async function runHardwareProbe(
+    kind: 'printer_usb' | 'printer_network' | 'scale' | 'vitrina',
+  ) {
+    if (hwBusyTarget) return;
+    hwBusyTarget = kind;
+    hwLogNotice = '';
+    const probes = {
+      printer_usb: () => probePrinterUsb(),
+      printer_network: () => probePrinterNetwork({}),
+      scale: () => probeScale(),
+      vitrina: () => probeVitrina(),
+    };
+    const report = await probes[kind]();
+    hwReports[kind] = report;
+    const saved = await reportDiagnostics([report]);
+    if (!saved.ok) hwLogNotice = 'No pudimos guardar el registro del diagnóstico.';
+    hwBusyTarget = '';
+  }
+
+  async function runHardwarePrintTest() {
+    if (hwPrintBusy) return;
+    hwPrintBusy = true;
+    hwLogNotice = '';
+    const report = await runPrintTest();
+    hwPrintReport = report;
+    await reportDiagnostics([report]);
+    hwPrintBusy = false;
+  }
   let scaleThreshold = $state('250000');
   let scaleProtocol = $state<'WEBHID' | 'WEB_SERIAL' | 'WEBUSB'>('WEBHID');
   let scaleFingerprint = $state('');
@@ -46,6 +90,7 @@
     quickAdd: false,
     shiftHandoff: false,
     teamInvite: false,
+    hardwareDiagnostics: hardwareOn,
   });
   let serverState = $state<{ logo: boolean; invoicing: boolean; team: boolean; catalog: boolean } | null>(null);
   let printerReady = $state(false);
@@ -306,8 +351,7 @@
   </div>
 
   {#if scaleOn}
-    <section id="balanza" class="glass-card scale-card" aria-labelledby="scale-config-title">
-      <div class="card-head">
+    <section id="balanza" class="glass-card scale-card" aria-labelledby="scale-config-title">      <div class="card-head">
         <Icon name="scale" size={22} class="icon-amber" />
         <div>
           <p class="instrument-label">Hardware · Balanza</p>
@@ -402,6 +446,131 @@
       {#if scaleStatus}
         <div role="status" aria-live="polite" class="diagnostic">
           <code>{scaleStatus}</code>
+        </div>
+      {/if}
+    </section>
+  {/if}
+
+  {#if hardwareOn}
+    <section id="hardware" class="glass-card" aria-labelledby="hardware-config-title">
+      <div class="card-head">
+        <Icon name="refresh" size={22} class="icon-amber" />
+        <div>
+          <p class="instrument-label">Hardware · Diagnóstico</p>
+          <h2 id="hardware-config-title">Impresora, balanza y vitrina</h2>
+        </div>
+      </div>
+      <p class="terminal-hint">
+        <Icon name="shield" size={14} />
+        <span>Prueba cada equipo y sigue el paso sugerido si algo falla.</span>
+      </p>
+      <div class="device-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick={() => runHardwareProbe('printer_usb')}
+          disabled={hwBusyTarget !== ''}
+          data-testid="hw-probe-usb"
+        >
+          <Icon name="refresh" size={16} />
+          <span>{hwBusyTarget === 'printer_usb' ? 'Probando…' : 'Probar impresora USB'}</span>
+        </button>
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick={() => runHardwareProbe('printer_network')}
+          disabled={hwBusyTarget !== ''}
+          data-testid="hw-probe-network"
+        >
+          <Icon name="refresh" size={16} />
+          <span>
+            {hwBusyTarget === 'printer_network' ? 'Buscando…' : 'Buscar impresoras en mi red'}
+          </span>
+        </button>
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick={() => runHardwareProbe('scale')}
+          disabled={hwBusyTarget !== ''}
+          data-testid="hw-probe-scale"
+        >
+          <Icon name="refresh" size={16} />
+          <span>{hwBusyTarget === 'scale' ? 'Probando…' : 'Probar balanza'}</span>
+        </button>
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick={() => runHardwareProbe('vitrina')}
+          disabled={hwBusyTarget !== ''}
+          data-testid="hw-probe-vitrina"
+        >
+          <Icon name="refresh" size={16} />
+          <span>{hwBusyTarget === 'vitrina' ? 'Probando…' : 'Probar vitrina'}</span>
+        </button>
+      </div>
+
+      <div class="device-actions">
+        <button
+          type="button"
+          class="btn-primary-sm"
+          onclick={runHardwarePrintTest}
+          disabled={hwPrintBusy}
+          data-testid="hw-print-test"
+        >
+          <Icon name="barcode" size={16} />
+          <span>{hwPrintBusy ? 'Imprimiendo…' : 'Imprimir prueba'}</span>
+        </button>
+      </div>
+
+      {#each ['printer_usb', 'printer_network', 'scale', 'vitrina'] as kind}
+        {@const report = hwReports[kind]}
+        {#if report}
+          <div
+            class="diagnostic"
+            class:diag-ok={report.ok}
+            class:diag-bad={!report.ok}
+            role="status"
+            aria-live="polite"
+            data-testid="hw-report-{kind}"
+          >
+            <p class="diag-status">
+              {report.ok ? '✓ Todo funciona correctamente.' : '✗ ' + causeLabel(report.causeCode)}
+            </p>
+            {#if report.nextStepId}
+              <p class="diag-next">Siguiente paso: {report.nextStepId}</p>
+            {/if}
+            {#if report.paperWidthMm}
+              <p class="diag-next">Ancho de papel detectado: {report.paperWidthMm} mm.</p>
+            {/if}
+          </div>
+        {/if}
+      {/each}
+
+      {#if hwPrintReport}
+        <div
+          class="diagnostic"
+          class:diag-ok={hwPrintReport.ok}
+          class:diag-bad={!hwPrintReport.ok}
+          role="status"
+          aria-live="polite"
+          data-testid="hw-report-print"
+        >
+          <p class="diag-status">
+            {#if hwPrintReport.ok}
+              ✓ Impresión de prueba completada en {hwPrintReport.durationMs} ms.
+            {:else}
+              ✗ {causeLabel(hwPrintReport.causeCode)}
+            {/if}
+          </p>
+          {#if hwPrintReport.nextStepId}
+            <p class="diag-next">Siguiente paso: {hwPrintReport.nextStepId}</p>
+          {/if}
+        </div>
+      {/if}
+
+      {#if hwLogNotice}
+        <div class="alert-box alert-error" role="alert">
+          <span>{hwLogNotice}</span>
         </div>
       {/if}
     </section>
@@ -771,6 +940,20 @@
     font-size: 0.82rem;
     color: var(--emerald-green, #10b981);
     overflow-x: auto;
+  }
+
+  .diagnostic.diag-bad {
+    color: #f87171;
+  }
+
+  .diag-status {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .diag-next {
+    margin: 0.35rem 0 0;
+    opacity: 0.85;
   }
 
   /* Modal Backdrop */

@@ -2,7 +2,12 @@
  * Rutas fiscal RC: void boleta, alertas Dueño, portal CPE, cron RC/plazos.
  */
 import type { D1DatabaseLike } from '@kipuspay/adapters-d1';
-import { buildDailySummary, processFiscalDeadlines, voidBoletaAtomic } from '@kipuspay/adapters-d1';
+import {
+  buildDailySummary,
+  processFiscalDeadlines,
+  runDailySummarySweep,
+  voidBoletaAtomic,
+} from '@kipuspay/adapters-d1';
 import { mintPortalToken, renderCpePortalHtml, summaryDateLima } from '@kipuspay/domain-fiscal-pe';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -52,6 +57,41 @@ export async function runVoidBoletaHttp(
     }
     return { status: 400, body: { error: msg, code: msg } };
   }
+}
+
+export async function runRcPendingBannerHttp(
+  env: WorkerEnv,
+  tenantId: string,
+  nowMs: number = Date.now(),
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!isFiscalRcEnabled(env)) {
+    return { status: 404, body: { error: 'FEATURE_FISCAL_RC off', code: 'FEATURE_OFF' } };
+  }
+  if (!env.DB) {
+    return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+  // F5b-5: boletas emitidas HOY (día Lima) aún sin RC — el banner Dueño
+  // recuerda que "boletas del día sin RC ≠ cierre Z" (criterio Sprint 5b).
+  const todayLima = summaryDateLima(nowMs);
+  const pending = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM sales
+     WHERE tenant_id = ? AND deleted_at IS NULL
+       AND document_type IN ('03','12')
+       AND sunat_status IN ('PENDING','PROCESSING')
+       AND daily_summary_id IS NULL
+       AND date(issued_at_lima) = ?`,
+  )
+    .bind(tenantId, todayLima)
+    .first<{ n: number }>();
+  const count = pending?.n ?? 0;
+  return {
+    status: 200,
+    body: {
+      summaryDate: todayLima,
+      pendingRcTickets: count,
+      banner: count > 0 ? 'boletas-del-dia-sin-rc' : 'ok',
+    },
+  };
 }
 
 export async function runOwnerAlertsHttp(
@@ -106,7 +146,15 @@ export async function runCpePortalHttp(
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
-  const secret = env.CPE_PORTAL_SECRET ?? 'kipuspay-cpe-portal-dev';
+  // F5b-6: fail-closed — sin CPE_PORTAL_SECRET configurado no hay portal.
+  // Un fallback hardcodeado haría el token predecible (token de 1 año de vida).
+  const secret = env.CPE_PORTAL_SECRET;
+  if (!secret) {
+    return {
+      status: 503,
+      body: { error: 'Portal secret not configured', code: 'PORTAL_UNAVAILABLE' },
+    };
+  }
   const expected = await mintPortalToken(tenantId, saleId, secret);
   if (!portalTokenMatches(token, expected)) {
     return { status: 401, body: { error: 'Invalid portal token', code: 'PORTAL_UNAUTHORIZED' } };
@@ -152,7 +200,7 @@ export async function runCpePortalHttp(
 export async function runFiscalCronHttp(
   env: WorkerEnv,
   body: {
-    readonly action: 'deadlines' | 'daily-summary';
+    readonly action: 'deadlines' | 'daily-summary' | 'daily-summary-sweep';
     readonly tenantId?: string;
     readonly summaryDate?: string;
     readonly nowMs?: number;
@@ -172,6 +220,12 @@ export async function runFiscalCronHttp(
       nowMs,
       body.tenantId ? { tenantId: body.tenantId } : {},
     );
+    return { status: 200, body: { ...result } };
+  }
+  if (body.action === 'daily-summary-sweep') {
+    // F5b-1: cron diario — RC para todos los emisores con boletas del día.
+    const summaryDate = body.summaryDate ?? summaryDateLima(nowMs);
+    const result = await runDailySummarySweep(db, { summaryDate, nowMs });
     return { status: 200, body: { ...result } };
   }
   if (!body.tenantId || !body.summaryDate) {

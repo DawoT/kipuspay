@@ -1,7 +1,9 @@
 import {
   applyCdrToSaleStatus,
+  createHttpPseTransport,
   createMockPseTransport,
   type FiscalSubmitRequest,
+  type FiscalTransport,
 } from '@kipuspay/adapters-sunat';
 import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
@@ -24,6 +26,11 @@ export interface FiscalWorkerEnv {
   readonly FISCAL_BREAKER_KV?: BreakerKvLike;
   readonly FISCAL_XML_R2?: FiscalXmlR2;
   readonly DB?: FiscalDrainDb;
+  /** F5-2: endpoint del PSE KipusPay (HTTP real). Sin él, el transporte
+   *  permanece en MOCK_STAGING documentado (nunca se mezcla). */
+  readonly FISCAL_PSE_ENDPOINT_URL?: string;
+  /** F5-2: fetchImpl inyectable para tests del transporte HTTP. */
+  readonly FISCAL_PSE_FETCH?: typeof fetch;
   readonly FISCAL_CIRCUIT_BREAKER_DO?: {
     idFromName(name: string): unknown;
     get(id: unknown): { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
@@ -50,11 +57,49 @@ export function isFiscalTransportPluginsEnabled(env: FiscalWorkerEnv): boolean {
   );
 }
 
+/**
+ * F5-2: selecciona el transporte fiscal (ADR-FISCAL-002 / §8.1).
+ * - flag on + endpoint → PSE KipusPay HTTP real (createHttpPseTransport).
+ * - cualquier otro caso → MOCK_STAGING explícito (local/staging; el claim PSE
+ *   comercial sigue congelado hasta la prueba de CDR en staging — ADR-FISCAL-001).
+ * Nunca mezcla: sin endpoint no se intenta HTTP (fail-closed de configuración).
+ */
+export function selectFiscalTransport(env: FiscalWorkerEnv): FiscalTransport {
+  const endpoint = env.FISCAL_PSE_ENDPOINT_URL?.trim();
+  if (isFiscalTransportPluginsEnabled(env) && endpoint) {
+    return createHttpPseTransport({
+      endpointUrl: endpoint,
+      ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
+    });
+  }
+  return createMockPseTransport();
+}
+
 export async function submitViaMockPse(request: FiscalSubmitRequest): Promise<{
   verdict: 'aceptada' | 'rechazada' | 'cuarentena';
   sunatStatus: 'ACCEPTED' | 'REJECTED' | 'QUARANTINED';
 }> {
   const transport = createMockPseTransport();
+  const outcome = await transport.submit(request);
+  const sunatStatus = await applyCdrToSaleStatus(outcome);
+  const verdict =
+    sunatStatus === 'ACCEPTED'
+      ? 'aceptada'
+      : sunatStatus === 'REJECTED'
+        ? 'rechazada'
+        : 'cuarentena';
+  return { verdict, sunatStatus };
+}
+
+/** F5-2: submit por el transporte seleccionado (mock staging o PSE HTTP real). */
+export async function submitViaSelectedTransport(
+  env: FiscalWorkerEnv,
+  request: FiscalSubmitRequest,
+): Promise<{
+  verdict: 'aceptada' | 'rechazada' | 'cuarentena';
+  sunatStatus: 'ACCEPTED' | 'REJECTED' | 'QUARANTINED';
+}> {
+  const transport = selectFiscalTransport(env);
   const outcome = await transport.submit(request);
   const sunatStatus = await applyCdrToSaleStatus(outcome);
   const verdict =
@@ -113,7 +158,7 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
     }
   }
   const body: FiscalSubmitRequest = await request.json();
-  const result = await submitViaMockPse(body);
+  const result = await submitViaSelectedTransport(env, body);
   return new Response(JSON.stringify(result), {
     status: 200,
     headers: { 'content-type': 'application/json' },
@@ -127,6 +172,7 @@ async function handleDrain(env: FiscalWorkerEnv): Promise<Response> {
   const result = await drainFiscalOutbox({
     db: env.DB,
     r2: env.FISCAL_XML_R2,
+    transport: selectFiscalTransport(env),
     isBreakerOpen: () =>
       readBreakerOpen(env.FISCAL_BREAKER_KV ?? null, 'KIPUSPAY_PSE_DIRECT', 'submit'),
     onInfraFailure: () => reportInfraFailure(env, 'submit'),

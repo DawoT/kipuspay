@@ -14,6 +14,7 @@ export interface PosCapabilityFlags {
   readonly quickAdd: boolean;
   readonly shiftHandoff: boolean;
   readonly teamInvite: boolean;
+  readonly hardwareDiagnostics: boolean;
 }
 
 export function capabilitiesFromFlags(flags: PosCapabilityFlags): ReadonlySet<string> {
@@ -26,5 +27,6 @@ export function capabilitiesFromFlags(flags: PosCapabilityFlags): ReadonlySet<st
   if (flags.quickAdd) set.add('quick_add');
   if (flags.shiftHandoff) set.add('shift_handoff');
   if (flags.teamInvite) set.add('team_invite');
+  if (flags.hardwareDiagnostics) set.add('hardware.diagnostics');
   return set;
 }
