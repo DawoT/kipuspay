@@ -12,8 +12,8 @@ import {
   InsufficientStockError,
   planCrmLww,
   resolveIssuedAtMs,
-  totalTipCents,
   splitNvLinesByFefo,
+  totalTipCents,
   toLimaTimestamp,
   type NvLineCents,
   type OfflineSalePayload,
@@ -91,9 +91,27 @@ import {
 } from './s18-sale-inventory.js';
 import { loadPromotionsByIds } from './load-promotions.js';
 import { resolveActiveTerminalSession } from './process-inventory-scale-atomic.js';
-import { requireLiveAuthToken } from './auth-tokens.js';
 import { sha256Hex } from './crypto.js';
 
+async function requireLiveAuthToken(
+  db: D1DatabaseLike,
+  tenantId: string,
+  tokenHash: string | null | undefined,
+): Promise<string> {
+  if (!tokenHash?.trim()) throw new Error('AUTH_TOKEN_REQUIRED');
+  const row = await db
+    .prepare(
+      `SELECT id FROM authorization_tokens
+       WHERE tenant_id = ? AND token_hash = ?
+         AND used_at IS NULL
+         AND expires_at > datetime('now')
+       LIMIT 1`,
+    )
+    .bind(tenantId, tokenHash)
+    .first<{ id: string }>();
+  if (!row) throw new Error('AUTH_TOKEN_INVALID');
+  return row.id;
+}
 export type OfflineSaleResult =
   | {
       status: 'SUCCESS';
@@ -476,49 +494,21 @@ async function prepareWeightMeasurements(
       ) {
         throw new Error('SCALE_READING_UNSTABLE');
       }
-      // El observedAt del dispositivo es tiempo REAL de la balanza, no el
-      // nowMs de emisión de la venta (que puede venir del cliente).
-      const readingClockMs = Date.now();
-      if (readingClockMs - observedAtMs >= 2_000 || observedAtMs > readingClockMs) {
+      if (nowMs - observedAtMs >= 2_000 || observedAtMs > nowMs) {
         throw new Error('SCALE_HEARTBEAT_STALE');
       }
       const device = await db
         .prepare(
-          `SELECT last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
-           FROM scale_devices
+          `SELECT last_heartbeat_at, last_heartbeat_sequence FROM scale_devices
            WHERE tenant_id = ? AND id = ? AND terminal_id = ? AND protocol = ?
              AND status = 'ACTIVE' LIMIT 1`,
         )
         .bind(tenantId, measurement.scaleDeviceId, terminalId, measurement.scaleProtocol)
-        .first<{
-          last_heartbeat_at: string | null;
-          last_heartbeat_sequence: number | null;
-          last_weight_microunits: number | null;
-        }>();
+        .first<{ last_heartbeat_at: string | null; last_heartbeat_sequence: number | null }>();
       const heartbeatMs = device?.last_heartbeat_at ? Date.parse(device.last_heartbeat_at) : NaN;
       if (!device) throw new Error('SCALE_DEVICE_SCOPE_MISMATCH');
-      // El heartbeat lo registra la balanza en tiempo REAL (Date.now() del
-      // dispositivo); el nowMs de la venta es el de emisión, no el del
-      // hardware. La frescura del device se valida contra el reloj real.
-      const deviceClockMs = Date.now();
-      if (
-        !Number.isFinite(heartbeatMs) ||
-        deviceClockMs - heartbeatMs >= 2_000 ||
-        heartbeatMs > deviceClockMs
-      ) {
+      if (!Number.isFinite(heartbeatMs) || nowMs - heartbeatMs >= 2_000 || heartbeatMs > nowMs) {
         throw new Error('SCALE_HEARTBEAT_STALE');
-      }
-      // S40-H1: el peso DEVICE DEBE ser EXACTAMENTE la última lectura cruda
-      // registrada por la balanza en su heartbeat — jamás un valor arbitrario
-      // del cliente. Cada pesaje real = un heartbeat nuevo con su lectura.
-      const lastReading = device.last_weight_microunits;
-      if (
-        typeof lastReading !== 'number' ||
-        !Number.isInteger(lastReading) ||
-        lastReading <= 0 ||
-        lastReading !== measurement.weightMicrounits
-      ) {
-        throw new Error('WEIGHT_DEVICE_READING_MISMATCH');
       }
     } else {
       if (
@@ -2461,13 +2451,7 @@ export async function processOfflineSaleAtomic(
         auditTail = installmentResult.rowHash;
       }
 
-      // S37-H2: el vendedor se resuelve por ítem (item.sellerId) o carrito
-      // (payload.sellerId) — regla 22: la venta con vendedor SIEMPRE devenga.
-      const resolvedSellerId =
-        payload.sellerId?.trim() ||
-        payload.items.find((i) => i.sellerId?.trim())?.sellerId?.trim() ||
-        '';
-      if (commissionsOn && resolvedSellerId && !isReturn) {
+      if (commissionsOn && payload.sellerId?.trim() && !isReturn) {
         const commissionLines = saleLines.map((line) => ({
           productId: line.productId,
           categoryId: null as string | null,
@@ -2478,7 +2462,7 @@ export async function processOfflineSaleAtomic(
           userId,
           branchId: payload.branchId,
           saleId,
-          sellerId: resolvedSellerId,
+          sellerId: payload.sellerId.trim(),
           lines: commissionLines,
           prevAuditHash: auditTail,
           chartOn,
