@@ -2384,3 +2384,149 @@ li {
     opacity: 0;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Tarjetas de Seguridad, Blog y Casos de Éxito                      */
+/* ------------------------------------------------------------------ */
+
+.pillar-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 720px) {
+  .pillar-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.pillar-card {
+  padding: 1.6rem;
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
+}
+
+.pillar-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--amber);
+}
+
+.pillar-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--paper);
+}
+
+.pillar-card p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(243, 239, 230, 0.82);
+}
+
+.disclaimers-box {
+  margin-top: 3rem;
+  padding: 1.8rem;
+  background: var(--ink-3);
+  color: var(--paper);
+  border-left: 4px solid var(--alerta-bright);
+}
+
+.disclaimers-box h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  color: var(--paper);
+}
+
+.disclaimers-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.disclaimers-box li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  color: rgba(243, 239, 230, 0.88);
+}
+
+.empty-cases-box {
+  padding: 2.2rem;
+  background: var(--ink-2);
+  color: var(--paper);
+  border-left: 3px solid var(--amber);
+}
+
+.empty-cases-box h3 {
+  font-size: 1.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty-cases-box p {
+  color: rgba(243, 239, 230, 0.85);
+}
+
+.post-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .post-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.post-card {
+  display: block;
+  padding: 1.75rem;
+  background: var(--ink-2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
+}
+
+.post-card:hover,
+.post-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--amber);
+}
+
+.post-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.6rem;
+
+}
+
+.post-card p {
+  color: rgba(243, 239, 230, 0.82);
+  margin-bottom: 1rem;
+}
+
+.post-card .read-more {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--amber-bright);
+  font-weight: 600;
+}
+
+.blog-article-body {
+  font-size: var(--step-1);
+  line-height: 1.75;
+  color: rgba(26, 29, 35, 0.88);
+  max-width: 46rem;
+  margin-top: 2rem;
+}
+

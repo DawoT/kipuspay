@@ -2,10 +2,12 @@
   import '../app.css';
   import { allVerticals } from '$lib/content/verticals';
   import { allCompares } from '$lib/content/compare';
+  import { page } from '$app/stores';
 
   let { data, children } = $props();
   const verticals = allVerticals();
   const compares = allCompares();
+  const pathname = $derived($page.url.pathname);
 
   /** El header cambia de peso al despegarse del hero; sin librerias ni layout thrash. */
   let scrolled = $state(false);
@@ -86,16 +88,20 @@
         <summary>Para tu negocio</summary>
         <div class="dropdown">
           {#each verticals as v (v.slug)}
-            <a href={`/para/${v.slug}`} data-cord={v.slug}>
+            <a
+              href={`/para/${v.slug}`}
+              data-cord={v.slug}
+              aria-current={pathname === `/para/${v.slug}` ? 'page' : undefined}
+            >
               <span class="knot-dot" aria-hidden="true"></span>
               {v.navLabel}
             </a>
           {/each}
         </div>
       </details>
-      <a href="/precios">Precios</a>
-      <a href="/seguridad">Seguridad</a>
-      <a href="/comparar/bsale">Comparar</a>
+      <a href="/precios" aria-current={pathname === '/precios' ? 'page' : undefined}>Precios</a>
+      <a href="/seguridad" aria-current={pathname === '/seguridad' ? 'page' : undefined}>Seguridad</a>
+      <a href="/comparar/bsale" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
       <a class="btn" href="/empezar">Empieza gratis</a>
     </nav>
 
@@ -107,16 +113,20 @@
       <nav class="nav-sm-panel" aria-label="Principal movil">
         <p class="nav-sm-title">Para tu negocio</p>
         {#each verticals as v (v.slug)}
-          <a href={`/para/${v.slug}`} data-cord={v.slug}>
+          <a
+            href={`/para/${v.slug}`}
+            data-cord={v.slug}
+            aria-current={pathname === `/para/${v.slug}` ? 'page' : undefined}
+          >
             <span class="knot-dot" aria-hidden="true"></span>
             {v.navLabel}
           </a>
         {/each}
         <p class="nav-sm-title">Sitio</p>
-        <a href="/precios">Precios</a>
-        <a href="/seguridad">Seguridad</a>
-        <a href="/comparar/bsale">Comparar</a>
-        <a href="/ayuda">Ayuda</a>
+        <a href="/precios" aria-current={pathname === '/precios' ? 'page' : undefined}>Precios</a>
+        <a href="/seguridad" aria-current={pathname === '/seguridad' ? 'page' : undefined}>Seguridad</a>
+        <a href="/comparar/bsale" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
+        <a href="/ayuda" aria-current={pathname === '/ayuda' ? 'page' : undefined}>Ayuda</a>
         <a class="btn" href="/empezar">Empieza gratis</a>
       </nav>
     </details>

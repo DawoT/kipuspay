@@ -3,6 +3,24 @@
   import { reveal } from '$lib/components/reveal';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import { ogImageFor } from '$lib/seo';
+  import { formatCents } from '$lib/brand/money';
+
+  let isAnnual = $state(false);
+
+  const productLd = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: 'KipusPay POS y Facturación Electrónica',
+    description: 'Punto de venta y facturación electrónica para comercios del Perú.',
+    offers: PRICING_PLANS.map((plan) => ({
+      '@type': 'Offer',
+      name: plan.name,
+      priceCurrency: 'PEN',
+      price: formatCents(plan.monthlyCents),
+      description: plan.audience,
+      url: 'https://kipuspay.pe/precios',
+    })),
+  });
 </script>
 
 <svelte:head>
@@ -15,6 +33,7 @@
   <meta property="og:description" content="Cuatro planes. Cupo transparente. Sin apagar la caja." />
   <meta property="og:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.pe/precios" />
+  <script type="application/ld+json">{@html productLd}</script>
 </svelte:head>
 
 <section class="hero hero-compact">
@@ -48,18 +67,49 @@
           <span class="knot-dot" aria-hidden="true"></span>
           GTM §4.1
         </p>
-        <h2>Cuatro planes. Sin letra chica de “sin limite”.</h2>
+        <h2>Cuatro planes. Sin letra chica de “sin límite”.</h2>
         <p class="section-lead">
           Arranque incluye 1,000 comprobantes/mes; el adicional se factura fuera del cobro. Nunca hay
-          HTTP 402 en la caja.
+          interrupción en la caja.
         </p>
       </div>
+
+      <div class="pricing-toggle-wrap" use:reveal>
+        <button
+          type="button"
+          class="pricing-toggle-btn"
+          class:active={!isAnnual}
+          onclick={() => (isAnnual = false)}
+        >
+          Mensual
+        </button>
+        <button
+          type="button"
+          class="pricing-toggle-btn"
+          class:active={isAnnual}
+          onclick={() => (isAnnual = true)}
+        >
+          Anual
+          <span class="discount-badge">2 meses gratis (ahorra 20%)</span>
+        </button>
+      </div>
+
       <div class="pricing-grid">
         {#each PRICING_PLANS as plan, i (plan.id)}
-          <article class="pricing-card" data-plan={plan.id} use:reveal data-reveal-delay={i % 3}>
+          <article
+            class="pricing-card"
+            class:highlight={plan.id === 'crece'}
+            data-plan={plan.id}
+            use:reveal
+            data-reveal-delay={i % 3}
+          >
             <p class="pricing-name">{plan.name}</p>
-            <p class="pricing-price">{plan.monthlyLabel}</p>
-            <p class="pricing-annual">{plan.annualLabel}</p>
+            <p class="pricing-price">
+              {isAnnual ? plan.annualLabel : plan.monthlyLabel}
+            </p>
+            {#if isAnnual && plan.id !== 'enterprise'}
+              <p class="pricing-annual-sub">Facturación anual diferida</p>
+            {/if}
             <p class="pricing-audience">{plan.audience}</p>
             <ul>
               {#each plan.limits as limit (limit)}
@@ -68,7 +118,7 @@
             </ul>
             {#if plan.upgradeGates.length > 0}
               <p class="pricing-gates">
-                Subes de plan cuando pedis: {plan.upgradeGates.join(' · ')}.
+                Subes de plan cuando pides: {plan.upgradeGates.join(' · ')}.
               </p>
             {/if}
             {#if plan.id === 'arranque'}
@@ -86,3 +136,50 @@
     </div>
   </div>
 </section>
+
+<style>
+  .pricing-toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem;
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    margin-bottom: 2.5rem;
+  }
+  .pricing-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    border: none;
+    background: transparent;
+    color: rgba(243, 239, 230, 0.7);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .pricing-toggle-btn.active {
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .discount-badge {
+    padding: 0.2rem 0.45rem;
+    background: var(--sello-bright);
+    color: var(--paper);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .pricing-card.highlight {
+    border-color: var(--amber);
+    box-shadow: 0 8px 32px rgba(217, 154, 61, 0.15);
+  }
+  .pricing-annual-sub {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--sello-bright);
+    margin: -0.5rem 0 1rem;
+  }
+</style>

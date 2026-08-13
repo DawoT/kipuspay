@@ -1,16 +1,20 @@
 import { COMPETITOR_SLUGS } from '$lib/content/compare';
 import { VERTICAL_SLUGS } from '$lib/content/verticals';
+import { publishedPosts } from '$lib/content/blog';
 
 export const prerender = true;
 
 export function GET(): Response {
+  const blogSlugs = publishedPosts().map((p) => `/blog/${p.slug}`);
   const urls = [
     '/',
     '/precios',
     '/empezar',
     '/seguridad',
+    '/ayuda',
     '/casos-de-exito',
     '/blog',
+    ...blogSlugs,
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),
     ...COMPETITOR_SLUGS.map((s) => `/comparar/${s}`),
   ];

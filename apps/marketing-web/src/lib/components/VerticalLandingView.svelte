@@ -5,11 +5,12 @@
   import QuipuHero from '$lib/brand/QuipuHero.svelte';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
-  import { otherVerticals } from '$lib/content/verticals';
+  import { allVerticals, otherVerticals } from '$lib/content/verticals';
   import { casesForRubro } from '$lib/content/cases';
 
   let { landing }: { landing: VerticalLanding } = $props();
 
+  const allV = allVerticals();
   const others = $derived(otherVerticals(landing.slug));
   const verticalCases = $derived(casesForRubro(landing.slug));
 </script>
@@ -38,6 +39,22 @@
     </div>
   </section>
 
+  <nav class="vertical-pills-bar" aria-label="Seleccionar rubro">
+    <div class="pills-inner">
+      <span class="pills-label">Cambiar rubro:</span>
+      {#each allV as v (v.slug)}
+        <a
+          href="/para/{v.slug}"
+          class="vertical-pill"
+          class:active={v.slug === landing.slug}
+        >
+          <span class="knot-dot" aria-hidden="true"></span>
+          {v.navLabel}
+        </a>
+      {/each}
+    </div>
+  </nav>
+
   <section class="section section-paper">
     <div class="section-frame">
       <div class="section-gutter" aria-hidden="true" use:reveal>
@@ -49,7 +66,7 @@
             <span class="knot-dot" aria-hidden="true"></span>
             Lo que escuchamos en tu rubro
           </p>
-          <h2>Si esto te suena, ya sabemos por que viniste.</h2>
+          <h2>Si esto te suena, ya sabemos por qué viniste.</h2>
         </div>
         <div class="pain-grid editorial-pains">
           {#each landing.pains as item, i (item.pain)}
@@ -102,12 +119,12 @@
         <div class="sec-head" use:reveal>
           <p class="eyebrow">
             <span class="knot-dot" aria-hidden="true"></span>
-            Asi se ve en tu mostrador
+            Así se ve en tu mostrador
           </p>
-          <h2>La pantalla que usa tu equipo, no una demo de catalogo.</h2>
+          <h2>La pantalla que usa tu equipo, no una demo de catálogo.</h2>
           <p class="section-lead">
-            El producto arriba, el total grande y el boton de cobrar. Debajo, la costura que avisa
-            que la venta ya quedo guardada.
+            El producto arriba, el total grande y el botón de cobrar. Debajo, la costura que avisa
+            que la venta ya quedó guardada.
           </p>
         </div>
         <div class="product-screen" use:reveal>
@@ -134,14 +151,14 @@
             <span class="knot-dot" aria-hidden="true"></span>
             Casos de tu rubro
           </p>
-          <h2>Solo historias con permiso del dueno.</h2>
+          <h2>Solo historias con permiso del dueño.</h2>
         </div>
         {#if verticalCases.length === 0}
           <p use:reveal>
-            Aun no hay casos publicados para este rubro.
-            <a href="/casos-de-exito">Ver el indice de casos</a>
+            Aún no hay casos publicados para este rubro.
+            <a href="/casos-de-exito">Ver el índice de casos</a>
             o
-            <a href="/empezar">se el primero en cobrar hoy</a>.
+            <a href="/empezar">sé el primero en cobrar hoy</a>.
           </p>
         {:else}
           <ul>
@@ -215,3 +232,53 @@
 
   <a class="btn btn-sticky" href="/empezar">Empieza gratis</a>
 </article>
+
+<style>
+  .vertical-pills-bar {
+    background: var(--ink-2);
+    border-bottom: 1px solid var(--line);
+    padding: 0.75rem 1.5rem;
+  }
+  .pills-inner {
+    max-width: 72rem;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 0.2rem;
+  }
+  .pills-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-right: 0.4rem;
+  }
+  .vertical-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    color: rgba(243, 239, 230, 0.8);
+    border: 1px solid transparent;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+  .vertical-pill:hover {
+    color: var(--amber-bright);
+    background: rgba(243, 239, 230, 0.04);
+  }
+  .vertical-pill.active {
+    background: var(--paper);
+    color: var(--ink);
+    border-color: var(--amber);
+    font-weight: 700;
+  }
+  .vertical-pill.active .knot-dot {
+    background: var(--ink);
+  }
+</style>

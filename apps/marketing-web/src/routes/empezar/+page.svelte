@@ -25,7 +25,7 @@
   });
 
   const verticals: { id: OnboardingVertical; label: string }[] = [
-    { id: 'restaurantes', label: 'Restaurantes y cafeterias' },
+    { id: 'restaurantes', label: 'Restaurantes y cafeterías' },
     { id: 'farmacias', label: 'Farmacias y boticas' },
     { id: 'retail', label: 'Retail y minimarkets' },
     { id: 'servicios', label: 'Servicios y talleres' },
@@ -40,13 +40,13 @@
     },
     {
       id: 'FORMALIZING',
-      label: 'Estoy activando facturacion',
-      body: 'KipusPay emite tus boletas por ti. Las activas cuando estes listo.',
+      label: 'Estoy activando facturación',
+      body: 'KipusPay emite tus boletas por ti. Las activas cuando estés listo.',
     },
     {
       id: 'ELECTRONIC_ISSUER',
       label: 'Ya emito boletas y facturas',
-      body: 'Caja en modo emisor electronico. KipusPay envia a SUNAT por ti.',
+      body: 'Caja en modo emisor electrónico. KipusPay envía a SUNAT por ti.',
     },
   ];
 
@@ -128,6 +128,14 @@
 
 <section class="section section-paper" data-testid="onboarding-page">
   <div class="section-inner onboarding">
+    <div class="step-progress-bar" aria-hidden="true">
+      {#each [0, 1, 2, 3] as s}
+        <div class="step-knot" class:active={step >= s} class:current={step === s}>
+          <span>{s + 1}</span>
+        </div>
+      {/each}
+    </div>
+
     <p class="eyebrow">
       <span class="knot-dot" aria-hidden="true"></span>
       Onboarding · paso {step + 1} de 4
@@ -136,10 +144,15 @@
 
     {#if step === 0}
       <h2>Tu negocio</h2>
-      <p class="section-lead">Con RUC autocompletamos despues; sin RUC entras en control interno.</p>
+      <p class="section-lead">Con RUC autocompletamos después; sin RUC entras en control interno.</p>
       <label class="onb-field">
         Nombre comercial
-        <input bind:value={tradeName} autocomplete="organization" />
+        <input
+          bind:value={tradeName}
+          autocomplete="organization"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? 'onb-error-msg' : undefined}
+        />
       </label>
       <label class="onb-field">
         RUC (opcional)
@@ -159,7 +172,7 @@
         {/each}
       </div>
     {:else if step === 2}
-      <h2>Etapa de formalizacion</h2>
+      <h2>Etapa de formalización</h2>
       <div class="onb-cards">
         {#each stages as s (s.id)}
           <button
@@ -175,18 +188,18 @@
     {:else}
       <h2>Primera venta guiada</h2>
       <p class="section-lead">
-        Te llevamos a la caja. Segun tu etapa emitiras nota de venta o boleta/factura electronica.
-        KipusPay se encarga del envio a SUNAT. No usamos la palabra “contingencia”.
+        Te llevamos a la caja. Según tu etapa emitirás nota de venta o boleta/factura electrónica.
+        KipusPay se encarga del envío a SUNAT. No usamos la palabra “contingencia”.
       </p>
     {/if}
 
     {#if error}
-      <p class="onb-error" role="alert">{error}</p>
+      <p id="onb-error-msg" class="onb-error" role="alert">{error}</p>
     {/if}
 
     <div class="cta-row">
       {#if step > 0}
-        <button type="button" class="btn btn-ghost" onclick={back}>Atras</button>
+        <button type="button" class="btn btn-ghost" onclick={back}>Atrás</button>
       {/if}
       {#if step < 3}
         <button type="button" class="btn" onclick={next}>Continuar</button>
@@ -198,3 +211,36 @@
     </div>
   </div>
 </section>
+
+<style>
+  .step-progress-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .step-knot {
+    width: 2.2rem;
+    height: 2.2rem;
+    border: 2px solid var(--line-ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted-ink);
+    background: transparent;
+    transition: all 0.2s ease;
+  }
+  .step-knot.active {
+    border-color: var(--amber);
+    color: var(--ink);
+    background: var(--paper-dim);
+  }
+  .step-knot.current {
+    background: var(--amber);
+    color: var(--ink);
+    border-color: var(--amber);
+  }
+</style>

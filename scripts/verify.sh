@@ -211,6 +211,17 @@ check_marketing_copy() {
   return 0
 }
 
+# --- V-27: copy del POS sin jerga técnica visible (Sprint F) -------------------
+# El markup de las rutas de apps/pos-web (excluye dev/ y bloques <script>) no
+# puede exponer flags, unidades internas, IDs demo ni refs de proceso al
+# cajero/dueño. Detector: scripts/checks/pos_copy.py.
+check_pos_copy() {
+  python3 scripts/checks/pos_copy.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
 # --- V-05, V-06, V-08..V-12: checks estructurales ----------------------------
 check_structural() {
   python3 scripts/checks/structural.py "${DOCS[@]}"
@@ -254,6 +265,7 @@ check_svelte_vertical_fork
 check_bundle_budget
 check_migrations_mirror
 check_marketing_copy
+check_pos_copy
 
 echo ""
 if [ $FAIL -eq 0 ]; then

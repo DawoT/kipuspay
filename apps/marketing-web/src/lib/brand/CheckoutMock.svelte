@@ -21,11 +21,24 @@
     lines,
     documentLabel,
     register = 'Caja 1',
-    syncState = 'pending',
+    syncState: initialSyncState = 'pending',
     caption,
   }: Props = $props();
 
+  let activeSyncState = $state<'pending' | 'synced'>(initialSyncState);
+  let isCharging = $state(false);
+
   const total_cents = $derived(sumCents(lines.map((line) => line.amount_cents)));
+
+  function triggerCheckout() {
+    if (isCharging) return;
+    isCharging = true;
+    activeSyncState = 'pending';
+    setTimeout(() => {
+      activeSyncState = 'synced';
+      isCharging = false;
+    }, 650);
+  }
 </script>
 
 <figure class="pos" data-testid="checkout-mock">
@@ -51,10 +64,12 @@
     </div>
 
     <div class="foot">
-      <span class="pay">Cobrar</span>
-      <span class="sync" class:synced={syncState === 'synced'}>
-        <span class="stitch" class:in={syncState === 'synced'}>
-          {syncState === 'synced' ? 'Sincronizado' : 'Sincronizando'}
+      <button type="button" class="pay-btn" onclick={triggerCheckout} disabled={isCharging}>
+        {isCharging ? 'Procesando…' : 'Cobrar (Demo)'}
+      </button>
+      <span class="sync" class:synced={activeSyncState === 'synced'}>
+        <span class="stitch" class:in={activeSyncState === 'synced'}>
+          {activeSyncState === 'synced' ? 'Sincronizado' : 'Sincronizando'}
         </span>
       </span>
     </div>
@@ -75,7 +90,7 @@
     border: 1px solid rgba(243, 239, 230, 0.16);
     background: linear-gradient(180deg, var(--ink-2) 0%, var(--ink) 100%);
     color: var(--paper);
-    box-shadow: 0 26px 60px rgba(10, 12, 16, 0.42);
+    box-shadow: 0 26px 60px rgba(10, 10, 16, 0.42);
   }
 
   .bar {
@@ -149,7 +164,6 @@
     color: var(--muted);
   }
 
-  /* La cifra manda: es lo unico que el cajero mira antes de cobrar. */
   .total-amount {
     font-family: var(--font-display);
     font-size: var(--step-3);
@@ -167,12 +181,21 @@
     border-top: 1px solid rgba(243, 239, 230, 0.12);
   }
 
-  .pay {
-    padding: 0.55rem 1.5rem;
+  .pay-btn {
+    padding: 0.55rem 1.25rem;
     background: var(--paper);
     color: var(--ink);
+    border: 1px solid var(--amber);
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .pay-btn:hover {
+    background: var(--amber);
+    color: var(--ink);
+    transform: translateY(-1px);
   }
 
   .sync {
@@ -186,7 +209,6 @@
     color: var(--sello-bright);
   }
 
-  /* La leyenda vive fuera de la pantalla: hereda el color de la seccion (tinta o papel). */
   figcaption {
     margin-top: 0.85rem;
     font-family: var(--font-mono);
