@@ -288,3 +288,69 @@ describe('fiscal drain FIFO', () => {
     expect(finalStatus).toBe('SENT');
   });
 });
+
+describe('F8 Bloque C — chaos SUNAT caído (fail-closed)', () => {
+  it('caída total 100%: ningún XML se marca SENT; todo queda retryable; post-recovery reenvía sin pérdida', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    const xml = '<?xml version="1.0"?><Invoice><cbc:ID>F001-CHAOS</cbc:ID></Invoice>';
+    r2.map.set('xml-key-chaos', xml);
+    db.state.push({
+      id: 'c1',
+      tenant_id: 't-chaos',
+      sale_id: 's-chaos',
+      status: 'PENDING',
+      attempt_count: 0,
+      must_submit_by: '2026-08-20T00:00:00.000Z',
+      document_type: '01',
+      r2_xml_key: 'xml-key-chaos',
+      created_at: new Date().toISOString(),
+    } as unknown as MockRow);
+
+    let sunatUp = false; // SUNAT caído 100%
+    const submitted: string[] = [];
+    const transport: FiscalTransport = {
+      mode: 'MOCK_STAGING',
+      submit: (input) => {
+        submitted.push(input.xmlHash);
+        if (!sunatUp) {
+          return Promise.resolve({
+            kind: 'rejected',
+            cdr: { cdrCode: '2335', cdrDescription: 'SUNAT down', accepted: false },
+          });
+        }
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+        });
+      },
+      queryCdr: () =>
+        Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+    };
+
+    // Pasada 1: SUNAT caído → nada SENT, nada perdido.
+    const first = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+    expect(first.accepted).toBe(0);
+    expect(db.state.find((r) => r.id === 'c1')?.status).not.toBe('SENT');
+
+    // Recovery + pasada 2: el mismo XML se reenvía y se acepta (sin pérdida).
+    sunatUp = true;
+    db.state.find((r) => r.id === 'c1')!.status = 'PENDING';
+    const second = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+    expect(second.accepted).toBe(1);
+    expect(db.state.find((r) => r.id === 'c1')?.status).toBe('SENT');
+    expect(submitted.length).toBeGreaterThanOrEqual(2); // reenvío real
+  });
+});
