@@ -130,6 +130,8 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'PUT', path: '/api/sales/returns/policy' },
   { method: 'POST', path: '/api/sales/debit-notes' },
   { method: 'POST', path: '/api/inventory/remission-guides' },
+  { method: 'POST', path: '/api/fiscal/perceptions' },
+  { method: 'POST', path: '/api/fiscal/retentions' },
   { method: 'GET', path: '/api/orders/customer-orders' },
   { method: 'GET', path: '/api/orders/customer-orders/co1' },
   { method: 'GET', path: '/api/admin/recurring-plans' },

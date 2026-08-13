@@ -56,6 +56,17 @@ export {
   type TransportModeCode,
 } from './remission-guide.js';
 
+export {
+  assertPerceptionCategory,
+  assertRetentionCategory,
+  computeDetractionCents,
+  computePerceptionCents,
+  computeRetentionCents,
+  DETRACTION_RATES,
+  PERCEPTION_RATES,
+  RETENTION_RATES,
+} from './withholdings.js';
+
 export interface CdrEnvelope {
   readonly cdrCode: string;
   readonly cdrDescription: string;

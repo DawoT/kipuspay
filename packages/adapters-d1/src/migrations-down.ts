@@ -9,10 +9,12 @@ import down0042 from '../migrations-down/0042_sprint50_quick_add.sql?raw';
 import down0043 from '../migrations-down/0043_sprint51_shift_handoff.sql?raw';
 import down0044 from '../migrations-down/0044_sprint52_onboarding_tour.sql?raw';
 import down0046 from '../migrations-down/0046_sprint_p1b_remission_guide.sql?raw';
+import down0047 from '../migrations-down/0047_sprint_p1c_withholdings.sql?raw';
 import down0045 from '../migrations-down/0045_sprint18_count_reason.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0047_SPRINT_P1C_WITHHOLDINGS = down0047;
 export const DOWN_0046_SPRINT_P1B_REMISSION_GUIDE = down0046;
 export const DOWN_0044_SPRINT52_ONBOARDING_TOUR = down0044;
 export const DOWN_0045_SPRINT18_COUNT_REASON = down0045;

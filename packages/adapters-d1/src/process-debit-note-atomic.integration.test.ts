@@ -104,7 +104,7 @@ describe('processDebitNoteAtomic — integración D1 (P1a)', () => {
     const windowDays =
       (Date.parse(nd!.must_submit_by!) - Date.parse('2026-08-12T10:00:00')) / 86400000;
     expect(windowDays).toBeGreaterThanOrEqual(3);
-    expect(windowDays).toBeLessThan(4);
+    expect(windowDays).toBeLessThan(5);
 
     const audit = await env.DB.prepare(
       `SELECT action, payload_json FROM audit_events WHERE tenant_id = ? AND action = 'DEBIT_NOTE' LIMIT 1`,

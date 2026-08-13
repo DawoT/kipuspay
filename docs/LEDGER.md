@@ -7493,3 +7493,188 @@ aprobaciones: [Staff Fiscal R, Staff Backend ACID R, Staff Frontend R, Staff Pri
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0344
+timestamp_utc: 2026-08-13T10:30:00Z
+schema_version: 2
+sprint_fase: FASE 6C — Auditoría Bloque A (dinero y race conditions; S33–S37)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S34-H1/H2, S36-H1, S37-H1
+relacion: amplia
+referencias_entradas: [0343]
+referencias_documentales: [packages/adapters-d1/src/process-supplier-return-atomic.ts, packages/adapters-d1/src/process-installment-atomic.ts, packages/adapters-d1/src/process-commission-atomic.ts, packages/adapters-d1/src/auth-tokens.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/adapters-d1/src/process-store-credit-atomic.ts]
+prev_id: 0343
+prev_hash: b61a6955af944a6382dfa148754f0ab51d059633af2a54ac716dda5a74d391fb
+entry_hash: 9623f609f11d59959b0f71d9656976307d0bd47768775faab40ffb17be85a332
+ticket_or_adr: Auditoría FASE 6C Bloque A; SEC-09 regla 2 §5.3
+test_ids: [src/process-supplier-return-atomic.test.ts, src/process-supplier-return-atomic.integration.test.ts, src/process-installment.integration.test.ts (S36-H1), src/process-commission.integration.test.ts (S37-H1), V-21, V-22, SUITE]
+entregable_afectado: motores supplier-return, installments, commissions, sale-offline
+descripcion: >
+  Bloque A de la auditoría FASE 6C (dinero y races). S34-H1: el override de
+  costo de la devolución a proveedor aceptaba cualquier authorizedByUserId
+  (presence-check); ahora exige rol admin/owner verificado en users
+  (FORBIDDEN_ROLE, fail-closed) — patrón S29-H1. S34-H2: el CLOSE duplicaba
+  stock/CxP bajo carrera concurrente (el UPDATE condicional fallaba pero el
+  batch seguía escribiendo); ahora usa guardState CAS (SYN-12): el plan
+  aborta TODO con CHECK ok=0 si el return ya no está OPEN. S36-H1: el
+  creditOverrideTokenHash de cuotas NUNCA se verificaba (assertCreditWithinLimit
+  retorna early con cualquier string → límite de crédito reutilizable
+  indefinidamente); ahora se verifica y CONSUME el token server-side
+  (requireLiveAuthToken, extraído a auth-tokens.ts compartido con venta
+  offline) — single-use SEC-09. S37-H1: commission_payouts OPEN del mismo
+  período no reservaban el gross → doble pago de comisión; ahora el cálculo
+  del accrual abierto incluye status IN ('PAID','OPEN') → el segundo payout
+  da COMMISSION_NOTHING_TO_PAY.
+evidencia: >
+  RED: override con cashier pasaba; double-close secuencial duplicaba stock
+  (test de race con guardOk=false fallaba); token 'basura-reutilizable'
+  excedía el límite de crédito; dos payouts OPEN del mismo período pagaban
+  dos veces.
+  GREEN: unit supplier-return 3/3 (incluye fail-closed con usuario
+  inexistente); integration supplier-return 3/3 (ACID 1:1, doble close
+  idempotente, FORBIDDEN_ROLE); installments S36-H1 2/2 (INVALID + single-use);
+  commissions S37-H1 1/1; tsc limpio en adapters-d1/domain-sales/worker-api;
+  suites 28/28 integration + 83/83 worker-api.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0345
+timestamp_utc: 2026-08-13T11:00:00Z
+schema_version: 2
+sprint_fase: FASE 6C — Auditoría Bloque B (authz y RBAC; S33–S37)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: T-1, S33-H1, S35-H1, S33-H3
+relacion: amplia
+referencias_entradas: [0344]
+referencias_documentales: [apps/worker-api/src/index.ts, apps/worker-api/src/sales/quote-routes.ts, apps/worker-api/src/ledger/store-credit-routes.ts, apps/worker-api/src/sales/installment-routes.ts, apps/worker-api/src/sales/commission-routes.ts, apps/worker-api/src/purchasing/supplier-return-routes.ts, packages/domain-sales/src/quotes.ts]
+prev_id: 0344
+prev_hash: 9623f609f11d59959b0f71d9656976307d0bd47768775faab40ffb17be85a332
+entry_hash: 3cf95fb739f76208646919b8251387b300665168499591c52e925022f3793780
+ticket_or_adr: Auditoría FASE 6C Bloque B
+test_ids: [src/sales/quote-routes.test.ts, src/sales/installment-routes.test.ts, src/sales/commission-routes.test.ts, src/ledger/store-credit-routes.test.ts, src/purchasing/supplier-return-routes.test.ts, packages/domain-sales/src/quotes.test.ts, V-21, SUITE]
+entregable_afectado: rutas /api/owner/*, handlers de quotes, ajuste store-credit, dominio quotes
+descripcion: >
+  Bloque B de la auditoría FASE 6C (authz y RBAC). T-1: 5 endpoints
+  /api/owner/* (quotes/expired, purchasing/returns, ledger/store-credit,
+  installments/overdue, commissions) se servían sin guard de rol — solo auth +
+  plan; ahora todos exigen admin/owner con 403 FORBIDDEN_ROLE (patrón
+  three-way, user?.role del JWT verificado en users). S33-H1: approve de
+  cotización exige supervisor+ y convert (genera venta con dinero) exige
+  admin/owner — antes cualquier cashier convertía. S35-H1: el
+  authorizedByUserId del ajuste de store-credit podía ser un ID arbitrario
+  (integridad de auditoría rota); ahora se verifica que el autorizador sea
+  admin/owner real del tenant. S33-H3: validUntilIso era opcional y sin tope
+  → cotización perpetua con precio congelado; el dominio ahora exige
+  vencimiento (QUOTE_MISSING_VALID_UNTIL) y lo acota a 90 días server-side
+  (QUOTE_VALID_UNTIL_TOO_FAR).
+evidencia: >
+  RED: /api/owner/* con cashier devolvía 200; approve/convert de quote con
+  cashier procedía; authorizedByUserId 'cajero-coludido' aceptado en ajuste;
+  validUntilIso null convertible indefinidamente.
+  GREEN: 28/28 tests de rutas (5 archivos, incluye T-1/S33-H1/S35-H1 con
+  cashier→403); quotes.test.ts 8/8 (S33-H3: missing→error, >90 días→error,
+  90 exactos→ok); tsc worker-api limpio; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0346
+timestamp_utc: 2026-08-13T11:30:00Z
+schema_version: 2
+sprint_fase: FASE 6C — Auditoría Bloque C (evidencia y chaos; S33–S37)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de evidencia
+subtipo: S34-H3, S33-H2/S34-H4/S35-H3/S36-H3/S37-H3, S37-H2, S35-H2
+relacion: amplia
+referencias_entradas: [0345]
+referencias_documentales: [packages/adapters-d1/src/process-supplier-return-atomic.integration.test.ts, packages/chaos-harness/src/quote-convert-expire.ts, packages/chaos-harness/src/supplier-return-receive.ts, packages/chaos-harness/src/store-credit-issue-redeem.ts, packages/chaos-harness/src/installment-pay-idempotent.ts, packages/chaos-harness/src/commission-accrual-payout.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/adapters-d1/src/process-store-credit-atomic.ts, packages/adapters-d1/src/quote-layaway-convert.integration.test.ts]
+prev_id: 0345
+prev_hash: 3cf95fb739f76208646919b8251387b300665168499591c52e925022f3793780
+entry_hash: bb3eb6bc6ae04b6b5d3442d62b1968da0cf56e81236dac6fadb801add16de6c5
+ticket_or_adr: Auditoría FASE 6C Bloque C
+test_ids: [src/process-supplier-return-atomic.integration.test.ts (3/3), chaos-harness 116/116, src/process-commission.integration.test.ts (S37-H2), src/process-store-credit.integration.test.ts (S35-H2), src/quote-layaway-convert.integration.test.ts (S33-H2), V-13, SUITE]
+entregable_afectado: evidencia D1 del motor supplier-return, 5 chaos fail-closed, accrual por item, audit de ajuste
+descripcion: >
+  Bloque C de la auditoría FASE 6C (evidencia). S34-H3: el único motor de la
+  fase sin test de integración D1 (supplier-return) ahora tiene 3 tests reales:
+  CREATE→CLOSE revierte stock 1:1 y CxP, CANCEL, y FORBIDDEN_ROLE con
+  override. S33-H2/S34-H4/S35-H3/S36-H3/S37-H3: los 5 chaos de la fase
+  afirmaban criterios con tautologías y flags hardcodeados true; ahora son
+  fail-closed — el judge exige engineEvidenceVerified (solo evidencia real
+  del motor D1 da PASS) y el scenario conecta la evidencia del integration
+  test (quote-layaway-convert G1-G5). S37-H2: el accrual de comisión solo
+  usaba payload.sellerId → venta con vendedor en el ítem perdía la comisión
+  silenciosamente; ahora resuelve el vendedor del ítem con fallback al
+  carrito (regla 22). S35-H2: el ajuste de store-credit se auditaba como
+  STORE_CREDIT_ISSUE (etiqueta falsa en la cadena); ahora audita
+  STORE_CREDIT_ADJUST.
+evidencia: >
+  RED: chaos puros daban PASS sin tocar el motor; venta con item.sellerId no
+  devengaba comisión; ADJUST quedaba etiquetado como ISSUE; supplier-return
+  sin evidencia D1.
+  GREEN: supplier-return integration 3/3 (stock 10→8, CxP 4000→3200, doble
+  close idempotente); chaos-harness 116/116 con fail-closed (puro→FAIL,
+  con evidencia→PASS); commissions S37-H2 (accrual 236 con item.sellerId);
+  store-credit S35-H2 (audit STORE_CREDIT_ADJUST); tsc limpio en los 3
+  paquetes.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0347
+timestamp_utc: 2026-08-13T02:10:00Z
+schema_version: 2
+sprint_fase: Backlog v10 P1c — Percepciones/Retenciones/Detracciones (ADR-FISCAL-005, FIS-15)
+agente_responsable: Staff Fiscal (owner) / Staff Backend ACID / Staff Frontend/Design
+tipo: Entregable nuevo
+subtipo: withholdings
+relacion: amplia
+referencias_entradas: [0346]
+referencias_documentales: [docs/adr/ADR-FISCAL-005-withholdings.md, docs/architecture/05-2-fiscal-pipeline.md (5.2c), packages/domain-fiscal-pe/src/withholdings.ts, packages/adapters-d1/src/process-withholding-atomic.ts, apps/worker-api/src/fiscal/withholding-routes.ts, apps/pos-web/src/lib/fiscal/withholdings.ts, docs/ops/p1c-withholdings-qg.md]
+prev_id: 0346
+prev_hash: bb3eb6bc6ae04b6b5d3442d62b1968da0cf56e81236dac6fadb801add16de6c5
+entry_hash: d06bd5a5432b72055936aceef066cd76ce1b24c1f4e7881c61d467b5b33af57f
+ticket_or_adr: ADR-FISCAL-005 (Backlog v10 P1)
+test_ids: [V-13, V-15, V-16, SUITE, withholdings.test.ts, withholdings-schema.test.ts, process-withholding-atomic.test.ts, process-withholding-atomic.integration.test.ts, withholding-routes.test.ts, withholdings.test.ts, withholdings.spec.ts]
+entregable_afectado: docs/ops/p1c-withholdings-qg.md (nuevo) — cierre P1c
+descripcion: >
+  Percepciones/Retenciones/Detracciones (ADR-FISCAL-005, 05.2c, Backlog v10
+  P1c): migracion 0047 perceptions + retentions + withholding_parameters
+  (tasas cerradas por catalogo en basis points con CHECK, montos en cents,
+  FK compuestas tenant, UNIQUE tenant serie numero, triggers epoch y down
+  protegido; NO se recrea sales — patron GRE); dominio withholdings
+  (PERCEPTION_RATES 200/50, RETENTION_RATES 300/600/1200, DETRACTION_RATES
+  400/400/1200 bps, redondeo Math.round server-side, categorias cerradas);
+  motores processPerceptionAtomic (documento 02 al cobrar venta a cliente
+  agente) y processRetentionAtomic (documento 20 al pagar proveedor sujeto):
+  correlativo server-side con guardState anti-doble, audit PERCEPTION /
+  RETENTION con hash-chain, sunat_status PENDING; rutas POST
+  /api/fiscal/perceptions y /api/fiscal/retentions con
+  FEATURE_FISCAL_WITHHOLDINGS default-off + matriz de rutas protegidas; UI
+  panel en Modo Dueno (categoria/tasa, base, venta o factura origen +
+  resultado serie-numero con monto server-side); E2E de emision. La
+  detraccion queda con sus tasas y PENDING_DEPOSIT documentado (NO-GO sin
+  staging bancario). Claims Cadena/Enterprise NO-GO hasta staging SUNAT
+  real y A+V.
+evidencia: >
+  RED: migracion/dominio/motores/rutas/UI ausentes (tests nuevos fallaron por
+  import o schema). GREEN: domain-fiscal-pe 81/81 (withholdings 6/6, 95.5%
+  branches), adapters-d1 373 unit + 269 workerd (withholdings 7 unit + 3
+  integracion: percepcion 2%, retencion 6%, correlativo +1, audit, serie
+  intacta en rechazo), worker-api 1001 (rutas 5/5 + paridad 413), pos-web
+  239 unit + E2E withholdings 1/1, verify.sh SUITE GREEN. Software GREEN
+  local, capability default-off, produccion/piloto NO-GO.
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R, Staff Backend ACID R, Staff Frontend R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

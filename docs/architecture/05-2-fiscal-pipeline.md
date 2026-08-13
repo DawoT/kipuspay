@@ -39,6 +39,22 @@ La GRE jamás sustituye a una venta ni a una transferencia de stock (Sprint 38):
 los traslados entre establecimientos siguen generando la GRE **y** el proceso de
 transferencia conservativa de inventario.
 
+### **5.2c Percepciones / Retenciones / Detracciones (Backlog v10 P1c, ADR-FISCAL-005)**
+
+| Régimen | Documento | Cuándo | Tasas (catálogo cerrado) | Estado |
+|---|---|---|---|---|
+| Percepción | `02` (serie `P…`/`V…`) | Al cobrar una venta a cliente agente de percepción | `0.02` mercancías/combustibles, `0.005` resto | `PENDING` hasta CDR |
+| Retención | `20` (serie `R…`) | Al pagar a proveedor sujeto de retención | `0.03` bienes, `0.06` servicios, `0.12` comisiones | `PENDING` hasta CDR |
+| Detracción | Registro de operación sujeta (anexo 2) | Operación sujeta con tasa por categoría | `0.04`–`0.12` por categoría | `PENDING_DEPOSIT` hasta depósito bancario (NO-GO sin staging) |
+
+- Tablas propias `perceptions` / `retentions` (patrón GRE `31`, sin recrear
+  `sales`); serie/número propios en `branch_document_series` (`'02'`/`'20'`).
+- Redondeo en cents server-side (`Math.round`); el monto
+  percibido/retenido jamás se calcula en el cliente (invariante 1/7).
+- Audit `PERCEPTION` / `RETENTION` con hash-chain; `Gating:
+  FEATURE_FISCAL_WITHHOLDINGS` default-off; claims Cadena/Enterprise (GTM §4.1)
+  solo tras gate.
+
 **Representación impresa / PDF CPE (mínimo obligatorio):**
 
 - RUC, razón social, dirección, serie-número, fecha/hora Lima.

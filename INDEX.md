@@ -309,6 +309,7 @@ Abre solo los archivos que esta tabla te señale.
 | FIS-12 | §6 | Reglas de negocio del motor | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | FIS-13 | §5.1/§5.2 (P1a) | ND `08`: motivos catálogo 10, guard ACCEPTED, sin stock, append-only (ADR-FISCAL-003) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | FIS-14 | §5.2b (P1b) | GRE `31`: catálogo 18 cerrado, modalidad 01/02, inicio de traslado, 0 stock (ADR-FISCAL-004) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
+| FIS-15 | §5.2c (P1c) | Percepción `02`/Retención `20`: tasas cerradas, redondeo cents server-side (ADR-FISCAL-005) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
 | COM-01 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | COM-02 | §5.4 | DDL ecosistema v9 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | COM-03 | §5.3 (6B) | DDL profundidad retail | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
@@ -361,6 +362,7 @@ Abre solo los archivos que esta tabla te señale.
 | ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker | [`docs/architecture/08-credit-notes-dlq.md`](docs/architecture/08-credit-notes-dlq.md) |
 | ADR-FISCAL-003 | §5.1/§5.2 | Nota de Débito `08` completa (Backlog v10 P1a) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | ADR-FISCAL-004 | §5.2b | Guía de Remisión Electrónica `31` (Backlog v10 P1b) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
+| ADR-FISCAL-005 | §5.2c | Percepciones/Retenciones/Detracciones (Backlog v10 P1c) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
 | LPDP-01 | §5.3 (6F) | Consentimiento explícito por propósito (`consent_records`) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-02 | §5.3 (6F) | Derecho de acceso/export de PII del cliente | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-03 | §5.3 (6F) | Derecho de borrado/anonimización (`pii_erased`); retención fiscal SUNAT | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |

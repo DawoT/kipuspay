@@ -252,6 +252,7 @@ import { runIssueShiftPinHttp, runShiftTransferHttp } from './cash/shift-routes.
 import { runResolveSellerHttp, runTeamInviteHttp } from './team/team-routes.js';
 import { runDebitNoteHttp } from './sales/debit-note-routes.js';
 import { runRemissionGuideHttp } from './inventory/remission-guide-routes.js';
+import { runPerceptionHttp, runRetentionHttp } from './fiscal/withholding-routes.js';
 import { runGrowthEventHttp, runSetupProgressHttp } from './onboarding/onboarding-routes.js';
 import {
   runCancelCustomerOrderHttp,
@@ -639,6 +640,40 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
+
+  // Backlog v10 P1c — Percepciones/Retenciones (FEATURE_FISCAL_WITHHOLDINGS, default-off).
+  app.post('/api/fiscal/perceptions', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runPerceptionHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
+  });
+  app.post('/api/fiscal/retentions', async (c) => {
+    const jwt = c.get('jwt');
+    const body: unknown = await c.req.json();
+    const result = await runRetentionHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: jwt?.sub ?? '',
+        role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+      },
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {},
+    );
+    return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
   });
 
   // Backlog v10 P1b — GRE (FEATURE_GRE, default-off).

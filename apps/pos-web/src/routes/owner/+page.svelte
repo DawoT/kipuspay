@@ -2,9 +2,10 @@
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
-  import { isOnboardingTourEnabled, isDebitNoteEnabled } from '$lib/features';
+  import { isOnboardingTourEnabled, isDebitNoteEnabled, isWithholdingsEnabled } from '$lib/features';
   import { fetchSetupProgress } from '$lib/onboarding/tour-client';
   import { issueDebitNote } from '$lib/sales/debit-note';
+  import { issuePerception, issueRetention } from '$lib/fiscal/withholdings';
   import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
   import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
   import { createPrinterTransport } from '$lib/print/printer-transport';
@@ -313,6 +314,54 @@
   let dnMsg = $state('');
   let dnIssued = $state(false);
 
+  // Backlog v10 P1c — Percepciones/Retenciones (ADR-FISCAL-005).
+  const withholdingsOn = isWithholdingsEnabled();
+  let whBranchId = $state('b-demo');
+  let whSaleId = $state('');
+  let whInvoiceId = $state('');
+  let whSeriesP = $state('P001');
+  let whSeriesR = $state('R001');
+  let whCategory = $state('goods');
+  let whBase = $state(10_000);
+  let whMsg = $state('');
+  let whIssued = $state(false);
+
+  async function onIssuePerception() {
+    whMsg = '';
+    whIssued = false;
+    const res = await issuePerception({
+      branchId: whBranchId,
+      originSaleId: whSaleId,
+      series: whSeriesP,
+      category: whCategory,
+      baseAmountCents: whBase,
+    });
+    if (!res.ok) {
+      whMsg = res.message;
+      return;
+    }
+    whIssued = true;
+    whMsg = `Percepción ${res.series}-${String(res.number).padStart(3, '0')}: S/ ${formatCents(res.amountCents)} (${res.ratePercentage / 100}%).`;
+  }
+
+  async function onIssueRetention() {
+    whMsg = '';
+    whIssued = false;
+    const res = await issueRetention({
+      branchId: whBranchId,
+      originSupplierInvoiceId: whInvoiceId,
+      series: whSeriesR,
+      category: whCategory,
+      baseAmountCents: whBase,
+    });
+    if (!res.ok) {
+      whMsg = res.message;
+      return;
+    }
+    whIssued = true;
+    whMsg = `Retención ${res.series}-${String(res.number).padStart(3, '0')}: S/ ${formatCents(res.amountCents)} (${res.ratePercentage / 100}%).`;
+  }
+
   async function onIssueDebitNote() {
     dnMsg = '';
     dnIssued = false;
@@ -608,6 +657,52 @@
           {/if}
         </section>
       {/if}
+
+      {#if withholdingsOn}
+        <section class="glass-panel owner-section" data-testid="owner-withholdings">
+          <div class="owner-section-head">
+            <h2>Percepciones y retenciones</h2>
+            <span class="badge badge-indigo">Pagos adelantados (P1c)</span>
+          </div>
+          <p class="owner-section-lede">
+            Percepción (02) al cobrar a un cliente agente; retención (20) al pagar a un proveedor sujeto. Montos calculados por el servidor.
+          </p>
+          <div class="field-group">
+            <label for="wh-branch">Sucursal</label>
+            <input id="wh-branch" bind:value={whBranchId} data-testid="wh-branch" />
+          </div>
+          <div class="field-group">
+            <label for="wh-category">Categoría (tasa)</label>
+            <select id="wh-category" bind:value={whCategory} data-testid="wh-category">
+              <option value="goods">Bienes (percep. 2% / ret. 3%)</option>
+              <option value="services">Servicios (ret. 6%)</option>
+              <option value="commissions">Comisiones (ret. 12%)</option>
+              <option value="other">Resto (percep. 0.5%)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="wh-base">Base (centavos)</label>
+            <input id="wh-base" type="number" min="1" bind:value={whBase} data-testid="wh-base" />
+          </div>
+          <div class="field-group">
+            <label for="wh-sale">Venta origen (percepción)</label>
+            <input id="wh-sale" bind:value={whSaleId} data-testid="wh-sale" placeholder="sale-123" />
+            <button type="button" class="primary" data-testid="wh-perception-submit" onclick={onIssuePerception}>
+              Emitir percepción
+            </button>
+          </div>
+          <div class="field-group">
+            <label for="wh-invoice">Factura proveedor (retención)</label>
+            <input id="wh-invoice" bind:value={whInvoiceId} data-testid="wh-invoice" placeholder="si-123" />
+            <button type="button" class="primary" data-testid="wh-retention-submit" onclick={onIssueRetention}>
+              Emitir retención
+            </button>
+          </div>
+          {#if whMsg}
+            <p class="wh-msg" data-testid="wh-msg" class:wh-msg-ok={whIssued}>{whMsg}</p>
+          {/if}
+        </section>
+      {/if}
     </div>
   </div>
  {/if}
@@ -647,6 +742,11 @@
   }
 
   .section-pad { padding: 1.25rem; }
+
+  .owner-section .primary {
+    min-height: 44px;
+    margin-top: 0.25rem;
+  }
 
   .section-desc {
     font-size: 0.8125rem;

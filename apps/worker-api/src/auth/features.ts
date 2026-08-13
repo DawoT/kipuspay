@@ -106,6 +106,13 @@ export function isOnboardingTourEnabled(
   return flagOn(env?.FEATURE_ONBOARDING_TOUR);
 }
 
+/** Backlog v10 P1c — Percepciones/Retenciones (FEATURE_FISCAL_WITHHOLDINGS, default off). */
+export function isWithholdingsEnabled(
+  env: { readonly FEATURE_FISCAL_WITHHOLDINGS?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_FISCAL_WITHHOLDINGS);
+}
+
 /** Backlog v10 P1b — GRE (FEATURE_GRE, default off). */
 export function isGreEnabled(env: { readonly FEATURE_GRE?: string } | undefined): boolean {
   return flagOn(env?.FEATURE_GRE);

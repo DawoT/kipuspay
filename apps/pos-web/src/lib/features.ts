@@ -253,6 +253,11 @@ export function isDebitNoteEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_DEBIT_NOTE'));
 }
 
+/** Backlog v10 P1c — Percepciones/Retenciones; siempre default-off. */
+export function isWithholdingsEnabled(): boolean {
+  return flagOn(pub(PF + 'FISCAL_WITHHOLDINGS'));
+}
+
 /** Backlog v10 P1b — Guía de Remisión Electrónica; siempre default-off. */
 export function isGreEnabled(): boolean {
   return flagOn(pub(PF + 'GRE'));
