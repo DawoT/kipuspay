@@ -123,6 +123,6 @@ export async function verifyPushAckReceipt(
   ) {
     return fail('PUSH_ACK_INVALID');
   }
-  if (nowSeconds > claims.expiresAtSeconds) return fail('PUSH_ACK_EXPIRED');
+  if (nowSeconds >= claims.expiresAtSeconds) return fail('PUSH_ACK_EXPIRED');
   return claims;
 }
