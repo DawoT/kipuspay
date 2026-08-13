@@ -7,28 +7,14 @@ afterEach(() => {
 
 describe('debit note cliente (P1a)', () => {
   it('valida campos requeridos y monto', async () => {
-    expect(
-      await issueDebitNote({
-        originSaleId: '',
-        series: 'FC01',
-        motiveCode: '02',
-        amountCents: 100,
-      }),
-    ).toEqual({
-      ok: false,
-      message: expect.stringContaining('requeridos'),
-    });
-    expect(
-      await issueDebitNote({
-        originSaleId: 's1',
-        series: 'FC01',
-        motiveCode: '02',
-        amountCents: 0,
-      }),
-    ).toEqual({
-      ok: false,
-      message: expect.stringContaining('entero positivo'),
-    });
+    const missing = await issueDebitNote({ originSaleId: '', series: 'FC01', motiveCode: '02', amountCents: 100 });
+    expect(missing.ok).toBe(false);
+    if (missing.ok) return;
+    expect(missing.message).toContain('requeridos');
+    const badAmount = await issueDebitNote({ originSaleId: 's1', series: 'FC01', motiveCode: '02', amountCents: 0 });
+    expect(badAmount.ok).toBe(false);
+    if (badAmount.ok) return;
+    expect(badAmount.message).toContain('entero positivo');
   });
 
   it('emite ND y devuelve serie-número', async () => {

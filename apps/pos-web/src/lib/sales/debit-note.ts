@@ -21,16 +21,47 @@ export interface DebitNoteIssued {
   readonly mustSubmitByIso: string;
 }
 
+interface DebitNoteResponse {
+  code?: string;
+  error?: string;
+  debitNoteId?: string;
+  series?: string;
+  number?: number;
+  amountCents?: number;
+  motiveCode?: string;
+  mustSubmitByIso?: string;
+}
+
+function validationError(input: DebitNoteInput): string | null {
+  if (!input.originSaleId.trim() || !input.series.trim() || !input.motiveCode.trim()) {
+    return 'Comprobante, serie y motivo son requeridos.';
+  }
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    return 'El monto debe ser un entero positivo en centavos.';
+  }
+  return null;
+}
+
+function toIssued(data: DebitNoteResponse): DebitNoteIssued {
+  return {
+    ok: true,
+    debitNoteId: String(data.debitNoteId ?? ''),
+    series: String(data.series ?? ''),
+    number: Number(data.number ?? 0),
+    amountCents: Number(data.amountCents ?? 0),
+    motiveCode: String(data.motiveCode ?? ''),
+    mustSubmitByIso: String(data.mustSubmitByIso ?? ''),
+  };
+}
+
 export async function issueDebitNote(
   input: DebitNoteInput,
 ): Promise<DebitNoteIssued | { ok: false; message: string }> {
   const apiBase = (import.meta.env.PUBLIC_API_BASE as string | undefined) ?? '';
   const auth = (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo';
-  if (!input.originSaleId.trim() || !input.series.trim() || !input.motiveCode.trim()) {
-    return { ok: false, message: 'Comprobante, serie y motivo son requeridos.' };
-  }
-  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
-    return { ok: false, message: 'El monto debe ser un entero positivo en centavos.' };
+  const invalid = validationError(input);
+  if (invalid !== null) {
+    return { ok: false, message: invalid };
   }
   try {
     const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/sales/debit-notes`, {
@@ -44,30 +75,13 @@ export async function issueDebitNote(
         ...(input.description?.trim() ? { description: input.description.trim() } : {}),
       }),
     });
-    const data = (await res.json()) as {
-      code?: string;
-      error?: string;
-      debitNoteId?: string;
-      series?: string;
-      number?: number;
-      amountCents?: number;
-      motiveCode?: string;
-      mustSubmitByIso?: string;
-    };
+    const data = (await res.json()) as DebitNoteResponse;
     if (!res.ok)
       return {
         ok: false,
         message: data.error ?? data.code ?? 'No se pudo emitir la nota de débito.',
       };
-    return {
-      ok: true,
-      debitNoteId: String(data.debitNoteId ?? ''),
-      series: String(data.series ?? ''),
-      number: Number(data.number ?? 0),
-      amountCents: Number(data.amountCents ?? 0),
-      motiveCode: String(data.motiveCode ?? ''),
-      mustSubmitByIso: String(data.mustSubmitByIso ?? ''),
-    };
+    return toIssued(data);
   } catch {
     return { ok: false, message: 'Sin conexión con el servidor.' };
   }
