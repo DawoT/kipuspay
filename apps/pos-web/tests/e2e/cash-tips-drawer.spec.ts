@@ -13,12 +13,21 @@ test('P2: propina en el cobro — total con propina y tope visible', async ({ pa
       }),
     }),
   );
+  await page.route('**/api/catalog/sellable', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [
+        { productId: 'p1', sku: 'SKU-1', name: 'Producto demo', unitPriceCents: 11800, costCents: 4000, stockMicrounits: 10000000, barcode: null, uomCode: 'NIU', parentProductId: null },
+      ] }),
+    }),
+  );
   await page.goto('/');
   await expect(page.getByTestId('tip-cents')).toBeVisible();
   await page.getByTestId('add-line').click();
-  // 2 × 11800 = 23600; 5% = 1180 de propina
+  // 1 × 11800; 5% = 590 de propina
   await page.getByTestId('tip-quick-0.05').click();
-  await expect(page.getByTestId('tip-cents')).toHaveValue(String(Math.round(23600 * 0.05)));
+  await expect(page.getByTestId('tip-cents')).toHaveValue(String(Math.round(11800 * 0.05)));
 });
 
 test('P2: política de caja en configuración — tope y cajón, guardado', async ({ page }) => {

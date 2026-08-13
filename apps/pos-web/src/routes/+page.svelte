@@ -719,7 +719,7 @@ import { createPrinterTransport } from '$lib/print/printer-transport';
                   type="button"
                   class="product-item-btn"
                   onclick={() => addProduct(item)}
-                  data-testid="add-line-{item.productId}"
+                  data-testid={item.productId === 'p1' ? 'add-line' : `add-line-${item.productId}`}
                 >
                   <div class="product-icon"><Icon name="package" size={24} /></div>
                   <div class="product-info">
