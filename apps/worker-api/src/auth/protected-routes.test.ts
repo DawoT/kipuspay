@@ -10,6 +10,7 @@ import type { TenantAuthDeps } from './tenant-auth-middleware.js';
 const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/pos/totals' },
   { method: 'POST', path: '/api/pos/offline-sale' },
+  { method: 'GET', path: '/api/pos/day-sales' },
   { method: 'POST', path: '/api/sales/layaways' },
   { method: 'POST', path: '/api/sales/layaways/deposit' },
   { method: 'POST', path: '/api/sales/layaways/convert' },
@@ -161,6 +162,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/onboarding/setup-progress' },
   { method: 'POST', path: '/api/growth/events' },
   { method: 'GET', path: '/api/catalog/variants-uom' },
+  { method: 'GET', path: '/api/catalog/sellable' },
   { method: 'PATCH', path: '/api/catalog/variants/v1' },
   { method: 'POST', path: '/api/catalog/uoms' },
   { method: 'POST', path: '/api/inventory/counts' },
@@ -284,7 +286,11 @@ function templateCoveredByMatrix(templateNormalized: string, matrixPath: string)
 /** Rutas /api/* registradas en el router real (fuente de verdad de paridad). */
 function registeredApiRoutes(app: ReturnType<typeof createApp>): string[] {
   const routes = (app as unknown as { routes: Array<{ method: string; path: string }> }).routes;
-  return routes
+  const middlewareIndex = routes.findIndex(
+    (r) => r.method === 'ALL' && r.path === '/api/*',
+  );
+  const protectedRoutes = middlewareIndex >= 0 ? routes.slice(middlewareIndex) : routes;
+  return protectedRoutes
     .filter((r) => r.path.startsWith('/api/') && r.method !== 'ALL' && r.method !== 'OPTIONS')
     .map((r) => `${r.method} ${normalizeTemplate(r.path)}`);
 }
