@@ -13,7 +13,7 @@ describe('Sprint 50 quick-sale UI contract (GREEN)', () => {
     expect(posSource).toContain('VENTA RÁPIDA (sin catálogo)');
     expect(posSource).toContain('QUICK_SALE_MAX_CENTS = 2000');
     expect(posSource).toContain('El servidor calcula impuestos; esta línea no descuenta stock');
-    expect(posSource).toContain('data-testid="quick-sale-add"');
+    expect(posSource).toContain('confirmTestid="quick-sale-add"');
     expect(posSource).toContain('data-testid="quick-sale-name"');
     expect(posSource).toContain('data-testid="quick-sale-price"');
     expect(posSource).not.toContain('quickError = error');
