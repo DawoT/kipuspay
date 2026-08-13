@@ -192,7 +192,9 @@ export async function runCreateBackupHttp(
   const key = idempotency(body.idempotencyKey);
   if (!key) return result(400, { code: 'IDEMPOTENCY_KEY_INVALID' });
   const backupId = crypto.randomUUID();
-  if (env.DB) {
+  // S42-H2: fail-closed (invariante 5) — jamás 202 sin persistir.
+  if (!env.DB) return result(503, { code: 'BACKUP_D1_UNAVAILABLE', errorRef: errorRef() });
+  {
     const existing = await env.DB.prepare(
       `SELECT id, status FROM data_backups WHERE tenant_id = ? AND idempotency_key = ?`,
     )
@@ -232,7 +234,8 @@ export async function runListBackupsHttp(
 ): Promise<BackupHttpResult> {
   const denied = await preflight(env, actor, CREATE_ROLES);
   if (denied) return denied;
-  if (!env.DB) return result(200, { items: [] });
+  // S42-H2: fail-closed — sin DB jamás un 200 vacío (invariante 5).
+  if (!env.DB) return result(503, { code: 'BACKUP_D1_UNAVAILABLE', errorRef: errorRef() });
   const rows = await env.DB.prepare(
     `SELECT id, status, created_at, ready_at, expires_at, format_version,
               registry_version, schema_version, kek_version, plaintext_size_bytes,
@@ -526,4 +529,69 @@ export async function runRestoreDryRunHttp(
     else await audit(false);
     return result(422, safe);
   }
+}
+
+/**
+ * S42-H1: emite el step-up token de backup (SEC-09 / QG s42).
+ * El consume existía (x-step-up-token) pero ningún endpoint lo emitía —
+ * download/restore-dry-run/DR devolvían 401 en producción. Owner + permiso
+ * + token one-shot TTL 90s con scope DATA_BACKUP_DOWNLOAD | PLATFORM_DR_SIMULATION.
+ */
+export async function runMintBackupStepUpTokenHttp(
+  env: BackupRouteEnv | undefined,
+  actor: BackupActor,
+  body: Readonly<Record<string, unknown>>,
+): Promise<BackupHttpResult> {
+  if (!env?.DB) return result(503, { error: 'Database unavailable', code: 'DB_UNAVAILABLE' });
+  if (!actor?.tenantId || !actor.userId) {
+    return result(401, { error: 'Unauthorized', code: 'UNAUTHORIZED' });
+  }
+  if (actor.role.toLowerCase() !== 'owner') {
+    return result(403, { code: 'FORBIDDEN' });
+  }
+  if (!actor.permissions?.includes('data.backup.download')) {
+    return result(403, { code: 'FORBIDDEN' });
+  }
+  const backupId = typeof body.backupId === 'string' ? body.backupId : '';
+  const action =
+    body.action === 'PLATFORM_DR_SIMULATION' ? 'PLATFORM_DR_SIMULATION' : 'DATA_BACKUP_DOWNLOAD';
+  if (action === 'DATA_BACKUP_DOWNLOAD' && !backupId) {
+    return result(400, { error: 'backupId required', code: 'BAD_REQUEST' });
+  }
+  if (action === 'DATA_BACKUP_DOWNLOAD') {
+    const row = await env.DB.prepare(
+      `SELECT id FROM data_backups WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1`,
+    )
+      .bind(actor.tenantId, backupId)
+      .first<{ id: string }>();
+    if (!row) return result(404, { error: 'Not found', code: 'BACKUP_NOT_FOUND' });
+  }
+
+  const token = `backup_${crypto.randomUUID()}`;
+  const tokenHash = await sha256Hex(token);
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    `INSERT INTO authorization_tokens (
+       id, tenant_id, token_hash, approved_by_user_id, expires_at, backup_id,
+       action, actor_user_id
+     ) VALUES (?, ?, ?, ?, datetime('now', '+90 seconds'), ?, ?, ?)`,
+  )
+    .bind(
+      id,
+      actor.tenantId,
+      tokenHash,
+      actor.userId,
+      action === 'DATA_BACKUP_DOWNLOAD' ? backupId : null,
+      action,
+      actor.userId,
+    )
+    .run();
+
+  return result(200, {
+    token,
+    action,
+    backupId: action === 'DATA_BACKUP_DOWNLOAD' ? backupId : null,
+    expiresInSeconds: 90,
+    oneShot: true,
+  });
 }

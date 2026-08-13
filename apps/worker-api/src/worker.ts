@@ -9,6 +9,7 @@ import {
   type RecurringManualRpcResult,
 } from './sales/recurring-sales-scheduled.js';
 import { runMobilePushDispatcher } from './push/mobile-push-dispatcher.js';
+import { runExpireOrdersScheduled } from './orders/expire-orders-scheduled.js';
 import { runForecastScheduled } from './analytics/forecast-scheduled.js';
 import { runBriefingScheduled } from './analytics/briefing-scheduled.js';
 import { runFiscalCronHttp } from './fiscal/fiscal-rc-routes.js';
@@ -87,6 +88,8 @@ export default {
           }),
         );
       }
+      // S43-H2: expiración automática de pedidos con reserva vencida (libera stock).
+      await runExpireOrdersScheduled(env, { scheduledTime: event.scheduledTime });
       return;
     }
     if (event.cron === FISCAL_DEADLINES_CRON) {

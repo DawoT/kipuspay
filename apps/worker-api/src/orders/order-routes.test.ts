@@ -160,7 +160,9 @@ function mockEnv(
     },
     BRANCH_KDS_HUB_DO: {
       idFromName: (n: string) => ({ toString: () => n }),
-      get: () => ({ fetch: () => Promise.resolve(Response.json({ ok: true })) }),
+      get: () => ({
+        fetch: () => Promise.resolve(Response.json({ ok: true, listeners: 2, delivered: 2 })),
+      }),
     },
     ...overrides,
   };
@@ -203,6 +205,16 @@ describe('runFireOrderHttp', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('FIRED');
     expect(res.body.kdsVisible).toBe(true);
+  });
+
+  it('S19-H1: kdsVisible es FALSE si no hay listeners en el KDS', async () => {
+    const env = mockEnv();
+    (env.BRANCH_KDS_HUB_DO as unknown as { get: () => unknown }).get = () => ({
+      fetch: () => Promise.resolve(Response.json({ ok: true, listeners: 0, delivered: 0 })),
+    });
+    const res = await runFireOrderHttp(env, 't1', { orderId: 'o1' });
+    expect(res.status).toBe(200);
+    expect(res.body.kdsVisible).toBe(false);
   });
 });
 

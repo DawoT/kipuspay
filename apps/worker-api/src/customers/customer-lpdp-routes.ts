@@ -134,7 +134,10 @@ export async function runExportCustomerHttp(
 ): Promise<HttpResult> {
   if (!isLpdpEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
-  if (!actorOk(actor, false)) return forbidden();
+  // S47-H2: el export entrega PII COMPLETA (nombre, email, teléfono, DNI +
+  // historial de ventas) — solo admin/owner (nunca cashier). El derecho LPDP
+  // se ejerce con control de acceso.
+  if (!actorOk(actor, true)) return forbidden();
   if (!customerId)
     return { status: 400, body: { error: 'customerId required', code: 'BAD_REQUEST' } };
   try {

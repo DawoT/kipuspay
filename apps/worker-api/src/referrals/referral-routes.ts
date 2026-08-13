@@ -1,5 +1,5 @@
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { brandInviteUrl, normalizeReferralCode } from './referral-domain.js';
+import { brandInviteUrl, mintReferralCode, normalizeReferralCode } from './referral-domain.js';
 import {
   captureRef,
   createReferralStore,
@@ -15,10 +15,10 @@ export function getReferralStore(): ReferralStore {
   return globalStore;
 }
 
-export function runEnsureReferralCodeHttp(
-  _env: WorkerEnv,
+export async function runEnsureReferralCodeHttp(
+  env: WorkerEnv,
   raw: unknown,
-): { status: number; body: Record<string, unknown> } {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -30,6 +30,18 @@ export function runEnsureReferralCodeHttp(
     typeof o.marketingOrigin === 'string' && o.marketingOrigin
       ? o.marketingOrigin
       : 'https://kipuspay.pe';
+  if (env.DB) {
+    // S12-H1: código persistido en D1 (idempotente por tenant).
+    const { ensureReferralCodeD1 } = await import('@kipuspay/adapters-d1');
+    const rec = await ensureReferralCodeD1(env.DB, o.tenantId, mintReferralCode(o.tenantId));
+    return {
+      status: 200,
+      body: {
+        code: rec.code,
+        inviteUrl: brandInviteUrl(marketingOrigin, rec.code),
+      },
+    };
+  }
   const rec = ensureReferralCode(globalStore, o.tenantId);
   return {
     status: 200,
@@ -40,10 +52,10 @@ export function runEnsureReferralCodeHttp(
   };
 }
 
-export function runCaptureReferralHttp(
-  _env: WorkerEnv,
+export async function runCaptureReferralHttp(
+  env: WorkerEnv,
   raw: unknown,
-): { status: number; body: Record<string, unknown> } {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -51,12 +63,36 @@ export function runCaptureReferralHttp(
   if (typeof o.referredTenantId !== 'string' || typeof o.ref !== 'string') {
     return { status: 422, body: { error: 'referredTenantId y ref requeridos', code: 'INVALID' } };
   }
+  const attributionId =
+    typeof o.attributionId === 'string' && o.attributionId
+      ? o.attributionId
+      : `attr_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  if (env.DB) {
+    // S12-H1: atribución persistente (UNIQUE por referido).
+    const { ensureReferralCodeD1, captureAttributionD1 } = await import('@kipuspay/adapters-d1');
+    const owner = await ensureReferralCodeD1(env.DB, o.referredTenantId, '');
+    void owner; // la atribución resuelve el referrer por código en D1
+    const code = normalizeReferralCode(o.ref);
+    const codeRow = await env.DB.prepare(`SELECT tenant_id FROM referral_codes WHERE code = ?`)
+      .bind(code)
+      .first<{ tenant_id: string }>();
+    if (!codeRow) {
+      return {
+        status: 422,
+        body: { error: 'Codigo de referido desconocido', code: 'REFERRAL_REJECTED' },
+      };
+    }
+    const attr = await captureAttributionD1(env.DB, {
+      id: attributionId,
+      referredTenantId: o.referredTenantId,
+      referrerTenantId: codeRow.tenant_id,
+      code,
+    });
+    return { status: 201, body: { ...attr } };
+  }
   try {
     const attr = captureRef(globalStore, {
-      attributionId:
-        typeof o.attributionId === 'string' && o.attributionId
-          ? o.attributionId
-          : `attr_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
+      attributionId,
       referredTenantId: o.referredTenantId,
       code: normalizeReferralCode(o.ref),
     });
@@ -72,10 +108,10 @@ export function runCaptureReferralHttp(
   }
 }
 
-export function runFirstSaleReferralHttp(
-  _env: WorkerEnv,
+export async function runFirstSaleReferralHttp(
+  env: WorkerEnv,
   raw: unknown,
-): { status: number; body: Record<string, unknown> } {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -84,6 +120,30 @@ export function runFirstSaleReferralHttp(
     return { status: 422, body: { error: 'tenantId requerido', code: 'INVALID' } };
   }
   const now = typeof o.nowIso === 'string' ? o.nowIso : new Date().toISOString();
+  if (env.DB) {
+    // S12-H1/S12-H3: persistencia D1 — atribución credited + growth_events
+    // first_sale (telemetría GTM §9 TTFS/activación) y referral_credited.
+    const { loadAttributionForTenant, markAttributionCreditedD1, insertGrowthEventD1 } =
+      await import('@kipuspay/adapters-d1');
+    await insertGrowthEventD1(env.DB, {
+      tenantId: o.tenantId,
+      eventType: 'first_sale',
+      occurredAtIso: now,
+      meta: { source: 'first-sale-referral' },
+    });
+    const attr = await loadAttributionForTenant(env.DB, o.tenantId);
+    if (!attr || attr.status === 'credited') {
+      return { status: 200, body: { credited: false, trialEndsAt: null } };
+    }
+    await markAttributionCreditedD1(env.DB, {
+      attributionId: attr.id,
+      referredTenantId: attr.tenant_id,
+      referrerTenantId: attr.referrer_tenant_id,
+      nowIso: now,
+    });
+    return { status: 200, body: { credited: true, trialEndsAt: null } };
+  }
+  // Fallback soft-launch in-memory.
   if (!globalStore.trials.has(o.tenantId)) {
     globalStore.trials.set(o.tenantId, {
       tenantId: o.tenantId,

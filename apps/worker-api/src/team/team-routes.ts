@@ -40,6 +40,15 @@ export async function runTeamInviteHttp(
   if (!email || !role) {
     return { status: 400, body: { code: 'BAD_REQUEST', error: 'email and role required' } };
   }
+  // S51-H5: jerarquía de roles — el invitado jamás tiene más privilegios que
+  // quien invita: owner→todo; admin→no owner; supervisor→solo cashier.
+  const actorRole = actor.role.toLowerCase();
+  const hierarchy: Record<string, number> = { cashier: 0, supervisor: 1, admin: 2, owner: 3 };
+  const invitedRank = hierarchy[role] ?? -1;
+  const actorRank = hierarchy[actorRole] ?? -1;
+  if (invitedRank < 0 || invitedRank > actorRank) {
+    return { status: 403, body: { code: 'FORBIDDEN_ROLE' } };
+  }
   const invited = await processTeamInviteAtomic(env.DB as never, {
     tenantId: actor.tenantId,
     branchId: branchId || null,

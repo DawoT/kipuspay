@@ -74,7 +74,14 @@ describe('commission-routes', () => {
     expect((await runCreateCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
     expect((await runPayCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
     expect((await runVoidCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runOwnerCommissionsHttp(off, 't1')).status).toBe(404);
+    expect((await runOwnerCommissionsHttp(off, 't1', 'owner')).status).toBe(404);
+  });
+
+
+  it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
+    const res = await runOwnerCommissionsHttp(env(), 't1', 'cashier');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
   });
 
   it('rates/payouts require Admin/Owner; owner summary 200', async () => {
@@ -115,7 +122,7 @@ describe('commission-routes', () => {
     });
     expect(voided.status).toBe(200);
 
-    const owner = await runOwnerCommissionsHttp(env(), 't1');
+    const owner = await runOwnerCommissionsHttp(env(), 't1', 'owner');
     expect(owner.status).toBe(200);
     expect((owner.body as { pendingAccrualCents: number }).pendingAccrualCents).toBe(500);
   });

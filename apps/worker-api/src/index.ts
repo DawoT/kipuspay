@@ -10,8 +10,10 @@ import {
 import type { UserSession } from './auth/idp-user.js';
 import type { WorkerEnv } from './auth/control-plane.js';
 import { runAuthenticatedSessionHttp } from './auth/session-route.js';
+import { runCashierLoginHttp } from './auth/cashier-login-route.js';
 import { handleStripeWebhook } from './webhooks/handle-stripe-webhook.js';
 import { runOfflineSaleHttp } from './pos/offline-sale-route.js';
+import { runDaySalesHttp } from './pos/pos-day-sales-route.js';
 import { runSyncSalesHttp } from './pos/sync-sales-route.js';
 import {
   runCpePortalHttp,
@@ -393,6 +395,14 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
+  app.post('/api/auth/cashier-login', async (c) => {
+    const result = await runCashierLoginHttp(
+      c.env,
+      (await c.req.json().catch(() => ({}))) as { tenantId?: unknown; identifier?: unknown; pin?: unknown },
+    );
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+  });
+
   // Rutas protegidas: auth fail-closed + Plan Guard (Sprint 2).
   app.use('/api/*', createTenantAndAuthMiddleware(authDeps));
 
@@ -409,6 +419,20 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const body: { lines?: readonly SaleLine[] } = await c.req.json();
     const lines = body.lines ?? [];
     return c.json(buildSaleTotals(lines));
+  });
+
+  // F3 — Historial del día del cajero (hora Lima, solo lectura, GTM §3.3).
+  app.get('/api/pos/day-sales', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user') as { userId?: string; role?: string; branchId?: string } | undefined;
+    const result = await runDaySalesHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role ?? '',
+      user?.branchId ?? '',
+    );
+    return c.json(result.body, result.status as 200 | 403 | 503);
   });
 
   // Motor ACID offline (Sprint 4) — detrás de FEATURE_ACID_OFFLINE_SALE (§5.1).
@@ -2227,25 +2251,35 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // Sprint 46 — analítica predictiva (Cadena+; 402 Plan Guard vía /api/forecasting/)
   app.get('/api/forecasting/alerts/:branchId', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const result = await runStockAlertsHttp(
       c.env,
       jwt?.tenantId ?? '',
       c.req.param('branchId'),
       c.req.query(),
+      user?.role ?? '',
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
   });
   app.get('/api/forecasting/:branchId', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runListForecastsHttp(c.env, jwt?.tenantId ?? '', c.req.param('branchId'));
+    const user = c.get('user');
+    const result = await runListForecastsHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      c.req.param('branchId'),
+      user?.role ?? '',
+    );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
   });
   app.post('/api/forecasting/refresh/:branchId', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const result = await runRefreshForecastHttp(
       c.env,
       jwt?.tenantId ?? '',
       c.req.param('branchId'),
+      user?.role ?? '',
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
   });
@@ -2448,8 +2482,16 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const jwt = c.get('jwt') as { tenantId: string } | undefined;
-    const result = await runFormalizationStageHttp(c.env, jwt?.tenantId ?? '', raw);
+    const jwt = c.get('jwt') as { tenantId: string; sub?: string } | undefined;
+    const user = c.get('user') as { userId?: string } | undefined;
+    const role = (user as { role?: string } | undefined)?.role ?? '';
+    const result = await runFormalizationStageHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      raw,
+      user?.userId ?? jwt?.sub ?? 'system',
+      role,
+    );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 

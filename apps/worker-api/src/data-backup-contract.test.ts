@@ -7,6 +7,7 @@ import {
   runCreateBackupHttp,
   runDownloadBackupHttp,
   runListBackupsHttp,
+  runMintBackupStepUpTokenHttp,
   runRestoreDryRunHttp,
 } from './backup/backup-routes.js';
 import { runBackupWorkflow } from './backup/backup-workflow.js';
@@ -153,8 +154,11 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
     await expect(
       runCreateBackupHttp(env(), cashier, { idempotencyKey: 'cashier' }),
     ).resolves.toMatchObject({ status: 403 });
+    const dbFixture = downloadDb({});
     await expect(
-      runCreateBackupHttp(env(), admin, { idempotencyKey: 'admin' }),
+      runCreateBackupHttp(env({ DB: dbFixture.db, BACKUPS: dbFixture.bucket }), admin, {
+        idempotencyKey: 'admin',
+      }),
     ).resolves.toMatchObject({ status: 202 });
     await expect(
       runDownloadBackupHttp(env(), admin, { backupId: 'backup-a' }),
@@ -213,6 +217,96 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
       expect.arrayContaining(['tenant-a', 'owner-a', 'DATA_BACKUP_DOWNLOAD', 'backup-a']),
     );
     expect(fixture.consumedSql[0]).toContain("created_at >= datetime('now', '-5 minutes')");
+  });
+
+  it('S42-H1: mint→consume end-to-end — el token emitido funciona en download (sin mocks)', async () => {
+    // Mock con memoria: el mint INSERTA el hash; el consume UPDATE lo matchea.
+    const mintedHashes: string[] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => ({
+        bind: vi.fn((...params: unknown[]) => ({
+          first: vi.fn(() => {
+            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('FROM data_backups')) {
+              if (params[0] !== 'tenant-a') return Promise.resolve(null);
+              return Promise.resolve({
+                status: 'READY', expires_at: null, deleted_at: null,
+                manifest_r2_key: 'ready/manifest',
+                wrapped_dek: new Uint8Array([1]).buffer,
+                kek_version: 'kek-7', global_hash: 'a'.repeat(64),
+              });
+            }
+            return Promise.resolve(null);
+          }),
+          all: vi.fn(() => Promise.resolve({ results: [] })),
+          run: vi.fn(() => {
+            if (sql.includes('INSERT INTO authorization_tokens')) {
+              const hash = params[2] as string;
+              mintedHashes.push(hash);
+              return Promise.resolve({ meta: { changes: 1 } });
+            }
+            if (sql.includes('UPDATE authorization_tokens')) {
+              const hash = params[2] as string;
+              const matched = mintedHashes.includes(hash);
+              if (matched) mintedHashes.splice(mintedHashes.indexOf(hash), 1);
+              return Promise.resolve({ meta: { changes: matched ? 1 : 0 } });
+            }
+            return Promise.resolve({ meta: { changes: 1 } });
+          }),
+        })),
+      })),
+      batch: vi.fn().mockResolvedValue([]),
+    };
+    const bucket = {
+      head: vi.fn().mockResolvedValue({ etag: 'manifest' }),
+      get: vi.fn().mockResolvedValue(null),
+    };
+    const fullEnv = env({ DB: db, BACKUPS: bucket });
+    // Rol no autorizado → 403.
+    const cashierMint = await runMintBackupStepUpTokenHttp(
+      env({ DB: downloadDb({}).db, BACKUPS: downloadDb({}).bucket }),
+      { ...owner, role: 'cashier' },
+      { backupId: 'backup-a' },
+    );
+    expect(cashierMint.status).toBe(403);
+
+    // Owner sin permiso → 403.
+    const noPermMint = await runMintBackupStepUpTokenHttp(
+      env({ DB: downloadDb({}).db, BACKUPS: downloadDb({}).bucket }),
+      { ...owner, permissions: [] },
+      { backupId: 'backup-a' },
+    );
+    expect(noPermMint.status).toBe(403);
+
+    // Owner con permiso → 200 con token (el mint valida que el backup existe).
+    const minted = await runMintBackupStepUpTokenHttp(fullEnv, owner, { backupId: 'backup-a' });
+    expect(minted.status).toBe(200);
+    const body = minted.body as { token?: string; expiresInSeconds?: number; oneShot?: boolean };
+    expect(typeof body.token).toBe('string');
+    expect(body.expiresInSeconds).toBe(90);
+    expect(body.oneShot).toBe(true);
+
+    // El token emitido SÍ es consumible por download (el UPDATE matchea por hash).
+    const token = body.token!;
+    const allowed = await runDownloadBackupHttp(fullEnv, owner, {
+      backupId: 'backup-a',
+      stepUpToken: token,
+    });
+    expect(allowed.status).toBe(200);
+    // El token se consumió (one-shot): segundo uso → 401.
+    const replay = await runDownloadBackupHttp(fullEnv, owner, {
+      backupId: 'backup-a',
+      stepUpToken: token,
+    });
+    expect(replay.status).toBe(401);
+  });
+
+  it('S42-H2: sin DB → 503 fail-closed en create y list (jamás 202/200 vacío)', async () => {
+    const noDb = env({ DB: undefined }) as never;
+    const created = await runCreateBackupHttp(noDb, owner, { idempotencyKey: 'k-no-db' });
+    expect(created.status).toBe(503);
+    const listed = await runListBackupsHttp(noDb, owner);
+    expect(listed.status).toBe(503);
   });
 
   it('sanitizes persisted workflow failure details in list and status responses', async () => {

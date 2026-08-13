@@ -225,11 +225,16 @@ export async function runMatchSupplierInvoiceHttp(
 export async function runOwnerThreeWayReportHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isPurchasingThreeWayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  }
+  // S29-H2: reporte Dueño 3-way → solo admin/owner (nunca cashier).
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
 
   const openPos = await env.DB.prepare(

@@ -25,6 +25,7 @@ function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
         },
       };
     },
+    batch: () => Promise.resolve([]),
   };
 }
 

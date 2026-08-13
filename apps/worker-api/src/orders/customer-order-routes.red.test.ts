@@ -185,7 +185,7 @@ describe('Sprint 43 Worker customer-order routes (RED)', () => {
         terminalId: 'terminal-b',
         terminalSessionId: 'session-b',
       },
-      { orderId: 'order-owned-by-a', envelope: 'opaque', idempotencyKey: 'f1' },
+      { orderId: 'order-owned-by-a', envelope: 'opaque', idempotencyKey: 'f1', documentType: 'NV' },
     );
     expect(crossTenant).toMatchObject({ status: 404 });
 
@@ -199,7 +199,7 @@ describe('Sprint 43 Worker customer-order routes (RED)', () => {
         terminalId: 'terminal-a',
         terminalSessionId: 'session-a',
       },
-      { orderId: 'order-a', envelope: 'opaque', idempotencyKey: 'f1' },
+      { orderId: 'order-a', envelope: 'opaque', idempotencyKey: 'f1', documentType: 'NV' },
     );
     const replay = await runFulfillCustomerOrderHttp(
       env(),
@@ -211,7 +211,7 @@ describe('Sprint 43 Worker customer-order routes (RED)', () => {
         terminalId: 'terminal-a',
         terminalSessionId: 'session-a',
       },
-      { orderId: 'order-a', envelope: 'opaque', idempotencyKey: 'f1' },
+      { orderId: 'order-a', envelope: 'opaque', idempotencyKey: 'f1', documentType: 'NV' },
     );
     expect(replay).toEqual(first);
   });

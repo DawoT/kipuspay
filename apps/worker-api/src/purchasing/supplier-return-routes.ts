@@ -178,10 +178,16 @@ export async function runCancelSupplierReturnHttp(
 export async function runOwnerSupplierReturnsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isPurchasingReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  // T-1: reporte Dueño solo admin/owner (nunca cashier).
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
+
   const open = await env.DB.prepare(
     `SELECT id, branch_id, supplier_id, status, total_cents, reason, created_at
      FROM supplier_returns

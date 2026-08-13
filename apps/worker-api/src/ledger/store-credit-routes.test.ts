@@ -26,16 +26,21 @@ vi.mock('@kipuspay/adapters-d1', () => ({
   ),
 }));
 
-function env(over: Partial<WorkerEnv> = {}): WorkerEnv {
+function env(over: Partial<WorkerEnv> = {}, approverRole: string | null = 'admin'): WorkerEnv {
   return {
     FEATURE_LEDGER_STORE_CREDIT: '1',
     DB: {
-      prepare() {
+      prepare(sql: string) {
         const stmt = {
           bind() {
             return stmt;
           },
-          first: () => Promise.resolve({ cents: 0 }),
+          first: () => {
+            if (sql.includes('FROM users')) {
+              return Promise.resolve(approverRole ? { role: approverRole } : null);
+            }
+            return Promise.resolve({ cents: 0 });
+          },
           all: () => Promise.resolve({ results: [], success: true, meta: {} }),
         };
         return stmt;
@@ -65,6 +70,13 @@ describe('store-credit-routes', () => {
     expect(res.status).toBe(404);
   });
 
+
+  it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
+    const res = await runOwnerStoreCreditHttp(env(), 't1', 'cashier');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
+  });
+
   it('issue via sale engine only; expire/adjust/owner 200', async () => {
     const issued = runIssueStoreCreditHttp(env());
     expect(issued.status).toBe(400);
@@ -88,7 +100,34 @@ describe('store-credit-routes', () => {
       adjustSign: 'CREDIT',
     });
     expect(adjusted.status).toBe(200);
-    const owner = await runOwnerStoreCreditHttp(env(), 't1');
+
+    // S35-H1: autorizador arbitrario (no admin/owner) → 403 FORBIDDEN_ROLE.
+    const ghostAuth = await runAdjustStoreCreditHttp(
+      env({}, 'cashier'),
+      't1',
+      'u1',
+      'owner',
+      {
+        customerId: 'c1',
+        branchId: 'b1',
+        amountCents: 100,
+        adjustSign: 'CREDIT',
+        authorizedByUserId: 'cajero-coludido',
+      },
+    );
+    expect(ghostAuth.status).toBe(403);
+    expect(ghostAuth.body.code).toBe('FORBIDDEN_ROLE');
+
+    // Autorizador admin/owner real → procede.
+    const realAuth = await runAdjustStoreCreditHttp(env({}, 'admin'), 't1', 'u1', 'owner', {
+      customerId: 'c1',
+      branchId: 'b1',
+      amountCents: 100,
+      adjustSign: 'CREDIT',
+      authorizedByUserId: 'supervisor-real',
+    });
+    expect(realAuth.status).toBe(200);
+    const owner = await runOwnerStoreCreditHttp(env(), 't1', 'owner');
     expect(owner.status).toBe(200);
     expect(owner.body).toHaveProperty('issuedCents');
   });

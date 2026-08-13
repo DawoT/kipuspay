@@ -58,6 +58,7 @@ interface AuditDb {
       run(): Promise<{ meta?: { changes?: number } }>;
     };
   };
+  batch(statements: readonly unknown[]): Promise<unknown>;
 }
 
 type Db = AuditDb;
@@ -105,21 +106,37 @@ export async function runQuickAddHttp(
   }
 
   const productId = crypto.randomUUID();
-  await db
-    .prepare(
-      `INSERT INTO products (
-         id, tenant_id, sku, barcode, name, product_type, unit_code, price_cents,
-         cost_cents, igv_affectation_code_default
-       ) VALUES (?, ?, ?, ?, ?, 'physical', 'NIU', ?, 0, '10')`,
-    )
-    .bind(productId, actor.tenantId, `QUICK-${barcode}`, barcode, name, priceCents)
-    .run();
-  await appendQuickAddAudit(db, actor, {
-    productId,
-    barcode,
-    name,
-    priceCents,
-  });
+  // S50-H1: INSERT + audit en UN solo batch (atómico, invariante 2) y el
+  // UNIQUE del barcode se maneja como 200 (producto ya creado), jamás 500.
+  try {
+    const auditStmt = buildQuickAddAuditStatement(db, actor, {
+      productId,
+      barcode,
+      name,
+      priceCents,
+    });
+    await db.batch([
+      db
+        .prepare(
+          `INSERT INTO products (
+             id, tenant_id, sku, barcode, name, product_type, unit_code, price_cents,
+             cost_cents, igv_affectation_code_default
+           ) VALUES (?, ?, ?, ?, ?, 'physical', 'NIU', ?, 0, '10')`,
+        )
+        .bind(productId, actor.tenantId, `QUICK-${barcode}`, barcode, name, priceCents),
+      ...(auditStmt ? [auditStmt] : []),
+    ]);
+  } catch (cause) {
+    if (cause instanceof Error && /UNIQUE|constraint/i.test(cause.message)) {
+      const existingAfter = await db
+        .prepare(`SELECT id, sku, barcode, name, price_cents, product_type FROM products
+                  WHERE tenant_id = ? AND barcode = ? LIMIT 1`)
+        .bind(actor.tenantId, barcode)
+        .first<ProductRow>();
+      if (existingAfter) return result(200, { product: existingAfter, created: false });
+    }
+    throw cause;
+  }
   return result(201, {
     product: {
       id: productId,
@@ -167,7 +184,7 @@ export async function runScanLookupHttp(
   return result(422, { code: 'UNSUPPORTED_SCAN' });
 }
 
-async function appendQuickAddAudit(
+async function buildQuickAddAuditStatement(
   db: Db,
   actor: QuickAddActor,
   input: {
@@ -176,7 +193,7 @@ async function appendQuickAddAudit(
     readonly name: string;
     readonly priceCents: number;
   },
-): Promise<void> {
+) {
   const tail = await db
     .prepare(
       `SELECT row_hash FROM audit_events WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
@@ -201,7 +218,7 @@ async function appendQuickAddAudit(
     ),
     (byte) => byte.toString(16).padStart(2, '0'),
   ).join('');
-  await db
+  return db
     .prepare(
       `INSERT INTO audit_events (
          id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
@@ -216,6 +233,5 @@ async function appendQuickAddAudit(
       payloadJson,
       previous,
       rowHash,
-    )
-    .run();
+    );
 }

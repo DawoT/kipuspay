@@ -3,6 +3,7 @@ import {
   isSalesReturnsEnabled,
   runCreateSalesReturnHttp,
   runGetReturnPolicyHttp,
+  runUpsertReturnPolicyHttp,
 } from './sales-returns-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -47,6 +48,50 @@ describe('sales-returns-routes', () => {
       {},
     );
     expect(res.status).toBe(400);
+  });
+
+  it('S28-H3: PUT policy sin rol admin/owner → 403 FORBIDDEN_ROLE', async () => {
+    const res = await runUpsertReturnPolicyHttp(
+      { FEATURE_SALES_RETURNS: '1', DB: {} as D1Database } as WorkerEnv,
+      't1',
+      'u1',
+      'cashier',
+      { windowDays: 14 },
+    );
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
+  });
+
+  it('S28-H3: PUT policy admin crea fila + audita RETURN_POLICY_UPDATE', async () => {
+    const sqls: string[] = [];
+    const first = vi.fn().mockResolvedValue(null);
+    const run = vi.fn(async (sql: string, ...args: unknown[]) => {
+      sqls.push(sql);
+      return { success: true };
+    });
+    const env = {
+      FEATURE_SALES_RETURNS: '1',
+      DB: {
+        prepare: (sql: string) => ({
+          bind: (...args: unknown[]) => ({
+            first: () => first(sql, ...args),
+            run: () => run(sql, ...args),
+          }),
+        }),
+      },
+    } as unknown as WorkerEnv;
+    const res = await runUpsertReturnPolicyHttp(env, 't1', 'u1', 'owner', {
+      windowDays: 14,
+      refundToOriginalMethod: false,
+      allowTurnClosedWithAuth: true,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.windowDays).toBe(14);
+    expect(res.body.refundToOriginalMethod).toBe(false);
+    const inserts = sqls.filter((s) => s.includes('INSERT INTO return_policies'));
+    expect(inserts.length).toBe(1);
+    const audits = sqls.filter((s) => s.includes('RETURN_POLICY_UPDATE'));
+    expect(audits.length).toBe(1);
   });
 
   it('policy GET flag off → 404; on → 200 default', async () => {

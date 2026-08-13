@@ -77,36 +77,42 @@ export async function runSendOwnerPushHttp(
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
-  const rows = await env.DB.prepare(
-    `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE tenant_id = ?`,
-  )
-    .bind(tenantId)
-    .all<{ id: string; endpoint: string; p256dh: string; auth: string }>();
-  const subs = rows.results ?? [];
-  const attempts: PushSendAttempt[] = subs.map((s) => ({
-    subscriptionId: s.id,
-    delivered: judgePushDelivery(s),
-  }));
-  const delivered = attempts.filter((a) => a.delivered).length;
-  const attempted = attempts.length;
-  const report: PushSendReport = {
-    attempted,
-    delivered,
-    deliveryRate: attempted === 0 ? 1 : delivered / attempted,
-    attempts,
-  };
-  return {
-    status: 200,
-    body: {
-      title: body.title ?? 'KipusPay',
-      message: body.body ?? '',
-      ...report,
-      meetsSla: report.deliveryRate >= 0.99,
-    },
-  };
+  // S45-H4: la tabla legacy push_subscriptions fue dropeada por la 0038
+  // (columnas endpoint/p256dh/auth en claro). El push al Dueño ahora se
+  // encola en el motor mobile.push (suscripciones cifradas, consentimiento,
+  // dispatcher). Best-effort: sin capability, no hace nada.
+  try {
+    const owner = await env.DB.prepare(
+      `SELECT u.id FROM users u
+       JOIN tenant_capabilities tc ON tc.tenant_id = u.tenant_id
+       WHERE u.tenant_id = ? AND u.role = 'owner' AND u.deleted_at IS NULL
+         AND tc.capability = 'mobile.push' AND tc.enabled = 1
+       LIMIT 1`,
+    )
+      .bind(tenantId)
+      .first<{ id: string }>();
+    if (!owner) return { status: 200, body: { queued: false } };
+    const sourceEntityId = crypto.randomUUID();
+    const { appendPushEventAtomic } = await import('@kipuspay/adapters-d1');
+    await appendPushEventAtomic(env.DB, {
+      tenantId,
+      userId: owner.id,
+      purpose: 'OWNER_ALERTS',
+      eventType: 'CASH_CLOSE',
+      sourceEntityId,
+      sourceEntityType: 'LOYALTY',
+      idempotencyKeyHash: `loyalty:${tenantId}:${sourceEntityId}`,
+      payloadRedactedJson: JSON.stringify({ title: body.title ?? '', body: body.body ?? '' }),
+      deepLinkKind: 'cash_close',
+      deepLinkEntityId: sourceEntityId,
+      ttlSeconds: 300,
+      collapseKey: `loyalty:${tenantId}`,
+    });
+    return { status: 202, body: { queued: true } };
+  } catch {
+    return { status: 200, body: { queued: false } };
+  }
 }
-
-/** Harness: N suscripciones válidas → tasa ≥99%. */
 export function runPushDeliveryHarness(count = 100): PushSendReport {
   const attempts: PushSendAttempt[] = [];
   for (let i = 0; i < count; i += 1) {

@@ -28,6 +28,12 @@ export async function runIssueShiftPinHttp(
 ): Promise<HttpResult> {
   if (!isShiftHandoffEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'SHIFT_DB_UNAVAILABLE' } };
+  // S51-H3: emitir el PIN de handoff lo hace quien opera la caja
+  // (cashier/supervisor) — jamás admin/owner ajeno ni un rol sin turno.
+  const role = actor.role.toLowerCase();
+  if (role !== 'cashier' && role !== 'supervisor') {
+    return { status: 403, body: { code: 'FORBIDDEN_ROLE' } };
+  }
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   if (!sessionId) {
     return { status: 400, body: { code: 'BAD_REQUEST', error: 'sessionId required' } };
@@ -65,6 +71,14 @@ export async function runShiftTransferHttp(
       : typeof body.interimCountCents === 'number' && Number.isSafeInteger(body.interimCountCents)
         ? body.interimCountCents
         : NaN;
+  // S51-H4: un conteo intermedio negativo es basura financiera — jamás se
+  // persiste (el cashDiff se inflaría en el desglose por tramo).
+  if (interimCountCents !== null && Number.isNaN(interimCountCents)) {
+    return { status: 422, body: { code: 'INTERIM_COUNT_INVALID' } };
+  }
+  if (interimCountCents !== null && interimCountCents < 0) {
+    return { status: 422, body: { code: 'INTERIM_COUNT_INVALID' } };
+  }
   if (!sessionId || !pin || !outgoingUserId) {
     return {
       status: 400,

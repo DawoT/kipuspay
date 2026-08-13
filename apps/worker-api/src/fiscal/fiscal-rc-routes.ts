@@ -37,6 +37,7 @@ export async function runVoidBoletaHttp(
   env: WorkerEnv,
   tenantId: string,
   saleId: string,
+  userId = 'system',
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!isFiscalRcEnabled(env)) {
     return { status: 404, body: { error: 'FEATURE_FISCAL_RC off', code: 'FEATURE_OFF' } };
@@ -45,7 +46,7 @@ export async function runVoidBoletaHttp(
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
   try {
-    const result = await voidBoletaAtomic(asD1(env.DB), tenantId, saleId);
+    const result = await voidBoletaAtomic(asD1(env.DB), tenantId, saleId, userId);
     return { status: 200, body: { ...result } };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'VOID_FAILED';

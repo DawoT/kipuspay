@@ -173,6 +173,20 @@ export async function runAdjustStoreCreditHttp(
   }
   const parsed = parseAdjustBody(body, userId);
   if (!parsed.ok) return parsed.result;
+  // S35-H1: el autorizador registrado en el ajuste (si no es el caller) debe
+  // ser un admin/owner REAL del tenant — jamás un ID arbitrario (integridad
+  // de auditoría, regla 12 §5.3).
+  if (parsed.parsed.authorizedByUserId !== userId) {
+    const approver = await env.DB.prepare(
+      `SELECT role FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1`,
+    )
+      .bind(parsed.parsed.authorizedByUserId, tenantId)
+      .first<{ role: string }>();
+    const approverRole = approver?.role ?? '';
+    if (approverRole !== 'admin' && approverRole !== 'owner') {
+      return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+    }
+  }
   try {
     const result = await processStoreCreditAdjustAtomic(
       env.DB,
@@ -190,10 +204,16 @@ export async function runAdjustStoreCreditHttp(
 export async function runOwnerStoreCreditHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isLedgerStoreCreditEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  // T-1: reporte Dueño solo admin/owner (nunca cashier).
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
+
   const issued = await env.DB.prepare(
     `SELECT COALESCE(SUM(amount_cents), 0) AS cents FROM store_credit_transactions
      WHERE tenant_id = ? AND type = 'ISSUE'`,

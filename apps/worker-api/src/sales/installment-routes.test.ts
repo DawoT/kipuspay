@@ -69,6 +69,13 @@ describe('installment-routes', () => {
     expect((await runOwnerInstallmentsOverdueHttp(off, 't1')).status).toBe(404);
   });
 
+
+  it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
+    const res = await runOwnerInstallmentsOverdueHttp(env(), 't1', 'cashier');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
+  });
+
   it('create/pay require Supervisor+; owner overdue 200', async () => {
     const forbidden = await runCreateInstallmentPlanHttp(env(), 't1', 'u1', 'cashier', {
       saleId: 's1',
@@ -115,7 +122,7 @@ describe('installment-routes', () => {
     expect(paid.status).toBe(200);
     expect(paid.body.appliedToArCents).toBe(4_000);
 
-    const owner = await runOwnerInstallmentsOverdueHttp(env(), 't1');
+    const owner = await runOwnerInstallmentsOverdueHttp(env(), 't1', 'owner');
     expect(owner.status).toBe(200);
     expect(Array.isArray(owner.body.items)).toBe(true);
   });
@@ -126,6 +133,6 @@ describe('installment-routes', () => {
       (await runCreateInstallmentPlanHttp(env(), 't1', 'u1', 'admin', { saleId: 's1' })).status,
     ).toBe(400);
     expect((await runPayInstallmentHttp(env(), 't1', '', 'admin', {})).status).toBe(401);
-    expect((await runOwnerInstallmentsOverdueHttp(env(), '')).status).toBe(401);
+    expect((await runOwnerInstallmentsOverdueHttp(env(), '', 'owner')).status).toBe(401);
   });
 });

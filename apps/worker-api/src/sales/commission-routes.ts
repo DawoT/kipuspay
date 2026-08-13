@@ -239,11 +239,16 @@ export async function runVoidCommissionPayoutHttp(
 export async function runOwnerCommissionsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isSalesCommissionsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  }
+  // T-1: reporte Dueño solo admin/owner (nunca cashier).
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
   const report = await listOwnerCommissions(env.DB, tenantId);
   return { status: 200, body: report };

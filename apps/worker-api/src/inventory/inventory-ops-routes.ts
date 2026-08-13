@@ -56,13 +56,22 @@ export async function runCreateInventoryCountHttp(
   if (!env?.DB) return dbUnavailable();
   const branchId = body.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
+  // S39-H1: el umbral de authz es SERVER-side (política del tenant), nunca del
+  // cliente — un cashier no puede auto-definir un umbral gigante para aprobar
+  // diferencias valorizadas sin autorización.
+  const policy = await env.DB.prepare(
+    `SELECT max_amount_without_auth_cents FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
+  )
+    .bind(tenantId)
+    .first<{ max_amount_without_auth_cents: number }>();
+  const threshold = policy?.max_amount_without_auth_cents ?? 2000;
   const id = crypto.randomUUID();
   await env.DB.prepare(
     `INSERT INTO inventory_counts (
          id, tenant_id, branch_id, created_by_user_id, status, blind, difference_threshold_cents
        ) VALUES (?, ?, ?, ?, 'COUNTING', 1, ?)`,
   )
-    .bind(id, tenantId, branchId, userId, body.differenceThresholdCents ?? 0)
+    .bind(id, tenantId, branchId, userId, threshold)
     .run();
   return { status: 200, body: { id, status: 'COUNTING', blind: true } };
 }
@@ -70,6 +79,7 @@ export async function runCreateInventoryCountHttp(
 export async function runSubmitCountReviewHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
   body: {
     countId?: string;
     lines?: readonly {
@@ -88,6 +98,11 @@ export async function runSubmitCountReviewHttp(
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  // S39-H1: enviar a revisión un conteo con manifiestos seriales exige
+  // admin/owner (nunca cashier).
+  if (role !== 'admin' && role !== 'owner') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
   const countId = body.countId?.trim() ?? '';
   if (!countId) return { status: 400, body: { error: 'countId required', code: 'BAD_REQUEST' } };
 
@@ -262,12 +277,36 @@ export async function runApproveCountHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   userId: string,
-  body: { countId?: string; authorizedByUserId?: string | null },
+  role = '',
+  body: { countId?: string; authorizedByUserId?: string | null; adjustmentReason?: string | null },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  // S39-H1: aprobar un conteo con ajustes valorizados exige admin/owner del
+  // usuario DE SESIÓN (el umbral ya es server-side; el rol no se negocia).
+  if (role !== 'admin' && role !== 'owner') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
   const countId = body.countId?.trim() ?? '';
   if (!countId) return { status: 400, body: { error: 'countId required', code: 'BAD_REQUEST' } };
+
+  // S18-H3: el autorizador de un ajuste sobre umbral debe ser admin/owner
+  // (nunca un string libre sin rol). El creador no puede auto-autorizarse.
+  const authzUserId = body.authorizedByUserId?.trim() ?? '';
+  if (authzUserId) {
+    const approver = await env.DB.prepare(
+      `SELECT role FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1`,
+    )
+      .bind(authzUserId, tenantId)
+      .first<{ role: string }>();
+    const role = approver?.role ?? '';
+    if (role !== 'admin' && role !== 'owner') {
+      return {
+        status: 403,
+        body: { error: 'Forbidden: approver must be admin/owner', code: 'FORBIDDEN_ROLE' },
+      };
+    }
+  }
 
   const count = await env.DB.prepare(
     `SELECT status, difference_threshold_cents, branch_id
@@ -369,6 +408,12 @@ export async function runApproveCountHttp(
 
   try {
     assertInventoryCountTransition(count.status, 'APPROVED');
+    // S18-H3: 0 ajustes sin motivo — si hay diferencia valorizada > umbral,
+    // el motivo es obligatorio.
+    const hasDiff = (lines.results ?? []).some((l) => l.difference_qty !== 0);
+    if (hasDiff && !(body.adjustmentReason ?? '').trim()) {
+      return { status: 422, body: { error: 'Ajuste requiere motivo', code: 'REASON_REQUIRED' } };
+    }
     assertCountDiffAuthorized({
       lines: (lines.results ?? []).map((l) => ({
         productId: l.product_id,
@@ -387,9 +432,10 @@ export async function runApproveCountHttp(
   const stmts = [
     env.DB.prepare(
       `UPDATE inventory_counts
-       SET status = 'APPROVED', approved_by_user_id = ?, approved_at = CURRENT_TIMESTAMP
+       SET status = 'APPROVED', approved_by_user_id = ?, approved_at = CURRENT_TIMESTAMP,
+           adjustment_reason = ?
        WHERE id = ? AND tenant_id = ?`,
-    ).bind(userId, countId, tenantId),
+    ).bind(userId, (body.adjustmentReason ?? '').trim() || null, countId, tenantId),
     ...(lines.results ?? [])
       .filter((l) => l.difference_qty !== 0)
       .map((l) =>
@@ -639,10 +685,15 @@ export async function runApproveStockLossHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   userId: string,
+  role = '',
   body: { lossId?: string },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  // S39-H1: aprobar una merma valorizada exige admin/owner (nunca cashier).
+  if (role !== 'admin' && role !== 'owner') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
   const lossId = body.lossId?.trim() ?? '';
   if (!lossId) return { status: 400, body: { error: 'lossId required', code: 'BAD_REQUEST' } };
 

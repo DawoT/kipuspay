@@ -74,6 +74,40 @@ function errorResult(error: unknown): CustomerOrderHttpResult {
   return result(422, { code });
 }
 
+
+const MAX_RESERVATION_MS = 24 * 60 * 60 * 1000; // S43-H2: tope de reserva 24h
+function clampReservationDeadline(raw: string | null | undefined): string {
+  const parsed = raw && Number.isFinite(Date.parse(raw)) ? Date.parse(raw) : NaN;
+  const now = Date.now();
+  if (!Number.isFinite(parsed) || parsed <= now) {
+    return new Date(now + MAX_RESERVATION_MS).toISOString();
+  }
+  const clamped = Math.min(parsed, now + MAX_RESERVATION_MS);
+  return new Date(clamped).toISOString();
+}
+
+async function resolveAuthorizedPriceList(
+  env: WorkerEnv,
+  tenantId: string,
+  branchId: string,
+  requested: string | null | undefined,
+): Promise<string | null | undefined> {
+  if (!requested) return undefined;
+  if (!env.DB) return undefined;
+  const row = await env.DB.prepare(
+    `SELECT p.id FROM price_lists p
+     WHERE p.tenant_id = ? AND p.id = ? AND p.is_active = 1 AND p.deleted_at IS NULL LIMIT 1`,
+  )
+    .bind(tenantId, requested)
+    .first<{ id: string }>();
+  return row?.id ?? undefined;
+}
+
+function docTypeOrReject(value: unknown): '01' | '03' | 'NV' {
+  if (value === '01' || value === '03' || value === 'NV') return value;
+  throw new Error('CUSTOMER_ORDER_DOCUMENT_TYPE_REQUIRED');
+}
+
 function roleAllowed(role: string, operation: Operation): boolean {
   const normalized = role.toLowerCase();
   if (operation === 'READ') return ['cashier', 'supervisor', 'admin', 'owner'].includes(normalized);
@@ -193,7 +227,10 @@ export async function runCreateCustomerOrderHttp(
   const branchId = scopedBranch(actor);
   if (!branchId) return result(403, { code: 'FORBIDDEN' });
   const itemsRaw = Array.isArray(body.items) ? body.items : [];
-  const priceListId = text(body, 'priceListId');
+  // S43-H4: el price list lo impone el SERVIDOR (regla 1) — el del cliente
+  // solo se acepta si es una lista activa del tenant; si no, el de la branch.
+  const requestedPriceList = text(body, 'priceListId');
+  const priceListId = await resolveAuthorizedPriceList(env!, actor.tenantId, branchId, requestedPriceList);
   try {
     const created = await createCustomerOrderAtomic(env!.DB!, {
       tenantId: actor.tenantId,
@@ -201,8 +238,10 @@ export async function runCreateCustomerOrderHttp(
       customerId: text(body, 'customerId'),
       actorUserId: actor.userId,
       idempotencyKey: text(body, 'idempotencyKey') || crypto.randomUUID(),
-      reservedUntil:
-        text(body, 'reservedUntil') || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      // S43-H2: el vencimiento de la reserva es SERVER-side — el cliente no
+      // puede fijar una reserva perpetua (tope 24h; el cron de expiración
+      // libera el stock a su vencimiento).
+      reservedUntil: clampReservationDeadline(text(body, 'reservedUntil')),
       pickupAt: text(body, 'pickupAt') || null,
       ...(priceListId ? { priceListId } : {}),
       items: itemsRaw.map((raw) => {
@@ -426,6 +465,14 @@ export async function runFulfillCustomerOrderHttp(
   if (text(body, 'orderId').startsWith('expired-') && !text(body, 'authorizationToken')) {
     return result(422, { code: 'AUTH_TOKEN_REQUIRED' });
   }
+  // S43-H3: el documento es obligatorio y explícito — validado ANTES del motor
+  // para que el 404 cross-tenant siga siendo opaco (el orden importa).
+  let documentType: '01' | '03' | 'NV';
+  try {
+    documentType = docTypeOrReject(body.documentType);
+  } catch {
+    return result(422, { code: 'CUSTOMER_ORDER_DOCUMENT_TYPE_REQUIRED' });
+  }
   try {
     const cashRegisterSessionId = text(body, 'cashRegisterSessionId');
     const series = text(body, 'series');
@@ -439,8 +486,9 @@ export async function runFulfillCustomerOrderHttp(
       envelope: text(body, 'envelope'),
       idempotencyKey: text(body, 'idempotencyKey'),
       cashRegisterSessionId: cashRegisterSessionId || binding.cashRegisterSessionId,
-      documentType:
-        body.documentType === '01' || body.documentType === '03' ? body.documentType : 'NV',
+      // S43-H3: el documento es explícito — jamás un default NV silencioso
+      // (una venta sin fiscal_outbox no puede nacer de omitir el campo).
+      documentType,
       ...(series ? { series } : {}),
       ...(paymentMethodId ? { paymentMethodId } : {}),
     });

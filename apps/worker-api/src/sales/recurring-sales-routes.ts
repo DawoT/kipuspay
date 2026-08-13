@@ -40,6 +40,8 @@ const SAFE_CODES = new Set([
   'RECURRING_INVALID_RECEIVER',
   'RECURRING_INSUFFICIENT_STOCK',
   'RECURRING_SERIES_UNAVAILABLE',
+  'RECURRING_ANCHOR_DAY_INVALID',
+  'RECURRING_ANCHOR_TIME_INVALID',
 ]);
 
 function result(status: number, body: Body): RecurringHttpResult {
@@ -65,6 +67,32 @@ function errorResult(error: unknown): RecurringHttpResult {
   if (candidate === 'RECURRING_CONFLICT') return result(409, { code: candidate });
   if (candidate === 'RECURRING_FAILED') return result(500, { code: candidate });
   return result(422, { code: candidate });
+}
+
+
+function validateAnchorDay(day: number): number {
+  if (!Number.isInteger(day) || day < 1 || day > 31) {
+    throw new Error('RECURRING_ANCHOR_DAY_INVALID');
+  }
+  return day;
+}
+
+function validateAnchorTime(raw: string): string {
+  if (!/^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/.test(raw)) {
+    throw new Error('RECURRING_ANCHOR_TIME_INVALID');
+  }
+  return raw;
+}
+
+const MAX_CANCEL_BACKDATE_MS = 7 * 24 * 60 * 60 * 1000; // S44-H3
+function clampCancelledAt(raw: string | null | undefined): string {
+  const parsed = raw && Number.isFinite(Date.parse(raw)) ? Date.parse(raw) : NaN;
+  const now = Date.now();
+  if (!Number.isFinite(parsed) || parsed > now) return new Date(now).toISOString();
+  if (parsed < now - MAX_CANCEL_BACKDATE_MS) {
+    return new Date(now - MAX_CANCEL_BACKDATE_MS).toISOString();
+  }
+  return new Date(parsed).toISOString();
 }
 
 function canManage(actor: RecurringSalesActor): boolean {
@@ -188,9 +216,13 @@ function schedule(body: Body): {
       body.documentType === '01' || body.documentType === '03' ? body.documentType : 'NV',
     pricingPolicy: body.pricingPolicy === 'CURRENT' ? ('CURRENT' as const) : ('FIXED' as const),
     frequency,
-    anchorDay: integer(body.anchorDay) ?? new Date(Date.parse(effectiveFrom)).getUTCDate(),
+    // S44-H4: ancla validada en la ruta (0-31 rechazado al crear, no 409
+    // engañoso del DDL; hora estricta HH:MM:SS con hora 00-23).
+    anchorDay: validateAnchorDay(
+      integer(body.anchorDay) ?? new Date(Date.parse(effectiveFrom)).getUTCDate(),
+    ),
     anchorIsLastDay: body.anchorIsLastDay === true,
-    anchorTime: text(body, 'anchorTime') || '09:00:00',
+    anchorTime: validateAnchorTime(text(body, 'anchorTime') || '09:00:00'),
     graceDays: integer(body.graceDays) ?? 3,
     afterGracePolicy:
       body.afterGracePolicy === 'PAUSE_FUTURE_EXECUTION'
@@ -537,7 +569,9 @@ export async function runCancelRecurringPlanHttp(
         expectedVersion,
         actorUserId: actor.userId,
         mode,
-        cancelledAt: text(body, 'cancelledAt') || new Date().toISOString(),
+        // S44-H3: la fecha de cancelación es SERVER-side (clamp) — nunca
+        // backdate >7 días ni futuro (el monto de la NC depende de ella).
+        cancelledAt: clampCancelledAt(text(body, 'cancelledAt')),
         idempotencyKey: text(body, 'idempotencyKey') || crypto.randomUUID(),
       }),
     );

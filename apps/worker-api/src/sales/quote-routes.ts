@@ -133,12 +133,17 @@ export async function runApproveQuoteHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   userId: string,
+  role = '',
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
   if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  // S33-H1: aprobar una cotización exige supervisor+ (nunca cashier).
+  if (role !== 'admin' && role !== 'owner' && role !== 'supervisor') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
   const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
   if (!quoteId) return { status: 400, body: { error: 'quoteId required', code: 'BAD_REQUEST' } };
   try {
@@ -153,12 +158,17 @@ export async function runConvertQuoteHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   userId: string,
+  role = '',
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
   if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  // S33-H1: convertir (genera venta con dinero) exige admin/owner.
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
   const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
   const cashRegisterSessionId =
     typeof body.cashRegisterSessionId === 'string' ? body.cashRegisterSessionId : '';
@@ -220,10 +230,16 @@ export async function runCancelQuoteHttp(
 export async function runListExpiredQuotesHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  // T-1: reporte Dueño solo admin/owner (nunca cashier).
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
+
   const nowIso = new Date().toISOString();
   const rows = await env.DB.prepare(
     `SELECT id, branch_id, status, valid_until, total_cents

@@ -15,6 +15,8 @@ export {
 
 export class BranchKdsHub extends DurableObject {
   private sessions = new Set<WebSocket>();
+  /** S19-H1: historial de eventos para replay (reconexión de KDS). */
+  private readonly historyKey = 'kds_history';
 
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -22,14 +24,27 @@ export class BranchKdsHub extends DurableObject {
     if (request.method === 'POST' && url.pathname === '/broadcast') {
       const event: KdsBroadcastEvent = await request.json();
       const payload = JSON.stringify(event);
+      // S19-H1: persiste el evento para replay (fIFO, máx 200).
+      const history = (await this.ctx.storage.get<KdsBroadcastEvent[]>(this.historyKey)) ?? [];
+      history.push(event);
+      if (history.length > 200) history.splice(0, history.length - 200);
+      await this.ctx.storage.put(this.historyKey, history);
+      let delivered = 0;
       for (const ws of this.sessions) {
         try {
           ws.send(payload);
+          delivered += 1;
         } catch {
           this.sessions.delete(ws);
         }
       }
-      return Response.json({ ok: true, listeners: this.sessions.size });
+      return Response.json({ ok: true, listeners: this.sessions.size, delivered });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/replay') {
+      // S19-H1: un KDS que se reconecta recupera los eventos no vistos.
+      const history = (await this.ctx.storage.get<KdsBroadcastEvent[]>(this.historyKey)) ?? [];
+      return Response.json({ events: history });
     }
 
     if (request.headers.get('Upgrade') === 'websocket') {

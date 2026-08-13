@@ -153,8 +153,11 @@ describe('onboarding.tour routes (Sprint 52)', () => {
 describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalization)', () => {
   function dbWithTenant(mode: string): unknown {
     const rows = { mode };
+    const prepared: string[] = [];
     return {
+      prepared,
       prepare(sql: string) {
+        prepared.push(sql);
         return {
           bind(...args: unknown[]) {
             return {
@@ -180,7 +183,8 @@ describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalizati
   }
 
   it('valida el gate (sin salto) y persiste el nuevo modo en D1', async () => {
-    const db = dbWithTenant('INTERNAL_CONTROL') as {
+    const dbRaw = dbWithTenant('INTERNAL_CONTROL') as {
+      prepared: string[];
       prepare: (s: string) => {
         bind: (...args: unknown[]) => {
           first: () => Promise<{ formalization_mode: string } | null>;
@@ -188,6 +192,7 @@ describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalizati
         };
       };
     };
+    const db = dbRaw;
     const res = await runFormalizationStageHttp(
       { DB: db } as unknown as Parameters<typeof runFormalizationStageHttp>[0],
       't1',
@@ -200,6 +205,8 @@ describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalizati
       formalization_mode: string;
     };
     expect(after.formalization_mode).toBe('FORMALIZING');
+    // S17-H3: el cambio de modo emite audit_events FORMALIZATION_MODE.
+    expect(dbRaw.prepared.some((s) => s.includes("'FORMALIZATION_MODE'"))).toBe(true);
   });
 
   it('salto de etapa sin confirmar → 422 y NO persiste', async () => {

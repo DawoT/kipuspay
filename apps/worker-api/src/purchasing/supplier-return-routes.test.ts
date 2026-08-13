@@ -82,8 +82,15 @@ describe('supplier-return-routes', () => {
     expect(cancelled.status).toBe(200);
   });
 
+
+  it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
+    const res = await runOwnerSupplierReturnsHttp(env(), 't1', 'cashier');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
+  });
+
   it('owner open list', async () => {
-    const res = await runOwnerSupplierReturnsHttp(env(), 't1');
+    const res = await runOwnerSupplierReturnsHttp(env(), 't1', 'owner');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('openReturns');
   });

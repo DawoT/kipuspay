@@ -51,7 +51,7 @@ describe('purchasing-three-way-routes', () => {
   });
 
   it('owner report flag on → 200 listas', async () => {
-    const all = vi.fn().mockResolvedValue({ results: [] });
+    const all = vi.fn<() => Promise<{ results: unknown[] }>>().mockResolvedValue({ results: [] });
     const env = {
       FEATURE_PURCHASING_THREE_WAY: '1',
       DB: {
@@ -60,7 +60,7 @@ describe('purchasing-three-way-routes', () => {
         }),
       },
     } as unknown as WorkerEnv;
-    const res = await runOwnerThreeWayReportHttp(env, 't1');
+    const res = await runOwnerThreeWayReportHttp(env, 't1', 'owner');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('openPurchaseOrders');
     expect(res.body).toHaveProperty('uninvoicedReceipts');
@@ -70,8 +70,24 @@ describe('purchasing-three-way-routes', () => {
     const res = await runOwnerThreeWayReportHttp(
       { FEATURE_PURCHASING_THREE_WAY: '1', DB: {} as D1Database } as WorkerEnv,
       '',
+      'owner',
     );
     expect(res.status).toBe(401);
+  });
+
+  it('S29-H2: reporte Dueño con rol cashier → 403 FORBIDDEN_ROLE', async () => {
+    const all = vi.fn<() => Promise<{ results: unknown[] }>>().mockResolvedValue({ results: [] });
+    const env = {
+      FEATURE_PURCHASING_THREE_WAY: '1',
+      DB: {
+        prepare: () => ({
+          bind: () => ({ all }),
+        }),
+      },
+    } as unknown as WorkerEnv;
+    const res = await runOwnerThreeWayReportHttp(env, 't1', 'cashier');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
   });
 
   it('owner report excluye OCs con factura CLOSED', async () => {
@@ -92,14 +108,14 @@ describe('purchasing-three-way-routes', () => {
         }),
       },
     } as unknown as WorkerEnv;
-    await runOwnerThreeWayReportHttp(env, 't1');
+    await runOwnerThreeWayReportHttp(env, 't1', 'owner');
     const openPoSql = sqls[0];
     expect(openPoSql).toContain("si.status = 'CLOSED'");
     expect(openPoSql).toContain('NOT EXISTS');
   });
 
   it('match sobre PO no recibido → 400 PO_NOT_RECEIVED', async () => {
-    const all = vi.fn().mockResolvedValue({ results: [] });
+    const all = vi.fn<() => Promise<{ results: unknown[] }>>().mockResolvedValue({ results: [] });
     const first = vi.fn().mockResolvedValue({ id: 'po1', status: 'SENT', supplier_id: 's1' });
     const env = {
       FEATURE_PURCHASING_THREE_WAY: '1',

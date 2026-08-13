@@ -33,14 +33,19 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
+/**
+ * S19-H1: notifica al KDS y devuelve el resultado real del broadcast
+ * (listeners y entregas). El caller refleja `kdsVisible` con datos, no un
+ * hardcode.
+ */
 async function notifyKds(
   env: WorkerEnv,
   tenantId: string,
   branchId: string,
   event: Omit<KdsBroadcastEvent, 'tenantId' | 'branchId' | 'serverNowMs'>,
-): Promise<void> {
+): Promise<{ listeners: number; delivered: number }> {
   const hub = env.BRANCH_KDS_HUB_DO;
-  if (!hub) return;
+  if (!hub) return { listeners: 0, delivered: 0 };
   const id = hub.idFromName(branchKdsHubName(tenantId, branchId));
   const stub = hub.get(id);
   const body: KdsBroadcastEvent = {
@@ -49,11 +54,16 @@ async function notifyKds(
     branchId,
     serverNowMs: Date.now(),
   };
-  await stub.fetch('https://kds.internal/broadcast', {
+  const res = await stub.fetch('https://kds.internal/broadcast', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
+  const result = (await res.json().catch(() => null)) as {
+    listeners?: number;
+    delivered?: number;
+  } | null;
+  return { listeners: result?.listeners ?? 0, delivered: result?.delivered ?? 0 };
 }
 
 async function resolveProductPriceCents(
@@ -184,7 +194,7 @@ export async function runFireOrderHttp(
   ]);
 
   const firedAtMs = Date.now();
-  await notifyKds(env, tenantId, order.branch_id, {
+  const kds = await notifyKds(env, tenantId, order.branch_id, {
     type: 'ITEM_FIRED' satisfies KdsEventType,
     orderId,
     firedAtMs,
@@ -192,7 +202,7 @@ export async function runFireOrderHttp(
 
   return {
     status: 200,
-    body: { id: orderId, status: 'FIRED', firedAtMs, kdsVisible: true },
+    body: { id: orderId, status: 'FIRED', firedAtMs, kdsVisible: kds.listeners > 0 },
   };
 }
 
@@ -348,6 +358,8 @@ export async function runSplitBillHttp(
     paymentMethodId?: string;
     portions?: readonly { saleId?: string; itemIds?: readonly string[] }[];
     clientName?: string;
+    /** S19-H2: 'NV' (control interno) | '03' (boleta). Default NV. */
+    documentType?: 'NV' | '03';
   },
 ): Promise<HttpResult> {
   if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
@@ -375,6 +387,10 @@ export async function runSplitBillHttp(
       series: body.series,
       paymentMethodId: body.paymentMethodId,
       ...(body.clientName !== undefined ? { clientName: body.clientName } : {}),
+      // S19-H2: documento según modo — '03' boleta / 'NV' control interno.
+      ...(body.documentType === '03' || body.documentType === 'NV'
+        ? { documentType: body.documentType }
+        : {}),
       portions: (body.portions ?? []).map((p) => ({
         saleId: p.saleId ?? crypto.randomUUID(),
         itemIds: p.itemIds ?? [],

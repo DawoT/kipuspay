@@ -1,13 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { runResolveSellerHttp, runTeamInviteHttp, type TeamEnv } from './team-routes.js';
+
+let CASHIER_PIN_HASH = '';
+beforeEach(async () => {
+  // Hash con salt local (formato salt:sha256) para el mock del resolve.
+  const salt = crypto.randomUUID().replaceAll('-', '').slice(0, 32);
+  const subtle = crypto.subtle as unknown as {
+    digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer>;
+  };
+  const digest = await subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:1234`));
+  CASHIER_PIN_HASH =
+    salt + ':' + Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+});
 
 function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   const first = (sql: string) => {
     if (sql.includes('FROM users') && sql.includes('badge_barcode = ?')) {
       return overrides.sellerByBadge ?? null;
-    }
-    if (sql.includes('FROM users') && sql.includes('pin_hash = ?')) {
-      return overrides.sellerByPin ?? null;
     }
     if (sql.includes('FROM users') && sql.includes('email = ?')) {
       return overrides.existingUser ?? null;
@@ -21,7 +30,16 @@ function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
           return {
             first: () => Promise.resolve(first(sql)),
             run: () => Promise.resolve({ meta: { changes: 1 } }),
-            all: () => Promise.resolve({ results: [] }),
+            all: () => {
+              if (sql.includes('pin_hash IS NOT NULL')) {
+                return Promise.resolve({
+                  results: overrides.sellerByPin
+                    ? [{ ...overrides.sellerByPin, pin_hash: CASHIER_PIN_HASH }]
+                    : [],
+                });
+              }
+              return Promise.resolve({ results: [] });
+            },
           };
         },
       };

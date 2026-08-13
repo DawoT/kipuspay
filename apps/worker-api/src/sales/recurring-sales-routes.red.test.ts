@@ -186,3 +186,41 @@ describe('Sprint 44 Worker scheduled contract (RED)', () => {
     expect(result).not.toHaveProperty('url');
   });
 });
+
+describe('S44-H3/H4: validación server-side de ancla y cancelación', () => {
+  it('anchorDay inválido (0/32) → RECURRING_ANCHOR_DAY_INVALID (no 409 del DDL)', async () => {
+    const base = {
+      customerId: 'c1',
+      branchId: 'b1',
+      frequency: 'MONTHLY',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: 1_000_000 }],
+      pricingPolicy: 'FIXED',
+    };
+    await expect(
+      runCreateRecurringPlanHttp(env(), owner, {
+        ...base,
+        anchorDay: 0,
+      }),
+    ).resolves.toMatchObject({ status: 422, body: { code: 'RECURRING_ANCHOR_DAY_INVALID' } });
+    await expect(
+      runCreateRecurringPlanHttp(env(), owner, {
+        ...base,
+        anchorDay: 32,
+      }),
+    ).resolves.toMatchObject({ status: 422, body: { code: 'RECURRING_ANCHOR_DAY_INVALID' } });
+  });
+
+  it('anchorTime inválido (24:00:00) → RECURRING_ANCHOR_TIME_INVALID', async () => {
+    await expect(
+      runCreateRecurringPlanHttp(env(), owner, {
+        customerId: 'c1',
+        branchId: 'b1',
+        frequency: 'MONTHLY',
+        anchorTime: '24:00:00',
+        items: [{ productId: 'p1', enteredQuantityMicrounits: 1_000_000 }],
+        pricingPolicy: 'FIXED',
+      }),
+    ).resolves.toMatchObject({ status: 422, body: { code: 'RECURRING_ANCHOR_TIME_INVALID' } });
+  });
+});
+

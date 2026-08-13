@@ -92,7 +92,7 @@ describe('quote routes', () => {
   });
 
   it('lists expired for owner', async () => {
-    const res = await runListExpiredQuotesHttp(env(), 't1');
+    const res = await runListExpiredQuotesHttp(env(), 't1', 'owner');
     expect(res.status).toBe(200);
     expect((res.body.items as { status: string }[])[0]?.status).toBe('EXPIRED');
   });
@@ -123,10 +123,10 @@ describe('quote routes', () => {
     const send = await runSendQuoteHttp(env(), 't1', 'u1', { quoteId: 'q1' });
     expect(send.status).toBe(200);
     expect(send.body.status).toBe('SENT');
-    const approve = await runApproveQuoteHttp(env(), 't1', 'u1', { quoteId: 'q1' });
+    const approve = await runApproveQuoteHttp(env(), 't1', 'u1', 'owner', { quoteId: 'q1' });
     expect(approve.status).toBe(200);
     expect(approve.body.status).toBe('APPROVED');
-    const convert = await runConvertQuoteHttp(env(), 't1', 'u1', {
+    const convert = await runConvertQuoteHttp(env(), 't1', 'u1', 'owner', {
       quoteId: 'q1',
       cashRegisterSessionId: 's1',
       series: 'NV01',
@@ -149,7 +149,7 @@ describe('quote routes', () => {
     const missing = await runSendQuoteHttp(env(), 't1', 'u1', { quoteId: 'missing' });
     expect(missing.status).toBe(404);
     vi.mocked(processQuoteConvertAtomic).mockRejectedValueOnce(new Error('QUOTE_EXPIRED'));
-    const expired = await runConvertQuoteHttp(env(), 't1', 'u1', {
+    const expired = await runConvertQuoteHttp(env(), 't1', 'u1', 'owner', {
       quoteId: 'q1',
       cashRegisterSessionId: 's1',
       series: 'NV01',
@@ -157,8 +157,28 @@ describe('quote routes', () => {
     expect(expired.status).toBe(422);
     const sendBad = await runSendQuoteHttp(env(), 't1', 'u1', {});
     expect(sendBad.status).toBe(400);
-    const convertBad = await runConvertQuoteHttp(env(), 't1', 'u1', { quoteId: 'q1' });
+    const convertBad = await runConvertQuoteHttp(env(), 't1', 'u1', 'owner', { quoteId: 'q1' });
     expect(convertBad.status).toBe(400);
+  });
+
+
+  it('S33-H1: approve con cashier → 403; convert con cashier → 403', async () => {
+    const approve = await runApproveQuoteHttp(env(), 't1', 'u1', 'cashier', { quoteId: 'q1' });
+    expect(approve.status).toBe(403);
+    expect(approve.body.code).toBe('FORBIDDEN_ROLE');
+    const convert = await runConvertQuoteHttp(env(), 't1', 'u1', 'cashier', {
+      quoteId: 'q1',
+      cashRegisterSessionId: 's1',
+      series: 'NV01',
+    });
+    expect(convert.status).toBe(403);
+    expect(convert.body.code).toBe('FORBIDDEN_ROLE');
+  });
+
+  it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
+    const res = await runListExpiredQuotesHttp(env(), 't1', 'cashier');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
   });
 
   it('expired list flag off / no DB', async () => {

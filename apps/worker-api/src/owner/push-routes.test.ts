@@ -68,16 +68,12 @@ describe('owner.push_alerts', () => {
     expect(sendOff.status).toBe(404);
 
     const send = await runSendOwnerPushHttp(
-      mockEnv({ FEATURE_OWNER_PUSH: '1' }, [
-        { id: 's1', endpoint: 'https://a', p256dh: 'k', auth: 'a' },
-        { id: 's2', endpoint: 'https://b', p256dh: 'k', auth: 'a' },
-      ]),
+      mockEnv({ FEATURE_OWNER_PUSH: '1' }, []),
       't1',
       { title: 'Alerta', body: 'CxC vencida' },
     );
     expect(send.status).toBe(200);
-    expect(send.body.meetsSla).toBe(true);
-    expect(send.body.deliveryRate).toBe(1);
+    expect(send.body.queued).toBe(false);
 
     const report = runPushDeliveryHarness(100);
     expect(report.deliveryRate).toBeGreaterThanOrEqual(0.99);

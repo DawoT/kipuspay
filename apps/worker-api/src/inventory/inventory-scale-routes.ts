@@ -367,6 +367,10 @@ export async function runHeartbeatScaleDeviceHttp(
   }
   try {
     const binding = await requireActorBinding(env, actor);
+    const weightMicrounits = integer(body, 'weightMicrounits');
+    if (weightMicrounits !== null && (weightMicrounits <= 0 || !Number.isSafeInteger(weightMicrounits))) {
+      return { status: 400, body: { code: 'INVALID_HEARTBEAT_WEIGHT' } };
+    }
     const result = await writeScaleHeartbeat(env.DB!, {
       tenantId: actor.tenantId,
       userId: actor.userId,
@@ -378,6 +382,7 @@ export async function runHeartbeatScaleDeviceHttp(
       protocol: protocol as 'WEBHID' | 'WEB_SERIAL' | 'WEBUSB',
       heartbeatSequence,
       observedAt: text(body, 'observedAt'),
+      weightMicrounits,
     });
     return { status: 200, body: { ...result } };
   } catch (error) {

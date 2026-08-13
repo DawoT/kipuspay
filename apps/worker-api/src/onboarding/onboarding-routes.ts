@@ -78,17 +78,93 @@ export function runBootstrapHttp(
  * Valida el gate del dominio (sin saltos/retrocesos) y actualiza
  * `tenants.formalization_mode` + `enabled_document_types` en D1.
  */
+async function persistFormalizationStage(
+  env: WorkerEnv,
+  tenantId: string,
+  actorUserId: string,
+  fromMode: string,
+  result: ReturnType<typeof changeFormalizationStage>,
+): Promise<{ status: number; body: Record<string, unknown> } | null> {
+  if (!env.DB) {
+    return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+  const enabled = result.enabledDocumentTypes.map((c) => `"${c}"`).join(',');
+  const updated = await env.DB.prepare(
+    `UPDATE tenants SET formalization_mode = ?, enabled_document_types = ?
+     WHERE id = ? AND deleted_at IS NULL`,
+  )
+    .bind(result.formalizationMode, `[${enabled}]`, tenantId)
+    .run();
+  if ((updated.meta?.changes ?? 0) !== 1) {
+    return { status: 404, body: { error: 'Tenant not found', code: 'TENANT_NOT_FOUND' } };
+  }
+  const prevAudit = await env.DB.prepare(
+    `SELECT row_hash FROM audit_events WHERE tenant_id = ?
+     ORDER BY created_at DESC, id DESC LIMIT 1`,
+  )
+    .bind(tenantId)
+    .first<{ row_hash: string }>();
+  const rowHash = await sha256Hex(
+    JSON.stringify({
+      action: 'FORMALIZATION_MODE',
+      entity_id: tenantId,
+      prev: prevAudit?.row_hash ?? null,
+    }),
+  );
+  await env.DB.prepare(
+    `INSERT INTO audit_events (
+       id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+       prev_hash, row_hash, payload_json
+     ) VALUES (?, ?, NULL, ?, 'FORMALIZATION_MODE', 'tenant', ?, ?, ?, ?)`,
+  )
+    .bind(
+      crypto.randomUUID(),
+      tenantId,
+      actorUserId,
+      tenantId,
+      prevAudit?.row_hash ?? null,
+      rowHash,
+      JSON.stringify({ from: fromMode, to: result.formalizationMode }),
+    )
+    .run();
+  return null;
+}
+
 export async function runFormalizationStageHttp(
   env: WorkerEnv,
   tenantId: string,
   raw: unknown,
+  actorUserId = 'system',
+  actorRole = '',
 ): Promise<{ status: number; body: Record<string, unknown> }> {
+  // S52-H1: cambiar el modo fiscal del tenant es admin/owner — jamás cashier
+  // (un cajero podría bajar a INTERNAL_CONTROL y evadir la emisión electrónica).
+  if (actorRole && actorRole !== 'owner' && actorRole !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
+  if (!env.DB) {
+    return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
+  }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
   const o = raw as Record<string, unknown>;
   if (!isMode(o.from) || !isMode(o.to) || typeof o.confirmed !== 'boolean') {
     return { status: 422, body: { error: 'Cambio de etapa invalido', code: 'INVALID_STAGE' } };
+  }
+  // S52-H1: el `from` es el modo ACTUAL de la DB, nunca el declarado por el
+  // cliente (el gate de la máquina de estados no se salta ni se retrocede).
+  const currentMode = await env.DB.prepare(
+    `SELECT formalization_mode FROM tenants WHERE id = ? AND deleted_at IS NULL LIMIT 1`,
+  )
+    .bind(tenantId)
+    .first<{ formalization_mode: string }>();
+  const actualFrom = currentMode?.formalization_mode ?? null;
+  if (!actualFrom) {
+    return { status: 404, body: { error: 'Tenant not found', code: 'TENANT_NOT_FOUND' } };
+  }
+  if (actualFrom !== o.from) {
+    return { status: 422, body: { error: 'Stage mismatch', code: 'STAGE_MISMATCH' } };
   }
   let result: ReturnType<typeof changeFormalizationStage>;
   try {
@@ -102,21 +178,20 @@ export async function runFormalizationStageHttp(
       },
     };
   }
-  if (!env.DB) {
-    return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
-  }
-  // Persiste en el tenant (y sus docs habilitados derivados de la etapa).
-  const enabled = result.enabledDocumentTypes.map((c) => `"${c}"`).join(',');
-  const updated = await env.DB.prepare(
-    `UPDATE tenants SET formalization_mode = ?, enabled_document_types = ?
-     WHERE id = ? AND deleted_at IS NULL`,
-  )
-    .bind(result.formalizationMode, `[${enabled}]`, tenantId)
-    .run();
-  if ((updated.meta?.changes ?? 0) !== 1) {
-    return { status: 404, body: { error: 'Tenant not found', code: 'TENANT_NOT_FOUND' } };
-  }
+  const persistenceError = await persistFormalizationStage(
+    env,
+    tenantId,
+    actorUserId,
+    String(o.from),
+    result,
+  );
+  if (persistenceError) return persistenceError;
   return { status: 200, body: { ...result } };
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**

@@ -229,12 +229,18 @@ function parsePayInstallmentBody(body: Record<string, unknown>): {
 export async function runOwnerInstallmentsOverdueHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
+  role = '',
 ): Promise<HttpResult> {
   if (!isSalesInstallmentsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
+  // T-1: reporte Dueño solo admin/owner (nunca cashier).
+  if (role !== 'owner' && role !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
+
   const items = await listOverdueInstallments(env.DB, tenantId, new Date().toISOString());
   return { status: 200, body: { items } };
 }
