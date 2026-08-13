@@ -7729,3 +7729,1362 @@ aprobaciones: [Staff Backend ACID R, Staff Hardware/Frontend R, Staff Fiscal R, 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0352
+timestamp_utc: 2026-08-13T19:00:00Z
+schema_version: 2
+sprint_fase: Gobernanza — Colisión de id en el ledger (0344 duplicado)
+agente_responsable: Staff Principal (A) / Staff Auditor (V)
+tipo: Corrección de integridad
+subtipo: CORRIGE — id 0344 usado dos veces
+relacion: CORRIGE
+referencias_entradas: [0344, 0344, 0345, 0346]
+referencias_documentales: [docs/LEDGER.md, AGENTS §2.4 (ledger append-only)]
+prev_id: 0351
+prev_hash: 93b93221314fabe2ba548c26fe64a104ff567201645b5c2144b6ba1912e88fa3
+entry_hash: dcb6218112c724eafa55d47623004bfe79be9c4f44de3d0933d0e81cf8f82a6a
+ticket_or_adr: Auditoría FASE 6D — integridad del ledger
+test_ids: [V-13, V-16, SUITE]
+entregable_afectado: docs/LEDGER.md — índice de entradas
+descripcion: >
+  El id 0344 fue usado por dos entradas distintas: la de P1b (GRE 31,
+  timestamp 01:10Z) y la de FASE 6C Bloque A (timestamp 10:30Z). La colisión
+  se originó por trabajo en paralelo de agentes; ambas quedaron commiteadas y
+  el ledger es append-only (invariante 4) — las entradas NO se renumeran ni se
+  editan. Esta entrada CORRIGE declara la colisión y fija el id canónico:
+  0344-P1b (la primera cronológica) conserva el id 0344; la entrada de FASE
+  6C Bloque A (10:30Z, prev_hash 84cb36 → entry 9623f6) se identifica
+  canónicamente como '0344-B' en el índice humano. La cadena de hashes
+  (V-13) permanece íntegra: cada entrada encadena por prev_hash al hash de la
+  anterior en orden de archivo, independiente del id.
+evidencia: >
+  RED: dos entradas con id 0344 (grep count = 2); índice humano ambiguo al
+  referenciar 0344.
+  GREEN: V-13 GREEN (cadena lineal por prev_hash/entry_hash intacta, 201
+  entradas verificadas); V-16 GREEN (append-only: ninguna entrada commiteada
+  fue editada); la entrada 0351 de P2 encadena correctamente a la 0344-P1b.
+  Corrección = esta entrada CORRIGE, sin tocar entradas previas.
+ancestry_verified: true
+aprobaciones: [Staff Principal R, Staff Auditor V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0353
+timestamp_utc: 2026-08-13T19:30:00Z
+schema_version: 2
+sprint_fase: FASE 6D — Auditoría Bloque A (seguridad crítica; S39–S42)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S42-H1, S39-H1, S40-H1
+relacion: amplia
+referencias_entradas: [0352]
+referencias_documentales: [apps/worker-api/src/backup/backup-routes.ts, apps/worker-api/src/inventory/inventory-ops-routes.ts, packages/adapters-d1/src/process-inventory-scale-atomic.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/adapters-d1/migrations/0049_sprint40_scale_weight_reading.sql]
+prev_id: 0352
+prev_hash: dcb6218112c724eafa55d47623004bfe79be9c4f44de3d0933d0e81cf8f82a6a
+entry_hash: 0b2170a5ca87af0ce49ca64eb95ca1dce4a840bd1e6a6aa965dda6a301940d57
+ticket_or_adr: Auditoría FASE 6D Bloque A; SEC-09 regla 2 §5.3; invariante 5
+test_ids: [src/data-backup-contract.test.ts (S42-H1/H2), src/inventory/inventory-ops-routes.test.ts (S39-H1), src/inventory-scale.integration.test.ts, src/process-weighted-sale-atomic.integration.test.ts (S40-H1), V-13, V-25, SUITE]
+entregable_afectado: backup step-up, conteos/mermas de inventario, balanza WEIGH
+descripcion: >
+  Bloque A de la auditoría FASE 6D (seguridad crítica). S42-H1: el step-up
+  token de backup se consumía (x-step-up-token) pero NINGÚN endpoint lo
+  emitía — download/restore-dry-run/DR devolvían 401 siempre en producción;
+  ahora runMintBackupStepUpTokenHttp emite el token (owner + permiso
+  data.backup.download + one-shot TTL 90s + scope DATA_BACKUP_DOWNLOAD |
+  PLATFORM_DR_SIMULATION) y el INSERT incluye action/actor_user_id que el
+  consume exige; test end-to-end mint→consume con replay rechazado. S39-H1:
+  /api/inventory/counts/submit-review, counts/approve y losses/approve sin
+  role-guard (cashier ajustaba stock y marcaba seriales LOST) y el umbral de
+  diferencia era client-controlled; ahora exigen admin/owner (FORBIDDEN_ROLE)
+  y el umbral se lee server-side de tenant_discount_policies. S40-H1: el peso
+  DEVICE con heartbeat fresco aceptaba peso arbitrario (bypass de
+  WEIGHT_OVERRIDE_REQUIRED); ahora la balanza registra su lectura cruda en el
+  heartbeat (migración 0049 last_weight_microunits) y el motor exige que el
+  peso DEVICE coincida EXACTAMENTE con esa lectura (WEIGHT_DEVICE_READING_MISMATCH).
+evidencia: >
+  RED: download con token emitido daba 401 (sin mint); cashier aprobaba
+  mermas y conteos; peso DEVICE arbitrario (4 kg) pasaba sin token.
+  GREEN: backup-contract 15/15 (mint→consume→replay 401); inventory-ops 37/37
+  (cashier→403 en 3 endpoints + umbral server-side 2000); weighted-sale 8/8 e
+  inventory-scale 12/12 (peso arbitrario rechazado, lectura registrada
+  aceptada); migración 0049 con espejo down (V-25); tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0354
+timestamp_utc: 2026-08-13T19:45:00Z
+schema_version: 2
+sprint_fase: FASE 6D — Auditoría Bloque B (fail-closed y evidencia; S39–S42)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S42-H2, S39-H2, S41-H1
+relacion: amplia
+referencias_entradas: [0353]
+referencias_documentales: [apps/worker-api/src/backup/backup-routes.ts, packages/adapters-d1/src/inventory-serial.integration.test.ts, docs/ops/s41-price-labels-qg.md]
+prev_id: 0353
+prev_hash: 0b2170a5ca87af0ce49ca64eb95ca1dce4a840bd1e6a6aa965dda6a301940d57
+entry_hash: 939c6c36bb5d8dd219ce564b674a1313538459f8b6d7812afb95632bc83c95a5
+ticket_or_adr: Auditoría FASE 6D Bloque B; invariante 5 (fail-closed)
+test_ids: [src/data-backup-contract.test.ts (S42-H2), src/inventory-serial.integration.test.ts (S39-H2), V-13, SUITE]
+entregable_afectado: backup sin DB, devolución de series, límite documentado de ACK
+descripcion: >
+  Bloque B de la auditoría FASE 6D. S42-H2: capability()/create/list de
+  backup eran fail-open sin DB (202 no persistido y list 200 vacío) — violaban
+  la invariante 5; ahora 503 BACKUP_D1_UNAVAILABLE (jamás un 202/200 sin
+  persistencia). S39-H2: la evidencia D1 de seriales se engrosó — test real
+  de '0 venta sin serie' (producto serializado sin serialId → rechazo) y
+  devolución que libera la serie por la matriz real
+  (SOLD→RETURNED_INSPECTION→AVAILABLE). S41-H1: el límite del ACK de
+  impresión (confiado al terminal, outbox sin binding criptográfico) se
+  documentó en el QG s41 — decisión aceptada, claim GTM-17 congelado.
+evidencia: >
+  RED: backup create sin DB devolvía 202 (backup fantasma) y list 200 vacío;
+  sin test de 'venta sin serie'; límite del ACK no documentado.
+  GREEN: backup-contract 15/15 (503 sin DB en create y list); inventory-serial
+  5/5 (rechazo de venta sin serie + liberación por matriz real); QG s41 con
+  sección Residuales/S41-H1; tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0355
+timestamp_utc: 2026-08-13T20:00:00Z
+schema_version: 2
+sprint_fase: FASE 6D — Auditoría Bloque C (chaos fail-closed; S39–S42)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de evidencia
+subtipo: 4 chaos fail-closed (serials, scale, price-labels, backup)
+relacion: amplia
+referencias_entradas: [0354]
+referencias_documentales: [packages/chaos-harness/src/inventory-serial-assignment.ts, packages/chaos-harness/src/inventory-scale-heartbeat.ts, packages/chaos-harness/src/price-label-printing.ts, packages/chaos-harness/src/data-backup-chaos.ts]
+prev_id: 0354
+prev_hash: 939c6c36bb5d8dd219ce564b674a1313538459f8b6d7812afb95632bc83c95a5
+entry_hash: ad6dfb69d834736767049853499f73ed27e0868264a39c84e28ab2c1fa3a34d2
+ticket_or_adr: Auditoría FASE 6D Bloque C
+test_ids: [src/inventory-serial-assignment.test.ts, src/inventory-scale-heartbeat.test.ts, src/price-label-printing.test.ts, src/data-backup-chaos.test.ts, src/index.test.ts, chaos-harness 116/116, V-13, SUITE]
+entregable_afectado: 4 chaos de la fase 6D — contrato fail-closed
+descripcion: >
+  Bloque C de la auditoría FASE 6D: los 4 chaos (inventory-serial-assignment,
+  inventory-scale-heartbeat, price-label-printing, data-backup-chaos) eran
+  simulaciones in-memoria que auto-afirmaban PASS con flags hardcodeados y
+  tautologías (x===x, métricas constantes 0, condiciones siempre-true por
+  ||). Ahora siguen el patrón fail-closed de la FASE 6C: el judge exige
+  engineEvidenceVerified (solo evidencia real del motor D1 da PASS), los
+  runners aceptan el flag y los tests del harness inyectan la evidencia real
+  desde los integration tests (scale 12/12, seriales 5/5, backup 15/15,
+  price-labels 7/7). El juicio puro sin evidencia → FAIL.
+evidencia: >
+  RED: chaos puros daban PASS sin tocar el motor (flags hardcoded, x===x,
+  métricas 0 constantes); el harness esperaba PASS del simulado.
+  GREEN: 4 chaos con judge fail-closed (puro→FAIL, con evidencia→PASS);
+  harness 27/27 con inyección de evidencia real; chaos-harness 116/116; tsc
+  limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0356
+timestamp_utc: 2026-08-13T23:00:00Z
+schema_version: 2
+sprint_fase: Sprint C1 — Pantalla de venta con catálogo real (grid + buscador)
+agente_responsable: Staff Frontend (owner) / Staff Backend ACID (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: GET /api/catalog/sellable + grid/buscador en la terminal + fin del demo
+relacion: amplia
+referencias_entradas: [0355, 0350]
+referencias_documentales: [apps/worker-api/src/catalog/sellable-catalog-routes.ts, apps/worker-api/src/catalog/sellable-catalog-routes.test.ts, apps/worker-api/src/index.ts, apps/worker-api/src/auth/control-plane.ts, apps/worker-api/src/auth/protected-routes.test.ts, docs/architecture/05-3-commercial-ops.md (regla 38), docs/architecture/01-principles.md, apps/pos-web/src/lib/catalog/sellable-catalog-client.ts, apps/pos-web/src/lib/catalog/sellable-catalog-client.test.ts, apps/pos-web/src/lib/features.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/tests/e2e/fixtures/sellable-catalog.ts, apps/pos-web/tests/e2e/home.spec.ts, apps/pos-web/tests/e2e/checkout.spec.ts, apps/pos-web/tests/e2e/identity-checkout.spec.ts, apps/pos-web/tests/e2e/cash-tips-drawer.spec.ts, apps/pos-web/src/lib/ui/Modal.svelte, apps/pos-web/playwright.config.ts]
+prev_id: 0355
+prev_hash: ad6dfb69d834736767049853499f73ed27e0868264a39c84e28ab2c1fa3a34d2
+entry_hash: ae6991ddb20e459187d4f44e88a268678ab35b1bccf1085d00884fcb26303712
+ticket_or_adr: Plan Fase C (auditoría de frontend); regla 38 §5.3; capability catalog.sellable
+test_ids: [src/catalog/sellable-catalog-routes.test.ts, src/lib/catalog/sellable-catalog-client.test.ts, tests/e2e/modal-a11y.spec.ts, tests/e2e/cash-tips-drawer.spec.ts, suite e2e pos-web 56/56, unit worker-api 1028/1028, unit pos-web 244/244, V-13, V-15, V-21, V-24, SUITE]
+entregable_afectado: worker-api (nueva ruta de lectura) + POS web (pantalla de venta, kit, Modal)
+descripcion: >
+  Sprint C1: la pantalla de venta del POS deja el producto demo hardcodeado y
+  cobra desde el catálogo real del tenant. Backend: GET /api/catalog/sellable
+  (catalog/sellable-catalog-routes.ts) — productos con is_active=1 AND
+  is_sellable=1 AND deleted_at IS NULL, precio resuelto por lista (lista de la
+  sucursal del JWT -> default del tenant -> price_cents; variantes con
+  resolveVariantUnitPriceCents: override -> lista del padre -> lista propia ->
+  catálogo), stock por sucursal en microunits (suma agregada sin branchId) y
+  UOM base; flag FEATURE_CATALOG_SELLABLE -> 404 FEATURE_OFF; registrada en
+  index.ts con actor JWT (tenantId + user.branchId) y en la matriz de rutas
+  protegidas (paridad Sprint 2). Gobernanza: regla 38 en
+  docs/architecture/05-3-commercial-ops.md + capability catalog.sellable en
+  01-principles.md; el extractor de INDEX (gen_index.py) extendido para
+  aceptar sprints 'C\d+' (UI fuera del roadmap numérico) — validado por
+  regeneración y V-15. Cliente: sellable-catalog-client.ts (interfaz +
+  validador fail-closed con safeInteger sobre montos y stock, errores
+  tipados SELLABLE_OFFLINE/FEATURE_OFF, sin header authorization cuando no
+  hay credencial) con 5 tests unitarios. +page.svelte: carrito arranca vacío
+  (fin del demo pre-cargado), grid de catálogo con buscador client-side
+  (nombre/SKU/código), estados loading (Skeleton del kit), error (StatusMessage
+  con aviso y venta rápida disponible) y vacío (EmptyState); cada producto
+  con data-testid add-line-{productId}; el resolveProduct del escáner serial
+  ahora resuelve desde el catálogo real; se corrigió el fallback
+  'https://api.kipuspay.local' del escáner serial a same-origin (violaba
+  connect-src 'self', mismo bug que el fix de 6B en cash policy). e2e:
+  fixture compartido tests/e2e/fixtures/sellable-catalog.ts y actualización
+  de home/checkout/identity-checkout/cash-tips-drawer al nuevo contrato
+  (add-line-{id}); PUBLIC_FEATURE_CATALOG_SELLABLE añadido al playwright
+  config. Modal.svelte: fix de regresión de foco — el reintento de foco
+  (rAF/setTimeout 100ms) podía robar el foco al usuario tras tabular dentro
+  del diálogo; el guard ahora verifica root.contains(document.activeElement)
+  (diagnosticado con instrumentación de consola: handler activo, items=4,
+  foco robado por el timer).
+evidencia: >
+  RED: la venta mostraba un único producto demo hardcodeado; el marketing
+  claima 'no una demo de catálogo' (VerticalLandingView) sin soporte real; el
+  reintento de foco del Modal robaba el foco post-Tab (fallo intermitente de
+  modal-a11y diagnosticado con logs: KIPUS_KEY Tab activeIsRoot:true items:4
+  y activeElement sin moverse); cash-tips-drawer usaba el testid del demo
+  eliminado. GREEN: sellable-catalog-routes 8/8 (flag off, tenant, DB, precio
+  de lista gana, fallback catálogo, override de variante, UOM/stock);
+  sellable-catalog-client 5/5; unit worker-api 1028/1028 (matriz de rutas con
+  la nueva GET); unit pos-web 244/244; suite e2e 56/56 (grid real, buscador,
+  identidad SUNAT con catálogo, propinas P2 sobre el grid); bundle 221.09 kB
+  gz < 300 kB (V-24); typecheck/lint 0 errores en scope C1; verify.sh SUITE
+  GREEN; INDEX con catalog.sellable (V-15).
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Backend ACID A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0357
+timestamp_utc: 2026-08-13T22:30:00Z
+schema_version: 2
+sprint_fase: Sprint C2 — Login real del POS con PIN de cajero (identidad local)
+agente_responsable: Staff Backend ACID (owner) / Staff Security (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: POST /api/auth/cashier-login (PIN + lockout + mint JWT) + pantalla de login real
+relacion: amplia
+referencias_entradas: [0356, 0355]
+referencias_documentales: [docs/adr/ADR-0034-cashier-login.md, docs/architecture/03-auth-plan-enforcement.md, docs/architecture/01-principles.md, apps/worker-api/src/auth/cashier-login-route.ts, apps/worker-api/src/auth/cashier-login-route.test.ts, apps/worker-api/src/auth/verify-jwt.ts (signHs256), apps/worker-api/src/auth/idp-user.ts, apps/worker-api/src/index.ts, apps/worker-api/src/auth/control-plane.ts, apps/worker-api/src/auth/protected-routes.test.ts, apps/pos-web/src/lib/auth/cashier-login.ts, apps/pos-web/src/lib/auth/token-store.ts, apps/pos-web/src/routes/login/+page.svelte, apps/pos-web/src/routes/+layout.svelte, apps/pos-web/src/routes/+page.svelte, apps/pos-web/tests/e2e/login.spec.ts]
+prev_id: 0356
+prev_hash: ae6991ddb20e459187d4f44e88a268678ab35b1bccf1085d00884fcb26303712
+entry_hash: 948af8a0b99ec1db72f3e1ea2a61bfdfbc7b0a57bc49aaa40fe5ef00cc45ac00
+ticket_or_adr: ADR-0034 (identidad local vs IdP); SEC-01/SEC-03/SEC-11; regla 36 §5.3
+test_ids: [src/auth/cashier-login-route.test.ts, src/lib/auth/cashier-login.test.ts, src/lib/auth/token-store.test.ts, tests/e2e/login.spec.ts, tests/e2e/mobile-pwa-a11y.spec.ts, suite e2e pos-web 60/60, unit worker-api (login + paridad), unit pos-web 254/254, V-13, V-15, V-21, V-24, SUITE]
+entregable_afectado: worker-api (auth) + POS web (login, layout, catálogo/serial con token)
+descripcion: >
+  Sprint C2: login real del POS con PIN de cajero (ADR-0034). Backend:
+  POST /api/auth/cashier-login (auth/cashier-login-route.ts, ruta PÚBLICA
+  registrada antes del middleware auth) — body {tenantId, identifier, pin}
+  con identifier = users.id o badge_barcode EMP-… resuelto dentro del tenant;
+  verificación del PIN contra users.pin_hash (formato SHA-256 hex emitido por
+  TEAM_INVITE) en tiempo constante byte a byte; lockout en memoria 5 fallos/15
+  min por tenant+identifier (SEC-11, el 5º fallo bloquea); identifier
+  desconocido responde PIN_INVALID idéntico al PIN incorrecto (sin
+  enumeración); PIN_NOT_CONFIGURED solo si el usuario existe sin pin_hash; sin
+  secret de firma -> 503 SIGNING_UNAVAILABLE; mint JWT HS256 local
+  (signHs256 en verify-jwt.ts: sub=users.id, tenantId, role, branchId,
+  auth_time, iat/nbf/exp TTL 12h) que pasa por el mismo decideAuthGate.
+  loadUserFromD1 ahora matchea (external_auth_id = ? OR id = ?): los JWT de
+  IdP externo siguen por external_auth_id, los locales por id (los usuarios
+  invitados por TEAM_INVITE no tienen external_auth_id). El detector de
+  paridad de rutas excluye las rutas registradas antes del middleware
+  (públicas por construcción). Flag FEATURE_AUTH_CASHIER_LOGIN (default-off).
+  Gobernanza: ADR-0034 (decisión: identidad local como credencial adicional
+  al IdP; argon2id SEC-03 documentado como deuda — sin runtime argon2 en el
+  worker y hashes existentes no verificables con argon2; lockout por-isolate
+  como deuda compartida con authz-token) + capability auth.cashier_login en
+  01-principles y regla en 03-auth-plan-enforcement. Cliente: token-store
+  (kipuspay_token localStorage con tolerancia a storage bloqueado),
+  cashier-login client (LoginError tipados: PIN_INVALID/PIN_LOCKED/
+  PIN_NOT_CONFIGURED/FEATURE_OFF/LOGIN_OFFLINE/LOGIN_INVALID), /login con
+  formulario real (badge/PIN, kit ui/*, estados busy/error/success, tenant
+  desde la sesión del tenant) y redirección al terminal tras persistir el
+  token; el layout resuelve authorization = PUBLIC_DEV_AUTH ?? token del
+  storage y muestra 'Iniciar sesión' (48px) cuando la sesión falla sin dev
+  auth; el catálogo sellable y el escáner serial usan el token como fallback.
+  Fix de tipo en charge.ts de la sesión 6B (captureStatus 'API'|'MANUAL') que
+  bloqueaba el typecheck.
+evidencia: >
+  RED: /login era un placeholder; los cajeros invitados localmente no podían
+  autenticarse (external_auth_id NULL y sin mint); sin session se abría el
+  POS sin identidad. GREEN: cashier-login-route 8/8 (flag, campos, DB, sin
+  enumeración, PIN_NOT_CONFIGURED, mint con claims y roundtrip verify
+  sub/tenantId/exp 12h, lockout 5º fallo, signing unavailable);
+  cashier-login 5/5; token-store 4/4; e2e login 4/4 (éxito + token en
+  localStorage + redirección, PIN_INVALID, PIN_LOCKED, FEATURE_OFF); suite
+  e2e pos-web 60/60 (incl. mobile-pwa-a11y 48px con el link de login);
+  unit worker-api: login 8/8 + paridad de rutas con exclusión de públicas;
+  unit pos-web 254/254; bundle 223.01 kB gz < 300 kB (V-24); typecheck/lint
+  0 errores en scope C2; verify.sh SUITE GREEN (V-13 cadena con 0357).
+  Pendiente ajeno: suite worker-api global con 7 fallos transitorios en
+  src/push/mobile-push-routes.red.test.ts por la edición en vivo de 6B
+  (mobile-push-routes.ts 12:25); no relacionados con C2.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Security A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0358
+timestamp_utc: 2026-08-13T23:00:00Z
+schema_version: 2
+sprint_fase: FASE 6E — Auditoría Bloque A (seguridad crítica; S43–S45)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S45-H1, S45-H2, S43-H1
+relacion: amplia
+referencias_entradas: [0357]
+referencias_documentales: [apps/worker-api/src/push/mobile-push-routes.ts, apps/worker-api/src/push/mobile-push-dispatcher.ts, packages/adapters-d1/src/process-mobile-push-atomic.ts, packages/adapters-messaging/src/index.ts, packages/adapters-d1/src/process-customer-order-atomic.ts]
+prev_id: 0357
+prev_hash: 948af8a0b99ec1db72f3e1ea2a61bfdfbc7b0a57bc49aaa40fe5ef00cc45ac00
+entry_hash: 9cd41a2bccd945e95a376c57b636233fb0eb4e974c583cd30380600067954d88
+ticket_or_adr: Auditoría FASE 6E Bloque A; invariante 5 (fail-closed)
+test_ids: [src/push/mobile-push-routes.test.ts (S45-H1/H3), src/push/mobile-push-routes.red.test.ts, src/mobile-push-workerd.red.integration.test.ts (S45-H2), packages/adapters-messaging/src/index.test.ts (S43-H1), V-13, SUITE]
+entregable_afectado: push mobile, dispatcher, consentimiento, WhatsApp
+descripcion: >
+  Bloque A de la auditoría FASE 6E (seguridad crítica). S45-H1: 6 endpoints
+  push (grant/subscribe/revoke consent/revoke device/list/privacy) eran
+  fail-open sin DB — devolvían 201/204/200 sin persistir; ahora 503
+  PUSH_D1_UNAVAILABLE (invariante 5) y authorize() falla-closed sin DB.
+  S45-H2: appendPushEventAtomic encolaba SIN consentimiento (el guard
+  atomic_guards ok=1 sí aborta el batch — verificado en D1 real) y
+  materializeDeliveries entregaba eventos retroactivos al consentir después;
+  ahora el dispatcher exige e.created_at >= c.granted_at. S43-H1: el transporte
+  WhatsApp sin token afirmaba accepted:true con providerRef sandbox (ACK falso
+  → notificación SENT sin entrega real); ahora accepted:false fail-closed y el
+  dispatch marca RETRY/FAILED, jamás SENT.
+evidencia: >
+  RED: push sin DB devolvía 201/204/200; evento pre-consentimiento se entregaba
+  tras consentir; WhatsApp sandbox marcaba SENT sin enviar.
+  GREEN: push-routes 12/12 (503 sin DB en 6 endpoints), workerd push 8/8
+  (append sin consentimiento aborta con count 0 + sin entrega retroactiva),
+  messaging 9/9 (sandbox accepted:false); worker-api 102/102; tsc limpio;
+  SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0359
+timestamp_utc: 2026-08-13T23:15:00Z
+schema_version: 2
+sprint_fase: FASE 6E — Auditoría Bloque B (controles server; S43–S45)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S43-H2/H3/H4, S44-H1/H2, S45-H3/H4
+relacion: amplia
+referencias_entradas: [0358]
+referencias_documentales: [apps/worker-api/src/orders/customer-order-routes.ts, apps/worker-api/src/orders/expire-orders-scheduled.ts, apps/worker-api/src/worker.ts, packages/adapters-d1/src/process-recurring-sale-atomic.ts, apps/worker-api/src/push/mobile-push-routes.ts, apps/worker-api/src/owner/push-routes.ts]
+prev_id: 0358
+prev_hash: 9cd41a2bccd945e95a376c57b636233fb0eb4e974c583cd30380600067954d88
+entry_hash: 021f92e190b7e79bed561084727c41cc1d862697e0a2797db8ce9d37df521738
+ticket_or_adr: Auditoría FASE 6E Bloque B; regla 1 (precio server-side)
+test_ids: [src/orders/expire-orders-scheduled.test.ts, src/orders/customer-order-routes.red.test.ts, src/recurring-sales-workerd.red.integration.test.ts, src/recurring-sales-scheduler.integration.test.ts, src/push/mobile-push-routes.test.ts (S45-H3), src/owner/push-routes.test.ts, V-13, SUITE]
+entregable_afectado: pedidos, recurrencias, push, owner push legacy
+descripcion: >
+  Bloque B de la auditoría FASE 6E. S43-H2: reservedUntil sin tope (reserva
+  perpetua) + sin cron de expiración — ahora clamp 24h server-side y
+  runExpireOrdersScheduled (cron 5 min) expira pedidos vencidos y libera stock.
+  S43-H3: documentType con default NV silencioso (venta sin fiscal_outbox) —
+  ahora obligatorio y explícito (422 si falta). S43-H4: priceListId
+  client-controlled (sub-precio) — ahora se valida contra price_lists activos
+  del tenant (regla 1). S44-H1: evaluateRecurringGraceAtomic era dead code —
+  la política post-gracia nunca pausaba; ahora el scheduler evalúa la gracia
+  ANTES de liquidar (GRACE → PAUSED). S44-H2: precio CURRENT con race
+  read-then-batch — el guard re-verifica el precio vigente (COALESCE
+  pp.price_cents, p.price_cents) para planes CURRENT. S45-H3: re-grant de
+  consentimiento → 500 UNIQUE — ahora 200 idempotente. S45-H4: legacy
+  runSendOwnerPushHttp roto post-0038 (SELECT de columnas dropeadas) — ahora
+  encola en el motor mobile.push (best-effort).
+evidencia: >
+  RED: reserva sin tope ni expiración; documentType omitido → NV sin fiscal;
+  price list de descuento elegible; post-gracia nunca pausaba; re-grant 500;
+  owner push muerto.
+  GREEN: expire-orders-scheduled 3/3; customer-order-routes 36/36; recurring
+  integration 13/13; push-routes 12/12; owner/loyalty 20/20; worker-api 102/102;
+  tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0360
+timestamp_utc: 2026-08-13T23:30:00Z
+schema_version: 2
+sprint_fase: FASE 6E — Auditoría Bloque C (menores, chaos y cobertura; S43–S45)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de evidencia
+subtipo: S44-H3/H4, S45-H5, 3 chaos fail-closed, cobertura CAL-05
+relacion: amplia
+referencias_entradas: [0359]
+referencias_documentales: [apps/worker-api/src/sales/recurring-sales-routes.ts, apps/worker-api/src/push/mobile-push-routes.ts, packages/chaos-harness/src/customer-orders.ts, packages/chaos-harness/src/recurring-sales.ts, packages/chaos-harness/src/mobile-push.ts]
+prev_id: 0359
+prev_hash: 021f92e190b7e79bed561084727c41cc1d862697e0a2797db8ce9d37df521738
+entry_hash: f81a6d59f73838e3d3fc0e9d2b3001294a798b60ec2fef69128427945293058e
+ticket_or_adr: Auditoría FASE 6E Bloque C; CAL-05
+test_ids: [src/sales/recurring-sales-routes.red.test.ts (S44-H3/H4), src/push/mobile-push-routes.test.ts (S45-H5), src/customer-orders.red.test.ts, src/recurring-sales.red.test.ts, src/mobile-push.red.test.ts, src/index.test.ts, chaos-harness 116/116, V-13, SUITE]
+entregable_afectado: validación de ancla, policyVersion, 3 chaos, cobertura Worker API
+descripcion: >
+  Bloque C de la auditoría FASE 6E. S44-H3: cancelledAt client-controlled
+  determinaba el monto de la NC — ahora clamp server (no futuro, no backdate
+  >7 días). S44-H4: anchorDay 0/32 y anchorTime 24:00:00 pasaban al DDL (409
+  engañoso, GLOB acepta horas 20-29) — ahora validación en ruta
+  (RECURRING_ANCHOR_DAY_INVALID/TIME_INVALID → 422). S45-H5: policyVersion
+  client-controlled sin validación — ahora debe coincidir con la política
+  vigente del tenant (PUSH_POLICY_VERSION_MISMATCH). Chaos: customer-orders,
+  recurring-sales y mobile-push eran simulaciones puras con tautologías
+  (contadores imposibles, x===x, métricas 0 constantes) — ahora fail-closed
+  con engineEvidenceVerified (patrón 6C/6D) y el harness inyecta evidencia
+  real. Cobertura Worker API: 75.59% statements (umbral CAL-05 70%, antes
+  73.53% en el QG) — subió con los tests de ancla/expiración/fail-closed.
+evidencia: >
+  RED: cancelledAt backdated sin clamp; ancla inválida → 409 engañoso; chaos
+  puros daban PASS sin motor; cobertura en borde bajo.
+  GREEN: recurring-routes 10/10 (ancla/time 422); push-routes 12/12
+  (policy mismatch); chaos 6E fail-closed 8/8 + harness 27/27; chaos-harness
+  116/116; cobertura Worker API 75.59%; tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0361
+timestamp_utc: 2026-08-14T00:30:00Z
+schema_version: 2
+sprint_fase: Fase E — Pulido UX (transiciones, QR real en preview, focus/reduced-motion globales)
+agente_responsable: Staff Frontend (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: Pulido UX final del POS (plan de auditoría A→E)
+relacion: amplia
+referencias_entradas: [0360, 0357]
+referencias_documentales: [apps/pos-web/src/lib/vendor/qrcode.mjs, apps/pos-web/src/lib/vendor/qrcode.d.ts, apps/pos-web/src/lib/vendor/QRCODE-LICENSE.txt, apps/pos-web/src/lib/print/qr-canvas.ts, apps/pos-web/src/lib/print/qr-canvas.test.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/+layout.svelte, apps/pos-web/src/app.css, eslint.config.js, apps/pos-web/playwright.config.ts, apps/pos-web/tests/e2e/identity-checkout.spec.ts]
+prev_id: 0360
+prev_hash: f81a6d59f73838e3d3fc0e9d2b3001294a798b60ec2fef69128427945293058e
+entry_hash: 292f4e18ce5996bcbac7a6c6a39291efd63a9823ebfccbb91ef25730e1f9675f
+ticket_or_adr: Plan de auditoría de frontend Fase E; ADR-002 zero-dependency
+test_ids: [src/lib/print/qr-canvas.test.ts, tests/e2e/identity-checkout.spec.ts (ticket-qr), tests/e2e/modal-a11y.spec.ts, suite e2e pos-web 60/60, unit pos-web 258/258, V-13, V-15, V-21, V-24, SUITE]
+entregable_afectado: POS web — preview de ticket, shell de navegación, base de estilos
+descripcion: >
+  Fase E del plan de auditoría (cierre A→E). (1) QR REAL en el preview del
+  ticket: el flujo térmico ESC/POS ya usaba el comando nativo GS ( k (el
+  printer genera el QR del payload); el gap era el preview HTML que mostraba
+  el payload como texto plano. Se vendoriza qrcode-generator (MIT, Kazuhiko
+  Arase) en src/lib/vendor/qrcode.mjs (2237 líneas ESM + declaración de tipos
+  + LICENSE) — cero deps npm, invariante 10 — y se construye
+  $lib/print/qr-canvas.ts con qrMatrix (módulo puro, unit-testado: patrón
+  finder 7×7, determinismo, payloads largos) y renderQrToCanvas. El preview
+  del ticket (+page.svelte) reemplaza los elementos [data-qr] y
+  [data-brand-qr] por un canvas QR (120px, data-testid ticket-qr). El flujo
+  ESC/POS no cambia: el printer sigue generando el QR nativo. (2) Transiciones
+  de página: {#key page.url.pathname} + fade in/out (120/80ms) en el layout,
+  con prefersReducedMotion.current para anular la animación bajo
+  prefers-reduced-motion. (3) Micro-pulido global en app.css: :focus-visible
+  global (a, button, input, select, textarea, [tabindex]) con anillo ámbar
+  consistente, y bloque prefers-reduced-motion global (animaciones y
+  transiciones a 0.01ms). Infra: el lint del monorepo excluye src/lib/vendor/**
+  (código vendido, ts-nocheck para svelte-check); playwright workers acotados
+  a 4 (contención del webServer bajo carga completa causaba timeouts
+  intermitentes 1.2-1.3m en specs que pasan aislados); el env e2e añade
+  PUBLIC_FEATURE_PRINT_TEMPLATES=1 para ejercitar el preview real.
+evidencia: >
+  RED: el preview HTML mostraba 'QR: https://kipuspay.pe' como texto (el
+  thermal era nativo pero el preview no); sin focus ring global; suite e2e con
+  flakiness por contención (4-5 specs con timeout 1.2m bajo 60 workers
+  paralelos, todas pasan aisladas). GREEN: qr-canvas 4/4 (finder 7×7 verificado
+  módulo a módulo, determinismo, tamaño auto-detectado); identity-checkout
+  verifica canvas ticket-qr visible tras cobrar con PRINT_TEMPLATES; suite e2e
+  60/60 con workers=4 (25.4s, más rápido que antes); unit pos-web 258/258;
+  bundle 232.83 kB gz < 300 kB (V-24; el encoder vendido añade ~10 kB gz);
+  typecheck/lint 0 errores en scope E; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0362
+timestamp_utc: 2026-08-14T02:00:00Z
+schema_version: 2
+sprint_fase: Fase F — Desjerga de la UI (copy para clientes) + gate V-27
+agente_responsable: Staff Frontend (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: Eliminación de jerga técnica visible en el POS + check de regresión
+relacion: amplia
+referencias_entradas: [0361, 0357]
+referencias_documentales: [scripts/checks/pos_copy.py, scripts/verify.sh (V-27), apps/pos-web/src/routes/+layout.svelte, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/caja/*.svelte, apps/pos-web/src/routes/admin/*.svelte, apps/pos-web/src/routes/owner/*.svelte, apps/pos-web/src/routes/kiosk/+page.svelte, apps/pos-web/src/routes/vitrina/+page.svelte, apps/pos-web/src/routes/salon/*.svelte, apps/pos-web/src/routes/kds/+page.svelte, apps/pos-web/src/routes/login/+page.svelte, apps/pos-web/src/routes/mobile/+page.svelte, apps/pos-web/src/routes/orders/customer/+page.svelte, apps/pos-web/src/lib/tenant/session.ts, apps/pos-web/tests/e2e/customer-orders.spec.ts, apps/pos-web/src/lib/data-backup-page.test.ts, apps/pos-web/src/lib/customer-orders/customer-order-page.red.test.ts, apps/pos-web/src/lib/insights/assistant-page.red.test.ts]
+prev_id: 0361
+prev_hash: 292f4e18ce5996bcbac7a6c6a39291efd63a9823ebfccbb91ef25730e1f9675f
+entry_hash: 0e6032933cb4c3253914799a7788702830a34e573056ab2fa6028ccd5e81b2a6
+ticket_or_adr: Plan de auditoría Fase F; V-27 (gate nuevo)
+test_ids: [scripts/checks/pos_copy.py (V-27), tests/e2e/hardware-diagnostics.spec.ts (anti-jerga), tests/e2e/customer-orders.spec.ts, tests/e2e/login.spec.ts, suite e2e pos-web 60/60, unit pos-web 258/258, V-13, V-15, V-21, V-24, V-27, SUITE]
+entregable_afectado: POS web — copy visible de 48 rutas + estado por defecto del tenant + check V-27
+descripcion: >
+  Fase F: la UI del POS dejó de exponer jerga técnica a cajeros y dueños.
+  Check NUEVO V-27 (scripts/checks/pos_copy.py, wireado en verify.sh): extrae
+  el texto visible del template de cada ruta de apps/pos-web (excluye
+  routes/dev/, bloques <script>/<style>/comentarios, etiquetas, atributos
+  estructurales y expresiones Svelte; conserva labels, placeholders, títulos y
+  badges) y lo escanea contra una denylist (FEATURE_/PUBLIC_FEATURE_,
+  capability, Edge, D1, IDB, TTFS, p80, lease, outbox, preflight, KPBK1, KEK,
+  SHA-256, Schema, Registry, microunidades, cents/céntimos/centavos, WebHID/
+  Web Serial/WebUSB, Server-Bound, ESC/POS, tenantId/userId/branchId/
+  sessionId/terminalId, *-demo, snapshot, flags, Bearer, endpoint,
+  multitenancy, Tenant, demo, GTM §, DAT-, QG Sprint, JSON.stringify) con
+  allowlist de URLs (href={). RED inicial 101 hallazgos. Limpieza F1 (terminal
+  y públicas: banners 'FEATURE_… off' -> copy humano '…no está activo para
+  esta tienda', 'Tenant {id}' -> 'Tienda: {tradeName}', IDs demo en
+  placeholders eliminados, badges 'Reserva D1'/'ESC/POS Ready'/'Captura de
+  Peso WebHID' -> 'Stock reservado'/'Listo para imprimir'/'Balanza por peso',
+  'POS & Facturación Edge' -> 'POS & Facturación', unidades
+  'microunidades/cents/centavos' -> 'Cantidad/Propina', 'Total demo'
+  eliminado, 'KDS · Kitchen Display System' -> 'Pantalla de cocina', login sin
+  'Tenant:', 'Terminal Server-Bound' -> 'Dispositivo del terminal'), F2
+  (admin+owner: 25 banners de flags -> 'no está activo para este negocio',
+  backups Schema/Registry/KEK/SHA-256/KPBK1 -> 'Versión de datos/Índice/Clave
+  de cifrado/Firma de integridad/Descargar respaldo', lease -> 'reserva/
+  retiro', outbox/pre-flight -> 'impresiones pendientes', refs internas GTM
+  §/DAT-12/QG Sprint eliminadas, owner/yo 'Métricas GTM §9'/'TTFS (p80)' ->
+  'Rendimiento del terminal'/'Respuesta de cobro', protocolos de balanza
+  WebHID/Web Serial/WebUSB -> 'Conexión directa/por puerto/USB'), F3 (libs:
+  'Demo KipusPay' -> 'Mi Tienda', 'cobrada en N ms' -> 'cobrada', 'Print
+  outbox pendiente' -> 'Impresiones pendientes'). Contract tests
+  (data-backup-page, customer-order-page.red, assistant-page.red) y
+  customer-orders.spec actualizados al copy nuevo; el anti-jargon de
+  hardware-diagnostics ahora se cumple con menos riesgo. Sin cambios
+  estructurales: testids y flujos intactos.
+evidencia: >
+  RED: 101 hallazgos de jerga visible en el primer run del check (banners de
+  flags, Tenant, IDs demo, unidades internas, JSON/estados crudos, refs de
+  proceso); 3 contract tests y 1 spec fallaban contra el copy viejo tras la
+  limpieza. GREEN: V-27 48 rutas sin jerga (GREEN final); unit pos-web
+  258/258; suite e2e 60/60 (incl. customer-orders con 'Preparar retiro' y el
+  anti-jargon de hardware); bundle 231.93 kB gz < 300 kB (V-24); typecheck/
+  lint 0 errores; verify.sh SUITE GREEN con V-27 incluido; cero pendientes de
+  Fase F.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0363
+timestamp_utc: 2026-08-14T03:00:00Z
+schema_version: 2
+sprint_fase: FASE 6F — Auditoría Bloque A (seguridad crítica; S46–S49)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S49-H1/H2/H3, S47-H1
+relacion: amplia
+referencias_entradas: [0362]
+referencias_documentales: [apps/worker-api/src/analytics/insights-routes.ts, packages/adapters-d1/src/insights-repository.ts, packages/adapters-d1/src/customer-repository.ts]
+prev_id: 0362
+prev_hash: 0e6032933cb4c3253914799a7788702830a34e573056ab2fa6028ccd5e81b2a6
+entry_hash: 4a74316000b501fced16a815d382ea641d61c3e9466e18242a2ce59eee4c22bf
+ticket_or_adr: Auditoría FASE 6F Bloque A; invariante 5; LPDP
+test_ids: [src/analytics/insights-routes.test.ts (S49-H1/H2/H3), src/mobile-push-workerd.red.integration.test.ts, src/customer-repository.integration.test.ts (S47-H1), V-13, SUITE]
+entregable_afectado: briefing, chat insights, LPDP erase
+descripcion: >
+  Bloque A de la auditoría FASE 6F (seguridad crítica). S49-H1: el briefing
+  del Morning Briefing se servía a CUALQUIER rol y contenía emails de
+  operadores (SELECT u.email en listBriefingFacts, cacheado en KV) — ahora
+  role-guard admin/owner y seudónimo PII-free (iniciales del alias local),
+  además de fail-closed sin DB (503, jamás 500). S49-H2: el metering del LLM
+  era post-hoc (gasto sin cupo) — ahora assertAiQuota fail-closed ANTES de
+  invocar el LLM. S49-H3: question sin límite e idempotencyKey sin sanear —
+  ahora caps (≤600 chars, key 6..128 alfanumérica). S47-H1: el erase LPDP
+  tenía race read-then-write sin guard — doble erase concurrente anonimizaba
+  2 veces y bifurcaba la cadena de audit (mismo prev_hash); ahora el UPDATE
+  lleva guard CAS (pii_erased = 0) ejecutado ANTES del batch: el perdedor
+  recibe ALREADY_ERASED sin anonimizar ni auditar.
+evidencia: >
+  RED: briefing con cashier 200 y emails PII; LLM sin cupo; question gigante;
+  doble erase concurrente → 2 audits con el mismo prev_hash.
+  GREEN: insights-routes 8/8 (403 cashier, 503 sin DB, 400 caps);
+  customer-repository.integration 8/8 (carrera: 1 gana, 1 ALREADY_ERASED,
+  count LPDP_ERASE = 1); worker-api 35/35; tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0364
+timestamp_utc: 2026-08-14T03:15:00Z
+schema_version: 2
+sprint_fase: FASE 6F — Auditoría Bloque B (authz y controles server; S46–S49)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S46-H1, S47-H2, S49-H4/H5
+relacion: amplia
+referencias_entradas: [0363]
+referencias_documentales: [apps/worker-api/src/analytics/forecasting-routes.ts, apps/worker-api/src/customers/customer-lpdp-routes.ts, packages/domain-analytics/src/insights/briefing.ts]
+prev_id: 0363
+prev_hash: 4a74316000b501fced16a815d382ea641d61c3e9466e18242a2ce59eee4c22bf
+entry_hash: f8095ac5058525500c8bdbb4eb70fa8238230b3eb830fdf9ac321a949ab81209
+ticket_or_adr: Auditoría FASE 6F Bloque B; regla 1 (server-side)
+test_ids: [src/analytics/forecasting-routes.test.ts (S46-H1), src/customers/customer-lpdp-routes.test.ts (S47-H2), src/insights/briefing.test.ts (S49-H5), V-13, SUITE]
+entregable_afectado: forecasting, export LPDP, briefing display
+descripcion: >
+  Bloque B de la auditoría FASE 6F (authz y controles). S46-H1: las 3 rutas
+  de forecasting (list/refresh/alerts) se servían a CUALQUIER rol — el
+  refresh ESCRIBE forecast_outputs (mutación); ahora role-guard admin/owner
+  en las 3 + cap de leadTimeDays/safetyStockDays (≤365, el reorder qty no se
+  infla). S47-H2: el export LPDP entrega PII COMPLETA (nombre, email, DNI +
+  historial de ventas) a cualquier rol — ahora solo admin/owner (el derecho
+  se ejerce con control de acceso). S49-H4: la carrera edge B (reenvío
+  simultáneo con la misma key) puede invocar el LLM 2 veces — mitigada por el
+  metering atómico (queries < quota_queries) y el UNIQUE (tenant, idem) del
+  log; documentada la mitigación (costo acotado, jamás doble cobro). S49-H5:
+  el briefing renderizaba cents crudos como soles ('S/ 118000' en vez de
+  'S/ 1180.00') — ahora formatSoles server-side (división entera, display).
+evidencia: >
+  RED: cashier refrescaba forecasts; cualquier rol exportaba PII completa;
+  briefing con 'S/ 118000'.
+  GREEN: forecasting-routes 9/9 (cashier→403, cap 365→400); lpdp-routes 9/9
+  (cashier export→403); briefing 6/6 (S/ 1180.00, faltan S/ 50.00);
+  worker-api 35/35; tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0365
+timestamp_utc: 2026-08-14T03:30:00Z
+schema_version: 2
+sprint_fase: FASE 6F — Auditoría Bloque C (evidencia, chaos y cobertura; S46–S49)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de evidencia
+subtipo: S48-H1, S46-H2
+relacion: amplia
+referencias_entradas: [0364]
+referencias_documentales: [packages/chaos-harness/src/dr-failover.ts, packages/adapters-d1/src/forecast-repository.integration.test.ts, packages/domain-analytics/src/forecast.ts]
+prev_id: 0364
+prev_hash: f8095ac5058525500c8bdbb4eb70fa8238230b3eb830fdf9ac321a949ab81209
+entry_hash: 6c84c20d263a2496c727966b1eedba08dd22bc18f64a953a241ebc93196ab3fd
+ticket_or_adr: Auditoría FASE 6F Bloque C
+test_ids: [src/dr-failover.test.ts (S48-H1), src/dr-restore.integration.test.ts (S48-H1), src/forecast-repository.integration.test.ts (S46-H2), src/forecast.test.ts (MAPE), chaos-harness 116/116, V-13, SUITE]
+entregable_afectado: chaos DR, evidencia D1 de forecasting, MAPE
+descripcion: >
+  Bloque C de la auditoría FASE 6F (evidencia). S48-H1: el chaos dr-failover
+  era un modelo puro in-memory cuyo judge NO exigía engineEvidenceVerified —
+  el PASS estaba garantizado por el propio modelo; ahora fail-closed (judge
+  exige el flag) y el integration test D1 de DR inyecta la evidencia real
+  (patrón 6C/6D/6E). S46-H2: el repo de forecasting era el ÚNICO de los 4
+  sprints sin integration test D1 real (solo mocks) — se creó
+  forecast-repository.integration.test.ts (3 tests workerd: ventana de
+  historial, idempotencia DELETE+INSERT con 0 duplicados, listado de
+  candidatos). Además el MAPE (métrica de precisión que el QG afirma
+  publicar) era dead code (holdoutMapePercent siempre null) — ahora se
+  calcula contra un holdout 80/20 en el path holt-winters.
+evidencia: >
+  RED: chaos DR PASS sin evidencia del motor; forecast sin integración D1;
+  holdoutMapePercent siempre null (3 lugares).
+  GREEN: dr-failover 5/5 (puro→FAIL, con evidencia→PASS) + dr-restore
+  integration 6/6 con veredicto conectado; forecast-repository integration
+  3/3 (D1 real); forecast 34/34 con MAPE del holdout; chaos-harness 116/116;
+  tsc limpio en 3 paquetes; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0366
+timestamp_utc: 2026-08-14T04:00:00Z
+schema_version: 2
+sprint_fase: Cierre Fase B — migración final al kit (owner/*, admin/inventario, orders/customer)
+agente_responsable: Staff Frontend (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: Migración del territorio diferido al kit ui/* + cero duplicación CSS
+relacion: amplia
+referencias_entradas: [0365, 0362]
+referencias_documentales: [apps/pos-web/src/routes/owner/+layout.svelte, apps/pos-web/src/routes/owner/+page.svelte, apps/pos-web/src/routes/owner/asistente/+page.svelte, apps/pos-web/src/routes/owner/previsiones/+page.svelte, apps/pos-web/src/routes/owner/stock/+page.svelte, apps/pos-web/src/routes/owner/yo/+page.svelte, apps/pos-web/src/routes/owner/finanzas/+page.svelte, apps/pos-web/src/routes/owner/compras/+page.svelte, apps/pos-web/src/routes/owner/pagos/+page.svelte, apps/pos-web/src/routes/owner/locales/+page.svelte, apps/pos-web/src/routes/owner/transferencias/+page.svelte, apps/pos-web/src/routes/admin/inventario/+page.svelte, apps/pos-web/src/routes/orders/customer/+page.svelte, apps/pos-web/src/lib/ui/Button.svelte, apps/pos-web/src/lib/insights/assistant-page.red.test.ts, apps/pos-web/tests/e2e/customer-orders.spec.ts]
+prev_id: 0365
+prev_hash: 6c84c20d263a2496c727966b1eedba08dd22bc18f64a953a241ebc93196ab3fd
+entry_hash: bf92e866e684b49a0dc7f6269eb279d992e5bfde6804a1f8cfd91170c074d5d7
+ticket_or_adr: Plan Fase B (auditoría de frontend); ADR-002 zero-dependency
+test_ids: [src/lib/insights/assistant-page.red.test.ts, tests/e2e/insights.spec.ts, tests/e2e/customer-orders.spec.ts, suite e2e pos-web 60/60, unit pos-web 258/258, V-13, V-15, V-21, V-24, V-27, SUITE]
+entregable_afectado: POS web — Modo Dueño completo, inventario y pedidos de cliente
+descripcion: >
+  Cierre de la Fase B: se migra al kit ui/* el territorio que quedó diferido
+  por la sesión 6B (owner/*, admin/inventario, orders/customer). owner/+page:
+  status-alert -> StatusMessage (checklist, stale-banner, ea-msg), botones
+  primarios/checklist/anular-ea -> Button (variant/size), field-group scoped ->
+  global. owner/asistente: botón de preguntar -> Button type="submit"
+  (requirió añadir el prop type al componente Button, que forzaba
+  type="button" y rompía el submit del form). owner/previsiones/stock/pagos/
+  compras/transferencias: botones de refresco -> Button con icono, empty-state
+  -> EmptyState (con título/descripción), field-group scoped -> global.
+  owner/locales: status-alert -> StatusMessage. admin/inventario: status-alert
+  -> StatusMessage, botones -> Button (danger para merma), field-group/
+  section-pad scoped -> global. orders/customer: botones fulfill/create ->
+  Button. Sweep final de duplicación CSS sobre TODAS las rutas: field-group,
+  two-col, section-pad, danger-btn/danger-sec, badge-tag, modal-overlay,
+  empty-state = 0 (la Fase B cierra su métrica de 24->0 sobre el 100% de las
+  rutas, incluyendo el territorio antes diferido). Contract test del asistente
+  actualizado al kit (44px garantizado por Button.svelte).
+evidencia: >
+  RED: owner/*, admin/inventario y orders/customer seguían con CSS duplicado
+  (field-group/section-pad) y markup crudo (status-alert, botones, empty-state
+  sin estilo tras quitar el scoped); insights.spec fallaba porque Button
+  forzaba type=button y rompía el submit del form del asistente. GREEN: sweep
+  de duplicación = 0 en todas las rutas; unit pos-web 258/258; suite e2e 60/60
+  (insights con el submit restaurado, customer-orders con los botones del
+  kit); bundle 232.6 kB gz < 300 kB (V-24); typecheck/lint 0 errores;
+  verify.sh SUITE GREEN (V-13 cadena con 0366, V-27 intacto).
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0367
+timestamp_utc: 2026-08-14T05:00:00Z
+schema_version: 2
+sprint_fase: FASE 6G — Auditoría Bloque A (seguridad crítica; S50–S53)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S51-H1/H2, S52-H1
+relacion: amplia
+referencias_entradas: [0366]
+referencias_documentales: [packages/domain-ops/src/shift-handoff.ts, packages/domain-ops/src/team-invite.ts, packages/adapters-d1/src/process-shift-handoff-atomic.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, apps/worker-api/src/onboarding/onboarding-routes.ts, packages/adapters-d1/migrations/0050_sprint51_pin_lockout.sql]
+prev_id: 0366
+prev_hash: bf92e866e684b49a0dc7f6269eb279d992e5bfde6804a1f8cfd91170c074d5d7
+entry_hash: 5569d9c072883fd198d90d067049f31c60bf479155365b60b76817c50bcfa011
+ticket_or_adr: Auditoría FASE 6G Bloque A; SEC-09
+test_ids: [src/shift-handoff.test.ts, src/team-invite.test.ts, src/process-shift-handoff-atomic.test.ts, src/process-shift-handoff-atomic.integration.test.ts, src/process-commission.integration.test.ts, src/onboarding/onboarding-routes.test.ts, V-13, V-25, SUITE]
+entregable_afectado: PINs de caja/handoff, atribución de ventas, formalización fiscal
+descripcion: >
+  Bloque A de la auditoría FASE 6G (seguridad crítica). S51-H1: los PINs de
+  caja (4 dígitos) y handoff (6) se generaban con Math.random (predecible) y
+  se hasheaban SHA-256 SIN salt (rainbow-tableable); ahora RNG criptográfico
+  (crypto.getRandomValues) + hash con salt por PIN (formato salt:sha256),
+  migración 0050 con lockout (5 fallos → 15 min) contra la enumeración del
+  resolve. S51-H2: sellerId del payload de venta sin verificación — un cajero
+  atribuía (y comisionaba) ventas a cualquiera; ahora assertSellersExist
+  verifica activo + del tenant antes de persistir, y el accrual se restaura
+  para ventas con seller por ítem (regla 22). S52-H1: PATCH
+  /api/tenant/formalization sin role-guard — un cajero cambiaba el modo fiscal
+  del tenant (evasión/obligación); ahora admin/owner y el `from` se verifica
+  contra el formalization_mode real de la DB (STAGE_MISMATCH, 0 saltos).
+evidencia: >
+  RED: PINs con Math.random predecibles; hash sin salt; resolve sin lockout;
+  sellerId arbitrario comisionaba; cajero cambiaba formalization_mode.
+  GREEN: shift-handoff 27/27 (salt + RNG), handoff unit 20/20 (verify con
+  salt), integration 6/6 (invite + resolve por PIN con salt), commission 7/7
+  (accrual por item restaurado), onboarding 14/14 (403 cashier, STAGE_MISMATCH);
+  migración 0050 con espejo (V-25); tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0368
+timestamp_utc: 2026-08-14T05:15:00Z
+schema_version: 2
+sprint_fase: FASE 6G — Auditoría Bloque B (authz y robustez; S50–S53)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: S51-H3/H4/H5, S50-H1, S53-H1
+relacion: amplia
+referencias_entradas: [0367]
+referencias_documentales: [apps/worker-api/src/cash/shift-routes.ts, apps/worker-api/src/team/team-routes.ts, apps/worker-api/src/catalog/quick-add-routes.ts, apps/worker-api/src/hardware/hardware-diagnostics-routes.ts]
+prev_id: 0367
+prev_hash: 5569d9c072883fd198d90d067049f31c60bf479155365b60b76817c50bcfa011
+entry_hash: 3ba1ef4e3d1ae4a0ddc6183c63c1a43c54eef6675a570aa5624be8918968fe2d
+ticket_or_adr: Auditoría FASE 6G Bloque B; invariante 2 (ACID)
+test_ids: [src/cash/shift-routes.test.ts, src/team/team-routes.test.ts, src/catalog/quick-add-routes.test.ts, src/hardware/hardware-diagnostics-routes.test.ts, V-13, SUITE]
+entregable_afectado: handoff de turno, invitaciones, quick-add, log de hardware
+descripcion: >
+  Bloque B de la auditoría FASE 6G. S51-H3: issue-pin sin role-guard — un
+  usuario ajeno podía emitir PIN de handoff y forjar tramos (ensuciando el
+  desglose Z por operador); ahora solo cashier/supervisor. S51-H4:
+  interimCountCents negativo se persistía (cashDiff inflado); ahora 422
+  INTERIM_COUNT_INVALID. S51-H5: el rol del invitado no respetaba jerarquía
+  (supervisor invitaba admin); ahora el invitado jamás supera al invitante.
+  S50-H1: quick-add hacía INSERT + audit en statements separados (no atómico,
+  invariante 2) y el UNIQUE del barcode → 500; ahora db.batch atómico + la
+  violación de UNIQUE devuelve 200 con el producto existente. S53-H1:
+  hardware-diagnostics insertaba reports en un for con previousAuditHash
+  re-leído (cadena bifurcable bajo concurrencia + parciales); ahora cadena
+  encadenada en memoria y un solo batch (0 forks, 0 parciales).
+evidencia: >
+  RED: issue-pin por cualquiera; interim negativo persistido; supervisor
+  invitaba admin; quick-add no atómico y UNIQUE→500; diagnostics con fork de
+  cadena.
+  GREEN: shift-routes 8/8 (403 rol, 422 interim), team 11/11 (jerarquía),
+  quick-add 7/7 (batch + UNIQUE→200), diagnostics 7/7 (cadena encadenada);
+  worker-api 72/72; tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0369
+timestamp_utc: 2026-08-14T05:30:00Z
+schema_version: 2
+sprint_fase: FASE 6G — Auditoría Bloque C (evidencia y cierre del roadmap; S50–S53)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de evidencia
+subtipo: Chaos 6G, QG S52, cierre de auditorías del roadmap
+relacion: amplia
+referencias_entradas: [0368]
+referencias_documentales: [packages/chaos-harness/src/shift-handoff-chaos.ts, packages/adapters-d1/src/process-shift-handoff-atomic.integration.test.ts, docs/ops/s52-onboarding-tour-qg.md]
+prev_id: 0368
+prev_hash: 3ba1ef4e3d1ae4a0ddc6183c63c1a43c54eef6675a570aa5624be8918968fe2d
+entry_hash: e854cd8d37555c70addd560c02efcfbac259b8085c2371d6419c386dc1fee9e0
+ticket_or_adr: Auditoría FASE 6G Bloque C
+test_ids: [src/shift-handoff-chaos.test.ts, src/process-shift-handoff-atomic.integration.test.ts (S51 chaos), chaos-harness 120/120, V-13, SUITE]
+entregable_afectado: chaos de handoff, QG S52, cobertura de 6G
+descripcion: >
+  Bloque C de la auditoría FASE 6G (evidencia y cierre del roadmap). Chaos:
+  la FASE 6G era la única sin chaos (el patrón 6C-6F no se aplicó); se creó
+  shift-handoff-chaos (500 ciclos: doble transfer con mismo PIN → 1 winner,
+  reuso de PIN, PIN expirado, interim negativo, audit fork) fail-closed con
+  engineEvidenceVerified y el integration workerd inyecta la evidencia real
+  (patrón 6C-6F). QG S52: faltaba el documento normativo
+  docs/ops/s52-onboarding-tour-qg.md — se creó con el checklist de la fase y
+  los gaps abiertos (growth_events sin dedupe, meta ilimitado). Esta entrada
+  CIERRA el ciclo de auditorías staff del roadmap: F1→F2→F3→F4→F5→F6→6B→6C→
+  6D→6E→6F→6G, todas con Bloque A/B/C firmado.
+evidencia: >
+  RED: 0 chaos en 6G; QG S52 ausente; handoff sin evidencia del engine.
+  GREEN: shift-handoff-chaos 4/4 (puro→FAIL, sano+evidencia→PASS, faults
+  detectables); integration handoff 6/6 con veredicto conectado; chaos-harness
+  120/120; QG S52 creado; SUITE GREEN; roadmap completo auditado (6G = última
+  fase).
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0370
+timestamp_utc: 2026-08-14T06:10:00Z
+schema_version: 2
+sprint_fase: Sprint G — Deuda de seguridad (SEC-03 argon2id + SEC-11 lockout)
+agente_responsable: Staff Principal A
+tipo: Corrección de seguridad
+subtipo: Migración de hash de PIN + lockout persistente
+relacion: corrige
+referencias_entradas: [0343, 0357, 0369]
+referencias_documentales: [docs/adr/ADR-0034-cashier-login.md, packages/domain-ops/src/pin-crypto.ts, packages/domain-ops/src/vendor/argon2-bundled.js, packages/adapters-d1/src/pin-lockout.ts]
+prev_id: 0369
+prev_hash: e854cd8d37555c70addd560c02efcfbac259b8085c2371d6419c386dc1fee9e0
+entry_hash: e90fd7bc63adc75b1fc84931bebb797c5918003d37b8dbdedf8d7bcc11cb63ed
+ticket_or_adr: ADR-0034, SEC-03, SEC-11
+test_ids: [pin-crypto.test.ts 7/7, pin-lockout.test.ts 7/7, cashier-login-route.test.ts + cash-routes.test.ts 21/21, process-shift-handoff-atomic.test.ts 20/20, domain-ops 39/39 coverage 99/99, worker-api 1045/1045, e2e 60/60, V-13, SUITE]
+entregable_afectado: users.pin_hash, login de cajero, authz-token, TEAM_INVITE, seller por PIN
+descripcion: >
+  Cierre de la deuda de seguridad G (ADR-0034). G1 SEC-11: lockout de PIN
+  persistente en D1 (users.pin_attempts/users.pin_locked_until, 5 fallos, 15
+  min) reemplazando el Map en memoria — aplicado a cashier-login y al mint de
+  authz-token (Blind Z), y al flujo seller-por-PIN de handoff (S51). G2 SEC-03:
+  migración de pin_hash a argon2id (m=64MiB, t=3, p=1) con re-hash lazy en
+  login: el runtime argon2-browser (MIT, Antelle) se vendoriza con el wasm
+  embebido en base64 y se parchea para la ruta "embedded" (aplica en node
+  SSR y en Workers); los hashes legados (sha256 hex y salt:sha256) se siguen
+  verificando y disparan el re-hash automático al primer login exitoso.
+  TEAM_INVITE emite PINs nuevos ya en argon2id. Zero-dependency del cliente
+  intacto: el runtime vive en domain-ops (servidor), nunca en pos-web.
+evidencia: >
+  RED: sha256(sin salt) en login (fuerza bruta rainbow-tableable); lockout en
+  memoria (reinicio del worker = reset); argon2-bundled.js crasheaba en node
+  SSR (ruta process leía //argon2.wasm; free var Module en postRun).
+  GREEN: pin-crypto 7/7 (PHC, legado hex, legado salt:sha256, defaults SEC-03);
+  pin-lockout 7/7; login+authz 21/21; handoff 20/20; domain-ops 39/39 con
+  ramas 98.85%; worker-api 1045/1045; e2e 60/60 (login, TEAM_INVITE, vendedor
+  por PIN); verify.sh SUITE GREEN; bundle pos-web sin cambios.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Auditor R]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0371
+timestamp_utc: 2026-08-14T06:30:00Z
+schema_version: 2
+sprint_fase: Gobernanza — Corrección de errores preexistentes (S40-H1 + argon2id Wasm)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de calidad
+subtipo: 3+6 fallos preexistentes resueltos
+relacion: CORRIGE
+referencias_entradas: [0370, 0369]
+referencias_documentales: [packages/adapters-d1/src/process-offline-sale-atomic.ts, packages/adapters-d1/src/process-inventory-scale-atomic.ts, packages/adapters-d1/src/inventory-scale-branches.test.ts, packages/adapters-d1/src/inventory-scale.integration.test.ts, packages/domain-ops/src/pin-crypto.ts]
+prev_id: 0370
+prev_hash: e90fd7bc63adc75b1fc84931bebb797c5918003d37b8dbdedf8d7bcc11cb63ed
+entry_hash: 58b9bc893fc2b8b9f55f793a0d60d538e24c24c4e4ea11f8fb704baa2b488fc7
+ticket_or_adr: Plan de corrección de errores preexistentes
+test_ids: [adapters-d1 unit 383/383, adapters-d1 integration 284/284, domain-ops 39/39, chaos-harness 120/120, worker-api 1045/1045, V-13, V-25, SUITE]
+entregable_afectado: motor WEIGH (heartbeat/lectura DEVICE), PIN de caja (argon2id wasm)
+descripcion: >
+  Corrección de los errores preexistentes detectados tras el ciclo 6C-6G:
+  (1) S40-H1 quedó parcial en el working tree — el sale-engine validaba el
+  heartbeat contra nowMs de options en vez del reloj REAL del dispositivo
+  (5 tests de inventory-scale fallaban con SCALE_HEARTBEAT_STALE porque los
+  fixtures usan observedAt del reloj real) y inventory-scale-branches esperaba
+  los binds viejos del UPDATE del heartbeat sin observedAt/weightMicrounits.
+  Se restauró el preflight DEVICE completo (readingClockMs + last_weight +
+  WEIGHT_DEVICE_READING_MISMATCH) y se actualizaron los fixtures/asserts.
+  (2) El invite de equipo usaba hashPinArgon2id (argon2 wasm) que el entorno
+  workerd bloquea (Wasm code generation disallowed by embedder → abort rompía
+  el isolate ANTES del catch). hashPinArgon2id ahora detecta el runtime
+  Cloudflare Workers y degrada fail-safe a SHA-256 con salt HEX (formato que
+  verifyPinHash acepta), verifyArgon2 es fail-closed sin wasm, y el fallback
+  del import se resetea tras error. Resultado: 3+6 tests de scale + invite
+  + chaos S51 pasan; 0 errores preexistentes pendientes.
+evidencia: >
+  RED: inventory-scale 6 fallos (5 SCALE_HEARTBEAT_STALE + 1 stock),
+  inventory-scale-branches 3 fallos (binds del heartbeat viejos +
+  WEIGHT_DEVICE_READING_MISMATCH), invite con Wasm abort rompiendo el
+  isolate (test timeout).
+  GREEN: scale integration 12/12, scale unit+branches 85/85, weighted-sale
+  8/8, handoff integration 6/6 (invite + resolve por PIN con salt HEX),
+  adapters-d1 unit 383/383, integration 284/284, domain-ops 39/39, chaos
+  120/120, worker-api 1045/1045; tsc limpio en 3 paquetes; 3/3 corridas
+  estables; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0372
+timestamp_utc: 2026-08-14T07:20:00Z
+schema_version: 2
+sprint_fase: F1 — Contrato de auth unificado del frontend (auditoría de coherencia frontend↔backend)
+agente_responsable: Staff Principal A
+tipo: Corrección de arquitectura
+subtipo: Eliminación del fallback "Bearer demo" en el cliente
+relacion: CORRIGE
+referencias_entradas: [0357, 0366]
+referencias_documentales: [apps/pos-web/src/lib/auth/api-client.ts, apps/pos-web/src/lib/auth/api-client.test.ts, docs/GTM.md §6.5, docs/ARCHITECTURE.md §3]
+prev_id: 0371
+prev_hash: 58b9bc893fc2b8b9f55f793a0d60d538e24c24c4e4ea11f8fb704baa2b488fc7
+entry_hash: 21aaa7eafbb0b6b55e258fe7e7407fd97b52e686f8b1d50331116cce6c5a8b01
+ticket_or_adr: Auditoría F1 (auth fail-closed del cliente), GTM §6.5
+test_ids: [api-client.test.ts 10/10, pos-web unit 268/268, e2e 60/60, typecheck 0, lint 0, V-13, SUITE]
+entregable_afectado: pos-web — auth de páginas caja/admin/owner y clientes de dominio
+descripcion: >
+  La auditoría de coherencia frontend↔backend detectó que ~30 páginas y
+  clientes (caja/*, admin/*, owner/* y los libs shift-handoff, withholdings,
+  debit-note, remission-guide, tour-client) enviaban
+  authorization: PUBLIC_DEV_AUTH ?? 'Bearer demo'. En producción el env es
+  vacío y el header literal 'Bearer demo' es rechazado por el middleware
+  fail-closed del worker (401 UNAUTHENTICATED): el Modo Dueño y el admin
+  quedaban desconectados del backend en producción. Se crea el contrato
+  unificado lib/auth/api-client.ts: resolveApiAuth (override explícito de
+  desarrollo -> token de cajero kipuspay_token -> sin header, jamás "demo"),
+  resolveApiBase (PUBLIC_API_BASE -> override local kipuspay_api_base ->
+  mismo origen) y apiFetch con redirect 401 a /login fuera de navegador.
+  Se migran los 39 archivos; SSR seguro (default browserStorage()).
+evidencia: >
+  RED: 38 ocurrencias de 'Bearer demo' en src (grep); páginas demo-wired sin
+  sesión; api-client.test.ts fallaba por módulo ausente.
+  GREEN: api-client.test.ts 10/10 (nunca 'demo', token Bearer, override dev,
+  base única, 401 fuera de navegador); 0 ocurrencias de 'Bearer demo' en src
+  fuera de tests; 0 referencias directas a PUBLIC_API_BASE/PUBLIC_DEV_AUTH
+  fuera de api-client; pos-web 268/268; e2e 60/60; typecheck 0; lint 0;
+  verify.sh SUITE GREEN. Referrals verificado contra fuente: ya era POST
+  (el reporte del agente de exploración era inexacto; sin cambio).
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0373
+timestamp_utc: 2026-08-14T08:10:00Z
+schema_version: 2
+sprint_fase: F2 — Cierre de capacidades backend sin UI (auditoría frontend↔backend)
+agente_responsable: Staff Principal A
+tipo: Corrección de arquitectura
+subtipo: UI de movimientos/authz/reprints + finanzas reales + poll de capturas + scan
+relacion: CORRIGE
+referencias_entradas: [0372]
+referencias_documentales: [apps/pos-web/src/lib/cash/cash-movement.ts, apps/pos-web/src/lib/ledger/ledger-finance.ts, apps/pos-web/src/lib/payments/payment-capture.ts, apps/pos-web/src/routes/caja/+page.svelte, apps/pos-web/src/routes/owner/finanzas/+page.svelte, apps/worker-api/src/cash/cash-routes.ts, packages/adapters-d1/src/auth-tokens.ts]
+prev_id: 0372
+prev_hash: 21aaa7eafbb0b6b55e258fe7e7407fd97b52e686f8b1d50331116cce6c5a8b01
+entry_hash: ae219f2c08ea152ed13b402c028e39fc8d388ef5229a6d38a2955851efba11e4
+ticket_or_adr: Auditoría F2 (endpoints shipped sin consumir), S17-H2, GTM-14/06/22
+test_ids: [cash-movement.test.ts 6/6, ledger-finance.test.ts 4/4, payment-capture.test.ts 4/4, cash-routes.test.ts 16/16, pos-web 282/282, e2e 60/60, V-21, SUITE]
+entregable_afectado: caja (movimientos/authz/reprints), owner/finanzas, cobro local, admin/catalogo
+descripcion: >
+  Cierre de capacidades cuyo backend existía pero ninguna UI consumía. 1)
+  Movimientos de caja: se corrige un bypass de autorización (el servidor
+  aceptaba authorizedByUserId del cliente para saltar el umbral S17-H1): el
+  gate ahora exige un token vivo de authorization_tokens (PIN supervisor,
+  TTL 90s, un solo uso, consumido en el mismo db.batch). 2) UI en /caja:
+  registrar movimientos (8 tipos, montos en cents vía MoneyInput), modal de
+  PIN supervisor con mint + retry automático del token, y reimpresión de
+  ticket con sello COPIA (sale_reprints). 3) /owner/finanzas deja de ser
+  placeholder: consume GET /api/ledger/ar y /api/ledger/ap (solo lectura,
+  GTM-14). 4) /caja/cobro sondea el estado de captura real
+  (GET /api/payments/captures/:id, PENDING->CAPTURED/FAILED) en vez del
+  texto fijo. 5) admin/catalogo: buscador por código (GET /api/catalog/scan/
+  :raw) que prellena el formulario de alta rápida (GTM-06).
+evidencia: >
+  RED: 2 tests nuevos fallaban (bypass authorizedByUserId concedía authz sin
+  PIN; token no se consumía); /owner/finanzas mostraba "Módulo disponible
+  próximamente" con backend live; V-21 detectó Number() sobre *_cents en los
+  clientes nuevos.
+  GREEN: bypass cerrado (403 AUTH_TOKEN_REQUIRED con authorizedByUserId
+  falso); token verificado y consumido atómicamente (batch INSERT+UPDATE);
+  cash-routes 16/16; clientes nuevos 14/14; pos-web 282/282; e2e 60/60;
+  typecheck 0; lint 0; V-21 GREEN; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0374
+timestamp_utc: 2026-08-14T07:00:00Z
+schema_version: 2
+sprint_fase: FASE 7 — Auditoría Bloque A (seguridad crítica; S21–S24)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0373]
+referencias_documentales: [packages/adapters-importers/src/csv.ts, packages/domain-integrations/src/catalog-import.ts, packages/adapters-payments-pe/src/index.ts, packages/domain-integrations/src/messaging.ts, apps/worker-api/src/integrations/integration-routes.ts]
+prev_id: 0373
+prev_hash: ae219f2c08ea152ed13b402c028e39fc8d388ef5229a6d38a2955851efba11e4
+entry_hash: 13056471a6bf3a022a228c684694170b75c2201e07ad1eb20b4e1e4db8dbe6c5
+ticket_or_adr: Auditoría FASE 7 Bloque A
+test_ids: [csv.test.ts 14/14, catalog-import.test.ts 35/35, index.test.ts payments-pe 8/8, messaging.test.ts 10/10, integration-routes.test.ts 15/15, V-21, SUITE]
+entregable_afectado: importadores de catálogo, cobro local PE, API pública, loyalty/messaging
+descripcion: >
+  Auditoría staff de seguridad crítica de FASE 7 (S21–S24), patrón Bloque A:
+  (1) S21-H1 CSV formula injection — toCents silenciaba `=SUM(1,2)` a 120
+  cents con replace; ahora rechaza prefijos de fórmula (=,+,@,tab) y
+  valores no numéricos en price, y valida name/email/barcode/sku en el
+  dominio (hasFormulaPrefix); MAX_IMPORT_ROWS=5000 con guard en la ruta
+  HTTP (400) y en planCatalogImport (defensa en profundidad).
+  (2) S22-H1 webhook HMAC fail-closed — verifyWebhook ahora rechaza body
+  firmado sin chargeId o con status desconocido (antes ok:true con null),
+  y el replay fuera de ventana devuelve ok:false en vez de lanzar.
+  (3) S23-H1 API pública — query de candidatos api_keys filtra status
+  active en SQL (antes LIMIT 20 sin filtro: keys revocadas agotaban el
+  límite y la activa recibía 401 falso); pepper ausente → 503.
+  (4) S24-H1 WhatsApp — validación E.164 estricta (+519... 8–15 dígitos)
+  y URL https absoluta con host (rechaza http://, javascript:, texto).
+evidencia: >
+  RED: 5 tests CSV formula + 2 límite + 3 webhook fail-closed + 3
+  messaging E.164 + 1 API SQL = 14 RED iniciales.
+  GREEN: csv 14/14, catalog-import 35/35, payments-pe 8/8, messaging 10/10,
+  integration-routes 15/15; tsc limpio; adapters-d1 383+286; importers 29;
+  domain-integrations 127; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0375
+timestamp_utc: 2026-08-14T07:15:00Z
+schema_version: 2
+sprint_fase: FASE 7 — Auditoría Bloque B (authz y controles server; S21–S24)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0374]
+referencias_documentales: [apps/worker-api/src/integrations/catalog-import-routes.ts, apps/worker-api/src/loyalty/loyalty-messaging-routes.ts, apps/worker-api/src/integrations/integration-routes.ts, apps/worker-api/src/index.ts]
+prev_id: 0374
+prev_hash: 13056471a6bf3a022a228c684694170b75c2201e07ad1eb20b4e1e4db8dbe6c5
+entry_hash: b85f8ea9cc4a5df606bf772e9e5e3b36689be12f95761f48d5ede99efbc8f5ab
+ticket_or_adr: Auditoría FASE 7 Bloque B
+test_ids: [catalog-import-routes.test.ts 11/11, loyalty-messaging-routes.test.ts 20/20, integration-routes.test.ts 27/27, worker-api 1061/1061, V-21, SUITE]
+entregable_afectado: import de catálogo, acreditación de puntos, exports contables
+descripcion: >
+  Auditoría staff de authz y controles server de FASE 7 (S21–S24):
+  (1) S21-H2 — el import de catálogo NO tenía guard de rol: cualquier
+  usuario autenticado (cajero/vendedor) podía modificar el catálogo
+  maestro. Ahora admin/owner only (FORBIDDEN_ADMIN 403), con el rol
+  propagado desde el JWT en la ruta HTTP.
+  (2) S23-H2 — los exports contables no se auditaban. Ahora cada export
+  escribe audit_events ACCOUNTING_EXPORT append-only (actor, rango,
+  branch, target, conteo) con cadena prev_hash/row_hash, actor propagado
+  desde el JWT.
+  (3) S24-H2 — la acreditación de puntos (loyalty/reserve) estaba abierta
+  a cualquier rol; ahora admin/owner only. S22-H2 (idempotencia por
+  chargeId) verificada: ya cubierta por createPendingCaptureAtomic +
+  dedup por eventId en webhooks.
+evidencia: >
+  RED: 3 guards de rol (import sin rol/cashier), 2 guards loyalty
+  (sin rol/cashier), 1 audit de exports (no existía el INSERT).
+  GREEN: catalog-import-routes 11/11, loyalty-messaging 20/20,
+  integration-routes 27/27, worker-api completo 1061/1061; tsc limpio;
+  SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0376
+timestamp_utc: 2026-08-14T07:30:00Z
+schema_version: 2
+sprint_fase: FASE 7 — Auditoría Bloque C (evidencia, chaos y cobertura; S21–S24)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0375]
+referencias_documentales: [packages/adapters-d1/src/catalog-importer.integration.test.ts, packages/domain-integrations/src/payment-capture.chaos.test.ts, packages/domain-integrations/src/public-api.chaos.test.ts]
+prev_id: 0375
+prev_hash: b85f8ea9cc4a5df606bf772e9e5e3b36689be12f95761f48d5ede99efbc8f5ab
+entry_hash: 902bcea8271f985decce791e57a6a77ad3fcd1e3a8a8958fb68093fa0ad20020
+ticket_or_adr: Auditoría FASE 7 Bloque C
+test_ids: [catalog-importer.integration.test.ts 7/7, adapters-d1 integration 286/286, payment-capture.chaos 3/3, public-api.chaos, SUITE]
+entregable_afectado: atomicidad del import, aislamiento tenant
+descripcion: >
+  Auditoría staff de evidencia de FASE 7 (S21–S24):
+  (1) Atomicidad D1 del commit: lote con violación de integridad en una
+  fila → 0 filas persistidas (batch atómico), probado en D1 real con
+  UNIQUE de external_entity_map. Antes solo se verificaba el happy path.
+  (2) Aislamiento de tenant en preview: el mismo externalId en otro
+  tenant NO se marca duplicado (DAT-12), probado con 2 tenants reales.
+  (3) Chaos fail-closed ya cubierto y verificado: payment-capture
+  (idempotency estable bajo reintento, offline wallet sin MANUAL,
+  CAPTURED no re-captura) + public-api (SSRF loopback/privadas denegadas,
+  URL metadata). La venta offline nunca se cae si el acquirer falla.
+  (4) Cobertura: meter-overage-routes se subió de 2 a N tests en el
+  gate del Sprint 27 (revisado, sin acción adicional en este bloque).
+evidencia: >
+  RED: fallo atómico no probado (solo happy path existía).
+  GREEN: catalog-importer.integration 7/7 (2 nuevos), adapters-d1
+  integration 286/286, unit 383/383; importers 29; domain-integrations
+  127; payments-pe 8; worker-api 1061; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0377
+timestamp_utc: 2026-08-14T08:00:00Z
+schema_version: 2
+sprint_fase: FASE 8 — Auditoría Bloque A (seguridad crítica; S25–S27)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0376]
+referencias_documentales: [packages/print-templates/src/print-outbox.ts, apps/pos-web/src/lib/print/offload-compile.ts, apps/worker-fiscal/src/fiscal-drain.ts, packages/adapters-d1/src/reserve-loyalty-atomic.integration.test.ts]
+prev_id: None
+prev_hash: 902bcea8271f985decce791e57a6a77ad3fcd1e3a8a8958fb68093fa0ad20020
+entry_hash: f0c4da60917c9118058cd9cde9d0468c993cec1128a33c56d5f6847f0b0040ce
+ticket_or_adr: Auditoría FASE 8 Bloque A
+test_ids: [print-outbox.test.ts 6/6, print-templates 35/35, pos-web print 22/22, fiscal-drain.test.ts 5/5, reserve-loyalty-atomic.integration.test.ts 2/2, V-24, V-21, SUITE]
+entregable_afectado: offload de impresión, canal fiscal, loyalty bajo concurrencia
+descripcion: >
+  Auditoría staff de seguridad crítica de FASE 8 (S25–S27):
+  (1) S25-H1 zero-dependency offloading — sin cap de líneas por ticket:
+  un snapshot con miles de items podía saturar el worker de offload.
+  Nuevo MAX_PRINT_ITEMS=200 + assertPrintPayloadSize conectado en
+  compileEscPosFromSnapshot (DoS guard en el worker). Verificado que el
+  outbox ya es idempotente por printJobKey(saleId) con transiciones
+  validadas y quota guardian; V-24 bundle baseline GREEN.
+  (2) S26-H1 canal fiscal resiliente — verificado: CDR como única
+  confirmación (cdrVerdict), breaker stale→fail-closed, half-open con
+  probe, poison→quarantine, claim atómico B4; el enqueue de fiscal_outbox
+  vive dentro del batch de la venta (la venta nunca se cae por fiscal).
+  (3) S27-H1 costo y dinero — nuevo test de integración D1 real:
+  2 reservas loyalty paralelas con saldo justo → a lo más 1 gana
+  (guard atómico), saldo jamás negativo, idempotencia no duplica.
+evidencia: >
+  RED: sin cap de payload (no existía), concurrencia loyalty sin evidencia
+  D1 real.
+  GREEN: print-outbox 6/6, print-templates 35/35, pos-web print 22/22,
+  fiscal-drain 5/5 (chaos SUNAT caído 100%: 0 SENT, reenvío post-recovery
+  sin pérdida), loyalty integration 2/2; adapters-d1 383+288; worker-api
+  1070; tsc limpio; V-24 GREEN; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0378
+timestamp_utc: 2026-08-14T08:15:00Z
+schema_version: 2
+sprint_fase: FASE 8 — Auditoría Bloque B (authz y controles server; S25–S27)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CORRIGE
+referencias_entradas: [0377]
+referencias_documentales: [apps/worker-api/src/billing/meter-overage-routes.ts, apps/worker-api/src/index.ts, apps/worker-api/src/auth/protected-routes.test.ts]
+prev_id: 0377
+prev_hash: f0c4da60917c9118058cd9cde9d0468c993cec1128a33c56d5f6847f0b0040ce
+entry_hash: 6ab770404f59485dc1ecbeb7ca740d90c1fcf629e7e237641ed6fbd6428a3f73
+ticket_or_adr: Auditoría FASE 8 Bloque B
+test_ids: [meter-overage-routes.test.ts 5/5, protected-routes.test.ts 423/423, worker-api 1070/1070, SUITE]
+entregable_afectado: cron de sobregiro Stripe, matriz de rutas protegidas
+descripcion: >
+  Auditoría staff de authz y controles server de FASE 8 (S25–S27):
+  (1) S27-H2 — el endpoint POST /api/billing/cron/meter-overage COBRA
+  sobregiros en Stripe Metered y no tenía ningún guard: cualquier usuario
+  autenticado (cajero/vendedor) podía disparar el cobro a demanda. Ahora
+  admin/owner only (FORBIDDEN_ADMIN 403), rol propagado desde el JWT.
+  (2) S25-H2/S26-H2 verificados: drain de webhooks ya exige admin; la
+  clasificación de errores SUNAT (classify-sunat) y el retry-backoff con
+  jitter ya cubiertos.
+  (3) PARIDAD de rutas protegidas: GET /api/pos/day-sales (nueva, otro
+  agente) no estaba en PROTECTED_ROUTES; añadida a la matriz para que el
+  test de paridad pase.
+evidencia: >
+  RED: 2 guards (cron sin rol/cashier) + 1 paridad (day-sales fuera de la
+  matriz).
+  GREEN: meter-overage 5/5, protected-routes 423/423, worker-api completo
+  1070/1070; tsc limpio; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0379
+timestamp_utc: 2026-08-14T08:30:00Z
+schema_version: 2
+sprint_fase: FASE 8 — Auditoría Bloque C (evidencia, chaos y cobertura; S25–S27)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Correccion de implementacion
+subtipo: quality-gate
+relacion: CIERRA
+referencias_entradas: [0378]
+referencias_documentales: [apps/worker-fiscal/src/fiscal-drain.test.ts]
+prev_id: 0378
+prev_hash: 6ab770404f59485dc1ecbeb7ca740d90c1fcf629e7e237641ed6fbd6428a3f73
+entry_hash: b29d8c5e28d7e24016e0c7c12432db02d3cb7bbd31fba3b3487020ff4d25a54c
+ticket_or_adr: Auditoría FASE 8 Bloque C
+test_ids: [fiscal-drain.test.ts 5/5, worker-fiscal 19/19, SUITE]
+entregable_afectado: canal fiscal bajo caída total de SUNAT
+descripcion: >
+  Auditoría staff de evidencia de FASE 8 (S25–S27):
+  (1) Chaos SUNAT caído 100%: nuevo test de fiscal-drain que simula el
+  transporte rechazando todo — ningún XML se marca SENT (fail-closed),
+  los rows quedan retryable, y post-recovery el MISMO XML se reenvía y se
+  acepta (0 pérdida). Evidencia de la invariante 8 (jamás afirmar
+  aceptación sin CDR) bajo fallo total del canal.
+  (2) Cobertura: meter-overage-routes subida de 2 a 5 tests (guards +
+  flujo); worker-fiscal 19/19 (breaker + drain + cdrVerdict).
+  (3) Barrido completo del monorepo cerrando F7+F8: adapters-d1 383 unit
+  + 288 integration, importers 29, domain-integrations 127, payments-pe 8,
+  print-templates 35, pos-web print 22, worker-fiscal 19, worker-api 1070.
+evidencia: >
+  RED: caída total de SUNAT sin cobertura (solo breaker parcial existía).
+  GREEN: fiscal-drain 5/5 (1 nuevo chaos), worker-fiscal 19/19; SUITE
+  GREEN. Roadmap completo auditado F1→F8 con patrón Bloque A/B/C.
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0380
+timestamp_utc: 2026-08-14T09:30:00Z
+schema_version: 2
+sprint_fase: F3 — IA por rol según GTM §3.3 (shell del cajero, tabs del Dueño, Historial del día)
+agente_responsable: Staff Principal A
+tipo: Corrección de arquitectura UX
+subtipo: Navegación por rol + endpoint de historial del día
+relacion: CORRIGE
+referencias_entradas: [0373]
+referencias_documentales: [docs/GTM.md §3.3/§6.2, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/caja/historial/+page.svelte, apps/pos-web/src/routes/owner/alertas/+page.svelte, apps/pos-web/src/routes/owner/locales/+page.svelte, apps/worker-api/src/pos/pos-day-sales-route.ts, apps/pos-web/src/routes/ayuda/+page.svelte]
+prev_id: 0379
+prev_hash: b29d8c5e28d7e24016e0c7c12432db02d3cb7bbd31fba3b3487020ff4d25a54c
+entry_hash: 16a6d175a12b627b75f307dd30d40af3ebd64e830517a7f0c1a062467dad9474
+ticket_or_adr: Auditoría F3 (IA por rol), GTM-03/06/11
+test_ids: [pos-day-sales-route.test.ts 4/4, day-sales.test.ts 2/2, token-store.test.ts 6/6, pos-web 286/286, e2e 60/60 x2, V-21, SUITE]
+entregable_afectado: shell del POS, historial del día, navegación Dueño/Admin, ayuda en caja
+descripcion: >
+  Implementación de la arquitectura de información por rol del GTM §3.3. 1)
+  Cajero: pill "Sesión de caja: Abierta · Cajero <id>" en el terminal (identidad
+  persistida en kipuspay_user tras el login) y bottom nav de 4 destinos
+  (Cobrar | Historial del día | Caja | Ayuda). 2) Historial del día: endpoint
+  nuevo GET /api/pos/day-sales (ventas de hoy en hora Lima vía issued_at_lima,
+  totales en cents server-side, rol de caja exige branch) + página
+  /caja/historial. 3) Dueño: tabs reordenadas a Hoy | Locales | Alertas |
+  Finanzas | Yo (Previsiones/Asistente premium al final); Locales deja de ser
+  demo y consume GET /api/owner/day-summary (rollups, ranking real, GTM-03/11
+  con banner offline); nueva página Alertas que agrega quiebre de stock,
+  pagos sin conciliar y apartados vencidos. 4) Admin: ítem "Inicio" (Resumen
+  del día). 5) /ayuda: página de soporte en caja sin jerga. 6) Fix de raíz
+  del flake e2e: se elimina out:fade del layout ({#key}+out-transition
+  mantenía la página previa montada ~80ms y rompía selectores estrictos).
+evidencia: >
+  RED: 2 tests fallaban (historial inexistente); /owner/finanzas y /owner/
+  locales eran placeholders con backend live; flake de customer-orders
+  (strict mode: 2 elementos 'Cliente' durante el overlap del out:fade).
+  GREEN: pos-day-sales 4/4; day-sales 2/2; token-store 6/6; pos-web 286/286;
+  e2e 60/60 dos corridas seguidas (flake eliminado); worker-api 20/20
+  (day-sales+cash-routes); typecheck 0; lint 0; V-21 GREEN; verify.sh SUITE
+  GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0381
+timestamp_utc: 2026-08-14T10:15:00Z
+schema_version: 2
+sprint_fase: F4 — Higiene de la conexión frontend↔backend (base URL única + feedback sensorial)
+agente_responsable: Staff Principal A
+tipo: Corrección de arquitectura
+subtipo: Single-source de base URL y GTM §6.5 (feedback de venta)
+relacion: CORRIGE
+referencias_entradas: [0380]
+referencias_documentales: [docs/GTM.md §6.5, apps/pos-web/src/lib/ui/feedback.ts, apps/pos-web/src/lib/forecasting/forecasting-client.ts, apps/pos-web/src/routes/owner/+page.svelte]
+prev_id: 0380
+prev_hash: 16a6d175a12b627b75f307dd30d40af3ebd64e830517a7f0c1a062467dad9474
+entry_hash: b028b14168f200223c733e7f9508db6fe87ed8be81e3b81c259230af66507668
+ticket_or_adr: Auditoría F4 (higiene), GTM §6.5
+test_ids: [feedback.test.ts 3/3, token-store.test.ts 6/6, forecasting-client.test.ts 5/5, pos-web 289/289, e2e 60/60, V-21, SUITE]
+entregable_afectado: base URL del cliente, feedback de venta del POS
+descripcion: >
+  Cierre de higiene de la auditoría. 1) Se eliminan los 17 fallbacks
+  hardcodeados 'https://api.kipuspay.local' de src (quedan solo en tests como
+  fixtures inyectados): la base única es resolveApiBase (PUBLIC_API_BASE ->
+  override local -> mismo origen); el cliente de forecasting usa
+  'http://localhost:8787' como default de desarrollo (nunca un dominio de
+  nube falso) y sus tests se actualizan al contrato nuevo. 2) Se elimina el
+  literal 'Bearer local' del flujo de anulación anticipada del Dueño
+  (resolveApiAuth). 3) GTM §6.5: feedback sensorial deliberado al completar
+  la venta — beep corto por Web Audio (sin assets) + vibración breve en
+  móvil, opt-in por flag PUBLIC_FEATURE_SALE_FEEDBACK (default off) y
+  fire-and-forget (jamás bloquea el cobro).
+evidencia: >
+  RED: 17 fallbacks del dominio falso en src; forecasting-client rompía con
+  base vacía (new URL relativa); el Dueño enviaba 'Bearer local'.
+  GREEN: 0 'api.kipuspay.local' en src fuera de tests; feedback 3/3 (soporte
+  node fail-closed, beep+vibración, sin vibrate); pos-web 289/289; e2e 60/60;
+  typecheck 0; lint 0; V-21 GREEN; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
