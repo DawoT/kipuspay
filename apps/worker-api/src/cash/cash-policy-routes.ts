@@ -67,7 +67,10 @@ function parseCashPolicyPatch(
   const openDrawerOnCash = body.openDrawerOnCash;
   if (
     tipMaxPercent !== undefined &&
-    (typeof tipMaxPercent !== 'number' || !Number.isInteger(tipMaxPercent) || tipMaxPercent <= 0 || tipMaxPercent > 100)
+    (typeof tipMaxPercent !== 'number' ||
+      !Number.isInteger(tipMaxPercent) ||
+      tipMaxPercent <= 0 ||
+      tipMaxPercent > 100)
   ) {
     return { ok: false, status: 422, code: 'INVALID_TIP_MAX_PERCENT' };
   }
@@ -94,7 +97,10 @@ async function applyCashPolicyPatch(
   env: CashPolicyEnv,
   tenantId: string,
   patch: { ok: true; sets: string[]; params: unknown[] },
-): Promise<{ ok: true; row: { tip_max_percent: number; open_drawer_on_cash: number } | null } | { ok: false; status: number; code: string }> {
+): Promise<
+  | { ok: true; row: { tip_max_percent: number; open_drawer_on_cash: number } | null }
+  | { ok: false; status: number; code: string }
+> {
   const db = env.DB as PolicyDb;
   await db
     .prepare(
@@ -134,6 +140,12 @@ export async function runPatchCashPolicyHttp(
   }
   const outcome = await applyCashPolicyPatch(env, actor.tenantId, parsed);
   return outcome.ok
-    ? { status: 200, body: { tipMaxPercent: outcome.row?.tip_max_percent ?? 25, openDrawerOnCash: (outcome.row?.open_drawer_on_cash ?? 1) === 1 } }
+    ? {
+        status: 200,
+        body: {
+          tipMaxPercent: outcome.row?.tip_max_percent ?? 25,
+          openDrawerOnCash: (outcome.row?.open_drawer_on_cash ?? 1) === 1,
+        },
+      }
     : { status: outcome.status, body: { code: outcome.code } };
 }

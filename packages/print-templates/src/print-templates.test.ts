@@ -142,9 +142,7 @@ describe('print-templates', () => {
 
 describe('Backlog v10 P2 — propina y cajón', () => {
   it('ticket con propina muestra la línea informativa (sin IGV)', () => {
-    const text = new TextDecoder().decode(
-      buildEscPosPayload({ ...ticket(), tipCents: 240 }),
-    );
+    const text = new TextDecoder().decode(buildEscPosPayload({ ...ticket(), tipCents: 240 }));
     expect(text).toContain('PROPINA: S/ 2.40');
   });
 

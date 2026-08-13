@@ -14,9 +14,9 @@ export interface GreEnv {
   readonly DB?: unknown;
 }
 
-function parseRemissionBody(body: Record<string, unknown>):
-  | { ok: true; branchId: string; request: RemissionGuideRequest }
-  | { ok: false } {
+function parseRemissionBody(
+  body: Record<string, unknown>,
+): { ok: true; branchId: string; request: RemissionGuideRequest } | { ok: false } {
   const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
   const request = body as Partial<RemissionGuideRequest>;
   if (

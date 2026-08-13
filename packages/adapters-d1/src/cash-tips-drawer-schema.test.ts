@@ -5,7 +5,9 @@ import { DOWN_0048_SPRINT_P2_CASH_TIPS_DRAWER } from './migrations-down.js';
 
 describe('P2 cash tips/drawer schema', () => {
   it('añade tip_cents a sale_payments (default 0) sin tocar el CHECK de montos', () => {
-    expect(migration0048).toContain('ALTER TABLE sale_payments ADD COLUMN tip_cents INTEGER NOT NULL DEFAULT 0');
+    expect(migration0048).toContain(
+      'ALTER TABLE sale_payments ADD COLUMN tip_cents INTEGER NOT NULL DEFAULT 0',
+    );
     expect(migration0048).not.toContain('CREATE TABLE sale_payments');
   });
 
@@ -18,6 +20,8 @@ describe('P2 cash tips/drawer schema', () => {
     expect(DOWN_0048_SPRINT_P2_CASH_TIPS_DRAWER).toBe(down0048);
     expect(down0048).toContain('TIPS_DRAWER_DOWN_PROTECTED');
     expect(down0048).toContain('ALTER TABLE sale_payments DROP COLUMN tip_cents');
-    expect(down0048).toContain('ALTER TABLE tenant_discount_policies DROP COLUMN open_drawer_on_cash');
+    expect(down0048).toContain(
+      'ALTER TABLE tenant_discount_policies DROP COLUMN open_drawer_on_cash',
+    );
   });
 });
