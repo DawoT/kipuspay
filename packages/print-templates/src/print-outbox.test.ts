@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildGsKQrCommands } from './escpos-qr.js';
 import {
+  MAX_PRINT_ITEMS,
+  assertPrintPayloadSize,
   assertPrintJobTransition,
   base64ToBytes,
   bytesToBase64,
@@ -47,5 +49,18 @@ describe('print-outbox contract', () => {
     expect(() => assertPrintJobTransition('PRINTED', 'PENDING')).toThrow(/PRINT_JOB_INVALID/);
     const bytes = new Uint8Array([1, 2, 255]);
     expect(Array.from(base64ToBytes(bytesToBase64(bytes)))).toEqual([1, 2, 255]);
+  });
+});
+
+describe('S25-H1 límite de payload de compilación', () => {
+  it('assertPrintPayloadSize rechaza snapshot con más de MAX_PRINT_ITEMS items', () => {
+    expect(MAX_PRINT_ITEMS).toBeGreaterThan(0);
+    expect(MAX_PRINT_ITEMS).toBeLessThanOrEqual(500);
+    expect(() =>
+      assertPrintPayloadSize({ items: Array.from({ length: MAX_PRINT_ITEMS }, () => ({})) }),
+    ).not.toThrow();
+    expect(() =>
+      assertPrintPayloadSize({ items: Array.from({ length: MAX_PRINT_ITEMS + 1 }, () => ({})) }),
+    ).toThrow(/PRINT_PAYLOAD_TOO_LARGE/);
   });
 });

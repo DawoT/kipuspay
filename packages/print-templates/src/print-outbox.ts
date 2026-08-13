@@ -2,6 +2,7 @@
  * Contrato PrintOutbox (§7.5) — puro, sin IndexedDB.
  * PENDING/FAILED bloquean cierre Z (edge 2D); PRINTED se borra tras ACK.
  */
+import type { TicketBrandFooter } from './ticket-data.js';
 
 export type PrintJobStatus = 'PENDING' | 'PRINTED' | 'FAILED';
 export type PrintJobKind = 'SALE_TICKET' | 'PRICE_LABEL_BATCH';
@@ -24,6 +25,8 @@ export interface PrintTicketSnapshot {
   readonly lineWidth: number;
   readonly digestValue?: string;
   readonly qrPayload?: string;
+  /** S12-H2: pie de marca "Emitido con KipusPay" (opcional, opt-out tenant). */
+  readonly brandFooter?: TicketBrandFooter;
 }
 
 export interface PrintJobRecord {
@@ -69,6 +72,16 @@ export interface PrintOutboxPort {
   markFailed(saleId: string, error: string): Promise<void>;
   /** ACK: borra el job (solo tras print OK). */
   ackDelete(saleId: string): Promise<void>;
+}
+
+/** S25-H1: tope de líneas por ticket compilado (DoS en el worker de
+ * offload / memoria de la cola). 200 líneas cubren tickets reales con margen. */
+export const MAX_PRINT_ITEMS = 200;
+
+export function assertPrintPayloadSize(ticket: { readonly items: readonly unknown[] }): void {
+  if (ticket.items.length > MAX_PRINT_ITEMS) {
+    throw new Error(`PRINT_PAYLOAD_TOO_LARGE:${ticket.items.length}`);
+  }
 }
 
 export function printJobKey(saleId: string): string {

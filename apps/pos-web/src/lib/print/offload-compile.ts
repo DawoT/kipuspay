@@ -2,6 +2,7 @@
  * Compilación ESC/POS off-main (§7.5) — usable en Worker o main thread (tests).
  */
 import {
+  assertPrintPayloadSize,
   buildEscPosPayload,
   bytesToBase64,
   type PrintTicketSnapshot,
@@ -20,6 +21,7 @@ export function snapshotToTicketData(snap: PrintTicketSnapshot): TicketData {
     lineWidth: snap.lineWidth,
     ...(snap.digestValue !== undefined ? { digestValue: snap.digestValue } : {}),
     ...(snap.qrPayload !== undefined ? { qrPayload: snap.qrPayload } : {}),
+    ...(snap.brandFooter !== undefined ? { brandFooter: snap.brandFooter } : {}),
   };
 }
 
@@ -27,6 +29,7 @@ export function compileEscPosFromSnapshot(snap: PrintTicketSnapshot): {
   readonly bytes: Uint8Array;
   readonly escPosBase64: string;
 } {
+  assertPrintPayloadSize(snap); // S25-H1: DoS guard en el worker
   const bytes = buildEscPosPayload(snapshotToTicketData(snap));
   return { bytes, escPosBase64: bytesToBase64(bytes) };
 }

@@ -153,3 +153,69 @@ describe('CatalogImporter integración D1 (FK reales)', () => {
     expect(preview.conflicts[0]?.reason).toBe('tipo de entidad no soportado: gadget');
   });
 });
+
+describe('F7 Bloque C — atomicidad del commit', () => {
+  it('fallo en una fila del lote → 0 filas persistidas (batch atómico)', async () => {
+    await seedTenant('t-imp-atomic', true);
+    const importer = new CatalogImporter(env.DB);
+
+    // Lote con 2 filas: la 2ª rompe un UNIQUE del tenant (barcode duplicado
+    // de un producto existente) → el batch debe revertir TODO, no media.
+    const existing = {
+      entityType: 'product' as const,
+      externalId: 'p-existing',
+      sku: 'SKU-EXIST',
+      barcode: '7791001',
+      name: 'Existente',
+      unitCode: 'NIU',
+      priceCents: 1000,
+      costCents: 500,
+      taxName: null,
+      igvAffectationCode: '10',
+    };
+    await importer.commit(await importer.preview({ source: 'csv', tenantId: 't-imp-atomic', rows: [existing] }));
+
+    // barcode 7791001 ya existe → la 2ª fila del lote viola el UNIQUE
+    const lote = [
+      {
+        ...existing,
+        externalId: 'p-new1',
+        sku: 'SKU-NEW1',
+        barcode: '7792001',
+        name: 'Nuevo 1',
+      },
+      {
+        ...existing,
+        externalId: 'p-new2',
+        sku: 'SKU-NEW2',
+        barcode: '7791001',
+        name: 'Duplicado',
+      },
+    ];
+    const plan = await importer.preview({ source: 'csv', tenantId: 't-imp-atomic', rows: lote });
+    expect(plan.conflicts).toHaveLength(0);
+
+    // El commit del lote con UNIQUE violation debe fallar o no persistir nada.
+    try {
+      await importer.commit(plan);
+    } catch {
+      // esperado: D1 aborta el batch
+    }
+
+    const count = await env.DB.prepare(`SELECT COUNT(*) AS n FROM products WHERE tenant_id = ?`)
+      .bind('t-imp-atomic')
+      .first<{ n: number }>();
+    expect(count?.n).toBe(1); // solo el existing inicial; nada del lote roto
+  });
+
+  it('preview respeta aislamiento de tenant (claves del tenant B no son duplicadas del A)', async () => {
+    await seedTenant('t-imp-a', true);
+    await seedTenant('t-imp-b', true);
+    const impA = new CatalogImporter(env.DB);
+    await impA.commit(await impA.preview({ source: 'csv', tenantId: 't-imp-a', rows: [product] }));
+
+    // El mismo externalId en el tenant B NO es duplicado (aislamiento DAT-12).
+    const planB = await impA.preview({ source: 'csv', tenantId: 't-imp-b', rows: [product] });
+    expect(planB.actions[0]).toMatchObject({ kind: 'create' });
+  });
+});

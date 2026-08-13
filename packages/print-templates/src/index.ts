@@ -12,6 +12,8 @@ export {
   type SystemPrintPort,
 } from './system-print.js';
 export {
+  MAX_PRINT_ITEMS,
+  assertPrintPayloadSize,
   printJobKey,
   countBlockingPrintJobs,
   assertPrintJobTransition,
