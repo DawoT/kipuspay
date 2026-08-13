@@ -252,6 +252,8 @@ export async function writeScaleHeartbeat(
     readonly protocol: 'WEBHID' | 'WEB_SERIAL' | 'WEBUSB';
     readonly heartbeatSequence: number;
     readonly observedAt: string;
+    /** S40-H1: lectura cruda de la balanza (peso en µ) en el heartbeat. */
+    readonly weightMicrounits?: number | null;
   },
 ): Promise<{ readonly deviceId: string; readonly heartbeatSequence: number }> {
   await resolveActiveTerminalSession(db, input);
@@ -294,14 +296,19 @@ export async function writeScaleHeartbeat(
       db
         .prepare(
           `UPDATE scale_devices
-           SET last_heartbeat_at = CURRENT_TIMESTAMP, last_heartbeat_sequence = ?,
+           SET last_heartbeat_at = ?, last_heartbeat_sequence = ?,
+               last_weight_microunits = ?,
                updated_at = CURRENT_TIMESTAMP
            WHERE tenant_id = ? AND id = ? AND terminal_id = ? AND protocol = ?
              AND status = 'ACTIVE'
              AND (last_heartbeat_sequence IS NULL OR last_heartbeat_sequence < ?)`,
         )
         .bind(
+          input.observedAt,
           input.heartbeatSequence,
+          input.weightMicrounits && Number.isInteger(input.weightMicrounits)
+            ? input.weightMicrounits
+            : null,
           input.tenantId,
           input.deviceId,
           input.terminalId,
@@ -501,12 +508,17 @@ export async function submitWeightMeasurementAtomic(
     }
     const device = await db
       .prepare(
-        `SELECT last_heartbeat_at, last_heartbeat_sequence FROM scale_devices
+        `SELECT last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
+         FROM scale_devices
          WHERE tenant_id = ? AND id = ? AND terminal_id = ? AND protocol = ?
            AND status = 'ACTIVE' LIMIT 1`,
       )
       .bind(input.tenantId, input.scaleDeviceId, input.terminalId, input.scaleProtocol)
-      .first<{ last_heartbeat_at: string | null; last_heartbeat_sequence: number | null }>();
+      .first<{
+        last_heartbeat_at: string | null;
+        last_heartbeat_sequence: number | null;
+        last_weight_microunits: number | null;
+      }>();
     const deviceHeartbeatMs = device?.last_heartbeat_at
       ? Date.parse(device.last_heartbeat_at)
       : NaN;
@@ -517,6 +529,17 @@ export async function submitWeightMeasurementAtomic(
       deviceHeartbeatMs > nowMs
     ) {
       throw new Error('SCALE_HEARTBEAT_STALE');
+    }
+    // S40-H1: el peso DEVICE DEBE ser la lectura cruda registrada por el
+    // heartbeat de la balanza — jamás un valor arbitrario del cliente. Sin
+    // lectura registrada → fail-closed (el dispositivo no confirmó el peso).
+    if (
+      typeof device.last_weight_microunits !== 'number' ||
+      !Number.isInteger(device.last_weight_microunits) ||
+      device.last_weight_microunits <= 0 ||
+      device.last_weight_microunits !== input.weightMicrounits
+    ) {
+      throw new Error('WEIGHT_DEVICE_READING_MISMATCH');
     }
   } else {
     if (input.scaleDeviceId || input.scaleProtocol || input.heartbeatSequence !== null) {

@@ -180,3 +180,6 @@ export * from './process-mobile-push-atomic.js';
 export * from './process-shift-handoff-atomic.js';
 export * from './crypto.js';
 export * from './customer-repository.js';
+export * from './referral-d1.js';
+export * from './pin-lockout.js';
+export { hashPinArgon2id, isArgon2idHash, verifyPinHash } from '@kipuspay/domain-ops';

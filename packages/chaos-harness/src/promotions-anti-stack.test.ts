@@ -6,14 +6,27 @@ import {
 } from './promotions-anti-stack.js';
 
 describe('promotions-anti-stack chaos', () => {
-  it('500 ciclos PASS', async () => {
+  it('500 ciclos sin evidencia batch → FAIL (fail-closed)', async () => {
     const result = runPromotionsAntiStackChaos(500);
     expect(result.discrepancies).toBe(0);
+    expect(judgePromotionsAntiStack(result)).toBe('FAIL');
+    expect(await runPromotionsAntiStackChaosScenario()).toBe('FAIL');
+  });
+
+  it('500 ciclos + evidencia real de batch → PASS', () => {
+    const result = runPromotionsAntiStackChaos(500, true);
+    expect(result.discrepancies).toBe(0);
     expect(judgePromotionsAntiStack(result)).toBe('PASS');
-    expect(await runPromotionsAntiStackChaosScenario()).toBe('PASS');
   });
 
   it('judge falla si <500', () => {
-    expect(judgePromotionsAntiStack({ cycles: 10, discrepancies: 0, samples: [] })).toBe('FAIL');
+    expect(
+      judgePromotionsAntiStack({
+        cycles: 10,
+        discrepancies: 0,
+        samples: [],
+        batchEvidenceVerified: true,
+      }),
+    ).toBe('FAIL');
   });
 });

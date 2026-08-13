@@ -129,6 +129,19 @@ describe('fiscal RC / plazos / baja / chaos deadline', () => {
     expect(voided.stockAfter).toBe(voided.stockBefore);
     expect(voided.stockBefore).toBe(stockBefore?.stock);
 
+    // S17-H3: la baja genera audit_events VOID con hash encadenado.
+    const audit = await env.DB.prepare(
+      `SELECT action, entity_id, row_hash, prev_hash FROM audit_events
+       WHERE tenant_id = ? AND action = 'VOID' ORDER BY created_at DESC LIMIT 1`,
+    )
+      .bind(tenantId)
+      .first<{ action: string; entity_id: string; row_hash: string; prev_hash: string | null }>();
+    expect(audit?.action).toBe('VOID');
+    expect(audit?.entity_id).toBe(saleId);
+    expect(audit?.row_hash).toMatch(/^[a-f0-9]{64}$/);
+    // Primera entrada de la cadena del tenant: prev_hash null; luego encadena.
+    expect(audit?.prev_hash).toBeNull();
+
     const rc = await buildDailySummary(env.DB, {
       tenantId,
       summaryDate: '2026-08-01',

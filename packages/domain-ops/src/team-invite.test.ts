@@ -49,6 +49,16 @@ describe('generateCashierPin', () => {
     const pin = generateCashierPin(() => 0.05);
     expect(pin[0]).not.toBe('0');
   });
+
+  it('fail-closed: sin crypto.getRandomValues lanza CRYPTO_UNAVAILABLE', () => {
+    const desc = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+    try {
+      expect(() => generateCashierPin()).toThrow('CRYPTO_UNAVAILABLE');
+    } finally {
+      if (desc) Object.defineProperty(globalThis, 'crypto', desc);
+    }
+  });
 });
 
 describe('invite email', () => {

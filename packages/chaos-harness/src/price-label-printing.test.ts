@@ -61,7 +61,8 @@ describe('price-label printing chaos contract', () => {
           sample.closeZRemainedAvailable,
       ),
     ).toBe(true);
-    expect(judgePriceLabelPrinting(first)).toBe('PASS');
+    expect(judgePriceLabelPrinting(first)).toBe('FAIL');
+    expect(judgePriceLabelPrinting({ ...first, engineEvidenceVerified: true })).toBe('PASS');
   });
 
   it.each([
@@ -81,6 +82,7 @@ describe('price-label printing chaos contract', () => {
   ])('judge rejects %s', (_case, patch) => {
     const valid: PriceLabelPrintingChaosResult = {
       cycles: 500,
+      engineEvidenceVerified: true,
       mixedSnapshotBatches: 0,
       clientPricesAccepted: 0,
       crossTenantReads: 0,

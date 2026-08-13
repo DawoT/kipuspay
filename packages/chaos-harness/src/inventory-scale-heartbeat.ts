@@ -41,6 +41,7 @@ export interface InventoryScaleHeartbeatChaosResult {
   readonly centParityDrift: number;
   readonly stockMicrounitDrift: number;
   readonly samples: readonly InventoryScaleHeartbeatCycleResult[];
+  readonly engineEvidenceVerified: boolean;
 }
 
 interface ProtocolFrame {
@@ -292,7 +293,10 @@ function sampleHasDiscrepancy(sample: InventoryScaleHeartbeatCycleResult): boole
   );
 }
 
-export function runInventoryScaleHeartbeatChaos(cycles = 500): InventoryScaleHeartbeatChaosResult {
+export function runInventoryScaleHeartbeatChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): InventoryScaleHeartbeatChaosResult {
   if (!Number.isSafeInteger(cycles) || cycles < 0) throw new Error('CHAOS_CYCLES_INVALID');
   const samples: InventoryScaleHeartbeatCycleResult[] = [];
   let discrepancies = 0;
@@ -324,21 +328,25 @@ export function runInventoryScaleHeartbeatChaos(cycles = 500): InventoryScaleHea
     centParityDrift,
     stockMicrounitDrift,
     samples,
+    engineEvidenceVerified,
   };
 }
 
 export function judgeInventoryScaleHeartbeat(
   result: InventoryScaleHeartbeatChaosResult,
 ): InventoryScaleHeartbeatChaosVerdict {
-  return result.cycles >= 500 &&
-    result.discrepancies === 0 &&
-    result.silentZeroWeights === 0 &&
-    result.staleReadingsAccepted === 0 &&
-    result.duplicateMeasurements === 0 &&
-    result.centParityDrift === 0 &&
-    result.stockMicrounitDrift === 0
-    ? 'PASS'
-    : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (
+    result.silentZeroWeights !== 0 ||
+    result.staleReadingsAccepted !== 0 ||
+    result.duplicateMeasurements !== 0 ||
+    result.centParityDrift !== 0 ||
+    result.stockMicrounitDrift !== 0
+  ) {
+    return 'FAIL';
+  }
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 export async function runInventoryScaleHeartbeatChaosScenario(

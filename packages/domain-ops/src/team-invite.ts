@@ -26,7 +26,7 @@ export function isValidGeneratedBadge(badge: string): boolean {
  */
 export function generateBadgeBarcode(
   existingBadges: ReadonlySet<string>,
-  rng: () => number = Math.random,
+  rng: () => number = cryptoRandomDigit,
 ): string {
   for (let attempt = 0; attempt < 100; attempt++) {
     const suffix = Array.from({ length: BADGE_SUFFIX_LENGTH }, () => Math.floor(rng() * 10)).join(
@@ -38,8 +38,9 @@ export function generateBadgeBarcode(
   throw new Error('BADGE_NAMESPACE_EXHAUSTED');
 }
 
-/** PIN de caja de 4 dígitos (tecleo rápido en el carrito, <1 s). */
-export function generateCashierPin(rng: () => number = Math.random): string {
+/** PIN de caja de 4 dígitos (tecleo rápido en el carrito, <1 s).
+ * S51-H1: RNG criptográfico — jamás Math.random para credenciales. */
+export function generateCashierPin(rng: () => number = cryptoRandomDigit): string {
   const digits = Array.from({ length: CASHIER_PIN_LENGTH }, () => Math.floor(rng() * 10));
   if (digits[0] === 0) {
     // Evita PINs con 0 inicial que invitan a error de tecleo (longitud ambigua).
@@ -62,3 +63,14 @@ export function isValidInviteEmail(email: string): boolean {
   if (!domain.includes('.')) return false;
   return !/[^a-z0-9.!#$%&'*+/=?^_`{|}~-]/i.test(local);
 }
+
+/** Fuente aleatoria criptográfica en el dominio de rng (0.0..1.0). */
+function cryptoRandomDigit(): number {
+  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint32Array): void } })
+    .crypto;
+  if (!cryptoObj) throw new Error('CRYPTO_UNAVAILABLE');
+  const buf = new Uint32Array(1);
+  cryptoObj.getRandomValues(buf);
+  return buf[0]! / 0x1_0000_0000;
+}
+

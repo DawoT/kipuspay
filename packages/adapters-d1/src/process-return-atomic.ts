@@ -52,6 +52,9 @@ export interface ProcessReturnInput {
   /** Sprint 35: NC sin reembolso → crédito de tienda (consentimiento). */
   readonly consentStoreCredit?: boolean;
   readonly serialIdsBySaleItemId?: Readonly<Record<string, readonly string[]>>;
+  /** S28-H1: método de vuelto elegido por el cajero cuando la política lo permite
+   *  (refund_to_original_method = 0). Default: método del pago mayor del origen. */
+  readonly refundMethod?: string | null;
 }
 
 export interface ProcessReturnOptions {
@@ -153,6 +156,14 @@ export async function processReturnAtomic(
     .bind(tenantId, input.originSaleId)
     .first<{ code: string; amount_cents: number }>();
   const paymentMethod = normalizePaymentMethod(payRow?.code ?? 'cash');
+  // S28-H1: con la política de retorno a método original desactivada se habilita
+  // el vuelto por el método elegido (validado por normalizePaymentMethod); con la
+  // política activa (default), el vuelto va SIEMPRE por el método del pago mayor
+  // del origen.
+  const resolvedRefundMethod =
+    !policy.refundToOriginalMethod && input.refundMethod?.trim()
+      ? normalizePaymentMethod(input.refundMethod.trim())
+      : paymentMethod;
 
   assertReturnWithinWindow({
     issuedAtMs: parseIssuedAtMs(origin.issued_at_lima),
@@ -259,7 +270,19 @@ export async function processReturnAtomic(
     'SOLD',
   );
 
-  const threshold = input.authThresholdCents ?? 50_000;
+  // S28-H2: umbral de authz server-side (política del tenant), nunca del cliente.
+  // Default 50_000 = umbral de devolución del motor (distinto del de descuentos).
+  const discountPolicy = await db
+    .prepare(
+      `SELECT max_amount_without_auth_cents FROM tenant_discount_policies
+       WHERE tenant_id = ? LIMIT 1`,
+    )
+    .bind(tenantId)
+    .first<{ max_amount_without_auth_cents: number }>();
+  const threshold =
+    discountPolicy && Number.isInteger(discountPolicy.max_amount_without_auth_cents)
+      ? discountPolicy.max_amount_without_auth_cents
+      : 50_000;
   if (refundAmountCents > threshold && !input.authorizedByUserId) {
     throw new Error('AUTH_REQUIRED');
   }
@@ -366,7 +389,7 @@ export async function processReturnAtomic(
   }
 
   // Crédito / CxC: solo reduce AR (E-D). Efectivo: movimiento SALE_REFUND.
-  const cashRefund = paymentMethod === 'cash' && !arCompensate;
+  const cashRefund = resolvedRefundMethod === 'cash' && !arCompensate;
   const storeCreditOn = options.storeCreditEnabled === true;
   const wantsStoreCredit = input.consentStoreCredit === true && storeCreditOn;
   let issueStoreCredit = false;
@@ -509,7 +532,7 @@ export async function processReturnAtomic(
           seriesRow.series,
           String(nextNumber),
           refundAmountCents,
-          paymentMethod,
+          resolvedRefundMethod,
           refundMovementId,
           input.reason.trim(),
           input.authorizedByUserId ?? null,
@@ -834,7 +857,7 @@ export async function processReturnAtomic(
             {
               methodCode: issueStoreCredit
                 ? 'store_credit'
-                : paymentMethod === 'credit'
+                : resolvedRefundMethod === 'credit'
                   ? 'credit'
                   : 'cash',
               amountCents: refundAmountCents,

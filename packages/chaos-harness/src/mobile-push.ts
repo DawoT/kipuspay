@@ -61,6 +61,7 @@ export interface MobilePushChaosResult {
     readonly excludedByContext: Readonly<Record<'OFFLINE' | 'DOZE', number>>;
   };
   readonly summary: string;
+  readonly engineEvidenceVerified: boolean;
 }
 
 const DEFAULT_SEED = 0x45c0ffee;
@@ -91,6 +92,7 @@ function emptyCoverage(): Record<MobilePushFault, number> {
 export function runMobilePushChaos(
   cycles: number,
   seed = DEFAULT_SEED,
+  engineEvidenceVerified = false,
 ): Promise<MobilePushChaosResult> {
   const boundedCycles = Math.max(0, Math.trunc(cycles));
   const coverage = emptyCoverage();
@@ -163,6 +165,7 @@ export function runMobilePushChaos(
   return Promise.resolve({
     seed: seed >>> 0,
     cycles: boundedCycles,
+    engineEvidenceVerified,
     execution: 'DETERMINISTIC_SOFTWARE_SIMULATION',
     samples,
     coverage,
@@ -202,12 +205,11 @@ export function judgeMobilePushChaos(result: MobilePushChaosResult): 'PASS' | 'F
     result.duplicateOfflineSales +
     result.blockedOriginOperations +
     result.lostQueueEntries;
-  return result.cycles === 500 &&
-    allFaultsCovered &&
-    invariantFailures === 0 &&
-    result.samples.every((sample) => sample.invariantsHeld) &&
-    result.normalNetworkSlo.p95Ms < 10_000 &&
-    result.normalNetworkSlo.displayedRate >= 0.99
-    ? 'PASS'
-    : 'FAIL';
+  if (result.cycles !== 500 || !allFaultsCovered || invariantFailures !== 0) return 'FAIL';
+  if (!result.samples.every((sample) => sample.invariantsHeld)) return 'FAIL';
+  if (result.normalNetworkSlo.p95Ms >= 10_000 || result.normalNetworkSlo.displayedRate < 0.99) {
+    return 'FAIL';
+  }
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }

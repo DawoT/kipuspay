@@ -151,6 +151,75 @@ describe('processReturnAtomic', () => {
     expect(res.refundMovementId).toBeTruthy();
   });
 
+  it('S28-H1: vuelto por método elegido cuando el retorno a método original está desactivado (no no-op)', async () => {
+    // Origen pagado en CASH (pago mayor), pero la política permite otro método
+    // y el cajero elige yape → el vuelto NO genera movimiento de caja en efectivo.
+    const res = await processReturnAtomic(
+      mockReturnDb({
+        origin: baseOrigin,
+        policy: {
+          window_days: 7,
+          by_payment_method_json: '{}',
+          refund_to_original_method: 0,
+          allow_turn_closed_with_auth: 0,
+        },
+        payment: { code: 'CASH', amount_cents: 11800 },
+        session: { id: 'sess-1', status: 'OPEN' },
+        items: [baseItem],
+        series: { id: 'ser-1', series: 'NVR1', current_number: 0 },
+        stock: { stock: 8, pmp_unit_cost_cents: 2000 },
+      }),
+      't1',
+      'u1',
+      {
+        originSaleId: 'sale-1',
+        lines: [{ originalSaleItemId: 'si-1', qty: 1 }],
+        reason: 'Cambio de método',
+        series: 'NVR1',
+        refundMethod: 'yape',
+        nowMs: Date.UTC(2026, 7, 3),
+      },
+    );
+    expect(res.status).toBe('SUCCESS');
+    // Con el retorno a método original desactivado + refundMethod yape: sin SALE_REFUND en caja.
+    expect(res.refundMovementId).toBeNull();
+  });
+
+  it('S28-H2: umbral de authz viene de la política SERVER, nunca del cliente', async () => {
+    // Origen de S/ 600 (60000 cents) → refund 30000 < umbral 50000 default.
+    // El cliente envía authThresholdCents=999999999 — se ignora, pero el refund
+    // NO supera el umbral server → OK. Luego verificamos que un refund sobre el
+    // umbral server (60000 total → refund 60000) SÍ exige authz.
+    await expect(
+      processReturnAtomic(
+        mockReturnDb({
+          origin: { ...baseOrigin, total_amount_cents: 60000 },
+          policy: {
+            window_days: 7,
+            by_payment_method_json: '{}',
+            refund_to_original_method: 1,
+            allow_turn_closed_with_auth: 0,
+          },
+          payment: { code: 'CASH', amount_cents: 60000 },
+          session: { id: 'sess-1', status: 'OPEN' },
+          items: [{ ...baseItem, quantity: 6, total_amount_cents: 60000 }],
+          series: { id: 'ser-1', series: 'NVR1', current_number: 0 },
+          stock: { stock: 8, pmp_unit_cost_cents: 2000 },
+        }),
+        't1',
+        'u1',
+        {
+          originSaleId: 'sale-1',
+          lines: [{ originalSaleItemId: 'si-1', qty: 6 }],
+          reason: 'Producto defectuoso',
+          series: 'NVR1',
+          authThresholdCents: 999_999_999,
+          nowMs: Date.UTC(2026, 7, 3),
+        },
+      ),
+    ).rejects.toThrow('AUTH_REQUIRED');
+  });
+
   it('fuera de ventana → OUTSIDE_WINDOW', async () => {
     await expect(
       processReturnAtomic(

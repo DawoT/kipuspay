@@ -561,7 +561,9 @@ describe('inventory scale heartbeat branches', () => {
         7,
       ]);
       expect(callContaining(script, 'UPDATE scale_devices').params).toEqual([
+        heartbeatInput.observedAt,
         7,
+        null, // sin weightMicrounits → lectura null (S40-H1)
         'tenant-a',
         'device-a',
         'terminal-a',
@@ -713,7 +715,12 @@ describe('inventory scale measurement submission branches', () => {
     const now = new Date().toISOString();
     const script = scriptedDb({
       first: [
-        { last_heartbeat_at: now, last_heartbeat_sequence: 4 },
+        // S40-H1: la lectura registrada del device (500000 µ → 100 subtotal).
+        {
+          last_heartbeat_at: now,
+          last_heartbeat_sequence: 4,
+          last_weight_microunits: 500000,
+        },
         { sale_id: 'sale-a', price_cents: 199 },
         null,
       ],
@@ -726,6 +733,7 @@ describe('inventory scale measurement submission branches', () => {
         scaleProtocol: 'WEBUSB',
         heartbeatSequence: 5,
         observedAt: now,
+        weightMicrounits: 500000,
       }),
     ).resolves.toMatchObject({ authoritativeSubtotalCents: 100 });
     expect(script.calls.some((call) => call.sql.includes('tenant_weight_policies'))).toBe(false);

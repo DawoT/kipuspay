@@ -21,18 +21,18 @@ export interface InventorySerialChaosResult {
   readonly ghostSerials: number;
   readonly microunitDrift: number;
   readonly samples: readonly InventorySerialCycleResult[];
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeInventorySerialAssignment(
   result: InventorySerialChaosResult,
 ): InventorySerialChaosVerdict {
-  return result.cycles >= 500 &&
-    result.discrepancies === 0 &&
-    result.duplicateOwnerships === 0 &&
-    result.ghostSerials === 0 &&
-    result.microunitDrift === 0
-    ? 'PASS'
-    : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (result.duplicateOwnerships !== 0 || result.ghostSerials !== 0 || result.microunitDrift !== 0) {
+    return 'FAIL';
+  }
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 function simulateCycle(seed: number): InventorySerialCycleResult {
@@ -79,7 +79,10 @@ function simulateCycle(seed: number): InventorySerialCycleResult {
   };
 }
 
-export function runInventorySerialAssignmentChaos(cycles = 500): InventorySerialChaosResult {
+export function runInventorySerialAssignmentChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): InventorySerialChaosResult {
   const samples: InventorySerialCycleResult[] = [];
   let discrepancies = 0;
   let duplicateOwnerships = 0;
@@ -101,7 +104,7 @@ export function runInventorySerialAssignmentChaos(cycles = 500): InventorySerial
     microunitDrift += Math.abs(sample.microunitDrift);
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, duplicateOwnerships, ghostSerials, microunitDrift, samples };
+  return { cycles, discrepancies, duplicateOwnerships, ghostSerials, microunitDrift, samples, engineEvidenceVerified };
 }
 
 export async function runInventorySerialAssignmentChaosScenario(

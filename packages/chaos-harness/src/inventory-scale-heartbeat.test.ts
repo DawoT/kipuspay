@@ -55,8 +55,9 @@ describe('inventory-scale-heartbeat chaos contract', () => {
           sample.returnedWeightMicrounits === sample.acceptedWeightMicrounits,
       ),
     ).toBe(true);
-    expect(judgeInventoryScaleHeartbeat(first)).toBe('PASS');
-    await expect(runInventoryScaleHeartbeatChaosScenario()).resolves.toBe('PASS');
+    expect(judgeInventoryScaleHeartbeat(first)).toBe('FAIL');
+    expect(judgeInventoryScaleHeartbeat({ ...first, engineEvidenceVerified: true })).toBe('PASS');
+    await expect(runInventoryScaleHeartbeatChaosScenario()).resolves.toBe('FAIL');
   });
 
   it.each([
@@ -69,6 +70,7 @@ describe('inventory-scale-heartbeat chaos contract', () => {
   ])('the judge rejects %s', (_case, patch) => {
     const valid: InventoryScaleHeartbeatChaosResult = {
       cycles: 500,
+      engineEvidenceVerified: true,
       discrepancies: 0,
       silentZeroWeights: 0,
       staleReadingsAccepted: 0,

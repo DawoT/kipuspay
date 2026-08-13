@@ -53,6 +53,7 @@ export interface PriceLabelPrintingChaosResult {
   readonly wssUnallowlistedConnections: number;
   readonly coverage: PriceLabelPrintingCoverage;
   readonly samples: readonly PriceLabelPrintingCycleResult[];
+  readonly engineEvidenceVerified: boolean;
 }
 
 interface Item {
@@ -213,9 +214,8 @@ function simulateCycle(
   };
 }
 
-export async function runPriceLabelPrintingChaos(
-  cycles = 500,
-): Promise<PriceLabelPrintingChaosResult> {
+export async function runPriceLabelPrintingChaos(cycles = 500,
+  engineEvidenceVerified = false,): Promise<PriceLabelPrintingChaosResult> {
   if (!Number.isSafeInteger(cycles) || cycles < 0) throw new Error('CHAOS_CYCLES_INVALID');
   const coverage: Record<keyof PriceLabelPrintingCoverage, number> = {
     paper58: 0,
@@ -239,6 +239,7 @@ export async function runPriceLabelPrintingChaos(
     samples.filter(predicate).length;
   return {
     cycles,
+    engineEvidenceVerified,
     mixedSnapshotBatches: countFailures((sample) => !sample.snapshotCoherent),
     clientPricesAccepted: countFailures((sample) => !sample.clientPriceRejected),
     crossTenantReads: countFailures((sample) => !sample.crossTenantRejected),
@@ -274,9 +275,11 @@ export function judgePriceLabelPrinting(
     result.wssUnallowlistedConnections,
   ];
   const coverageComplete = Object.values(result.coverage).every((count) => count > 0);
-  return result.cycles >= 500 && failures.every((count) => count === 0) && coverageComplete
-    ? 'PASS'
-    : 'FAIL';
+  if (result.cycles < 500 || !failures.every((count) => count === 0) || !coverageComplete) {
+    return 'FAIL';
+  }
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 export async function runPriceLabelPrintingChaosScenario(

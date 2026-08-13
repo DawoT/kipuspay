@@ -17,6 +17,7 @@ function mockDb(state: {
   series?: Row | null;
   token?: Row | null;
   audit?: Row | null;
+  sqls?: string[];
 }): D1DatabaseLike {
   const stmts: unknown[] = [];
   return {
@@ -28,6 +29,7 @@ function mockDb(state: {
           return stmt;
         },
         first: <T>() => {
+          state.sqls?.push(sql);
           if (sql.includes('FROM orders'))
             return Promise.resolve((state.order ?? null) as T | null);
           if (sql.includes('FROM branch_document_series')) {
@@ -46,6 +48,7 @@ function mockDb(state: {
         },
         all: <T>() => Promise.resolve(okResult((state.items ?? []) as T[])),
         run: () => {
+          state.sqls?.push(sql);
           stmts.push({ sql, binds });
           return Promise.resolve(okResult());
         },
@@ -53,6 +56,7 @@ function mockDb(state: {
       return stmt;
     },
     batch: (batchStmts: readonly D1Bound[]) => {
+      state.sqls?.push(...batchStmts.map((s) => (s as { sql?: string }).sql ?? ''));
       stmts.push({ batch: batchStmts.length });
       return Promise.resolve(batchStmts.map(() => okResult()));
     },
@@ -128,6 +132,39 @@ describe('processOrderBillingAtomic', () => {
     expect(res.sales).toHaveLength(2);
     expect(res.sales[0]!.amountCents).toBe(1000);
     expect(res.sales[1]!.amountCents).toBe(2000);
+  });
+
+  it('S19-H2: split con documentType 03 busca serie Boleta y emite PENDING', async () => {
+    const sqls: string[] = [];
+    const db = mockDb({
+      sqls,
+      order: { id: 'o1', branch_id: 'b1', status: 'READY' },
+      series: { id: 'ser-b1' },
+      items: [
+        {
+          id: 'i1',
+          product_id: 'p1',
+          product_name: 'A',
+          quantity: 1,
+          unit_price_cents: 1000,
+          status: 'READY',
+          sale_id: null,
+        },
+      ],
+    });
+    const res = await processOrderBillingAtomic(db, 't1', 'u1', {
+      orderId: 'o1',
+      cashRegisterSessionId: 's1',
+      series: 'B001',
+      paymentMethodId: 'pm1',
+      portions: [{ saleId: 'sale1', itemIds: ['i1'] }],
+      documentType: '03',
+    });
+    expect(res.orderStatus).toBe('PAID');
+    // La búsqueda de serie ya no hardcodea 'NV' — usa document_type_code = ? (bind 03).
+    expect(sqls.some((s) => s.includes('document_type_code = ?'))).toBe(true);
+    // El SQL de venta dejó de tener el literal 'NV' fijo.
+    expect(sqls.some((s) => s.includes("'NV', ?,"))).toBe(false);
   });
 
   it('rechaza re-bill', async () => {

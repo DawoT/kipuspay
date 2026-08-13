@@ -1,6 +1,8 @@
 import { env } from 'cloudflare:workers';
+import { processReturnAtomic } from './process-return-atomic.js';
 import { describe, expect, it } from 'vitest';
 import {
+  processOfflineSaleAtomic,
   acquireSerialLeaseAtomic,
   processInventoryLocationTransferAtomic,
   runD1AtomicPlan,
@@ -174,3 +176,112 @@ describe('inventory serial ACID', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('S39-H2: serie obligatoria y devolución que la libera', () => {
+  it('venta de producto serializado SIN serie → rechazo (0 venta sin serie)', async () => {
+    const fx = await seedSerialFixture('req');
+    await env.DB.prepare(
+      `INSERT INTO cash_registers (id, tenant_id, branch_id, name)
+       VALUES ('cr-req', ?, ?, 'Caja')`,
+    ).bind(fx.tenantId, fx.branchId).run();
+    await env.DB.prepare(
+      `INSERT INTO cash_register_sessions (id, tenant_id, branch_id, cash_register_id, user_id, opening_balance_cents, status)
+       VALUES (?, ?, ?, 'cr-req', ?, 0, 'OPEN')`,
+    ).bind(`sess-req`, fx.tenantId, fx.branchId, fx.userId).run();
+    await env.DB.prepare(
+      `INSERT INTO branch_document_series (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+       VALUES ('ser-req', ?, ?, 'NV', 'NV01', 0, 'INTERNAL')`,
+    ).bind(fx.tenantId, fx.branchId).run();
+    await env.DB.prepare(
+      `INSERT INTO payment_methods (id, tenant_id, code, name) VALUES ('pm', ?, 'CASH', 'Efectivo')`,
+    ).bind(fx.tenantId).run();
+    const payload = {
+      offlineSaleId: 'off-serial-req',
+      branchId: fx.branchId,
+      cashRegisterSessionId: `sess-req`,
+      documentType: 'NV' as const,
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '00000000',
+      clientName: 'Cliente',
+      items: [{ productId: fx.productId, quantity: 1 }], // SIN serialId
+      payments: [{ paymentMethodId: 'pm', amountCents: 118 }],
+    };
+    await expect(
+      processOfflineSaleAtomic(env.DB, fx.tenantId, fx.userId, payload, {
+        nowMs: Date.now(),
+      }),
+    ).rejects.toThrow(/SERIAL|serial|SERIE/i);
+  });
+
+  it('devolución NV_RETURN libera la serie a AVAILABLE', async () => {
+    const fx = await seedSerialFixture('ret');
+    // La serie pasa a SOLD (transición normal de venta).
+    await runD1AtomicPlan(env.DB, async (plan) => {
+      await appendSerialTransitionToPlan(plan, env.DB, {
+        tenantId: fx.tenantId,
+        serialId: fx.serialId,
+        branchId: fx.branchId,
+        locationId: `loc-default:${fx.tenantId}:${fx.branchId}`,
+        productId: fx.productId,
+        expectedStatus: 'AVAILABLE',
+        nextStatus: 'SOLD',
+        expectedVersion: 1,
+        eventType: 'SALE',
+        operationType: 'SALE',
+        operationId: 'sale-ret',
+        idempotencyKey: 'sale-ret',
+        actorUserId: fx.userId,
+      });
+    });
+    const sold = await env.DB.prepare(
+      `SELECT status FROM serial_numbers WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(fx.tenantId, fx.serialId)
+      .first<{ status: string }>();
+    expect(sold?.status).toBe('SOLD');
+
+    // Devolución (matriz real): SOLD → RETURNED_INSPECTION → AVAILABLE.
+    await runD1AtomicPlan(env.DB, async (plan) => {
+      await appendSerialTransitionToPlan(plan, env.DB, {
+        tenantId: fx.tenantId,
+        serialId: fx.serialId,
+        branchId: fx.branchId,
+        locationId: `loc-default:${fx.tenantId}:${fx.branchId}`,
+        productId: fx.productId,
+        expectedStatus: 'SOLD',
+        nextStatus: 'RETURNED_INSPECTION',
+        expectedVersion: 2,
+        eventType: 'RETURN',
+        operationType: 'RETURN',
+        operationId: 'return-ret',
+        idempotencyKey: 'return-ret',
+        actorUserId: fx.userId,
+      });
+    });
+    await runD1AtomicPlan(env.DB, async (plan) => {
+      await appendSerialTransitionToPlan(plan, env.DB, {
+        tenantId: fx.tenantId,
+        serialId: fx.serialId,
+        branchId: fx.branchId,
+        locationId: `loc-default:${fx.tenantId}:${fx.branchId}`,
+        productId: fx.productId,
+        expectedStatus: 'RETURNED_INSPECTION',
+        nextStatus: 'AVAILABLE',
+        expectedVersion: 3,
+        eventType: 'RETURN_INSPECTED',
+        operationType: 'RETURN',
+        operationId: 'return-inspect-ret',
+        idempotencyKey: 'return-inspect-ret',
+        actorUserId: fx.userId,
+      });
+    });
+    const back = await env.DB.prepare(
+      `SELECT status FROM serial_numbers WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(fx.tenantId, fx.serialId)
+      .first<{ status: string }>();
+    expect(back?.status).toBe('AVAILABLE');
+  });
+});
+

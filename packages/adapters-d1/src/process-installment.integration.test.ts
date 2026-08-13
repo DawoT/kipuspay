@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { sha256Hex } from './crypto.js';
 import { describe, expect, it } from 'vitest';
 import {
   processInstallmentPayAtomic,
@@ -234,3 +235,80 @@ describe('processInstallmentPlanAtomic / processInstallmentPayAtomic (Sprint 36)
     ).rejects.toThrow('INSTALLMENT_PLAN_EXISTS');
   });
 });
+
+describe('S36-H1: override de límite de crédito con token REAL (SEC-09)', () => {
+  it('token basura → AUTH_TOKEN_INVALID (nunca excede el límite)', async () => {
+    const tenantId = 't-s36-token-basura';
+    const fixture = await seedInstallmentFixture(tenantId);
+    // Bajar el límite a 1000 < saldo 10000 → requiere override.
+    await env.DB.prepare(
+      `UPDATE customers SET credit_limit_cents = 1000 WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(fixture.customerId, tenantId)
+      .run();
+    await expect(
+      processInstallmentPlanAtomic(env.DB, tenantId, fixture.supervisorId, {
+        saleId: fixture.saleId,
+        branchId: fixture.branchId,
+        downPaymentCents: 0,
+        items: [
+          { installmentNumber: 1, principalCents: 5000, interestCents: 0, dueDateIso: '2026-08-22' },
+          { installmentNumber: 2, principalCents: 5000, interestCents: 0, dueDateIso: '2026-09-08' },
+        ],
+        creditOverrideTokenHash: 'basura-reutilizable',
+        actorIsSupervisorOrAbove: true,
+      }),
+    ).rejects.toThrow('AUTH_TOKEN_INVALID');
+  });
+
+  it('token válido verificado → plan procede; single-use (segundo uso INVALID)', async () => {
+    const tenantId = 't-s36-token-valido';
+    const fixture = await seedInstallmentFixture(tenantId);
+    await env.DB.prepare(
+      `UPDATE customers SET credit_limit_cents = 1000 WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(fixture.customerId, tenantId)
+      .run();
+    const token = `tok_${crypto.randomUUID()}`;
+    const tokenHash = await sha256Hex(token);
+    await env.DB.prepare(
+      `INSERT INTO authorization_tokens (id, tenant_id, token_hash, approved_by_user_id, expires_at)
+       VALUES (?, ?, ?, 'approver-1', datetime('now', '+90 seconds'))`,
+    ).bind(`at-${tenantId}`, tenantId, tokenHash).run();
+
+    const plan = await processInstallmentPlanAtomic(env.DB, tenantId, fixture.supervisorId, {
+      saleId: fixture.saleId,
+      branchId: fixture.branchId,
+      downPaymentCents: 0,
+      items: [
+        { installmentNumber: 1, principalCents: 5000, interestCents: 0, dueDateIso: '2026-08-22' },
+        { installmentNumber: 2, principalCents: 5000, interestCents: 0, dueDateIso: '2026-09-08' },
+      ],
+      creditOverrideTokenHash: tokenHash,
+      actorIsSupervisorOrAbove: true,
+    });
+    expect(plan).toBeDefined();
+
+    // Single-use (SEC-09): el token ya consumido → segundo plan INVALID.
+    const secondFixture = await seedInstallmentFixture('t-s36-token-reuso');
+    await env.DB.prepare(
+      `UPDATE customers SET credit_limit_cents = 1000 WHERE id = ? AND tenant_id = ?`,
+    )
+      .bind(secondFixture.customerId, 't-s36-token-reuso')
+      .run();
+    await expect(
+      processInstallmentPlanAtomic(env.DB, 't-s36-token-reuso', secondFixture.supervisorId, {
+        saleId: secondFixture.saleId,
+        branchId: secondFixture.branchId,
+        downPaymentCents: 0,
+        items: [
+          { installmentNumber: 1, principalCents: 5000, interestCents: 0, dueDateIso: '2026-08-22' },
+          { installmentNumber: 2, principalCents: 5000, interestCents: 0, dueDateIso: '2026-09-08' },
+        ],
+        creditOverrideTokenHash: tokenHash,
+        actorIsSupervisorOrAbove: true,
+      }),
+    ).rejects.toThrow('AUTH_TOKEN_INVALID');
+  });
+});
+

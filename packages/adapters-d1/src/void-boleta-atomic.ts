@@ -40,10 +40,55 @@ async function resolveDailySummaryStatus(
   return rc?.status ?? null;
 }
 
+function voidGuardThrow(e: unknown): never {
+  const msg = e instanceof Error ? e.message : 'VOID_DENIED';
+  if (msg === 'VOID_AFTER_RC_SENT') throw new Error('VOID_AFTER_RC_SENT', { cause: e });
+  throw e;
+}
+
+async function readBranchStock(
+  db: D1DatabaseLike,
+  tenantId: string,
+  branchId: string,
+): Promise<number> {
+  const stockRow = await db
+    .prepare(
+      `SELECT COALESCE(SUM(bps.stock), 0) AS stock
+       FROM branch_product_stock bps
+       WHERE bps.tenant_id = ? AND bps.branch_id = ?`,
+    )
+    .bind(tenantId, branchId)
+    .first<{ stock: number }>();
+  return stockRow ? stockRow.stock : 0;
+}
+
+async function readSessionStatus(
+  db: D1DatabaseLike,
+  tenantId: string,
+  sessionId: string,
+): Promise<string> {
+  const session = await db
+    .prepare(`SELECT status FROM cash_register_sessions WHERE id = ? AND tenant_id = ?`)
+    .bind(sessionId, tenantId)
+    .first<{ status: string }>();
+  return session ? session.status : 'UNKNOWN';
+}
+
+function assertNoVoidRace(
+  stockBefore: number,
+  stockAfter: number,
+  cashStatus: string,
+  sessionAfter: string | null,
+): void {
+  if (stockAfter !== stockBefore) throw new Error('VOID_STOCK_MUTATED');
+  if ((sessionAfter ?? '') !== cashStatus) throw new Error('VOID_CASH_MUTATED');
+}
+
 export async function voidBoletaAtomic(
   db: D1DatabaseLike,
   tenantId: string,
   saleId: string,
+  userId = 'system',
 ): Promise<VoidBoletaResult> {
   const sale = await db
     .prepare(
@@ -77,26 +122,12 @@ export async function voidBoletaAtomic(
       dailySummaryStatus,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'VOID_DENIED';
-    if (msg === 'VOID_AFTER_RC_SENT') throw new Error('VOID_AFTER_RC_SENT', { cause: e });
-    throw e;
+    voidGuardThrow(e);
   }
 
-  const stockRow = await db
-    .prepare(
-      `SELECT COALESCE(SUM(bps.stock), 0) AS stock
-       FROM branch_product_stock bps
-       WHERE bps.tenant_id = ? AND bps.branch_id = ?`,
-    )
-    .bind(tenantId, sale.branch_id)
-    .first<{ stock: number }>();
-  const stockBefore = stockRow?.stock ?? 0;
+  const stockBefore = await readBranchStock(db, tenantId, sale.branch_id);
 
-  const session = await db
-    .prepare(`SELECT status FROM cash_register_sessions WHERE id = ? AND tenant_id = ?`)
-    .bind(sale.cash_register_session_id, tenantId)
-    .first<{ status: string }>();
-  const cashStatus = session?.status ?? 'UNKNOWN';
+  const cashStatus = await readSessionStatus(db, tenantId, sale.cash_register_session_id);
 
   await runD1AtomicPlan(db, (plan) => {
     plan.add(
@@ -109,22 +140,43 @@ export async function voidBoletaAtomic(
     );
   });
 
-  const stockAfterRow = await db
-    .prepare(
-      `SELECT COALESCE(SUM(bps.stock), 0) AS stock
-       FROM branch_product_stock bps
-       WHERE bps.tenant_id = ? AND bps.branch_id = ?`,
-    )
-    .bind(tenantId, sale.branch_id)
-    .first<{ stock: number }>();
-  const stockAfter = stockAfterRow?.stock ?? 0;
-  if (stockAfter !== stockBefore) throw new Error('VOID_STOCK_MUTATED');
+  const stockAfter = await readBranchStock(db, tenantId, sale.branch_id);
 
   const sessionAfter = await db
     .prepare(`SELECT status FROM cash_register_sessions WHERE id = ? AND tenant_id = ?`)
     .bind(sale.cash_register_session_id, tenantId)
     .first<{ status: string }>();
-  if ((sessionAfter?.status ?? '') !== cashStatus) throw new Error('VOID_CASH_MUTATED');
+  assertNoVoidRace(stockBefore, stockAfter, cashStatus, sessionAfter ? sessionAfter.status : null);
+
+  // S17-H3: toda baja de boleta genera audit_events VOID (cadena hash, append-only).
+  const prevHash = await db
+    .prepare(
+      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
+       ORDER BY created_at DESC, id DESC LIMIT 1`,
+    )
+    .bind(tenantId)
+    .first<{ row_hash: string }>();
+  const rowHash = await sha256Hex(
+    JSON.stringify({ action: 'VOID', entity_id: saleId, prev: prevHash?.row_hash ?? null }),
+  );
+  await db
+    .prepare(
+      `INSERT INTO audit_events (
+         id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+         prev_hash, row_hash, payload_json
+       ) VALUES (?, ?, ?, ?, 'VOID', 'sale', ?, ?, ?, ?)`,
+    )
+    .bind(
+      crypto.randomUUID(),
+      tenantId,
+      sale.branch_id,
+      userId,
+      saleId,
+      prevHash?.row_hash ?? null,
+      rowHash,
+      JSON.stringify({ voidStatus: 'VOID_PENDING_RC', documentType: sale.document_type }),
+    )
+    .run();
 
   return {
     status: 'SUCCESS',
@@ -133,4 +185,9 @@ export async function voidBoletaAtomic(
     stockAfter,
     cashSessionStatus: cashStatus,
   };
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

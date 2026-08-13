@@ -43,7 +43,8 @@ describe('Sprint 42 data-backup certification chaos', () => {
     expect(Object.values(first.coverage)).toEqual(DATA_BACKUP_FAULTS.map(() => 20));
     expect(first.samples).toHaveLength(500);
     expect(first.samples.every((sample) => sample.invariantsHeld)).toBe(true);
-    expect(judgeDataBackupChaos(first)).toBe('PASS');
+    expect(judgeDataBackupChaos(first)).toBe('FAIL');
+    expect(judgeDataBackupChaos({ ...first, engineEvidenceVerified: true })).toBe('PASS');
   });
 
   it.each(Object.keys(ZERO_FAILURES) as (keyof typeof ZERO_FAILURES)[])(
@@ -91,5 +92,6 @@ function validResult(): DataBackupChaosResult {
       externalKms: false,
     },
     samples: [],
+    engineEvidenceVerified: true,
   };
 }

@@ -70,6 +70,12 @@ import {
 } from './price-label-printing.js';
 import { runDataBackupChaosScenario, type DataBackupChaosResult } from './data-backup-chaos.js';
 import { runDrFailoverChaosScenario, type DrFailoverChaosResult } from './dr-failover.js';
+
+export {
+  judgeShiftHandoffChaos,
+  runShiftHandoffChaos,
+  runShiftHandoffChaosScenario,
+} from './shift-handoff-chaos.js';
 import { runCustomerOrderChaosScenario, type CustomerOrderChaosResult } from './customer-orders.js';
 import {
   runConcurrentWritersChaos,

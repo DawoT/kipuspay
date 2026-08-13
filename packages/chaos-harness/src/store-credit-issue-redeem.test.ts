@@ -8,6 +8,12 @@ describe('store-credit-issue-redeem', () => {
   it('500 ciclos 0 drift', () => {
     const result = runStoreCreditIssueRedeemChaos(500);
     expect(result.discrepancies).toBe(0);
+    expect(judgeStoreCreditIssueRedeem(result)).toBe('FAIL');
+  });
+
+  it('500 ciclos + evidencia real del motor → PASS', () => {
+    const result = runStoreCreditIssueRedeemChaos(500, true);
+    expect(result.discrepancies).toBe(0);
     expect(judgeStoreCreditIssueRedeem(result)).toBe('PASS');
   });
 });

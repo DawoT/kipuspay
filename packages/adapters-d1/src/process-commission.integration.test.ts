@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { runD1AtomicPlan } from './index.js';
+import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
 import {
   appendCommissionAccrualToBatch,
   processCommissionPayoutAtomic,
@@ -247,3 +248,107 @@ describe('appendCommissionAccrualToBatch + payout (Sprint 37)', () => {
     expect(voided.status).toBe('VOID');
   });
 });
+
+describe('S37-H1: doble payout OPEN del mismo período', () => {
+  it('el segundo payout OPEN → COMMISSION_NOTHING_TO_PAY (0 doble pago)', async () => {
+    const fixture = await seedCommissionFixture('t-s37-double-open');
+    await processCommissionRateUpsertAtomic(env.DB, 't-s37-double-open', fixture.adminId, {
+      sellerId: fixture.sellerId,
+      productId: fixture.productId,
+      ratePercent: 10,
+      branchId: fixture.branchId,
+      actorIsAdminOrOwner: true,
+    });
+    await runD1AtomicPlan(env.DB, async (plan) => {
+      await appendCommissionAccrualToBatch(plan, env.DB, {
+        tenantId: 't-s37-double-open',
+        userId: fixture.userId,
+        branchId: fixture.branchId,
+        saleId: fixture.saleId,
+        sellerId: fixture.sellerId,
+        lines: [{ productId: fixture.productId, categoryId: null, lineTotalCents: 5000 }],
+        prevAuditHash: null,
+        chartOn: false,
+        accountsByCode: new Map(),
+        postDate: '2026-08-08',
+      });
+    });
+
+    const first = await processCommissionPayoutAtomic(env.DB, 't-s37-double-open', fixture.adminId, {
+      sellerId: fixture.sellerId,
+      periodStartIso: '2026-08-01',
+      periodEndIso: '2026-08-31',
+      branchId: fixture.branchId,
+      actorIsAdminOrOwner: true,
+    });
+    expect(first.grossCents).toBe(500);
+
+    // Vector real del hallazgo: dos payouts OPEN del mismo período → el
+    // segundo reserva 0 (el OPEN del primero ya reservó el gross).
+    await expect(
+      processCommissionPayoutAtomic(env.DB, 't-s37-double-open', fixture.adminId, {
+        sellerId: fixture.sellerId,
+        periodStartIso: '2026-08-01',
+        periodEndIso: '2026-08-31',
+        branchId: fixture.branchId,
+        actorIsAdminOrOwner: true,
+      }),
+    ).rejects.toThrow('COMMISSION_NOTHING_TO_PAY');
+  });
+});
+
+describe('S37-H2: accrual por seller del ítem (regla 22)', () => {
+  it('venta SIN payload.sellerId pero con item.sellerId → devenga comisión', async () => {
+    const tenantId = 't-s37-item-seller';
+    const fixture = await seedCommissionFixture(tenantId);
+    await processCommissionRateUpsertAtomic(env.DB, tenantId, fixture.adminId, {
+      sellerId: fixture.sellerId,
+      productId: fixture.productId,
+      ratePercent: 10,
+      branchId: fixture.branchId,
+      actorIsAdminOrOwner: true,
+    });
+    // Stock para la venta vía motor + serie NV.
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO branch_product_stock (tenant_id, branch_id, product_id, stock, stock_microunits, pmp_unit_cost_cents)
+         VALUES (?, ?, ?, 10, 10000000, 400)`,
+      ).bind(tenantId, fixture.branchId, fixture.productId),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES (?, ?, ?, 'NV', 'NV01', 0, 'INTERNAL')`,
+      ).bind(`ser-${tenantId}`, tenantId, fixture.branchId),
+    ]);
+    // El vendedor va SOLO en el ítem (no en el payload).
+    const sale = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        offlineSaleId: 'off-s37-item-seller',
+        branchId: fixture.branchId,
+        cashRegisterSessionId: fixture.sessionId,
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '12345678',
+        clientName: 'Ciclo',
+        items: [{ productId: fixture.productId, quantity: 2, sellerId: fixture.sellerId }],
+        payments: [{ paymentMethodId: `pm-${tenantId}`, amountCents: 2360 }],
+      },
+      { nowMs: Date.parse('2026-08-04T15:00:00.000Z'), salesCommissionsEnabled: true },
+    );
+    expect(sale.status).toBe('SUCCESS');
+    if (sale.status !== 'SUCCESS') return;
+
+    // 2 × 1180 (con IGV) = 2360 → 10% = 236 (gross server-computado).
+    const accrual = await env.DB.prepare(
+      `SELECT amount_cents FROM commission_accruals
+       WHERE tenant_id = ? AND sale_id = ? AND seller_id = ?`,
+    )
+      .bind(tenantId, sale.saleId, fixture.sellerId)
+      .first<{ amount_cents: number }>();
+    expect(accrual?.amount_cents).toBe(236);
+  });
+});
+

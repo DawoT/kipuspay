@@ -69,6 +69,7 @@ export interface DataBackupChaosResult {
     readonly externalKms: false;
   };
   readonly samples: readonly DataBackupChaosSample[];
+  readonly engineEvidenceVerified: boolean;
 }
 
 interface LocalCycleState {
@@ -218,7 +219,10 @@ function count(
   return samples.filter(predicate).length;
 }
 
-export async function runDataBackupChaos(cycles = 500): Promise<DataBackupChaosResult> {
+export async function runDataBackupChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): Promise<DataBackupChaosResult> {
   await Promise.resolve();
   if (!Number.isSafeInteger(cycles) || cycles < 0) {
     throw new Error('CHAOS_CYCLES_INVALID');
@@ -234,6 +238,7 @@ export async function runDataBackupChaos(cycles = 500): Promise<DataBackupChaosR
 
   return {
     cycles,
+    engineEvidenceVerified,
     mixedSnapshots: count(
       samples,
       (sample) => sample.fault === 'concurrentCheckoutEpochDrift' && sample.publishedReady,
@@ -297,12 +302,10 @@ export function judgeDataBackupChaos(result: DataBackupChaosResult): DataBackupC
     !result.evidence.realCloudflareStaging &&
     !result.evidence.externalR2 &&
     !result.evidence.externalKms;
-  return result.cycles >= 500 &&
-    failures.every((value) => value === 0) &&
-    balanced &&
-    honestLocalEvidence
-    ? 'PASS'
-    : 'FAIL';
+  if (result.cycles < 500) return 'FAIL';
+  if (!failures.every((value) => value === 0) || !balanced || !honestLocalEvidence) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 export async function runDataBackupChaosScenario(

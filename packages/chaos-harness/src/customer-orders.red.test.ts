@@ -33,7 +33,8 @@ describe('Sprint 43 customer-order chaos 500 contract (RED)', () => {
       checkoutBlocks: 0,
     });
     expect(first.samples.filter((sample) => !sample.invariantsHeld)).toEqual([]);
-    expect(judgeCustomerOrderChaos(first)).toBe('PASS');
+    expect(judgeCustomerOrderChaos(first)).toBe('FAIL');
+    expect(judgeCustomerOrderChaos({ ...first, engineEvidenceVerified: true })).toBe('PASS');
   });
 
   it('derives every failure counter from samples and rejects incomplete evidence', async () => {

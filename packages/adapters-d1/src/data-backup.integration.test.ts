@@ -429,6 +429,23 @@ describe('Sprint 42 epoch reader and dry-run', () => {
     });
     const capture = reader.capture({ tenantId });
     await reading;
+    // Baseline: el mismo INSERT sin lector bloqueado (referencia relativa a la
+    // máquina) — evita flake por hardware lento; el invariante es la degradación
+    // del checkout por el backup, no la velocidad absoluta.
+    const baselineStart = performance.now();
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, total_amount_cents, issued_at_lima, sunat_status
+       ) VALUES ('backup-drift-sale-baseline', ?, 'backup-drift-branch', 'backup-drift-session',
+                 'backup-drift-user', '0', '-', 'ANONIMO', 'NV', 'NV02', 1, 100,
+                 CURRENT_TIMESTAMP, 'NOT_APPLICABLE')`,
+    )
+      .bind(tenantId)
+      .run();
+    const baselineMs = performance.now() - baselineStart;
+
     const checkoutStarted = performance.now();
     await env.DB.prepare(
       `INSERT INTO sales (
@@ -445,7 +462,10 @@ describe('Sprint 42 epoch reader and dry-run', () => {
     releaseRead();
 
     await expect(capture).rejects.toMatchObject({ code: 'BACKUP_EPOCH_DRIFT' });
+    // Umbral doble anti-flake: absoluto (50ms, presupuesto hot path) + relativo
+    // (≤10× baseline + 5ms) — el lector de backup jamás degrada el checkout.
     expect(checkoutMs).toBeLessThan(50);
+    expect(checkoutMs).toBeLessThanOrEqual(baselineMs * 10 + 5);
   });
 
   it('keeps epoch-trigger overhead below 50ms per mutation with bounded regression', async () => {

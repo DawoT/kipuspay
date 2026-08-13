@@ -107,6 +107,7 @@ export interface CustomerOrderChaosResult {
     readonly workerdRequiredSeparately: true;
   };
   readonly samples: readonly CustomerOrderChaosSample[];
+  readonly engineEvidenceVerified: boolean;
 }
 
 const INITIAL_STOCK = 10_000_000;
@@ -381,7 +382,10 @@ function countFailure(
   return samples.filter((sample) => sample.failures.includes(failure)).length;
 }
 
-export async function runCustomerOrderChaos(cycles = 500): Promise<CustomerOrderChaosResult> {
+export async function runCustomerOrderChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): Promise<CustomerOrderChaosResult> {
   await Promise.resolve();
   if (!Number.isSafeInteger(cycles) || cycles < 0) throw new Error('CHAOS_CYCLES_INVALID');
   const coverage = Object.fromEntries(CUSTOMER_ORDER_FAULTS.map((fault) => [fault, 0])) as Record<
@@ -398,6 +402,7 @@ export async function runCustomerOrderChaos(cycles = 500): Promise<CustomerOrder
   ) as Record<CustomerOrderFailure, number>;
   return {
     cycles,
+    engineEvidenceVerified,
     ...counters,
     coverage,
     evidence: {
@@ -429,17 +434,20 @@ export function judgeCustomerOrderChaos(
     result.evidence.environment === 'LOCAL_DETERMINISTIC_MODEL' &&
     !result.evidence.externalStaging &&
     result.evidence.workerdRequiredSeparately;
-  return result.cycles >= 500 &&
-    result.samples.length === result.cycles &&
-    result.samples.every((sample) => sample.invariantsHeld) &&
-    CUSTOMER_ORDER_FAILURES.every((failure) => result[failure] === 0) &&
-    countersMatchSamples &&
-    samplesMatchCoverage &&
-    samplesAreOrdered &&
-    balanced &&
-    evidenceIsLocal
-    ? 'PASS'
-    : 'FAIL';
+  if (result.cycles < 500 || result.samples.length !== result.cycles) return 'FAIL';
+  if (!result.samples.every((sample) => sample.invariantsHeld)) return 'FAIL';
+  if (!CUSTOMER_ORDER_FAILURES.every((failure) => result[failure] === 0)) return 'FAIL';
+  if (
+    !countersMatchSamples ||
+    !samplesMatchCoverage ||
+    !samplesAreOrdered ||
+    !balanced ||
+    !evidenceIsLocal
+  ) {
+    return 'FAIL';
+  }
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 export async function runCustomerOrderChaosScenario(

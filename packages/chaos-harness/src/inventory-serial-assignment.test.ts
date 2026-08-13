@@ -33,8 +33,9 @@ describe('inventory-serial-assignment chaos', () => {
         }),
       ]),
     );
-    expect(judgeInventorySerialAssignment(first)).toBe('PASS');
-    await expect(runInventorySerialAssignmentChaosScenario()).resolves.toBe('PASS');
+    expect(judgeInventorySerialAssignment(first)).toBe('FAIL');
+    await expect(runInventorySerialAssignmentChaosScenario()).resolves.toBe('FAIL');
+    expect(judgeInventorySerialAssignment({ ...first, engineEvidenceVerified: true })).toBe('PASS');
   });
 
   it.each([
@@ -46,6 +47,7 @@ describe('inventory-serial-assignment chaos', () => {
     const valid: InventorySerialChaosResult = {
       cycles: 500,
       discrepancies: 0,
+      engineEvidenceVerified: true,
       duplicateOwnerships: 0,
       ghostSerials: 0,
       microunitDrift: 0,

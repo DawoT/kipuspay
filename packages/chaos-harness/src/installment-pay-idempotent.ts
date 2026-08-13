@@ -30,12 +30,16 @@ export interface InstallmentChaosResult {
   readonly cycles: number;
   readonly discrepancies: number;
   readonly samples: readonly InstallmentCycleResult[];
+  /** Fail-closed: evidencia real del motor (integration workerd). */
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeInstallmentPayIdempotent(
   result: InstallmentChaosResult,
 ): InstallmentChaosVerdict {
-  return result.cycles >= 500 && result.discrepancies === 0 ? 'PASS' : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 function threw(code: string, run: () => void): boolean {
@@ -203,7 +207,7 @@ function runCycle(seed: number): InstallmentCycleResult {
   };
 }
 
-export function runInstallmentPayIdempotentChaos(cycles = 500): InstallmentChaosResult {
+export function runInstallmentPayIdempotentChaos(cycles = 500, engineEvidenceVerified = false): InstallmentChaosResult {
   const samples: InstallmentCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {
@@ -211,7 +215,7 @@ export function runInstallmentPayIdempotentChaos(cycles = 500): InstallmentChaos
     if (Object.values(sample).some((value) => value !== true)) discrepancies += 1;
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, samples };
+  return { cycles, discrepancies, samples, engineEvidenceVerified };
 }
 
 export async function runInstallmentPayIdempotentChaosScenario(

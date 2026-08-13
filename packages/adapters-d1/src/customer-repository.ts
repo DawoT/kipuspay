@@ -348,14 +348,19 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
   profileSets.push('pii_erased = 1');
   profileSets.push('erased_at = ?');
   profileParams.push(input.nowIso);
-  statements.push(
-    db
-      .prepare(
-        `UPDATE customers SET ${profileSets.join(', ')}
-         WHERE tenant_id = ? AND id = ?`,
-      )
-      .bind(...profileParams, input.tenantId, input.customerId),
-  );
+  // S47-H1: guard CAS ANTES del batch — el UPDATE del perfil es la llave
+  // del erase (pii_erased = 0): solo el ganador de una carrera lo afecta
+  // (changes = 1); el perdedor aborta sin anonimizar ni bifurcar la audit.
+  const profileUpdate = db
+    .prepare(
+      `UPDATE customers SET ${profileSets.join(', ')}
+       WHERE tenant_id = ? AND id = ? AND pii_erased = 0`,
+    )
+    .bind(...profileParams, input.tenantId, input.customerId);
+  const profileResult = await profileUpdate.run();
+  const affected =
+    (profileResult as { meta?: { changes?: number } } | undefined)?.meta?.changes ?? 0;
+  if (affected === 0) throw new Error('ALREADY_ERASED');
 
   for (const snapshot of plan.fiscalSnapshots) {
     statements.push(

@@ -15,6 +15,7 @@ function mockDb(state: {
   audit?: Row | null;
   invoicedByProduct?: Row[];
   lineInserts?: string[];
+  approverRole?: string | null;
 }): D1DatabaseLike {
   return {
     prepare(sql: string) {
@@ -28,6 +29,11 @@ function mockDb(state: {
         first: <T>() => {
           if (sql.includes('FROM purchase_orders')) {
             return Promise.resolve((state.po ?? null) as T | null);
+          }
+          if (sql.includes('FROM users')) {
+            return Promise.resolve(
+              (state.approverRole ? { role: state.approverRole } : null) as T | null,
+            );
           }
           if (sql.includes('FROM branch_product_stock')) {
             return Promise.resolve((state.stock ?? null) as T | null);
@@ -126,6 +132,7 @@ describe('supplier invoice match atomic', () => {
           },
         ],
         stock: { stock: 10, pmp_unit_cost_cents: 100 },
+        approverRole: 'admin',
       }),
       't1',
       'u1',
@@ -143,6 +150,39 @@ describe('supplier invoice match atomic', () => {
     );
     expect(res.requiresPriceDiffAudit).toBe(true);
     expect(res.apAmountCents).toBe(1200);
+  });
+
+  it('S29-H1: override con autorizador sin rol admin/owner → FORBIDDEN_ROLE', async () => {
+    await expect(
+      processSupplierInvoiceMatchAtomic(
+        mockDb({
+          po: { id: 'po1', status: 'RECEIVED', supplier_id: 'sup1', branch_id: 'b1' },
+          items: [
+            {
+              product_id: 'p1',
+              quantity_ordered: 10,
+              quantity_received: 10,
+              unit_cost_cents: 100,
+            },
+          ],
+          stock: { stock: 10, pmp_unit_cost_cents: 100 },
+          approverRole: 'cashier',
+        }),
+        't1',
+        'u1',
+        {
+          purchaseOrderId: 'po1',
+          branchId: 'b1',
+          invoiceNumber: 'F001-3',
+          totalCents: 1200,
+          igvCents: 0,
+          lines: [{ productId: 'p1', invoicedQty: 10, invoiceUnitCostCents: 120 }],
+          priceDiffOverride: true,
+          authorizedByUserId: 'sup-1',
+          overrideReason: 'proveedor subió precio',
+        },
+      ),
+    ).rejects.toThrow('FORBIDDEN_ROLE');
   });
 
   it('ya facturado acumulado → segunda parcial excede recibido (THREE_WAY_QTY_MISMATCH)', async () => {

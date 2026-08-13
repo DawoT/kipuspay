@@ -24,7 +24,8 @@ describe('Sprint 45 mobile push and low-end chaos 500 contract (RED)', () => {
       lostQueueEntries: 0,
     });
     expect(first.samples.filter((sample) => !sample.invariantsHeld)).toEqual([]);
-    expect(judgeMobilePushChaos(first)).toBe('PASS');
+    expect(judgeMobilePushChaos(first)).toBe('FAIL');
+    expect(judgeMobilePushChaos({ ...first, engineEvidenceVerified: true })).toBe('PASS');
   });
 
   it('includes required faults and labels offline/doze outside normal-network SLO', async () => {

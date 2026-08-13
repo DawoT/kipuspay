@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { runDrFailoverChaosScenario } from '@kipuspay/chaos-harness';
 import { describe, expect, it } from 'vitest';
 import { applyRestoreRowsToShard, restoreTableOrder, verifyDrReplay } from './dr-restore.js';
 import type { BackupRow } from '@kipuspay/domain-integrations';
@@ -177,3 +178,14 @@ describe('platform.dr restore apply (Sprint 48)', () => {
     expect(verification.rpoTxZero).toBe(false);
   });
 });
+
+describe('S48-H1: veredicto del chaos DR con evidencia real del motor', () => {
+  it('PASS solo con engineEvidenceVerified (los tests D1 de DR son la evidencia)', async () => {
+    const { runDrFailoverChaos } = await import('@kipuspay/chaos-harness');
+    const verdict = await runDrFailoverChaosScenario(() =>
+      Promise.resolve(runDrFailoverChaos(500, [], true)),
+    );
+    expect(verdict).toBe('PASS');
+  });
+});
+

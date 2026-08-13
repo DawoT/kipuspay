@@ -14,7 +14,6 @@ export interface PromoCycleResult {
   readonly stackRejected: boolean;
   readonly percentOk: boolean;
   readonly tierOk: boolean;
-  readonly batchIdStable: boolean;
   readonly manualPlusPromoOk: boolean;
 }
 
@@ -22,11 +21,15 @@ export interface PromotionsAntiStackChaosResult {
   readonly cycles: number;
   readonly discrepancies: number;
   readonly samples: readonly PromoCycleResult[];
+  /** S30-H1: evidencia REAL del motor (integration test workerd): el batch_id
+   *  del FEFO sobrevive a la promo. Sin evidencia → FAIL (fail-closed). */
+  readonly batchEvidenceVerified: boolean;
 }
 
 export function judgePromotionsAntiStack(result: PromotionsAntiStackChaosResult): ChaosVerdict {
   if (result.cycles < 500) return 'FAIL';
   if (result.discrepancies !== 0) return 'FAIL';
+  if (result.batchEvidenceVerified !== true) return 'FAIL';
   return 'PASS';
 }
 
@@ -52,7 +55,6 @@ function basePromo(
 function runOneCycle(seed: number): PromoCycleResult {
   const qty = 2 + (seed % 8);
   const listPrice = 100 + (seed % 50);
-  const batchId = `batch-${seed % 7}`;
 
   const percent = basePromo('pct', { kind: 'percent', percent: 10 });
   const tier = basePromo('tier', {
@@ -140,35 +142,28 @@ function runOneCycle(seed: number): PromoCycleResult {
   const manualPlusPromoOk =
     stacked.promoDiscountCents === expectedStackDisc && afterTier === expectedTier;
 
-  // FEFO batch_id is assigned outside promo engine — promo must not mutate the id.
-  const batchIdStable = batchId === `batch-${seed % 7}`;
-
   return {
     stackRejected,
     percentOk,
     tierOk,
-    batchIdStable,
     manualPlusPromoOk,
   };
 }
 
-export function runPromotionsAntiStackChaos(cycles = 500): PromotionsAntiStackChaosResult {
+export function runPromotionsAntiStackChaos(
+  cycles = 500,
+  batchEvidenceVerified = false,
+): PromotionsAntiStackChaosResult {
   const samples: PromoCycleResult[] = [];
   let discrepancies = 0;
   for (let i = 0; i < cycles; i++) {
     const sample = runOneCycle(i);
     samples.push(sample);
-    if (
-      !sample.stackRejected ||
-      !sample.percentOk ||
-      !sample.tierOk ||
-      !sample.batchIdStable ||
-      !sample.manualPlusPromoOk
-    ) {
+    if (!sample.stackRejected || !sample.percentOk || !sample.tierOk || !sample.manualPlusPromoOk) {
       discrepancies += 1;
     }
   }
-  return { cycles, discrepancies, samples: samples.slice(0, 5) };
+  return { cycles, discrepancies, samples: samples.slice(0, 5), batchEvidenceVerified };
 }
 
 export async function runPromotionsAntiStackChaosScenario(

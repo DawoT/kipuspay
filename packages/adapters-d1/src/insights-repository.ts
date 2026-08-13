@@ -141,6 +141,18 @@ export interface BriefingFacts {
   readonly cashShifts: readonly { readonly operator: string; readonly cashDiffCents: number }[];
 }
 
+/** S49-H1: seudónimo PII-free — iniciales del alias local (jamás el email). */
+function pseudonymOf(local: string | null | undefined): string {
+  const alias = (local ?? '').trim();
+  if (!alias) return 'Operador';
+  const initials = alias
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
+  return initials || alias.slice(0, 2).toUpperCase();
+}
+
 export async function listBriefingFacts(
   db: D1DatabaseLike,
   tenantId: string,
@@ -173,7 +185,9 @@ export async function listBriefingFacts(
     .all<{ branch_code: string; diff_cents: number }>();
   const shifts = await db
     .prepare(
-      `SELECT u.email AS operator, s.cash_diff_cents
+      // S49-H1: PII-free — el briefing jamás expone emails; se usa un
+      // seudónimo (iniciales del alias local) como el whitelist del chat.
+      `SELECT substr(u.email, 1, instr(u.email, '@') - 1) AS operator_local, s.cash_diff_cents
        FROM cash_register_shifts s
        JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
        WHERE s.tenant_id = ?
@@ -183,7 +197,7 @@ export async function listBriefingFacts(
        LIMIT 10`,
     )
     .bind(tenantId, reportDate)
-    .all<{ operator: string; cash_diff_cents: number }>();
+    .all<{ operator_local: string | null; cash_diff_cents: number }>();
   return {
     sales: {
       grossSalesCents: sales?.gross_sales_cents ?? 0,
@@ -195,7 +209,8 @@ export async function listBriefingFacts(
       diffCents: row.diff_cents,
     })),
     cashShifts: (shifts.results ?? []).map((row) => ({
-      operator: row.operator,
+      // Seudónimo: iniciales del alias local (nunca el email completo).
+      operator: pseudonymOf(row.operator_local),
       cashDiffCents: row.cash_diff_cents,
     })),
   };

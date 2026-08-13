@@ -572,10 +572,24 @@ export async function processSupplierReturnCloseAtomic(
     }
   }
 
+  const priceDiffOverride = input.priceDiffOverride === true;
+  // S34-H1: el override exige rol admin/owner verificado server-side
+  // (nunca un string libre del cliente sin chequeo, patrón S29-H1).
+  if (priceDiffOverride) {
+    if (!input.authorizedByUserId) throw new Error('AUTH_REQUIRED');
+    const approver = await db
+      .prepare(`SELECT role FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1`)
+      .bind(input.authorizedByUserId, tenantId)
+      .first<{ role: string }>();
+    const role = approver?.role ?? '';
+    if (role !== 'admin' && role !== 'owner') {
+      throw new Error('FORBIDDEN_ROLE');
+    }
+  }
   const closePlan = assertSupplierReturnClosable({
     status: row.status as SupplierReturnStatus,
     items: domainItems,
-    priceDiffOverride: input.priceDiffOverride === true,
+    priceDiffOverride,
     authorizedByUserId: input.authorizedByUserId ?? null,
     ap: ap ? { status: ap.status, balanceDueCents: ap.balanceDueCents } : null,
   });
@@ -637,6 +651,13 @@ export async function processSupplierReturnCloseAtomic(
   });
 
   await runD1AtomicPlan(db, async (builder) => {
+    // S34-H2: guardState CAS — el CLOSE solo commitea si el return sigue OPEN
+    // en el momento del batch (cierra la carrera de doble-close: el perdedor
+    // aborta TODA la secuencia stock/CxP con CHECK ok=0, 0 efectos laterales).
+    builder.guardState(
+      `SELECT 1 FROM supplier_returns WHERE tenant_id = ? AND id = ? AND status = 'OPEN'`,
+      [tenantId, row.id],
+    );
     builder.add(
       db
         .prepare(

@@ -10,11 +10,17 @@ describe('chaos supplier-return-receive', () => {
     const result = runSupplierReturnReceiveChaos(500);
     expect(result.discrepancies).toBe(0);
     expect(result.cycles).toBe(500);
-    await expect(runSupplierReturnReceiveChaosScenario()).resolves.toBe('PASS');
+    await expect(runSupplierReturnReceiveChaosScenario()).resolves.toBe('FAIL');
   });
 
   it('fails short or drifting evidence', () => {
-    expect(judgeSupplierReturnReceive({ cycles: 499, discrepancies: 0, samples: [] })).toBe('FAIL');
-    expect(judgeSupplierReturnReceive({ cycles: 500, discrepancies: 1, samples: [] })).toBe('FAIL');
+    expect(judgeSupplierReturnReceive({ cycles: 499, discrepancies: 0, samples: [], engineEvidenceVerified: true })).toBe('FAIL');
+    expect(judgeSupplierReturnReceive({ cycles: 500, discrepancies: 1, samples: [], engineEvidenceVerified: true })).toBe('FAIL');
+  });
+
+  it('500 ciclos + evidencia real del motor → PASS', () => {
+    const result = runSupplierReturnReceiveChaos(500, true);
+    expect(result.discrepancies).toBe(0);
+    expect(judgeSupplierReturnReceive(result)).toBe('PASS');
   });
 });

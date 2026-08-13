@@ -31,12 +31,16 @@ export interface StoreCreditChaosResult {
   readonly cycles: number;
   readonly discrepancies: number;
   readonly samples: readonly StoreCreditCycleResult[];
+  /** Fail-closed: evidencia real del motor (integration workerd). */
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeStoreCreditIssueRedeem(
   result: StoreCreditChaosResult,
 ): StoreCreditChaosVerdict {
-  return result.cycles >= 500 && result.discrepancies === 0 ? 'PASS' : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 function threw(code: string, run: () => void): boolean {
@@ -210,7 +214,7 @@ function runCycle(seed: number): StoreCreditCycleResult {
   }
 }
 
-export function runStoreCreditIssueRedeemChaos(cycles = 500): StoreCreditChaosResult {
+export function runStoreCreditIssueRedeemChaos(cycles = 500, engineEvidenceVerified = false): StoreCreditChaosResult {
   const samples: StoreCreditCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {
@@ -218,7 +222,7 @@ export function runStoreCreditIssueRedeemChaos(cycles = 500): StoreCreditChaosRe
     if (Object.values(sample).some((value) => value !== true)) discrepancies += 1;
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, samples };
+  return { cycles, discrepancies, samples, engineEvidenceVerified };
 }
 
 export async function runStoreCreditIssueRedeemChaosScenario(

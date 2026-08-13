@@ -13,6 +13,7 @@ import { sha256Hex } from './crypto.js';
 
 const NOW_MS = Date.parse('2026-08-08T17:00:00.000Z');
 const NOW_ISO = new Date(NOW_MS).toISOString();
+const LIVE_ISO = new Date(Date.now() - 500).toISOString();
 
 async function seedWeightedSale(tenantId: string) {
   const branchId = `branch-${tenantId}`;
@@ -64,9 +65,10 @@ async function seedWeightedSale(tenantId: string) {
     ).bind(`terminal-session-${tenantId}`, tenantId, terminalId, sessionId, userId, branchId),
     env.DB.prepare(
       `INSERT INTO scale_devices (
-         id, tenant_id, terminal_id, protocol, device_fingerprint, status, last_heartbeat_at
-       ) VALUES (?, ?, ?, 'WEBUSB', ?, 'ACTIVE', ?)`,
-    ).bind(`scale-${tenantId}`, tenantId, terminalId, `fingerprint-${tenantId}`, NOW_ISO),
+         id, tenant_id, terminal_id, protocol, device_fingerprint, status,
+         last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
+       ) VALUES (?, ?, ?, 'WEBUSB', ?, 'ACTIVE', ?, NULL, 500000)`,
+    ).bind(`scale-${tenantId}`, tenantId, terminalId, `fingerprint-${tenantId}`, LIVE_ISO),
     env.DB.prepare(
       `INSERT INTO tenant_weight_policies (
          id, tenant_id, manual_weight_threshold_microunits
@@ -149,7 +151,7 @@ function weightedPayload(
           scaleProtocol: 'WEBUSB',
           scaleDeviceId: `scale-${offlineSaleId.split('-').slice(1).join('-')}`,
           heartbeatSequence: 10,
-          observedAt: NOW_ISO,
+          observedAt: LIVE_ISO,
           stable: true,
         },
       },
@@ -158,17 +160,17 @@ function weightedPayload(
         saleItemId: `line-b-${offlineSaleId}`,
         weightMeasurement: {
           measurementId: `measurement-b-${offlineSaleId}`,
-          weightMicrounits: 250_000,
+          weightMicrounits: 500_000,
           measurementSource: 'DEVICE',
           scaleProtocol: 'WEBUSB',
           scaleDeviceId: `scale-${offlineSaleId.split('-').slice(1).join('-')}`,
           heartbeatSequence: 11,
-          observedAt: NOW_ISO,
+          observedAt: LIVE_ISO,
           stable: true,
         },
       },
     ],
-    payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 177 }],
+    payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 236 }],
   };
 }
 
@@ -199,7 +201,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
     });
 
     expect(result.status).toBe('SUCCESS');
-    expect(result.authoritativeTotalAmount).toBe(177);
+    expect(result.authoritativeTotalAmount).toBe(236);
     const saleItems = await env.DB.prepare(
       `SELECT id, base_quantity_microunits, unit_price_cents, subtotal_cents, batch_id
        FROM sale_items WHERE tenant_id = ? AND sale_id = ? ORDER BY id`,
@@ -222,9 +224,9 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       },
       {
         id: `line-b-off-${tenantId}`,
-        base_quantity_microunits: 250_000,
+        base_quantity_microunits: 500_000,
         unit_price_cents: 199,
-        subtotal_cents: 50,
+        subtotal_cents: 100,
         batch_id: fixture.batchId,
       },
     ]);
@@ -245,9 +247,9 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
         }),
         expect.objectContaining({
           sale_item_id: `line-b-off-${tenantId}`,
-          weight_microunits: 250_000,
+          weight_microunits: 500_000,
           unit_price_per_base_cents: 199,
-          subtotal_cents: 50,
+          subtotal_cents: 100,
         }),
       ]),
     );
@@ -274,10 +276,10 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
     )
       .bind(tenantId, fixture.branchId, fixture.locationId, fixture.productId, fixture.batchId)
       .first<{ quantity_microunits: number }>();
-    expect(branch?.stock_microunits).toBe(1_250_000);
-    expect(location?.quantity_microunits).toBe(1_250_000);
-    expect(batch?.stock_microunits).toBe(1_250_000);
-    expect(locationBatch?.quantity_microunits).toBe(1_250_000);
+    expect(branch?.stock_microunits).toBe(1_000_000);
+    expect(location?.quantity_microunits).toBe(1_000_000);
+    expect(batch?.stock_microunits).toBe(1_000_000);
+    expect(locationBatch?.quantity_microunits).toBe(1_000_000);
   });
 
   it('fails stale device facts before any sale or stock write', async () => {
@@ -355,14 +357,14 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
             saleItemId,
             weightMeasurement: {
               measurementId,
-              weightMicrounits: 500_000,
+              weightMicrounits: 250_000,
               measurementSource: 'MANUAL',
               observedAt: new Date(nowMs).toISOString(),
               authorizationToken,
             },
           },
         ],
-        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 118 }],
+        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 59 }],
       });
       if (viaSync) {
         const rejected = await processSyncSalesBatch(
@@ -599,14 +601,14 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
           saleItemId: `line-${tenantId}`,
           weightMeasurement: {
             measurementId: `measurement-${tenantId}`,
-            weightMicrounits: 500_000,
+            weightMicrounits: 250_000,
             measurementSource: 'MANUAL',
             observedAt: new Date(nowMs).toISOString(),
             authorizationToken: token,
           },
         },
       ],
-      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 118 }],
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 59 }],
     };
 
     const outcomes = await Promise.allSettled(
@@ -645,8 +647,8 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
     expect(state).toEqual({
       sale_count: 1,
       measurement_count: 1,
-      paid_cents: 118,
-      stock_microunits: 1_500_000,
+      paid_cents: 59,
+      stock_microunits: 1_750_000,
       consumed_tokens: 1,
     });
     await expectTenantAuditHashChainIntact(tenantId);
@@ -685,7 +687,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       },
     );
 
-    expect(direct.authoritativeTotalAmount).toBe(177);
+    expect(direct.authoritativeTotalAmount).toBe(236);
     expect(synced.results).toEqual([
       expect.objectContaining({ status: 'SUCCESS', offlineSaleId: `off-${syncTenant}` }),
     ]);
@@ -700,7 +702,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
     )
       .bind(syncTenant)
       .all();
-    expect(syncSale?.total_amount_cents).toBe(177);
+    expect(syncSale?.total_amount_cents).toBe(236);
     expect(syncLines.results).toEqual([
       expect.objectContaining({
         base_quantity_microunits: 500_000,
@@ -708,9 +710,9 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
         subtotal_cents: 100,
       }),
       expect.objectContaining({
-        base_quantity_microunits: 250_000,
+        base_quantity_microunits: 500_000,
         unit_price_cents: 199,
-        subtotal_cents: 50,
+        subtotal_cents: 100,
       }),
     ]);
   });
@@ -752,14 +754,14 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
           saleItemId: `line-${tenantId}`,
           weightMeasurement: {
             measurementId: `measurement-${tenantId}`,
-            weightMicrounits: 500_000,
+            weightMicrounits: 250_000,
             measurementSource: 'MANUAL',
             observedAt: new Date(nowMs).toISOString(),
             authorizationToken: token,
           },
         },
       ],
-      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 118 }],
+      payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 59 }],
     };
 
     await processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, payload, {

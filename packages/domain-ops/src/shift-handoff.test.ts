@@ -28,19 +28,43 @@ describe('generatePin', () => {
     const rng = () => (calls++ % 2 === 0 ? 0.1 : 0.9);
     expect(generatePin(4, rng)).toBe('1919');
   });
+
+  it('fail-closed: sin crypto lanza CRYPTO_UNAVAILABLE', () => {
+    const desc = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+    try {
+      expect(() => generatePin(4)).toThrow('CRYPTO_UNAVAILABLE');
+    } finally {
+      if (desc) Object.defineProperty(globalThis, 'crypto', desc);
+    }
+  });
 });
 
 describe('hashPin', () => {
-  it('hashea un pin a 64 hex (SHA-256) y es estable', async () => {
+  it('hashea un pin con salt (salt:64hex) y es único por invocación', async () => {
     const h1 = await hashPin('123456');
     const h2 = await hashPin('123456');
-    expect(h1).toMatch(/^[0-9a-f]{64}$/);
-    expect(h1).toBe(h2);
+    expect(h1).toMatch(/^[0-9a-f]{32}:[0-9a-f]{64}$/);
+    expect(h1).not.toBe(h2); // salt aleatorio por hash
+    const [, hash1] = h1.split(':');
+    const [, hash2] = h2.split(':');
+    expect(hash1).toMatch(/^[0-9a-f]{64}$/);
+    expect(hash2).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('nunca expone el pin en claro en el hash', async () => {
     const h = await hashPin('123456');
     expect(h).not.toContain('123456');
+  });
+
+  it('fail-closed: sin crypto.subtle lanza CRYPTO_SUBTLE_UNAVAILABLE', async () => {
+    const desc = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+    try {
+      await expect(hashPin('123456')).rejects.toThrow('CRYPTO_SUBTLE_UNAVAILABLE');
+    } finally {
+      if (desc) Object.defineProperty(globalThis, 'crypto', desc);
+    }
   });
 });
 
@@ -82,6 +106,23 @@ describe('verifyTransferPin', () => {
     const pin = generatePin(TRANSFER_PIN_LENGTH, () => 0.5);
     const hash = await hashPin(pin);
     expect(await verifyTransferPin(pin, hash, 'no-una-fecha', NOW)).toBe('PIN_INVALID');
+  });
+
+  it('rechaza hash sin formato salt:hash (PIN_INVALID)', async () => {
+    expect(await verifyTransferPin('123456', 'sin-dos-puntos', validExpiry, NOW)).toBe(
+      'PIN_INVALID',
+    );
+  });
+
+  it('fail-closed: sin crypto.subtle verifica como PIN_INVALID', async () => {
+    const hash = await hashPin('123456');
+    const desc = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+    try {
+      expect(await verifyTransferPin('123456', hash, validExpiry, NOW)).toBe('PIN_INVALID');
+    } finally {
+      if (desc) Object.defineProperty(globalThis, 'crypto', desc);
+    }
   });
 });
 

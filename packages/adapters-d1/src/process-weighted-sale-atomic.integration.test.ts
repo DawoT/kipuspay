@@ -6,6 +6,7 @@ import {
   registerTerminalSession,
 } from './process-inventory-scale-atomic.js';
 import { processOfflineSaleAtomic } from './process-offline-sale-atomic.js';
+import { writeScaleHeartbeat } from './process-inventory-scale-atomic.js';
 import { processReturnAtomic } from './process-return-atomic.js';
 import { processSyncSalesBatch } from './sync-sales-batch.js';
 
@@ -79,14 +80,14 @@ async function seedWeightedFixture(tenantId: string, stockMicrounits = 5_000_000
     ).bind(terminalId, tenantId, branchId),
     env.DB.prepare(
       `INSERT INTO scale_devices (
-         id, tenant_id, terminal_id, protocol, device_fingerprint, status, last_heartbeat_at
-       ) VALUES (?, ?, ?, 'WEBUSB', ?, 'ACTIVE', ?)`,
+         id, tenant_id, terminal_id, protocol, device_fingerprint, status,
+         last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
+       ) VALUES (?, ?, ?, 'WEBUSB', ?, 'ACTIVE', NULL, NULL, NULL)`,
     ).bind(
       `scale-${tenantId}`,
       tenantId,
       terminalId,
       `fingerprint-${tenantId}`,
-      new Date(NOW).toISOString(),
     ),
     env.DB.prepare(
       `INSERT INTO inventory_locations (id, tenant_id, branch_id, code, name)
@@ -123,6 +124,21 @@ async function seedWeightedFixture(tenantId: string, stockMicrounits = 5_000_000
   };
 }
 
+async function registerScaleReading(
+  tenantId: string,
+  deviceId: string,
+  sequence: number,
+  weightMicrounits: number,
+): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE scale_devices
+     SET last_heartbeat_at = ?, last_heartbeat_sequence = ?, last_weight_microunits = ?
+     WHERE tenant_id = ? AND id = ?`,
+  )
+    .bind(new Date(Date.now() - 500).toISOString(), sequence, weightMicrounits, tenantId, deviceId)
+    .run();
+}
+
 function weightedPayload(
   fixture: Awaited<ReturnType<typeof seedWeightedFixture>>,
   offlineSaleId: string,
@@ -132,6 +148,7 @@ function weightedPayload(
     weightMicrounits: number;
     source?: 'DEVICE' | 'MANUAL';
     authorizationToken?: string;
+    heartbeatSequence?: number;
   }[],
   paymentCents: number,
 ): OfflineSalePayload {
@@ -153,7 +170,7 @@ function weightedPayload(
               measurementId: line.measurementId,
               weightMicrounits: line.weightMicrounits,
               measurementSource: 'MANUAL' as const,
-              observedAt: new Date(NOW - 500).toISOString(),
+              observedAt: new Date(Date.now() - 500).toISOString(),
               authorizationToken: line.authorizationToken,
             }
           : {
@@ -162,8 +179,8 @@ function weightedPayload(
               measurementSource: 'DEVICE' as const,
               scaleProtocol: 'WEBUSB' as const,
               scaleDeviceId: `scale-${fixture.tenantId}`,
-              observedAt: new Date(NOW - 500).toISOString(),
-              heartbeatSequence: 7,
+              observedAt: new Date(Date.now() - 500).toISOString(),
+              heartbeatSequence: line.heartbeatSequence ?? 7,
               stable: true,
               authorizationToken: line.authorizationToken,
             },
@@ -179,14 +196,26 @@ function weightedPayload(
 describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
   it('ignores tampered price/quantity and preserves two same-product line identities', async () => {
     const fixture = await seedWeightedFixture('t-weigh-trusted');
+    // La balanza registra su lectura; cada línea WEIGH refiere ese pesaje.
+    await registerScaleReading(fixture.tenantId, `scale-${fixture.tenantId}`, 1, 500_000);
     const payload = weightedPayload(
       fixture,
       'off-weigh-trusted',
       [
-        { saleItemId: 'line-a', measurementId: 'measure-a', weightMicrounits: 500_000 },
-        { saleItemId: 'line-b', measurementId: 'measure-b', weightMicrounits: 250_000 },
+        {
+          saleItemId: 'line-a',
+          measurementId: 'measure-a',
+          weightMicrounits: 500_000,
+          heartbeatSequence: 1,
+        },
+        {
+          saleItemId: 'line-b',
+          measurementId: 'measure-b',
+          weightMicrounits: 500_000,
+          heartbeatSequence: 1,
+        },
       ],
-      177,
+      236,
     );
     const result = await processOfflineSaleAtomic(
       env.DB,
@@ -200,7 +229,7 @@ describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
       },
     );
     expect(result.status).toBe('SUCCESS');
-    expect(result.authoritativeTotalAmount).toBe(177);
+    expect(result.authoritativeTotalAmount).toBe(236);
 
     const rows = await env.DB.prepare(
       `SELECT si.id, si.base_quantity_microunits, si.unit_price_cents, si.subtotal_cents,
@@ -228,9 +257,9 @@ describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
       },
       {
         id: 'line-b',
-        base_quantity_microunits: 250_000,
+        base_quantity_microunits: 500_000,
         unit_price_cents: 199,
-        subtotal_cents: 50,
+        subtotal_cents: 100,
         measurement_id: 'measure-b',
       },
     ]);
@@ -397,6 +426,8 @@ describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
   it('online and sync-batch use identical authoritative reconciliation', async () => {
     const onlineFixture = await seedWeightedFixture('t-weigh-online');
     const syncFixture = await seedWeightedFixture('t-weigh-sync');
+    await registerScaleReading(onlineFixture.tenantId, `scale-${onlineFixture.tenantId}`, 7, 500_000);
+    await registerScaleReading(syncFixture.tenantId, `scale-${syncFixture.tenantId}`, 7, 500_000);
     const onlinePayload = weightedPayload(
       onlineFixture,
       'off-online',
@@ -438,6 +469,7 @@ describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
 
   it('return restores exact microunits and links the original append-only measurement', async () => {
     const fixture = await seedWeightedFixture('t-weigh-return');
+    await registerScaleReading(fixture.tenantId, `scale-${fixture.tenantId}`, 7, 500_000);
     const sale = await processOfflineSaleAtomic(
       env.DB,
       fixture.tenantId,
@@ -492,3 +524,106 @@ describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
     expect(history?.n).toBe(1);
   });
 });
+
+describe('S40-H1: peso DEVICE = lectura cruda registrada (anti-bypass)', () => {
+  it('peso arbitrario sin lectura registrada → WEIGHT_DEVICE_READING_MISMATCH', async () => {
+    const tenantId = 't-s40-bypass';
+    const fixture = await seedWeightedFixture(tenantId);
+    // El device existe con heartbeat FRESCO pero NUNCA registró lectura
+    // (last_weight_microunits NULL) — el bypass envía peso arbitrario.
+    await env.DB.prepare(
+      `UPDATE scale_devices SET last_heartbeat_at = ? WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(new Date(Date.now() - 500).toISOString(), tenantId, `scale-${tenantId}`)
+      .run();
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        {
+        offlineSaleId: 'off-s40-bypass',
+        branchId: fixture.branchId,
+        cashRegisterSessionId: fixture.sessionId,
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '00000000',
+        clientName: 'Cliente',
+        items: [
+          {
+            productId: fixture.productId,
+            saleItemId: 'si-bypass',
+            weightMeasurement: {
+              measurementId: 'm-bypass',
+              weightMicrounits: 4_000_000, // 4 kg arbitrarios (dentro del stock)
+              measurementSource: 'DEVICE' as const,
+              scaleProtocol: 'WEBUSB' as const,
+              scaleDeviceId: `scale-${tenantId}`,
+              observedAt: new Date(Date.now() - 500).toISOString(),
+              heartbeatSequence: 7,
+              stable: true,
+            },
+          },
+        ],
+        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 5900 }],
+        },
+        { nowMs: Date.now(), inventoryScaleEnabled: true, terminalId: fixture.terminalId },
+      ),
+    ).rejects.toThrow('WEIGHT_DEVICE_READING_MISMATCH');
+  });
+
+  it('peso DEVICE que coincide con la lectura del heartbeat → SUCCESS', async () => {
+    const tenantId = 't-s40-ok';
+    const fixture = await seedWeightedFixture(tenantId);
+    // La balanza registra la lectura cruda en su heartbeat (2500 g = 2_500_000 µ).
+    await writeScaleHeartbeat(env.DB, {
+      tenantId,
+      userId: fixture.userId,
+      terminalId: fixture.terminalId,
+      terminalSessionId: fixture.terminalSessionId,
+      cashRegisterSessionId: fixture.sessionId,
+      branchId: fixture.branchId,
+      deviceId: `scale-${tenantId}`,
+      protocol: 'WEBUSB',
+      heartbeatSequence: 1,
+      observedAt: new Date(Date.now() - 500).toISOString(),
+      weightMicrounits: 2_500_000,
+    });
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        offlineSaleId: 'off-s40-ok',
+        branchId: fixture.branchId,
+        cashRegisterSessionId: fixture.sessionId,
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '00000000',
+        clientName: 'Cliente',
+        items: [
+          {
+            productId: fixture.productId,
+            saleItemId: 'si-ok',
+            weightMeasurement: {
+              measurementId: 'm-ok',
+              weightMicrounits: 2_500_000,
+              measurementSource: 'DEVICE' as const,
+              scaleProtocol: 'WEBUSB' as const,
+              scaleDeviceId: `scale-${tenantId}`,
+              observedAt: new Date(Date.now() - 500).toISOString(),
+              heartbeatSequence: 1,
+              stable: true,
+            },
+          },
+        ],
+        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 588 }],
+      },
+      { nowMs: Date.now(), inventoryScaleEnabled: true, terminalId: fixture.terminalId },
+    );
+    expect(result.status).toBe('SUCCESS');
+  });
+});
+

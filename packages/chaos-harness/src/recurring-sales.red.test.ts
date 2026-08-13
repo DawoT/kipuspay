@@ -33,7 +33,8 @@ describe('Sprint 44 recurring-sales chaos 500 contract (RED)', () => {
       auditForks: 0,
     });
     expect(first.samples.filter((sample) => !sample.invariantsHeld)).toEqual([]);
-    expect(judgeRecurringSalesChaos(first)).toBe('PASS');
+    expect(judgeRecurringSalesChaos(first)).toBe('FAIL');
+    expect(judgeRecurringSalesChaos({ ...first, engineEvidenceVerified: true })).toBe('PASS');
   });
 
   it('derives all failure counters from samples and rejects incomplete evidence', async () => {

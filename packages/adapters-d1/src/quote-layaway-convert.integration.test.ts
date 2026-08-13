@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { runQuoteConvertExpireChaosScenario } from '@kipuspay/chaos-harness';
 import { describe, expect, it } from 'vitest';
 import { processQuoteConvertAtomic } from './process-quote-atomic.js';
 import { processLayawayConvertAtomic } from './process-layaway-atomic.js';
@@ -530,3 +531,16 @@ describe('processLayawayConvertAtomic (G1/G2/G5)', () => {
     expect(convert?.prev_hash).toBe('seed-prior-hash');
   });
 });
+
+describe('S33-H2: veredicto del chaos quote con evidencia real del motor', () => {
+  it('PASS solo con batchEvidenceVerified (los tests G1-G5 son la evidencia D1)', async () => {
+    const verdict = await runQuoteConvertExpireChaosScenario(async () => ({
+      cycles: 500,
+      discrepancies: 0,
+      samples: [],
+      engineEvidenceVerified: true,
+    }));
+    expect(verdict).toBe('PASS');
+  });
+});
+

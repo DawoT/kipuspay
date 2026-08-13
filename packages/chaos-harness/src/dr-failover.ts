@@ -25,11 +25,15 @@ export interface DrFailoverChaosSample {
 export interface DrFailoverChaosResult {
   readonly cycles: number;
   readonly samples: readonly DrFailoverChaosSample[];
+  /** Fail-closed: evidencia real del engine DR (integration workerd). */
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeDrFailoverChaos(result: DrFailoverChaosResult): DrFailoverChaosVerdict {
   if (result.samples.length !== result.cycles) return 'FAIL';
-  return result.samples.every((sample) => sample.invariantsHeld) ? 'PASS' : 'FAIL';
+  if (!result.samples.every((sample) => sample.invariantsHeld)) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 const SNAPSHOT_SALES = 5;
@@ -80,12 +84,13 @@ function drFailoverCycle(cycle: number, faults: readonly DrFailoverFault[]): DrF
 export function runDrFailoverChaos(
   cycles = 500,
   faults: readonly DrFailoverFault[] = [],
+  engineEvidenceVerified = false,
 ): DrFailoverChaosResult {
   const samples: DrFailoverChaosSample[] = [];
   for (let cycle = 0; cycle < cycles; cycle += 1) {
     samples.push(drFailoverCycle(cycle, faults));
   }
-  return { cycles, samples };
+  return { cycles, samples, engineEvidenceVerified };
 }
 
 export interface DrFailoverChaosDeps {

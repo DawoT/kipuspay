@@ -11,11 +11,13 @@ import {
   generatePin,
   generateBadgeBarcode,
   hashPin,
+  hashPinArgon2id,
   isValidInviteEmail,
   normalizeInviteEmail,
   TRANSFER_PIN_LENGTH,
   TRANSFER_PIN_TTL_MS,
   verifyTransferPin,
+  verifyPinHash,
   type ShiftTransferCommand,
 } from '@kipuspay/domain-ops';
 import { computeExpectedCashCents } from '@kipuspay/domain-cash';
@@ -480,7 +482,7 @@ export async function processTeamInviteAtomic(
     new Set((badges.results ?? []).map((row) => row.badge_barcode)),
   );
   const cashierPin = generateCashierPin();
-  const pinHash = await hashPin(cashierPin);
+  const pinHash = await hashPinArgon2id(cashierPin);
   const userId = crypto.randomUUID();
   const nowIso = input.nowIso ?? new Date().toISOString();
 
@@ -552,6 +554,15 @@ export interface ResolvedSeller {
  * badge EMP- (reusa el namespace del lector, edge 1A) o PIN de caja de 4
  * dígitos (hash server-side). Fail-closed: cualquier otra cosa ⇒ 404.
  */
+/** S51-H1: verifica un PIN contra el hash con salt ALMACENADO
+ * (`$argon2id$` SEC-03 o formato legado `salt:sha256(salt:pin)`). */
+async function verifyPinWithStoredHash(
+  pin: string,
+  storedHash: string,
+): Promise<{ ok: boolean; needsRehash: boolean }> {
+  return verifyPinHash(pin, storedHash);
+}
+
 export async function resolveSellerIdentifier(
   db: D1DatabaseLike,
   tenantId: string,
@@ -588,21 +599,82 @@ export async function resolveSellerIdentifier(
     };
   }
   if (/^\d{4}$/.test(raw)) {
-    const pinHash = await hashPin(raw);
-    const seller = await db
+    // S51-H1: lockout anti-enumeración — 5 fallos seguidos bloquea el PIN 15 min.
+    const existing = await db
       .prepare(
-        `SELECT id, email, role, badge_barcode FROM users
-         WHERE tenant_id = ? AND pin_hash = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1`,
+        `SELECT id, pin_attempts, pin_locked_until FROM users
+         WHERE tenant_id = ? AND pin_hash IS NOT NULL AND pin_hash <> '' AND is_active = 1 AND deleted_at IS NULL`,
       )
-      .bind(tenantId, pinHash)
-      .first<{ id: string; email: string; role: string; badge_barcode: string | null }>();
+      .bind(tenantId)
+      .all<{ id: string; pin_attempts: number; pin_locked_until: string | null }>();
+    const nowMs = Date.now();
+    const blockedUser = existing.results.find((u) => {
+      if (!u.pin_locked_until) return false;
+      const lockedUntil = Date.parse(u.pin_locked_until);
+      return Number.isFinite(lockedUntil) && lockedUntil > nowMs;
+    });
+    if (blockedUser) {
+      return {
+        ok: false,
+        status: 429,
+        body: { error: 'PIN locked: too many attempts', code: 'PIN_LOCKED' },
+      };
+    }
+    // S51-H1: el PIN se verifica contra el salt ALMACENADO (hashPin genera
+    // salt aleatorio — la búsqueda por hash exacto nunca matchearía).
+    const pinHolders = await db
+      .prepare(
+        `SELECT id, email, role, badge_barcode, pin_hash FROM users
+         WHERE tenant_id = ? AND pin_hash IS NOT NULL AND pin_hash <> '' AND is_active = 1 AND deleted_at IS NULL`,
+      )
+      .bind(tenantId)
+      .all<{
+        id: string;
+        email: string;
+        role: string;
+        badge_barcode: string | null;
+        pin_hash: string;
+      }>();
+    let seller: (typeof pinHolders.results)[number] | null = null;
+    for (const candidate of pinHolders.results ?? []) {
+      const verified = await verifyPinWithStoredHash(raw, candidate.pin_hash);
+      if (verified.ok) {
+        if (verified.needsRehash) {
+          await db
+            .prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ?')
+            .bind(await hashPinArgon2id(raw), tenantId, candidate.id)
+            .run();
+        }
+        seller = candidate;
+        break;
+      }
+    }
     if (!seller) {
+      // Registrar el intento fallido para el usuario con PIN (si existe en el tenant).
+      await db
+        .prepare(
+          `UPDATE users
+           SET pin_attempts = pin_attempts + 1,
+               pin_locked_until = CASE WHEN pin_attempts + 1 >= 5
+                 THEN datetime('now', '+15 minutes') ELSE pin_locked_until END
+           WHERE tenant_id = ? AND is_active = 1 AND deleted_at IS NULL AND pin_hash IS NOT NULL`,
+        )
+        .bind(tenantId)
+        .run();
       return {
         ok: false,
         status: 404,
         body: { error: 'Unknown seller PIN', code: 'UNKNOWN_IDENTIFIER' },
       };
     }
+    // Intento exitoso: resetea el contador.
+    await db
+      .prepare(
+        `UPDATE users SET pin_attempts = 0, pin_locked_until = NULL
+         WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(tenantId, seller.id)
+      .run();
     return {
       ok: true,
       seller: {

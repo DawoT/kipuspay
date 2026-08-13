@@ -524,7 +524,7 @@ export async function processStoreCreditAdjustAtomic(
   const txnId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const rowHash = await sha256HexOf({
-    action: 'STORE_CREDIT_ISSUE',
+    action: 'STORE_CREDIT_ADJUST',
     entity_id: txnId,
     adjust: input.adjustSign,
     amount: planned.amountCents,
@@ -574,7 +574,7 @@ export async function processStoreCreditAdjustAtomic(
             `INSERT INTO audit_events (
                id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
                payload_json, prev_hash, row_hash
-             ) VALUES (?, ?, ?, ?, 'STORE_CREDIT_ISSUE', 'store_credit_transaction', ?, ?, ?, ?)`,
+             ) VALUES (?, ?, ?, ?, 'STORE_CREDIT_ADJUST', 'store_credit_transaction', ?, ?, ?, ?)`,
           )
           .bind(
             auditId,

@@ -7,8 +7,12 @@ import {
 } from './dr-failover.js';
 
 describe('platform.dr game day (Sprint 48)', () => {
-  it('500 ciclos sin fallas → PASS (RPO=0, RPO≤1d, 0 duplicados en replay)', async () => {
-    const verdict = await runDrFailoverChaosScenario();
+  it('500 ciclos sin fallas → FAIL sin evidencia; PASS con evidencia real', async () => {
+    const plain = await runDrFailoverChaosScenario();
+    expect(plain).toBe('FAIL');
+    const verdict = await runDrFailoverChaosScenario(() =>
+      Promise.resolve(runDrFailoverChaos(500, [], true)),
+    );
     expect(verdict).toBe('PASS');
   });
 
@@ -47,7 +51,7 @@ describe('platform.dr game day (Sprint 48)', () => {
       invariantsHeld: true,
     };
     const verdict = await runDrFailoverChaosScenario(() =>
-      Promise.resolve({ cycles: 1, samples: [fake] }),
+      Promise.resolve({ cycles: 1, samples: [fake], engineEvidenceVerified: true }),
     );
     expect(verdict).toBe('PASS');
   });

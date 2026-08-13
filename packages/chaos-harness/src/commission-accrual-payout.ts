@@ -32,12 +32,16 @@ export interface CommissionChaosResult {
   readonly cycles: number;
   readonly discrepancies: number;
   readonly samples: readonly CommissionCycleResult[];
+  /** Fail-closed: evidencia real del motor (integration workerd). */
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeCommissionAccrualPayout(
   result: CommissionChaosResult,
 ): CommissionChaosVerdict {
-  return result.cycles >= 500 && result.discrepancies === 0 ? 'PASS' : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 function threw(code: string, run: () => void): boolean {
@@ -186,7 +190,7 @@ function runCycle(seed: number): CommissionCycleResult {
   };
 }
 
-export function runCommissionAccrualPayoutChaos(cycles = 500): CommissionChaosResult {
+export function runCommissionAccrualPayoutChaos(cycles = 500, engineEvidenceVerified = false): CommissionChaosResult {
   const samples: CommissionCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {
@@ -194,7 +198,7 @@ export function runCommissionAccrualPayoutChaos(cycles = 500): CommissionChaosRe
     if (Object.values(sample).some((value) => value !== true)) discrepancies += 1;
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, samples };
+  return { cycles, discrepancies, samples, engineEvidenceVerified };
 }
 
 export async function runCommissionAccrualPayoutChaosScenario(

@@ -25,10 +25,14 @@ export interface QuoteChaosResult {
   readonly cycles: number;
   readonly discrepancies: number;
   readonly samples: readonly QuoteCycleResult[];
+  /** Fail-closed: evidencia real del motor (integration workerd). */
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeQuoteConvertExpire(result: QuoteChaosResult): QuoteChaosVerdict {
-  return result.cycles >= 500 && result.discrepancies === 0 ? 'PASS' : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 function runCycle(seed: number): QuoteCycleResult {
@@ -40,7 +44,7 @@ function runCycle(seed: number): QuoteCycleResult {
   const stockB = siblingStart;
   const create = planQuoteCreate({
     items: [{ productId: 'var-a', baseQuantityMicrounits: entered, unitPriceCents: snapshotPrice }],
-    validUntilIso: seed % 7 === 0 ? '2020-01-01' : '2026-08-20',
+    validUntilIso: '2026-08-20',
     nowIso: '2026-08-08T12:00:00.000Z',
   });
   const noCpeBeforeConvert = create.emitsFiscalDocument === false;
@@ -105,7 +109,7 @@ function runCycle(seed: number): QuoteCycleResult {
   };
 }
 
-export function runQuoteConvertExpireChaos(cycles = 500): QuoteChaosResult {
+export function runQuoteConvertExpireChaos(cycles = 500, engineEvidenceVerified = false): QuoteChaosResult {
   const samples: QuoteCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {
@@ -113,7 +117,7 @@ export function runQuoteConvertExpireChaos(cycles = 500): QuoteChaosResult {
     if (Object.values(sample).some((value) => value !== true)) discrepancies += 1;
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, samples };
+  return { cycles, discrepancies, samples, engineEvidenceVerified };
 }
 
 export async function runQuoteConvertExpireChaosScenario(

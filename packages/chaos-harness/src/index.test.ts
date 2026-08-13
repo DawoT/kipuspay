@@ -57,10 +57,11 @@ describe('chaos-harness contrato §13.5', () => {
       ChaosScenarioNotReadyError,
     );
     const result = runInventorySerialAssignmentChaos(500);
-    expect(judgeInventorySerialAssignment(result)).toBe('PASS');
+    expect(judgeInventorySerialAssignment(result)).toBe('FAIL');
     await expect(
       runChaosScenario('inventory-serial-assignment', 39, {
-        runInventorySerialAssignment: () => Promise.resolve(result),
+        runInventorySerialAssignment: () =>
+          Promise.resolve({ ...result, engineEvidenceVerified: true }),
       }),
     ).resolves.toBe('PASS');
   });
@@ -71,8 +72,13 @@ describe('chaos-harness contrato §13.5', () => {
       ChaosScenarioNotReadyError,
     );
     const result = runInventoryScaleHeartbeatChaos(500);
-    expect(judgeInventoryScaleHeartbeat(result)).toBe('PASS');
-    await expect(runChaosScenario('inventory-scale-heartbeat', 40)).resolves.toBe('PASS');
+    expect(judgeInventoryScaleHeartbeat(result)).toBe('FAIL');
+    await expect(
+      runChaosScenario('inventory-scale-heartbeat', 40, {
+        runInventoryScaleHeartbeat: () =>
+          Promise.resolve({ ...result, engineEvidenceVerified: true }),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('Sprint 41 price-label-printing está activo y bloquea antes del sprint', async () => {
@@ -81,32 +87,48 @@ describe('chaos-harness contrato §13.5', () => {
       ChaosScenarioNotReadyError,
     );
     const result = await runPriceLabelPrintingChaos(500);
-    expect(judgePriceLabelPrinting(result)).toBe('PASS');
-    await expect(runChaosScenario('price-label-printing', 41)).resolves.toBe('PASS');
+    expect(judgePriceLabelPrinting(result)).toBe('FAIL');
+    await expect(
+      runChaosScenario('price-label-printing', 41, {
+        runPriceLabelPrinting: () => Promise.resolve({ ...result, engineEvidenceVerified: true }),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('Sprint 42 data-backup está activo y bloquea antes del sprint', async () => {
     expect(SCENARIO_ACTIVE_FROM['data-backup']).toBe(42);
     expect(() => assertScenarioReady('data-backup', 41)).toThrow(ChaosScenarioNotReadyError);
     const result = await runDataBackupChaos(500);
-    expect(judgeDataBackupChaos(result)).toBe('PASS');
-    await expect(runChaosScenario('data-backup', 42)).resolves.toBe('PASS');
+    expect(judgeDataBackupChaos(result)).toBe('FAIL');
+    await expect(
+      runChaosScenario('data-backup', 42, {
+        runDataBackup: () => Promise.resolve({ ...result, engineEvidenceVerified: true }),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('Sprint 43 customer-orders está activo y bloquea antes del sprint', async () => {
     expect(SCENARIO_ACTIVE_FROM['customer-orders']).toBe(43);
     expect(() => assertScenarioReady('customer-orders', 42)).toThrow(ChaosScenarioNotReadyError);
     const result = await runCustomerOrderChaos(500);
-    expect(judgeCustomerOrderChaos(result)).toBe('PASS');
-    await expect(runChaosScenario('customer-orders', 43)).resolves.toBe('PASS');
+    expect(judgeCustomerOrderChaos(result)).toBe('FAIL');
+    await expect(
+      runChaosScenario('customer-orders', 43, {
+        runCustomerOrders: () => Promise.resolve({ ...result, engineEvidenceVerified: true }),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('Sprint 44 recurring-sales está activo y bloquea antes del sprint', async () => {
     expect(SCENARIO_ACTIVE_FROM['recurring-sales']).toBe(44);
     expect(() => assertScenarioReady('recurring-sales', 43)).toThrow(ChaosScenarioNotReadyError);
     const result = await runRecurringSalesChaos(500);
-    expect(judgeRecurringSalesChaos(result)).toBe('PASS');
-    await expect(runChaosScenario('recurring-sales', 44)).resolves.toBe('PASS');
+    expect(judgeRecurringSalesChaos(result)).toBe('FAIL');
+    await expect(
+      runChaosScenario('recurring-sales', 44, {
+        runRecurringSales: () => Promise.resolve({ ...result, engineEvidenceVerified: true }),
+      }),
+    ).resolves.toBe('PASS');
   });
 
   it('rechaza concurrent-writers antes del Sprint 4', () => {
@@ -397,10 +419,11 @@ describe('chaos-harness contrato §13.5', () => {
     );
     const cycles = runQuoteConvertExpireChaos(500);
     expect(cycles.discrepancies).toBe(0);
-    expect(judgeQuoteConvertExpire(cycles)).toBe('PASS');
+    expect(judgeQuoteConvertExpire(cycles)).toBe('FAIL');
+    const evidence = { ...cycles, engineEvidenceVerified: true };
     await expect(
       runChaosScenario('quote-convert-expire', 33, {
-        runQuoteConvertExpire: () => Promise.resolve(cycles),
+        runQuoteConvertExpire: () => Promise.resolve(evidence),
       }),
     ).resolves.toBe('PASS');
   });
@@ -412,10 +435,11 @@ describe('chaos-harness contrato §13.5', () => {
     );
     const cycles = runSupplierReturnReceiveChaos(500);
     expect(cycles.discrepancies).toBe(0);
-    expect(judgeSupplierReturnReceive(cycles)).toBe('PASS');
+    expect(judgeSupplierReturnReceive(cycles)).toBe('FAIL');
+    const evidence = { ...cycles, engineEvidenceVerified: true };
     await expect(
       runChaosScenario('supplier-return-receive', 34, {
-        runSupplierReturnReceive: () => Promise.resolve(cycles),
+        runSupplierReturnReceive: () => Promise.resolve(evidence),
       }),
     ).resolves.toBe('PASS');
   });
@@ -427,10 +451,11 @@ describe('chaos-harness contrato §13.5', () => {
     );
     const cycles = runStoreCreditIssueRedeemChaos(500);
     expect(cycles.discrepancies).toBe(0);
-    expect(judgeStoreCreditIssueRedeem(cycles)).toBe('PASS');
+    expect(judgeStoreCreditIssueRedeem(cycles)).toBe('FAIL');
+    const evidence = { ...cycles, engineEvidenceVerified: true };
     await expect(
       runChaosScenario('store-credit-issue-redeem', 35, {
-        runStoreCreditIssueRedeem: () => Promise.resolve(cycles),
+        runStoreCreditIssueRedeem: () => Promise.resolve(evidence),
       }),
     ).resolves.toBe('PASS');
   });
@@ -442,10 +467,11 @@ describe('chaos-harness contrato §13.5', () => {
     );
     const cycles = runCommissionAccrualPayoutChaos(500);
     expect(cycles.discrepancies).toBe(0);
-    expect(judgeCommissionAccrualPayout(cycles)).toBe('PASS');
+    expect(judgeCommissionAccrualPayout(cycles)).toBe('FAIL');
+    const evidence = { ...cycles, engineEvidenceVerified: true };
     await expect(
       runChaosScenario('commission-accrual-payout', 37, {
-        runCommissionAccrualPayout: () => Promise.resolve(cycles),
+        runCommissionAccrualPayout: () => Promise.resolve(evidence),
       }),
     ).resolves.toBe('PASS');
   });

@@ -101,9 +101,7 @@ describe('Sprint 44 recurring-sales workerd concurrency (RED)', () => {
     const fixture = await seedRecurringSalesFixture(env.DB, {
       tenantId: 'tenant-recurring-checkout-benchmark',
     });
-    const checkoutDurations: number[] = [];
-    for (let cycle = 0; cycle < 20; cycle += 1) {
-      const scheduler = fixture.runScheduler();
+    const checkoutQuery = async (): Promise<number> => {
       const started = performance.now();
       const checkout = await env.DB.prepare(
         `SELECT COUNT(*) AS value FROM cash_register_sessions
@@ -111,12 +109,28 @@ describe('Sprint 44 recurring-sales workerd concurrency (RED)', () => {
       )
         .bind(fixture.tenantId)
         .first<{ value: number }>();
-      checkoutDurations.push(performance.now() - started);
       expect(checkout?.value).toBe(1);
+      return performance.now() - started;
+    };
+    // Control baseline: checkout SIN scheduler (referencia relativa a la máquina).
+    const baselineDurations: number[] = [];
+    for (let cycle = 0; cycle < 20; cycle += 1) {
+      baselineDurations.push(await checkoutQuery());
+    }
+    // Con scheduler concurrente: mide la degradación real, no la velocidad absoluta.
+    const checkoutDurations: number[] = [];
+    for (let cycle = 0; cycle < 20; cycle += 1) {
+      const scheduler = fixture.runScheduler();
+      checkoutDurations.push(await checkoutQuery());
       await scheduler;
     }
     const ordered = checkoutDurations.toSorted((left, right) => left - right);
     const p95 = ordered[Math.ceil(ordered.length * 0.95) - 1]!;
+    const baselineOrdered = baselineDurations.toSorted((left, right) => left - right);
+    const baselineP95 = baselineOrdered[Math.ceil(baselineOrdered.length * 0.95) - 1]!;
+    // Umbral doble anti-flake: absoluto (50ms, presupuesto del hot path) y
+    // relativo (≤10× baseline + 5ms) — el scheduler jamás degrada el checkout.
     expect(p95).toBeLessThan(50);
-  });
+    expect(p95).toBeLessThanOrEqual(baselineP95 * 10 + 5);
+  }, 30_000);
 });

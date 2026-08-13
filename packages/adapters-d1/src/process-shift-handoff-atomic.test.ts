@@ -56,11 +56,22 @@ function mockDb(world: World = {}): never {
   const prepare = (sql: string) => ({
     sql,
     bind() {
+
       return {
         sql,
         first: () => Promise.resolve(first(sql)),
         run: () => Promise.resolve({ meta: { changes: 1 } }),
-        all: () => Promise.resolve({ results: [] }),
+        all: () => {
+
+          if (sql.includes('pin_hash IS NOT NULL') && world.sellerByPin) {
+            return Promise.resolve({
+              results: [
+                { ...world.sellerByPin, pin_hash: CASHIER_PIN_HASH },
+              ],
+            });
+          }
+          return Promise.resolve({ results: [] });
+        },
       };
     },
   });
@@ -76,10 +87,12 @@ function mockDb(world: World = {}): never {
   } as never;
 }
 
-let REAL_PIN_HASH = '';
+let CASHIER_PIN_HASH = '';
+let TRANSFER_PIN_HASH = '';
 
 beforeEach(async () => {
-  REAL_PIN_HASH = await hashPin('123456');
+  CASHIER_PIN_HASH = await hashPin('1234');
+  TRANSFER_PIN_HASH = await hashPin('123456');
 });
 
 function worldWith(overrides: Partial<World> = {}): World {
@@ -87,7 +100,7 @@ function worldWith(overrides: Partial<World> = {}): World {
     session: OPEN_SESSION,
     outgoingShift: {
       id: 'sh1',
-      transfer_pin_hash: REAL_PIN_HASH,
+      transfer_pin_hash: TRANSFER_PIN_HASH,
       transfer_pin_expires_at: '2099-01-01T00:00:00.000Z',
     },
     ...overrides,
@@ -128,7 +141,7 @@ describe('processShiftHandoffAtomic (unit, Sprint 51)', () => {
       expect(res.ok).toBe(true);
       if (!res.ok) return;
       expect(res.pin).toMatch(/^\d{6}$/);
-      expect(res.pinHash).toMatch(/^[0-9a-f]{64}$/);
+      expect(res.pinHash).toMatch(/^[0-9a-f]{32}:[0-9a-f]{64}$/); // salt:sha256 (S51-H1)
       expect(Date.parse(res.expiresAtIso) - Date.parse(NOW)).toBe(5 * 60 * 1000);
     });
 

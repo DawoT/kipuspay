@@ -132,3 +132,35 @@ describe('store-credit idempotencia (47b / B3)', () => {
     expect(sourceRef).not.toBeNull();
   });
 });
+
+describe('S35-H2: audit del ajuste con action correcta', () => {
+  it('ADJUST audita STORE_CREDIT_ADJUST (no ISSUE)', async () => {
+    const tenantId = 't-s35-adjust-audit';
+    const { branchId, userId, customerId } = await seedStoreCreditFixture(tenantId);
+    const result = await processStoreCreditAdjustAtomic(
+      env.DB,
+      tenantId,
+      userId,
+      {
+        customerId,
+        branchId,
+        amountCents: 500,
+        adjustSign: 'CREDIT',
+        idempotencyKey: 'adjust-s35-audit',
+        authorizedByUserId: userId,
+      },
+      { nowMs: Date.parse('2026-08-04T16:00:00.000Z') },
+    );
+    expect(result.status).toBe('SUCCESS');
+    if (result.status !== 'SUCCESS') return;
+
+    const audit = await env.DB.prepare(
+      `SELECT action FROM audit_events
+       WHERE tenant_id = ? AND action LIKE 'STORE_CREDIT%'
+       ORDER BY created_at DESC, id DESC LIMIT 1`,
+    )
+      .bind(tenantId)
+      .first<{ action: string }>();
+    expect(audit?.action).toBe('STORE_CREDIT_ADJUST');
+  });
+});

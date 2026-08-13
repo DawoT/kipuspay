@@ -406,7 +406,7 @@ export async function processCommissionPayoutAtomic(
     .prepare(
       `SELECT COALESCE(SUM(gross_cents), 0) AS cents
        FROM commission_payouts
-       WHERE tenant_id = ? AND seller_id = ? AND status = 'PAID'
+       WHERE tenant_id = ? AND seller_id = ? AND status IN ('PAID','OPEN')
          AND period_start <= ? AND period_end >= ?`,
     )
     .bind(

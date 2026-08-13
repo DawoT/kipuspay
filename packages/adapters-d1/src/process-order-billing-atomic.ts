@@ -34,6 +34,8 @@ export interface ProcessOrderBillingInput {
   readonly stockPolicy?: string | null;
   readonly clientName?: string;
   readonly serialIdsByItemId?: Readonly<Record<string, readonly string[]>>;
+  /** S19-H2: documento según modo — 'NV' (control interno) o '03' (boleta). */
+  readonly documentType?: 'NV' | '03';
 }
 
 export interface ProcessOrderBillingResult {
@@ -101,10 +103,10 @@ export async function processOrderBillingAtomic(
   const seriesRow = await db
     .prepare(
       `SELECT id FROM branch_document_series
-       WHERE tenant_id = ? AND branch_id = ? AND document_type_code = 'NV' AND series = ?
+       WHERE tenant_id = ? AND branch_id = ? AND document_type_code = ? AND series = ?
        LIMIT 1`,
     )
-    .bind(tenantId, order.branch_id, input.series)
+    .bind(tenantId, order.branch_id, input.documentType ?? 'NV', input.series)
     .first<{ id: string }>();
   if (!seriesRow) throw new Error('SERIES_NOT_FOUND');
 
@@ -153,9 +155,9 @@ export async function processOrderBillingAtomic(
                  issued_at_lima, sunat_status, must_submit_by
                )
                SELECT
-                 ?, ?, ?, ?, ?, NULL, ?, '1', '00000000', ?, 'NV', ?,
+                 ?, ?, ?, ?, ?, NULL, ?, '1', '00000000', ?, ?, ?,
                  (SELECT current_number FROM branch_document_series WHERE id = ?),
-                 'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, 'INTERNAL', NULL`,
+                 'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, NULL`,
           )
           .bind(
             portion.saleId,
@@ -165,12 +167,14 @@ export async function processOrderBillingAtomic(
             userId,
             `order-bill-${portion.saleId}`,
             input.clientName ?? 'Cliente',
+            input.documentType ?? 'NV',
             input.series,
             seriesRow.id,
             taxable,
             igv,
             totalAmount,
             limaTs,
+            input.documentType === '03' ? 'PENDING' : 'NOT_APPLICABLE',
           ),
       );
       plan.add(

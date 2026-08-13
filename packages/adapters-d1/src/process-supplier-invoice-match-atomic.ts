@@ -178,6 +178,20 @@ export async function processSupplierInvoiceMatchAtomic(
   if (priceDiffOverride && !input.authorizedByUserId) {
     throw new Error('AUTH_REQUIRED');
   }
+  // S29-H1: el override de diferencia 3-way exige rol admin/owner verificado
+  // server-side (nunca un string libre del cliente sin chequeo).
+  if (priceDiffOverride && input.authorizedByUserId) {
+    const approver = await db
+      .prepare(
+        `SELECT role FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1`,
+      )
+      .bind(input.authorizedByUserId, tenantId)
+      .first<{ role: string }>();
+    const role = approver?.role ?? '';
+    if (role !== 'admin' && role !== 'owner') {
+      throw new Error('FORBIDDEN_ROLE');
+    }
+  }
 
   const matchPlan = assertThreeWayMatch({
     lines: threeWayLines,

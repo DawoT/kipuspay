@@ -46,8 +46,10 @@ export interface ShiftTransferCommand {
   readonly cashDiffCents: number | null;
 }
 
-/** PIN aleatorio legible (dígitos, sin 0 inicial ambiguo). */
-export function generatePin(length: number, rng: () => number = Math.random): string {
+/** PIN aleatorio legible (dígitos, sin 0 inicial ambiguo).
+ * S51-H1: RNG criptográfico (crypto.getRandomValues) — jamás Math.random
+ * para credenciales. rng() sigue aceptable para tests deterministas. */
+export function generatePin(length: number, rng: () => number = cryptoRandomDigit): string {
   const digits: number[] = [];
   for (let i = 0; i < length; i++) {
     digits.push(Math.floor(rng() * 10));
@@ -55,15 +57,34 @@ export function generatePin(length: number, rng: () => number = Math.random): st
   return digits.join('');
 }
 
-/** SHA-256 hex del PIN (nunca en claro en la DB; Web Crypto disponible en workers/node). */
+/** Fuente aleatoria criptográfica en el dominio de rng (0.0..1.0),
+ * equivalente a Math.random pero con crypto.getRandomValues. */
+function cryptoRandomDigit(): number {
+  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint32Array): void } })
+    .crypto;
+  if (!cryptoObj) throw new Error('CRYPTO_UNAVAILABLE');
+  const buf = new Uint32Array(1);
+  cryptoObj.getRandomValues(buf);
+  return buf[0]! / 0x1_0000_0000;
+}
+
+/** SHA-256 hex del PIN con SALT aleatorio (nunca en claro; sin salt los PINs
+ * de 4-6 dígitos son rainbow-tableable). Formato: `<salt>:<sha256(salt+pin)>`.
+ * S51-H1: salt de 16 bytes criptográfico por hash. */
 export async function hashPin(pin: string): Promise<string> {
   const subtle = (globalThis as { crypto?: { subtle?: unknown } }).crypto?.subtle as
     { digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer> } | undefined;
   if (!subtle) {
     throw new Error('CRYPTO_SUBTLE_UNAVAILABLE');
   }
-  const digest = await subtle.digest('SHA-256', new TextEncoder().encode(pin));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint8Array): void } })
+    .crypto as { getRandomValues(u: Uint8Array): void };
+  const saltBytes = new Uint8Array(16);
+  cryptoObj.getRandomValues(saltBytes);
+  const salt = Array.from(saltBytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  const digest = await subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`));
+  const hash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${salt}:${hash}`;
 }
 
 /** Verificación fail-closed del PIN: TTL vencido ⇒ PIN_EXPIRED; hash distinto ⇒ PIN_INVALID. */
@@ -77,12 +98,18 @@ export async function verifyTransferPin(
   const expiresAt = Date.parse(pinExpiresAtIso);
   if (!Number.isFinite(expiresAt)) return 'PIN_INVALID';
   if (nowMs > expiresAt) return 'PIN_EXPIRED';
-  const candidate = await hashPin(pin);
+  const [salt, storedHash] = pinHash.split(':');
+  if (!salt || !storedHash) return 'PIN_INVALID';
+  const subtle = (globalThis as { crypto?: { subtle?: unknown } }).crypto?.subtle as
+    { digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer> } | undefined;
+  if (!subtle) return 'PIN_INVALID';
+  const digest = await subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`));
+  const candidate = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
   // Comparación en tiempo constante: los hashes compiten por bytes, no por longitud.
-  if (candidate.length !== pinHash.length) return 'PIN_INVALID';
+  if (candidate.length !== storedHash.length) return 'PIN_INVALID';
   let diff = 0;
   for (let i = 0; i < candidate.length; i++) {
-    diff |= candidate.charCodeAt(i) ^ pinHash.charCodeAt(i);
+    diff |= candidate.charCodeAt(i) ^ storedHash.charCodeAt(i);
   }
   return diff === 0 ? 'OK' : 'PIN_INVALID';
 }

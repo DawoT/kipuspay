@@ -1024,8 +1024,26 @@ export async function processRecurringSaleAtomic(
         input.periodStart,
         input.periodStart,
       ];
+      const pricingPolicy = first.pricing_policy;
       rows.forEach((row) => {
         if (row.product_type === 'service') return;
+        // S44-H2: para pricing CURRENT el precio NO puede cambiar entre la
+        // lectura y el batch — el guard re-verifica el precio vigente.
+        if (pricingPolicy === 'CURRENT') {
+          guardSql += ` AND EXISTS (
+            SELECT 1 FROM products prod
+            LEFT JOIN product_prices pp2 ON pp2.tenant_id = prod.tenant_id
+              AND pp2.product_id = prod.id AND pp2.price_list_id = ?
+            WHERE prod.tenant_id = ? AND prod.id = ?
+              AND COALESCE(pp2.price_cents, prod.price_cents) = ?
+          )`;
+          guardParams.push(
+            row.price_list_id ?? '',
+            input.tenantId,
+            row.product_id,
+            row.current_unit_price_cents,
+          );
+        }
         guardSql += ` AND EXISTS (
           SELECT 1 FROM branch_product_stock
           WHERE tenant_id = ? AND branch_id = ? AND product_id = ?
@@ -1923,6 +1941,21 @@ export async function runRecurringScheduler(
         period.startsWith(`${candidate.tenant_id}|${candidate.id}|`),
       ).length;
       if (perPlanDone >= candidate.catch_up_limit) continue;
+      // S44-H1: política post-gracia ANTES de liquidar — un plan con AR
+      // vencido más allá de la gracia se pausa (PAUSE_FUTURE_EXECUTION) y
+      // NO sigue liquidando períodos.
+      if (candidate.status === 'GRACE') {
+        try {
+          const grace = await evaluateRecurringGraceAtomic(db, {
+            tenantId: candidate.tenant_id,
+            planId: candidate.id,
+            now: input.now,
+          });
+          if (grace.status === 'PAUSED') continue;
+        } catch {
+          continue; // conflicto de carrera: se reintenta el próximo tick
+        }
+      }
       let lease: Awaited<ReturnType<typeof claimDueRecurringPlanAtomic>>;
       try {
         lease = await claimDueRecurringPlanAtomic(db, {

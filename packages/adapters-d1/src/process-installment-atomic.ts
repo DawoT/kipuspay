@@ -2,6 +2,7 @@
  * Cuotas ACID — Sprint 36 / ADR-0020 / §5.3 regla 21 / COM-06.
  * Un db.batch por plan/pay. Solo principal reduce AR.
  */
+import { requireLiveAuthToken } from './auth-tokens.js';
 import {
   assertCreditWithinLimit,
   planInstallmentPayJournal,
@@ -220,11 +221,23 @@ export async function processInstallmentPlanAtomic(
     .prepare(`SELECT credit_limit_cents FROM customers WHERE tenant_id = ? AND id = ? LIMIT 1`)
     .bind(tenantId, sale.customer_id)
     .first<{ credit_limit_cents: number | null }>();
+  // S36-H1: el override de límite de crédito exige token REAL verificado y
+  // consumido server-side (mismo mecanismo que la venta offline, SEC-09).
+  // Nunca un string libre del cliente reutilizable.
+  const creditTokenHash = input.creditOverrideTokenHash?.trim() ?? null;
+  if (creditTokenHash) {
+    const tokenId = await requireLiveAuthToken(db, tenantId, creditTokenHash);
+    await db
+      .prepare(`UPDATE authorization_tokens SET used_at = datetime('now') WHERE id = ?`)
+      .bind(tokenId)
+      .run();
+  }
+
   assertCreditWithinLimit({
     creditLimitCents: cust?.credit_limit_cents ?? 0,
     openArBalanceCents: openAr?.open_cents ?? 0,
     saleAmountCents: ar.balance_due_cents,
-    creditOverrideTokenHash: input.creditOverrideTokenHash ?? null,
+    creditOverrideTokenHash: creditTokenHash,
   });
 
   const schedule = planInstallmentSchedule({

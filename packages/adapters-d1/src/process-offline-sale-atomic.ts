@@ -293,6 +293,37 @@ function isPhysicalStockType(productType: string): boolean {
   return productType === 'physical' || productType === 'WEIGH';
 }
 
+/**
+ * S51-H2: verifica que todo sellerId del payload (carrito o ítem) exista,
+ * esté activo y pertenezca al tenant — el cliente no puede atribuir ventas a
+ * vendedores arbitrarios ni forjar comisiones (regla 22).
+ */
+async function assertSellersExist(
+  db: D1DatabaseLike,
+  tenantId: string,
+  payload: OfflineSalePayload,
+): Promise<void> {
+  const sellers = new Set<string>();
+  if (payload.sellerId?.trim()) sellers.add(payload.sellerId.trim());
+  for (const item of payload.items ?? []) {
+    if (item.sellerId?.trim()) sellers.add(item.sellerId.trim());
+  }
+  if (sellers.size === 0) return;
+  const placeholders = [...sellers].map(() => '?').join(',');
+  const rows = await db
+    .prepare(
+      `SELECT id FROM users
+       WHERE tenant_id = ? AND id IN (${placeholders})
+         AND is_active = 1 AND deleted_at IS NULL`,
+    )
+    .bind(tenantId, ...sellers)
+    .all<{ id: string }>();
+  const found = new Set((rows.results ?? []).map((r) => r.id));
+  for (const sellerId of sellers) {
+    if (!found.has(sellerId)) throw new Error('SELLER_NOT_ACTIVE');
+  }
+}
+
 async function normalizeUomItems(
   db: D1DatabaseLike,
   tenantId: string,
@@ -494,21 +525,44 @@ async function prepareWeightMeasurements(
       ) {
         throw new Error('SCALE_READING_UNSTABLE');
       }
-      if (nowMs - observedAtMs >= 2_000 || observedAtMs > nowMs) {
+      // El observedAt y el heartbeat del dispositivo son tiempo REAL de la
+      // balanza, no el nowMs de emisión de la venta (que puede venir del
+      // cliente). La frescura se valida contra el reloj real del hardware.
+      const readingClockMs = Date.now();
+      if (readingClockMs - observedAtMs >= 2_000 || observedAtMs > readingClockMs) {
         throw new Error('SCALE_HEARTBEAT_STALE');
       }
       const device = await db
         .prepare(
-          `SELECT last_heartbeat_at, last_heartbeat_sequence FROM scale_devices
+          `SELECT last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
+           FROM scale_devices
            WHERE tenant_id = ? AND id = ? AND terminal_id = ? AND protocol = ?
              AND status = 'ACTIVE' LIMIT 1`,
         )
         .bind(tenantId, measurement.scaleDeviceId, terminalId, measurement.scaleProtocol)
-        .first<{ last_heartbeat_at: string | null; last_heartbeat_sequence: number | null }>();
+        .first<{
+          last_heartbeat_at: string | null;
+          last_heartbeat_sequence: number | null;
+          last_weight_microunits: number | null;
+        }>();
       const heartbeatMs = device?.last_heartbeat_at ? Date.parse(device.last_heartbeat_at) : NaN;
       if (!device) throw new Error('SCALE_DEVICE_SCOPE_MISMATCH');
-      if (!Number.isFinite(heartbeatMs) || nowMs - heartbeatMs >= 2_000 || heartbeatMs > nowMs) {
+      if (
+        !Number.isFinite(heartbeatMs) ||
+        readingClockMs - heartbeatMs >= 2_000 ||
+        heartbeatMs > readingClockMs
+      ) {
         throw new Error('SCALE_HEARTBEAT_STALE');
+      }
+      // S40-H1: el peso DEVICE DEBE ser exactamente la última lectura cruda
+      // registrada por la balanza (jamás un valor arbitrario del cliente).
+      if (
+        typeof device.last_weight_microunits !== 'number' ||
+        !Number.isInteger(device.last_weight_microunits) ||
+        device.last_weight_microunits <= 0 ||
+        device.last_weight_microunits !== measurement.weightMicrounits
+      ) {
+        throw new Error('WEIGHT_DEVICE_READING_MISMATCH');
       }
     } else {
       if (
@@ -656,6 +710,11 @@ export async function processOfflineSaleAtomic(
   const commissionsOn = opts.salesCommissionsEnabled === true;
 
   assertOfflineSaleShape(payload);
+  // S51-H2: el vendedor es verificado server-side — el sellerId del cliente
+  // debe existir, estar activo y pertenecer al tenant (0 atribución a
+  // vendedores inexistentes/coludidos; el accrual de comisión solo devenga
+  // para vendedores reales del tenant).
+  await assertSellersExist(db, tenantId, payload);
   payload = await normalizeUomItems(db, tenantId, payload, opts.catalogUomEnabled === true);
 
   const hasPromoIds = payload.items.some((i) => (i.promotionIds?.length ?? 0) > 0);
@@ -2451,7 +2510,13 @@ export async function processOfflineSaleAtomic(
         auditTail = installmentResult.rowHash;
       }
 
-      if (commissionsOn && payload.sellerId?.trim() && !isReturn) {
+      // S37-H2: el vendedor se resuelve por ítem (item.sellerId) o carrito
+      // (payload.sellerId) — regla 22: la venta con vendedor SIEMPRE devenga.
+      const resolvedSellerId =
+        payload.sellerId?.trim() ||
+        payload.items.find((i) => i.sellerId?.trim())?.sellerId?.trim() ||
+        '';
+      if (commissionsOn && resolvedSellerId && !isReturn) {
         const commissionLines = saleLines.map((line) => ({
           productId: line.productId,
           categoryId: null as string | null,
@@ -2462,7 +2527,7 @@ export async function processOfflineSaleAtomic(
           userId,
           branchId: payload.branchId,
           saleId,
-          sellerId: payload.sellerId.trim(),
+          sellerId: resolvedSellerId,
           lines: commissionLines,
           prevAuditHash: auditTail,
           chartOn,

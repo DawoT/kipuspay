@@ -28,12 +28,16 @@ export interface SupplierReturnChaosResult {
   readonly cycles: number;
   readonly discrepancies: number;
   readonly samples: readonly SupplierReturnCycleResult[];
+  /** Fail-closed: evidencia real del motor (integration workerd). */
+  readonly engineEvidenceVerified: boolean;
 }
 
 export function judgeSupplierReturnReceive(
   result: SupplierReturnChaosResult,
 ): SupplierReturnChaosVerdict {
-  return result.cycles >= 500 && result.discrepancies === 0 ? 'PASS' : 'FAIL';
+  if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
+  if (result.engineEvidenceVerified !== true) return 'FAIL';
+  return 'PASS';
 }
 
 function runCycle(seed: number): SupplierReturnCycleResult {
@@ -135,7 +139,7 @@ function runCycle(seed: number): SupplierReturnCycleResult {
   };
 }
 
-export function runSupplierReturnReceiveChaos(cycles = 500): SupplierReturnChaosResult {
+export function runSupplierReturnReceiveChaos(cycles = 500, engineEvidenceVerified = false): SupplierReturnChaosResult {
   const samples: SupplierReturnCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {
@@ -143,7 +147,7 @@ export function runSupplierReturnReceiveChaos(cycles = 500): SupplierReturnChaos
     if (Object.values(sample).some((value) => value !== true)) discrepancies += 1;
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, samples };
+  return { cycles, discrepancies, samples, engineEvidenceVerified };
 }
 
 export async function runSupplierReturnReceiveChaosScenario(
