@@ -29,7 +29,11 @@ function safeInteger(value: unknown): value is number {
 function isSellableItem(value: unknown): value is SellableCatalogItem {
   if (!value || typeof value !== 'object') return false;
   const row = value as Record<string, unknown>;
-  return hasIdentifiers(row) && hasSafeMoney(row) && hasOptionalStrings(row);
+  return (
+    hasIdentifiers(row) &&
+    hasSafeMoney(row) &&
+    hasOptionalStrings(row)
+  );
 }
 
 function hasIdentifiers(row: Record<string, unknown>): boolean {
