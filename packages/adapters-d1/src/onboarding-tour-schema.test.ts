@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets -- nombres canónicos de tablas DDL */
 import { describe, expect, it } from 'vitest';
 import down0044 from '../migrations-down/0044_sprint52_onboarding_tour.sql?raw';
 import migration0044 from '../migrations/0044_sprint52_onboarding_tour.sql?raw';
