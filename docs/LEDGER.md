@@ -6976,3 +6976,111 @@ aprobaciones: [Staff Principal, Staff QA/Chaos, Staff Design, Staff PM]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0335
+timestamp_utc: 2026-08-12T21:30:00Z
+schema_version: 2
+sprint_fase: FASE 3 (Sprints 7, 8, 9) — Bloque A — auditoría staff
+agente_responsable: Staff Frontend/Data (owner) / Staff Principal (A) / Staff SRE + Staff QA (V)
+tipo: Corrección de especificación
+subtipo: auditoría FASE 3 (S7-H1, S7-H2, S8-H1, S9-H1, S9-H2, S9-H3, S9-H4)
+relacion: corrige
+referencias_entradas: [0334, 0333]
+referencias_documentales: [docs/roadmap/fase-3.md, apps/worker-api/src/reports/report-routes.ts, scripts/bench/reports-p95.mjs, docs/ops/bench-reports-p95.md, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/lib/pos-checkout/charge.ts]
+prev_id: 0334
+prev_hash: 5866478f279cf432f7f8033b7b3a83df87d629f093688f8affa1a3087533a46c
+entry_hash: 1cafe66388a74566f864bd4dcc6f953540137062ffb8a961cbe3f482954e5f0a
+ticket_or_adr: Roadmap FASE 3; ADR-0007 (P95 reportes)
+test_ids: [V-13, V-15, V-16, SUITE, report-routes.test.ts, process-offline-sale-atomic.integration.test.ts, pos-checkout.test.ts, offline-sync.test.ts]
+entregable_afectado: FASE 3 — ventas por hora, merma, gating por rol, benchmark P95, 50 ciclos CxC D1, identidad cliente cobro, cola IDB real
+descripcion: >
+  Auditoría FASE 3 Bloque A (criterios de aceptación sin evidencia real).
+  S9-H1: reporte 'ventas por hora' faltante del catálogo (spec §9 exige
+  ventas por hora/ticket promedio) — añadido a runReportHttp (arranque,
+  GROUP BY hora Lima + avg_ticket_cents) + catálogo. S9-H2: 'merma' devolvía
+  404 'stock_losses DDL not in base migration' — falso (migración 0011);
+  implementado: merma por sucursal y categoría desde stock_losses (APROVED,
+  filtro branch). S9-H4: gating por ROL server-side en reportes — advanced
+  exigen admin/owner (403 FORBIDDEN_ROLE); arqueo/ventas por hora nunca
+  bloqueados (cajero operativo, GTM §4.1); role propagado desde el middleware
+  de auth. S9-H3: P95 de reportes sin benchmark real — scripts/bench/
+  reports-p95.mjs (fan-out multi-shard Promise.all + CSV BOM): P95=4.97ms
+  <=50ms, doc docs/ops/bench-reports-p95.md. S8-H1: el chaos de compensación
+  CxC era simulación pura — test de integración D1 real: 50 ciclos venta
+  crédito → NV_RETURN parcial (PARTIALLY_PAID, saldo 1180) → total (PAID,
+  saldo 0); 0 discrepancia saldo vs asientos. S7-H1: el cobro hardcodeaba
+  identidad dummy ('1'/'00000000') → el guard ≥700 era inoperante en la UI;
+  nueva función pura requiresCustomerIdentity (umbral 70000 cents) + inputs
+  de cliente (tipo doc/número/nombre) en el cobro + aviso SUNAT cuando falta
+  identidad en boleta ≥700. S7-H2: la cola del cobro usaba memoria
+  (createMemoryOfflineIdb) → createBrowserOfflineIdb (IndexedDB durable) +
+  flushPendingSales background contra POST /api/v1/sync/sales tras cada cobro.
+evidencia: >
+  RED: ventas por hora 404; merma 404; advanced sin gate por rol; sin
+  benchmark P95; compensación CxC solo simulación; identidad dummy en cobro;
+  cola en memoria. GREEN: report-routes 13/13, worker-api 412+ en mi área,
+  adapters-d1 240/240 workerd (50 ciclos CxC), pos-checkout 19/19, pos-web
+  svelte-check 0 errores, bench P95=4.97ms, pnpm test:unit 46/46,
+  test:integration 39/39, typecheck 27/27, verify.sh SUITE GREEN. Los SHAs
+  red/green se registran en el commit que aterriza este entregable. Pendiente
+  gobernanza humana: firma A+V de ADR-FISCAL-001 v2 y de la escalera de
+  impresión (Sprint 7 EN REVISION).
+ancestry_verified: true
+aprobaciones: [Staff Frontend/Data R, Staff Principal A, Staff SRE V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0336
+timestamp_utc: 2026-08-12T22:30:00Z
+schema_version: 2
+sprint_fase: FASE 4 (Sprints 10, 11, 12) — Bloque A — auditoría staff
+agente_responsable: Staff Growth (owner) / Staff Principal (A) / Staff Data + Staff QA (V)
+tipo: Corrección de especificación
+subtipo: auditoría FASE 4 (S10-H1, S10-H2, S11-H1, S11-H2, S12-H1, S12-H2, S12-H3)
+relacion: corrige
+referencias_entradas: [0335, 0334]
+referencias_documentales: [docs/roadmap/fase-4.md, docs/GTM.md, scripts/verify.sh, scripts/checks/selftest.py, apps/marketing-web/src/lib/claims/gtm-drift.test.ts, apps/worker-api/src/onboarding/onboarding-routes.ts, apps/worker-api/src/referrals/referral-routes.ts, packages/adapters-d1/src/referral-d1.ts, apps/pos-web/src/routes/admin/configuracion/+page.svelte, apps/pos-web/src/routes/+page.svelte, packages/print-templates/src/print-outbox.ts]
+prev_id: 0335
+prev_hash: 1cafe66388a74566f864bd4dcc6f953540137062ffb8a961cbe3f482954e5f0a
+entry_hash: 166e95bef7c3a6759f44dcacc05becdd45bc8058a6507ddd8f422f64acb03464
+ticket_or_adr: Roadmap FASE 4; GTM §1, §2, §9
+test_ids: [V-13, V-15, V-16, V-26, SUITE, gtm-drift.test.ts, onboarding-routes.test.ts, referral-routes.test.ts, referral-d1.integration.test.ts, pos-web tests]
+entregable_afectado: FASE 4 — copy-lint en gate, claim-gate endurecido, upgrade persistente, estado fiscal en Config, referidos D1, brand QR
+descripcion: >
+  Auditoría FASE 4 Bloque A. S10-H1: el copy-lint anti-jerga
+  (scripts/checks/marketing_copy.py) existía pero NO estaba en el gate — nuevo
+  check V-26 en verify.sh (0 jerga técnica Edge/D1/ACID/sharding/CDR/UBL/PSE en
+  apps/marketing-web) con aserciones en selftest (V-00). S10-H2: el guard de
+  deriva de claims solo validaba services/ranking — endurecido: todo claim live
+  con sprint debe tener "(QG cerrado)" en su fila GTM §2; corregidas las filas
+  Retail (Sprint 17) y Farmacias (Sprint 18) que faltaban el anotador.
+  S11-H2: el PATCH /api/tenant/formalization era puro sin persistencia y la UI
+  nunca lo llamaba — runFormalizationStageHttp ahora persiste formalization_mode
+  + enabled_document_types en D1 (con gate del dominio), confirmAdvance de
+  Configuración llama el PATCH (upgrade persistente). S11-H1: la sección
+  "Estado fiscal y SUNAT" de Configuración era placeholder — RcPendingBanner
+  (boletas del día sin RC) montado. S12-H1: los referidos eran in-memory del
+  isolate (se perdían) — nuevo adaptador D1 referral-d1.ts (ensureReferralCode,
+  captureAttribution, loadAttribution, markAttributionCredited, insertGrowthEvent)
+  con test de integración workerd 4/4; las 3 rutas usan D1 con fallback
+  soft-launch. S12-H3: first_sale ahora se emite a growth_events server-side en
+  el flujo first-sale. S12-H2: brandFooter faltaba en PrintTicketSnapshot y el
+  mapeo offload — añadido (TicketBrandFooter), el ticket del cobro incluye
+  "Emitido con KipusPay" según session.brandQrEnabled, y la Vitrina publica
+  brandLabel.
+evidencia: >
+  RED: copy-lint fuera del gate; claims live sin validación QG; upgrade sin
+  persistir; estado fiscal placeholder; referidos in-memory; brandFooter
+  ausente. GREEN: V-26 GREEN + selftest 27 aserciones, gtm-drift 4/4,
+  onboarding-routes 11/11, referral-routes 11/11, referral-d1.integration 4/4,
+  pos-web 213/213 + svelte-check 0 errores, pnpm test:unit 46/46,
+  test:integration 39/39, typecheck 27/27, verify.sh SUITE GREEN. Los SHAs
+  red/green se registran en el commit que aterriza este entregable. Pendiente
+  gobernanza humana: firma A+V ADR-FISCAL-001 v2 y escalera de impresión
+  (Sprint 7 EN REVISION); telemetría TTFS server-side completa (backlog GTM §9).
+ancestry_verified: true
+aprobaciones: [Staff Growth R, Staff Principal A, Staff Data V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

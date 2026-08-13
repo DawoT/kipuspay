@@ -200,6 +200,17 @@ check_migrations_mirror() {
   return 0
 }
 
+# --- V-26: copy marketing sin jerga técnica (GTM §1 / Sprint 10) --------------
+# apps/marketing-web no puede contener Edge/D1/ACID/sharding/CDR/UBL/PSE etc.
+# en copy de cara al cliente. El detector (scripts/checks/marketing_copy.py)
+# escanea svelte/ts/md/html/css del sitio.
+check_marketing_copy() {
+  python3 scripts/checks/marketing_copy.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
 # --- V-05, V-06, V-08..V-12: checks estructurales ----------------------------
 check_structural() {
   python3 scripts/checks/structural.py "${DOCS[@]}"
@@ -242,6 +253,7 @@ check_code_upsert_transaction
 check_svelte_vertical_fork
 check_bundle_budget
 check_migrations_mirror
+check_marketing_copy
 
 echo ""
 if [ $FAIL -eq 0 ]; then

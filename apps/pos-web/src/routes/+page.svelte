@@ -30,15 +30,17 @@
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
-  import { chargeCartOffline } from '$lib/pos-checkout/charge';
+  import { chargeCartOffline, requiresCustomerIdentity } from '$lib/pos-checkout/charge';
   import {
     leaseScannedSerialLine,
     SerialCheckoutError,
   } from '$lib/pos-checkout/serial-client';
   import {
-    createMemoryOfflineIdb,
+    createBrowserOfflineIdb,
+    createHttpSyncTransport,
+    dispatchPendingSalesChunked,
     OfflineQueueStore,
-  } from '$lib/offline-sync/offline-queue';
+  } from '$lib/offline-sync';
   import { OfflineCorrelativeStore } from '$lib/offline-correlative/reserve';
   import { publishVitrina } from '$lib/vitrina/channel';
   import { formalizationBannerMessage } from '@kipuspay/domain-fiscal-pe';
@@ -104,6 +106,11 @@
   let message = $state('');
   let lastFeedbackMs = $state(0);
   let printPreview = $state('');
+  // S7-H1: identidad del cliente en el cobro — nunca inventar dummy truthy.
+  // El servidor exige doc+nombre para boleta ≥ S/ 700 (BOLETA_ID_REQUIRED).
+  let clientDocType = $state('1');
+  let clientDocNumber = $state('');
+  let clientName = $state('');
   let lastTtfsMs = $state<number | null>(null);
   let terminalId = $state('');
   let terminalRegistered = $state(false);
@@ -128,7 +135,9 @@
   let weightAuthorizationToken = $state('');
   const manualThresholdMicrounits = 250_000;
 
-  const queue = new OfflineQueueStore(createMemoryOfflineIdb());
+  // S7-H2: cola offline durable (IndexedDB real, persistente entre recargas);
+  // fallback a memoria si no hay browser IDB (SSR/tests).
+  const queue = new OfflineQueueStore(createBrowserOfflineIdb());
   const correlatives = new OfflineCorrelativeStore(1);
 
   const totalCents = $derived(cartTotalCents(lines));
@@ -193,6 +202,25 @@
     void recordGrowthEvent('tour_dismissed', { step: 0 });
   }
 
+  /** S7-H2: drena la cola offline hacia POST /api/v1/sync/sales en background. */
+  async function flushPendingSales(): Promise<void> {
+    try {
+      const apiBase = (localStorage.getItem('kipuspay_api_base') ?? 'http://localhost:8787').replace(
+        /\/$/,
+        '',
+      );
+      await dispatchPendingSalesChunked(
+        queue,
+        createHttpSyncTransport({
+          endpointUrl: `${apiBase}/api/v1/sync/sales`,
+          bearerToken: localStorage.getItem('kipuspay_token') ?? undefined,
+        }),
+      );
+    } catch {
+      // Red caída: la cola (IDB durable) conserva las ventas para el próximo flush.
+    }
+  }
+
   async function onCharge() {
     status = 'cobrando';
     if (isVitrinaEnabled()) {
@@ -213,9 +241,9 @@
         branchId: 'b-demo',
         cashRegisterSessionId: 's-demo',
         series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
-        clientDocumentType: '1',
-        clientDocumentNumber: '00000000',
-        clientName: 'Cliente',
+        clientDocumentType: clientDocType,
+        clientDocumentNumber: clientDocNumber.trim(),
+        clientName: clientName.trim(),
         paymentMethodId: 'pm-cash',
         ...(commissionsOn && sellerId.trim() ? { sellerId: sellerId.trim() } : {}),
       },
@@ -231,6 +259,9 @@
 
     status = 'completado';
     message = `Venta ${outcome.offlineSaleId} cobrada en ${Math.round(outcome.feedbackMs)} ms.`;
+
+    // S7-H2: sync en background — nunca bloquea el cobro (cero spinner).
+    void flushPendingSales();
 
     if (session.firstSaleAtIso === null) {
       const nextSession = markTenantFirstSale(session, new Date().toISOString());
@@ -531,6 +562,28 @@
         {/if}
       </div>
     {/if}
+    {#if checkoutOn}
+      <div class="customer-input-group">
+        <label for="customer-doc-type">Cliente</label>
+        <select id="customer-doc-type" bind:value={clientDocType} data-testid="customer-doc-type">
+          <option value="1">DNI</option>
+          <option value="6">RUC</option>
+          <option value="4">CE</option>
+        </select>
+        <input
+          id="customer-doc-number"
+          bind:value={clientDocNumber}
+          placeholder="N.º documento"
+          data-testid="customer-doc-number"
+        />
+        <input
+          id="customer-name"
+          bind:value={clientName}
+          placeholder="Nombre / razón social"
+          data-testid="customer-name"
+        />
+      </div>
+    {/if}
   </header>
 
   {#if !checkoutOn}
@@ -776,6 +829,11 @@
             {/if}
 
             <!-- Primary Action Button -->
+            {#if requiresCustomerIdentity(totalCents, clientDocNumber, clientName)}
+              <div class="id-required-box" role="alert" data-testid="id-required">
+                Boleta ≥ S/ 700 requiere documento y nombre del cliente (SUNAT).
+              </div>
+            {/if}
             <button
               type="button"
               class="primary charge-btn"
@@ -1260,8 +1318,16 @@
     color: var(--text-main);
   }
 
-  .charge-btn {
-    width: 100%;
+  .id-required-box {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background: #fdf3e3;
+    border: 1px solid #e8b94e;
+    color: #7a4f01;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+  .charge-btn {    width: 100%;
     padding: 1rem;
     font-size: 1.125rem;
     letter-spacing: 0.02em;

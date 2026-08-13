@@ -73,10 +73,16 @@ export function runBootstrapHttp(
   }
 }
 
-export function runFormalizationStageHttp(
-  _env: WorkerEnv,
+/**
+ * S11-H2: cambio de etapa de formalización PERSISTENTE.
+ * Valida el gate del dominio (sin saltos/retrocesos) y actualiza
+ * `tenants.formalization_mode` + `enabled_document_types` en D1.
+ */
+export async function runFormalizationStageHttp(
+  env: WorkerEnv,
+  tenantId: string,
   raw: unknown,
-): { status: number; body: Record<string, unknown> } {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -84,9 +90,9 @@ export function runFormalizationStageHttp(
   if (!isMode(o.from) || !isMode(o.to) || typeof o.confirmed !== 'boolean') {
     return { status: 422, body: { error: 'Cambio de etapa invalido', code: 'INVALID_STAGE' } };
   }
+  let result: ReturnType<typeof changeFormalizationStage>;
   try {
-    const result = changeFormalizationStage(o.from, o.to, { confirmed: o.confirmed });
-    return { status: 200, body: { ...result } };
+    result = changeFormalizationStage(o.from, o.to, { confirmed: o.confirmed });
   } catch (err) {
     return {
       status: 422,
@@ -96,6 +102,21 @@ export function runFormalizationStageHttp(
       },
     };
   }
+  if (!env.DB) {
+    return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+  // Persiste en el tenant (y sus docs habilitados derivados de la etapa).
+  const enabled = result.enabledDocumentTypes.map((c) => `"${c}"`).join(',');
+  const updated = await env.DB.prepare(
+    `UPDATE tenants SET formalization_mode = ?, enabled_document_types = ?
+     WHERE id = ? AND deleted_at IS NULL`,
+  )
+    .bind(result.formalizationMode, `[${enabled}]`, tenantId)
+    .run();
+  if ((updated.meta?.changes ?? 0) !== 1) {
+    return { status: 404, body: { error: 'Tenant not found', code: 'TENANT_NOT_FOUND' } };
+  }
+  return { status: 200, body: { ...result } };
 }
 
 /**

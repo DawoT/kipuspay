@@ -1923,14 +1923,17 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // Reporting rollups / catálogo / CSV (Sprint 9) — flags default off
   const reportQueryOpts = (c: {
     req: { query: (k: string) => string | undefined };
-  }): { reportDate: string; format?: string; branchId?: string } => {
-    const opts: { reportDate: string; format?: string; branchId?: string } = {
+    get: (k: string) => unknown;
+  }): { reportDate: string; format?: string; branchId?: string; role?: string } => {
+    const opts: { reportDate: string; format?: string; branchId?: string; role?: string } = {
       reportDate: c.req.query('date') ?? '',
     };
     const format = c.req.query('format');
     if (format) opts.format = format;
     const branchId = c.req.query('branchId');
     if (branchId) opts.branchId = branchId;
+    const user = c.get('user') as { role?: string } | undefined;
+    if (user?.role) opts.role = user.role;
     return opts;
   };
   app.get('/api/reports/catalog', (c) => {
@@ -1949,7 +1952,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         'content-type': result.contentType ?? 'text/csv; charset=utf-8',
       });
     }
-    return c.json(result.body, result.status as 200 | 400 | 404 | 500 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 500 | 503);
   });
   app.get('/api/reports/:reportId', async (c) => {
     const jwt = c.get('jwt');
@@ -1963,7 +1966,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         'content-type': result.contentType ?? 'text/csv; charset=utf-8',
       });
     }
-    return c.json(result.body, result.status as 200 | 400 | 404 | 500 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 500 | 503);
   });
   app.post('/api/reporting/cron/daily-rollups', async (c) => {
     let body: { scheduledTimeMs?: number } = {};
@@ -2337,8 +2340,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = runFormalizationStageHttp(c.env, raw);
-    return c.json(result.body, result.status as 200 | 400 | 422);
+    const jwt = c.get('jwt') as { tenantId: string } | undefined;
+    const result = await runFormalizationStageHttp(c.env, jwt?.tenantId ?? '', raw);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
   // Sprint 12 — referidos (soft-launch in-memory; DDL 0010 = contrato D1)

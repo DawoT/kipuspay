@@ -106,12 +106,25 @@ describe('reporting flags + catalog', () => {
     );
   });
 
-  it('merma → REPORT_UNAVAILABLE; day-summary JSON; csv exige export flag', async () => {
-    const merma = await runReportHttp(mockEnv({ FEATURE_REPORTING_CATALOG: '1' }), 't1', 'merma', {
-      reportDate: '2026-08-04',
-    });
-    expect(merma.status).toBe(404);
-    expect((merma.body as { code: string }).code).toBe('REPORT_UNAVAILABLE');
+  it('S9-H2: merma ahora lee stock_losses (200) y filtra por branch; day-summary JSON; csv exige export flag', async () => {
+    const merma = await runReportHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [
+        { branch_id: 'b1', category: 'EXPIRED', loss_count: 2, total_qty: 5 },
+      ]),
+      't1',
+      'merma',
+      { reportDate: '2026-08-04' },
+    );
+    expect(merma.status).toBe(200);
+    expect((merma.body as { items: unknown[] }).items).toHaveLength(1);
+
+    const mermaBranch = await runReportHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1' }),
+      't1',
+      'merma',
+      { reportDate: '2026-08-04', branchId: 'b2' },
+    );
+    expect(mermaBranch.status).toBe(200);
 
     const day = await runReportHttp(
       mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [{ branch_id: 'b1', net_sales_cents: 100 }]),
@@ -141,6 +154,64 @@ describe('reporting flags + catalog', () => {
     expect(csvOn.contentType).toContain('text/csv');
     expect(typeof csvOn.body).toBe('string');
     expect((csvOn.body as string).startsWith('\uFEFF')).toBe(true);
+  });
+
+  it('S9-H1: ventas por hora devuelve desglose horario con ticket promedio', async () => {
+    const res = await runReportHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [
+        { hour_lima: 9, doc_count: 3, gross_sales_cents: 3540, avg_ticket_cents: 1180 },
+        { hour_lima: 14, doc_count: 5, gross_sales_cents: 8260, avg_ticket_cents: 1652 },
+      ]),
+      't1',
+      'sales-by-hour',
+      { reportDate: '2026-08-04' },
+    );
+    expect(res.status).toBe(200);
+    const items = (res.body as { items: unknown[] }).items;
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ hour_lima: 9, doc_count: 3 });
+  });
+
+  it('S9-H4: reportes avanzados exigen rol admin/owner (403 cashier; 200 owner)', async () => {
+    const env = mockEnv({ FEATURE_REPORTING_CATALOG: '1' }, [
+      { product_id: 'p1', qty: 2, gross_cents: 2000, cogs_cents: 800, margin_cents: 1200 },
+    ]);
+    const asCashier = await runReportHttp(env, 't1', 'top-products', {
+      reportDate: '2026-08-04',
+      role: 'cashier',
+    });
+    expect(asCashier.status).toBe(403);
+    expect((asCashier.body as { code: string }).code).toBe('FORBIDDEN_ROLE');
+
+    const asOwner = await runReportHttp(env, 't1', 'top-products', {
+      reportDate: '2026-08-04',
+      role: 'owner',
+    });
+    expect(asOwner.status).toBe(200);
+
+    const asAdmin = await runReportHttp(env, 't1', 'top-products', {
+      reportDate: '2026-08-04',
+      role: 'admin',
+    });
+    expect(asAdmin.status).toBe(200);
+  });
+
+  it('S9-H4: arqueo y ventas por hora NUNCA bloqueados por rol (cajero operativo)', async () => {
+    const arqueo = await runReportHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1' }),
+      't1',
+      'arqueo',
+      { reportDate: '2026-08-04', role: 'cashier' },
+    );
+    expect(arqueo.status).toBe(200);
+
+    const byHour = await runReportHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1' }),
+      't1',
+      'sales-by-hour',
+      { reportDate: '2026-08-04', role: 'cashier' },
+    );
+    expect(byHour.status).toBe(200);
   });
 
   it('Sprint 46 cataloga forecast (cadena) y remite a /api/forecasting/ en la ejecución', async () => {

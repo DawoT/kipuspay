@@ -22,6 +22,7 @@
   import { capabilitiesFromFlags } from '$lib/onboarding/capabilities';
   import { fetchSetupProgress, recordGrowthEvent } from '$lib/onboarding/tour-client';
   import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
+  import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
   import Icon from '$lib/ui/Icon.svelte';
@@ -158,6 +159,36 @@
       notice = `Etapa actualizada a ${next}. Las NV históricas no se convierten. Comprobantes habilitados: ${enabledDocumentTypesFor(next).join(', ')}.`;
       confirmOpen = false;
       pendingMode = null;
+      // S11-H2: persiste el upgrade en el servidor (PATCH /api/tenant/formalization).
+      void fetch('/api/tenant/formalization', {
+        method: 'PATCH',
+        headers: {
+          authorization: (import.meta.env.PUBLIC_DEV_AUTH as string | undefined) ?? 'Bearer demo',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: session.formalizationMode,
+          to: next,
+          confirmed: true,
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const body = (await res.json().catch(() => null)) as { code?: string } | null;
+            console.warn(
+              JSON.stringify({
+                event: 'formalization_persist_failed',
+                status: res.status,
+                code: body?.code ?? 'UNKNOWN',
+              }),
+            );
+          }
+        })
+        .catch(() => {
+          console.warn(
+            JSON.stringify({ event: 'formalization_persist_network_error' }),
+          );
+        });
     } catch (err) {
       error = err instanceof Error ? err.message : 'No se pudo cambiar la etapa';
       confirmOpen = false;
@@ -318,8 +349,11 @@
         <Icon name="shield" size={20} class="icon-accent" />
         <h2>Estado fiscal y SUNAT</h2>
       </div>
+      <!-- S11-H1: estado real de boletas del día sin RC (banner Dueño) -->
+      <RcPendingBanner />
       <p data-testid="fiscal-status" class="hint">
-        Envíos y RC pendientes: se muestran cuando el worker-fiscal está enlazado al tenant. Hoy: sin cola local (soft-launch).
+        El Resumen Diario (RC) se genera cada día a las 08:00 Lima para las boletas
+        del día anterior. El cierre de caja (Z) no reemplaza el RC.
       </p>
     </section>
 

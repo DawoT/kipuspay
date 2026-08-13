@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isOnboardingTourEnabled,
+  runFormalizationStageHttp,
   runGrowthEventHttp,
   runSetupProgressHttp,
   GROWTH_EVENT_TYPES,
@@ -146,5 +147,80 @@ describe('onboarding.tour routes (Sprint 52)', () => {
     expect(isOnboardingTourEnabled({ FEATURE_ONBOARDING_TOUR: '1' })).toBe(true);
     expect(isOnboardingTourEnabled({ FEATURE_ONBOARDING_TOUR: '0' })).toBe(false);
     expect(isOnboardingTourEnabled(undefined)).toBe(false);
+  });
+});
+
+describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalization)', () => {
+  function dbWithTenant(mode: string): unknown {
+    const rows = { mode };
+    return {
+      prepare(sql: string) {
+        return {
+          bind(...args: unknown[]) {
+            return {
+              first: () => {
+                if (sql.includes('FROM tenants')) {
+                  return Promise.resolve({ formalization_mode: rows.mode });
+                }
+                return Promise.resolve(null);
+              },
+              run: () => {
+                if (sql.includes('UPDATE tenants')) {
+                  const next = typeof args[0] === 'string' ? args[0] : '';
+                  if (next.length > 0) rows.mode = next;
+                  return Promise.resolve({ meta: { changes: 1 } });
+                }
+                return Promise.resolve({ meta: { changes: 1 } });
+              },
+            };
+          },
+        };
+      },
+    };
+  }
+
+  it('valida el gate (sin salto) y persiste el nuevo modo en D1', async () => {
+    const db = dbWithTenant('INTERNAL_CONTROL') as {
+      prepare: (s: string) => {
+        bind: (...args: unknown[]) => {
+          first: () => Promise<{ formalization_mode: string } | null>;
+          run: () => Promise<{ meta: { changes: number } }>;
+        };
+      };
+    };
+    const res = await runFormalizationStageHttp(
+      { DB: db } as unknown as Parameters<typeof runFormalizationStageHttp>[0],
+      't1',
+      { from: 'INTERNAL_CONTROL', to: 'FORMALIZING', confirmed: true },
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.formalizationMode).toBe('FORMALIZING');
+    expect(res.body.historicalNvConverted).toBe(false);
+    const after = (await db.prepare('SELECT formalization_mode FROM tenants').bind().first()) as {
+      formalization_mode: string;
+    };
+    expect(after.formalization_mode).toBe('FORMALIZING');
+  });
+
+  it('salto de etapa sin confirmar → 422 y NO persiste', async () => {
+    const db = dbWithTenant('INTERNAL_CONTROL') as {
+      prepare: (s: string) => {
+        bind: (...args: unknown[]) => {
+          first: () => Promise<{ formalization_mode: string } | null>;
+          run: () => Promise<{ meta: { changes: number } }>;
+        };
+      };
+    };
+    const res = await runFormalizationStageHttp(
+      { DB: db } as unknown as Parameters<typeof runFormalizationStageHttp>[0],
+      't1',
+      { from: 'INTERNAL_CONTROL', to: 'ELECTRONIC_ISSUER', confirmed: true },
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('STAGE_REJECTED');
+    const after = (await db.prepare('SELECT formalization_mode FROM tenants').bind().first()) as {
+      formalization_mode: string;
+    };
+    expect(after.formalization_mode).toBe('INTERNAL_CONTROL');
   });
 });

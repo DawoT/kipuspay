@@ -34,6 +34,7 @@ const ARRIVAL_REPORTS = new Set([
   'day-summary',
   'payments-by-method',
   'sales-by-cashier',
+  'sales-by-hour',
   'arqueo',
 ]);
 
@@ -61,6 +62,7 @@ export function listCatalogEntries(): readonly {
     { id: 'day-summary', tier: 'arranque', source: 'daily_financial_rollups' },
     { id: 'payments-by-method', tier: 'arranque', source: 'daily_financial_rollups' },
     { id: 'sales-by-cashier', tier: 'arranque', source: 'sales' },
+    { id: 'sales-by-hour', tier: 'arranque', source: 'sales' },
     { id: 'arqueo', tier: 'arranque', source: 'daily_financial_rollups' },
     { id: 'top-products', tier: 'crece', source: 'daily_product_rollups' },
     { id: 'inventory-valued', tier: 'crece', source: 'branch_product_stock' },
@@ -110,14 +112,29 @@ export function runReportsCatalogHttp(env: WorkerEnv | undefined): HttpResult {
   };
 }
 
+/** S9-H4: gating por rol — reportes avanzados solo admin/owner (spec §9). */
+function advancedRoleGuard(reportId: string, role: string | undefined): HttpResult | null {
+  if (isAdvancedReportId(reportId) && role && role !== 'admin' && role !== 'owner') {
+    return {
+      status: 403,
+      body: { error: 'Forbidden: advanced reports require admin/owner', code: 'FORBIDDEN_ROLE' },
+    };
+  }
+  return null;
+}
+
 export async function runReportHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   reportId: string,
-  opts: { reportDate?: string; format?: string; branchId?: string },
+  opts: { reportDate?: string; format?: string; branchId?: string; role?: string },
 ): Promise<HttpResult> {
   if (!isReportingCatalogEnabled(env)) return featureOff('FEATURE_REPORTING_CATALOG');
   if (!env?.DB) return dbUnavailable();
+  // Arqueo/cierre Z y reportes arranque siguen abiertos a cashier (nunca 402
+  // ni bloqueo del operador; GTM §4.1 "el POS que no se cae").
+  const roleGuard = advancedRoleGuard(reportId, opts.role);
+  if (roleGuard) return roleGuard;
   const reportDate = opts.reportDate ?? '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
     return { status: 400, body: { error: 'Invalid reportDate', code: 'BAD_REQUEST' } };
@@ -134,15 +151,6 @@ export async function runReportHttp(
   }
   if (!ARRIVAL_REPORTS.has(reportId) && !ADVANCED_REPORTS.has(reportId)) {
     return { status: 404, body: { error: 'Unknown report', code: 'NOT_FOUND' } };
-  }
-  if (reportId === 'merma') {
-    return {
-      status: 404,
-      body: {
-        error: 'stock_losses DDL not in base migration',
-        code: 'REPORT_UNAVAILABLE',
-      },
-    };
   }
 
   let payload: Record<string, unknown>;
@@ -224,6 +232,24 @@ async function loadReport(
              AND document_type NOT IN ('07','08','NV_RETURN')
            GROUP BY user_id
            ORDER BY gross_sales_cents DESC`,
+        )
+        .bind(tenantId, reportDate)
+        .all();
+      return { items: rows.results ?? [] };
+    }
+    case 'sales-by-hour': {
+      // S9-H1: ventas por hora (hora Lima) + ticket promedio — Arquitectura §9.
+      const rows = await db
+        .prepare(
+          `SELECT CAST(strftime('%H', issued_at_lima) AS INTEGER) AS hour_lima,
+                  COUNT(*) AS doc_count,
+                  SUM(total_amount_cents) AS gross_sales_cents,
+                  CAST(SUM(total_amount_cents) / MAX(COUNT(*), 1) AS INTEGER) AS avg_ticket_cents
+           FROM sales
+           WHERE tenant_id = ? AND deleted_at IS NULL AND date(issued_at_lima) = ?
+             AND document_type NOT IN ('07','08','NV_RETURN')
+           GROUP BY hour_lima
+           ORDER BY hour_lima ASC`,
         )
         .bind(tenantId, reportDate)
         .all();
@@ -378,6 +404,24 @@ async function loadReport(
            LIMIT 500`,
         )
         .bind(tenantId, reportDate)
+        .all();
+      return { items: rows.results ?? [] };
+    }
+    case 'merma': {
+      // S9-H2: merma por sucursal y motivo — Arquitectura §9 (stock_losses).
+      let q = `SELECT branch_id, category, COUNT(*) AS loss_count,
+                      SUM(quantity) AS total_qty
+               FROM stock_losses
+               WHERE tenant_id = ? AND status = 'APPROVED'`;
+      const binds: unknown[] = [tenantId];
+      if (branchId) {
+        q += ` AND branch_id = ?`;
+        binds.push(branchId);
+      }
+      q += ` GROUP BY branch_id, category ORDER BY branch_id, category`;
+      const rows = await db
+        .prepare(q)
+        .bind(...binds)
         .all();
       return { items: rows.results ?? [] };
     }

@@ -48,6 +48,15 @@ def load_migrations_mirror():
     return mod
 
 
+def load_marketing_copy():
+    spec = importlib.util.spec_from_file_location(
+        "marketing_copy", f"{HERE}/marketing_copy.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 SUCIA = """```sql
 CREATE TABLE mala (
     id TEXT PRIMARY KEY,
@@ -209,6 +218,21 @@ def main() -> int:
         open(f"{down}/0002_webhook_events.sql", "w").write("")
         open(f"{up}/0003_atomic_guards.sql", "w").write("")
         expect(mm.mirror_violations(up, down) == [], "V-25 marcó un espejo completo como roto")
+
+    # V-26: copy marketing sin jerga técnica (GTM §1 / Sprint 10)
+    mc = load_marketing_copy()
+    expect(
+        mc.BANNED.search("Hecho en el Edge con D1 sharding") is not None,
+        "V-26 no detecta jerga técnica en copy",
+    )
+    expect(
+        mc.BANNED.search("Tu negocio con facturación electrónica") is None,
+        "V-26 marca copy limpio como jerga",
+    )
+    expect(
+        mc.BANNED.search("Resumen Diario con CDR y PSE") is not None,
+        "V-26 no detecta CDR/UBL/PSE en copy",
+    )
 
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")

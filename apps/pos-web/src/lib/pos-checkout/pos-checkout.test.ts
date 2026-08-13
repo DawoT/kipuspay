@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createMemoryOfflineIdb, OfflineQueueStore } from '../offline-sync/offline-queue.js';
 import { addOrBumpLine, cartTotalCents, type CartLine } from './cart.js';
-import { chargeCartOffline, p95 } from './charge.js';
+import {
+  BOLETA_ID_THRESHOLD_CENTS,
+  chargeCartOffline,
+  p95,
+  requiresCustomerIdentity,
+} from './charge.js';
 
 const line = (id: string, price: number, qty = 1): CartLine => ({
   productId: id,
@@ -119,6 +124,20 @@ describe('chargeCartOffline', () => {
     }
     expect(p95(samples)).toBeLessThan(100);
     expect((await queue.listPending()).length).toBe(40);
+  });
+
+  it('S7-H1: requiresCustomerIdentity — umbral ≥700 con doc o nombre faltantes', () => {
+    expect(BOLETA_ID_THRESHOLD_CENTS).toBe(70_000);
+    // ≥700 sin documento → exige identidad.
+    expect(requiresCustomerIdentity(70_000, '', 'Cliente')).toBe(true);
+    // ≥700 sin nombre → exige identidad.
+    expect(requiresCustomerIdentity(70_000, '12345678', '')).toBe(true);
+    // ≥700 con ambos → ok.
+    expect(requiresCustomerIdentity(70_000, '12345678', 'Cliente')).toBe(false);
+    // <700 nunca exige (NV/boleta menor SUNAT no pide identidad).
+    expect(requiresCustomerIdentity(69_999, '', '')).toBe(false);
+    // Whitespace cuenta como ausente.
+    expect(requiresCustomerIdentity(70_000, '   ', 'Cliente')).toBe(true);
   });
 
   it('bloquea boleta ≥700 sin DNI', async () => {

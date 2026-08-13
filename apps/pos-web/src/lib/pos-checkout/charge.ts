@@ -38,6 +38,24 @@ export interface ChargeResult {
   readonly banner: string;
 }
 
+/** Umbral SUNAT: boleta ≥ S/ 700 exige identidad del cliente (catálogo 07). */
+export const BOLETA_ID_THRESHOLD_CENTS = 70_000;
+
+/**
+ * S7-H1: ¿el cobro exige identidad del cliente? True para boleta/CPE de
+ * consumidor ≥ S/ 700 con documento o nombre faltantes. La UI muestra el aviso
+ * y el guard del servidor bloquea (BOLETA_ID_REQUIRED) — nunca inventar dummy.
+ */
+export function requiresCustomerIdentity(
+  totalCents: number,
+  clientDocumentNumber: string,
+  clientName: string,
+): boolean {
+  return (
+    totalCents >= BOLETA_ID_THRESHOLD_CENTS && (!clientDocumentNumber.trim() || !clientName.trim())
+  );
+}
+
 export interface ChargeBlocked {
   readonly ok: false;
   readonly code: string;

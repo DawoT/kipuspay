@@ -68,4 +68,22 @@ describe('marketing claim-gate drift vs GTM §2', () => {
       expect(owner.plan).toBe('Crece+');
     }
   });
+
+  it('S10-H2: todo claim live con sprint tiene "(QG cerrado)" en su fila GTM §2', () => {
+    // El claim-gate solo publica features cuyo Quality Gate GTM §2 está cerrado.
+    // Un claim live sin "(QG cerrado)" en GTM = deriva silenciosa del gate.
+    for (const claimId of Object.keys(FEATURED_CLAIMS) as FeaturedClaimId[]) {
+      const claim = FEATURED_CLAIMS[claimId];
+      if (claim.kind !== 'live') continue;
+      const marker = GTM_MARKER[claimId];
+      const row = rows.find((r) => r.includes(marker));
+      expect(row, `${claimId} → fila GTM §2`).toBeDefined();
+      const sprints = sprintsIn(row!);
+      if (sprints.length === 0) continue; // claims de plan/núcleo sin sprint (services, ranking)
+      expect(
+        row!.includes('QG cerrado'),
+        `${claimId} (live) debe tener "(QG cerrado)" en GTM §2 — fila: ${row!.trim()}`,
+      ).toBe(true);
+    }
+  });
 });

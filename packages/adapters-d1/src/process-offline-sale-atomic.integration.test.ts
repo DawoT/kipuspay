@@ -993,6 +993,100 @@ describe('DAT-05 / E-D ledger AR (Sprint 8)', () => {
       .first<{ s: number }>();
     expect(open?.s ?? 0).toBeLessThanOrEqual(5000);
   });
+
+  it('S8-H1: 50 ciclos venta crédito → NC parcial/total: 0 discrepancia saldo vs asientos', async () => {
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const cycles = 50;
+    for (let i = 0; i < cycles; i += 1) {
+      const tenantId = `t-ar-cycle-${i}-${crypto.randomUUID().slice(0, 8)}`;
+      const fixture = await seedNvFixture(tenantId);
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO branch_document_series
+             (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+           VALUES (?, ?, ?, 'NV_RETURN', 'NVR1', 0, 'INTERNAL')`,
+        ).bind(`ser-nvr-c-${i}`, tenantId, fixture.branchId),
+        env.DB.prepare(
+          `INSERT INTO customers (
+               id, tenant_id, document_type_code, document_number, name, profile_updated_at, is_active, credit_limit_cents
+             ) VALUES (?, ?, '1', '12345678', 'Ciclo', '2026-08-01T00:00:00.000Z', 1, 100000)`,
+        ).bind(`cust-c-${i}`, tenantId),
+      ]);
+
+      // Venta a crédito: 2 × 1180 = 2360 → CxC balance_due 2360.
+      const sale = await processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        {
+          ...nvPayload(fixture, `off-c-${i}`, 2, 2360),
+          clientDocumentNumber: '12345678',
+          clientName: 'Ciclo',
+          payments: [
+            { paymentMethodId: fixture.paymentMethodId, amountCents: 2360, isCredit: true },
+          ],
+        },
+        { nowMs: now, ledgerArApEnabled: true },
+      );
+      expect(sale.status).toBe('SUCCESS');
+      if (sale.status !== 'SUCCESS') continue;
+      const saleId = sale.saleId;
+
+      // Devolución PARCIAL: qty 1 (1180) → compensa min(credit, balance).
+      const ret = await processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        {
+          ...nvPayload(fixture, `off-cr-${i}`, 1, 1180),
+          documentType: 'NV_RETURN',
+          series: 'NVR1',
+          referencedSaleId: saleId,
+        },
+        { nowMs: now, ledgerArApEnabled: true },
+      );
+      expect(ret.status).toBe('SUCCESS');
+
+      // Invariante: balance_due = 2360 − 1180 = 1180, nunca negativo.
+      const ar = await env.DB.prepare(
+        `SELECT balance_due_cents, status FROM accounts_receivable WHERE tenant_id = ? AND sale_id = ?`,
+      )
+        .bind(tenantId, saleId)
+        .first<{ balance_due_cents: number; status: string }>();
+      expect(ar?.balance_due_cents).toBe(1180);
+      expect(ar?.status).toBe('PARTIALLY_PAID');
+
+      // Devolución TOTAL: qty 1 restante (1180) → saldo 0, AR settle.
+      const ret2 = await processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        {
+          ...nvPayload(fixture, `off-cr2-${i}`, 1, 1180),
+          documentType: 'NV_RETURN',
+          series: 'NVR1',
+          referencedSaleId: saleId,
+        },
+        { nowMs: now, ledgerArApEnabled: true },
+      );
+      expect(ret2.status).toBe('SUCCESS');
+
+      const settled = await env.DB.prepare(
+        `SELECT balance_due_cents, status FROM accounts_receivable WHERE tenant_id = ? AND sale_id = ?`,
+      )
+        .bind(tenantId, saleId)
+        .first<{ balance_due_cents: number; status: string }>();
+      expect(settled?.balance_due_cents).toBe(0);
+      expect(settled?.status).toBe('PAID');
+    }
+
+    // 0 discrepancias globales: toda AR cerrada tiene saldo 0.
+    const drift = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM accounts_receivable
+       WHERE status = 'PAID' AND balance_due_cents <> 0`,
+    ).first<{ n: number }>();
+    expect(drift?.n).toBe(0);
+  });
 });
 
 describe('processOfflineSaleAtomic S31 UOM (F2)', () => {

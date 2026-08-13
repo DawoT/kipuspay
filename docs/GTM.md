@@ -45,8 +45,8 @@ KipusPay se posiciona como agnóstico de vertical, pero se **vende** vertical po
 | Vertical | Dolor dominante | Gancho de landing específico | Feature destacado en demo | Listo tras |
 |---|---|---|---|---|
 | **Restaurantes / Food service** | Comandas perdidas, cuentas divididas mal cobradas, cocina desincronizada del salón | *"Tu cocina y tu caja, siempre en el mismo minuto."* | Comandas → KDS + split bill → sales | **Sprint 19** (QG cerrado) |
-| **Farmacias** | Vencimientos no controlados, quiebre de stock de medicamentos de alta rotación, normativa SUNAT estricta | *"Nunca más un cliente se va sin su medicina por falta de stock."* | FEFO/lotes + alertas de vencimiento/quiebre | **Sprint 18** |
-| **Retail / Ferreterías / Minimarkets** | Robo hormiga, descuadres de caja, control de múltiples locales | *"Sabe exactamente qué pasó en cada una de tus tiendas, hoy, ahora."* | Arqueo Z ciego + authz descuentos + audit trail | **Sprint 17** |
+| **Farmacias** | Vencimientos no controlados, quiebre de stock de medicamentos de alta rotación, normativa SUNAT estricta | *"Nunca más un cliente se va sin su medicina por falta de stock."* | FEFO/lotes + alertas de vencimiento/quiebre | **Sprint 18** (QG cerrado) |
+| **Retail / Ferreterías / Minimarkets** | Robo hormiga, descuadres de caja, control de múltiples locales | *"Sabe exactamente qué pasó en cada una de tus tiendas, hoy, ahora."* | Arqueo Z ciego + authz descuentos + audit trail | **Sprint 17** (QG cerrado) |
 | **Servicios (spas, talleres, consultorios)** | Citas y cobros desconectados, no hay "producto físico" que descontar | *"Cobra sin inventario, sin fricción, sin complicarte."* | Bypass de inventario + facturación/NV rápida | Núcleo (Fases 1–5) |
 | **Cadenas / Multi-local (4+ sucursales, ≥30 → Enterprise)** | Visibilidad consolidada, control de merma entre locales, reportería | *"Un solo panel para saber cómo le va a cada una de tus tiendas — actualizado cuando sincroniza."* | Transferencias + merma documentada; Modo Dueño ranking | Ranking Dueño: **Crece+ tras su gate**; **merma/xfer: Sprint 20** (QG cerrado, claim live) |
 
