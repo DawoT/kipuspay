@@ -14,7 +14,7 @@ function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   return {
     prepare(sql: string) {
       return {
-        bind(..._args: unknown[]) {
+        bind() {
           return {
             first: () => Promise.resolve(first(sql)),
             run: () => Promise.resolve({ meta: { changes: 1 } }),

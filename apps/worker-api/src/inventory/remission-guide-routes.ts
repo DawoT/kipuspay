@@ -14,17 +14,9 @@ export interface GreEnv {
   readonly DB?: unknown;
 }
 
-export function isGreEnabled(env: GreEnv | undefined): boolean {
-  return env?.FEATURE_GRE === '1';
-}
-
-export async function runRemissionGuideHttp(
-  env: GreEnv,
-  actor: QuickAddActor,
-  body: Record<string, unknown>,
-): Promise<HttpResult> {
-  if (!isGreEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
-  if (!env.DB) return { status: 503, body: { code: 'GRE_DB_UNAVAILABLE' } };
+function parseRemissionBody(body: Record<string, unknown>):
+  | { ok: true; branchId: string; request: RemissionGuideRequest }
+  | { ok: false } {
   const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
   const request = body as Partial<RemissionGuideRequest>;
   if (
@@ -39,15 +31,34 @@ export async function runRemissionGuideHttp(
     !Array.isArray(request.items) ||
     request.items.length === 0
   ) {
+    return { ok: false };
+  }
+  return { ok: true, branchId, request: request as RemissionGuideRequest };
+}
+
+export function isGreEnabled(env: GreEnv | undefined): boolean {
+  return env?.FEATURE_GRE === '1';
+}
+
+export async function runRemissionGuideHttp(
+  env: GreEnv,
+  actor: QuickAddActor,
+  body: Record<string, unknown>,
+): Promise<HttpResult> {
+  if (!isGreEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
+  if (!env.DB) return { status: 503, body: { code: 'GRE_DB_UNAVAILABLE' } };
+  const parsed = parseRemissionBody(body);
+  if (!parsed.ok) {
     return { status: 400, body: { code: 'BAD_REQUEST', error: 'GRE fields incomplete' } };
   }
+  const { branchId, request } = parsed;
   try {
     const result = await processRemissionGuideAtomic(
       env.DB as never,
       actor.tenantId,
       branchId,
       actor.userId,
-      request as RemissionGuideRequest,
+      request,
     );
     return { status: 201, body: { ...result } };
   } catch (e) {

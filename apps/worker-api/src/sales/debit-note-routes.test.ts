@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runDebitNoteHttp, type DebitNoteEnv } from './debit-note-routes.js';
 
-const processDebitNoteAtomic = vi.fn();
+const processDebitNoteAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
-  processDebitNoteAtomic: (...args: unknown[]) => processDebitNoteAtomic(...args),
+  processDebitNoteAtomic: (a: unknown, b: unknown, c: unknown, d: unknown, e: unknown, f: unknown, g: unknown) =>
+    processDebitNoteAtomic(a, b, c, d, e, f, g),
 }));
 
 function envWith(overrides: Partial<DebitNoteEnv> = {}): DebitNoteEnv {

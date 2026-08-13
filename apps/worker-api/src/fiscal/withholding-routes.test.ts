@@ -5,8 +5,10 @@ const processPerceptionAtomic = vi.fn();
 const processRetentionAtomic = vi.fn();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
-  processPerceptionAtomic: (...args: unknown[]) => processPerceptionAtomic(...args),
-  processRetentionAtomic: (...args: unknown[]) => processRetentionAtomic(...args),
+  processPerceptionAtomic: (a: unknown, b: unknown, c: unknown, d: unknown, e: unknown, f: unknown, g: unknown) =>
+    processPerceptionAtomic(a, b, c, d, e, f, g),
+  processRetentionAtomic: (a: unknown, b: unknown, c: unknown, d: unknown, e: unknown, f: unknown, g: unknown) =>
+    processRetentionAtomic(a, b, c, d, e, f, g),
 }));
 
 function envWith(overrides: Partial<WithholdingEnv> = {}): WithholdingEnv {
