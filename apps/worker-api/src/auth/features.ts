@@ -106,6 +106,11 @@ export function isOnboardingTourEnabled(
   return flagOn(env?.FEATURE_ONBOARDING_TOUR);
 }
 
+/** Backlog v10 P1b — GRE (FEATURE_GRE, default off). */
+export function isGreEnabled(env: { readonly FEATURE_GRE?: string } | undefined): boolean {
+  return flagOn(env?.FEATURE_GRE);
+}
+
 /** Backlog v10 P1a — Nota de Débito (FEATURE_SALES_DEBIT_NOTE, default off). */
 export function isDebitNoteEnabled(
   env: { readonly FEATURE_SALES_DEBIT_NOTE?: string } | undefined,

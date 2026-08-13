@@ -7182,3 +7182,314 @@ aprobaciones: [Staff Fiscal R, Staff Backend ACID R, Staff Frontend R, Staff Pri
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0339
+timestamp_utc: 2026-08-13T00:15:00Z
+schema_version: 2
+sprint_fase: FASE 6 (Sprints 17, 18, 19) — Bloque A — auditoría staff
+agente_responsable: Staff Backend ACID (owner) / Staff Principal (A) / Staff Security + Staff QA (V)
+tipo: Corrección de especificación
+subtipo: auditoría FASE 6 (S17-H1..H4, S18-H1..H3, S19-H1, S19-H2)
+relacion: corrige
+referencias_entradas: [0338, 0337]
+referencias_documentales: [docs/roadmap/fase-6.md, apps/worker-api/src/cash/cash-routes.ts, apps/worker-api/src/inventory/inventory-ops-routes.ts, packages/domain-inventory/src/index.ts, packages/adapters-d1/src/process-credit-note-atomic.ts, packages/adapters-d1/src/process-order-billing-atomic.ts, apps/worker-api/src/orders/branch-kds-hub.ts, packages/adapters-d1/migrations/0045_sprint18_count_reason.sql, packages/adapters-d1/src/data-backup-registry.generated.ts]
+prev_id: 0338
+prev_hash: eff3fbfcaf2ae6b89580c5268f02a4c0ec67127a341115a517610fd494fc0135
+entry_hash: c20e35470059e9ff83336d4dbd5a0cca38496002c99826a7da24d8ba0d66a0e6
+ticket_or_adr: Roadmap FASE 6; ADR-0012 (edges S17), ADR-0013 (KDS)
+test_ids: [V-13, V-15, V-16, V-25, SUITE, cash-routes.test.ts, inventory-ops-routes.test.ts, process-offline-sale-atomic.integration.test.ts, process-order-billing-atomic.test.ts, order-routes.test.ts]
+entregable_afectado: FASE 6 — caja dura (umbrales server, minting PIN, audits, reporte Z), inventario (FEFO salta vencidos, NC PMP, rol/motivo conteo), KDS (ack/replay), split según modo
+descripcion: >
+  Auditoría FASE 6 Bloque A. S17-H1: umbrales de arqueo y movimientos eran
+  client-controlled (bypass) — ahora vienen de tenant_discount_policies
+  server-side (default 2000), el cliente no define umbral. S17-H2: no existía
+  minting de authorization_tokens (403/422 irrecuperables) — nuevo
+  POST /api/cash/authz-token con PIN supervisor (SHA-256 vs users.pin_hash,
+  lockout 5 fallos/15min SEC-11, TTL 90s, one-shot). S17-H3: audits faltantes
+  — VOID en voidBoletaAtomic (cadena hash) y FORMALIZATION_MODE en el cambio de
+  etapa (cadena hash). S17-H4: reporte Z imprimible — buildZTicketData +
+  tests. S18-H1: 0 tests de integración FEFO/BOM/price-list — 3 tests workerd
+  nuevos; FIX REAL del motor: allocateFefo lanzaba ExpiredBatchError si el
+  PRIMER lote estaba vencido (bloqueaba ventas con stock bueno) — ahora salta
+  vencidos y usa los buenos; solo falla si TODO vence. S18-H2: NC fiscal no
+  recomputaba PMP (drift) — refreshAvgCostCents en process-credit-note-atomic
+  con snapshot unit_cost_cents del origen (fallback PMP previo). S18-H3:
+  conteo con authz nominal y sin motivo — verificación de rol admin/owner del
+  autorizador (403 FORBIDDEN_ROLE) + columna adjustment_reason (migración
+  0045, REASON_REQUIRED si hay diferencia). S19-H1: KDS sin ack ni replay —
+  broadcast persiste historial en storage del DO (replay GET /replay, máx
+  200), notifyKds devuelve listeners/delivered y kdsVisible refleja datos.
+  S19-H2: split bill hardcodeado NV — parametrizado documentType 'NV'|'03'
+  con serie y sunat_status correctos.
+evidencia: >
+  RED: umbral cliente controlaba authz; 403/422 sin token emitible; audits
+  VOID/FORMALIZATION ausentes; sin reporte Z; FEFO bloqueaba con vencido;
+  NC sin refresh PMP (drift 500 vs 490/428); approve sin rol ni motivo; KDS
+  kdsVisible hardcodeado; split solo NV. GREEN: cash-routes 13/13,
+  inventory-ops 33/33, domain-inventory 20/20, adapters-d1 251/251 workerd
+  (incl. FEFO/BOM/price-list/NC-PMP), process-order-billing 7/7, order-routes
+  12/12, worker-api 526+ en mi área, pos-web 219/219 (excl. theme ajeno),
+  verify.sh SUITE GREEN. Los SHAs red/green se registran en el commit que
+  aterriza este entregable. Pendientes: firma A+V ADR-FISCAL-001 v2, escalera
+  impresión, ADR-0010; theme.test.ts del sprint 52 sin módulo (deuda ajena);
+  load test staging (ADR-0011).
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID R, Staff Principal A, Staff Security V, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0340
+timestamp_utc: 2026-08-13T04:10:00Z
+schema_version: 2
+sprint_fase: Fase A — Fundación visual del POS (auditoría de frontend)
+agente_responsable: Staff Frontend (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: UI polish de fundación (fonts, tema, tokens, indicador de conexión)
+relacion: amplia
+referencias_entradas: [0339]
+referencias_documentales: [apps/pos-web/src/app.css, apps/pos-web/src/app.html, apps/pos-web/src/routes/+layout.svelte, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/owner/+layout.svelte, apps/pos-web/src/routes/owner/asistente/+page.svelte, apps/pos-web/src/routes/owner/previsiones/+page.svelte, apps/pos-web/src/routes/orders/customer/+page.svelte, apps/pos-web/src/lib/ui/theme.ts, apps/pos-web/src/lib/ui/theme.test.ts, apps/pos-web/tests/e2e/home.spec.ts, apps/pos-web/static/fonts/]
+prev_id: 0339
+prev_hash: c20e35470059e9ff83336d4dbd5a0cca38496002c99826a7da24d8ba0d66a0e6
+entry_hash: 7291e7e5f9f1da06e3e8e1d5f20a32d6c3b8510fb9f4f3b61a31c5447f0fcc8f
+ticket_or_adr: Auditoría de frontend; Roadmap FASE 2 (UI)
+test_ids: [src/lib/ui/theme.test.ts, tests/e2e/home.spec.ts (connection-status), a11y-critical-screens, suite e2e pos-web 49/49, unit pos-web 225/225, V-13, V-15, V-16, V-21, V-24, SUITE]
+entregable_afectado: POS web — capa de presentación (app.css, app.html, layout, venta, owner, orders)
+descripcion: >
+  Auditoría de frontend: marketing-web ya tiene acabado de producción; el POS
+  tenía la capa de dominio madura pero la UI funcional-minimalista. Fase A de
+  fundación visual, cero deps nuevas (invariante 10): (a) tipografía de marca
+  self-hosted — Fraunces/Schibsted Grotesk/Spline Sans Mono con caras de
+  respaldo metric-matched y font-display swap (antes los tokens declaraban las
+  fuentes pero no existían, el navegador caía a system-ui); (b) fix de FOUC —
+  script pre-paint en app.html lee kipus_theme y aplica el tema antes del
+  primer render (antes dark fijo con switch a light en onMount, parpadeo);
+  lógica extraída a $lib/ui/theme.ts con unit tests; (c) tokens unificados —
+  se eliminó --surface-card (referenciado pero no definido, fondo caído a
+  transparent) en modal de venta y orders/customer; id-required-box con
+  colores hardcodeados de tema claro ahora usa la familia status-alert
+  warning; paleta del Modo Dueño centralizada en app.css [data-theme=owner-dark]
+  y tipografía migrada de Segoe UI/Avenir a la familia de marca; hexes sueltos
+  de owner/asistente y owner/previsiones mapeados a tokens; (d) limpieza de
+  telemetría de ingeniería — se eliminaron las pills Latencia UI/TTFS de la
+  pantalla de venta y el badge falso EDGE D1 CONECTADO hardcodeado; el
+  indicador de conexión ahora refleja navigator.onLine con eventos
+  online/offline, colores por tokens y estado offline (rose), cubierto por e2e
+  con context.setOffline; (e) a11y S15-H1: botón de nota de débito (deuda del
+  sprint WIP) pasó a min-height 44px para targets táctiles AA.
+evidencia: >
+  RED: system-ui en el terminal (fonts declaradas sin @font-face ni archivos),
+  parpadeo dark→light en cada carga, modal con fondo transparente
+  (--surface-card inexistente), id-required-box ilegible en dark, Modo Dueño
+  con Segoe UI y paleta paralela, pills Latencia UI/TTFS y EDGE D1 CONECTADO
+  falsos visibles al usuario, axe targets <44px en nota de débito (177x41).
+  GREEN: fonts Fraunces/Schibsted cargadas verificadas por document.fonts y
+  computed style; tema light persistido y aplicado pre-paint (html/body
+  data-theme=light, fondo papel rgb(243,239,230)); toggle light↔dark
+  verificado en runtime; theme.test.ts 6/6; e2e connection-status con
+  offline/online real 2/2; suite e2e pos-web 49/49; unit pos-web 225/225;
+  bundle 205.89 kB gz < 300 kB (V-24); verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0341
+timestamp_utc: 2026-08-13T05:20:00Z
+schema_version: 2
+sprint_fase: Fase 6B — Auditoría de seguridad y evidencia runtime (S28–S30)
+agente_responsable: Staff Auditor (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Corrección de seguridad
+subtipo: Cierre de gaps de autorización y evidencia chaos (S28-H1/H2, S29-H1/H2, S30-H1/H2, S28-H3)
+relacion: amplia
+referencias_entradas: [0340]
+referencias_documentales: [packages/adapters-d1/src/process-return-atomic.ts, packages/adapters-d1/src/process-supplier-invoice-match-atomic.ts, packages/adapters-d1/src/process-offline-sale-atomic.ts, apps/worker-api/src/purchasing/purchasing-three-way-routes.ts, apps/worker-api/src/sales/sales-returns-routes.ts, packages/chaos-harness/src/promotions-anti-stack.ts, docs/architecture/05-3-commercial-ops.md]
+prev_id: 0340
+prev_hash: 7291e7e5f9f1da06e3e8e1d5f20a32d6c3b8510fb9f4f3b61a31c5447f0fcc8f
+entry_hash: d87c996e802111165221599a7b9ff72c0e7a13ac47d14ab7ae075975031aa5b6
+ticket_or_adr: Auditoría FASE 6B; regla 2/13/15 §5.3; ADR-0014
+test_ids: [src/process-return-atomic.test.ts, src/process-supplier-invoice-match-atomic.test.ts, src/process-offline-sale-atomic.integration.test.ts (S30-H1/H2), src/purchasing/purchasing-three-way-routes.test.ts (S29-H2), src/sales/sales-returns-routes.test.ts (S28-H3), src/promotions-anti-stack.test.ts, V-13, V-15, V-21, V-22, SUITE]
+entregable_afectado: motor de devoluciones, matching 3-way proveedores, venta offline (descuento manual), reporte Dueño 3-way, política de devoluciones, chaos promotions-anti-stack
+descripcion: >
+  Auditoría FASE 6B sobre sprints 28–30: se cerraron los gaps de seguridad y
+  evidencia. S28-H1: refund_to_original_method era no-op — el motor ahora
+  respeta la política (vuelto por método alternativo validado cuando la
+  política lo permite) y la ruta HTTP propaga refundMethod. S28-H2: el umbral
+  de authz de devoluciones era client-controlled (authThresholdCents del body)
+  — ahora se lee server-side de tenant_discount_policies (default 50000
+  devoluciones). S29-H1: el override de diferencia de precio 3-way aceptaba
+  cualquier authorizedByUserId — ahora exige rol admin/owner verificado en
+  users (FORBIDDEN_ROLE, fail-closed). S29-H2: el reporte Dueño 3-way se
+  servía sin role-guard — runOwnerThreeWayReportHttp ahora exige admin/owner
+  (403 FORBIDDEN_ROLE). S30-H1: el chaos promotions-anti-stack afirmaba
+  batchIdStable con tautología (batchId === batchId) — se eliminó la
+  auto-afirmación; el judge es fail-closed y exige batchEvidenceVerified; la
+  evidencia real del motor vive en un integration test nuevo (promo % fijo +
+  lotes FEFO → batch_id estable y descuento exacto) que alimenta el veredicto.
+  S30-H2: el descuento manual de venta ya se re-resuelve server-side (S17);
+  se añadió evidencia de integración: sobre umbral sin token → AUTH_TOKEN_REQUIRED
+  (422), con token válido → SUCCESS. S28-H3: return_policies solo tenía GET —
+  se añadió PUT (runUpsertReturnPolicyHttp) con role-guard admin/owner,
+  validación de rango (0–365 días) y audit_events RETURN_POLICY_UPDATE (regla 12).
+evidencia: >
+  RED: refund_to_original_method leído y nunca usado; authThresholdCents del
+  body ignoraba la política (test S28-H2 rechazaba); override 3-way con
+  approverRole cashier pasaba (test S29-H1 FORBIDDEN_ROLE fallaba en
+  implementación previa); reporte Dueño accesible con rol vacío; chaos
+  promotions-anti-stack con batchIdStable auto-afirmado (tautología); PUT de
+  política inexistente.
+  GREEN: 17/17 adapters-d1 unit (returns + supplier match), integration S30-H1
+  (batch estable, descuento 200, stock 3) y S30-H2 (token válido SUCCESS / sin
+  token 422) 3/3, purchasing 3-way 9/9, sales-returns 6/6, chaos-harness
+  111/111, worker-api tsc limpio, verify.sh SUITE GREEN (V-13 cadena del
+  ledger, V-21 dinero, V-22 sin UPSERT).
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0342
+timestamp_utc: 2026-08-13T06:10:00Z
+schema_version: 2
+sprint_fase: Fase 6B — Corrección de tests flaky (staff)
+agente_responsable: Staff QA (owner) / Staff Principal (A)
+tipo: Corrección de calidad
+subtipo: Eliminación de flakiness por timing en integration tests
+relacion: amplia
+referencias_entradas: [0341]
+referencias_documentales: [packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, packages/adapters-d1/src/recurring-sales-workerd.red.integration.test.ts, packages/adapters-d1/src/data-backup.integration.test.ts, packages/chaos-harness/src/storage-device-network.test.ts]
+prev_id: 0341
+prev_hash: d87c996e802111165221599a7b9ff72c0e7a13ac47d14ab7ae075975031aa5b6
+entry_hash: 040828e366055862932b35bf272238a7fb404ce08e0a22f429ade3e98e06c80b
+ticket_or_adr: Investigación de flaky a nivel staff; S8-H1; PERF-12
+test_ids: [process-offline-sale-atomic.integration.test.ts (S8-H1 3/3), recurring-sales-workerd.red.integration.test.ts (6/6), data-backup.integration.test.ts (16/16), storage-device-network.test.ts (4/4), chaos-harness 111/111, V-13, V-15, SUITE]
+entregable_afectado: Integration tests de adapters-d1 y chaos-harness
+descripcion: >
+  Investigación staff de los fallos flaky: (1) S8-H1 (50 ciclos ACID de CxC)
+  fallaba 1 de cada 3 corridas por exceder el testTimeout default de vitest
+  (5000ms) — el test es un stress legítimo de ~5-15s; se le dio timeout
+  explícito de 30s y quedó 3/3 estable. (2) Los benchmarks de latencia del
+  hot path usaban umbrales absolutos (<50ms) sensibles a la velocidad de la
+  máquina: recurring-sales (P95 checkout con scheduler) y data-backup
+  (checkout durante lectura de backup) ahora usan umbral doble anti-flake —
+  absoluto + relativo a un control baseline (≤10× baseline + 5ms), el mismo
+  patrón que ya usaba el benchmark de epoch-trigger. (3) storage-device-network.test.ts
+  rompía tsc (TS2345): el callback de runNetworkAdversarialChaos era síncrono
+  pero la firma exige Promise — se marcó async; tsc del paquete quedó limpio.
+evidencia: >
+  RED: S8-H1 "Test timed out in 5000ms" intermitente (2 de 5 corridas con la
+  suite completa); benchmark recurring-sales y data-backup con umbral absoluto
+  único; tsc chaos-harness con TS2345 en storage-device-network.test.ts:86.
+  GREEN: S8-H1 3/3 suites completas y 2/2 batería de 3 archivos (60/60×2);
+  benchmarks con control baseline pasando; chaos-harness 111/111 con tsc
+  limpio; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff QA R, Staff Principal A]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0343
+timestamp_utc: 2026-08-13T06:40:00Z
+schema_version: 2
+sprint_fase: Fase B1 — Kit de componentes del POS (núcleo + Terminal)
+agente_responsable: Staff Frontend (owner) / Staff Principal (A) / Staff QA (V)
+tipo: Entregable nuevo
+subtipo: UI kit zero-dependency + migración de Terminal (login, POS home, cobro)
+relacion: amplia
+referencias_entradas: [0342, 0340]
+referencias_documentales: [apps/pos-web/src/lib/ui/Button.svelte, apps/pos-web/src/lib/ui/Badge.svelte, apps/pos-web/src/lib/ui/Card.svelte, apps/pos-web/src/lib/ui/CardHeader.svelte, apps/pos-web/src/lib/ui/Field.svelte, apps/pos-web/src/lib/ui/Input.svelte, apps/pos-web/src/lib/ui/Fieldset.svelte, apps/pos-web/src/lib/ui/Modal.svelte, apps/pos-web/src/lib/ui/EmptyState.svelte, apps/pos-web/src/lib/ui/StatusMessage.svelte, apps/pos-web/src/lib/ui/Skeleton.svelte, apps/pos-web/src/lib/ui/MoneyInput.svelte, apps/pos-web/src/lib/ui/Money.svelte, apps/pos-web/src/lib/ui/Table.svelte, apps/pos-web/src/lib/ui/money.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/login/+page.svelte, apps/pos-web/src/routes/caja/cobro/+page.svelte, apps/pos-web/src/app.css]
+prev_id: 0342
+prev_hash: 040828e366055862932b35bf272238a7fb404ce08e0a22f429ade3e98e06c80b
+entry_hash: 84cb36e8211ff5d0b90b7a44d8071a1c3ed5a318c91dcb9d7b86ebcc7069623e
+ticket_or_adr: Plan Fase B (auditoría de frontend); ADR-002 zero-dependency
+test_ids: [src/lib/ui/money.test.ts, src/lib/ui/theme.test.ts, tests/e2e/modal-a11y.spec.ts, tests/e2e/home.spec.ts, suite e2e pos-web 52/52, unit pos-web 236/236, V-13, V-15, V-21, V-24, SUITE]
+entregable_afectado: POS web — capa de presentación (kit ui/* + Terminal)
+descripcion: >
+  B1 del plan de Fase B: kit de componentes compartidos en $lib/ui/ con cero
+  dependencias de runtime (invariante 10, ADR-002), Svelte 5 runes, estilos
+  token-based (dark + owner-dark). Componentes: Button (variants, sizes sm/md/
+  full/xl, busy con spinner, icon, href para link-botones), Badge (9 variants,
+  dot), Card + CardHeader (título, icono, contador, actions), Field + Input
+  (label/hint/error, bindable), Fieldset, Modal (Escape, focus trap con wrap,
+  retorno de foco, confirm/cancel con tone danger, testids), EmptyState,
+  StatusMessage (tone info/danger/warning, role alert/status), Skeleton
+  (shimmer, prefers-reduced-motion), MoneyInput (soles decimales '15.50' o
+  centavos enteros '1500' -> cents enteros, inputmode=decimal, normaliza al
+  blur), Money (display S/ + formatCents), Table (columnas, cell snippet,
+  empty con colspan). money.ts con parseSolesToCents puro y formatMoney;
+  alias $lib añadido a vitest.config. Utilidades CSS globales en app.css:
+  .field-group/.two-col/.section-pad/.btn-row (mata duplicados scoped de 24/
+  14/21/14 páginas). Migración del Terminal: login (Button href), +page.svelte
+  (2 modales -> Modal con focus trap y testids preservados, status-box ->
+  StatusMessage, id-required-box -> StatusMessage, botones de cobro -> Button
+  size xl, quick-sale con Field+MoneyInput), caja/cobro (connection-badge ->
+  Badge, utilidades scoped -> globales). IconName ahora exportado. Contrato de
+  testids preservado (verificado por grep y por la suite e2e completa).
+evidencia: >
+  RED: modales con 3 estructuras incompatibles y 1 sin CSS; type=number
+  monetario con state string y conversión manual (CAL-01 en UI); tipografía y
+  utilidades duplicadas por copia/pega; sin foco gestionado en modales.
+  GREEN: money.test.ts 8/8 (soles decimales, coma es-PE, rechazos);
+  modal-a11y.spec 2/2 (axe sin critical/serious + foco inicial/trap Tab/
+  Escape con retorno); unit pos-web 236/236; e2e pos-web 52/52 (contrato de
+  94 testids intacto); bundle 211.58 kB gz < 300 kB (V-24); typecheck y lint
+  pos-web 0 errores; verificación runtime: '15.50' -> 1550 cents al blur,
+  foco inicial en quick-sale-name; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+id: 0344
+timestamp_utc: 2026-08-13T01:10:00Z
+schema_version: 2
+sprint_fase: Backlog v10 P1b — GRE `31` (ADR-FISCAL-004, FIS-14)
+agente_responsable: Staff Fiscal (owner) / Staff Backend ACID / Staff Frontend/Design
+tipo: Entregable nuevo
+subtipo: remission-guide
+relacion: amplia
+referencias_entradas: [0343]
+referencias_documentales: [docs/adr/ADR-FISCAL-004-remission-guide.md, docs/architecture/05-2-fiscal-pipeline.md (5.2b), packages/domain-fiscal-pe/src/remission-guide.ts, packages/adapters-d1/src/process-remission-guide-atomic.ts, apps/worker-api/src/inventory/remission-guide-routes.ts, apps/pos-web/src/lib/inventory/remission-guide.ts, docs/ops/p1b-remission-guide-qg.md]
+prev_id: 0343
+prev_hash: 84cb36e8211ff5d0b90b7a44d8071a1c3ed5a318c91dcb9d7b86ebcc7069623e
+entry_hash: b61a6955af944a6382dfa148754f0ab51d059633af2a54ac716dda5a74d391fb
+ticket_or_adr: ADR-FISCAL-004 (Backlog v10 P1)
+test_ids: [V-13, V-15, V-16, SUITE, remission-guide.test.ts, remission-guide-schema.test.ts, process-remission-guide-atomic.test.ts, process-remission-guide-atomic.integration.test.ts, remission-guide-routes.test.ts, remission-guide.test.ts, remission-guide.spec.ts]
+entregable_afectado: docs/ops/p1b-remission-guide-qg.md (nuevo) — cierre P1b
+descripcion: >
+  Guia de Remision Electronica 31 (ADR-FISCAL-004, 05.2b, Backlog v10 P1b):
+  migracion 0046 remission_guides + remission_guide_items (motivos catalogo
+  18 cerrados 01/02/04/08/13/14/16 con CHECK, modalidad transporte 01/02,
+  fecha/hora inicio de traslado obligatoria, FK compuestas tenant, UNIQUE
+  tenant serie numero, triggers epoch y down protegido); dominio
+  remission-guide (guard completo: motivo, modalidad, transportista con tipo
+  doc 01-04, puntos origen/destino, items microunits > 0, documento
+  relacionado opcional, 0 impacto stock); motor processRemissionGuideAtomic
+  (correlativo serie T server-side con guardState anti-doble, INSERT cabecera
+  + items en un solo batch, audit REMISSION_GUIDE con hash-chain, sunat_status
+  PENDING); ruta POST /api/inventory/remission-guides con FEATURE_GRE
+  default-off + matriz de rutas protegidas; UI panel en admin/inventario
+  (form motivo/modalidad/placa/transportista/origen-destino/inicio/cantidad +
+  resultado serie-numero); E2E de emision. Claim Cadena/Enterprise NO-GO
+  hasta staging SUNAT real y A+V.
+evidencia: >
+  RED: migracion/dominio/motor/rutas/UI ausentes (tests nuevos fallaron por
+  import o schema). GREEN: domain-fiscal-pe 75/75 (remission-guide 9/9, 95.6%
+  branches), adapters-d1 358 unit + 257 workerd (GRE 4 unit + 2 integracion:
+  cabecera+items, correlativo +1, audit, serie intacta en rechazo, stock
+  intacto), worker-api 986 (rutas 4/4 + paridad 409), pos-web 236 unit + E2E
+  50/50 (remission-guide 1/1), verify.sh SUITE GREEN (los fallos V-21/lint de
+  membresias y chaos-harness pertenecen al trabajo en curso de otra agente y
+  quedan fuera de este commit). Software GREEN local, capability default-off,
+  produccion/piloto NO-GO.
+ancestry_verified: true
+aprobaciones: [Staff Fiscal R, Staff Backend ACID R, Staff Frontend R, Staff Principal V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

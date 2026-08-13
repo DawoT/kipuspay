@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { isInventoryOpsEnabled } from '$lib/features';
+  import { isGreEnabled, isInventoryOpsEnabled } from '$lib/features';
+  import { issueRemissionGuide } from '$lib/inventory/remission-guide';
   import Icon from '$lib/ui/Icon.svelte';
 
   const invOn = isInventoryOpsEnabled();
+  const greOn = isGreEnabled();
   let branchId = $state('b-demo');
   let productId = $state('p1');
   let countedQty = $state(0);
@@ -12,6 +14,50 @@
   let reason = $state('');
   let message = $state('');
   let messageOk = $state(false);
+
+  // P1b — GRE (ADR-FISCAL-004).
+  let greSeries = $state('T001');
+  let greMotive = $state('01');
+  let greMode = $state('01');
+  let grePlate = $state('');
+  let greCarrierDoc = $state('1');
+  let greCarrierNumber = $state('');
+  let greCarrierName = $state('');
+  let greOriginUbigeo = $state('150101');
+  let greOriginAddress = $state('');
+  let greDestUbigeo = $state('150101');
+  let greDestAddress = $state('');
+  let greStartedAt = $state(new Date().toISOString().slice(0, 16));
+  let greQtyMicrounits = $state(1_000_000);
+  let greMsg = $state('');
+  let greIssued = $state(false);
+
+  async function onIssueGre() {
+    greMsg = '';
+    greIssued = false;
+    const res = await issueRemissionGuide({
+      branchId,
+      series: greSeries,
+      transferReasonCode: greMotive,
+      transportModeCode: greMode,
+      vehiclePlate: grePlate,
+      carrierDocumentType: greCarrierDoc,
+      carrierDocumentNumber: greCarrierNumber,
+      carrierName: greCarrierName,
+      originUbigeo: greOriginUbigeo,
+      originAddress: greOriginAddress,
+      destinationUbigeo: greDestUbigeo,
+      destinationAddress: greDestAddress,
+      transferStartedAt: new Date(greStartedAt).toISOString(),
+      items: [{ productId, quantityMicrounits: greQtyMicrounits, uomCode: 'NIU' }],
+    });
+    if (!res.ok) {
+      greMsg = res.message;
+      return;
+    }
+    greIssued = true;
+    greMsg = `GRE ${res.series}-${String(res.number).padStart(3, '0')} emitida (motivo ${res.transferReasonCode}, ${res.sunatStatus}).`;
+  }
 
   const apiBase = () =>
     (import.meta.env.PUBLIC_API_BASE as string | undefined)?.replace(/\/$/, '') ||
@@ -140,6 +186,84 @@
         </button>
       </section>
     </div>
+  {/if}
+
+  {#if greOn}
+    <section class="glass-card section-pad gre-card" data-testid="gre-panel">
+      <div class="card-header">
+        <h2>Guía de Remisión Electrónica</h2>
+        <span class="section-tag">Traslado · serie T (P1b)</span>
+      </div>
+      <p class="gre-lede">
+        Declara un traslado de mercadería (motivo catálogo 18) antes de iniciarlo. No toca stock ni saldos.
+      </p>
+      <div class="gre-grid">
+        <div class="field-group">
+          <label for="gre-series">Serie</label>
+          <input id="gre-series" bind:value={greSeries} data-testid="gre-series" />
+        </div>
+        <div class="field-group">
+          <label for="gre-motive">Motivo</label>
+          <select id="gre-motive" bind:value={greMotive} data-testid="gre-motive">
+            <option value="01">01 — Venta</option>
+            <option value="02">02 — Compra</option>
+            <option value="04">04 — Entrega a terceros</option>
+            <option value="08">08 — Importación</option>
+            <option value="13">13 — Devolución</option>
+            <option value="14">14 — Exportación</option>
+            <option value="16">16 — Transformación</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="gre-mode">Modalidad transporte</label>
+          <select id="gre-mode" bind:value={greMode} data-testid="gre-mode">
+            <option value="01">01 — Público</option>
+            <option value="02">02 — Privado</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="gre-plate">Placa del vehículo</label>
+          <input id="gre-plate" bind:value={grePlate} data-testid="gre-plate" placeholder="ABC-123" />
+        </div>
+        <div class="field-group">
+          <label for="gre-carrier-doc">Transportista (tipo doc)</label>
+          <select id="gre-carrier-doc" bind:value={greCarrierDoc} data-testid="gre-carrier-doc">
+            <option value="1">DNI</option>
+            <option value="6">RUC</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="gre-carrier-number">N.º documento transportista</label>
+          <input id="gre-carrier-number" bind:value={greCarrierNumber} data-testid="gre-carrier-number" />
+        </div>
+        <div class="field-group">
+          <label for="gre-carrier-name">Nombre transportista</label>
+          <input id="gre-carrier-name" bind:value={greCarrierName} data-testid="gre-carrier-name" />
+        </div>
+        <div class="field-group">
+          <label for="gre-origin">Origen (dirección)</label>
+          <input id="gre-origin" bind:value={greOriginAddress} data-testid="gre-origin-address" placeholder="Av. Lima 100" />
+        </div>
+        <div class="field-group">
+          <label for="gre-dest">Destino (dirección)</label>
+          <input id="gre-dest" bind:value={greDestAddress} data-testid="gre-dest-address" placeholder="Jr. Callao 200" />
+        </div>
+        <div class="field-group">
+          <label for="gre-started">Inicio de traslado</label>
+          <input id="gre-started" type="datetime-local" bind:value={greStartedAt} data-testid="gre-started" />
+        </div>
+        <div class="field-group">
+          <label for="gre-qty">Cantidad (microunits) del ítem {productId}</label>
+          <input id="gre-qty" type="number" min="1" bind:value={greQtyMicrounits} data-testid="gre-qty" />
+        </div>
+      </div>
+      <button type="button" class="primary" data-testid="gre-submit" onclick={onIssueGre}>
+        Emitir guía de remisión
+      </button>
+      {#if greMsg}
+        <p class="gre-msg" data-testid="gre-msg" class:gre-msg-ok={greIssued}>{greMsg}</p>
+      {/if}
+    </section>
   {/if}
 </div>
 

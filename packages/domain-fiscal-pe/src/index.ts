@@ -46,6 +46,16 @@ export {
   type DebitNoteRequest,
 } from './debit-note.js';
 
+export {
+  assertRemissionGuideAllowed,
+  remissionStockImpact,
+  TRANSFER_REASON_CODES,
+  TRANSPORT_MODE_CODES,
+  type RemissionGuideRequest,
+  type TransferReasonCode,
+  type TransportModeCode,
+} from './remission-guide.js';
+
 export interface CdrEnvelope {
   readonly cdrCode: string;
   readonly cdrDescription: string;

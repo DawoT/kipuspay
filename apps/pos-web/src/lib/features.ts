@@ -253,6 +253,11 @@ export function isDebitNoteEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_DEBIT_NOTE'));
 }
 
+/** Backlog v10 P1b — Guía de Remisión Electrónica; siempre default-off. */
+export function isGreEnabled(): boolean {
+  return flagOn(pub(PF + 'GRE'));
+}
+
 /** Sprint 53 — Troubleshooter de hardware (ADR-0033); siempre default-off. */
 export function isHardwareDiagnosticsEnabled(): boolean {
   return flagOn(pub(PF + 'HARDWARE_DIAGNOSTICS'));

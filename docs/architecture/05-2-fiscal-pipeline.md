@@ -21,6 +21,24 @@ section: "5.2"
 - `buildDailySummaryCron`: agrupa boletas/NC-boleta del día Lima por **emisor (`tenant_id` + `summary_date`)** — SUNAT admite **un único RC por día por emisor**; `branch_id` queda como atributo de cada línea (boleta→branch), nunca como clave del RC (corrección FIS-03). Genera RC; espera CDR; permite baja (`void`) de boleta informada en RC del mismo día de emisión. **RC complementaria (SYN-11):** una boleta con `issued_at` de un día cerrado que sincroniza después admite **RC complementaria del mismo `summary_date`** mientras esté dentro de `must_submit_by`, con alerta Modo Dueño; si se vence la ventana, runbook de NC/re-facturación (reusa E-A/E-B §8).
 - **Arqueo Z / cierre de caja ≠ Resumen Diario.** El RC es job fiscal independiente; banner si hay boletas del día sin RC aceptado.
 
+### **5.2b Guía de Remisión Electrónica (GRE `31` — Backlog v10 P1b, ADR-FISCAL-004)**
+
+| Campo | Valor |
+|---|---|
+| Documento | `31` (serie `T…`), tabla propia `remission_guides` (no es comprobante de pago) |
+| Comunicación | El día del traslado, **antes de iniciarlo**; `sunat_status = PENDING` hasta CDR |
+| Motivos (catálogo 18, cerrado) | `01` venta, `02` compra, `04` venta con entrega a terceros, `08` importación, `13` devolución, `14` exportación, `16` transformación |
+| Modalidad transporte (catálogo 18 transporte) | `01` público, `02` privado |
+| Campos obligatorios | Fecha/hora inicio de traslado (hora Lima), punto origen y destino (ubigeo + dirección), vehículo/transportista |
+| Documento relacionado | Opcional (factura/OC) |
+| Impacto | **0 stock / 0 saldos**: la GRE solo declara el traslado |
+| Gating | `FEATURE_GRE` default-off; claim **Cadena/Enterprise** (GTM §4.1) tras gate |
+| Audit | `REMISSION_GUIDE` (hash-chain) |
+
+La GRE jamás sustituye a una venta ni a una transferencia de stock (Sprint 38):
+los traslados entre establecimientos siguen generando la GRE **y** el proceso de
+transferencia conservativa de inventario.
+
 **Representación impresa / PDF CPE (mínimo obligatorio):**
 
 - RUC, razón social, dirección, serie-número, fecha/hora Lima.

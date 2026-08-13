@@ -1,0 +1,11 @@
+INSERT /* GRE_DOWN_PROTECTED: RAISE(ABORT via atomic_guards CHECK) */ INTO atomic_guards(id, ok) SELECT 'fiscal.gre.p1b.down', CASE WHEN EXISTS (SELECT 1 FROM remission_guides WHERE sunat_status <> 'REJECTED') THEN 0 ELSE 1 END;
+DROP TRIGGER IF EXISTS backup_epoch_remission_guide_items_delete;
+DROP TRIGGER IF EXISTS backup_epoch_remission_guide_items_update;
+DROP TRIGGER IF EXISTS backup_epoch_remission_guide_items_insert;
+DROP TRIGGER IF EXISTS backup_epoch_remission_guides_delete;
+DROP TRIGGER IF EXISTS backup_epoch_remission_guides_update;
+DROP TRIGGER IF EXISTS backup_epoch_remission_guides_insert;
+DROP TABLE remission_guide_items;
+DROP TABLE remission_guides;
+DELETE FROM schema_meta WHERE key = 'fiscal.gre.p1b';
+DELETE FROM atomic_guards WHERE id = 'fiscal.gre.p1b.down';
