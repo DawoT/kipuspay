@@ -1,4 +1,4 @@
-import { formatCents } from '$lib/cents';
+import { formatCents } from '../cents.js';
 
 function isDigitsOnly(value: string): boolean {
   if (value.length === 0) return false;
