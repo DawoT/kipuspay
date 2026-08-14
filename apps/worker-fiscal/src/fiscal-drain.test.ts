@@ -324,8 +324,7 @@ describe('F8 Bloque C — chaos SUNAT caído (fail-closed)', () => {
           cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
         });
       },
-      queryCdr: () =>
-        Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
     };
 
     // Pasada 1: SUNAT caído → nada SENT, nada perdido.

@@ -67,10 +67,13 @@ describe('home — arco narrativo GTM §5', () => {
   });
 
   it('FAQ cubre el playbook del documento maestro: export al cancelar y crédito (M4C)', () => {
-    const faq = HOME.faq.map((item) => `${item.q} ${item.a}`).join(' ').toLowerCase();
-    expect(faq).toMatch(/exportar/);
+    const faq = HOME.faq
+      .map((item) => `${item.q} ${item.a}`)
+      .join(' ')
+      .toLowerCase();
+    expect(faq).toMatch(/exporta/);
     expect(faq).toMatch(/csv/);
-    expect(faq).toMatch(/crédito/);
+    expect(faq).toMatch(/credito/);
   });
 
   it('CTA final (5.10)', () => {

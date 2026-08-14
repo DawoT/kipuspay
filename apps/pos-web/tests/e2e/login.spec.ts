@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-async function mockLogin(page: import('@playwright/test').Page, response: {
-  status: number;
-  body: Record<string, unknown>;
-}) {
+async function mockLogin(
+  page: import('@playwright/test').Page,
+  response: {
+    status: number;
+    body: Record<string, unknown>;
+  },
+) {
   await page.route('**/api/auth/cashier-login', (route) =>
     route.fulfill({
       status: response.status,

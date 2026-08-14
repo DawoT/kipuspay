@@ -84,28 +84,31 @@ describe('S14-H1: jueces storage/device/red con evidencia conectada', () => {
   it('PASS con evidencia real conectada: 500 ciclos de red adversaria 0/0', async () => {
     // Evidencia sintética determinista equivalente a la del dispatcher real
     // (offline-sync.test.ts 500 ciclos) — el juez la acepta.
-    const verdict = await runNetworkAdversarialChaos((cycles): Promise<NetworkAdversarialResult> => {
-      const seen = new Set<string>();
-      const lost = 0;
-      let duplicates = 0;
-      let succeeded = 0;
-      for (let i = 0; i < cycles; i++) {
-        const id = `sale-${i}`;
-        if (seen.has(id)) {
-          duplicates++;
-          continue;
+    const verdict = await runNetworkAdversarialChaos(
+      (cycles): Promise<NetworkAdversarialResult> => {
+        const seen = new Set<string>();
+        const lost = 0;
+        let duplicates = 0;
+        let succeeded = 0;
+        for (let i = 0; i < cycles; i++) {
+          const id = `sale-${i}`;
+          if (seen.has(id)) {
+            duplicates++;
+            continue;
+          }
+          seen.add(id);
+          succeeded++;
         }
-        seen.add(id);
-        succeeded++;
-      }
-      return Promise.resolve({
-        cycles,
-        totalEnqueued: cycles,
-        totalSucceeded: succeeded,
-        totalLost: lost,
-        totalDuplicates: duplicates,
-      });
-    }, 500);
+        return Promise.resolve({
+          cycles,
+          totalEnqueued: cycles,
+          totalSucceeded: succeeded,
+          totalLost: lost,
+          totalDuplicates: duplicates,
+        });
+      },
+      500,
+    );
     expect(verdict).toBe('PASS');
   });
 });

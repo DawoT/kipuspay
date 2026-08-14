@@ -1391,7 +1391,6 @@ li {
   color: var(--paper);
 }
 
-
 /*
  * El reveal solo se arma si hay JS para desarmarlo: sin script, el contenido
  * nace visible en lugar de quedarse en opacity 0 para siempre.
@@ -2311,7 +2310,9 @@ li {
   background: var(--ink-2);
   color: var(--paper);
   border: 1px solid var(--line);
-  transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
+  transition:
+    transform 0.2s var(--ease-out),
+    border-color 0.2s ease;
 }
 
 .pillar-card:hover {
@@ -2398,7 +2399,9 @@ li {
   color: var(--paper);
   border: 1px solid var(--line);
   text-decoration: none;
-  transition: transform 0.2s var(--ease-out), border-color 0.2s ease;
+  transition:
+    transform 0.2s var(--ease-out),
+    border-color 0.2s ease;
 }
 
 .post-card:hover,
@@ -2410,7 +2413,6 @@ li {
 .post-card h3 {
   font-size: 1.3rem;
   margin-bottom: 0.6rem;
-
 }
 
 .post-card p {
@@ -2432,4 +2434,3 @@ li {
   max-width: 46rem;
   margin-top: 2rem;
 }
-
