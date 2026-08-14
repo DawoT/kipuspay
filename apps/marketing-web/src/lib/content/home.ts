@@ -198,6 +198,14 @@ export const HOME = {
       q: '¿Necesito comprar un equipo especial?',
       a: 'No. Funciona en la tablet, el celular o la computadora que ya tienes. Conectar una impresora termica es opcional y se configura despues de tu primera venta.',
     },
+    {
+      q: '¿Puedo llevarme mis datos si decido cancelar?',
+      a: 'Tus datos son tuyos: exportas todo tu catalogo y tus ventas en CSV antes o al momento de cancelar. El borrado de datos personales respeta la retencion fiscal que exige SUNAT.',
+    },
+    {
+      q: '¿Puedo vender al credito?',
+      a: 'Si. Asignas un limite de credito por cliente y la venta a credito queda como cuenta por cobrar; cobras cuotas o abonos despues sin descuadrar la caja. Si hay devolucion, la nota de credito rebaja el saldo pendiente automaticamente.',
+    },
   ],
   finalCta: {
     headline: 'Tu proxima venta puede ser la primera con KipusPay.',

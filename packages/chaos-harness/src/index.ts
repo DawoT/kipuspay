@@ -364,6 +364,7 @@ export {
 export { judgeDeadlineChaos, runDeadlineChaos } from './deadline-chaos.js';
 
 export { judgeNetworkAdversarial, runNetworkAdversarialChaos } from './network-adversarial.js';
+export type { NetworkAdversarialResult } from './network-adversarial.js';
 
 export { judgeQuotaExceeded, runQuotaExceededChaos } from './quota-exceeded.js';
 

@@ -9321,3 +9321,94 @@ aprobaciones: [Staff Principal A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+---
+id: 0387
+timestamp_utc: 2026-08-14T14:00:00Z
+schema_version: 2
+sprint_fase: M4A — Legal operativo final y dominio canónico (documento maestro)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Libro de Reclamaciones + canales oficiales + ARCO + términos/SLA finales + kipuspay.com
+relacion: amplia
+referencias_entradas: [0386]
+referencias_documentales: [docs/ops/legal_and_sales_guide.md, apps/marketing-web/src/lib/content/legal.ts, apps/marketing-web/src/routes/reclamaciones/+page.svelte, apps/marketing-web/src/lib/content/security.ts]
+prev_id: 0386
+prev_hash: 6c8a8fa4150531251c89d8aa7ba9eb29e8ef8fc18f84b8cccc0be97fe196c437
+entry_hash: 4231f541b4c228002cf52cd0fc1ac196a707c0cefc850052a1fc70333ccf7039
+ticket_or_adr: M4A (documento maestro legal y comercial — versión final)
+test_ids: [legal.test.ts 7/7, seo.test.ts, security.test.ts, marketing-web 108/108, V-26, SUITE]
+entregable_afectado: legales del sitio, dominio canónico, /seguridad
+descripcion: >
+  Alineación del sitio con docs/ops/legal_and_sales_guide.md (normativa,
+  versión final). 1) Dominio canónico kipuspay.com en todo el sitio
+  (canonicals, OG, JSON-LD, sitemap, robots, default del producto). 2)
+  Página /reclamaciones: Libro de Reclamaciones Virtual conforme a la ley de
+  protección al consumidor (registro por contacto@, constancia de trámite,
+  respuesta en 30 días calendario), con enlace en el footer. 3) Canales
+  oficiales visibles en footer (contacto/soporte/privacidad). 4) /privacidad
+  con sección ARCO y canal privacidad@. 5) /terminos completos: licencia de
+  uso, tributos incluidos, cancelación (mensual libre; anual prorrateo en 15
+  días hábiles vía facturacion@), nivel de servicio (99.9%, 1h Enterprise /
+  4h hábiles), libro de reclamaciones y jurisdicción (Lima, Perú) — sin
+  jerga de severidad interna. 6) /seguridad con bloque "Compromiso de
+  servicio" (uptime, tiempos de respuesta, canal soporte@) y el pilar de
+  propiedad actualizado a la promesa de export del documento maestro (la
+  retención fiscal sigue intacta junto al borrado).
+evidencia: >
+  RED: 4 tests fallaban (canales, reclamaciones, ARCO, términos SLA) porque
+  la landing no tenía ninguna de esas obligaciones; dominio .pe en 15
+  archivos.
+  GREEN: legal.test 7/7; marketing-web 108/108; typecheck 0; lint 0; V-26
+  GREEN; verify.sh SUITE GREEN; dominio kipuspay.com único (0 restos .pe).
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0388
+timestamp_utc: 2026-08-14T14:40:00Z
+schema_version: 2
+sprint_fase: M4B — Pricing final por plan (documento maestro Parte I §2.1/§6)
+agente_responsable: Staff Principal A
+tipo: Corrección de contenido comercial
+subtipo: Inclusión de la matriz funcional completa en las tarjetas de precios
+relacion: CORRIGE
+referencias_entradas: [0387]
+referencias_documentales: [docs/ops/legal_and_sales_guide.md Parte I §2.1/§6, apps/marketing-web/src/lib/content/pricing.ts, apps/marketing-web/src/routes/precios/+page.svelte]
+prev_id: 0387
+prev_hash: 4231f541b4c228002cf52cd0fc1ac196a707c0cefc850052a1fc70333ccf7039
+entry_hash: b794d69b3736265998c8916b0b1b13b6e4660765ff19c61728483e4f0a40b1ca
+ticket_or_adr: M4B (pricing final — documento maestro)
+test_ids: [pricing.test.ts 9/9, marketing-web 112/112, V-26, SUITE]
+entregable_afectado: /precios
+descripcion: >
+  Las tarjetas de precios se alinean a la matriz funcional del documento
+  maestro (Parte I §2.1 y §6). Arranque ahora lista su alcance real: cobro
+  con tarjeta/billeteras, boletas y facturas, impresión 58/80, vitrina,
+  arqueo diario, alta rápida con escáner y venta rápida genérica. Crece
+  lista el paquete de expansión: Modo Dueño móvil, alertas push, caja móvil
+  PWA, arqueo Z ciego con PIN de descuentos, handoff de turno, FEFO/BOM,
+  promociones, variantes, apartados, series, balanza y comisiones. Cadena
+  deja de decir "API y fidelización: no disponibles hoy" y lista su alcance
+  completo (KDS, transferencias, recepción 3-way, importadores, Yape/Plin,
+  export contable, API/webhooks, puntos, devoluciones NC, diario contable,
+  cotizaciones, devolución a proveedor, vales, cuotas, racks, pedidos con
+  retiro por WhatsApp, membresías recurrentes, analítica predictiva con
+  disclaimer de estimación y continuidad ante desastres). Enterprise incluye
+  SLA de 1 hora y el asistente de insights diario. La regla de cupo/gracia
+  se mantiene como disclaimer separado.
+evidencia: >
+  RED: 4 tests nuevos fallaban (Arranque/Crece/Cadena/Enterprise sin
+  inclusiones); Cadena decía "no disponibles hoy" contra el documento.
+  GREEN: pricing.test 9/9 (inclusiones completas por plan, disclaimer de
+  estimación presente, cero "no disponibles hoy", sin jerga interna);
+  marketing-web 112/112; typecheck 0; lint 0; V-26 GREEN; verify.sh SUITE
+  GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

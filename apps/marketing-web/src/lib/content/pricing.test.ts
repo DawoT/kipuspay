@@ -24,7 +24,7 @@ describe('pricing content', () => {
 
   it('el copy público de precios no filtra jerga interna (M1)', () => {
     const all = [
-      ...PRICING_PLANS.flatMap((p) => [...p.limits, p.audience]),
+      ...PRICING_PLANS.flatMap((p) => [...p.limits, p.audience, ...(p.features ?? [])]),
       PRICING_DISCLAIMERS.cupo,
       PRICING_DISCLAIMERS.gracia,
     ].join(' ');
@@ -32,6 +32,85 @@ describe('pricing content', () => {
     expect(all).not.toMatch(/HTTP\s*\d{3}/);
     expect(all).not.toMatch(/Quality\s*Gate/i);
     expect(all).not.toMatch(/Sprint\s+\d+/);
+    expect(all).not.toMatch(/SEV-\d/);
+  });
+
+  describe('inclusiones por plan — documento maestro Parte I §2.1/§6 (M4B)', () => {
+    function features(planId: string): string {
+      return (PRICING_PLANS.find((p) => p.id === planId)?.features ?? []).join(' ');
+    }
+
+    it('Arranque: venta, emisión, impresión 58/80, vitrina, arqueo, alta rápida y venta genérica', () => {
+      const f = features('arranque');
+      for (const expected of [
+        'boleta',
+        'factura',
+        'impresión de tickets 58',
+        'vitrina',
+        'arqueo',
+        'escáner',
+        'venta rápida',
+      ]) {
+        expect(f.toLowerCase()).toContain(expected);
+      }
+    });
+
+    it('Crece: Modo Dueño móvil, push, PWA, Z ciego, PIN descuentos, handoff, FEFO, BOM, promos, variantes, apartados, series, balanza, comisiones', () => {
+      const f = features('crece');
+      for (const expected of [
+        'modo dueño',
+        'push',
+        'caja móvil',
+        'arqueo z ciego',
+        'descuentos',
+        'turno',
+        'lotes',
+        'recetas',
+        'promociones',
+        'variantes',
+        'apartados',
+        'series',
+        'balanza',
+        'comisiones',
+      ]) {
+        expect(f.toLowerCase()).toContain(expected);
+      }
+    });
+
+    it('Cadena: KDS, transferencias, 3-way, importadores, Yape/Plin, export contable, API, puntos, devoluciones NC, diario, cotizaciones, vales, cuotas, racks, pedidos WhatsApp, membresías, analítica con disclaimer y DR', () => {
+      const f = features('cadena');
+      for (const expected of [
+        'comandas',
+        'transferencias',
+        'recepción',
+        'importador',
+        'yape',
+        'contable',
+        'api',
+        'puntos',
+        'devolucion',
+        'diario',
+        'cotizacion',
+        'vales',
+        'cuotas',
+        'rack',
+        'whatsapp',
+        'membresía',
+        'analítica',
+        'continuidad',
+      ]) {
+        expect(f.toLowerCase()).toContain(expected);
+      }
+      expect(f.toLowerCase()).toMatch(/estimación, no garantía|estimacion, no garantia/);
+      expect(f.toLowerCase()).not.toContain('no disponibles hoy');
+    });
+
+    it('Enterprise: SLA prioritario 1 hora y asistente de insights diario', () => {
+      const f = features('enterprise');
+      expect(f.toLowerCase()).toContain('1 hora');
+      expect(f.toLowerCase()).toContain('asistente');
+      expect(f.toLowerCase()).toContain('account manager');
+    });
   });
 
   it('publica cupo Arranque activo (GTM-04)', () => {

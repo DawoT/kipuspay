@@ -117,6 +117,11 @@
             {/if}
             <p class="pricing-audience">{plan.audience}</p>
             <ul>
+              {#each plan.features as feature (feature)}
+                <li class="pricing-feature">{feature}</li>
+              {/each}
+            </ul>
+            <ul class="pricing-limits">
               {#each plan.limits as limit (limit)}
                 <li>{limit}</li>
               {/each}

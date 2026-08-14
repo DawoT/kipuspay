@@ -1869,6 +1869,14 @@ li {
   color: var(--ink);
 }
 
+.pricing-card ul.pricing-limits {
+  margin-top: -0.4rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line-ink);
+  color: var(--muted-ink);
+  font-size: 0.9rem;
+}
+
 .pricing-card .btn {
   width: 100%;
 }

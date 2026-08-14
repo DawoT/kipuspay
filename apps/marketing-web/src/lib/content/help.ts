@@ -99,6 +99,61 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
       },
     ],
   },
+  {
+    id: 'negocio',
+    title: 'Gestión y operación',
+    description: 'Crédito a clientes, pedidos, membresías y el resumen diario de tu negocio.',
+    items: [
+      {
+        id: 'insights-diario',
+        question: '¿Cómo funciona el asistente de insights diarios?',
+        answer:
+          'En Enterprise, cada mañana recibes un resumen breve de tu negocio: ventas, productos por agotarse y excepciones de caja, calculado sobre tus números reales. Puedes hacerle preguntas en lenguaje natural sobre tu operación.',
+      },
+      {
+        id: 'pedidos-whatsapp',
+        question: '¿Cómo funcionan los pedidos con retiro por WhatsApp?',
+        answer:
+          'Tu cliente reserva sin pagar y recibe un aviso por WhatsApp cuando su pedido está listo para recoger. El pago se hace en tienda al momento de la entrega.',
+      },
+      {
+        id: 'membresias',
+        question: '¿Cómo funcionan las membresías y las ventas recurrentes?',
+        answer:
+          'Defines el ciclo (semanal o mensual) y el sistema genera la venta periódica con su comprobante y su cuenta por cobrar, con un periodo de gracia para el cliente.',
+      },
+      {
+        id: 'balanza-manual',
+        question: '¿Puedo vender por peso sin una balanza digital conectada?',
+        answer:
+          'Sí. Conectas una balanza compatible para la lectura automática o ingresas el peso manualmente con autorización en pantalla.',
+      },
+      {
+        id: 'tres-way',
+        question: '¿Qué es la recepción de compras contra factura y para qué sirve?',
+        answer:
+          'Compara automáticamente tu orden de compra, la recepción de mercadería y la factura del proveedor, para que no pagues facturas con sobreprecio o cantidades que no recibiste.',
+      },
+      {
+        id: 'credito-clientes',
+        question: '¿Puedo dar crédito a mis clientes sin perder el control de la caja?',
+        answer:
+          'Sí. Asignas un límite de crédito por cliente y cada venta a crédito queda registrada como cuenta por cobrar, con cuotas o abonos que vas cobrando después.',
+      },
+      {
+        id: 'devolucion-credito',
+        question: '¿Qué pasa si devuelven una compra que fue a crédito?',
+        answer:
+          'Al procesar la devolución con su nota de crédito, el saldo pendiente de la cuenta por cobrar se reduce automáticamente en el momento.',
+      },
+      {
+        id: 'anonimizacion',
+        question: '¿Qué pasa si un cliente pide borrar sus datos personales?',
+        answer:
+          'Anonimizamos su nombre, correo, teléfono y dirección. El comprobante fiscal se conserva sin su nombre durante los 5 años que exige SUNAT.',
+      },
+    ],
+  },
 ];
 
 export function allHelpCategories(): readonly HelpCategory[] {

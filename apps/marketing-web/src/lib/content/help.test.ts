@@ -21,4 +21,35 @@ describe('help.ts content module', () => {
     const results = searchHelpItems('termino_inexistente_xyz');
     expect(results).toHaveLength(0);
   });
+
+  it('playbook del documento maestro (M4C): insights, WhatsApp retiro, membresías, balanza, 3-way, crédito y anonimización', () => {
+    const all = allHelpCategories()
+      .flatMap((c) => c.items)
+      .map((i) => `${i.question} ${i.answer}`)
+      .join(' ')
+      .toLowerCase();
+    for (const keyword of [
+      'insights',
+      'whatsapp',
+      'membresía',
+      'balanza',
+      'recepción',
+      'crédito',
+      'cuenta por cobrar',
+      'anonimiz',
+      '5 años',
+    ]) {
+      expect(all).toContain(keyword);
+    }
+    expect(all).not.toMatch(/sprint\s+\d+/i);
+    expect(all).not.toMatch(/gtm-\d+/);
+  });
+
+  it('sin jerga técnica en el playbook', () => {
+    const all = allHelpCategories()
+      .flatMap((c) => c.items)
+      .map((i) => `${i.question} ${i.answer}`)
+      .join(' ');
+    expect(all).not.toMatch(/\b(PSE|CDR|UBL|ACID|D1|Edge|Workers|SEV-\d)\b/i);
+  });
 });
