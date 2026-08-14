@@ -25,7 +25,7 @@ test('home con checkout off muestra demo', async ({ page }) => {
   );
   await page.goto('/');
   await expect(page.getByTestId('tenant-name')).toBeVisible();
-  await page.getByTestId('add-line').click();
+  await page.getByTestId('add-line-p1').click();
   await expect(page.getByTestId('total')).toContainText('118.00');
 });
 

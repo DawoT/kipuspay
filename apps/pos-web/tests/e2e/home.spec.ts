@@ -25,7 +25,7 @@ test('home renderiza el total en soles', async ({ page }) => {
   );
   await page.goto('/');
   await expect(page.getByTestId('tenant-name')).toBeVisible();
-  await page.getByTestId('add-line').click();
+  await page.getByTestId('add-line-p1').click();
 });
 test('home muestra el catálogo vendible y el total al agregar', async ({ page }) => {
   await mockSellableCatalog(page);

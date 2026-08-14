@@ -113,13 +113,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let catalogLoading = $state(true);
   let catalogError = $state('');
   let catalogQuery = $state('');
-  let visibleCatalog = $derived(
-    catalogQuery.trim()
-      ? catalogItems.filter((item) =>
-          (item.name ?? '').toLowerCase().includes(catalogQuery.trim().toLowerCase()),
-        )
-      : catalogItems,
-  );
   let quickSaleOpen = $state(false);
   const teamOn = isTeamInviteEnabled();
   let sellerResolveOpen = $state(false);
@@ -699,71 +692,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div class="pos-main-grid">
       <!-- Left Column: Catalog & Instruments -->
       <div class="pos-instruments-col">
-        <!-- Sellable Catalog Grid -->
-        <section class="glass-panel catalog-card" data-testid="sellable-catalog">
-          <div class="card-header catalog-header">
-            <h2>Catálogo</h2>
-            {#if !catalogLoading && catalogItems.length > 0}
-              <span class="badge badge-indigo">{catalogItems.length} items</span>
-            {/if}
-          </div>
-
-          {#if catalogOn}
-            <div class="catalog-search">
-              <Icon name="search" size={16} class="catalog-search-icon" />
-              <input
-                type="search"
-                class="catalog-search-input"
-                placeholder="Buscar por nombre, SKU o código"
-                aria-label="Buscar productos"
-                autocomplete="off"
-                bind:value={catalogQuery}
-              />
-            </div>
-          {/if}
-
-          {#if catalogLoading}
-            <div class="catalog-skeleton">
-              <Skeleton lines={4} />
-            </div>
-          {:else if catalogError}
-            <StatusMessage tone="warning" role="status">
-              <Icon name="alert" size={16} />
-              <span>{catalogError}</span>
-            </StatusMessage>
-          {:else if !catalogOn}
-            <EmptyState
-              icon="layers"
-              title="Catálogo desactivado"
-              description="Activa el catálogo en Ajustes para cobrar desde el catálogo. La venta rápida sigue disponible."
-            />
-          {:else if visibleCatalog.length === 0}
-            <EmptyState
-              icon="search"
-              title={catalogQuery ? 'Sin coincidencias' : 'Catálogo vacío'}
-              description={catalogQuery ? 'Prueba con otro nombre, SKU o código.' : 'Sube tu catálogo para empezar a cobrar. La venta rápida sigue disponible.'}
-            />
-          {:else}
-            <div class="products-grid">
-              {#each visibleCatalog as item (item.productId)}
-                <button
-                  type="button"
-                  class="product-item-btn"
-                  onclick={() => addProduct(item)}
-                  data-testid={item.productId === 'p1' ? 'add-line' : `add-line-${item.productId}`}
-                >
-                  <div class="product-icon"><Icon name="package" size={24} /></div>
-                  <div class="product-info">
-                    <span class="product-name">{item.name}</span>
-                    <span class="product-sku">{item.sku}</span>
-                    <span class="product-price tabular-nums">S/ {formatCents(item.unitPriceCents)}</span>
-                  </div>
-                  <span class="add-badge">+ Añadir</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </section>
         <SellableCatalog
           items={catalogItems}
           loading={catalogLoading}
