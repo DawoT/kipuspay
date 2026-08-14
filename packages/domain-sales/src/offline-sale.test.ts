@@ -332,6 +332,7 @@ describe('assertOfflineSaleShape', () => {
     expect(() =>
       assertOfflineSaleShape({
         ...basePayload(),
+        // gitleaks:allow -- fixture de test (token opaco sintético)
         items: [{ productId: 'p1', quantity: 1, serialLeaseToken: 'opaque_kp_7FXQm19w' }],
       }),
     ).toThrow('MISSING_SERIAL_ID');
