@@ -47,3 +47,17 @@ describe('insights NLG post-check anti-alucinación (Sprint 49)', () => {
     ).not.toThrow();
   });
 });
+
+describe('cobertura branches (CAL-05)', () => {
+  it('rechaza número extraído del texto que no es un hecho (candidateNumbers)', () => {
+    expect(() =>
+      assertFactsVerbatim(
+        [
+          { key: 'gross_sales_cents', value: 118000 },
+          { key: 'doc_count', value: 42 },
+        ],
+        'La meta del mes es 999999 comprobantes.',
+      ),
+    ).toThrow(NLG_CONTRADICTION_KEY);
+  });
+});

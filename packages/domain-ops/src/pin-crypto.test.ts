@@ -72,3 +72,10 @@ describe('pin-crypto (argon2id SEC-03 + legado SHA-256)', () => {
     expect(bad).toMatchObject({ ok: false, needsRehash: true });
   });
 });
+
+describe('pin-crypto fallback fail-safe (cobertura CAL-05)', () => {
+  it('verifica formato PHC inválido → fail-closed (verifyArgon2 catch)', async () => {
+    const res = await verifyPinHash('1234', '$argon2id$v=19$m=4096,t=1,p=1$sal$hash-invalido');
+    expect(res).toMatchObject({ ok: false, needsRehash: false });
+  });
+});

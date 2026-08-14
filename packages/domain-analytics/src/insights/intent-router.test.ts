@@ -31,3 +31,14 @@ describe('insights intent router (Sprint 49)', () => {
     expect(INTENT_ACTIONS).toContain(action);
   });
 });
+
+describe('cobertura branches (CAL-05)', () => {
+  it('null/undefined → UNSUPPORTED (fail-closed)', () => {
+    expect(classifyIntent(null)).toBe('UNSUPPORTED');
+    expect(classifyIntent(undefined)).toBe('UNSUPPORTED');
+  });
+
+  it('intent whitelist sin verbos destructivos pasa normalizado', () => {
+    expect(classifyIntent('sales_summary')).toBe('SALES_SUMMARY');
+  });
+});
