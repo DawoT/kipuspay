@@ -3,7 +3,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const promosOn = isPricingPromotionsEnabled();
   let name = $state('2x1 fin de semana');
@@ -16,15 +16,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let listJson = $state('');
   let loading = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function createPromo() {
     message = '';
     loading = true;
-    const res = await fetch(`${apiBase()}/api/pricing/promotions`, {
+    const res = await apiFetch('/api/pricing/promotions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         name,
         appliesTo,
@@ -42,8 +40,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function listPromos() {
     message = '';
     loading = true;
-    const res = await fetch(`${apiBase()}/api/pricing/promotions`, {
-      headers: { authorization: auth() },
+    const res = await apiFetch('/api/pricing/promotions', {
+      storage: localStorage,
     });
     const json = (await res.json()) as { promotions?: unknown[]; error?: string };
     messageOk = res.ok;

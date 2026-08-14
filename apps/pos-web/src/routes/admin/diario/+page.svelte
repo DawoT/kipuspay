@@ -2,7 +2,7 @@
   import { isLedgerChartOfAccountsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const journalOn = isLedgerChartOfAccountsEnabled();
   let fromDate = $state('2026-08-01');
@@ -12,14 +12,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let mutateMsg = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function loadJournal() {
     message = '';
     const qs = new URLSearchParams({ fromDate, toDate, branchId });
-    const res = await fetch(`${apiBase()}/api/ledger/journal?${qs.toString()}`, {
-      headers: { authorization: auth() },
+    const res = await apiFetch(`/api/ledger/journal?${qs.toString()}`, {
+      storage: localStorage,
     });
     const json = (await res.json()) as { items?: Record<string, unknown>[]; error?: string };
     if (!res.ok) {
@@ -32,9 +29,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function tryMutate() {
     mutateMsg = '';
-    const res = await fetch(`${apiBase()}/api/ledger/journal`, {
+    const res = await apiFetch('/api/ledger/journal', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: '{}',
     });
     const json = (await res.json()) as { code?: string; error?: string };

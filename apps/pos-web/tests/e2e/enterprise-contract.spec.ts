@@ -85,3 +85,95 @@ test('cancel UX: export catálogo y ventas autenticados', async ({ page }) => {
   await page.getByTestId('export-sales').click();
   await expect.poll(() => hits.includes('catalog') && hits.includes('sales')).toBe(true);
 });
+
+test('past_due post-gracia: banner de gestión pausada; owner premium → 402', async ({ page }) => {
+  const ownerStatuses: number[] = [];
+  await mockOnboardingClaim(page);
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        userId: 'owner-e2e',
+        role: 'owner',
+        branchId: 'branch-e2e',
+        terminal: null,
+        billing: {
+          subscriptionStatus: 'past_due',
+          trialEndsAt: null,
+          pastGracePeriod: true,
+        },
+      }),
+    }),
+  );
+  await page.route('**/api/insights/briefing**', (route) => {
+    ownerStatuses.push(402);
+    route.fulfill({
+      status: 402,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'SUBSCRIPTION_INACTIVE', error: 'Payment Required' }),
+    });
+  });
+  await page.route('**/api/owner/**', (route) => {
+    ownerStatuses.push(402);
+    route.fulfill({
+      status: 402,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'SUBSCRIPTION_INACTIVE', error: 'Payment Required' }),
+    });
+  });
+  await page.goto('/?onboarding_token=e2e-claim-token&tenant=t-e2e');
+  await expect(page.getByTestId('billing-banner')).toContainText('herramientas de gestión están pausadas');
+  await expect(page.getByTestId('charge')).toBeVisible();
+  await page.goto('/owner');
+  await expect.poll(() => ownerStatuses.some((s) => s === 402)).toBe(true);
+});
+
+/**
+ * Dual-app handshake: marketing construye el redirect; el POS claima el token.
+ * Staging real: export E2E_STAGING_BOOTSTRAP_TOKEN (+ opcional E2E_STAGING_TENANT).
+ * Sin env, mocks locales cubren el contrato claim→caja.
+ */
+test('empezar→bootstrap→claim: redirect con token (dual-app)', async ({ page }) => {
+  const claimHits: string[] = [];
+  const useStaging = Boolean(process.env.E2E_STAGING_BOOTSTRAP_TOKEN);
+
+  await page.route('**/api/onboarding/claim', async (route) => {
+    claimHits.push(route.request().url());
+    if (useStaging) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        token: 'jwt-from-bootstrap',
+        expiresAt: '2026-08-14T23:00:00.000Z',
+        user: { userId: 'owner-e2e', role: 'owner', branchId: 'branch-e2e' },
+        cashRegisterSessionId: 'session-e2e',
+      }),
+    });
+  });
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        userId: 'owner-e2e',
+        role: 'owner',
+        branchId: 'branch-e2e',
+        terminal: null,
+        billing: { subscriptionStatus: 'trial', trialEndsAt: null, pastGracePeriod: false },
+      }),
+    }),
+  );
+
+  const token = process.env.E2E_STAGING_BOOTSTRAP_TOKEN ?? 'e2e-bootstrap-token';
+  const tenant = process.env.E2E_STAGING_TENANT ?? 't-e2e';
+  await page.goto(
+    `/?onboarding=1&tenant=${tenant}&onboarding_token=${token}&mode=INTERNAL_CONTROL&vertical=retail&name=Demo`,
+  );
+  await expect.poll(() => claimHits.length).toBeGreaterThan(0);
+  await expect(page.getByTestId('tenant-name')).toBeVisible();
+});

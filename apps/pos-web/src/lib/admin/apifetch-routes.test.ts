@@ -14,14 +14,25 @@ const routes = [
   '../../routes/owner/+page.svelte',
   '../../routes/admin/ubicaciones/+page.svelte',
   '../../routes/admin/configuracion/+page.svelte',
+  // Residual post-F (enterprise gaps)
+  '../../routes/admin/catalogo/+page.svelte',
+  '../../routes/admin/promociones/+page.svelte',
+  '../../routes/admin/transferencias/+page.svelte',
+  '../../routes/admin/series/+page.svelte',
+  '../../routes/admin/devolucion-proveedor/+page.svelte',
+  '../../routes/admin/diario/+page.svelte',
+  '../../routes/caja/cobro/+page.svelte',
+  '../../routes/owner/pagos/+page.svelte',
+  '../../routes/owner/transferencias/+page.svelte',
 ] as const;
 
-describe('rutas POS listadas usan apiFetch (Fase F)', () => {
+describe('rutas POS listadas usan apiFetch (Fase F + residual)', () => {
   it('no hacen fetch(`${apiBase`) y no siembran demos', () => {
     for (const rel of routes) {
       const source = readFileSync(new URL(rel, import.meta.url), 'utf8');
       expect(source, rel).not.toMatch(/fetch\(`\$\{(apiBase|resolveApiBase)/);
       expect(source, rel).not.toMatch(/\b(c-demo|u-demo|po-demo|oc-demo)\b/);
+      expect(source, rel).toContain('apiFetch');
     }
   });
 

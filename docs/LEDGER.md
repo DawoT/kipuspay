@@ -10094,3 +10094,40 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0403
+timestamp_utc: 2026-08-15T01:05:00Z
+schema_version: 2
+sprint_fase: Sprints 9-11 — Gaps post-0402 (apiFetch residual, E2E dual-app, Fase K NO-GO)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: apiFetch residual, contrato E2E dual-app, ratchet FEATURE_* sin flip staging
+relacion: amplia
+referencias_entradas: [0402]
+referencias_documentales: [apps/pos-web/src/lib/admin/apifetch-routes.test.ts, apps/pos-web/tests/e2e/enterprise-contract.spec.ts, apps/marketing-web/src/lib/onboarding/dual-app-contract.test.ts, apps/worker-api/src/tenant/feature-flags-staging-nogate.test.ts, apps/worker-api/wrangler.jsonc]
+prev_id: 0402
+prev_hash: f404044d5bfb9109b34b50bbb3ff239f106498b65cbe2b8703df36bfba50ab4b
+entry_hash: fb9d1e9015f9308042134c1ac3ce78a422b59365f64b9fd6614e3e2ef21f1f60
+ticket_or_adr: remaining enterprise gaps post-0402
+test_ids: [apifetch-routes, dual-app-contract, feature-flags-staging-nogate, enterprise-contract, reclamaciones-routes, V-00, SUITE]
+entregable_afectado: POS cliente HTTP, GTM Fase K staging QG, Proceso §8.1
+descripcion: >
+  Gaps tras D–J (0402): apiFetch en catálogo/promos/transferencias/series/
+  diario/devolución-proveedor/cobro/owner pagos y transferencias; ratchet
+  ampliado en apifetch-routes. E2E: claim dual-app (token bootstrap),
+  past_due post-gracia con banner de gestión pausada y premium 402; marketing
+  dual-app-contract (empezar→redirect, reclamaciones REC-). Fase K queda
+  NO-GO de staging: feature-flags-staging-nogate asegura FEATURE_FISCAL_*,
+  LPDP, Insights, KDS, offline y overage en "0" — sin flip local; QG A+V
+  fiscal/pfx, LPDP, DR, canary y SLA 1h siguen en staging real.
+evidencia: >
+  RED: rutas residuales con fetch(`${apiBase`); E2E sin post-gracia ni
+  dual-app claim; wrangler podía flippearse sin ratchet.
+  GREEN: apifetch-routes 21 rutas; dual-app-contract 3; staging-nogate 1;
+  enterprise-contract past_due+claim; FEATURE_* siguen "0".
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -16,7 +16,7 @@
   import { formatCents } from '$lib/cents';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
@@ -48,8 +48,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   } | null>(null);
   let lookupMsg = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
   async function scanLookup() {
     const raw = scanBarcode.trim();
     lookupMsg = '';
@@ -60,8 +58,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
     let response: Response;
     try {
-      response = await fetch(`${apiBase()}/api/catalog/scan/${encodeURIComponent(raw)}`, {
-        headers: { authorization: auth() },
+      response = await apiFetch(`/api/catalog/scan/${encodeURIComponent(raw)}`, {
+        storage: localStorage,
       });
     } catch {
       lookupMsg = 'No se pudo conectar para buscar el código.';
@@ -114,9 +112,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
     let response: Response;
     try {
-      response = await fetch(`${apiBase()}/api/catalog/quick-add`, {
+      response = await apiFetch('/api/catalog/quick-add', {
         method: 'POST',
-        headers: headers(),
+        storage: localStorage,
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ barcode, name, priceCents }),
       });
     } catch {
@@ -138,8 +137,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadCatalog() {
     loading = true;
-    const response = await fetch(`${apiBase()}/api/catalog/variants-uom`, {
-      headers: { authorization: auth() },
+    const response = await apiFetch('/api/catalog/variants-uom', {
+      storage: localStorage,
     });
     const json = (await response.json()) as { items?: unknown[]; error?: string };
     message = response.ok ? '' : (json.error ?? `Error ${response.status}`);
@@ -149,9 +148,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function saveVariant() {
-    const response = await fetch(`${apiBase()}/api/catalog/variants/${productId}`, {
+    const response = await apiFetch(`/api/catalog/variants/${productId}`, {
       method: 'PATCH',
-      headers: headers(),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         parentProductId: parentProductId || null,
         variantPriceOverrideCents: overrideCents === null ? null : overrideCents,
@@ -164,9 +164,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function saveUom() {
-    const response = await fetch(`${apiBase()}/api/catalog/uoms`, {
+    const response = await apiFetch('/api/catalog/uoms', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         productId,
         uomCode,
@@ -182,9 +183,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function saveSerialTracking() {
-    const response = await fetch(`${apiBase()}/api/inventory/serials/tracking`, {
+    const response = await apiFetch('/api/inventory/serials/tracking', {
       method: 'PATCH',
-      headers: headers(),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ productId, serialTrackingMode }),
     });
     const json = (await response.json()) as { error?: string; action?: string };

@@ -4,7 +4,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const returnsOn = isPurchasingReturnsEnabled();
   let purchaseReceiptId = $state('rcpt-demo');
@@ -18,14 +18,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function createReturn() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/returns`, {
+    const res = await apiFetch('/api/purchasing/returns', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         purchaseReceiptId,
         supplierInvoiceId: supplierInvoiceId || null,
@@ -50,9 +48,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function closeReturn() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/returns/close`, {
+    const res = await apiFetch('/api/purchasing/returns/close', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         returnId,
         priceDiffOverride,
@@ -66,9 +65,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function cancelReturn() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/returns/cancel`, {
+    const res = await apiFetch('/api/purchasing/returns/cancel', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ returnId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };

@@ -10,7 +10,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const payOn = isPaymentsQrWalletsEnabled() || isPaymentsCardAcquirerEnabled();
@@ -29,11 +29,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function load() {
     loading = true;
     status = 'Cargando…';
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
-      const res = await fetch(`${apiBase}/api/owner/payments/uncaptured`, {
-        headers: { authorization: auth },
+      const res = await apiFetch('/api/owner/payments/uncaptured', {
+        storage: localStorage,
       });
       const json = (await res.json()) as { uncaptured?: typeof rows; error?: string };
       if (!res.ok) {

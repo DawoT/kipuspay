@@ -4,7 +4,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const xferOn = isStockTransfersEnabled();
@@ -21,10 +21,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function load() {
     loading = true;
     status = 'Cargando…';
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
-      const res = await fetch(`${apiBase}/api/owner/transfers/pending`, { headers: { authorization: auth } });
+      const res = await apiFetch('/api/owner/transfers/pending', { storage: localStorage });
       const json = (await res.json()) as { pending?: typeof pending; discrepancies?: typeof discrepancies; error?: string };
       if (!res.ok) { status = json.error ?? 'error'; pending = []; discrepancies = []; loading = false; return; }
       pending = json.pending ?? [];

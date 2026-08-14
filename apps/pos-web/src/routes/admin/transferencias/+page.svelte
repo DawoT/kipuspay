@@ -3,7 +3,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const xferOn = isStockTransfersEnabled();
   let fromBranchId = $state('b-origen');
@@ -18,14 +18,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function createTransfer() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers`, {
+    const res = await apiFetch('/api/inventory/transfers', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ fromBranchId, toBranchId, lines: [{ productId, qtySent }] }),
     });
     const json = (await res.json()) as { id?: string; error?: string };
@@ -36,9 +34,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function ship() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers/ship`, {
+    const res = await apiFetch('/api/inventory/transfers/ship', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ transferId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
@@ -48,9 +47,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function receive() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers/receive`, {
+    const res = await apiFetch('/api/inventory/transfers/receive', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         transferId,
         lines: [{ lineId, qtyReceived, qtyShrink, shrinkReason: shrinkReason || null }],
@@ -63,9 +63,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function cancelTransfer() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers/cancel`, {
+    const res = await apiFetch('/api/inventory/transfers/cancel', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ transferId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };

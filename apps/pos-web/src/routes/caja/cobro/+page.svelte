@@ -11,7 +11,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Badge from '$lib/ui/Badge.svelte';
   import { pollCaptureStatus } from '$lib/payments/payment-capture';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /** Copy normativa §5.4 edge 2B (misma cadena que MANUAL_CAPTURE_AMBER_COPY). */
   const MANUAL_CAPTURE_AMBER_COPY =
@@ -55,9 +55,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     };
   });
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   function methodAllowed(): boolean {
     if (methodCode === 'cash' || methodCode === 'card_manual' || methodCode === 'credit') {
       return checkoutOn;
@@ -92,9 +89,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       message = `Cola offline con captureStatus=MANUAL · ${captureStatusForEnqueue()}`;
       return;
     }
-    const res = await fetch(`${apiBase()}/api/payments/charge`, {
+    const res = await apiFetch('/api/payments/charge', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         saleId: 'sale-demo',
         salePaymentId: 'sp-demo',
@@ -114,8 +112,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       captureStatus = json.status ?? 'PENDING';
       void (async () => {
         const poll = await pollCaptureStatus({
-          apiBase: apiBase(),
-          authorization: auth(),
+          apiBase: resolveApiBase(localStorage),
+          authorization: resolveApiAuth(localStorage).authorization ?? '',
           captureId: String(json.captureId),
           intervalMs: 3000,
           maxAttempts: 10,
@@ -138,9 +136,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       loyaltyMsg = 'Canje offline-originado deshabilitado — reserva solo en línea';
       return;
     }
-    const res = await fetch(`${apiBase()}/api/loyalty/reserve`, {
+    const res = await apiFetch('/api/loyalty/reserve', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         customerId,
         saleIdempotencyKey,
@@ -160,9 +159,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       waMsg = 'FEATURE_MESSAGING_WHATSAPP off';
       return;
     }
-    const res = await fetch(`${apiBase()}/api/messaging/opt-in`, {
+    const res = await apiFetch('/api/messaging/opt-in', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ customerId, optedIn: waOptedIn }),
     });
     const json = (await res.json()) as { optedIn?: boolean; error?: string };

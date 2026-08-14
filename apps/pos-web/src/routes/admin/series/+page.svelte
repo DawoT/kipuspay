@@ -2,7 +2,7 @@
   import { isInventorySerialsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const serialsOn = isInventorySerialsEnabled();
   let serialNumber = $state('');
@@ -13,13 +13,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let leaseToken = $state('');
   let message = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
-  function headers(): Record<string, string> {
+  function jsonHeaders(): Record<string, string> {
     return {
       'content-type': 'application/json',
-      authorization: auth(),
       'x-terminal-id': terminalId.trim(),
     };
   }
@@ -27,8 +23,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function search() {
     message = '';
     const query = new URLSearchParams({ serialNumber: serialNumber.trim() });
-    const response = await fetch(`${apiBase()}/api/inventory/serials?${query}`, {
-      headers: { authorization: auth() },
+    const response = await apiFetch(`/api/inventory/serials?${query}`, {
+      storage: localStorage,
     });
     const body = (await response.json()) as {
       items?: Array<Record<string, unknown>>;
@@ -42,9 +38,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function acquireLease() {
-    const response = await fetch(`${apiBase()}/api/inventory/serials/leases`, {
+    const response = await apiFetch('/api/inventory/serials/leases', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage,
+      headers: jsonHeaders(),
       body: JSON.stringify({
         serialId: selectedSerialId,
         idempotencyKey: crypto.randomUUID(),
@@ -62,9 +59,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function dispose() {
-    const response = await fetch(`${apiBase()}/api/inventory/serials/disposition`, {
+    const response = await apiFetch('/api/inventory/serials/disposition', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage,
+      headers: jsonHeaders(),
       body: JSON.stringify({ serialId: selectedSerialId, disposition }),
     });
     const body = (await response.json()) as { status?: string; error?: string; action?: string };
