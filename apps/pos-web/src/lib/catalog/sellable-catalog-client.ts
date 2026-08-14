@@ -61,6 +61,7 @@ function hasOptionalStrings(row: Record<string, unknown>): boolean {
 export async function fetchSellableCatalog(input: {
   readonly apiBase: string;
   readonly authorization: string;
+  readonly tenantId?: string;
   readonly branchId?: string;
   readonly fetcher?: typeof fetch;
 }): Promise<SellableCatalogItem[]> {
@@ -68,6 +69,7 @@ export async function fetchSellableCatalog(input: {
   const base = input.apiBase.replace(/\/$/, '');
   const headers = new Headers();
   if (input.authorization) headers.set('authorization', input.authorization);
+  if (input.tenantId) headers.set('x-tenant-id', input.tenantId);
   let response: Response;
   try {
     response = await fetcher(`${base}/api/catalog/sellable`, { headers, credentials: 'include' });

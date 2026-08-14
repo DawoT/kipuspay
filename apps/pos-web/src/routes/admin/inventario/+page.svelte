@@ -1,18 +1,21 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { isGreEnabled, isInventoryOpsEnabled } from '$lib/features';
   import { issueRemissionGuide } from '$lib/inventory/remission-guide';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const invOn = isInventoryOpsEnabled();
   const greOn = isGreEnabled();
-  let branchId = $state('b-demo');
+  let branchId = $state(initTenantBranchId());
   let productId = $state('p1');
   let countedQty = $state(0);
   let systemQty = $state(0);
   let lossQty = $state(1);
+  let lossId = $state('');
   let evidenceKey = $state('r2/merma/demo.jpg');
   let reason = $state('');
   let message = $state('');
@@ -39,7 +42,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     greMsg = '';
     greIssued = false;
     const res = await issueRemissionGuide({
-      branchId,
+      branchId: branchId.trim() || initTenantBranchId(),
       series: greSeries,
       transferReasonCode: greMotive,
       transportModeCode: greMode,
@@ -62,14 +65,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     greMsg = `GRE ${res.series}-${String(res.number).padStart(3, '0')} emitida (motivo ${res.transferReasonCode}, ${res.sunatStatus}).`;
   }
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function startCount() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/counts`, {
+    const res = await apiFetch('/api/inventory/counts', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ branchId, differenceThresholdCents: 1000 }),
     });
     const json = (await res.json()) as { id?: string; error?: string };
@@ -79,11 +81,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function createLoss() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/losses`, {
+    const res = await apiFetch('/api/inventory/losses', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         productId,
         quantity: lossQty,
         category: 'DAMAGED',
@@ -94,6 +97,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
     message = res.ok ? `Merma ${json.id} registrada · estado PENDING` : (json.error ?? 'error');
+  }
+
+  async function approveLoss() {
+    message = '';
+    const res = await apiFetch('/api/inventory/losses/approve', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lossId }),
+    });
+    const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
+    message = res.ok ? `Merma ${lossId} · ${json.status ?? 'APPROVED'}` : (json.error ?? 'error');
   }
 </script>
 
@@ -184,6 +200,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <Button variant="danger" data-testid="admin-inv-loss-create" onclick={createLoss}>
           <Icon name="alert" size={14} />
           Registrar merma
+        </Button>
+        <div class="field-group">
+          <label for="loss-id-input">ID de merma a aprobar</label>
+          <input id="loss-id-input" bind:value={lossId} data-testid="admin-inv-loss-id" />
+        </div>
+        <Button variant="primary" data-testid="admin-inv-loss-approve" onclick={() => void approveLoss()}>
+          Aprobar merma
         </Button>
       </section>
     </div>

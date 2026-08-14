@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { isSalesQuotesEnabled } from '$lib/features';
@@ -13,7 +15,7 @@
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const quotesOn = isSalesQuotesEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -26,21 +28,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
-
   onMount(() => {
     session = readTenantSession(sessionStorage);
   });
 
   async function createQuote() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes`, {
+    const res = await apiFetch('/api/sales/quotes', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId: 'b-demo',
+        branchId: tenantBranchId(localStorage),
         validUntilIso: validUntil,
         items: [{ productId, enteredQuantityMicrounits: enteredMicrounits }],
       }),
@@ -60,7 +58,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function send() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/send`, { method: 'POST', headers: headers(), body: JSON.stringify({ quoteId }) });
+    const res = await apiFetch('/api/sales/quotes/send', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
     message = res.ok ? `Enviada (${json.status})` : (json.error ?? `Error ${res.status}`);
@@ -68,7 +66,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function approve() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/approve`, { method: 'POST', headers: headers(), body: JSON.stringify({ quoteId }) });
+    const res = await apiFetch('/api/sales/quotes/approve', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
     message = res.ok ? `Aprobada (${json.status})` : (json.error ?? `Error ${res.status}`);
@@ -76,12 +74,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function convert() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/convert`, {
+    const res = await apiFetch('/api/sales/quotes/convert', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         quoteId,
-        cashRegisterSessionId: 's-demo',
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
         series,
         documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
       }),
@@ -93,7 +91,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function cancel() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/cancel`, { method: 'POST', headers: headers(), body: JSON.stringify({ quoteId, reason }) });
+    const res = await apiFetch('/api/sales/quotes/cancel', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId, reason }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
     message = res.ok ? `Cancelada (${json.status})` : (json.error ?? `Error ${res.status}`);

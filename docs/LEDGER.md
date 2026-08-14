@@ -9412,3 +9412,685 @@ aprobaciones: [Staff Principal A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+---
+id: 0389
+timestamp_utc: 2026-08-14T15:20:00Z
+schema_version: 2
+sprint_fase: M4C — Playbook comercial del documento maestro en ayuda y FAQ
+agente_responsable: Staff Principal A
+tipo: Corrección de contenido comercial
+subtipo: Q4/Q7-Q15 del playbook en el centro de ayuda y la home
+relacion: CORRIGE
+referencias_entradas: [0388]
+referencias_documentales: [docs/ops/legal_and_sales_guide.md Parte VI, apps/marketing-web/src/lib/content/help.ts, apps/marketing-web/src/lib/content/home.ts, apps/marketing-web/src/routes/ayuda/+page.svelte]
+prev_id: 0388
+prev_hash: b794d69b3736265998c8916b0b1b13b6e4660765ff19c61728483e4f0a40b1ca
+entry_hash: 42c5dc4663a20a5040eebafa3cc47aa175176727e2c7889106530497c1a2c1f2
+ticket_or_adr: M4C (playbook Parte VI — documento maestro)
+test_ids: [help.test.ts 4/4, content.test.ts 25/25, marketing-web 115/115, V-26, SUITE]
+entregable_afectado: /ayuda, FAQ de la home
+descripcion: >
+  El playbook del documento maestro (Parte VI) llega al sitio. 1) /ayuda
+  gana una categoría "Gestión y operación" con 8 preguntas nuevas: asistente
+  de insights diarios (Enterprise), pedidos con retiro por WhatsApp,
+  membresías y ventas recurrentes, venta por peso sin balanza, recepción de
+  compras contra factura, crédito a clientes, devolución que rebaja la CxC
+  y anonimización con retención de 5 años. 2) La home suma 2 preguntas: "¿me
+  llevo mis datos si cancelo?" (export CSV al cancelar, con la retención
+  fiscal intacta) y "¿puedo vender al crédito?" (límite por cliente, CxC,
+  NC rebaja saldo). 3) El contacto de /ayuda deja de ser un link a /empezar:
+  ahora son los canales oficiales reales (soporte@ y contacto@kipuspay.com).
+evidencia: >
+  RED: 2 tests fallaban (playbook ausente en ayuda; FAQ sin export/crédito).
+  GREEN: help.test 4/4 (playbook completo, sin jerga técnica ni de
+  severidad); content.test 25/25 (FAQ con export CSV y crédito); marketing-
+  web 115/115; typecheck 0; lint 0; V-26 GREEN; verify.sh SUITE GREEN;
+  build prerender con PUBLIC_FEATURE_MARKETING_SITE=1 OK.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0390
+timestamp_utc: 2026-08-14T16:00:00Z
+schema_version: 2
+sprint_fase: M5A — Precios premium (matriz interactiva, picker de plan, CTA único de compra)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: UX premium de pricing + unificación del flujo de compra
+relacion: amplia
+referencias_entradas: [0388]
+referencias_documentales: [apps/marketing-web/src/lib/content/plan-matrix.ts, apps/marketing-web/src/lib/content/plan-picker.ts, apps/marketing-web/src/routes/precios/+page.svelte]
+prev_id: 0389
+prev_hash: 42c5dc4663a20a5040eebafa3cc47aa175176727e2c7889106530497c1a2c1f2
+entry_hash: a412529e5c52facbdf4ae8e0ceb4d5a5d810b816435278d8d646c97108e92650
+ticket_or_adr: M5A (pricing premium + CTA único — auditoría de planes y compra)
+test_ids: [plan-matrix.test.ts 6/6, plan-picker.test.ts 5/5, pricing.test.ts 9/9, marketing-web 127/127, V-26, SUITE]
+entregable_afectado: /precios, CTAs del sitio
+descripcion: >
+  Pricing premium dentro del sistema Ledger Minimalism (sin librerías). 1)
+  Matriz "Compara los planes": 16 áreas de la Parte I §6 del documento
+  maestro × 4 planes con inclusión acumulativa (✓/—); en escritorio con
+  highlight por fila y columna del plan ancla; en móvil con selector de plan
+  por pestañas que muestra una columna a la vez (sin scroll horizontal).
+  2) Picker "¿No sabes cuál elegir?": 3 preguntas (locales, cajas,
+  capacidades) con lógica pura testeada (plan-picker.ts) que recomienda el
+  plan y ancla a su tarjeta. 3) CTA de compra UNIFICADO: los planes
+  autoservicio usan una sola etiqueta "Empieza gratis" → /empezar;
+  Enterprise sale del onboarding y va a "Contactar a ventas"
+  mailto:contacto@kipuspay.com. 4) Auditoría de CTAs: se eliminan las
+  etiquetas divergentes ("Empieza gratis hoy", "Probar y decidir", "Hablar
+  con nosotros"→onboarding) y el CTA redundante de cierre de verticales
+  ahora enlaza a "Ver planes" (el hero y el sticky conservan la compra).
+evidencia: >
+  RED: 2 módulos nuevos inexistentes (matriz y picker) y CTAs con 5
+  etiquetas distintas hacia el mismo destino.
+  GREEN: plan-matrix 6/6 (16 áreas, acumulativa); plan-picker 5/5 (reglas
+  Arranque/Crece/Cadena/Enterprise); pricing 9/9 (CTA único, Enterprise
+  mailto); marketing-web 127/127; typecheck 0; lint 0; V-26 GREEN; verify.sh
+  SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0391
+timestamp_utc: 2026-08-14T16:45:00Z
+schema_version: 2
+sprint_fase: M5B — Comparativas unificadas en una página + timeline visual
+agente_responsable: Staff Principal A
+tipo: Corrección de arquitectura UX
+subtipo: Una sola superficie de comparación con selector y gráfico honesto
+relacion: CORRIGE
+referencias_entradas: [0390]
+referencias_documentales: [apps/marketing-web/src/routes/comparar/+page.svelte, apps/marketing-web/src/lib/components/MigrationTimeline.svelte, apps/marketing-web/src/routes/comparar/[competidor]/+page.ts]
+prev_id: 0390
+prev_hash: a412529e5c52facbdf4ae8e0ceb4d5a5d810b816435278d8d646c97108e92650
+entry_hash: f1a62a5b3cb80f4ed043f37729202020571cac6d11b2649ffb442e9d7074ea42
+ticket_or_adr: M5B (comparativas unificadas — decisión de producto)
+test_ids: [responsive-ui.test.ts 2/2, content.test.ts, marketing-web 127/127, V-26, SUITE]
+entregable_afectado: /comparar, rutas por competidor, sitemap, footer
+descripcion: >
+  Las 3 páginas por competidor se unifican en UNA sola superficie /comparar
+  con selector de pills (Bsale | Alegra | Siigo) y deep-link ?vs=slug: todo
+  el contenido (por qué migran, timeline, tabla lado a lado, FAQ y
+  disclaimer) cambia en el sitio sin recargar. Se agrega el timeline visual
+  honesto "De tu sistema actual a tu primera venta" (dos carriles derivados
+  de las filas cualitativas existentes: coordinar instalación → capacitación
+  → semanas vs registrarte → importar CSV → cobrar en minutos) — cero
+  cifras inventadas sobre el sistema ajeno; el disclaimer de comparativa se
+  mantiene. Las rutas viejas /comparar/bsale|alegra|siigo quedan como 301 →
+  /comparar?vs=X (prerender=false, runtime del worker) para conservar SEO y
+  backlinks; el sitemap expone una sola URL y el footer enlaza a ?vs= por
+  competidor. Se actualiza el test responsive-ui al nuevo archivo y se
+  corrige el acceso a searchParams durante prerender (guard browser).
+evidencia: >
+  RED: test responsive-ui leía la ruta eliminada; prerender de /comparar
+  reventaba con url.searchParams; sitemap listaba 3 URLs muertas.
+  GREEN: responsive-ui 2/2 sobre la página unificada; marketing-web 127/127;
+  typecheck 0; lint 0; V-26 GREEN; verify.sh SUITE GREEN; build prerender
+  con flag ON OK (una sola página comparar, 301 runtime por competidor).
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0392
+timestamp_utc: 2026-08-14T17:30:00Z
+schema_version: 2
+sprint_fase: M6A — Bootstrap persistente del onboarding (backend)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Persistencia real tenant+branch+owner+sesión + token single-use de onboarding
+relacion: amplia
+referencias_entradas: [0391]
+referencias_documentales: [packages/adapters-d1/src/onboarding-bootstrap-persist.ts, apps/worker-api/src/onboarding/onboarding-routes.ts, apps/worker-api/src/index.ts]
+prev_id: 0391
+prev_hash: f1a62a5b3cb80f4ed043f37729202020571cac6d11b2649ffb442e9d7074ea42
+entry_hash: aa575875f07fda7ca878dfa53a7a4d8e62cff955a2534e2358a44ff46243cf56
+ticket_or_adr: M6A (conexión marketing↔POS — bootstrap real)
+test_ids: [onboarding-bootstrap-persist.test.ts 3/3, onboarding-routes.test.ts 16/16, worker-api 1076/1076, adapters-d1 386/386, V-13, SUITE]
+entregable_afectado: POST /v1/onboarding/bootstrap, POST /api/onboarding/claim (nuevo)
+descripcion: >
+  El bootstrap deja de ser una función pura sin persistencia: ahora crea el
+  tenant REAL en D1 (tenants/branches/cash_registers/users/sesión OPEN/
+  growth_event onboarding_started) con KV auth snapshot (status active,
+  subscription trial, trialEndsAt +30 días), credenciales del owner (badge
+  EMP- + PIN argon2id, rol owner) y un onboarding_token JWT HS256 de 15 min
+  y UN SOLO uso (KV con expirationTtl, borrado en el claim). Idempotencia:
+  tenant ya existente → 409 TENANT_ALREADY_EXISTS; el KV se reserva antes
+  del batch y se revierte si el batch falla (reintentos seguros). Nuevo
+  endpoint público POST /api/onboarding/claim (antes del middleware, como
+  cashier-login): verifica el token, consume el single-use y minta la sesión
+  JWT del owner (12h) sin volver a pedir PIN. El claim devuelve userId/rol/
+  branchId para que el POS arranque la sesión real.
+evidencia: >
+  RED: 5 tests nuevos fallaban (bootstrap no persistía ni devolvía
+  credenciales/token; claim inexistente); lint complexity 26 y errores de
+  tipado resueltos con helpers (bindingsError, resolveClaimToken,
+  generateOwnerCredentials, persistAndMintToken).
+  GREEN: onboarding-bootstrap-persist 3/3 (batch 6 tablas, rollback KV,
+  snapshot auth); onboarding-routes 16/16 (201+credenciales+token, 409,
+  422, claim válido/consumido/inválido); worker-api 1076/1076; adapters-d1
+  386/386; typecheck 0; lint 0; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0393
+timestamp_utc: 2026-08-14T18:10:00Z
+schema_version: 2
+sprint_fase: M6B — Marketing real: base de API, proxies Pages, credenciales y CORS
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Conectividad del onboarding + credenciales de una sola vista + CORS fail-closed
+relacion: amplia
+referencias_entradas: [0392]
+referencias_documentales: [apps/marketing-web/src/lib/onboarding/handshake.ts, apps/marketing-web/src/routes/v1/onboarding/bootstrap/+server.ts, apps/marketing-web/src/routes/empezar/+page.svelte, apps/worker-api/src/auth/public-cors.ts]
+prev_id: 0392
+prev_hash: aa575875f07fda7ca878dfa53a7a4d8e62cff955a2534e2358a44ff46243cf56
+entry_hash: 5c00c32f8125ba7822c0eb96f99689782d80ef8819a057e9845ea6da4bc90d0f
+ticket_or_adr: M6B (conexión marketing↔API — arq. adaptable)
+test_ids: [handshake.test.ts 3/3, public-cors.test.ts 4/4, marketing-web 130/130, V-26, SUITE]
+entregable_afectado: /empezar, rutas /v1/* del Pages project, CORS del worker
+descripcion: >
+  Conectividad del onboarding con arquitectura adaptable (Pages hoy,
+  api.kipuspay.com después, solo env vars). 1) marketing lib/onboarding/
+  handshake.ts: resolveOnboardingApiBase (PUBLIC_API_BASE → mismo origen) y
+  buildOnboardingRedirect (token en URL, NUNCA el PIN). 2) Proxies reales en
+  el Pages project: /v1/onboarding/bootstrap y /v1/referrals/capture reenvían
+  a WORKER_API_ORIGIN (prerender=false) para que el flujo completo funcione
+  same-origin hoy. 3) /empezar paso 4 muestra las credenciales UNA SOLA VEZ
+  (badge + PIN, panel ámbar) y el botón "Ir a cobrar" redirige con el token
+  single-use; errores reales (409 ya-existe, 502) sin fallback local_.
+  4) CORS fail-closed en el worker para /v1/* público: ALLOWED_ORIGINS
+  (coma; '*' explícito) + preflight OPTIONS 204; sin configuración → sin
+  header (mismo origen). 5) Fix de staleness: referral marketingOrigin
+  .pe → .com.
+evidencia: >
+  RED: handshake y public-cors inexistentes; /empezar usaba fetch relativo
+  y fallback local_ sin credenciales; referral apuntaba a kipuspay.pe.
+  GREEN: handshake 3/3 (base env/same-origin, token sin PIN, origen vacío);
+  public-cors 4/4 (allow-list, fail-closed, sin config, wildcard); marketing
+  130/130; worker typecheck 0; V-26 GREEN; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0394
+timestamp_utc: 2026-08-14T19:00:00Z
+schema_version: 2
+sprint_fase: M6C+M6D — POS consume el handshake, primera venta real y TTFS
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Auto-login del owner en el POS + primera venta real + first_sale instrumentado
+relacion: amplia
+referencias_entradas: [0393]
+referencias_documentales: [apps/pos-web/src/lib/auth/onboarding-claim.ts, apps/pos-web/src/routes/+page.svelte, apps/worker-api/src/onboarding/onboarding-routes.ts]
+prev_id: 0393
+prev_hash: 5c00c32f8125ba7822c0eb96f99689782d80ef8819a057e9845ea6da4bc90d0f
+entry_hash: e21022a0111f4279e6c6b8792eb14b80cb4934453719844bf388647d79787e68
+ticket_or_adr: M6C/M6D (conexión marketing↔POS completa)
+test_ids: [onboarding-claim.test.ts 3/3, onboarding-routes.test.ts 16/16, index.test.ts 14/14, pos-web 301/301, e2e 62/62, worker-api 1080/1080, adapters-d1 386/386, marketing 130/130, V-13, SUITE]
+entregable_afectado: POS (claim+auto-login+primera venta), claim del worker, growth first_sale
+descripcion: >
+  Cierre de la conexión marketing↔POS. 1) El claim del worker ahora devuelve
+  también cashRegisterSessionId (la sesión OPEN creada en el bootstrap) para
+  que la primera venta sea real. 2) Nuevo cliente en el POS
+  lib/auth/onboarding-claim.ts: consume el token single-use. 3) El terminal
+  POS lee ?onboarding_token de la URL: reclama la sesión (auto-login owner),
+  guarda token+identidad (kipuspay_token/kipuspay_user), usa el branch y la
+  sesión REALES en el checkout (en lugar de b-demo/s-demo), limpia el token
+  de la URL (replaceState) y muestra un aviso humano si el claim falla.
+  4) Tras el primer cobro exitoso se emite el growth event first_sale
+  (catálogo cerrado, TTFS medible contra onboarding_started del bootstrap).
+  5) Fix defensivo en CORS (env ausente en tests no revienta el middleware)
+  y tipado del body del claim en index.ts.
+evidencia: >
+  RED: claim sin sessionId; POS sin cliente de claim ni consumo del token;
+  first_sale sin emisor; middleware CORS rompía los tests de webhooks (500).
+  GREEN: onboarding-claim 3/3; onboarding-routes 16/16 (bootstrap→claim→
+  sesión = smoke del handshake); index 14/14 (webhooks intactos); pos-web
+  301/301; e2e 62/62; worker-api 1080/1080; adapters-d1 386/386; marketing
+  130/130; typecheck 0; lint 0; verify.sh SUITE GREEN; build marketing con
+  flag ON OK.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0395
+timestamp_utc: 2026-08-14T21:30:00Z
+schema_version: 2
+sprint_fase: M6D — walkthrough navegador completo: fe de errata y primer sync persistido
+agente_responsable: Staff Principal A
+tipo: Corrección de especificación
+subtipo: Fe de errata de integración (FK huérfana, hint tenant sistémico, expectativas IGV)
+relacion: corrige
+referencias_entradas: [0392, 0393, 0394]
+referencias_documentales: [packages/adapters-d1/migrations/0051_sprint_m6_payment_methods_pk.sql, packages/adapters-d1/src/process-offline-sale-atomic.ts, apps/pos-web/src/lib/auth/api-client.ts, apps/pos-web/src/lib/admin/app-shell-session.ts]
+prev_id: 0394
+prev_hash: e21022a0111f4279e6c6b8792eb14b80cb4934453719844bf388647d79787e68
+entry_hash: a7d40a47ac2359b9de3caa407fe2f58996013ca360e4e75dc606059cd5b39dbf
+ticket_or_adr: M6D walkthrough real (marketing → POS → D1)
+test_ids: [pos-web 308/308 + e2e 62/62, worker-api 1085/1085, adapters-d1 387/387, marketing 130/130, V-25 52/52, V-13, SUITE]
+entregable_afectado: Arquitectura §5 DDL y contrato de auth
+descripcion: >
+  El walkthrough real (bootstrap → claim → venta → sync) reveló un fallo de
+  raíz en la migración 0051 (v1): RENAME a payment_methods_legacy reescribió
+  las FKs externas (sale_payments.payment_method_id) al nombre fantasma, y el
+  DROP posterior las dejó huérfanas → cualquier INSERT en sale_payments fallaba
+  con D1_ERROR: no such table: main.payment_methods_legacy y la primera venta
+  nunca se persistía. Corrección: la migración 0051 (v2) hace create → copy →
+  drop → rename (nunca RENAME sobre el nombre canónico), y el down es espejo.
+  Además, el contrato x-tenant-id del middleware (403 si no coincide con el
+  JWT) no lo enviaban varios clientes autenticados con fetch directo:
+  app-shell-session (bootstrap de /api/auth/session), tour-client (growth
+  events), returns, withholdings, debit-note, cash-movement, blind-close,
+  shift-handoff, owner-ea, remission-guide, ledger-finance, forecasting,
+  serial-client y payment-capture. Se centralizó en applyApiAuthHeaders y
+  readTenantIdHint (api-client.ts) y se aplicó a todos ellos.
+evidencia: >
+  RED: sync de venta → FAILED D1_ERROR no such table main.payment_methods_legacy;
+  sales/sale_items/sale_payments = 0; /caja/historial siempre 0 ventas; el probe
+  contra la db dev reprodujo el fallo y la FK de sale_payments apuntaba a
+  payment_methods_legacy; app-shell-session y tour-client → 403 (x-tenant-id
+  ausente).
+  GREEN: con la 0051 v2 (db regenereada) el sync responde SUCCESS con saleId
+  real; sales=1, sale_items=1, sale_payments=1 en D1; day-sales 200 y
+  /caja/historial muestra NV01-001 S/ 1.42 (IGV incluido); consola sin 403;
+  pos-web 308/308, e2e 62/62 (expectativas actualizadas al total con IGV:
+  118→139.24, 50→59), worker-api 1085/1085, adapters-d1 387/387, marketing
+  130/130, V-25 GREEN (espejo up/down), V-13 GREEN, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0396
+timestamp_utc: 2026-08-14T15:00:00Z
+schema_version: 2
+sprint_fase: M6D — auditoría de gaps de integración y cierre del contrato POS↔API
+agente_responsable: Staff Principal A
+tipo: Corrección de especificación
+subtipo: Fe de errata masiva: rutas no registradas, triggers epoch faltantes, branding y orígenes
+relacion: corrige
+referencias_entradas: [0395]
+referencias_documentales: [apps/worker-api/src/index.ts, packages/adapters-d1/migrations/0052_sprint_m6_growth_events_epoch.sql, packages/adapters-d1/migrations/0053_sprint_m6_epoch_triggers_backfill.sql, scripts/checks/api_contract.py, docs/architecture/03-auth-plan-enforcement.md]
+prev_id: 0395
+prev_hash: a7d40a47ac2359b9de3caa407fe2f58996013ca360e4e75dc606059cd5b39dbf
+entry_hash: d60e4a59597417c3c07454fc9dc0904d159ad8292900e26149d0616c9568326e
+ticket_or_adr: auditoría de integración post-M6D (misma clase que 0395)
+test_ids: [protected-routes.test.ts 424/424 (paridad bidireccional), worker-api 1085/1085, pos-web 308/308 + e2e 62/62, adapters-d1 387/387, marketing 130/130, V-00 41 aserciones, V-25, V-27, V-28, SUITE]
+entregable_afectado: Arquitectura §3 (CORS) y contrato de rutas/triggers
+descripcion: >
+  Auditoría por clases de gap (las mismas que 0395) sobre todo el monorepo.
+  CLASE A — endpoints implementados pero jamás registrados en index.ts (el
+  middleware ALL /api/* respondía 401 antes que el 404 del router, así que la
+  matriz de rutas protegidas no detectaba el faltante): POST /api/cash/authz-token
+  (movimientos de caja con autorización, S17-H2), POST /api/backups/step-up-token
+  (S42-H1: el consume existía pero ningún endpoint emitía el token),
+  PUT /api/sales/returns/policy (S28-H3). Paridad de la matriz ahora bidireccional.
+  CLASE B — DDL: 21 tablas del registry D1_BACKUP_TABLES sin triggers de epoch
+  (el backup incremental salta si epochStart === epochEnd): growth_events (0044)
+  y 15 tablas de sprints 38-52 (users, authorization_tokens, api_keys, usage_*,
+  webhook_*, fiscal_outbox, fiscal_owner_alerts, pos_terminal_sessions,
+  serial_terminal_leases, loyalty_reservations, billing_overages) → migraciones
+  0052 y 0053 + down espejo. Excluidas por diseño: tenant_data_epochs (control,
+  recursión), tenants (raíz multitenant) y data_backup_*/restore_dry_runs
+  (escriben durante el snapshot).
+  CLASE C — branding .pe residual: referral-store (fallback en memoria),
+  QR del comprobante del POS y footer de render-social-assets → .com.
+  CLASE D — fallbacks hardcodeados localhost:8787 en código de producción:
+  forecasting-client y flushPendingSales → base unificada resolveApiBase.
+  CLASE E — flag DATA_BACKUP: import.meta.env (build-time) → features.ts
+  ($env/dynamic/public, runtime).
+  CLASE F — ALLOWED_ORIGINS de producción documentado en Arquitectura §3
+  (https://kipuspay.com, https://app.kipuspay.com).
+  GATE — V-27 (paridad de triggers epoch del registry) y V-28 (contrato
+  POS↔API: todo path /api/... que los clientes del POS invocan debe estar
+  registrado) nuevos en scripts/checks/api_contract.py + selftests en V-00.
+  Dead code: runSubscribePushHttp (insertaba en columnas eliminadas por la
+  0038) retirado de owner/push-routes.
+evidencia: >
+  RED: curl real → 404 en /api/cash/authz-token, /api/backups/step-up-token y
+  PUT /api/sales/returns/policy; db dev sin triggers de epoch en 21 tablas del
+  registry; kipuspay.pe en referral-store/QR/footer.
+  GREEN: los 3 endpoints responden 200/403/422 reales (verificados contra el
+  worker dev); migraciones 0052+0053 aplicadas con triggers en sqlite_master
+  y epoch del tenant subiendo con cada mutación (9→16 tras la venta); sync de
+  venta SUCCESS; V-28 detecta los faltantes históricos (fe de errata) y V-27
+  exige la paridad; SUITE GREEN con V-00 (41 aserciones), V-13, V-25.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0397
+timestamp_utc: 2026-08-14T16:00:00Z
+schema_version: 2
+sprint_fase: Sprint 7 — Superficie pública (seguridad de integración)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: KDS interno autenticado, rate limiting público, security headers y guards de dev
+relacion: amplia
+referencias_entradas: [0396]
+referencias_documentales: [apps/worker-api/src/orders/branch-kds-hub.ts, apps/worker-api/src/auth/rate-limit.ts, apps/marketing-web/static/_headers, apps/pos-web/src/routes/dev/offline-sync-harness/+page.ts, apps/pos-web/src/routes/+page.svelte]
+prev_id: 0396
+prev_hash: d60e4a59597417c3c07454fc9dc0904d159ad8292900e26149d0616c9568326e
+entry_hash: 7a38407f757d39f1b952b316f4d37bb550d6cd4aba811c3612d86c33b499784e
+ticket_or_adr: S1/S2/S3/S5/S7 (auditoría de integración, 2ª ronda)
+test_ids: [branch-kds-hub.test.ts 6/6, kds-hub-helpers.test.ts +1, rate-limit.test.ts 6/6, index.test.ts +rate-limit, security-headers.test.ts 7/7, dev-harness-guard.test.ts 2/2, onboarding-claim.spec.ts 2/2, worker-api 1098/1098, pos-web 310/310 + e2e 64/64, marketing 140/140, V-13, V-27, V-28, SUITE]
+entregable_afectado: Arquitectura §3 (CORS) / §5.12 (KDS) — hardening de superficie pública
+descripcion: >
+  S1 — BranchKdsHub (DO del KDS) aceptaba POST /broadcast y GET /replay sin
+  verificación (cualquier worker del namespace podía inyectar broadcasts
+  falsos): ahora exige el header x-kds-token contra KDS_BROADCAST_TOKEN
+  (comparación en tiempo constante, fail-closed sin secret); el caller interno
+  notifyKds lo envía y el WebSocket del cliente sigue cubierto por el
+  middleware JWT de /api/kds/ws (matriz 401).
+  S2 — rate limiting por ventana fija sobre KV (sin binding de pago) en los
+  públicos: /v1/onboarding/bootstrap (10/h/IP), /v1/referrals/capture (50/h)
+  y /api/onboarding/claim (20/h); 429 RATE_LIMITED con retryAfter, fail-open
+  sin KV (defensa de costo, no de confidencialidad).
+  S3 — security headers del marketing (static/_headers, aplica a SSR y
+  estático): HSTS preload, X-Frame-Options DENY, nosniff,
+  Referrer-Policy estricta, CSP moderada (sin unsafe-inline en scripts;
+  style inline de Svelte permitido) y Permissions-Policy cerrada.
+  S5 — harness /dev/offline-sync-harness detrás de PUBLIC_ENABLE_DEV_HARNESS
+  (404 por defecto; el e2e lo habilita en el webServer).
+  S7 — el notice del claim solo se muestra sin sesión activa: un token ya
+  consumido (reload con URL vieja) ya no produce el aviso "No pudimos iniciar"
+  cuando el login del claim anterior sigue en localStorage.
+evidencia: >
+  RED: /broadcast y /replay sin token → 200; 12º bootstrap consecutivo → 201;
+  /dev/offline-sync-harness accesible en build; notice espurio con token usado.
+  GREEN: DO 401 sin token/incorrecto y 200 con token (6/6); bootstrap #11 →
+  429 RATE_LIMITED (verificado contra el worker dev con cf-connecting-ip);
+  flujo completo (bootstrap→claim→sync→day-sales) 200 con rate limits
+  activos; harness 404 sin flag y OK con flag; e2e claim 2/2; worker-api
+  1098/1098, pos-web 310/310 + e2e 64/64, marketing 140/140, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0398
+timestamp_utc: 2026-08-14T16:30:00Z
+schema_version: 2
+sprint_fase: Sprint 8 — Contrato de integración y operación
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Contrato automatizado del proxy Pages, medición del backup y docs del gate
+relacion: amplia
+referencias_entradas: [0397]
+referencias_documentales: [apps/marketing-web/src/routes/v1/onboarding/bootstrap/+server.test.ts, apps/marketing-web/tests/env-dynamic-private.ts, apps/marketing-web/vitest.config.ts, scripts/checks/api_contract.py]
+prev_id: 0397
+prev_hash: 7a38407f757d39f1b952b316f4d37bb550d6cd4aba811c3612d86c33b499784e
+entry_hash: 0f65d6735c5b722a00aef9e33171736a2dbbe61cf22e2fce7f02a40bac8c5234
+ticket_or_adr: S4/S6/S8 (contrato marketing↔worker, medición de snapshot, V-28 docs)
+test_ids: [bootstrap/+server.test.ts 3/3, marketing 140/140, worker-api 1098/1098, pos-web 310/310 + e2e 64/64, V-13, V-27, V-28, SUITE]
+entregable_afectado: Arquitectura §3 — contrato de proxies y costo del backup
+descripcion: >
+  S4 — el proxy Pages /v1/onboarding/bootstrap (M6B) quedó cubierto con test
+  de contrato: reenvío del body intacto a WORKER_API_ORIGIN, re-encode sin
+  content-encoding (ERR_CONTENT_DECODING_FAILED), 502 fail-closed sin
+  WORKER_API_ORIGIN y 502 API_UNREACHABLE con worker caído. Se añadió el
+  stub de vitest $env/dynamic/private (tests/env-dynamic-private.ts) y el
+  alias en vitest.config.
+  S6 — medición del snapshot D1 por tenant con los triggers de epoch
+  (0052/0053): un tenant con bootstrap + 1 venta = 15 filas filtradas por
+  tenant_id (la db completa de dev pesa 2.6MB pero el backup es por-tenant);
+  costo esperado bajo. El backup es on-demand (no hay cron); con la
+  actividad normal el epoch cambia y el snapshot copia las tablas del tenant.
+  S8 — documentado en api_contract.py (V-28) que los run*Http de uso
+  exclusivamente interno (p.ej. runSendOwnerPushHttp → loyalty) son
+  legítimos y quedan fuera del contrato POS↔API.
+evidencia: >
+  GREEN: proxy test 3/3 (mismo body, re-encode, 502×2); worker-api
+  1098/1098, pos-web 310/310 + e2e 64/64 (incluye onboarding-claim.spec 2/2
+  y offline-sync con PUBLIC_ENABLE_DEV_HARNESS en el webServer), marketing
+  140/140; flujo runtime consolidado bootstrap→claim→sync→day-sales SUCCESS
+  con rate limits activos (Sprint 7); SUITE GREEN con V-27/V-28.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0399
+timestamp_utc: 2026-08-14T16:30:00Z
+schema_version: 2
+sprint_fase: Sprint 7 — fe de errata de walkthrough en navegador (claim single-flight)
+agente_responsable: Staff Principal A
+tipo: Corrección de especificación
+subtipo: Claim single-flight + sesión de caja obligatoria en el cobro (sin fallbacks demo)
+relacion: corrige
+referencias_entradas: [0397]
+referencias_documentales: [apps/pos-web/src/lib/auth/onboarding-claim.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/tests/e2e/fixtures/onboarding-claim.ts, apps/pos-web/tests/e2e/identity-checkout.spec.ts]
+prev_id: 0398
+prev_hash: 0f65d6735c5b722a00aef9e33171736a2dbbe61cf22e2fce7f02a40bac8c5234
+entry_hash: 8256ae238d6f543b30aa216b2a21e9761a59158562d4f3fb3ace5b6935cbf3a0
+ticket_or_adr: walkthrough MCP en navegador (flujo /empezar → POS → venta → historial)
+test_ids: [onboarding-claim.test.ts 5/5 (single-flight), pos-web 312/312 + e2e 64/64, worker-api 1098/1098, marketing 140/140, V-13, V-27, V-28, SUITE]
+entregable_afectado: M6C — contrato claim/checkout del POS
+descripcion: >
+  El walkthrough en navegador (MCP) detectó que el layout y la página llaman
+  claimOnboardingFromUrlIfPresent() en paralelo al montar: el primero consume
+  el token single-use y limpia la URL; el segundo devolvía false y la página
+  solo ataba la sesión de caja dentro de if(claimed) → onboardingSession
+  quedaba null → el cobro encolaba la venta con fallbacks demo
+  (branchId 'b-demo', cashRegisterSessionId 's-demo') → el server la
+  rechazaba con "Invalid or closed cash register session" (SYNC_SALE_FAILED
+  en el worker log) y el historial quedaba en 0 aunque la UI decía
+  "Venta cobrada".
+  Corrección: claim single-flight (promesa compartida en el módulo, ambos
+  callers reciben el mismo resultado), la página lee readLastOnboardingClaim()
+  incondicionalmente, y el cobro es fail-closed: sin sesión de caja abierta
+  (branch + cashRegisterSessionId) no encola y muestra el mensaje "No hay una
+  sesión de caja abierta" — se eliminaron los fallbacks demo del payload.
+  El e2e identity-checkout (S7-H1) se actualizó para ejercitar el claim real
+  (fixture mockOnboardingClaim) y la cola IDB del harness se limpió en el
+  entorno de pruebas.
+evidencia: >
+  RED: en navegador, venta "cobrada" con SYNC_SALE_FAILED Invalid or closed
+  cash register session en el worker; la cola IDB mostraba el payload sin
+  branchId/sessionId; day-sales en 0.
+  GREEN: flujo completo en navegador: /empezar → claim auto-login (token +
+  tenant + URL limpia) → venta S/ 22.30 (IGV 18% incluido) → sync 200 →
+  NV01-001 S/ 22.30 en /caja/historial; consola sin errores de app (el 403
+  del claim con token usado es el flujo esperado de S7, sin notice con login
+  activo); harness /dev → 404 (S5); pos-web 312/312 + e2e 64/64 (incluye
+  identity-checkout con claim), worker-api 1098/1098, marketing 140/140,
+  SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0400
+timestamp_utc: 2026-08-14T18:00:00Z
+schema_version: 2
+sprint_fase: Sprints 9-11 — Cumplimiento GTM §4 y Guía Legal (anti-apagado, cupo, claims)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Anti-apagado completo, metering ND, sesión real sin demos, mes gratis de referidos, plan/cancelación self-serve, literales contractuales
+relacion: amplia
+referencias_entradas: [0399]
+referencias_documentales: [apps/worker-api/src/auth/plan-routes.ts, apps/worker-api/src/auth/session-route.ts, apps/worker-api/src/billing/billing-reminders-scheduled.ts, apps/worker-api/src/referrals/referral-routes.ts, apps/worker-api/src/tenant/plan-routes.ts, apps/worker-api/src/tenant/cancel-routes.ts, apps/worker-api/src/catalog/catalog-export-routes.ts, packages/adapters-d1/src/process-debit-note-atomic.ts, packages/print-templates/src/legends.ts, apps/pos-web/src/lib/admin/cash-session.ts]
+prev_id: 0399
+prev_hash: 8256ae238d6f543b30aa216b2a21e9761a59158562d4f3fb3ace5b6935cbf3a0
+entry_hash: a0d192a844cf6a5f9470d6d2fb08a3644bc02bdb767fe2234a5015803b5c3e60
+ticket_or_adr: auditoría de cumplimiento GTM/legal (claims vs código)
+test_ids: [worker-api 1122/1122, pos-web 322/322 + e2e 66/66, adapters-d1 388/388, print-templates 35/35, domain-fiscal-pe 81/81, V-00 41, V-27, V-28, V-29, SUITE]
+entregable_afectado: GTM §4 (anti-apagado/cupo), Guía Legal Parte I-V (Q2/Q4/Q10, cancelación, leyenda NV)
+descripcion: >
+  Auditoría de cumplimiento de docs/GTM.md y docs/ops/legal_and_sales_guide.md
+  contra el código, con cierre de gaps:
+  S9-A1 — el Plan Guard ya excluía las rutas de caja de los 402 (plan-routes);
+  se blindó /api/v1/sync/* como checkout-critical explícito (nunca 402 por
+  plan) y se añadieron tests de matriz.
+  S9-A2 — session DTO expone billing (subscriptionStatus, trialEndsAt,
+  pastGracePeriod) y el POS muestra el banner ámbar "Actualiza tu método de
+  pago en los próximos 3 días. La caja sigue operando" (GTM §4.3): la caja
+  nunca se apaga, solo se informa.
+  S9-A3 — cron diario (0 8) de recordatorios progresivos: BILLING_REMINDER
+  días 1..3 para tenants past_due con capability mobile.push, idempotente por
+  tenant+día (día 4+ no emite).
+  S10-C6 — la Nota de Débito ('08') ahora consume 1 comprobante de cupo
+  (appendUsageMeterToPlan en el batch) — GTM §4.1: NC/ND cuentan 1.
+  S10-D7 — erradicación de los fallbacks 'b-demo'/'s-demo' en 11 páginas del
+  POS (apartado, cotización, cuotas, vale, comisiones, crédito tienda,
+  inventario, ubicaciones, factura proveedor, OC recepción, caja): helper
+  cash-session (branchId del login + sessionId del claim, SSR-safe init) con
+  fail-closed '' (nunca demo); los e2e usan el claim real.
+  S11-B4 — mes gratis de referidos (GTM §7.1 / blog): la primera venta del
+  referido extiende el trial +30d a referidor y referido en el snapshot de
+  auth (KV), sobre el trialEndsAt vigente.
+  S11-B5 — PATCH /api/tenant/plan (owner/admin): cambio de plan self-serve
+  con UI en Configuración (plan_id validado contra el CHECK del DDL).
+  S11-E8 — la leyenda de la Nota de Venta es el literal contractual exacto
+  "NOTA DE VENTA — Documento de control interno no válido para fines
+  tributarios" (Guía Parte I §3.3), con test del literal.
+  S11-E9 — banner de formalización persistente con llamado a activar
+  facturación (GTM §3.3.1).
+  S11-E10 — GET /api/catalog/export (CSV del catálogo; Q4: exportar catálogo
+  y ventas — las ventas ya están en /api/reports/*).
+  S11-E11 — POST /api/tenant/cancel (owner/admin): cancelación self-serve
+  (Guía Parte V) persistida en D1 + snapshot KV, con UI de doble confirmación
+  y enlace al export en Configuración.
+  GATE — renumeración: el check de paridad de triggers epoch pasa de V-27 a
+  V-29 (V-27 ya lo emitía pos_copy — Sprint F); V-28 queda para el contrato
+  POS↔API; tabla del AGENTS.md actualizada con V-27..V-29.
+evidencia: >
+  RED: Nota de Débito sin consumo de cupo; 'b-demo'/'s-demo' en 11 páginas
+  (el server rechazaba en producción); blog prometía mes gratis de referidos
+  sin implementación; sin banner de pago ni recordatorios; sin upgrade ni
+  cancelación self-serve; leyenda NV distinta del contrato.
+  GREEN: runtime contra el worker dev — PATCH /api/tenant/plan 200 (planId
+  crece/cadena), POST /api/tenant/cancel 200 (canceled:true), session con
+  billing (trial/trialEndsAt), GET /api/catalog/export CSV con header
+  (columna real unit_code); e2e billing-banner 2/2 (banner visible con
+  past_due sin bloquear, ausente con active); e2e 66/66 (remission-guide e
+  identity-checkout con claim real); worker-api 1122/1122, pos-web 322/322,
+  adapters-d1 388/388, print-templates 35/35, domain-fiscal-pe 81/81;
+  verify.sh SUITE GREEN con V-27 (pos copy), V-28 (contrato), V-29
+  (triggers epoch) y V-00 41 aserciones.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0401
+timestamp_utc: 2026-08-14T23:20:00Z
+schema_version: 2
+sprint_fase: Sprints 9-11 — Contrato POS/marketing ↔ API (claims enterprise)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: CORS /v1, cliente HTTP único, V-28 templates, KDS WS ticket, libro reclamaciones, Stripe cancel/portal
+relacion: amplia
+referencias_entradas: [0400]
+referencias_documentales: [apps/worker-api/src/auth/public-cors.ts, apps/worker-api/src/legal/reclamaciones-routes.ts, apps/worker-api/src/tenant/cancel-routes.ts, apps/worker-api/src/tenant/stripe-billing.ts, apps/pos-web/src/lib/auth/api-client.ts, apps/marketing-web/src/lib/onboarding/handshake.ts, scripts/checks/api_contract.py, docs/ops/legal_and_sales_guide.md]
+prev_id: 0400
+prev_hash: a0d192a844cf6a5f9470d6d2fb08a3644bc02bdb767fe2234a5015803b5c3e60
+entry_hash: 67c9f3399afc095f15cf22d5fb2fd5370210b0bd256de3067069baa04a7c960d
+ticket_or_adr: claims enterprise POS/marketing ↔ API
+test_ids: [protected-routes, public-cors, reclamaciones-routes, kds-ws-ticket, handshake, configuracion-api, stripe-billing, cancel-routes, plan-routes, V-00, V-28, SUITE]
+entregable_afectado: Arquitectura §3 CORS, Guía Legal Parte II-V, GTM freeze vs PUBLIC_CLAIMS
+descripcion: >
+  Contrato enterprise POS/marketing ↔ API: el navegador llega al worker.
+  Fase A — CORS /v1/* antes de sales/documents/cpe con Vary: Origin;
+  apiFetch/authenticatedFetch absolutizan resolveApiBase; proxy Vite
+  /api y /v1; fetches relativos del POS reemplazados; Empezar defaulta
+  PUBLIC_POS_ORIGIN a app.kipuspay.com.
+  Fase B — V-28 ve templates ${}/api/; comisiones alineadas a
+  /api/admin/commissions y pay plano; KDS WS con ticket one-shot y CSP
+  wss; referidos owner y métricas growth contra la API.
+  Fase C — libro de reclamaciones persistido (POST /v1/reclamaciones +
+  número de caso); export catálogo/ventas autenticado antes de cancelar;
+  Stripe cancel con prorrateo y billing portal; Enterprise no self-serve;
+  clientes huérfanos §6 cableados (issue, installments create, merma
+  approve, catalog-import, mint step-up); guía legal alineada al freeze
+  GTM (KDS/LPDP/DR/Insights en preparación). Sin flip de FEATURE_*.
+evidencia: >
+  RED: GET /v1/sales sin ACAO (CORS detrás del handler); V-28 no veía
+  `/api/` dentro de templates ${}; comisiones a rutas inexistentes;
+  KDS WS al host del POS sin Bearer; libro de reclamaciones era mailto;
+  cancel D1 sin Stripe.
+  GREEN: worker-api 500 tests (CORS GET /v1/sales ACAO, KDS ticket,
+  reclamaciones, Stripe, plan enterprise 422); pos-web api-client/
+  configuracion-api/CSP/backups mint; marketing handshake + proxy
+  reclamaciones; verify.sh SUITE GREEN (V-00 43, V-28, V-25 0054).
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0402
+timestamp_utc: 2026-08-15T00:10:00Z
+schema_version: 2
+sprint_fase: Sprints 9-11 — Fases D–J enterprise (copy, CSV, apiFetch, Stripe, POS, reclamaciones)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Honestidad comercial, export ventas, Stripe SoT, UI Crece/Cadena, libro reclamaciones SLA
+relacion: amplia
+referencias_entradas: [0401]
+referencias_documentales: [apps/marketing-web/src/lib/content/pricing.ts, apps/marketing-web/src/lib/content/plan-matrix.ts, apps/worker-api/src/catalog/catalog-export-routes.ts, apps/worker-api/src/tenant/checkout-routes.ts, apps/worker-api/src/tenant/stripe-billing.ts, apps/worker-api/src/legal/reclamaciones-routes.ts, packages/adapters-d1/migrations/0055_platform_reclamaciones_status.sql, docs/ops/legal_and_sales_guide.md]
+prev_id: 0401
+prev_hash: 67c9f3399afc095f15cf22d5fb2fd5370210b0bd256de3067069baa04a7c960d
+entry_hash: f404044d5bfb9109b34b50bbb3ff239f106498b65cbe2b8703df36bfba50ab4b
+ticket_or_adr: enterprise remaining phases D-J
+test_ids: [pricing, plan-matrix, catalog-export-routes, checkout-routes, stripe-billing, reclamaciones-routes, configuracion-api, apifetch-routes, ledger-finance, handle-stripe-webhook, V-00, V-25, V-26, V-27, V-28, SUITE]
+entregable_afectado: GTM freeze vs PUBLIC_CLAIMS, Guía Legal Q4/Parte V, Arquitectura Stripe/D1
+descripcion: >
+  Fases D–J post-0401 sin flip de FEATURE_*. D — precios y matriz no venden
+  claims preparing como live. E — GET /api/sales/export CSV real; cancel UX
+  deja day-summary. F — apiFetch en rutas listadas; cero c-demo/u-demo/po-demo;
+  credito-tienda no llama /issue. G — stripe_customer_id en bootstrap/upgrade;
+  Checkout Session https; webhook UPDATE D1; overage en cron con flag-off;
+  reembolso anual sigue vía facturacion@. H — UI AR/AP pay, gastos, crear OC,
+  void boleta detrás de flags; diario sigue solo lectura. I — migración 0055
+  status/SLA, bandeja staff, copy legal alineada al acuse en pantalla.
+  J — e2e claim→caja, cobro past_due sin 402, export cancel. K queda NO-GO
+  de staging (fiscal/LPDP/DR/Insights/KDS/offline/SLA).
+evidencia: >
+  RED: Cadena/Enterprise vendían KDS/DR/Insights live; ventas.csv era
+  day-summary; tenants.stripe_customer_id nunca se escribía; webhook sin D1;
+  reclamaciones sin status; POS sin abono CxC/gastos/OC/void.
+  GREEN: marketing pricing/plan-matrix preparing; worker sales export INTEGER
+  cents, checkout 422 Enterprise, Stripe customer+D1, reclamaciones staff;
+  pos apiFetch/apifetch-routes/ledger pay; verify.sh SUITE GREEN (V-25 0055,
+  V-26, V-27, V-28). FEATURE_* siguen "0".
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

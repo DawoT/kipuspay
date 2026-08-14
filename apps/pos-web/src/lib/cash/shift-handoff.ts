@@ -3,7 +3,7 @@
  * El servidor es la única autoridad del PIN: el cliente nunca ve hashes y el
  * PIN claro se muestra una sola vez en la UI.
  */
-import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
+import { resolveApiAuth, resolveApiBase, applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface IssueShiftPinResultOk {
   ok: true;
@@ -32,9 +32,14 @@ function authHeader(): string {
 }
 
 async function post(path: string, body: Record<string, unknown>): Promise<Response> {
+  const headers = new Headers({
+    'content-type': 'application/json',
+    authorization: authHeader(),
+  });
+  applyApiAuthHeaders(headers);
   return fetch(`${apiBase().replace(/\/$/, '')}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: authHeader() },
+    headers,
     body: JSON.stringify(body),
   });
 }

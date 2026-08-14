@@ -1,3 +1,5 @@
+import { isDataBackupEnabled as isFeatureEnabled } from './features.js';
+
 export interface BackupSummary {
   readonly id: string;
   readonly status: string;
@@ -43,10 +45,9 @@ async function jsonResponse<T>(response: Response): Promise<T> {
 }
 
 export function isDataBackupEnabled(): boolean {
-  return (
-    import.meta.env.PUBLIC_FEATURE_DATA_BACKUP === '1' ||
-    import.meta.env.PUBLIC_FEATURE_DATA_BACKUP === 'true'
-  );
+  // Flag unificado vía features.ts ($env/dynamic/public, runtime): el patrón
+  // import.meta.env.PUBLIC_* se bakea en build y diverge del resto del POS.
+  return isFeatureEnabled();
 }
 
 export function backupClaimState(input: {

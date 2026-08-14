@@ -1,5 +1,13 @@
 /** Browser client for Sprint 39 serial search + terminal-exclusive lease acquisition. */
+/** Cliente checkout — seriales con lease atómico (Sprint 41). */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 import type { CartLine } from './cart.js';
+
+function serialHeaders(input: { readonly authorization: string }): HeadersInit {
+  const h = new Headers({ authorization: input.authorization });
+  applyApiAuthHeaders(h);
+  return h;
+}
 
 interface SerialSearchRow {
   readonly serial_id: string;
@@ -97,7 +105,7 @@ export async function leaseScannedSerialLine(input: LeaseScannedSerialInput): Pr
   const apiBase = input.apiBase.replace(/\/$/, '');
   const query = new URLSearchParams({ serialNumber, status: 'AVAILABLE' });
   const searchResponse = await fetcher(`${apiBase}/api/inventory/serials?${query}`, {
-    headers: { authorization: input.authorization },
+    headers: serialHeaders(input),
   });
   const searchBody = await responseBody(searchResponse);
   if (!searchResponse.ok) throw toCheckoutError(searchResponse, searchBody);
@@ -122,8 +130,8 @@ export async function leaseScannedSerialLine(input: LeaseScannedSerialInput): Pr
   const leaseResponse = await fetcher(`${apiBase}/api/inventory/serials/leases`, {
     method: 'POST',
     headers: {
+      ...serialHeaders(input),
       'content-type': 'application/json',
-      authorization: input.authorization,
       'x-terminal-id': terminalId,
     },
     body: JSON.stringify({

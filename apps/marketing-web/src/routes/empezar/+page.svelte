@@ -5,11 +5,19 @@
     type OnboardingVertical,
     writeOnboardingDraft,
   } from '$lib/onboarding/draft';
+  import { buildOnboardingRedirect, resolveOnboardingApiBase, resolvePosOrigin } from '$lib/onboarding/handshake';
   import { ogImageFor } from '$lib/seo';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
 
   type Step = 0 | 1 | 2 | 3;
+
+  interface OnboardingCredentials {
+    readonly badge: string;
+    readonly pin: string;
+    readonly token: string;
+    readonly tenantId: string;
+  }
 
   let step = $state<Step>(0);
   let tradeName = $state('');
@@ -19,6 +27,7 @@
   let error = $state('');
   let busy = $state(false);
   let refCode = $state('');
+  let credentials = $state<OnboardingCredentials | null>(null);
 
   onMount(() => {
     refCode = $page.url.searchParams.get('ref') ?? '';
@@ -68,7 +77,8 @@
     error = '';
     busy = true;
     try {
-      const res = await fetch('/v1/onboarding/bootstrap', {
+      const apiBase = resolveOnboardingApiBase();
+      const res = await fetch(`${apiBase}/v1/onboarding/bootstrap`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -79,16 +89,29 @@
           ...(refCode ? { ref: refCode } : {}),
         }),
       });
-      let tenantId = `local_${Date.now().toString(36)}`;
-      if (res.ok) {
-        const body = (await res.json()) as { tenantId?: string };
-        if (body.tenantId) tenantId = body.tenantId;
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
+        error =
+          data?.code === 'TENANT_ALREADY_EXISTS'
+            ? 'Ya existe una cuenta con estos datos. Usa el botón "Ingresar" del menú.'
+            : (data?.error ?? 'No pudimos crear tu cuenta. Reintenta en un momento.');
+        return;
+      }
+      const body = (await res.json()) as {
+        tenantId?: string;
+        ownerBadge?: string;
+        ownerPin?: string;
+        onboardingToken?: string;
+      };
+      if (!body.tenantId || !body.ownerBadge || !body.ownerPin || !body.onboardingToken) {
+        error = 'La respuesta de tu cuenta vino incompleta. Reintenta en un momento.';
+        return;
       }
       if (refCode) {
-        await fetch('/v1/referrals/capture', {
+        await fetch(`${apiBase}/v1/referrals/capture`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ referredTenantId: tenantId, ref: refCode }),
+          body: JSON.stringify({ referredTenantId: body.tenantId, ref: refCode }),
         }).catch(() => undefined);
       }
       const draft = createOnboardingDraft({
@@ -96,23 +119,35 @@
         ruc: ruc.trim() || null,
         verticalType,
         formalizationMode,
-        tenantId,
+        tenantId: body.tenantId,
       });
       writeOnboardingDraft(localStorage, draft);
-      const posOrigin = (import.meta.env.PUBLIC_POS_ORIGIN as string | undefined) ?? '';
-      const qs = new URLSearchParams({
-        onboarding: '1',
-        tenant: tenantId,
-        mode: formalizationMode,
-        vertical: verticalType,
-        name: tradeName,
-      });
-      window.location.assign(`${posOrigin}/?${qs.toString()}`);
+      credentials = {
+        badge: body.ownerBadge,
+        pin: body.ownerPin,
+        token: body.onboardingToken,
+        tenantId: body.tenantId,
+      };
     } catch {
       error = 'No pudimos crear tu cuenta ahora. Reintenta en un momento.';
     } finally {
       busy = false;
     }
+  }
+
+  function goToPos() {
+    if (!credentials) return;
+    const posOrigin = resolvePosOrigin();
+    window.location.assign(
+      buildOnboardingRedirect({
+        posOrigin,
+        tenantId: credentials.tenantId,
+        token: credentials.token,
+        mode: formalizationMode,
+        vertical: verticalType,
+        name: tradeName,
+      }),
+    );
   }
 </script>
 
@@ -187,10 +222,27 @@
       </div>
     {:else}
       <h2>Primera venta guiada</h2>
-      <p class="section-lead">
-        Te llevamos a la caja. Según tu etapa emitirás nota de venta o boleta/factura electrónica.
-        KipusPay se encarga del envío a SUNAT. No usamos la palabra “contingencia”.
-      </p>
+      {#if credentials}
+        <p class="section-lead">
+          Tu cuenta está lista. Estos son tus datos de acceso — los ves una sola vez:
+        </p>
+        <div class="credentials-panel" data-testid="onboarding-credentials">
+          <div class="credential-row">
+            <span class="credential-label">Badge</span>
+            <code class="credential-value">{credentials.badge}</code>
+          </div>
+          <div class="credential-row">
+            <span class="credential-label">PIN</span>
+            <code class="credential-value">{credentials.pin}</code>
+          </div>
+        </div>
+        <p class="section-lead">Guárdalos (captura o apunta). Te llevamos a la caja para tu primera venta.</p>
+      {:else}
+        <p class="section-lead">
+          Te llevamos a la caja. Según tu etapa emitirás nota de venta o boleta/factura electrónica.
+          KipusPay se encarga del envío a SUNAT. No usamos la palabra “contingencia”.
+        </p>
+      {/if}
     {/if}
 
     {#if error}
@@ -203,9 +255,13 @@
       {/if}
       {#if step < 3}
         <button type="button" class="btn" onclick={next}>Continuar</button>
+      {:else if credentials}
+        <button type="button" class="btn" onclick={goToPos} data-testid="onboarding-go-pos">
+          Ir a cobrar
+        </button>
       {:else}
         <button type="button" class="btn" onclick={finish} disabled={busy}>
-          {busy ? 'Creando…' : 'Ir a cobrar'}
+          {busy ? 'Creando…' : 'Crear mi cuenta'}
         </button>
       {/if}
     </div>
@@ -242,5 +298,37 @@
     background: var(--amber);
     color: var(--ink);
     border-color: var(--amber);
+  }
+
+  .credentials-panel {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    border: 1px solid var(--amber);
+    background: var(--ink-2);
+    color: var(--paper);
+  }
+
+  .credential-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .credential-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .credential-value {
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--amber-bright);
   }
 </style>

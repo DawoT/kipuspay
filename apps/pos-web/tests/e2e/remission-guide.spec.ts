@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { mockOnboardingClaim } from './fixtures/onboarding-claim';
 
 test('P1b: inventario emite una GRE con serie T y muestra el resultado', async ({ page }) => {
   await page.route('**/api/auth/session', (route) =>
@@ -8,11 +9,14 @@ test('P1b: inventario emite una GRE con serie T y muestra el resultado', async (
       body: JSON.stringify({
         userId: 'owner-e2e',
         role: 'owner',
-        branchId: 'b-demo',
+        branchId: 'branch-e2e', // S10-D7: branch real del claim
         terminal: null,
       }),
     }),
   );
+  // S10-D7: la página usa el branch real del login (claim); sin claim el
+  // branch queda vacío y la validación cliente rechaza la emisión.
+  await mockOnboardingClaim(page);
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',
@@ -37,7 +41,7 @@ test('P1b: inventario emite una GRE con serie T y muestra el resultado', async (
     });
   });
 
-  await page.goto('/admin/inventario');
+  await page.goto('/admin/inventario?onboarding_token=e2e-claim-token&tenant=t-e2e');
   await page.getByTestId('gre-series').fill('T001');
   await page.getByTestId('gre-motive').selectOption('13');
   await page.getByTestId('gre-mode').selectOption('02');
@@ -51,7 +55,7 @@ test('P1b: inventario emite una GRE con serie T y muestra el resultado', async (
   await expect(page.getByTestId('gre-msg')).toContainText('T001-008');
   await expect(page.getByTestId('gre-msg')).toContainText('motivo 13');
   expect(sentBody).toMatchObject({
-    branchId: 'b-demo',
+    branchId: 'branch-e2e', // S10-D7: branch real del claim
     series: 'T001',
     transferReasonCode: '13',
     transportModeCode: '02',

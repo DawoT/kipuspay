@@ -10,12 +10,28 @@ interface SessionBootstrapDto {
     readonly terminalId: string;
     readonly terminalSessionId: string;
   } | null;
+  readonly billing?: {
+    readonly subscriptionStatus: 'trial' | 'active' | 'past_due' | 'canceled';
+    readonly trialEndsAt: string | null;
+    readonly pastGracePeriod: boolean;
+  };
 }
 
 function isBootstrapDto(value: unknown): value is SessionBootstrapDto {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const session = value as Record<string, unknown>;
   const terminal = session.terminal;
+  const billing = session.billing;
+  if (
+    billing !== undefined &&
+    (typeof billing !== 'object' ||
+      billing === null ||
+      !['trial', 'active', 'past_due', 'canceled'].includes(
+        String((billing as Record<string, unknown>).subscriptionStatus),
+      ))
+  ) {
+    return false;
+  }
   return (
     typeof session.userId === 'string' &&
     ['cashier', 'supervisor', 'admin', 'owner'].includes(String(session.role)) &&
@@ -36,8 +52,10 @@ export async function loadAuthenticatedAppShellSession(input: {
 }): Promise<AdminAuthenticatedSession | null> {
   const apiBase = (input.apiBase ?? '').replace(/\/$/, '');
   const requestedTerminalId = input.storage.getItem('kipuspay:pos-terminal-id')?.trim() ?? '';
+  const tenantId = input.storage.getItem('kipuspay_tenant_id')?.trim() ?? '';
   const bootstrapHeaders = new Headers();
   if (input.authorization?.trim()) bootstrapHeaders.set('authorization', input.authorization);
+  if (tenantId) bootstrapHeaders.set('x-tenant-id', tenantId);
   if (requestedTerminalId) bootstrapHeaders.set('x-terminal-id', requestedTerminalId);
   let response: Response;
   try {
@@ -67,11 +85,19 @@ export async function loadAuthenticatedAppShellSession(input: {
   const authenticatedFetch: typeof fetch = async (request, init = {}) => {
     const headers = new Headers(init.headers);
     if (input.authorization?.trim()) headers.set('authorization', input.authorization);
+    if (tenantId) headers.set('x-tenant-id', tenantId);
     if (terminal) {
       headers.set('x-terminal-id', terminal.terminalId);
       headers.set('x-terminal-session-id', terminal.terminalSessionId);
     }
-    return input.fetcher(request, { ...init, credentials: 'include', headers });
+    const raw =
+      typeof request === 'string'
+        ? request
+        : request instanceof URL
+          ? request.href
+          : request.url;
+    const url = /^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw) ? raw : `${apiBase}${raw.startsWith('/') ? raw : `/${raw}`}`;
+    return input.fetcher(url, { ...init, credentials: 'include', headers });
   };
   return {
     authenticatedFetch,
@@ -79,5 +105,6 @@ export async function loadAuthenticatedAppShellSession(input: {
     role: value.role,
     userId: value.userId,
     branchId: value.branchId,
+    ...(value.billing ? { billing: value.billing } : {}),
   };
 }

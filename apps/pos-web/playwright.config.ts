@@ -23,6 +23,7 @@ export default defineConfig({
     url: 'http://localhost:4173',
     reuseExistingServer: true,
     env: {
+      PUBLIC_ENABLE_DEV_HARNESS: '1',
       PUBLIC_FEATURE_ORDERS_CUSTOMER_ORDERS: '1',
       PUBLIC_FEATURE_POS_CHECKOUT: '1',
       PUBLIC_FEATURE_SALES_RECURRING: '1',

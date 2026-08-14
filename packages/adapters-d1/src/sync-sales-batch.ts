@@ -101,6 +101,7 @@ export async function processSyncSalesBatch(
         });
       }
     } catch (error) {
+      console.error('SYNC_SALE_FAILED', sale.offlineSaleId, error);
       results.push({
         offlineSaleId: sale.offlineSaleId,
         status: 'FAILED',

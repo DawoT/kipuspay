@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import {
@@ -52,7 +54,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
 
   let session = $state<PosTenantSession>(defaultTenantSession());
-  let sessionId = $state('s-demo');
+  let sessionId = $state(initCashSessionContext().sessionId);
   let qtyByDenom = $state<Record<number, number>>(
     Object.fromEntries(PEN_DENOMS.map((d) => [d, 0])),
   );
@@ -66,7 +68,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   let movementType = $state<CashMovementType>('CHANGE_FUND_IN');
   let movementAmountCents = $state<number | null>(null);
-  let movementBranchId = $state('b-demo');
+  let movementBranchId = $state(initTenantBranchId());
   let movementRef = $state('');
   let movementReason = $state('');
   let movementStatus = $state('');
@@ -75,7 +77,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let authzPin = $state('');
   let authzMsg = $state('');
   let reprintSaleId = $state('');
-  let reprintBranchId = $state('b-demo');
+  let reprintBranchId = $state(initTenantBranchId());
   let reprintReason = $state('');
   let reprintMsg = $state('');
   let reprintOk = $state(false);
@@ -85,8 +87,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     return {
       apiBase: resolveApiBase(localStorage),
       authorization: resolveApiAuth(localStorage).authorization ?? '',
-      branchId: movementBranchId.trim() || 'b-demo',
-      sessionId,
+      branchId: movementBranchId.trim() || initTenantBranchId(),
+      sessionId: sessionId || initCashSessionContext().sessionId,
       movementType,
       amountCents: movementAmountCents ?? 0,
       counterpartyRef: movementRef.trim() || null,
@@ -136,7 +138,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const apiBase = resolveApiBase(localStorage);
     const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await submitBlindClose(apiBase, auth, {
-      sessionId,
+      sessionId: sessionId || initCashSessionContext().sessionId,
       countLines,
       differenceReason: reason.trim() || null,
       differenceThresholdCents: 0,

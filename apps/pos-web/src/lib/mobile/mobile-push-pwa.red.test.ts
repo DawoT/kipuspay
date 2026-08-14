@@ -33,7 +33,7 @@ describe('Sprint 45 unified Service Worker and PWA contract (RED)', () => {
   });
 
   it('ACKs the canonical route with delivery, signed receipt, and displayed time', () => {
-    expect(unifiedWorker).toContain("fetch('/api/push/ack'");
+    expect(unifiedWorker).toContain('/api/push/ack');
     expect(unifiedWorker).toContain('deliveryId');
     expect(unifiedWorker).toContain('receipt');
     expect(unifiedWorker).toContain('displayedAt');

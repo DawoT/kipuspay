@@ -1,12 +1,13 @@
 <script lang="ts">
   import { env } from '$env/dynamic/public';
-  import { isAccountingExportEnabled, isIntegrationsApiEnabled } from '$lib/features';
+  import { isAccountingExportEnabled, isCatalogImportEnabled, isIntegrationsApiEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const exportOn = isAccountingExportEnabled();
   const apiOn = isIntegrationsApiEnabled();
+  const importOn = isCatalogImportEnabled();
 
   let fromDate = $state('2026-08-01');
   let toDate = $state('2026-08-05');
@@ -24,15 +25,18 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let createdSecret = $state('');
   let endpointsJson = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
+  let importRowsJson = $state('[{"sku":"SKU-1","name":"Demo","priceCents":100}]');
+  let importMode = $state<'preview' | 'commit'>('preview');
+  let importMessage = $state('');
+
 
   async function runExport() {
     exportMessage = '';
     exportPreview = '';
-    const res = await fetch(`${apiBase()}/api/integrations/accounting/export`, {
+    const res = await apiFetch('/api/integrations/accounting/export', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ fromDate, toDate, branchId, target }),
     });
     const text = await res.text();
@@ -47,8 +51,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function createKey() {
     keysMessage = ''; createdKey = '';
-    const res = await fetch(`${apiBase()}/api/integrations/api-keys`, {
-      method: 'POST', headers: { 'content-type': 'application/json', authorization: auth() }, body: '{}',
+    const res = await apiFetch('/api/integrations/api-keys', {
+      method: 'POST', storage: localStorage,
+      headers: { 'content-type': 'application/json' }, body: '{}',
     });
     const json = (await res.json()) as { apiKey?: string; error?: string };
     if (res.ok && json.apiKey) { createdKey = json.apiKey; keysMessage = 'API key creada — guárdala ahora'; }
@@ -57,7 +62,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function listKeys() {
     keysMessage = '';
-    const res = await fetch(`${apiBase()}/api/integrations/api-keys`, { headers: { authorization: auth() } });
+    const res = await apiFetch('/api/integrations/api-keys', { storage: localStorage });
     const json = await res.json();
     keysJson = JSON.stringify(json, null, 2);
     keysMessage = res.ok ? 'Keys listadas' : 'error';
@@ -65,8 +70,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function createWebhook() {
     webhookMessage = ''; createdSecret = '';
-    const res = await fetch(`${apiBase()}/api/integrations/webhooks`, {
-      method: 'POST', headers: { 'content-type': 'application/json', authorization: auth() },
+    const res = await apiFetch('/api/integrations/webhooks', {
+      method: 'POST', storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ url: webhookUrl, events: ['sale.created', 'cpe.accepted', 'cpe.rejected'] }),
     });
     const json = (await res.json()) as { secret?: string; id?: string; error?: string };
@@ -76,10 +82,31 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function listWebhooks() {
     webhookMessage = '';
-    const res = await fetch(`${apiBase()}/api/integrations/webhooks`, { headers: { authorization: auth() } });
+    const res = await apiFetch('/api/integrations/webhooks', { storage: localStorage });
     const json = await res.json();
     endpointsJson = JSON.stringify(json, null, 2);
     webhookMessage = res.ok ? 'Endpoints listados' : 'error';
+  }
+
+  async function runCatalogImport() {
+    importMessage = '';
+    let rows: unknown = [];
+    try {
+      rows = JSON.parse(importRowsJson) as unknown;
+    } catch {
+      importMessage = 'JSON de filas inválido';
+      return;
+    }
+    const res = await apiFetch('/api/integrations/catalog-import', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'csv', mode: importMode, rows }),
+    });
+    const json = (await res.json()) as { error?: string; code?: string; imported?: number };
+    importMessage = res.ok
+      ? `Import ${importMode} OK${typeof json.imported === 'number' ? ` · ${json.imported}` : ''}`
+      : (json.error ?? json.code ?? 'error');
   }
 </script>
 
@@ -94,7 +121,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
   </div>
 
-  {#if !exportOn && !apiOn}
+  {#if !exportOn && !apiOn && !importOn}
     <div class="feature-off-banner" data-testid="integrations-off">
       <Icon name="info" size={18} />
       <span>Las integraciones no están activas para este negocio.</span>
@@ -202,6 +229,32 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           {/if}
           {#if endpointsJson}
             <pre class="code-preview">{endpointsJson}</pre>
+          {/if}
+        </section>
+      {/if}
+      {#if importOn}
+        <section class="glass-card section-pad" data-testid="catalog-import-block">
+          <div class="card-header">
+            <h2>Importar catálogo</h2>
+            <span class="section-tag">CSV</span>
+          </div>
+          <p class="section-desc">Vista previa o commit del lote (solo admin/owner).</p>
+          <div class="field-group">
+            <label for="import-mode">Modo</label>
+            <select id="import-mode" bind:value={importMode} data-testid="catalog-import-mode">
+              <option value="preview">Vista previa</option>
+              <option value="commit">Confirmar</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="import-rows">Filas (JSON)</label>
+            <textarea id="import-rows" bind:value={importRowsJson} rows="4" data-testid="catalog-import-rows"></textarea>
+          </div>
+          <Button variant="primary" data-testid="catalog-import-run" onclick={() => void runCatalogImport()}>
+            Importar
+          </Button>
+          {#if importMessage}
+            <p class="feedback-msg" data-testid="catalog-import-message">{importMessage}</p>
           {/if}
         </section>
       {/if}

@@ -1,7 +1,12 @@
-/** Leyendas fiscales para plantillas (aprobación Staff Fiscal en QG). */
+/**
+ * Leyendas fiscales para plantillas (aprobación Staff Fiscal en QG).
+ * S11-E8: el texto de la NV es el literal del contrato (Guía Legal Parte I
+ * §3.3): "NOTA DE VENTA — Documento de control interno no válido para fines
+ * tributarios" — se imprime siempre en las Notas de Venta.
+ */
 
 export const NV_TICKET_LEGEND =
-  'Nota de venta — documento de control interno. No es comprobante de pago autorizado por SUNAT.';
+  'NOTA DE VENTA — Documento de control interno no válido para fines tributarios';
 
 export const CPE_TICKET_LEGEND =
   'Representación impresa del comprobante electrónico. Consulte validez en SUNAT.';

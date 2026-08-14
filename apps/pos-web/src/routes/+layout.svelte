@@ -10,7 +10,9 @@
     type AdminAuthenticatedSession,
   } from '$lib/admin/authenticated-session';
   import { loadAuthenticatedAppShellSession } from '$lib/admin/app-shell-session';
+  import { billingNoticeText } from '$lib/admin/billing-notice';
   import { installUnauthorizedGuard } from '$lib/auth/unauthorized-guard';
+  import { claimOnboardingFromUrlIfPresent } from '$lib/auth/onboarding-claim';
   import {
     showCashOperatingNavigation,
     showCustomerOrderNavigation,
@@ -93,6 +95,7 @@
               { href: '/caja/cotizacion', label: 'Cotizaciones', icon: 'file-text' as IconName },
               { href: '/caja/apartado', label: 'Apartados', icon: 'clock' as IconName },
               { href: '/caja/cuotas', label: 'Cuotas', icon: 'calendar' as IconName },
+              { href: '/caja/gastos', label: 'Gastos de caja', icon: 'dollar' as IconName },
             ]
           : []),
         ...(showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role: authenticatedSession?.role ?? '' })
@@ -269,6 +272,9 @@
       (globalThis as unknown as { fetch?: typeof fetch }).fetch = guarded;
     }
 
+    // M6C: el claim del onboarding debe completarse antes del bootstrap de
+    // sesión para que authorization + x-tenant-id ya existan en storage.
+    await claimOnboardingFromUrlIfPresent();
     sessionLoaded = true;
     authenticatedSession = await loadAuthenticatedAppShellSession({
       fetcher: fetch,
@@ -277,10 +283,18 @@
       ...resolveApiAuth(localStorage),
     });
   });
+
+  // S9-A2: banner ámbar de pago (anti-apagado, GTM §4.3): la caja NUNCA se
+  // bloquea; solo se informa al dueño para regularizar el método de pago.
+  let billingNotice = $derived(billingNoticeText(authenticatedSession?.billing));
 </script>
 
 <div class="app-shell" class:sidebar-collapsed={!sidebarOpen}>
-  <!-- Sidebar -->
+  {#if billingNotice}
+    <div class="billing-banner" role="status" data-testid="billing-banner">
+      <span>{billingNotice}</span>
+    </div>
+  {/if}
   <aside class="sidebar" aria-label="Navegación principal">
     <!-- Brand header -->
     <div class="sidebar-brand">
@@ -426,6 +440,18 @@
 
 <style>
   /* ── App Shell Layout ─────────────────────────── */
+  .billing-banner {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: #fde68a;
+    color: #7c2d12;
+    padding: 0.55rem 1rem;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-bottom: 1px solid #f59e0b;
+  }
   .app-shell {
     display: flex;
     min-height: 100vh;

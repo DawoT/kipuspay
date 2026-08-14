@@ -5,7 +5,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import Icon from '$lib/ui/Icon.svelte';
   import { cashierLogin, LoginError } from '$lib/auth/cashier-login';
-  import { writeLoginToken, writeLoginUser } from '$lib/auth/token-store';
+  import { writeLoginTenantId, writeLoginToken, writeLoginUser } from '$lib/auth/token-store';
   import { defaultTenantSession, readTenantSession } from '$lib/tenant/session';
 import { resolveApiBase } from '$lib/auth/api-client';
 
@@ -52,6 +52,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
         pin,
       });
       writeLoginToken(localStorage, result.token);
+      writeLoginTenantId(localStorage, tenantId);
       writeLoginUser(localStorage, {
         userId: result.user.userId,
         role: result.user.role,

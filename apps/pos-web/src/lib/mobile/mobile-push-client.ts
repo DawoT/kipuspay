@@ -1,3 +1,5 @@
+import { absolutizeApiUrl } from '../auth/api-client.js';
+
 export type PushPurpose = 'OWNER_ALERTS' | 'OPERATIONAL_MOBILE';
 
 interface PushPolicy {
@@ -13,9 +15,9 @@ export function configureMobilePushApi(fetcher: typeof fetch): void {
 }
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await pushFetch(path, {
+  const response = await pushFetch(absolutizeApiUrl(path), {
     ...init,
-    credentials: 'same-origin',
+    credentials: 'include',
     headers: { 'content-type': 'application/json', ...init.headers },
   });
   if (!response.ok) {

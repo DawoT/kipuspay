@@ -6,7 +6,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
   const returnsOn = isPurchasingReturnsEnabled();
@@ -20,8 +20,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(true);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   onMount(() => {
     if (threeWayOn || returnsOn) void refresh();
@@ -31,8 +29,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     message = '';
     loading = true;
     if (threeWayOn) {
-      const res = await fetch(`${apiBase()}/api/owner/purchasing/three-way`, {
-        headers: { authorization: auth() },
+      const res = await apiFetch('/api/owner/purchasing/three-way', {
+        storage: localStorage,
       });
       const json = (await res.json()) as {
         openPurchaseOrders?: typeof openPos;
@@ -41,7 +39,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         error?: string;
       };
       if (!res.ok) {
-        message = json.error ?? `Error ${res.status}`;
+        message = json.error ?? `Error ${res.status}';
         messageOk = false;
         loading = false;
         return;
@@ -51,12 +49,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       overrides = json.priceDiffOverrides ?? [];
     }
     if (returnsOn) {
-      const ret = await fetch(`${apiBase()}/api/owner/purchasing/returns`, {
-        headers: { authorization: auth() },
+      const ret = await apiFetch('/api/owner/purchasing/returns', {
+        storage: localStorage,
       });
       const retJson = (await ret.json()) as { openReturns?: typeof openReturns; error?: string };
       if (!ret.ok) {
-        message = retJson.error ?? `Error ${ret.status}`;
+        message = retJson.error ?? `Error ${ret.status}';
         messageOk = false;
         loading = false;
         return;

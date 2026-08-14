@@ -83,7 +83,7 @@ describe('cliente de movimientos de caja (S17, F2)', () => {
     expect(res.tokenHash).toHaveLength(64);
     const body = JSON.parse(captured.init?.body as string) as Record<string, unknown>;
     expect(body).toMatchObject({ pin: '1234', scope: 'CASH_MOVEMENT' });
-    expect((captured.init?.headers as Record<string, string>).authorization).toBe(AUTH);
+    expect(new Headers(captured.init?.headers).get('authorization')).toBe(AUTH);
   });
 
   it('reenvía el movimiento con el token tras la autorización', async () => {

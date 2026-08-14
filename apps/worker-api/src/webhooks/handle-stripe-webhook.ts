@@ -169,6 +169,13 @@ async function syncTenantSubscriptionStatus(
   const tenant = JSON.parse(tenantRaw) as Record<string, unknown>;
   tenant.subscriptionStatus = status;
   await put(`tenant:${tenantId}`, JSON.stringify(tenant));
+  const db = env.DB ?? env.WEBHOOK_EVENTS_DB;
+  if (db) {
+    await db
+      .prepare('UPDATE tenants SET subscription_status = ? WHERE id = ?')
+      .bind(status, tenantId)
+      .run();
+  }
 }
 
 async function applySubscriptionEffects(

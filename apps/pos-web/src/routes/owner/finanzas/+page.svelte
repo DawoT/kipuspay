@@ -5,8 +5,10 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-  import { fetchAccountsPayable, fetchAccountsReceivable } from '$lib/ledger/ledger-finance';
+  import { fetchAccountsPayable, fetchAccountsReceivable, payAccountsPayable, payAccountsReceivable } from '$lib/ledger/ledger-finance';
+  import { cashSessionContext } from '$lib/admin/cash-session';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import Button from '$lib/ui/Button.svelte';
 
   const enabled = isOwnerModeEnabled();
   const ledger = isLedgerArApEnabled();
@@ -19,6 +21,43 @@
   >([]);
   let loading = $state(true);
   let errorMsg = $state('');
+  let payMsg = $state('');
+
+  async function payAr(item: (typeof ar)[number]) {
+    payMsg = '';
+    const res = await payAccountsReceivable({
+      apiBase: resolveApiBase(),
+      authorization: resolveApiAuth().authorization ?? '',
+      accountsReceivableId: item.id,
+      amountCents: item.balanceDueCents,
+      cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
+    });
+    if (!res.ok) {
+      payMsg = res.message;
+      return;
+    }
+    ar = ar.map((row) =>
+      row.id === item.id ? { ...row, balanceDueCents: res.nextBalanceCents, status: res.nextBalanceCents === 0 ? 'PAID' : row.status } : row,
+    );
+  }
+
+  async function payAp(item: (typeof ap)[number]) {
+    payMsg = '';
+    const res = await payAccountsPayable({
+      apiBase: resolveApiBase(),
+      authorization: resolveApiAuth().authorization ?? '',
+      accountsPayableId: item.id,
+      amountCents: item.balanceDueCents,
+      cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
+    });
+    if (!res.ok) {
+      payMsg = res.message;
+      return;
+    }
+    ap = ap.map((row) =>
+      row.id === item.id ? { ...row, balanceDueCents: res.nextBalanceCents, status: res.nextBalanceCents === 0 ? 'PAID' : row.status } : row,
+    );
+  }
 
   onMount(async () => {
     if (!ledger) return;
@@ -48,7 +87,7 @@
       <div>
         <p class="page-eyebrow"><Icon name="trending-up" size={12} /> Modo Dueño · Finanzas</p>
         <h1 class="page-title">Finanzas</h1>
-        <p class="page-lede">Cuentas por cobrar y por pagar — vista de solo lectura con saldos del servidor.</p>
+        <p class="page-lede">Cuentas por cobrar y por pagar. El diario contable sigue en solo lectura.</p>
       </div>
     </div>
 
@@ -60,6 +99,10 @@
     {:else}
       {#if errorMsg}
         <StatusMessage tone="danger" data-testid="finanzas-error">{errorMsg}</StatusMessage>
+      {/if}
+
+      {#if payMsg}
+        <StatusMessage tone="danger" data-testid="finanzas-pay-error">{payMsg}</StatusMessage>
       {/if}
 
       <div class="finanzas-grid">
@@ -79,6 +122,11 @@
                 <li data-testid="ar-item">
                   <span class="fin-label">Venta {item.saleId.slice(0, 8)}</span>
                   <span class="fin-due tabular-nums">S/ {formatCents(item.balanceDueCents)}</span>
+                  {#if item.balanceDueCents > 0}
+                    <Button variant="secondary" size="sm" data-testid="ar-pay" onclick={() => void payAr(item)}>
+                      Abonar
+                    </Button>
+                  {/if}
                 </li>
               {/each}
             </ul>
@@ -101,6 +149,11 @@
                 <li data-testid="ap-item">
                   <span class="fin-label">Proveedor {item.supplierId.slice(0, 8)}</span>
                   <span class="fin-due tabular-nums">S/ {formatCents(item.balanceDueCents)}</span>
+                  {#if item.balanceDueCents > 0}
+                    <Button variant="secondary" size="sm" data-testid="ap-pay" onclick={() => void payAp(item)}>
+                      Pagar
+                    </Button>
+                  {/if}
                 </li>
               {/each}
             </ul>

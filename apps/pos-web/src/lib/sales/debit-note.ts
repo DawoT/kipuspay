@@ -2,7 +2,7 @@
  * Backlog v10 P1a — cliente de la Nota de Débito `08` (ADR-FISCAL-003).
  * El servidor es la única autoridad del correlativo y del guard fiscal.
  */
-import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
+import { resolveApiAuth, resolveApiBase, applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface DebitNoteInput {
   readonly originSaleId: string;
@@ -65,9 +65,14 @@ export async function issueDebitNote(
     return { ok: false, message: invalid };
   }
   try {
+    const headers = new Headers({
+      'content-type': 'application/json',
+      authorization: auth,
+    });
+    applyApiAuthHeaders(headers);
     const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/sales/debit-notes`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth },
+      headers,
       body: JSON.stringify({
         originSaleId: input.originSaleId,
         series: input.series,

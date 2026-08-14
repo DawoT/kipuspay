@@ -28,12 +28,15 @@ export async function fetchDaySales(input: {
   readonly fetcher?: typeof fetch;
   readonly apiBase: string;
   readonly authorization: string;
+  readonly tenantId?: string;
 }): Promise<DaySalesResult> {
   const doFetch = input.fetcher ?? fetch;
+  const headers: Record<string, string> = { authorization: input.authorization };
+  if (input.tenantId) headers['x-tenant-id'] = input.tenantId;
   try {
     const res = await doFetch(`${input.apiBase.replace(/\/$/, '')}/api/pos/day-sales`, {
       method: 'GET',
-      headers: { authorization: input.authorization },
+      headers,
     });
     const data = (await res.json()) as {
       items?: DaySaleItem[];

@@ -14,6 +14,7 @@ import {
   computeMustSubmitByIso,
   type DebitNoteRequest,
 } from '@kipuspay/domain-fiscal-pe';
+import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 
 export interface DebitNoteOptions {
@@ -225,6 +226,14 @@ export async function processDebitNoteAtomic(
           .bind(arPlan.balanceCents, arPlan.arId, tenantId),
       );
     }
+
+    // GTM §4.1: las Notas de Débito ('08') consumen 1 comprobante de cupo
+    // (S10-C6 — fe de errata: el proceso no metía el documento).
+    appendUsageMeterToPlan(plan, db, {
+      tenantId,
+      documentId: debitNoteId,
+      documentType: '08',
+    });
   };
   await runD1AtomicPlan(db, build);
 

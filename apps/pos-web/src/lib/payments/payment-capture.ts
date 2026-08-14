@@ -1,8 +1,8 @@
 /**
  * Sprint 22 — sondeo del estado de captura de un pago electrónico (S22-H1).
  * La caja nunca da por confirmado un pago sin la captura; el poll es cortés
- * (intervalo configurable) y se rinde con el último estado conocido.
  */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 
 export type CaptureStatus = 'PENDING' | 'CAPTURED' | 'FAILED';
 
@@ -61,7 +61,9 @@ async function fetchCaptureAttempt(
   let res: Response;
   try {
     const url = `${apiBase.replace(/\/$/, '')}/api/payments/captures/${encodeURIComponent(captureId)}`;
-    res = await doFetch(url, { method: 'GET', headers: { authorization } });
+    const headers = new Headers({ authorization });
+    applyApiAuthHeaders(headers);
+    res = await doFetch(url, { method: 'GET', headers });
   } catch {
     return { ok: false, code: 'OFFLINE', message: 'Sin conexión con el servidor.' };
   }

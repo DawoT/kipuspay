@@ -246,6 +246,14 @@ check_index_drift() {
   return 0
 }
 
+# --- V-28/V-29: contrato de integración entre apps ---------------------------
+check_api_contract() {
+  python3 scripts/checks/api_contract.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
 check_selftest
 check_paths_hygiene
 check_size_budget
@@ -266,6 +274,7 @@ check_bundle_budget
 check_migrations_mirror
 check_marketing_copy
 check_pos_copy
+check_api_contract
 
 echo ""
 if [ $FAIL -eq 0 ]; then

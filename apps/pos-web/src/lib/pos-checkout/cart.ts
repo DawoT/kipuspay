@@ -51,6 +51,13 @@ export function cartTotalCents(lines: readonly CartLine[]): number {
   return lines.reduce((sum, line) => sum + lineTotalCents(line), 0);
 }
 
+/** Total a cobrar con IGV (contrato server-side: buildSaleTotals del motor). */
+export function cartPayableCents(lines: readonly CartLine[]): number {
+  const net = cartTotalCents(lines);
+  const igv = net <= 0 ? 0 : Math.round((net * 18) / 100);
+  return net + igv;
+}
+
 export function addOrBumpLine(lines: readonly CartLine[], next: CartLine): CartLine[] {
   const idx = lines.findIndex(
     (line) =>

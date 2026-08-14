@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { isSalesLayawayEnabled } from '$lib/features';
@@ -14,7 +16,7 @@
   import Input from '$lib/ui/Input.svelte';
   import MoneyInput from '$lib/ui/MoneyInput.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const layawayOn = isSalesLayawayEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -29,18 +31,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
-
   onMount(() => { session = readTenantSession(sessionStorage); });
 
   async function createLayaway() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/layaways`, {
-      method: 'POST', headers: headers(),
+    const res = await apiFetch('/api/sales/layaways', {
+      method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId: 'b-demo', cashRegisterSessionId: 's-demo', dueDateIso: dueDate,
+        branchId: tenantBranchId(localStorage), cashRegisterSessionId: cashSessionContext(localStorage).sessionId, dueDateIso: dueDate,
         initialAmountCents, paymentMethod: 'cash',
         items: [{ productId, enteredQuantityMicrounits: enteredMicrounits }],
       }),
@@ -54,9 +52,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function deposit() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/layaways/deposit`, {
-      method: 'POST', headers: headers(),
-      body: JSON.stringify({ depositId, cashRegisterSessionId: 's-demo', paymentMethod: 'cash', amountCents: extraAmountCents }),
+    const res = await apiFetch('/api/sales/layaways/deposit', {
+      method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ depositId, cashRegisterSessionId: cashSessionContext(localStorage).sessionId, paymentMethod: 'cash', amountCents: extraAmountCents }),
     });
     const json = (await res.json()) as { balanceAfterCents?: number; error?: string };
     messageOk = res.ok;
@@ -65,9 +63,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function convert() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/layaways/convert`, {
-      method: 'POST', headers: headers(),
-      body: JSON.stringify({ depositId, cashRegisterSessionId: 's-demo', series, documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03' }),
+    const res = await apiFetch('/api/sales/layaways/convert', {
+      method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ depositId, cashRegisterSessionId: cashSessionContext(localStorage).sessionId, series, documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03' }),
     });
     const json = (await res.json()) as { saleId?: string; error?: string };
     messageOk = res.ok;
@@ -76,9 +74,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function cancel() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/layaways/cancel`, {
-      method: 'POST', headers: headers(),
-      body: JSON.stringify({ depositId, cashRegisterSessionId: 's-demo', reason }),
+    const res = await apiFetch('/api/sales/layaways/cancel', {
+      method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ depositId, cashRegisterSessionId: cashSessionContext(localStorage).sessionId, reason }),
     });
     const json = (await res.json()) as { refundCents?: number; error?: string };
     messageOk = res.ok;

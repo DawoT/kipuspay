@@ -4,12 +4,13 @@
   import { allCompares } from '$lib/content/compare';
   import { page } from '$app/stores';
   import { OFFICIAL_CHANNELS } from '$lib/content/legal';
+  import { env as publicEnv } from '$env/dynamic/public';
 
   let { data, children } = $props();
   const verticals = allVerticals();
   const compares = allCompares();
   const pathname = $derived($page.url.pathname);
-  const posOrigin = (import.meta.env.PUBLIC_POS_ORIGIN as string | undefined) ?? 'https://app.kipuspay.com';
+  const posOrigin = publicEnv.PUBLIC_POS_ORIGIN ?? 'https://app.kipuspay.com';
 
   /** El header cambia de peso al despegarse del hero; sin librerias ni layout thrash. */
   let scrolled = $state(false);
@@ -153,7 +154,7 @@
       <div>
         <h3>Comparativas</h3>
         {#each compares as c (c.slug)}
-          <a href={`/comparar/${c.slug}`}>KipusPay vs {c.name}</a>
+          <a href={`/comparar?vs=${c.slug}`}>KipusPay vs {c.name}</a>
         {/each}
       </div>
       <div>

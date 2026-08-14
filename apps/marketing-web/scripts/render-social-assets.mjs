@@ -165,7 +165,7 @@ function cardHtml({ eyebrow, headline, sub, cord }) {
       <div class="eyebrow"><b></b>${eyebrow}</div>
       <h1>${headline}</h1>
       <p class="sub">${sub}</p>
-      <div class="foot">kipuspay.pe</div>
+      <div class="foot">kipuspay.com</div>
     </div>
   </div>
 </body></html>`;

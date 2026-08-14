@@ -4,6 +4,7 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import type { KdsBroadcastEvent } from './kds-hub-helpers.js';
+import { verifyKdsBroadcastToken } from './kds-hub-helpers.js';
 
 export {
   assertKdsFireWithinSla,
@@ -13,13 +14,34 @@ export {
   type KdsEventType,
 } from './kds-hub-helpers.js';
 
-export class BranchKdsHub extends DurableObject {
+interface KdsHubEnv {
+  readonly KDS_BROADCAST_TOKEN?: string;
+}
+
+export class BranchKdsHub extends DurableObject<KdsHubEnv> {
   private sessions = new Set<WebSocket>();
   /** S19-H1: historial de eventos para replay (reconexión de KDS). */
   private readonly historyKey = 'kds_history';
 
+  private authorized(request: Request): boolean {
+    return verifyKdsBroadcastToken(
+      request.headers.get('x-kds-token'),
+      this.env.KDS_BROADCAST_TOKEN,
+    );
+  }
+
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+
+    // S1: broadcast y replay son canales internos (worker→DO): token obligatorio.
+    if (
+      (request.method === 'POST' && url.pathname === '/broadcast') ||
+      (request.method === 'GET' && url.pathname === '/replay')
+    ) {
+      if (!this.authorized(request)) {
+        return new Response('Forbidden', { status: 401 });
+      }
+    }
 
     if (request.method === 'POST' && url.pathname === '/broadcast') {
       const event: KdsBroadcastEvent = await request.json();

@@ -6,6 +6,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { apiFetch, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
   let branchId = $state('default');
@@ -13,12 +14,34 @@
   let error = $state('');
   let ws: WebSocket | null = null;
 
-  function connect() {
+  function kdsWebSocketUrl(id: string, ticket: string): string {
+    const httpBase = resolveApiBase();
+    const wsBase = httpBase.replace(/^http/i, 'ws');
+    const qs = new URLSearchParams({ branchId: id, ticket });
+    return `${wsBase}/api/kds/ws?${qs.toString()}`;
+  }
+
+  async function connect() {
     error = '';
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const url = `${proto}://${location.host}/api/kds/ws?branchId=${encodeURIComponent(branchId)}`;
     ws?.close();
-    ws = new WebSocket(url);
+    try {
+      const minted = await apiFetch('/api/kds/ws-ticket', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ branchId }),
+      });
+      const body = (await minted.json()) as { ticket?: string; error?: string };
+      if (!minted.ok || !body.ticket) {
+        error = body.error ?? 'No se pudo emitir el ticket KDS';
+        return;
+      }
+      const url = kdsWebSocketUrl(branchId, body.ticket);
+      ws = new WebSocket(url);
+    } catch (e) {
+      error = String(e);
+      return;
+    }
+    if (!ws) return;
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(String(ev.data)) as {
@@ -57,7 +80,7 @@
   }
 
   async function markReady(orderId: string, orderItemId?: string) {
-    const res = await fetch('/api/orders/items/ready', {
+    const res = await apiFetch('/api/orders/items/ready', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -72,7 +95,7 @@
   }
 
   onMount(() => {
-    if (enabled) connect();
+    if (enabled) void connect();
   });
   onDestroy(() => ws?.close());
 </script>

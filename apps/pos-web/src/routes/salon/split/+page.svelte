@@ -5,6 +5,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
   let orderId = $state('');
@@ -24,7 +25,7 @@
       { saleId: crypto.randomUUID(), itemIds: [itemB].filter(Boolean) },
     ].filter((p) => p.itemIds.length > 0);
 
-    const res = await fetch('/api/orders/split', {
+    const res = await apiFetch('/api/orders/split', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({

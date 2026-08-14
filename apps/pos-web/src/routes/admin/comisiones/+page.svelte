@@ -1,12 +1,14 @@
 <script lang="ts">
+  
+  import { tenantBranchId } from '$lib/admin/cash-session';
+  import { apiFetch } from '$lib/auth/api-client';
   import { isSalesCommissionsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const commissionsOn = isSalesCommissionsEnabled();
-  let sellerId = $state('u-demo');
+  let sellerId = $state('');
   let ratePercent = $state(5);
   let rateAmountCents = $state<number | null>(null);
   let periodStartIso = $state(new Date().toISOString().slice(0, 10));
@@ -15,19 +17,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function upsertRate() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/commissions/rates`, {
+    const res = await apiFetch('/api/admin/commissions/rates', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sellerId,
         ratePercent,
         rateAmountCents,
-        branchId: 'b-demo',
+        branchId: tenantBranchId(localStorage),
       }),
     });
     const json = (await res.json()) as { rateId?: string; error?: string };
@@ -37,10 +37,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function createPayout() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/commissions/payouts`, {
+    const res = await apiFetch('/api/admin/commissions/payouts', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({ sellerId, periodStartIso, periodEndIso, branchId: 'b-demo' }),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sellerId, periodStartIso, periodEndIso, branchId: tenantBranchId(localStorage) }),
     });
     const json = (await res.json()) as { payoutId?: string; totalCents?: number; error?: string };
     messageOk = res.ok;
@@ -51,10 +52,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function payPayout() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/commissions/payouts/${payoutId}/pay`, {
+    const res = await apiFetch('/api/admin/commissions/payouts/pay', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({ payoutId, branchId: 'b-demo' }),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ payoutId, branchId: tenantBranchId(localStorage) }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;

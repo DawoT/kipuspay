@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { isLedgerStoreCreditEnabled } from '$lib/features';
@@ -13,7 +15,7 @@
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -23,8 +25,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   onMount(() => {
     session = readTenantSession(sessionStorage);
@@ -32,13 +32,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function issueVale() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/pos/offline-sale`, {
+    const res = await apiFetch('/api/pos/offline-sale', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         offlineSaleId: crypto.randomUUID(),
-        branchId: 'b-demo',
-        cashRegisterSessionId: 's-demo',
+        branchId: tenantBranchId(localStorage),
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
         documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
         series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
         clientDocumentType: '6',

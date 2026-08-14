@@ -3,6 +3,7 @@
  * report en audit_events (action HARDWARE_DIAG) con su cadena de hashes.
  */
 import { buildHardwareDiagAuditPayload, type DiagnosticReport } from '@kipuspay/domain-hardware';
+import { apiFetch } from '../auth/api-client.js';
 
 export interface ReportDiagnosticsResult {
   readonly ok: boolean;
@@ -15,7 +16,7 @@ export async function reportDiagnostics(
   const payload = reports.map((r) => JSON.parse(buildHardwareDiagAuditPayload(r)) as unknown);
   let response: Response;
   try {
-    response = await fetch('/api/hardware/diagnostics', {
+    response = await apiFetch('/api/hardware/diagnostics', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reports: payload }),

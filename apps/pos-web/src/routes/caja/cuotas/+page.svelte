@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
   import { isSalesInstallmentsEnabled } from '$lib/features';
   import {
@@ -13,7 +14,7 @@
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const installmentsOn = isSalesInstallmentsEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -22,22 +23,50 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let messageOk = $state(false);
   let lastPaymentId = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
+  let saleId = $state('');
+  let planItemsJson = $state('[{"installmentNumber":1,"principalCents":10000,"interestCents":0}]');
+  let downPaymentCents = $state(0);
 
   onMount(() => {
     session = readTenantSession(sessionStorage);
   });
 
+  async function createPlan() {
+    message = '';
+    let items: unknown = [];
+    try {
+      items = JSON.parse(planItemsJson) as unknown;
+    } catch {
+      message = 'JSON de cuotas inválido';
+      messageOk = false;
+      return;
+    }
+    const res = await apiFetch('/api/sales/installments', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        saleId,
+        branchId: tenantBranchId(localStorage),
+        downPaymentCents,
+        items,
+      }),
+    });
+    const json = (await res.json()) as { planId?: string; error?: string; code?: string };
+    messageOk = res.ok;
+    message = res.ok ? `Plan creado · ${json.planId ?? 'ok'}` : (json.error ?? json.code ?? `Error ${res.status}`);
+  }
+
   async function payInstallment() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/installments/pay`, {
+    const res = await apiFetch('/api/sales/installments/pay', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         installmentId,
-        branchId: 'b-demo',
-        cashRegisterSessionId: 's-demo',
+        branchId: tenantBranchId(localStorage),
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
         paymentMethod: 'cash',
         idempotencyKey: crypto.randomUUID(),
       }),
@@ -84,6 +113,30 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
   {:else}
     <p class="tenant-line" data-testid="caja-cuotas-tenant">Tienda: {session.tradeName}</p>
+
+    <div class="glass-card cuotas-card">
+      <CardHeader title="Crear plan de cuotas">
+        <span class="section-tag">Supervisor+</span>
+      </CardHeader>
+      <Field label="ID de venta" id="cuota-sale">
+        <Input id="cuota-sale" bind:value={saleId} data-testid="caja-cuotas-sale" placeholder="saleId" />
+      </Field>
+      <Field label="Cuota inicial (céntimos)" id="cuota-down">
+        <Input id="cuota-down" type="number" bind:value={downPaymentCents} data-testid="caja-cuotas-down" />
+      </Field>
+      <Field label="Ítems del plan (JSON)" id="cuota-items">
+        <Input id="cuota-items" bind:value={planItemsJson} data-testid="caja-cuotas-items" />
+      </Field>
+      <Button
+        variant="secondary"
+        data-testid="caja-cuotas-create"
+        onclick={() => void createPlan()}
+        disabled={!saleId}
+        icon="plus"
+      >
+        Crear plan
+      </Button>
+    </div>
 
     <div class="glass-card cuotas-card">
       <CardHeader title="Cobrar cuota">

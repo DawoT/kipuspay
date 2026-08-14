@@ -4,6 +4,7 @@
  * la UI pide el PIN del supervisor, minta un token de 90s (S17-H2) y reenvía
  * el movimiento con authorizationTokenHash.
  */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 
 export type CashMovementType =
   | 'DEPOSIT_VALUES'
@@ -38,9 +39,14 @@ async function post(
   input: { fetcher?: typeof fetch; apiBase: string; authorization: string },
 ): Promise<Response> {
   const doFetch = input.fetcher ?? fetch;
+  const headers = new Headers({
+    'content-type': 'application/json',
+    authorization: input.authorization,
+  });
+  applyApiAuthHeaders(headers);
   return doFetch(`${input.apiBase.replace(/\/$/, '')}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: input.authorization },
+    headers,
     body: JSON.stringify(body),
   });
 }

@@ -4,6 +4,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
   let tableLabel = $state('1');
@@ -17,7 +18,7 @@
     error = '';
     status = '';
     try {
-      const createRes = await fetch('/api/orders', {
+      const createRes = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -41,7 +42,7 @@
         tableLabel,
       });
 
-      const fireRes = await fetch('/api/orders/fire', {
+      const fireRes = await apiFetch('/api/orders/fire', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ orderId }),

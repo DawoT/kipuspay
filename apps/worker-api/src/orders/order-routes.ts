@@ -14,7 +14,14 @@ import {
   processOrderBillingAtomic,
 } from '@kipuspay/adapters-d1/process-order-billing-atomic';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { branchKdsHubName, type KdsBroadcastEvent, type KdsEventType } from './kds-hub-helpers.js';
+import {
+  branchKdsHubName,
+  KDS_WS_TICKET_TTL_SECONDS,
+  kdsWsTicketKvKey,
+  parseKdsWsTicketPayload,
+  type KdsBroadcastEvent,
+  type KdsEventType,
+} from './kds-hub-helpers.js';
 
 export function isOrdersKdsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_ORDERS_KDS === '1' || env?.FEATURE_ORDERS_KDS === 'true';
@@ -56,7 +63,11 @@ async function notifyKds(
   };
   const res = await stub.fetch('https://kds.internal/broadcast', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      // S1: canal interno worker→DO con token compartido (fail-closed en el DO).
+      ...(env.KDS_BROADCAST_TOKEN ? { 'x-kds-token': env.KDS_BROADCAST_TOKEN } : {}),
+    },
     body: JSON.stringify(body),
   });
   const result = (await res.json().catch(() => null)) as {
@@ -416,7 +427,7 @@ export async function runSplitBillHttp(
 }
 /* eslint-enable complexity */
 
-/** WebSocket upgrade → BranchKdsHub (ADR-0013). */
+/** WebSocket upgrade → BranchKdsHub (ADR-0013). Auth por ticket one-shot (el browser no setea Bearer en WS). */
 export async function runKdsWebSocketHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -438,4 +449,47 @@ export async function runKdsWebSocketHttp(
   }
   const id = hub.idFromName(branchKdsHubName(tenantId, branchId));
   return hub.get(id).fetch(request);
+}
+
+export interface KdsTicketKv {
+  get(key: string): Promise<string | null>;
+  put?(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  delete?(key: string): Promise<void>;
+}
+
+export async function runMintKdsWsTicketHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  branchId: string,
+): Promise<HttpResult> {
+  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  if (!tenantId.trim() || !branchId.trim()) {
+    return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
+  }
+  const kv = env?.TENANT_KV as KdsTicketKv | undefined;
+  if (!kv?.put) {
+    return { status: 503, body: { error: 'Ticket store unavailable', code: 'KDS_TICKET_UNAVAILABLE' } };
+  }
+  const ticket = crypto.randomUUID();
+  const exp = Date.now() + KDS_WS_TICKET_TTL_SECONDS * 1000;
+  await kv.put(
+    kdsWsTicketKvKey(ticket),
+    JSON.stringify({ tenantId, branchId, exp }),
+    { expirationTtl: KDS_WS_TICKET_TTL_SECONDS },
+  );
+  return { status: 200, body: { ticket, expiresInSeconds: KDS_WS_TICKET_TTL_SECONDS } };
+}
+
+export async function consumeKdsWsTicket(
+  kv: KdsTicketKv | undefined,
+  ticket: string,
+  nowMs: number,
+): Promise<{ tenantId: string; branchId: string } | null> {
+  if (!ticket.trim() || !kv?.get) return null;
+  const key = kdsWsTicketKvKey(ticket);
+  const raw = await kv.get(key);
+  const payload = parseKdsWsTicketPayload(raw, nowMs);
+  if (!payload) return null;
+  await kv.delete?.(key);
+  return { tenantId: payload.tenantId, branchId: payload.branchId };
 }

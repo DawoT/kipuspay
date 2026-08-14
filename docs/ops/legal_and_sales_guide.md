@@ -13,6 +13,8 @@ owner: "@DawoT"
 > **Ámbito de Aplicación:** República del Perú & Operaciones SaaS Globales  
 > **Propósito:** Este documento constituye la fuente única de verdad legal, comercial y operativa de KipusPay. Consolida íntegramente en un solo texto el Manual Comercial de Ventas, la Oferta del Producto Final Completo v1.0, los Términos y Condiciones del Servicio, la Política de Privacidad LPDP (Ley N.º 29733), el Acuerdo de SLA y Niveles de Servicio, la Política de Cancelaciones y Reembolsos, y el Playbook Legal y Comercial de Preguntas Frecuentes.
 
+> **Estado de claims vs producto (GTM freeze):** comandas/KDS, arqueo Z ciego, FEFO, merma entre locales, derechos LPDP ARCO self-serve y Disaster Recovery permanecen **en preparación** hasta su Quality Gate (GTM-09, GTM-18 y `PUBLIC_CLAIMS`). El catálogo de esta guía es contractual; no afirma que esas capabilities estén live en producción. El export de catálogo/ventas y el libro de reclamaciones con número de caso sí están cableados.
+
 ---
 
 ## PARTE I: MANUAL OPERATIVO Y ESTRATEGIA COMERCIAL DE VENTAS
@@ -119,7 +121,7 @@ Ante una solicitud de borrado de datos formulada por un comprador final, KipusPa
 
 ### 6. Matriz Completa de Funcionalidades del Producto Final Completo v1.0
 
-El catálogo funcional de KipusPay comprende el 100% de las herramientas activas distribuidas por plan de suscripción:
+El catálogo funcional de KipusPay comprende el 100% de las herramientas del producto final v1.0, distribuidas por plan. Las filas de comandas/KDS, arqueo Z ciego, emisión SUNAT en vivo, WhatsApp/membresías, LPDP self-serve y Disaster Recovery permanecen **en preparación** (header de freeze / `PUBLIC_CLAIMS`); no se venden como live.
 
 | Área Funcional | Descripción de la Funcionalidad | Plan Mínimo | Alcance Legal y Operativo |
 |---|---|---|---|
@@ -138,7 +140,7 @@ El catálogo funcional de KipusPay comprende el 100% de las herramientas activas
 | **Fidelización** | Puntos de cliente, Recibos por WhatsApp, Crédito de Tienda / Gift Cards y Cuotas | **Cadena** | Acumulación de puntos, envío de tickets por chat, vales y cronogramas CxC. |
 | **Servicios** | Pedidos con retiro por WhatsApp y Membresías / Ventas recurrentes | **Cadena** | Reserva de pedidos con fulfillment y generación periódica con período de gracia. |
 | **Analítica & DR** | Analítica predictiva de ventas/quiebres (con disclaimer) y Disaster Recovery (DR) | **Cadena** | Estimación estadística de reposición y continuidad de negocio RPO=0. |
-| **Inteligencia AI** | SLA Prioritario (1h SEV-1) y Asistente Gerente de Operaciones / Chatbot Insights | **Enterprise** | Resumen diario matutino automático y consultas de inteligencia sobre datos D1. |
+| **Inteligencia AI** | SLA Prioritario (1h SEV-1) y Asistente Gerente de Operaciones / Chatbot Insights | **Enterprise** | Resumen diario matutino automático y consultas de inteligencia sobre datos del negocio (en preparación hasta Quality Gate). |
 
 ---
 
@@ -158,7 +160,7 @@ El presente contrato regula los términos y condiciones de uso del servicio SaaS
 KipusPay concede una licencia de uso no exclusiva, revocable e intransferible. Las tarifas en soles (S/) incluyen los tributos de ley. Las condiciones de cobro adicional (S/ 0.05 por comprobante extra en plan Arranque) y la regla anti-apagado se rigen según la Parte I, Sección 2.3.
 
 ### 3. Libro de Reclamaciones Virtual
-De conformidad con la Ley N.º 29571 y D.S. N.º 011-2011-PCM, KipusPay mantiene a disposición su **Libro de Reclamaciones Virtual** accesible en `https://kipuspay.com/reclamaciones`.
+De conformidad con la Ley N.º 29571 y D.S. N.º 011-2011-PCM, KipusPay mantiene a disposición su **Libro de Reclamaciones Virtual** accesible en `https://kipuspay.com/reclamaciones`. El formulario emite un número de caso (`REC-AAAAMMDD-XXXX`) como acuse de recepción.
 
 ### 4. Jurisdicción y Ley Aplicable
 Este contrato se rige por las leyes de la República del Perú. Cualquier controversia será resuelta ante los **Jueces y Tribunales del Distrito Judicial de Lima Centro, Perú**.
@@ -198,7 +200,7 @@ Ante solicitudes de cancelación de datos de compradores finales, KipusPay supri
 Prueba completa por 30 días con datos reales sin requerir tarjeta de crédito.
 
 ### 2. Cancelación y Reembolsos
-- **Planes Mensuales:** Cancelación libre en cualquier momento desde el panel Admin sin penalidad.
+- **Planes Mensuales (Arranque, Crece, Cadena):** Cancelación libre en cualquier momento desde el panel Admin sin penalidad. El cambio a Enterprise no es self-serve: se contrata con el equipo comercial. La facturación de tarjeta se gestiona por el portal de cobro.
 - **Planes Anuales (2 Meses Gratis):** Reembolso proporcional restando los meses consumidos a tarifa mensual regular dentro de los 15 días hábiles a través de `facturacion@kipuspay.com`.
 
 ---
@@ -206,7 +208,7 @@ Prueba completa por 30 días con datos reales sin requerir tarjeta de crédito.
 ## PARTE VI: PLAYBOOK DE PREGUNTAS FRECUENTES COMERCIAL, LEGAL Y OPERATIVO
 
 ### Q1: ¿Qué pasa si el internet falla por 3 días seguidos?
-La caja sigue vendiendo, cobrando e imprimiendo tickets normalmente. Al volver la señal, todo se sincroniza solo con `kipuspay.com` y SUNAT.
+La caja está diseñada para seguir vendiendo, cobrando e imprimiendo tickets; al volver la señal, todo se sincroniza con `kipuspay.com` y SUNAT. El modo offline en producción permanece **en preparación** hasta su Quality Gate (no se vende como live).
 
 ### Q2: ¿Es legal emitir Notas de Venta antes de estar en SUNAT?
 Sí, es un documento mercantil legítimo de control interno. Lleva la leyenda obligatoria de no validez tributaria.
@@ -224,7 +226,7 @@ Apuntas la cámara al código de barras en el panel de Admin y en <3s registras 
 El cajero saliente presiona "Transferir Turno", el entrante ingresa su PIN temporal y en <5s la sesión continúa atribuida al nuevo operador sin cerrar caja.
 
 ### Q7: ¿Cómo funciona el Asistente de Insights diario en Enterprise?
-A las 3:30 AM genera 3 viñetas resumen (ventas, quiebre y excepciones de caja) y permite consultas en chat en lenguaje natural sobre datos D1 reales.
+Capability **en preparación** hasta Quality Gate. El diseño: a las 3:30 AM genera 3 viñetas resumen (ventas, quiebre y excepciones de caja) y permite consultas en chat en lenguaje natural sobre los datos del negocio.
 
 ### Q8: ¿Cómo funcionan los pedidos con retiro por WhatsApp?
 El cliente reserva sin pago previo y el sistema le envía un aviso por WhatsApp informando que su pedido está listo para recoger y pagar en tienda.

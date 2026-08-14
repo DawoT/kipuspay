@@ -4,6 +4,7 @@
   import { computeGrowthMetrics, type GrowthEvent } from '$lib/growth/metrics';
   import { readTenantSession, writeTenantSession } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   let planLabel = $state('Plan: Arranque (lectura)');
@@ -21,25 +22,25 @@
     let s = readTenantSession(sessionStorage);
     planLabel = `Plan: Arranque · ${s.formalizationMode}`;
 
-    const demoEvents: GrowthEvent[] = [];
-    if (s.onboardingStartedAtIso) {
-      demoEvents.push({ tenantId: s.tenantId, eventType: 'onboarding_started', occurredAtIso: s.onboardingStartedAtIso });
-    }
-    if (s.firstSaleAtIso) {
-      demoEvents.push({ tenantId: s.tenantId, eventType: 'first_sale', occurredAtIso: s.firstSaleAtIso });
-    }
-    const snap = computeGrowthMetrics(demoEvents);
-    metricsLabel = {
-      ttfs: snap.ttfsMsP80 == null ? 'n/d' : `${Math.round(snap.ttfsMsP80 / 1000)}s`,
-      upgrade: snap.formalizationUpgradeRate == null ? 'n/d' : `${Math.round(snap.formalizationUpgradeRate * 100)}%`,
-      activation: snap.trialToPaidRate == null ? 'n/d' : `${Math.round(snap.trialToPaidRate * 100)}%`,
-      nrr: snap.nrrProxy === 'n/d' || snap.nrrProxy == null ? 'n/d' : `${Math.round(snap.nrrProxy * 100)}%`,
-      kFactor: snap.kFactor == null ? 'n/d' : String(snap.kFactor),
-    };
-
     void (async () => {
       try {
-        const res = await fetch('/v1/referrals/code', {
+        const metricsRes = await apiFetch('/api/growth/events', { storage: localStorage });
+        if (metricsRes.ok) {
+          const payload = (await metricsRes.json()) as { events?: GrowthEvent[] };
+          const snap = computeGrowthMetrics(payload.events ?? []);
+          metricsLabel = {
+            ttfs: snap.ttfsMsP80 == null ? 'n/d' : `${Math.round(snap.ttfsMsP80 / 1000)}s`,
+            upgrade: snap.formalizationUpgradeRate == null ? 'n/d' : `${Math.round(snap.formalizationUpgradeRate * 100)}%`,
+            activation: snap.trialToPaidRate == null ? 'n/d' : `${Math.round(snap.trialToPaidRate * 100)}%`,
+            nrr: snap.nrrProxy === 'n/d' || snap.nrrProxy == null ? 'n/d' : `${Math.round(snap.nrrProxy * 100)}%`,
+            kFactor: snap.kFactor == null ? 'n/d' : String(snap.kFactor),
+          };
+        }
+      } catch {
+        /* métricas n/d si la API no está */
+      }
+      try {
+        const res = await apiFetch('/v1/referrals/code', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ tenantId: s.tenantId }),

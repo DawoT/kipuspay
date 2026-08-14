@@ -48,6 +48,15 @@ def load_migrations_mirror():
     return mod
 
 
+def load_api_contract():
+    spec = importlib.util.spec_from_file_location(
+        "api_contract", f"{HERE}/api_contract.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def load_marketing_copy():
     spec = importlib.util.spec_from_file_location(
         "marketing_copy", f"{HERE}/marketing_copy.py"
@@ -127,8 +136,11 @@ def simple_fks(st, text: str) -> list[str]:
 def main() -> int:
     st = load_structural()
     fails: list[str] = []
+    asserts = 0
 
     def expect(cond: bool, msg: str) -> None:
+        nonlocal asserts
+        asserts += 1
         if not cond:
             fails.append(msg)
 
@@ -254,13 +266,84 @@ def main() -> int:
         "V-26 no omite comentarios HTML",
     )
 
+    # V-28/V-29: contrato de integración entre apps (paridad epoch + POS↔API)
+    ac = load_api_contract()
+    good_migrations = "\n".join(
+        f'CREATE TRIGGER backup_epoch_{t}_{k} AFTER INSERT ON "{t}" BEGIN END;'
+        for t in ("sales", "users")
+        for k in ("insert", "update", "delete")
+    )
+    expect(
+        ac.epoch_parity_missing(["sales", "users", "tenant_data_epochs", "data_backups"], good_migrations) == [],
+        "V-29 marca tablas con triggers (o infra excluida) como faltantes",
+    )
+    bad_migrations = good_migrations.replace("backup_epoch_users_insert", "")  # users queda sin insert
+    expect(
+        ac.epoch_parity_missing(["sales", "users"], bad_migrations) == ["users"],
+        "V-29 no detecta el trigger faltante",
+    )
+    expect(
+        ac.epoch_parity_missing(["data_backups"], "") == [],
+        "V-29 no excluye la infraestructura del backup",
+    )
+    registered = [
+        ("POST", "/api/cash/:id"),
+        ("GET", "/api/pos/day-sales"),
+        ("POST", "/api/sales/returns/policy"),
+    ]
+    expect(
+        ac.route_parity_missing(
+            registered,
+            {
+                "/api/cash/authz-token": {"POST"},
+                "/api/sales/returns/policy": {"POST", "*"},
+                "/api/pos/day-sales": {"GET"},
+            },
+        )
+        == [],
+        "V-28 marca rutas registradas como faltantes",
+    )
+    expect(
+        ac.route_parity_missing(
+            registered,
+            {
+                "/api/cash/authz-token": {"POST"},
+                "/api/pos/nonexistent/deep": {"POST"},
+                "/api/pos/day-sales": {"DELETE"},
+            },
+        )
+        == [
+            "DELETE /api/pos/day-sales (registrado: ['GET'])",
+            "POST /api/pos/nonexistent/deep",
+        ],
+        "V-28 no detecta ruta o método faltante",
+    )
+    expect(
+        ac.route_parity_missing(registered, {"/api/sales/returns/policy": {"*"}}) == [],
+        "V-28 exige método cuando el cliente lo declara (path-only con *)",
+    )
+    expect(
+        ac.extract_api_paths_from_line(
+            "fetch(`${apiBase()}/api/ghost/path`, { method: 'POST' })"
+        )
+        == ["/api/ghost/path"],
+        "V-28 no ve /api/ dentro de templates ${}",
+    )
+    expect(
+        ac.extract_api_paths_from_line(
+            "fetch(`${apiBase()}/api/commissions/payouts/${payoutId}/pay`, { method: 'POST' })"
+        )
+        == ["/api/commissions/payouts/*/pay"],
+        "V-28 no colapsa ${id} a * dentro de templates",
+    )
+
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")
         for f in fails:
             print(f"     {f}")
         return 1
     print("RESULT V-00 GREEN")
-    print("     23 aserciones sobre los detectores del gate")
+    print(f"     {asserts} aserciones sobre los detectores del gate")
     return 0
 
 

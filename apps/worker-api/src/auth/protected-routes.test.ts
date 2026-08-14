@@ -81,7 +81,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/orders/items/ready' },
   { method: 'POST', path: '/api/orders/items/cancel' },
   { method: 'POST', path: '/api/orders/split' },
-  { method: 'GET', path: '/api/kds/ws' },
+  { method: 'POST', path: '/api/kds/ws-ticket' },
   { method: 'GET', path: '/api/owner/day-summary' },
   { method: 'POST', path: '/api/owner/push/subscribe' },
   { method: 'POST', path: '/api/owner/push/send' },
@@ -133,7 +133,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/inventory/remission-guides' },
   { method: 'POST', path: '/api/fiscal/perceptions' },
   { method: 'POST', path: '/api/fiscal/retentions' },
-  { method: 'POST', path: '/api/backups/step-up' },
+  { method: 'POST', path: '/api/backups/step-up-token' },
   { method: 'GET', path: '/api/cash/policy' },
   { method: 'PATCH', path: '/api/cash/policy' },
   { method: 'GET', path: '/api/orders/customer-orders' },
@@ -161,8 +161,11 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/team/resolve' },
   { method: 'GET', path: '/api/onboarding/setup-progress' },
   { method: 'POST', path: '/api/growth/events' },
+  { method: 'GET', path: '/api/growth/events' },
   { method: 'GET', path: '/api/catalog/variants-uom' },
   { method: 'GET', path: '/api/catalog/sellable' },
+  { method: 'GET', path: '/api/catalog/export' },
+  { method: 'GET', path: '/api/sales/export' },
   { method: 'PATCH', path: '/api/catalog/variants/v1' },
   { method: 'POST', path: '/api/catalog/uoms' },
   { method: 'POST', path: '/api/inventory/counts' },
@@ -223,6 +226,10 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/insights/chat' },
   { method: 'GET', path: '/api/insights/briefing' },
   { method: 'PATCH', path: '/api/tenant/formalization' },
+  { method: 'PATCH', path: '/api/tenant/plan' },
+  { method: 'POST', path: '/api/tenant/cancel' },
+  { method: 'POST', path: '/api/tenant/billing-portal' },
+  { method: 'POST', path: '/api/tenant/checkout-session' },
 ];
 
 const tenant: AuthTenantSnapshot = {
@@ -286,7 +293,9 @@ function templateCoveredByMatrix(templateNormalized: string, matrixPath: string)
 /** Rutas /api/* registradas en el router real (fuente de verdad de paridad). */
 function registeredApiRoutes(app: ReturnType<typeof createApp>): string[] {
   const routes = (app as unknown as { routes: Array<{ method: string; path: string }> }).routes;
-  const middlewareIndex = routes.findIndex((r) => r.method === 'ALL' && r.path === '/api/*');
+  // El último ALL /api/* es JWT+Plan Guard. CORS y GET /api/kds/ws (ticket
+  // one-shot, sin Bearer) se registran antes y no entran a esta matriz.
+  const middlewareIndex = routes.findLastIndex((r) => r.method === 'ALL' && r.path === '/api/*');
   const protectedRoutes = middlewareIndex >= 0 ? routes.slice(middlewareIndex) : routes;
   return protectedRoutes
     .filter((r) => r.path.startsWith('/api/') && r.method !== 'ALL' && r.method !== 'OPTIONS')
@@ -312,6 +321,23 @@ describe('matriz rutas protegidas worker-api', () => {
       );
     });
     expect(uncovered).toEqual([]);
+  });
+
+  it('PARIDAD INVERSA: toda ruta de la matriz está registrada en el router (fe de errata authz-token/step-up/returns-policy)', () => {
+    const app = createApp(authed);
+    const registered = new Set(registeredApiRoutes(app));
+    const missing = PROTECTED_ROUTES.filter((r) => {
+      const normalized = `${r.method} ${normalizeTemplate(r.path)}`;
+      return (
+        !registered.has(normalized) &&
+        !registered.has(`${r.method} ${r.path}`) &&
+        ![...registered].some((entry) => {
+          const [method, path] = entry.split(' ');
+          return method === r.method && templateCoveredByMatrix(path ?? '', r.path);
+        })
+      );
+    });
+    expect(missing).toEqual([]);
   });
 
   it.each(PROTECTED_ROUTES)('$method $path → 401 sin Bearer', async ({ method, path }) => {

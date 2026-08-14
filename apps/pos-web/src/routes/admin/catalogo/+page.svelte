@@ -50,8 +50,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const apiBase = () => resolveApiBase(localStorage);
   const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
-
   async function scanLookup() {
     const raw = scanBarcode.trim();
     lookupMsg = '';

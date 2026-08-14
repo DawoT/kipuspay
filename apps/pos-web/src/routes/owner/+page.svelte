@@ -32,7 +32,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
@@ -115,7 +115,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function loadBriefing() {
     if (!isAgenticInsightsEnabled() || typeof fetch === 'undefined') return;
     try {
-      const response = await fetch('/api/insights/briefing');
+      const response = await apiFetch('/api/insights/briefing', { storage: localStorage });
       if (!response.ok) return;
       briefing = (await response.json()) as { reportDate: string; briefing: string };
     } catch {
@@ -141,7 +141,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const item = pendingAnular;
     pendingAnular = null;
     const res = await submitAnularEa(
-      typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '',
+      resolveApiBase(localStorage),
       resolveApiAuth(localStorage).authorization ?? '',
       {
         originSaleId: item.saleId,
@@ -165,11 +165,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadOverdueLayaways() {
     if (!layawayOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/layaways/overdue`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/layaways/overdue', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       items?: { id: string; balanceCents: number; dueDate: string | null; status: string }[];
@@ -179,11 +175,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadStoreCreditReport() {
     if (!storeCreditOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/ledger/store-credit`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/ledger/store-credit', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       issuedCents?: number;
@@ -201,11 +193,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadExpiredQuotes() {
     if (!quotesOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/quotes/expired`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/quotes/expired', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       items?: {
@@ -220,11 +208,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadOverdueInstallments() {
     if (!installmentsOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/installments/overdue`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/installments/overdue', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       items?: {
@@ -241,11 +225,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadCommissionsReport() {
     if (!commissionsOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/commissions`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/commissions', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       pendingAccrualCents?: number;

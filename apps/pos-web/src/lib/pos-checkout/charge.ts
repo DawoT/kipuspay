@@ -8,6 +8,7 @@ import {
   type FormalizationMode,
   type TaxRegime,
 } from '@kipuspay/domain-fiscal-pe';
+import { buildSaleTotals } from '@kipuspay/domain-sales';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 import type { OfflineQueueStore } from '../offline-sync/offline-queue.js';
 import { cartTotalCents, type CartLine } from './cart.js';
@@ -112,6 +113,13 @@ export async function chargeCartOffline(
   void _nowMs;
   const started = performance.now();
   const totalCents = cartTotalCents(lines);
+  const payableCents = totalCents + buildSaleTotals(
+    lines.map((l) => ({
+      productId: l.productId,
+      priceCents: l.isUncatalogued ? (l.manualPriceCents ?? l.unitPriceCents) : l.unitPriceCents,
+      qty: l.quantity,
+    })),
+  ).igvCents;
   if (lines.length === 0 || totalCents <= 0) {
     return {
       ok: false,
@@ -175,7 +183,7 @@ export async function chargeCartOffline(
         ? { serialId: l.serialId, serialLeaseToken: l.serialLeaseToken }
         : {}),
     })),
-    payments: [buildPaymentLine(ctx, totalCents)],
+    payments: [buildPaymentLine(ctx, payableCents)],
     ...(ctx.sellerId?.trim() ? { sellerId: ctx.sellerId.trim() } : {}),
   };
 

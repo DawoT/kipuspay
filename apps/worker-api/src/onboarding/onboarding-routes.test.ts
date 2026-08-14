@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   isOnboardingTourEnabled,
+  runBootstrapHttp,
   runFormalizationStageHttp,
   runGrowthEventHttp,
+  runListGrowthEventsHttp,
+  runOnboardingClaimHttp,
   runSetupProgressHttp,
   GROWTH_EVENT_TYPES,
   type OnboardingEnv,
@@ -136,6 +139,40 @@ describe('onboarding.tour routes (Sprint 52)', () => {
     }
   });
 
+  it('lista growth_events del tenant (métricas owner, no demo local)', async () => {
+    const db = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              all: () =>
+                Promise.resolve({
+                  results: [
+                    {
+                      tenantId: 't1',
+                      eventType: 'first_sale',
+                      occurredAtIso: '2026-01-01T00:00:00.000Z',
+                      metaJson: null,
+                    },
+                  ],
+                }),
+            };
+          },
+        };
+      },
+    };
+    const res = await runListGrowthEventsHttp({ DB: db }, 't1');
+    expect(res.status).toBe(200);
+    expect(res.body.events).toEqual([
+      {
+        tenantId: 't1',
+        eventType: 'first_sale',
+        occurredAtIso: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+    expect((await runListGrowthEventsHttp({ DB: db }, '')).status).toBe(401);
+  });
+
   it('el catálogo de eventos incluye los 11 tipos del CHECK 0044', () => {
     expect(GROWTH_EVENT_TYPES).toHaveLength(11);
     expect(GROWTH_EVENT_TYPES).toContain('tour_completed');
@@ -229,5 +266,146 @@ describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalizati
       formalization_mode: string;
     };
     expect(after.formalization_mode).toBe('INTERNAL_CONTROL');
+  });
+});
+
+describe('bootstrap persistente + claim de onboarding (M6A)', () => {
+  interface Capture {
+    kv: Map<string, string>;
+    kvDeletes: string[];
+    batchSql: string[];
+    batchCount: number;
+  }
+
+  function captureEnv(overrides: { tenantExists?: boolean; jwtSecret?: string } = {}) {
+    const capture: Capture = { kv: new Map(), kvDeletes: [], batchSql: [], batchCount: 0 };
+    const db = {
+      prepare(sql: string) {
+        const stmt = {
+          bind() {
+            return stmt;
+          },
+          first<T>() {
+            return Promise.resolve(null as T);
+          },
+          run() {
+            return Promise.resolve({ meta: { changes: 1 } });
+          },
+        };
+        (stmt as unknown as { sql: string }).sql = sql;
+        return stmt;
+      },
+      batch<T>(stmts: { sql?: string }[]) {
+        capture.batchCount += 1;
+        for (const s of stmts) capture.batchSql.push(s.sql ?? '');
+        return Promise.resolve(stmts.map(() => ({})) as T[]);
+      },
+      exec() {
+        return Promise.resolve({ count: 0, duration: 0 });
+      },
+      withSession() {
+        return { prepare: db.prepare.bind(db), batch: db.batch.bind(db) };
+      },
+      dump() {
+        return Promise.resolve(new ArrayBuffer(0));
+      },
+    };
+    const env = {
+      DB: db as unknown as D1Database,
+      AUTH_JWT_HS_SECRET: overrides.jwtSecret ?? 'secret-de-prueba',
+      TENANT_KV: {
+        get: (key: string) =>
+          Promise.resolve(
+            overrides.tenantExists && key.startsWith('tenant:')
+              ? JSON.stringify({ id: key.split(':')[1] })
+              : (capture.kv.get(key) ?? null),
+          ),
+        put: (key: string, value: string) => {
+          capture.kv.set(key, value);
+          return Promise.resolve();
+        },
+        delete: (key: string) => {
+          capture.kvDeletes.push(key);
+          capture.kv.delete(key);
+          return Promise.resolve();
+        },
+      },
+    };
+    return { env, capture };
+  }
+
+  it('persiste tenant+branch+owner+sesión y devuelve credenciales y token (RED M6A)', async () => {
+    const { env, capture } = captureEnv();
+    const res = await runBootstrapHttp(env, {
+      tradeName: 'Bodega Doña Pepa',
+      verticalType: 'retail',
+      formalizationMode: 'INTERNAL_CONTROL',
+    });
+    expect(res.status).toBe(201);
+    const body = res.body;
+    expect(typeof body.tenantId).toBe('string');
+    expect(typeof body.branchId).toBe('string');
+    expect(String(body.ownerBadge)).toMatch(/^EMP-\d{5}$/);
+    expect(String(body.ownerPin)).toMatch(/^\d{4}$/);
+    expect(String(body.onboardingToken).split('.')).toHaveLength(3);
+    expect(body.expiresInSeconds).toBe(900);
+    expect(typeof body.trialEndsAt).toBe('string');
+    // Persistencia: KV auth snapshot + token single-use + batch con las 6 tablas.
+    expect(capture.kv.has(`tenant:${body.tenantId}`)).toBe(true);
+    expect([...capture.kv.keys()].some((k) => k.startsWith('onboarding:'))).toBe(true);
+    const sql = capture.batchSql.join('\n');
+    expect(sql).toContain('INSERT INTO tenants');
+    expect(sql).toContain('INSERT INTO branches');
+    expect(sql).toContain('INSERT INTO cash_registers');
+    expect(sql).toContain('INSERT INTO users');
+    expect(sql).toContain('INSERT INTO cash_register_sessions');
+    expect(sql).toContain("'onboarding_started'");
+    expect(sql).toContain('INSERT INTO branch_document_series');
+    expect(sql).toContain('INSERT INTO payment_methods');
+  });
+
+  it('idempotencia: tenant ya persistido → 409 sin duplicar (RED M6A)', async () => {
+    const { env } = captureEnv({ tenantExists: true });
+    const res = await runBootstrapHttp(env, {
+      tradeName: 'Otra Bodega',
+      verticalType: 'retail',
+      formalizationMode: 'INTERNAL_CONTROL',
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('TENANT_ALREADY_EXISTS');
+  });
+
+  it('campos inválidos → 422 sin persistir', async () => {
+    const { env, capture } = captureEnv();
+    const res = await runBootstrapHttp(env, { tradeName: '', verticalType: 'retail', formalizationMode: 'INTERNAL_CONTROL' });
+    expect(res.status).toBe(422);
+    expect(capture.batchCount).toBe(0);
+  });
+
+  it('claim: token válido consume el single-use y minta la sesión del owner (RED M6A)', async () => {
+    const { env, capture } = captureEnv();
+    const boot = await runBootstrapHttp(env, {
+      tradeName: 'Bodega Doña Pepa',
+      verticalType: 'retail',
+      formalizationMode: 'INTERNAL_CONTROL',
+    });
+    expect(boot.status).toBe(201);
+    const body = boot.body;
+    const claim = await runOnboardingClaimHttp(env, String(body.onboardingToken));
+    expect(claim.status).toBe(200);
+    const claimBody = claim.body;
+    expect(String(claimBody.token).split('.')).toHaveLength(3);
+    expect((claimBody.user as { role: string }).role).toBe('owner');
+    expect(typeof claimBody.cashRegisterSessionId).toBe('string');
+    expect(capture.kvDeletes.some((k) => k.startsWith('onboarding:'))).toBe(true);
+    // Segundo uso del mismo token → 403.
+    const second = await runOnboardingClaimHttp(env, String(body.onboardingToken));
+    expect(second.status).toBe(403);
+  });
+
+  it('claim con token inválido → 403', async () => {
+    const { env } = captureEnv();
+    const claim = await runOnboardingClaimHttp(env, 'token-invalido');
+    expect(claim.status).toBe(403);
   });
 });

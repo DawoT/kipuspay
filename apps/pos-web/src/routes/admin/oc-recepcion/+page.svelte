@@ -1,14 +1,19 @@
 <script lang="ts">
-  import { isInventorySerialsEnabled, isPartialReceiveEnabled } from '$lib/features';
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
+  import { isInventorySerialsEnabled, isPartialReceiveEnabled, isPurchasingOrdersEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const recvOn = isPartialReceiveEnabled();
   const serialsOn = isInventorySerialsEnabled();
-  let purchaseOrderId = $state('po-demo');
-  let branchId = $state('b-demo');
+  const ordersOn = isPurchasingOrdersEnabled();
+  let purchaseOrderId = $state('');
+  let supplierId = $state('');
+  let poTotalCents = $state(0);
+  let branchId = $state(initTenantBranchId());
   let productId = $state('p1');
   let quantity = $state(4);
   let unitCostCents = $state(500);
@@ -21,17 +26,33 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let serialScan = $state('');
   let serialNumbers = $state<string[]>([]);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
+  async function createOrder() {
+    message = '';
+    const res = await apiFetch('/api/purchasing/orders', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        branchId: branchId.trim() || initTenantBranchId(),
+        supplierId,
+        totalAmountCents: poTotalCents,
+      }),
+    });
+    const json = (await res.json()) as { id?: string; error?: string };
+    messageOk = res.ok;
+    if (res.ok && json.id) purchaseOrderId = json.id;
+    message = res.ok ? `OC ${json.id} creada` : (json.error ?? 'error');
+  }
 
   async function partialReceive() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/orders/partial-receive`, {
+    const res = await apiFetch('/api/purchasing/orders/partial-receive', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         purchaseOrderId,
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         lines: [
           {
             productId,
@@ -51,7 +72,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     };
     messageOk = res.ok;
     message = res.ok
-      ? `Receipt ${json.receiptId} · ${json.nextStatus} · CxP ${json.apAmountCents} céntimos`
+      ? `Receipt ${json.receiptId} · ${json.nextStatus} · CxP ${json.apAmountCents}`
       : (json.error ?? 'error');
   }
 
@@ -64,11 +85,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function createSerialManifest() {
-    const res = await fetch(`${apiBase()}/api/inventory/serials/manifests`, {
+    const res = await apiFetch('/api/inventory/serials/manifests', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         purchaseReceiptLineId,
         locationId,
         serialNumbers,
@@ -107,6 +129,25 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       <Icon name={messageOk ? 'check' : 'alert'} size={16} />
       <span>{message}</span>
     </StatusMessage>
+  {/if}
+
+  {#if ordersOn}
+    <section class="glass-card section-pad" data-testid="admin-po-create">
+      <div class="card-header">
+        <h2>Crear orden de compra</h2>
+      </div>
+      <div class="field-group">
+        <label for="po-supplier">Proveedor</label>
+        <input id="po-supplier" bind:value={supplierId} data-testid="admin-po-supplier" />
+      </div>
+      <div class="field-group">
+        <label for="po-total">Total</label>
+        <input id="po-total" type="number" bind:value={poTotalCents} data-testid="admin-po-total" />
+      </div>
+      <Button variant="secondary" icon="plus" data-testid="admin-po-create-btn" onclick={() => void createOrder()}>
+        Crear OC
+      </Button>
+    </section>
   {/if}
 
   {#if !recvOn}

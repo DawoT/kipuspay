@@ -26,7 +26,12 @@
 import { createPrinterTransport } from '$lib/print/printer-transport';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
-  import { readLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
+  import { readLoginUser, writeLoginTenantId, writeLoginToken, writeLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
+  import {
+    claimOnboardingFromUrlIfPresent,
+    readLastOnboardingClaim,
+    readLastOnboardingError,
+  } from '$lib/auth/onboarding-claim';
   import {
     capabilitiesFromFlags,
   } from '$lib/onboarding/capabilities';
@@ -38,7 +43,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   } from '$lib/onboarding/tour-client';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
-  import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
+  import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import SellableCatalog from '$lib/pos/SellableCatalog.svelte';
   import { chargeCartOffline, requiresCustomerIdentity } from '$lib/pos-checkout/charge';
   import {
@@ -162,23 +167,42 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const correlatives = new OfflineCorrelativeStore(1);
 
   const totalCents = $derived(cartTotalCents(lines));
+  const payableCents = $derived(cartPayableCents(lines));
   const banner = $derived(formalizationBannerMessage(session.formalizationMode));
 
-  onMount(() => {
+  onMount(async () => {
     if (typeof window === 'undefined') return;
     const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
     if (fromQs) {
       writeTenantSession(sessionStorage, fromQs);
       session = fromQs;
+      writeLoginTenantId(localStorage, fromQs.tenantId);
     } else {
       session = readTenantSession(sessionStorage);
     }
-    void loadSellableCatalog();
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
     loginUser = readLoginUser(localStorage);
+    const claimed = await claimOnboardingFromUrlIfPresent();
+    // Fe de errata de walkthrough (Sprint 7): el claim es single-flight y puede
+    // ganarlo el layout; el resultado queda en el módulo — la página lo lee
+    // siempre, no solo cuando su propia llamada devuelve true.
+    const lastSession = readLastOnboardingClaim();
+    if (lastSession) onboardingSession = { branchId: lastSession.branchId, sessionId: lastSession.sessionId };
+    if (claimed) {
+      loginUser = readLoginUser(localStorage);
+    } else if (readLastOnboardingError() && !readLoginUser(localStorage)) {
+      // S7: un token ya consumido (reload con URL vieja) NO es un error si el
+      // login del claim anterior sigue activo; el notice solo aplica sin sesión.
+      onboardingNotice = `No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;
+    }
+    void loadSellableCatalog();
     maybeShowTour();
   });
+
+  // M6C: token single-use del onboarding → sesión real del owner.
+  let onboardingSession = $state<{ branchId: string; sessionId: string } | null>(null);
+  let onboardingNotice = $state('');
 
   const tourOn = isOnboardingTourEnabled();
   const tipOn = isSaleTipEnabled();
@@ -232,15 +256,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   /** S7-H2: drena la cola offline hacia POST /api/v1/sync/sales en background. */
   async function flushPendingSales(): Promise<void> {
     try {
-      const apiBase = (localStorage.getItem('kipuspay_api_base') ?? 'http://localhost:8787').replace(
-        /\/$/,
-        '',
-      );
+      const apiBase = resolveApiBase(localStorage);
       await dispatchPendingSalesChunked(
         queue,
         createHttpSyncTransport({
           endpointUrl: `${apiBase}/api/v1/sync/sales`,
           bearerToken: localStorage.getItem('kipuspay_token') ?? undefined,
+          tenantId: localStorage.getItem('kipuspay_tenant_id') ?? undefined,
         }),
       );
     } catch {
@@ -250,6 +272,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function onCharge() {
     status = 'cobrando';
+    if (!onboardingSession) {
+      // Fe de errata de walkthrough (Sprint 7): sin sesión de caja (branch +
+      // sesión OPEN) el server rechaza la venta; nunca encolar con valores demo.
+      status = 'bloqueado';
+      message = 'No hay una sesión de caja abierta. Inicia sesión o abre la caja.';
+      return;
+    }
     if (isVitrinaEnabled()) {
       publishVitrina({
         totalCents,
@@ -267,8 +296,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {
         formalizationMode: session.formalizationMode,
         taxRegime: 'RG',
-        branchId: 'b-demo',
-        cashRegisterSessionId: 's-demo',
+        branchId: onboardingSession?.branchId ?? '',
+        cashRegisterSessionId: onboardingSession?.sessionId ?? '',
         series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
         clientDocumentType: clientDocType,
         clientDocumentNumber: clientDocNumber.trim(),
@@ -305,6 +334,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       const nextSession = markTenantFirstSale(session, new Date().toISOString());
       writeTenantSession(sessionStorage, nextSession);
       session = nextSession;
+      // M6D: TTFS — primera venta real (growth_events, catálogo cerrado).
+      void recordGrowthEvent('first_sale', { vertical: session.verticalType });
     }
 
     if (isPrintTemplatesEnabled()) {
@@ -329,8 +360,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               brandFooter: {
                 enabled: true,
                 label: 'Emitido con KipusPay',
-                shortUrl: 'kipuspay.pe',
-                qrPayload: 'https://kipuspay.pe',
+                shortUrl: 'kipuspay.com',
+                qrPayload: 'https://kipuspay.com',
               },
             }
           : {}),
@@ -378,6 +409,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       catalogItems = await fetchSellableCatalog({
         apiBase: resolveApiBase(localStorage),
         authorization: resolveApiAuth(localStorage).authorization ?? '',
+        tenantId: resolveApiAuth(localStorage)['x-tenant-id'],
       });
     } catch {
       catalogError = 'No se pudo cargar el catálogo. La venta rápida sigue disponible.';
@@ -621,6 +653,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 <div class="pos-layout">
   <!-- Top Bar Meta / Banner -->
+  {#if onboardingNotice}
+    <div class="glass-panel onboarding-notice" role="status" data-testid="onboarding-notice">
+      <span>{onboardingNotice}</span>
+    </div>
+  {/if}
+
   <header class="pos-banner-card glass-panel">
     <div class="banner-left">
       <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
@@ -887,7 +925,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             <div class="summary-total-box">
               <span class="total-label">TOTAL A COBRAR</span>
               <span data-testid="total" class="total-amount tabular-nums">
-                S/ {formatCents(totalCents)}
+                S/ {formatCents(payableCents)}
               </span>
             </div>
 
@@ -938,7 +976,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               disabled={lines.length === 0}
               icon="credit-card"
             >
-              COBRAR (S/ {formatCents(totalCents)})
+              COBRAR (S/ {formatCents(payableCents)})
             </Button>
             <Button
               variant="secondary"
@@ -1052,6 +1090,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+  }
+
+  .onboarding-notice {
+    padding: 0.875rem 1.25rem;
+    border: 1px solid var(--amber-warning, #f59e0b);
+    background: rgba(245, 158, 11, 0.08);
+    color: var(--text-main);
+    font-size: 0.9375rem;
   }
 
   .pos-bottom-nav {

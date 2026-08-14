@@ -9,6 +9,10 @@ const CHECKOUT_CRITICAL_PREFIXES = [
   '/api/cash/',
   '/api/fiscal/emit',
   '/api/documents/emit',
+  // S7 (Sprint 9): el sync de ventas offline es la continuidad de la caja —
+  // explícito para que un cambio futuro de la lista premium no lo capture.
+  '/api/v1/sync/sales',
+  '/api/v1/sync/',
   // Arqueo Arranque — nunca 402 por plan (GTM §4.1 / §9).
   '/api/reports/arqueo',
 ] as const;

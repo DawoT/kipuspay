@@ -126,6 +126,9 @@ Cada check emite `RESULT <ID> GREEN|RED` y la última línea es `RESULT SUITE GR
 | V-24 | Presupuesto de bundle del POS y zero-dependencia runtime contra `bundle_deps_baseline.json` (CAL-06, §13.8) |
 | V-25 | Espejo up↔down de migraciones D1: cada `migrations/*.sql` tiene su par en `migrations-down/` y viceversa (Sprint 1) |
 | V-26 | Copy marketing sin jerga técnica (Edge/D1/ACID/sharding/CDR/UBL/PSE) en `apps/marketing-web` (GTM §1, Sprint 10) |
+| V-27 | Copy del POS sin jerga técnica visible en `apps/pos-web` (Sprint F) |
+| V-28 | Contrato POS↔API: todo path `/api/...` que los clientes del POS invocan debe estar registrado en `apps/worker-api/src/index.ts` (0396) |
+| V-29 | Paridad de triggers de epoch: toda tabla del registry `D1_BACKUP_TABLES` con sus 3 triggers de `tenant_data_epochs` (0396, 0052/0053) |
 
 Un `SUITE GREEN` es condición **necesaria pero no suficiente**: los Quality Gates de implementación (Proceso §8.1) exigen además evidencia runtime.
 

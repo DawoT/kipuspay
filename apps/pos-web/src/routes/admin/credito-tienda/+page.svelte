@@ -1,28 +1,28 @@
 <script lang="ts">
+  
+  import { tenantBranchId } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
   import { isLedgerStoreCreditEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
-  let customerId = $state('c-demo');
+  let customerId = $state('');
   let amountCents = $state(100);
   let adjustSign = $state<'CREDIT' | 'DEBIT'>('CREDIT');
   let authorizedByUserId = $state('');
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function expire() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/ledger/store-credit/expire`, {
+    const res = await apiFetch('/api/ledger/store-credit/expire', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({ customerId, branchId: 'b-demo' }),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ customerId, branchId: tenantBranchId(localStorage) }),
     });
     const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
     messageOk = res.ok;
@@ -33,12 +33,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function adjust() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/ledger/store-credit/adjust`, {
+    const res = await apiFetch('/api/ledger/store-credit/adjust', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         customerId,
-        branchId: 'b-demo',
+        branchId: tenantBranchId(localStorage),
         amountCents,
         adjustSign,
         authorizedByUserId: authorizedByUserId || null,
@@ -59,7 +60,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="dollar" size={12} /> Ventas · Crédito tienda</p>
       <h1 class="page-title">Crédito de tienda</h1>
-      <p class="page-lede">Gestión de saldo de crédito del cliente — ajustes, expiración y consulta.</p>
+      <p class="page-lede">El vale se emite en Caja. Aquí solo ajustas o expiras el saldo del cliente.</p>
     </div>
   </div>
 
@@ -112,6 +113,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <label for="credit-authz">Autorizado por (ID usuario)</label>
           <input id="credit-authz" bind:value={authorizedByUserId} data-testid="sc-authz" placeholder="Opcional" />
         </div>
+        <p class="page-lede">Para emitir un vale nuevo, usa Caja → Vale.</p>
         <div class="btn-row">
           <Button variant="primary" icon="check" data-testid="sc-adjust" onclick={adjust}>
           Aplicar ajuste

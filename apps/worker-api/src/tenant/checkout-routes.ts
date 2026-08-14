@@ -1,0 +1,93 @@
+/**
+ * Checkout Session self-serve (Arranque/Crece/Cadena). Enterprise no es self-serve.
+ * Return URLs solo https (V-03).
+ */
+import type { WorkerEnv } from '../auth/control-plane.js';
+import {
+  createStripeCheckoutSession,
+  isHttpsUrl,
+  persistStripeCustomerBestEffort,
+} from './stripe-billing.js';
+
+const ALLOWED_PLANS = new Set(['arranque', 'crece', 'cadena']);
+const DEFAULT_SUCCESS = 'https://app.kipuspay.com/admin/configuracion?checkout=success';
+const DEFAULT_CANCEL = 'https://app.kipuspay.com/admin/configuracion?checkout=cancel';
+
+function priceIdForPlan(env: WorkerEnv, planId: string): string {
+  if (planId === 'arranque') return env.STRIPE_PRICE_ARRANQUE?.trim() ?? '';
+  if (planId === 'crece') return env.STRIPE_PRICE_CRECE?.trim() ?? '';
+  if (planId === 'cadena') return env.STRIPE_PRICE_CADENA?.trim() ?? '';
+  return '';
+}
+
+export async function runCheckoutSessionHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  role: string,
+  body: unknown,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!env?.DB) {
+    return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+  if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  const normalizedRole = role.toLowerCase();
+  if (normalizedRole !== 'owner' && normalizedRole !== 'admin') {
+    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
+  }
+  const o = body as Record<string, unknown>;
+  const planId = String(o.planId ?? '').trim();
+  if (planId === 'enterprise') {
+    return {
+      status: 422,
+      body: {
+        error: 'Enterprise se contrata con el equipo comercial',
+        code: 'ENTERPRISE_SALES_ASSISTED',
+      },
+    };
+  }
+  if (!ALLOWED_PLANS.has(planId)) {
+    return { status: 422, body: { error: 'Invalid planId', code: 'INVALID_PLAN' } };
+  }
+  const successUrl = typeof o.successUrl === 'string' ? o.successUrl.trim() : DEFAULT_SUCCESS;
+  const cancelUrl = typeof o.cancelUrl === 'string' ? o.cancelUrl.trim() : DEFAULT_CANCEL;
+  if (!isHttpsUrl(successUrl) || !isHttpsUrl(cancelUrl)) {
+    return { status: 422, body: { error: 'Return URLs must be https', code: 'INVALID_RETURN_URL' } };
+  }
+  const stripeKey = env.STRIPE_SECRET_KEY?.trim() ?? '';
+  const priceId = priceIdForPlan(env, planId);
+  if (!stripeKey || !priceId) {
+    return { status: 503, body: { error: 'Billing unavailable', code: 'STRIPE_PRICE_UNAVAILABLE' } };
+  }
+  try {
+    const row = await env.DB.prepare(
+      'SELECT id, trade_name, stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
+    )
+      .bind(tenantId)
+      .first<{ id: string; trade_name?: string | null; stripe_customer_id?: string | null }>();
+    if (!row) return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
+    await persistStripeCustomerBestEffort(env, tenantId, row.trade_name ?? tenantId, fetchImpl);
+    const refreshed = await env.DB.prepare(
+      'SELECT stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
+    )
+      .bind(tenantId)
+      .first<{ stripe_customer_id?: string | null }>();
+    const customerId = refreshed?.stripe_customer_id?.trim() ?? '';
+    if (!customerId) {
+      return { status: 503, body: { error: 'Billing unavailable', code: 'STRIPE_CUSTOMER_UNAVAILABLE' } };
+    }
+    const session = await createStripeCheckoutSession(
+      { customerId, priceId, successUrl, cancelUrl, tenantId },
+      { apiKey: stripeKey, fetchImpl },
+    );
+    if (!session.url) {
+      return { status: 502, body: { error: 'Checkout unavailable', code: 'STRIPE_CHECKOUT_FAILED' } };
+    }
+    return { status: 200, body: { url: session.url } };
+  } catch {
+    return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+}

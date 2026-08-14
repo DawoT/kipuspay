@@ -89,6 +89,30 @@
     }
   }
 
+  async function mintStepUp() {
+    if (!selected || !authenticatedFetch) {
+      error = 'Selecciona un respaldo para emitir el token.';
+      return;
+    }
+    error = '';
+    try {
+      const response = await authenticatedFetch('/api/backups/step-up-token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ backupId: selected.id }),
+      });
+      const body = (await response.json()) as { token?: string; code?: string };
+      if (!response.ok || !body.token) {
+        error = body.code ?? 'No se pudo emitir el token de reautenticación.';
+        return;
+      }
+      stepUpToken = body.token;
+      notice = 'Token de reautenticación listo (90 s, un solo uso).';
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'No se pudo emitir el token.';
+    }
+  }
+
   async function download(backup: BackupSummary) {
     if (!stepUpToken) {
       error = 'Se requiere reautenticación reciente para descargar el respaldo.';
@@ -239,6 +263,14 @@
             bind:value={stepUpToken}
             placeholder="Solo en memoria para descargar"
           />
+          <Button
+            variant="secondary"
+            data-testid="mint-step-up"
+            disabled={!online || busy || !selected}
+            onclick={() => void mintStepUp()}
+          >
+            Emitir token
+          </Button>
         </div>
       {/if}
     </div>

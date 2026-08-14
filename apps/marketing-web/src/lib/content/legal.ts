@@ -105,11 +105,11 @@ export const RECLAMATIONS_PAGE = {
   steps: [
     {
       title: 'Registra tu reclamo',
-      body: 'Escríbenos a contacto@kipuspay.com con tu nombre o razón social, tu documento, una descripción de lo ocurrido y tu pedido concreto.',
+      body: 'Completa el formulario de esta página. Recibirás un número de caso como acuse (Ley 29571). También puedes escribir a contacto@kipuspay.com.',
     },
     {
       title: 'Recibe la constancia',
-      body: 'Confirmamos la recepción de tu reclamo con un número de trámite por el mismo canal.',
+      body: 'El número de caso en pantalla es tu acuse. Conserva ese número. La constancia por correo está en preparación.',
     },
     {
       title: 'Respuesta en 30 días calendario',

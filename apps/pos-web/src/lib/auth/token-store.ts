@@ -1,5 +1,6 @@
 export const LOGIN_TOKEN_KEY = 'kipuspay_token';
 export const LOGIN_USER_KEY = 'kipuspay_user';
+export const LOGIN_TENANT_KEY = 'kipuspay_tenant_id';
 
 export interface LoginUserIdentity {
   readonly userId: string;
@@ -87,5 +88,16 @@ export function readLoginUser(
     return null;
   } catch {
     return null;
+  }
+}
+
+export function writeLoginTenantId(
+  storage: Pick<Storage, 'setItem'> | null | undefined,
+  tenantId: string,
+): void {
+  try {
+    storage?.setItem(LOGIN_TENANT_KEY, tenantId);
+  } catch {
+    // Sin storage: el hint vive solo en memoria.
   }
 }

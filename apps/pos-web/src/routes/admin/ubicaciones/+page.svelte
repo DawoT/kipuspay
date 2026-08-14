@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { isInventoryLocationsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -6,7 +8,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import Table from '$lib/ui/Table.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   type LocationRow = {
     id: string;
@@ -24,7 +26,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   };
 
   const locationsOn = isInventoryLocationsEnabled();
-  let branchId = $state('b-demo');
+  let branchId = $state(initTenantBranchId());
   let code = $state('');
   let name = $state('');
   let locations = $state<LocationRow[]>([]);
@@ -36,14 +38,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let busy = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
   const units = (microunits: number) =>
     new Intl.NumberFormat('es-PE', { maximumFractionDigits: 6 }).format(microunits / 1_000_000);
 
-  async function request(path: string, init?: RequestInit) {
-    const response = await fetch(`${apiBase()}${path}`, init);
+  async function request(path: string, init?: { method?: string; body?: string }) {
+    const response = await apiFetch(path, {
+      storage: localStorage,
+      method: init?.method,
+      headers: { 'content-type': 'application/json' },
+      body: init?.body,
+    });
     const body = (await response.json()) as Record<string, unknown>;
     if (!response.ok) throw new Error(String(body.error ?? `Error ${response.status}`));
     return body;
@@ -54,12 +58,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     message = '';
     try {
       const [locationData, stockData] = await Promise.all([
-        request(`/api/inventory/locations?branchId=${encodeURIComponent(branchId)}`, {
-          headers: headers(),
-        }),
-        request(`/api/inventory/locations/stock?branchId=${encodeURIComponent(branchId)}`, {
-          headers: headers(),
-        }),
+        request(`/api/inventory/locations?branchId=${encodeURIComponent(branchId)}`),
+        request(`/api/inventory/locations/stock?branchId=${encodeURIComponent(branchId)}`),
       ]);
       locations = (locationData.items as LocationRow[]) ?? [];
       stock = (stockData.items as StockRow[]) ?? [];
@@ -78,7 +78,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     try {
       await request('/api/inventory/locations', {
         method: 'POST',
-        headers: headers(),
         body: JSON.stringify({ branchId, code, name }),
       });
       code = '';
@@ -97,9 +96,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     try {
       await request('/api/inventory/locations/transfer', {
         method: 'POST',
-        headers: headers(),
         body: JSON.stringify({
-          branchId,
+          branchId: branchId.trim() || initTenantBranchId(),
           sourceLocationId,
           destinationLocationId,
           productId,
@@ -121,7 +119,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     try {
       await request('/api/inventory/locations', {
         method: 'DELETE',
-        headers: headers(),
         body: JSON.stringify({ branchId, locationId }),
       });
       message = 'Ubicación desactivada';
@@ -142,7 +139,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       const result = await request(
         `/api/inventory/locations/picking?branchId=${encodeURIComponent(branchId)}` +
           `&productId=${encodeURIComponent(productId)}&quantityMicrounits=${quantityMicrounits}`,
-        { headers: headers() },
       );
       const steps = (result.items as { locationId: string; quantityMicrounits: number }[]) ?? [];
       message = steps
@@ -152,6 +148,25 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       message = error instanceof Error ? error.message : String(error);
     } finally {
       busy = false;
+    }
+  }
+
+  async function exportCsv() {
+    try {
+      const res = await apiFetch(
+        `/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`,
+        { storage: localStorage },
+      );
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = 'inventario-ubicaciones.csv';
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      message = 'No se pudo exportar el CSV.';
     }
   }
 </script>
@@ -167,8 +182,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
     <Button
       variant="secondary"
-      href={`${apiBase()}/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`}
       icon="download"
+      onclick={() => void exportCsv()}
     >
       Exportar CSV
     </Button>

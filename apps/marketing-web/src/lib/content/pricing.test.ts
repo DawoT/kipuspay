@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRICING_DISCLAIMERS, PRICING_PLANS } from './pricing.js';
+import { PRICING_DISCLAIMERS, PRICING_PLANS, pricingFeatureAvailability, pricingFeatureText } from './pricing.js';
 
 describe('pricing content', () => {
   it('expone 4 planes GTM §4.1 sin copy sin limite en Arranque', () => {
@@ -24,7 +24,11 @@ describe('pricing content', () => {
 
   it('el copy público de precios no filtra jerga interna (M1)', () => {
     const all = [
-      ...PRICING_PLANS.flatMap((p) => [...p.limits, p.audience, ...(p.features ?? [])]),
+      ...PRICING_PLANS.flatMap((p) => [
+        ...p.limits,
+        p.audience,
+        ...p.features.map((f) => pricingFeatureText(f)),
+      ]),
       PRICING_DISCLAIMERS.cupo,
       PRICING_DISCLAIMERS.gracia,
     ].join(' ');
@@ -37,7 +41,9 @@ describe('pricing content', () => {
 
   describe('inclusiones por plan — documento maestro Parte I §2.1/§6 (M4B)', () => {
     function features(planId: string): string {
-      return (PRICING_PLANS.find((p) => p.id === planId)?.features ?? []).join(' ');
+      return (PRICING_PLANS.find((p) => p.id === planId)?.features ?? [])
+        .map((f) => pricingFeatureText(f))
+        .join(' ');
     }
 
     it('Arranque: venta, emisión, impresión 58/80, vitrina, arqueo, alta rápida y venta genérica', () => {
@@ -111,6 +117,28 @@ describe('pricing content', () => {
       expect(f.toLowerCase()).toContain('asistente');
       expect(f.toLowerCase()).toContain('account manager');
     });
+  });
+
+  it('claims en preparación no se venden como live (PUBLIC_CLAIMS / GTM freeze)', () => {
+    const needles: RegExp[] = [
+      /comandas|\bkds\b/i,
+      /fefo|vencimientos/i,
+      /arqueo z/i,
+      /\bdr\b|desastres/i,
+      /asistente gerente|insights/i,
+      /whatsapp/i,
+      /membresías|membresias/i,
+      /envío a sunat|envio a sunat/i,
+      /push operacional|caja móvil pwa|caja movil pwa/i,
+    ];
+    for (const plan of PRICING_PLANS) {
+      for (const feature of plan.features) {
+        const text = pricingFeatureText(feature);
+        if (needles.some((n) => n.test(text))) {
+          expect(pricingFeatureAvailability(feature), text).toBe('preparing');
+        }
+      }
+    }
   });
 
   it('publica cupo Arranque activo (GTM-04)', () => {

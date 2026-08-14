@@ -26,7 +26,7 @@ test('home con checkout off muestra demo', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('tenant-name')).toBeVisible();
   await page.getByTestId('add-line-p1').click();
-  await expect(page.getByTestId('total')).toContainText('118.00');
+  await expect(page.getByTestId('total')).toContainText('139.24'); // IGV 18% sobre 118.00
 });
 
 test('home agrega productos del catálogo real y suma el total', async ({ page }) => {
@@ -35,5 +35,5 @@ test('home agrega productos del catálogo real y suma el total', async ({ page }
   await expect(page.getByTestId('tenant-name')).toBeVisible();
   await page.getByTestId('add-line-p2').click();
   await page.getByTestId('add-line-p2').click();
-  await expect(page.getByTestId('total')).toContainText('50.00');
+  await expect(page.getByTestId('total')).toContainText('59.00'); // IGV 18% sobre 50.00
 });

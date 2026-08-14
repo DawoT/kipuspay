@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { apiFetch } from '$lib/auth/api-client';
 
   interface RcBannerState {
     loading: boolean;
@@ -13,7 +14,7 @@
   async function refresh(): Promise<void> {
     state = { ...state, loading: true };
     try {
-      const res = await fetch('/api/owner/rc-pending-banner');
+      const res = await apiFetch('/api/owner/rc-pending-banner');
       if (res.status === 404) {
         // FEATURE_FISCAL_RC off — sin banner (feature no activa).
         state = { loading: false, pending: 0, summaryDate: '', error: false };

@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch, resolveApiAuth, resolveApiBase } from './api-client.js';
+import {
+  absolutizeApiUrl,
+  apiFetch,
+  applyApiAuthHeaders,
+  readTenantIdHint,
+  resolveApiAuth,
+  resolveApiBase,
+} from './api-client.js';
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
   const values = new Map(Object.entries(initial));
@@ -40,6 +47,36 @@ describe('api-client (contrato de auth unificado, F1)', () => {
     expect(resolveApiAuth(storage)).toEqual({ authorization: 'Bearer jwt-123' });
   });
 
+  it('incluye el hint x-tenant-id cuando el tenant está guardado (contrato auth)', () => {
+    storage.setItem('kipuspay_token', 'jwt-123');
+    storage.setItem('kipuspay_tenant_id', 't_abc');
+    expect(resolveApiAuth(storage)).toEqual({
+      authorization: 'Bearer jwt-123',
+      'x-tenant-id': 't_abc',
+    });
+  });
+
+  it('applyApiAuthHeaders aplica authorization + x-tenant-id a un Headers mutable', () => {
+    storage.setItem('kipuspay_token', 'jwt-123');
+    storage.setItem('kipuspay_tenant_id', 't_abc');
+    const headers = new Headers();
+    applyApiAuthHeaders(headers, storage);
+    expect(headers.get('authorization')).toBe('Bearer jwt-123');
+    expect(headers.get('x-tenant-id')).toBe('t_abc');
+  });
+
+  it('applyApiAuthHeaders no pisa headers previos sin storage', () => {
+    const headers = new Headers({ authorization: 'Bearer custom' });
+    applyApiAuthHeaders(headers, memoryStorage());
+    expect(headers.get('authorization')).toBe('Bearer custom');
+  });
+
+  it('readTenantIdHint devuelve el hint o cadena vacía', () => {
+    expect(readTenantIdHint(storage)).toBe('');
+    storage.setItem('kipuspay_tenant_id', 't_abc');
+    expect(readTenantIdHint(storage)).toBe('t_abc');
+  });
+
   it('respeta el override de desarrollo explícito (PUBLIC_DEV_AUTH)', () => {
     vi.stubEnv('PUBLIC_DEV_AUTH', 'Bearer dev-token');
     expect(resolveApiAuth(storage)).toEqual({ authorization: 'Bearer dev-token' });
@@ -73,6 +110,24 @@ describe('api-client (contrato de auth unificado, F1)', () => {
     const [url, init] = fetcher.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.test/api/health');
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer jwt-456');
+    expect(init.credentials).toBe('include');
+  });
+
+  it('apiFetch copia x-tenant-id y absolutiza el path', async () => {
+    storage.setItem('kipuspay_token', 'jwt-456');
+    storage.setItem('kipuspay_tenant_id', 't_abc');
+    const fetcher = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    await apiFetch('/api/health', { apiBase: 'https://api.test', storage, fetcher });
+    const [url, init] = fetcher.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.test/api/health');
+    expect((init.headers as Record<string, string>)['x-tenant-id']).toBe('t_abc');
+  });
+
+  it('absolutizeApiUrl no duplica un URL absoluto', () => {
+    expect(absolutizeApiUrl('https://api.test/api/x', storage, 'https://other')).toBe(
+      'https://api.test/api/x',
+    );
+    expect(absolutizeApiUrl('/api/x', storage, 'https://api.test')).toBe('https://api.test/api/x');
   });
 
   it('apiFetch respeta headers existentes y no añade auth sin token', async () => {

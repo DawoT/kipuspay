@@ -211,7 +211,7 @@
       <p class="cta-brand">Tu rubro merece una caja que no se cae.</p>
       <div class="cta-row" style="margin-top: 1.6rem;">
         <a class="btn" href="/empezar">Empieza gratis</a>
-        <a class="btn btn-ghost" href="/">Ver el sitio</a>
+        <a class="btn btn-ghost" href="/precios">Ver planes</a>
       </div>
 
       <nav class="cross-links" aria-label="Otros rubros">

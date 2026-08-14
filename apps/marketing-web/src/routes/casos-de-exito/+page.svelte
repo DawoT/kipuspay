@@ -54,7 +54,7 @@
             Todavía no hay casos publicados con autorización explícita. Preferimos esperar a métricas reales comprobadas antes de poner un logo en la vitrina.
           </p>
           <div class="cta-row" style="margin-top: 1.5rem;">
-            <a class="btn" href="/empezar">Empieza gratis hoy</a>
+            <a class="btn" href="/empezar">Empieza gratis</a>
             <a class="btn btn-ghost" href="/para/retail">Explorar soluciones por rubro</a>
           </div>
         </div>

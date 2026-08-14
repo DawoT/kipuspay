@@ -1,6 +1,7 @@
 /* KipusPay unified POS Service Worker. Keep IndexedDB untouched across upgrades. */
 const VERSION = 'kipuspay-pos-sw-v2';
 const CACHE = `kipuspay-pos-shell-${VERSION}`;
+let kipuspayApiBase = '';
 const SHELL_ALLOWLIST = ['/', '/caja/cobro', '/offline.html', '/manifest.webmanifest'];
 const ROUTES = {
   cash_close: '/caja',
@@ -70,7 +71,7 @@ async function notifyClients(type) {
 async function dispatchDisplayedAck(deliveryId, receipt, displayedAt) {
   if (!deliveryId || !receipt) return;
   try {
-    await fetch('/api/push/ack', {
+    await fetch(`${kipuspayApiBase}/api/push/ack`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'content-type': 'application/json' },
@@ -148,6 +149,9 @@ self.addEventListener('push', (event) => {
 });
 
 self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SET_API_BASE' && typeof event.data.apiBase === 'string') {
+    kipuspayApiBase = String(event.data.apiBase).replace(/\/$/, '');
+  }
   if (event.data && event.data.type === 'FLUSH_OFFLINE_QUEUE') {
     event.source?.postMessage({ type: 'FLUSH_ACK', version: VERSION });
   }

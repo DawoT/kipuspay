@@ -27,6 +27,7 @@ export function createHttpSyncTransport(opts: {
   readonly endpointUrl: string;
   readonly fetchImpl?: typeof fetch;
   readonly bearerToken?: string;
+  readonly tenantId?: string;
 }): SyncTransport {
   const fetchImpl = opts.fetchImpl ?? fetch;
   return {
@@ -36,6 +37,7 @@ export function createHttpSyncTransport(opts: {
         headers: {
           'content-type': 'application/json',
           ...(opts.bearerToken ? { authorization: `Bearer ${opts.bearerToken}` } : {}),
+          ...(opts.tenantId ? { 'x-tenant-id': opts.tenantId } : {}),
         },
         body: JSON.stringify({ sales }),
       });

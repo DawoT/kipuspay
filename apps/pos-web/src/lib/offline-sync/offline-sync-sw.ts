@@ -24,13 +24,22 @@ export function isFlushAck(data: unknown): boolean {
   );
 }
 
+export function buildSetApiBaseMessage(apiBase: string): { type: 'SET_API_BASE'; apiBase: string } {
+  return { type: 'SET_API_BASE', apiBase: apiBase.replace(/\/$/, '') };
+}
+
 /** Registra SW si el entorno lo soporta (no-op en tests/SSR). */
 export async function registerOfflineSyncServiceWorker(
   scriptUrl: string = '/offline-sync-sw.js',
   scope: string = '/',
+  apiBase: string = '',
 ): Promise<ServiceWorkerRegistration | null> {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
   }
-  return navigator.serviceWorker.register(scriptUrl, { scope });
+  const registration = await navigator.serviceWorker.register(scriptUrl, { scope });
+  const msg = buildSetApiBaseMessage(apiBase);
+  registration.active?.postMessage(msg);
+  void navigator.serviceWorker.ready.then((ready) => ready.active?.postMessage(msg));
+  return registration;
 }

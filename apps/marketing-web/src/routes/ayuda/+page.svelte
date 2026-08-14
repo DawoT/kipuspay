@@ -3,6 +3,7 @@
   import { reveal } from '$lib/components/reveal';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import { ogImageFor } from '$lib/seo';
+  import { OFFICIAL_CHANNELS } from '$lib/content/legal';
 
   const categories = allHelpCategories();
   let searchQuery = $state('');
@@ -115,7 +116,10 @@
       <div class="help-contact-box" use:reveal>
         <h3>¿Necesitas asistencia directa?</h3>
         <p>Nuestro equipo de soporte atiende en español para acompañarte en tu configuración.</p>
-        <a class="btn" href="/empezar">Empieza gratis</a>
+        <div class="contact-channels">
+          <a class="btn" href="mailto:{OFFICIAL_CHANNELS.soporte}">{OFFICIAL_CHANNELS.soporte}</a>
+          <a class="btn btn-ghost" href="mailto:{OFFICIAL_CHANNELS.contacto}">{OFFICIAL_CHANNELS.contacto}</a>
+        </div>
       </div>
     </div>
   </div>
@@ -154,6 +158,12 @@
   .help-category-group {
     margin-bottom: 4rem;
   }
+  .contact-channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
   .help-contact-box {
     margin-top: 4rem;
     padding: 2rem;

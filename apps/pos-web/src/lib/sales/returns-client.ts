@@ -1,4 +1,5 @@
 /** Cliente HTTP devoluciones — Sprint 28. */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface ReturnLineInput {
   readonly originalSaleItemId: string;
@@ -30,12 +31,14 @@ export async function submitSalesReturn(
     consentStoreCredit?: boolean;
   },
 ): Promise<CreateReturnResult> {
+  const headers = new Headers({
+    'content-type': 'application/json',
+    authorization: authHeader,
+  });
+  applyApiAuthHeaders(headers);
   const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/sales/returns`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: authHeader,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;

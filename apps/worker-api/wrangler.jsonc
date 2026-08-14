@@ -102,6 +102,7 @@
   },
   "vars": {
     "FQDN": "https://api.kipuspay.local",
+    "ALLOWED_ORIGINS": "http://localhost:4173,http://localhost:5173,http://localhost:5174",
     "FEATURE_ACID_OFFLINE_SALE": "0",
     "FEATURE_FISCAL_CPE": "0",
     "FEATURE_FISCAL_RC": "0",
@@ -118,6 +119,7 @@
     "FEATURE_CASH_EXPENSES": "0",
     "FEATURE_CASH_BLIND_Z": "0",
     "FEATURE_ORDERS_KDS": "0",
+    "KDS_BROADCAST_TOKEN": "dev-kds-broadcast-token",
     "FEATURE_STOCK_TRANSFERS": "0",
     "FEATURE_PURCHASING_PARTIAL_RECEIVE": "0",
     "FEATURE_INVENTORY_BATCHES": "0",

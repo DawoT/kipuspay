@@ -31,7 +31,9 @@ describe('document-selector', () => {
   });
 
   it('banner por modo', () => {
-    expect(formalizationBannerMessage('INTERNAL_CONTROL')).toMatch(/control interno/i);
+    // S11-E9 (GTM §3.3.1): banner persistente con llamado a formalizar.
+    expect(formalizationBannerMessage('INTERNAL_CONTROL')).toMatch(/notas de venta/i);
+    expect(formalizationBannerMessage('INTERNAL_CONTROL')).toMatch(/Activa facturación/i);
     expect(formalizationBannerMessage('FORMALIZING')).toMatch(/Formalizando/i);
     expect(formalizationBannerMessage('ELECTRONIC_ISSUER')).toMatch(/electrónico/i);
   });

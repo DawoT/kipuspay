@@ -1,14 +1,19 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
-  import { isPurchasingThreeWayEnabled } from '$lib/features';
+  import { isLedgerArApEnabled, isPurchasingThreeWayEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
-  let purchaseOrderId = $state('oc-demo');
-  let branchId = $state('b-demo');
+  const apPayOn = isLedgerArApEnabled();
+  let accountsPayableId = $state('');
+  let apPayCents = $state(0);
+  let purchaseOrderId = $state('');
+  let branchId = $state(initTenantBranchId());
   let invoiceNumber = $state('F001-00001');
   let productId = $state('p1');
   let invoicedQty = $state(10);
@@ -21,17 +26,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function matchInvoice() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/invoices/match`, {
+    const res = await apiFetch('/api/purchasing/invoices/match', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         purchaseOrderId,
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         invoiceNumber,
         totalCents,
         igvCents,
@@ -57,6 +61,26 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       return;
     }
     message = `Factura ${json.invoiceId} · ${json.invoiceStatus} · CxP ${formatCents(json.apAmountCents ?? 0)}`;
+  }
+
+  async function payAp() {
+    message = '';
+    const res = await apiFetch('/api/ledger/ap/pay', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        accountsPayableId,
+        amountCents: apPayCents,
+        paymentMethod: 'transfer',
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
+      }),
+    });
+    const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
+    messageOk = res.ok;
+    message = res.ok
+      ? `Pago CxP · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
+      : (json.error ?? `Error ${res.status}`);
   }
 </script>
 
@@ -170,6 +194,24 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         </Button>
       </section>
     </div>
+    {#if apPayOn}
+      <section class="glass-card section-pad" data-testid="admin-ap-pay">
+        <div class="card-header">
+          <h2>Pagar cuenta por pagar</h2>
+        </div>
+        <div class="field-group">
+          <label for="ap-id">ID de CxP</label>
+          <input id="ap-id" bind:value={accountsPayableId} data-testid="inv-ap-id" />
+        </div>
+        <div class="field-group">
+          <label for="ap-cents">Monto</label>
+          <input id="ap-cents" type="number" bind:value={apPayCents} data-testid="inv-ap-cents" />
+        </div>
+        <Button variant="secondary" icon="dollar" data-testid="inv-ap-pay" onclick={() => void payAp()}>
+          Registrar pago
+        </Button>
+      </section>
+    {/if}
   {/if}
 </div>
 

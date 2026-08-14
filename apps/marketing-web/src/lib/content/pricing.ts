@@ -1,9 +1,17 @@
 /**
  * Planes públicos — documento maestro Parte I §2.1/§6 (versión final).
  * Cupo Arranque + sobregiro facturable; la caja nunca se apaga.
+ * Claims en preparación (PUBLIC_CLAIMS / GTM freeze) no se venden como live.
  */
 
 export type PlanId = 'arranque' | 'crece' | 'cadena' | 'enterprise';
+
+export type ClaimAvailability = 'available' | 'preparing';
+
+export interface PricingFeature {
+  readonly text: string;
+  readonly availability?: ClaimAvailability;
+}
 
 export interface PricingPlan {
   readonly id: PlanId;
@@ -14,10 +22,18 @@ export interface PricingPlan {
   readonly monthlyCents: number | null;
   readonly audience: string;
   /** Lo que incluye el plan (matriz funcional del documento maestro). */
-  readonly features: readonly string[];
+  readonly features: readonly PricingFeature[];
   readonly limits: readonly string[];
   readonly upgradeGates: readonly string[];
   readonly badge?: string;
+}
+
+export function pricingFeatureText(feature: PricingFeature): string {
+  return feature.text;
+}
+
+export function pricingFeatureAvailability(feature: PricingFeature): ClaimAvailability {
+  return feature.availability ?? 'available';
 }
 
 export const PRICING_PLANS: readonly PricingPlan[] = [
@@ -29,13 +45,17 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     monthlyCents: 4900,
     audience: 'Negocio de 1 local, 1-2 cajeros',
     features: [
-      'Cobro en caja con efectivo, tarjeta y billeteras digitales',
-      'Boletas y facturas electrónicas, notas de venta de control interno',
-      'Impresión de tickets 58 y 80 mm',
-      'Modo vitrina para tu cliente',
-      'Arqueo diario de caja',
-      'Alta rápida de catálogo con escáner de cámara y venta rápida genérica',
-      'Soporte por chat en español',
+      { text: 'Cobro en caja con efectivo, tarjeta y billeteras digitales' },
+      { text: 'Notas de venta de control interno' },
+      {
+        text: 'Boletas y facturas electrónicas con envío a SUNAT',
+        availability: 'preparing',
+      },
+      { text: 'Impresión de tickets 58 y 80 mm' },
+      { text: 'Modo vitrina para tu cliente' },
+      { text: 'Arqueo diario de caja' },
+      { text: 'Alta rápida de catálogo con escáner de cámara y venta rápida genérica' },
+      { text: 'Soporte por chat en español' },
     ],
     limits: [
       '1 sucursal, 1 caja',
@@ -51,13 +71,22 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     monthlyCents: 12900,
     audience: 'Negocio de 1-3 locales en expansión',
     features: [
-      'Modo Dueño móvil y reportes avanzados',
-      'Alertas push operacionales y caja móvil PWA para Android',
-      'Arqueo Z ciego con auditoría y PIN de descuentos',
-      'Cambio de turno con PIN temporal sin cerrar caja',
-      'Lotes con control de vencimientos (FEFO) y recetas de insumos',
-      'Promociones, variantes y unidades, apartados y series',
-      'Venta por peso con balanza y comisiones de vendedor',
+      { text: 'Modo Dueño móvil y reportes avanzados' },
+      {
+        text: 'Alertas push operacionales y caja móvil PWA para Android',
+        availability: 'preparing',
+      },
+      {
+        text: 'Arqueo Z ciego con auditoría y PIN de descuentos',
+        availability: 'preparing',
+      },
+      { text: 'Cambio de turno con PIN temporal sin cerrar caja' },
+      {
+        text: 'Lotes con control de vencimientos (FEFO) y recetas de insumos',
+        availability: 'preparing',
+      },
+      { text: 'Promociones, variantes y unidades, apartados y series' },
+      { text: 'Venta por peso con balanza y comisiones de vendedor' },
     ],
     limits: ['Hasta 3 sucursales, cajas ilimitadas', 'Comprobantes con holgura de plan'],
     upgradeGates: ['Cuarta sucursal', 'API de integraciones', 'Fidelizacion'],
@@ -71,16 +100,25 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     monthlyCents: 34900,
     audience: 'Cadenas de 4+ locales',
     features: [
-      'Comandas de cocina (KDS) y división de cuentas',
-      'Transferencias entre locales y recepción de compras contra factura',
-      'Importadores masivos (Bsale, Alegra, CSV) y exportación contable',
-      'Cobro local Yape/Plin, API y webhooks',
-      'Puntos de fidelización y crédito de tienda con vales y cuotas',
-      'Devoluciones con nota de crédito y diario contable',
-      'Cotizaciones, devoluciones a proveedor y ubicaciones por rack',
-      'Pedidos con retiro por WhatsApp y membresías recurrentes',
-      'Analítica predictiva de ventas y quiebres (estimación, no garantía)',
-      'Continuidad del negocio ante desastres (DR)',
+      {
+        text: 'Comandas de cocina (KDS) y división de cuentas',
+        availability: 'preparing',
+      },
+      { text: 'Transferencias entre locales y recepción de compras contra factura' },
+      { text: 'Importadores masivos (Bsale, Alegra, CSV) y exportación contable' },
+      { text: 'Cobro local Yape/Plin, API y webhooks' },
+      { text: 'Puntos de fidelización y crédito de tienda con vales y cuotas' },
+      { text: 'Devoluciones con nota de crédito y diario contable' },
+      { text: 'Cotizaciones, devoluciones a proveedor y ubicaciones por rack' },
+      {
+        text: 'Pedidos con retiro por WhatsApp y membresías recurrentes',
+        availability: 'preparing',
+      },
+      { text: 'Analítica predictiva de ventas y quiebres (estimación, no garantía)' },
+      {
+        text: 'Continuidad del negocio ante desastres (DR)',
+        availability: 'preparing',
+      },
     ],
     limits: ['Sucursales ilimitadas', 'Account manager dedicado'],
     upgradeGates: ['SLA contractual', 'Onboarding asistido', 'Integraciones a medida'],
@@ -93,10 +131,13 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     monthlyCents: null,
     audience: 'Cadenas de 30+ locales, franquicias',
     features: [
-      'SLA contractual prioritario: respuesta en 1 hora cuando la caja no cobra',
-      'Asistente Gerente de Operaciones: resumen diario y consultas de tu negocio',
-      'Account manager dedicado y onboarding asistido',
-      'Integraciones a medida (ERP contable, e-commerce)',
+      { text: 'SLA contractual prioritario: respuesta en 1 hora cuando la caja no cobra' },
+      {
+        text: 'Asistente Gerente de Operaciones: resumen diario y consultas de tu negocio',
+        availability: 'preparing',
+      },
+      { text: 'Account manager dedicado y onboarding asistido' },
+      { text: 'Integraciones a medida (ERP contable, e-commerce)' },
     ],
     limits: ['SLA contractual', 'Soporte prioritario con contrato de servicio'],
     upgradeGates: [],
@@ -108,3 +149,13 @@ export const PRICING_DISCLAIMERS = {
   gracia:
     'Si falla un pago, sigues cobrando en periodo de gracia: no apagamos la caja por un tema administrativo.',
 } as const;
+
+/** Un solo flujo de compra: autoservicio → /empezar; Enterprise → contacto. */
+export const PLAN_CTA = {
+  selfServe: { label: 'Empieza gratis', href: '/empezar' },
+  enterprise: { label: 'Contactar a ventas', href: 'mailto:contacto@kipuspay.com' },
+} as const;
+
+export function planCta(planId: PlanId): { label: string; href: string } {
+  return planId === 'enterprise' ? PLAN_CTA.enterprise : PLAN_CTA.selfServe;
+}

@@ -7,6 +7,12 @@ export interface AdminAuthenticatedSession {
   readonly role?: string;
   readonly userId?: string;
   readonly branchId?: string;
+  /** S9-A2: estado de billing (anti-apagado) — banner ámbar sin bloquear caja. */
+  readonly billing?: {
+    readonly subscriptionStatus: 'trial' | 'active' | 'past_due' | 'canceled';
+    readonly trialEndsAt: string | null;
+    readonly pastGracePeriod: boolean;
+  };
 }
 
 const ADMIN_SESSION_CONTEXT = Symbol.for('kipuspay.admin.authenticated-session');

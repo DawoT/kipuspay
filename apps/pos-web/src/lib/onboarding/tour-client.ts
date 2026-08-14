@@ -11,7 +11,7 @@ import {
   tourStorageKey,
   type SetupServerState,
 } from '@kipuspay/domain-onboarding';
-import { resolveApiAuth, resolveApiBase } from '../auth/api-client.js';
+import { resolveApiAuth, resolveApiBase, applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface SetupProgressResponse {
   readonly ok: true;
@@ -31,8 +31,10 @@ export async function fetchSetupProgress(): Promise<
   SetupProgressResponse | { ok: false; message: string }
 > {
   try {
+    const headers = new Headers({ authorization: authHeader() });
+    applyApiAuthHeaders(headers);
     const res = await fetch(`${apiBase().replace(/\/$/, '')}/api/onboarding/setup-progress`, {
-      headers: { authorization: authHeader() },
+      headers,
     });
     const data = (await res.json()) as {
       server?: SetupServerState;
@@ -57,16 +59,22 @@ export type GrowthEventType =
   | 'tour_completed'
   | 'tour_dismissed'
   | 'setup_checklist_step_completed'
-  | 'setup_checklist_completed';
+  | 'setup_checklist_completed'
+  | 'first_sale';
 
 export async function recordGrowthEvent(
   eventType: GrowthEventType,
   meta?: Record<string, unknown>,
 ): Promise<void> {
   try {
+    const headers = new Headers({
+      'content-type': 'application/json',
+      authorization: authHeader(),
+    });
+    applyApiAuthHeaders(headers);
     await fetch(`${apiBase().replace(/\/$/, '')}/api/growth/events`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: authHeader() },
+      headers,
       body: JSON.stringify({ eventType, meta }),
     });
   } catch {
