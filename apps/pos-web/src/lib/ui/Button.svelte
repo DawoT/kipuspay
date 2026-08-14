@@ -43,8 +43,6 @@
   </a>
 {:else}
   <button
-    type="button"
-
     {type}
     class={buttonClass}
     disabled={busy || disabled}

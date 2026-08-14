@@ -543,4 +543,3 @@ describe('S33-H2: veredicto del chaos quote con evidencia real del motor', () =>
     expect(verdict).toBe('PASS');
   });
 });
-

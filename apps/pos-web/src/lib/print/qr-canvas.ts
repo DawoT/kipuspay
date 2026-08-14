@@ -13,11 +13,7 @@ export function qrMatrix(payload: string): QrMatrix {
   return { size, isDark: (row, col) => qr.isDark(row, col) === true };
 }
 
-export function renderQrToCanvas(
-  canvas: HTMLCanvasElement,
-  payload: string,
-  sizePx = 120,
-): void {
+export function renderQrToCanvas(canvas: HTMLCanvasElement, payload: string, sizePx = 120): void {
   const { size, isDark } = qrMatrix(payload);
   const scale = Math.max(1, Math.floor(sizePx / size));
   canvas.width = size * scale;

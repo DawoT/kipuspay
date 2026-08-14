@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 import { describe, expect, it, vi } from 'vitest';
 import { canonicalJson, encryptKpbk1Unit } from '@kipuspay/domain-integrations';
 import {

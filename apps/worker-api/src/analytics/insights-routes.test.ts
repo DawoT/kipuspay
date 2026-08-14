@@ -184,4 +184,3 @@ describe('S49-H1: briefing fail-closed y PII-free', () => {
     expect(res.status).toBe(503);
   });
 });
-

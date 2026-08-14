@@ -82,7 +82,6 @@ describe('supplier-return-routes', () => {
     expect(cancelled.status).toBe(200);
   });
 
-
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
     const res = await runOwnerSupplierReturnsHttp(env(), 't1', 'cashier');
     expect(res.status).toBe(403);

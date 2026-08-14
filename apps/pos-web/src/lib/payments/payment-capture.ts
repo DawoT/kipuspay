@@ -66,18 +66,16 @@ async function fetchCaptureAttempt(
     return { ok: false, code: 'OFFLINE', message: 'Sin conexión con el servidor.' };
   }
 
-  const data = (await res.json().catch(() => null)) as
-    | {
-        id?: string;
-        status?: string;
-        acquirer?: string | null;
-        acquirer_ref?: string | null;
-        amount_cents?: number;
-        sale_id?: string | null;
-        code?: string;
-        error?: string;
-      }
-    | null;
+  const data = (await res.json().catch(() => null)) as {
+    id?: string;
+    status?: string;
+    acquirer?: string | null;
+    acquirer_ref?: string | null;
+    amount_cents?: number;
+    sale_id?: string | null;
+    code?: string;
+    error?: string;
+  } | null;
 
   if (!res.ok) {
     return {

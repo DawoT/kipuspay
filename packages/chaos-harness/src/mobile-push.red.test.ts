@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- Vitest asymmetric matchers are intentionally untyped */
 import { describe, expect, it } from 'vitest';
 import { MOBILE_PUSH_FAULTS, judgeMobilePushChaos, runMobilePushChaos } from './mobile-push.js';
 

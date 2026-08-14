@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- customer-order domain error codes are not secrets */
 import {
   cancelCustomerOrderAtomic,
   createCustomerOrderAtomic,
@@ -73,7 +72,6 @@ function errorResult(error: unknown): CustomerOrderHttpResult {
   if (code === 'ORDER_FAILED') return result(500, { code });
   return result(422, { code });
 }
-
 
 const MAX_RESERVATION_MS = 24 * 60 * 60 * 1000; // S43-H2: tope de reserva 24h
 function clampReservationDeadline(raw: string | null | undefined): string {
@@ -230,7 +228,12 @@ export async function runCreateCustomerOrderHttp(
   // S43-H4: el price list lo impone el SERVIDOR (regla 1) — el del cliente
   // solo se acepta si es una lista activa del tenant; si no, el de la branch.
   const requestedPriceList = text(body, 'priceListId');
-  const priceListId = await resolveAuthorizedPriceList(env!, actor.tenantId, branchId, requestedPriceList);
+  const priceListId = await resolveAuthorizedPriceList(
+    env!,
+    actor.tenantId,
+    branchId,
+    requestedPriceList,
+  );
   try {
     const created = await createCustomerOrderAtomic(env!.DB!, {
       tenantId: actor.tenantId,

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- domain error codes are not secrets */
 export const CUSTOMER_ORDER_MAX_ITEMS = 100;
 export const CUSTOMER_ORDER_MICROUNITS_PER_BASE_UNIT = 1_000_000;
 

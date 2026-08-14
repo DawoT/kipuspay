@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- allowlisted protocol error codes */
 const SAFE_BACKUP_ERROR_CODES = new Set([
   'BACKUP_AAD_MISMATCH',
   'BACKUP_CHUNK_MISSING',

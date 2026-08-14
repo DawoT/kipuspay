@@ -1,4 +1,4 @@
-export function absoluteUrl(path: string, origin = 'https://kipuspay.pe'): string {
+export function absoluteUrl(path: string, origin = 'https://kipuspay.com'): string {
   if (path.startsWith('https://')) return path;
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 }
@@ -9,8 +9,10 @@ export function pageTitle(title: string): string {
 
 /**
  * Tarjeta social. PNG y no SVG: los rastreadores sociales no renderizan SVG.
- * Sin `slug` devuelve la tarjeta de marca.
+ * Sin `slug` (o 'home') devuelve la tarjeta de marca; solo los rubros y
+ * comparativas tienen tarjeta propia.
  */
 export function ogImageFor(slug?: string): string {
-  return absoluteUrl(slug ? `/media/og-${slug}.png` : '/media/og-kipuspay.png');
+  const asset = slug && slug !== 'home' ? slug : 'kipuspay';
+  return absoluteUrl(`/media/og-${asset}.png`);
 }

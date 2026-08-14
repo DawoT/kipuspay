@@ -3,11 +3,13 @@
   import { allVerticals } from '$lib/content/verticals';
   import { allCompares } from '$lib/content/compare';
   import { page } from '$app/stores';
+  import { OFFICIAL_CHANNELS } from '$lib/content/legal';
 
   let { data, children } = $props();
   const verticals = allVerticals();
   const compares = allCompares();
   const pathname = $derived($page.url.pathname);
+  const posOrigin = (import.meta.env.PUBLIC_POS_ORIGIN as string | undefined) ?? 'https://app.kipuspay.com';
 
   /** El header cambia de peso al despegarse del hero; sin librerias ni layout thrash. */
   let scrolled = $state(false);
@@ -28,15 +30,15 @@
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'KipusPay',
-    url: 'https://kipuspay.pe',
-    logo: 'https://kipuspay.pe/favicon.svg',
+    url: 'https://kipuspay.com',
+    logo: 'https://kipuspay.com/favicon.svg',
   });
 
   const siteLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'KipusPay',
-    url: 'https://kipuspay.pe',
+    url: 'https://kipuspay.com',
   });
 </script>
 
@@ -101,7 +103,9 @@
       </details>
       <a href="/precios" aria-current={pathname === '/precios' ? 'page' : undefined}>Precios</a>
       <a href="/seguridad" aria-current={pathname === '/seguridad' ? 'page' : undefined}>Seguridad</a>
-      <a href="/comparar/bsale" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
+      <a href="/casos-de-exito" aria-current={pathname === '/casos-de-exito' ? 'page' : undefined}>Casos de éxito</a>
+      <a href="/comparar" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
+      <a class="nav-login" href="{posOrigin}/login">Ingresar</a>
       <a class="btn" href="/empezar">Empieza gratis</a>
     </nav>
 
@@ -125,8 +129,10 @@
         <p class="nav-sm-title">Sitio</p>
         <a href="/precios" aria-current={pathname === '/precios' ? 'page' : undefined}>Precios</a>
         <a href="/seguridad" aria-current={pathname === '/seguridad' ? 'page' : undefined}>Seguridad</a>
-        <a href="/comparar/bsale" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
+        <a href="/casos-de-exito" aria-current={pathname === '/casos-de-exito' ? 'page' : undefined}>Casos de éxito</a>
+        <a href="/comparar" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
         <a href="/ayuda" aria-current={pathname === '/ayuda' ? 'page' : undefined}>Ayuda</a>
+        <a href="{posOrigin}/login">Ingresar</a>
         <a class="btn" href="/empezar">Empieza gratis</a>
       </nav>
     </details>
@@ -155,14 +161,20 @@
         <a href="/precios">Precios</a>
         <a href="/blog">Blog</a>
         <a href="/ayuda">Ayuda</a>
-        <a href="/casos-de-exito">Casos de exito</a>
+        <a href="/casos-de-exito">Casos de éxito</a>
       </div>
       <div>
-        <h3>Confianza</h3>
-        <a href="/seguridad">Seguridad y privacidad</a>
-        <a href="/empezar">Empezar</a>
+        <h3>Legal</h3>
+        <a href="/terminos">Términos del servicio</a>
+        <a href="/privacidad">Privacidad y datos</a>
+        <a href="/reclamaciones">Libro de Reclamaciones</a>
+        <a href="/seguridad">Cumplimiento SUNAT</a>
       </div>
     </div>
+
+    <p class="footer-channels">
+      {OFFICIAL_CHANNELS.contacto} · {OFFICIAL_CHANNELS.soporte} · {OFFICIAL_CHANNELS.privacidad}
+    </p>
 
     <ul class="footer-seals">
       <li>Tu informacion va cifrada</li>

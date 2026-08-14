@@ -205,14 +205,3 @@ export const HOME = {
     microcopy: '30 días de prueba real · Cancela cuando quieras · Sin letra chica',
   },
 } as const;
-
-export const STUBS = [
-  {
-    path: '/ayuda',
-    title: 'Ayuda',
-    unlockSprint: 13,
-    blurb:
-      'El centro de ayuda se publica junto con el registro, con guias cortas y respuestas de personas reales, en espanol.',
-    meanwhile: [{ label: 'Ver preguntas frecuentes', href: '/#preguntas' }],
-  },
-] as const;

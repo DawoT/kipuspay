@@ -37,8 +37,6 @@ const OPEN_SESSION = {
 
 const NOW = '2026-08-12T12:00:00.000Z';
 
-/* eslint-disable no-secrets/no-secrets -- nombres canónicos de dominio */
-
 function mockDb(world: World = {}): never {
   const first = (sql: string) => {
     if (sql.includes('FROM cash_register_sessions')) return world.session ?? null;
@@ -56,18 +54,14 @@ function mockDb(world: World = {}): never {
   const prepare = (sql: string) => ({
     sql,
     bind() {
-
       return {
         sql,
         first: () => Promise.resolve(first(sql)),
         run: () => Promise.resolve({ meta: { changes: 1 } }),
         all: () => {
-
           if (sql.includes('pin_hash IS NOT NULL') && world.sellerByPin) {
             return Promise.resolve({
-              results: [
-                { ...world.sellerByPin, pin_hash: CASHIER_PIN_HASH },
-              ],
+              results: [{ ...world.sellerByPin, pin_hash: CASHIER_PIN_HASH }],
             });
           }
           return Promise.resolve({ results: [] });

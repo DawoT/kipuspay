@@ -101,7 +101,7 @@ const productRow = {
 };
 
 // El nombre del helper dispara un falso positivo de no-secrets (entropía > tolerance).
-// eslint-disable-next-line no-secrets/no-secrets
+
 describe('isCatalogImportEnabled', () => {
   it('default off', () => {
     expect(isCatalogImportEnabled({} as WorkerEnv)).toBe(false);
@@ -116,30 +116,45 @@ describe('runCatalogImportHttp', () => {
       TENANT_KV: mockEnv().TENANT_KV,
       TENANT_STATE_DO: mockEnv().TENANT_STATE_DO,
     } as unknown as WorkerEnv;
-    const result = await runCatalogImportHttp(env, 't1', {
-      source: 'csv',
-      mode: 'preview',
-      rows: [],
-    }, 'admin');
+    const result = await runCatalogImportHttp(
+      env,
+      't1',
+      {
+        source: 'csv',
+        mode: 'preview',
+        rows: [],
+      },
+      'admin',
+    );
     expect(result.status).toBe(404);
     expect(result.body.code).toBe('FEATURE_OFF');
   });
 
   it('source inválido → 400', async () => {
-    const result = await runCatalogImportHttp(mockEnv(), 't1', {
-      source: 'siigo',
-      mode: 'preview',
-      rows: [],
-    }, 'admin');
+    const result = await runCatalogImportHttp(
+      mockEnv(),
+      't1',
+      {
+        source: 'siigo',
+        mode: 'preview',
+        rows: [],
+      },
+      'admin',
+    );
     expect(result.status).toBe(400);
   });
 
   it('preview (dry-run) devuelve conteo sin escribir', async () => {
-    const result = await runCatalogImportHttp(mockEnv(), 't1', {
-      source: 'csv',
-      mode: 'preview',
-      rows: [productRow],
-    }, 'admin');
+    const result = await runCatalogImportHttp(
+      mockEnv(),
+      't1',
+      {
+        source: 'csv',
+        mode: 'preview',
+        rows: [productRow],
+      },
+      'admin',
+    );
     expect(result.status).toBe(200);
     expect(result.body.dryRun).toBe(true);
     expect(result.body.created).toBe(1);
@@ -147,21 +162,31 @@ describe('runCatalogImportHttp', () => {
   });
 
   it('commit rechaza con conflictos sin escribir (regla 1)', async () => {
-    const result = await runCatalogImportHttp(mockEnv(), 't1', {
-      source: 'csv',
-      mode: 'commit',
-      rows: [{ ...productRow, taxName: 'IMPUESTO-RARO' }],
-    }, 'admin');
+    const result = await runCatalogImportHttp(
+      mockEnv(),
+      't1',
+      {
+        source: 'csv',
+        mode: 'commit',
+        rows: [{ ...productRow, taxName: 'IMPUESTO-RARO' }],
+      },
+      'admin',
+    );
     expect(result.status).toBe(422);
     expect(result.body.code).toBe('IMPORT_CONFLICTS');
   });
 
   it('commit tras preview importa y reporta resultado', async () => {
-    const result = await runCatalogImportHttp(mockEnv(), 't1', {
-      source: 'csv',
-      mode: 'commit',
-      rows: [productRow],
-    }, 'admin');
+    const result = await runCatalogImportHttp(
+      mockEnv(),
+      't1',
+      {
+        source: 'csv',
+        mode: 'commit',
+        rows: [productRow],
+      },
+      'admin',
+    );
     expect(result.status).toBe(200);
     expect(result.body.dryRun).toBe(false);
     expect(result.body.importedCount).toBe(1);
@@ -216,12 +241,22 @@ describe('S21-H2 guard de rol del import', () => {
   });
 
   it('rol cashier → 403 FORBIDDEN_ADMIN', async () => {
-    const res = await runCatalogImportHttp(mockEnv(), 't1', { source: 'csv', mode: 'preview', rows: [] }, 'cashier');
+    const res = await runCatalogImportHttp(
+      mockEnv(),
+      't1',
+      { source: 'csv', mode: 'preview', rows: [] },
+      'cashier',
+    );
     expect(res.status).toBe(403);
   });
 
   it('rol admin → pasa al importer (no 403)', async () => {
-    const res = await runCatalogImportHttp(mockEnv(), 't1', { source: 'csv', mode: 'preview', rows: [] }, 'admin');
+    const res = await runCatalogImportHttp(
+      mockEnv(),
+      't1',
+      { source: 'csv', mode: 'preview', rows: [] },
+      'admin',
+    );
     expect(res.status).not.toBe(403);
   });
 });

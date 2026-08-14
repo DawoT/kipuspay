@@ -102,16 +102,26 @@ describe('loyalty HTTP', () => {
   });
 
   it('DB unavailable', async () => {
-    const res = await runLoyaltyReserveHttp({ FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv, 't1', {
-      customerId: 'c1',
-      saleIdempotencyKey: 's1',
-      points: 5,
-    }, 'admin');
+    const res = await runLoyaltyReserveHttp(
+      { FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv,
+      't1',
+      {
+        customerId: 'c1',
+        saleIdempotencyKey: 's1',
+        points: 5,
+      },
+      'admin',
+    );
     expect(res.status).toBe(503);
   });
 
   it('bad body → 400', async () => {
-    const res = await runLoyaltyReserveHttp(envWith({ FEATURE_LOYALTY_POINTS: '1' }), 't1', {}, 'admin');
+    const res = await runLoyaltyReserveHttp(
+      envWith({ FEATURE_LOYALTY_POINTS: '1' }),
+      't1',
+      {},
+      'admin',
+    );
     expect(res.status).toBe(400);
   });
 
@@ -137,20 +147,30 @@ describe('loyalty HTTP', () => {
   });
 
   it('reserve idempotent → 200', async () => {
-    const res = await runLoyaltyReserveHttp(envWith({ FEATURE_LOYALTY_POINTS: '1' }), 't1', {
-      customerId: 'c1',
-      saleIdempotencyKey: 's1',
-      points: 7,
-    }, 'admin');
+    const res = await runLoyaltyReserveHttp(
+      envWith({ FEATURE_LOYALTY_POINTS: '1' }),
+      't1',
+      {
+        customerId: 'c1',
+        saleIdempotencyKey: 's1',
+        points: 7,
+      },
+      'admin',
+    );
     expect(res.status).toBe(200);
   });
 
   it('reserve error → 422', async () => {
-    const res = await runLoyaltyReserveHttp(envWith({ FEATURE_LOYALTY_POINTS: '1' }), 't1', {
-      customerId: 'c1',
-      saleIdempotencyKey: 's1',
-      points: 99,
-    }, 'admin');
+    const res = await runLoyaltyReserveHttp(
+      envWith({ FEATURE_LOYALTY_POINTS: '1' }),
+      't1',
+      {
+        customerId: 'c1',
+        saleIdempotencyKey: 's1',
+        points: 99,
+      },
+      'admin',
+    );
     expect(res.status).toBe(422);
   });
 
@@ -240,11 +260,11 @@ describe('messaging opt-in + send', () => {
 
 describe('S24-H2 guard de rol en acreditación de puntos', () => {
   it('sin rol → 403 FORBIDDEN_ADMIN', async () => {
-    const res = await runLoyaltyReserveHttp(
-      { FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv,
-      't1',
-      { customerId: 'c1', saleIdempotencyKey: 'k1', points: 10 },
-    );
+    const res = await runLoyaltyReserveHttp({ FEATURE_LOYALTY_POINTS: '1' } as WorkerEnv, 't1', {
+      customerId: 'c1',
+      saleIdempotencyKey: 'k1',
+      points: 10,
+    });
     expect(res.status).toBe(403);
   });
 

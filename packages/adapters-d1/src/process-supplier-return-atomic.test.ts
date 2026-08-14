@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  processSupplierReturnCloseAtomic,
-  processSupplierReturnCreateAtomic,
-} from './process-supplier-return-atomic.js';
+import { processSupplierReturnCloseAtomic } from './process-supplier-return-atomic.js';
 import type { D1DatabaseLike } from './index.js';
 
 type Row = Record<string, unknown> | null;
@@ -15,38 +12,52 @@ function mockDb(state: {
   ap?: Row;
   guardOk?: boolean;
 }): D1DatabaseLike {
-  const batch = vi.fn(async (stmts: readonly { bind?(): unknown; run?(): Promise<unknown>; all?(): Promise<unknown> }[]) => {
-    // Simular el atomic_guard: si guardOk es false → CHECK falla
-    if (state.guardOk === false) {
-      const err = new Error('CHECK constraint failed: ok=1');
-      (err as { code?: string }).code = 'SQLITE_CONSTRAINT_CHECK';
-      throw err;
-    }
-    return stmts.map(() => ({ success: true, meta: { changes: 1 } }));
-  });
+  const batch = vi.fn(
+    (
+      stmts: readonly { bind?(): unknown; run?(): Promise<unknown>; all?(): Promise<unknown> }[],
+    ) => {
+      // Simular el atomic_guard: si guardOk es false → CHECK falla
+      if (state.guardOk === false) {
+        const err = new Error('CHECK constraint failed: ok=1');
+        (err as { code?: string }).code = 'SQLITE_CONSTRAINT_CHECK';
+        throw err;
+      }
+      return stmts.map(() => ({ success: true, meta: { changes: 1 } }));
+    },
+  );
   return {
-    prepare(sql: string) {
+    prepare(this: void, sql: string) {
       const stmt = {
-        bind() {
+        bind(this: void) {
           return stmt;
         },
         first: <T>() => {
-          if (sql.includes('FROM supplier_returns')) return Promise.resolve((state.ret ?? null) as T | null);
+          if (sql.includes('FROM supplier_returns'))
+            return Promise.resolve((state.ret ?? null) as T | null);
           if (sql.includes('FROM users')) return Promise.resolve((state.users ?? null) as T | null);
-          if (sql.includes('FROM accounts_payable')) return Promise.resolve((state.ap ?? null) as T | null);
-          if (sql.includes('FROM branch_product_stock')) return Promise.resolve((state.stock ?? null) as T | null);
+          if (sql.includes('FROM accounts_payable'))
+            return Promise.resolve((state.ap ?? null) as T | null);
+          if (sql.includes('FROM branch_product_stock'))
+            return Promise.resolve((state.stock ?? null) as T | null);
           if (sql.includes('FROM purchase_receipt_lines')) {
-            return Promise.resolve({ quantity_microunits: 5000000, unit_cost_cents: 100 } as T | null);
+            return Promise.resolve({
+              quantity_microunits: 5000000,
+              unit_cost_cents: 100,
+            } as T | null);
           }
-          if (sql.includes('FROM supplier_invoices')) return Promise.resolve({ status: 'CLOSED', total_amount_cents: 1000 } as T | null);
+          if (sql.includes('FROM supplier_invoices'))
+            return Promise.resolve({ status: 'CLOSED', total_amount_cents: 1000 } as T | null);
           if (sql.includes('FROM supplier_invoice_lines')) {
-            return Promise.resolve({ product_id: 'p1', quantity_microunits: 5000000, unit_cost_cents: 100 } as T | null);
+            return Promise.resolve({
+              product_id: 'p1',
+              quantity_microunits: 5000000,
+              unit_cost_cents: 100,
+            } as T | null);
           }
           return Promise.resolve(null);
         },
         all: <T>() => Promise.resolve({ results: (state.lines ?? []) as T[] } as T),
-        run: () =>
-          Promise.resolve({ success: true, meta: { changes: 1 } } as never),
+        run: () => Promise.resolve({ success: true, meta: { changes: 1 } } as never),
       };
       return stmt as never;
     },
@@ -69,14 +80,22 @@ describe('S34-H1: override de costo exige rol admin/owner', () => {
     const db = mockDb({
       ret: baseReturn,
       users: { role: 'cashier' },
-      lines: [{ id: 'srl-1', product_id: 'p1', quantity_microunits: 2000000, unit_cost_cents: 100 }],
+      lines: [
+        { id: 'srl-1', product_id: 'p1', quantity_microunits: 2000000, unit_cost_cents: 100 },
+      ],
     });
     await expect(
-      processSupplierReturnCloseAtomic(db, 't1', 'u1', {
-        returnId: 'sr-1',
-        priceDiffOverride: true,
-        authorizedByUserId: 'u2',
-      }, {}),
+      processSupplierReturnCloseAtomic(
+        db,
+        't1',
+        'u1',
+        {
+          returnId: 'sr-1',
+          priceDiffOverride: true,
+          authorizedByUserId: 'u2',
+        },
+        {},
+      ),
     ).rejects.toThrow('FORBIDDEN_ROLE');
   });
 
@@ -84,14 +103,22 @@ describe('S34-H1: override de costo exige rol admin/owner', () => {
     const db = mockDb({
       ret: baseReturn,
       users: null,
-      lines: [{ id: 'srl-1', product_id: 'p1', quantity_microunits: 2000000, unit_cost_cents: 100 }],
+      lines: [
+        { id: 'srl-1', product_id: 'p1', quantity_microunits: 2000000, unit_cost_cents: 100 },
+      ],
     });
     await expect(
-      processSupplierReturnCloseAtomic(db, 't1', 'u1', {
-        returnId: 'sr-1',
-        priceDiffOverride: true,
-        authorizedByUserId: 'ghost',
-      }, {}),
+      processSupplierReturnCloseAtomic(
+        db,
+        't1',
+        'u1',
+        {
+          returnId: 'sr-1',
+          priceDiffOverride: true,
+          authorizedByUserId: 'ghost',
+        },
+        {},
+      ),
     ).rejects.toThrow('FORBIDDEN_ROLE');
   });
 });
@@ -101,19 +128,28 @@ describe('S34-H2: doble CLOSE concurrente aborta con guardState', () => {
     const db = mockDb({
       ret: baseReturn,
       users: { role: 'admin' },
-      lines: [{ id: 'srl-1', product_id: 'p1', quantity_microunits: 2000000, unit_cost_cents: 100 }],
+      lines: [
+        { id: 'srl-1', product_id: 'p1', quantity_microunits: 2000000, unit_cost_cents: 100 },
+      ],
       ap: { status: 'PARTIALLY_PAID', balance_due_cents: 1000 },
       stock: { stock: 10, stock_microunits: 10000000, pmp_unit_cost_cents: 100 },
       guardOk: false, // el guardState detecta que ya no está OPEN
     });
     await expect(
-      processSupplierReturnCloseAtomic(db, 't1', 'u1', {
-        returnId: 'sr-1',
-        priceDiffOverride: true,
-        authorizedByUserId: 'u2',
-      }, {}),
+      processSupplierReturnCloseAtomic(
+        db,
+        't1',
+        'u1',
+        {
+          returnId: 'sr-1',
+          priceDiffOverride: true,
+          authorizedByUserId: 'u2',
+        },
+        {},
+      ),
     ).rejects.toThrow();
     // El batch jamás debió contener los writes de stock/CxP tras el guard.
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- mock de batch expuesto en el objeto mock
     expect(db.batch).not.toHaveBeenCalled();
   });
 });

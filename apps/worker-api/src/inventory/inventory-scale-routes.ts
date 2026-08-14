@@ -200,7 +200,7 @@ export async function runConfigureWeightPolicyHttp(
   const denied = preflight(env, actor);
   if (denied) return denied;
   if (!ADMIN_ROLES.has(actor.role)) return { status: 403, body: { code: 'FORBIDDEN' } };
-  // eslint-disable-next-line no-secrets/no-secrets -- public DTO field, not a credential
+
   const threshold = integer(body, 'manualWeightThresholdMicrounits');
   if (threshold === null || threshold < 0) {
     return { status: 400, body: { code: 'INVALID_WEIGHT_POLICY' } };
@@ -368,7 +368,10 @@ export async function runHeartbeatScaleDeviceHttp(
   try {
     const binding = await requireActorBinding(env, actor);
     const weightMicrounits = integer(body, 'weightMicrounits');
-    if (weightMicrounits !== null && (weightMicrounits <= 0 || !Number.isSafeInteger(weightMicrounits))) {
+    if (
+      weightMicrounits !== null &&
+      (weightMicrounits <= 0 || !Number.isSafeInteger(weightMicrounits))
+    ) {
       return { status: 400, body: { code: 'INVALID_HEARTBEAT_WEIGHT' } };
     }
     const result = await writeScaleHeartbeat(env.DB!, {

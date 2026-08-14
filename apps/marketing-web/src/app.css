@@ -1052,11 +1052,11 @@ li {
   font-size: 0.5rem;
 }
 
-.claim-box.live .badge {
+.claim-box.available .badge {
   color: var(--sello-bright);
 }
 
-.claim-box.roadmap .badge {
+.claim-box.preparing .badge {
   color: var(--alerta-bright);
 }
 
@@ -1366,6 +1366,14 @@ li {
   transform: rotate(45deg);
 }
 
+.footer-channels {
+  margin: 1.4rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
 .footer-legal {
   max-width: 72rem;
   margin: 1.4rem auto 0;
@@ -1383,98 +1391,6 @@ li {
   color: var(--paper);
 }
 
-.stub {
-  color: var(--paper);
-  border-bottom: 1px solid var(--line);
-}
-
-.stub-inner {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: clamp(6rem, 16vh, 9rem) 1.5rem clamp(4rem, 10vh, 6rem);
-}
-
-.stub h1 {
-  font-family: var(--font-display);
-  font-size: var(--step-4);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.1;
-  margin: 0 0 1rem;
-}
-
-.stub-lead {
-  margin: 0;
-  font-size: var(--step-1);
-  color: rgba(243, 239, 230, 0.86);
-}
-
-.stub-steps {
-  list-style: none;
-  counter-reset: none;
-  margin: 2.2rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 0.9rem;
-}
-
-.stub-steps li {
-  display: flex;
-  align-items: baseline;
-  gap: 0.9rem;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.stub-steps li:last-child {
-  border-bottom: none;
-}
-
-.stub-steps span {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--amber-bright);
-}
-
-.stub-note {
-  margin: 1.4rem 0 0;
-  color: var(--muted);
-}
-
-.stub-links {
-  margin-top: 2.8rem;
-  padding-top: 1.4rem;
-  border-top: 1px solid var(--line);
-}
-
-.stub-links-title {
-  margin: 0 0 0.8rem;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.stub-links ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem 1.6rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.stub-links a {
-  color: var(--paper);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(243, 239, 230, 0.28);
-  padding-bottom: 2px;
-}
-
-.stub-links a:hover {
-  border-bottom-color: var(--amber-bright);
-}
 
 /*
  * El reveal solo se arma si hay JS para desarmarlo: sin script, el contenido
@@ -2285,27 +2201,6 @@ li {
 
 .product-screen .pos::before {
   display: none;
-}
-
-.stub-incomplete {
-  display: flex;
-  gap: 0.55rem;
-  margin: 1.6rem 0 0;
-}
-
-.stub-incomplete span {
-  width: 0.7rem;
-  height: 0.7rem;
-  background: var(--amber-bright);
-  transform: rotate(45deg);
-  opacity: 0.9;
-}
-
-.stub-incomplete span:last-child {
-  opacity: 0.22;
-  outline: 1px solid var(--amber-bright);
-  outline-offset: 2px;
-  background: transparent;
 }
 
 .hero-compact .compact-seal {

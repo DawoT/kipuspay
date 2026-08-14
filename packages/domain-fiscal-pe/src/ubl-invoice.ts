@@ -2,7 +2,6 @@
  * UBL 2.1 Invoice builder mínimo (factura 01) — zero-dep Web Platform.
  * Arquitectura §5.2 / ADR-FISCAL-001. No usa npm runtime.
  */
-/* eslint-disable no-secrets/no-secrets -- XML UBL namespaces y tags, no secretos */
 
 export interface UblInvoiceLine {
   readonly id: number;

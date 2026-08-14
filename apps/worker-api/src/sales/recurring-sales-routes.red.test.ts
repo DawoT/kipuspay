@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- hoisted adapter and D1 test doubles */
+/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-member-access -- hoisted adapter and D1 test doubles */
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@kipuspay/adapters-d1/process-recurring-sale-atomic', () => ({
   createRecurringPlanAtomic: vi.fn(async (_db, input) => ({
@@ -223,4 +223,3 @@ describe('S44-H3/H4: validación server-side de ancla y cancelación', () => {
     ).resolves.toMatchObject({ status: 422, body: { code: 'RECURRING_ANCHOR_TIME_INVALID' } });
   });
 });
-

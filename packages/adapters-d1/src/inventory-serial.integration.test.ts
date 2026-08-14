@@ -183,18 +183,26 @@ describe('S39-H2: serie obligatoria y devolución que la libera', () => {
     await env.DB.prepare(
       `INSERT INTO cash_registers (id, tenant_id, branch_id, name)
        VALUES ('cr-req', ?, ?, 'Caja')`,
-    ).bind(fx.tenantId, fx.branchId).run();
+    )
+      .bind(fx.tenantId, fx.branchId)
+      .run();
     await env.DB.prepare(
       `INSERT INTO cash_register_sessions (id, tenant_id, branch_id, cash_register_id, user_id, opening_balance_cents, status)
        VALUES (?, ?, ?, 'cr-req', ?, 0, 'OPEN')`,
-    ).bind(`sess-req`, fx.tenantId, fx.branchId, fx.userId).run();
+    )
+      .bind(`sess-req`, fx.tenantId, fx.branchId, fx.userId)
+      .run();
     await env.DB.prepare(
       `INSERT INTO branch_document_series (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
        VALUES ('ser-req', ?, ?, 'NV', 'NV01', 0, 'INTERNAL')`,
-    ).bind(fx.tenantId, fx.branchId).run();
+    )
+      .bind(fx.tenantId, fx.branchId)
+      .run();
     await env.DB.prepare(
       `INSERT INTO payment_methods (id, tenant_id, code, name) VALUES ('pm', ?, 'CASH', 'Efectivo')`,
-    ).bind(fx.tenantId).run();
+    )
+      .bind(fx.tenantId)
+      .run();
     const payload = {
       offlineSaleId: 'off-serial-req',
       branchId: fx.branchId,
@@ -284,4 +292,3 @@ describe('S39-H2: serie obligatoria y devolución que la libera', () => {
     expect(back?.status).toBe('AVAILABLE');
   });
 });
-

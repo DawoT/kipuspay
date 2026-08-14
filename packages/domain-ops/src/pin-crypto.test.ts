@@ -27,7 +27,6 @@ describe('pin-crypto (argon2id SEC-03 + legado SHA-256)', () => {
   });
 
   it('detecta hashes argon2id', () => {
-    // eslint-disable-next-line no-secrets/no-secrets -- fixture PHC de prueba
     expect(isArgon2idHash('$argon2id$v=19$m=4096,t=1,p=1$abc$def')).toBe(true);
     expect(isArgon2idHash('03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')).toBe(
       false,
@@ -45,10 +44,7 @@ describe('pin-crypto (argon2id SEC-03 + legado SHA-256)', () => {
 
   it('verifica el formato legado con salt (hashPin pre-G2) y pide re-hash', async () => {
     const salt = 'ab'.repeat(16);
-    const digest = await crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode(`${salt}:1234`),
-    );
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:1234`));
     const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
     const ok = await verifyPinHash('1234', `${salt}:${hash}`);
     expect(ok).toMatchObject({ ok: true, needsRehash: true });

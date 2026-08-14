@@ -228,6 +228,8 @@ type CashMovementParseResult =
       sessionId: string;
       branchId: string;
       requiresAuthz: boolean;
+      authorizationTokenHash?: string;
+      authorizedByUserId?: string | null;
     }
   | { ok: false; status: number; body: { error: string; code: string } };
 
@@ -343,6 +345,7 @@ function parseCashMovementBody(
     sessionId?: string;
     movementType?: string;
     amountCents?: number;
+    authorizationTokenHash?: string;
     authorizedByUserId?: string | null;
   },
   serverThresholdCents: number,
@@ -372,7 +375,20 @@ function parseCashMovementBody(
   // La autorización SOLO se concede por un token vivo verificado server-side:
   // el campo authorizedByUserId del cliente se ignora para el gate (S17-H2).
   const requiresAuthz = movementRequiresAuthz(amountCents, serverThresholdCents);
-  return { ok: true, movementType, amountCents, sessionId, branchId, requiresAuthz };
+  return {
+    ok: true,
+    movementType,
+    amountCents,
+    sessionId,
+    branchId,
+    requiresAuthz,
+    ...(body.authorizationTokenHash !== undefined
+      ? { authorizationTokenHash: body.authorizationTokenHash }
+      : {}),
+    ...(body.authorizedByUserId !== undefined
+      ? { authorizedByUserId: body.authorizedByUserId }
+      : {}),
+  };
 }
 
 interface NormalizedCountLine {
@@ -559,7 +575,7 @@ export async function runCashMovementHttp(
   let authorizedByUserId: string | null = null;
   let liveToken: { id: string; approvedByUserId: string } | null = null;
   if (parsed.requiresAuthz) {
-    liveToken = await loadLiveAuthToken(env.DB, tenantId, body.authorizationTokenHash);
+    liveToken = await loadLiveAuthToken(env.DB, tenantId, parsed.authorizationTokenHash);
     if (!liveToken) {
       return {
         status: 403,
@@ -576,19 +592,18 @@ export async function runCashMovementHttp(
          id, tenant_id, branch_id, cash_register_session_id, movement_type,
          amount_cents, counterparty_ref, reason, created_by_user_id, authorized_by_user_id
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        id,
-        tenantId,
-        parsed.branchId,
-        parsed.sessionId,
-        parsed.movementType,
-        parsed.amountCents,
-        body.counterpartyRef ?? null,
-        body.reason ?? null,
-        userId,
-        authorizedByUserId,
-      ),
+    ).bind(
+      id,
+      tenantId,
+      parsed.branchId,
+      parsed.sessionId,
+      parsed.movementType,
+      parsed.amountCents,
+      body.counterpartyRef ?? null,
+      body.reason ?? null,
+      userId,
+      authorizedByUserId,
+    ),
   ];
   if (liveToken) {
     stmts.push(

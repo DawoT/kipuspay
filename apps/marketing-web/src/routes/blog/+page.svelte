@@ -12,8 +12,8 @@
   <meta name="description" content="Guías prácticas para comercios: primera venta, referidos y formalización." />
   <meta property="og:title" content="Blog · KipusPay" />
   <meta property="og:description" content="Guías prácticas para el dueño del comercio." />
-  <meta property="og:image" content={ogImageFor('home')} />
-  <link rel="canonical" href="https://kipuspay.pe/blog" />
+  <meta property="og:image" content={ogImageFor()} />
+  <link rel="canonical" href="https://kipuspay.com/blog" />
 </svelte:head>
 
 <section class="hero hero-compact">
@@ -47,7 +47,7 @@
             <a href={`/blog/${post.slug}`} class="post-card" data-testid="blog-post-link">
               <p class="eyebrow">
                 <span class="knot-dot" aria-hidden="true"></span>
-                Guía práctica
+                {post.publishedAt} · {post.author}
               </p>
               <h3>{post.title}</h3>
               <p>{post.excerpt}</p>

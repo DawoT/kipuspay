@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol fixtures and error codes */
 /* eslint-disable @typescript-eslint/require-await -- deterministic async port stubs */
 import { describe, expect, it } from 'vitest';
 import {

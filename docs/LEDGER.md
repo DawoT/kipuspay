@@ -9175,3 +9175,149 @@ aprobaciones: [Staff Auditor R, Staff Principal A, Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+---
+id: 0384
+timestamp_utc: 2026-08-14T12:00:00Z
+schema_version: 2
+sprint_fase: M1 — Coherencia de claims del sitio de marketing (auditoría staff)
+agente_responsable: Staff Principal A
+tipo: Corrección de contenido comercial
+subtipo: Capa de visibilidad pública separada del registry interno + anti-jerga
+relacion: CORRIGE
+referencias_entradas: [0383]
+referencias_documentales: [apps/marketing-web/src/lib/claims/public.ts, apps/marketing-web/src/lib/claims/public-drift.test.ts, apps/marketing-web/src/lib/components/ClaimFeature.svelte, apps/marketing-web/src/lib/content/pricing.ts, apps/marketing-web/src/lib/content/security.ts, scripts/checks/marketing_copy.py]
+prev_id: 0383
+prev_hash: 82a32dbb0836ce3162c2127c02fa4ece3f772aa4e2179aaca9d3d3dcb404c20a
+entry_hash: 17ad328427a6dad58b4894bfb73edd21b1b4eec6363793f0d830c738d7a56816
+ticket_or_adr: Auditoría marketing-web (P0: drift de claims, jerga interna, anclaje de precio)
+test_ids: [public-drift.test.ts 5/5, pricing.test.ts 5/5, security.test.ts 2/2, gtm-drift.test.ts, marketing-web 98/98, V-00, V-26, SUITE]
+entregable_afectado: landings verticales, /precios, /seguridad, gate V-26
+descripcion: >
+  Separación definitiva entre el claim-gate INTERNO (registry.ts: QGs cerrados,
+  control de gobernanza) y la visibilidad PÚBLICA (claims/public.ts): las
+  capabilities post-QG (comandas, FEFO, arqueo ciego, merma/xfer) se anuncian
+  como "En preparación" — producción/piloto NO-GO hasta staging real y firma
+  A+V — mientras núcleo y ranking (GTM-03) sí se venden. ClaimFeature ya no
+  lee el registry: elimina el badge "Disponible" que contradecía el FAQ
+  "roadmap" de las landings y su texto de "Quality Gate del Sprint N".
+  /precios: fuera la jerga interna visible ("GTM §4.1", "HTTP 402", "GTM-02"),
+  ancla "Más elegido" en Crece (GTM §5.8), y se repara el JSON-LD (faltaba
+  monthlyCents; Enterprise ya no cotiza precio falso). /seguridad: la
+  trazabilidad interna (Sprints/GTM-*) sale del copy público y vive en
+  comentarios; el texto del visitante queda en lenguaje llano. El gate V-26
+  se extiende: detecta referencias internas (GTM-, ADR-, HTTP 4xx, Quality
+  Gate, Sprint N, §N), omite comentarios de código y la superficie claims/
+  (control interno), con autotest ampliado (V-00).
+evidencia: >
+  RED: ClaimFeature renderizaba "Disponible" para claims cuyo FAQ decía
+  "roadmap" (contradicción en la misma página, pasaba el gate); /precios
+  mostraba "GTM §4.1"/"HTTP 402"/"GTM-02"; Crece sin "Más elegido"; JSON-LD
+  roto (monthlyCents inexistente); V-26 no detectaba ninguna de estas fugas
+  (9 hallazgos al extenderlo).
+  GREEN: public-drift 5/5 (completitud, no-anuncio público, disponible solo
+  núcleo/ranking, encuadre roadmap por vertical, servicios sin roadmap);
+  pricing 5/5; security 2/2 (copy sin refs internas + trazabilidad en
+  comentario); marketing-web 98/98; V-00 GREEN (5 aserciones nuevas); V-26
+  GREEN; verify.sh SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0385
+timestamp_utc: 2026-08-14T12:45:00Z
+schema_version: 2
+sprint_fase: M2 — Estructura comercial del sitio (header/footer GTM §3.2, legales, SEO, limpieza)
+agente_responsable: Staff Principal A
+tipo: Corrección de contenido comercial
+subtipo: Navegación §3.2 + páginas legales + fix OG + remoción de stubs
+relacion: CORRIGE
+referencias_entradas: [0384]
+referencias_documentales: [apps/marketing-web/src/routes/+layout.svelte, apps/marketing-web/src/lib/content/legal.ts, apps/marketing-web/src/routes/terminos/+page.svelte, apps/marketing-web/src/routes/privacidad/+page.svelte, apps/marketing-web/src/lib/seo.ts]
+prev_id: 0384
+prev_hash: 17ad328427a6dad58b4894bfb73edd21b1b4eec6363793f0d830c738d7a56816
+entry_hash: 63a11e57ecb328483eccb3fc136b085d0c4b9e86147b506eee2d7d09b2392552
+ticket_or_adr: Auditoría marketing-web (P1: estructura §3.2, og-home roto, stubs muertos)
+test_ids: [legal.test.ts 2/2, seo.test.ts, marketing-web 97/97, V-26, SUITE]
+entregable_afectado: header/footer del sitio, páginas legales, OG social, sitemap
+descripcion: >
+  Estructura comercial completa según GTM §3.2. 1) Header: se agregan "Casos
+  de éxito" e "Ingresar" (link al login del producto vía PUBLIC_POS_ORIGIN,
+  default app.kipuspay.pe) en escritorio y móvil. 2) Footer: la columna
+  "Confianza" se convierte en "Legal" (Términos, Privacidad, Cumplimiento
+  SUNAT). 3) Páginas nuevas /terminos y /privacidad con copy honesto y sin
+  jerga: cupo 1,000 + sobregiro + gracia + leyenda de nota de venta (términos)
+  y consentimiento por propósito + retención fiscal ~5 años junto al borrado
+  (privacidad, copy LPDP de GTM §5.7.2); ambas con SEO on-page y sitemap.
+  4) Fix de OG: ogImageFor('home') ya resuelve a la tarjeta de marca
+  (og-kipuspay.png) en lugar del asset inexistente og-home.png (afectaba
+  /seguridad, /blog, /blog/[slug], /casos-de-exito). 5) Limpieza de stubs
+  muertos: StubView.svelte eliminado, STUBS de home.ts y las reglas CSS
+  .stub-* removidas (el /ayuda real las dejó obsoletas); los 3 tests de
+  "páginas en preparación" se retiran del suite.
+evidencia: >
+  RED: header sin "Casos de éxito"/"Ingresar"; footer sin columna Legal;
+  ogImageFor('home') apuntaba a /media/og-home.png inexistente; StubView y
+  STUBS huérfanos tras la página real /ayuda.
+  GREEN: legal.test 2/2 (términos: cupo/gracia/NV sin jerga; privacidad:
+  propósito + 5 años + sin "cuando quieras"); seo.test cubre 'home'→marca;
+  marketing-web 97/97; typecheck 0; lint 0; V-26 GREEN; verify.sh SUITE
+  GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+```
+---
+id: 0386
+timestamp_utc: 2026-08-14T13:30:00Z
+schema_version: 2
+sprint_fase: M3 — Enriquecimiento del sitio de marketing (blog, seguridad, comparar, prompts de imagen)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: Contenido editorial + assets AI + CWV
+relacion: amplia
+referencias_entradas: [0385]
+referencias_documentales: [apps/marketing-web/src/lib/content/blog.ts, apps/marketing-web/src/routes/blog/[slug]/+page.svelte, apps/marketing-web/src/lib/content/security.ts, apps/marketing-web/src/routes/comparar/+page.svelte, apps/marketing-web/src/lib/components/savings.ts, apps/marketing-web/docs/IMAGE-PROMPTS.md]
+prev_id: 0385
+prev_hash: 63a11e57ecb328483eccb3fc136b085d0c4b9e86147b506eee2d7d09b2392552
+entry_hash: 6c8a8fa4150531251c89d8aa7ba9eb29e8ef8fc18f84b8cccc0be97fe196c437
+ticket_or_adr: Auditoría marketing-web (P2: lo "básico")
+test_ids: [blog.test.ts 3/3, savings.test.ts 3/3, security.test.ts 3/3, marketing-web 103/103, V-26, SUITE]
+entregable_afectado: blog, /seguridad, /comparar, calculadora, assets de imagen
+descripcion: >
+  Enriquecimiento de las zonas "básicas" del sitio. 1) Blog: los 3 posts
+  pasan de un párrafo plano a estructura editorial real (4 secciones con
+  encabezado, fecha ISO, autor), con tipografía de artículo, meta en mono y
+  JSON-LD BlogPosting enriquecido (datePublished + author). 2) /seguridad
+  ampliada: nuevo flujo "De tu caja a SUNAT, paso a paso" (4 pasos —
+  numeración válida porque es una secuencia real), retención fiscal (~5 años
+  junto al borrado) y resumen de soporte por plan; todo sin jerga. 3) Índice
+  /comparar con las 3 comparativas y disclaimer honesto; el header apunta al
+  índice. 4) Calculadora de ahorro honesta: la lógica se extrae a savings.ts
+  (pura, testeada) y los supuestos (minutos por ticket y valor hora) se hacen
+  editables y visibles con etiqueta de estimación. 5) heroPoster por vertical
+  se cablea al campo existente. 6) IMAGE-PROMPTS.md: prompts listos para que
+  un agente IA (Gemini) genere los 5 posters de hero por vertical, 3
+  portadas de blog y la OG genérica, calibrados al sistema de diseño del GTM
+  sección 5.11 (sin texto, sin UI, paleta tinta/ámbar, hora dorada, negative
+  prompts y specs incluidos). 7) CWV medido sobre el build prerender real
+  (PUBLIC_FEATURE_MARKETING_SITE=1): FCP 108 ms, DOMContentLoaded 71 ms,
+  load 114 ms, 25 recursos.
+evidencia: >
+  RED: blog con un solo párrafo; /seguridad sin flujo SUNAT ni retención;
+  /comparar sin índice; calculadora con supuestos escondidos
+  (1.5 min y S/ 15/h fijos); heroPoster definido sin uso.
+  GREEN: blog.test 3/3 (estructura, fechas, secciones >600 chars por post);
+  savings.test 3/3; security.test 3/3; marketing-web 103/103; typecheck 0;
+  lint 0; V-26 GREEN (prompts sin refs internas); verify.sh SUITE GREEN;
+  build prerender ok; CWV FCP 108 ms / load 114 ms.
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

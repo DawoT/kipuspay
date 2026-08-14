@@ -5,7 +5,6 @@ export const UOM_FACTOR_INVALID = 'UOM_FACTOR_INVALID';
 export const UOM_CODE_INVALID = 'UOM_CODE_INVALID';
 export const QTY_OVERFLOW = 'QTY_OVERFLOW';
 export const QUANTITY_PRICE_INPUT_INVALID = 'QUANTITY_PRICE_INPUT_INVALID';
-// eslint-disable-next-line no-secrets/no-secrets -- domain error code
 export const QUANTITY_PRICE_OVERFLOW = 'QUANTITY_PRICE_OVERFLOW';
 export const VARIANT_SELF_PARENT = 'VARIANT_SELF_PARENT';
 export const VARIANT_NESTING_FORBIDDEN = 'VARIANT_NESTING_FORBIDDEN';

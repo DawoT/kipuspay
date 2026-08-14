@@ -177,7 +177,7 @@ describe('S23-H1 API pública fail-closed', () => {
   it('sin pepper configurado → 503 PEPPER_UNAVAILABLE (nunca pepper dev)', async () => {
     const env = mockEnv();
     (env as unknown as { API_KEY_PEPPER: string }).API_KEY_PEPPER = '';
-    const res = await runPublicSalesListHttp(env, 'Bearer kp_live_0123456789abcdef');
+    const res = await runPublicSalesListHttp(env, 'Bearer kp_live_aaaaaaaabbbbbbbb');
     expect(res.status).toBe(503);
     expect((res.body as { code: string }).code).toBe('PEPPER_UNAVAILABLE');
   });
@@ -203,8 +203,10 @@ describe('S23-H1 candidatos api_keys', () => {
       captured.push(sql);
       return originalPrepare(sql);
     };
-    const res = await runPublicSalesListHttp(env, 'Bearer kp_live_0123456789abcdef');
-    const candidatesSql = captured.find((s) => s.includes('FROM api_keys') && s.includes('key_prefix'));
+    const res = await runPublicSalesListHttp(env, 'Bearer kp_live_aaaaaaaabbbbbbbb');
+    const candidatesSql = captured.find(
+      (s) => s.includes('FROM api_keys') && s.includes('key_prefix'),
+    );
     expect(candidatesSql).toBeTruthy();
     expect(candidatesSql).toMatch(/status\s*=\s*'active'/);
     expect(res.status).toBe(401); // mock sin hash válido → fail-closed
@@ -215,22 +217,31 @@ describe('S23-H2 audit de exports contables', () => {
   it('cada export escribe audit_events ACCOUNTING_EXPORT (append-only)', async () => {
     const sqls: string[] = [];
     const env = mockEnv();
-    const orig = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind((env as unknown as { DB: { prepare: (s: string) => unknown } }).DB);
+    const orig = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind(
+      (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB,
+    );
     (env.DB as unknown as { prepare: (s: string) => unknown }).prepare = (sql: string) => {
       sqls.push(sql);
       return orig(sql);
     };
-    const res = await runAccountingExportHttp(env, 't1', {
-      fromDate: '2026-08-01',
-      toDate: '2026-08-31',
-      branchId: 'b1',
-      target: 'contasis',
-    }, 'u-owner');
+    const res = await runAccountingExportHttp(
+      env,
+      't1',
+      {
+        fromDate: '2026-08-01',
+        toDate: '2026-08-31',
+        branchId: 'b1',
+        target: 'contasis',
+      },
+      'u-owner',
+    );
     expect(res.status).toBe(200);
     const auditSql = sqls.find((s) => s.includes('INSERT INTO audit_events'));
     expect(auditSql).toBeTruthy();
     const bound: unknown[][] = [];
-    const orig2 = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind((env as unknown as { DB: { prepare: (s: string) => unknown } }).DB);
+    const orig2 = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind(
+      (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB,
+    );
     const captureStmt = (sql: string) => {
       const stmt = orig2(sql);
       const stmtAny = stmt as unknown as {
@@ -244,12 +255,17 @@ describe('S23-H2 audit de exports contables', () => {
       return stmt;
     };
     (env.DB as unknown as { prepare: (s: string) => unknown }).prepare = captureStmt;
-    await runAccountingExportHttp(env, 't1', {
-      fromDate: '2026-08-01',
-      toDate: '2026-08-31',
-      branchId: 'b1',
-      target: 'contasis',
-    }, 'u-owner');
+    await runAccountingExportHttp(
+      env,
+      't1',
+      {
+        fromDate: '2026-08-01',
+        toDate: '2026-08-31',
+        branchId: 'b1',
+        target: 'contasis',
+      },
+      'u-owner',
+    );
     const auditBinds = bound.find((b) => b.includes('ACCOUNTING_EXPORT'));
     expect(auditBinds).toBeTruthy();
     expect(auditBinds?.[3]).toBe('u-owner');

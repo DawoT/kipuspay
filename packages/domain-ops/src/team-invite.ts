@@ -66,11 +66,9 @@ export function isValidInviteEmail(email: string): boolean {
 
 /** Fuente aleatoria criptográfica en el dominio de rng (0.0..1.0). */
 function cryptoRandomDigit(): number {
-  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint32Array): void } })
-    .crypto;
+  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint32Array): void } }).crypto;
   if (!cryptoObj) throw new Error('CRYPTO_UNAVAILABLE');
   const buf = new Uint32Array(1);
   cryptoObj.getRandomValues(buf);
   return buf[0]! / 0x1_0000_0000;
 }
-

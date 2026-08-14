@@ -60,8 +60,7 @@ export function generatePin(length: number, rng: () => number = cryptoRandomDigi
 /** Fuente aleatoria criptográfica en el dominio de rng (0.0..1.0),
  * equivalente a Math.random pero con crypto.getRandomValues. */
 function cryptoRandomDigit(): number {
-  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint32Array): void } })
-    .crypto;
+  const cryptoObj = (globalThis as { crypto?: { getRandomValues(u: Uint32Array): void } }).crypto;
   if (!cryptoObj) throw new Error('CRYPTO_UNAVAILABLE');
   const buf = new Uint32Array(1);
   cryptoObj.getRandomValues(buf);
@@ -104,7 +103,9 @@ export async function verifyTransferPin(
     { digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer> } | undefined;
   if (!subtle) return 'PIN_INVALID';
   const digest = await subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`));
-  const candidate = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  const candidate = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join(
+    '',
+  );
   // Comparación en tiempo constante: los hashes compiten por bytes, no por longitud.
   if (candidate.length !== storedHash.length) return 'PIN_INVALID';
   let diff = 0;

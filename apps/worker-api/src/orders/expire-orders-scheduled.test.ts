@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { runExpireOrdersScheduled } from './expire-orders-scheduled.js';
 
 function mockDb(orders: Array<Record<string, string>>) {
@@ -26,10 +26,9 @@ function mockDb(orders: Array<Record<string, string>>) {
 describe('S43-H2: expire-orders-scheduled', () => {
   it('expira pedidos vencidos y devuelve el conteo', async () => {
     const db = mockDb([{ id: 'order-1' }, { id: 'order-2' }]);
-    const expired = await runExpireOrdersScheduled(
-      { DB: db } as never,
-      { scheduledTime: Date.parse('2026-08-08T12:00:00.000Z') },
-    );
+    const expired = await runExpireOrdersScheduled({ DB: db } as never, {
+      scheduledTime: Date.parse('2026-08-08T12:00:00.000Z'),
+    });
     expect(expired.scanned).toBe(2);
     expect(expired.expired).toBeGreaterThanOrEqual(0);
   });
@@ -43,10 +42,9 @@ describe('S43-H2: expire-orders-scheduled', () => {
 
   it('sin pedidos vencidos → 0 expirados', async () => {
     const db = mockDb([]);
-    const result = await runExpireOrdersScheduled(
-      { DB: db } as never,
-      { scheduledTime: Date.parse('2026-08-08T12:00:00.000Z') },
-    );
+    const result = await runExpireOrdersScheduled({ DB: db } as never, {
+      scheduledTime: Date.parse('2026-08-08T12:00:00.000Z'),
+    });
     expect(result.scanned).toBe(0);
     expect(result.expired).toBe(0);
   });

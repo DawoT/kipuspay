@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- certification environment label is not a secret */
 import { describe, expect, it } from 'vitest';
 import {
   DATA_BACKUP_FAULTS,

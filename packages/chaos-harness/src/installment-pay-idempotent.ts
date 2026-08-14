@@ -207,7 +207,10 @@ function runCycle(seed: number): InstallmentCycleResult {
   };
 }
 
-export function runInstallmentPayIdempotentChaos(cycles = 500, engineEvidenceVerified = false): InstallmentChaosResult {
+export function runInstallmentPayIdempotentChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): InstallmentChaosResult {
   const samples: InstallmentCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {

@@ -64,18 +64,18 @@ describe('sales-returns-routes', () => {
 
   it('S28-H3: PUT policy admin crea fila + audita RETURN_POLICY_UPDATE', async () => {
     const sqls: string[] = [];
-    const first = vi.fn().mockResolvedValue(null);
-    const run = vi.fn(async (sql: string, ...args: unknown[]) => {
-      sqls.push(sql);
-      return { success: true };
+    const first = vi.fn((..._args: unknown[]): Promise<unknown> => Promise.resolve(null));
+    const run = vi.fn((...args: unknown[]) => {
+      sqls.push(String(args[0]));
+      return Promise.resolve({ success: true });
     });
     const env = {
       FEATURE_SALES_RETURNS: '1',
       DB: {
         prepare: (sql: string) => ({
           bind: (...args: unknown[]) => ({
-            first: () => first(sql, ...args),
-            run: () => run(sql, ...args),
+            first: (): Promise<unknown> => first(sql, ...args),
+            run: (): Promise<{ success: boolean }> => run(sql, ...args),
           }),
         }),
       },

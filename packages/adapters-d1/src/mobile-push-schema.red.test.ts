@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- migration identifiers are not secrets */
 import { describe, expect, it } from 'vitest';
 import down0038 from '../migrations-down/0038_sprint45_mobile_push.sql?raw';
 import migration0038 from '../migrations/0038_sprint45_mobile_push.sql?raw';

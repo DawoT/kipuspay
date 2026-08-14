@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes and deterministic test keys are not secrets */
 import { describe, expect, it } from 'vitest';
 import { PushKmsCore, type PushKmsEnv } from './push-kms-core.js';
 

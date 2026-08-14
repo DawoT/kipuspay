@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- certification fault names are not secrets */
 /** Sprint 43 deterministic customer-order chaos certification model. */
 
 export type CustomerOrderChaosVerdict = 'PASS' | 'FAIL';

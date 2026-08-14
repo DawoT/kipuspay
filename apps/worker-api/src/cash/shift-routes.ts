@@ -55,6 +55,7 @@ export async function runIssueShiftPinHttp(
   };
 }
 
+// eslint-disable-next-line complexity -- transfer: sender/receiver × cash states × guards
 export async function runShiftTransferHttp(
   env: ShiftEnv,
   actor: QuickAddActor,

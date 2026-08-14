@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- certification environment label is not a secret */
 /** Sprint 42 deterministic local chaos certification for KPBK1 backup invariants. */
 
 export type DataBackupChaosVerdict = 'PASS' | 'FAIL';

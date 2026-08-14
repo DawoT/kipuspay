@@ -91,7 +91,6 @@ function formatLimaTimestamp(civil: LimaCivil): string {
 }
 
 function addCivilDays(civil: LimaCivil, days: number): LimaCivil {
-  // eslint-disable-next-line no-secrets/no-secrets -- stable opaque domain error code
   assertSafeInteger(days, 'RECURRING_INVALID_DAY_OFFSET');
   let { year, month, day } = civil;
   let remaining = days;

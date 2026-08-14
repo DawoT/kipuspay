@@ -2,7 +2,7 @@
  * processOfflineSaleAtomic — NV/CPE hot path (Arquitectura §6 / §5 / SYN-12).
  * Preflight fuera del batch; una sola db.batch vía runD1AtomicPlan.
  */
-/* eslint-disable complexity, no-secrets/no-secrets -- motor ACID y nombres SQL canónicos */
+/* eslint-disable complexity -- motor ACID y nombres SQL canónicos */
 import {
   aggregateSaleItems,
   assertAndApplyPromotions,

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 import {
   KPBK1_CHUNK_LIMIT_BYTES,
   canonicalJson,

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- adversarial token and log fault names are certification vocabulary */
 /** Sprint 44 deterministic recurring-sales chaos certification model. */
 
 export type RecurringSalesChaosVerdict = 'PASS' | 'FAIL';
@@ -374,8 +373,7 @@ export function judgeRecurringSalesChaos(
     return detected.length === failures.length && detected.every((code) => failures.includes(code));
   });
   const evidenceIsLocal =
-    result.evidence.environment === 'LOCAL_DETERMINISTIC_MODEL' &&
-    !result.evidence.externalStaging;
+    result.evidence.environment === 'LOCAL_DETERMINISTIC_MODEL' && !result.evidence.externalStaging;
   if (result.cycles < 500) return 'FAIL';
   if (!balanced || !samplesMatchCoverage || !countersMatchSamples) return 'FAIL';
   if (!samplesAreAuthentic || !evidenceIsLocal) return 'FAIL';

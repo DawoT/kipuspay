@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- nombres canónicos de dominio y SQL */
 /**
  * processShiftHandoffAtomic — handoff de turno y equipo (Arquitectura §5.3
  * reglas 35-36). Preflight fuera del batch; una sola db.batch vía

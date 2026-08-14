@@ -44,7 +44,10 @@ export function judgeShiftHandoffChaos(result: ShiftHandoffChaosResult): ShiftHa
 
 const PIN_USED = new Set<string>();
 
-function shiftHandoffCycle(cycle: number, faults: readonly ShiftHandoffFault[]): ShiftHandoffChaosSample {
+function shiftHandoffCycle(
+  cycle: number,
+  faults: readonly ShiftHandoffFault[],
+): ShiftHandoffChaosSample {
   const fault = faults[cycle % Math.max(1, faults.length)] ?? null;
   const pin = `pin-${cycle % 50}`;
   let winners = 1;

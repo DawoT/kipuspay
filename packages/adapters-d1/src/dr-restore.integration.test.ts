@@ -188,4 +188,3 @@ describe('S48-H1: veredicto del chaos DR con evidencia real del motor', () => {
     expect(verdict).toBe('PASS');
   });
 });
-

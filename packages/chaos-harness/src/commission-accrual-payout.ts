@@ -190,7 +190,10 @@ function runCycle(seed: number): CommissionCycleResult {
   };
 }
 
-export function runCommissionAccrualPayoutChaos(cycles = 500, engineEvidenceVerified = false): CommissionChaosResult {
+export function runCommissionAccrualPayoutChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): CommissionChaosResult {
   const samples: CommissionCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {

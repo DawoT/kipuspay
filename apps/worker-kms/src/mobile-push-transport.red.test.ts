@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, no-secrets/no-secrets -- RED contract uses provider metadata and synthetic leak markers */
 import { describe, expect, it, vi } from 'vitest';
 import {
   assertAllowedWebPushEndpoint,

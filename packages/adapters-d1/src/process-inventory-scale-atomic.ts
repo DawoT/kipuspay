@@ -2,7 +2,7 @@
  * Sprint 40 — weighted-line reconciliation and composable D1 batch planning.
  * This module adds statements to the caller-owned plan; it never commits alone.
  */
-/* eslint-disable no-secrets/no-secrets -- canonical domain and SQL identifiers */
+
 import { calculateWeightedSubtotalCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { sha256Hex } from './crypto.js';

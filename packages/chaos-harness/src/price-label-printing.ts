@@ -214,8 +214,10 @@ function simulateCycle(
   };
 }
 
-export async function runPriceLabelPrintingChaos(cycles = 500,
-  engineEvidenceVerified = false,): Promise<PriceLabelPrintingChaosResult> {
+export async function runPriceLabelPrintingChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): Promise<PriceLabelPrintingChaosResult> {
   if (!Number.isSafeInteger(cycles) || cycles < 0) throw new Error('CHAOS_CYCLES_INVALID');
   const coverage: Record<keyof PriceLabelPrintingCoverage, number> = {
     paper58: 0,

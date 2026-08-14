@@ -274,13 +274,18 @@ describe('S37-H1: doble payout OPEN del mismo período', () => {
       });
     });
 
-    const first = await processCommissionPayoutAtomic(env.DB, 't-s37-double-open', fixture.adminId, {
-      sellerId: fixture.sellerId,
-      periodStartIso: '2026-08-01',
-      periodEndIso: '2026-08-31',
-      branchId: fixture.branchId,
-      actorIsAdminOrOwner: true,
-    });
+    const first = await processCommissionPayoutAtomic(
+      env.DB,
+      't-s37-double-open',
+      fixture.adminId,
+      {
+        sellerId: fixture.sellerId,
+        periodStartIso: '2026-08-01',
+        periodEndIso: '2026-08-31',
+        branchId: fixture.branchId,
+        actorIsAdminOrOwner: true,
+      },
+    );
     expect(first.grossCents).toBe(500);
 
     // Vector real del hallazgo: dos payouts OPEN del mismo período → el
@@ -351,4 +356,3 @@ describe('S37-H2: accrual por seller del ítem (regla 22)', () => {
     expect(accrual?.amount_cents).toBe(236);
   });
 });
-

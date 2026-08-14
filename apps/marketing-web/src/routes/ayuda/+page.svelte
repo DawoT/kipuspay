@@ -34,7 +34,7 @@
     content="Guias y respuestas sobre tu punto de venta y comprobantes."
   />
   <meta property="og:image" content={ogImageFor()} />
-  <link rel="canonical" href="https://kipuspay.pe/ayuda" />
+  <link rel="canonical" href="https://kipuspay.com/ayuda" />
   <script type="application/ld+json">{@html faqLd}</script>
 </svelte:head>
 

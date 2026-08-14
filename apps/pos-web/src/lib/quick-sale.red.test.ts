@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- testids de UI canónicos */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 

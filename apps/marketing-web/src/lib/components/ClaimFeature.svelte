@@ -1,36 +1,31 @@
 <script lang="ts">
-  import { claimBadge, isClaimLive, resolveClaim, type FeaturedClaimId } from '$lib/claims/registry';
+  import type { FeaturedClaimId } from '$lib/claims/registry';
+  import { publicBadge, publicLabel, publicStatus } from '$lib/claims/public';
 
-  const LIVE_LABELS: Record<string, string> = {
+  const AVAILABLE_LABELS: Record<string, string> = {
     services_core: 'Cobro y facturacion sin inventario',
     owner_ranking: 'Ranking de locales en Modo Dueno',
   };
 
   let { claimId }: { claimId: FeaturedClaimId } = $props();
-  const status = $derived(resolveClaim(claimId));
-  const live = $derived(isClaimLive(status));
-  const label = $derived(
-    status.kind === 'roadmap' ? status.label : (LIVE_LABELS[claimId] ?? 'Disponible en KipusPay'),
-  );
+  const status = $derived(publicStatus(claimId));
+  const available = $derived(status.kind === 'available');
+  const label = $derived(publicLabel(status, AVAILABLE_LABELS[claimId] ?? 'KipusPay'));
 </script>
 
 <div
-  class={`claim-box ${live ? 'live' : 'roadmap'}`}
+  class={`claim-box ${available ? 'available' : 'preparing'}`}
   data-testid="claim-feature"
   data-claim={claimId}
 >
-  <span class="badge">{claimBadge(status)}</span>
+  <span class="badge">{publicBadge(status)}</span>
   <h3>{label}</h3>
-  {#if status.kind === 'roadmap'}
-    <p>
-      Esta capacidad se presenta como roadmap hasta el Quality Gate del Sprint {status.unlockSprint}.
-      Mientras tanto vendemos el dolor y lo ya listo: cobro, formalizacion y Modo Dueno basico.
-    </p>
+  {#if available}
+    <p>Lista para tu negocio hoy: cobra y ve tu día sin promesas de tiempo real.</p>
   {:else}
-    {#if status.kind === 'live' && status.plan}
-      <p>Lista para tu negocio hoy en el plan {status.plan}: cobra y ve tu dia sin promesas de tiempo real.</p>
-    {:else}
-      <p>Lista para tu negocio hoy: cobra y ve tu dia sin promesas de tiempo real.</p>
-    {/if}
+    <p>
+      Lo vemos en tu demo para que lo pruebes; se activa cuando esté lista para producción.
+      Hoy vendemos el dolor y lo que ya cobra en tu mostrador.
+    </p>
   {/if}
 </div>

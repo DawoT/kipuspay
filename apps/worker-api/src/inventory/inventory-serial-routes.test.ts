@@ -1,4 +1,4 @@
-/* eslint-disable no-secrets/no-secrets, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-member-access -- focused adapter mocks and opaque lease fixtures */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-member-access -- focused adapter mocks and opaque lease fixtures */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isInventorySerialsEnabled,

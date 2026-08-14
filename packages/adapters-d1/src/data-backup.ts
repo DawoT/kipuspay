@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 import {
   canonicalJson,
   classifyTenantSchema,

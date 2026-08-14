@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SECURITY_FORBIDDEN, SECURITY_PAGE } from './security.js';
 
@@ -11,16 +12,30 @@ describe('security page content', () => {
       ...SECURITY_PAGE.disclaimers,
     ].join(' ');
     expect(blob).not.toMatch(/\b(PSE|CDR|UBL|ACID|D1|Edge|Workers)\b/i);
-    expect(blob).toMatch(/42/);
-    expect(blob).toMatch(/47/);
+    expect(blob).not.toMatch(/GTM-\d+/);
+    expect(blob).not.toMatch(/Sprint\s+\d+/i);
+    expect(blob).not.toMatch(/HTTP\s*\d{3}/);
+    expect(blob).not.toMatch(/Quality\s*Gate/i);
     for (const re of SECURITY_FORBIDDEN) {
       expect(blob).not.toMatch(re);
     }
   });
 
-  it('declara evidencia por pilar', () => {
-    for (const p of SECURITY_PAGE.pillars) {
-      expect(p.evidenceRef.length).toBeGreaterThan(8);
-    }
+  it('amplía con el flujo SUNAT (4 pasos reales), retención y SLA sin jerga (M3)', () => {
+    expect(SECURITY_PAGE.sunatFlow.steps).toHaveLength(4);
+    const flow = SECURITY_PAGE.sunatFlow.steps.map((s) => `${s.title} ${s.body}`).join(' ');
+    expect(flow).toMatch(/SUNAT/);
+    expect(flow).not.toMatch(/PSE|CDR|UBL|ACID|D1|Edge|Workers|HTTP\s*\d{3}|GTM-\d+/i);
+    expect(SECURITY_PAGE.retention.body).toMatch(/5 anos|5 años/);
+    expect(SECURITY_PAGE.retention.body).toMatch(/sin su nombre/);
+    expect(SECURITY_PAGE.sla.body).toMatch(/Enterprise/);
+  });
+
+  it('mantiene la trazabilidad interna como comentario, fuera del copy público', () => {
+    const source = readFileSync(new URL('./security.ts', import.meta.url), 'utf8');
+    expect(source).toMatch(/Sprint 2/);
+    expect(source).toMatch(/Sprints 42\/47/);
+    expect(source).toMatch(/GTM-02/);
+    expect(source).toMatch(/support_sla_enterprise/);
   });
 });

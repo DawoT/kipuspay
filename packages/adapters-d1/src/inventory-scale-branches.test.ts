@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- canonical domain error identifiers */
 import { describe, expect, it } from 'vitest';
 import { AtomicPlanBuilder, type D1Bound, type D1DatabaseLike } from './index.js';
 import {

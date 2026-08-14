@@ -252,8 +252,18 @@ describe('S36-H1: override de límite de crédito con token REAL (SEC-09)', () =
         branchId: fixture.branchId,
         downPaymentCents: 0,
         items: [
-          { installmentNumber: 1, principalCents: 5000, interestCents: 0, dueDateIso: '2026-08-22' },
-          { installmentNumber: 2, principalCents: 5000, interestCents: 0, dueDateIso: '2026-09-08' },
+          {
+            installmentNumber: 1,
+            principalCents: 5000,
+            interestCents: 0,
+            dueDateIso: '2026-08-22',
+          },
+          {
+            installmentNumber: 2,
+            principalCents: 5000,
+            interestCents: 0,
+            dueDateIso: '2026-09-08',
+          },
         ],
         creditOverrideTokenHash: 'basura-reutilizable',
         actorIsSupervisorOrAbove: true,
@@ -274,7 +284,9 @@ describe('S36-H1: override de límite de crédito con token REAL (SEC-09)', () =
     await env.DB.prepare(
       `INSERT INTO authorization_tokens (id, tenant_id, token_hash, approved_by_user_id, expires_at)
        VALUES (?, ?, ?, 'approver-1', datetime('now', '+90 seconds'))`,
-    ).bind(`at-${tenantId}`, tenantId, tokenHash).run();
+    )
+      .bind(`at-${tenantId}`, tenantId, tokenHash)
+      .run();
 
     const plan = await processInstallmentPlanAtomic(env.DB, tenantId, fixture.supervisorId, {
       saleId: fixture.saleId,
@@ -302,8 +314,18 @@ describe('S36-H1: override de límite de crédito con token REAL (SEC-09)', () =
         branchId: secondFixture.branchId,
         downPaymentCents: 0,
         items: [
-          { installmentNumber: 1, principalCents: 5000, interestCents: 0, dueDateIso: '2026-08-22' },
-          { installmentNumber: 2, principalCents: 5000, interestCents: 0, dueDateIso: '2026-09-08' },
+          {
+            installmentNumber: 1,
+            principalCents: 5000,
+            interestCents: 0,
+            dueDateIso: '2026-08-22',
+          },
+          {
+            installmentNumber: 2,
+            principalCents: 5000,
+            interestCents: 0,
+            dueDateIso: '2026-09-08',
+          },
         ],
         creditOverrideTokenHash: tokenHash,
         actorIsSupervisorOrAbove: true,
@@ -311,4 +333,3 @@ describe('S36-H1: override de límite de crédito con token REAL (SEC-09)', () =
     ).rejects.toThrow('AUTH_TOKEN_INVALID');
   });
 });
-

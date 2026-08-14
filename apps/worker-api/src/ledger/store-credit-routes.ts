@@ -201,6 +201,7 @@ export async function runAdjustStoreCreditHttp(
   }
 }
 
+// eslint-disable-next-line complexity -- owner store credit: policy × approver × batch branches
 export async function runOwnerStoreCreditHttp(
   env: WorkerEnv | undefined,
   tenantId: string,

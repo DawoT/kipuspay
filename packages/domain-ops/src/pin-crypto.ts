@@ -23,7 +23,9 @@ export interface PinVerification {
 function isWorkerdRuntime(): boolean {
   try {
     const g = globalThis as unknown as { navigator?: { userAgent?: string } };
-    return typeof g.navigator?.userAgent === 'string' && g.navigator.userAgent.includes('Cloudflare');
+    return (
+      typeof g.navigator?.userAgent === 'string' && g.navigator.userAgent.includes('Cloudflare')
+    );
   } catch {
     return false;
   }
@@ -104,10 +106,7 @@ async function fallbackSha256(pin: string): Promise<string> {
   const saltBytes = new Uint8Array(16);
   crypto.getRandomValues(saltBytes);
   const salt = [...saltBytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(`${salt}:${pin}`),
-  );
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`));
   const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
   return `${salt}:${hex}`;
 }

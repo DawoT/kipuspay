@@ -1,5 +1,5 @@
 /** Scripts down versionados (espejo de migrations-down/*.sql) para tests en workerd. */
-/* eslint-disable no-secrets/no-secrets -- SQL DDL, no secretos */
+
 import down0037 from '../migrations-down/0037_sprint44_recurring_sales.sql?raw';
 import down0038 from '../migrations-down/0038_sprint45_mobile_push.sql?raw';
 import down0039 from '../migrations-down/0039_sprint46_forecasting.sql?raw';

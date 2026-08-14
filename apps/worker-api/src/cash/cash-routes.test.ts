@@ -8,7 +8,9 @@ import {
 } from './cash-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
-function mockEnv(overrides: Partial<WorkerEnv> & { authzTokenRow?: unknown; approverRole?: string } = {}): WorkerEnv {
+function mockEnv(
+  overrides: Partial<WorkerEnv> & { authzTokenRow?: unknown; approverRole?: string } = {},
+): WorkerEnv {
   const statements: unknown[] = [];
   const meta = {
     duration: 0,
@@ -299,7 +301,9 @@ describe('runCashMovementHttp', () => {
       .capturedStatements;
     const consumed = captured.some((s) => s.sql?.includes('UPDATE authorization_tokens'));
     expect(consumed).toBe(true);
-    const insert = captured.find((s) => s.sql?.includes('INSERT INTO cash_register_cash_movements'));
+    const insert = captured.find((s) =>
+      s.sql?.includes('INSERT INTO cash_register_cash_movements'),
+    );
     expect(insert?.sql).toContain('authorized_by_user_id');
   });
 });
@@ -361,12 +365,10 @@ describe('S17-H2: minting de authorization_tokens con PIN supervisor', () => {
 
 describe('G4 auditoría — aprobador de authz', () => {
   it('un cajero con PIN NO puede auto-aprobarse (3-way: solo supervisor/admin/owner)', async () => {
-    const res = await runAuthzTokenMintHttp(
-      mockEnv({ approverRole: 'cashier' }),
-      't1',
-      'sup-1',
-      { pin: '1234', scope: 'CASH_MOVEMENT' },
-    );
+    const res = await runAuthzTokenMintHttp(mockEnv({ approverRole: 'cashier' }), 't1', 'sup-1', {
+      pin: '1234',
+      scope: 'CASH_MOVEMENT',
+    });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('FORBIDDEN_APPROVER');
   });

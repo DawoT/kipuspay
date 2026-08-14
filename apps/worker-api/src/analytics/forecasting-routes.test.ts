@@ -140,10 +140,16 @@ describe('forecasting routes', () => {
   });
 
   it('alerts reject negative policy params', async () => {
-    const result = await runStockAlertsHttp(env({ DB: buildDb([]) }), 't1', 'b1', {
-      leadTimeDays: '-1',
-      safetyStockDays: '2',
-    }, 'owner');
+    const result = await runStockAlertsHttp(
+      env({ DB: buildDb([]) }),
+      't1',
+      'b1',
+      {
+        leadTimeDays: '-1',
+        safetyStockDays: '2',
+      },
+      'owner',
+    );
     expect(result.status).toBe(400);
   });
 

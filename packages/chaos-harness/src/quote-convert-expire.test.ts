@@ -14,8 +14,22 @@ describe('chaos quote-convert-expire', () => {
   });
 
   it('fails short or drifting evidence', () => {
-    expect(judgeQuoteConvertExpire({ cycles: 499, discrepancies: 0, samples: [], engineEvidenceVerified: true })).toBe('FAIL');
-    expect(judgeQuoteConvertExpire({ cycles: 500, discrepancies: 1, samples: [], engineEvidenceVerified: true })).toBe('FAIL');
+    expect(
+      judgeQuoteConvertExpire({
+        cycles: 499,
+        discrepancies: 0,
+        samples: [],
+        engineEvidenceVerified: true,
+      }),
+    ).toBe('FAIL');
+    expect(
+      judgeQuoteConvertExpire({
+        cycles: 500,
+        discrepancies: 1,
+        samples: [],
+        engineEvidenceVerified: true,
+      }),
+    ).toBe('FAIL');
   });
 
   it('500 ciclos + evidencia real del motor → PASS', () => {

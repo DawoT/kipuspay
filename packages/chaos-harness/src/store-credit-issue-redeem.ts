@@ -214,7 +214,10 @@ function runCycle(seed: number): StoreCreditCycleResult {
   }
 }
 
-export function runStoreCreditIssueRedeemChaos(cycles = 500, engineEvidenceVerified = false): StoreCreditChaosResult {
+export function runStoreCreditIssueRedeemChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): StoreCreditChaosResult {
   const samples: StoreCreditCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {

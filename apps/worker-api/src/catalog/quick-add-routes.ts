@@ -63,6 +63,7 @@ interface AuditDb {
 
 type Db = AuditDb;
 
+// eslint-disable-next-line complexity -- quick add: barcode × policy × create/existing branches
 export async function runQuickAddHttp(
   env: QuickAddEnv,
   actor: QuickAddActor,
@@ -109,7 +110,7 @@ export async function runQuickAddHttp(
   // S50-H1: INSERT + audit en UN solo batch (atómico, invariante 2) y el
   // UNIQUE del barcode se maneja como 200 (producto ya creado), jamás 500.
   try {
-    const auditStmt = buildQuickAddAuditStatement(db, actor, {
+    const auditStmt = await buildQuickAddAuditStatement(db, actor, {
       productId,
       barcode,
       name,
@@ -124,13 +125,15 @@ export async function runQuickAddHttp(
            ) VALUES (?, ?, ?, ?, ?, 'physical', 'NIU', ?, 0, '10')`,
         )
         .bind(productId, actor.tenantId, `QUICK-${barcode}`, barcode, name, priceCents),
-      ...(auditStmt ? [auditStmt] : []),
+      auditStmt,
     ]);
   } catch (cause) {
     if (cause instanceof Error && /UNIQUE|constraint/i.test(cause.message)) {
       const existingAfter = await db
-        .prepare(`SELECT id, sku, barcode, name, price_cents, product_type FROM products
-                  WHERE tenant_id = ? AND barcode = ? LIMIT 1`)
+        .prepare(
+          `SELECT id, sku, barcode, name, price_cents, product_type FROM products
+                  WHERE tenant_id = ? AND barcode = ? LIMIT 1`,
+        )
         .bind(actor.tenantId, barcode)
         .first<ProductRow>();
       if (existingAfter) return result(200, { product: existingAfter, created: false });

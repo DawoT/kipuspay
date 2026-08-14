@@ -109,7 +109,10 @@ function runCycle(seed: number): QuoteCycleResult {
   };
 }
 
-export function runQuoteConvertExpireChaos(cycles = 500, engineEvidenceVerified = false): QuoteChaosResult {
+export function runQuoteConvertExpireChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): QuoteChaosResult {
   const samples: QuoteCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {

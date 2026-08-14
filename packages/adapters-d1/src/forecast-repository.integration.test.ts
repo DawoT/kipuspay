@@ -7,7 +7,10 @@ import {
   writeForecastForCandidate,
 } from './forecast-repository.js';
 
-async function seedForecastFixture(suffix: string, days = 45): Promise<{
+async function seedForecastFixture(
+  suffix: string,
+  days = 45,
+): Promise<{
   tenantId: string;
   branchId: string;
   productId: string;

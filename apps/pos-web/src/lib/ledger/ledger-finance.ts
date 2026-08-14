@@ -49,7 +49,10 @@ async function get(
     });
     const data = (await res.json()) as { items?: LedgerItem[]; code?: string; error?: string };
     if (!res.ok) {
-      return { code: data.code ?? 'REJECTED', message: data.error ?? data.code ?? 'Solicitud rechazada.' };
+      return {
+        code: data.code ?? 'REJECTED',
+        message: data.error ?? data.code ?? 'Solicitud rechazada.',
+      };
     }
     return { items: data.items ?? [] };
   } catch {

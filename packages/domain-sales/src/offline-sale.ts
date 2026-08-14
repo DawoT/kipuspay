@@ -222,7 +222,6 @@ function assertItemQuantity(item: OfflineSaleItemPayload): void {
       throw new Error('SCALE_WEIGHT_INVALID');
     }
     if (measurement.measurementSource !== 'DEVICE' && measurement.measurementSource !== 'MANUAL') {
-      // eslint-disable-next-line no-secrets/no-secrets -- domain error code
       throw new Error('WEIGHT_SOURCE_INVALID');
     }
     return;

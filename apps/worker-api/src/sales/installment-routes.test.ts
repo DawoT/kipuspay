@@ -69,7 +69,6 @@ describe('installment-routes', () => {
     expect((await runOwnerInstallmentsOverdueHttp(off, 't1')).status).toBe(404);
   });
 
-
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
     const res = await runOwnerInstallmentsOverdueHttp(env(), 't1', 'cashier');
     expect(res.status).toBe(403);

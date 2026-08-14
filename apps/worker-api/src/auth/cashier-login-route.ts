@@ -16,7 +16,6 @@ interface HttpResult {
 
 export const CASHIER_SESSION_TTL_SECONDS = 12 * 60 * 60;
 
-
 function flagOn(value: string | undefined): boolean {
   return value === '1' || value === 'true';
 }
@@ -62,11 +61,7 @@ function credentialError(body: {
   return null;
 }
 
-async function sessionResult(
-  env: WorkerEnv,
-  user: LoginRow,
-  nowMs: number,
-): Promise<HttpResult> {
+async function sessionResult(env: WorkerEnv, user: LoginRow, nowMs: number): Promise<HttpResult> {
   const secret = env.AUTH_JWT_HS_SECRET;
   if (!secret) {
     return { status: 503, body: { error: 'Signing unavailable', code: 'SIGNING_UNAVAILABLE' } };
@@ -107,7 +102,8 @@ async function verifyPinWithLockout(
     return 'invalid';
   }
   if (verified.needsRehash) {
-    await db.prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ?')
+    await db
+      .prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ?')
       .bind(await hashPinArgon2id(pin), tenantId, userId)
       .run();
   }

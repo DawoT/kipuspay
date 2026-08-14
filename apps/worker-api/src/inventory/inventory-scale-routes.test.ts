@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- mocked adapter call inspection */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isInventoryScaleEnabled,

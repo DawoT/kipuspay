@@ -275,10 +275,15 @@ describe('shift handoff — edge de integración (Sprint 51)', () => {
     expect(byBadge.seller.resolvedBy).toBe('badge');
     expect(byBadge.seller.email).toBe('vendedor1@tienda.pe');
 
-    const pinRow = await env.DB.prepare(
-      `SELECT pin_hash FROM users WHERE tenant_id = ? AND id = ?`,
-    ).bind(tenantId, invited.userId).first<{ pin_hash: string }>();
-    console.log('PIN_HASH_STORED', JSON.stringify(pinRow?.pin_hash?.slice(0, 30)), 'LEN', pinRow?.pin_hash?.length);
+    const pinRow = await env.DB.prepare(`SELECT pin_hash FROM users WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, invited.userId)
+      .first<{ pin_hash: string }>();
+    console.log(
+      'PIN_HASH_STORED',
+      JSON.stringify(pinRow?.pin_hash?.slice(0, 30)),
+      'LEN',
+      pinRow?.pin_hash?.length,
+    );
     const byPin = await resolveSellerIdentifier(env.DB, tenantId, invited.cashierPin);
     const { verifyPinHash } = await import('@kipuspay/domain-ops');
     const v = await verifyPinHash(invited.cashierPin, pinRow?.pin_hash ?? '');
@@ -315,4 +320,3 @@ describe('S51: veredicto del chaos shift-handoff con evidencia real del motor', 
     expect(verdict).toBe('PASS');
   });
 });
-

@@ -83,7 +83,7 @@ describe('S14-H1: jueces storage/device/red con evidencia conectada', () => {
   it('PASS con evidencia real conectada: 500 ciclos de red adversaria 0/0', async () => {
     // Evidencia sintética determinista equivalente a la del dispatcher real
     // (offline-sync.test.ts 500 ciclos) — el juez la acepta.
-    const verdict = await runNetworkAdversarialChaos((cycles) => {
+    const verdict = await runNetworkAdversarialChaos(async (cycles) => {
       const seen = new Set<string>();
       const lost = 0;
       let duplicates = 0;

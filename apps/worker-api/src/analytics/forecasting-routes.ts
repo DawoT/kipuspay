@@ -148,6 +148,7 @@ export async function runRefreshForecastHttp(
  * acciones automáticas de precio/stock). Cruza forecast_outputs con el stock
  * disponible y aplica la política leadTime + safetyStock.
  */
+// eslint-disable-next-line complexity -- alerts: stock × policies × branch scopes
 export async function runStockAlertsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,

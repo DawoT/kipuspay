@@ -82,7 +82,7 @@ describe('assertOfflineSaleShape', () => {
 
   it.each([
     { weightMicrounits: 0, measurementSource: 'MANUAL', error: 'SCALE_WEIGHT_INVALID' },
-    // eslint-disable-next-line no-secrets/no-secrets -- asserted domain error code
+
     { weightMicrounits: 1, measurementSource: 'IMPORTED', error: 'WEIGHT_SOURCE_INVALID' },
   ])('rejects invalid normalized weight facts: $error', ({ error, ...measurement }) => {
     expect(() =>
@@ -332,10 +332,7 @@ describe('assertOfflineSaleShape', () => {
     expect(() =>
       assertOfflineSaleShape({
         ...basePayload(),
-        items: [
-          // eslint-disable-next-line no-secrets/no-secrets -- opaque lease fixture, not a credential
-          { productId: 'p1', quantity: 1, serialLeaseToken: 'opaque_kp_7FXQm19w' },
-        ],
+        items: [{ productId: 'p1', quantity: 1, serialLeaseToken: 'opaque_kp_7FXQm19w' }],
       }),
     ).toThrow('MISSING_SERIAL_ID');
     expect(() =>
@@ -362,7 +359,7 @@ describe('assertOfflineSaleShape', () => {
             productId: 'p1',
             quantity: 2,
             serialId: 'serial-1',
-            // eslint-disable-next-line no-secrets/no-secrets -- opaque lease fixture, not a credential
+
             serialLeaseToken: 'opaque_kp_7FXQm19w',
           },
         ],
@@ -379,7 +376,7 @@ describe('assertOfflineSaleShape', () => {
             resolvedFactorNumerator: 1,
             resolvedFactorDenominator: 1,
             serialId: 'serial-1',
-            // eslint-disable-next-line no-secrets/no-secrets -- opaque lease fixture, not a credential
+
             serialLeaseToken: 'opaque_kp_7FXQm19w',
           },
         ],
@@ -605,7 +602,7 @@ describe('aggregateSaleItems', () => {
         productId: 'p1',
         quantity: 1,
         serialId: 'serial-1',
-        // eslint-disable-next-line no-secrets/no-secrets -- opaque lease fixture, not a credential
+
         serialLeaseToken: 'opaque_kp_7FXQm19w',
       },
       {

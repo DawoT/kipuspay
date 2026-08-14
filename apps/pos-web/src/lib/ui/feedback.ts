@@ -4,7 +4,12 @@
  * Opt-in por flag; jamás bloquea el cobro (fire-and-forget).
  */
 
-let audioCtx: { currentTime: number; createOscillator(): unknown; createGain(): unknown; destination: unknown } | null = null;
+let audioCtx: {
+  currentTime: number;
+  createOscillator(): unknown;
+  createGain(): unknown;
+  destination: unknown;
+} | null = null;
 
 export function supportsSaleFeedback(): boolean {
   try {
@@ -35,7 +40,10 @@ export function playSaleSuccessFeedback(): void {
       const gain = ctx.createGain() as {
         connect(node: unknown): void;
         disconnect(): void;
-        gain: { setValueAtTime(value: number, time: number): void; exponentialRampToValueAtTime(value: number, time: number): void };
+        gain: {
+          setValueAtTime(value: number, time: number): void;
+          exponentialRampToValueAtTime(value: number, time: number): void;
+        };
       };
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(880, ctx.currentTime);

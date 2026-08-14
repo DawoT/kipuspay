@@ -3,7 +3,7 @@
  * Un db.batch por create/close/cancel. 0 CPE; stock solo al CLOSED.
  */
 /* eslint-disable complexity -- orquestador multi-rama receipt/invoice/AP/PMP; split diferido */
-/* eslint-disable no-secrets/no-secrets -- SQL COALESCE, no secretos */
+
 import {
   assertSupplierReturnCancelAllowed,
   assertSupplierReturnClosable,
@@ -578,7 +578,9 @@ export async function processSupplierReturnCloseAtomic(
   if (priceDiffOverride) {
     if (!input.authorizedByUserId) throw new Error('AUTH_REQUIRED');
     const approver = await db
-      .prepare(`SELECT role FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1`)
+      .prepare(
+        `SELECT role FROM users WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL LIMIT 1`,
+      )
       .bind(input.authorizedByUserId, tenantId)
       .first<{ role: string }>();
     const role = approver?.role ?? '';

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- versioned SQL identifiers */
 import { describe, expect, it } from 'vitest';
 import down0037 from '../migrations-down/0037_sprint44_recurring_sales.sql?raw';
 import migration0037 from '../migrations/0037_sprint44_recurring_sales.sql?raw';

@@ -12,13 +12,13 @@
     '@type': 'Product',
     name: 'KipusPay POS y Facturación Electrónica',
     description: 'Punto de venta y facturación electrónica para comercios del Perú.',
-    offers: PRICING_PLANS.map((plan) => ({
+    offers: PRICING_PLANS.filter((plan) => plan.monthlyCents !== null).map((plan) => ({
       '@type': 'Offer',
       name: plan.name,
       priceCurrency: 'PEN',
-      price: formatCents(plan.monthlyCents),
+      price: formatCents(plan.monthlyCents ?? 0),
       description: plan.audience,
-      url: 'https://kipuspay.pe/precios',
+      url: 'https://kipuspay.com/precios',
     })),
   });
 </script>
@@ -32,7 +32,7 @@
   <meta property="og:title" content="Precios · KipusPay" />
   <meta property="og:description" content="Cuatro planes. Cupo transparente. Sin apagar la caja." />
   <meta property="og:image" content={ogImageFor()} />
-  <link rel="canonical" href="https://kipuspay.pe/precios" />
+  <link rel="canonical" href="https://kipuspay.com/precios" />
   <script type="application/ld+json">{@html productLd}</script>
 </svelte:head>
 
@@ -65,7 +65,7 @@
       <div class="sec-head" use:reveal>
         <p class="eyebrow">
           <span class="knot-dot" aria-hidden="true"></span>
-          GTM §4.1
+          Planes
         </p>
         <h2>Cuatro planes. Sin letra chica de “sin límite”.</h2>
         <p class="section-lead">
@@ -103,7 +103,12 @@
             use:reveal
             data-reveal-delay={i % 3}
           >
-            <p class="pricing-name">{plan.name}</p>
+            <p class="pricing-name">
+              {plan.name}
+              {#if plan.badge}
+                <span class="pricing-badge">{plan.badge}</span>
+              {/if}
+            </p>
             <p class="pricing-price">
               {isAnnual ? plan.annualLabel : plan.monthlyLabel}
             </p>
@@ -175,6 +180,19 @@
   .pricing-card.highlight {
     border-color: var(--amber);
     box-shadow: 0 8px 32px rgba(217, 154, 61, 0.15);
+  }
+  .pricing-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--amber);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
   }
   .pricing-annual-sub {
     font-family: var(--font-mono);

@@ -130,6 +130,7 @@ async function persistFormalizationStage(
   return null;
 }
 
+// eslint-disable-next-line complexity -- formalization: stage FSM × plan × role
 export async function runFormalizationStageHttp(
   env: WorkerEnv,
   tenantId: string,

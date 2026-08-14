@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets */
 import { describe, expect, it } from 'vitest';
 import type { NormalizedProductRow } from '@kipuspay/domain-integrations';
 import { parseEnrichedCsv, tokenizeCsv } from './csv.js';
@@ -74,9 +73,7 @@ describe('parseEnrichedCsv', () => {
   });
 
   it('maneja separador de miles sin romper el precio', () => {
-    const csv =
-      // eslint-disable-next-line no-secrets/no-secrets -- CSV de prueba, no secreto
-      'entity_type,external_id,sku,name,price\nproduct,p1,SKU-1,Café,"1,299.50"';
+    const csv = 'entity_type,external_id,sku,name,price\nproduct,p1,SKU-1,Café,"1,299.50"';
     const result = parseEnrichedCsv(csv);
     expect((result.rows[0] as NormalizedProductRow).priceCents).toBe(129950);
   });

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 import type { SecretStoreSecret } from './kms-core.js';
 
 export interface PushKmsEnv {

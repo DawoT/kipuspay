@@ -118,9 +118,10 @@ function formulaReason(field: string, value: string | null | undefined): string 
 function validateProduct(row: NormalizedProductRow): string | null {
   if (row.sku.trim() === '') return 'producto requiere sku';
   if (row.name.trim() === '') return 'producto requiere nombre';
-  const formula = formulaReason('sku', row.sku)
-    ?? formulaReason('name', row.name)
-    ?? formulaReason('barcode', row.barcode);
+  const formula =
+    formulaReason('sku', row.sku) ??
+    formulaReason('name', row.name) ??
+    formulaReason('barcode', row.barcode);
   if (formula) return formula;
   if (row.barcode?.trim().startsWith('EMP-')) {
     return 'barcode EMP- está reservado para badges de vendedor (regla 34/36)';
@@ -135,9 +136,10 @@ function validateProduct(row: NormalizedProductRow): string | null {
 function validateCustomer(row: NormalizedCustomerRow): string | null {
   if (row.documentTypeCode === '') return 'cliente requiere tipo de documento';
   if (row.documentNumber.trim() === '') return 'cliente requiere número de documento';
-  const formula = formulaReason('name', row.name)
-    ?? formulaReason('email', row.email)
-    ?? formulaReason('doc_number', row.documentNumber);
+  const formula =
+    formulaReason('name', row.name) ??
+    formulaReason('email', row.email) ??
+    formulaReason('doc_number', row.documentNumber);
   if (formula) return formula;
   if (!(row.creditLimitCents >= 0)) return 'límite de crédito no puede ser negativo';
   return null;

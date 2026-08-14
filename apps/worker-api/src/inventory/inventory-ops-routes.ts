@@ -76,6 +76,7 @@ export async function runCreateInventoryCountHttp(
   return { status: 200, body: { id, status: 'COUNTING', blind: true } };
 }
 
+// eslint-disable-next-line complexity -- count review: authz × AJUSTE multi-línea
 export async function runSubmitCountReviewHttp(
   env: WorkerEnv | undefined,
   tenantId: string,

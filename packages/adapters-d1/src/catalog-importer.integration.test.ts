@@ -173,7 +173,9 @@ describe('F7 Bloque C — atomicidad del commit', () => {
       taxName: null,
       igvAffectationCode: '10',
     };
-    await importer.commit(await importer.preview({ source: 'csv', tenantId: 't-imp-atomic', rows: [existing] }));
+    await importer.commit(
+      await importer.preview({ source: 'csv', tenantId: 't-imp-atomic', rows: [existing] }),
+    );
 
     // barcode 7791001 ya existe → la 2ª fila del lote viola el UNIQUE
     const lote = [

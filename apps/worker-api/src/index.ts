@@ -398,7 +398,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/auth/cashier-login', async (c) => {
     const result = await runCashierLoginHttp(
       c.env,
-      (await c.req.json().catch(() => ({}))) as { tenantId?: unknown; identifier?: unknown; pin?: unknown },
+      (await c.req.json().catch(() => ({}))) as {
+        tenantId?: unknown;
+        identifier?: unknown;
+        pin?: unknown;
+      },
     );
     return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
@@ -850,6 +854,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
+      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
@@ -862,6 +867,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
+      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
@@ -1925,9 +1931,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/inventory/counts/submit-review', async (c) => {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json();
+    const user = c.get('user');
     const result = await runSubmitCountReviewHttp(
       c.env,
       jwt?.tenantId ?? '',
+      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
@@ -1940,6 +1948,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
+      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
@@ -1964,6 +1973,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
+      user?.role ?? '',
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
@@ -2466,7 +2476,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     if (result.status === 201 && raw && typeof raw === 'object' && !Array.isArray(raw)) {
       const o = raw as Record<string, unknown>;
       if (typeof o.ref === 'string' && o.ref && typeof result.body.tenantId === 'string') {
-        runCaptureReferralHttp(c.env, {
+        void runCaptureReferralHttp(c.env, {
           referredTenantId: result.body.tenantId,
           ref: o.ref,
         });
@@ -2503,7 +2513,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = runEnsureReferralCodeHttp(c.env, raw);
+    const result = await runEnsureReferralCodeHttp(c.env, raw);
     return c.json(result.body, result.status as 200 | 400 | 422);
   });
 
@@ -2514,7 +2524,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = runCaptureReferralHttp(c.env, raw);
+    const result = await runCaptureReferralHttp(c.env, raw);
     return c.json(result.body, result.status as 201 | 400 | 422);
   });
 
@@ -2525,7 +2535,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = runFirstSaleReferralHttp(c.env, raw);
+    const result = await runFirstSaleReferralHttp(c.env, raw);
     return c.json(result.body, result.status as 200 | 400 | 422);
   });
 
@@ -2541,11 +2551,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     const timestampSec = Number(tsHeader);
     if (!Number.isFinite(timestampSec)) {
-      return c.json(
-        // eslint-disable-next-line no-secrets/no-secrets -- código de error, no un secret
-        { error: 'INVALID_WEBHOOK_TIMESTAMP', code: 'INVALID_WEBHOOK_TIMESTAMP' },
-        400,
-      );
+      return c.json({ error: 'INVALID_WEBHOOK_TIMESTAMP', code: 'INVALID_WEBHOOK_TIMESTAMP' }, 400);
     }
     const result = await runPaymentWebhookHttp(
       c.env,

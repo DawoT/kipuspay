@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- canonical schema identifiers are the contract under test */
 import { describe, expect, it } from 'vitest';
 import scaleSql from '../migrations/0033_sprint40_inventory_scale.sql?raw';
 import { DOWN_0033_SPRINT40_INVENTORY_SCALE } from './migrations-down.js';

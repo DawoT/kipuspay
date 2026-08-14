@@ -9,9 +9,12 @@ export interface PricingPlan {
   readonly name: string;
   readonly monthlyLabel: string;
   readonly annualLabel: string;
+  /** Precio mensual en cents para schema.org (Enterprise: null = sin precio público). */
+  readonly monthlyCents: number | null;
   readonly audience: string;
   readonly limits: readonly string[];
   readonly upgradeGates: readonly string[];
+  readonly badge?: string;
 }
 
 export const PRICING_PLANS: readonly PricingPlan[] = [
@@ -19,6 +22,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     id: 'arranque',
     name: 'Arranque',
     monthlyLabel: 'S/ 49 / mes',
+    monthlyCents: 4900,
     annualLabel: 'S/ 490 / año (2 meses gratis)',
     audience: 'Negocio de 1 local, 1-2 cajeros',
     limits: [
@@ -33,6 +37,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     id: 'crece',
     name: 'Crece',
     monthlyLabel: 'S/ 129 / mes',
+    monthlyCents: 12900,
     annualLabel: 'S/ 1,290 / año (2 meses gratis)',
     audience: 'Negocio de 1-3 locales en expansion',
     limits: [
@@ -42,11 +47,13 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       'Soporte estandar',
     ],
     upgradeGates: ['Cuarta sucursal', 'API de integraciones', 'Fidelizacion'],
+    badge: 'Más elegido',
   },
   {
     id: 'cadena',
     name: 'Cadena',
     monthlyLabel: 'S/ 349 / mes + S/ 39 por sucursal adicional',
+    monthlyCents: 34900,
     annualLabel: 'Igual con 2 meses gratis',
     audience: 'Cadenas de 4+ locales',
     limits: [
@@ -61,11 +68,12 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     id: 'enterprise',
     name: 'Enterprise',
     monthlyLabel: 'Cotizacion personalizada',
+    monthlyCents: null,
     annualLabel: '—',
     audience: 'Cadenas de 30+ locales, franquicias',
     limits: [
       'SLA contractual',
-      'Soporte prioritario (contrato operativo GTM-02)',
+      'Soporte prioritario con contrato de servicio',
       'Onboarding asistido',
       'Integraciones a medida',
     ],
@@ -74,7 +82,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
 ] as const;
 
 export const PRICING_DISCLAIMERS = {
-  cupo: 'Arranque incluye 1,000 comprobantes/mes; el excedente se factura a S/ 0.05 fuera del cobro (nunca HTTP 402 ni corte de caja). Cada CPE/NV emitido cuenta, incluidas NC/ND y devoluciones; la NC no reembolsa el cupo del documento original.',
+  cupo: 'Arranque incluye 1,000 comprobantes/mes; el excedente se factura a S/ 0.05 fuera del cobro y la caja nunca se detiene por volumen. Cada comprobante emitido cuenta, incluidas las notas de crédito y débito y las devoluciones; la nota de crédito no reembolsa el cupo del documento original.',
   gracia:
     'Si falla un pago, sigues cobrando en periodo de gracia: no apagamos la caja por un tema administrativo.',
 } as const;

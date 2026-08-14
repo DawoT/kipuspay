@@ -1,4 +1,4 @@
-/* eslint-disable no-secrets/no-secrets, security/detect-non-literal-regexp -- DDL identifiers and test-only table interpolation */
+/* eslint-disable security/detect-non-literal-regexp -- DDL identifiers and test-only table interpolation */
 import { describe, expect, it } from 'vitest';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import migration0036 from '../migrations/0036_sprint43_customer_orders.sql?raw';

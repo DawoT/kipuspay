@@ -248,45 +248,42 @@ describe('customer-repository LPDP (Sprint 47)', () => {
   });
 });
 
-  it('S47-H1: doble erase concurrente → 1 gana, 0 fork de cadena de audit', async () => {
-    const t = uniqueId('t');
-    const c = uniqueId('c');
-    await seedCustomer(t, c, '55556666', 'Rosa', 'rosa@r.com');
-    await writeConsent(env.DB, t, c, 'marketing', true, NOW);
+it('S47-H1: doble erase concurrente → 1 gana, 0 fork de cadena de audit', async () => {
+  const t = uniqueId('t');
+  const c = uniqueId('c');
+  await seedCustomer(t, c, '55556666', 'Rosa', 'rosa@r.com');
+  await writeConsent(env.DB, t, c, 'marketing', true, NOW);
 
-    const outcomes = await Promise.allSettled([
-      eraseCustomer(env.DB, {
-        tenantId: t,
-        branchId: uniqueId('b'),
-        actorUserId: uniqueId('u'),
-        customerId: c,
-        nowIso: NOW,
-      }),
-      eraseCustomer(env.DB, {
-        tenantId: t,
-        branchId: uniqueId('b'),
-        actorUserId: uniqueId('u'),
-        customerId: c,
-        nowIso: NOW,
-      }),
-    ]);
-    const fulfilled = outcomes.filter((o) => o.status === 'fulfilled').length;
-    const rejectedWithAlready = outcomes.filter(
-      (o) =>
-        o.status === 'rejected' &&
-        o.reason instanceof Error &&
-        o.reason.message === ALREADY_ERASED,
-    ).length;
-    // Exactamente 1 gana; el perdedor recibe ALREADY_ERASED (fail-closed).
-    expect(fulfilled).toBe(1);
-    expect(rejectedWithAlready).toBe(1);
+  const outcomes = await Promise.allSettled([
+    eraseCustomer(env.DB, {
+      tenantId: t,
+      branchId: uniqueId('b'),
+      actorUserId: uniqueId('u'),
+      customerId: c,
+      nowIso: NOW,
+    }),
+    eraseCustomer(env.DB, {
+      tenantId: t,
+      branchId: uniqueId('b'),
+      actorUserId: uniqueId('u'),
+      customerId: c,
+      nowIso: NOW,
+    }),
+  ]);
+  const fulfilled = outcomes.filter((o) => o.status === 'fulfilled').length;
+  const rejectedWithAlready = outcomes.filter(
+    (o) =>
+      o.status === 'rejected' && o.reason instanceof Error && o.reason.message === ALREADY_ERASED,
+  ).length;
+  // Exactamente 1 gana; el perdedor recibe ALREADY_ERASED (fail-closed).
+  expect(fulfilled).toBe(1);
+  expect(rejectedWithAlready).toBe(1);
 
-    // La cadena de audit NO se bifurca: un solo LPDP_ERASE por esta operación.
-    const audits = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM audit_events WHERE tenant_id = ? AND action = 'LPDP_ERASE'`,
-    )
-      .bind(t)
-      .first<{ n: number }>();
-    expect(audits?.n).toBe(1);
-  });
-
+  // La cadena de audit NO se bifurca: un solo LPDP_ERASE por esta operación.
+  const audits = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM audit_events WHERE tenant_id = ? AND action = 'LPDP_ERASE'`,
+  )
+    .bind(t)
+    .first<{ n: number }>();
+  expect(audits?.n).toBe(1);
+});

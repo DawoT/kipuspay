@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- flags de capability */
 /**
  * Backlog v10 P1c — Percepciones `02` / Retenciones `20` (Arquitectura §5.2c,
  * ADR-FISCAL-005). Montos en cents calculados server-side; audit

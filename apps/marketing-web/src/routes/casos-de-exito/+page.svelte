@@ -15,8 +15,8 @@
     content="Historias reales de comercios que cobran con KipusPay, con permiso del dueño."
   />
   <meta property="og:title" content="Casos de éxito · KipusPay" />
-  <meta property="og:image" content={ogImageFor('home')} />
-  <link rel="canonical" href="https://kipuspay.pe/casos-de-exito" />
+  <meta property="og:image" content={ogImageFor()} />
+  <link rel="canonical" href="https://kipuspay.com/casos-de-exito" />
   {#if cases.length === 0}
     <meta name="robots" content="noindex, follow" />
   {/if}

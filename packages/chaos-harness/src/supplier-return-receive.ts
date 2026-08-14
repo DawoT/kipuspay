@@ -139,7 +139,10 @@ function runCycle(seed: number): SupplierReturnCycleResult {
   };
 }
 
-export function runSupplierReturnReceiveChaos(cycles = 500, engineEvidenceVerified = false): SupplierReturnChaosResult {
+export function runSupplierReturnReceiveChaos(
+  cycles = 500,
+  engineEvidenceVerified = false,
+): SupplierReturnChaosResult {
   const samples: SupplierReturnCycleResult[] = [];
   let discrepancies = 0;
   for (let seed = 0; seed < cycles; seed += 1) {

@@ -72,4 +72,3 @@ export function formatSoles(cents: number): string {
   const rest = abs % 100;
   return `S/ ${sign}${soles}.${String(rest).padStart(2, '0')}`;
 }
-

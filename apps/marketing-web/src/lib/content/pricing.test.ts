@@ -13,8 +13,25 @@ describe('pricing content', () => {
   it('descongela soporte prioritario Enterprise tras GTM-02 / SLA', () => {
     const enterprise = PRICING_PLANS.find((p) => p.id === 'enterprise');
     expect(enterprise?.limits.join(' ')).toMatch(/Soporte prioritario/);
-    expect(enterprise?.limits.join(' ')).toMatch(/GTM-02/);
+    expect(enterprise?.limits.join(' ')).not.toMatch(/GTM-02/);
     expect(enterprise?.limits.join(' ')).not.toMatch(/tras aprobacion de SLA/i);
+  });
+
+  it('ancla el plan Crece como "Más elegido" (GTM §5.8)', () => {
+    const crece = PRICING_PLANS.find((p) => p.id === 'crece');
+    expect(crece?.badge).toBe('Más elegido');
+  });
+
+  it('el copy público de precios no filtra jerga interna (M1)', () => {
+    const all = [
+      ...PRICING_PLANS.flatMap((p) => [...p.limits, p.audience]),
+      PRICING_DISCLAIMERS.cupo,
+      PRICING_DISCLAIMERS.gracia,
+    ].join(' ');
+    expect(all).not.toMatch(/GTM-\d+/);
+    expect(all).not.toMatch(/HTTP\s*\d{3}/);
+    expect(all).not.toMatch(/Quality\s*Gate/i);
+    expect(all).not.toMatch(/Sprint\s+\d+/);
   });
 
   it('publica cupo Arranque activo (GTM-04)', () => {

@@ -1,10 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createCashMovement,
-  mintCashAuthzToken,
-  reprintSale,
-} from './cash-movement.js';
-
+import { createCashMovement, mintCashAuthzToken, reprintSale } from './cash-movement.js';
 
 function captureFetcher(body: unknown, status = 200) {
   const captured: { url?: string; init?: RequestInit } = {};
@@ -27,7 +22,11 @@ const AUTH = 'Bearer jwt-x';
 
 describe('cliente de movimientos de caja (S17, F2)', () => {
   it('registra un movimiento bajo umbral con monto en cents', async () => {
-    const { fetcher, captured } = captureFetcher({ id: 'mv-1', movementType: 'CHANGE_FUND_IN', amountCents: 500 });
+    const { fetcher, captured } = captureFetcher({
+      id: 'mv-1',
+      movementType: 'CHANGE_FUND_IN',
+      amountCents: 500,
+    });
     const res = await createCashMovement({
       fetcher,
       apiBase: 'https://api.test',
@@ -48,7 +47,10 @@ describe('cliente de movimientos de caja (S17, F2)', () => {
   });
 
   it('superficie el código AUTH_TOKEN_REQUIRED para disparar el flujo de PIN', async () => {
-    const { fetcher } = captureFetcher({ error: 'Authz required', code: 'AUTH_TOKEN_REQUIRED' }, 403);
+    const { fetcher } = captureFetcher(
+      { error: 'Authz required', code: 'AUTH_TOKEN_REQUIRED' },
+      403,
+    );
     const res = await createCashMovement({
       fetcher,
       apiBase: 'https://api.test',
@@ -85,7 +87,11 @@ describe('cliente de movimientos de caja (S17, F2)', () => {
   });
 
   it('reenvía el movimiento con el token tras la autorización', async () => {
-    const { fetcher, captured } = captureFetcher({ id: 'mv-2', movementType: 'DEPOSIT_VALUES', amountCents: 50_000 });
+    const { fetcher, captured } = captureFetcher({
+      id: 'mv-2',
+      movementType: 'DEPOSIT_VALUES',
+      amountCents: 50_000,
+    });
     const res = await createCashMovement({
       fetcher,
       apiBase: 'https://api.test',

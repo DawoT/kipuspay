@@ -15,7 +15,13 @@ export interface DaySaleItem {
 }
 
 export type DaySalesResult =
-  | { ok: true; items: DaySaleItem[]; countToday: number; totalTodayCents: number; scopeBranch: string | null }
+  | {
+      ok: true;
+      items: DaySaleItem[];
+      countToday: number;
+      totalTodayCents: number;
+      scopeBranch: string | null;
+    }
   | { ok: false; code: string; message: string };
 
 export async function fetchDaySales(input: {
@@ -38,7 +44,11 @@ export async function fetchDaySales(input: {
       error?: string;
     };
     if (!res.ok) {
-      return { ok: false, code: data.code ?? 'REJECTED', message: data.error ?? data.code ?? 'Solicitud rechazada.' };
+      return {
+        ok: false,
+        code: data.code ?? 'REJECTED',
+        message: data.error ?? data.code ?? 'Solicitud rechazada.',
+      };
     }
     return {
       ok: true,

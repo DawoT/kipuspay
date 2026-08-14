@@ -1,14 +1,12 @@
 <script lang="ts">
   import { reveal } from './reveal';
+  import { computeSavings, DEFAULT_ASSUMPTIONS } from './savings';
 
-  let ticketsPerDay = $state(40);
+  let ticketsPerDay = $state(DEFAULT_ASSUMPTIONS.ticketsPerDay);
+  let minutesPerTicket = $state(DEFAULT_ASSUMPTIONS.minutesPerTicket);
+  let hourlyRateSoles = $state(DEFAULT_ASSUMPTIONS.hourlyRateSoles);
 
-  // Horas ahorradas al mes en arqueo y digitación manual (aprox. 1.5 min por ticket evitado en cuadre)
-  const hoursSavedPerMonth = $derived(Math.round((ticketsPerDay * 30 * 1.5) / 60));
-
-  // Ahorro estimado de dinero en horas de trabajo al mes (asumiendo valor hora base de S/ 15)
-  const monthlySavingsCents = $derived(hoursSavedPerMonth * 15 * 100);
-  const monthlySavingsWhole = $derived(Math.trunc(monthlySavingsCents / 100));
+  const result = $derived(computeSavings({ ticketsPerDay, minutesPerTicket, hourlyRateSoles }));
 </script>
 
 <div class="savings-calculator" use:reveal data-testid="savings-calculator">
@@ -36,16 +34,51 @@
       />
     </div>
 
+    <div class="calc-control">
+      <label for="minutes-slider">
+        Minutos que toma cuadrar cada venta:
+        <strong>{minutesPerTicket} min</strong>
+      </label>
+      <input
+        id="minutes-slider"
+        type="range"
+        min="0.5"
+        max="5"
+        step="0.5"
+        bind:value={minutesPerTicket}
+      />
+    </div>
+
+    <div class="calc-control">
+      <label for="rate-slider">
+        Valor de una hora de trabajo en tu local (S/):
+        <strong>S/ {hourlyRateSoles}</strong>
+      </label>
+      <input
+        id="rate-slider"
+        type="range"
+        min="10"
+        max="50"
+        step="5"
+        bind:value={hourlyRateSoles}
+      />
+    </div>
+
     <div class="calc-results">
       <div class="result-metric">
-        <span class="metric-number">~{hoursSavedPerMonth} hrs</span>
-        <span class="metric-label">Tiempo ahorrado al mes en arqueos y cuadres</span>
+        <span class="metric-number">~{result.hoursSavedPerMonth} hrs</span>
+        <span class="metric-label">Tiempo estimado ahorrado al mes en arqueos y cuadres</span>
       </div>
       <div class="result-metric highlight">
-        <span class="metric-number">S/ {monthlySavingsWhole}</span>
+        <span class="metric-number">S/ {result.monthlySavingsSoles}</span>
         <span class="metric-label">Valor estimado en tiempo de trabajo recuperado</span>
       </div>
     </div>
+
+    <p class="calc-assumptions">
+      Estimación con tus parámetros de arriba. No es una promesa de ahorro: cada local cuadra
+      distinto.
+    </p>
   </div>
 </div>
 
@@ -104,5 +137,13 @@
   .metric-label {
     font-size: 0.9rem;
     color: rgba(243, 239, 230, 0.78);
+  }
+  .calc-assumptions {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.8125rem;
+    color: rgba(243, 239, 230, 0.6);
+    line-height: 1.5;
   }
 </style>

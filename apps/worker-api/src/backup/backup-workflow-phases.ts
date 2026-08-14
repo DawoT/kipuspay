@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol error codes are not secrets */
 import {
   D1_BACKUP_REGISTRY_VERSION,
   D1_BACKUP_TABLES,

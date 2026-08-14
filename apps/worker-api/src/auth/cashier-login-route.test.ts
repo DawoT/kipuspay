@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  runCashierLoginHttp,
-  CASHIER_SESSION_TTL_SECONDS,
-} from './cashier-login-route.js';
+import { runCashierLoginHttp, CASHIER_SESSION_TTL_SECONDS } from './cashier-login-route.js';
 import { verifyJwt, type JwtVerifyEnv } from './verify-jwt.js';
 
 const SECRET = 'test-secret-for-cashier-login';
@@ -68,7 +65,11 @@ function decodePayload(token: string): Record<string, unknown> {
 
 describe('Sprint C2 cashier login route', () => {
   it('capability off → 404 FEATURE_OFF', async () => {
-    const result = await runCashierLoginHttp(undefined, { tenantId: 't1', identifier: 'u1', pin: '1234' });
+    const result = await runCashierLoginHttp(undefined, {
+      tenantId: 't1',
+      identifier: 'u1',
+      pin: '1234',
+    });
     expect(result.status).toBe(404);
     expect(result.body.code).toBe('FEATURE_OFF');
   });
@@ -80,10 +81,11 @@ describe('Sprint C2 cashier login route', () => {
   });
 
   it('sin DB → 503', async () => {
-    const result = await runCashierLoginHttp(
-      { FEATURE_AUTH_CASHIER_LOGIN: '1' } as never,
-      { tenantId: 't1', identifier: 'u1', pin: '1234' },
-    );
+    const result = await runCashierLoginHttp({ FEATURE_AUTH_CASHIER_LOGIN: '1' } as never, {
+      tenantId: 't1',
+      identifier: 'u1',
+      pin: '1234',
+    });
     expect(result.status).toBe(503);
   });
 

@@ -243,109 +243,105 @@ describe('Sprint 45 D1/workerd mobile push contract', () => {
   });
 });
 
-  it('S45-H2: append SIN consentimiento → el batch falla (CHECK ok=1, fail-closed)', async () => {
-    const fixture = await seedPushFixture('no-consent');
-    // Revocar el consentimiento: el usuario NO tiene consent vigente.
-    await env.DB.prepare(
-      `UPDATE push_consents SET revoked_at = '2026-08-08T21:00:00.000Z'
+it('S45-H2: append SIN consentimiento → el batch falla (CHECK ok=1, fail-closed)', async () => {
+  const fixture = await seedPushFixture('no-consent');
+  // Revocar el consentimiento: el usuario NO tiene consent vigente.
+  await env.DB.prepare(
+    `UPDATE push_consents SET revoked_at = '2026-08-08T21:00:00.000Z'
        WHERE tenant_id = ? AND user_id = ?`,
-    )
-      .bind(fixture.tenantId, fixture.userId)
-      .run();
-    await expect(
-      appendPushEventAtomic(env.DB, {
-        tenantId: fixture.tenantId,
-        userId: fixture.userId,
-        purpose: 'OWNER_ALERTS',
-        eventType: 'CASH_CLOSE',
-        sourceEntityId: 'shift-no-consent',
-        idempotencyKeyHash: 'event-hash-no-consent',
-        now: '2026-08-08T20:00:00.000Z',
-      }),
-    ).rejects.toThrow();
-    // Y no debe persistirse ningún evento.
-    const events = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM push_events WHERE tenant_id = ? AND idempotency_key_hash = ?`,
-    )
-      .bind(fixture.tenantId, 'event-hash-no-consent')
-      .first<{ n: number }>();
-    expect(events?.n).toBe(0);
-  });
+  )
+    .bind(fixture.tenantId, fixture.userId)
+    .run();
+  await expect(
+    appendPushEventAtomic(env.DB, {
+      tenantId: fixture.tenantId,
+      userId: fixture.userId,
+      purpose: 'OWNER_ALERTS',
+      eventType: 'CASH_CLOSE',
+      sourceEntityId: 'shift-no-consent',
+      idempotencyKeyHash: 'event-hash-no-consent',
+      now: '2026-08-08T20:00:00.000Z',
+    }),
+  ).rejects.toThrow();
+  // Y no debe persistirse ningún evento.
+  const events = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM push_events WHERE tenant_id = ? AND idempotency_key_hash = ?`,
+  )
+    .bind(fixture.tenantId, 'event-hash-no-consent')
+    .first<{ n: number }>();
+  expect(events?.n).toBe(0);
+});
 
-  it('S45-H2: evento anterior al consentimiento NO se entrega retroactivamente', async () => {
-    const tenantId = 'tenant-push-retro';
-    const userId = 'user-push-retro';
-    const consentId = 'consent-push-retro';
-    const subscriptionId = 'subscription-push-retro';
-    const eventId = 'event-push-retro';
-    await env.DB.batch([
-      env.DB.prepare(
-        `INSERT INTO tenants(id, business_name, vertical_type) VALUES (?, ?, 'retail')`,
-      ).bind(tenantId, 'Tenant Retro'),
-      env.DB.prepare(
-        `INSERT INTO users(id, tenant_id, email, role) VALUES (?, ?, ?, 'owner')`,
-      ).bind(userId, tenantId, 'retro@example.com'),
-      // El evento se ENCOLA ANTES de que exista consentimiento (created_at viejo).
-      env.DB.prepare(
-        `INSERT INTO push_events(
+it('S45-H2: evento anterior al consentimiento NO se entrega retroactivamente', async () => {
+  const tenantId = 'tenant-push-retro';
+  const userId = 'user-push-retro';
+  const consentId = 'consent-push-retro';
+  const subscriptionId = 'subscription-push-retro';
+  const eventId = 'event-push-retro';
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO tenants(id, business_name, vertical_type) VALUES (?, ?, 'retail')`,
+    ).bind(tenantId, 'Tenant Retro'),
+    env.DB.prepare(`INSERT INTO users(id, tenant_id, email, role) VALUES (?, ?, ?, 'owner')`).bind(
+      userId,
+      tenantId,
+      'retro@example.com',
+    ),
+    // El evento se ENCOLA ANTES de que exista consentimiento (created_at viejo).
+    env.DB.prepare(
+      `INSERT INTO push_events(
            id, tenant_id, event_type, source_entity_type, source_entity_id,
            idempotency_key_hash, target_scope, payload_redacted_json, deep_link_kind,
            deep_link_entity_id, ttl_seconds, collapse_key, created_at, expires_at
          ) VALUES (?, ?, 'CASH_CLOSE', 'SHIFT', 'shift-retro', 'hash-retro',
            'OWNER_ALERTS', '{}', 'cash_close', 'shift-retro', 300, 'collapse-retro',
            '2026-08-08T08:00:00.000Z', '2026-08-08T08:05:00.000Z')`,
-      ).bind(eventId, tenantId),
-      // El consentimiento se otorga DESPUÉS (10:00).
-      env.DB.prepare(
-        `INSERT INTO push_consents(
+    ).bind(eventId, tenantId),
+    // El consentimiento se otorga DESPUÉS (10:00).
+    env.DB.prepare(
+      `INSERT INTO push_consents(
            id, tenant_id, user_id, purpose, policy_version, device_fingerprint,
            granted_at, actor_user_id
          ) VALUES (?, ?, ?, 'OWNER_ALERTS', 'v1', 'device-retro',
            '2026-08-08T10:00:00.000Z', ?)`,
-      ).bind(consentId, tenantId, userId, userId),
-      env.DB.prepare(
-        `INSERT INTO push_subscriptions(
+    ).bind(consentId, tenantId, userId, userId),
+    env.DB.prepare(
+      `INSERT INTO push_subscriptions(
            id, tenant_id, user_id, consent_id, provider, provider_version, status,
            endpoint_token_ciphertext, endpoint_token_fingerprint, encryption_key_version,
            device_fingerprint
          ) VALUES (?, ?, ?, ?, 'FCM_HTTP_V1', 'http-v1', 'ACTIVE', ?, ?, 'push-kms-v2', ?)`,
-      ).bind(
-        subscriptionId,
-        tenantId,
-        userId,
-        consentId,
-        'enc:retro',
-        'fp-retro',
-        'device-retro',
-      ),
-    ]);
+    ).bind(subscriptionId, tenantId, userId, consentId, 'enc:retro', 'fp-retro', 'device-retro'),
+  ]);
 
-    // capability + flags del dispatcher
-    await env.DB.prepare(
-      `INSERT INTO tenant_capabilities(tenant_id, capability, enabled)
+  // capability + flags del dispatcher
+  await env.DB.prepare(
+    `INSERT INTO tenant_capabilities(tenant_id, capability, enabled)
        VALUES (?, 'mobile.push', 1)`,
-    ).bind(tenantId).run();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { runMobilePushDispatcher: runDispatcher } = await import(
-      '../../../../apps/worker-api/src/push/mobile-push-dispatcher.js'
-    ).catch(() => ({ runMobilePushDispatcher: null as null }));
-    if (runDispatcher) {
-      await runDispatcher(
-        {
-          FEATURE_MOBILE_PUSH: '1',
-          DB: env.DB,
-          PUSH_KMS: { encryptEnvelope: async () => new Uint8Array(16) },
-        } as never,
-        { scheduledTime: Date.parse('2026-08-08T12:00:00.000Z') },
-      );
-    }
+  )
+    .bind(tenantId)
+    .run();
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { runMobilePushDispatcher: runDispatcher } =
+    await import('../../../../apps/worker-api/src/push/mobile-push-dispatcher.js').catch(() => ({
+      runMobilePushDispatcher: null as null,
+    }));
+  if (runDispatcher) {
+    await runDispatcher(
+      {
+        FEATURE_MOBILE_PUSH: '1',
+        DB: env.DB,
+        PUSH_KMS: { encryptEnvelope: async () => new Uint8Array(16) },
+      } as never,
+      { scheduledTime: Date.parse('2026-08-08T12:00:00.000Z') },
+    );
+  }
 
-    // El evento de las 08:00 NO debe materializar delivery pese al consent de 10:00.
-    const deliveries = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM push_deliveries WHERE tenant_id = ? AND event_id = ?`,
-    )
-      .bind(tenantId, eventId)
-      .first<{ n: number }>();
-    expect(deliveries?.n).toBe(0);
-  });
-
+  // El evento de las 08:00 NO debe materializar delivery pese al consent de 10:00.
+  const deliveries = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM push_deliveries WHERE tenant_id = ? AND event_id = ?`,
+  )
+    .bind(tenantId, eventId)
+    .first<{ n: number }>();
+  expect(deliveries?.n).toBe(0);
+});

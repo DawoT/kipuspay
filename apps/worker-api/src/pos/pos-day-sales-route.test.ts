@@ -86,13 +86,7 @@ function mockEnv(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
 
 describe('Historial del día (F3, POS)', () => {
   it('cajero ve las ventas de HOY de su sucursal con totales en cents', async () => {
-    const res = await runDaySalesHttp(
-      mockEnv(),
-      't1',
-      'cashier-1',
-      'cashier',
-      'b1',
-    );
+    const res = await runDaySalesHttp(mockEnv(), 't1', 'cashier-1', 'cashier', 'b1');
     expect(res.status).toBe(200);
     const body = res.body as {
       items: {

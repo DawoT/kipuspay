@@ -15,7 +15,11 @@ function safeGet(storage: Pick<Storage, 'getItem'> | null | undefined, key: stri
   }
 }
 
-function safeSet(storage: Pick<Storage, 'setItem'> | null | undefined, key: string, value: string): void {
+function safeSet(
+  storage: Pick<Storage, 'setItem'> | null | undefined,
+  key: string,
+  value: string,
+): void {
   try {
     storage?.setItem(key, value);
   } catch {
@@ -23,7 +27,9 @@ function safeSet(storage: Pick<Storage, 'setItem'> | null | undefined, key: stri
   }
 }
 
-export function readLoginToken(storage: Pick<Storage, 'getItem'> | null | undefined): string | null {
+export function readLoginToken(
+  storage: Pick<Storage, 'getItem'> | null | undefined,
+): string | null {
   const token = safeGet(storage, LOGIN_TOKEN_KEY);
   return token && token.length > 0 ? token : null;
 }
@@ -43,9 +49,7 @@ export function clearLoginToken(storage: Pick<Storage, 'removeItem'> | null | un
   }
 }
 
-export function resolveAuthorization(
-  storage: Pick<Storage, 'getItem'> | null | undefined,
-): string {
+export function resolveAuthorization(storage: Pick<Storage, 'getItem'> | null | undefined): string {
   const token = readLoginToken(storage);
   return token ? `Bearer ${token}` : '';
 }

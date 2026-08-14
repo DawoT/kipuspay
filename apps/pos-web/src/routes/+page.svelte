@@ -113,6 +113,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let catalogLoading = $state(true);
   let catalogError = $state('');
   let catalogQuery = $state('');
+  let visibleCatalog = $derived(
+    catalogQuery.trim()
+      ? catalogItems.filter((item) =>
+          (item.name ?? '').toLowerCase().includes(catalogQuery.trim().toLowerCase()),
+        )
+      : catalogItems,
+  );
   let quickSaleOpen = $state(false);
   const teamOn = isTeamInviteEnabled();
   let sellerResolveOpen = $state(false);

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- protocol fixtures and allowlisted error codes */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type * as BackupRestoreValidatorModule from './backup/backup-restore-validator.js';
 import {
@@ -230,10 +229,13 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
             if (sql.includes('FROM data_backups')) {
               if (params[0] !== 'tenant-a') return Promise.resolve(null);
               return Promise.resolve({
-                status: 'READY', expires_at: null, deleted_at: null,
+                status: 'READY',
+                expires_at: null,
+                deleted_at: null,
                 manifest_r2_key: 'ready/manifest',
                 wrapped_dek: new Uint8Array([1]).buffer,
-                kek_version: 'kek-7', global_hash: 'a'.repeat(64),
+                kek_version: 'kek-7',
+                global_hash: 'a'.repeat(64),
               });
             }
             return Promise.resolve(null);
@@ -302,7 +304,7 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
   });
 
   it('S42-H2: sin DB → 503 fail-closed en create y list (jamás 202/200 vacío)', async () => {
-    const noDb = env({ DB: undefined }) as never;
+    const noDb = env({ DB: undefined });
     const created = await runCreateBackupHttp(noDb, owner, { idempotencyKey: 'k-no-db' });
     expect(created.status).toBe(503);
     const listed = await runListBackupsHttp(noDb, owner);

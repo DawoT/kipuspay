@@ -70,7 +70,11 @@ export async function createCashMovement(input: MovementInput): Promise<Movement
       amountCents?: number;
     };
     if (!res.ok) {
-      return { ok: false, code: data.code ?? 'REJECTED', message: data.error ?? data.code ?? 'Movimiento rechazado.' };
+      return {
+        ok: false,
+        code: data.code ?? 'REJECTED',
+        message: data.error ?? data.code ?? 'Movimiento rechazado.',
+      };
     }
     return {
       ok: true,
@@ -104,7 +108,11 @@ export async function mintCashAuthzToken(input: {
       ttlSeconds?: number;
     };
     if (!res.ok) {
-      return { ok: false, code: data.code ?? 'REJECTED', message: data.error ?? data.code ?? 'Autorización rechazada.' };
+      return {
+        ok: false,
+        code: data.code ?? 'REJECTED',
+        message: data.error ?? data.code ?? 'Autorización rechazada.',
+      };
     }
     return {
       ok: true,
@@ -123,7 +131,10 @@ export async function reprintSale(input: {
   saleId: string;
   branchId: string;
   reason?: string | null;
-}): Promise<{ ok: true; watermarkLabel: string; reprintId: string } | { ok: false; code: string; message: string }> {
+}): Promise<
+  | { ok: true; watermarkLabel: string; reprintId: string }
+  | { ok: false; code: string; message: string }
+> {
   try {
     const res = await post(
       '/api/cash/reprints',
@@ -137,7 +148,11 @@ export async function reprintSale(input: {
       watermarkLabel?: string;
     };
     if (!res.ok) {
-      return { ok: false, code: data.code ?? 'REJECTED', message: data.error ?? data.code ?? 'Reimpresión rechazada.' };
+      return {
+        ok: false,
+        code: data.code ?? 'REJECTED',
+        message: data.error ?? data.code ?? 'Reimpresión rechazada.',
+      };
     }
     return {
       ok: true,

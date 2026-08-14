@@ -28,7 +28,11 @@ export function judgeInventorySerialAssignment(
   result: InventorySerialChaosResult,
 ): InventorySerialChaosVerdict {
   if (result.cycles < 500 || result.discrepancies !== 0) return 'FAIL';
-  if (result.duplicateOwnerships !== 0 || result.ghostSerials !== 0 || result.microunitDrift !== 0) {
+  if (
+    result.duplicateOwnerships !== 0 ||
+    result.ghostSerials !== 0 ||
+    result.microunitDrift !== 0
+  ) {
     return 'FAIL';
   }
   if (result.engineEvidenceVerified !== true) return 'FAIL';
@@ -104,7 +108,15 @@ export function runInventorySerialAssignmentChaos(
     microunitDrift += Math.abs(sample.microunitDrift);
     if (samples.length < 6) samples.push(sample);
   }
-  return { cycles, discrepancies, duplicateOwnerships, ghostSerials, microunitDrift, samples, engineEvidenceVerified };
+  return {
+    cycles,
+    discrepancies,
+    duplicateOwnerships,
+    ghostSerials,
+    microunitDrift,
+    samples,
+    engineEvidenceVerified,
+  };
 }
 
 export async function runInventorySerialAssignmentChaosScenario(

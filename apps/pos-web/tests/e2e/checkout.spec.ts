@@ -27,6 +27,8 @@ test('home con checkout off muestra demo', async ({ page }) => {
   await expect(page.getByTestId('tenant-name')).toBeVisible();
   await page.getByTestId('add-line').click();
   await expect(page.getByTestId('total')).toContainText('118.00');
+});
+
 test('home agrega productos del catálogo real y suma el total', async ({ page }) => {
   await mockSellableCatalog(page);
   await page.goto('/');

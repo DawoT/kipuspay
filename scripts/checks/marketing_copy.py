@@ -23,8 +23,37 @@ BANNED = re.compile(
     re.IGNORECASE,
 )
 
-SKIP_DIRS = {".svelte-kit", "node_modules", "coverage", "dist", "build", "static"}
+# Referencias de CONTROL INTERNO — jamás visibles al visitante (M1).
+# "GTM §4.1", "GTM-02", "HTTP 402", "Quality Gate", "Sprint N", "ADR-NNNN".
+INTERNAL = re.compile(
+    r"\b(GTM-\d+|ADR-\d+)\b|HTTP\s*\d{3}|Quality\s*Gate|Sprint\s+\d+|[§]\s*\d",
+    re.IGNORECASE,
+)
+
+# Superficies de control interno (registry/claim-gate) y código no renderizado.
+SKIP_DIRS = {
+    ".svelte-kit",
+    "node_modules",
+    "coverage",
+    "dist",
+    "build",
+    "static",
+    "src/lib/claims",
+}
 EXT = {".svelte", ".ts", ".md", ".html", ".css"}
+
+# Comentarios de código (TS/CSS) — no son copy renderizado.
+COMMENT = re.compile(
+    r"^\s*(//|/\*|\*|<!--)|^\s*\*/\s*$",
+)
+
+def _is_comment(line: str) -> bool:
+    stripped = line.lstrip()
+    if COMMENT.match(line):
+        return True
+    if stripped.startswith("/*") or stripped.startswith("*") or stripped.startswith("//"):
+        return True
+    return False
 
 
 def iter_files() -> list[str]:
@@ -54,9 +83,13 @@ def main() -> int:
             problems.append(f"{rel}: {e}")
             continue
         for i, line in enumerate(text.splitlines(), 1):
-            if BANNED.search(line):
-                m = BANNED.search(line)
-                problems.append(f"{rel}:{i}: jerga '{m.group(0) if m else '?'}'")
+            if _is_comment(line):
+                continue
+            for pat, tag in ((BANNED, "jerga técnica"), (INTERNAL, "referencia interna")):
+                m = pat.search(line)
+                if m:
+                    problems.append(f"{rel}:{i}: {tag} '{m.group(0)}'")
+                    break
     if problems:
         print(f"RESULT MARKETING_COPY RED  {len(problems)} hallazgo(s)")
         for p in problems[:12]:

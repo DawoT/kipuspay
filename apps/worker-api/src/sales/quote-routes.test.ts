@@ -161,7 +161,6 @@ describe('quote routes', () => {
     expect(convertBad.status).toBe(400);
   });
 
-
   it('S33-H1: approve con cashier → 403; convert con cashier → 403', async () => {
     const approve = await runApproveQuoteHttp(env(), 't1', 'u1', 'cashier', { quoteId: 'q1' });
     expect(approve.status).toBe(403);

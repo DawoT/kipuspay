@@ -4,7 +4,6 @@
  */
 import {
   assertWebhookFreshness,
-  type CaptureStatus,
   type PaymentAcquirerCode,
   type PaymentAcquirerPort,
   type PaymentChargeRequest,
@@ -123,7 +122,13 @@ export class SandboxPaymentAcquirer implements PaymentAcquirerPort {
     if (!body.chargeId || !body.status) {
       return denied; // webhook firmado pero incompleto → nunca captura con null
     }
-    if (status !== 'CAPTURED' && status !== 'FAILED' && status !== 'PENDING' && status !== 'REFUNDED' && status !== 'MANUAL_ELECTRONIC_CAPTURE') {
+    if (
+      status !== 'CAPTURED' &&
+      status !== 'FAILED' &&
+      status !== 'PENDING' &&
+      status !== 'REFUNDED' &&
+      status !== 'MANUAL_ELECTRONIC_CAPTURE'
+    ) {
       return denied; // status desconocido → fail-closed
     }
     return {

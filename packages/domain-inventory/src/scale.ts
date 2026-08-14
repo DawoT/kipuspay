@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- canonical domain error identifiers */
 /** Sprint 40 / ADR-0024 — exact variable-weight domain primitives. */
 export const WEIGHT_SCALE = 1_000_000;
 

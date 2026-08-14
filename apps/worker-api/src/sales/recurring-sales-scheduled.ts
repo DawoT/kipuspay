@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- versioned D1 security-scope column identifiers */
 import { runRecurringScheduler } from '@kipuspay/adapters-d1/process-recurring-sale-atomic';
 import { runD1AtomicPlan } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';

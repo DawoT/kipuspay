@@ -16,12 +16,14 @@
           '@type': 'BlogPosting',
           headline: post.title,
           description: post.excerpt,
-          articleBody: post.body,
+          datePublished: post.publishedAt,
+          author: { '@type': 'Organization', name: post.author },
+          articleBody: post.sections.map((s) => `${s.heading}. ${s.body}`).join(' '),
           url: url,
           publisher: {
             '@type': 'Organization',
             name: 'KipusPay',
-            logo: 'https://kipuspay.pe/favicon.svg',
+            logo: 'https://kipuspay.com/favicon.svg',
           },
         })
       : null,
@@ -36,7 +38,7 @@
     <meta property="og:description" content={post.excerpt} />
     <meta property="og:type" content="article" />
     <meta property="og:url" content={url} />
-    <meta property="og:image" content={ogImageFor('home')} />
+    <meta property="og:image" content={ogImageFor()} />
     <link rel="canonical" href={url} />
     {#if articleLd}
       <script type="application/ld+json">{@html articleLd}</script>
@@ -55,12 +57,18 @@
     <div class="section-body">
       {#if post}
         <p class="eyebrow"><a href="/blog">← Volver al Blog</a></p>
-        <h1 style="font-size: var(--step-4); margin-bottom: 1rem;">{post.title}</h1>
+        <p class="post-meta tabular-nums">{post.publishedAt} · {post.author}</p>
+        <h1 class="post-title">{post.title}</h1>
         <p class="section-lead">{post.excerpt}</p>
 
-        <div class="blog-article-body" use:reveal>
-          <p>{post.body}</p>
-        </div>
+        <article class="blog-article" use:reveal>
+          {#each post.sections as section (section.heading)}
+            <section class="blog-section">
+              <h2>{section.heading}</h2>
+              <p>{section.body}</p>
+            </section>
+          {/each}
+        </article>
 
         <div class="cta-row" style="margin-top: 3rem;">
           <a class="btn" href="/empezar">Empieza gratis</a>
@@ -74,3 +82,43 @@
     </div>
   </div>
 </section>
+
+<style>
+  .post-meta {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.9rem;
+  }
+
+  .post-title {
+    font-family: var(--font-display);
+    font-size: var(--step-4);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    max-width: 30ch;
+    margin-bottom: 1rem;
+  }
+
+  .blog-article {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+    margin-top: 2.4rem;
+    max-width: 44rem;
+  }
+
+  .blog-section h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+  }
+
+  .blog-section p {
+    color: var(--muted);
+    line-height: 1.65;
+  }
+</style>

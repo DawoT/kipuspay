@@ -70,7 +70,6 @@ describe('store-credit-routes', () => {
     expect(res.status).toBe(404);
   });
 
-
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
     const res = await runOwnerStoreCreditHttp(env(), 't1', 'cashier');
     expect(res.status).toBe(403);
@@ -102,19 +101,13 @@ describe('store-credit-routes', () => {
     expect(adjusted.status).toBe(200);
 
     // S35-H1: autorizador arbitrario (no admin/owner) → 403 FORBIDDEN_ROLE.
-    const ghostAuth = await runAdjustStoreCreditHttp(
-      env({}, 'cashier'),
-      't1',
-      'u1',
-      'owner',
-      {
-        customerId: 'c1',
-        branchId: 'b1',
-        amountCents: 100,
-        adjustSign: 'CREDIT',
-        authorizedByUserId: 'cajero-coludido',
-      },
-    );
+    const ghostAuth = await runAdjustStoreCreditHttp(env({}, 'cashier'), 't1', 'u1', 'owner', {
+      customerId: 'c1',
+      branchId: 'b1',
+      amountCents: 100,
+      adjustSign: 'CREDIT',
+      authorizedByUserId: 'cajero-coludido',
+    });
     expect(ghostAuth.status).toBe(403);
     expect(ghostAuth.body.code).toBe('FORBIDDEN_ROLE');
 

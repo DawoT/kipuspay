@@ -14,8 +14,22 @@ describe('chaos supplier-return-receive', () => {
   });
 
   it('fails short or drifting evidence', () => {
-    expect(judgeSupplierReturnReceive({ cycles: 499, discrepancies: 0, samples: [], engineEvidenceVerified: true })).toBe('FAIL');
-    expect(judgeSupplierReturnReceive({ cycles: 500, discrepancies: 1, samples: [], engineEvidenceVerified: true })).toBe('FAIL');
+    expect(
+      judgeSupplierReturnReceive({
+        cycles: 499,
+        discrepancies: 0,
+        samples: [],
+        engineEvidenceVerified: true,
+      }),
+    ).toBe('FAIL');
+    expect(
+      judgeSupplierReturnReceive({
+        cycles: 500,
+        discrepancies: 1,
+        samples: [],
+        engineEvidenceVerified: true,
+      }),
+    ).toBe('FAIL');
   });
 
   it('500 ciclos + evidencia real del motor → PASS', () => {

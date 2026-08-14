@@ -40,9 +40,7 @@ describe('cashierLogin', () => {
   });
 
   it('PIN inválido → LoginError PIN_INVALID', async () => {
-    const fetcher = vi.fn(() =>
-      Promise.resolve(jsonResponse({ code: 'PIN_INVALID' }, 403)),
-    );
+    const fetcher = vi.fn(() => Promise.resolve(jsonResponse({ code: 'PIN_INVALID' }, 403)));
     await expect(
       cashierLogin({ apiBase: '', tenantId: 't1', identifier: 'u1', pin: '9999', fetcher }),
     ).rejects.toMatchObject({ code: 'PIN_INVALID' });

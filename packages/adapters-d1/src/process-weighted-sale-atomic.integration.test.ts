@@ -83,12 +83,7 @@ async function seedWeightedFixture(tenantId: string, stockMicrounits = 5_000_000
          id, tenant_id, terminal_id, protocol, device_fingerprint, status,
          last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
        ) VALUES (?, ?, ?, 'WEBUSB', ?, 'ACTIVE', NULL, NULL, NULL)`,
-    ).bind(
-      `scale-${tenantId}`,
-      tenantId,
-      terminalId,
-      `fingerprint-${tenantId}`,
-    ),
+    ).bind(`scale-${tenantId}`, tenantId, terminalId, `fingerprint-${tenantId}`),
     env.DB.prepare(
       `INSERT INTO inventory_locations (id, tenant_id, branch_id, code, name)
        VALUES (?, ?, ?, 'DEFAULT', 'Ubicación por defecto')`,
@@ -426,7 +421,12 @@ describe('Sprint 40 WEIGH cutover in processOfflineSaleAtomic', () => {
   it('online and sync-batch use identical authoritative reconciliation', async () => {
     const onlineFixture = await seedWeightedFixture('t-weigh-online');
     const syncFixture = await seedWeightedFixture('t-weigh-sync');
-    await registerScaleReading(onlineFixture.tenantId, `scale-${onlineFixture.tenantId}`, 7, 500_000);
+    await registerScaleReading(
+      onlineFixture.tenantId,
+      `scale-${onlineFixture.tenantId}`,
+      7,
+      500_000,
+    );
     await registerScaleReading(syncFixture.tenantId, `scale-${syncFixture.tenantId}`, 7, 500_000);
     const onlinePayload = weightedPayload(
       onlineFixture,
@@ -542,31 +542,31 @@ describe('S40-H1: peso DEVICE = lectura cruda registrada (anti-bypass)', () => {
         tenantId,
         fixture.userId,
         {
-        offlineSaleId: 'off-s40-bypass',
-        branchId: fixture.branchId,
-        cashRegisterSessionId: fixture.sessionId,
-        documentType: 'NV',
-        series: 'NV01',
-        clientDocumentType: '1',
-        clientDocumentNumber: '00000000',
-        clientName: 'Cliente',
-        items: [
-          {
-            productId: fixture.productId,
-            saleItemId: 'si-bypass',
-            weightMeasurement: {
-              measurementId: 'm-bypass',
-              weightMicrounits: 4_000_000, // 4 kg arbitrarios (dentro del stock)
-              measurementSource: 'DEVICE' as const,
-              scaleProtocol: 'WEBUSB' as const,
-              scaleDeviceId: `scale-${tenantId}`,
-              observedAt: new Date(Date.now() - 500).toISOString(),
-              heartbeatSequence: 7,
-              stable: true,
+          offlineSaleId: 'off-s40-bypass',
+          branchId: fixture.branchId,
+          cashRegisterSessionId: fixture.sessionId,
+          documentType: 'NV',
+          series: 'NV01',
+          clientDocumentType: '1',
+          clientDocumentNumber: '00000000',
+          clientName: 'Cliente',
+          items: [
+            {
+              productId: fixture.productId,
+              saleItemId: 'si-bypass',
+              weightMeasurement: {
+                measurementId: 'm-bypass',
+                weightMicrounits: 4_000_000, // 4 kg arbitrarios (dentro del stock)
+                measurementSource: 'DEVICE' as const,
+                scaleProtocol: 'WEBUSB' as const,
+                scaleDeviceId: `scale-${tenantId}`,
+                observedAt: new Date(Date.now() - 500).toISOString(),
+                heartbeatSequence: 7,
+                stable: true,
+              },
             },
-          },
-        ],
-        payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 5900 }],
+          ],
+          payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 5900 }],
         },
         { nowMs: Date.now(), inventoryScaleEnabled: true, terminalId: fixture.terminalId },
       ),
@@ -626,4 +626,3 @@ describe('S40-H1: peso DEVICE = lectura cruda registrada (anti-bypass)', () => {
     expect(result.status).toBe('SUCCESS');
   });
 });
-

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { claimBadge, resolveClaim } from '../claims/registry.js';
 import { allCompares, COMPETITOR_SLUGS, compareDisclaimer, getCompare } from './compare.js';
-import { HOME, STUBS } from './home.js';
+import { HOME } from './home.js';
 import { allVerticals, getVertical, otherVerticals, VERTICAL_SLUGS } from './verticals.js';
 
 describe('content model', () => {
@@ -185,31 +185,6 @@ describe('comparativas — diferenciadas y defendibles', () => {
   it('ninguna comparativa afirma algo que el gate no libera', () => {
     const text = JSON.stringify(allCompares());
     expect(text).not.toMatch(/tiempo real continuo|garantizamos|siempre acepta/i);
-  });
-});
-
-describe('paginas en preparacion', () => {
-  it('ninguna promete la fecha interna del sprint al visitante', () => {
-    for (const stub of STUBS) {
-      expect(stub.blurb).not.toMatch(/Sprint/i);
-      expect(stub.blurb.length).toBeGreaterThan(60);
-    }
-  });
-
-  it('cada stub ofrece al menos una salida util', () => {
-    for (const stub of STUBS) {
-      expect(stub.meanwhile.length).toBeGreaterThanOrEqual(1);
-      for (const link of stub.meanwhile) {
-        expect(link.href.startsWith('/')).toBe(true);
-        expect(link.label.length).toBeGreaterThan(4);
-      }
-    }
-  });
-
-  it('el sprint interno sigue registrado para el equipo', () => {
-    for (const stub of STUBS) {
-      expect(stub.unlockSprint).toBeGreaterThanOrEqual(11);
-    }
   });
 });
 

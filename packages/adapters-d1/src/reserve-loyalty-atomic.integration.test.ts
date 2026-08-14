@@ -40,7 +40,9 @@ describe('S27-H1 loyalty bajo concurrencia (D1 real)', () => {
 
     const okCount = [r1, r2].filter((r) => r.status === 'fulfilled').length;
     const failCount = [r1, r2].filter(
-      (r) => r.status === 'rejected' && (r.reason as Error).message.includes('LOYALTY_INSUFFICIENT_POINTS'),
+      (r) =>
+        r.status === 'rejected' &&
+        (r.reason as Error).message.includes('LOYALTY_INSUFFICIENT_POINTS'),
     ).length;
 
     // Saldo 6, dos pedidos de 4: a lo más 1 reserva; la otra o falla o es

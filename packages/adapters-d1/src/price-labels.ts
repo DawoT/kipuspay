@@ -1,5 +1,5 @@
 /* Sprint 41 — server-authoritative price-label snapshots and lifecycle. */
-/* eslint-disable no-secrets/no-secrets -- domain identifiers and stable error codes */
+
 import {
   compilePriceLabelTemplate,
   encodePriceLabelBarcode,

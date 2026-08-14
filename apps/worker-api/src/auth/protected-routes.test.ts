@@ -286,9 +286,7 @@ function templateCoveredByMatrix(templateNormalized: string, matrixPath: string)
 /** Rutas /api/* registradas en el router real (fuente de verdad de paridad). */
 function registeredApiRoutes(app: ReturnType<typeof createApp>): string[] {
   const routes = (app as unknown as { routes: Array<{ method: string; path: string }> }).routes;
-  const middlewareIndex = routes.findIndex(
-    (r) => r.method === 'ALL' && r.path === '/api/*',
-  );
+  const middlewareIndex = routes.findIndex((r) => r.method === 'ALL' && r.path === '/api/*');
   const protectedRoutes = middlewareIndex >= 0 ? routes.slice(middlewareIndex) : routes;
   return protectedRoutes
     .filter((r) => r.path.startsWith('/api/') && r.method !== 'ALL' && r.method !== 'OPTIONS')

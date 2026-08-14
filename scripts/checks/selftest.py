@@ -233,6 +233,26 @@ def main() -> int:
         mc.BANNED.search("Resumen Diario con CDR y PSE") is not None,
         "V-26 no detecta CDR/UBL/PSE en copy",
     )
+    expect(
+        mc.INTERNAL.search("Plan Crece+ con GTM-02 y HTTP 402") is not None,
+        "V-26 no detecta referencias internas (GTM-/HTTP)",
+    )
+    expect(
+        mc.INTERNAL.search("hasta el Quality Gate del Sprint 27") is not None,
+        "V-26 no detecta Quality Gate/Sprint en copy",
+    )
+    expect(
+        mc.INTERNAL.search("Precios desde S/ 49/mes") is None,
+        "V-26 marca copy limpio como referencia interna",
+    )
+    expect(
+        mc._is_comment("// GTM §4.1 — comentario interno de código"),
+        "V-26 no omite comentarios de código",
+    )
+    expect(
+        mc._is_comment("<!-- GTM-02 interno -->"),
+        "V-26 no omite comentarios HTML",
+    )
 
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")

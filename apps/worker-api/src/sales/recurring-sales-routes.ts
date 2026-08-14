@@ -69,7 +69,6 @@ function errorResult(error: unknown): RecurringHttpResult {
   return result(422, { code: candidate });
 }
 
-
 function validateAnchorDay(day: number): number {
   if (!Number.isInteger(day) || day < 1 || day > 31) {
     throw new Error('RECURRING_ANCHOR_DAY_INVALID');

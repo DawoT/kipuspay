@@ -51,7 +51,6 @@ describe('formatMoney', () => {
   });
 });
 
-
 describe('G2 auditoría — parse de soles nunca pierde precisión', () => {
   it('rechaza monto con más de 9 dígitos enteros (overflow seguro)', () => {
     expect(parseSolesToCents('9999999999.99')).toBeNull(); // 10 dígitos > 2^31-1 cents

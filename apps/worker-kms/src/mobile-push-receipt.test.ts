@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { issuePushAckReceipt, verifyPushAckReceipt } from './mobile-push-receipt.js';
 
-// eslint-disable-next-line no-secrets/no-secrets -- deterministic synthetic test key.
 const secret = '0123456789abcdef0123456789abcdef';
 const claims = {
   tenantId: 'tenant-a',

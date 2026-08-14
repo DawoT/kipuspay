@@ -78,9 +78,9 @@ describe('S24-H1 validación E.164', () => {
   };
 
   it('rechaza phoneE164 con letras (+5199999999a)', () => {
-    expect(() =>
-      assertSendableReceipt({ ...base, phoneE164: '+5199999999a' }),
-    ).toThrow('WHATSAPP_PHONE_INVALID');
+    expect(() => assertSendableReceipt({ ...base, phoneE164: '+5199999999a' })).toThrow(
+      'WHATSAPP_PHONE_INVALID',
+    );
   });
 
   it('rechaza phoneE164 con dígitos pero sin +', () => {
@@ -108,8 +108,6 @@ describe('S24-H1 validación E.164', () => {
   });
 
   it('acepta E.164 válido peruano', () => {
-    expect(() =>
-      assertSendableReceipt({ ...base, phoneE164: '+51999999999' }),
-    ).not.toThrow();
+    expect(() => assertSendableReceipt({ ...base, phoneE164: '+51999999999' })).not.toThrow();
   });
 });

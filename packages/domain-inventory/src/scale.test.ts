@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- canonical error strings in tests */
 import { describe, expect, it } from 'vitest';
 import {
   WEIGHT_SCALE,

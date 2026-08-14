@@ -77,7 +77,6 @@ describe('commission-routes', () => {
     expect((await runOwnerCommissionsHttp(off, 't1', 'owner')).status).toBe(404);
   });
 
-
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
     const res = await runOwnerCommissionsHttp(env(), 't1', 'cashier');
     expect(res.status).toBe(403);

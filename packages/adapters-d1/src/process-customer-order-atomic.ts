@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- customer-order domain error codes are not secrets */
 import {
   planCustomerOrderCreate,
   planCustomerOrderFulfillment,

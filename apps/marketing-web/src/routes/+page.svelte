@@ -31,7 +31,7 @@
       '@type': 'ListItem',
       position: i + 1,
       name: v.title,
-      url: `https://kipuspay.pe/para/${v.slug}`,
+      url: `https://kipuspay.com/para/${v.slug}`,
     })),
   });
 </script>
@@ -45,11 +45,11 @@
   <meta property="og:title" content="KipusPay" />
   <meta property="og:description" content={HOME.subheadline} />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://kipuspay.pe/" />
+  <meta property="og:url" content="https://kipuspay.com/" />
   <meta property="og:image" content={ogImageFor()} />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <link rel="canonical" href="https://kipuspay.pe/" />
+  <link rel="canonical" href="https://kipuspay.com/" />
   <script type="application/ld+json">{@html faqLd}</script>
   <script type="application/ld+json">{@html itemsLd}</script>
 </svelte:head>

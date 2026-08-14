@@ -39,7 +39,11 @@ describe('planQuoteCreate', () => {
 
   it('rechaza ítems vacíos o montos inválidos', () => {
     expect(() =>
-      planQuoteCreate({ items: [], validUntilIso: '2026-08-20', nowIso: '2026-08-08T01:00:00.000Z' }),
+      planQuoteCreate({
+        items: [],
+        validUntilIso: '2026-08-20',
+        nowIso: '2026-08-08T01:00:00.000Z',
+      }),
     ).toThrow(QUOTE_ITEMS_REQUIRED);
     expect(() =>
       planQuoteCreate({
@@ -71,11 +75,19 @@ describe('send / approve / cancel', () => {
       planQuoteCreate({ items: [item], validUntilIso: null, nowIso: '2026-08-08T01:00:00.000Z' }),
     ).toThrow(QUOTE_MISSING_VALID_UNTIL);
     expect(() =>
-      planQuoteCreate({ items: [item], validUntilIso: '2026-12-31', nowIso: '2026-08-08T01:00:00.000Z' }),
+      planQuoteCreate({
+        items: [item],
+        validUntilIso: '2026-12-31',
+        nowIso: '2026-08-08T01:00:00.000Z',
+      }),
     ).toThrow(QUOTE_VALID_UNTIL_TOO_FAR);
     // 90 días exactos (límite) → procede.
     expect(() =>
-      planQuoteCreate({ items: [item], validUntilIso: '2026-11-06', nowIso: '2026-08-08T01:00:00.000Z' }),
+      planQuoteCreate({
+        items: [item],
+        validUntilIso: '2026-11-06',
+        nowIso: '2026-08-08T01:00:00.000Z',
+      }),
     ).not.toThrow();
   });
 

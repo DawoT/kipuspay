@@ -26,7 +26,6 @@ export function buildTicketHtml(data: TicketData): string {
 <p class="brand-qr" data-brand-qr="${escapeHtml(data.brandFooter.qrPayload)}">QR marca: ${escapeHtml(data.brandFooter.qrPayload)}</p>`
       : '';
 
-  // eslint-disable-next-line no-secrets/no-secrets -- plantilla HTML ticket, no secreto
   const head = `<!doctype html><html><head><meta charset="utf-8"><title>Ticket</title>
 <style>
 body{font-family:ui-monospace,monospace;width:${data.lineWidth}ch;margin:0 auto}

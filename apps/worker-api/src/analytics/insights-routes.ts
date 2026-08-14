@@ -13,7 +13,7 @@
  * Gating: flag default-off → 404; plan Cadena+ → 403; rol owner/admin; cupo
  * diario → 402 AI_QUOTA_EXCEEDED. Tenant SIEMPRE del JWT (jamás del prompt).
  */
-import { appendInsightLog, consumeAiUsage, runInsightSelect } from '@kipuspay/adapters-d1';
+import { appendInsightLog, runInsightSelect } from '@kipuspay/adapters-d1';
 import {
   assertFactsVerbatim,
   assertNoPiiInFacts,

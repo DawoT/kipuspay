@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- SQL identifiers are not credentials */
 import type { D1DatabaseLike } from './index.js';
 import {
   createCustomerOrderAtomic,

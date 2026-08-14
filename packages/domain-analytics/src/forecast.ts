@@ -190,7 +190,10 @@ export function computeForecast(
   const mape = computeMapePercent(
     split.test.map((p) => p.qty),
     split.test.map((_, i) => {
-      const train = split.train.slice(0, Math.max(1, split.train.length - split.test.length + i + 1));
+      const train = split.train.slice(
+        0,
+        Math.max(1, split.train.length - split.test.length + i + 1),
+      );
       const w = weightedMovingAverage(
         train.map((p) => p.qty),
         1,

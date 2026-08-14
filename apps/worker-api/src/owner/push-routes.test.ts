@@ -67,11 +67,10 @@ describe('owner.push_alerts', () => {
     const sendOff = await runSendOwnerPushHttp({ FEATURE_OWNER_PUSH: '0' } as WorkerEnv, 't1', {});
     expect(sendOff.status).toBe(404);
 
-    const send = await runSendOwnerPushHttp(
-      mockEnv({ FEATURE_OWNER_PUSH: '1' }, []),
-      't1',
-      { title: 'Alerta', body: 'CxC vencida' },
-    );
+    const send = await runSendOwnerPushHttp(mockEnv({ FEATURE_OWNER_PUSH: '1' }, []), 't1', {
+      title: 'Alerta',
+      body: 'CxC vencida',
+    });
     expect(send.status).toBe(200);
     expect(send.body.queued).toBe(false);
 

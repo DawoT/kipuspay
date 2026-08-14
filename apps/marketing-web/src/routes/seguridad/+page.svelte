@@ -10,8 +10,8 @@
   <meta name="description" content={SECURITY_PAGE.lede} />
   <meta property="og:title" content="{SECURITY_PAGE.title} · KipusPay" />
   <meta property="og:description" content={SECURITY_PAGE.lede} />
-  <meta property="og:image" content={ogImageFor('home')} />
-  <link rel="canonical" href="https://kipuspay.pe/seguridad" />
+  <meta property="og:image" content={ogImageFor()} />
+  <link rel="canonical" href="https://kipuspay.com/seguridad" />
 </svelte:head>
 
 <section class="hero hero-compact">
@@ -67,6 +67,52 @@
         </ul>
       </aside>
 
+      <div class="sunat-flow" data-testid="security-sunat-flow" use:reveal>
+        <p class="eyebrow">
+          <span class="knot-dot" aria-hidden="true"></span>
+          {SECURITY_PAGE.sunatFlow.eyebrow}
+        </p>
+        <h2 class="flow-title">{SECURITY_PAGE.sunatFlow.heading}</h2>
+        <ol class="flow-steps">
+          {#each SECURITY_PAGE.sunatFlow.steps as step, i (step.title)}
+            <li>
+              <span class="step-num">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+              </div>
+            </li>
+          {/each}
+        </ol>
+      </div>
+
+      <div class="legal-note-grid" use:reveal>
+        <article class="legal-note-card">
+          <h3>{SECURITY_PAGE.retention.heading}</h3>
+          <p>{SECURITY_PAGE.retention.body}</p>
+        </article>
+        <article class="legal-note-card">
+          <h3>{SECURITY_PAGE.sla.heading}</h3>
+          <p>{SECURITY_PAGE.sla.body}</p>
+        </article>
+      </div>
+
+      <div class="sunat-flow" data-testid="security-uptime" use:reveal>
+        <p class="eyebrow">
+          <span class="knot-dot" aria-hidden="true"></span>
+          {SECURITY_PAGE.uptime.eyebrow}
+        </p>
+        <h2 class="flow-title">{SECURITY_PAGE.uptime.heading}</h2>
+        <ul class="uptime-points">
+          {#each SECURITY_PAGE.uptime.points as point (point.title)}
+            <li>
+              <h3>{point.title}</h3>
+              <p>{point.body}</p>
+            </li>
+          {/each}
+        </ul>
+      </div>
+
       <div class="cta-row" style="margin-top: 3rem;" use:reveal>
         <a class="btn" href="/empezar">Empieza gratis</a>
         <a class="btn btn-ghost" href="/precios">Ver planes</a>
@@ -74,3 +120,115 @@
     </div>
   </div>
 </section>
+
+<style>
+  .sunat-flow {
+    margin-top: 3rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .flow-title {
+    font-family: var(--font-display);
+    font-size: var(--step-3);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 2rem;
+  }
+
+  .flow-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0;
+  }
+
+  .flow-steps li {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .flow-steps li:first-child {
+    padding-top: 0;
+  }
+
+  .flow-steps li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--amber-bright);
+    padding-top: 0.25rem;
+  }
+
+  .flow-steps h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+  }
+
+  .flow-steps p {
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 40rem;
+  }
+
+  .legal-note-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+  }
+
+  .legal-note-card {
+    background: var(--ink-2);
+    color: var(--paper);
+    border: 1px solid var(--line);
+    padding: 1.5rem;
+  }
+
+  .legal-note-card h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+  }
+
+  .legal-note-card p {
+    color: rgba(243, 239, 230, 0.82);
+    line-height: 1.6;
+    font-size: 0.9375rem;
+  }
+
+  .uptime-points {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .uptime-points li {
+    padding: 1.25rem;
+    background: var(--ink-2);
+    color: var(--paper);
+    border: 1px solid var(--line);
+  }
+
+  .uptime-points h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  .uptime-points p {
+    color: rgba(243, 239, 230, 0.82);
+    line-height: 1.6;
+    font-size: 0.9375rem;
+  }
+</style>

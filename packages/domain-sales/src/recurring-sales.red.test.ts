@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- retained RED contract imports */
 import { describe, expect, it } from 'vitest';
 import {
   computeRecurringPeriod,

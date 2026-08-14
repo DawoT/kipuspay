@@ -519,9 +519,7 @@ describe('S45-H3: re-grant de consentimiento idempotente', () => {
           bind: () => ({
             run,
             first: () =>
-              Promise.resolve(
-                sql.includes('tenant_capabilities') ? { enabled: 1 } : null,
-              ),
+              Promise.resolve(sql.includes('tenant_capabilities') ? { enabled: 1 } : null),
           }),
         }),
       },
@@ -540,4 +538,3 @@ describe('S45-H3: re-grant de consentimiento idempotente', () => {
     expect(regrant.status).toBe(200);
   });
 });
-

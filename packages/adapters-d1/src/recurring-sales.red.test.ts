@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, no-secrets/no-secrets -- compact D1 statement mock */
 import { describe, expect, it, vi } from 'vitest';
 import migration0037 from '../migrations/0037_sprint44_recurring_sales.sql?raw';
 import down0037 from '../migrations-down/0037_sprint44_recurring_sales.sql?raw';

@@ -1,4 +1,3 @@
-/* eslint-disable no-secrets/no-secrets -- certification counter names are not secrets */
 import { describe, expect, it } from 'vitest';
 import {
   CUSTOMER_ORDER_FAULTS,

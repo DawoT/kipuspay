@@ -120,11 +120,11 @@ function isOccurrence(value: unknown): value is RecurringOccurrence {
   const row = object(value);
   return Boolean(
     row &&
-      nonEmpty(row.document_type) &&
-      nonEmpty(row.period_start) &&
-      nonEmpty(row.period_end) &&
-      safeInteger(row.total_amount_cents) &&
-      safeInteger(row.balance_due_cents),
+    nonEmpty(row.document_type) &&
+    nonEmpty(row.period_start) &&
+    nonEmpty(row.period_end) &&
+    safeInteger(row.total_amount_cents) &&
+    safeInteger(row.balance_due_cents),
   );
 }
 

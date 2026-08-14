@@ -123,7 +123,7 @@
     content="Onboarding en cuatro pantallas: negocio, rubro, etapa y primera venta."
   />
   <meta property="og:image" content={ogImageFor()} />
-  <link rel="canonical" href="https://kipuspay.pe/empezar" />
+  <link rel="canonical" href="https://kipuspay.com/empezar" />
 </svelte:head>
 
 <section class="section section-paper" data-testid="onboarding-page">

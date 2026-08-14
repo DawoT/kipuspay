@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-/* eslint-disable no-secrets/no-secrets -- SQL fragments are not credentials */
+
 import {
   isInventoryOpsEnabled,
   runApproveCountHttp,
@@ -35,7 +35,6 @@ function mockDbEnv(
 
   const prepare = (sql: string) => {
     opts.sqls?.push(sql);
-    const first = opts.first;
     const stmt = {
       bind: (...values: unknown[]) => {
         opts.binds?.push(values);
@@ -124,7 +123,8 @@ describe('submit count review', () => {
   it('rechaza conteo ya aprobado', async () => {
     const res = await runSubmitCountReviewHttp(
       mockDbEnv({ first: () => ({ status: 'APPROVED' }) }),
-      't1', 'owner',
+      't1',
+      'owner',
       { countId: 'c1', lines: [] },
     );
     expect(res.status).toBe(422);
@@ -142,7 +142,8 @@ describe('submit count review', () => {
                 location_id: 'loc-1',
               },
       }),
-      't1', 'owner',
+      't1',
+      'owner',
       {
         countId: 'c1',
         lines: [
@@ -174,7 +175,8 @@ describe('submit count review', () => {
                 location_id: 'loc-1',
               },
       }),
-      't1', 'owner',
+      't1',
+      'owner',
       {
         countId: 'c1',
         lines: [
@@ -218,7 +220,8 @@ describe('submit count review', () => {
             ? [{ id: 'p1', serial_tracking_mode: 'REQUIRED' }]
             : [],
       }),
-      't1', 'owner',
+      't1',
+      'owner',
       {
         countId: 'c1',
         lines: [{ productId: 'p1', locationId: 'loc-1', countedQty: 2 }],
@@ -263,7 +266,8 @@ describe('submit count review', () => {
           return [];
         },
       }),
-      't1', 'owner',
+      't1',
+      'owner',
       {
         countId: 'c1',
         lines: [
@@ -309,7 +313,8 @@ describe('approve count', () => {
         all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: 100 }],
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: '' },
     );
     expect(res.status).toBe(422);
@@ -332,7 +337,8 @@ describe('approve count', () => {
         all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: 100 }],
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
     );
     expect(res.status).toBe(200);
@@ -351,7 +357,8 @@ describe('approve count', () => {
         all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: 100 }],
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', adjustmentReason: 'Conteo físico' },
     );
     expect(res.status).toBe(403);
@@ -371,7 +378,8 @@ describe('approve count', () => {
         all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: 100 }],
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', authorizedByUserId: 'cash1' },
     );
     expect(res.status).toBe(403);
@@ -394,7 +402,8 @@ describe('approve count', () => {
         all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: 100 }],
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
     );
     expect(res.status).toBe(200);
@@ -418,7 +427,8 @@ describe('approve count', () => {
         all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: 100 }],
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
     );
     expect(res.status).toBe(200);
@@ -459,7 +469,8 @@ describe('approve count', () => {
         },
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1' },
     );
     expect(res).toMatchObject({ status: 422, body: { code: 'SERIAL_COUNT_DIFF_MISMATCH' } });
@@ -516,7 +527,8 @@ describe('approve count', () => {
         },
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { countId: 'c1', adjustmentReason: 'Serial perdido en conteo' },
     );
     expect(res.status).toBe(200);
@@ -632,7 +644,8 @@ describe('stock loss', () => {
         }),
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { lossId: 'l1' },
     );
     expect(res.status).toBe(422);
@@ -653,7 +666,8 @@ describe('stock loss', () => {
         }),
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { lossId: 'l1' },
     );
     expect(res.status).toBe(200);
@@ -718,7 +732,8 @@ describe('stock loss', () => {
         },
       }),
       't1',
-      'u1', 'owner',
+      'u1',
+      'owner',
       { lossId: 'l1' },
     );
     expect(res.status).toBe(200);
@@ -823,16 +838,13 @@ describe('S39-H1: authz de conteos y mermas', () => {
 
   it('create count: el umbral es SERVER-side (política), nunca el del body', async () => {
     const binds: unknown[][] = [];
-    const res = await runCreateInventoryCountHttp(
-      mockDbEnv({ binds }),
-      't1',
-      'u1',
-      { branchId: 'b1', differenceThresholdCents: 999_999_999 },
-    );
+    const res = await runCreateInventoryCountHttp(mockDbEnv({ binds }), 't1', 'u1', {
+      branchId: 'b1',
+      differenceThresholdCents: 999_999_999,
+    });
     expect(res.status).toBe(200);
     // El INSERT usa el umbral de la política (2000), no el del cliente.
     const insertBind = binds.find((b) => b.length >= 5 && b[4] === 2000);
     expect(insertBind).toBeDefined();
   });
 });
-

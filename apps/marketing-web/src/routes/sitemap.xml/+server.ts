@@ -13,9 +13,13 @@ export function GET(): Response {
     '/seguridad',
     '/ayuda',
     '/casos-de-exito',
+    '/terminos',
+    '/privacidad',
+    '/reclamaciones',
     '/blog',
     ...blogSlugs,
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),
+    '/comparar',
     ...COMPETITOR_SLUGS.map((s) => `/comparar/${s}`),
   ];
   const header = [
@@ -24,7 +28,7 @@ export function GET(): Response {
   ].join('\n');
   const body = urls
     .map((path) => {
-      const loc = `https://kipuspay.pe${path}`;
+      const loc = `https://kipuspay.com${path}`;
       return `  <url><loc>${loc}</loc><changefreq>weekly</changefreq></url>`;
     })
     .join('\n');

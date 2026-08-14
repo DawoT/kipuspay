@@ -67,8 +67,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
           }),
         } as never,
         PUSH_KMS: {
-          encryptEnvelope: async () =>
-            ({ ciphertext: 'c', keyVersion: 'k', fingerprint: 'f' }) as never,
+          encryptEnvelope: () => ({ ciphertext: 'c', keyVersion: 'k', fingerprint: 'f' }) as never,
         } as never,
       },
       {
@@ -109,8 +108,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
           }),
         } as never,
         PUSH_KMS: {
-          encryptEnvelope: async () =>
-            ({ ciphertext: 'c', keyVersion: 'k', fingerprint: 'f' }) as never,
+          encryptEnvelope: () => ({ ciphertext: 'c', keyVersion: 'k', fingerprint: 'f' }) as never,
         } as never,
       },
       {

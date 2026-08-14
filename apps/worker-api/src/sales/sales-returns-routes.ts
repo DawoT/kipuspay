@@ -261,6 +261,7 @@ export async function runListSalesReturnsHttp(
  * S28-H3: PUT /api/sales/returns/policy — upsert de la política de devolución
  * (1 fila por tenant, regla 13 §5.3). Solo admin/owner. Auditado (regla 12).
  */
+// eslint-disable-next-line complexity -- return policy: PUT upsert × audit append
 export async function runUpsertReturnPolicyHttp(
   env: WorkerEnv | undefined,
   tenantId: string,

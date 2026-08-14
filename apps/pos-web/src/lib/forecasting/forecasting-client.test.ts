@@ -55,7 +55,11 @@ describe('forecasting POS seams (Sprint 46)', () => {
         disclaimer: 'Estimación, no garantía',
       }),
     );
-    const client = createForecastingClient({ fetcher, apiBase: 'https://api.test', authorization: '' });
+    const client = createForecastingClient({
+      fetcher,
+      apiBase: 'https://api.test',
+      authorization: '',
+    });
     const res = await client.alerts('b-demo', { leadTimeDays: 3, safetyStockDays: 6 });
     expect(res.items[0]?.status).toBe('STOCKOUT_RISK');
     const calls = fetcher.mock.calls as [RequestInfo | URL, RequestInit][];
@@ -72,7 +76,11 @@ describe('forecasting POS seams (Sprint 46)', () => {
       .mockResolvedValue(
         jsonResponse({ written: 4, insufficient: 1, disclaimer: 'Estimación, no garantía' }),
       );
-    const client = createForecastingClient({ fetcher, apiBase: 'https://api.test', authorization: '' });
+    const client = createForecastingClient({
+      fetcher,
+      apiBase: 'https://api.test',
+      authorization: '',
+    });
     const res = await client.refresh('b-demo');
     expect(res.written).toBe(4);
     expect(res.insufficient).toBe(1);

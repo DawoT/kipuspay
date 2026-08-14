@@ -82,7 +82,10 @@ async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function previousAuditHash(db: NonNullable<WorkerEnv['DB']>, tenantId: string): Promise<string | null> {
+async function previousAuditHash(
+  db: NonNullable<WorkerEnv['DB']>,
+  tenantId: string,
+): Promise<string | null> {
   const row = await db
     .prepare(
       `SELECT row_hash FROM audit_events
@@ -93,6 +96,7 @@ async function previousAuditHash(db: NonNullable<WorkerEnv['DB']>, tenantId: str
   return row?.row_hash ?? null;
 }
 
+// eslint-disable-next-line complexity -- export: target × journal × audit append
 export async function runAccountingExportHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
