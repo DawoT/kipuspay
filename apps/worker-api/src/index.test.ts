@@ -342,20 +342,17 @@ describe('F-1 contrato Dueño: las 6 rutas owner propagan role (auditoría brows
     },
   };
 
-  it.each(ownerRoutes)(
-    '%s %s no responde FORBIDDEN_ROLE con role=owner',
-    async (method, path) => {
-      const res = await ownerApp.request(
-        path,
-        {
-          method,
-          headers: { authorization: 'Bearer tok', 'x-tenant-id': 't1' },
-        },
-        ownerEnv,
-      );
-      expect(res.status, `${method} ${path}`).not.toBe(403);
-      const body: { code?: string } = await res.json();
-      expect(body.code, `${method} ${path}`).not.toBe('FORBIDDEN_ROLE');
-    },
-  );
+  it.each(ownerRoutes)('%s %s no responde FORBIDDEN_ROLE con role=owner', async (method, path) => {
+    const res = await ownerApp.request(
+      path,
+      {
+        method,
+        headers: { authorization: 'Bearer tok', 'x-tenant-id': 't1' },
+      },
+      ownerEnv,
+    );
+    expect(res.status, `${method} ${path}`).not.toBe(403);
+    const body: { code?: string } = await res.json();
+    expect(body.code, `${method} ${path}`).not.toBe('FORBIDDEN_ROLE');
+  });
 });

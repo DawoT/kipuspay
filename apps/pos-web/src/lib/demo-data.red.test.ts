@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 const pos = readFileSync(new URL('../../src/routes/+page.svelte', import.meta.url), 'utf8');
 const owner = readFileSync(new URL('../../src/routes/owner/+page.svelte', import.meta.url), 'utf8');
-const cobro = readFileSync(new URL('../../src/routes/caja/cobro/+page.svelte', import.meta.url), 'utf8');
+const cobro = readFileSync(
+  new URL('../../src/routes/caja/cobro/+page.svelte', import.meta.url),
+  'utf8',
+);
 
 /**
  * F-6 (auditoría browser) — cero IDs/placeholders demo en el copy y los
@@ -15,7 +18,7 @@ describe('F-6 contrato: cero IDs demo en fuentes de rutas', () => {
   it('cobro: sin sale-demo, sp-demo ni idempotency demo', () => {
     expect(cobro).not.toContain('sale-demo');
     expect(cobro).not.toContain('sp-demo');
-    expect(cobro).not.toContain("`demo-${");
+    expect(cobro).not.toContain('`demo-${');
   });
 
   it('cobro: sin customer demo por defecto', () => {

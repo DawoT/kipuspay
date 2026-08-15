@@ -1438,7 +1438,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.get('/api/owner/installments/overdue', async (c) => {
     const jwt = c.get('jwt');
     const user = c.get('user');
-    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    const result = await runOwnerInstallmentsOverdueHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.role ?? '',
+    );
     return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 

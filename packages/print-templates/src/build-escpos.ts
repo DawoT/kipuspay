@@ -17,11 +17,7 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
   cmd.push(0x1b, 0x40);
   cmd.push(0x1b, 0x61, 0x01);
   const rucLine = data.ruc ? `RUC: ${sanitizePrinterText(data.ruc)}\n` : '';
-  cmd.push(
-    ...encoder.encode(
-      `${sanitizePrinterText(data.enterprise)}\n${rucLine}${separator}`,
-    ),
-  );
+  cmd.push(...encoder.encode(`${sanitizePrinterText(data.enterprise)}\n${rucLine}${separator}`));
   cmd.push(
     ...encoder.encode(
       `${data.documentType} ${sanitizePrinterText(data.series)}-${String(data.number).padStart(8, '0')}\n`,
