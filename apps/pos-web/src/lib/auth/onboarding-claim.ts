@@ -42,7 +42,11 @@ function readStoredClaim(): OnboardingClaimSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<OnboardingClaimSession>;
     if (typeof parsed?.branchId === 'string' && typeof parsed?.sessionId === 'string') {
-      return { branchId: parsed.branchId, sessionId: parsed.sessionId, tenantId: parsed.tenantId ?? '' };
+      return {
+        branchId: parsed.branchId,
+        sessionId: parsed.sessionId,
+        tenantId: parsed.tenantId ?? '',
+      };
     }
   } catch {
     // storage corrupto: ignora y deja que el claim se reintente.
