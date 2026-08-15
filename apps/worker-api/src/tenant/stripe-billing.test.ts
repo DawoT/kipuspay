@@ -11,7 +11,9 @@ import {
 describe('Stripe billing (cancel + portal)', () => {
   it('lista suscripciones del customer', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ id: 'sub_1', status: 'active' }] }), { status: 200 }),
+      new Response(JSON.stringify({ data: [{ id: 'sub_1', status: 'active' }] }), {
+        status: 200,
+      }),
     );
     const list = await listStripeSubscriptions('cus_1', { apiKey: 'sk_test', fetchImpl });
     expect(list.data?.[0]?.id).toBe('sub_1');
@@ -29,7 +31,9 @@ describe('Stripe billing (cancel + portal)', () => {
 
   it('abre Customer Portal y devuelve url', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ url: 'https://billing.stripe.com/p/session' }), { status: 200 }),
+      new Response(JSON.stringify({ url: 'https://billing.stripe.com/p/session' }), {
+        status: 200,
+      }),
     );
     const res = await createStripeBillingPortalSession('cus_1', 'https://app.kipuspay.com/', {
       apiKey: 'sk_test',
@@ -39,9 +43,9 @@ describe('Stripe billing (cancel + portal)', () => {
   });
 
   it('crea Customer Stripe con metadata tenant_id', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ id: 'cus_new' }), { status: 200 }),
-    );
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ id: 'cus_new' }), { status: 200 }));
     const res = await createStripeCustomer(
       { name: 'Bodega', tenantId: 't1' },
       { apiKey: 'sk_test', fetchImpl },
@@ -54,9 +58,11 @@ describe('Stripe billing (cancel + portal)', () => {
   it('crea Checkout Session y exige https en helpers', async () => {
     expect(isHttpsUrl('https://app.kipuspay.com/ok')).toBe(true);
     expect(isHttpsUrl('ftp://app.kipuspay.com/ok')).toBe(false);
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/pay' }), { status: 200 }),
-    );
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/pay' }), { status: 200 }),
+      );
     const res = await createStripeCheckoutSession(
       {
         customerId: 'cus_1',

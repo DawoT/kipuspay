@@ -85,9 +85,7 @@ export async function claimOnboardingToken(input: {
   readonly fetcher?: typeof fetch;
   readonly apiBase: string;
   readonly token: string;
-}): Promise<
-  { ok: true } & OnboardingClaimResult | { ok: false; code: string; message: string }
-> {
+}): Promise<({ ok: true } & OnboardingClaimResult) | { ok: false; code: string; message: string }> {
   const doFetch = input.fetcher ?? fetch;
   try {
     const res = await doFetch(`${input.apiBase.replace(/\/$/, '')}/api/onboarding/claim`, {
@@ -96,8 +94,7 @@ export async function claimOnboardingToken(input: {
       body: JSON.stringify({ token: input.token }),
     });
     const data = (await res.json().catch(() => null)) as
-      | (OnboardingClaimResult & { code?: string; error?: string })
-      | null;
+      (OnboardingClaimResult & { code?: string; error?: string }) | null;
     if (!res.ok || !data?.token || !data.user) {
       return {
         ok: false,

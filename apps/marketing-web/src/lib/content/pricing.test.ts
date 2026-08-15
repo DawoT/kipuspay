@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { PRICING_DISCLAIMERS, PRICING_PLANS, pricingFeatureAvailability, pricingFeatureText } from './pricing.js';
+import {
+  PRICING_DISCLAIMERS,
+  PRICING_PLANS,
+  pricingFeatureAvailability,
+  pricingFeatureText,
+} from './pricing.js';
 
 describe('pricing content', () => {
   it('expone 4 planes GTM §4.1 sin copy sin limite en Arranque', () => {

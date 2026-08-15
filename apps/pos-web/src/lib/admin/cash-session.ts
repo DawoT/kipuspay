@@ -17,9 +17,7 @@ export function tenantBranchId(storage?: Pick<Storage, 'getItem'> | null): strin
   return readLoginUser(storage)?.branchId ?? '';
 }
 
-export function cashSessionContext(
-  storage?: Pick<Storage, 'getItem'> | null,
-): CashSessionContext {
+export function cashSessionContext(storage?: Pick<Storage, 'getItem'> | null): CashSessionContext {
   const branchId = tenantBranchId(storage);
   const onboarding = readLastOnboardingClaim();
   return {

@@ -67,7 +67,9 @@ describe('libro de reclamaciones (Ley 29571)', () => {
   });
 
   it('bandeja staff: token inválido → 401; token ok lista y responde', async () => {
-    const all = vi.fn(() => Promise.resolve({ results: [{ id: 'r1', case_number: 'REC-1', status: 'open' }] }));
+    const all = vi.fn(() =>
+      Promise.resolve({ results: [{ id: 'r1', case_number: 'REC-1', status: 'open' }] }),
+    );
     const run = vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } }));
     const env = {
       PLATFORM_STAFF_TOKEN: 'staff-secret',

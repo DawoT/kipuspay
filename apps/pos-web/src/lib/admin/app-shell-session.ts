@@ -58,11 +58,7 @@ function buildBootstrapHeaders(input: {
 
 function absolutizeRequestUrl(apiBase: string, request: RequestInfo | URL): string {
   const raw =
-    typeof request === 'string'
-      ? request
-      : request instanceof URL
-        ? request.href
-        : request.url;
+    typeof request === 'string' ? request : request instanceof URL ? request.href : request.url;
   if (/^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw)) return raw;
   return `${apiBase}${raw.startsWith('/') ? raw : `/${raw}`}`;
 }

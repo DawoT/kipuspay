@@ -123,7 +123,9 @@ test('past_due post-gracia: banner de gestión pausada; owner premium → 402', 
     });
   });
   await page.goto('/?onboarding_token=e2e-claim-token&tenant=t-e2e');
-  await expect(page.getByTestId('billing-banner')).toContainText('herramientas de gestión están pausadas');
+  await expect(page.getByTestId('billing-banner')).toContainText(
+    'herramientas de gestión están pausadas',
+  );
   await expect(page.getByTestId('charge')).toBeVisible();
   await page.goto('/owner');
   await expect.poll(() => ownerStatuses.some((s) => s === 402)).toBe(true);

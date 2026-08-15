@@ -28,7 +28,9 @@ function env(opts: {
 describe('runCheckoutSessionHttp', () => {
   it('crea Checkout Session https y devuelve url', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/pay_1' }), { status: 200 }),
+      new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/pay_1' }), {
+        status: 200,
+      }),
     );
     const res = await runCheckoutSessionHttp(
       env({ tenant: { id: 't1', trade_name: 'Bodega', stripe_customer_id: 'cus_1' } }),
@@ -55,11 +57,16 @@ describe('runCheckoutSessionHttp', () => {
   });
 
   it('return URL no https → 422 INVALID_RETURN_URL', async () => {
-    const res = await runCheckoutSessionHttp(env({ tenant: { id: 't1', stripe_customer_id: 'cus_1' } }), 't1', 'owner', {
-      planId: 'crece',
-      successUrl: 'ftp://evil.example/ok',
-      cancelUrl: 'https://app.kipuspay.com/cancel',
-    });
+    const res = await runCheckoutSessionHttp(
+      env({ tenant: { id: 't1', stripe_customer_id: 'cus_1' } }),
+      't1',
+      'owner',
+      {
+        planId: 'crece',
+        successUrl: 'ftp://evil.example/ok',
+        cancelUrl: 'https://app.kipuspay.com/cancel',
+      },
+    );
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('INVALID_RETURN_URL');
   });

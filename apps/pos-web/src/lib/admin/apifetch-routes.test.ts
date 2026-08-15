@@ -37,7 +37,10 @@ describe('rutas POS listadas usan apiFetch (Fase F + residual)', () => {
   });
 
   it('crédito de tienda no llama /issue; el vale se emite en Caja', () => {
-    const source = readFileSync(new URL('../../routes/admin/credito-tienda/+page.svelte', import.meta.url), 'utf8');
+    const source = readFileSync(
+      new URL('../../routes/admin/credito-tienda/+page.svelte', import.meta.url),
+      'utf8',
+    );
     expect(source).not.toContain('/api/ledger/store-credit/issue');
     expect(source).toMatch(/vale se emite en Caja/i);
     expect(source).toContain('apiFetch');

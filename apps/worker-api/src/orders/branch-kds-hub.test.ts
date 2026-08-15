@@ -29,7 +29,9 @@ function hub(env: { KDS_BROADCAST_TOKEN?: string }) {
   };
   const instance = new BranchKdsHub(ctx as never, env) as unknown as {
     fetch(request: Request): Promise<Response>;
-    ctx: { storage: { get(k: string): Promise<unknown>; put(k: string, v: unknown): Promise<void> } };
+    ctx: {
+      storage: { get(k: string): Promise<unknown>; put(k: string, v: unknown): Promise<void> };
+    };
   };
   return instance;
 }

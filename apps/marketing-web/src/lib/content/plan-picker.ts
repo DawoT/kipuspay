@@ -13,18 +13,11 @@ export interface PlanPickerInput {
   readonly capacidades: readonly PickerCapability[];
 }
 
-const CADENA_CAPS: ReadonlySet<PickerCapability> = new Set([
-  'comandas',
-  'multi-local',
-  'api',
-]);
+const CADENA_CAPS: ReadonlySet<PickerCapability> = new Set(['comandas', 'multi-local', 'api']);
 
 export function recommendPlan(input: PlanPickerInput): PlanId {
   if (input.capacidades.includes('sla') || input.locales >= 30) return 'enterprise';
-  if (
-    input.locales >= 4 ||
-    input.capacidades.some((c) => CADENA_CAPS.has(c))
-  ) {
+  if (input.locales >= 4 || input.capacidades.some((c) => CADENA_CAPS.has(c))) {
     return 'cadena';
   }
   if (input.cajas > 1 || input.locales > 1 || input.capacidades.includes('modo-dueno')) {

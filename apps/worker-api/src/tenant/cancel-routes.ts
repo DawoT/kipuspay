@@ -16,7 +16,11 @@ interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function ownerAdminGate(env: WorkerEnv | undefined, tenantId: string, role: string): HttpResult | null {
+function ownerAdminGate(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  role: string,
+): HttpResult | null {
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -68,9 +72,8 @@ export async function runCancelTenantHttp(
   const denied = ownerAdminGate(env, tenantId, role);
   if (denied) return denied;
   try {
-    const row = await env!.DB!.prepare(
-      'SELECT id, stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
-    )
+    const row = await env!
+      .DB!.prepare('SELECT id, stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL')
       .bind(tenantId)
       .first<{ id: string; stripe_customer_id?: string | null }>();
     if (!row) return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
@@ -82,7 +85,8 @@ export async function runCancelTenantHttp(
         ? await cancelStripeSubsForCustomer(customerId, stripeKey, fetchImpl)
         : 0;
 
-    await env!.DB!.prepare("UPDATE tenants SET subscription_status = 'canceled' WHERE id = ?")
+    await env!
+      .DB!.prepare("UPDATE tenants SET subscription_status = 'canceled' WHERE id = ?")
       .bind(tenantId)
       .run();
 
@@ -114,16 +118,21 @@ export async function runBillingPortalHttp(
   if (denied) return denied;
   const stripeKey = env!.STRIPE_SECRET_KEY?.trim() ?? '';
   if (!stripeKey) {
-    return { status: 503, body: { error: 'Billing portal unavailable', code: 'STRIPE_UNAVAILABLE' } };
+    return {
+      status: 503,
+      body: { error: 'Billing portal unavailable', code: 'STRIPE_UNAVAILABLE' },
+    };
   }
-  const row = await env!.DB!.prepare(
-    'SELECT stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
-  )
+  const row = await env!
+    .DB!.prepare('SELECT stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL')
     .bind(tenantId)
     .first<{ stripe_customer_id?: string | null }>();
   const customerId = row?.stripe_customer_id?.trim() ?? '';
   if (!customerId) {
-    return { status: 422, body: { error: 'Sin cliente de facturación', code: 'NO_STRIPE_CUSTOMER' } };
+    return {
+      status: 422,
+      body: { error: 'Sin cliente de facturación', code: 'NO_STRIPE_CUSTOMER' },
+    };
   }
   const safeReturn = returnUrl.startsWith('https://')
     ? returnUrl

@@ -43,9 +43,7 @@ function checkoutOwnerAdminGate(
 
 function parseCheckoutBody(
   body: unknown,
-):
-  | { planId: string; successUrl: string; cancelUrl: string }
-  | HttpResult {
+): { planId: string; successUrl: string; cancelUrl: string } | HttpResult {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -66,7 +64,10 @@ function parseCheckoutBody(
   const successUrl = typeof o.successUrl === 'string' ? o.successUrl.trim() : DEFAULT_SUCCESS;
   const cancelUrl = typeof o.cancelUrl === 'string' ? o.cancelUrl.trim() : DEFAULT_CANCEL;
   if (!isHttpsUrl(successUrl) || !isHttpsUrl(cancelUrl)) {
-    return { status: 422, body: { error: 'Return URLs must be https', code: 'INVALID_RETURN_URL' } };
+    return {
+      status: 422,
+      body: { error: 'Return URLs must be https', code: 'INVALID_RETURN_URL' },
+    };
   }
   return { planId, successUrl, cancelUrl };
 }
@@ -80,23 +81,29 @@ async function createCheckoutForTenant(
   const stripeKey = env.STRIPE_SECRET_KEY?.trim() ?? '';
   const priceId = priceIdForPlan(env, parsed.planId);
   if (!stripeKey || !priceId) {
-    return { status: 503, body: { error: 'Billing unavailable', code: 'STRIPE_PRICE_UNAVAILABLE' } };
+    return {
+      status: 503,
+      body: { error: 'Billing unavailable', code: 'STRIPE_PRICE_UNAVAILABLE' },
+    };
   }
-  const row = await env.DB!.prepare(
-    'SELECT id, trade_name, stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
-  )
+  const row = await env
+    .DB!.prepare(
+      'SELECT id, trade_name, stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
+    )
     .bind(tenantId)
     .first<{ id: string; trade_name?: string | null; stripe_customer_id?: string | null }>();
   if (!row) return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
   await persistStripeCustomerBestEffort(env, tenantId, row.trade_name ?? tenantId, fetchImpl);
-  const refreshed = await env.DB!.prepare(
-    'SELECT stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
-  )
+  const refreshed = await env
+    .DB!.prepare('SELECT stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL')
     .bind(tenantId)
     .first<{ stripe_customer_id?: string | null }>();
   const customerId = refreshed?.stripe_customer_id?.trim() ?? '';
   if (!customerId) {
-    return { status: 503, body: { error: 'Billing unavailable', code: 'STRIPE_CUSTOMER_UNAVAILABLE' } };
+    return {
+      status: 503,
+      body: { error: 'Billing unavailable', code: 'STRIPE_CUSTOMER_UNAVAILABLE' },
+    };
   }
   const session = await createStripeCheckoutSession(
     {

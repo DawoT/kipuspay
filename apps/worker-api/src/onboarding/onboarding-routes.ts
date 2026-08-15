@@ -58,7 +58,9 @@ function isMode(v: unknown): v is FormalizationMode {
 /** Valida el body y produce el dominio puro (sin persistir). */
 function resolveBootstrapDomain(
   raw: unknown,
-): { ok: true; input: TenantBootstrapInput } | { ok: false; status: number; body: Record<string, unknown> } {
+):
+  | { ok: true; input: TenantBootstrapInput }
+  | { ok: false; status: number; body: Record<string, unknown> } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { ok: false, status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -127,7 +129,10 @@ async function persistAndMintToken(
   credentials: OwnerCredentials,
   trialEndsAtIso: string,
   nowMs: number,
-): Promise<{ ok: true; persisted: PersistedBootstrap } | { ok: false; status: number; body: Record<string, unknown> }> {
+): Promise<
+  | { ok: true; persisted: PersistedBootstrap }
+  | { ok: false; status: number; body: Record<string, unknown> }
+> {
   const kv = env.TENANT_KV;
   const db = env.DB;
   const secret = env.AUTH_JWT_HS_SECRET;
@@ -168,7 +173,10 @@ async function persistAndMintToken(
     return {
       ok: false,
       status: 500,
-      body: { error: err instanceof Error ? err.message : 'bootstrap failed', code: 'BOOTSTRAP_PERSIST_FAILED' },
+      body: {
+        error: err instanceof Error ? err.message : 'bootstrap failed',
+        code: 'BOOTSTRAP_PERSIST_FAILED',
+      },
     };
   }
   await persistStripeCustomerBestEffort(env, domain.tenantId, domain.tradeName);
@@ -209,7 +217,9 @@ async function persistAndMintToken(
   };
 }
 
-function bindingsError(env: BootstrapHttpEnv): { status: number; body: Record<string, unknown> } | null {
+function bindingsError(
+  env: BootstrapHttpEnv,
+): { status: number; body: Record<string, unknown> } | null {
   if (!env?.DB || !env?.TENANT_KV?.put || !env?.TENANT_KV?.delete || !env?.TENANT_KV?.get) {
     return { status: 503, body: { error: 'Bootstrap unavailable', code: 'BOOTSTRAP_UNAVAILABLE' } };
   }
@@ -227,7 +237,10 @@ export async function runBootstrapHttp(
   if (!resolved.ok) return { status: resolved.status, body: resolved.body };
   let domain: ReturnType<typeof bootstrapTenant>;
   try {
-    domain = bootstrapTenant(resolved.input, `t_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`);
+    domain = bootstrapTenant(
+      resolved.input,
+      `t_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+    );
   } catch (err) {
     return {
       status: 422,
@@ -281,9 +294,16 @@ interface ClaimedOnboarding {
 async function resolveClaimToken(
   env: BootstrapHttpEnv,
   token: string,
-): Promise<{ ok: true; claimed: ClaimedOnboarding } | { ok: false; status: number; body: Record<string, unknown> }> {
+): Promise<
+  | { ok: true; claimed: ClaimedOnboarding }
+  | { ok: false; status: number; body: Record<string, unknown> }
+> {
   if (!env?.TENANT_KV?.get || !env?.TENANT_KV?.delete) {
-    return { ok: false, status: 503, body: { error: 'Claim unavailable', code: 'CLAIM_UNAVAILABLE' } };
+    return {
+      ok: false,
+      status: 503,
+      body: { error: 'Claim unavailable', code: 'CLAIM_UNAVAILABLE' },
+    };
   }
   const claims = await verifyJwt(env, token);
   if (!claims) {
@@ -291,7 +311,11 @@ async function resolveClaimToken(
   }
   const raw = await env.TENANT_KV.get(`onboarding:${claims.sub}`);
   if (!raw) {
-    return { ok: false, status: 403, body: { error: 'Token used or expired', code: 'INVALID_TOKEN' } };
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Token used or expired', code: 'INVALID_TOKEN' },
+    };
   }
   await env.TENANT_KV.delete(`onboarding:${claims.sub}`);
   let payload: { tenantId?: string; ownerUserId?: string; branchId?: string; sessionId?: string };

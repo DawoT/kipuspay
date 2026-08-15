@@ -132,7 +132,9 @@ describe('persistBootstrap (M6A — adapters-d1)', () => {
   });
 
   it('snapshot de auth coincide con mapTenantRow del plano de control', () => {
-    const snap = JSON.parse(tenantAuthSnapshot({ tenantId: 't1', trialEndsAtIso: '2026-09-13T00:00:00.000Z' }));
+    const snap = JSON.parse(
+      tenantAuthSnapshot({ tenantId: 't1', trialEndsAtIso: '2026-09-13T00:00:00.000Z' }),
+    );
     expect(snap).toEqual({
       id: 't1',
       status: 'active',

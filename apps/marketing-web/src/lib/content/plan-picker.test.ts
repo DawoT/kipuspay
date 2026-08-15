@@ -24,8 +24,8 @@ describe('picker de plan (M5A — premium UX)', () => {
   });
 
   it('la cadena gana a Crece cuando coinciden capacidades de ambos', () => {
-    expect(
-      recommendPlan({ locales: 1, cajas: 2, capacidades: ['modo-dueno', 'comandas'] }),
-    ).toBe('cadena');
+    expect(recommendPlan({ locales: 1, cajas: 2, capacidades: ['modo-dueno', 'comandas'] })).toBe(
+      'cadena',
+    );
   });
 });

@@ -113,13 +113,15 @@ export async function chargeCartOffline(
   void _nowMs;
   const started = performance.now();
   const totalCents = cartTotalCents(lines);
-  const payableCents = totalCents + buildSaleTotals(
-    lines.map((l) => ({
-      productId: l.productId,
-      priceCents: l.isUncatalogued ? (l.manualPriceCents ?? l.unitPriceCents) : l.unitPriceCents,
-      qty: l.quantity,
-    })),
-  ).igvCents;
+  const payableCents =
+    totalCents +
+    buildSaleTotals(
+      lines.map((l) => ({
+        productId: l.productId,
+        priceCents: l.isUncatalogued ? (l.manualPriceCents ?? l.unitPriceCents) : l.unitPriceCents,
+        qty: l.quantity,
+      })),
+    ).igvCents;
   if (lines.length === 0 || totalCents <= 0) {
     return {
       ok: false,

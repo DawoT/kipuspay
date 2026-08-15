@@ -377,7 +377,11 @@ describe('bootstrap persistente + claim de onboarding (M6A)', () => {
 
   it('campos inválidos → 422 sin persistir', async () => {
     const { env, capture } = captureEnv();
-    const res = await runBootstrapHttp(env, { tradeName: '', verticalType: 'retail', formalizationMode: 'INTERNAL_CONTROL' });
+    const res = await runBootstrapHttp(env, {
+      tradeName: '',
+      verticalType: 'retail',
+      formalizationMode: 'INTERNAL_CONTROL',
+    });
     expect(res.status).toBe(422);
     expect(capture.batchCount).toBe(0);
   });

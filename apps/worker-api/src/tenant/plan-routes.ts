@@ -14,7 +14,8 @@ export async function runUpdatePlanHttp(
   role: string,
   body: unknown,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!env?.DB) return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+  if (!env?.DB)
+    return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const normalizedRole = role.toLowerCase();
   if (normalizedRole !== 'owner' && normalizedRole !== 'admin') {

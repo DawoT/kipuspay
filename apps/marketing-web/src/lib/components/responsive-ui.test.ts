@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
 const home = readFileSync(new URL('../../routes/+page.svelte', import.meta.url), 'utf8');
-const compare = readFileSync(new URL('../../routes/comparar/+page.svelte', import.meta.url), 'utf8');
+const compare = readFileSync(
+  new URL('../../routes/comparar/+page.svelte', import.meta.url),
+  'utf8',
+);
 
 describe('responsive marketing UI', () => {
   it('apila las comparativas en mobile sin scroll horizontal nativo', () => {

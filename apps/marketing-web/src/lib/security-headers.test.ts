@@ -12,12 +12,9 @@ describe('marketing security headers (S3)', () => {
     expect(raw).not.toMatch(/TODO|placeholder/i);
   });
 
-  it.each(['X-Frame-Options: DENY', 'X-Content-Type-Options: nosniff'])(
-    '%s presente',
-    (header) => {
-      expect(raw).toContain(header);
-    },
-  );
+  it.each(['X-Frame-Options: DENY', 'X-Content-Type-Options: nosniff'])('%s presente', (header) => {
+    expect(raw).toContain(header);
+  });
 
   it('HSTS con preload', () => {
     expect(raw).toMatch(/Strict-Transport-Security: max-age=\d+; includeSubDomains; preload/);

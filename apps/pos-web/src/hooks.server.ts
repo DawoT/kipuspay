@@ -7,7 +7,11 @@ import type { Handle } from '@sveltejs/kit';
  */
 export function buildContentSecurityPolicy(apiBase: string): string {
   const normalized = apiBase.replace(/\/$/, '');
-  const connectSources = ["'self'", 'https://fcmregistrations.googleapis.com', 'https://firebaseinstallations.googleapis.com'];
+  const connectSources = [
+    "'self'",
+    'https://fcmregistrations.googleapis.com',
+    'https://firebaseinstallations.googleapis.com',
+  ];
   if (normalized) {
     connectSources.push(normalized);
     const ws = normalized.replace(/^http/i, 'ws');

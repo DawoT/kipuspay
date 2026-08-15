@@ -20,7 +20,10 @@ export function buildReclamacionCaseNumber(now: Date, entropy: string): string {
   const y = String(now.getUTCFullYear());
   const m = String(now.getUTCMonth() + 1).padStart(2, '0');
   const d = String(now.getUTCDate()).padStart(2, '0');
-  const suffix = entropy.replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
+  const suffix = entropy
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, 6)
+    .toUpperCase();
   return `REC-${y}${m}${d}-${suffix}`;
 }
 
@@ -48,7 +51,9 @@ function validateReclamacionFields(
   return null;
 }
 
-export function parseReclamacionBody(raw: unknown): ReclamacionInput | { error: string; code: string } {
+export function parseReclamacionBody(
+  raw: unknown,
+): ReclamacionInput | { error: string; code: string } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { error: 'Invalid JSON', code: 'BAD_REQUEST' };
   }
@@ -115,7 +120,8 @@ export async function runCreateReclamacionHttp(
     body: {
       caseNumber,
       receivedAt: now.toISOString(),
-      message: 'Reclamo registrado. Conserva el número de caso como acuse. La constancia por correo está en preparación.',
+      message:
+        'Reclamo registrado. Conserva el número de caso como acuse. La constancia por correo está en preparación.',
     },
   };
 }
@@ -154,12 +160,14 @@ export async function runListReclamacionesHttp(
   const denied = staffGate(env, staffToken);
   if (denied) return denied;
   try {
-    const rows = await env!.DB!.prepare(
-      `SELECT id, case_number, claimant_name, document_type, document_number, email,
+    const rows = await env!
+      .DB!.prepare(
+        `SELECT id, case_number, claimant_name, document_type, document_number, email,
               phone, claim_kind, detail, status, created_at, responded_at
          FROM platform_reclamaciones
         ORDER BY created_at DESC`,
-    ).all();
+      )
+      .all();
     return { status: 200, body: { items: rows.results ?? [] } };
   } catch {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
@@ -192,11 +200,12 @@ export async function runRespondReclamacionHttp(
   const parsed = parseRespondBody(raw);
   if ('status' in parsed) return parsed;
   try {
-    const updated = await env!.DB!.prepare(
-      `UPDATE platform_reclamaciones
+    const updated = await env!
+      .DB!.prepare(
+        `UPDATE platform_reclamaciones
           SET status = 'responded', responded_at = ?, response_text = ?
         WHERE id = ? AND status = 'open'`,
-    )
+      )
       .bind(now.toISOString(), parsed.responseText, parsed.id)
       .run();
     if ((updated.meta?.changes ?? 0) !== 1) {

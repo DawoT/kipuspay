@@ -6,9 +6,7 @@ import type { AdminAuthenticatedSession } from './authenticated-session.js';
 
 export type BillingSnapshot = NonNullable<AdminAuthenticatedSession['billing']>;
 
-export function billingNoticeText(
-  billing: BillingSnapshot | null | undefined,
-): string {
+export function billingNoticeText(billing: BillingSnapshot | null | undefined): string {
   if (!billing) return '';
   if (billing.subscriptionStatus === 'past_due' || billing.subscriptionStatus === 'canceled') {
     return billing.pastGracePeriod

@@ -46,7 +46,9 @@ describe('runCancelTenantHttp (S11-E11 cancelación self-serve)', () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [{ id: 'sub_1', status: 'active' }] }), { status: 200 }),
+        new Response(JSON.stringify({ data: [{ id: 'sub_1', status: 'active' }] }), {
+          status: 200,
+        }),
       )
       .mockResolvedValueOnce(new Response('{}', { status: 200 }));
     const res = await runCancelTenantHttp(

@@ -156,7 +156,10 @@ describe('CORS público de onboarding (M6B)', () => {
     const app = createApp();
     const res = await app.request(
       '/api/catalog/sellable',
-      { method: 'OPTIONS', headers: { origin: 'http://localhost:4173', 'access-control-request-method': 'GET' } },
+      {
+        method: 'OPTIONS',
+        headers: { origin: 'http://localhost:4173', 'access-control-request-method': 'GET' },
+      },
       { ALLOWED_ORIGINS: '*' },
     );
     expect(res.status).toBe(204);

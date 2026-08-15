@@ -19,7 +19,10 @@ describe('CORS público del worker (M6B — desacoplado por ALLOWED_ORIGINS)', (
   });
 
   it('niega orígenes fuera de la lista (fail-closed, sin header)', () => {
-    const headers = corsHeadersFor({ ALLOWED_ORIGINS: 'https://kipuspay.com' }, 'https://evil.example');
+    const headers = corsHeadersFor(
+      { ALLOWED_ORIGINS: 'https://kipuspay.com' },
+      'https://evil.example',
+    );
     expect(headers['Access-Control-Allow-Origin']).toBeUndefined();
   });
 

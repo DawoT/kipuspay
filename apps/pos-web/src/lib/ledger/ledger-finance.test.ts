@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchAccountsPayable, fetchAccountsReceivable, payAccountsReceivable } from './ledger-finance.js';
+import {
+  fetchAccountsPayable,
+  fetchAccountsReceivable,
+  payAccountsReceivable,
+} from './ledger-finance.js';
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {

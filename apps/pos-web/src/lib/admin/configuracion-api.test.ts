@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const source = readFileSync(new URL('../../routes/admin/configuracion/+page.svelte', import.meta.url), 'utf8');
+const source = readFileSync(
+  new URL('../../routes/admin/configuracion/+page.svelte', import.meta.url),
+  'utf8',
+);
 
 describe('admin configuración — contrato API absoluto', () => {
   it('cancel y plan usan apiFetch (resolveApiBase), no fetch relativo', () => {

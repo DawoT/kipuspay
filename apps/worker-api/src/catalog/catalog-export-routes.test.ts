@@ -6,9 +6,7 @@ function env(rows: unknown[] | null) {
     DB: {
       prepare: vi.fn(() => ({
         bind: vi.fn(() => ({
-          all: vi.fn(() =>
-            Promise.resolve({ results: rows ?? [] }),
-          ),
+          all: vi.fn(() => Promise.resolve({ results: rows ?? [] })),
         })),
       })),
     },
@@ -19,15 +17,35 @@ describe('runExportCatalogCsvHttp (S11-E10)', () => {
   it('exporta catálogo del tenant en CSV con header', async () => {
     const res = await runExportCatalogCsvHttp(
       env([
-        { id: 'p1', sku: 'SKU-1', barcode: null, name: 'Arroz', price_cents: 990, stock: 10, unit_code: 'NIU', is_active: 1 },
-        { id: 'p2', sku: 'SKU,2', barcode: '123', name: 'Leche "A"', price_cents: 450, stock: 0, unit_code: 'NIU', is_active: 0 },
+        {
+          id: 'p1',
+          sku: 'SKU-1',
+          barcode: null,
+          name: 'Arroz',
+          price_cents: 990,
+          stock: 10,
+          unit_code: 'NIU',
+          is_active: 1,
+        },
+        {
+          id: 'p2',
+          sku: 'SKU,2',
+          barcode: '123',
+          name: 'Leche "A"',
+          price_cents: 450,
+          stock: 0,
+          unit_code: 'NIU',
+          is_active: 0,
+        },
       ]),
       't1',
     );
     expect(res.status).toBe(200);
     expect(typeof res.body).toBe('string');
     const csv = res.body as string;
-    expect(csv.startsWith('id,sku,barcode,name,price_cents,stock,unit_code,is_active\n')).toBe(true);
+    expect(csv.startsWith('id,sku,barcode,name,price_cents,stock,unit_code,is_active\n')).toBe(
+      true,
+    );
     expect(csv).toContain('Arroz,990,10,NIU,1');
     // Comillas y comas escapadas.
     expect(csv).toContain('"SKU,2"');
@@ -58,9 +76,11 @@ describe('runExportSalesCsvHttp (Q4 ventas)', () => {
     );
     expect(res.status).toBe(200);
     const csv = res.body as string;
-    expect(csv.startsWith('issued_at_lima,series,number,document_type,total_amount_cents,sunat_status,void_status\n')).toBe(
-      true,
-    );
+    expect(
+      csv.startsWith(
+        'issued_at_lima,series,number,document_type,total_amount_cents,sunat_status,void_status\n',
+      ),
+    ).toBe(true);
     expect(csv).toContain('B001,12,03,2230,PENDING,NONE');
     expect(csv).not.toMatch(/22\.30/);
   });

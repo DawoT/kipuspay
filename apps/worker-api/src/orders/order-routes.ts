@@ -468,15 +468,16 @@ export async function runMintKdsWsTicketHttp(
   }
   const kv = env?.TENANT_KV as KdsTicketKv | undefined;
   if (!kv?.put) {
-    return { status: 503, body: { error: 'Ticket store unavailable', code: 'KDS_TICKET_UNAVAILABLE' } };
+    return {
+      status: 503,
+      body: { error: 'Ticket store unavailable', code: 'KDS_TICKET_UNAVAILABLE' },
+    };
   }
   const ticket = crypto.randomUUID();
   const exp = Date.now() + KDS_WS_TICKET_TTL_SECONDS * 1000;
-  await kv.put(
-    kdsWsTicketKvKey(ticket),
-    JSON.stringify({ tenantId, branchId, exp }),
-    { expirationTtl: KDS_WS_TICKET_TTL_SECONDS },
-  );
+  await kv.put(kdsWsTicketKvKey(ticket), JSON.stringify({ tenantId, branchId, exp }), {
+    expirationTtl: KDS_WS_TICKET_TTL_SECONDS,
+  });
   return { status: 200, body: { ticket, expiresInSeconds: KDS_WS_TICKET_TTL_SECONDS } };
 }
 

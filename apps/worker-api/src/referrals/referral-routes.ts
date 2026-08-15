@@ -18,7 +18,9 @@ const globalStore: ReferralStore = createReferralStore();
  * KV o sin snapshot, se omite sin romper el flujo.
  */
 async function extendTrialByMonth(
-  kv: { get(key: string): Promise<string | null>; put?(key: string, value: string): Promise<void> } | undefined,
+  kv:
+    | { get(key: string): Promise<string | null>; put?(key: string, value: string): Promise<void> }
+    | undefined,
   tenantId: string,
   nowMs: number,
 ): Promise<string | null> {
@@ -173,11 +175,7 @@ export async function runFirstSaleReferralHttp(
     });
     // S11-B4: mes gratis para referidor y referido (GTM §7.1 / blog §7).
     const nowMs = Date.parse(now);
-    const referredTrial = await extendTrialByMonth(
-      env.TENANT_KV,
-      attr.tenant_id,
-      nowMs,
-    );
+    const referredTrial = await extendTrialByMonth(env.TENANT_KV, attr.tenant_id, nowMs);
     await extendTrialByMonth(env.TENANT_KV, attr.referrer_tenant_id, nowMs);
     return {
       status: 200,

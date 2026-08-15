@@ -49,9 +49,10 @@ describe('billing-reminders (S9-A3 anti-apagado)', () => {
   });
 
   it('sin DB → no op', async () => {
-    await expect(
-      runBillingRemindersScheduled({}, { nowMs: Date.now() }),
-    ).resolves.toEqual({ remindersEmitted: 0, tenantsScanned: 0 });
+    await expect(runBillingRemindersScheduled({}, { nowMs: Date.now() })).resolves.toEqual({
+      remindersEmitted: 0,
+      tenantsScanned: 0,
+    });
   });
 
   it('sin tenants past_due → sin reminders', async () => {

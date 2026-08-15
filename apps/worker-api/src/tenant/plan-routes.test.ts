@@ -28,7 +28,9 @@ describe('runUpdatePlanHttp (S11-B5 upgrade self-serve)', () => {
   });
 
   it('admin también puede; cashier no (403 FORBIDDEN_ROLE)', async () => {
-    expect((await runUpdatePlanHttp(env(true), 't1', 'admin', { planId: 'cadena' })).status).toBe(200);
+    expect((await runUpdatePlanHttp(env(true), 't1', 'admin', { planId: 'cadena' })).status).toBe(
+      200,
+    );
     const denied = await runUpdatePlanHttp(env(true), 't1', 'cashier', { planId: 'cadena' });
     expect(denied.status).toBe(403);
     expect(denied.body.code).toBe('FORBIDDEN_ROLE');
@@ -47,7 +49,11 @@ describe('runUpdatePlanHttp (S11-B5 upgrade self-serve)', () => {
   });
 
   it('tenant inexistente → 404; sin DB → 503 fail-closed', async () => {
-    expect((await runUpdatePlanHttp(env(false), 't1', 'owner', { planId: 'arranque' })).status).toBe(404);
-    expect((await runUpdatePlanHttp(undefined, 't1', 'owner', { planId: 'arranque' })).status).toBe(503);
+    expect(
+      (await runUpdatePlanHttp(env(false), 't1', 'owner', { planId: 'arranque' })).status,
+    ).toBe(404);
+    expect((await runUpdatePlanHttp(undefined, 't1', 'owner', { planId: 'arranque' })).status).toBe(
+      503,
+    );
   });
 });

@@ -36,7 +36,12 @@ import {
   runPayArHttp,
   runTransitionPoHttp,
 } from './ledger/ledger-routes.js';
-import { runBlindCloseHttp, runCashMovementHttp, runSaleReprintHttp, runAuthzTokenMintHttp } from './cash/cash-routes.js';
+import {
+  runBlindCloseHttp,
+  runCashMovementHttp,
+  runSaleReprintHttp,
+  runAuthzTokenMintHttp,
+} from './cash/cash-routes.js';
 import { clientIp, enforceRateLimit, rateLimitKey } from './auth/rate-limit.js';
 import {
   runCreateSalesReturnHttp,
@@ -194,11 +199,19 @@ import {
   runReportHttp,
   runReportsCatalogHttp,
 } from './reports/report-routes.js';
-import { runBootstrapHttp, runFormalizationStageHttp, runOnboardingClaimHttp } from './onboarding/onboarding-routes.js';
+import {
+  runBootstrapHttp,
+  runFormalizationStageHttp,
+  runOnboardingClaimHttp,
+} from './onboarding/onboarding-routes.js';
 import { runUpdatePlanHttp } from './tenant/plan-routes.js';
 import { runCancelTenantHttp, runBillingPortalHttp } from './tenant/cancel-routes.js';
 import { runCheckoutSessionHttp } from './tenant/checkout-routes.js';
-import { runCreateReclamacionHttp, runListReclamacionesHttp, runRespondReclamacionHttp } from './legal/reclamaciones-routes.js';
+import {
+  runCreateReclamacionHttp,
+  runListReclamacionesHttp,
+  runRespondReclamacionHttp,
+} from './legal/reclamaciones-routes.js';
 import { corsHeadersFor } from './auth/public-cors.js';
 import {
   runCaptureReferralHttp,
@@ -262,7 +275,11 @@ import { runDebitNoteHttp } from './sales/debit-note-routes.js';
 import { runRemissionGuideHttp } from './inventory/remission-guide-routes.js';
 import { runPerceptionHttp, runRetentionHttp } from './fiscal/withholding-routes.js';
 import { runGetCashPolicyHttp, runPatchCashPolicyHttp } from './cash/cash-policy-routes.js';
-import { runGrowthEventHttp, runListGrowthEventsHttp, runSetupProgressHttp } from './onboarding/onboarding-routes.js';
+import {
+  runGrowthEventHttp,
+  runListGrowthEventsHttp,
+  runSetupProgressHttp,
+} from './onboarding/onboarding-routes.js';
 import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
@@ -410,9 +427,14 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // M6B: CORS fail-closed (ALLOWED_ORIGINS). Debe registrarse ANTES de las
   // rutas públicas: si el POST de login queda primero, el preflight OPTIONS
   // sí recibe ACAO pero la respuesta real no, y el navegador oculta el body.
-  const publicCorsMiddleware = async (c: Context<{ Bindings: WorkerEnv }>, next: () => Promise<void>) => {
+  const publicCorsMiddleware = async (
+    c: Context<{ Bindings: WorkerEnv }>,
+    next: () => Promise<void>,
+  ) => {
     const origin = c.req.header('origin') ?? null;
-    for (const [name, value] of Object.entries(corsHeadersFor(c.env as { ALLOWED_ORIGINS?: string }, origin))) {
+    for (const [name, value] of Object.entries(
+      corsHeadersFor(c.env as { ALLOWED_ORIGINS?: string }, origin),
+    )) {
       c.header(name, value);
     }
     if (c.req.method === 'OPTIONS') {
@@ -1064,7 +1086,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json().catch(() => ({}));
     const branchId =
-      body && typeof body === 'object' && typeof (body as { branchId?: unknown }).branchId === 'string'
+      body &&
+      typeof body === 'object' &&
+      typeof (body as { branchId?: unknown }).branchId === 'string'
         ? (body as { branchId: string }).branchId
         : (c.req.query('branchId') ?? '');
     const result = await runMintKdsWsTicketHttp(c.env, jwt?.tenantId ?? '', branchId);
@@ -2667,7 +2691,10 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 201 | 422 | 503);
   });
   app.get('/v1/internal/reclamaciones', async (c) => {
-    const result = await runListReclamacionesHttp(c.env, c.req.header('x-platform-staff-token') ?? undefined);
+    const result = await runListReclamacionesHttp(
+      c.env,
+      c.req.header('x-platform-staff-token') ?? undefined,
+    );
     return c.json(result.body, result.status as 200 | 401 | 503);
   });
   app.patch('/v1/internal/reclamaciones', async (c) => {
@@ -2715,12 +2742,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     const jwt = c.get('jwt') as { tenantId?: string } | undefined;
     const user = c.get('user') as { role?: string } | undefined;
-    const result = await runUpdatePlanHttp(
-      c.env,
-      jwt?.tenantId ?? '',
-      user?.role ?? '',
-      raw,
-    );
+    const result = await runUpdatePlanHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '', raw);
     return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
   });
 
@@ -2741,10 +2763,17 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       raw = {};
     }
     const returnUrl =
-      raw && typeof raw === 'object' && typeof (raw as { returnUrl?: unknown }).returnUrl === 'string'
+      raw &&
+      typeof raw === 'object' &&
+      typeof (raw as { returnUrl?: unknown }).returnUrl === 'string'
         ? (raw as { returnUrl: string }).returnUrl
         : 'https://app.kipuspay.com/admin/configuracion';
-    const result = await runBillingPortalHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '', returnUrl);
+    const result = await runBillingPortalHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.role ?? '',
+      returnUrl,
+    );
     return c.json(result.body, result.status as 200 | 401 | 403 | 422 | 502 | 503);
   });
   app.post('/api/tenant/checkout-session', async (c) => {

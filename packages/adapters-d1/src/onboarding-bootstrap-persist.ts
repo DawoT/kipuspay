@@ -143,13 +143,7 @@ export async function persistBootstrap(
              opening_balance_cents, status
            ) VALUES (?, ?, ?, ?, ?, 0, 'OPEN')`,
         )
-        .bind(
-          input.sessionId,
-          input.tenantId,
-          input.branchId,
-          input.registerId,
-          input.ownerUserId,
-        ),
+        .bind(input.sessionId, input.tenantId, input.branchId, input.registerId, input.ownerUserId),
       db
         .prepare(
           `INSERT INTO growth_events (id, tenant_id, event_type, occurred_at, meta_json)

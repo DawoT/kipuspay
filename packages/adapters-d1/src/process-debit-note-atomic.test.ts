@@ -175,10 +175,17 @@ describe('processDebitNoteAtomic (P1a, ADR-FISCAL-003)', () => {
       captured = stmts;
       return Promise.resolve(stmts.map(() => ({ meta: { changes: 1 } })));
     };
-    const res = await processDebitNoteAtomic(db, 't1', 'u1', 's1', {
-      motiveCode: '02',
-      amountCents: 5900,
-    }, 'FC01');
+    const res = await processDebitNoteAtomic(
+      db,
+      't1',
+      'u1',
+      's1',
+      {
+        motiveCode: '02',
+        amountCents: 5900,
+      },
+      'FC01',
+    );
     expect(res.amountCents).toBe(5900);
     const sqls = captured.map((s) => s.sql ?? '');
     expect(sqls.some((s) => s.includes('INSERT INTO usage_events'))).toBe(true);

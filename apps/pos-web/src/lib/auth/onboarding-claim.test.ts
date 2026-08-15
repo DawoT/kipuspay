@@ -65,8 +65,14 @@ describe('claim de onboarding (M6C)', () => {
   });
 
   it('token usado o inválido → 403 INVALID_TOKEN', async () => {
-    const fetcher = vi.fn().mockResolvedValue(jsonResponse({ error: 'Token used', code: 'INVALID_TOKEN' }, 403));
-    const res = await claimOnboardingToken({ fetcher, apiBase: 'https://api.test', token: 'viejo' });
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ error: 'Token used', code: 'INVALID_TOKEN' }, 403));
+    const res = await claimOnboardingToken({
+      fetcher,
+      apiBase: 'https://api.test',
+      token: 'viejo',
+    });
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.code).toBe('INVALID_TOKEN');
@@ -80,14 +86,15 @@ describe('claim de onboarding (M6C)', () => {
 
   it('single-flight (fe de errata de walkthrough): dos callers comparten el claim', async () => {
     vi.resetModules();
-    const { claimOnboardingFromUrlIfPresent, readLastOnboardingClaim } = await import(
-      './onboarding-claim.js'
-    );
+    const { claimOnboardingFromUrlIfPresent, readLastOnboardingClaim } =
+      await import('./onboarding-claim.js');
     const stubs = installBrowserStubs('?onboarding_token=tok-1&tenant=t-x');
     const fetchMock = vi.fn();
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
     let resolveClaim!: (res: Response) => void;
-    fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (resolveClaim = resolve)));
+    fetchMock.mockImplementation(
+      () => new Promise<Response>((resolve) => (resolveClaim = resolve)),
+    );
 
     const p1 = claimOnboardingFromUrlIfPresent();
     const p2 = claimOnboardingFromUrlIfPresent();

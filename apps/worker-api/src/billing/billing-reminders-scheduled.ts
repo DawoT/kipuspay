@@ -15,10 +15,7 @@ export interface BillingRemindersEnv {
 const MAX_REMINDERS = 3;
 const LOOKBACK_DAYS = 3;
 
-export function reminderDayFor(
-  remindersInWindow: number,
-  max = MAX_REMINDERS,
-): number | null {
+export function reminderDayFor(remindersInWindow: number, max = MAX_REMINDERS): number | null {
   if (remindersInWindow >= max) return null;
   return remindersInWindow + 1;
 }
