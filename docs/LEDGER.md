@@ -10550,3 +10550,35 @@ aprobaciones: [Staff Frontend R, Staff QA A, Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0414
+timestamp_utc: 2026-08-15T18:35:00Z
+schema_version: 2
+sprint_fase: Marketing — gaps premium (heroes, de-card, media)
+agente_responsable: Staff Product Design
+tipo: Corrección
+subtipo: hero-compact, fold home, precios/seguridad ledger, posters
+relacion: amplia
+referencias_entradas: [0412, 0413]
+referencias_documentales: [docs/GTM.md, apps/marketing-web/docs/IMAGE-PROMPTS.md]
+prev_id: 0413
+prev_hash: 100881b53019f3c7b0b233dd7bb9049527959d6e495c4702c65bf6e60492ec06
+entry_hash: 4d8704f8d26f876a4dc50d61f831cafcc2461eceda5b5ef0c6267608a4b9c7ce
+ticket_or_adr: GTM §1/§5/§6, Ledger Minimalism
+test_ids: [content, responsive-ui, MARKETING_COPY, SUITE]
+entregable_afectado: apps/marketing-web (heroes, home, precios, seguridad, verticals, comparar)
+descripcion: >
+  Remedia gaps premium de marketing-web: hero-compact full-bleed con
+  brand-mark; fold home con un sub y un trust; header sólido sin blur;
+  precios sin glow (ledger); seguridad en filas editoriales; nav rubro/
+  comparar sin pills; FAQ home top-6 + Ayuda; posters por rubro (og-*.png)
+  en lugar de hero-poster.svg; mocks sin sombra flotante.
+evidencia: >
+  RED: heroes planos, FAQ 24, pricing glow, pillar cards, SVG poster.
+  GREEN: content+brand tests; MARKETING_COPY GREEN; verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
