@@ -10232,3 +10232,49 @@ aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0407
+timestamp_utc: 2026-08-15T04:58:00Z
+schema_version: 2
+sprint_fase: Sprint 54 — Fase 6H (Remediación y Sello QA)
+agente_responsable: Staff QA / Staff Backend / Staff Frontend
+tipo: Entregable nuevo
+subtipo: contrato de regresión de auditoría browser (RED esperado)
+relacion: amplia
+referencias_entradas: [0404, 0405, 0406]
+referencias_documentales: [docs/ops/browser-functional-audit.md, docs/PROCESS.md, docs/architecture/13-implementation-quality.md]
+prev_id: 0406
+prev_hash: 80d0f00e05a30e64f37e418266f6f2706d8de507490ce926e736c0fe8a2c586c
+entry_hash: 1456c3d6280cd9eebcca46e56a174ca3a3b8dc17b4d9f4d52e0df71e3a839b7a
+ticket_or_adr: docs/ops/browser-functional-audit.md §3, Proceso §8.1, CAL-07/§13.9
+test_ids: [apps/worker-api/src/index.test.ts, apps/pos-web/tests/e2e/owner-alertas.spec.ts, apps/pos-web/tests/e2e/owner-briefing-plan-gate.spec.ts, apps/pos-web/tests/e2e/onboarding-claim-reload.spec.ts, apps/pos-web/tests/e2e/backups.spec.ts, apps/pos-web/src/lib/demo-data.red.test.ts, apps/pos-web/src/lib/ticket-contract.red.test.ts, V-20, SUITE]
+entregable_afectado: apps/worker-api, apps/pos-web (rutas owner, onboarding, backups, ticket, caja)
+descripcion: >
+  Fundación del sello QA (fase 6H): reconcilia y commitea el workstream
+  pendiente (FASE D/E/F, ledger 0404-0406) sobre la rama, restaura
+  verify.sh SUITE GREEN con el checker V-27 ampliado (JSON/GTM-NN y
+  label/placeholder en copy visible) y cierra el Quality Gate del workstream
+  (quality.sh OK: lint, typecheck, unit 0 fallos, integración, chaos, bench
+  sub-50ms, deps audit 0 vulns, gitleaks, semgrep, build, bundle). Crea el
+  contrato de regresión de la auditoría browser: tests RED F-1..F-8 que
+  documentan los hallazgos y fallan sobre el código actual.
+evidencia: >
+  RED: las 6 rutas owner responden 403 FORBIDDEN_ROLE (role no propagado,
+  index.ts:1005/1327/1368/1403/1434/1498); alertas Dueño sin x-tenant-id
+  (403 TENANT_HINT_MISMATCH); briefing consultado sin plan Cadena; cobro
+  bloqueado tras reload (claim en memoria); backups con BACKUP_AUTH_REQUIRED
+  crudo (contexto estático nunca provisto); sale-demo/sp-demo/
+  demo-quarantine y RUC hardcodeado en fuentes.
+  GREEN (workstream): verify.sh SUITE GREEN (30 checks, V-27 52 rutas);
+  quality.sh Quality Gate OK; pos-web 378/378 y worker-api 1157/1157.
+red_commit_sha: 827e9d76f1aea3c38c44832d8adeeae42b0a4705
+red_run_id: run-red-6h-contract-827e9d7
+expected_failure: AssertionError: FORBIDDEN_ROLE / TENANT_HINT_MISMATCH / sesión de caja perdida tras reload / BACKUP_AUTH_REQUIRED / IDs demo en fuentes / total del ticket sin IGV / RUC hardcodeado
+green_commit_sha: N/A
+green_run_id: N/A
+ancestry_verified: true
+aprobaciones: [Staff QA A, Staff Backend V independiente, Staff Frontend R]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
