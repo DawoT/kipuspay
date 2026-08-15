@@ -47,6 +47,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const storeCreditOn = isLedgerStoreCreditEnabled();
   const installmentsOn = isSalesInstallmentsEnabled();
   const commissionsOn = isSalesCommissionsEnabled();
+  const BRIEFING_PLAN_GATE_KEY = 'kipuspay_briefing_plan_gate';
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
@@ -115,7 +116,19 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function loadBriefing() {
     if (!isAgenticInsightsEnabled() || typeof fetch === 'undefined') return;
     try {
+      if (localStorage.getItem(BRIEFING_PLAN_GATE_KEY) === 'deny') return;
       const response = await apiFetch('/api/insights/briefing', { storage: localStorage });
+      if (response.status === 403) {
+        try {
+          const body = (await response.json()) as { code?: string };
+          if (body.code === 'PLAN_REQUIRES_CADENA') {
+            localStorage.setItem(BRIEFING_PLAN_GATE_KEY, 'deny');
+          }
+        } catch {
+          // Cuerpo no legible: no gatear; el widget permanece oculto.
+        }
+        return;
+      }
       if (!response.ok) return;
       briefing = (await response.json()) as { reportDate: string; briefing: string };
     } catch {

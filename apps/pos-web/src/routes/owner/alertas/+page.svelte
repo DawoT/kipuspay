@@ -18,14 +18,16 @@
 
   onMount(async () => {
     const apiBase = resolveApiBase();
-    const authorization = resolveApiAuth().authorization ?? '';
+    const auth = resolveApiAuth();
     const base = apiBase;
+    const headers = {
+      ...(auth.authorization ? { authorization: auth.authorization } : {}),
+      ...(auth['x-tenant-id'] ? { 'x-tenant-id': auth['x-tenant-id'] } : {}),
+    };
     const [stock, uncap, lay] = await Promise.allSettled([
-      fetch(`${base}/api/owner/stock-alerts?branchId=&expiryWarnDays=30`, {
-        headers: { authorization },
-      }),
-      fetch(`${base}/api/owner/payments/uncaptured`, { headers: { authorization } }),
-      fetch(`${base}/api/owner/layaways/overdue`, { headers: { authorization } }),
+      fetch(`${base}/api/owner/stock-alerts?branchId=&expiryWarnDays=30`, { headers }),
+      fetch(`${base}/api/owner/payments/uncaptured`, { headers }),
+      fetch(`${base}/api/owner/layaways/overdue`, { headers }),
     ]);
     loading = false;
     if (stock.status === 'fulfilled' && stock.value.ok) {
