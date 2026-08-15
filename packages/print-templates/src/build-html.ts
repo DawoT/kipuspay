@@ -33,9 +33,10 @@ h1{font-size:1rem;text-align:center} table{width:100%} td{padding:2px 0}
 .legend{font-size:.75rem;margin-top:1rem}
 .brand{font-size:.7rem;margin-top:.75rem;text-align:center}
 </style></head><body>`;
+  const ruc = data.ruc ? `<p>RUC: ${escapeHtml(data.ruc)}</p>` : '';
   return `${head}
 <h1>${escapeHtml(data.enterprise)}</h1>
-<p>RUC: ${escapeHtml(data.ruc)}</p>
+${ruc}
 <p>${escapeHtml(data.documentType)} ${escapeHtml(data.series)}-${String(data.number).padStart(8, '0')}</p>
 <table>${items}</table>
 <p><strong>TOTAL: S/ ${formatTicketCents(data.totalCents)}</strong></p>

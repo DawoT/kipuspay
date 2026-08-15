@@ -21,6 +21,7 @@
   } from '$lib/features';
   import {
     canOfferAnularEa,
+    type AnularEaResult,
     type FiscalBacklogItem,
     submitAnularEa,
   } from '$lib/fiscal/owner-ea';
@@ -136,38 +137,38 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
   }
 
-  function loadDemoBacklog() {
+  async function loadBacklog() {
     if (!fiscalEa) return;
-    backlog = [
-      {
-        saleId: 'demo-quarantine',
-        sunatStatus: 'QUARANTINED',
-        documentType: '01',
-        totalCents: 15000,
-        suggestCreditNoteEa: true,
-      },
-    ];
+    try {
+      const response = await apiFetch('/api/fiscal/owner-backlog', { storage: localStorage });
+      if (!response.ok) return;
+      const json = (await response.json()) as { items?: FiscalBacklogItem[] };
+      backlog = json.items ?? [];
+    } catch {
+      backlog = [];
+    }
   }
 
   async function confirmAnular() {
     if (!pendingAnular) return;
     const item = pendingAnular;
     pendingAnular = null;
-    const res = await submitAnularEa(
-      resolveApiBase(localStorage),
-      resolveApiAuth(localStorage).authorization ?? '',
-      {
-        originSaleId: item.saleId,
-        confirmed: true,
-        motiveCode,
-        series: 'FC01',
-      },
-    ).catch(() => ({
-      ok: true,
-      status: 200,
-      message: 'NC E-A (local demo)',
-      creditNoteSaleId: `nc-${item.saleId}`,
-    }));
+    let res: AnularEaResult;
+    try {
+      res = await submitAnularEa(
+        resolveApiBase(localStorage),
+        resolveApiAuth(localStorage).authorization ?? '',
+        {
+          originSaleId: item.saleId,
+          confirmed: true,
+          motiveCode,
+          series: 'FC01',
+        },
+      );
+    } catch (err) {
+      eaMsg = err instanceof Error ? err.message : 'No se pudo anular. Reintenta.';
+      return;
+    }
     if (res.ok) {
       backlog = backlog.filter((b) => b.saleId !== item.saleId);
       eaMsg = `Anulado ${item.saleId} → ${res.creditNoteSaleId ?? 'NC'}`;
@@ -255,7 +256,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   onMount(() => {
     if (!enabled) return;
     void refresh(typeof navigator !== 'undefined' ? navigator.onLine : true);
-    loadDemoBacklog();
+    void loadBacklog();
     void loadOverdueLayaways();
     void loadExpiredQuotes();
     void loadStoreCreditReport();
@@ -300,7 +301,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   // Backlog v10 P1c — Percepciones/Retenciones (ADR-FISCAL-005).
   const withholdingsOn = isWithholdingsEnabled();
-  let whBranchId = $state('b-demo');
+  let whBranchId = $state('');
   let whSaleId = $state('');
   let whInvoiceId = $state('');
   let whSeriesP = $state('P001');

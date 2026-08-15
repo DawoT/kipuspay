@@ -14,7 +14,8 @@ export interface TicketItem {
 
 export interface TicketData {
   readonly enterprise: string;
-  readonly ruc: string;
+  /** RUC del tenant; ausente en NV/control interno donde aún no aplica RUC fiscal. */
+  readonly ruc?: string | undefined;
   readonly documentType: string;
   readonly series: string;
   readonly number: number;

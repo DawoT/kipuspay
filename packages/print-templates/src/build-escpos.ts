@@ -16,9 +16,10 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
 
   cmd.push(0x1b, 0x40);
   cmd.push(0x1b, 0x61, 0x01);
+  const rucLine = data.ruc ? `RUC: ${sanitizePrinterText(data.ruc)}\n` : '';
   cmd.push(
     ...encoder.encode(
-      `${sanitizePrinterText(data.enterprise)}\nRUC: ${sanitizePrinterText(data.ruc)}\n${separator}`,
+      `${sanitizePrinterText(data.enterprise)}\n${rucLine}${separator}`,
     ),
   );
   cmd.push(

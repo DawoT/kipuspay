@@ -33,7 +33,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let amber = $state('');
   let promotionId = $state('');
 
-  let customerId = $state('cust-demo');
+  let customerId = $state('');
   let saleIdempotencyKey = $state(`sale-${Date.now()}`);
   let loyaltyPoints = $state(10);
   let authzTokenHash = $state('');
@@ -94,11 +94,11 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       storage: localStorage,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        saleId: 'sale-demo',
-        salePaymentId: 'sp-demo',
+        saleId: saleIdempotencyKey,
+        salePaymentId: saleIdempotencyKey,
         paymentMethodId,
         amountCents: 1000,
-        idempotencyKey: `demo-${Date.now()}`,
+        idempotencyKey: saleIdempotencyKey,
       }),
     });
     const json = (await res.json()) as {

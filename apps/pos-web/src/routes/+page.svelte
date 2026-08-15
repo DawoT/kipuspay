@@ -359,11 +359,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       const reserve = correlatives.reserve(outcome.offlineSaleId, isNv ? 'NV01' : 'B001');
       const mockTicket: TicketData = {
         enterprise: session.tradeName,
-        ruc: '20123456789',
         documentType: isNv ? 'NV' : '03',
         series: isNv ? 'NV01' : 'B001',
         number: reserve.tentativeNumber,
-        totalCents,
+        totalCents: cartPayableCents(lines),
         lineWidth: 32,
         items: lines.map((l) => ({
           name: l.name,
