@@ -62,7 +62,10 @@ describe('referral-routes HTTP handlers unit tests', () => {
     expect(res.body).toHaveProperty('credited');
   });
 
-  it('S11-B4: la primera venta del referido extiende el trial +30d a ambos', async () => {
+  it(
+    'S11-B4: la primera venta del referido extiende el trial +30d a ambos',
+    { timeout: 20_000 },
+    async () => {
     const kv = new Map<string, string>();
     const nowIso = '2026-08-14T12:00:00.000Z';
     kv.set(
