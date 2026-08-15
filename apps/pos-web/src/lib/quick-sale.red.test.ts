@@ -10,7 +10,7 @@ const catalogSource = readFileSync(
 describe('Sprint 50 quick-sale UI contract (GREEN)', () => {
   it('caja: botón de venta rápida con tope sin authz y copy honesto', () => {
     expect(posSource).toContain('data-testid="quick-sale"');
-    expect(posSource).toContain('VENTA RÁPIDA (sin catálogo)');
+    expect(posSource).toContain('Venta rápida (sin catálogo)');
     expect(posSource).toContain('QUICK_SALE_MAX_CENTS = 2000');
     expect(posSource).toContain('El servidor calcula impuestos; esta línea no descuenta stock');
     expect(posSource).toContain('confirmTestid="quick-sale-add"');
