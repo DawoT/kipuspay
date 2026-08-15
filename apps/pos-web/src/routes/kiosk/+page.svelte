@@ -115,7 +115,7 @@
   .kiosk-card {
     max-width: 28rem;
     width: 100%;
-    padding: 2rem;
+    padding: var(--inset-shell);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;

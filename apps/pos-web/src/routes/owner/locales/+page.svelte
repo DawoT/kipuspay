@@ -146,7 +146,7 @@
 
 <style>
   .locales-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   .branch-ranking {

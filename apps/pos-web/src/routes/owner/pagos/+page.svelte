@@ -119,7 +119,7 @@ import { apiFetch } from '$lib/auth/api-client';
   }
 
   .pay-table {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   

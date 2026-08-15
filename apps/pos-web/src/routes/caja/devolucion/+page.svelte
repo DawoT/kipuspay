@@ -147,7 +147,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 <style>
   .return-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     max-width: 40rem;
   }
   .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.875rem; cursor: pointer; font-size: 0.875rem; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 500; }

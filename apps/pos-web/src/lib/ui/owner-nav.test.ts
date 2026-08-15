@@ -12,9 +12,13 @@ describe('ownerBottomTabs', () => {
 });
 
 describe('ownerOverflowLinks', () => {
-  it('mueve Previsiones fuera del bottom nav', () => {
+  it('mueve Previsiones y operaciones fuera del bottom nav', () => {
     const overflow = ownerOverflowLinks(false);
     expect(overflow.some((item) => item.href === '/owner/previsiones')).toBe(true);
+    expect(overflow.some((item) => item.href === '/owner/stock')).toBe(true);
+    expect(overflow.some((item) => item.href === '/owner/compras')).toBe(true);
+    expect(overflow.some((item) => item.href === '/owner/pagos')).toBe(true);
+    expect(overflow.some((item) => item.href === '/owner/transferencias')).toBe(true);
     expect(ownerBottomTabs().some((item) => item.href === '/owner/previsiones')).toBe(false);
   });
 

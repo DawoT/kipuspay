@@ -299,7 +299,33 @@ import { apiFetch } from '$lib/auth/api-client';
     align-items: start;
   }
 
+  .gre-card {
+    margin-top: 1.25rem;
+  }
 
+  .gre-lede {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+    line-height: 1.45;
+  }
+
+  .gre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: var(--space-3);
+    margin-bottom: 1rem;
+  }
+
+  .gre-msg {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .gre-msg-ok {
+    color: var(--emerald-green);
+  }
 
   .hint-text {
     font-size: 0.8125rem;
@@ -334,13 +360,7 @@ import { apiFetch } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 900px) {
-    .inv-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  @media (max-width: 600px) {
+  @media (max-width: 899px) {
     .inv-grid {
       grid-template-columns: 1fr;
     }

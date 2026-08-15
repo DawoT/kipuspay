@@ -179,7 +179,7 @@
   }
 
   .alert-status {
-    color: var(--amber-warning);
+    color: var(--amber-gold);
     font-size: 0.8125rem;
   }
 

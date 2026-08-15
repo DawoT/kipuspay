@@ -501,7 +501,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .caja-card {
-    padding: 2rem;
+    padding: var(--inset-shell);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -620,7 +620,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     background: rgba(16, 185, 129, 0.08);
     border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -650,7 +650,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;

@@ -86,10 +86,14 @@
     color: var(--owner-muted);
     padding: 0.85rem 0.25rem;
     min-height: 44px;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .owner-tabs a.active {
     color: var(--amber-gold);
@@ -104,7 +108,7 @@
       padding-right: 1.25rem;
     }
     .owner-body {
-      padding-bottom: 5.5rem;
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
     }
     .owner-tabs {
       position: fixed;

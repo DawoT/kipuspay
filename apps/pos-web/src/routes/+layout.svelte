@@ -29,6 +29,7 @@
   import { applyThemeToDocument, readDocumentTheme } from '$lib/ui/theme';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import BrandKnot from '$lib/ui/BrandKnot.svelte';
+  import CashierBottomNav from '$lib/ui/CashierBottomNav.svelte';
   import { breadcrumbLabel } from '$lib/ui/breadcrumb';
   import {
     chromeShowsSidebar,
@@ -466,6 +467,9 @@
         </div>
       {/key}
     </main>
+    {#if chromeMode === 'cashier'}
+      <CashierBottomNav role={authenticatedSession?.role ?? ''} />
+    {/if}
   </div>
 </div>
 

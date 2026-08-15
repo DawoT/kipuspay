@@ -183,7 +183,7 @@
   }
 
   .handoff-card {
-    padding: 2rem;
+    padding: var(--inset-shell);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -235,7 +235,7 @@
     background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;

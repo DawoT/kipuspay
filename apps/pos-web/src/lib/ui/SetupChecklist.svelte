@@ -52,7 +52,7 @@
 
 <style>
   .checklist-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.875rem;

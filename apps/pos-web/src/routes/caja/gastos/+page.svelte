@@ -93,7 +93,7 @@
 <style>
   .gastos-card,
   .gastos-side {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   .gastos-side h2 {

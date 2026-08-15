@@ -118,7 +118,7 @@
 
 <style>
   .catalog-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
   .catalog-header {
     margin-bottom: 0.75rem;

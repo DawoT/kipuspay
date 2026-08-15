@@ -146,7 +146,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
   .login-card {
     max-width: 28rem;
     width: 100%;
-    padding: 2rem;
+    padding: var(--inset-shell);
     text-align: center;
     display: flex;
     flex-direction: column;

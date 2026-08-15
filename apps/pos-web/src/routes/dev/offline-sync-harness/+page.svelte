@@ -97,7 +97,7 @@
 
 <style>
   .harness-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     max-width: 28rem;
   }
 

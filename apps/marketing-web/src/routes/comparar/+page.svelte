@@ -35,7 +35,6 @@
         <p class="brand-mark">KipusPay</p>
         <h1>{selected.title}</h1>
         <p class="hero-sub">{selected.hook}</p>
-        <p class="compare-intro">{selected.intro}</p>
         <div class="hero-actions">
           <a class="btn" href="/empezar">Empieza gratis</a>
           <a class="btn btn-ghost" href="#tabla">Ver la tabla</a>
@@ -81,6 +80,7 @@
         <QuipuSectionMark state="entry" tone="paper" />
       </div>
       <div class="section-body">
+        <p class="compare-intro lead" use:reveal>{selected.intro}</p>
         <div class="sec-head" use:reveal>
           <p class="eyebrow">
             <span class="knot-dot" aria-hidden="true"></span>

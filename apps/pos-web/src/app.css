@@ -111,6 +111,7 @@ body[data-theme='dark'] {
   --inset-field: 0.75rem 1rem;
   --inset-badge: 0.375rem 0.75rem;
   --inset-alert: 1rem 1.125rem;
+  --inset-shell: 2rem;
   --bp-compact: 719px;
 }
 
@@ -715,9 +716,9 @@ label {
 }
 
 .badge-warning {
-  background: rgba(217, 154, 61, 0.12);
-  color: var(--accent-primary);
-  border: 1px solid rgba(217, 154, 61, 0.25);
+  background: rgba(217, 106, 60, 0.14);
+  color: var(--rose-red);
+  border: 1px solid rgba(217, 106, 60, 0.35);
 }
 
 .badge-success {

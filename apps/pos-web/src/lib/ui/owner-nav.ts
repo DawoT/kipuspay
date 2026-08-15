@@ -18,6 +18,10 @@ export function ownerBottomTabs(): readonly OwnerNavItem[] {
 
 export function ownerOverflowLinks(insightsEnabled: boolean): readonly OwnerNavItem[] {
   return [
+    { href: '/owner/stock', label: 'Stock', testid: 'tab-stock' },
+    { href: '/owner/compras', label: 'Compras', testid: 'tab-compras' },
+    { href: '/owner/pagos', label: 'Pagos', testid: 'tab-pagos' },
+    { href: '/owner/transferencias', label: 'Transferencias', testid: 'tab-transferencias' },
     { href: '/owner/previsiones', label: 'Previsiones', testid: 'tab-previsiones' },
     ...(insightsEnabled
       ? [{ href: '/owner/asistente', label: 'Asistente', testid: 'tab-asistente' }]

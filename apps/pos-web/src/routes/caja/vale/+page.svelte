@@ -124,7 +124,7 @@
 <style>
   .vale-card,
   .vale-side {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   .vale-side h2 {

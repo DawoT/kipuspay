@@ -181,7 +181,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   .alerts-card,
   .variants-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   

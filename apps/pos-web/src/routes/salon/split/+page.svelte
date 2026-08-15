@@ -127,7 +127,7 @@
 
 <style>
   .split-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     flex: 1;
     max-width: none;
   }

@@ -410,14 +410,45 @@
   }
 
   .rail {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0;
   }
 
   .ledger {
-    padding: 1.25rem;
+    padding: var(--inset-card);
+  }
+
+  .scan-panel {
+    margin-bottom: 1.25rem;
+  }
+
+  .scan-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin: 0 0 0.875rem;
+  }
+
+  .scan-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+    gap: var(--space-3);
+    align-items: end;
+  }
+
+  .scan-input {
+    min-width: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 
   .ratio-row {
@@ -506,8 +537,12 @@
     color: var(--accent-primary-hover);
   }
 
-  @media (max-width: 800px) {
+  @media (max-width: 899px) {
     .workbench {
+      grid-template-columns: 1fr;
+    }
+
+    .scan-form {
       grid-template-columns: 1fr;
     }
   }

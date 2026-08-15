@@ -177,7 +177,7 @@
   }
 
   .fin-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   .card-header {

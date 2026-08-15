@@ -168,7 +168,7 @@
   }
 
   .plan-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     margin-bottom: 0;
   }
 
