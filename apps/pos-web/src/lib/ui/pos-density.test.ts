@@ -38,7 +38,11 @@ describe('FASE F densidad POS', () => {
   });
 
   it('caja operativa no capa 28rem', () => {
-    for (const rel of ['caja/cuotas/+page.svelte', 'caja/vale/+page.svelte', 'caja/gastos/+page.svelte']) {
+    for (const rel of [
+      'caja/cuotas/+page.svelte',
+      'caja/vale/+page.svelte',
+      'caja/gastos/+page.svelte',
+    ]) {
       const text = readFileSync(join(POS_SRC, 'routes', rel), 'utf8');
       expect(text, rel).not.toMatch(/max-width:\s*28rem/);
       expect(text, rel).not.toMatch(/max-width:28rem/);

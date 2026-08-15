@@ -40,8 +40,12 @@ describe('POS Ledger Minimalism tokens (Arquitectura §0.2)', () => {
   });
 
   it('unifica --text-dim del tema claro', () => {
-    const lightBlocks = [...POS_CSS.matchAll(/\[data-theme='light'\][\s\S]*?--text-dim:\s*(#[0-9a-fA-F]{6})/g)];
-    const prefers = [...POS_CSS.matchAll(/prefers-color-scheme:\s*light[\s\S]*?--text-dim:\s*(#[0-9a-fA-F]{6})/g)];
+    const lightBlocks = [
+      ...POS_CSS.matchAll(/\[data-theme='light'\][\s\S]*?--text-dim:\s*(#[0-9a-fA-F]{6})/g),
+    ];
+    const prefers = [
+      ...POS_CSS.matchAll(/prefers-color-scheme:\s*light[\s\S]*?--text-dim:\s*(#[0-9a-fA-F]{6})/g),
+    ];
     expect(lightBlocks.length).toBeGreaterThan(0);
     expect(prefers.length).toBeGreaterThan(0);
     expect(lightBlocks[0][1].toLowerCase()).toBe(prefers[0][1].toLowerCase());

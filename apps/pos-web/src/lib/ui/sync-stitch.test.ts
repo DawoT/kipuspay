@@ -3,9 +3,7 @@ import { stitchClass, stitchStateFromFlags } from './sync-stitch';
 
 describe('stitchStateFromFlags', () => {
   it('cose mientras cobra, está offline o hay cola', () => {
-    expect(stitchStateFromFlags({ online: true, pendingCount: 0, charging: true })).toBe(
-      'pending',
-    );
+    expect(stitchStateFromFlags({ online: true, pendingCount: 0, charging: true })).toBe('pending');
     expect(stitchStateFromFlags({ online: false, pendingCount: 0, charging: false })).toBe(
       'pending',
     );
@@ -15,9 +13,7 @@ describe('stitchStateFromFlags', () => {
   });
 
   it('remata en verde cuando no hay pendiente', () => {
-    expect(stitchStateFromFlags({ online: true, pendingCount: 0, charging: false })).toBe(
-      'synced',
-    );
+    expect(stitchStateFromFlags({ online: true, pendingCount: 0, charging: false })).toBe('synced');
   });
 });
 

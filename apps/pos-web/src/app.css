@@ -269,11 +269,7 @@ h4,
   right: 0;
   bottom: -0.1em;
   height: 2px;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--amber-gold) 0 5px,
-    transparent 5px 10px
-  );
+  background-image: repeating-linear-gradient(90deg, var(--amber-gold) 0 5px, transparent 5px 10px);
 }
 
 .stitch.in::after {

@@ -1,12 +1,7 @@
 /** Copy de caja en español de negocio (GTM §6.5, V-27). Cero enums al cajero. */
 
 export type ScaleUiState =
-  | 'CONNECTING'
-  | 'STABLE'
-  | 'UNSTABLE'
-  | 'STALE'
-  | 'MANUAL_REQUIRED'
-  | 'DISCONNECTED';
+  'CONNECTING' | 'STABLE' | 'UNSTABLE' | 'STALE' | 'MANUAL_REQUIRED' | 'DISCONNECTED';
 
 export function scaleStateLabel(state: ScaleUiState): string {
   switch (state) {
