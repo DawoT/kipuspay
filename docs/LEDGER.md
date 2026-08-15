@@ -10390,3 +10390,163 @@ aprobaciones: [Staff Frontend R, Staff QA A, Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0410
+timestamp_utc: 2026-08-15T14:50:00Z
+schema_version: 2
+sprint_fase: FASE F+ — Gaps residuales densidad/copy post-0406
+agente_responsable: Staff Product Design
+tipo: Corrección
+subtipo: copy Dueño, workbench caja, OC 44px, tablero salón
+relacion: amplia
+referencias_entradas: [0406]
+referencias_documentales: [docs/GTM.md, docs/architecture/00-brand-positioning.md]
+prev_id: 0409
+prev_hash: 742bdac45aa1cfa6644e68d5d1f9eb3b3e34e93d72d706559b703639c1794009
+entry_hash: f89ef131ead3df3ce8a0b3542d13ad5740757699681640d40c1aca6c199e0e1b
+ticket_or_adr: GTM §6.3, Arquitectura §0.2.4, V-27
+test_ids: [owner-shell, pos-density, breadcrumb, chrome, V-27, SUITE]
+entregable_afectado: apps/pos-web (owner Hoy, caja vale/gastos, admin OC, salon/split, app.css)
+descripcion: >
+  Cierra gaps residuales tras FASE F (0406): Dueño Hoy usa ledger-card y
+  copy sin jerga fiscal/máquina (Notas del negocio; backlog humano);
+  .stat-label sentence-case (sin uppercase). Vale/gastos a workbench-2col
+  a ancho de page-shell. OC recepción labels en español de negocio y
+  link-action 44px (también factura-proveedor). Salón/split densificados
+  a grilla de tablero ≥900px. Preview fresco :4173 verificado.
+evidencia: >
+  RED: glass-panel y jerga CPE/E-A en Hoy; .stat-label uppercase; vale/
+  gastos flacos; labels purchase_receipt_line_id; salón ficha 1-col.
+  GREEN: unit owner-shell/pos-density/chrome/breadcrumb 20/20; V-27
+  GREEN (52 rutas); HTML /owner con Resumen del día + chrome-bare;
+  verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0411
+timestamp_utc: 2026-08-15T15:25:00Z
+schema_version: 2
+sprint_fase: FASE F+ — Banner POS mobile + strips similares
+agente_responsable: Staff Product Design
+tipo: Corrección
+subtipo: banner Mi Tienda responsive; formalizationModeLabel
+relacion: amplia
+referencias_entradas: [0406, 0410]
+referencias_documentales: [docs/GTM.md, docs/architecture/00-brand-positioning.md]
+prev_id: 0410
+prev_hash: f89ef131ead3df3ce8a0b3542d13ad5740757699681640d40c1aca6c199e0e1b
+entry_hash: 1017143044c3e99a64df3a36bb718262120358cf71e0dd460dbd7986c23b62b8
+ticket_or_adr: GTM §6.3/§6.5, V-27
+test_ids: [ops-copy, pos-density, V-27, SUITE]
+entregable_afectado: apps/pos-web (home banner, caja strips, admin config/equipo, owner/yo)
+descripcion: >
+  El strip Mi Tienda del Terminal POS desbordaba en mobile: prosa de
+  formalización como badge, enum INTERNAL_CONTROL circular y campos
+  vendedor/cliente en fila sin wrap. Callout StatusMessage a ancho;
+  formalizationModeLabel (ops-copy); banner-row apila ≤900px; wrap en
+  card-header-bar/preflight/input-with-button; config y Dueño Yo sin enum.
+evidencia: >
+  RED: badges en una fila, INTERNAL_CONTROL visible, input 180px overflow.
+  GREEN: ops-copy + pos-density; V-27 GREEN; verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0412
+timestamp_utc: 2026-08-15T15:40:00Z
+schema_version: 2
+sprint_fase: FASE F+ — Dueño owner-dark superficies
+agente_responsable: Staff Product Design
+tipo: Corrección
+subtipo: tokens owner-dark + alias --bg-ledger-card
+relacion: amplia
+referencias_entradas: [0406, 0410, 0411]
+referencias_documentales: [docs/architecture/00-brand-positioning.md]
+prev_id: 0411
+prev_hash: 1017143044c3e99a64df3a36bb718262120358cf71e0dd460dbd7986c23b62b8
+entry_hash: e6c829bd512497543c58cdf534e65f2ff4be03148f1185a646f6039210fc8649
+ticket_or_adr: Arquitectura §0.2, GTM §6.3
+test_ids: [ledger-tokens, SUITE]
+entregable_afectado: apps/pos-web/src/app.css (owner-dark, bg-ledger-card); admin diario/series
+descripcion: >
+  Completa [data-theme=owner-dark] con la pila de superficies del tema
+  dark (glass-card, borders, text-dim, inputs) para que Modo Dueño no
+  herede --bg-glass-card blanco del tema light global (stat-card ilegible).
+  Alias --bg-ledger-card en dark/light/owner; quita fallbacks slate en
+  diario/series.
+evidencia: >
+  RED: owner-dark solo texto; glass-card #fff + text-main papel.
+  GREEN: ledger-tokens owner-dark; verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0413
+timestamp_utc: 2026-08-15T18:00:31Z
+schema_version: 2
+sprint_fase: Sprint 57 — Fase 6H (Remediación y Sello QA)
+agente_responsable: Staff Frontend / Staff QA
+tipo: Corrección
+subtipo: remediación de hallazgos F-9..F-13 y gate V-30 (ciclo RED→GREEN)
+relacion: corrige
+referencias_entradas: [0409, 0410, 0411, 0412]
+referencias_documentales: [docs/ops/browser-functional-audit.md, apps/pos-web/src/lib/features.ts, docs/runbooks/local-bootstrap.md, apps/marketing-web/src/lib/content/help.ts, apps/marketing-web/src/lib/content/legal.ts, apps/marketing-web/src/lib/content/security.ts, apps/pos-web/src/routes/owner/+page.svelte, scripts/checks/pos_demo_ids.py]
+prev_id: 0412
+prev_hash: e6c829bd512497543c58cdf534e65f2ff4be03148f1185a646f6039210fc8649
+entry_hash: 100881b53019f3c7b0b233dd7bb9049527959d6e495c4702c65bf6e60492ec06
+ticket_or_adr: docs/ops/browser-functional-audit.md §3, Proceso §8.1, CAL-07/§13.9, ADR-ARCH-002
+test_ids: [apps/marketing-web/src/lib/content/help.test.ts, apps/marketing-web/src/lib/content/legal.test.ts, apps/marketing-web/src/lib/content/security.test.ts, apps/pos-web/tests/e2e/owner-day-summary.spec.ts, apps/pos-web/tests/e2e/onboarding-claim-reload.spec.ts, apps/pos-web/tests/e2e/backups.spec.ts, apps/pos-web/tests/e2e/owner-briefing-plan-gate.spec.ts, V-00, V-30, SUITE]
+entregable_afectado: apps/worker-api (flags), apps/marketing-web (ayuda/legal/seguridad/footer), apps/pos-web (resumen Dueño, literales demo), docs/runbooks, scripts/verify.sh
+descripcion: >
+  Sprint 57 de la Fase 6H. F-9: cuatro flags de capability declarados en
+  wrangler.jsonc vars (FEATURE_CATALOG_SELLABLE, FEATURE_ANALYTICS_FORECASTING,
+  FEATURE_PAYMENTS_CARD_ACQUIRER, FEATURE_PAYMENTS_QR_WALLETS, default "0") y
+  worker-configuration.d.ts regenerado con wrangler types; cero forks por
+  vertical (ADR-ARCH-002). F-10: runbook local-bootstrap.md para el síntoma
+  503 DB_UNAVAILABLE (wrangler d1 migrations apply DB --local, migrations_dir
+  packages/adapters-d1/migrations, par down y rollback). F-11: HelpItem gana
+  availability: 'preparing' y /ayuda renderiza el badge "En preparación" para
+  6 capacidades congeladas (activar-facturacion, sin-internet, limite-offline,
+  insights-diario, pedidos-whatsapp, membresias). F-12: /terminos cita la Ley
+  29571 y el Distrito Judicial de Lima Centro; /privacidad cita la Ley 29733 y
+  el D.S. 003-2013-JUS; /seguridad detalla SLA SEV-1/SEV-2/SEV-3; el footer
+  suma facturacion@kipuspay.com. F-13: el dashboard Dueño dejó de auto-
+  referenciarse (siempre 0): fetchDaySummary consulta /api/owner/day-summary
+  vía apiFetch y refleja la verdad server-side (rollup 08:00, "no en vivo").
+  V-30: checker pos_demo_ids.py — cero literales demo en el código fuente del
+  POS (refuerza V-27); registrado en verify.sh, selftest.py (V-00) y AGENTS.md;
+  9 residuos demo eliminados (session.ts tenantId, branchId previsiones/stock,
+  purchaseReceiptId/productId devolución, evidenceKey inventario, fila demo de
+  importación, weigh-demo).
+evidencia: >
+  RED (run-red-6h-s57-f9f13): marketing-web vitest 3 failed — F-11
+  availability 'preparing' ausente, F-12 jurisdicción sin cita 29571 ni
+  severidades SEV-1/2/3; V-30 scan sobre árbol HEAD: 9 hallazgos demo
+  (weigh-demo x2, b-demo x2, r2/merma/demo.jpg, 'Demo', rcpt-demo, demo x2);
+  e2e owner-day-summary 1 failed — hoy-net muestra S/ 0.00 (stub) vs 311.50
+  del servidor.
+  GREEN (run-green-6h-s57-f9f13): marketing-web 18/18; V-30 GREEN (150
+  archivos); e2e Playwright 4/4 (owner-day-summary, onboarding-claim-reload,
+  backups, owner-briefing-plan-gate); worker-api vitest 1163/1163; tsc 0
+  errores; svelte-check 0 errores; verify.sh SUITE.
+red_commit_sha: b3552cf0690cddbc2ef704a2ca5816258f187801
+red_run_id: run-red-6h-s57-f9f13
+expected_failure: AssertionError 'preparing' ausente en /ayuda / jurisdicción sin Ley 29571 / severidades SEV-1 ausentes / S/ 0.00 en lugar del resumen del servidor en /owner / 9 literales demo detectados
+green_commit_sha: dac2d72
+green_run_id: run-green-6h-s57-f9f13
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff QA A, Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
