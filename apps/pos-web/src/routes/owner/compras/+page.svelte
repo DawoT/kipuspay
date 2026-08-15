@@ -39,7 +39,7 @@ import { apiFetch } from '$lib/auth/api-client';
         error?: string;
       };
       if (!res.ok) {
-        message = json.error ?? `Error ${res.status}';
+        message = json.error ?? `Error ${res.status}`;
         messageOk = false;
         loading = false;
         return;
@@ -54,7 +54,7 @@ import { apiFetch } from '$lib/auth/api-client';
       });
       const retJson = (await ret.json()) as { openReturns?: typeof openReturns; error?: string };
       if (!ret.ok) {
-        message = retJson.error ?? `Error ${ret.status}';
+        message = retJson.error ?? `Error ${ret.status}`;
         messageOk = false;
         loading = false;
         return;
