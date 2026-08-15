@@ -193,6 +193,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
@@ -250,5 +251,16 @@
     align-items: center;
     padding: 0.5rem 0;
     border-top: 1px solid var(--border-subtle);
+  }
+
+  @media (max-width: 900px) {
+    .card-header-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .pin-reveal-card {
+      flex-wrap: wrap;
+    }
   }
 </style>

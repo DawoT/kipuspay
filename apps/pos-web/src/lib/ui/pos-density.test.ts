@@ -49,10 +49,24 @@ describe('FASE F densidad POS', () => {
     }
   });
 
-  it('eyebrow y section-tag son sentence-case en el kit', () => {
+  it('eyebrow, section-tag y stat-label son sentence-case en el kit', () => {
     const eyebrow = APP_CSS.match(/\.page-eyebrow\s*\{[^}]+\}/)?.[0] ?? '';
     const tag = APP_CSS.match(/\.section-tag\s*\{[^}]+\}/)?.[0] ?? '';
+    const stat = APP_CSS.match(/\.stat-label\s*\{[^}]+\}/)?.[0] ?? '';
     expect(eyebrow).not.toMatch(/text-transform:\s*uppercase/);
     expect(tag).not.toMatch(/text-transform:\s*uppercase/);
+    expect(stat).not.toMatch(/text-transform:\s*uppercase/);
+  });
+
+  it('banner POS humaniza formalización y apila en mobile', () => {
+    const home = readFileSync(join(POS_SRC, 'routes', '+page.svelte'), 'utf8');
+    expect(home).toMatch(/formalizationModeLabel\(/);
+    expect(home).toMatch(/data-testid="formalization-banner"/);
+    expect(home).not.toMatch(
+      /data-testid="formalization-mode"[^>]*>\s*\{session\.formalizationMode\}/,
+    );
+    expect(home).toMatch(/\.banner-row/);
+    expect(home).toMatch(/flex-direction:\s*column/);
+    expect(home).toMatch(/max-width:\s*900px/);
   });
 });

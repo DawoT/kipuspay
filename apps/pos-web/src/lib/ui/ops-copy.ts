@@ -188,3 +188,17 @@ export function promoAppliesLabel(appliesTo: string): string {
       return 'Promoción';
   }
 }
+
+/** Etapa de formalización fiscal — copy de negocio, cero enums al operador (V-27). */
+export function formalizationModeLabel(mode: string): string {
+  switch (mode.trim().toUpperCase()) {
+    case 'INTERNAL_CONTROL':
+      return 'Solo notas de venta';
+    case 'FORMALIZING':
+      return 'Formalizando';
+    case 'ELECTRONIC_ISSUER':
+      return 'Emisión electrónica';
+    default:
+      return 'Etapa de formalización';
+  }
+}

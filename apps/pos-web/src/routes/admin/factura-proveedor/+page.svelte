@@ -265,7 +265,7 @@ import { apiFetch } from '$lib/auth/api-client';
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 

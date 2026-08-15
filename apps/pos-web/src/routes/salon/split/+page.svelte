@@ -89,26 +89,22 @@
 
     <div class="ledger-card split-card" data-testid="split">
       <div class="card-header">
-        <h2>Dividir orden</h2>
+        <h2>Dividir cuenta</h2>
         <span class="badge badge-indigo">Multi-pago</span>
       </div>
-      <div class="field-group">
-        <label for="sp-order">Comanda</label>
-        <input id="sp-order" data-testid="split-order" bind:value={orderId} placeholder="ID de la orden" />
-      </div>
-
-      <div class="two-col">
+      <div class="split-board">
         <div class="field-group">
-          <label for="sp-item-a">ID Ítem A</label>
+          <label for="sp-order">Comanda</label>
+          <input id="sp-order" data-testid="split-order" bind:value={orderId} placeholder="ID de la orden" />
+        </div>
+        <div class="field-group">
+          <label for="sp-item-a">Ítem A</label>
           <input id="sp-item-a" data-testid="split-item-a" bind:value={itemA} placeholder="Primer ítem a cobrar" />
         </div>
         <div class="field-group">
-          <label for="sp-item-b">ID Ítem B</label>
+          <label for="sp-item-b">Ítem B</label>
           <input id="sp-item-b" data-testid="split-item-b" bind:value={itemB} placeholder="Segundo ítem a cobrar" />
         </div>
-      </div>
-
-      <div class="two-col">
         <div class="field-group">
           <label for="sp-session">Sesión de caja</label>
           <input id="sp-session" data-testid="split-session" bind:value={sessionId} placeholder="Sesión de caja" />
@@ -117,16 +113,14 @@
           <label for="sp-pm">Método de pago</label>
           <input id="sp-pm" data-testid="split-pm" bind:value={paymentMethodId} placeholder="Efectivo u otro método" />
         </div>
+        <div class="field-group">
+          <label for="sp-series">Serie documento</label>
+          <input id="sp-series" data-testid="split-series" bind:value={series} />
+        </div>
+        <Button variant="primary" size="full" data-testid="split-submit" onclick={splitBill} icon="percent">
+          Cobrar por partes
+        </Button>
       </div>
-
-      <div class="field-group">
-        <label for="sp-series">Serie documento</label>
-        <input id="sp-series" data-testid="split-series" bind:value={series} />
-      </div>
-
-      <Button variant="primary" size="full" data-testid="split-submit" onclick={splitBill} icon="percent">
-        Cobrar split
-      </Button>
     </div>
   {/if}
 </div>
@@ -135,9 +129,25 @@
   .split-card {
     padding: 1.25rem;
     flex: 1;
+    max-width: none;
   }
 
+  .split-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
+  }
 
+  .split-board :global(.ui-btn) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 899px) {
+    .split-board {
+      grid-template-columns: 1fr;
+    }
+  }
 
   .link-action {
     display: inline-flex;

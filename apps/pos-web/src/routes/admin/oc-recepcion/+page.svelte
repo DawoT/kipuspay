@@ -212,11 +212,11 @@
             </span>
           </div>
           <div class="field-group">
-            <label for="serial-line-id">purchase_receipt_line_id</label>
+            <label for="serial-line-id">Línea de recepción</label>
             <input id="serial-line-id" bind:value={purchaseReceiptLineId} autocomplete="off" />
           </div>
           <div class="field-group">
-            <label for="serial-loc-id">location_id</label>
+            <label for="serial-loc-id">Ubicación</label>
             <input id="serial-loc-id" bind:value={locationId} autocomplete="off" />
           </div>
           <div class="field-group">
@@ -269,7 +269,7 @@
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 

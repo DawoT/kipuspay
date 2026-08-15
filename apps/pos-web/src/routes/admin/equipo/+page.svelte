@@ -121,6 +121,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
@@ -185,5 +186,16 @@
   .cred-label {
     font-size: 0.75rem;
     color: var(--text-muted);
+  }
+
+  @media (max-width: 900px) {
+    .card-header-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .creds-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

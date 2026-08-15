@@ -62,29 +62,49 @@
       <span>Los gastos de caja no están activos para esta tienda.</span>
     </div>
   {:else}
-    <div class="ledger-card gastos-card">
-      <Field label="Categoría" id="gasto-cat">
-        <select id="gasto-cat" bind:value={category} data-testid="caja-gastos-cat">
-          <option value="SUPPLIES">Insumos</option>
-          <option value="TRANSPORT">Transporte</option>
-          <option value="OTHER">Otro</option>
-        </select>
-      </Field>
-      <Field label="Monto" id="gasto-cents">
-        <Input id="gasto-cents" type="number" bind:value={amountCents} data-testid="caja-gastos-cents" />
-      </Field>
-      <Field label="Descripción" id="gasto-desc">
-        <Input id="gasto-desc" bind:value={description} data-testid="caja-gastos-desc" />
-      </Field>
-      <Button variant="primary" icon="plus" data-testid="caja-gastos-save" onclick={() => void createExpense()}>
-        Registrar gasto
-      </Button>
+    <div class="workbench-2col">
+      <div class="ledger-card gastos-card">
+        <Field label="Categoría" id="gasto-cat">
+          <select id="gasto-cat" bind:value={category} data-testid="caja-gastos-cat">
+            <option value="SUPPLIES">Insumos</option>
+            <option value="TRANSPORT">Transporte</option>
+            <option value="OTHER">Otro</option>
+          </select>
+        </Field>
+        <Field label="Monto" id="gasto-cents">
+          <Input id="gasto-cents" type="number" bind:value={amountCents} data-testid="caja-gastos-cents" />
+        </Field>
+        <Field label="Descripción" id="gasto-desc">
+          <Input id="gasto-desc" bind:value={description} data-testid="caja-gastos-desc" />
+        </Field>
+        <Button variant="primary" icon="plus" data-testid="caja-gastos-save" onclick={() => void createExpense()}>
+          Registrar gasto
+        </Button>
+      </div>
+      <aside class="ledger-card gastos-side">
+        <h2>Salidas de caja</h2>
+        <p>Registra el egreso contra la sesión abierta. No reemplaza el cierre Z.</p>
+        <p>Usa una descripción clara para conciliar el arqueo al final del turno.</p>
+      </aside>
     </div>
   {/if}
 </div>
 
 <style>
-  .gastos-card {
+  .gastos-card,
+  .gastos-side {
     padding: 1.25rem;
+  }
+
+  .gastos-side h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  .gastos-side p {
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.45;
   }
 </style>

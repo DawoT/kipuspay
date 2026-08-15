@@ -511,6 +511,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
@@ -538,6 +539,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
@@ -546,6 +548,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
+    min-width: 0;
   }
   .item-label {
     color: var(--text-muted);
@@ -683,5 +686,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
   .diff-zero {
     color: var(--emerald-green);
+  }
+
+  @media (max-width: 900px) {
+    .card-header-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .preflight-status-card {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>

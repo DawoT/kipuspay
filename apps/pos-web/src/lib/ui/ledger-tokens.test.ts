@@ -51,6 +51,32 @@ describe('POS Ledger Minimalism tokens (Arquitectura §0.2)', () => {
     expect(lightBlocks[0][1].toLowerCase()).toBe(prefers[0][1].toLowerCase());
   });
 
+  it('owner-dark completa superficies oscuras (no hereda glass-card blanco)', () => {
+    const owner = POS_CSS.match(/\[data-theme='owner-dark'\]\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(owner).toMatch(/--bg-glass-card:\s*rgba\(35,\s*39,\s*48/);
+    expect(owner).not.toMatch(/--bg-glass-card:\s*#ffffff/);
+    expect(owner).toMatch(/--text-dim:\s*#8a94a3/);
+    expect(owner).toMatch(/--bg-ledger-card:\s*var\(--bg-glass-card\)/);
+    expect(owner).toMatch(/--bg-surface:\s*#232730/);
+    expect(owner).toMatch(/--border-subtle:/);
+  });
+
+  it('alias --bg-ledger-card en dark y light', () => {
+    expect(POS_CSS).toMatch(/--bg-ledger-card:\s*var\(--bg-glass-card\)/);
+    const dark = POS_CSS.match(
+      /:root\[data-theme='dark'\][\s\S]*?--bg-ledger-card:\s*var\(--bg-glass-card\)/,
+    );
+    const light = POS_CSS.match(
+      /:root\[data-theme='light'\][\s\S]*?--bg-ledger-card:\s*var\(--bg-glass-card\)/,
+    );
+    // dark tokens live on :root / body[data-theme=dark] shared block
+    expect(POS_CSS).toMatch(
+      /body\[data-theme='dark'\][\s\S]*?--bg-ledger-card:\s*var\(--bg-glass-card\)/,
+    );
+    expect(light).not.toBeNull();
+    void dark;
+  });
+
   it('cero fallbacks slate en componentes POS', () => {
     const hits: string[] = [];
     for (const file of walk(POS_SRC)) {

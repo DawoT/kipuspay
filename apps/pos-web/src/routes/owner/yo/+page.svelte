@@ -6,6 +6,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import { apiFetch } from '$lib/auth/api-client';
   import { ownerOverflowLinks } from '$lib/ui/owner-nav';
+  import { formalizationModeLabel } from '$lib/ui/ops-copy';
 
   const enabled = isOwnerModeEnabled();
   const moreLinks = ownerOverflowLinks(isAgenticInsightsEnabled());
@@ -22,7 +23,7 @@
 
   onMount(() => {
     let s = readTenantSession(sessionStorage);
-    planLabel = `Plan: Arranque · ${s.formalizationMode}`;
+    planLabel = `Plan: Arranque · ${formalizationModeLabel(s.formalizationMode)}`;
 
     void (async () => {
       try {

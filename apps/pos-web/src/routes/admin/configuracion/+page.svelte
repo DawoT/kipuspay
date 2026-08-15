@@ -28,6 +28,7 @@
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
   import Icon from '$lib/ui/Icon.svelte';
+  import { formalizationModeLabel } from '$lib/ui/ops-copy';
   import Button from '$lib/ui/Button.svelte';
   import Badge from '$lib/ui/Badge.svelte';
   import Modal from '$lib/ui/Modal.svelte';
@@ -496,7 +497,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </div>
       <p class="mode-badge" data-testid="admin-mode">
         <Icon name="shield" size={14} />
-        <span>Actual: {session.formalizationMode}</span>
+        <span>Actual: {formalizationModeLabel(session.formalizationMode)}</span>
       </p>
       <p class="hint">
         Avance confirmado, sin convertir notas de venta históricas. Emisión electrónica vía KipusPay por defecto.
@@ -509,7 +510,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
           onclick={() => requestAdvance('FORMALIZING')}
           icon="arrow-right"
         >
-          Activar facturación (FORMALIZING)
+          Activar facturación
         </Button>
         <Button
           variant="secondary"
@@ -518,7 +519,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
           onclick={() => requestAdvance('ELECTRONIC_ISSUER')}
           icon="check"
         >
-          Marcar emisor electrónico
+          Pasar a emisión electrónica
         </Button>
       </div>
     </section>

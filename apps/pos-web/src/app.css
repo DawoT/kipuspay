@@ -65,6 +65,7 @@ body[data-theme='dark'] {
   --bg-glass-hover: rgba(44, 49, 58, 0.88);
   --bg-input: rgba(26, 29, 35, 0.65);
   --bg-button-sec: rgba(243, 239, 230, 0.06);
+  --bg-ledger-card: var(--bg-glass-card);
 
   --border-subtle: rgba(243, 239, 230, 0.12);
   --border-strong: rgba(243, 239, 230, 0.22);
@@ -119,6 +120,7 @@ body[data-theme='light'] {
   --bg-glass-hover: #f8f6f0;
   --bg-input: #ffffff;
   --bg-button-sec: #e7e0d2;
+  --bg-ledger-card: var(--bg-glass-card);
 
   --border-subtle: rgba(20, 22, 28, 0.12);
   --border-strong: rgba(20, 22, 28, 0.22);
@@ -160,6 +162,7 @@ body[data-theme='light'] {
     --bg-glass-hover: #f8f6f0;
     --bg-input: #ffffff;
     --bg-button-sec: #e7e0d2;
+    --bg-ledger-card: var(--bg-glass-card);
 
     --border-subtle: rgba(20, 22, 28, 0.12);
     --border-strong: rgba(20, 22, 28, 0.22);
@@ -194,10 +197,36 @@ body[data-theme='light'] {
   --owner-accent: #d99a3d;
   --owner-surface: #1a1d23;
   --owner-border: #2c313a;
+
+  --ink: #14161c;
+  --paper: #f3efe6;
+  --sello: #0f6b4c;
+  --alerta: #b5461d;
+  --amber: #d99a3d;
+
   --bg-primary: var(--owner-bg);
+  --bg-secondary: var(--owner-surface);
+  --bg-surface: #232730;
+  --bg-glass: rgba(26, 29, 35, 0.88);
+  --bg-glass-card: rgba(35, 39, 48, 0.75);
+  --bg-glass-hover: rgba(44, 49, 58, 0.88);
+  --bg-input: rgba(26, 29, 35, 0.65);
+  --bg-button-sec: rgba(243, 239, 230, 0.06);
+  --bg-ledger-card: var(--bg-glass-card);
+
+  --border-subtle: rgba(243, 239, 230, 0.12);
+  --border-strong: rgba(243, 239, 230, 0.22);
+  --border-glow: rgba(217, 154, 61, 0.45);
+
+  --accent-primary: var(--owner-accent);
+  --accent-primary-hover: #eeb765;
+  --emerald-green: var(--sello);
+  --amber-gold: var(--amber);
+  --rose-red: var(--alerta);
+
   --text-main: var(--owner-fg);
   --text-muted: var(--owner-muted);
-  --accent-primary: var(--owner-accent);
+  --text-dim: #8a94a3;
 }
 
 *,
@@ -634,10 +663,9 @@ label {
 }
 
 .stat-label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 

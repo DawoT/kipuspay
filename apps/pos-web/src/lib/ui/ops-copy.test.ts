@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   catalogItemLabel,
   documentKindLabel,
+  formalizationModeLabel,
   kdsEventLabel,
   ledgerSignLabel,
   orderStatusLabel,
@@ -88,5 +89,14 @@ describe('promoAppliesLabel', () => {
   it('no muestra PRODUCT/CART crudos', () => {
     expect(promoAppliesLabel('PRODUCT')).toBe('Producto');
     expect(promoAppliesLabel('CART')).toBe('Carrito');
+  });
+});
+
+describe('formalizationModeLabel', () => {
+  it('no expone INTERNAL_CONTROL / FORMALIZING / ELECTRONIC_ISSUER', () => {
+    expect(formalizationModeLabel('INTERNAL_CONTROL')).toBe('Solo notas de venta');
+    expect(formalizationModeLabel('FORMALIZING')).toBe('Formalizando');
+    expect(formalizationModeLabel('ELECTRONIC_ISSUER')).toBe('Emisión electrónica');
+    expect(formalizationModeLabel('INTERNAL_CONTROL')).not.toMatch(/INTERNAL_/);
   });
 });

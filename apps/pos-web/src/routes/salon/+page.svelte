@@ -104,23 +104,23 @@
         <h2>Nueva comanda</h2>
         <span class="badge badge-warning">Mesa {tableLabel || '—'}</span>
       </div>
-      <div class="field-group">
-        <label for="salon-tbl">Mesa / Ubicación</label>
-        <input id="salon-tbl" data-testid="salon-table" bind:value={tableLabel} placeholder="Ej. 12" />
-      </div>
-      <div class="two-col">
+      <div class="salon-board">
+        <div class="field-group">
+          <label for="salon-tbl">Mesa / Ubicación</label>
+          <input id="salon-tbl" data-testid="salon-table" bind:value={tableLabel} placeholder="Ej. 12" />
+        </div>
         <div class="field-group">
           <label for="salon-prod">Producto</label>
-          <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="p1" />
+          <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="Código o nombre" />
         </div>
         <div class="field-group">
           <label for="salon-qty-input">Cantidad</label>
           <input id="salon-qty-input" data-testid="salon-qty" type="number" min="1" bind:value={quantity} />
         </div>
+        <Button variant="primary" size="full" data-testid="salon-fire" onclick={createAndFire} icon="plus">
+          Enviar a cocina
+        </Button>
       </div>
-      <Button variant="primary" size="full" data-testid="salon-fire" onclick={createAndFire} icon="plus">
-        Enviar a cocina
-      </Button>
 
       {#if orderId}
         <div class="order-id-box" data-testid="salon-order-id">
@@ -136,6 +136,24 @@
   .salon-card {
     padding: 1.25rem;
     flex: 1;
+    max-width: none;
+  }
+
+  .salon-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
+  }
+
+  .salon-board :global(.ui-btn) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 899px) {
+    .salon-board {
+      grid-template-columns: 1fr;
+    }
   }
 
   .order-id-box {
