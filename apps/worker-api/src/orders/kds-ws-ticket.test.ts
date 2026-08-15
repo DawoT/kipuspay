@@ -4,12 +4,12 @@ import { kdsWsTicketKvKey } from './kds-hub-helpers.js';
 
 describe('KDS WS ticket', () => {
   it('flag off → 404; sin KV → 503; mint + consume one-shot', async () => {
-    expect((await runMintKdsWsTicketHttp({ FEATURE_ORDERS_KDS: '0' }, 't1', 'b1')).status).toBe(
-      404,
-    );
-    expect((await runMintKdsWsTicketHttp({ FEATURE_ORDERS_KDS: '1' }, 't1', 'b1')).status).toBe(
-      503,
-    );
+    expect(
+      (await runMintKdsWsTicketHttp({ FEATURE_ORDERS_KDS: '0' } as never, 't1', 'b1')).status,
+    ).toBe(404);
+    expect(
+      (await runMintKdsWsTicketHttp({ FEATURE_ORDERS_KDS: '1' } as never, 't1', 'b1')).status,
+    ).toBe(503);
 
     const store = new Map<string, string>();
     const kv = {

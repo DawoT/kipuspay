@@ -52,7 +52,7 @@ describe('runCancelTenantHttp (S11-E11 cancelación self-serve)', () => {
       )
       .mockResolvedValueOnce(new Response('{}', { status: 200 }));
     const res = await runCancelTenantHttp(
-      { ...env(true), STRIPE_SECRET_KEY: 'sk_test' } as never,
+      { ...(env(true) as object), STRIPE_SECRET_KEY: 'sk_test' } as never,
       't1',
       'owner',
       fetchImpl,

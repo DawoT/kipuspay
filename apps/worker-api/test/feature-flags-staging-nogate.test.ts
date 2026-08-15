@@ -1,16 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument -- node:fs/url types unresolved under worker-api eslint project service */
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Fase K (enterprise gaps): Quality Gates de staging (GTM-07/08/09/18,
- * Insights/KDS/offline, SLA 1h) requieren Proceso §8.1 A+V en staging.
+ * Fase K (enterprise gaps): Quality Gates de staging requieren Proceso §8.1 A+V.
  * Prohibido simular live flippeando FEATURE_* en wrangler local/repo.
+ * Vive fuera de `src/` para no pelear con tsconfig tipado solo Cloudflare Workers.
  */
 describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () => {
   it('wrangler.jsonc no enciende flags de claims live / canary', () => {
-    const wranglerPath = fileURLToPath(new URL('../../wrangler.jsonc', import.meta.url));
+    const wranglerPath = join(dirname(fileURLToPath(import.meta.url)), '../wrangler.jsonc');
     const wrangler = readFileSync(wranglerPath, 'utf8');
     const liveSensitive = [
       'FEATURE_FISCAL_CPE',
