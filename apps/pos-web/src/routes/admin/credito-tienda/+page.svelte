@@ -6,7 +6,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-  import { ledgerSignLabel } from '$lib/ui/ops-copy';
+  import { ledgerSignLabel, salesErrorCopy } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
@@ -29,7 +29,7 @@
     messageOk = res.ok;
     message = res.ok
       ? `Crédito expirado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
-      : (json.error ?? `Error ${res.status}`);
+      : salesErrorCopy(json.error);
   }
 
   async function adjust() {
@@ -50,7 +50,7 @@
     messageOk = res.ok;
     message = res.ok
       ? `Ajuste ${ledgerSignLabel(adjustSign)} aplicado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
-      : (json.error ?? `Error ${res.status}`);
+      : salesErrorCopy(json.error);
   }
 </script>
 

@@ -9,6 +9,7 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import { salesErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
@@ -51,7 +52,7 @@ import { apiFetch } from '$lib/auth/api-client';
       error?: string;
     };
     messageOk = res.ok;
-    if (!res.ok) { message = json.error ?? `Error ${res.status}`; return; }
+    if (!res.ok) { message = salesErrorCopy(json.error); return; }
     quoteId = json.quoteId ?? '';
     message = `Cotización lista · S/ ${formatCents(json.snapshotTotalCents ?? 0)}${json.emitsFiscalDocument ? ' · con comprobante' : ''}${json.reservesStock ? ' · reserva stock' : ''}`;
   }
@@ -61,7 +62,7 @@ import { apiFetch } from '$lib/auth/api-client';
     const res = await apiFetch('/api/sales/quotes/send', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Enviada` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Enviada` : salesErrorCopy(json.error);
   }
 
   async function approve() {
@@ -69,7 +70,7 @@ import { apiFetch } from '$lib/auth/api-client';
     const res = await apiFetch('/api/sales/quotes/approve', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Aprobada (${json.status})` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Aprobada (${json.status})` : salesErrorCopy(json.error);
   }
 
   async function convert() {
@@ -86,7 +87,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { saleId?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Convertida a venta ${json.saleId}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Convertida a venta ${json.saleId}` : salesErrorCopy(json.error);
   }
 
   async function cancel() {
@@ -94,7 +95,7 @@ import { apiFetch } from '$lib/auth/api-client';
     const res = await apiFetch('/api/sales/quotes/cancel', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId, reason }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Cancelada (${json.status})` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Cancelada (${json.status})` : salesErrorCopy(json.error);
   }
 </script>
 

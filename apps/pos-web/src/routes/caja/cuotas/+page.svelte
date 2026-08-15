@@ -8,6 +8,7 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import { salesErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
@@ -60,7 +61,7 @@
     });
     const json = (await res.json()) as { planId?: string; error?: string; code?: string };
     messageOk = res.ok;
-    message = res.ok ? `Plan creado · ${json.planId ?? 'ok'}` : (json.error ?? json.code ?? `Error ${res.status}`);
+    message = res.ok ? `Plan creado · ${json.planId ?? 'ok'}` : salesErrorCopy(json.error ?? json.code);
   }
 
   async function payInstallment() {
@@ -86,7 +87,7 @@
     };
     messageOk = res.ok;
     if (!res.ok) {
-      message = json.error ?? json.code ?? `Error ${res.status}`;
+      message = salesErrorCopy(json.error ?? json.code);
       return;
     }
     lastPaymentId = json.paymentId ?? '';
@@ -171,7 +172,7 @@
 
 <style>
   .cuotas-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   .tenant-line {

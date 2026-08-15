@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
   import { formatCents } from '$lib/cents';  import {
     isCatalogQuickAddEnabled,
     isCatalogVariantsEnabled,
@@ -19,7 +18,6 @@
     isSaleFeedbackEnabled,
     isShiftHandoffEnabled,
     isTeamInviteEnabled,
-    isCustomerOrdersEnabled,
     isHardwareDiagnosticsEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
@@ -42,8 +40,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     recordGrowthEvent,
     writeTourState,
   } from '$lib/onboarding/tour-client';
-  import { showCustomerOrderNavigation } from '$lib/customer-orders/customer-order-access';
-  import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
@@ -103,12 +99,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const checkoutOn = isPosCheckoutEnabled();
 
-  // Chrome cashier (FASE F): el cajero navega desde el bottom-nav; el acceso a
-  // pedidos con retiro se gatea con la misma regla que el sidebar (DRY).
-  let authenticatedRole = $state('');
-  $effect(() => {
-    authenticatedRole = readAdminAuthenticatedSessionState()?.current?.role ?? '';
-  });
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
   const scaleOn = isInventoryScaleEnabled();
@@ -1106,33 +1096,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       <p class="quick-error" role="alert">{quickError}</p>
     {/if}
   </Modal>
-
-  {#if checkoutOn}
-    <nav class="pos-bottom-nav" aria-label="Navegación de caja" data-testid="pos-bottom-nav">
-      <a href="/" class="pos-nav-item" class:active={page.url.pathname === '/'} data-testid="pos-nav-cobrar">
-        <Icon name="check" size={18} />
-        <span>Cobrar</span>
-      </a>
-      <a href="/caja/historial" class="pos-nav-item" data-testid="pos-nav-historial">
-        <Icon name="receipt" size={18} />
-        <span>Historial del día</span>
-      </a>
-      <a href="/caja" class="pos-nav-item" data-testid="pos-nav-caja">
-        <Icon name="lock" size={18} />
-        <span>Caja</span>
-      </a>
-      {#if showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role: authenticatedRole })}
-        <a href="/orders/customer" class="pos-nav-item" data-testid="pos-nav-pedidos">
-          <Icon name="package" size={18} />
-          <span>Pedidos retiro</span>
-        </a>
-      {/if}
-      <a href="/ayuda" class="pos-nav-item" data-testid="pos-nav-ayuda">
-        <Icon name="info" size={18} />
-        <span>Ayuda</span>
-      </a>
-    </nav>
-  {/if}
 </div>
 
 <style>
@@ -1148,46 +1111,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     background: color-mix(in srgb, var(--amber-gold) 12%, transparent);
     color: var(--text-main);
     font-size: 0.9375rem;
-  }
-
-  .pos-bottom-nav {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1rem;
-    padding-bottom: calc(0.625rem + env(safe-area-inset-bottom, 0px));
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    position: sticky;
-    bottom: 0.75rem;
-    z-index: 20;
-  }
-
-  .pos-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    min-width: 88px;
-    min-height: 48px;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-md);
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: color var(--transition-fast), background var(--transition-fast);
-  }
-
-  .pos-nav-item:hover {
-    color: var(--text-main);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .pos-nav-item.active {
-    color: var(--accent-primary);
   }
 
   .pos-banner-card {
@@ -1311,7 +1234,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /* Serial Scanner Panel */
   .serial-panel {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
   .terminal-row, .scanner-row {
     margin-bottom: 0.875rem;
@@ -1339,7 +1262,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /* Scale Panel */
   .scale-panel {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
   .scale-state-badge {
     display: flex;
@@ -1403,7 +1326,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /* Cart & Checkout Column */
   .cart-panel {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     min-height: 520px;
@@ -1531,7 +1454,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .print-preview-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
   .ticket-render-body {
     background: #ffffff;

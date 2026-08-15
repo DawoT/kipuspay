@@ -9,6 +9,7 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import { salesErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
@@ -45,7 +46,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { depositId?: string; snapshotTotalCents?: number; emitsFiscalDocument?: boolean; error?: string };
     messageOk = res.ok;
-    if (!res.ok) { message = json.error ?? `Error ${res.status}`; return; }
+    if (!res.ok) { message = salesErrorCopy(json.error); return; }
     depositId = json.depositId ?? '';
     message = `Apartado listo · S/ ${formatCents(json.snapshotTotalCents ?? 0)}${json.emitsFiscalDocument ? ' · con comprobante' : ''}`;
   }
@@ -58,7 +59,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { balanceAfterCents?: number; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Abono OK · saldo S/ ${formatCents(json.balanceAfterCents ?? 0)}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Abono OK · saldo S/ ${formatCents(json.balanceAfterCents ?? 0)}` : salesErrorCopy(json.error);
   }
 
   async function convert() {
@@ -69,7 +70,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { saleId?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Convertido a venta ${json.saleId}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Convertido a venta ${json.saleId}` : salesErrorCopy(json.error);
   }
 
   async function cancel() {
@@ -80,7 +81,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { refundCents?: number; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Cancelado · reembolso S/ ${formatCents(json.refundCents ?? 0)}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Cancelado · reembolso S/ ${formatCents(json.refundCents ?? 0)}` : salesErrorCopy(json.error);
   }
 </script>
 

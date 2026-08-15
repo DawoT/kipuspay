@@ -9,6 +9,7 @@ import {
   paymentStatusLabel,
   promoAppliesLabel,
   saleStatusLabel,
+  salesErrorCopy,
   stockKindLabel,
   uomLabel,
   workflowStatusLabel,
@@ -98,5 +99,21 @@ describe('formalizationModeLabel', () => {
     expect(formalizationModeLabel('FORMALIZING')).toBe('Formalizando');
     expect(formalizationModeLabel('ELECTRONIC_ISSUER')).toBe('Emisión electrónica');
     expect(formalizationModeLabel('INTERNAL_CONTROL')).not.toMatch(/INTERNAL_/);
+  });
+});
+
+describe('salesErrorCopy', () => {
+  it('mapea códigos de negocio a copy legible (cero códigos al operador)', () => {
+    expect(salesErrorCopy('PRODUCT_NOT_FOUND')).toMatch(/producto no existe/);
+    expect(salesErrorCopy('LAYAWAY_ALREADY_CONVERTED')).toMatch(/ya fue convertido/);
+    expect(salesErrorCopy('QUOTE_EXPIRED')).toMatch(/venció/);
+    expect(salesErrorCopy('INSTALLMENT_FORBIDDEN')).toMatch(/Supervisor o Admin/);
+    expect(salesErrorCopy('STORE_CREDIT_INSUFFICIENT')).toMatch(/saldo suficiente/);
+    expect(salesErrorCopy('FEATURE_SALES_LAYAWAY off')).toMatch(/no está activa/);
+  });
+  it('fallback genérico para códigos desconocidos y vacíos', () => {
+    expect(salesErrorCopy('SOME_UNKNOWN_CODE')).toMatch(/soporte@kipuspay\.com/);
+    expect(salesErrorCopy(undefined)).toMatch(/soporte@kipuspay\.com/);
+    expect(salesErrorCopy('No se pudo conectar')).toBe('No se pudo conectar');
   });
 });
