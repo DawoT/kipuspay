@@ -10720,3 +10720,127 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0418
+timestamp_utc: 2026-08-15T21:30:40Z
+schema_version: 2
+sprint_fase: POS — padding pegado + chrome mobile compacto
+agente_responsable: Staff Frontend
+tipo: Corrección
+subtipo: density kit inset + drawer ≤719px
+relacion: amplia
+referencias_entradas: [0412, 0411, 0410]
+referencias_documentales: [Arquitectura §0.2, GTM §6.3]
+prev_id: 0417
+prev_hash: c9e96ca9e41f5c239d508e482b1a9bec67de41bf5ea3446c9d741aaedb31ef5c
+entry_hash: 5ac41f1101f8eb46a3b049bf6a5457285b99c51715fc875962d79ee85f330213
+ticket_or_adr: POS density / chrome compacto
+test_ids: [pos-density, chrome, owner-shell, SUITE]
+entregable_afectado: apps/pos-web (app.css density kit, +layout drawer 719, Dueño ND/percepciones, Terminal banner)
+descripcion: >
+  Corrige texto pegado a cajas y chrome admin estrecho. Density kit
+  (--inset-card/field/alert, --bp-compact 719px); .ledger-card siempre con
+  padding; Dueño ND/percepciones con section-pad; inputs/badge/alert vía
+  tokens. Chrome admin unifica drawer a ≤719px (paridad Dueño), status
+  pill solo-icono con aria-label, breadcrumb ellipsis. Barrido backups
+  (sin section-pad anidado), etiquetas (inset del card) y banner Terminal
+  (gap label→control + inset-field).
+evidencia: >
+  RED: ledger-card superficie sin inset; owner-section ND/withholdings 0
+  padding; drawer admin a 768px con "En línea" truncando el fold.
+  GREEN: vitest pos-density+chrome+owner-shell; verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0419
+timestamp_utc: 2026-08-15T22:03:25Z
+schema_version: 2
+sprint_fase: POS — design smell audit + density ratchet
+agente_responsable: Staff Frontend
+tipo: Corrección
+subtipo: audit script tmp + P0 ratchet
+relacion: amplia
+referencias_entradas: [0418]
+referencias_documentales: [Arquitectura §0.2]
+prev_id: 0418
+prev_hash: 5ac41f1101f8eb46a3b049bf6a5457285b99c51715fc875962d79ee85f330213
+entry_hash: 6a39531d38395ade514a32ddeffe783f19db3f030af3b7a46b94547fba72bf94
+ticket_or_adr: POS density smells
+test_ids: [pos-density-smells, pos-density, chrome, SUITE]
+entregable_afectado: apps/pos-web (config/diario/series/clientes), scripts/tmp/pos-design-audit.mjs
+descripcion: >
+  Script temporal scripts/tmp/pos-design-audit.mjs reporta P0/P1 de densidad
+  (CARD_PAD_OVERRIDE, BP_768/480, NESTED_SECTION_PAD, literales, blur,
+  glass-panel sin pad). Ratchet vitest pos-density-smells falla en P0.
+  Fixes: quitar padding/blur scoped en .ledger-card de configuracion,
+  diario y series; series MQ 768→719; clientes sin section-pad anidado.
+evidencia: >
+  RED: audit P0=5 (overrides + BP_768 + nested pad).
+  GREEN: audit --strict P0=0; vitest density/smells/chrome; verify SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0420
+timestamp_utc: 2026-08-15T22:10:00Z
+schema_version: 2
+sprint_fase: Sello en navegador de docs/ops/legal_and_sales_guide.md (ciclo RED→GREEN)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación Playwright MCP claim por claim + e2e de marketing y POS
+relacion: amplia
+referencias_entradas: [0417, 0418, 0419]
+referencias_documentales: [docs/ops/legal_and_sales_guide.md, docs/runbooks/local-bootstrap.md, apps/marketing-web/playwright.config.ts, apps/pos-web/tests/e2e/blind-close.spec.ts]
+prev_id: 0419
+prev_hash: 6a39531d38395ade514a32ddeffe783f19db3f030af3b7a46b94547fba72bf94
+entry_hash: 2667577897659b4c6215d55787cd1ce8075ea07cbe8755e3ce9e3f2e89b5d15d
+ticket_or_adr: Proceso §8.1, V-26, V-30, CAL-05, CAL-06
+test_ids: [reclamaciones, pricing-claims, legal-pages, ayuda-footer, blind-close, vale-credito, three-way-match, nv-ticket-legend, yape-plin-visual, nc-reduce-cxc, frozen-features, V-00, V-26, SUITE]
+entregable_afectado: apps/marketing-web (playwright e2e nuevo), apps/pos-web (specs blind-close/vale/3-way/NV/yape/NC, tokens danger on-dark), scripts/checks/marketing_copy.py (scope V-26), docs/runbooks/local-bootstrap.md (flags dev)
+descripcion: >
+  Sello contractual de la guía en navegador (Playwright MCP) con flujos REALES
+  (worker + D1 local): onboarding 4 pasos -> tenant persistido (t_ed7d17b8),
+  ventas NV01-0000001/2 con IGV server-side, sync offline -> D1 -> historial
+  (Total S/33.63), leyenda NV en ticket, acuse REC-20260815 real, export
+  catalogo.csv, planes y cancelación. Gaps encontrados y resueltos:
+  (1) FEATURE_OFFLINE_SYNC default "0" -> sync 404 FEATURE_OFF (el POS encolaba
+  sin sincronizar); documentado en el runbook (--var FEATURE_*:1; las vars del
+  config ganan al env del proceso). (2) Env e2e sin flags de capability ->
+  vale/cierre Z/3-way sin cobertura; playwright.config ampliado
+  (CASH_BLIND_Z, LEDGER_STORE_CREDIT, PURCHASING_THREE_WAY, LEDGER_AR_AP,
+  QR_WALLETS, SALES_RETURNS). (3) --rose-red #b5461d falla contraste AA en
+  dark (2.49-3.03) -> #e87a5e on-dark (misma clase que emerald, s58).
+  (4) V-26 escaneaba tests/config como copy -> _is_scanned excluye
+  *.spec.ts/*.config.ts y tests/ (selftest 53 aserciones). Nuevo Playwright
+  para marketing-web (4 specs, 10 tests: reclamaciones acuse REC- y error
+  path, precios/planes/metering/anti-apagado, terminos/privacidad/seguridad
+  SLA, ayuda/footer). Seis specs nuevos en pos-web: blind-close (arqueo por
+  formula, esperado solo al confirmar), vale-credito (cupo y saldo del
+  servidor), three-way-match (CxP al confirmar, Q12), nv-ticket-legend
+  (leyenda control interno), yape-plin-visual (verificación manual offline),
+  nc-reduce-cxc (Q14).
+evidencia: >
+  RED (run-red-6h-s59): marketing sin e2e; sync 404 FEATURE_OFFLINE_SYNC off;
+  rose-red 2.49-3.03 AA; V-26 RED en playwright.config (workers).
+  GREEN (run-green-6h-s59): marketing e2e 10/10; pos-web e2e 87/87 (incluye 6
+  specs nuevos); pos-web unit 392/392; svelte-check 0/0; quality Gate OK
+  (bundle 259.77 kB gz); verify.sh SUITE GREEN; smoke real: 2 ventas NV en
+  D1 con IGV 180/333 cents, acuse REC-20260815-421111 persistido.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-s59
+expected_failure: sync 404 FEATURE_OFFLINE_SYNC off / rose-red 2.49-3.03 AA en dark / sin cobertura e2e de marketing y de vale-cierreZ-3way-NV-yape-NC
+green_commit_sha: eac1c39d8031b9897d081ca48a19113cb0f16fc9
+green_run_id: run-green-6h-s59
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
