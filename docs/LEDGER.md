@@ -10911,3 +10911,56 @@ aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0423
+timestamp_utc: 2026-08-16T00:10:00Z
+schema_version: 2
+sprint_fase: Batch A — apartados, cotizaciones, cuotas y crédito de tienda (sello en navegador)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e de GTM-14/19/21/22 y copy de errores sin códigos
+relacion: amplia
+referencias_entradas: [0420, 0421, 0422]
+referencias_documentales: [docs/ops/legal_and_sales_guide.md, apps/pos-web/src/lib/ui/ops-copy.ts, apps/pos-web/tests/e2e/layaway.spec.ts, apps/pos-web/tests/e2e/quotes.spec.ts, apps/pos-web/tests/e2e/installments.spec.ts, apps/pos-web/tests/e2e/store-credit-admin.spec.ts]
+prev_id: 0422
+prev_hash: eeb4028321c595010bfd0370a34c1b8baafb8bd79b16a633fe50a5ef8c8987d4
+entry_hash: 98dedb54166e0889b5dda805b42be63d9f7c64c8d58429645e46f4bb750cb686
+ticket_or_adr: Proceso §8.1, V-27, CAL-05, CAL-06
+test_ids: [layaway, quotes, installments, store-credit-admin, ops-copy, pos-density-smells, V-00, V-26, V-27, SUITE]
+entregable_afectado: apps/pos-web (apartado/cotizacion/cuotas/credito-tienda + salesErrorCopy), playwright.config (3 flags nuevos)
+descripcion: >
+  Sello de los módulos de ventas avanzadas (Batch A) con el patrón establecido:
+  verificación en navegador con worker real + D1 y specs e2e. Flujo REAL
+  completo de apartado: producto creado por quick-add (EAN 775...), stock
+  sembrado, apartado e56a1c6c creado con abono, 2 abonos extra y conversión a
+  venta NV01-0000001 S/118.00 (IGV 18%) con deposito CONVERTED en D1 (GTM-14:
+  el comprobante nace solo al convertir). Cotización verifica el contrato
+  GTM-19 (congela precio, no reserva stock); cuotas GTM-22 (solo Supervisor+
+  cobra, el capital baja la deuda); crédito tienda GTM-21 (el vale se emite en
+  Caja, el panel ajusta/expira). GAPS resueltos: (1) los 4 módulos mostraban el
+  codigo tecnico del server verbatim (PRODUCT_NOT_FOUND, D1_ERROR...SQLITE)
+  -> nuevo salesErrorCopy en ops-copy.ts (43 codigos de layaway/quote/
+  installment/store-credit + fallbacks FEATURE_/DB_/D1/snake-case) aplicado en
+  las 4 paginas (cero codigos al operador, F-5/V-27); (2) el panel de
+  credito-tienda mostraba "saldo 0.00" por campo incorrecto en el mock -> el
+  spec usa el contrato real (nextBalanceCents). Ratchet lint del agente UI
+  corregido (interface, regex segura, complejidad). Env e2e + 3 flags
+  (SALES_LAYAWAY, SALES_QUOTES, SALES_INSTALLMENTS).
+evidencia: >
+  RED (run-red-6h-batcha): apartado mostraba PRODUCT_NOT_FOUND crudo y el
+  flujo real fallaba con D1_ERROR NOT NULL (stock_after) sin copy amigable;
+  sin cobertura e2e en los 4 modulos.
+  GREEN (run-green-6h-batcha): e2e pos-web 92/92 (5 tests nuevos Batch A);
+  unit 394/394; svelte-check 0 errores; quality Gate OK (bundle 259.77 kB gz);
+  verify.sh SUITE GREEN; flujo real apartado->venta NV01 S/118 en D1.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-batcha
+expected_failure: PRODUCT_NOT_FOUND y D1_ERROR SQLITE crudos al operador en apartado/cotizacion/cuotas/credito-tienda / sin e2e en los 4 modulos
+green_commit_sha: 21b1ec572c4c4af77c57584fc296b9a3837c1649
+green_run_id: run-green-6h-batcha
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
