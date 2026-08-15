@@ -58,6 +58,34 @@ clone nuevo o una DB recreada queda desfasado hasta correr el apply.
 3. No editar migraciones aplicadas: crear la siguiente (append-only); toda
    corrección = migración nueva con su par down.
 
+## Flags de features en dev (fail-closed por diseño)
+
+Los `vars` de `wrangler.jsonc` declaran cada `FEATURE_*` con default `"0"`:
+sin activación explícita, las rutas responden `404 FEATURE_OFF` (p. ej.
+`POST /api/v1/sync/sales` → `FEATURE_OFFLINE_SYNC off`) y el POS cae a la cola
+offline local sin sincronizar. **Las `vars` del config ganan sobre el env del
+proceso**: para activar un flag en dev usar `--var` (override real):
+
+```bash
+# Todos los flags FEATURE_* = 1 (entorno dev completo; 64 vars)
+cd apps/worker-api
+VARS=$(grep -oP '"FEATURE_[A-Z_]+": "0"' wrangler.jsonc \
+  | sed -E 's/"([A-Z_]+)": "0"/--var \1:1/' | tr '\n' ' ')
+npx wrangler dev --port 8787 --local $VARS
+```
+
+Flags clave para el flujo de la guía comercial: `FEATURE_OFFLINE_SYNC`
+(sincronización de ventas), `FEATURE_CASH_BLIND_Z` (cierre Z),
+`FEATURE_LEDGER_STORE_CREDIT` (vales), `FEATURE_PURCHASING_*` (3-way),
+`FEATURE_BILLING_*` (banner anti-apagado). El POS gana los suyos con
+`PUBLIC_FEATURE_*` (mismos nombres) en el env del preview; el set completo del
+e2e vive en `apps/pos-web/playwright.config.ts`.
+
+> Al matar `wrangler dev`, su `workerd` hijo puede quedar huérfano escuchando
+> en el puerto y aceptando conexiones sin responder: el proxy del preview
+> cuelga en vez de fallar (Sello QA s58). Verificar `ss -tlnp | grep 8787` y
+> matar el pid del listener antes de relanzar.
+
 ## Rollback
 
 `npx wrangler d1 migrations list DB --local` y aplicar el par down solo con

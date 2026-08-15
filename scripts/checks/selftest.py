@@ -286,7 +286,13 @@ def main() -> int:
     )
     expect(
         mc._is_comment("// GTM §4.1 — comentario interno de código"),
-        "V-26 no omite comentarios de código",
+        "V-26 no omite comentarios HTML",
+    )
+    expect(
+        mc._is_scanned("playwright.config.ts") is False
+        and mc._is_scanned("tests/e2e/pricing-claims.spec.ts") is False
+        and mc._is_scanned("src/lib/content/home.ts") is True,
+        "V-26 escanea configs o specs de test como copy",
     )
     expect(
         mc._is_comment("<!-- GTM-02 interno -->"),

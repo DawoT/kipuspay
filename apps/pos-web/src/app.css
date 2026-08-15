@@ -77,9 +77,9 @@ body[data-theme='dark'] {
 
   --emerald-green: #3dbb86;
   --emerald-gradient: linear-gradient(135deg, #0f6b4c 0%, #14805c 100%);
+  --rose-red: #e87a5e;
 
   --amber-gold: var(--amber);
-  --rose-red: var(--alerta);
 
   --text-main: #f3efe6;
   --text-muted: #9aa3ad;
@@ -101,6 +101,17 @@ body[data-theme='dark'] {
 
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Density kit — inset canónico (padding pegado = bug) */
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --inset-card: var(--space-5);
+  --inset-field: 0.75rem 1rem;
+  --inset-badge: 0.375rem 0.75rem;
+  --inset-alert: 1rem 1.125rem;
+  --bp-compact: 719px;
 }
 
 /* Light Mode Theme Overrides - Warm Book Ledger Paper */
@@ -221,8 +232,8 @@ body[data-theme='light'] {
   --accent-primary: var(--owner-accent);
   --accent-primary-hover: #eeb765;
   --emerald-green: #3dbb86;
+  --rose-red: #e87a5e;
   --amber-gold: var(--amber);
-  --rose-red: var(--alerta);
 
   --text-main: var(--owner-fg);
   --text-muted: var(--owner-muted);
@@ -406,7 +417,7 @@ select,
 textarea {
   width: 100%;
   min-height: 44px;
-  padding: 0.625rem 0.875rem;
+  padding: var(--inset-field);
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
@@ -440,7 +451,7 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
+  padding: var(--inset-badge);
   font-size: 0.75rem;
   font-weight: 600;
   border-radius: var(--radius-full);
@@ -515,7 +526,7 @@ label {
   flex-wrap: wrap;
 }
 .section-pad {
-  padding: 1.25rem;
+  padding: var(--inset-card);
 }
 
 .workbench-2col {
@@ -538,6 +549,11 @@ label {
   background: var(--bg-glass-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  padding: var(--inset-card);
+}
+
+.ledger-card-flush {
+  padding: 0;
 }
 
 .page-shell {
@@ -726,7 +742,7 @@ label {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  padding: var(--inset-alert);
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   line-height: 1.5;
