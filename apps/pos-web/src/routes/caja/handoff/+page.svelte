@@ -103,7 +103,7 @@
       <Field label="ID de Sesión de Caja" id="handoff-session-id">
         <Input id="handoff-session-id" bind:value={sessionId} data-testid="handoff-session-id" placeholder="Sesión de caja" />
       </Field>
-      <Field label="Operador saliente (userId)" id="handoff-outgoing">
+      <Field label="Operador que entrega el turno" id="handoff-outgoing">
         <Input id="handoff-outgoing" bind:value={outgoingUserId} data-testid="handoff-outgoing" placeholder="u-saliente" />
       </Field>
 
@@ -231,7 +231,7 @@
   }
 
   .result-revelation-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
     padding: 1.25rem;

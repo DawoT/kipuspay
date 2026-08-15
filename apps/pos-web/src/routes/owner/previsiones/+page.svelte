@@ -7,6 +7,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { stockKindLabel } from '$lib/ui/ops-copy';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
@@ -59,7 +60,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     } catch (e) {
       const code = (e as Error).message;
       if (code === 'PLAN_REQUIRES_CADENA') status = 'Requiere plan Cadena o Enterprise';
-      else if (code === 'FEATURE_OFF') status = 'Capacidad desactivada (flag off)';
+      else if (code === 'FEATURE_OFF') status = 'Las previsiones no están activas para este negocio';
       else status = 'Sin conexión — red offline';
       items = [];
       alerts = [];
@@ -102,7 +103,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 <div class="page-shell" data-testid="owner-forecast">
   <div class="page-masthead">
     <div>
-      <p class="page-eyebrow"><Icon name="trending-up" size={12} /> Modo Dueño · Analítica predictiva</p>
+      <p class="page-eyebrow"><Icon name="trending-up" size={12} /> Analítica predictiva</p>
       <h1 class="page-title">Previsiones de venta</h1>
       <p class="page-lede">Estimación estacional por producto y sucursal. No es garantía de venta.</p>
     </div>
@@ -120,7 +121,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
   {:else}
     <div class="forecast-controls">
-      <div class="glass-card branch-card">
+      <div class="ledger-card branch-card">
         <div class="field-group">
           <label for="forecast-branch">Sucursal</label>
           <input id="forecast-branch" data-testid="owner-forecast-branch" bind:value={branchId} />
@@ -136,7 +137,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     {/if}
 
     <!-- Alertas de quiebre -->
-    <div class="glass-card alerts-card">
+    <div class="ledger-card alerts-card">
       <div class="card-header">
         <h2>Riesgo de quiebre</h2>
         <span class="badge {alerts.some((a) => a.status === 'STOCKOUT_RISK') ? 'badge-danger' : 'badge-success'}">
@@ -149,7 +150,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <ul class="alert-list" data-testid="owner-forecast-alerts">
           {#each alerts as a}
             <li class="alert-item">
-              <span class="badge {alertBadgeClass(a.status)}">{a.status}</span>
+              <span class="badge {alertBadgeClass(a.status)}">{stockKindLabel(a.status)}</span>
               <span class="alert-product">{a.product_id}</span>
               <span class="alert-detail">
                 {a.daysCovered ?? 0} días cubiertos · objetivo {a.targetDays}
@@ -167,13 +168,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
 
     <!-- Pronósticos -->
-    <div class="glass-card forecast-card" data-testid="owner-forecast-card">
+    <div class="ledger-card forecast-card" data-testid="owner-forecast-card">
       <div class="card-header">
         <h2>Pronósticos activos</h2>
         <span class="section-tag">Hoy en adelante</span>
       </div>
       {#if items.length === 0}
-        <EmptyState icon="trending-up" title="Sin pronósticos" description="Ejecuta Recalcular hoy o espera el cálculo diario." />
+        <EmptyState icon="trending-up" title="Sin pronósticos" description="Ejecuta Recalcular hoy o espera el cálculo diario.">
+          <Button variant="secondary" onclick={refresh} disabled={loading}>Recalcular hoy</Button>
+        </EmptyState>
       {:else}
         <ul class="forecast-list" data-testid="owner-forecast-list">
           {#each items as f}
@@ -188,15 +191,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               </div>
               {#if f.confidence_low_qty != null && f.confidence_high_qty != null}
                 <span class="forecast-range tabular-nums">
-                  IC {f.confidence_low_qty}–{f.confidence_high_qty} u
+                  Rango {f.confidence_low_qty}–{f.confidence_high_qty} u
                 </span>
               {/if}
-              <span class="badge badge-muted model-badge">{f.model_version}</span>
+              <span class="badge badge-muted model-badge">Estacional</span>
             </li>
           {/each}
         </ul>
         {#if disclaimer}
-          <p class="disclaimer" data-testid="owner-forecast-disclaimer">⚠ {disclaimer} · modelo Holt-Winters ({items[0]?.model_version ?? 'hw-3p-1.0.0'})</p>
+          <p class="disclaimer" data-testid="owner-forecast-disclaimer">⚠ {disclaimer} · estimación estacional</p>
         {/if}
       {/if}
     </div>

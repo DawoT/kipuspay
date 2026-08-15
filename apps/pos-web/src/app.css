@@ -49,8 +49,15 @@
 :root,
 :root[data-theme='dark'],
 body[data-theme='dark'] {
+  /* Ledger Minimalism — aliases canónicos (Arquitectura §0.2) */
+  --ink: #14161c;
+  --paper: #f3efe6;
+  --sello: #0f6b4c;
+  --alerta: #b5461d;
+  --amber: #d99a3d;
+
   /* Official KipusPay Branding - Dark Ink Mode */
-  --bg-primary: #14161c;
+  --bg-primary: var(--ink);
   --bg-secondary: #1a1d23;
   --bg-surface: #232730;
   --bg-glass: rgba(26, 29, 35, 0.88);
@@ -63,15 +70,15 @@ body[data-theme='dark'] {
   --border-strong: rgba(243, 239, 230, 0.22);
   --border-glow: rgba(217, 154, 61, 0.45);
 
-  --accent-primary: #d99a3d;
+  --accent-primary: var(--amber);
   --accent-primary-hover: #eeb765;
   --accent-gradient: linear-gradient(135deg, #d99a3d 0%, #eeb765 100%);
 
-  --emerald-green: #3dbb86;
-  --emerald-gradient: linear-gradient(135deg, #3dbb86 0%, #0f6b4c 100%);
+  --emerald-green: var(--sello);
+  --emerald-gradient: linear-gradient(135deg, #0f6b4c 0%, #14805c 100%);
 
-  --amber-gold: #d99a3d;
-  --rose-red: #e88a5e;
+  --amber-gold: var(--amber);
+  --rose-red: var(--alerta);
 
   --text-main: #f3efe6;
   --text-muted: #9aa3ad;
@@ -81,9 +88,9 @@ body[data-theme='dark'] {
   --font-heading: 'Fraunces', 'Fraunces Fallback', 'Schibsted Grotesk', serif;
   --font-mono: 'Spline Sans Mono', 'Spline Fallback', ui-monospace, monospace;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
   --radius-full: 9999px;
 
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -98,7 +105,13 @@ body[data-theme='dark'] {
 /* Light Mode Theme Overrides - Warm Book Ledger Paper */
 :root[data-theme='light'],
 body[data-theme='light'] {
-  --bg-primary: #f3efe6;
+  --ink: #14161c;
+  --paper: #f3efe6;
+  --sello: #0f6b4c;
+  --alerta: #b5461d;
+  --amber: #c48328;
+
+  --bg-primary: var(--paper);
   --bg-secondary: #e7e0d2;
   --bg-surface: #ffffff;
   --bg-glass: rgba(243, 239, 230, 0.92);
@@ -111,17 +124,17 @@ body[data-theme='light'] {
   --border-strong: rgba(20, 22, 28, 0.22);
   --border-glow: rgba(217, 154, 61, 0.45);
 
-  --accent-primary: #c48328;
+  --accent-primary: var(--amber);
   --accent-primary-hover: #a86c1d;
   --accent-gradient: linear-gradient(135deg, #d99a3d 0%, #c48328 100%);
 
-  --emerald-green: #0f6b4c;
+  --emerald-green: var(--sello);
   --emerald-gradient: linear-gradient(135deg, #2e9e74 0%, #0f6b4c 100%);
 
-  --amber-gold: #c48328;
-  --rose-red: #b5461d;
+  --amber-gold: var(--amber);
+  --rose-red: var(--alerta);
 
-  --text-main: #14161c;
+  --text-main: var(--ink);
   --text-muted: #4a5260;
   --text-dim: #5c6573;
 
@@ -133,7 +146,13 @@ body[data-theme='light'] {
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    --bg-primary: #f3efe6;
+    --ink: #14161c;
+    --paper: #f3efe6;
+    --sello: #0f6b4c;
+    --alerta: #b5461d;
+    --amber: #c48328;
+
+    --bg-primary: var(--paper);
     --bg-secondary: #e7e0d2;
     --bg-surface: #ffffff;
     --bg-glass: rgba(243, 239, 230, 0.92);
@@ -146,19 +165,19 @@ body[data-theme='light'] {
     --border-strong: rgba(20, 22, 28, 0.22);
     --border-glow: rgba(217, 154, 61, 0.45);
 
-    --accent-primary: #c48328;
+    --accent-primary: var(--amber);
     --accent-primary-hover: #a86c1d;
     --accent-gradient: linear-gradient(135deg, #d99a3d 0%, #c48328 100%);
 
-    --emerald-green: #0f6b4c;
+    --emerald-green: var(--sello);
     --emerald-gradient: linear-gradient(135deg, #2e9e74 0%, #0f6b4c 100%);
 
-    --amber-gold: #c48328;
-    --rose-red: #b5461d;
+    --amber-gold: var(--amber);
+    --rose-red: var(--alerta);
 
-    --text-main: #14161c;
+    --text-main: var(--ink);
     --text-muted: #4a5260;
-    --text-dim: #717a8a;
+    --text-dim: #5c6573;
 
     --shadow-sm: 0 1px 4px rgba(20, 22, 28, 0.08);
     --shadow-md: 0 8px 24px rgba(20, 22, 28, 0.08);
@@ -169,12 +188,16 @@ body[data-theme='light'] {
 
 /* Modo Dueño — superficie oscura dedicada (siempre oscura, mismo sistema de tokens) */
 [data-theme='owner-dark'] {
-  --owner-bg: #0f1419;
-  --owner-fg: #e8eef4;
-  --owner-muted: #8b9aab;
-  --owner-accent: #3d9a6a;
-  --owner-surface: #1a222c;
-  --owner-border: #2a3542;
+  --owner-bg: #14161c;
+  --owner-fg: #f3efe6;
+  --owner-muted: #9aa3ad;
+  --owner-accent: #d99a3d;
+  --owner-surface: #1a1d23;
+  --owner-border: #2c313a;
+  --bg-primary: var(--owner-bg);
+  --text-main: var(--owner-fg);
+  --text-muted: var(--owner-muted);
+  --accent-primary: var(--owner-accent);
 }
 
 *,
@@ -217,6 +240,46 @@ h4,
   outline-offset: 2px;
 }
 
+.skip-link {
+  position: fixed;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 80;
+  padding: 0.6rem 1rem;
+  background: var(--paper, #f3efe6);
+  color: var(--ink, #14161c);
+  font-weight: 600;
+  transform: translateY(-160%);
+  transition: transform var(--transition-fast);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.stitch {
+  position: relative;
+  white-space: nowrap;
+}
+
+.stitch::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.1em;
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--amber-gold) 0 5px,
+    transparent 5px 10px
+  );
+}
+
+.stitch.in::after {
+  background-image: linear-gradient(90deg, var(--emerald-green) 0 100%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -228,11 +291,9 @@ h4,
   }
 }
 
-/* Glassmorphism Containers */
+/* Superficies papel/tinta (Arquitectura §0.2) — sin blur de SaaS */
 .glass-panel {
   background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -243,8 +304,6 @@ h4,
 }
 .glass-panel-interactive:hover {
   border-color: var(--border-glow);
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-2px);
 }
 
 /* Buttons System */
@@ -318,6 +377,7 @@ input,
 select,
 textarea {
   width: 100%;
+  min-height: 44px;
   padding: 0.625rem 0.875rem;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
@@ -344,8 +404,7 @@ label {
   font-weight: 500;
   color: var(--text-muted);
   margin-bottom: 0.375rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.01em;
 }
 
 /* Badge / Pills */
@@ -357,8 +416,6 @@ label {
   font-size: 0.75rem;
   font-weight: 600;
   border-radius: var(--radius-full);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .badge-online,
@@ -433,20 +490,26 @@ label {
   padding: 1.25rem;
 }
 
-@media (max-width: 640px) {
-  .two-col {
+.workbench-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 899px) {
+  .two-col,
+  .workbench-2col {
     grid-template-columns: 1fr;
   }
 }
 
 /* ── Shared Enterprise Page Layout Primitives ────── */
-.glass-card {
+.glass-card,
+.ledger-card {
   background: var(--bg-glass-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
 }
 
 .page-shell {
@@ -470,12 +533,47 @@ label {
   align-items: center;
   gap: 0.375rem;
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--accent-primary);
   margin-bottom: 0.375rem;
+}
+
+.floor-board {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.floor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.floor-toolbar h1 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.floor-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .page-title {
@@ -517,10 +615,9 @@ label {
 
 .section-tag {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--accent-primary);
 }
 

@@ -143,7 +143,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <div class="inv-grid">
       <!-- Contexto -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Contexto</h2>
           <span class="section-tag">Sucursal & Producto</span>
@@ -159,7 +159,7 @@ import { apiFetch } from '$lib/auth/api-client';
       </section>
 
       <!-- Conteo físico -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Conteo físico</h2>
           <span class="badge badge-warning">Hoja ciega</span>
@@ -180,18 +180,18 @@ import { apiFetch } from '$lib/auth/api-client';
       </section>
 
       <!-- Merma -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Registro de merma</h2>
-          <span class="badge badge-danger">DAMAGED</span>
+          <span class="badge badge-danger">Dañado</span>
         </div>
         <div class="field-group">
           <label for="loss-qty-input">Cantidad</label>
           <input type="number" id="loss-qty-input" bind:value={lossQty} data-testid="admin-inv-loss-qty" />
         </div>
         <div class="field-group">
-          <label for="evidence-input">Evidencia R2 Key</label>
-          <input id="evidence-input" bind:value={evidenceKey} data-testid="admin-inv-evidence" placeholder="r2/merma/foto.jpg" />
+          <label for="evidence-input">Foto de evidencia</label>
+          <input id="evidence-input" bind:value={evidenceKey} data-testid="admin-inv-evidence" placeholder="Ruta de la foto" />
         </div>
         <div class="field-group">
           <label for="reason-input">Motivo</label>
@@ -213,7 +213,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {/if}
 
   {#if greOn}
-    <section class="glass-card section-pad gre-card" data-testid="gre-panel">
+    <section class="ledger-card section-pad gre-card" data-testid="gre-panel">
       <div class="card-header">
         <h2>Guía de Remisión Electrónica</h2>
         <span class="section-tag">Traslado · serie T (P1b)</span>

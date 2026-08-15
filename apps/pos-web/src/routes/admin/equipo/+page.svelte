@@ -147,13 +147,13 @@
     display: flex;
     gap: 0.875rem;
     align-items: center;
-    color: #fbbf24;
+    color: var(--amber-gold);
   }
 
 
 
   .result-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
     padding: 1.25rem;

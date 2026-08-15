@@ -48,3 +48,7 @@ __pycache__/
 
 # Wrangler dev secrets (nunca versionar)
 .dev.vars
+
+# Config y skills de agentes locales (tooling; no doctrina)
+.claude/
+.cursor/

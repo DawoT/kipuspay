@@ -356,11 +356,31 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 {#if enabled}
   <div class="page-shell" data-testid="owner-hoy">
+    <div class="stat-grid" data-testid="owner-hoy-fold">
+      <div class="stat-card">
+        <span class="stat-label">Ventas netas hoy</span>
+        <span class="stat-value emerald tabular-nums" data-testid="hoy-net">S/ {formatCents(snap?.netSalesCents ?? 0)}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Comprobantes</span>
+        <span class="stat-value tabular-nums" data-testid="hoy-docs">{snap?.docCount ?? 0}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Ventas brutas</span>
+        <span class="stat-value tabular-nums">S/ {formatCents(snap?.grossSalesCents ?? 0)}</span>
+      </div>
+      <a class="stat-card" href="/owner/alertas" data-testid="hoy-alertas">
+        <span class="stat-label">Alertas</span>
+        <span class="stat-value tabular-nums">{backlog.length + overdueLayaways.length + expiredQuotes.length}</span>
+      </a>
+    </div>
+    <p class="source-note" data-testid="hoy-source">
+      {fromCache ? 'Guardado en este dispositivo' : 'Actualizado al conectar'} · no en vivo
+    </p>
+
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="bar-chart" size={12} /> Modo Dueño · Resumen Hoy</p>
-        <h1 class="page-title">Dashboard principal</h1>
-        <p class="page-lede">Resumen accionable del día — métricas consolidadas del negocio.</p>
+        <h1 class="page-title">Resumen del día</h1>
       </div>
     </div>
 
@@ -369,7 +389,8 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     {#if onboardingOn && serverState && !checklistDismissed}
       <StatusMessage tone="info" data-testid="owner-checklist">
-        <SetupChecklist server={serverState} {printerReady} />        <button
+        <SetupChecklist server={serverState} {printerReady} compact />
+        <button
           type="button"
           class="btn-secondary btn-sm"
           data-testid="owner-checklist-hide"
@@ -390,28 +411,8 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </StatusMessage>
     {/if}
 
-    <!-- Stat Grid -->
-    <div class="stat-grid">
-      <div class="stat-card">
-        <span class="stat-label">Ventas netas hoy</span>
-        <span class="stat-value emerald tabular-nums" data-testid="hoy-net">S/ {formatCents(snap?.netSalesCents ?? 0)}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Comprobantes</span>
-        <span class="stat-value tabular-nums" data-testid="hoy-docs">{snap?.docCount ?? 0}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Ventas brutas</span>
-        <span class="stat-value tabular-nums">S/ {formatCents(snap?.grossSalesCents ?? 0)}</span>
-      </div>
-    </div>
-
-    <p class="source-note" data-testid="hoy-source">
-      {fromCache ? 'Desde cache local' : 'Actualizado al conectar'} · no en vivo
-    </p>
-
     {#if isAgenticInsightsEnabled() && briefing}
-      <section class="glass-card section-pad" data-testid="owner-briefing">
+      <section class="ledger-card section-pad" data-testid="owner-briefing">
         <div class="card-head">
           <h2>Resumen del servidor</h2>
           <span class="briefing-stale">Datos del {briefing.reportDate}, no en vivo.</span>
@@ -426,7 +427,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     <div class="owner-sections-grid">
       {#if layawayOn && overdueLayaways.length > 0}
-        <section class="glass-card section-pad" data-testid="owner-layaway-overdue">
+        <section class="ledger-card section-pad" data-testid="owner-layaway-overdue">
           <div class="card-header">
             <h2>Apartados vencidos</h2>
             <span class="badge badge-warning">{overdueLayaways.length}</span>
@@ -444,7 +445,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if storeCreditOn && storeCreditReport}
-        <section class="glass-card section-pad" data-testid="owner-store-credit">
+        <section class="ledger-card section-pad" data-testid="owner-store-credit">
           <div class="card-header">
             <h2>Crédito de tienda</h2>
             <Icon name="gift" size={16} />
@@ -471,7 +472,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if quotesOn && expiredQuotes.length > 0}
-        <section class="glass-card section-pad" data-testid="owner-quotes-expired">
+        <section class="ledger-card section-pad" data-testid="owner-quotes-expired">
           <div class="card-header">
             <h2>Cotizaciones vencidas</h2>
             <span class="badge badge-muted">{expiredQuotes.length}</span>
@@ -489,7 +490,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if installmentsOn && overdueInstallments.length > 0}
-        <section class="glass-card section-pad" data-testid="owner-installments-overdue">
+        <section class="ledger-card section-pad" data-testid="owner-installments-overdue">
           <div class="card-header">
             <h2>Cuotas vencidas</h2>
             <span class="badge badge-danger">{overdueInstallments.length}</span>
@@ -508,7 +509,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if commissionsOn && commissionsReport}
-        <section class="glass-card section-pad" data-testid="owner-commissions">
+        <section class="ledger-card section-pad" data-testid="owner-commissions">
           <div class="card-header">
             <h2>Comisiones pendientes</h2>
             <Icon name="percent" size={16} />
@@ -519,7 +520,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               <span class="report-value tabular-nums">S/ {formatCents(commissionsReport.pendingAccrualCents)}</span>
             </div>
             <div class="report-item">
-              <span class="report-label">Payouts OPEN</span>
+              <span class="report-label">Por pagar</span>
               <span class="report-value tabular-nums">S/ {formatCents(commissionsReport.openPayoutCents)}</span>
             </div>
             <div class="report-item">
@@ -531,7 +532,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if fiscalEa}
-        <section class="glass-card section-pad" data-testid="owner-fiscal-backlog">
+        <section class="ledger-card section-pad" data-testid="owner-fiscal-backlog">
           <div class="card-header">
             <h2>Fiscal · represados / cuarentena</h2>
             <span class="badge badge-warning">{backlog.length}</span>
@@ -680,6 +681,11 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
  {/if}
 
 <style>
+  .stat-grid a.stat-card {
+    text-decoration: none;
+    color: inherit;
+  }
+
   .source-note {
     font-size: 0.8125rem;
     color: var(--text-dim);
@@ -784,9 +790,8 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .report-label {
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
     color: var(--text-dim);
   }
 

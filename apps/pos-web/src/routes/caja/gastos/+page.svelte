@@ -33,7 +33,7 @@
     const json = (await res.json()) as { id?: string; error?: string; code?: string };
     messageOk = res.ok;
     message = res.ok
-      ? `Gasto ${json.id} · ${formatCents(amountCents)}`
+      ? `Gasto registrado · S/ ${formatCents(amountCents)}`
       : (json.error ?? json.code ?? `Error ${res.status}`);
   }
 </script>
@@ -62,7 +62,7 @@
       <span>Los gastos de caja no están activos para esta tienda.</span>
     </div>
   {:else}
-    <div class="glass-card" style="padding:1.25rem;max-width:28rem">
+    <div class="ledger-card gastos-card">
       <Field label="Categoría" id="gasto-cat">
         <select id="gasto-cat" bind:value={category} data-testid="caja-gastos-cat">
           <option value="SUPPLIES">Insumos</option>
@@ -82,3 +82,9 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .gastos-card {
+    padding: 1.25rem;
+  }
+</style>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Button from '$lib/ui/Button.svelte';
+  import { orderStatusLabel } from '$lib/ui/ops-copy';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { customerOrderAccess } from '$lib/customer-orders/customer-order-access';
   import {
@@ -285,13 +286,13 @@
 
 <svelte:head><title>Pedido con retiro · KipusPay</title></svelte:head>
 
-<main class="pickup-shell">
+<main class="pickup-shell page-shell">
   <header class="masthead">
     <div>
       <p class="eyebrow">Caja · reserva operativa</p>
       <h1>Pedido con retiro</h1>
       <p class="lede">
-        Reserva stock. Sin pago al crear: la reserva no cobra nada ni emite CPE.
+        Reserva stock. Al crear el pedido no se cobra ni se emite comprobante.
       </p>
     </div>
     <div class:offline={!online} class="connection" role="status" aria-live="polite">
@@ -332,7 +333,7 @@
           {#each visibleOrders as order (order.id)}
             <button class:selected={selected?.id === order.id} class="order-card" data-testid="customer-order-card" type="button" onclick={() => selectOrder(order.id)}>
               <span><strong>{order.id}</strong><small>Cliente {order.customer_id}</small></span>
-              <span><b>{order.status}</b><small>Tiempo restante: {timeRemaining(order.reserved_until)}</small></span>
+              <span><b>{orderStatusLabel(order.status)}</b><small>Tiempo restante: {timeRemaining(order.reserved_until)}</small></span>
             </button>
           {:else}
             <p>No hay pedidos que coincidan con los filtros.</p>
@@ -442,15 +443,15 @@
   h2 { margin: .15rem 0 .8rem; }
   .lede, small { color: var(--text-muted); }
   .connection, .warning, .alert, .announcer { padding: .8rem 1rem; border: 1px solid var(--border-subtle); border-left: 5px solid var(--accent-primary); }
-  .connection.offline, .alert { border-left-color: #e4572e; }
-  .warning { margin: 1rem 0; border-left-color: #d99b16; }
+  .connection.offline, .alert { border-left-color: var(--alerta); }
+  .warning { margin: 1rem 0; border-left-color: var(--amber); }
   .queue, .detail, .create { min-width: 0; padding: 1rem; background: var(--bg-surface); }
   label { display: block; margin-top: .7rem; font-weight: 700; }
-  input, select, textarea, button { min-height: 44px; max-width: 100%; box-sizing: border-box; border: 1px solid var(--border-strong, #64748b); border-radius: var(--radius-sm); padding: .55rem .7rem; font: inherit; color: inherit; background: var(--bg-surface); }
+  input, select, textarea, button { min-height: 44px; max-width: 100%; box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: .55rem .7rem; font: inherit; color: inherit; background: var(--bg-surface); }
   input, select, textarea { width: 100%; }
   button { cursor: pointer; font-weight: 750; }
   button:disabled { cursor: not-allowed; opacity: .55; }
-  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #ff9f43; outline-offset: 2px; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
   .order-list { display: grid; gap: .5rem; margin-top: .8rem; max-height: 36rem; overflow-y: auto; }
   .order-card { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: .5rem; text-align: left; }
   .order-card span, .item > div { display: grid; gap: .2rem; }

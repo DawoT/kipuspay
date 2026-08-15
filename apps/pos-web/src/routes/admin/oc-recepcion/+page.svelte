@@ -1,11 +1,13 @@
 <script lang="ts">
   
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
+  import { formatCents } from '$lib/cents';
   import { isInventorySerialsEnabled, isPartialReceiveEnabled, isPurchasingOrdersEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { apiFetch } from '$lib/auth/api-client';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const recvOn = isPartialReceiveEnabled();
   const serialsOn = isInventorySerialsEnabled();
@@ -72,7 +74,7 @@ import { apiFetch } from '$lib/auth/api-client';
     };
     messageOk = res.ok;
     message = res.ok
-      ? `Receipt ${json.receiptId} · ${json.nextStatus} · CxP ${json.apAmountCents}`
+      ? `Recepción ${json.receiptId} · ${workflowStatusLabel(json.nextStatus ?? 'OPEN')} · por pagar ${formatCents(json.apAmountCents ?? 0)}`
       : (json.error ?? 'error');
   }
 
@@ -104,7 +106,7 @@ import { apiFetch } from '$lib/auth/api-client';
     };
     messageOk = res.ok;
     message = res.ok
-      ? `Manifest ${json.manifestId} · ${json.serialCount} serie(s)`
+      ? `Manifiesto de series · ${json.serialCount} serie(s)`
       : [json.error, json.action].filter(Boolean).join(' ');
   }
 </script>
@@ -116,11 +118,11 @@ import { apiFetch } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="clipboard" size={12} /> Compras · Recepción OC</p>
       <h1 class="page-title">Recepción parcial de OC</h1>
-      <p class="page-lede">CxP solo por cantidad recibida. Con 3-way on, el CxP se crea al match de factura.</p>
+      <p class="page-lede">La cuenta por pagar cubre solo lo recibido. Si hay conciliación con factura, se crea al confirmarla.</p>
     </div>
     <a class="link-action" href="/admin/factura-proveedor" data-testid="admin-link-factura">
       <Icon name="clipboard-check" size={14} />
-      Match factura 3-way
+      Conciliar factura
     </a>
   </div>
 
@@ -132,7 +134,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {/if}
 
   {#if ordersOn}
-    <section class="glass-card section-pad" data-testid="admin-po-create">
+    <section class="ledger-card section-pad" data-testid="admin-po-create">
       <div class="card-header">
         <h2>Crear orden de compra</h2>
       </div>
@@ -158,7 +160,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <div class="recv-layout">
       <!-- Recepción -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Datos de recepción</h2>
           <span class="section-tag">Línea</span>
@@ -202,7 +204,7 @@ import { apiFetch } from '$lib/auth/api-client';
 
       <!-- Series -->
       {#if serialsOn}
-        <section class="glass-card section-pad">
+        <section class="ledger-card section-pad">
           <div class="card-header">
             <h2>Series de la línea</h2>
             <span class="badge {serialNumbers.length > 0 ? 'badge-success' : 'badge-muted'}">
@@ -276,7 +278,7 @@ import { apiFetch } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 899px) {
     .recv-layout {
       grid-template-columns: 1fr;
     }

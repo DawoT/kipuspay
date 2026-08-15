@@ -28,6 +28,15 @@
   import { registerUnifiedPosServiceWorker } from '$lib/mobile/mobile-push-pwa';
   import { applyThemeToDocument, readDocumentTheme } from '$lib/ui/theme';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import BrandKnot from '$lib/ui/BrandKnot.svelte';
+  import { breadcrumbLabel } from '$lib/ui/breadcrumb';
+  import {
+    chromeShowsSidebar,
+    chromeShowsSkipLink,
+    chromeShowsTopBar,
+    resolveChromeMode,
+  } from '$lib/ui/chrome';
+  import { stitchClass, stitchStateFromFlags } from '$lib/ui/sync-stitch';
 
   let { children } = $props();
   let authenticatedSession = $state<AdminAuthenticatedSession | null>(null);
@@ -41,8 +50,9 @@
 
   type IconName = ComponentProps<typeof Icon>['name'];
 
-  // Sidebar state
+  // Sidebar state — en móvil nace cerrado (hamburger en top-bar).
   let sidebarOpen = $state(true);
+  let isNarrow = $state(false);
   let expandedGroups = $state<Record<string, boolean>>({
     terminal: true,
     admin: true,
@@ -141,7 +151,7 @@
       alwaysVisible: true,
       items: [
         { href: '/admin/oc-recepcion', label: 'Recepción OC', icon: 'clipboard-check' as IconName },
-        { href: '/admin/factura-proveedor', label: 'Factura 3-way', icon: 'file-text' as IconName },
+        { href: '/admin/factura-proveedor', label: 'Conciliar factura', icon: 'file-text' as IconName },
         { href: '/admin/devolucion-proveedor', label: 'Dev. proveedor', icon: 'arrow-left' as IconName },
       ],
     },
@@ -151,13 +161,7 @@
       icon: 'shield',
       alwaysVisible: true,
       items: [
-        { href: '/owner', label: 'Dashboard Hoy', icon: 'home' as IconName },
-        { href: '/owner/finanzas', label: 'Finanzas', icon: 'trending-up' as IconName },
-        { href: '/owner/stock', label: 'Alertas Stock', icon: 'alert' as IconName },
-        { href: '/owner/compras', label: 'Compras', icon: 'clipboard' as IconName },
-        { href: '/owner/pagos', label: 'Pagos', icon: 'credit-card' as IconName },
-        { href: '/owner/locales', label: 'Locales', icon: 'store' as IconName },
-        { href: '/owner/transferencias', label: 'Transferencias', icon: 'truck' as IconName },
+        { href: '/owner', label: 'Modo Dueño', icon: 'home' as IconName },
       ],
     },
     {
@@ -190,7 +194,7 @@
       alwaysVisible: true,
       items: [
         { href: '/salon', label: 'Salón', icon: 'utensils' as IconName },
-        { href: '/kds', label: 'KDS Cocina', icon: 'chef-hat' as IconName },
+        { href: '/kds', label: 'Cocina', icon: 'chef-hat' as IconName },
         { href: '/kiosk', label: 'Kiosko', icon: 'monitor' as IconName },
         { href: '/vitrina', label: 'Vitrina', icon: 'eye' as IconName },
         ...(isMobilePosEnabled() || isMobilePushEnabled()
@@ -212,6 +216,20 @@
 
   let currentTheme = $state<'dark' | 'light'>('dark');
   let online = $state(true);
+
+  const chromeMode = $derived(
+    resolveChromeMode({
+      pathname: page.url.pathname,
+      role: authenticatedSession?.role ?? '',
+    }),
+  );
+  const showSidebar = $derived(chromeShowsSidebar(chromeMode));
+  const showTopBar = $derived(chromeShowsTopBar(chromeMode));
+  const showSkipLink = $derived(chromeShowsSkipLink(chromeMode));
+  const pageCrumb = $derived(breadcrumbLabel(page.url.pathname));
+  const connectionStitch = $derived(
+    stitchClass(stitchStateFromFlags({ online, pendingCount: 0, charging: false })),
+  );
 
   function syncOnlineStatus() {
     online = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -239,16 +257,14 @@
       currentTheme = readDocumentTheme();
       applyThemeToDocument(currentTheme);
 
-      window.addEventListener('click', (e) => {
-        const target = (e.target as HTMLElement)?.closest('.theme-toggle-btn');
-        if (target) {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleTheme();
-        }
-      });
+      const narrow = window.matchMedia('(max-width: 768px)');
+      const syncNarrow = () => {
+        isNarrow = narrow.matches;
+        if (narrow.matches) sidebarOpen = false;
+      };
+      syncNarrow();
+      narrow.addEventListener('change', syncNarrow);
 
-      // Auto-expand the active group
       for (const group of navGroups) {
         if (isGroupActive(group)) {
           expandedGroups = { ...expandedGroups, [group.id]: true };
@@ -289,17 +305,27 @@
   let billingNotice = $derived(billingNoticeText(authenticatedSession?.billing));
 </script>
 
-<div class="app-shell" class:sidebar-collapsed={!sidebarOpen}>
+{#if showSkipLink}
+  <a href="#contenido" class="skip-link">Saltar a contenido</a>
+{/if}
+
+<div
+  class="app-shell"
+  class:sidebar-collapsed={!sidebarOpen}
+  class:chrome-bare={!showSidebar && !showTopBar}
+  class:chrome-cashier={chromeMode === 'cashier'}
+>
   {#if billingNotice}
     <div class="billing-banner" role="status" data-testid="billing-banner">
       <span>{billingNotice}</span>
     </div>
   {/if}
-  <aside class="sidebar" aria-label="Navegación principal">
+  {#if showSidebar}
+  <aside class="sidebar" aria-label="Navegación principal" data-testid="app-sidebar">
     <!-- Brand header -->
     <div class="sidebar-brand">
       <div class="brand-logo">
-        <Icon name="cart" size={20} />
+        <BrandKnot size={14} />
       </div>
       {#if sidebarOpen}
         <div class="brand-text">
@@ -362,39 +388,40 @@
         {/if}
       {/each}
     </nav>
-
-    <!-- Sidebar footer: theme + status -->
-    <div class="sidebar-footer">
-      <button
-        type="button"
-        class="theme-toggle-btn"
-        onclick={toggleTheme}
-        aria-label="Cambiar modo claro y oscuro"
-        title={`Cambiar a modo ${currentTheme === 'dark' ? 'claro' : 'oscuro'}`}
-      >
-        <Icon name={currentTheme === 'dark' ? 'sun' : 'moon'} size={16} />
-        {#if sidebarOpen}
-          <span>{currentTheme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>
-        {/if}
-      </button>
-      <div class="status-dot" title={online ? 'En línea' : 'Sin conexión'}>
-        <span class="pulse-dot" class:offline={!online}></span>
-        {#if sidebarOpen}
-          <span class="status-label" class:offline={!online}>{online ? 'En línea' : 'Sin conexión'}</span>
-        {/if}
-      </div>
-    </div>
   </aside>
+  {/if}
+  {#if showSidebar && isNarrow && sidebarOpen}
+    <button
+      type="button"
+      class="nav-overlay"
+      aria-label="Cerrar navegación"
+      data-testid="nav-overlay"
+      onclick={() => (sidebarOpen = false)}
+    ></button>
+  {/if}
 
   <!-- Main content area -->
   <div class="main-area">
-    <!-- Top bar -->
+    {#if showTopBar}
     <header class="top-bar">
       <div class="top-bar-left">
+        {#if showSidebar}
+          <button
+            type="button"
+            class="nav-hamburger"
+            data-testid="nav-hamburger"
+            aria-label={sidebarOpen ? 'Cerrar navegación' : 'Abrir navegación'}
+            aria-expanded={sidebarOpen}
+            onclick={toggleSidebar}
+          >
+            <Icon name="menu" size={18} />
+          </button>
+        {/if}
         <div class="breadcrumb">
+          <BrandKnot size={10} />
           <span class="breadcrumb-app">KipusPay</span>
           <Icon name="chevron-right" size={12} />
-          <span class="breadcrumb-page">{page.url.pathname.replace(/^\//, '') || 'Terminal POS'}</span>
+          <span class="breadcrumb-page">{pageCrumb}</span>
         </div>
       </div>
       <div class="top-bar-right">
@@ -404,7 +431,7 @@
           data-testid="connection-status"
         >
           <span class="pulse-dot" class:offline={!online}></span>
-          <span>{online ? 'En línea' : 'Sin conexión'}</span>
+          <span class={connectionStitch}>{online ? 'En línea' : 'Sin conexión'}</span>
         </div>
         {#if sessionLoaded && authenticatedSession === null && !import.meta.env.PUBLIC_DEV_AUTH}
           <a href="/login" class="login-link" data-testid="topbar-login">
@@ -416,15 +443,16 @@
           type="button"
           class="theme-toggle-btn icon-only"
           onclick={toggleTheme}
-          aria-label="Cambiar modo"
-          title={`Modo ${currentTheme === 'dark' ? 'claro' : 'oscuro'}`}
+          aria-label="Cambiar modo claro y oscuro"
+          title={`Cambiar a modo ${currentTheme === 'dark' ? 'claro' : 'oscuro'}`}
         >
           <Icon name={currentTheme === 'dark' ? 'sun' : 'moon'} size={16} />
         </button>
       </div>
     </header>
+    {/if}
 
-    <main class="page-content">
+    <main class="page-content" id="contenido">
       {#key page.url.pathname}
         <div
           class="page-transition"
@@ -444,18 +472,50 @@
     position: sticky;
     top: 0;
     z-index: 60;
-    background: #fde68a;
-    color: #7c2d12;
+    background: color-mix(in srgb, var(--amber-gold) 28%, var(--paper, #f3efe6));
+    color: var(--ink);
     padding: 0.55rem 1rem;
+    padding-top: calc(0.55rem + env(safe-area-inset-top, 0px));
     text-align: center;
     font-size: 0.85rem;
     font-weight: 600;
-    border-bottom: 1px solid #f59e0b;
+    border-bottom: 1px solid var(--amber-gold);
   }
   .app-shell {
     display: flex;
     min-height: 100vh;
+    min-height: 100dvh;
     background: var(--bg-primary);
+  }
+
+  .app-shell.chrome-bare {
+    display: block;
+  }
+
+  .nav-hamburger {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-button-sec);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: rgba(20, 22, 28, 0.55);
+    cursor: pointer;
   }
 
   /* ── Sidebar ──────────────────────────────────── */
@@ -471,7 +531,9 @@
     position: sticky;
     top: 0;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
                 min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 50;
@@ -796,6 +858,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 1.5rem;
+    padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
     height: 64px;
     min-height: 64px;
     background: var(--bg-glass);
@@ -886,15 +949,30 @@
     flex: 1;
     overflow-y: auto;
     padding: 1.5rem;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .chrome-bare .page-content {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .chrome-cashier .page-content {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* ── Responsive ───────────────────────────────── */
   @media (max-width: 768px) {
+    .nav-hamburger {
+      display: flex;
+    }
+
     .sidebar {
       position: fixed;
       left: 0;
       top: 0;
       height: 100vh;
+      height: 100dvh;
       z-index: 100;
       transform: translateX(0);
       box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);

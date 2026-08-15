@@ -129,7 +129,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function reserveLoyalty() {
     loyaltyMsg = '';
     if (!loyaltyOn) {
-      loyaltyMsg = 'FEATURE_LOYALTY_POINTS off';
+      loyaltyMsg = 'Los puntos no están activos para esta tienda.';
       return;
     }
     if (!online) {
@@ -206,7 +206,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     <div class="cobro-grid">
       <!-- Método de pago -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
           <h2>Método de pago</h2>
           <Icon name="credit-card" size={16} />
@@ -249,7 +249,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Cliente, WhatsApp y Puntos -->
       {#if whatsappOn || loyaltyOn}
-        <div class="glass-card section-pad">
+        <div class="ledger-card section-pad">
           <div class="card-header">
             <h2>Cliente</h2>
             <Icon name="user" size={16} />
@@ -298,14 +298,14 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Promociones -->
       {#if promosOn}
-        <div class="glass-card section-pad">
+        <div class="ledger-card section-pad">
           <div class="card-header">
             <h2>Promoción</h2>
             <Icon name="percent" size={16} />
           </div>
           <div class="field-group">
             <label for="cobro-promo">ID de promoción</label>
-            <input id="cobro-promo" bind:value={promotionId} data-testid="caja-promo-id" placeholder="p-demo" />
+            <input id="cobro-promo" bind:value={promotionId} data-testid="caja-promo-id" placeholder="Código de promoción" />
           </div>
           <p class="promo-hint" data-testid="caja-promo-hint">
             Se envía solo el ID en la venta offline; no se confía en el precio de pantalla.

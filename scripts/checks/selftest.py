@@ -66,6 +66,13 @@ def load_marketing_copy():
     return mod
 
 
+def load_pos_copy():
+    spec = importlib.util.spec_from_file_location("pos_copy", f"{HERE}/pos_copy.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 SUCIA = """```sql
 CREATE TABLE mala (
     id TEXT PRIMARY KEY,
@@ -264,6 +271,25 @@ def main() -> int:
     expect(
         mc._is_comment("<!-- GTM-02 interno -->"),
         "V-26 no omite comentarios HTML",
+    )
+
+    # V-27: copy POS incluye label/placeholder (FASE E)
+    pc = load_pos_copy()
+    expect(
+        pc.BANNED_WORDS.search(pc.visible_text('<Field label="Cuota inicial (céntimos)">')) is not None,
+        "V-27 no ve céntimos en atributo label",
+    )
+    expect(
+        pc.BANNED_WORDS.search(pc.visible_text('<Input placeholder="p-demo" />')) is not None,
+        "V-27 no ve p-demo en placeholder",
+    )
+    expect(
+        "JSON" in pc.visible_text('<Field label="Ítems del plan (JSON)">'),
+        "V-27 no ve JSON en atributo label",
+    )
+    expect(
+        pc.BANNED_WORDS.search(pc.visible_text('<p>Pago de cuotas</p>')) is None,
+        "V-27 marca copy limpio de caja como jerga",
     )
 
     # V-28/V-29: contrato de integración entre apps (paridad epoch + POS↔API)

@@ -11,6 +11,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
@@ -89,7 +90,7 @@
   <div class="page-shell" data-testid="owner-locales">
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="store" size={12} /> Modo Dueño · Locales</p>
+        <p class="page-eyebrow"><Icon name="store" size={12} /> Locales</p>
         <h1 class="page-title">Ranking de locales</h1>
         <p class="page-lede">
           {rankingLive
@@ -107,16 +108,15 @@
     {/if}
 
     {#if rankingLive}
-      <div class="glass-card locales-card">
+      <div class="ledger-card locales-card">
         <div class="card-header">
           <h2>Ventas netas por sucursal</h2>
           <span class="section-tag">Resumen del servidor</span>
         </div>
         {#if branches.length === 0}
-          <div class="empty-ranking">
-            <Icon name="store" size={28} />
-            <span>Sin datos de rollup aún</span>
-          </div>
+          <EmptyState icon="store" title="Sin ranking aún" description="Cuando haya ventas, aparece el resumen por local.">
+            <Button variant="secondary" href="/">Ir a cobrar</Button>
+          </EmptyState>
         {:else}
           <ol class="branch-ranking" data-testid="branch-ranking">
             {#each branches as b, i}
@@ -124,14 +124,14 @@
                 <span class="rank-pos">#{i + 1}</span>
                 <span class="rank-name">
                   <Icon name="store" size={14} />
-                  {b.branch_id}
+                  Local {i + 1}
                 </span>
                 <span class="rank-amount tabular-nums">{formatCents(b.net_sales_cents)}</span>
               </li>
             {/each}
           </ol>
         {/if}
-        <p class="gtm-note" data-testid="gtm11-note">GTM-11: offline = cache + banner antigüedad</p>
+        <p class="gtm-note" data-testid="gtm11-note">Sin red se muestra el último resumen guardado y hace cuánto se actualizó.</p>
       </div>
     {:else}
       {#if snap}
@@ -147,17 +147,6 @@
 <style>
   .locales-card {
     padding: 1.25rem;
-  }
-
-  .empty-ranking {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 3rem;
-    color: var(--text-dim);
-    font-size: 0.9375rem;
   }
 
   .branch-ranking {

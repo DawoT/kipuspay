@@ -9,6 +9,7 @@
   import { cashSessionContext } from '$lib/admin/cash-session';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Button from '$lib/ui/Button.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
 
   const enabled = isOwnerModeEnabled();
   const ledger = isLedgerArApEnabled();
@@ -85,7 +86,7 @@
   <div class="page-shell" data-testid="owner-finanzas">
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="trending-up" size={12} /> Modo Dueño · Finanzas</p>
+        <p class="page-eyebrow"><Icon name="trending-up" size={12} /> Finanzas</p>
         <h1 class="page-title">Finanzas</h1>
         <p class="page-lede">Cuentas por cobrar y por pagar. El diario contable sigue en solo lectura.</p>
       </div>
@@ -106,7 +107,7 @@
       {/if}
 
       <div class="finanzas-grid">
-        <div class="glass-card fin-card">
+        <div class="ledger-card fin-card">
           <div class="card-header">
             <h2>Cuentas por cobrar</h2>
             <Icon name="trending-up" size={16} class="icon-emerald" />
@@ -114,7 +115,9 @@
           {#if loading}
             <Skeleton lines={3} />
           {:else if ar.length === 0}
-            <p class="fin-empty">Sin cuentas por cobrar abiertas.</p>
+            <EmptyState title="Sin cuentas por cobrar" description="Cuando haya saldos abiertos, aparecen aquí.">
+              <Button variant="secondary" href="/" data-testid="fin-empty-ar">Ir a cobrar</Button>
+            </EmptyState>
           {:else}
             <div class="fin-total tabular-nums">S/ {formatCents(arTotal)}</div>
             <ul class="fin-list">
@@ -133,7 +136,7 @@
           {/if}
         </div>
 
-        <div class="glass-card fin-card">
+        <div class="ledger-card fin-card">
           <div class="card-header">
             <h2>Cuentas por pagar</h2>
             <Icon name="trending-down" size={16} class="icon-rose" />
@@ -141,7 +144,9 @@
           {#if loading}
             <Skeleton lines={3} />
           {:else if ap.length === 0}
-            <p class="fin-empty">Sin cuentas por pagar abiertas.</p>
+            <EmptyState title="Sin cuentas por pagar" description="Las facturas de proveedor pendientes se listan aquí.">
+              <Button variant="secondary" href="/admin/factura-proveedor" data-testid="fin-empty-ap">Ver facturas</Button>
+            </EmptyState>
           {:else}
             <div class="fin-total tabular-nums">S/ {formatCents(apTotal)}</div>
             <ul class="fin-list">
@@ -216,10 +221,5 @@
 
   .fin-due {
     font-weight: 700;
-  }
-
-  .fin-empty {
-    color: var(--text-muted);
-    font-size: 0.9375rem;
   }
 </style>

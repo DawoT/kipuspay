@@ -2,6 +2,7 @@
   
   import { tenantBranchId } from '$lib/admin/cash-session';
   import { apiFetch } from '$lib/auth/api-client';
+  import { formatCents } from '$lib/cents';
   import { isSalesCommissionsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -46,7 +47,7 @@
     const json = (await res.json()) as { payoutId?: string; totalCents?: number; error?: string };
     messageOk = res.ok;
     message = res.ok
-      ? `Payout creado OPEN · ID ${json.payoutId}`
+      ? `Pago creado · ${formatCents(json.totalCents ?? 0)}`
       : (json.error ?? `Error ${res.status}`);
   }
 
@@ -60,7 +61,7 @@
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `PAID · ${json.status}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? 'Pago marcado como pagado' : (json.error ?? `Error ${res.status}`);
   }
 </script>
 
@@ -71,7 +72,7 @@
     <div>
       <p class="page-eyebrow"><Icon name="percent" size={12} /> Ventas · Comisiones</p>
       <h1 class="page-title">Comisiones de vendedor</h1>
-      <p class="page-lede">Tasas y payouts — sin nómina. Los montos son fijados exclusivamente por el servidor.</p>
+      <p class="page-lede">Tasas y pagos a vendedores. Los montos los confirma el cobro, no esta pantalla.</p>
     </div>
   </div>
 
@@ -90,7 +91,7 @@
   {:else}
     <div class="comm-layout">
       <!-- Tasas -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Tasa de comisión</h2>
           <span class="section-tag">Configuración</span>
@@ -123,9 +124,9 @@
       </section>
 
       <!-- Payout -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
-          <h2>Gestión de payout</h2>
+          <h2>Gestión de pagos</h2>
           <span class="section-tag">Liquidación</span>
         </div>
         <div class="field-group">
@@ -137,17 +138,17 @@
           <input id="payout-end" type="date" bind:value={periodEndIso} data-testid="comm-period-end" />
         </div>
         <Button variant="primary" icon="plus" data-testid="comm-create-payout" onclick={createPayout}>
-          Crear payout OPEN
+          Crear pago pendiente
         </Button>
 
         <div class="separator"></div>
 
         <div class="field-group">
-          <label for="payout-id-input">Payout ID</label>
-          <input id="payout-id-input" bind:value={payoutId} data-testid="comm-payout-id" placeholder="ID del payout creado" />
+          <label for="payout-id-input">Pago a liquidar</label>
+          <input id="payout-id-input" bind:value={payoutId} data-testid="comm-payout-id" placeholder="Elige el pago creado" />
         </div>
         <Button variant="success" icon="check" data-testid="comm-pay" onclick={payPayout} disabled={!payoutId}>
-          Marcar como PAID
+          Marcar como pagado
         </Button>
       </section>
     </div>
@@ -169,7 +170,7 @@
     margin: 0.875rem 0;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 899px) {
     .comm-layout {
       grid-template-columns: 1fr;
     }

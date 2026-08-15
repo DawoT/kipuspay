@@ -5,6 +5,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import { stockKindLabel } from '$lib/ui/ops-copy';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
@@ -55,7 +56,7 @@
   <div class="page-shell" data-testid="owner-alertas">
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="alert" size={12} /> Modo Dueño · Alertas</p>
+        <p class="page-eyebrow"><Icon name="alert" size={12} /> Alertas</p>
         <h1 class="page-title">Alertas</h1>
         <p class="page-lede">Lo que necesita tu atención hoy: quiebres de stock, pagos sin conciliar y apartados vencidos.</p>
       </div>
@@ -74,7 +75,7 @@
       </div>
     {:else}
       <div class="alertas-grid">
-        <section class="glass-card section-pad" data-testid="alertas-stock">
+        <section class="ledger-card section-pad" data-testid="alertas-stock">
           <div class="card-header">
             <h2>Quiebre de stock</h2>
             <Icon name="box" size={16} />
@@ -86,14 +87,14 @@
               {#each stockAlerts as item}
                 <li>
                   <span class="alert-name">{item.product_name || item.product_id}</span>
-                  <span class="alert-status">{item.status}</span>
+                  <span class="alert-status">{stockKindLabel(item.status)}</span>
                 </li>
               {/each}
             </ul>
           {/if}
         </section>
 
-        <section class="glass-card section-pad" data-testid="alertas-uncaptured">
+        <section class="ledger-card section-pad" data-testid="alertas-uncaptured">
           <div class="card-header">
             <h2>Pagos sin conciliar</h2>
             <Icon name="credit-card" size={16} />
@@ -112,7 +113,7 @@
           {/if}
         </section>
 
-        <section class="glass-card section-pad" data-testid="alertas-layaways">
+        <section class="ledger-card section-pad" data-testid="alertas-layaways">
           <div class="card-header">
             <h2>Apartados vencidos</h2>
             <Icon name="clock" size={16} />
@@ -176,7 +177,7 @@
   }
 
   .alert-status {
-    color: var(--amber-warning, #f59e0b);
+    color: var(--amber-warning);
     font-size: 0.8125rem;
   }
 

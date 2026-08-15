@@ -6,6 +6,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
@@ -60,7 +61,7 @@ import { apiFetch } from '$lib/auth/api-client';
           : (json.error ?? `Error ${res.status}`);
       return;
     }
-    message = `Factura ${json.invoiceId} · ${json.invoiceStatus} · CxP ${formatCents(json.apAmountCents ?? 0)}`;
+    message = `Factura ${json.invoiceId} · ${workflowStatusLabel(json.invoiceStatus ?? 'OPEN')} · por pagar ${formatCents(json.apAmountCents ?? 0)}`;
   }
 
   async function payAp() {
@@ -79,19 +80,19 @@ import { apiFetch } from '$lib/auth/api-client';
     const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
     messageOk = res.ok;
     message = res.ok
-      ? `Pago CxP · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
+      ? `Pago registrado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
       : (json.error ?? `Error ${res.status}`);
   }
 </script>
 
-<svelte:head><title>Factura proveedor 3-way · KipusPay</title></svelte:head>
+<svelte:head><title>Factura proveedor · KipusPay</title></svelte:head>
 
 <div class="page-shell" data-testid="admin-factura-match">
   <div class="page-masthead">
     <div>
       <p class="page-eyebrow"><Icon name="clipboard-check" size={12} /> Compras · Factura Proveedor</p>
-      <h1 class="page-title">Match factura proveedor</h1>
-      <p class="page-lede">Verificación 3-way: OC × Recepción × Factura. El CxP se genera al confirmar el match.</p>
+      <h1 class="page-title">Conciliar factura de proveedor</h1>
+      <p class="page-lede">Orden, recepción y factura deben cuadrar. La cuenta por pagar se crea al confirmar.</p>
     </div>
     <a class="link-action" href="/admin/oc-recepcion">
       <Icon name="arrow-left" size={14} />
@@ -114,7 +115,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <div class="invoice-layout">
       <!-- OC & Factura -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Orden de compra</h2>
           <span class="section-tag">Referencia</span>
@@ -134,7 +135,7 @@ import { apiFetch } from '$lib/auth/api-client';
       </section>
 
       <!-- Línea -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Línea de factura</h2>
           <span class="section-tag">Detalle</span>
@@ -166,9 +167,9 @@ import { apiFetch } from '$lib/auth/api-client';
       </section>
 
       <!-- Override -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
-          <h2>Override de precio</h2>
+          <h2>Ajuste de precio</h2>
           <span class="badge {priceDiffOverride ? 'badge-warning' : 'badge-muted'}">
             {priceDiffOverride ? 'Activo' : 'Desactivado'}
           </span>
@@ -190,17 +191,17 @@ import { apiFetch } from '$lib/auth/api-client';
           </div>
         {/if}
         <Button variant="primary" size="full" icon="clipboard-check" data-testid="inv-match-btn" onclick={matchInvoice}>
-          Confirmar match 3-way
+          Confirmar conciliación
         </Button>
       </section>
     </div>
     {#if apPayOn}
-      <section class="glass-card section-pad" data-testid="admin-ap-pay">
+      <section class="ledger-card section-pad" data-testid="admin-ap-pay">
         <div class="card-header">
           <h2>Pagar cuenta por pagar</h2>
         </div>
         <div class="field-group">
-          <label for="ap-id">ID de CxP</label>
+          <label for="ap-id">Cuenta por pagar</label>
           <input id="ap-id" bind:value={accountsPayableId} data-testid="inv-ap-id" />
         </div>
         <div class="field-group">

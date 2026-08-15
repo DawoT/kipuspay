@@ -218,7 +218,7 @@
     </StatusMessage>
   {:else}
     {#if warning.visible}
-      <div class="queue-warning glass-card">
+      <div class="queue-warning ledger-card">
         <div class="warning-head">
           <Icon name="alert" size={20} class="icon-amber" />
           <h2>Cobertura requerida antes de exportar</h2>
@@ -230,7 +230,7 @@
       </div>
     {/if}
 
-    <div class="toolbar glass-card">
+    <div class="toolbar ledger-card">
       <div class="action-buttons">
         <Button
           variant="primary"
@@ -283,7 +283,7 @@
     {/if}
 
     <div class="operations-grid">
-      <section class="history-card glass-card" aria-labelledby="history-title">
+      <section class="history-card ledger-card" aria-labelledby="history-title">
         <div class="card-head">
           <Icon name="clock" size={18} class="icon-accent" />
           <h2 id="history-title">Historial y progreso ({items.length})</h2>
@@ -293,7 +293,16 @@
             <Skeleton lines={3} />
           </div>
         {:else if items.length === 0}
-          <EmptyState icon="database" title="Sin exportaciones" description="No hay exportaciones registradas." />
+          <EmptyState icon="database" title="Sin exportaciones" description="No hay exportaciones registradas.">
+            <Button
+              variant="primary"
+              data-testid="backups-empty-create"
+              disabled={!online || busy}
+              onclick={createBackup}
+            >
+              Crear exportación
+            </Button>
+          </EmptyState>
         {:else}
           <ul class="backup-list">
             {#each items as backup (backup.id)}
@@ -319,7 +328,7 @@
         {/if}
       </section>
 
-      <section class="detail-card glass-card" aria-labelledby="detail-title">
+      <section class="detail-card ledger-card" aria-labelledby="detail-title">
         <div class="card-head">
           <Icon name="shield" size={18} class="icon-accent" />
           <h2 id="detail-title">Detalle y recuperación</h2>
@@ -389,17 +398,17 @@
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .scope {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.9rem;
     margin: 0;
   }
 
   .queue-warning {
-    border-left: 4px solid var(--amber-gold, #f59e0b);
+    border-left: 4px solid var(--amber-gold);
     margin-bottom: 1.25rem;
   }
 
@@ -413,7 +422,7 @@
   .warning-head h2 {
     margin: 0;
     font-size: 1.1rem;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .toolbar {
@@ -442,7 +451,7 @@
     gap: 0.35rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     text-transform: uppercase;
   }
 
@@ -470,7 +479,7 @@
     margin: 0;
     font-size: 1.05rem;
     font-family: var(--font-heading, sans-serif);
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .backup-list {
@@ -512,7 +521,7 @@
 
   .backup-time {
     font-size: 0.78rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
   }
 
   .spec-dl {
@@ -533,7 +542,7 @@
   }
 
   dt {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.78rem;
     text-transform: uppercase;
     font-weight: 600;
@@ -541,7 +550,7 @@
 
   dd {
     margin: 0;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .hash-code {
@@ -557,7 +566,7 @@
     align-items: flex-start;
     gap: 0.4rem;
     font-size: 0.82rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     line-height: 1.4;
     margin-bottom: 1rem;
   }

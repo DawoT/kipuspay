@@ -85,6 +85,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import {
+    cashierFacingMessage,
+    chargeButtonLabel,
+    scaleStateLabel,
+  } from '$lib/ui/cashier-copy';
+  import { stitchClass, stitchStateFromFlags } from '$lib/ui/sync-stitch';
+  import {
     fetchSellableCatalog,
     type SellableCatalogItem,
   } from '$lib/catalog/sellable-catalog-client';
@@ -169,6 +175,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const totalCents = $derived(cartTotalCents(lines));
   const payableCents = $derived(cartPayableCents(lines));
   const banner = $derived(formalizationBannerMessage(session.formalizationMode));
+  const chargeSettled = $derived(status === 'completado');
+  const cobroStitch = $derived(
+    stitchClass(
+      stitchStateFromFlags({
+        online: typeof navigator === 'undefined' ? true : navigator.onLine,
+        pendingCount: 0,
+        charging: status === 'cobrando',
+      }),
+    ),
+  );
 
   onMount(async () => {
     if (typeof window === 'undefined') return;
@@ -737,6 +753,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           catalogOn={catalogOn}
           bind:query={catalogQuery}
           onAdd={addProduct}
+          onQuickSale={() => (quickSaleOpen = true)}
         />
 
         <!-- Serial Scanner Instrument Panel -->
@@ -798,7 +815,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 aria-live="polite"
                 data-testid="main-serial-status"
               >
-                {serialStatus}
+                {cashierFacingMessage(serialStatus)}
               </p>
             {/if}
           </section>
@@ -819,7 +836,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               </div>
               <div class="scale-state-badge" data-testid="scale-state">
                 <span class="pulse-dot"></span>
-                <span>{scaleState}</span>
+                <span>{scaleStateLabel(scaleState)}</span>
               </div>
             </div>
 
@@ -834,15 +851,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             <div class="scale-actions-row">
               <button type="button" class="secondary" onclick={connectScale}>
                 <Icon name="wifi" size={16} />
-                {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar Balanza'}
+                {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar balanza'}
               </button>
               <button type="button" class="primary" onclick={captureDeviceWeight} disabled={scaleState !== 'STABLE'}>
                 <Icon name="scale" size={16} />
-                Capturar Pesada
+                Capturar pesada
               </button>
               <button type="button" class="secondary" onclick={disconnectScale}>
                 <Icon name="edit" size={16} />
-                Peso Manual
+                Peso manual
               </button>
             </div>
 
@@ -874,7 +891,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                   </div>
                 </div>
                 <button type="button" class="primary" onclick={captureManualWeight}>
-                  Confirmar Peso Manual
+                  Confirmar peso manual
                 </button>
               </div>
             {/if}
@@ -893,10 +910,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <!-- Items List -->
           <div class="cart-items-scroll">
             {#if lines.length === 0}
-              <div class="empty-cart">
-                <Icon name="cart" size={36} />
-                <p>El carrito está vacío</p>
-              </div>
+              <EmptyState
+                icon="cart"
+                title="El carrito está vacío"
+                description="Agrega un producto del catálogo o cobra una venta rápida."
+              >
+                <Button
+                  variant="secondary"
+                  data-testid="empty-cart-quick"
+                  onclick={() => (quickSaleOpen = true)}
+                >
+                  Venta rápida
+                </Button>
+              </EmptyState>
             {:else}
               {#each lines as line (line.productId)}
                 <div class="cart-item-row">
@@ -906,14 +932,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                   </div>
                   <div class="item-actions">
                     <div class="quantity-controls">
-                      <button type="button" class="qty-btn" onclick={() => updateQuantity(line.productId, -1)}>-</button>
+                      <button type="button" class="qty-btn" aria-label="Quitar uno" onclick={() => updateQuantity(line.productId, -1)}>-</button>
                       <span class="qty-value tabular-nums">{line.quantity}</span>
-                      <button type="button" class="qty-btn" onclick={() => updateQuantity(line.productId, 1)}>+</button>
+                      <button type="button" class="qty-btn" aria-label="Agregar uno" onclick={() => updateQuantity(line.productId, 1)}>+</button>
                     </div>
                     <span class="item-line-total tabular-nums">
                       S/ {formatCents(line.unitPriceCents * line.quantity)}
                     </span>
-                    <button type="button" class="remove-item-btn" onclick={() => removeLine(line.productId)}>×</button>
+                    <button type="button" class="remove-item-btn" aria-label="Quitar del carrito" onclick={() => removeLine(line.productId)}>×</button>
                   </div>
                 </div>
               {/each}
@@ -923,8 +949,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <!-- Total & Charge Section -->
           <div class="cart-summary-footer">
             <div class="summary-total-box">
-              <span class="total-label">TOTAL A COBRAR</span>
-              <span data-testid="total" class="total-amount tabular-nums">
+              <span class="total-label">Total a cobrar</span>
+              <span
+                data-testid="total"
+                class={['total-amount', 'tabular-nums', cobroStitch, chargeSettled && 'settled']}
+              >
                 S/ {formatCents(payableCents)}
               </span>
             </div>
@@ -976,7 +1005,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               disabled={lines.length === 0}
               icon="credit-card"
             >
-              COBRAR (S/ {formatCents(payableCents)})
+              {chargeButtonLabel(formatCents(payableCents))}
             </Button>
             <Button
               variant="secondary"
@@ -986,7 +1015,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               onclick={() => (quickSaleOpen = true)}
               icon="plus"
             >
-              VENTA RÁPIDA (sin catálogo)
+              Venta rápida (sin catálogo)
             </Button>
           </div>
         </section>
@@ -1094,8 +1123,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   .onboarding-notice {
     padding: 0.875rem 1.25rem;
-    border: 1px solid var(--amber-warning, #f59e0b);
-    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid var(--amber-gold);
+    background: color-mix(in srgb, var(--amber-gold) 12%, transparent);
     color: var(--text-main);
     font-size: 0.9375rem;
   }
@@ -1106,9 +1135,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 0.5rem;
     padding: 0.625rem 1rem;
-    background: rgba(15, 23, 42, 0.9);
+    padding-bottom: calc(0.625rem + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-secondary);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     position: sticky;
     bottom: 0.75rem;
     z-index: 20;
@@ -1371,7 +1401,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border: 1px solid var(--border-subtle);
   }
   .qty-btn {
-    padding: 0.25rem 0.625rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
     background: transparent;
     border: none;
     color: var(--text-main);
@@ -1391,7 +1423,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border: none;
     color: var(--text-dim);
     font-size: 1.25rem;
-    padding: 0.25rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
   }
   .remove-item-btn:hover {
     color: var(--rose-red);
@@ -1416,10 +1450,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     letter-spacing: 0.05em;
   }
   .total-amount {
+    font-family: var(--font-mono);
     font-size: 2.25rem;
     font-weight: 800;
+    color: var(--text-main);
+  }
+  .total-amount.settled {
     color: var(--emerald-green);
-    text-shadow: 0 0 16px rgba(46, 158, 116, 0.25);
   }
 
   .status-tag {

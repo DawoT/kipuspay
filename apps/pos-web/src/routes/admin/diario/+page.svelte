@@ -2,7 +2,9 @@
   import { isLedgerChartOfAccountsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
-import { apiFetch } from '$lib/auth/api-client';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { formatCents } from '$lib/cents';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const journalOn = isLedgerChartOfAccountsEnabled();
   let fromDate = $state('2026-08-01');
@@ -27,6 +29,24 @@ import { apiFetch } from '$lib/auth/api-client';
     rows = json.items ?? [];
   }
 
+  function journalLine(row: Record<string, unknown>, index: number): string {
+    const memo = typeof row.memo === 'string' && row.memo.trim() ? row.memo.trim() : '';
+    const account =
+      typeof row.account_code === 'string'
+        ? row.account_code
+        : typeof row.account_id === 'string'
+          ? row.account_id
+          : '';
+    const debit = typeof row.debit_cents === 'number' ? row.debit_cents : null;
+    const credit = typeof row.credit_cents === 'number' ? row.credit_cents : null;
+    const parts = [`Asiento ${index + 1}`];
+    if (account) parts.push(account);
+    if (memo) parts.push(memo);
+    if (debit != null && debit > 0) parts.push(`cargo ${formatCents(debit)}`);
+    if (credit != null && credit > 0) parts.push(`abono ${formatCents(credit)}`);
+    return parts.join(' · ');
+  }
+
   async function tryMutate() {
     mutateMsg = '';
     const res = await apiFetch('/api/ledger/journal', {
@@ -36,7 +56,9 @@ import { apiFetch } from '$lib/auth/api-client';
       body: '{}',
     });
     const json = (await res.json()) as { code?: string; error?: string };
-    mutateMsg = json.code ?? json.error ?? String(res.status);
+    mutateMsg = json.code === 'JOURNAL_IMMUTABLE' || json.code === 'METHOD_NOT_ALLOWED'
+      ? 'El diario no se puede modificar'
+      : (json.error ?? 'No se pudo comprobar');
   }
 </script>
 
@@ -58,7 +80,7 @@ import { apiFetch } from '$lib/auth/api-client';
       <span>El diario contable no está activo para este negocio.</span>
     </div>
   {:else}
-    <div class="journal-workbench glass-card">
+    <div class="journal-workbench ledger-card">
       <div class="filter-grid">
         <div class="field">
           <label for="from-date">
@@ -81,7 +103,7 @@ import { apiFetch } from '$lib/auth/api-client';
             <Icon name="building" size={14} />
             <span>Sucursal</span>
           </label>
-          <input id="branch-id" bind:value={branchId} data-testid="journal-branch" placeholder="b1" />
+          <input id="branch-id" bind:value={branchId} data-testid="journal-branch" placeholder="Sucursal" />
         </div>
       </div>
 
@@ -111,11 +133,21 @@ import { apiFetch } from '$lib/auth/api-client';
         </div>
       {/if}
 
-      <div class="table-container">
+      <div class="table-container" data-testid="journal-rows">
         <div class="table-head">
-          <span>Registros en memoria: <strong>{rows.length}</strong></span>
+          <span>Registros: <strong>{rows.length}</strong></span>
         </div>
-        <pre class="json-viewer" data-testid="journal-rows">{JSON.stringify(rows, null, 2)}</pre>
+        {#if rows.length === 0}
+          <EmptyState title="Sin asientos" description="Elige un rango y lee el diario." />
+        {:else}
+          <ul class="item-list">
+            {#each rows as row, i}
+              <li class="item-row">
+                <span>{journalLine(row, i)}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </div>
     </div>
   {/if}
@@ -138,17 +170,17 @@ import { apiFetch } from '$lib/auth/api-client';
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .lede {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.92rem;
     margin: 0;
   }
 
-  .glass-card {
-    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
+  .ledger-card {
+    background: var(--bg-ledger-card, rgba(30, 41, 59, 0.65));
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-md, 12px);
     padding: 1.5rem;
@@ -169,7 +201,7 @@ import { apiFetch } from '$lib/auth/api-client';
     gap: 0.35rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin-bottom: 0.35rem;
     text-transform: uppercase;
   }
@@ -191,8 +223,8 @@ import { apiFetch } from '$lib/auth/api-client';
     gap: 0.5rem;
     padding: 0.75rem 1rem;
     background: rgba(245, 158, 11, 0.1);
-    border: 1px solid var(--amber-gold, #f59e0b);
-    color: var(--amber-gold, #f59e0b);
+    border: 1px solid var(--amber-gold);
+    color: var(--amber-gold);
     border-radius: var(--radius-sm, 8px);
     font-size: 0.88rem;
     margin-bottom: 1rem;
@@ -216,17 +248,21 @@ import { apiFetch } from '$lib/auth/api-client';
     background: var(--bg-glass);
     border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     font-size: 0.82rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
   }
 
-  .json-viewer {
-    padding: 1rem;
+  .item-list {
+    list-style: none;
     margin: 0;
-    font-family: var(--font-mono, monospace);
-    font-size: 0.85rem;
-    color: var(--text-main, #f8fafc);
-    overflow-x: auto;
-    max-height: 24rem;
+    padding: 0.75rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .item-row {
+    font-size: 0.9rem;
+    color: var(--text-main);
   }
 
   .alert-box {
@@ -235,8 +271,8 @@ import { apiFetch } from '$lib/auth/api-client';
     gap: 0.65rem;
     padding: 1rem;
     background: rgba(245, 158, 11, 0.1);
-    border: 1px solid var(--amber-gold, #f59e0b);
-    color: var(--amber-gold, #f59e0b);
+    border: 1px solid var(--amber-gold);
+    color: var(--amber-gold);
     border-radius: var(--radius-md, 12px);
     font-weight: 600;
   }

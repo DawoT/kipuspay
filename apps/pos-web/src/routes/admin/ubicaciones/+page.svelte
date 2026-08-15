@@ -268,7 +268,11 @@ import { apiFetch } from '$lib/auth/api-client';
               icon="package"
               title="Sin racks"
               description="No hay racks registrados. Crea la primera ubicación para comenzar la gestión de putaway."
-            />
+            >
+              <Button variant="primary" href="#nueva-ubicacion" data-testid="ubicaciones-empty-create">
+                Crear ubicación
+              </Button>
+            </EmptyState>
           </div>
         {/each}
       </div>
@@ -277,7 +281,7 @@ import { apiFetch } from '$lib/auth/api-client';
     <!-- Operations Workbench Grid -->
     <div class="workbench-grid">
       <!-- Create Location Panel -->
-      <section class="glass-panel workbench-card">
+      <section class="glass-panel workbench-card" id="nueva-ubicacion">
         <div class="card-header">
           <div>
             <span class="panel-label">Alta de Rack</span>
@@ -388,7 +392,13 @@ import { apiFetch } from '$lib/auth/api-client';
         ]}
         items={stock}
         empty="No hay datos de inventario registrados para esta sucursal."
+        emptyDescription="Crea una ubicación y registra existencias para ver el stock por rack."
       >
+        {#snippet emptyAction()}
+          <Button variant="secondary" href="#nueva-ubicacion" data-testid="stock-empty-create">
+            Crear ubicación
+          </Button>
+        {/snippet}
         {#snippet cell(row: StockRow, col)}
           {#if col.label === 'Código Rack'}
             <Badge variant="indigo">{row.location_code}</Badge>

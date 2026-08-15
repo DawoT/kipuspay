@@ -65,13 +65,13 @@ import { apiFetch } from '$lib/auth/api-client';
   }
 </script>
 
-<svelte:head><title>Vale / Gift card · KipusPay</title></svelte:head>
+<svelte:head><title>Vale de consumo · KipusPay</title></svelte:head>
 
 <div class="page-shell" data-testid="caja-vale">
   <div class="page-masthead">
     <div>
       <p class="page-eyebrow"><Icon name="gift" size={12} /> Caja · Crédito de tienda</p>
-      <h1 class="page-title">Vale / Gift card</h1>
+      <h1 class="page-title">Vale de consumo</h1>
       <p class="page-lede">La venta del vale se registra como comprobante con cupo. El saldo lo impone el servidor.</p>
     </div>
   </div>
@@ -91,7 +91,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <p class="tenant-line" data-testid="caja-vale-tenant">Tienda: {session.tradeName}</p>
 
-    <div class="glass-card vale-card">
+    <div class="ledger-card vale-card">
       <CardHeader title="Emitir vale de consumo">
         <span class="badge badge-success">Crédito tienda</span>
       </CardHeader>
@@ -119,7 +119,6 @@ import { apiFetch } from '$lib/auth/api-client';
 <style>
   .vale-card {
     padding: 1.25rem;
-    max-width: 30rem;
   }
 
   .tenant-line {

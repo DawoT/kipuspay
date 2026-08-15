@@ -4,6 +4,8 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
@@ -40,9 +42,9 @@ import { apiFetch } from '$lib/auth/api-client';
 <div class="page-shell" data-testid="owner-transferencias">
   <div class="page-masthead">
     <div>
-      <p class="page-eyebrow"><Icon name="truck" size={12} /> Modo Dueño · Transferencias</p>
+      <p class="page-eyebrow"><Icon name="truck" size={12} /> Transferencias</p>
       <h1 class="page-title">Transferencias pendientes</h1>
-      <p class="page-lede">IN_TRANSIT y mermas en recepción — Cadena light.</p>
+      <p class="page-lede">Mercadería en camino y diferencias al recibir.</p>
     </div>
     {#if ownerOn && xferOn}
       <Button variant="secondary" data-testid="owner-xfer-refresh" onclick={load} disabled={loading} icon="refresh">
@@ -63,31 +65,38 @@ import { apiFetch } from '$lib/auth/api-client';
 
     <div class="xfer-grid">
       <!-- En tránsito -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
           <h2>En tránsito</h2>
           <span class="badge {pending.length > 0 ? 'badge-warning' : 'badge-success'}">{pending.length}</span>
         </div>
+        {#if pending.length === 0}
+          <div data-testid="owner-xfer-pending">
+            <EmptyState title="Sin transferencias en tránsito" description="Cuando envíes mercadería entre locales, aparece aquí.">
+              <Button variant="secondary" href="/admin/transferencias">Registrar envío</Button>
+            </EmptyState>
+          </div>
+        {:else}
         <ul class="item-list" data-testid="owner-xfer-pending">
           {#each pending as t}
             <li class="item-row">
               <span class="item-id">{t.id}</span>
               <span class="item-route">
                 <Icon name="arrow-right" size={12} />
-                {t.from_branch_id} → {t.to_branch_id}
+                En camino
               </span>
               {#if t.shipped_at}
                 <span class="item-meta">{t.shipped_at}</span>
               {/if}
+              <span class="badge badge-muted">{workflowStatusLabel(t.status)}</span>
             </li>
-          {:else}
-            <li class="empty-row">Sin transferencias en tránsito</li>
           {/each}
         </ul>
+        {/if}
       </div>
 
       <!-- Discrepancias -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
           <h2>Discrepancias (merma)</h2>
           <span class="badge {discrepancies.length > 0 ? 'badge-danger' : 'badge-success'}">{discrepancies.length}</span>

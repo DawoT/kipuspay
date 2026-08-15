@@ -70,7 +70,7 @@
     </div>
   </div>
 
-  <div class="glass-card harness-card">
+  <div class="ledger-card harness-card">
     <div class="card-header">
       <h2>Estado de simulación</h2>
       <span class="badge {status === 'synced' ? 'badge-success' : status === 'enqueued' ? 'badge-warning' : 'badge-muted'}" data-testid="status">

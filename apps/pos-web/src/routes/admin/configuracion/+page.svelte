@@ -472,7 +472,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   {/if}
 
   <div class="config-grid">
-    <section id="negocio" class="glass-card">
+    <section id="negocio" class="ledger-card">
       <div class="card-head">
         <Icon name="building" size={20} class="icon-accent" />
         <h2>Datos del negocio</h2>
@@ -489,7 +489,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </div>
     </section>
 
-    <section id="facturacion" class="glass-card" class:focus={focus === 'facturacion'}>
+    <section id="facturacion" class="ledger-card" class:focus={focus === 'facturacion'}>
       <div class="card-head">
         <Icon name="file-text" size={20} class="icon-accent" />
         <h2>Etapa de formalización</h2>
@@ -523,7 +523,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </div>
     </section>
 
-    <section id="suscripcion" class="glass-card">
+    <section id="suscripcion" class="ledger-card">
       <div class="card-head">
         <Icon name="credit-card" size={20} class="icon-accent" />
         <h2>Suscripción y plan</h2>
@@ -587,7 +587,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
 
     {#if cancelConfirmOpen}
       <div class="cancel-overlay" role="alertdialog" aria-label="Confirmar cancelación">
-        <div class="glass-card">
+        <div class="ledger-card">
           <h3>¿Cancelar tu cuenta?</h3>
           <p class="hint">
             La caja sigue operando hasta que lo decidas. No se borran tus datos: podrás exportar
@@ -608,7 +608,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </div>
     {/if}
 
-    <section id="marca" class="glass-card">
+    <section id="marca" class="ledger-card">
       <div class="card-head">
         <Icon name="tag" size={20} class="icon-accent" />
         <h2>Marca en el punto de venta</h2>
@@ -632,7 +632,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </div>
     </section>
 
-    <section id="fiscal-status" class="glass-card">
+    <section id="fiscal-status" class="ledger-card">
       <div class="card-head">
         <Icon name="shield" size={20} class="icon-accent" />
         <h2>Estado fiscal y SUNAT</h2>
@@ -645,7 +645,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </p>
     </section>
 
-    <section id="respaldos" class="glass-card">
+    <section id="respaldos" class="ledger-card">
       <div class="card-head">
         <Icon name="download" size={20} class="icon-accent" />
         <h2>Respaldo y recuperación</h2>
@@ -659,7 +659,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       </Button>
     </section>
 
-    <section id="series" class="glass-card">
+    <section id="series" class="ledger-card">
       <div class="card-head">
         <Icon name="barcode" size={20} class="icon-accent" />
         <h2>Identidad serial</h2>
@@ -673,7 +673,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   </div>
 
   {#if scaleOn}
-    <section id="balanza" class="glass-card scale-card" aria-labelledby="scale-config-title">      <div class="card-head">
+    <section id="balanza" class="ledger-card scale-card" aria-labelledby="scale-config-title">      <div class="card-head">
         <Icon name="scale" size={22} class="icon-amber" />
         <div>
           <p class="instrument-label">Hardware · Balanza</p>
@@ -771,7 +771,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   {/if}
 
   {#if hardwareOn}
-    <section id="hardware" class="glass-card" aria-labelledby="hardware-config-title">
+    <section id="hardware" class="ledger-card" aria-labelledby="hardware-config-title">
       <div class="card-head">
         <Icon name="refresh" size={22} class="icon-amber" />
         <div>
@@ -974,7 +974,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
 </Modal>
 
 {#if onboardingOn && serverState && !checklistDismissed}
-  <section class="glass-card checklist-wrap" aria-labelledby="setup-checklist">
+  <section class="ledger-card checklist-wrap" aria-labelledby="setup-checklist">
     <SetupChecklist server={serverState} {printerReady} />
     <div class="checklist-aux">
       <Button
@@ -1029,17 +1029,17 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .lede {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.92rem;
     margin: 0;
   }
 
-  .glass-card {
-    background: var(--bg-glass-card);
+  .ledger-card {
+    background: var(--bg-ledger-card);
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-md, 12px);
     padding: 1.35rem;
@@ -1065,7 +1065,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     font-size: 1.1rem;
     font-family: var(--font-heading, sans-serif);
     font-weight: 700;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   :global(.icon-accent) {
@@ -1073,7 +1073,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   }
 
   :global(.icon-amber) {
-    color: var(--amber-gold, #f59e0b);
+    color: var(--amber-gold);
   }
 
   .info-rows {
@@ -1091,14 +1091,14 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   .info-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .info-value {
     font-size: 1rem;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .info-code {
@@ -1119,14 +1119,14 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     background: rgba(245, 158, 11, 0.12);
     border: 1px solid rgba(245, 158, 11, 0.3);
     border-radius: var(--radius-sm, 8px);
-    color: var(--amber-gold, #f59e0b);
+    color: var(--amber-gold);
     font: 700 0.82rem/1 var(--font-mono, monospace);
     margin-bottom: 0.65rem;
   }
 
   .hint {
     font-size: 0.86rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     line-height: 1.45;
     margin-bottom: 0.85rem;
   }
@@ -1164,13 +1164,13 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     font-weight: 700;
     margin: 0;
     background: rgba(244, 63, 94, 0.12);
-    color: var(--rose-red, #f43f5e);
+    color: var(--rose-red);
     border: 1px solid rgba(244, 63, 94, 0.3);
   }
 
   .state-pill.active {
     background: rgba(16, 185, 129, 0.12);
-    color: var(--emerald-green, #10b981);
+    color: var(--emerald-green);
     border-color: rgba(16, 185, 129, 0.3);
   }
 
@@ -1180,7 +1180,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
 
   .instrument-label {
     font: 700 0.72rem/1.2 var(--font-mono, monospace);
-    color: var(--amber-gold, #f59e0b);
+    color: var(--amber-gold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin: 0;
@@ -1197,7 +1197,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   .field label {
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin-bottom: 0.3rem;
   }
 
@@ -1211,7 +1211,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     align-items: center;
     gap: 0.35rem;
     font-size: 0.8rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin: 0;
   }
 
@@ -1222,12 +1222,12 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     border-radius: var(--radius-sm, 8px);
     font-family: var(--font-mono, monospace);
     font-size: 0.82rem;
-    color: var(--emerald-green, #10b981);
+    color: var(--emerald-green);
     overflow-x: auto;
   }
 
   .diagnostic.diag-bad {
-    color: #f87171;
+    color: var(--rose-red);
   }
 
   .diag-status {

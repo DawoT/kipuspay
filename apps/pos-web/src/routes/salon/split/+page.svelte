@@ -3,7 +3,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { kdsEventLabel } from '$lib/ui/ops-copy';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
   import { apiFetch } from '$lib/auth/api-client';
 
@@ -45,7 +45,7 @@
       error = body.error ?? 'split failed';
       return;
     }
-    result = `${body.orderStatus} · ${body.portions?.length ?? 0} sales`;
+    result = `Cuenta dividida en ${body.portions?.length ?? 0} pagos · ${kdsEventLabel(body.orderStatus ?? '')}`;
     publishVitrina({
       totalCents: 0,
       itemCount: portions.length,
@@ -58,13 +58,9 @@
 
 <svelte:head><title>Dividir cuenta · Salón · KipusPay</title></svelte:head>
 
-<div class="page-shell" data-testid="split-root">
-  <div class="page-masthead">
-    <div>
-      <p class="page-eyebrow"><Icon name="percent" size={12} /> Restaurante · Salón</p>
-      <h1 class="page-title">Dividir cuenta (Split Bill)</h1>
-      <p class="page-lede">Divide una comanda de mesa entre múltiples pagos independientes.</p>
-    </div>
+<div class="floor-board" data-testid="split-root">
+  <div class="floor-toolbar">
+    <h1>Dividir cuenta</h1>
     <a class="link-action" href="/salon">
       <Icon name="arrow-left" size={14} />
       Comanda de salón
@@ -91,13 +87,13 @@
       </StatusMessage>
     {/if}
 
-    <div class="glass-card split-card" data-testid="split">
+    <div class="ledger-card split-card" data-testid="split">
       <div class="card-header">
         <h2>Dividir orden</h2>
         <span class="badge badge-indigo">Multi-pago</span>
       </div>
       <div class="field-group">
-        <label for="sp-order">ID Orden / Comanda</label>
+        <label for="sp-order">Comanda</label>
         <input id="sp-order" data-testid="split-order" bind:value={orderId} placeholder="ID de la orden" />
       </div>
 
@@ -115,11 +111,11 @@
       <div class="two-col">
         <div class="field-group">
           <label for="sp-session">Sesión de caja</label>
-          <input id="sp-session" data-testid="split-session" bind:value={sessionId} placeholder="s-demo" />
+          <input id="sp-session" data-testid="split-session" bind:value={sessionId} placeholder="Sesión de caja" />
         </div>
         <div class="field-group">
           <label for="sp-pm">Método de pago</label>
-          <input id="sp-pm" data-testid="split-pm" bind:value={paymentMethodId} placeholder="pm-cash" />
+          <input id="sp-pm" data-testid="split-pm" bind:value={paymentMethodId} placeholder="Efectivo u otro método" />
         </div>
       </div>
 
@@ -138,15 +134,29 @@
 <style>
   .split-card {
     padding: 1.25rem;
-    max-width: 32rem;
+    flex: 1;
   }
 
 
+
+  .link-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-button-sec);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 44px;
+    white-space: nowrap;
+  }
 
   .link-action:hover {
     background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
   }
-
-  @media (max-width: 600px) {  }
 </style>

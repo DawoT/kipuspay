@@ -53,7 +53,7 @@ import { apiFetch } from '$lib/auth/api-client';
     messageOk = res.ok;
     if (!res.ok) { message = json.error ?? `Error ${res.status}`; return; }
     quoteId = json.quoteId ?? '';
-    message = `Cotización ${quoteId} · snapshot S/ ${formatCents(json.snapshotTotalCents ?? 0)} · CPE=${json.emitsFiscalDocument} · reserva=${json.reservesStock}`;
+    message = `Cotización lista · S/ ${formatCents(json.snapshotTotalCents ?? 0)}${json.emitsFiscalDocument ? ' · con comprobante' : ''}${json.reservesStock ? ' · reserva stock' : ''}`;
   }
 
   async function send() {
@@ -61,7 +61,7 @@ import { apiFetch } from '$lib/auth/api-client';
     const res = await apiFetch('/api/sales/quotes/send', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Enviada (${json.status})` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Enviada` : (json.error ?? `Error ${res.status}`);
   }
 
   async function approve() {
@@ -126,7 +126,7 @@ import { apiFetch } from '$lib/auth/api-client';
 
     <div class="quote-layout">
       <!-- Crear -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <CardHeader title="Nueva cotización">
           <span class="section-tag">Crear</span>
         </CardHeader>
@@ -150,7 +150,7 @@ import { apiFetch } from '$lib/auth/api-client';
       </section>
 
       <!-- Acciones -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <CardHeader title="Gestionar">
           <span class="section-tag">Acciones</span>
         </CardHeader>

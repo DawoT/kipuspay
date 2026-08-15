@@ -11,14 +11,18 @@
     columns,
     items = [],
     empty = 'Sin registros',
+    emptyDescription = 'Cuando haya datos, aparecen aquí.',
     cell,
+    emptyAction,
     class: className = '',
     ...restProps
   }: {
     columns: TableColumn[];
     items?: T[];
     empty?: string;
+    emptyDescription?: string;
     cell?: Snippet<[T, TableColumn]>;
+    emptyAction?: Snippet;
     class?: string;
   } & Record<string, unknown> = $props();
 </script>
@@ -27,15 +31,15 @@
   <table class="ui-table {className}">
     <thead>
       <tr>
-        {#each columns as col}
+        {#each columns as col (col.label)}
           <th class:right={col.align === 'right'}>{col.label}</th>
         {/each}
       </tr>
     </thead>
     <tbody>
-      {#each items as item}
+      {#each items as item, i (i)}
         <tr>
-          {#each columns as col}
+          {#each columns as col (col.label)}
             <td class:right={col.align === 'right'}>
               {@render cell?.(item, col)}
             </td>
@@ -45,7 +49,11 @@
       {#if items.length === 0}
         <tr>
           <td colspan={columns.length}>
-            <EmptyState title={empty} />
+            <EmptyState title={empty} description={emptyDescription}>
+              {#if emptyAction}
+                {@render emptyAction()}
+              {/if}
+            </EmptyState>
           </td>
         </tr>
       {/if}

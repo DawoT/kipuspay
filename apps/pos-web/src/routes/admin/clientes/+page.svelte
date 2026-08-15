@@ -187,7 +187,7 @@
     </div>
 
     <div class="workspace-grid">
-      <section class="glass-card section-pad" aria-labelledby="customers-title">
+      <section class="ledger-card section-pad" aria-labelledby="customers-title">
         <div class="card-header">
           <h2 id="customers-title">Clientes de esta cuenta</h2>
           <span class="badge badge-warning">{customers.length}</span>
@@ -228,7 +228,7 @@
         </div>
       </section>
 
-      <section class="glass-card section-pad" aria-labelledby="detail-title">
+      <section class="ledger-card section-pad" aria-labelledby="detail-title">
         <div class="card-header">
           <h2 id="detail-title">Datos del cliente</h2>
           {#if selected}<span class="badge badge-indigo">{selected.documentNumber}</span>{/if}
@@ -299,7 +299,7 @@
       bind:this={erasePanel}
       onkeydown={(event) => event.key === 'Escape' && closeErase()}
     >
-      <div class="glass-card modal-card">
+      <div class="ledger-card modal-card">
         {#if eraseStep === 'explain'}
           <h2 id="erase-title">Anonimizar los datos de {selected.documentNumber}</h2>
           <p>

@@ -2,7 +2,8 @@
   import { isInventorySerialsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
-import { apiFetch } from '$lib/auth/api-client';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const serialsOn = isInventorySerialsEnabled();
   let serialNumber = $state('');
@@ -97,7 +98,7 @@ import { apiFetch } from '$lib/auth/api-client';
       <span>Las series no están activas para este negocio.</span>
     </div>
   {:else}
-    <div class="workbench glass-card">
+    <div class="workbench ledger-card">
       <form onsubmit={(event) => { event.preventDefault(); void search(); }} class="scan-form">
         <div class="field search-field">
           <label for="serial-scan">
@@ -179,6 +180,20 @@ import { apiFetch } from '$lib/auth/api-client';
             </div>
           {/if}
         </div>
+      {:else if message}
+        <EmptyState
+          icon="barcode"
+          title="Sin series"
+          description="No hay coincidencias. Escanea otro código o corrige el número."
+        >
+          <Button
+            variant="secondary"
+            data-testid="series-empty-search"
+            onclick={() => document.getElementById('serial-scan')?.focus()}
+          >
+            Buscar de nuevo
+          </Button>
+        </EmptyState>
       {/if}
     </div>
   {/if}
@@ -201,17 +216,17 @@ import { apiFetch } from '$lib/auth/api-client';
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .lede {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.92rem;
     margin: 0;
   }
 
-  .glass-card {
-    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
+  .ledger-card {
+    background: var(--bg-ledger-card, rgba(30, 41, 59, 0.65));
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-md, 12px);
     padding: 1.5rem;
@@ -233,7 +248,7 @@ import { apiFetch } from '$lib/auth/api-client';
     gap: 0.35rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin-bottom: 0.35rem;
     text-transform: uppercase;
   }
@@ -247,7 +262,7 @@ import { apiFetch } from '$lib/auth/api-client';
     left: 0.8rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
   }
 
   .input-with-icon input {
@@ -260,8 +275,8 @@ import { apiFetch } from '$lib/auth/api-client';
     gap: 0.5rem;
     padding: 0.75rem 1rem;
     background: rgba(16, 185, 129, 0.1);
-    border: 1px solid var(--emerald-green, #10b981);
-    color: var(--emerald-green, #10b981);
+    border: 1px solid var(--emerald-green);
+    color: var(--emerald-green);
     border-radius: var(--radius-sm, 8px);
     font-size: 0.88rem;
     margin-bottom: 1rem;
@@ -299,8 +314,8 @@ import { apiFetch } from '$lib/auth/api-client';
     gap: 0.65rem;
     padding: 1rem;
     background: rgba(245, 158, 11, 0.1);
-    border: 1px solid var(--amber-gold, #f59e0b);
-    color: var(--amber-gold, #f59e0b);
+    border: 1px solid var(--amber-gold);
+    color: var(--amber-gold);
     border-radius: var(--radius-md, 12px);
     font-weight: 600;
   }

@@ -9,11 +9,22 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import BrandKnot from '$lib/ui/BrandKnot.svelte';
+  import { vitrinaPhaseLabel } from '$lib/vitrina/vitrina-copy';
+  import { documentKindLabel } from '$lib/ui/ops-copy';
 
   const enabled = isPosCheckoutEnabled();
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
   let message = $state('');
   let status = $state('idle');
+
+  function kioskPhaseLabel(phase: string): string {
+    if (phase === 'blocked') return 'No se pudo cobrar';
+    if (phase === 'idle' || phase === 'confirming' || phase === 'charged') {
+      return vitrinaPhaseLabel(phase);
+    }
+    return 'Esperando';
+  }
 
   async function pay() {
     status = 'confirming';
@@ -33,7 +44,7 @@
       queue,
     );
     status = outcome.ok ? 'charged' : 'blocked';
-    message = outcome.ok ? `OK ${outcome.documentType}` : outcome.message;
+    message = outcome.ok ? `Pagado · ${documentKindLabel(outcome.documentType)}` : outcome.message;
   }
 </script>
 
@@ -46,10 +57,10 @@
       <span>El kiosko está desactivado para esta tienda.</span>
     </div>
   {:else}
-    <div class="glass-card kiosk-card">
+    <div class="ledger-card kiosk-card">
       <div class="kiosk-header">
         <div class="brand-badge">
-          <Icon name="store" size={24} />
+          <BrandKnot size={18} />
         </div>
         <p class="page-eyebrow">Autoatención</p>
         <h1 class="page-title">Kiosko de pedidos</h1>
@@ -75,7 +86,7 @@
       {/if}
 
       <div class="status-line" data-testid="kiosk-status">
-        Estado: <strong>{status}</strong>
+        Estado: <strong>{kioskPhaseLabel(status)}</strong>
       </div>
 
       <button

@@ -6,6 +6,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { kdsEventLabel } from '$lib/ui/ops-copy';
   import { apiFetch, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
@@ -32,7 +33,7 @@
       });
       const body = (await minted.json()) as { ticket?: string; error?: string };
       if (!minted.ok || !body.ticket) {
-        error = body.error ?? 'No se pudo emitir el ticket KDS';
+        error = body.error ?? 'No se pudo conectar la pantalla de cocina.';
         return;
       }
       const url = kdsWebSocketUrl(branchId, body.ticket);
@@ -75,7 +76,7 @@
       }
     };
     ws.onerror = () => {
-      error = 'KDS WebSocket error — reconectando';
+      error = 'Se perdió la conexión con cocina. Reintentando…';
     };
   }
 
@@ -90,7 +91,7 @@
     });
     if (!res.ok) {
       const body = (await res.json()) as { error?: string };
-      error = body.error ?? 'ready failed';
+      error = body.error ?? 'No se pudo marcar como listo.';
     }
   }
 
@@ -100,20 +101,22 @@
   onDestroy(() => ws?.close());
 </script>
 
-<svelte:head><title>KDS Cocina · KipusPay</title></svelte:head>
+<svelte:head><title>Cocina · KipusPay</title></svelte:head>
 
-<div class="page-shell" data-testid="kds-root">
-  <div class="page-masthead">
-    <div>
-      <p class="page-eyebrow"><Icon name="box" size={12} /> KDS · Pantalla de cocina</p>
-      <h1 class="page-title">Display de Cocina (KDS)</h1>
-      <p class="page-lede">Monitoreo en tiempo real de comandas recibidas y marcación de despacho a garzón.</p>
+<div class="floor-board" data-testid="kds-root">
+  <div class="floor-toolbar">
+    <h1>Cocina</h1>
+    <div class="floor-toolbar-actions">
+      {#if enabled}
+        <label class="branch-inline" for="kds-branch-input">
+          Sucursal
+          <input id="kds-branch-input" data-testid="kds-branch" bind:value={branchId} />
+        </label>
+        <Button variant="secondary" data-testid="kds-reconnect" onclick={connect} icon="refresh">
+          Reconectar
+        </Button>
+      {/if}
     </div>
-    {#if enabled}
-      <Button variant="secondary" data-testid="kds-reconnect" onclick={connect} icon="refresh">
-        Reconectar WS
-      </Button>
-    {/if}
   </div>
 
   {#if !enabled}
@@ -129,81 +132,74 @@
       </StatusMessage>
     {/if}
 
-    <div class="kds-layout" data-testid="kds">
-      <div class="glass-card section-pad branch-card">
-        <div class="field-group">
-          <label for="kds-branch-input">Sucursal activa</label>
-          <input id="kds-branch-input" data-testid="kds-branch" bind:value={branchId} />
-        </div>
-      </div>
-
-      <div class="glass-card section-pad events-card">
-        <div class="card-header">
-          <h2>Comandas en cola</h2>
-          <span class="badge {events.length > 0 ? 'badge-warning' : 'badge-success'}">
-            {events.length} evento(s)
-          </span>
-        </div>
-
-        {#if events.length === 0}
-          <div class="empty-state">
-            <Icon name="check" size={28} />
-            <span>Cocina al día — sin comandas pendientes</span>
-          </div>
-        {:else}
-          <ul class="kds-event-list" data-testid="kds-events">
-            {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
-              <li class="kds-event-item">
-                <span class="badge {ev.type === 'ITEM_FIRED' ? 'badge-warning' : 'badge-success'}">
-                  {ev.type}
-                </span>
-                <span class="order-ref">
-                  <Icon name="file-text" size={14} />
-                  {ev.orderId}
-                </span>
-                {#if ev.type === 'ITEM_FIRED'}
-                  <button
-                    type="button"
-                    class="success mark-btn"
-                    data-testid="kds-ready"
-                    onclick={() => markReady(ev.orderId, ev.orderItemId)}
-                  >
-                    <Icon name="check" size={14} />
-                    Listo
-                  </button>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
+    <div class="kds-board" data-testid="kds">
+      {#if events.length === 0}
+        <EmptyState icon="check" title="Cocina al día" description="Cuando llegue una comanda, aparece aquí." />
+      {:else}
+        <ul class="kds-event-list" data-testid="kds-events">
+          {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
+            <li class="kds-event-item">
+              <span class="badge {ev.type === 'ITEM_FIRED' ? 'badge-warning' : 'badge-success'}">
+                {kdsEventLabel(ev.type)}
+              </span>
+              <span class="order-ref">
+                <Icon name="file-text" size={14} />
+                {ev.orderId}
+              </span>
+              {#if ev.type === 'ITEM_FIRED'}
+                <button
+                  type="button"
+                  class="success mark-btn"
+                  data-testid="kds-ready"
+                  onclick={() => markReady(ev.orderId, ev.orderItemId)}
+                >
+                  <Icon name="check" size={14} />
+                  Listo
+                </button>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </div>
   {/if}
 </div>
 
 <style>
-  .kds-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+  .branch-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    min-height: 44px;
   }
 
+  .branch-inline input {
+    min-width: 8rem;
+  }
 
+  .kds-board {
+    flex: 1;
+    min-height: 0;
+  }
 
   .kds-event-list {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 0.75rem;
+    align-content: start;
   }
 
   .kds-event-item {
     display: flex;
     align-items: center;
-    gap: 0.875rem;
+    gap: 0.75rem;
     padding: 0.75rem;
+    min-height: 44px;
     background: var(--bg-glass);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -222,7 +218,8 @@
   }
 
   .mark-btn {
-    padding: 0.375rem 0.75rem;
+    padding: 0.625rem 0.875rem;
+    min-height: 44px;
     font-size: 0.8125rem;
   }
 </style>

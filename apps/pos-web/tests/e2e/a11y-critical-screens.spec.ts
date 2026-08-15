@@ -67,3 +67,21 @@ test('S15-H1: Caja (devoluciones) sin violaciones axe critical/serious', async (
   await expect(page.locator('main, .page-shell').first()).toBeVisible();
   await expectNoBlockingA11y(page, 'caja/devolucion');
 });
+
+test('FASE F: Cocina tablero sin violaciones axe critical/serious y targets ≥44px', async ({
+  page,
+}) => {
+  await page.goto('/kds');
+  await expect(page.getByTestId('kds-root')).toBeVisible();
+  await expectNoBlockingA11y(page, 'kds');
+  await expectTouchTargets(page, 'kds');
+});
+
+test('FASE F: Salón tablero sin violaciones axe critical/serious y targets ≥44px', async ({
+  page,
+}) => {
+  await page.goto('/salon');
+  await expect(page.getByTestId('salon-root')).toBeVisible();
+  await expectNoBlockingA11y(page, 'salon');
+  await expectTouchTargets(page, 'salon');
+});

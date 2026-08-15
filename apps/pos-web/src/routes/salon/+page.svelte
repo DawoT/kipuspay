@@ -4,6 +4,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { kdsEventLabel } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
@@ -29,7 +30,7 @@
       });
       const created = (await createRes.json()) as { id?: string; error?: string };
       if (!createRes.ok) {
-        error = created.error ?? 'create failed';
+        error = created.error ?? 'No se pudo crear la comanda.';
         return;
       }
       orderId = created.id ?? '';
@@ -49,7 +50,7 @@
       });
       const fired = (await fireRes.json()) as { status?: string; error?: string };
       if (!fireRes.ok) {
-        error = fired.error ?? 'fire failed';
+        error = fired.error ?? 'No se pudo enviar a cocina.';
         return;
       }
       status = fired.status ?? 'FIRED';
@@ -67,15 +68,11 @@
   }
 </script>
 
-<svelte:head><title>Salón · Comanda · KipusPay</title></svelte:head>
+<svelte:head><title>Salón · KipusPay</title></svelte:head>
 
-<div class="page-shell" data-testid="salon-root">
-  <div class="page-masthead">
-    <div>
-      <p class="page-eyebrow"><Icon name="store" size={12} /> Restaurante · Salón</p>
-      <h1 class="page-title">Comanda de salón</h1>
-      <p class="page-lede">Toma pedidos por mesa y envíalos directamente a cocina (KDS).</p>
-    </div>
+<div class="floor-board" data-testid="salon-root">
+  <div class="floor-toolbar">
+    <h1>Salón</h1>
     <a class="link-action" href="/salon/split">
       <Icon name="percent" size={14} />
       Dividir cuenta
@@ -98,11 +95,11 @@
     {#if status}
       <StatusMessage tone="info" aria-live="polite" data-testid="salon-status">
         <Icon name="check" size={16} />
-        <span>Estado: {status}</span>
+        <span>Estado: {kdsEventLabel(status)}</span>
       </StatusMessage>
     {/if}
 
-    <div class="glass-card salon-card" data-testid="salon">
+    <div class="ledger-card salon-card" data-testid="salon">
       <div class="card-header">
         <h2>Nueva comanda</h2>
         <span class="badge badge-warning">Mesa {tableLabel || '—'}</span>
@@ -113,7 +110,7 @@
       </div>
       <div class="two-col">
         <div class="field-group">
-          <label for="salon-prod">ID Producto</label>
+          <label for="salon-prod">Producto</label>
           <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="p1" />
         </div>
         <div class="field-group">
@@ -127,7 +124,7 @@
 
       {#if orderId}
         <div class="order-id-box" data-testid="salon-order-id">
-          <span class="label">ID Comanda:</span>
+          <span class="label">Comanda:</span>
           <code>{orderId}</code>
         </div>
       {/if}
@@ -138,9 +135,8 @@
 <style>
   .salon-card {
     padding: 1.25rem;
-    max-width: 32rem;
+    flex: 1;
   }
-
 
   .order-id-box {
     margin-top: 1rem;
@@ -173,7 +169,7 @@
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 
@@ -181,6 +177,4 @@
     background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
   }
-
-  @media (max-width: 600px) {  }
 </style>

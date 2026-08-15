@@ -531,7 +531,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 
   .preflight-status-card {
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(20, 22, 28, 0.6);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 0.875rem 1.125rem;
@@ -558,7 +558,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /* Denominations Grid */
   .denom-grid-container {
-    background: rgba(15, 23, 42, 0.4);
+    background: rgba(20, 22, 28, 0.4);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     overflow: hidden;
@@ -644,7 +644,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 
   .result-revelation-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
     padding: 1.25rem;

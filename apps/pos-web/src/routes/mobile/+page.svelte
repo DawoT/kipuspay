@@ -118,7 +118,7 @@
         consentId,
         amountsMode ? 'AMOUNTS' : 'REDACTED',
       );
-      status = amountsMode ? 'Montos habilitados por política y opt-in.' : 'Privacidad REDACTED activa.';
+      status = amountsMode ? 'Montos visibles con tu permiso.' : 'Avisos sin montos (privacidad).';
     } catch {
       amountsMode = false;
       status = 'La política del tenant no permite mostrar montos.';
@@ -211,7 +211,7 @@
     {/if}
 
     <div class="mobile-grid">
-      <section class="glass-card section-pad" aria-labelledby="device-title">
+      <section class="ledger-card section-pad" aria-labelledby="device-title">
         <div class="card-header">
           <h2 id="device-title">1. Dispositivo</h2>
           <span class="badge {terminal?.verified ? 'badge-success' : 'badge-warning'}">
@@ -236,7 +236,7 @@
       </section>
 
       {#if mobilePushOn}
-        <section class="glass-card section-pad" aria-labelledby="privacy-title">
+        <section class="ledger-card section-pad" aria-labelledby="privacy-title">
           <div class="card-header">
             <h2 id="privacy-title">2. Notificaciones</h2>
             <Icon name="shield" size={16} />
@@ -271,7 +271,7 @@
           </div>
         </section>
 
-        <section class="glass-card section-pad full-col" aria-labelledby="test-title">
+        <section class="ledger-card section-pad full-col" aria-labelledby="test-title">
           <div class="card-header">
             <h2 id="test-title">3. Prueba y recuperación</h2>
             <Icon name="refresh" size={16} />
@@ -357,7 +357,7 @@
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 

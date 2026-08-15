@@ -11,6 +11,6 @@
   } & Record<string, unknown> = $props();
 </script>
 
-<section class="glass-card {padding ? 'section-pad' : ''} {className}" {...restProps}>
+<section class="ledger-card {padding ? 'section-pad' : ''} {className}" {...restProps}>
   {@render children?.()}
 </section>

@@ -6,6 +6,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import { ledgerSignLabel } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
@@ -48,7 +49,7 @@
     const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
     messageOk = res.ok;
     message = res.ok
-      ? `Ajuste ${adjustSign} aplicado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
+      ? `Ajuste ${ledgerSignLabel(adjustSign)} aplicado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
       : (json.error ?? `Error ${res.status}`);
   }
 </script>
@@ -79,7 +80,7 @@
   {:else}
     <div class="credit-layout">
       <!-- Contexto -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Cliente</h2>
           <span class="section-tag">Identificación</span>
@@ -91,11 +92,11 @@
       </section>
 
       <!-- Ajuste -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Ajuste de saldo</h2>
           <span class="badge {adjustSign === 'CREDIT' ? 'badge-success' : 'badge-danger'}">
-            {adjustSign}
+            {ledgerSignLabel(adjustSign)}
           </span>
         </div>
         <div class="field-group">
@@ -105,12 +106,12 @@
         <div class="field-group">
           <label for="credit-sign">Tipo de ajuste</label>
           <select id="credit-sign" bind:value={adjustSign} data-testid="sc-sign">
-            <option value="CREDIT">CREDIT — Agregar saldo</option>
-            <option value="DEBIT">DEBIT — Reducir saldo</option>
+            <option value="CREDIT">Abono — agregar saldo</option>
+            <option value="DEBIT">Cargo — reducir saldo</option>
           </select>
         </div>
         <div class="field-group">
-          <label for="credit-authz">Autorizado por (ID usuario)</label>
+          <label for="credit-authz">Autorizado por</label>
           <input id="credit-authz" bind:value={authorizedByUserId} data-testid="sc-authz" placeholder="Opcional" />
         </div>
         <p class="page-lede">Para emitir un vale nuevo, usa Caja → Vale.</p>

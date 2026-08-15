@@ -6,6 +6,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
@@ -66,14 +67,14 @@ import { apiFetch } from '$lib/auth/api-client';
   }
 </script>
 
-<svelte:head><title>Compras 3-way · KipusPay</title></svelte:head>
+<svelte:head><title>Compras · KipusPay</title></svelte:head>
 
 <div class="page-shell" data-testid="owner-three-way">
   <div class="page-masthead">
     <div>
-      <p class="page-eyebrow"><Icon name="clipboard-check" size={12} /> Modo Dueño · Compras</p>
-      <h1 class="page-title">Compras 3-way</h1>
-      <p class="page-lede">OC abiertas, recepciones sin facturar, devoluciones y overrides de precio.</p>
+      <p class="page-eyebrow"><Icon name="clipboard-check" size={12} /> Compras</p>
+      <h1 class="page-title">Compras</h1>
+      <p class="page-lede">Órdenes abiertas, recepciones sin facturar, devoluciones y ajustes de precio.</p>
     </div>
     {#if threeWayOn || returnsOn}
       <Button variant="secondary" data-testid="owner-three-way-refresh" onclick={refresh} disabled={loading} icon="refresh">
@@ -97,26 +98,32 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <div class="compras-grid">
       <!-- OC abiertas -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
-          <h2>OC abiertas</h2>
+          <h2>Órdenes abiertas</h2>
           <span class="badge {openPos.length > 0 ? 'badge-warning' : 'badge-success'}">{openPos.length}</span>
         </div>
+        {#if openPos.length === 0}
+          <div data-testid="owner-open-pos">
+          <EmptyState title="Sin órdenes abiertas" description="Crea una orden de compra para recibir mercadería.">
+            <Button variant="secondary" href="/admin/oc-recepcion">Ir a recepción</Button>
+          </EmptyState>
+          </div>
+        {:else}
         <ul class="item-list" data-testid="owner-open-pos">
           {#each openPos as po}
             <li class="item-row">
               <span class="item-id">{po.id}</span>
-              <span class="badge badge-muted">{po.status}</span>
+              <span class="badge badge-muted">{workflowStatusLabel(po.status)}</span>
               <span class="item-amount tabular-nums">{formatCents(po.totalAmountCents)}</span>
             </li>
-          {:else}
-            <li class="empty-row">Sin OC abiertas</li>
           {/each}
         </ul>
+        {/if}
       </div>
 
       <!-- Recepciones sin facturar -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
           <h2>Sin facturar</h2>
           <span class="badge {uninvoiced.length > 0 ? 'badge-danger' : 'badge-success'}">{uninvoiced.length}</span>
@@ -135,9 +142,9 @@ import { apiFetch } from '$lib/auth/api-client';
 
       {#if returnsOn}
         <!-- Devoluciones OPEN -->
-        <div class="glass-card section-pad">
+        <div class="ledger-card section-pad">
           <div class="card-header">
-            <h2>Devoluciones OPEN</h2>
+            <h2>Devoluciones abiertas</h2>
             <span class="badge {openReturns.length > 0 ? 'badge-warning' : 'badge-success'}">{openReturns.length}</span>
           </div>
           <ul class="item-list" data-testid="owner-open-returns">
@@ -155,9 +162,9 @@ import { apiFetch } from '$lib/auth/api-client';
       {/if}
 
       <!-- Overrides -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
-          <h2>Overrides de precio</h2>
+          <h2>Ajustes de precio</h2>
           <span class="badge {overrides.length > 0 ? 'badge-danger' : 'badge-success'}">{overrides.length}</span>
         </div>
         <ul class="item-list" data-testid="owner-price-diffs">

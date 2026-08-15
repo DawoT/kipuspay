@@ -43,7 +43,7 @@ import { apiFetch } from '$lib/auth/api-client';
       return;
     }
     returnId = json.returnId ?? '';
-    message = `OPEN ${json.returnId} · ${formatCents(json.snapshotTotalCents ?? 0)} (0 CPE)`;
+    message = `Devolución ${json.returnId} · ${formatCents(json.snapshotTotalCents ?? 0)}`;
   }
 
   async function closeReturn() {
@@ -60,7 +60,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { status?: string; code?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `CLOSED ${returnId}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? 'Devolución cerrada' : (json.error ?? `Error ${res.status}`);
   }
 
   async function cancelReturn() {
@@ -73,7 +73,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `CANCELLED ${returnId}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? 'Devolución cancelada' : (json.error ?? `Error ${res.status}`);
   }
 </script>
 
@@ -88,7 +88,7 @@ import { apiFetch } from '$lib/auth/api-client';
     </div>
     <a class="link-action" href="/admin/factura-proveedor">
       <Icon name="arrow-left" size={14} />
-      Factura 3-way
+      Conciliar factura
     </a>
   </div>
 
@@ -107,7 +107,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <div class="return-layout">
       <!-- Crear devolución -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Crear devolución</h2>
           <span class="section-tag">Datos</span>
@@ -133,27 +133,27 @@ import { apiFetch } from '$lib/auth/api-client';
           <input id="sr-reason" bind:value={reason} data-testid="sr-reason" />
         </div>
         <Button variant="primary" icon="plus" data-testid="sr-create" onclick={createReturn}>
-          Crear OPEN
+          Crear devolución
         </Button>
       </section>
 
       <!-- Gestionar -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Gestionar</h2>
           <span class="section-tag">Acciones</span>
         </div>
         <div class="field-group">
-          <label for="sr-id">Return ID</label>
-          <input id="sr-id" bind:value={returnId} data-testid="sr-id" placeholder="ID creado arriba" />
+          <label for="sr-id">Devolución</label>
+          <input id="sr-id" bind:value={returnId} data-testid="sr-id" placeholder="La creada arriba" />
         </div>
         <label class="checkbox-row">
           <input type="checkbox" bind:checked={priceDiffOverride} data-testid="sr-override" />
-          <span>Override diferencia de precio</span>
+          <span>Permitir diferencia de precio</span>
         </label>
         <div class="field-group">
-          <label for="sr-authz">Autorizado por (ID usuario)</label>
-          <input id="sr-authz" bind:value={authorizedByUserId} data-testid="sr-authz" placeholder="Requerido si override está activo" />
+          <label for="sr-authz">Autorizado por</label>
+          <input id="sr-authz" bind:value={authorizedByUserId} data-testid="sr-authz" placeholder="Requerido si hay diferencia de precio" />
         </div>
         <div class="btn-row">
           <Button variant="success" icon="check" data-testid="sr-close" onclick={closeReturn} disabled={!returnId}>

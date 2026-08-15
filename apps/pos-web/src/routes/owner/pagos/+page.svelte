@@ -10,6 +10,7 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { paymentStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
@@ -59,7 +60,7 @@ import { apiFetch } from '$lib/auth/api-client';
   <div class="page-shell" data-testid="owner-payments-uncaptured">
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="credit-card" size={12} /> Modo Dueño · Pagos</p>
+        <p class="page-eyebrow"><Icon name="credit-card" size={12} /> Pagos</p>
         <h1 class="page-title">Pagos no conciliados</h1>
         <p class="page-lede">Pagos con captura manual y pendientes de conciliar.</p>
       </div>
@@ -79,7 +80,7 @@ import { apiFetch } from '$lib/auth/api-client';
       {#if status}
         <p class="status-line" data-testid="owner-pay-status">{status}</p>
       {/if}
-      <div class="glass-card pay-table">
+      <div class="ledger-card pay-table">
         <div class="card-header">
           <h2>Pagos pendientes</h2>
           <span class="badge {rows.length > 0 ? 'badge-warning' : 'badge-success'}">
@@ -87,7 +88,9 @@ import { apiFetch } from '$lib/auth/api-client';
           </span>
         </div>
         {#if rows.length === 0}
-          <EmptyState icon="check" title="Sin pagos pendientes" />
+          <EmptyState icon="check" title="Sin pagos pendientes" description="Los cobros con tarjeta o billetera aparecen aquí hasta conciliarlos.">
+            <Button variant="secondary" href="/">Ir a cobrar</Button>
+          </EmptyState>
         {:else}
           <ul class="pay-list" data-testid="owner-pay-list">
             {#each rows as r}
@@ -97,7 +100,7 @@ import { apiFetch } from '$lib/auth/api-client';
                   {r.id}
                 </span>
                 <span class="pay-amount tabular-nums">{formatCents(r.amount_cents)}</span>
-                <span class="badge {r.status === 'PENDING' ? 'badge-warning' : 'badge-muted'}">{r.status}</span>
+                <span class="badge {r.status === 'PENDING' ? 'badge-warning' : 'badge-muted'}">{paymentStatusLabel(r.status)}</span>
                 <span class="pay-meta">{r.acquirer} · venta {r.sale_id}</span>
               </li>
             {/each}

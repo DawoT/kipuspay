@@ -10131,3 +10131,104 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0404
+timestamp_utc: 2026-08-15T03:25:00Z
+schema_version: 2
+sprint_fase: FASE D — Ledger Minimalism en el producto (Staff Design)
+agente_responsable: Staff Product Design
+tipo: Entregable nuevo
+subtipo: tokens, chrome por rol, cajero, Modo Dueño, admin editorial, vitrina
+relacion: amplia
+referencias_entradas: [0242, 0403]
+referencias_documentales: [docs/GTM.md, docs/architecture/00-brand-positioning.md, apps/pos-web/src/app.css]
+prev_id: 0403
+prev_hash: fb9d1e9015f9308042134c1ac3ce78a422b59365f64b9fd6614e3e2ef21f1f60
+entry_hash: 45654acf1cfa879772bee690aa14373bebe40511111f8c993e24927da7f619ed
+ticket_or_adr: GTM §6, Arquitectura §0.2, ADR-ARCH-002
+test_ids: [ledger-tokens, chrome, breadcrumb, cashier-copy, owner-nav, sync-stitch, vitrina-copy, V-27, SUITE]
+entregable_afectado: apps/pos-web (chrome, cobro, Modo Dueño, admin, vitrina)
+descripcion: >
+  Cierra el drift de diseño del POS hacia glassmorphism/SaaS: tokens Ledger
+  (tinta/sello/alerta/papel), chrome por rol (cajero/admin/dueño/auth),
+  hamburger móvil, login sin nav ERP, nudo Quipu, costura de sync, empty
+  states con CTA, Modo Dueño con bottom nav de 5 y Hoy above-the-fold,
+  vitrina en español de negocio y pie Emitido con KipusPay. Cero deps npm;
+  sin reescritura de GTM (solo referencia §).
+evidencia: >
+  RED: hex slate en admin, sidebar ERP en login/caja/dueño, targets <44px,
+  empty sin CTA, enums IDLE/CHARGED, Dueño con 6-7 tabs dentro del ERP.
+  GREEN: 31 tests unitarios FASE D; verify.sh SUITE GREEN (V-27 copy POS).
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0405
+timestamp_utc: 2026-08-15T04:20:00Z
+schema_version: 2
+sprint_fase: FASE E — Ledger Minimalism en el resto del POS (Staff Design)
+agente_responsable: Staff Product Design
+tipo: Entregable nuevo
+subtipo: primitivas, caja operativa, piso KDS/salón, Dueño interior, admin consola
+relacion: amplia
+referencias_entradas: [0404]
+referencias_documentales: [docs/GTM.md, docs/architecture/00-brand-positioning.md, apps/pos-web/src/lib/ui/ops-copy.ts]
+prev_id: 0404
+prev_hash: 45654acf1cfa879772bee690aa14373bebe40511111f8c993e24927da7f619ed
+entry_hash: 22ed6f1716d947425689eeac68b0a57a026aeff8e929697be65bc73f4f0822b1
+ticket_or_adr: GTM §6, Arquitectura §0.2, ADR-ARCH-002
+test_ids: [ops-copy, ledger-tokens, chrome, cashier-copy, vitrina-copy, V-27, SUITE]
+entregable_afectado: apps/pos-web (caja, kds, salon, kiosk, owner, admin consola)
+descripcion: >
+  Extiende Ledger Minimalism al resto del POS que FASE D no rediseñó: Card
+  sin glass, inputs ≥44px, V-27 lee label/placeholder, chrome de piso en
+  KDS/salón, copy humano en caja/piso/Dueño/admin (cero enums/JSON al
+  operador) y empty states con CTA. Cero deps npm; paleta canónica intacta;
+  sin reescritura de GTM (solo referencia §).
+evidencia: >
+  RED: glass-card, céntimos/JSON en labels de cuotas, ANULADA/ITEM_FIRED,
+  STOCKOUT_RISK/rule_json/Crear OPEN, sidebar ERP en cocina.
+  GREEN: ops-copy + V-27 GREEN (52 rutas); svelte-check 0; verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0406
+timestamp_utc: 2026-08-15T04:40:00Z
+schema_version: 2
+sprint_fase: FASE F — Densidad: el POS deja de verse acoplado (Staff Design)
+agente_responsable: Staff Product Design
+tipo: Entregable nuevo
+subtipo: shell Dueño, chrome admin, workbenches, piso KDS/salón
+relacion: amplia
+referencias_entradas: [0405]
+referencias_documentales: [docs/GTM.md, docs/architecture/00-brand-positioning.md]
+prev_id: 0405
+prev_hash: 22ed6f1716d947425689eeac68b0a57a026aeff8e929697be65bc73f4f0822b1
+entry_hash: 80d0f00e05a30e64f37e418266f6f2706d8de507490ce926e736c0fe8a2c586c
+ticket_or_adr: GTM §6.3, Arquitectura §0.2.4
+test_ids: [owner-shell, pos-density, breadcrumb, chrome, owner-nav, ledger-tokens, V-27, SUITE]
+entregable_afectado: apps/pos-web (owner shell, admin nav, caja/admin workbenches, kds, salon)
+descripcion: >
+  Cierra la densidad del POS: Dueño 28rem solo en móvil y cuerpo hasta 1280
+  en escritorio; un header; tabs en chrome; checklist compacto. Sidebar
+  admin con un enlace Modo Dueño; Conciliar factura / Cocina; cero
+  glass-card; eyebrow sentence-case. Caja/admin 2 col ≥900px; cocina y
+  salón como tablero a viewport. Cero deps npm; paleta intacta.
+evidencia: >
+  RED: owner-body 28rem en desktop, Dashboard Hoy / Factura 3-way / KDS
+  Cocina, glass-card, cuotas/vale/gastos flacos, kds/salon como ficha.
+  GREEN: owner-shell + pos-density; V-27 GREEN (52 rutas); svelte-check 0;
+  verify.sh SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

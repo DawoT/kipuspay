@@ -47,7 +47,7 @@ import { apiFetch } from '$lib/auth/api-client';
     messageOk = res.ok;
     if (!res.ok) { message = json.error ?? `Error ${res.status}`; return; }
     depositId = json.depositId ?? '';
-    message = `Apartado ${depositId} · snapshot S/ ${formatCents(json.snapshotTotalCents ?? 0)} · CPE=${json.emitsFiscalDocument}`;
+    message = `Apartado listo · S/ ${formatCents(json.snapshotTotalCents ?? 0)}${json.emitsFiscalDocument ? ' · con comprobante' : ''}`;
   }
 
   async function deposit() {
@@ -112,7 +112,7 @@ import { apiFetch } from '$lib/auth/api-client';
 
     <div class="layaway-layout">
       <!-- Crear -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <CardHeader title="Nuevo apartado">
           <span class="section-tag">Crear</span>
         </CardHeader>
@@ -141,7 +141,7 @@ import { apiFetch } from '$lib/auth/api-client';
       </section>
 
       <!-- Gestionar -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <CardHeader title="Gestionar">
           <span class="section-tag">Acciones</span>
         </CardHeader>

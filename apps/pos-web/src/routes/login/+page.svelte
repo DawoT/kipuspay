@@ -1,9 +1,10 @@
 <script lang="ts">
+  import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-  import Icon from '$lib/ui/Icon.svelte';
+  import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import { cashierLogin, LoginError } from '$lib/auth/cashier-login';
   import { writeLoginTenantId, writeLoginToken, writeLoginUser } from '$lib/auth/token-store';
   import { defaultTenantSession, readTenantSession } from '$lib/tenant/session';
@@ -76,9 +77,9 @@ import { resolveApiBase } from '$lib/auth/api-client';
 </svelte:head>
 
 <div class="login-container">
-  <div class="glass-card login-card" aria-labelledby="login-title" data-testid="login-card">
+  <div class="ledger-card login-card" aria-labelledby="login-title" data-testid="login-card">
     <div class="brand-badge">
-      <Icon name="shield" size={24} />
+      <BrandKnot size={16} />
     </div>
     <p class="page-eyebrow">Acceso Seguro</p>
     <h1 id="login-title" class="page-title">Inicia sesión para continuar</h1>

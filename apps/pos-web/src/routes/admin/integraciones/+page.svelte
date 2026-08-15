@@ -18,12 +18,14 @@ import { apiFetch } from '$lib/auth/api-client';
 
   let keysMessage = $state('');
   let createdKey = $state('');
-  let keysJson = $state('');
+  let keyCount = $state(0);
+  let keysListed = $state(false);
 
   let webhookUrl = $state('https://hooks.example.com/kipus');
   let webhookMessage = $state('');
   let createdSecret = $state('');
-  let endpointsJson = $state('');
+  let webhookCount = $state(0);
+  let webhooksListed = $state(false);
 
   let importRowsJson = $state('[{"sku":"SKU-1","name":"Demo","priceCents":100}]');
   let importMode = $state<'preview' | 'commit'>('preview');
@@ -45,7 +47,7 @@ import { apiFetch } from '$lib/auth/api-client';
       catch { exportMessage = text; }
       return;
     }
-    exportMessage = `Export ${target} OK (${text.length} bytes)`;
+    exportMessage = `Exportado ${target === 'contasis' ? 'Contasis' : 'Concar'} · ${text.length} caracteres`;
     exportPreview = text.slice(0, 800);
   }
 
@@ -56,16 +58,18 @@ import { apiFetch } from '$lib/auth/api-client';
       headers: { 'content-type': 'application/json' }, body: '{}',
     });
     const json = (await res.json()) as { apiKey?: string; error?: string };
-    if (res.ok && json.apiKey) { createdKey = json.apiKey; keysMessage = 'API key creada — guárdala ahora'; }
+    if (res.ok && json.apiKey) { createdKey = json.apiKey; keysMessage = 'Clave creada — guárdala ahora'; }
     else { keysMessage = json.error ?? 'error'; }
   }
 
   async function listKeys() {
     keysMessage = '';
     const res = await apiFetch('/api/integrations/api-keys', { storage: localStorage });
-    const json = await res.json();
-    keysJson = JSON.stringify(json, null, 2);
-    keysMessage = res.ok ? 'Keys listadas' : 'error';
+    const json = (await res.json()) as { items?: unknown[]; keys?: unknown[] };
+    const items = json.items ?? json.keys ?? [];
+    keyCount = Array.isArray(items) ? items.length : 0;
+    keysListed = true;
+    keysMessage = res.ok ? `${keyCount} clave(s)` : 'No se pudieron listar';
   }
 
   async function createWebhook() {
@@ -76,16 +80,18 @@ import { apiFetch } from '$lib/auth/api-client';
       body: JSON.stringify({ url: webhookUrl, events: ['sale.created', 'cpe.accepted', 'cpe.rejected'] }),
     });
     const json = (await res.json()) as { secret?: string; id?: string; error?: string };
-    if (res.ok && json.secret) { createdSecret = json.secret; webhookMessage = `Endpoint ${json.id} creado — guarda el secret`; }
+    if (res.ok && json.secret) { createdSecret = json.secret; webhookMessage = 'Destino registrado — guarda el secreto'; }
     else { webhookMessage = json.error ?? 'error'; }
   }
 
   async function listWebhooks() {
     webhookMessage = '';
     const res = await apiFetch('/api/integrations/webhooks', { storage: localStorage });
-    const json = await res.json();
-    endpointsJson = JSON.stringify(json, null, 2);
-    webhookMessage = res.ok ? 'Endpoints listados' : 'error';
+    const json = (await res.json()) as { items?: unknown[]; endpoints?: unknown[] };
+    const items = json.items ?? json.endpoints ?? [];
+    webhookCount = Array.isArray(items) ? items.length : 0;
+    webhooksListed = true;
+    webhookMessage = res.ok ? `${webhookCount} destino(s)` : 'No se pudieron listar';
   }
 
   async function runCatalogImport() {
@@ -94,7 +100,7 @@ import { apiFetch } from '$lib/auth/api-client';
     try {
       rows = JSON.parse(importRowsJson) as unknown;
     } catch {
-      importMessage = 'JSON de filas inválido';
+      importMessage = 'Las filas no se pudieron leer';
       return;
     }
     const res = await apiFetch('/api/integrations/catalog-import', {
@@ -105,7 +111,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { error?: string; code?: string; imported?: number };
     importMessage = res.ok
-      ? `Import ${importMode} OK${typeof json.imported === 'number' ? ` · ${json.imported}` : ''}`
+      ? `Importación ${importMode === 'preview' ? 'en vista previa' : 'confirmada'}${typeof json.imported === 'number' ? ` · ${json.imported}` : ''}`
       : (json.error ?? json.code ?? 'error');
   }
 </script>
@@ -117,7 +123,7 @@ import { apiFetch } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="link" size={12} /> Admin · Integraciones</p>
       <h1 class="page-title">Integraciones</h1>
-      <p class="page-lede">Export contable Contasis/Concar, API keys y Webhooks — Cadena+.</p>
+      <p class="page-lede">Export contable, claves de acceso y avisos a otros sistemas — Cadena o superior.</p>
     </div>
   </div>
 
@@ -130,7 +136,7 @@ import { apiFetch } from '$lib/auth/api-client';
     <div class="integ-grid">
       {#if exportOn}
         <!-- Export contable -->
-        <section class="glass-card section-pad" data-testid="export-block">
+        <section class="ledger-card section-pad" data-testid="export-block">
           <div class="card-header">
             <h2>Export contable</h2>
             <span class="section-tag">Contasis / Concar</span>
@@ -171,15 +177,15 @@ import { apiFetch } from '$lib/auth/api-client';
 
       {#if apiOn}
         <!-- API Keys -->
-        <section class="glass-card section-pad" data-testid="keys-block">
+        <section class="ledger-card section-pad" data-testid="keys-block">
           <div class="card-header">
-            <h2>API Keys</h2>
+            <h2>Claves de acceso</h2>
             <Icon name="key" size={16} />
           </div>
-          <p class="section-desc">Una sola vista del plaintext al crear. Revoca en servidor para corte inmediato.</p>
+          <p class="section-desc">La clave se muestra una sola vez al crear. Revócala para cortar el acceso de inmediato.</p>
           <div class="btn-row">
             <Button variant="primary" icon="plus" onclick={createKey}>
-          Crear API key
+          Crear clave
         </Button>
             <Button variant="secondary" icon="list" onclick={listKeys}>
           Listar
@@ -194,18 +200,18 @@ import { apiFetch } from '$lib/auth/api-client';
           {#if keysMessage}
             <p class="feedback-msg" data-testid="keys-message">{keysMessage}</p>
           {/if}
-          {#if keysJson}
-            <pre class="code-preview">{keysJson}</pre>
+          {#if keysListed}
+            <p class="feedback-msg">{keyCount} clave(s) registrada(s)</p>
           {/if}
         </section>
 
         <!-- Webhooks -->
-        <section class="glass-card section-pad" data-testid="webhooks-block">
+        <section class="ledger-card section-pad" data-testid="webhooks-block">
           <div class="card-header">
             <h2>Webhooks</h2>
             <Icon name="link" size={16} />
           </div>
-          <p class="section-desc">HTTPS obligatorio. Eventos: sale.created, cpe.accepted, cpe.rejected.</p>
+          <p class="section-desc">Solo direcciones seguras. Avisos: venta cobrada, comprobante aceptado o rechazado.</p>
           <div class="field-group">
             <label for="int-webhook-url">URL de destino</label>
             <input id="int-webhook-url" bind:value={webhookUrl} />
@@ -227,13 +233,13 @@ import { apiFetch } from '$lib/auth/api-client';
           {#if webhookMessage}
             <p class="feedback-msg" data-testid="webhook-message">{webhookMessage}</p>
           {/if}
-          {#if endpointsJson}
-            <pre class="code-preview">{endpointsJson}</pre>
+          {#if webhooksListed}
+            <p class="feedback-msg">{webhookCount} destino(s) registrado(s)</p>
           {/if}
         </section>
       {/if}
       {#if importOn}
-        <section class="glass-card section-pad" data-testid="catalog-import-block">
+        <section class="ledger-card section-pad" data-testid="catalog-import-block">
           <div class="card-header">
             <h2>Importar catálogo</h2>
             <span class="section-tag">CSV</span>
@@ -247,7 +253,7 @@ import { apiFetch } from '$lib/auth/api-client';
             </select>
           </div>
           <div class="field-group">
-            <label for="import-rows">Filas (JSON)</label>
+            <label for="import-rows">Filas a importar</label>
             <textarea id="import-rows" bind:value={importRowsJson} rows="4" data-testid="catalog-import-rows"></textarea>
           </div>
           <Button variant="primary" data-testid="catalog-import-run" onclick={() => void runCatalogImport()}>

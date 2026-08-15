@@ -16,7 +16,8 @@
   import { formatCents } from '$lib/cents';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
-import { apiFetch } from '$lib/auth/api-client';
+  import { catalogItemLabel } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
@@ -217,7 +218,7 @@ import { apiFetch } from '$lib/auth/api-client';
   </div>
 
   {#if quickAddOn}
-    <section class="glass-card section-pad scan-panel" data-testid="quick-add-panel" aria-labelledby="quick-add-title">
+    <section class="ledger-card section-pad scan-panel" data-testid="quick-add-panel" aria-labelledby="quick-add-title">
       <CardHeader title="Escáner rápido">
         <Badge variant="warning">~3s</Badge>
       </CardHeader>
@@ -301,7 +302,7 @@ import { apiFetch } from '$lib/auth/api-client';
   {:else}
     <div class="workbench">
       <!-- Rail: form -->
-      <aside class="glass-card rail">
+      <aside class="ledger-card rail">
         <div class="card-header">
           <h2>Editor</h2>
           <span class="section-tag">Configuración</span>
@@ -375,7 +376,7 @@ import { apiFetch } from '$lib/auth/api-client';
       </aside>
 
       <!-- Ledger: catalog map -->
-      <section class="glass-card ledger">
+      <section class="ledger-card ledger">
         <div class="card-header">
           <h2>Mapa del catálogo</h2>
           <Button variant="secondary" onclick={loadCatalog} busy={loading} icon="refresh">
@@ -383,9 +384,17 @@ import { apiFetch } from '$lib/auth/api-client';
           </Button>
         </div>
         {#if catalog.length === 0}
-          <EmptyState icon="layers" title="Sin catálogo" description="Carga el catálogo para revisar padres, variantes y presentaciones." />
+          <EmptyState icon="layers" title="Sin catálogo" description="Carga el catálogo para revisar padres, variantes y presentaciones.">
+            <Button variant="primary" data-testid="catalog-empty-load" onclick={loadCatalog} busy={loading}>
+              Cargar catálogo
+            </Button>
+          </EmptyState>
         {:else}
-          <pre class="json-view">{JSON.stringify(catalog, null, 2)}</pre>
+          <ul class="item-list">
+            {#each catalog as item, i}
+              <li>{catalogItemLabel(item, i)}</li>
+            {/each}
+          </ul>
         {/if}
       </section>
     </div>
@@ -443,17 +452,20 @@ import { apiFetch } from '$lib/auth/api-client';
     accent-color: var(--accent-primary);
   }
 
-  .json-view {
-    overflow: auto;
-    padding: 1rem;
-    background: var(--bg-primary);
+  .item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .item-list li {
+    padding: 0.625rem 0.75rem;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.6;
-    max-height: 60vh;
+    color: var(--text-main);
   }
 
   .btn-etiquetas {

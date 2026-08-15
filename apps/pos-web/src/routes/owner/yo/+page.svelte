@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isOwnerModeEnabled } from '$lib/features';
+  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
   import { computeGrowthMetrics, type GrowthEvent } from '$lib/growth/metrics';
   import { readTenantSession, writeTenantSession } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
   import { apiFetch } from '$lib/auth/api-client';
+  import { ownerOverflowLinks } from '$lib/ui/owner-nav';
 
   const enabled = isOwnerModeEnabled();
+  const moreLinks = ownerOverflowLinks(isAgenticInsightsEnabled());
   let planLabel = $state('Plan: Arranque (lectura)');
   let inviteUrl = $state('');
   let referralCode = $state('');
@@ -65,7 +67,7 @@
   <div class="page-shell" data-testid="owner-yo">
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="user" size={12} /> Modo Dueño · Perfil</p>
+        <p class="page-eyebrow"><Icon name="user" size={12} /> Perfil</p>
         <h1 class="page-title">Mi perfil</h1>
         <p class="page-lede">Plan, referidos, métricas de negocio y atajos.</p>
       </div>
@@ -75,8 +77,16 @@
       </a>
     </div>
 
+    {#if moreLinks.length > 0}
+      <nav class="more-links" aria-label="Más en Modo Dueño">
+        {#each moreLinks as item (item.href)}
+          <a href={item.href} data-testid={item.testid}>{item.label}</a>
+        {/each}
+      </nav>
+    {/if}
+
     <!-- Plan -->
-    <div class="glass-card plan-card" data-testid="plan-label">
+    <div class="ledger-card plan-card" data-testid="plan-label">
       <div class="card-header">
         <h2>Plan actual</h2>
         <span class="badge badge-success">Activo</span>
@@ -86,7 +96,7 @@
 
     <div class="yo-grid">
       <!-- Referidos -->
-      <div class="glass-card section-pad" data-testid="owner-invite">
+      <div class="ledger-card section-pad" data-testid="owner-invite">
         <div class="card-header">
           <h2>Invita un negocio</h2>
           <Icon name="gift" size={16} />
@@ -105,7 +115,7 @@
       </div>
 
       <!-- Métricas -->
-      <div class="glass-card section-pad" data-testid="growth-metrics">
+      <div class="ledger-card section-pad" data-testid="growth-metrics">
         <div class="card-header">
           <h2>Rendimiento del terminal</h2>
           <Icon name="trending-up" size={16} />
@@ -138,6 +148,24 @@
 {/if}
 
 <style>
+  .more-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .more-links a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
   .plan-card {
     padding: 1.25rem;
     margin-bottom: 0;
