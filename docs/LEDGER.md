@@ -10278,3 +10278,61 @@ aprobaciones: [Staff QA A, Staff Backend V independiente, Staff Frontend R]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0408
+timestamp_utc: 2026-08-15T05:40:00Z
+schema_version: 2
+sprint_fase: Sprint 55 — Fase 6H (Remediación y Sello QA)
+agente_responsable: Staff Backend / Staff Frontend / Staff QA
+tipo: Corrección
+subtipo: remediación de hallazgos F-1/F-2/F-3/F-6/F-7/F-8 (ciclo RED→GREEN)
+relacion: corrige
+referencias_entradas: [0407]
+referencias_documentales: [docs/ops/browser-functional-audit.md, apps/worker-api/src/index.ts, apps/pos-web/src/routes/owner/+page.svelte, apps/pos-web/src/routes/owner/alertas/+page.svelte, apps/pos-web/src/routes/caja/cobro/+page.svelte, apps/pos-web/src/routes/+page.svelte, packages/print-templates/src/build-html.ts, packages/print-templates/src/build-escpos.ts, packages/print-templates/src/ticket-data.ts]
+prev_id: 0407
+prev_hash: 1456c3d6280cd9eebcca46e56a174ca3a3b8dc17b4d9f4d52e0df71e3a839b7a
+entry_hash: f40d311096d521a05fb31d24bbbce67c8b998a4a27f94ee139ad788b215bf729
+ticket_or_adr: docs/ops/browser-functional-audit.md §3, Proceso §8.1, CAL-07/§13.9
+test_ids: [apps/worker-api/src/index.test.ts, apps/pos-web/tests/e2e/owner-alertas.spec.ts, apps/pos-web/tests/e2e/owner-briefing-plan-gate.spec.ts, apps/pos-web/src/lib/demo-data.red.test.ts, apps/pos-web/src/lib/ticket-contract.red.test.ts, V-20, SUITE]
+entregable_afectado: apps/worker-api (6 rutas owner), apps/pos-web (owner dashboard/alertas, caja/cobro, ticket preview), packages/print-templates
+descripcion: >
+  Turno RED→GREEN del contrato de regresión (0407) para los hallazgos
+  unit/worker/e2e resueltos en Sprint 55. F-1: las 6 rutas Dueño propagan
+  user?.role al handler (el middleware ya lo poblaba; hoy gateaban 403
+  FORBIDDEN_ROLE a todos) y exponen 403 en el union de status. F-2: alertas
+  Dueño envía x-tenant-id en los 3 fetches (patrón de admin/configuracion).
+  F-3: el briefing del dashboard cachea el veredicto 403 PLAN_REQUIRES_CADENA
+  (kipuspay_briefing_plan_gate, fail-closed; el servidor sigue autoritativo)
+  para no re-consultar en cada carga; el widget se oculta sin error. F-6:
+  caja/cobro usa el estado real del formulario (saleIdempotencyKey) en vez de
+  sale-demo/sp-demo/demo-\${Date.now()} y customerId default ''; el dashboard
+  Dueño carga el backlog fiscal real de /api/fiscal/owner-backlog en vez de
+  demo-quarantine; confirmAnular deja de fingir exito ('NC E-A (local demo)')
+  y propaga el error real; whBranchId default ''. F-7: el ticket preview
+  imprime cartPayableCents (con IGV). F-8: TicketData.ruc pasa a opcional y
+  los builders HTML/ESC/POS omiten la linea RUC sin RUC del tenant; nunca un
+  valor de ejemplo.
+evidencia: >
+  RED (0407/auditoría): FORBIDDEN_ROLE en 6 rutas owner; TENANT_HINT_MISMATCH
+  en alertas; briefing consultado sin plan Cadena; sale-demo/sp-demo/
+  demo-quarantine y RUC 20123456789 en fuentes; ticket con total base S/18.90
+  vs cobrado S/22.30.
+  GREEN (Sprint 55): contratos F-1 (6/6 en index.test.ts, 29/29), F-2 y F-3
+  (e2e Playwright sobre preview, 2/2), F-6 (4/4) y F-7/F-8 (2/2). pos-web
+  384/384, worker-api 1163/1163, print-templates 35/35; svelte-check 0;
+  scripts/quality.sh Quality Gate OK (lint, typecheck, unit+cobertura,
+  integración, chaos, marketing copy, bench, deps 0 vulns, gitleaks, semgrep,
+  build, bundle).
+  Pendiente Sprint 56: F-4 (onboarding claim persistente) y F-5 (backups),
+  contratos e2e escritos en 0407 aún sin ejecutar.
+red_commit_sha: 827e9d76f1aea3c38c44832d8adeeae42b0a4705
+red_run_id: run-red-6h-contract-827e9d7
+expected_failure: AssertionError: FORBIDDEN_ROLE / TENANT_HINT_MISMATCH / briefing sin gate / sale-demo/sp-demo/demo-quarantine / RUC hardcodeado / total sin IGV
+green_commit_sha: 278772c42337bb1454066f45b421298862a6b49c
+green_run_id: run-green-s55-fixes-278772c
+ancestry_verified: true
+aprobaciones: [Staff QA A, Staff Backend R, Staff Frontend R, Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
