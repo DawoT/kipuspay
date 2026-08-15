@@ -61,6 +61,14 @@ import {
   DOWN_0044_SPRINT52_ONBOARDING_TOUR,
   DOWN_0046_SPRINT_P1B_REMISSION_GUIDE,
   DOWN_0047_SPRINT_P1C_WITHHOLDINGS,
+  DOWN_0048_SPRINT_P2_CASH_TIPS_DRAWER,
+  DOWN_0049_SPRINT40_SCALE_WEIGHT_READING,
+  DOWN_0050_SPRINT51_PIN_LOCKOUT,
+  DOWN_0051_SPRINT_M6_PAYMENT_METHODS_PK,
+  DOWN_0052_SPRINT_M6_GROWTH_EVENTS_EPOCH,
+  DOWN_0053_SPRINT_M6_EPOCH_TRIGGERS_BACKFILL,
+  DOWN_0054_PLATFORM_RECLAMACIONES,
+  DOWN_0055_PLATFORM_RECLAMACIONES_STATUS,
 } from './migrations-down.js';
 import upSql from '../migrations/0001_ddl_base_v8.sql?raw';
 import webhookEventsSql from '../migrations/0002_webhook_events.sql?raw';
@@ -1488,6 +1496,14 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
   });
 
   it('down 0010 + 0009 + … + 0000 deja el schema sin tablas de negocio', async () => {
+    await env.DB.exec(DOWN_0055_PLATFORM_RECLAMACIONES_STATUS);
+    await env.DB.exec(DOWN_0054_PLATFORM_RECLAMACIONES);
+    await env.DB.exec(DOWN_0053_SPRINT_M6_EPOCH_TRIGGERS_BACKFILL);
+    await env.DB.exec(DOWN_0052_SPRINT_M6_GROWTH_EVENTS_EPOCH);
+    await env.DB.exec(DOWN_0051_SPRINT_M6_PAYMENT_METHODS_PK);
+    await env.DB.exec(DOWN_0050_SPRINT51_PIN_LOCKOUT);
+    await env.DB.exec(DOWN_0049_SPRINT40_SCALE_WEIGHT_READING);
+    await env.DB.exec(DOWN_0048_SPRINT_P2_CASH_TIPS_DRAWER);
     await env.DB.exec(DOWN_0047_SPRINT_P1C_WITHHOLDINGS);
     await env.DB.exec(DOWN_0046_SPRINT_P1B_REMISSION_GUIDE);
     await env.DB.exec(DOWN_0044_SPRINT52_ONBOARDING_TOUR);
@@ -1501,6 +1517,7 @@ describe('D1 migraciones base (Sprint 0 humo + Sprint 1 DDL)', () => {
     await env.DB.exec(DOWN_0036_SPRINT43_CUSTOMER_ORDERS);
     await env.DB.exec(DOWN_0035_SPRINT42_DATA_BACKUP);
     await env.DB.exec(DOWN_0034_SPRINT41_PRICE_LABELS);
+    await env.DB.exec(DOWN_0033_SPRINT40_INVENTORY_SCALE);
     await env.DB.exec(DOWN_0032_SPRINT39_INVENTORY_SERIALS);
     await env.DB.exec(DOWN_0031_SPRINT38_INVENTORY_LOCATIONS);
     await env.DB.exec(DOWN_0030_SPRINT37_COMMISSIONS);

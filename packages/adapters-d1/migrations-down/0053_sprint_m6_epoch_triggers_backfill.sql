@@ -1,4 +1,3 @@
--- Sprint M6 — down: retira el backfill de triggers de epoch.
 DROP TRIGGER IF EXISTS backup_epoch_ai_usage_counters_insert;
 DROP TRIGGER IF EXISTS backup_epoch_ai_usage_counters_update;
 DROP TRIGGER IF EXISTS backup_epoch_ai_usage_counters_delete;
@@ -44,5 +43,4 @@ DROP TRIGGER IF EXISTS backup_epoch_webhook_endpoints_delete;
 DROP TRIGGER IF EXISTS backup_epoch_webhook_events_insert;
 DROP TRIGGER IF EXISTS backup_epoch_webhook_events_update;
 DROP TRIGGER IF EXISTS backup_epoch_webhook_events_delete;
-
 DELETE FROM schema_meta WHERE key = 'sprint_m6.epoch_triggers_backfill';
