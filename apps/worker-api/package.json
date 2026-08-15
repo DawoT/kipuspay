@@ -2,7 +2,7 @@
   "name": "@kipuspay/worker-api",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay \u2014 composition root de la API (Hono) en Cloudflare Workers.",
+  "description": "KipusPay — composition root de la API (Hono) en Cloudflare Workers.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -20,7 +20,7 @@
     "eslint": "^10.8.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10",
-    "wrangler": "^4.118.0"
+    "wrangler": "^4.123.0"
   },
   "dependencies": {
     "@kipuspay/adapters-accounting": "workspace:*",
