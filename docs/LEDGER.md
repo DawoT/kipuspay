@@ -10844,3 +10844,70 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0421
+timestamp_utc: 2026-08-15T22:21:31Z
+schema_version: 2
+sprint_fase: POS — UX gaps wave 2 (piso + density + ratchet)
+agente_responsable: Staff Frontend
+tipo: Corrección
+subtipo: CashierBottomNav, clientes CSS, inset-shell, smells P0
+relacion: amplia
+referencias_entradas: [0418, 0419, 0420]
+referencias_documentales: [Arquitectura §0.2, GTM §6.1]
+prev_id: 0420
+prev_hash: 2667577897659b4c6215d55787cd1ce8075ea07cbe8755e3ce9e3f2e89b5d15d
+entry_hash: 1b915fffda3e7a584bbbb4b5dd451633c7099e62e9114540e95e55f363c863f2
+ticket_or_adr: POS UX wave 2
+test_ids: [pos-density-smells, pos-density, chrome, SUITE]
+entregable_afectado: apps/pos-web (CashierBottomNav, clientes, catalogo/inventario/equipo, density tokens), scripts/tmp/pos-design-audit.mjs
+descripcion: >
+  Wave 2 post-agentes UI/UX: (1) CashierBottomNav en +layout chrome cashier
+  (antes solo en /); (2) CSS workbench de clientes restaurado; (3) --amber-warning
+  → --amber-gold en alertas; (4) tabs Dueño con ellipsis; (5) scan-form /
+  gre-grid / form-group CSS; (6) --inset-shell + batch 1.25rem→--inset-card y
+  shells 2rem→--inset-shell; (7) audit/ratchet P0 ampliado (CARD_PAD_1_25,
+  BLUR_ON_CARD, GLASS_NO_PAD, UNDEF_AMBER_WARNING, CASHIER_NAV).
+evidencia: >
+  RED: clientes sin workspace CSS; bottom-nav huérfano en /caja*; amber-warning
+  huérfano; literales 1.25rem en *-card.
+  GREEN: audit --strict P0=0; vitest density/smells/chrome; verify SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0422
+timestamp_utc: 2026-08-15T22:41:12Z
+schema_version: 2
+sprint_fase: UX audit wave 3 — marketing density + POS residual
+agente_responsable: Staff Frontend
+tipo: Corrección
+subtipo: ubicaciones ledger, badge-warning, owner overflow, mkt sticky
+relacion: amplia
+referencias_entradas: [0419, 0421]
+referencias_documentales: [Arquitectura §0.2, GTM §6.1/§6.3]
+prev_id: 0421
+prev_hash: 1b915fffda3e7a584bbbb4b5dd451633c7099e62e9114540e95e55f363c863f2
+entry_hash: eeb4028321c595010bfd0370a34c1b8baafb8bd79b16a633fe50a5ef8c8987d4
+ticket_or_adr: UX wave 3 multi-dominio
+test_ids: [pos-density-smells, owner-nav, marketing-density-smells, SUITE]
+entregable_afectado: apps/pos-web (ubicaciones, badge, owner-nav/layout), apps/marketing-web (inset tokens, sticky, comparar), scripts/tmp/*-design-audit.mjs
+descripcion: >
+  Wave 3: (1) admin/ubicaciones glass→ledger + workbench-2col + inset-card
+  (CARD_PAD_LITERAL 1.5 limpio); (2) badge-warning rose ≠ indigo ámbar;
+  (3) owner-body safe-area + overflow links stock/compras/pagos/xfer;
+  (4) marketing --inset-*/--bp-* + sticky CTA clearance + compare-intro
+  fuera del hero + post-card sin hover-lift; (5) ratchets POS/mkt ampliados.
+evidencia: >
+  RED: ubicaciones glass+1.5rem; badges clones; owner undersafe/orphans;
+  marketing sin inset/sticky clearance; compare-intro en fold.
+  GREEN: audit POS/mkt --strict P0=0; vitest smells; verify SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
