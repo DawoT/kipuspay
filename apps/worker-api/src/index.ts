@@ -1004,8 +1004,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/quotes/expired', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.get('/api/ledger/journal', async (c) => {
     const jwt = c.get('jwt');
@@ -1326,8 +1327,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/purchasing/three-way', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.post('/api/purchasing/returns', async (c) => {
     const jwt = c.get('jwt');
@@ -1367,8 +1369,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/purchasing/returns', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.post('/api/ledger/store-credit/issue', (c) => {
     const result = runIssueStoreCreditHttp(c.env);
@@ -1402,8 +1405,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/ledger/store-credit', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.post('/api/sales/installments', async (c) => {
     const jwt = c.get('jwt');
@@ -1433,8 +1437,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/installments/overdue', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 
   app.get('/api/admin/commissions/rates', async (c) => {
@@ -1497,8 +1502,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/commissions', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 
   // Sprint 30 — promociones (FEATURE_PRICING_PROMOTIONS)
