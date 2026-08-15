@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   chromeShowsSidebar,
   chromeShowsSkipLink,
@@ -56,5 +57,16 @@ describe('chrome chrome flags', () => {
     expect(chromeShowsSkipLink('admin')).toBe(true);
     expect(chromeShowsSkipLink('cashier')).toBe(true);
     expect(chromeShowsSkipLink('auth')).toBe(false);
+  });
+});
+
+describe('chrome compacto admin (≤719px)', () => {
+  it('drawer unificado a 719px con estado solo-icono', () => {
+    const shell = readFileSync(new URL('../../routes/+layout.svelte', import.meta.url), 'utf8');
+    expect(shell).toMatch(/COMPACT_MQ\s*=\s*'\(max-width: 719px\)'/);
+    expect(shell).toMatch(/@media \(max-width: 719px\)/);
+    expect(shell).toMatch(/status-pill-label/);
+    expect(shell).toMatch(/text-overflow:\s*ellipsis/);
+    expect(shell).not.toMatch(/@media \(max-width: 768px\)/);
   });
 });

@@ -626,7 +626,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if debitNoteOn}
-        <section class="ledger-card owner-section" data-testid="owner-debit-note">
+        <section class="ledger-card owner-section section-pad" data-testid="owner-debit-note">
           <div class="owner-section-head">
             <h2>Nota de débito</h2>
             <span class="badge badge-indigo">Ajuste al alza</span>
@@ -669,7 +669,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if withholdingsOn}
-        <section class="ledger-card owner-section" data-testid="owner-withholdings">
+        <section class="ledger-card owner-section section-pad" data-testid="owner-withholdings">
           <div class="owner-section-head">
             <h2>Percepciones y retenciones</h2>
             <span class="badge badge-indigo">Pagos adelantados</span>
@@ -756,7 +756,10 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: start;
   }
 
-
+  .owner-section {
+    display: grid;
+    gap: var(--space-3);
+  }
 
   .section-desc {
     font-size: 0.8125rem;
@@ -863,7 +866,9 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.5rem;
   }
 
-  @media (max-width: 700px) {
-    .owner-sections-grid { grid-template-columns: 1fr; }
+  @media (max-width: 719px) {
+    .owner-sections-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

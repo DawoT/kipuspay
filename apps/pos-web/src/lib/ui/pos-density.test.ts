@@ -68,5 +68,19 @@ describe('FASE F densidad POS', () => {
     expect(home).toMatch(/\.banner-row/);
     expect(home).toMatch(/flex-direction:\s*column/);
     expect(home).toMatch(/max-width:\s*900px/);
+    expect(home).toMatch(/gap:\s*var\(--space-3\)/);
+    expect(home).toMatch(/padding:\s*var\(--inset-field\)/);
+  });
+
+  it('density kit: ledger-card lleva inset y chrome compacto es 719px', () => {
+    expect(APP_CSS).toMatch(/--inset-card:\s*var\(--space-5\)/);
+    expect(APP_CSS).toMatch(/--inset-field:/);
+    expect(APP_CSS).toMatch(/--bp-compact:\s*719px/);
+    const card = APP_CSS.match(/\.ledger-card\s*\{[^}]+\}/)?.[0] ?? '';
+    expect(card).toMatch(/padding:\s*var\(--inset-card\)/);
+    expect(LAYOUT).toMatch(/max-width:\s*719px/);
+    expect(LAYOUT).toMatch(/COMPACT_MQ\s*=\s*'\(max-width: 719px\)'/);
+    expect(LAYOUT).toMatch(/status-pill-label/);
+    expect(LAYOUT).not.toMatch(/@media \(max-width: 768px\)/);
   });
 });

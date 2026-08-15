@@ -306,9 +306,7 @@
           <h2 id="history-title">Historial y progreso ({items.length})</h2>
         </div>
         {#if loading}
-          <div class="section-pad">
-            <Skeleton lines={3} />
-          </div>
+          <Skeleton lines={3} />
         {:else if items.length === 0}
           <EmptyState icon="database" title="Sin exportaciones" description="No hay exportaciones registradas.">
             <Button
@@ -473,7 +471,7 @@
   }
 
   .reauth-field input {
-    padding: 0.45rem 0.75rem;
+    padding: var(--inset-field);
     font-size: 0.85rem;
   }
 

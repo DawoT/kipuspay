@@ -50,7 +50,8 @@
 
   type IconName = ComponentProps<typeof Icon>['name'];
 
-  // Sidebar state — en móvil nace cerrado (hamburger en top-bar).
+  // Sidebar state — en compacto (≤719px) nace cerrado (hamburger en top-bar).
+  const COMPACT_MQ = '(max-width: 719px)';
   let sidebarOpen = $state(true);
   let isNarrow = $state(false);
   let expandedGroups = $state<Record<string, boolean>>({
@@ -257,7 +258,7 @@
       currentTheme = readDocumentTheme();
       applyThemeToDocument(currentTheme);
 
-      const narrow = window.matchMedia('(max-width: 768px)');
+      const narrow = window.matchMedia(COMPACT_MQ);
       const syncNarrow = () => {
         isNarrow = narrow.matches;
         if (narrow.matches) sidebarOpen = false;
@@ -429,9 +430,11 @@
           class="status-pill"
           class:offline={!online}
           data-testid="connection-status"
+          role="status"
+          aria-label={online ? 'En línea' : 'Sin conexión'}
         >
           <span class="pulse-dot" class:offline={!online}></span>
-          <span class={connectionStitch}>{online ? 'En línea' : 'Sin conexión'}</span>
+          <span class="status-pill-label {connectionStitch}">{online ? 'En línea' : 'Sin conexión'}</span>
         </div>
         {#if sessionLoaded && authenticatedSession === null && !import.meta.env.PUBLIC_DEV_AUTH}
           <a href="/login" class="login-link" data-testid="topbar-login">
@@ -875,12 +878,15 @@
     display: flex;
     align-items: center;
     gap: 1rem;
+    min-width: 0;
+    flex: 1;
   }
 
   .top-bar-right {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .breadcrumb {
@@ -888,6 +894,7 @@
     align-items: center;
     gap: 0.375rem;
     font-size: 0.8125rem;
+    min-width: 0;
   }
 
   .breadcrumb-app {
@@ -900,6 +907,10 @@
     color: var(--text-main);
     font-weight: 600;
     text-transform: capitalize;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .status-pill {
@@ -961,8 +972,8 @@
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
-  /* ── Responsive ───────────────────────────────── */
-  @media (max-width: 768px) {
+  /* ── Responsive — compacto unificado ≤719px (paridad Dueño) ─ */
+  @media (max-width: 719px) {
     .nav-hamburger {
       display: flex;
     }
@@ -992,14 +1003,25 @@
       display: none;
     }
 
+    .status-pill {
+      gap: 0;
+      padding: 0.3rem;
+    }
+
+    .status-pill-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .page-content {
       padding: 1rem;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .status-pill {
-      display: none;
     }
   }
 </style>

@@ -1230,7 +1230,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--space-3);
     min-width: 0;
   }
 
@@ -1244,12 +1244,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     width: 180px;
     max-width: 100%;
     min-width: 0;
+    padding: var(--inset-field);
   }
 
   .customer-input-group select,
   .customer-input-group input {
     min-width: 0;
     max-width: 100%;
+    padding: var(--inset-field);
   }
 
   :global(.formalization-callout) {
