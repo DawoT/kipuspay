@@ -30,6 +30,7 @@ owner: "@DawoT"
 | 6E    | Servicios y Fuerza de Venta                                          | 43–45   | `[roadmap/fase-6e.md](roadmap/fase-6e.md)` |
 | 6F    | Analítica Predictiva, Compliance e Inteligencia del Negocio          | 46–49   | `[roadmap/fase-6f.md](roadmap/fase-6f.md)` |
 | 6G    | Flujo del Cliente                                                    | 50–53   | `[roadmap/fase-6g.md](roadmap/fase-6g.md)` |
+| 6H    | Remediación y Sello QA (auditoría browser)                           | 54–59   | `[ops/browser-functional-audit.md](ops/browser-functional-audit.md)` |
 
 
 
@@ -88,6 +89,7 @@ owner: "@DawoT"
 | 48     | 6F   | Actualizada (Sprint 48 regla 32b — DR/BCP)                                                                  | Planificado                                     |
 | 49     | 6F   | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica)                                       | Planificado                                     |
 | 50–53  | 6G   | Actualizada (FASE 6G reglas 34–37 — flujo del cliente)                                                      | Planificado                                     |
+| 54–59  | 6H   | Actualizada (Fase 6H — Remediación y Sello QA; `docs/ops/browser-functional-audit.md`)                      | Cerrado (ledgers 0407–0417; QG `docs/ops/6h-remediation-qg.md`) |
 
 
 ---
