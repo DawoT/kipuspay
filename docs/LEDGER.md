@@ -10582,3 +10582,47 @@ aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0415
+timestamp_utc: 2026-08-15T18:45:00Z
+schema_version: 2
+sprint_fase: FASE F+ — Auditoría e integración staff (fase previa al Sello QA)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: auditoría e integración del workstream FASE F+ (Staff Product Design)
+relacion: amplia
+referencias_entradas: [0411, 0412, 0414]
+referencias_documentales: [docs/ops/browser-functional-audit.md, docs/architecture/00-brand-positioning.md, apps/pos-web/src/app.css, apps/marketing-web/src/routes/+page.svelte]
+prev_id: 0414
+prev_hash: 4d8704f8d26f876a4dc50d61f831cafcc2461eceda5b5ef0c6267608a4b9c7ce
+entry_hash: 1cf1d7ed2d9ba752dabe4319a54957a695dc8bfda8837d420e5276edd26891c0
+ticket_or_adr: Proceso §8.1, V-26, V-27, V-30, CAL-05
+test_ids: [ops-copy, pos-density, ledger-tokens, content, responsive-ui, V-00, V-26, V-27, V-30, SUITE]
+entregable_afectado: apps/pos-web (app.css owner-dark, ops-copy, workbenches caja/vale/gastos, salón/split, OC 44px), apps/marketing-web (hero-compact, fold home, pricing ledger, rubro-switch, posters), docs/ops/bench-sub50ms-sprint14.md
+descripcion: >
+  Auditoría e integración staff del workstream FASE F+ (entradas 0411/0412/0414)
+  como fase previa al Sello QA 6H. Revisión diff completa de los 36 archivos:
+  (1) POS — tokens owner-dark completos (--bg-ledger-card en dark/light/owner,
+  --text-dim, superficies oscuras sin heredar glass-card blanco), copy de
+  negocio vía formalizationModeLabel (cero enums INTERNAL_CONTROL/FORMALIZING/
+  ELECTRONIC_ISSUER al operador, V-27), workbenches 2-col de vale/gastos a
+  ancho page-shell, salón/split en grilla de tablero >=900px, wrap responsive
+  (card-header-bar, preflight, pin-reveal), labels OC/factura en español y
+  link-action 44px. (2) Marketing — hero-compact full-bleed con brand-mark,
+  fold home con un sub y un trust, FAQ home top-6 + Ayuda, pricing sin glow,
+  seguridad en filas editoriales, nav comparar en rubro-switch select,
+  posters por rubro (og-*.png) sin hero-poster.svg. (3) Bench hot-path
+  actualizado (p95=0.0016ms, sub-50ms). Veredicto de auditoría: sin hallazgos
+  de gate; integrado en 3 commits.
+evidencia: >
+  verify.sh SUITE GREEN (V-00..V-30, V-13 cadena hasta 0414); pos-web vitest
+  389/389; marketing-web vitest 153/153; svelte-check 0 errores/0 warnings
+  pos-web y 0 errores marketing (1 warning pre-existente CheckoutMock no
+  tocado); commits b5e4ddc (POS, 18 archivos), 7176caa (marketing, 16),
+  818f8ef (docs+ledger).
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
