@@ -10626,3 +10626,61 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0416
+timestamp_utc: 2026-08-15T20:05:00Z
+schema_version: 2
+sprint_fase: Sprint 58 — Sello QA: evidencia runtime completa (ciclo RED→GREEN)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: suite e2e completa 81/81, smoke D1 del runbook F-10 y regresión de features congeladas
+relacion: amplia
+referencias_entradas: [0413, 0415]
+referencias_documentales: [docs/ops/browser-functional-audit.md, docs/runbooks/local-bootstrap.md, apps/pos-web/vite.config.ts, apps/pos-web/tests/e2e/frozen-features.spec.ts]
+prev_id: 0415
+prev_hash: 1cf1d7ed2d9ba752dabe4319a54957a695dc8bfda8837d420e5276edd26891c0
+entry_hash: 9d24b16083bae1b00dafc5a596f80eedf1e6d08bd808d2b84257ad826cab6832
+ticket_or_adr: Proceso §8.1, CAL-05, CAL-06, V-29, F-6/F-10/F-13
+test_ids: [frozen-features, customer-orders, forecasting, a11y-checkout, a11y-critical-screens, mobile-pwa-a11y, modal-a11y, ledger-tokens, ops-copy, V-00, V-29, SUITE]
+entregable_afectado: apps/pos-web (app.css emerald on-dark, skip-link 48px, bottom-nav pedidos retiro, confirmación de reserva, vite proxy fail-fast, spec frozen-features), worker-api (wrangler 4.123)
+descripcion: >
+  Sello QA con evidencia runtime completa. (1) Suite e2e completa por primera
+  vez en 6H: RED honesto 8 failed/70 passed — 7 violaciones axe color-contrast
+  por --emerald-green #0f6b4c (sello) sobre superficies oscuras (FASE F+
+  owner-dark), skip-link 39px (<48px), y customer-orders por copy + race.
+  Fixes: emerald on-dark #3dbb86 (tono ya usado como fallback del diseño) en
+  dark/owner-dark; skip-link min-height 48px; bottom-nav cashier gana el
+  enlace Pedidos retiro (misma regla que el sidebar, DRY) que FASE F había
+  dejado inaccesible al cajero; confirmación "Sin pago al crear" después del
+  refresh (antes la sobrescribía el contador de la cola); spec al copy vigente
+  (regex /i). (2) Causa raíz de la navegación client-side colgada en /owner:
+  workerd zombi en :8787 que aceptaba sin responder + proxy de vite sin
+  fail-fast saturaba el pool HTTP/1.1 (6 conexiones/host) con 6 llamadas /api
+  paralelas; fix dev/CI: vite.config con manejo de error del proxy -> 502
+  inmediato (fail-closed). (3) Smoke real del runbook F-10 en estado fresco:
+  rm .wrangler/state + wrangler d1 migrations apply DB --local (0054/0055),
+  364 triggers de epoch (V-29), POST /v1/reclamaciones 201 con acuse
+  REC-20260815-79C59D persistido (antes 503 DB_UNAVAILABLE), /api/catalog/
+  sellable 401 fail-closed. (4) Spec frozen-features: /kds, /salon y Anular
+  boleta quedan bajo contrato de regresión (estado congelado no se descongela
+  sin actualizar la guía).
+evidencia: >
+  RED (run-red-6h-s58): e2e 8 failed — color-contrast emerald 2.25-2.42 (<4.5)
+  en owner-dark/status-pill/badges, skip-link 39px, customer-orders link y
+  copy; forecasting colgado por navegación client-side (pool saturado por el
+  workerd zombi).
+  GREEN (run-green-6h-s58): e2e 81/81 (78 + 3 frozen-features); pos-web vitest
+  389/389; marketing 153/153; worker-api 1163/1163; svelte-check 0/0; quality
+  Gate OK (bundle 259.77 kB gz); verify.sh SUITE GREEN; smoke D1 reclamaciones
+  201 + triggers 364.
+red_commit_sha: 818f8efb3f412bd1ac488b1bff4c274e93fcf39c
+red_run_id: run-red-6h-s58
+expected_failure: axe color-contrast emerald #0f6b4c en superficies oscuras / skip-link 39px <48px / Pedidos retiro inaccesible en chrome cashier / confirmación de reserva sobrescrita / navegación client-side colgada en /owner (proxy sin fail-fast)
+green_commit_sha: 08c63a6
+green_run_id: run-green-6h-s58
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
