@@ -330,15 +330,15 @@ describe('F-1 contrato Dueño: las 6 rutas owner propagan role (auditoría brows
     DB: {
       prepare: () => ({
         bind: () => ({
-          all: async () => ({ results: [] }),
-          first: async () => null,
-          run: async () => ({ success: true }),
+          all: () => Promise.resolve({ results: [] }),
+          first: () => Promise.resolve(null),
+          run: () => Promise.resolve({ success: true }),
         }),
-        all: async () => ({ results: [] }),
-        first: async () => null,
-        run: async () => ({ success: true }),
+        all: () => Promise.resolve({ results: [] }),
+        first: () => Promise.resolve(null),
+        run: () => Promise.resolve({ success: true }),
       }),
-      batch: async () => [],
+      batch: () => Promise.resolve([]),
     },
   };
 
@@ -354,7 +354,7 @@ describe('F-1 contrato Dueño: las 6 rutas owner propagan role (auditoría brows
         ownerEnv,
       );
       expect(res.status, `${method} ${path}`).not.toBe(403);
-      const body = (await res.json()) as { code?: string };
+      const body: { code?: string } = await res.json();
       expect(body.code, `${method} ${path}`).not.toBe('FORBIDDEN_ROLE');
     },
   );
