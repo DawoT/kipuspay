@@ -31,6 +31,18 @@ describe('security page content', () => {
     expect(SECURITY_PAGE.sla.body).toMatch(/Enterprise/);
   });
 
+  it('F-12: SLA detalla severidades SEV-1/SEV-2/SEV-3', () => {
+    expect(SECURITY_PAGE.sla.severities).toHaveLength(3);
+    const titles = SECURITY_PAGE.sla.severities.map((s) => s.title).join(' ');
+    expect(titles).toMatch(/SEV-1/);
+    expect(titles).toMatch(/SEV-2/);
+    expect(titles).toMatch(/SEV-3/);
+    const blob = SECURITY_PAGE.sla.severities.map((s) => `${s.title} ${s.body}`).join(' ');
+    expect(blob).toMatch(/1 hora/);
+    expect(blob).toMatch(/4 horas/);
+    expect(blob).toMatch(/soporte@kipuspay\.com/);
+  });
+
   it('mantiene la trazabilidad interna como comentario, fuera del copy público', () => {
     const source = readFileSync(new URL('./security.ts', import.meta.url), 'utf8');
     expect(source).toMatch(/Sprint 2/);

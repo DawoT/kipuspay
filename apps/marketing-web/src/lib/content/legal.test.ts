@@ -69,6 +69,16 @@ describe('documento maestro legal (M4A — versión final)', () => {
     expect(blob).toMatch(/reclamaciones/i);
   });
 
+  it('F-12: jurisdicción precisa y citas de ley (29571 / 29733)', () => {
+    const terms = blobOf(TERMS_PAGE);
+    const privacy = blobOf(PRIVACY_PAGE);
+    expect(terms).toMatch(/Distrito Judicial de Lima Centro/);
+    expect(terms).toMatch(/Ley 29571/);
+    expect(terms).not.toMatch(/tribunales de Lima/);
+    expect(privacy).toMatch(/Ley 29733/);
+    expect(privacy).toMatch(/003-2013-JUS/);
+  });
+
   it('términos sin jerga interna de severidad', () => {
     const blob = blobOf(TERMS_PAGE);
     expect(blob).not.toMatch(/SEV-\d/);
