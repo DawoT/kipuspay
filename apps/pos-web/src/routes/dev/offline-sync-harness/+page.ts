@@ -9,7 +9,8 @@ const enabled = env.PUBLIC_ENABLE_DEV_HARNESS === '1' || env.PUBLIC_ENABLE_DEV_H
 
 export function load(): Record<string, never> {
   if (!enabled) {
-    throw error(404, 'Not Found');
+    // error() de SvelteKit aborta el load (never); no usar throw (only-throw-error).
+    error(404, 'Not Found');
   }
   return {};
 }

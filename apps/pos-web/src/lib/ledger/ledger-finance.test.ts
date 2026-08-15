@@ -123,7 +123,7 @@ describe('ledger financiero (CxC/CxP, F2)', () => {
     });
     expect(res.ok).toBe(true);
     expect(captured.url).toBe('https://api.test/api/ledger/ar/pay');
-    expect(JSON.parse(String(captured.init?.body))).toMatchObject({
+    expect(JSON.parse(captured.init?.body as string)).toMatchObject({
       accountsReceivableId: 'ar-1',
       amountCents: 4000,
     });
