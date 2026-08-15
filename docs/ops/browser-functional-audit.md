@@ -193,3 +193,69 @@ authority: derivada
 2. F-5 (backups) y F-6 (IDs demo en `chargeOnline`).
 3. F-9 (flags), F-10 (runbook), F-3 (widget plan-gate).
 4. F-11/F-12/F-13 (copy y claims).
+
+---
+
+## 6. Remediación 6H — Estado y evidencia (sprints 54–57)
+
+> Veredicto por hallazgo con la evidencia de cierre. El ciclo honesto RED→GREEN
+> (CAL-07/§13.9) queda registrado en el ledger (0407–0413) con `red_commit_sha`,
+> `green_commit_sha` y run ids. Verificación en navegador sobre previews con env
+> de `apps/pos-web/playwright.config.ts` (pos-web :4173, marketing-web :4174).
+
+### 6.1 Cierre por hallazgo
+
+| ID | Severidad | Estado | Evidencia |
+|---|---|---|---|
+| F-1 | CRÍTICO | ✅ CORREGIDO (s54) | `role` propagado en las 6 llamadas (`index.ts`); e2e `owner-alertas` + unit worker-api; ledger 0407/0408 |
+| F-2 | ALTO | ✅ CORREGIDO (s54) | `/owner/alertas` usa `apiFetch` (`x-tenant-id`); 403 eliminados; ledger 0407 |
+| F-3 | MEDIO | ✅ CORREGIDO (s54) | briefing plan-gated: widget oculto sin Cadena+; e2e `owner-briefing-plan-gate` GREEN; ledger 0407 |
+| F-4 | CRÍTICO | ✅ CORREGIDO (s56) | claim persistido en localStorage (`kipuspay.onboarding.claim`) + rehidratación; e2e `onboarding-claim-reload` GREEN; ledger 0409 |
+| F-5 | ALTO | ✅ CORREGIDO (s56) | `/admin/backups` observa `readAdminAuthenticatedSessionState()` vía `$effect`; copy amigable; e2e `backups` GREEN; ledger 0409 |
+| F-6 | MEDIO | ✅ CORREGIDO (s55+s57) | IDs demo eliminados del código fuente (no solo de la UI): gate **V-30** nuevo escanea `apps/pos-web/src` (.ts/.svelte) → 9 residuos en HEAD, 0 tras Sprint 57; `chargeOnline` sin `sale-demo`/`sp-demo` (s55); ledger 0408, 0413 |
+| F-7 | ALTO | ✅ CORREGIDO (s55) | ticket imprime el importe cobrado (payable), no la base; UI nunca fuente de verdad; ledger 0408 |
+| F-8 | ALTO | ✅ CORREGIDO (s55) | RUC del tenant real o ausente, nunca `20123456789`; ledger 0408 |
+| F-9 | MEDIO | ✅ CORREGIDO (s57) | flags `FEATURE_CATALOG_SELLABLE`, `FEATURE_ANALYTICS_FORECASTING`, `FEATURE_PAYMENTS_CARD_ACQUIRER`, `FEATURE_PAYMENTS_QR_WALLETS` declarados en `wrangler.jsonc` vars (default "0") + `worker-configuration.d.ts` regenerado (`wrangler types`); tsc 0; ledger 0413 |
+| F-10 | INFRA | ✅ DOCUMENTADO (s57) | runbook `docs/runbooks/local-bootstrap.md` (503 `DB_UNAVAILABLE` → `wrangler d1 migrations apply DB --local`, migrations_dir `packages/adapters-d1/migrations`, par down, rollback); ledger 0413 |
+| F-11 | BAJO | ✅ CORREGIDO (s57) | `/ayuda` marca "En preparación" (badge) en 6 capacidades congeladas (activar-facturacion, sin-internet ×2, insights-diario, pedidos-whatsapp, membresias); `HelpItem.availability`; verificado en navegador; ledger 0413 |
+| F-12 | BAJO | ✅ CORREGIDO (s57) | `/terminos` → "Distrito Judicial de Lima Centro, Perú" + Ley 29571; `/privacidad` → Ley 29733 + D.S. 003-2013-JUS; `/seguridad` → SLA SEV-1/SEV-2/SEV-3 detallado; footer + `facturacion@kipuspay.com`; verificado en navegador; ledger 0413 |
+| F-13 | INFO | ✅ RESUELTO (s57) | `/owner` consulta `/api/owner/day-summary?date=` vía `apiFetch` (stub autoconsistente → siempre 0 eliminado); refleja rollup server-side con "no en vivo"; e2e `owner-day-summary` GREEN (mock 31150 → "311.50", "2", "no en vivo"); ledger 0413 |
+
+### 6.2 Evidencia del ciclo RED→GREEN (Sprint 57, run ids `run-red-6h-s57-f9f13` / `run-green-6h-s57-f9f13`)
+
+- **RED** (commit `b3552cf`, contrato de regresión):
+  - `marketing-web` vitest: 3 failed — F-11 `availability 'preparing'` ausente; F-12 sin Ley 29571 ni severidades.
+  - V-30 scan sobre árbol HEAD: 9 hallazgos (`weigh-demo` ×2, `b-demo` ×2, `r2/merma/demo.jpg`, `'Demo'`, `rcpt-demo`, `demo` ×2 en `tenant/session.ts`).
+  - e2e `owner-day-summary`: 1 failed — `hoy-net` renderiza `S/ 0.00` (stub) en vez de `311.50`.
+- **GREEN** (commit `dac2d72`):
+  - `marketing-web` 18/18; pos-web 389/389; worker-api 1163/1163; tsc 0; svelte-check pos-web 0/0, marketing-web 0 errores (1 warning pre-existente en `CheckoutMock.svelte`).
+  - e2e Playwright 4/4 (owner-day-summary, onboarding-claim-reload, backups, owner-briefing-plan-gate).
+  - `verify.sh` SUITE GREEN (V-00..V-30).
+- **Ledger 0413** (commit `2c0ac38`) con `red_commit_sha`/`green_commit_sha` reales, `ancestry_verified: true` y cadena V-13 GREEN.
+
+### 6.3 Verificación en navegador — features congeladas (auditoría §4)
+
+Previews en vivo con env completo (pos-web :4173 + marketing-web :4174), verificado sin screenshots (árbol de accesibilidad + console):
+
+| Feature congelada | Verificado | Resultado |
+|---|---|---|
+| Comandas/KDS | `/kds` | "El display de cocina está desactivado para esta tienda." — coherente con claim "en preparación" |
+| Salón | `/salon`, `/salon/split` | "Las comandas no están activas para esta tienda."; módulo presente, no vendible |
+| Membresías | `/precios` | "Pedidos con retiro por WhatsApp y membresías recurrentes — En preparación" |
+| Insights/asistente | `/owner`, `/owner/asistente` | Copy honesto "El servidor calcula los números; no es una IA que opina" (sesión-gated); `/precios` "Asistente Gerente de Operaciones — En preparación" |
+| LPDP ARCO | `/precios` + código | Self-serve de cliente congelado; módulo admin (consentimientos/copia/anonimización en `/admin/clientes`) intacto |
+| Anular boleta | `/caja/historial` | "Anular boleta está en preparación." |
+| Emisión SUNAT | `/precios`, `/terminos` | "Emisión Fiscal — En preparación" (tenant INTERNAL_CONTROL); "Nota de venta de control interno no es comprobante autorizado por SUNAT" en términos; copy de marketing sin jerga (V-26) |
+
+Fixes F-11/F-12 verificados en navegador: `/ayuda` (6 badges "En preparación"), `/seguridad` (SEV-1 1h/4h, SEV-2 4h/1d, SEV-3 1d/2d), `/terminos` (Ley 29571 + Distrito Judicial de Lima Centro), `/privacidad` (Ley 29733 + D.S. 003-2013-JUS), footer (`facturacion@kipuspay.com`). Consola marketing: 0 errores (2 warnings de preload de fuentes, cosmético pre-existente). Errores de consola en pos-web sin worker local (proxy → :8787): esperados por ausencia de API en el preview.
+
+### 6.4 Gate V-30 (nuevo, refuerza F-6)
+
+- `scripts/checks/pos_demo_ids.py`: escanea todo `apps/pos-web/src` (.ts/.svelte, sin `*.test.*` ni `routes/dev/`) y rechaza literales string con "demo" asignados como valor; permite comparaciones defensivas (`!== 'demo'`) y comentarios (tokenizador `//`, `/* */`, `<!-- -->`).
+- Registrado en `scripts/verify.sh` (`check_pos_demo_ids`), autotest en `scripts/checks/selftest.py` (V-00, 52 aserciones) y tabla V-30 de `AGENTS.md`.
+- Baseline: 9 hallazgos en HEAD → 0 tras Sprint 57 (150 archivos de fuente limpios).
+
+### 6.5 Notas de coordinación
+
+- El working tree contenía cambios concurrentes de FASE F+ (densidad/copy post-0406, entradas de ledger 0411/0412) escritos por un segundo agente de producto. No se tocan: se respetan sus archivos y sus entradas; Sprint 57 commiteó solo sus propios archivos (git `M ` vs ` M`) y encadenó `0413` a `0412`.
+- Próximo cierre: Quality Gate de implementación (Proceso §8.1) con evidencia runtime y firma RACI (A + V independiente).
