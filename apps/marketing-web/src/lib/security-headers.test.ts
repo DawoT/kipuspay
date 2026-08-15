@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-/** S3 (Sprint 7): security headers del marketing (static/_headers). */
-const HEADERS_PATH = new URL('../../static/_headers', import.meta.url).pathname;
+/** S3 (Sprint 7): security headers del marketing (adapter-cloudflare exige raíz del app). */
+const HEADERS_PATH = new URL('../../_headers', import.meta.url).pathname;
 
 describe('marketing security headers (S3)', () => {
   const raw = readFileSync(HEADERS_PATH, 'utf-8');

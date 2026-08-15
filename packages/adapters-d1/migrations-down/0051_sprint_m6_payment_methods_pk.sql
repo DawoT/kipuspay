@@ -1,3 +1,4 @@
+INSERT /* PAYMENT_METHODS_PK_DOWN_PROTECTED: RAISE(ABORT via atomic_guards CHECK) */ INTO atomic_guards(id, ok) SELECT 'sprint_m6.payment_methods_pk.down', CASE WHEN EXISTS (SELECT 1 FROM sale_payments) THEN 0 ELSE 1 END;
 DROP TRIGGER IF EXISTS backup_epoch_payment_methods_insert;
 DROP TRIGGER IF EXISTS backup_epoch_payment_methods_update;
 DROP TRIGGER IF EXISTS backup_epoch_payment_methods_delete;
@@ -10,3 +11,4 @@ CREATE TRIGGER backup_epoch_payment_methods_insert AFTER INSERT ON "payment_meth
 CREATE TRIGGER backup_epoch_payment_methods_update AFTER UPDATE ON "payment_methods" BEGIN UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = NEW."tenant_id"; END;
 CREATE TRIGGER backup_epoch_payment_methods_delete BEFORE DELETE ON "payment_methods" BEGIN UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = OLD."tenant_id"; END;
 DELETE FROM schema_meta WHERE key = 'sprint_m6.payment_methods_pk';
+DELETE FROM atomic_guards WHERE id = 'sprint_m6.payment_methods_pk.down';
