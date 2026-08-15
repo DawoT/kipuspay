@@ -10336,3 +10336,57 @@ aprobaciones: [Staff QA A, Staff Backend R, Staff Frontend R, Staff Verifier V i
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0409
+timestamp_utc: 2026-08-15T14:35:00Z
+schema_version: 2
+sprint_fase: Sprint 56 — Fase 6H (Remediación y Sello QA)
+agente_responsable: Staff Frontend / Staff QA
+tipo: Corrección
+subtipo: remediación de hallazgos F-4 y F-5 (ciclo RED→GREEN)
+relacion: corrige
+referencias_entradas: [0407, 0408]
+referencias_documentales: [docs/ops/browser-functional-audit.md, apps/pos-web/src/lib/auth/onboarding-claim.ts, apps/pos-web/src/routes/admin/backups/+page.svelte, apps/pos-web/src/lib/admin/authenticated-session.ts, apps/pos-web/src/routes/+layout.svelte]
+prev_id: 0408
+prev_hash: f40d311096d521a05fb31d24bbbce67c8b998a4a27f94ee139ad788b215bf729
+entry_hash: 742bdac45aa1cfa6644e68d5d1f9eb3b3e34e93d72d706559b703639c1794009
+ticket_or_adr: docs/ops/browser-functional-audit.md §3, Proceso §8.1, CAL-07/§13.9
+test_ids: [apps/pos-web/src/lib/auth/onboarding-claim.test.ts, apps/pos-web/tests/e2e/onboarding-claim-reload.spec.ts, apps/pos-web/tests/e2e/backups.spec.ts, V-20, SUITE]
+entregable_afectado: apps/pos-web (onboarding claim persistente, respaldos admin)
+descripcion: >
+  Cierre del contrato e2e F-4/F-5 (escrito en 0407, pendiente de ejecución).
+  F-4: el claim del onboarding guardaba la sesión de caja en un módulo en
+  memoria (lastClaim); tras un reload la caja se perdía y onCharge bloqueaba
+  con "No hay una sesión de caja abierta" aunque el servidor había mintado una
+  sesión real. Fix: la sesión del claim se persiste en localStorage
+  (kipuspay.onboarding.claim) y readLastOnboardingClaim() rehidrata desde el
+  storage; la venta sobrevive a la recarga (checkout + +page guard).
+  F-5: /admin/backups leía la sesión autenticada vía
+  provideAdminAuthenticatedSession() (seam estático que nadie instancia), así
+  que authenticatedFetch siempre era null y toda petición fallaba con el código
+  interno BACKUP_AUTH_REQUIRED en pantalla. Fix: la página observa el estado
+  de sesión que el app-shell sí provee (provideAdminAuthenticatedSessionState,
+  +layout.svelte) vía $effect y refresca el historial cuando la sesión llega;
+  sin sesión muestra copy amigable ("Inicia sesión para ver tus respaldos"),
+  nunca el código interno. El contrato e2e se refina con el mock de
+  /api/auth/session (el layout lo consulta para proveer la sesión), igual que
+  el spec F-4.
+evidencia: >
+  RED (contrato 0407 + fuentes revertidos, run-red-6h-f4f5-s56): F-4 — tras el
+  reload el checkout muere con "No hay una sesión de caja abierta" (add-line-p1
+  inalcanzable); F-5 — BACKUP_AUTH_REQUIRED crudo, el historial nunca carga
+  (2 failed en preview con env de Playwright).
+  GREEN (fixes, run-green-s56-f4f5): F-4/F-5 e2e Playwright 2/2 sobre preview;
+  unit F-4 nuevo en onboarding-claim.test.ts (persistencia + rehidratación con
+  módulo nuevo) 1/1; pos-web vitest 385/385; svelte-check 0 errores/0 warnings.
+red_commit_sha: 827e9d76f1aea3c38c44832d8adeeae42b0a4705
+red_run_id: run-red-6h-f4f5-s56
+expected_failure: AssertionError: "No hay una sesión de caja abierta" tras reload / BACKUP_AUTH_REQUIRED expuesto en /admin/backups
+green_commit_sha: ede3366
+green_run_id: run-green-s56-f4f5
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff QA A, Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
