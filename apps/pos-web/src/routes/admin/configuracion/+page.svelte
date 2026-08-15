@@ -1041,11 +1041,6 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
 
   .ledger-card {
     background: var(--bg-ledger-card);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    border-radius: var(--radius-md, 12px);
-    padding: 1.35rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
   }
 
   .config-grid {

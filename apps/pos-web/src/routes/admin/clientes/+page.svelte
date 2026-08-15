@@ -215,9 +215,7 @@
             </button>
           {:else}
             {#if loading}
-              <div class="section-pad">
-                <Skeleton lines={3} />
-              </div>
+              <Skeleton lines={3} />
             {:else}
               <div class="empty-state">
                 <Icon name="user" size={22} />

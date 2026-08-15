@@ -227,11 +227,6 @@
 
   .ledger-card {
     background: var(--bg-ledger-card);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    border-radius: var(--radius-md, 12px);
-    padding: 1.5rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
   }
 
   .scan-form {
@@ -320,7 +315,7 @@
     font-weight: 600;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 719px) {
     .scan-form {
       grid-template-columns: 1fr;
     }
