@@ -72,6 +72,29 @@ pentest ni certificación.
 | QA humana independiente | PENDIENTE / NO-GO | Staff QA valida flujos reales con worker + D1 remoto |
 | Push + CI (verify/quality/security/codeql) | PENDIENTE | Se cierra con el push de esta rama |
 
+## Sello en navegador de `docs/ops/legal_and_sales_guide.md` (Sprint 59b, ledger 0419/0420)
+
+Verificación Playwright MCP con flujos REALES (worker + D1 local): onboarding de 4
+pasos → tenant persistido → ventas NV01-0000001/2 con IGV server-side → sync
+offline → D1 → historial (Total S/ 33.63); acuse `REC-20260815-421111` real en
+`/reclamaciones`; export `catalogo.csv`; matriz de planes y cancelación sin
+penalidad; leyenda NV en el ticket (cero engaño fiscal).
+
+Gaps resueltos: flags dev documentados en el runbook (`--var FEATURE_*:1`, las
+vars del config ganan al env del proceso; `FEATURE_OFFLINE_SYNC` default "0"
+hacía 404 el sync); env e2e ampliado (CASH_BLIND_Z, LEDGER_STORE_CREDIT,
+PURCHASING_THREE_WAY, LEDGER_AR_AP, QR_WALLETS, SALES_RETURNS); `--rose-red`
+on-dark `#e87a5e` (contraste AA en badges/alertas, misma clase que el emerald);
+scope de V-26 corregido (tests/config no son copy, selftest 53 aserciones).
+
+**Resultado sellado con test:** Playwright nuevo en `apps/marketing-web`
+(4 specs, 10 tests: reclamaciones acuse/error, precios/planes/metering/
+anti-apagado, términos/privacidad/SLA, ayuda/footer) y 6 specs nuevos en
+`apps/pos-web` (blind-close, vale-credito, three-way-match, nv-ticket-legend,
+yape-plin-visual, nc-reduce-cxc). Suites finales: **marketing 10/10** y **POS
+87/87**; unit 392/392; svelte-check 0/0; `quality.sh` OK (bundle 259.77 kB gz);
+`verify.sh` SUITE GREEN.
+
 ## RACI real (Proceso §8.1)
 
 | Rol | Estado |
