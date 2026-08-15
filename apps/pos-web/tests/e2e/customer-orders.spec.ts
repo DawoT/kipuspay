@@ -11,7 +11,7 @@ test('authenticated cashier sees gated navigation and creates an unpaid reservat
   await pickupLink.click();
 
   await expect(page.getByRole('heading', { name: 'Pedido con retiro' })).toBeVisible();
-  await expect(page.getByText('la reserva no cobra nada ni emite CPE')).toBeVisible();
+  await expect(page.getByText(/al crear el pedido no se cobra ni se emite comprobante/i)).toBeVisible();
   await page.getByLabel('Cliente', { exact: true }).fill('customer-new');
   await page.getByLabel('Producto del carrito').fill('product-new');
   await page.getByRole('button', { name: 'Crear desde carrito' }).click();

@@ -146,8 +146,8 @@
         reservedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         items: [{ productId, enteredQuantityMicrounits: Math.trunc(createQuantity) }],
       });
-      message = `Pedido ${created.orderId} creado. Sin pago al crear.`;
       await refresh();
+      message = `Pedido ${created.orderId} creado. Sin pago al crear.`;
     } catch (error) {
       alert = `No se creó el pedido: ${error instanceof Error ? error.message : 'error'}.`;
     }

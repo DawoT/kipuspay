@@ -75,7 +75,7 @@ body[data-theme='dark'] {
   --accent-primary-hover: #eeb765;
   --accent-gradient: linear-gradient(135deg, #d99a3d 0%, #eeb765 100%);
 
-  --emerald-green: var(--sello);
+  --emerald-green: #3dbb86;
   --emerald-gradient: linear-gradient(135deg, #0f6b4c 0%, #14805c 100%);
 
   --amber-gold: var(--amber);
@@ -220,7 +220,7 @@ body[data-theme='light'] {
 
   --accent-primary: var(--owner-accent);
   --accent-primary-hover: #eeb765;
-  --emerald-green: var(--sello);
+  --emerald-green: #3dbb86;
   --amber-gold: var(--amber);
   --rose-red: var(--alerta);
 
@@ -274,6 +274,9 @@ h4,
   top: 0.6rem;
   left: 0.6rem;
   z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
   padding: 0.6rem 1rem;
   background: var(--paper, #f3efe6);
   color: var(--ink, #14161c);

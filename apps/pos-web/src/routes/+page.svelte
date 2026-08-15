@@ -19,6 +19,7 @@
     isSaleFeedbackEnabled,
     isShiftHandoffEnabled,
     isTeamInviteEnabled,
+    isCustomerOrdersEnabled,
     isHardwareDiagnosticsEnabled,
     isVitrinaEnabled,
   } from '$lib/features';
@@ -41,6 +42,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     recordGrowthEvent,
     writeTourState,
   } from '$lib/onboarding/tour-client';
+  import { showCustomerOrderNavigation } from '$lib/customer-orders/customer-order-access';
+  import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
@@ -99,6 +102,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { renderQrToCanvas } from '$lib/print/qr-canvas';
 
   const checkoutOn = isPosCheckoutEnabled();
+
+  // Chrome cashier (FASE F): el cajero navega desde el bottom-nav; el acceso a
+  // pedidos con retiro se gatea con la misma regla que el sidebar (DRY).
+  let authenticatedRole = $state('');
+  $effect(() => {
+    authenticatedRole = readAdminAuthenticatedSessionState()?.current?.role ?? '';
+  });
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
   const scaleOn = isInventoryScaleEnabled();
@@ -1111,6 +1121,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <Icon name="lock" size={18} />
         <span>Caja</span>
       </a>
+      {#if showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role: authenticatedRole })}
+        <a href="/orders/customer" class="pos-nav-item" data-testid="pos-nav-pedidos">
+          <Icon name="package" size={18} />
+          <span>Pedidos retiro</span>
+        </a>
+      {/if}
       <a href="/ayuda" class="pos-nav-item" data-testid="pos-nav-ayuda">
         <Icon name="info" size={18} />
         <span>Ayuda</span>
