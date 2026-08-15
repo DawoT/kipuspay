@@ -6,7 +6,10 @@
     isDataBackupEnabled,
     type BackupSummary,
   } from '$lib/data-backup-client';
-  import { readAdminAuthenticatedSession } from '$lib/admin/authenticated-session';
+  import {
+    readAdminAuthenticatedSessionState,
+    type AdminAuthenticatedSessionState,
+  } from '$lib/admin/authenticated-session';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Badge from '$lib/ui/Badge.svelte';
@@ -25,6 +28,7 @@
   let stepUpToken = $state('');
   let selected = $state<BackupSummary | null>(null);
   const enabled = isDataBackupEnabled();
+  let sessionState = $state<AdminAuthenticatedSessionState | null>(null);
   let authenticatedFetch: typeof fetch | null = null;
 
   const client = () =>
@@ -161,8 +165,23 @@
     }
   }
 
+  // F5: la sesión autenticada la provee el app-shell (provideAdminAuthenticatedSessionState,
+  // +layout.svelte) de forma asíncrona. El seam estático provideAdminAuthenticatedSession
+  // nunca se instancia; aquí se observa el state y se refresca cuando llega la sesión.
+  $effect(() => {
+    const current = sessionState?.current ?? null;
+    authenticatedFetch = current?.authenticatedFetch ?? null;
+    if (!enabled) return;
+    if (current) {
+      void refresh();
+    } else {
+      error = 'Inicia sesión para ver tus respaldos.';
+      loading = false;
+    }
+  });
+
   onMount(() => {
-    authenticatedFetch = readAdminAuthenticatedSession()?.authenticatedFetch ?? null;
+    sessionState = readAdminAuthenticatedSessionState();
     role = import.meta.env.PUBLIC_DEV_ROLE === 'owner' ? 'owner' : 'admin';
     online = navigator.onLine;
     const updateNetwork = () => {
@@ -174,8 +193,6 @@
     void countPendingOfflineSales().then((count) => {
       pendingOfflineSales = count;
     });
-    if (enabled) void refresh();
-    else loading = false;
     return () => {
       window.removeEventListener('online', updateNetwork);
       window.removeEventListener('offline', updateNetwork);

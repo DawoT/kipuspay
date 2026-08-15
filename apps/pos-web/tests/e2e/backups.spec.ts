@@ -8,6 +8,18 @@ import { expect, test } from '@playwright/test';
  * renderizarse desde /api/backups sin exponer el código interno.
  */
 test('F-5: el historial de respaldos carga y no expone BACKUP_AUTH_REQUIRED', async ({ page }) => {
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        userId: 'admin-e2e',
+        role: 'admin',
+        branchId: 'b-e2e',
+        terminal: null,
+      }),
+    }),
+  );
   await page.route('**/api/backups', (route) =>
     route.fulfill({
       status: 200,

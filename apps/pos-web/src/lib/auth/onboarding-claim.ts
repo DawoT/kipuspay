@@ -14,6 +14,8 @@ export interface OnboardingClaimSession {
 
 let lastClaim: OnboardingClaimSession | null = null;
 let lastClaimError: string | null = null;
+/** F4: la sesión de caja del claim se persiste para sobrevivir a un reload. */
+export const ONBOARDING_CLAIM_KEY = 'kipuspay.onboarding.claim';
 /**
  * Single-flight (Sprint 7, fe de errata de walkthrough): el layout y la página
  * llaman el claim en paralelo al montar. Sin esto, el segundo caller veía la
@@ -23,8 +25,43 @@ let lastClaimError: string | null = null;
  */
 let inflightClaim: Promise<boolean> | null = null;
 
+function claimStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    // storage bloqueado: la sesión vive solo en memoria.
+    return null;
+  }
+}
+
+function readStoredClaim(): OnboardingClaimSession | null {
+  const store = claimStorage();
+  if (!store) return null;
+  try {
+    const raw = store.getItem(ONBOARDING_CLAIM_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<OnboardingClaimSession>;
+    if (typeof parsed?.branchId === 'string' && typeof parsed?.sessionId === 'string') {
+      return { branchId: parsed.branchId, sessionId: parsed.sessionId, tenantId: parsed.tenantId ?? '' };
+    }
+  } catch {
+    // storage corrupto: ignora y deja que el claim se reintente.
+  }
+  return null;
+}
+
+function persistClaim(claim: OnboardingClaimSession): void {
+  const store = claimStorage();
+  if (!store) return;
+  try {
+    store.setItem(ONBOARDING_CLAIM_KEY, JSON.stringify(claim));
+  } catch {
+    // storage bloqueado: no bloquea el flujo; la sesión vive en memoria.
+  }
+}
+
 export function readLastOnboardingClaim(): OnboardingClaimSession | null {
-  return lastClaim;
+  return lastClaim ?? readStoredClaim();
 }
 
 export function readLastOnboardingError(): string | null {
@@ -66,6 +103,7 @@ async function claimFromUrlOnce(): Promise<boolean> {
     sessionId: result.cashRegisterSessionId,
     tenantId: tenantIdFromUrl,
   };
+  persistClaim(lastClaim);
   lastClaimError = null;
   params.delete('onboarding_token');
   const clean = params.toString();

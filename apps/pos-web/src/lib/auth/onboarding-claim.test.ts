@@ -134,4 +134,37 @@ describe('claim de onboarding (M6C)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     stubs.restore();
   });
+
+  it('F-4: la sesión de caja persiste y rehidrata tras un reload', async () => {
+    vi.resetModules();
+    const { claimOnboardingFromUrlIfPresent, ONBOARDING_CLAIM_KEY } =
+      await import('./onboarding-claim.js');
+    const stubs = installBrowserStubs('?onboarding_token=tok-1&tenant=t-x');
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        token: 'jwt.sesion.owner',
+        expiresAt: '2026-08-15T00:00:00.000Z',
+        user: { userId: 'owner-1', role: 'owner', branchId: 'br-1' },
+        cashRegisterSessionId: 'sess-9',
+      }),
+    );
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
+
+    await claimOnboardingFromUrlIfPresent();
+    expect(JSON.parse(stubs.storage.get(ONBOARDING_CLAIM_KEY) ?? '{}')).toEqual({
+      branchId: 'br-1',
+      sessionId: 'sess-9',
+      tenantId: 't-x',
+    });
+
+    // Reload: módulo nuevo (memoria limpia) con el mismo localStorage → rehidrata.
+    vi.resetModules();
+    const fresh = await import('./onboarding-claim.js');
+    expect(fresh.readLastOnboardingClaim()).toEqual({
+      branchId: 'br-1',
+      sessionId: 'sess-9',
+      tenantId: 't-x',
+    });
+    stubs.restore();
+  });
 });
