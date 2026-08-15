@@ -290,12 +290,26 @@ function templateCoveredByMatrix(templateNormalized: string, matrixPath: string)
   return true;
 }
 
+interface RegisteredRoute {
+  method: string;
+  path: string;
+}
+
+/** Índice del último ALL /api/* (JWT+Plan Guard); lib TS del worker no incluye findLastIndex. */
+function lastApiMiddlewareIndex(routes: readonly RegisteredRoute[]): number {
+  for (let i = routes.length - 1; i >= 0; i -= 1) {
+    const r = routes[i]!;
+    if (r.method === 'ALL' && r.path === '/api/*') return i;
+  }
+  return -1;
+}
+
 /** Rutas /api/* registradas en el router real (fuente de verdad de paridad). */
 function registeredApiRoutes(app: ReturnType<typeof createApp>): string[] {
-  const routes = (app as unknown as { routes: Array<{ method: string; path: string }> }).routes;
+  const routes: RegisteredRoute[] = (app as unknown as { routes: RegisteredRoute[] }).routes;
   // El último ALL /api/* es JWT+Plan Guard. CORS y GET /api/kds/ws (ticket
   // one-shot, sin Bearer) se registran antes y no entran a esta matriz.
-  const middlewareIndex = routes.findLastIndex((r) => r.method === 'ALL' && r.path === '/api/*');
+  const middlewareIndex = lastApiMiddlewareIndex(routes);
   const protectedRoutes = middlewareIndex >= 0 ? routes.slice(middlewareIndex) : routes;
   return protectedRoutes
     .filter((r) => r.path.startsWith('/api/') && r.method !== 'ALL' && r.method !== 'OPTIONS')

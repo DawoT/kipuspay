@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument -- node:fs/url types unresolved under worker-api eslint project service */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -8,7 +10,8 @@ import { describe, expect, it } from 'vitest';
  */
 describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () => {
   it('wrangler.jsonc no enciende flags de claims live / canary', () => {
-    const wrangler = readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8');
+    const wranglerPath = fileURLToPath(new URL('../../wrangler.jsonc', import.meta.url));
+    const wrangler = readFileSync(wranglerPath, 'utf8');
     const liveSensitive = [
       'FEATURE_FISCAL_CPE',
       'FEATURE_FISCAL_RC',
@@ -18,11 +21,10 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
       'FEATURE_OFFLINE_SYNC',
       'FEATURE_ACID_OFFLINE_SALE',
       'FEATURE_BILLING_USAGE_OVERAGE',
-    ];
+    ] as const;
     for (const key of liveSensitive) {
-      const re = new RegExp(`"${key}"\\s*:\\s*"1"`);
-      expect(wrangler, `${key} must stay off until staging QG A+V`).not.toMatch(re);
-      expect(wrangler).toMatch(new RegExp(`"${key}"\\s*:\\s*"0"`));
+      expect(wrangler, `${key} must stay off until staging QG A+V`).not.toContain(`"${key}": "1"`);
+      expect(wrangler).toContain(`"${key}": "0"`);
     }
   });
 });

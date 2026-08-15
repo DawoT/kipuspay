@@ -72,7 +72,7 @@ describe('libro de reclamaciones (Ley 29571)', () => {
     const env = {
       PLATFORM_STAFF_TOKEN: 'staff-secret',
       DB: {
-        prepare: vi.fn((sql: string) => ({
+        prepare: vi.fn(() => ({
           bind: vi.fn(() => ({ run })),
           all,
         })),

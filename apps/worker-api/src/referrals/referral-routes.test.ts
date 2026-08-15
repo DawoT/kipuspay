@@ -78,30 +78,31 @@ describe('referral-routes HTTP handlers unit tests', () => {
         prepare: (sql: string) => {
           const stmt = {
             bind: () => stmt,
-            first: async () => {
+            first: () => {
               if (sql.includes('FROM referral_attributions')) {
-                return {
+                return Promise.resolve({
                   id: 'attr-1',
                   tenant_id: 'referred-tenant',
                   referrer_tenant_id: 'referrer-tenant',
                   referral_code: 'REF123',
                   status: 'pending',
                   credit_days: 30,
-                };
+                });
               }
-              return null;
+              return Promise.resolve(null);
             },
-            all: async () => ({ results: [] }),
-            run: async () => ({ success: true }),
+            all: () => Promise.resolve({ results: [] }),
+            run: () => Promise.resolve({ success: true }),
           };
           return stmt;
         },
-        batch: async () => [{ meta: { changes: 1 } }],
+        batch: () => Promise.resolve([{ meta: { changes: 1 } }]),
       },
       TENANT_KV: {
-        get: async (k: string) => kv.get(k) ?? null,
-        put: async (k: string, v: string) => {
+        get: (k: string) => Promise.resolve(kv.get(k) ?? null),
+        put: (k: string, v: string) => {
           kv.set(k, v);
+          return Promise.resolve();
         },
       },
     } as unknown as WorkerEnv;

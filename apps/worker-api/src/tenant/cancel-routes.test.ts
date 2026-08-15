@@ -53,7 +53,7 @@ describe('runCancelTenantHttp (S11-E11 cancelación self-serve)', () => {
       { ...env(true), STRIPE_SECRET_KEY: 'sk_test' } as never,
       't1',
       'owner',
-      fetchImpl as unknown as typeof fetch,
+      fetchImpl,
     );
     expect(res.status).toBe(200);
     expect(res.body.stripeCanceled).toBe(1);

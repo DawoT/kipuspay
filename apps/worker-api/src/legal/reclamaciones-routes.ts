@@ -24,39 +24,47 @@ export function buildReclamacionCaseNumber(now: Date, entropy: string): string {
   return `REC-${y}${m}${d}-${suffix}`;
 }
 
+function trimField(value: unknown, transform?: (s: string) => string): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return transform ? transform(trimmed) : trimmed;
+}
+
+function validateReclamacionFields(
+  fields: ReclamacionInput,
+): { error: string; code: string } | null {
+  if (!fields.claimantName || !fields.documentNumber || !fields.email || !fields.detail) {
+    return { error: 'Campos requeridos incompletos', code: 'INVALID' };
+  }
+  if (!DOCUMENT_TYPES.has(fields.documentType)) {
+    return { error: 'Tipo de documento inválido', code: 'INVALID_DOCUMENT' };
+  }
+  if (!CLAIM_KINDS.has(fields.claimKind)) {
+    return { error: 'Tipo de reclamo inválido', code: 'INVALID_KIND' };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) {
+    return { error: 'Correo inválido', code: 'INVALID_EMAIL' };
+  }
+  return null;
+}
+
 export function parseReclamacionBody(raw: unknown): ReclamacionInput | { error: string; code: string } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { error: 'Invalid JSON', code: 'BAD_REQUEST' };
   }
   const o = raw as Record<string, unknown>;
-  const claimantName = typeof o.claimantName === 'string' ? o.claimantName.trim() : '';
-  const documentType = typeof o.documentType === 'string' ? o.documentType.trim().toUpperCase() : '';
-  const documentNumber = typeof o.documentNumber === 'string' ? o.documentNumber.trim() : '';
-  const email = typeof o.email === 'string' ? o.email.trim() : '';
-  const phone = typeof o.phone === 'string' ? o.phone.trim() : '';
-  const claimKind = typeof o.claimKind === 'string' ? o.claimKind.trim().toLowerCase() : '';
-  const detail = typeof o.detail === 'string' ? o.detail.trim() : '';
-  if (!claimantName || !documentNumber || !email || !detail) {
-    return { error: 'Campos requeridos incompletos', code: 'INVALID' };
-  }
-  if (!DOCUMENT_TYPES.has(documentType)) {
-    return { error: 'Tipo de documento inválido', code: 'INVALID_DOCUMENT' };
-  }
-  if (!CLAIM_KINDS.has(claimKind)) {
-    return { error: 'Tipo de reclamo inválido', code: 'INVALID_KIND' };
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { error: 'Correo inválido', code: 'INVALID_EMAIL' };
-  }
-  return {
-    claimantName,
-    documentType,
-    documentNumber,
-    email,
+  const phone = trimField(o.phone);
+  const fields: ReclamacionInput = {
+    claimantName: trimField(o.claimantName),
+    documentType: trimField(o.documentType, (s) => s.toUpperCase()),
+    documentNumber: trimField(o.documentNumber),
+    email: trimField(o.email),
     ...(phone ? { phone } : {}),
-    claimKind,
-    detail,
+    claimKind: trimField(o.claimKind, (s) => s.toLowerCase()),
+    detail: trimField(o.detail),
   };
+  const invalid = validateReclamacionFields(fields);
+  return invalid ?? fields;
 }
 
 export async function runCreateReclamacionHttp(
@@ -123,10 +131,10 @@ function staffAuthorized(env: WorkerEnv | undefined, header: string | undefined)
   return diff === 0;
 }
 
-export async function runListReclamacionesHttp(
+function staffGate(
   env: WorkerEnv | undefined,
   staffToken: string | undefined,
-): Promise<{ status: number; body: Record<string, unknown> }> {
+): { status: number; body: Record<string, unknown> } | null {
   if (!env?.PLATFORM_STAFF_TOKEN?.trim()) {
     return { status: 503, body: { error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' } };
   }
@@ -136,8 +144,17 @@ export async function runListReclamacionesHttp(
   if (!env.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  return null;
+}
+
+export async function runListReclamacionesHttp(
+  env: WorkerEnv | undefined,
+  staffToken: string | undefined,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const denied = staffGate(env, staffToken);
+  if (denied) return denied;
   try {
-    const rows = await env.DB.prepare(
+    const rows = await env!.DB!.prepare(
       `SELECT id, case_number, claimant_name, document_type, document_number, email,
               phone, claim_kind, detail, status, created_at, responded_at
          FROM platform_reclamaciones
@@ -149,21 +166,9 @@ export async function runListReclamacionesHttp(
   }
 }
 
-export async function runRespondReclamacionHttp(
-  env: WorkerEnv | undefined,
-  staffToken: string | undefined,
+function parseRespondBody(
   raw: unknown,
-  now: Date = new Date(),
-): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!env?.PLATFORM_STAFF_TOKEN?.trim()) {
-    return { status: 503, body: { error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' } };
-  }
-  if (!staffAuthorized(env, staffToken)) {
-    return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
-  }
-  if (!env.DB) {
-    return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
-  }
+): { id: string; responseText: string } | { status: number; body: Record<string, unknown> } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
@@ -173,18 +178,34 @@ export async function runRespondReclamacionHttp(
   if (!id || !responseText) {
     return { status: 422, body: { error: 'Campos requeridos incompletos', code: 'INVALID' } };
   }
+  return { id, responseText };
+}
+
+export async function runRespondReclamacionHttp(
+  env: WorkerEnv | undefined,
+  staffToken: string | undefined,
+  raw: unknown,
+  now: Date = new Date(),
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const denied = staffGate(env, staffToken);
+  if (denied) return denied;
+  const parsed = parseRespondBody(raw);
+  if ('status' in parsed) return parsed;
   try {
-    const updated = await env.DB.prepare(
+    const updated = await env!.DB!.prepare(
       `UPDATE platform_reclamaciones
           SET status = 'responded', responded_at = ?, response_text = ?
         WHERE id = ? AND status = 'open'`,
     )
-      .bind(now.toISOString(), responseText, id)
+      .bind(now.toISOString(), parsed.responseText, parsed.id)
       .run();
     if ((updated.meta?.changes ?? 0) !== 1) {
       return { status: 404, body: { error: 'Not found', code: 'NOT_FOUND' } };
     }
-    return { status: 200, body: { id, status: 'responded', respondedAt: now.toISOString() } };
+    return {
+      status: 200,
+      body: { id: parsed.id, status: 'responded', respondedAt: now.toISOString() },
+    };
   } catch {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }

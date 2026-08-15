@@ -11,9 +11,10 @@ import {
 function memoryKv() {
   const store = new Map<string, string>();
   return {
-    get: async (k: string) => store.get(k) ?? null,
-    put: async (k: string, v: string) => {
+    get: (k: string) => Promise.resolve(store.get(k) ?? null),
+    put: (k: string, v: string) => {
       store.set(k, v);
+      return Promise.resolve();
     },
     peek: (k: string) => store.get(k),
   };

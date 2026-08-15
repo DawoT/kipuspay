@@ -19,7 +19,7 @@ export async function listStripeSubscriptions(
     { headers: { Authorization: `Bearer ${opts.apiKey}` } },
   );
   if (!res.ok) return { data: [] };
-  return (await res.json()) as StripeSubscriptionList;
+  return await res.json();
 }
 
 export async function cancelStripeSubscription(

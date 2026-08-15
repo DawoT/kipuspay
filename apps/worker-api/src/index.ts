@@ -2734,7 +2734,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/tenant/billing-portal', async (c) => {
     const jwt = c.get('jwt') as { tenantId?: string } | undefined;
     const user = c.get('user') as { role?: string } | undefined;
-    let raw: unknown = {};
+    let raw: unknown;
     try {
       raw = await c.req.json();
     } catch {
@@ -2750,7 +2750,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/tenant/checkout-session', async (c) => {
     const jwt = c.get('jwt') as { tenantId?: string } | undefined;
     const user = c.get('user') as { role?: string } | undefined;
-    let raw: unknown = {};
+    let raw: unknown;
     try {
       raw = await c.req.json();
     } catch {

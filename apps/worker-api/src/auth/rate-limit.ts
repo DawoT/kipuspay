@@ -97,7 +97,7 @@ export async function enforceRateLimit(input: {
       expirationTtl: Math.ceil(windowMs / 1000) + 5,
     });
   }
-  return { decision, persisted: Boolean(input.kv.put) };
+  return { decision, persisted: input.kv.put != null };
 }
 
 export function rateLimitKey(ip: string, route: string): string {

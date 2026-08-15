@@ -48,7 +48,7 @@ describe('Stripe billing (cancel + portal)', () => {
     );
     expect(res.id).toBe('cus_new');
     const init = fetchImpl.mock.calls[0]?.[1] as RequestInit;
-    expect(String(init.body)).toContain('metadata%5Btenant_id%5D=t1');
+    expect(init.body as string).toContain('metadata%5Btenant_id%5D=t1');
   });
 
   it('crea Checkout Session y exige https en helpers', async () => {

@@ -23,7 +23,8 @@ export async function runUpdatePlanHttp(
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
-  const planId = String((body as Record<string, unknown>).planId ?? '').trim();
+  const planIdRaw = (body as Record<string, unknown>).planId;
+  const planId = typeof planIdRaw === 'string' ? planIdRaw.trim() : '';
   if (planId === 'enterprise') {
     return {
       status: 422,

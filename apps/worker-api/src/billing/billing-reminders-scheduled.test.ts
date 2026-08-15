@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- focused D1 boundary fake */
+/* eslint-disable @typescript-eslint/no-explicit-any -- focused D1 boundary fake */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reminderDayFor, runBillingRemindersScheduled } from './billing-reminders-scheduled.js';
 
@@ -19,22 +19,24 @@ function fakeDb(options: {
         bind: (...args: string[]) => {
           const tenantId = args[0] ?? '';
           return {
-            first: async () => {
-              if (sql.includes('COUNT(*)')) return { n: options.counts?.[tenantId] ?? 0 };
+            first: () => {
+              if (sql.includes('COUNT(*)')) {
+                return Promise.resolve({ n: options.counts?.[tenantId] ?? 0 });
+              }
               if (sql.includes("role = 'owner'")) {
                 const owner = options.ownerIds?.[tenantId];
-                return owner ? { id: owner } : null;
+                return Promise.resolve(owner ? { id: owner } : null);
               }
-              return null;
+              return Promise.resolve(null);
             },
           };
         },
-        first: async () => {
-          if (sql.includes('FROM tenants')) return null;
-          return { n: 0 };
+        first: () => {
+          if (sql.includes('FROM tenants')) return Promise.resolve(null);
+          return Promise.resolve({ n: 0 });
         },
-        all: async () => ({ results: options.tenants }),
-        run: async () => ({ success: true }),
+        all: () => Promise.resolve({ results: options.tenants }),
+        run: () => Promise.resolve({ success: true }),
       };
       return stmt;
     },

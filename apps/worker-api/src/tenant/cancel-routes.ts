@@ -11,12 +11,12 @@ import {
   listStripeSubscriptions,
 } from './stripe-billing.js';
 
-export async function runCancelTenantHttp(
-  env: WorkerEnv | undefined,
-  tenantId: string,
-  role: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<{ status: number; body: Record<string, unknown> }> {
+interface HttpResult {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+function ownerAdminGate(env: WorkerEnv | undefined, tenantId: string, role: string): HttpResult | null {
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -25,41 +25,69 @@ export async function runCancelTenantHttp(
   if (normalizedRole !== 'owner' && normalizedRole !== 'admin') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  return null;
+}
+
+async function cancelStripeSubsForCustomer(
+  customerId: string,
+  apiKey: string,
+  fetchImpl: typeof fetch,
+): Promise<number> {
+  let stripeCanceled = 0;
+  const list = await listStripeSubscriptions(customerId, { apiKey, fetchImpl });
+  for (const sub of list.data ?? []) {
+    if (!sub.id || sub.status === 'canceled') continue;
+    const result = await cancelStripeSubscription(sub.id, { apiKey, fetchImpl });
+    if (result.ok) stripeCanceled += 1;
+  }
+  return stripeCanceled;
+}
+
+async function markTenantCanceledInKv(
+  kv: NonNullable<WorkerEnv['TENANT_KV']>,
+  tenantId: string,
+): Promise<void> {
+  if (!kv.get || !kv.put) return;
   try {
-    const row = await env.DB.prepare(
+    const raw = await kv.get(`tenant:${tenantId}`);
+    if (!raw) return;
+    const tenant = JSON.parse(raw) as Record<string, unknown>;
+    tenant.subscriptionStatus = 'canceled';
+    await kv.put(`tenant:${tenantId}`, JSON.stringify(tenant));
+  } catch {
+    // Best-effort: el D1 ya quedó cancelado; el snapshot se re-lee al próximo auth.
+  }
+}
+
+export async function runCancelTenantHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  role: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<HttpResult> {
+  const denied = ownerAdminGate(env, tenantId, role);
+  if (denied) return denied;
+  try {
+    const row = await env!.DB!.prepare(
       'SELECT id, stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
     )
       .bind(tenantId)
       .first<{ id: string; stripe_customer_id?: string | null }>();
     if (!row) return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
 
-    let stripeCanceled = 0;
-    const stripeKey = env.STRIPE_SECRET_KEY?.trim() ?? '';
+    const stripeKey = env!.STRIPE_SECRET_KEY?.trim() ?? '';
     const customerId = row.stripe_customer_id?.trim() ?? '';
-    if (stripeKey && customerId) {
-      const list = await listStripeSubscriptions(customerId, { apiKey: stripeKey, fetchImpl });
-      for (const sub of list.data ?? []) {
-        if (!sub.id || sub.status === 'canceled') continue;
-        const result = await cancelStripeSubscription(sub.id, { apiKey: stripeKey, fetchImpl });
-        if (result.ok) stripeCanceled += 1;
-      }
-    }
+    const stripeCanceled =
+      stripeKey && customerId
+        ? await cancelStripeSubsForCustomer(customerId, stripeKey, fetchImpl)
+        : 0;
 
-    await env.DB.prepare("UPDATE tenants SET subscription_status = 'canceled' WHERE id = ?")
+    await env!.DB!.prepare("UPDATE tenants SET subscription_status = 'canceled' WHERE id = ?")
       .bind(tenantId)
       .run();
 
-    if (env.TENANT_KV?.get && env.TENANT_KV?.put) {
-      try {
-        const raw = await env.TENANT_KV.get(`tenant:${tenantId}`);
-        if (raw) {
-          const tenant = JSON.parse(raw) as Record<string, unknown>;
-          tenant.subscriptionStatus = 'canceled';
-          await env.TENANT_KV.put(`tenant:${tenantId}`, JSON.stringify(tenant));
-        }
-      } catch {
-        // Best-effort: el D1 ya quedó cancelado; el snapshot se re-lee al próximo auth.
-      }
+    if (env!.TENANT_KV) {
+      await markTenantCanceledInKv(env!.TENANT_KV, tenantId);
     }
     return {
       status: 200,
@@ -81,20 +109,14 @@ export async function runBillingPortalHttp(
   role: string,
   returnUrl: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!env?.DB) {
-    return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
-  }
-  if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
-  const normalizedRole = role.toLowerCase();
-  if (normalizedRole !== 'owner' && normalizedRole !== 'admin') {
-    return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
-  }
-  const stripeKey = env.STRIPE_SECRET_KEY?.trim() ?? '';
+): Promise<HttpResult> {
+  const denied = ownerAdminGate(env, tenantId, role);
+  if (denied) return denied;
+  const stripeKey = env!.STRIPE_SECRET_KEY?.trim() ?? '';
   if (!stripeKey) {
     return { status: 503, body: { error: 'Billing portal unavailable', code: 'STRIPE_UNAVAILABLE' } };
   }
-  const row = await env.DB.prepare(
+  const row = await env!.DB!.prepare(
     'SELECT stripe_customer_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
   )
     .bind(tenantId)

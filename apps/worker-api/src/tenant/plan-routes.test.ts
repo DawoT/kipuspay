@@ -18,7 +18,7 @@ function env(tenantExists: boolean) {
 
 describe('runUpdatePlanHttp (S11-B5 upgrade self-serve)', () => {
   it('owner cambia de plan → 200 y persiste plan_id', async () => {
-    const db = env(true) as never;
+    const db = env(true);
     const res = await runUpdatePlanHttp(db, 't1', 'owner', { planId: 'crece' });
     expect(res).toEqual({ status: 200, body: { planId: 'crece' } });
     const dbWithPrepare = db as unknown as { DB: { prepare: ReturnType<typeof vi.fn> } };

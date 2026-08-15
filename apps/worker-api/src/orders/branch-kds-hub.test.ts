@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- focused DurableObject boundary fake */
+/* eslint-disable @typescript-eslint/no-explicit-any -- focused DurableObject boundary fake */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('cloudflare:workers', () => ({
@@ -27,7 +27,7 @@ function hub(env: { KDS_BROADCAST_TOKEN?: string }) {
     },
     acceptWebSocket: vi.fn(),
   };
-  const instance = new BranchKdsHub(ctx as never, env as never) as unknown as {
+  const instance = new BranchKdsHub(ctx as never, env) as unknown as {
     fetch(request: Request): Promise<Response>;
     ctx: { storage: { get(k: string): Promise<unknown>; put(k: string, v: unknown): Promise<void> } };
   };
