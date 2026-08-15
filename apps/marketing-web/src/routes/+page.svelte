@@ -7,17 +7,18 @@
   import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
-  import LineIcon from '$lib/brand/LineIcon.svelte';
   import { ogImageFor } from '$lib/seo';
 
   const verticals = allVerticals();
 
   const [offlineBefore, offlineAfter] = HOME.offline.body.split('sincroniza');
 
+  const faqHome = HOME.faq.slice(0, 6);
+
   const faqLd = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: HOME.faq.map((f) => ({
+    mainEntity: faqHome.map((f) => ({
       '@type': 'Question',
       name: f.q,
       acceptedAnswer: { '@type': 'Answer', text: f.a },
@@ -69,8 +70,7 @@
         <a class="btn" href="/empezar">{HOME.ctaPrimary}</a>
         <a class="btn btn-ghost" href="#como">{HOME.ctaSecondary}</a>
       </div>
-      <p class="trust">{HOME.activation}</p>
-      <p class="trust trust-muted">{HOME.trustLine}</p>
+      <p class="trust">{HOME.activation} · {HOME.trustLine}</p>
     </div>
   </div>
 </section>
@@ -378,16 +378,19 @@
         </p>
         <h2>{HOME.trust.headline}</h2>
       </div>
-      <div class="trust-grid">
-        {#each HOME.trust.items as item, i (item.title)}
-          <div class="trust-item" use:reveal data-reveal-delay={i % 3}>
-            <span class="icon" aria-hidden="true">
-              <LineIcon name={item.icon} size={18} />
-            </span>
-            <h3>{item.title}</h3>
-            <p>{item.body}</p>
-          </div>
+      <div class="trust-ledger">
+        {#each HOME.trust.items.slice(0, 3) as item, i (item.title)}
+          <article class="trust-row" use:reveal data-reveal-delay={i % 3}>
+            <span class="trust-idx">{String(i + 1).padStart(2, '0')}</span>
+            <div>
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+            </div>
+          </article>
         {/each}
+        <p class="trust-more">
+          <a class="btn btn-ghost" href="/seguridad">Ver confianza y seguridad</a>
+        </p>
       </div>
     </div>
   </div>
@@ -407,7 +410,7 @@
         <h2>Las dudas de verdad, respondidas.</h2>
       </div>
       <div class="faq">
-        {#each HOME.faq as f, i (f.q)}
+        {#each faqHome as f, i (f.q)}
           <details class="faq-item" use:reveal data-reveal-delay={i % 3}>
             <summary>
               <span class="num">{String(i + 1).padStart(2, '0')}</span>
@@ -417,6 +420,9 @@
           </details>
         {/each}
       </div>
+      <p class="faq-more">
+        <a class="btn btn-ghost" href="/ayuda">Ver todas las preguntas en Ayuda</a>
+      </p>
     </div>
   </div>
 </section>

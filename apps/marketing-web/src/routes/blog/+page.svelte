@@ -23,6 +23,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Blog de negocio
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>Guías cortas para el dueño, no para el ingeniero.</h1>
       <p class="hero-sub">
         Consejos directos sobre cómo pasar de tu cuaderno a la caja electrónica sin rodeos.

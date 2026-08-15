@@ -57,7 +57,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       ],
     },
     featuredClaimId: 'kds_split',
-    heroPoster: '/media/hero-poster.svg',
+    heroPoster: '/media/og-restaurantes.png',
   },
   farmacias: {
     slug: 'farmacias',
@@ -115,7 +115,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       ],
     },
     featuredClaimId: 'fefo_lots',
-    heroPoster: '/media/hero-poster.svg',
+    heroPoster: '/media/og-farmacias.png',
   },
   retail: {
     slug: 'retail',
@@ -173,7 +173,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       ],
     },
     featuredClaimId: 'blind_z_audit',
-    heroPoster: '/media/hero-poster.svg',
+    heroPoster: '/media/og-retail.png',
   },
   servicios: {
     slug: 'servicios',
@@ -230,7 +230,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       ],
     },
     featuredClaimId: 'services_core',
-    heroPoster: '/media/hero-poster.svg',
+    heroPoster: '/media/og-servicios.png',
   },
   cadenas: {
     slug: 'cadenas',
@@ -289,7 +289,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     },
     featuredClaimId: 'owner_ranking',
     secondaryClaimId: 'merma_xfer',
-    heroPoster: '/media/hero-poster.svg',
+    heroPoster: '/media/og-cadenas.png',
   },
 };
 

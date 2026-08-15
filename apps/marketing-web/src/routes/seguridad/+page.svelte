@@ -21,6 +21,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Confianza y Seguridad
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>{SECURITY_PAGE.headline}</h1>
       <p class="hero-sub">{SECURITY_PAGE.lede}</p>
       <div class="hero-actions">
@@ -43,17 +44,20 @@
           Pilares fundamentales
         </p>
         <h2>Tus datos, tu caja y tu tranquilidad.</h2>
-        <p class="section-lead">Diseñado desde la arquitectura para responder cuando más importa.</p>
+        <p class="section-lead">Hecho para que la caja no falle cuando más la necesitas.</p>
       </div>
 
-      <div class="pillar-grid">
+      <ol class="pillar-rows" data-testid="security-pillars">
         {#each SECURITY_PAGE.pillars as p, i (p.id)}
-          <article class="pillar-card" data-testid="security-pillar" use:reveal data-reveal-delay={i % 3}>
-            <h3>{p.title}</h3>
-            <p>{p.body}</p>
-          </article>
+          <li class="pillar-row" data-testid="security-pillar" use:reveal data-reveal-delay={i % 3}>
+            <span class="pillar-num">{String(i + 1).padStart(2, '0')}</span>
+            <div>
+              <h3>{p.title}</h3>
+              <p>{p.body}</p>
+            </div>
+          </li>
         {/each}
-      </div>
+      </ol>
 
       <aside class="disclaimers-box" data-testid="security-disclaimers" use:reveal>
         <h3>Transparencia: Lo que no afirmamos</h3>

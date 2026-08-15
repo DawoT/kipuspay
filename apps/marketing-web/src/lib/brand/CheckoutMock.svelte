@@ -87,10 +87,10 @@
   }
 
   .screen {
-    border: 1px solid rgba(243, 239, 230, 0.16);
-    background: linear-gradient(180deg, var(--ink-2) 0%, var(--ink) 100%);
+    border: 1px solid rgba(243, 239, 230, 0.22);
+    background: var(--ink-2);
     color: var(--paper);
-    box-shadow: 0 26px 60px rgba(10, 10, 16, 0.42);
+    box-shadow: none;
   }
 
   .bar {

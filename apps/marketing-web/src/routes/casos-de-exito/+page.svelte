@@ -29,6 +29,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Casos de éxito
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>Historias con permiso, no marketing inventado.</h1>
       <p class="hero-sub">
         Solo publicamos testimonios cuando el negocio nos autoriza explícitamente.
@@ -53,10 +54,9 @@
           <p>
             Todavía no hay casos publicados con autorización explícita. Preferimos esperar a métricas reales comprobadas antes de poner un logo en la vitrina.
           </p>
-          <div class="cta-row" style="margin-top: 1.5rem;">
-            <a class="btn" href="/empezar">Empieza gratis</a>
-            <a class="btn btn-ghost" href="/para/retail">Explorar soluciones por rubro</a>
-          </div>
+          <p class="trust-more">
+            <a class="btn btn-ghost" href="/para/retail">Ver tu rubro</a>
+          </p>
         </div>
       {:else}
         <ul class="case-list">

@@ -2,11 +2,10 @@ export const HOME = {
   brand: 'KipusPay',
   eyebrow: 'POS y facturacion para comercios del Peru',
   headline: 'El unico POS que no se cae contigo.',
-  subheadline:
-    'Vende, cobra y factura aunque se corte la luz, el internet, o sea tu dia de mas gente. Configuralo en minutos. Sin contratos largos, sin instalador, sin dolores de cabeza.',
+  subheadline: 'Vende, cobra y factura aunque se corte la luz o el internet.',
   ctaPrimary: 'Empieza gratis',
   ctaSecondary: 'Ver como funciona',
-  trustLine: 'Sin contratos largos · Tus datos, siempre tuyos · Configuralo en minutos',
+  trustLine: 'Sin contratos largos · Tus datos, siempre tuyos',
   activation: 'Tu primera venta en menos de 5 minutos',
   pains: [
     {

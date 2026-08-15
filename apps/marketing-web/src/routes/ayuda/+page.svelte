@@ -46,6 +46,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Soporte
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>¿En qué podemos ayudarte hoy?</h1>
       <p class="hero-sub">
         Respuestas directas sobre la operación de tu negocio, sin manuales complicados.

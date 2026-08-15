@@ -93,6 +93,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Pricing
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>Planes claros. El cobro no se apaga.</h1>
       <p class="hero-sub">
         Empieza en Arranque, sube cuando tu negocio pida una capacidad nueva — nunca porque se te
@@ -415,8 +416,8 @@
     font-weight: 700;
   }
   .pricing-card.highlight {
-    border-color: var(--amber);
-    box-shadow: 0 8px 32px rgba(217, 154, 61, 0.15);
+    border-left-color: var(--amber);
+    box-shadow: none;
   }
   .pricing-badge {
     display: inline-block;

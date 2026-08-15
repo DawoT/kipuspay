@@ -32,6 +32,7 @@
           <span class="knot-dot" aria-hidden="true"></span>
           Comparativa
         </p>
+        <p class="brand-mark">KipusPay</p>
         <h1>{selected.title}</h1>
         <p class="hero-sub">{selected.hook}</p>
         <p class="compare-intro">{selected.intro}</p>
@@ -43,21 +44,35 @@
     </div>
   </section>
 
-  <nav class="compare-pills-bar" aria-label="Elegir comparativa">
-    <div class="pills-inner">
-      <span class="pills-label">Compara con:</span>
+  <nav class="rubro-switch" aria-label="Elegir comparativa">
+    <label class="rubro-switch-label" for="compare-select">Compara con</label>
+    <select
+      id="compare-select"
+      class="rubro-select"
+      value={selected.slug}
+      onchange={(e) => {
+        const el = e.currentTarget;
+        if (el.value) window.location.assign(`/comparar?vs=${el.value}`);
+      }}
+    >
       {#each compares as c (c.slug)}
-        <a
-          href={`/comparar?vs=${c.slug}`}
-          class="compare-pill"
-          class:active={c.slug === selected.slug}
-          aria-current={c.slug === selected.slug ? 'page' : undefined}
-        >
-          <span class="knot-dot" aria-hidden="true"></span>
-          {c.name}
-        </a>
+        <option value={c.slug}>{c.name}</option>
       {/each}
-    </div>
+    </select>
+    <ul class="rubro-links">
+      {#each compares as c (c.slug)}
+        <li>
+          <a
+            href={`/comparar?vs=${c.slug}`}
+            class:active={c.slug === selected.slug}
+            aria-current={c.slug === selected.slug ? 'page' : undefined}
+          >
+            <span class="knot-dot" aria-hidden="true"></span>
+            {c.name}
+          </a>
+        </li>
+      {/each}
+    </ul>
   </nav>
 
   <section class="section section-paper">
@@ -152,53 +167,3 @@
     </div>
   </section>
 </article>
-
-<style>
-  .compare-pills-bar {
-    background: var(--ink-2);
-    border-bottom: 1px solid var(--line);
-    padding: 0.75rem 1.5rem;
-  }
-  .pills-inner {
-    max-width: 72rem;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 0.2rem;
-  }
-  .pills-label {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    margin-right: 0.4rem;
-  }
-  .compare-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.4rem 0.85rem;
-    font-size: 0.85rem;
-    color: rgba(243, 239, 230, 0.8);
-    border: 1px solid transparent;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-  .compare-pill:hover {
-    color: var(--amber-bright);
-    background: rgba(243, 239, 230, 0.04);
-  }
-  .compare-pill.active {
-    background: var(--paper);
-    color: var(--ink);
-    border-color: var(--amber);
-    font-weight: 700;
-  }
-  .compare-pill.active .knot-dot {
-    background: var(--ink);
-  }
-</style>

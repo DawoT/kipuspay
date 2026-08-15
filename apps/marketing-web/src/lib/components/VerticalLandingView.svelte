@@ -39,20 +39,31 @@
     </div>
   </section>
 
-  <nav class="vertical-pills-bar" aria-label="Seleccionar rubro">
-    <div class="pills-inner">
-      <span class="pills-label">Cambiar rubro:</span>
+  <nav class="rubro-switch" aria-label="Seleccionar rubro">
+    <label class="rubro-switch-label" for="rubro-select">Cambiar rubro</label>
+    <select
+      id="rubro-select"
+      class="rubro-select"
+      value={landing.slug}
+      onchange={(e) => {
+        const el = e.currentTarget;
+        if (el.value) window.location.assign(`/para/${el.value}`);
+      }}
+    >
       {#each allV as v (v.slug)}
-        <a
-          href="/para/{v.slug}"
-          class="vertical-pill"
-          class:active={v.slug === landing.slug}
-        >
-          <span class="knot-dot" aria-hidden="true"></span>
-          {v.navLabel}
-        </a>
+        <option value={v.slug}>{v.navLabel}</option>
       {/each}
-    </div>
+    </select>
+    <ul class="rubro-links" aria-hidden="true">
+      {#each allV as v (v.slug)}
+        <li>
+          <a href="/para/{v.slug}" class:active={v.slug === landing.slug}>
+            <span class="knot-dot" aria-hidden="true"></span>
+            {v.navLabel}
+          </a>
+        </li>
+      {/each}
+    </ul>
   </nav>
 
   <section class="section section-paper">
@@ -232,53 +243,3 @@
 
   <a class="btn btn-sticky" href="/empezar">Empieza gratis</a>
 </article>
-
-<style>
-  .vertical-pills-bar {
-    background: var(--ink-2);
-    border-bottom: 1px solid var(--line);
-    padding: 0.75rem 1.5rem;
-  }
-  .pills-inner {
-    max-width: 72rem;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 0.2rem;
-  }
-  .pills-label {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    margin-right: 0.4rem;
-  }
-  .vertical-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.4rem 0.85rem;
-    font-size: 0.85rem;
-    color: rgba(243, 239, 230, 0.8);
-    border: 1px solid transparent;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-  .vertical-pill:hover {
-    color: var(--amber-bright);
-    background: rgba(243, 239, 230, 0.04);
-  }
-  .vertical-pill.active {
-    background: var(--paper);
-    color: var(--ink);
-    border-color: var(--amber);
-    font-weight: 700;
-  }
-  .vertical-pill.active .knot-dot {
-    background: var(--ink);
-  }
-</style>
