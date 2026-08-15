@@ -94,15 +94,38 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         idb,
         online,
         nowMs: Date.now(),
-        fetchDaySummary: async () => {
-          return {
-            totals: {
-              grossSalesCents: snap?.grossSalesCents ?? 0,
-              netSalesCents: snap?.netSalesCents ?? 0,
-              docCount: snap?.docCount ?? 0,
-            },
-            branches: [{ branch_id: 'local' }],
-          };
+        fetchDaySummary: async (reportDate: string) => {
+          // F13: el resumen del día se lee del rollup server (daily_financial_rollups),
+          // no de un valor fijo. El servidor es autoritativo; 'no en vivo' lo aclara.
+          try {
+            const response = await apiFetch(
+              `/api/owner/day-summary?date=${encodeURIComponent(reportDate)}`,
+              { storage: localStorage },
+            );
+            if (!response.ok) {
+              return {
+                totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
+                branches: [],
+              };
+            }
+            const body = (await response.json()) as {
+              totals?: { grossSalesCents?: number; netSalesCents?: number; docCount?: number };
+              branches?: ReadonlyArray<{ branch_id: string }>;
+            };
+            return {
+              totals: {
+                grossSalesCents: body.totals?.grossSalesCents ?? 0,
+                netSalesCents: body.totals?.netSalesCents ?? 0,
+                docCount: body.totals?.docCount ?? 0,
+              },
+              branches: body.branches ?? [],
+            };
+          } catch {
+            return {
+              totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
+              branches: [],
+            };
+          }
         },
       },
       'tenant',
@@ -428,7 +451,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     {#if isAgenticInsightsEnabled() && briefing}
       <section class="ledger-card section-pad" data-testid="owner-briefing">
         <div class="card-head">
-          <h2>Resumen del servidor</h2>
+          <h2>Notas del negocio</h2>
           <span class="briefing-stale">Datos del {briefing.reportDate}, no en vivo.</span>
         </div>
         <ul class="briefing-bullets">
@@ -548,10 +571,10 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {#if fiscalEa}
         <section class="ledger-card section-pad" data-testid="owner-fiscal-backlog">
           <div class="card-header">
-            <h2>Fiscal · represados / cuarentena</h2>
+            <h2>Comprobantes pendientes</h2>
             <span class="badge badge-warning">{backlog.length}</span>
           </div>
-          <p class="section-desc">CPE no aceptados. Anular (E-A) exige confirmación y motivo Catálogo 09.</p>
+          <p class="section-desc">Comprobantes aún no aceptados. Anular exige confirmación y un motivo válido.</p>
 
           {#if eaMsg}
             <StatusMessage tone="info" aria-live="polite" data-testid="ea-msg">
@@ -583,10 +606,10 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           {#if pendingAnular}
             <div class="confirm-box" data-testid="ea-confirm">
               <p class="confirm-title">
-                Confirmar NC anulación sin CDR para <strong>{pendingAnular.saleId}</strong>
+                Confirmar anulación de <strong>{pendingAnular.saleId}</strong>
               </p>
               <div class="field-group">
-                <label for="ea-motive-input">Motivo Cat. 09</label>
+                <label for="ea-motive-input">Motivo de anulación</label>
                 <input id="ea-motive-input" data-testid="ea-motive" bind:value={motiveCode} />
               </div>
               <div class="btn-row">
@@ -603,29 +626,29 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if debitNoteOn}
-        <section class="glass-panel owner-section" data-testid="owner-debit-note">
+        <section class="ledger-card owner-section" data-testid="owner-debit-note">
           <div class="owner-section-head">
             <h2>Nota de débito</h2>
-            <span class="badge badge-indigo">Ajuste al alza (cat. 10)</span>
+            <span class="badge badge-indigo">Ajuste al alza</span>
           </div>
           <p class="owner-section-lede">
             Incrementa el valor de un comprobante aceptado (factura/boleta) por interés, aumento de valor o penalidades. No toca stock.
           </p>
           <div class="field-group">
-            <label for="dn-origin">Comprobante origen (id)</label>
-            <input id="dn-origin" bind:value={dnOriginSaleId} data-testid="dn-origin" placeholder="sale-123" />
+            <label for="dn-origin">Comprobante origen</label>
+            <input id="dn-origin" bind:value={dnOriginSaleId} data-testid="dn-origin" placeholder="ID del comprobante" />
           </div>
           <div class="field-group">
-            <label for="dn-series">Serie ND</label>
+            <label for="dn-series">Serie</label>
             <input id="dn-series" bind:value={dnSeries} data-testid="dn-series" placeholder="FC01" />
           </div>
           <div class="field-group">
-            <label for="dn-motive">Motivo (catálogo 10)</label>
+            <label for="dn-motive">Motivo</label>
             <select id="dn-motive" bind:value={dnMotiveCode} data-testid="dn-motive">
-              <option value="01">01 — Interés por mora</option>
-              <option value="02">02 — Aumento de valor</option>
-              <option value="03">03 — Penalidades / otros conceptos</option>
-              <option value="10">10 — Ajuste de otros conceptos</option>
+              <option value="01">Interés por mora</option>
+              <option value="02">Aumento de valor</option>
+              <option value="03">Penalidades / otros conceptos</option>
+              <option value="10">Ajuste de otros conceptos</option>
             </select>
           </div>
           <div class="field-group">
@@ -646,13 +669,13 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if withholdingsOn}
-        <section class="glass-panel owner-section" data-testid="owner-withholdings">
+        <section class="ledger-card owner-section" data-testid="owner-withholdings">
           <div class="owner-section-head">
             <h2>Percepciones y retenciones</h2>
-            <span class="badge badge-indigo">Pagos adelantados (P1c)</span>
+            <span class="badge badge-indigo">Pagos adelantados</span>
           </div>
           <p class="owner-section-lede">
-            Percepción (02) al cobrar a un cliente agente; retención (20) al pagar a un proveedor sujeto. Montos calculados por el servidor.
+            Percepción al cobrar a un cliente agente; retención al pagar a un proveedor sujeto. Los montos los calcula KipusPay.
           </p>
           <div class="field-group">
             <label for="wh-branch">Sucursal</label>
@@ -673,14 +696,14 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           </div>
           <div class="field-group">
             <label for="wh-sale">Venta origen (percepción)</label>
-            <input id="wh-sale" bind:value={whSaleId} data-testid="wh-sale" placeholder="sale-123" />
+            <input id="wh-sale" bind:value={whSaleId} data-testid="wh-sale" placeholder="ID de la venta" />
             <Button variant="primary" data-testid="wh-perception-submit" onclick={onIssuePerception}>
               Emitir percepción
             </Button>
           </div>
           <div class="field-group">
             <label for="wh-invoice">Factura proveedor (retención)</label>
-            <input id="wh-invoice" bind:value={whInvoiceId} data-testid="wh-invoice" placeholder="si-123" />
+            <input id="wh-invoice" bind:value={whInvoiceId} data-testid="wh-invoice" placeholder="ID de la factura" />
             <Button variant="primary" data-testid="wh-retention-submit" onclick={onIssueRetention}>
               Emitir retención
             </Button>

@@ -7,9 +7,9 @@
 import { apiFetch } from '$lib/auth/api-client';
 
   const returnsOn = isPurchasingReturnsEnabled();
-  let purchaseReceiptId = $state('rcpt-demo');
+  let purchaseReceiptId = $state('');
   let supplierInvoiceId = $state('');
-  let productId = $state('p1');
+  let productId = $state('');
   let enteredQuantityMicrounits = $state(1_000_000);
   let reason = $state('Mercadería dañada');
   let returnId = $state('');

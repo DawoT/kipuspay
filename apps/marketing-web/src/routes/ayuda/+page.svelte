@@ -82,6 +82,9 @@
               <details class="faq-item" open use:reveal>
                 <summary>
                   <span class="q">{item.question}</span>
+                  {#if item.availability === 'preparing'}
+                    <span class="preparing-badge">En preparación</span>
+                  {/if}
                 </summary>
                 <p class="a">{item.answer}</p>
               </details>
@@ -104,6 +107,9 @@
                   <summary>
                     <span class="num">{String(i + 1).padStart(2, '0')}</span>
                     <span class="q">{item.question}</span>
+                    {#if item.availability === 'preparing'}
+                      <span class="preparing-badge">En preparación</span>
+                    {/if}
                   </summary>
                   <p class="a">{item.answer}</p>
                 </details>
@@ -177,5 +183,24 @@
   .help-contact-box p {
     margin-bottom: 1.25rem;
     color: rgba(26, 29, 35, 0.8);
+  }
+  .faq-item .q {
+    flex: 1 1 auto;
+  }
+  .preparing-badge {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    border: 1px solid currentColor;
+    border-radius: 0.25rem;
+    color: inherit;
+    opacity: 0.75;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 </style>

@@ -55,12 +55,12 @@ export const TERMS_PAGE = {
     {
       id: 'reclamaciones',
       heading: 'Reclamaciones',
-      body: 'Tienes a disposición nuestro Libro de Reclamaciones Virtual en kipuspay.com/reclamaciones, conforme a la ley de protección al consumidor.',
+      body: 'Tienes a disposición nuestro Libro de Reclamaciones Virtual en kipuspay.com/reclamaciones, conforme a la Ley 29571 (Código de Protección y Defensa del Consumidor).',
     },
     {
       id: 'jurisdiccion',
       heading: 'Ley aplicable',
-      body: 'Este contrato se rige por las leyes del Perú. Cualquier controversia se resuelve ante los tribunales de Lima, Perú.',
+      body: 'Este contrato se rige por las leyes del Perú. Cualquier controversia se resuelve ante el Distrito Judicial de Lima Centro, Perú.',
     },
   ],
 } as const;
@@ -88,7 +88,7 @@ export const PRIVACY_PAGE = {
     {
       id: 'arco',
       heading: 'Cómo ejercer tus derechos',
-      body: 'Para acceder, rectificar, cancelar u oponerte al tratamiento de tus datos, escríbenos a privacidad@kipuspay.com. Respondemos por el mismo canal con la constancia del trámite.',
+      body: 'Para acceder, rectificar, cancelar u oponerte al tratamiento de tus datos, escríbenos a privacidad@kipuspay.com. Respondemos por el mismo canal con la constancia del trámite, conforme a la Ley 29733 (Protección de Datos Personales) y su reglamento (D.S. 003-2013-JUS).',
     },
     {
       id: 'seguridad',

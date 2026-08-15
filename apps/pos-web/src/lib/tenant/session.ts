@@ -1,5 +1,6 @@
 /**
- * Contexto de tenant en POS (Sprint 11) — query/onboarding o default demo.
+ * Contexto de tenant en POS (Sprint 11) — query/onboarding o default fail-closed
+ * (tenantId ''; nunca un valor demo enviado al servidor).
  */
 
 export type FormalizationMode = 'INTERNAL_CONTROL' | 'FORMALIZING' | 'ELECTRONIC_ISSUER';
@@ -30,7 +31,7 @@ function isMode(v: string | null): v is FormalizationMode {
 
 export function defaultTenantSession(): PosTenantSession {
   return {
-    tenantId: 'demo',
+    tenantId: '',
     tradeName: 'Mi Tienda',
     formalizationMode: 'INTERNAL_CONTROL',
     verticalType: 'retail',
@@ -46,7 +47,7 @@ export function tenantFromSearchParams(params: URLSearchParams): PosTenantSessio
   const mode = params.get('mode');
   if (!isMode(mode)) return null;
   return {
-    tenantId: params.get('tenant') || 'demo',
+    tenantId: params.get('tenant') ?? '',
     tradeName: params.get('name') || 'Mi negocio',
     formalizationMode: mode,
     verticalType: params.get('vertical') || 'retail',

@@ -13,7 +13,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const ownerOn = isOwnerModeEnabled();
   const forecastOn = isAnalyticsForecastingEnabled();
 
-  let branchId = $state('b-demo');
+  let branchId = $state('');
   let status = $state('');
   let loading = $state(false);
   let items = $state<

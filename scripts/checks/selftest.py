@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+import tempfile
 
 HERE = __file__.rsplit("/", 1)[0]
 
@@ -71,6 +72,25 @@ def load_pos_copy():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def load_pos_demo_ids():
+    spec = importlib.util.spec_from_file_location("pos_demo_ids", f"{HERE}/pos_demo_ids.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_TMP_COUNTER = [0]
+
+
+def __write_tmp(suffix: str, content: str) -> str:
+    """Crea un archivo temporal real para scan_file (V-30)."""
+    _TMP_COUNTER[0] += 1
+    path = os.path.join(tempfile.gettempdir(), f"v30-selftest-{_TMP_COUNTER[0]}{suffix}")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    return path
 
 
 SUCIA = """```sql
@@ -361,6 +381,36 @@ def main() -> int:
         )
         == ["/api/commissions/payouts/*/pay"],
         "V-28 no colapsa ${id} a * dentro de templates",
+    )
+
+    # V-30: cero literales demo en el código fuente del POS (F-6, completo)
+    pd = load_pos_demo_ids()
+    expect(
+        pd.scan_file(__write_tmp(".ts", "let branchId = $state('b-demo');\n")) == [(1, "b-demo")],
+        "V-30 no ve literal demo asignado",
+    )
+    expect(
+        pd.scan_file(__write_tmp(".ts", "if (session.tenantId !== 'demo') {}\n")) == [],
+        "V-30 marca la comparación defensiva como hallazgo",
+    )
+    expect(
+        pd.scan_file(
+            __write_tmp(
+                ".ts",
+                "// legacy ('s-demo') antes del fix\nconst id = 'ok';\n/* b-demo histórico */\n",
+            )
+        )
+        == [],
+        "V-30 ve demo dentro de comentarios",
+    )
+    expect(
+        pd.scan_file(__write_tmp(".svelte", "<!-- demo -->\nlet evidenceKey = $state('demo.jpg');\n"))
+        == [(2, "demo.jpg")],
+        "V-30 no ve demo en template svelte fuera del comentario",
+    )
+    expect(
+        pd.scan_file(__write_tmp(".ts", "const ok = 'validId';\n")) == [],
+        "V-30 marca texto sin demo",
     )
 
     if fails:

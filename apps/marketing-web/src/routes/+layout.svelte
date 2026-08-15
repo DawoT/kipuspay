@@ -174,7 +174,8 @@
     </div>
 
     <p class="footer-channels">
-      {OFFICIAL_CHANNELS.contacto} · {OFFICIAL_CHANNELS.soporte} · {OFFICIAL_CHANNELS.privacidad}
+      {OFFICIAL_CHANNELS.contacto} · {OFFICIAL_CHANNELS.soporte} · {OFFICIAL_CHANNELS.facturacion} ·{' '}
+      {OFFICIAL_CHANNELS.privacidad}
     </p>
 
     <ul class="footer-seals">

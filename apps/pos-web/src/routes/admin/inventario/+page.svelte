@@ -16,7 +16,7 @@ import { apiFetch } from '$lib/auth/api-client';
   let systemQty = $state(0);
   let lossQty = $state(1);
   let lossId = $state('');
-  let evidenceKey = $state('r2/merma/demo.jpg');
+  let evidenceKey = $state('');
   let reason = $state('');
   let message = $state('');
   let messageOk = $state(false);

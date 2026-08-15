@@ -1,12 +1,15 @@
 /**
  * Centro de ayuda — Categorías y preguntas frecuentes para el dueño del comercio.
  * Copys en lenguaje claro de negocio, sin jerga técnica (GTM §1 / Rule V-26).
+ * Claims congelados (PUBLIC_CLAIMS / GTM freeze) se marcan 'preparing' y se
+ * muestran como "En preparación", igual que en /precios (guía Q1/Q7/§6).
  */
 
 export interface HelpItem {
   readonly id: string;
   readonly question: string;
   readonly answer: string;
+  readonly availability?: 'preparing';
 }
 
 export interface HelpCategory {
@@ -25,6 +28,7 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
       {
         id: 'activar-facturacion',
         question: '¿Cómo activo la emisión de boletas y facturas electrónicas?',
+        availability: 'preparing',
         answer:
           'Ingresas tu RUC y datos del negocio en la configuración. KipusPay se encarga del envío automático a SUNAT por ti. No necesitas comprar certificados adicionales.',
       },
@@ -69,12 +73,14 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
       {
         id: 'sin-internet',
         question: '¿Qué pasa si se corta el internet en mi local?',
+        availability: 'preparing',
         answer:
           'Sigues cobrando normalmente. Tus ventas se guardan en el equipo y, apenas vuelve la señal, se sincronizan con tu panel sin perder información.',
       },
       {
         id: 'limite-offline',
         question: '¿Cuántas ventas puedo hacer sin internet?',
+        availability: 'preparing',
         answer:
           'Puedes continuar operando durante toda tu jornada. Al reconectarse el equipo, el sistema procesa los comprobantes pendientes automáticamente.',
       },
@@ -107,18 +113,21 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
       {
         id: 'insights-diario',
         question: '¿Cómo funciona el asistente de insights diarios?',
+        availability: 'preparing',
         answer:
           'En Enterprise, cada mañana recibes un resumen breve de tu negocio: ventas, productos por agotarse y excepciones de caja, calculado sobre tus números reales. Puedes hacerle preguntas en lenguaje natural sobre tu operación.',
       },
       {
         id: 'pedidos-whatsapp',
         question: '¿Cómo funcionan los pedidos con retiro por WhatsApp?',
+        availability: 'preparing',
         answer:
           'Tu cliente reserva sin pagar y recibe un aviso por WhatsApp cuando su pedido está listo para recoger. El pago se hace en tienda al momento de la entrega.',
       },
       {
         id: 'membresias',
         question: '¿Cómo funcionan las membresías y las ventas recurrentes?',
+        availability: 'preparing',
         answer:
           'Defines el ciclo (semanal o mensual) y el sistema genera la venta periódica con su comprobante y su cuenta por cobrar, con un periodo de gracia para el cliente.',
       },

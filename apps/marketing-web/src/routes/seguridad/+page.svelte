@@ -94,6 +94,13 @@
         <article class="legal-note-card">
           <h3>{SECURITY_PAGE.sla.heading}</h3>
           <p>{SECURITY_PAGE.sla.body}</p>
+          <ul class="severity-list">
+            {#each SECURITY_PAGE.sla.severities as severity (severity.title)}
+              <li>
+                <strong>{severity.title}.</strong> {severity.body}
+              </li>
+            {/each}
+          </ul>
         </article>
       </div>
 
@@ -203,6 +210,25 @@
     color: rgba(243, 239, 230, 0.82);
     line-height: 1.6;
     font-size: 0.9375rem;
+  }
+
+  .severity-list {
+    margin-top: 0.75rem;
+    padding-left: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .severity-list li {
+    color: rgba(243, 239, 230, 0.82);
+    line-height: 1.55;
+    font-size: 0.875rem;
+  }
+
+  .severity-list strong {
+    color: var(--paper);
+    font-weight: 700;
   }
 
   .uptime-points {

@@ -77,6 +77,20 @@ export const SECURITY_PAGE = {
   sla: {
     heading: 'Soporte segun tu plan',
     body: 'Arranque y Crece incluyen soporte por chat, en espanol, con personas reales. Cadena incluye account manager dedicado. Enterprise firma un contrato de servicio con soporte prioritario y tiempos definidos; Crece no lo promete.',
+    severities: [
+      {
+        title: 'SEV-1 · La caja no cobra',
+        body: 'Respuesta en 1 hora calendario en Enterprise (atencion continua) y 4 horas habiles en el resto de planes.',
+      },
+      {
+        title: 'SEV-2 · Degradacion fiscal',
+        body: 'Respuesta en 4 horas habiles en Enterprise y 1 dia habil en el resto de planes (envios o bajas ante SUNAT por vencer).',
+      },
+      {
+        title: 'SEV-3 · Consultas y configuracion',
+        body: 'Respuesta en 1 dia habil en Enterprise y 2 dias habiles en el resto de planes. El canal oficial es soporte@kipuspay.com.',
+      },
+    ],
   },
   uptime: {
     eyebrow: 'Compromiso de servicio',

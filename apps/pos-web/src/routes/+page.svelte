@@ -78,6 +78,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Modal from '$lib/ui/Modal.svelte';
+  import { formalizationModeLabel } from '$lib/ui/ops-copy';
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import MoneyInput from '$lib/ui/MoneyInput.svelte';
@@ -579,7 +580,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const { weightMicrounits, protocol, deviceId, sequence, observedAtEpochMs } =
       heartbeat.reading;
     lines = addOrBumpLine(lines, {
-      productId: 'weigh-demo',
+      productId: 'weigh',
       name: 'Manzana por peso',
       unitPriceCents: 100,
       quantity: 1,
@@ -615,7 +616,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       return;
     }
     lines = addOrBumpLine(lines, {
-      productId: 'weigh-demo',
+      productId: 'weigh',
       name: 'Manzana por peso',
       unitPriceCents: 100,
       quantity: 1,
@@ -675,64 +676,69 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {/if}
 
   <header class="pos-banner-card glass-panel">
-    <div class="banner-left">
-      <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
+    <div class="banner-row">
+      <div class="banner-left">
+        <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
+        {#if checkoutOn}
+          <div class="banner-pills">
+            <span data-testid="pos-session-bar" class="badge badge-success" role="status">
+              Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}
+            </span>
+            <span data-testid="formalization-mode" class="badge badge-warning">
+              {formalizationModeLabel(session.formalizationMode)}
+            </span>
+          </div>
+        {/if}
+      </div>
+      {#if checkoutOn && commissionsOn}
+        <div class="seller-input-group">
+          <label for="seller-id-input">Vendedor</label>
+          <input
+            id="seller-id-input"
+            bind:value={sellerId}
+            placeholder="ID Vendedor (opcional)"
+            data-testid="seller-id"
+          />
+          {#if teamOn}
+            <button
+              type="button"
+              class="secondary seller-resolve-btn"
+              data-testid="seller-resolve"
+              onclick={() => (sellerResolveOpen = true)}
+            >
+              {sellerResolvedName || 'Vincular por badge / PIN'}
+            </button>
+          {/if}
+        </div>
+      {/if}
       {#if checkoutOn}
-        <div class="banner-pills">
-          <span data-testid="pos-session-bar" class="badge badge-success" role="status">
-            Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}
-          </span>
-          <span data-testid="formalization-banner" class="badge badge-indigo" role="status">
-            {banner}
-          </span>
-          <span data-testid="formalization-mode" class="badge badge-warning">
-            {session.formalizationMode}
-          </span>
+        <div class="customer-input-group">
+          <label for="customer-doc-type">Cliente</label>
+          <select id="customer-doc-type" bind:value={clientDocType} data-testid="customer-doc-type">
+            <option value="1">DNI</option>
+            <option value="6">RUC</option>
+            <option value="4">CE</option>
+          </select>
+          <input
+            id="customer-doc-number"
+            bind:value={clientDocNumber}
+            placeholder="N.º documento"
+            data-testid="customer-doc-number"
+          />
+          <input
+            id="customer-name"
+            bind:value={clientName}
+            placeholder="Nombre / razón social"
+            data-testid="customer-name"
+          />
         </div>
       {/if}
     </div>
-    {#if checkoutOn && commissionsOn}
-      <div class="seller-input-group">
-        <label for="seller-id-input">Vendedor</label>
-        <input
-          id="seller-id-input"
-          bind:value={sellerId}
-          placeholder="ID Vendedor (opcional)"
-          data-testid="seller-id"
-        />
-        {#if teamOn}
-          <button
-            type="button"
-            class="secondary seller-resolve-btn"
-            data-testid="seller-resolve"
-            onclick={() => (sellerResolveOpen = true)}
-          >
-            {sellerResolvedName || 'Vincular por badge / PIN'}
-          </button>
-        {/if}
-      </div>
-    {/if}
-    {#if checkoutOn}
-      <div class="customer-input-group">
-        <label for="customer-doc-type">Cliente</label>
-        <select id="customer-doc-type" bind:value={clientDocType} data-testid="customer-doc-type">
-          <option value="1">DNI</option>
-          <option value="6">RUC</option>
-          <option value="4">CE</option>
-        </select>
-        <input
-          id="customer-doc-number"
-          bind:value={clientDocNumber}
-          placeholder="N.º documento"
-          data-testid="customer-doc-number"
-        />
-        <input
-          id="customer-name"
-          bind:value={clientName}
-          placeholder="Nombre / razón social"
-          data-testid="customer-name"
-        />
-      </div>
+    {#if checkoutOn && banner}
+      <StatusMessage tone="warning" role="status" data-testid="formalization-banner" class="formalization-callout">
+        <Icon name="info" size={16} />
+        <span>{banner}</span>
+      </StatusMessage>
     {/if}
   </header>
 
@@ -1171,10 +1177,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   .pos-banner-card {
     padding: 1rem 1.25rem;
     display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .banner-row {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-
+    flex-wrap: wrap;
   }
 
   .banner-left {
@@ -1182,6 +1194,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   .pos-title {
@@ -1191,20 +1205,40 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   .banner-pills {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
 
-  .seller-input-group {
+  .seller-input-group,
+  .customer-input-group {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    min-width: 0;
   }
-  .seller-input-group label {
+
+  .seller-input-group label,
+  .customer-input-group label {
     margin-bottom: 0;
     white-space: nowrap;
   }
+
   .seller-input-group input {
     width: 180px;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .customer-input-group select,
+  .customer-input-group input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :global(.formalization-callout) {
+    width: 100%;
+    max-width: 100%;
   }
 
   .checkout-disabled-panel {
@@ -1240,6 +1274,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-bottom: 1rem;
   }
   .card-header h2, .card-header h3 {
@@ -1264,7 +1300,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
   .input-with-button {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    min-width: 0;
+  }
+  .input-with-button :global(input),
+  .input-with-button :global(.ui-input) {
+    min-width: 0;
+    flex: 1 1 12rem;
   }
   .status-feedback {
     margin-top: 0.5rem;
@@ -1504,6 +1547,39 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   @media (max-width: 900px) {
     .pos-main-grid {
       grid-template-columns: 1fr;
+    }
+
+    .banner-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .banner-left {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .seller-input-group,
+    .customer-input-group {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .seller-input-group label,
+    .customer-input-group label {
+      white-space: normal;
+    }
+
+    .seller-input-group input,
+    .customer-input-group select,
+    .customer-input-group input {
+      width: 100%;
+    }
+
+    .input-with-button {
+      flex-direction: column;
+      align-items: stretch;
     }
   }
 </style>
