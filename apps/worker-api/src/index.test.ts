@@ -291,3 +291,71 @@ describe('catálogo vendible del POS (C1 — fe de errata)', () => {
     expect(body).toMatchObject({ code: 'FEATURE_OFF' });
   });
 });
+
+describe('F-1 contrato Dueño: las 6 rutas owner propagan role (auditoría browser)', () => {
+  const ownerApp = createApp({
+    verifyJwt: () => Promise.resolve({ tenantId: 't1', sub: 'u1' }),
+    getTenant: () => Promise.resolve(active),
+    checkRevocation: () => Promise.resolve({ available: true, revoked: false }),
+    loadUser: () =>
+      Promise.resolve({
+        ok: true,
+        user: {
+          userId: 'u1',
+          tenantId: 't1',
+          branchId: 'b1',
+          allowedBranches: ['b1'],
+          role: 'owner',
+          permissions: [],
+        },
+      }),
+  });
+
+  const ownerRoutes: readonly [string, string][] = [
+    ['GET', '/api/owner/quotes/expired'],
+    ['GET', '/api/owner/purchasing/three-way'],
+    ['GET', '/api/owner/purchasing/returns'],
+    ['GET', '/api/owner/ledger/store-credit'],
+    ['GET', '/api/owner/installments/overdue'],
+    ['GET', '/api/owner/commissions'],
+  ];
+
+  const ownerEnv = {
+    FEATURE_SALES_QUOTES: '1',
+    FEATURE_PURCHASING_THREE_WAY: '1',
+    FEATURE_PURCHASING_RETURNS: '1',
+    FEATURE_LEDGER_STORE_CREDIT: '1',
+    FEATURE_SALES_INSTALLMENTS: '1',
+    FEATURE_SALES_COMMISSIONS: '1',
+    DB: {
+      prepare: () => ({
+        bind: () => ({
+          all: async () => ({ results: [] }),
+          first: async () => null,
+          run: async () => ({ success: true }),
+        }),
+        all: async () => ({ results: [] }),
+        first: async () => null,
+        run: async () => ({ success: true }),
+      }),
+      batch: async () => [],
+    },
+  };
+
+  it.each(ownerRoutes)(
+    '%s %s no responde FORBIDDEN_ROLE con role=owner',
+    async (method, path) => {
+      const res = await ownerApp.request(
+        path,
+        {
+          method,
+          headers: { authorization: 'Bearer tok', 'x-tenant-id': 't1' },
+        },
+        ownerEnv,
+      );
+      expect(res.status, `${method} ${path}`).not.toBe(403);
+      const body = (await res.json()) as { code?: string };
+      expect(body.code, `${method} ${path}`).not.toBe('FORBIDDEN_ROLE');
+    },
+  );
+});

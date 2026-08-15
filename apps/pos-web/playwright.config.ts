@@ -47,6 +47,7 @@ export default defineConfig({
       PUBLIC_FEATURE_HARDWARE_DIAGNOSTICS: '1',
       PUBLIC_FEATURE_SALES_COMMISSIONS: '1',
       PUBLIC_FEATURE_VITRINA: '1',
+      PUBLIC_FEATURE_DATA_BACKUP: '1',
     },
   },
 });
