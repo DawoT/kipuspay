@@ -11767,3 +11767,60 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0438
+timestamp_utc: 2026-08-16T21:10:00Z
+schema_version: 2
+sprint_fase: Sprint C4 — DR/BCP interno: restauración probada y simulacro ensayado (regla 32b / GTM-18)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: evidencia runtime del contrato DR (restore→RPO/RTO→replay→audit DR_SIMULATION) + guards reales por API
+relacion: amplia
+referencias_entradas: [0437]
+referencias_documentales: [docs/ops/claims-go-live.md, docs/runbooks/dr-bcp-recovery.md, docs/ops/s48-dr-bcp-qg.md, apps/worker-api/src/backup/dr-routes.ts]
+prev_id: 0437
+prev_hash: 8028a9fbc291ce7145631dd0271c41d93cb5bf985ca82cdd8904ac5659e00a24
+entry_hash: 314ad345f705ec8289e274942e1a610f578b73082a0b9df9e4186adadef63a33
+ticket_or_adr: GTM-18, regla 32b, F-5, CAL-05, CAL-06
+test_ids: [packages/adapters-d1/src/dr-restore.integration.test.ts, apps/worker-api/src/backup/dr-routes.test.ts, packages/chaos-harness/src/dr-failover.test.ts, V-00, V-30, SUITE]
+entregable_afectado: sin cambio de código (contrato ya GREEN en QG s48); evidencia runtime + runbook ensayado
+descripcion: >
+  El contrato DR/BCP estaba implementado y con QG cerrado (s48): restore
+  aplicado al binding DR_DB aislado (jamás producción viva), verificación
+  RPO=0 tx / RPO≤1d rollups, replay de colas sin duplicados, RTO ≤30 min y
+  simulacro POST /api/dr/simulation (owner + step-up) con audit
+  DR_SIMULATION_* (rto_ms, rpoTxZero, rpoRollupOneDay, replayDuplicatesBlocked).
+  Sprint C4 = evidencia runtime: dr-restore 6/6 (topo FK padres-primero,
+  apply idempotente, RPO), dr-routes 6/6 (flag off→404, sin step-up→401,
+  no-owner→403, backup ausente→404, sin DR_DB→503) y dr-failover 5/5
+  (game day con 500 ciclos + faults rpoTxLoss/rpoRollupStale/replayDuplicate
+  detectables) ejecutados GREEN. Verificación REAL por API (worker dev +
+  D1 + capability data.backup/platform.dr habilitada en el tenant del
+  escenario): POST /api/backups con idempotencyKey crea el backup PENDING y
+  dispara el Workflow (BACKUP_WORKFLOW.create) — el workflow en miniflare
+  local no completa (Network connection lost / hang del runtime con los
+  service bindings KMS: límite del entorno, no del contrato); los guards
+  reales del simulacro: sin backup READY → 404 NOT_FOUND, con backup FAILED
+  → 404, y el rol owner exigido. El workflow del backup y el simulacro
+  completo requieren staging Cloudflare real (Workflow + R2 + KMS externos)
+  — cubierto por el bloque go-live-staging del pending-batches.yaml. El
+  runbook docs/runbooks/dr-bcp-recovery.md se actualizó con el ensayo del
+  Sprint C4 (suites + guards) y la nota del límite del entorno.
+evidencia: >
+  RED (run-red-6h-c4): (hipótesis) el simulacro completo por API en dev —
+  el Workflow del backup no completa en miniflare (límite del entorno).
+  GREEN (run-green-6h-c4): dr-restore 6/6, dr-routes 6/6, dr-failover 5/5
+  (500 ciclos PASS; faults → FAIL detectables); guards reales por API
+  (404 sin backup READY; owner exigido); runbook ensayado actualizado;
+  e2e pos 121/121 (regresión); quality Gate OK; verify SUITE GREEN.
+red_commit_sha: N/A
+red_run_id: run-red-6h-c4
+expected_failure: (hipótesis) simulacro por API sin backup READY o con Workflow incompleto en dev
+green_commit_sha: N/A
+green_run_id: run-green-6h-c4
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
