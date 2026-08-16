@@ -1880,6 +1880,37 @@ const H_FULL_FEATURES_OPTS = {
   terminalId: 'term-e2e',
 } as const;
 
+describe('paridad branch→location en primera venta (Sello QA Batch J)', () => {
+  it('venta sin fila location crea la fila con la paridad del branch (positiva) y la segunda venta pasa', async () => {
+    const tenantId = 't-j-location-parity';
+    const fixture = await seedNvFixture(tenantId);
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        nvPayload(fixture, 'off-j-1', 1, 1180),
+      ),
+    ).resolves.toMatchObject({ series: 'NV01' });
+    const row = await env.DB.prepare(
+      `SELECT quantity_microunits FROM inventory_location_stock
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .first<{ quantity_microunits: number }>();
+    // stock 10 uds (10M) - 1 ud (1M) = 9M: la fila nace POSITIVA (paridad del branch).
+    expect(row?.quantity_microunits).toBe(9000000);
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        nvPayload(fixture, 'off-j-2', 1, 1180),
+      ),
+    ).resolves.toMatchObject({ series: 'NV01' });
+  });
+});
+
 describe('crédito de tienda con cliente nuevo (Sello QA Batch H)', () => {
   it('inserta cliente nuevo sin guard (cliente DNI real, sin issue)', async () => {
     const tenantId = 't-h-customer-new';
