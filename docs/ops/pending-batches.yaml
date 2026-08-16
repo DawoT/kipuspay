@@ -114,6 +114,11 @@ pending:
     estado: CERRADO
     ledger: 0432
     specs: [lpdp-load, process-offline-sale-atomic (FK store-credit), quote-layaway-convert (CxC)]
+  - id: batch-i
+    nombre: "Workers fiscal/KMS: pipeline SUNAT real (breaker frío, drain outbox→R2→PSE), KMS AES-GCM"
+    estado: CERRADO
+    ledger: 0433
+    specs: [worker-fiscal bootstrap breaker, worker-fiscal drain JOIN sales, worker-fiscal DRAIN_FAILED, worker-kms 28]
     modulos:
       - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
       - ruta: /caja/gastos (egresos de caja)
@@ -122,5 +127,5 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G + H: núcleo transaccional real verificado)
+  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G + H + I: workers fiscal/KMS reales)
   referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
