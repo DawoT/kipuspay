@@ -132,5 +132,34 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G + H + I + J: cierre de claims)
+  eliminar_al_cerrar: "Fase de cierre del proyecto en curso — batches C1-C5 (ledgers 0435-0439) + go-live externo al final"
+sprints_cierre:
+  - id: sprint-c1
+    nombre: "Doctrina de claims alineada al producto final (FEFO/merma live, matriz go-live, roadmap)"
+    estado: CERRADO
+    ledger: 0435
+  - id: sprint-c2
+    nombre: "KDS/comandas/salón/split — UI completa sobre el motor existente"
+    estado: PENDIENTE
+  - id: sprint-c3
+    nombre: "LPDP ARCO self-serve del titular"
+    estado: PENDIENTE
+  - id: sprint-c4
+    nombre: "DR/BCP interno — restauración probada + simulacro"
+    estado: PENDIENTE
+  - id: sprint-c5
+    nombre: "Sello final del producto completo"
+    estado: PENDIENTE
+  - id: go-live-staging
+    nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
+    estado: AGENDADO_AL_FINAL
+  - id: go-live-sunat
+    nombre: "Certificación SUNAT/OSE real (GTM-08)"
+    estado: AGENDADO_AL_FINAL
+  - id: go-live-hardware
+    nombre: "Android físico gama baja + impresoras/perfiles (GTM-26, S41)"
+    estado: AGENDADO_AL_FINAL
+  - id: go-live-fcm
+    nombre: "Web Push VAPID + FCM HTTP v1 staging real (GTM-26)"
+    estado: AGENDADO_AL_FINAL
   referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
