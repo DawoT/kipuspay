@@ -10996,3 +10996,56 @@ aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0425
+timestamp_utc: 2026-08-16T01:30:00Z
+schema_version: 2
+sprint_fase: Batch B — catálogo (variantes/UOM), promociones y comisiones (sello en navegador)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e de GTM-15/23 y fix de rol owner en catálogo
+relacion: amplia
+referencias_entradas: [0423, 0424]
+referencias_documentales: [docs/ops/legal_and_sales_guide.md, apps/worker-api/src/catalog/catalog-variants-uom-routes.ts, apps/pos-web/tests/e2e/catalog-crud.spec.ts, apps/pos-web/tests/e2e/promotions.spec.ts, apps/pos-web/tests/e2e/commissions.spec.ts]
+prev_id: 0424
+prev_hash: cff84b90a12c0e1cc9d1a201d43835686e369583756476f43d205b8f962e83cb
+entry_hash: 0669a2c7d55d5d87185881afc76f9d31c55195f6dce70388af682e163f3202b2
+ticket_or_adr: Proceso §8.1, V-27, CAL-05, CAL-06
+test_ids: [catalog-crud, promotions, commissions, ops-copy, pos-density, modal-a11y, quick-sale, onboarding-tour, V-00, SUITE]
+entregable_afectado: apps/worker-api (privileged normaliza rol), apps/pos-web (catálogo/promociones/comisiones), playwright.config (3 flags)
+descripcion: >
+  Sello del Batch B con el patrón establecido. Verificación REAL en navegador
+  con worker + D1: producto creado por escáner (EAN 775), segunda variante con
+  padre asignado y precio propio (variant_price_override_cents 3200
+  persistido) y UOM. GAP CRITICO encontrado y corregido: runUpdateVariantHttp
+  autorizaba con privileged(role) comparando 'ADMIN'/'OWNER' en MAYUSCULAS,
+  pero el JWT real lleva 'owner' minuscula -> 403 para el dueño en
+  PATCH /api/catalog/variants/:id (el flujo real del editor fallaba);
+  fix con normalizacion trim().toLowerCase() + test de regresion con rol
+  minuscula. Promociones (GTM-15: el precio final lo confirma el cobro) y
+  comisiones (GTM-23: los montos los confirma el cobro) verificadas y
+  selladas. Env e2e +3 flags (CATALOG_VARIANTS, CATALOG_UOM,
+  PRICING_PROMOTIONS). Regresiones por los flags nuevos: el tour S52 suma
+  pasos de promotions/variants (spec recorre pasos), quick-sale/modal-a11y
+  scoped al dialog del modal, pos-density 900->899 y responsive-ui 640->719
+  alineados al breakpoint unificado del agente UI; el prettier del agente
+  habia movido el import de salesErrorCopy y revertido el mapeo D1/SQLITE
+  (restaurados).
+evidencia: >
+  RED (run-red-6h-batchb): PATCH variants 403 FORBIDDEN con rol owner real;
+  e2e previo 92 sin los 3 modulos; tour S52 con pasos nuevos rompia specs.
+  GREEN (run-green-6h-batchb): e2e pos-web 95/95 (3 specs nuevos Batch B);
+  unit 394/394; worker-api variants 8/8; svelte-check 0 errores; quality
+  Gate OK (bundle 259.77 kB gz); verify.sh SUITE GREEN; flujo real: variante
+  con parent+override en D1.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-batchb
+expected_failure: PATCH /api/catalog/variants 403 con rol owner (mayusculas) / sin e2e en catalogo-promociones-comisiones
+green_commit_sha: 7a788c9c438b783b64722b342f0846b38b91ce6f
+green_run_id: run-green-6h-batchb
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
