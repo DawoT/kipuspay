@@ -32,10 +32,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     status = 'Cargando…';
     const apiBase = resolveApiBase(localStorage);
     const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const url = new URL(`${apiBase.replace(/\/$/, '')}/api/owner/stock-alerts`);
-    url.searchParams.set('branchId', branchId);
-    url.searchParams.set('expiryWarnDays', '30');
     try {
+      const url = new URL(`${apiBase.replace(/\/$/, '') || location.origin}/api/owner/stock-alerts`);
+      url.searchParams.set('branchId', branchId);
+      url.searchParams.set('expiryWarnDays', '30');
       const res = await fetch(url, { headers: { authorization: auth } });
       const json = (await res.json()) as {
         alerts?: typeof alerts;
