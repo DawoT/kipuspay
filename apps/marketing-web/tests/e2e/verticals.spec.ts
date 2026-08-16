@@ -6,9 +6,9 @@ import { expect, test } from '@playwright/test';
 const VERTICALS = [
   { slug: 'restaurantes', title: /KipusPay para restaurantes/i, frozen: true },
   { slug: 'farmacias', title: /KipusPay para farmacias/i, frozen: false },
-  { slug: 'retail', title: /KipusPay para retail/i, frozen: true },
+  { slug: 'retail', title: /KipusPay para retail/i, frozen: false },
   { slug: 'servicios', title: /KipusPay para servicios/i, frozen: false },
-  { slug: 'cadenas', title: /KipusPay para cadenas/i, frozen: true },
+  { slug: 'cadenas', title: /KipusPay para cadenas/i, frozen: false },
 ];
 
 for (const v of VERTICALS) {

@@ -81,10 +81,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
         availability: 'preparing',
       },
       { text: 'Cambio de turno con PIN temporal sin cerrar caja' },
-      {
-        text: 'Lotes con control de vencimientos (FEFO) y recetas de insumos',
-        availability: 'preparing',
-      },
+      { text: 'Lotes con control de vencimientos (FEFO) y recetas de insumos' },
       { text: 'Promociones, variantes y unidades, apartados y series' },
       { text: 'Venta por peso con balanza y comisiones de vendedor' },
     ],

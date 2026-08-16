@@ -3,8 +3,8 @@ import { FEATURED_CLAIMS, type FeaturedClaimId } from './registry.js';
 import { PUBLIC_CLAIMS, publicBadge, publicLabel } from './public.js';
 import { allVerticals } from '../content/verticals.js';
 
-const PREPARING: FeaturedClaimId[] = ['kds_split', 'fefo_lots', 'blind_z_audit', 'merma_xfer'];
-const AVAILABLE: FeaturedClaimId[] = ['services_core', 'owner_ranking'];
+const PREPARING: FeaturedClaimId[] = ['kds_split', 'blind_z_audit'];
+const AVAILABLE: FeaturedClaimId[] = ['services_core', 'owner_ranking', 'fefo_lots', 'merma_xfer'];
 
 describe('visibilidad pública de claims (M1 — control interno vs público)', () => {
   it('el mapa público cubre los 6 claims del registry', () => {

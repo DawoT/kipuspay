@@ -127,7 +127,6 @@ describe('pricing content', () => {
   it('claims en preparación no se venden como live (PUBLIC_CLAIMS / GTM freeze)', () => {
     const needles: RegExp[] = [
       /comandas|\bkds\b/i,
-      /fefo|vencimientos/i,
       /arqueo z/i,
       /\bdr\b|desastres/i,
       /asistente gerente|insights/i,
@@ -141,6 +140,17 @@ describe('pricing content', () => {
         const text = pricingFeatureText(feature);
         if (needles.some((n) => n.test(text))) {
           expect(pricingFeatureAvailability(feature), text).toBe('preparing');
+        }
+      }
+    }
+  });
+
+  it('FEFO/lotes y merma están descongelados y vendibles (GTM-16/GTM-13)', () => {
+    for (const plan of PRICING_PLANS) {
+      for (const feature of plan.features) {
+        const text = pricingFeatureText(feature);
+        if (/fefo|vencimientos/i.test(text)) {
+          expect(pricingFeatureAvailability(feature), text).toBe('available');
         }
       }
     }

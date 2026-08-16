@@ -15,11 +15,12 @@ export type PublicClaimStatus =
 
 /** Fuente de verdad del copy público por claim (única capa renderizable). */
 export const PUBLIC_CLAIMS: Readonly<Record<FeaturedClaimId, PublicClaimStatus>> = {
-  // Post-QG internos, pero aún no anunciables al público.
+  // Post-QG internos, aún no anunciables al público (go-live externo pendiente).
   kds_split: { kind: 'preparing', label: 'Comandas sincronizadas de cocina' },
-  fefo_lots: { kind: 'preparing', label: 'Control de vencimientos por lote' },
   blind_z_audit: { kind: 'preparing', label: 'Arqueo ciego con auditoría' },
-  merma_xfer: { kind: 'preparing', label: 'Merma y transferencias entre locales' },
+  // Descongelados con copy acotado (GTM-16 gate S18, GTM-13 gate S20).
+  fefo_lots: { kind: 'available' },
+  merma_xfer: { kind: 'available' },
   // Núcleo ya vendido (servicios) y ranking descongelado (GTM-03).
   services_core: { kind: 'available' },
   owner_ranking: { kind: 'available' },

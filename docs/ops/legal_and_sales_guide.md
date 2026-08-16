@@ -13,7 +13,7 @@ owner: "@DawoT"
 > **Ámbito de Aplicación:** República del Perú & Operaciones SaaS Globales  
 > **Propósito:** Este documento constituye la fuente única de verdad legal, comercial y operativa de KipusPay. Consolida íntegramente en un solo texto el Manual Comercial de Ventas, la Oferta del Producto Final Completo v1.0, los Términos y Condiciones del Servicio, la Política de Privacidad LPDP (Ley N.º 29733), el Acuerdo de SLA y Niveles de Servicio, la Política de Cancelaciones y Reembolsos, y el Playbook Legal y Comercial de Preguntas Frecuentes.
 
-> **Estado de claims vs producto (GTM freeze):** comandas/KDS, arqueo Z ciego, FEFO, merma entre locales, derechos LPDP ARCO self-serve y Disaster Recovery permanecen **en preparación** hasta su Quality Gate (GTM-09, GTM-18 y `PUBLIC_CLAIMS`). El catálogo de esta guía es contractual; no afirma que esas capabilities estén live en producción. El export de catálogo/ventas y el libro de reclamaciones con número de caso sí están cableados.
+> **Estado de claims vs producto (GTM freeze, actualizado en el cierre del proyecto):** FEFO y merma entre locales quedaron **descongelados** (GTM-16 gate Sprint 18 y GTM-13 gate Sprint 20, claims live con copy acotado). Permanecen **en preparación** hasta su Quality Gate (`PUBLIC_CLAIMS`): comandas/KDS (hasta el sprint de la UI de cocina/salón), arqueo Z ciego (PIN de descuentos con auditoría), derechos LPDP ARCO self-serve (portal del titular), Disaster Recovery (restauración probada y simulacro) y la emisión SUNAT en vivo (certificación externa). El catálogo de esta guía es contractual; no afirma que esas capabilities estén live en producción. El export de catálogo/ventas y el libro de reclamaciones con número de caso sí están cableados.
 
 ---
 
@@ -121,7 +121,7 @@ Ante una solicitud de borrado de datos formulada por un comprador final, KipusPa
 
 ### 6. Matriz Completa de Funcionalidades del Producto Final Completo v1.0
 
-El catálogo funcional de KipusPay comprende el 100% de las herramientas del producto final v1.0, distribuidas por plan. Las filas de comandas/KDS, arqueo Z ciego, emisión SUNAT en vivo, WhatsApp/membresías, LPDP self-serve y Disaster Recovery permanecen **en preparación** (header de freeze / `PUBLIC_CLAIMS`); no se venden como live.
+El catálogo funcional de KipusPay comprende el 100% de las herramientas del producto final v1.0, distribuidas por plan. Las filas de comandas/KDS, arqueo Z ciego, emisión SUNAT en vivo, WhatsApp/membresías, LPDP self-serve y Disaster Recovery permanecen **en preparación** hasta su Quality Gate (header de freeze / `PUBLIC_CLAIMS`). FEFO y merma entre locales están **descongeladas y vendibles** (GTM-16 gate Sprint 18 y GTM-13 gate Sprint 20, claims live con copy acotado).
 
 | Área Funcional | Descripción de la Funcionalidad | Plan Mínimo | Alcance Legal y Operativo |
 |---|---|---|---|
