@@ -11824,3 +11824,54 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0439
+timestamp_utc: 2026-08-16T23:30:00Z
+schema_version: 2
+sprint_fase: Sprint C5 — Sello final del producto completo v1.0 (cierre del proyecto)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: regresión completa del producto final + benchmark + QG de cierre; go-live externo agendado
+relacion: amplia
+referencias_entradas: [0438]
+referencias_documentales: [docs/ops/c5-final-product-qg.md, docs/ops/pending-batches.yaml, docs/ops/claims-go-live.md]
+prev_id: 0438
+prev_hash: 314ad345f705ec8289e274942e1a610f578b73082a0b9df9e4186adadef63a33
+entry_hash: 9725f30ca3530b51c21d50a0a75ed18fe8fee63d411f7f08e69e13c08458ec55
+ticket_or_adr: Proceso §8.1, GTM-01..26, CAL-01..08, V-00..V-30
+test_ids: [V-00, V-30, SUITE]
+entregable_afectado: regresión completa del monorepo + QG de cierre + tracker final
+descripcion: >
+  Sello final del producto completo v1.0. Regresión total: e2e pos-web
+  121/121 (KDS/salón/split y LPDP titular descongelados incluidos),
+  marketing 19/19, unit pos 395, worker-api 1175, fiscal 22, kms 28,
+  adapters 390, integration adapters 294 (dr-restore 6/6, paridad de
+  stock, crédito tienda, CxC), chaos 120 (dr-failover 5/5 con 500 ciclos),
+  benchmark sub-50ms GREEN (p95 0.0039 ms), quality Gate OK, verify
+  SUITE GREEN. QG de cierre docs/ops/c5-final-product-qg.md: claims
+  alineados al producto final (FEFO/merma live, KDS, LPDP self-serve,
+  DR ensayado) y el go-live externo (staging Cloudflare, sandbox SUNAT,
+  Android físico, FCM/VAPID, impresoras) agendado al final en el
+  pending-batches.yaml (bloques go-live-staging/sunat/hardware/fcm
+  AGENDADOS_AL_FINAL). Con esto el tracker queda COMPLETADO: batches A-J
+  (ledgers 0419-0434) + sprints de cierre C1-C5 (ledgers 0435-0439); la
+  matriz docs/ops/claims-go-live.md gobierna el paso a producción de los
+  claims NO-GO.
+evidencia: >
+  RED (run-red-6h-c5): (hipótesis) regresión con residuos o claims sin
+  alinear.
+  GREEN (run-green-6h-c5): suites completas verdes (121+19 e2e; unit
+  395/1175/22/28/390; integration 294; chaos 120); bench sub-50ms GREEN;
+  quality OK; verify SUITE GREEN; QG de cierre publicado; tracker
+  completo.
+red_commit_sha: N/A
+red_run_id: run-red-6h-c5
+expected_failure: (hipótesis) regresión final con algún residuo de claim o test roto
+green_commit_sha: N/A
+green_run_id: run-green-6h-c5
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
