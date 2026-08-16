@@ -104,6 +104,11 @@ pending:
     estado: CERRADO
     ledger: 0430
     specs: [vitrina-kiosk, caja-gastos, ubicaciones]
+  - id: batch-g
+    nombre: "Series, transferencias owner, ayuda, split (cierre 100% rutas activas)"
+    estado: CERRADO
+    ledger: 0431
+    specs: [serials, owner-transferencias, ayuda, split-claim]
     modulos:
       - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
       - ruta: /caja/gastos (egresos de caja)
@@ -112,5 +117,5 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras)
+  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G: 100% rutas activas selladas)
   referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
