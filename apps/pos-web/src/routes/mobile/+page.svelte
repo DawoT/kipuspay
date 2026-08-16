@@ -366,7 +366,7 @@
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .mobile-grid { grid-template-columns: 1fr; }
     .full-col { grid-column: auto; }
   }

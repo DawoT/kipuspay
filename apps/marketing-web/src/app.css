@@ -467,7 +467,7 @@ li {
   display: none;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .nav-lg {
     display: flex;
   }
@@ -675,7 +675,7 @@ li {
   );
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .hero-scrim {
     background:
       linear-gradient(
@@ -699,7 +699,7 @@ li {
   padding: 13rem 1.5rem 3.5rem;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .hero-inner {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
@@ -760,13 +760,13 @@ li {
   grid-template-columns: 1fr;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .vertical-picker.editorial-picker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 899px) {
   .vertical-picker.editorial-picker {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -855,7 +855,7 @@ li {
   margin-top: 2rem;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .pain-grid.editorial-pains {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -866,7 +866,7 @@ li {
   border-top: none;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .pain-grid.editorial-pains article {
     padding: 0 1.4rem 0 0;
     border-right: 1px solid var(--line-ink);
@@ -963,36 +963,37 @@ li {
   margin-top: 2rem;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .split-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
 
-.split-card {
-  border: 1px solid var(--line-ink);
-  background: var(--paper);
-  padding: 1.3rem;
+.offline-row {
+  border-bottom: 1px solid var(--line-ink);
+  padding: var(--inset-card) 0;
+  background: transparent;
 }
 
-.split-card h3 {
+.offline-row h3 {
   font-size: 1.1rem;
   margin-bottom: 0.6rem;
   color: var(--ink);
 }
 
-.split-card p {
+.offline-row p {
   margin: 0;
   color: rgba(26, 29, 35, 0.74);
 }
 
-.split-card.muted {
-  background: var(--paper-dim);
-  border-color: var(--line-ink);
+.offline-row.muted h3 {
+  color: rgba(26, 29, 35, 0.6);
 }
 
-.split-card.muted h3 {
-  color: rgba(26, 29, 35, 0.6);
+.offline-row.kipus {
+  border-bottom-color: var(--sello);
+  box-shadow: inset 3px 0 0 var(--sello);
+  padding-left: var(--inset-card);
 }
 
 .knot-list {
@@ -1445,7 +1446,7 @@ li {
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 899px) {
   .ledger-table th,
   .ledger-table td {
     padding: 0.7rem 0.6rem;
@@ -1460,7 +1461,7 @@ li {
  * Comparativa mobile: cada concepto se convierte en una ficha vertical.
  * Evita el scrollbar nativo anidado y mantiene ambas respuestas visibles.
  */
-@media (max-width: 640px) {
+@media (max-width: 719px) {
   .comparison-table-wrap {
     overflow-x: visible;
     border: none;
@@ -1611,7 +1612,7 @@ li {
   align-items: center;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .product-grid {
     grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
   }
@@ -1669,7 +1670,7 @@ li {
   align-items: center;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .owner-grid {
     grid-template-columns: 1fr minmax(16rem, 20rem);
   }
@@ -1808,7 +1809,7 @@ li {
   margin-top: 2.4rem;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .why-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2.2rem;
@@ -1869,7 +1870,7 @@ li {
   border-top: 1px solid var(--line-ink);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .pricing-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1983,7 +1984,7 @@ li {
   flex-wrap: wrap;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .rubro-select {
     display: none;
   }
@@ -2081,7 +2082,7 @@ li {
   padding: 0;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .section-frame {
     grid-template-columns: 3.5rem minmax(0, 1fr);
     gap: 1.75rem;
@@ -2094,7 +2095,7 @@ li {
   padding-top: 0;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .section-gutter {
     position: sticky;
     top: calc(var(--header-h) + 1rem);
@@ -2114,7 +2115,7 @@ li {
   overflow: visible;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 899px) {
   .section-mark {
     width: 1.5rem;
     height: 7.5rem;
@@ -2235,10 +2236,7 @@ li {
   animation: knotIn 0.4s var(--ease-out) 0.7s both;
 }
 
-.split-card.kipus-card {
-  border-color: var(--sello);
-  box-shadow: inset 3px 0 0 var(--sello);
-}
+/* offline-row.kipus already styled above */
 
 /* Tres nudos */
 .knot-steps {
@@ -2516,7 +2514,7 @@ li {
   gap: 1.5rem;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 719px) {
   .post-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

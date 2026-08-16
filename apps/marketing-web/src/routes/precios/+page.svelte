@@ -446,7 +446,7 @@
     gap: 2rem;
     margin-top: 2rem;
   }
-  @media (max-width: 800px) {
+  @media (max-width: 899px) {
     .picker-layout {
       grid-template-columns: 1fr;
     }
@@ -518,7 +518,7 @@
     width: 100%;
     border-collapse: collapse;
     color: var(--ink);
-    min-width: 640px;
+    min-width: 719px;
   }
   .plan-matrix th,
   .plan-matrix td {
@@ -582,7 +582,7 @@
     display: none;
     margin-top: 2rem;
   }
-  @media (max-width: 800px) {
+  @media (max-width: 899px) {
     .plan-matrix-desktop {
       display: none;
     }

@@ -239,7 +239,7 @@ import { apiFetch } from '$lib/auth/api-client';
     font-size: 0.875rem;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .compras-grid {
       grid-template-columns: 1fr;
     }

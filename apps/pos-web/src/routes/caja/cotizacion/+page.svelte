@@ -233,7 +233,7 @@ import { apiFetch } from '$lib/auth/api-client';
     font-family: var(--font-mono);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .quote-layout { grid-template-columns: 1fr; }
   }
 </style>

@@ -39,7 +39,7 @@
   );
 </script>
 
-<section class="glass-panel catalog-card" data-testid="sellable-catalog">
+<section class="ledger-card catalog-card" data-testid="sellable-catalog">
   <div class="card-header catalog-header">
     <h2>Catálogo</h2>
     {#if !loading && items.length > 0}
@@ -117,9 +117,6 @@
 </section>
 
 <style>
-  .catalog-card {
-    padding: var(--inset-card);
-  }
   .catalog-header {
     margin-bottom: 0.75rem;
   }

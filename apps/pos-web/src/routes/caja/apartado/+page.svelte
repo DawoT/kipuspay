@@ -205,5 +205,5 @@ import { apiFetch } from '$lib/auth/api-client';
   }
   .separator { border-top: 1px solid var(--border-subtle); margin: 0.875rem 0; }
   .tenant-line { font-size: 0.8125rem; color: var(--text-dim); font-family: var(--font-mono); }
-  @media (max-width: 600px) { .layaway-layout { grid-template-columns: 1fr; }  }
+  @media (max-width: 719px) { .layaway-layout { grid-template-columns: 1fr; }  }
 </style>

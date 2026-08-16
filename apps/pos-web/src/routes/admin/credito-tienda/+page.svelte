@@ -143,7 +143,7 @@
 
 
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .credit-layout {
       grid-template-columns: 1fr;
     }

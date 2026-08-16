@@ -200,7 +200,7 @@ import { apiFetch } from '$lib/auth/api-client';
 
 
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .xfer-layout {
       grid-template-columns: 1fr;
     }

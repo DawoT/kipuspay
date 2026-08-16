@@ -274,13 +274,13 @@ import { apiFetch } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .invoice-layout {
       grid-template-columns: 1fr 1fr;
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .invoice-layout {
       grid-template-columns: 1fr;
     }

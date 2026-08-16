@@ -224,7 +224,7 @@ import { apiFetch } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .return-layout {
       grid-template-columns: 1fr;
     }

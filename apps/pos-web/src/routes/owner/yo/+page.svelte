@@ -278,7 +278,7 @@
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .yo-grid { grid-template-columns: 1fr; }
     .metrics-grid { grid-template-columns: 1fr; }
   }

@@ -10,7 +10,7 @@ const compare = readFileSync(
 
 describe('responsive marketing UI', () => {
   it('apila las comparativas en mobile sin scroll horizontal nativo', () => {
-    expect(css).toContain('@media (max-width: 640px)');
+    expect(css).toContain('@media (max-width: 719px)');
     expect(css).toMatch(/\.comparison-table-wrap\s*\{[^}]*overflow-x:\s*visible/s);
     expect(css).toMatch(/\.comparison-table\s*\{[^}]*min-width:\s*0/s);
     expect(home).toContain('class="ledger-table-wrap comparison-table-wrap"');

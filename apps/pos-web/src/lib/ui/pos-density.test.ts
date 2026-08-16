@@ -67,7 +67,7 @@ describe('FASE F densidad POS', () => {
     );
     expect(home).toMatch(/\.banner-row/);
     expect(home).toMatch(/flex-direction:\s*column/);
-    expect(home).toMatch(/max-width:\s*900px/);
+    expect(home).toMatch(/max-width:\s*899px/);
     expect(home).toMatch(/gap:\s*var\(--space-3\)/);
     expect(home).toMatch(/padding:\s*var\(--inset-field\)/);
   });

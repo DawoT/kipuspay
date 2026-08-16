@@ -250,8 +250,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 <svelte:head><title>Cierre Z · Caja · KipusPay</title></svelte:head>
 
-<div class="caja-page-container">
-  <section class="glass-panel caja-card" data-testid="caja-blind-z">
+<div class="page-shell">
+  <section class="ledger-card caja-card" data-testid="caja-blind-z">
     <div class="card-header-bar">
       <div>
         <Badge variant="indigo">Control Operativo</Badge>
@@ -396,7 +396,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     {/if}
   </section>
 
-  <section class="glass-panel caja-card" data-testid="caja-movements">
+  <section class="ledger-card caja-card" data-testid="caja-movements">
     <div class="card-header-bar">
       <div>
         <Badge variant="indigo">Control Operativo</Badge>
@@ -437,7 +437,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     {/if}
   </section>
 
-  <section class="glass-panel caja-card" data-testid="caja-reprints">
+  <section class="ledger-card caja-card" data-testid="caja-reprints">
     <div class="card-header-bar">
       <div>
         <Badge variant="indigo">Control Operativo</Badge>
@@ -495,13 +495,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 </div>
 
 <style>
-  .caja-page-container {
-    max-width: 720px;
-    margin: 0 auto;
-  }
-
   .caja-card {
-    padding: var(--inset-shell);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -688,7 +682,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--emerald-green);
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .card-header-bar {
       flex-direction: column;
       align-items: stretch;

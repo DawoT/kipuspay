@@ -73,23 +73,22 @@
 
 <svelte:head><title>Cambio de turno · Caja · KipusPay</title></svelte:head>
 
-<div class="handoff-page-container">
-  <section class="glass-panel handoff-card" data-testid="shift-handoff">
-    <div class="card-header-bar">
+<div class="page-shell">
+  <section class="ledger-card handoff-card" data-testid="shift-handoff">
+    <div class="page-masthead">
       <div>
-        <span class="badge badge-indigo">Handoff de Turno</span>
+        <p class="page-eyebrow">Caja · Handoff</p>
         <h1 class="page-title">Cambio de turno sin cierre Z</h1>
+        <p class="page-lede">
+          La sesión sigue abierta: se transfiere al siguiente operador con un PIN de un solo uso.
+          El arqueo Z real queda para el cierre de la caja.
+        </p>
       </div>
       <a href="/caja" class="btn btn-secondary nav-link-btn">
         <Icon name="arrow-right" size={16} />
         Cierre Z
       </a>
     </div>
-
-    <p class="lede-text">
-      La sesión sigue abierta: se transfiere al siguiente operador con un PIN de un solo uso.
-      El arqueo Z real queda para el cierre de la caja.
-    </p>
 
     {#if !shiftOn}
       <StatusMessage tone="warning" data-testid="handoff-feature-off">
@@ -177,36 +176,10 @@
 </div>
 
 <style>
-  .handoff-page-container {
-    max-width: 640px;
-    margin: 0 auto;
-  }
-
   .handoff-card {
-    padding: var(--inset-shell);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-  }
-
-  .card-header-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-top: 0.25rem;
-  }
-
-  .lede-text {
-    color: var(--text-muted);
-    font-size: 0.9375rem;
-    line-height: 1.5;
   }
 
   .pin-reveal-card {
@@ -253,8 +226,8 @@
     border-top: 1px solid var(--border-subtle);
   }
 
-  @media (max-width: 900px) {
-    .card-header-bar {
+  @media (max-width: 899px) {
+    .page-masthead {
       flex-direction: column;
       align-items: stretch;
     }

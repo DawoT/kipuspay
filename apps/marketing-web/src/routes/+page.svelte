@@ -212,12 +212,12 @@
         <div class="reconnect-motif" aria-hidden="true">
           <QuipuMotif id="home-offline" />
         </div>
-        <div class="split-grid">
-          <div class="split-card muted">
+        <div class="split-grid offline-compare" role="list">
+          <div class="offline-row muted" role="listitem">
             <h3>Con tu sistema actual</h3>
             <p>{HOME.offline.withOthers}</p>
           </div>
-          <div class="split-card kipus-card">
+          <div class="offline-row kipus" role="listitem">
             <h3>Con KipusPay</h3>
             <p>{HOME.offline.withKipus}</p>
           </div>

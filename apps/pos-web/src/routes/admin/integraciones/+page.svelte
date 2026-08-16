@@ -338,7 +338,7 @@ import { apiFetch } from '$lib/auth/api-client';
     word-break: break-all;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .integ-grid { grid-template-columns: 1fr; }
     
   }

@@ -780,7 +780,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     font-size: 0.88rem;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .workbench {
       grid-template-columns: 1fr 1fr;
     }
@@ -789,7 +789,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .label-shell {
       padding-inline: 0.75rem;
     }

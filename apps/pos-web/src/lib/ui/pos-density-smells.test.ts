@@ -107,6 +107,7 @@ function scanNestedSectionPad(file: string, text: string): Finding[] {
     const hasLedger = tag.classes.includes('ledger-card');
     const hasSection = tag.classes.includes('section-pad');
     const parentInset = insideInset.length > 0 && insideInset[insideInset.length - 1];
+
     if (hasSection && parentInset) {
       out.push({
         id: 'NESTED_SECTION_PAD',
@@ -115,6 +116,7 @@ function scanNestedSectionPad(file: string, text: string): Finding[] {
         detail: 'section-pad anidado dentro de ledger-card/section-pad',
       });
     }
+
     if (!tag.selfClose) {
       insideInset.push(parentInset || hasLedger || hasSection);
     }
@@ -301,6 +303,103 @@ function scanOwnerOrphanRoutes(): Finding[] {
   return out;
 }
 
+function scanGlassResidual(file: string, text: string): Finding[] {
+  if (!file.endsWith('.svelte')) return [];
+  if (file.includes('.test.') || file.includes('/dev/')) return [];
+  const markup = text.split(/<style\b/)[0] ?? text;
+  const out: Finding[] = [];
+  const re = /\bclass\s*=\s*["'][^"']*\bglass-panel\b[^"']*["']/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markup)) !== null) {
+    out.push({
+      id: 'GLASS_PANEL_RESIDUAL',
+      file,
+      line: lineAt(markup, m.index),
+      detail: 'glass-panel en markup — usar ledger-card',
+    });
+  }
+  return out;
+}
+
+function scanBpZoo(file: string, text: string): Finding[] {
+  if (file.includes('.test.') || file.includes('/dev/')) return [];
+  const out: Finding[] = [];
+  const re = /@media[^{]*(?:600|700|900)px/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    out.push({
+      id: 'BP_ZOO',
+      file,
+      line: lineAt(text, m.index),
+      detail: `${m[0].trim()} — usar 719 (--bp-compact) o 899 (--bp-chrome)`,
+    });
+  }
+  return out;
+}
+
+function scanShellInShellCaja(): Finding[] {
+  const out: Finding[] = [];
+  for (const rel of ['routes/caja/+page.svelte', 'routes/caja/handoff/+page.svelte'] as const) {
+    const text = readFileSync(join(POS_SRC, rel), 'utf8');
+    const markup = text.split(/<style\b/)[0] ?? text;
+    if (!/\bpage-shell\b/.test(markup)) {
+      out.push({
+        id: 'SHELL_IN_SHELL_CAJA',
+        file: rel,
+        line: 1,
+        detail: 'debe usar page-shell',
+      });
+    }
+    if (/\b(caja-page-container|handoff-page-container)\b/.test(markup)) {
+      out.push({
+        id: 'SHELL_IN_SHELL_CAJA',
+        file: rel,
+        line: 1,
+        detail: 'contenedor *-page-container legacy (shell-in-shell)',
+      });
+    }
+    if (/\bglass-panel\b/.test(markup)) {
+      out.push({
+        id: 'SHELL_IN_SHELL_CAJA',
+        file: rel,
+        line: 1,
+        detail: 'glass-panel en caja/handoff — usar ledger-card',
+      });
+    }
+  }
+  return out;
+}
+
+function scanHandoffNavGated(): Finding[] {
+  const nav = readFileSync(join(POS_SRC, 'lib/ui/CashierBottomNav.svelte'), 'utf8');
+  const out: Finding[] = [];
+  if (!/isShiftHandoffEnabled/.test(nav)) {
+    out.push({
+      id: 'HANDOFF_NAV_GATED',
+      file: 'lib/ui/CashierBottomNav.svelte',
+      line: 1,
+      detail: 'debe gatear handoff con isShiftHandoffEnabled',
+    });
+  }
+  if (!/\/caja\/handoff/.test(nav) || !/pos-nav-handoff/.test(nav)) {
+    out.push({
+      id: 'HANDOFF_NAV_GATED',
+      file: 'lib/ui/CashierBottomNav.svelte',
+      line: 1,
+      detail: 'link /caja/handoff (pos-nav-handoff) ausente',
+    });
+  }
+  if (!/\{#if\s+handoffOn\}/.test(nav) && !/\{#if\s+.*[Hh]andoff/.test(nav)) {
+    out.push({
+      id: 'HANDOFF_NAV_GATED',
+      file: 'lib/ui/CashierBottomNav.svelte',
+      line: 1,
+      detail: 'tab handoff debe estar detrás de {#if handoffOn}',
+    });
+  }
+  return out;
+}
+
 function collectP0(): Finding[] {
   const findings: Finding[] = [];
   for (const abs of walk(POS_SRC)) {
@@ -314,6 +413,8 @@ function collectP0(): Finding[] {
       ...scanCardPad15(file, text),
       ...scanBlurOnCard(file, text),
       ...scanGlassNoPad(file, text),
+      ...scanGlassResidual(file, text),
+      ...scanBpZoo(file, text),
       ...scanAmberWarning(file, text),
     );
   }
@@ -328,7 +429,13 @@ function collectP0(): Finding[] {
     });
   }
 
-  findings.push(...scanBadgeClone(), ...scanOwnerBottomSafe(), ...scanOwnerOrphanRoutes());
+  findings.push(
+    ...scanBadgeClone(),
+    ...scanOwnerBottomSafe(),
+    ...scanOwnerOrphanRoutes(),
+    ...scanShellInShellCaja(),
+    ...scanHandoffNavGated(),
+  );
 
   return findings;
 }

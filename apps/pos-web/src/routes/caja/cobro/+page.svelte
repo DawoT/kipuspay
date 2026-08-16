@@ -371,7 +371,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-family: var(--font-mono);
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 719px) {
     .cobro-grid { grid-template-columns: 1fr; }
   }
 </style>

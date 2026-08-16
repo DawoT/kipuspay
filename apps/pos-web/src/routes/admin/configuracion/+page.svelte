@@ -1236,7 +1236,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     opacity: 0.85;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .config-grid {
       grid-template-columns: 1fr;
     }

@@ -273,7 +273,7 @@
     font-size: 0.875rem;
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 719px) {
     .claim-form {
       grid-template-columns: 1fr;
     }

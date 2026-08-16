@@ -670,12 +670,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 <div class="pos-layout">
   <!-- Top Bar Meta / Banner -->
   {#if onboardingNotice}
-    <div class="glass-panel onboarding-notice" role="status" data-testid="onboarding-notice">
+    <div class="ledger-card onboarding-notice" role="status" data-testid="onboarding-notice">
       <span>{onboardingNotice}</span>
     </div>
   {/if}
 
-  <header class="pos-banner-card glass-panel">
+  <header class="pos-banner-card ledger-card">
     <div class="banner-row">
       <div class="banner-left">
         <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
@@ -743,7 +743,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   </header>
 
   {#if !checkoutOn}
-    <div class="glass-panel checkout-disabled-panel">
+    <div class="ledger-card checkout-disabled-panel">
       <div class="badge badge-danger">Caja Desactivada</div>
       <p data-testid="checkout-off">El cobro está desactivado para esta tienda. Contacta a tu proveedor.</p>
     </div>
@@ -763,7 +763,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
         <!-- Serial Scanner Instrument Panel -->
         {#if serialsOn}
-          <section class="glass-panel serial-panel" aria-labelledby="serial-title" data-testid="main-serial-checkout">
+          <section class="ledger-card serial-panel" aria-labelledby="serial-title" data-testid="main-serial-checkout">
             <div class="card-header">
               <div>
                 <span class="instrument-eyebrow">Identidad por unidad</span>
@@ -829,7 +829,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <!-- Scale Instrument Panel -->
         {#if scaleOn}
           <section
-            class="glass-panel scale-panel"
+            class="ledger-card scale-panel"
             class:manual={scaleState === 'MANUAL_REQUIRED'}
             aria-labelledby="scale-title"
             data-testid="scale-checkout"
@@ -906,7 +906,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Right Column: Cart & Checkout Summary Panel -->
       <div class="pos-cart-col">
-        <section class="glass-panel cart-panel">
+        <section class="ledger-card cart-panel">
           <div class="card-header">
             <h2>Detalle de Venta</h2>
             <span class="badge badge-success">{lines.length} {lines.length === 1 ? 'ítem' : 'ítems'}</span>
@@ -1027,7 +1027,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
         <!-- Print Preview Card -->
         {#if printPreview}
-          <div class="glass-panel print-preview-card" data-testid="print-preview">
+          <div class="ledger-card print-preview-card" data-testid="print-preview">
             <div class="card-header">
               <h3>Vista Previa Ticket Térmico 80mm</h3>
               <span class="badge badge-indigo">Listo para imprimir</span>
@@ -1232,10 +1232,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--accent-primary);
   }
 
-  /* Serial Scanner Panel */
-  .serial-panel {
-    padding: var(--inset-card);
-  }
+  /* Serial Scanner Panel — pad from .ledger-card */
   .terminal-row, .scanner-row {
     margin-bottom: 0.875rem;
   }
@@ -1260,10 +1257,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--rose-red);
   }
 
-  /* Scale Panel */
-  .scale-panel {
-    padding: var(--inset-card);
-  }
+  /* Scale Panel — pad from .ledger-card */
   .scale-state-badge {
     display: flex;
     align-items: center;
@@ -1324,9 +1318,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.75rem;
   }
 
-  /* Cart & Checkout Column */
+  /* Cart & Checkout Column — pad from .ledger-card */
   .cart-panel {
-    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     min-height: 520px;
@@ -1453,9 +1446,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--text-main);
   }
 
-  .print-preview-card {
-    padding: var(--inset-card);
-  }
+  /* print-preview-card pad from .ledger-card */
   .ticket-render-body {
     background: #ffffff;
     color: #000000;
@@ -1485,7 +1476,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     margin: 0;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .pos-main-grid {
       grid-template-columns: 1fr;
     }

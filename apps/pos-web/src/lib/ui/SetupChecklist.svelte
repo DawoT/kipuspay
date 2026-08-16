@@ -13,7 +13,7 @@
   const progress = $derived(computeSetupProgress(server, printerReady));
 </script>
 
-<section class="glass-panel checklist-card" class:compact data-testid="setup-checklist">
+<section class="ledger-card checklist-card" class:compact data-testid="setup-checklist">
   <div class="checklist-header">
     <div>
       <span class="badge badge-indigo">Segundo día</span>
@@ -52,7 +52,6 @@
 
 <style>
   .checklist-card {
-    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.875rem;

@@ -1,7 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
   import Icon from '$lib/ui/Icon.svelte';
-  import { isCustomerOrdersEnabled, isPosCheckoutEnabled } from '$lib/features';
+  import {
+    isCustomerOrdersEnabled,
+    isPosCheckoutEnabled,
+    isShiftHandoffEnabled,
+  } from '$lib/features';
   import { showCustomerOrderNavigation } from '$lib/customer-orders/customer-order-access';
 
   let {
@@ -11,6 +15,7 @@
   } = $props();
 
   const checkoutOn = isPosCheckoutEnabled();
+  const handoffOn = isShiftHandoffEnabled();
   const showPedidos = $derived(
     showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role }),
   );
@@ -46,6 +51,17 @@
       <Icon name="lock" size={18} />
       <span>Caja</span>
     </a>
+    {#if handoffOn}
+      <a
+        href="/caja/handoff"
+        class="pos-nav-item"
+        class:active={isActive('/caja/handoff')}
+        data-testid="pos-nav-handoff"
+      >
+        <Icon name="users" size={18} />
+        <span>Cambio de turno</span>
+      </a>
+    {/if}
     {#if showPedidos}
       <a
         href="/orders/customer"

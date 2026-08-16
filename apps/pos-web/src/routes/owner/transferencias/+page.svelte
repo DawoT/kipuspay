@@ -132,5 +132,5 @@ import { apiFetch } from '$lib/auth/api-client';
   .disc-row { border-color: rgba(217, 106, 60, 0.2); }
   .disc-detail { font-size: 0.8125rem; color: var(--rose-red); font-family: var(--font-mono); }
   .empty-row { padding: 1rem; text-align: center; color: var(--text-dim); font-size: 0.875rem; }
-  @media (max-width: 600px) { .xfer-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 719px) { .xfer-grid { grid-template-columns: 1fr; } }
 </style>
