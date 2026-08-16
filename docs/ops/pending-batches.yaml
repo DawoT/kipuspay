@@ -140,7 +140,8 @@ sprints_cierre:
     ledger: 0435
   - id: sprint-c2
     nombre: "KDS/comandas/salón/split — UI completa sobre el motor existente"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0436
   - id: sprint-c3
     nombre: "LPDP ARCO self-serve del titular"
     estado: PENDIENTE
