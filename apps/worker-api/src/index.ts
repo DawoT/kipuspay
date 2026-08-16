@@ -282,6 +282,13 @@ import {
   runSetupProgressHttp,
 } from './onboarding/onboarding-routes.js';
 import {
+  runTitularConsentHttp,
+  runTitularConsentsHttp,
+  runTitularEraseHttp,
+  runTitularExportHttp,
+  runTitularVerifyHttp,
+} from './customers/titular-lpdp-routes.js';
+import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
   runDispatchCustomerOrderNoticeHttp,
@@ -498,6 +505,41 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       return c.json({ error: 'branch mismatch', code: 'FORBIDDEN' }, 403);
     }
     return runKdsWebSocketHttp(c.env, claimed.tenantId, claimed.branchId, c.req.raw);
+  });
+
+  // LPDP ARCO self-serve del titular (Sprint C3): identidad por datos y
+  // token de corta duración (scope lpdp_titular). Públicas ANTES del
+  // middleware JWT; el verify no exige sesión admin.
+  app.post('/api/lpdp/titular/verify', async (c) => {
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularVerifyHttp(c.env, (body ?? {}) as Record<string, unknown>);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/lpdp/titular/export', async (c) => {
+    const result = await runTitularExportHttp(c.env, c.req.header('authorization') ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/lpdp/titular/consents', async (c) => {
+    const result = await runTitularConsentsHttp(c.env, c.req.header('authorization') ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/lpdp/titular/consent', async (c) => {
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularConsentHttp(
+      c.env,
+      c.req.header('authorization') ?? '',
+      (body ?? {}) as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/lpdp/titular/erase', async (c) => {
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularEraseHttp(
+      c.env,
+      c.req.header('authorization') ?? '',
+      (body ?? {}) as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
   });
 
   // Rutas protegidas: auth fail-closed + Plan Guard (Sprint 2).
