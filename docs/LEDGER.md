@@ -11107,3 +11107,58 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0427
+timestamp_utc: 2026-08-16T02:50:00Z
+schema_version: 2
+sprint_fase: Batch D — integraciones, diario, transferencias y finanzas (sello en navegador)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e de s23/s32/s20/s8 y flags worker declarados
+relacion: amplia
+referencias_entradas: [0426]
+referencias_documentales: [docs/ops/pending-batches.yaml, apps/worker-api/wrangler.jsonc, apps/pos-web/tests/e2e/integraciones.spec.ts, apps/pos-web/tests/e2e/diario.spec.ts]
+prev_id: 0426
+prev_hash: 00e88f10cd59e66d07f8a34584610cc69f3467b689421a83b1bc9fa5f4246767
+entry_hash: 18e664ff35f237c8f0656c16664eff2c7ce504200aa401e973b8ab884a76e984
+ticket_or_adr: Proceso §8.1, V-27, CAL-05, CAL-06
+test_ids: [integraciones, diario, transfers, owner-finanzas, V-00, V-26, V-27, SUITE]
+entregable_afectado: apps/worker-api (flags FEATURE_INTEGRATIONS_API/ACCOUNTING_EXPORT/CATALOG_IMPORT declarados), apps/pos-web (4 specs nuevos), playwright.config (5 flags)
+descripcion: >
+  Sello del Batch D. Verificación REAL con worker + D1 (tenant elevado a plan
+  Cadena para el plan-gate de integraciones): API key kp_live_... creada (201,
+  se muestra una sola vez) y revocada (200, status revoked); webhook con
+  secret whsec_... y events sale.created/cpe.accepted/cpe.rejected (201) y
+  revocado; export contable CSV real (headers fecha,cuenta,debe,haber,glosa,
+  documento,sucursal); import de catálogo preview (created:1, conflicts:[]).
+  Diario: "Solo lectura. Los asientos nacen con la venta, el cobro, el
+  apartado y el arqueo." + prueba de inmutabilidad (JOURNAL_IMMUTABLE ->
+  "El diario no se puede modificar"). Transferencias: contrato "Conservación
+  total origen + destino + merma". Finanzas dueño: AR/AP con diario solo
+  lectura. GAP de configuración resuelto: FEATURE_INTEGRATIONS_API,
+  FEATURE_ACCOUNTING_EXPORT y FEATURE_CATALOG_IMPORT NO estaban declarados en
+  wrangler.jsonc vars (clase F-9) -> las rutas respondian 404 FEATURE_OFF sin
+  forma de activarlas en dev; declarados con default "0" (fail-closed) y
+  activables por --var; el pepper de API keys (API_KEY_PEPPER) es requisito
+  fail-closed (PEPPER_UNAVAILABLE 503) y se documenta como var de dev.
+  Env e2e +5 flags (INTEGRATIONS_API, CATALOG_IMPORT, ACCOUNTING_EXPORT,
+  LEDGER_CHART_OF_ACCOUNTS, STOCK_TRANSFERS).
+evidencia: >
+  RED (run-red-6h-batchd): 404 FEATURE_OFF en integraciones (flags no
+  declarados) y 503 PEPPER_UNAVAILABLE; sin e2e en los 4 modulos.
+  GREEN (run-green-6h-batchd): e2e pos-web 103/103 (4 specs nuevos); unit
+  395/395; svelte-check 0 errores; quality Gate OK (bundle 259.77 kB gz);
+  verify.sh SUITE GREEN; flujos reales: clave kp_live creada+revocada,
+  webhook whsec creado+revocado, export CSV, import preview, diario
+  inmutabilidad, transferencias y AR/AP.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-batchd
+expected_failure: integraciones 404 FEATURE_OFF por flags no declarados / 503 PEPPER_UNAVAILABLE / sin e2e en diario-transferencias-finanzas-integraciones
+green_commit_sha: 5960d10a0d3431be85504c94fd0940e8eab06902
+green_run_id: run-green-6h-batchd
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
