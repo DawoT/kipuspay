@@ -10964,3 +10964,35 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0424
+timestamp_utc: 2026-08-15T23:22:00Z
+schema_version: 2
+sprint_fase: UX audit wave 4 — Terminal/Caja glass + mkt BP/offline
+agente_responsable: Staff Frontend
+tipo: Corrección
+subtipo: glass→ledger, handoff nav, BP zoo, offline de-card
+relacion: amplia
+referencias_entradas: [0421, 0422]
+referencias_documentales: [Arquitectura §0.2, GTM §6.1]
+prev_id: 0423
+prev_hash: 98dedb54166e0889b5dda805b42be63d9f7c64c8d58429645e46f4bb750cb686
+entry_hash: 
+ticket_or_adr: UX wave 4 Terminal/Caja + marketing
+test_ids: [pos-density-smells, owner-nav, marketing-density-smells, SUITE]
+entregable_afectado: apps/pos-web (Terminal, SellableCatalog, SetupChecklist, caja, handoff, equipo, CashierBottomNav, BP zoo), apps/marketing-web (BP 719/899, offline rows), scripts/tmp/*-design-audit.mjs
+descripcion: >
+  Wave 4: (1) Terminal/catalog/checklist glass→ledger-card; (2) caja/handoff/equipo
+  page-shell + ledger sin shell-in-shell; (3) handoff tab gated en CashierBottomNav;
+  (4) BP zoo POS 600/700/900→719/899; (5) marketing MQ 640/720/800/900/1024→719/899
+  + offline home de-card (offline-row); (6) ratchets GLASS_PANEL_RESIDUAL, BP_ZOO,
+  SHELL_IN_SHELL_CAJA, HANDOFF_NAV_GATED, BP_TOKENS_UNUSED, SPLIT_CARD_HOME.
+evidencia: >
+  RED: glass en Terminal/Caja; BP zoo; handoff ausente; split-card offline; tokens BP muertos.
+  GREEN: audits --strict P0=0; vitest smells; verify SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
