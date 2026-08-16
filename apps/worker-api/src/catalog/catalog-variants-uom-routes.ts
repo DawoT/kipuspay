@@ -17,7 +17,8 @@ function flagOn(value: string | undefined): boolean {
 }
 
 function privileged(role: string | undefined): boolean {
-  return role === 'ADMIN' || role === 'OWNER';
+  const normalized = role?.trim().toLowerCase();
+  return normalized === 'admin' || normalized === 'owner';
 }
 
 function featureOff(): HttpResult {

@@ -22,7 +22,7 @@ test('caja: venta rápida agrega línea genérica sin bloquear el cobro', async 
     await page.getByTestId('tour-next').click();
   }
   await page.getByTestId('quick-sale').click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Venta rápida sin catálogo' })).toBeVisible();
   await page.getByTestId('quick-sale-name').fill('Empanada de queso');
   await page.getByTestId('quick-sale-price').fill('1500');
   await page.getByTestId('quick-sale-add').click();

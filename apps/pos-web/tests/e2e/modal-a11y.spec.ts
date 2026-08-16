@@ -15,7 +15,8 @@ test('modal venta rápida: axe sin violaciones critical/serious', async ({ page 
     await page.getByTestId('tour-next').click();
   }
   await page.getByTestId('quick-sale').click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  const modal = page.getByRole('dialog', { name: 'Venta rápida sin catálogo' });
+  await expect(modal).toBeVisible();
   await expectNoBlockingA11y(page, 'quick-sale modal');
 });
 
@@ -25,7 +26,7 @@ test('modal venta rápida: foco en diálogo, trap de Tab y cierre con Escape', a
     await page.getByTestId('tour-next').click();
   }
   await page.getByTestId('quick-sale').click();
-  const dialog = page.getByRole('dialog');
+  const dialog = page.getByRole('dialog', { name: 'Venta rápida sin catálogo' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toBeFocused();
 
