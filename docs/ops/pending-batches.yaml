@@ -42,7 +42,9 @@ pending:
 
   - id: batch-d
     nombre: "Integraciones/Dueño — integraciones, diario, transferencias, finanzas AR/AP"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0427
+    specs: [integraciones, diario, transfers, owner-finanzas]
     modulos:
       - ruta: /admin/integraciones
         contrato: "API keys (revocación), webhooks HTTPS (sale.created/cpe.accepted/cpe.rejected), import CSV, export contable (s23, Cadena+)"
@@ -105,4 +107,4 @@ pending:
 meta:
   archivo_temporal: true
   eliminar_al_cerrar: todos los batches
-  referencia_patron: "Sello en navegador (sprint 59-62, ledgers 0419-0426)"
+  referencia_patron: "Sello en navegador (sprint 59-63, ledgers 0419-0427)"
