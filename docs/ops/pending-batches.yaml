@@ -119,6 +119,11 @@ pending:
     estado: CERRADO
     ledger: 0433
     specs: [worker-fiscal bootstrap breaker, worker-fiscal drain JOIN sales, worker-fiscal DRAIN_FAILED, worker-kms 28]
+  - id: batch-j
+    nombre: "Cierre de claims: paridad branch→location sellada, marketing GTM real (pricing/onboarding)"
+    estado: CERRADO
+    ledger: 0434
+    specs: [process-offline-sale-atomic paridad location, marketing GTM-26 coherente, onboarding sin contingencia]
     modulos:
       - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
       - ruta: /caja/gastos (egresos de caja)
@@ -127,5 +132,5 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G + H + I: workers fiscal/KMS reales)
+  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G + H + I + J: cierre de claims)
   referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
