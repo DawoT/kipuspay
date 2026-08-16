@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import worker, { cdrVerdict, selectFiscalTransport, submitViaMockPse } from './index.js';
+import { initialBreakerSnapshot } from '@kipuspay/domain-fiscal-pe';
+import { readBreakerOpen, type BreakerKvLike } from './breaker-read-cache.js';
+import type { FiscalWorkerEnv } from './index.js';
 
 describe('cdrVerdict', () => {
   it('aceptada solo con CDR válido', () => {
@@ -66,6 +69,113 @@ describe('F5-2: selectFiscalTransport (fail-closed sin mezcla)', () => {
     });
     expect(calls).toEqual(['https://pse.kipuspay.test/submit']);
     expect(outcome.kind).toBe('accepted');
+  });
+});
+
+describe('breaker bootstrap en frío (Sello QA Batch I)', () => {
+  it('KV vacío + DO abierto → 503 BREAKER_OPEN (fail-closed real)', async () => {
+    const kv: BreakerKvLike = { get: () => Promise.resolve(null), put: async () => {} };
+    const doStub = {
+      fetch: () =>
+        Promise.resolve(
+          Response.json({ state: 'open', openedAtMs: Date.now(), infraFailures: 10 }),
+        ),
+    };
+    const env = {
+      FEATURE_FISCAL_CIRCUIT_BREAKER: '1',
+      FISCAL_BREAKER_KV: kv,
+      FISCAL_CIRCUIT_BREAKER_DO: {
+        idFromName: () => 'breaker-do',
+        get: () => doStub,
+      },
+    };
+    expect(await readBreakerOpen(kv, 'KIPUSPAY_PSE_DIRECT', 'submit')).toBe(true);
+    const res = await worker.fetch(
+      new Request('https://fiscal.local/v1/fiscal/submit', {
+        method: 'POST',
+        body: JSON.stringify({
+          tenantId: 't1',
+          saleId: 's1',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        }),
+      }),
+      env,
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'BREAKER_OPEN', code: 'BREAKER_OPEN' });
+  });
+  it('KV vacío + DO cerrado → el submit continúa y persiste "0"', async () => {
+    const puts: string[] = [];
+    const kv: BreakerKvLike = {
+      get: () => Promise.resolve(null),
+      put: (_key, value) => {
+        puts.push(value);
+        return Promise.resolve();
+      },
+    };
+    const doStub = {
+      fetch: () => Promise.resolve(Response.json(initialBreakerSnapshot())),
+    };
+    const env = {
+      FEATURE_FISCAL_CIRCUIT_BREAKER: '1',
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      FISCAL_PSE_ENDPOINT_URL: 'https://pse.kipuspay.test/submit',
+      FISCAL_PSE_FETCH: () =>
+        Promise.resolve(
+          new Response(JSON.stringify({ cdrCode: '0', accepted: true }), { status: 200 }),
+        ),
+      FISCAL_BREAKER_KV: kv,
+      FISCAL_CIRCUIT_BREAKER_DO: {
+        idFromName: () => 'breaker-do',
+        get: () => doStub,
+      },
+    };
+    expect(await readBreakerOpen(kv, 'KIPUSPAY_PSE_DIRECT', 'submit')).toBe(true);
+    const res = await worker.fetch(
+      new Request('https://fiscal.local/v1/fiscal/submit', {
+        method: 'POST',
+        body: JSON.stringify({
+          tenantId: 't1',
+          saleId: 's1',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        }),
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(puts).toContain('0');
+  });
+});
+
+describe('drain con error de infraestructura (F-5 Sello QA Batch I)', () => {
+  it('fallo del DB → 500 DRAIN_FAILED sin stack crudo', async () => {
+    const env = {
+      FEATURE_FISCAL_CIRCUIT_BREAKER: '1',
+      FISCAL_BREAKER_KV: {
+        get: () => Promise.resolve('0'),
+        put: () => Promise.resolve(),
+      },
+      DB: {
+        prepare: () => ({
+          bind: () => ({
+            run: () => Promise.reject(new Error('D1_ERROR: no such column: x')),
+          }),
+        }),
+      },
+      FISCAL_XML_R2: { get: () => Promise.resolve(null) },
+    };
+    const res = await worker.fetch(
+      new Request('https://fiscal.local/v1/fiscal/drain', { method: 'POST' }),
+      env as unknown as FiscalWorkerEnv,
+    );
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: 'DRAIN_FAILED', code: 'DRAIN_FAILED' });
+    expect(JSON.stringify(body)).not.toContain('D1_ERROR');
   });
 });
 
