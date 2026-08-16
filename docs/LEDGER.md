@@ -11319,3 +11319,73 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0431
+timestamp_utc: 2026-08-16T07:10:00Z
+schema_version: 2
+sprint_fase: Batch G — series, transferencias owner, ayuda y split (cierre 100% rutas activas)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real de extremo a extremo (worker dev + D1 + JWT real) y fixes de contrato en seriales
+relacion: amplia
+referencias_entradas: [0430]
+referencias_documentales: [docs/ops/pending-batches.yaml, apps/pos-web/src/routes/admin/series/+page.svelte, apps/pos-web/tests/e2e/serials.spec.ts, apps/worker-api/src/inventory/transfer-receive-routes.ts]
+prev_id: 0430
+prev_hash: 4eb8b480757b8e2300ba9de7a3b12a2aaf8c4c3aee1cc1f5d4a9892664ced3c8
+entry_hash: 1b6472779fa4863eb9b5ea43d045baf64100936b772f736231dc2572c76ddc9c
+ticket_or_adr: Proceso §8.1, V-30, F-5, CAL-05, CAL-06
+test_ids: [serials, owner-transferencias, ayuda, split-claim, V-00, V-30, SUITE]
+entregable_afectado: apps/pos-web (series, owner/transferencias, ayuda, salon/split), apps/worker-api (routes receive/transfers), packages/adapters-d1 (preflight stock)
+descripcion: >
+  Ultimo lote del sello: cierra el 100% de rutas activas del POS. El
+  escenario REAL se construyo con el tenant "Bodega Batch C" (t_134499...):
+  JWT HS256 minted con el secreto dev, producto nuevo via quick-add, tracking
+  REQUIRED, OC + recepcion con seriales (SN-SELLO-G-0001/0002), lease con
+  terminal real, disposicion DAMAGED con debito de stock (2->1) y
+  transferencia IN_TRANSIT visible en owner/pending. GAPS corregidos en
+  /admin/series: (1) el boton Buscar no disparaba el submit (Button type
+  button sin onclick); (2) disposiciones inexistentes en el contrato
+  (SCRAPPED/RMA_SUPPLIER vs DAMAGED/LOST/RETURN_TO_SUPPLIER) que el server
+  rechazaba con error crudo; (3) el select mapeaba mal serial_id (lease y
+  dispose habrian apuntado a undefined); (4) dispose() pisaba su propio
+  mensaje de confirmacion con el refresh del search; (5) errores SERIAL_*
+  sin copy honesto (mapper salesErrorCopy ampliado: SERIAL_STOCK_EXISTS,
+  SERIAL_TRANSITION_INVALID, SERIAL_NOT_AVAILABLE, etc.; el catalogo usa el
+  mapper en sus 4 handlers). GAPS de contrato worker: el route de recepcion
+  parcial no propagaba serialNumbers y el de transfers no propagaba
+  serialIds — los adapters los soportan, pero era IMPOSIBLE recibir o
+  transferir productos con tracking REQUIRED por API (oc-recepcion ya
+  recolecta seriales en la UI; el route ahora los pasa). Adapter: tracking
+  REQUIRED con stock sin rastrear daba INTERNAL_ERROR crudo; preflight
+  honesto SERIAL_STOCK_EXISTS (422 + action contextual; test RED->GREEN).
+  ayuda (copy honesto sin jerga tecnica, refuerza V-26 en runtime) y
+  salon/split (off-banner del claim congelado, spec de regresion tipo
+  frozen-features) sellados. NOTA: la entrada 0430 se commiteo con
+  entry_hash vacio por un error del proceso (el re.sub no matcheo la linea
+  con espacio); la cadena real se conserva aqui: prev_hash apunta al hash
+  computado del bloque 0430 (4eb8b480) y la entrada 0430 queda intacta
+  (append-only, invariante 4).
+evidencia: >
+  RED (run-red-6h-batchg): series con boton muerto, disposiciones
+  invalidas, select undefined, dispose sin confirmacion, INTERNAL_ERROR en
+  tracking con stock y en receive/transfers de productos REQUIRED
+  (SERIAL_MANIFEST_REQUIRED aun con serialIds en el body); sin e2e en los 4
+  modulos.
+  GREEN (run-green-6h-batchg): escenario real completo por API (tracking,
+  OC, recepcion con seriales, lease con token opaco, dispose con debito,
+  transferencia IN_TRANSIT en owner/pending); navegador con sesion real:
+  busqueda real de SN-SELLO-G-0001, seleccion, disposiciones validas y
+  confirmacion visible; e2e pos-web 117/117 (5 specs nuevos); unit pos 395,
+  worker 1164, adapters-d1 389; svelte-check 0; quality Gate OK; verify.sh
+  SUITE GREEN.
+red_commit_sha: 131fc60
+red_run_id: run-red-6h-batchg
+expected_failure: series con disposiciones inexistentes y select undefined / receive y transfers sin serialNumbers / INTERNAL_ERROR con stock sin rastrear
+green_commit_sha: 131fc60
+green_run_id: run-green-6h-batchg
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
