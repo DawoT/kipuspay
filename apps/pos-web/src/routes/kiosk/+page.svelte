@@ -12,11 +12,25 @@
   import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import { vitrinaPhaseLabel } from '$lib/vitrina/vitrina-copy';
   import { documentKindLabel } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
 
   const enabled = isPosCheckoutEnabled();
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
+  import { onMount } from 'svelte';
   let message = $state('');
   let status = $state('idle');
+  let product = $state<{ id: string; name: string; priceCents: number } | null>(null);
+  let catalogState = $state<'loading' | 'ready' | 'empty' | 'error'>('loading');
+
+  onMount(() => {
+    if (enabled && session.branchId) void loadSellable();
+  });
+
+  const session = $derived({
+    branchId: tenantBranchId(localStorage),
+    sessionId: cashSessionContext(localStorage).sessionId,
+  });
 
   function kioskPhaseLabel(phase: string): string {
     if (phase === 'blocked') return 'No se pudo cobrar';
@@ -26,15 +40,45 @@
     return 'Esperando';
   }
 
+  async function loadSellable() {
+    catalogState = 'loading';
+    try {
+      const res = await apiFetch(`/api/catalog/sellable?branchId=${encodeURIComponent(session.branchId)}`, {
+        storage: localStorage,
+      });
+      if (!res.ok) {
+        catalogState = 'error';
+        return;
+      }
+      const json = (await res.json()) as {
+        items?: Array<{ productId: string; name: string; unitPriceCents: number }>;
+      };
+      const first = (json.items ?? []).find((i) => i.unitPriceCents > 0);
+      if (!first) {
+        catalogState = 'empty';
+        return;
+      }
+      product = { id: first.productId, name: first.name, priceCents: first.unitPriceCents };
+      catalogState = 'ready';
+    } catch {
+      catalogState = 'error';
+    }
+  }
+
   async function pay() {
+    if (!product || !session.branchId || !session.sessionId) {
+      message = 'El kiosko necesita una sesión de caja abierta para cobrar.';
+      status = 'blocked';
+      return;
+    }
     status = 'confirming';
     const outcome = await chargeCartOffline(
-      [{ productId: 'k1', name: 'Item kiosko', unitPriceCents: 1180, quantity: 1 }],
+      [{ productId: product.id, name: product.name, unitPriceCents: product.priceCents, quantity: 1 }],
       {
         formalizationMode: 'INTERNAL_CONTROL',
         taxRegime: 'RG',
-        branchId: 'b-kiosk',
-        cashRegisterSessionId: 's-kiosk',
+        branchId: session.branchId,
+        cashRegisterSessionId: session.sessionId,
         series: 'NV01',
         clientDocumentType: '1',
         clientDocumentNumber: '00000000',
@@ -68,14 +112,25 @@
       </div>
 
       <div class="cart-summary">
-        <div class="cart-item">
-          <span class="item-name">Producto de ejemplo</span>
-          <span class="item-price tabular-nums">S/ {formatCents(1180)}</span>
-        </div>
-        <div class="total-row">
-          <span>Total a pagar</span>
-          <span class="total-amount tabular-nums">S/ {formatCents(1180)}</span>
-        </div>
+        {#if catalogState === 'loading'}
+          <p class="kiosk-loading">Cargando catálogo…</p>
+        {:else if catalogState === 'empty'}
+          <div class="kiosk-empty" data-testid="kiosk-empty">
+            <p>Sin productos disponibles para vender en el kiosko.</p>
+            <p class="kiosk-hint">Agrega productos al catálogo con precio para habilitar el autoservicio.</p>
+          </div>
+        {:else if catalogState === 'error'}
+          <p class="kiosk-error">No se pudo cargar el catálogo. Reintenta en un momento.</p>
+        {:else if product}
+          <div class="cart-item">
+            <span class="item-name">{product.name}</span>
+            <span class="item-price tabular-nums">S/ {formatCents(product.priceCents)}</span>
+          </div>
+          <div class="total-row">
+            <span>Total a pagar</span>
+            <span class="total-amount tabular-nums">S/ {formatCents(product.priceCents)}</span>
+          </div>
+        {/if}
       </div>
 
       {#if message}
@@ -94,7 +149,7 @@
         class="primary pay-btn"
         data-testid="kiosk-pay"
         onclick={pay}
-        disabled={status === 'confirming'}
+        disabled={status === 'confirming' || !product}
       >
         <Icon name="credit-card" size={18} />
         {status === 'confirming' ? 'Procesando…' : 'Confirmar pago'}

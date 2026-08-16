@@ -27,7 +27,7 @@ import { apiFetch } from '$lib/auth/api-client';
   let webhookCount = $state(0);
   let webhooksListed = $state(false);
 
-  let importRowsJson = $state('[{"sku":"SKU-1","name":"Producto de ejemplo","priceCents":100}]');
+  let importRowsJson = $state('[{"sku":"SKU-1","name":"Artículo nuevo","priceCents":100}]');
   let importMode = $state<'preview' | 'commit'>('preview');
   let importMessage = $state('');
 

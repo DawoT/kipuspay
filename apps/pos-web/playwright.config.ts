@@ -74,6 +74,7 @@ export default defineConfig({
       PUBLIC_FEATURE_STOCK_TRANSFERS: '1',
       PUBLIC_FEATURE_PAYMENTS_CARD_ACQUIRER: '1',
       PUBLIC_FEATURE_REPORTING_CATALOG: '1',
+      PUBLIC_FEATURE_CASH_EXPENSES: '1',
     },
   },
 });

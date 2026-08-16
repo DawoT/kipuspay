@@ -20,8 +20,14 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 POS_SRC = os.path.join(ROOT, "apps", "pos-web", "src")
 
-# Literal de string (comilla simple/doble/backtick) que contiene "demo".
-DEMO_LITERAL = re.compile(r"(['\"`])([^'\"`\n]*demo[^'\"`\n]*)\1", re.IGNORECASE)
+# Literales de string (comilla simple/doble/backtick) que contienen "demo"
+# o los identificadores demo de la clase F-6 detectados en el Sello QA (el
+# kiosk usaba 'k1'/'b-kiosk'/'s-kiosk'/'Item kiosko'/'Producto de ejemplo'
+# y el cobro real fallaba contra el server).
+DEMO_LITERAL = re.compile(
+    r"(['\"`])([^'\"`\n]*(?:demo|b-kiosk|s-kiosk|Item kiosko|Producto de ejemplo)[^'\"`\n]*)\1",
+    re.IGNORECASE,
+)
 # Contexto previo: comparación (referencia defensiva, permitida).
 COMPARISON = re.compile(r"(?:===|!==|==|!=)\s*$")
 
