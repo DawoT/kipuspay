@@ -11518,3 +11518,66 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0434
+timestamp_utc: 2026-08-16T16:00:00Z
+schema_version: 2
+sprint_fase: Batch J — cierre de claims: paridad de stock branch→location sellada y marketing GTM verificado real
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real del flujo de stock sin fila location + revisión de claims GTM del marketing (pricing/onboarding)
+relacion: amplia
+referencias_entradas: [0433]
+referencias_documentales: [docs/ops/pending-batches.yaml, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, docs/GTM.md (GTM-26), apps/marketing-web/src/lib/content/pricing.ts]
+prev_id: 0433
+prev_hash: 5f157881f1b33419711a0a12699279376044f9992f4472f7fee5e2d4b8244684
+entry_hash: 4041d23e791771320937c9f9c3187678f895a545f4b4ce3c30844c727ca9fe55
+ticket_or_adr: Proceso §8.1, F-5, GTM-26, invariante 8 (sin contingencia), CAL-05, CAL-06
+test_ids: [packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, V-00, V-30, SUITE]
+entregable_afectado: packages/adapters-d1 (test de defensa de paridad; sin cambio de código), marketing-web verificado sin cambios
+descripcion: >
+  Cierre de claims. (1) Residuo del Batch H: el débito de location con fila
+  ausente — se verificó REAL en el worker dev: producto nuevo sin fila
+  inventory_location_stock y stock branch 3M -> venta 1 crea la fila con la
+  paridad del branch (2M, POSITIVA) y la venta 2 pasa (NV01-8/9, totales
+  11800). El artefacto negativo del dev (location -2) provenía de fixtures
+  con stock_microunits=0 (INSERT manual incompleto), no del motor: el
+  guard (branch autoritativo) y el initialQuantityMicrounits del branch
+  protegen el contrato. Test de integración de defensa RED->GREEN que sella
+  el contrato (fila location = 9M tras la primera venta del fixture y la
+  segunda venta resuelve). (2) Marketing-web real (:4174): pricing con
+  claims honestos — "Boletas y facturas electrónicas con envío a SUNAT En
+  preparación", "Arqueo Z ciego... En preparación", "Lotes FEFO... En
+  preparación", "Alertas push operacionales y caja móvil PWA Android En
+  preparación" (coherente con GTM-26: congelado/condicionado, software
+  GREEN local, sin Web Push/FCM staging real; NO-GO claim/piloto) y
+  "1,000 comprobantes/mes incluidos; S/ 0.05 por adicional (nunca se corta
+  el cobro)". El test pricing-claims exige esos needles como 'preparing'.
+  (3) Onboarding /empezar real: validación honesta ("Cuéntanos el nombre
+  de tu negocio") y paso 3 con el copy fiscal de la invariante 8: "Solo
+  control interno — Nota de venta con leyenda legal. No es comprobante
+  SUNAT. No es 'contingencia'." y "KipusPay emite tus boletas por ti. Las
+  activas cuando estés listo." — cero jerga técnica y cero claims de
+  aceptación SUNAT sin CDR. Sin gaps nuevos: el freeze GTM-26 valida el
+  claim push como en preparación (la guía de ventas no lo listaba en su
+  resumen, pero GTM-26 es la autoridad y el pricing es coherente).
+evidencia: >
+  RED (run-red-6h-batchj): sospecha de débito de location negativo con
+  fila ausente (artefacto del dev del batch H, location -2 del Café).
+  GREEN (run-green-6h-batchj): verificación real de la paridad (producto
+  nuevo, venta 1 crea fila 2M positiva, venta 2 OK); test de integración
+  de defensa GREEN (45/45 en el archivo, 294 total); marketing real:
+  pricing 200 con claims GTM-26 coherentes y onboarding 3 pasos con copy
+  fiscal honesto; e2e pos-web 118/118; quality Gate OK; verify.sh SUITE
+  GREEN.
+red_commit_sha: 906d952
+red_run_id: run-red-6h-batchj
+expected_failure: (hipótesis) débito de location con fila ausente crea negativo y bloquea la segunda venta
+green_commit_sha: 906d952
+green_run_id: run-green-6h-batchj
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
