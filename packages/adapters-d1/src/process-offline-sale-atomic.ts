@@ -64,7 +64,7 @@ import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js'
 import {
   appendStoreCreditIssueToPlan,
   appendStoreCreditRedeemToPlan,
-  ensureStoreCreditAccount,
+  planEnsureStoreCreditAccount,
   loadStoreCreditAccount,
 } from './process-store-credit-atomic.js';
 import { appendInstallmentPlanToBatch } from './process-installment-atomic.js';
@@ -1195,23 +1195,6 @@ export async function processOfflineSaleAtomic(
     const paySum = payload.payments.reduce((s, p) => s + p.amountCents, 0);
     if (paySum !== totals.totalAmountCents) throw new Error('PAYMENT_TOTAL_MISMATCH');
   }
-  if (wantsStoreCreditIssue) {
-    if (!customerId) throw new Error('STORE_CREDIT_CUSTOMER_REQUIRED');
-    const acc = await ensureStoreCreditAccount(db, tenantId, customerId);
-    const issue = planStoreCreditIssue({
-      customerId,
-      currentBalanceCents: acc.balance_cents,
-      amountCents: totals.totalAmountCents,
-      sourceRef: giftCardSaleSourceRef(saleId),
-    });
-    storeCreditIssuePlan = {
-      amountCents: issue.amountCents,
-      accountId: acc.id,
-      prevBalanceCents: acc.balance_cents,
-      nextBalanceCents: issue.nextBalanceCents,
-    };
-  }
-
   // S17: descuentos sobre umbral requieren authorization_token (SEC-09).
   {
     const policyRow = await db
@@ -2471,6 +2454,22 @@ export async function processOfflineSaleAtomic(
           prevAuditHash: auditTail,
         });
         auditTail = storeCreditRedeemResult.rowHash;
+      }
+      if (wantsStoreCreditIssue && !storeCreditIssuePlan) {
+        if (!customerId) throw new Error('STORE_CREDIT_CUSTOMER_REQUIRED');
+        const acc = await planEnsureStoreCreditAccount(plan, db, tenantId, customerId);
+        const issue = planStoreCreditIssue({
+          customerId,
+          currentBalanceCents: acc.balance_cents,
+          amountCents: totals.totalAmountCents,
+          sourceRef: giftCardSaleSourceRef(saleId),
+        });
+        storeCreditIssuePlan = {
+          amountCents: issue.amountCents,
+          accountId: acc.id,
+          prevBalanceCents: acc.balance_cents,
+          nextBalanceCents: issue.nextBalanceCents,
+        };
       }
       if (storeCreditIssuePlan && customerId) {
         const storeCreditIssueResult = await appendStoreCreditIssueToPlan(plan, db, {

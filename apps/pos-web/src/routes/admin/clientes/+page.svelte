@@ -219,7 +219,11 @@
             {:else}
               <div class="empty-state">
                 <Icon name="user" size={22} />
-                <span>No hay clientes para esta sucursal.</span>
+                {#if customers.length === 0 && message.includes('Carga la lista')}
+                  <span>Pulsa Actualizar para cargar los clientes de esta cuenta.</span>
+                {:else}
+                  <span>No hay clientes para esta cuenta.</span>
+                {/if}
               </div>
             {/if}
           {/each}

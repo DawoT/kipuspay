@@ -2874,13 +2874,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 401 | 503);
   });
 
-  app.onError((error, c) => {
-    console.error(
-      'APP_ERROR_DIAG',
-      error instanceof Error ? (error.stack ?? String(error)) : String(error),
-    );
-    return c.json({ code: 'INTERNAL_ERROR' }, 500);
-  });
+  app.onError((_error, c) => c.json({ code: 'INTERNAL_ERROR' }, 500));
   return app;
 }
 

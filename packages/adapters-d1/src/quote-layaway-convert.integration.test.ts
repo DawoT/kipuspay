@@ -12,6 +12,7 @@ interface ConvertFixture {
   readonly cashId: string;
   readonly anticipoId: string;
   readonly creditId: string;
+  readonly customerId: string;
 }
 
 async function seedConvertFixture(tenantId: string): Promise<ConvertFixture> {
@@ -24,6 +25,7 @@ async function seedConvertFixture(tenantId: string): Promise<ConvertFixture> {
   const cashId = `pm-cash-${tenantId}`;
   const anticipoId = `pm-anticipo-${tenantId}`;
   const creditId = `pm-credit-${tenantId}`;
+  const customerId = `c-${tenantId}`;
 
   await env.DB.batch([
     env.DB.prepare(
@@ -70,7 +72,13 @@ async function seedConvertFixture(tenantId: string): Promise<ConvertFixture> {
     ).bind(creditId, tenantId),
   ]);
 
-  return { branchId, sessionId, userId, productId, cashId, anticipoId, creditId };
+  await env.DB.prepare(
+    `INSERT INTO customers (id, tenant_id, document_type_code, document_number, name, credit_limit_cents, is_active)
+     VALUES (?, ?, '1', '45123456', 'Cliente Convert', 100000, 1)`,
+  )
+    .bind(customerId, tenantId)
+    .run();
+  return { branchId, sessionId, userId, productId, cashId, anticipoId, creditId, customerId };
 }
 
 async function seedQuote(
@@ -394,6 +402,44 @@ describe('processQuoteConvertAtomic (G1/G2/G4/G5)', () => {
 });
 
 describe('processLayawayConvertAtomic (G1/G2/G5)', () => {
+  it('H: saldo a crédito con ledger crea CxC real (saleOpts.ledgerArApEnabled)', async () => {
+    const tenantId = 't-l-convert-ar';
+    const fixture = await seedConvertFixture(tenantId);
+    const depositId = 'd-convert-ar';
+    await seedDeposit(tenantId, fixture, {
+      depositId,
+      snapshotTotalCents: 2000,
+      baseQuantityMicrounits: 2000000,
+      paidCents: 1000,
+    });
+    await env.DB.prepare(`UPDATE sale_deposits SET customer_id = ? WHERE tenant_id = ? AND id = ?`)
+      .bind(fixture.customerId, tenantId, depositId)
+      .run();
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const result = await processLayawayConvertAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        depositId,
+        cashRegisterSessionId: fixture.sessionId,
+        series: 'NV01',
+        documentType: 'NV',
+        remainingAsCredit: true,
+        saleOpts: { ledgerArApEnabled: true },
+      },
+      { nowMs: now },
+    );
+    expect(result.saleId).toBeTruthy();
+    const ar = await env.DB.prepare(
+      `SELECT balance_due_cents, status FROM accounts_receivable
+       WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind(tenantId, result.saleId)
+      .first<{ balance_due_cents: number; status: string }>();
+    expect(ar).toMatchObject({ balance_due_cents: 1360, status: 'OPEN' });
+  });
+
   it('G1: convert OPEN paga remainder = total IGV − anticipo; stock NO se vuelve a descontar', async () => {
     const tenantId = 't-l-convert';
     const fixture = await seedConvertFixture(tenantId);

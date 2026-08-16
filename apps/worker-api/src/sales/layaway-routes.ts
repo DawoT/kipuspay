@@ -10,7 +10,11 @@ import {
 } from '@kipuspay/adapters-d1';
 import { markLayawayOverdue } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { isLedgerChartOfAccountsEnabled, isSalesLayawayEnabled } from '../auth/features.js';
+import {
+  isLedgerArApEnabled,
+  isLedgerChartOfAccountsEnabled,
+  isSalesLayawayEnabled,
+} from '../auth/features.js';
 
 export { isLedgerChartOfAccountsEnabled, isSalesLayawayEnabled } from '../auth/features.js';
 
@@ -196,6 +200,7 @@ export async function runConvertLayawayHttp(
         remainingAsCredit: body.remainingAsCredit === true,
         creditOverrideTokenHash:
           typeof body.creditOverrideTokenHash === 'string' ? body.creditOverrideTokenHash : null,
+        saleOpts: { ledgerArApEnabled: isLedgerArApEnabled(env) },
       },
       chartOpts(env),
     );
