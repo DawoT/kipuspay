@@ -11701,3 +11701,69 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0437
+timestamp_utc: 2026-08-16T20:10:00Z
+schema_version: 2
+sprint_fase: Sprint C3 — LPDP ARCO self-serve del titular (GTM-09, regla 32a)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: el titular ejercita sus derechos (copia, consentimientos, anonimización) verificando identidad por datos
+relacion: amplia
+referencias_entradas: [0436, 0432]
+referencias_documentales: [docs/ops/claims-go-live.md, docs/architecture/05-3-commercial-ops.md (regla 32a), apps/worker-api/src/customers/titular-lpdp-routes.ts, apps/pos-web/src/routes/lpdp/+page.svelte]
+prev_id: 0436
+prev_hash: 2cc6815ba10cf728cf4b55172791d1950097ac48b6253550066f9dfe3e0a614a
+entry_hash: 8028a9fbc291ce7145631dd0271c41d93cb5bf985ca82cdd8904ac5659e00a24
+ticket_or_adr: GTM-09, LPDP-01..04, F-5, CAL-05, CAL-06
+test_ids: [apps/pos-web/tests/e2e/lpdp-titular.spec.ts, apps/worker-api/src/customers/titular-lpdp-routes.test.ts, V-00, V-30, SUITE]
+entregable_afectado: apps/worker-api (titular-lpdp-routes: verify/export/consents/consent/erase), apps/pos-web (ruta pública /lpdp)
+descripcion: >
+  El claim GTM-09 pedía los derechos LPDP ARCO self-serve del titular; el
+  panel admin existía (batch H) pero el titular no tenía vía propia. Sprint
+  C3: flujo público /lpdp + endpoints de titular: POST
+  /api/lpdp/titular/verify (público, ANTES del middleware JWT) verifica
+  identidad por datos (tienda + DNI + nombre + teléfono, coincidencia
+  case-insensitive con trim) y emite un token de titular de 15 min
+  (HS256, claims tenantId/sub/customerId/scope 'lpdp_titular'); el
+  resolveTitular valida la firma/exp con verifyJwt y el scope/customerId
+  del payload YA verificado — un JWT admin (sin scope) jamás pasa como
+  titular (401) y la PII de otro titular queda inaccesible (LPDP-04:
+  tenant/customer solo del claim). GET /api/lpdp/titular/export
+  (LPDP-02), GET consents + POST consent (LPDP-01), POST erase con doble
+  confirmación (LPDP-03: EraseInput completo, actor = el propio titular).
+  UI /lpdp: paso verify -> panel del titular (descargar copia con
+  download, consentimientos por propósito, anonimización con checkbox de
+  entendimiento y botón deshabilitado hasta confirmar). Verificación REAL
+  (worker dev + D1): cliente real "Cliente Sello H" (45123456): verify
+  OK -> export con el perfil real -> consents; cliente de prueba creado
+  por venta real (45123999): verify UI -> panel -> anonimización real
+  (pii_erased=1, name/phone NULL en D1, mensaje honesto con la retención
+  SUNAT ~5 años). Fail-closed verificado: nombre incorrecto -> 403
+  TITULAR_IDENTITY_MISMATCH; el teléfono del customer real estaba NULL en
+  el D1 (dato de dev) y el verify lo rechazó (correcto) hasta actualizarlo.
+  Hallazgo de robustez documentado: el wrangler dev se cuelga en el bundle
+  cuando el TS del worker tiene errores (los errores de tsc del
+  titular-lpdp-routes — firmas writeConsent/eraseCustomer y el import
+  duplicado de index.ts — colgaban el arranque sin reportar); se resolvió
+  con tsc limpio. El spec a11y detectó section-pad anidado en /lpdp
+  (corregido).
+evidencia: >
+  RED (run-red-6h-c3): sin vía del titular (solo panel admin); verify con
+  nombre incorrecto pasaba? no — fail-closed ya exigido por la regla 32a;
+  errores TS que colgaban el wrangler dev; NESTED_SECTION_PAD en la UI.
+  GREEN (run-green-6h-c3): verify/export/consents reales (token, copia con
+  perfil real), erase real con pii_erased=1 y PII NULL; unit worker 7/7
+  nuevos (1175 total), pos 395; e2e pos 121/121 (lpdp-titular 3/3 +
+  lpdp-load); svelte-check 0; quality Gate OK; verify SUITE GREEN.
+red_commit_sha: N/A
+red_run_id: run-red-6h-c3
+expected_failure: (hipótesis) token admin pasando como titular / verify por datos débil / erase sin confirmación
+green_commit_sha: N/A
+green_run_id: run-green-6h-c3
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
