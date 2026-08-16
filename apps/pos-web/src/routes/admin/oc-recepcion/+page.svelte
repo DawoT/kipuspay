@@ -3,6 +3,7 @@
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
   import { isInventorySerialsEnabled, isPartialReceiveEnabled, isPurchasingOrdersEnabled } from '$lib/features';
+  import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -15,6 +16,10 @@
   let purchaseOrderId = $state('');
   let supplierId = $state('');
   let poTotalCents = $state(0);
+  let poLineProduct = $state('');
+  let poLineQty = $state(1);
+  let poLineCost = $state(0);
+  let poLines = $state<{ productId: string; quantity: number; unitCostCents: number }[]>([]);
   let branchId = $state(initTenantBranchId());
   let productId = $state('p1');
   let quantity = $state(4);
@@ -38,12 +43,39 @@
         branchId: branchId.trim() || initTenantBranchId(),
         supplierId,
         totalAmountCents: poTotalCents,
+        lines: poLines,
       }),
     });
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
     if (res.ok && json.id) purchaseOrderId = json.id;
-    message = res.ok ? `OC ${json.id} creada` : (json.error ?? 'error');
+    message = res.ok ? `OC ${json.id} creada` : purchasingErrorCopy(json.error);
+  }
+
+  function addPoLine() {
+    if (!poLineProduct.trim() || !(poLineQty > 0)) {
+      message = 'Indica el producto y la cantidad de la línea.';
+      messageOk = false;
+      return;
+    }
+    poLines = [...poLines, { productId: poLineProduct.trim(), quantity: poLineQty, unitCostCents: poLineCost }];
+    poLineProduct = '';
+    poLineQty = 1;
+    poLineCost = 0;
+  }
+
+  async function sendOrder() {
+    if (!purchaseOrderId) return;
+    message = '';
+    const res = await apiFetch('/api/purchasing/orders/transition', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ purchaseOrderId, toStatus: 'SENT' }),
+    });
+    const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
+    message = res.ok ? `OC enviada (${json.status ?? 'SENT'})` : purchasingErrorCopy(json.error);
   }
 
   async function partialReceive() {
@@ -75,7 +107,7 @@
     messageOk = res.ok;
     message = res.ok
       ? `Recepción ${json.receiptId} · ${workflowStatusLabel(json.nextStatus ?? 'OPEN')} · por pagar ${formatCents(json.apAmountCents ?? 0)}`
-      : (json.error ?? 'error');
+      : purchasingErrorCopy(json.error);
   }
 
   function collectSerial(event: KeyboardEvent) {
@@ -107,7 +139,7 @@
     messageOk = res.ok;
     message = res.ok
       ? `Manifiesto de series · ${json.serialCount} serie(s)`
-      : [json.error, json.action].filter(Boolean).join(' ');
+      : [purchasingErrorCopy(json.error), json.action].filter(Boolean).join(' ');
   }
 </script>
 
@@ -146,9 +178,53 @@
         <label for="po-total">Total</label>
         <input id="po-total" type="number" bind:value={poTotalCents} data-testid="admin-po-total" />
       </div>
+      <div class="field-group">
+        <label for="po-line-product">Producto de la línea</label>
+        <input
+          id="po-line-product"
+          bind:value={poLineProduct}
+          data-testid="admin-po-line-product"
+          placeholder="ID del producto"
+        />
+      </div>
+      <div class="two-col">
+        <div class="field-group">
+          <label for="po-line-qty">Cantidad</label>
+          <input id="po-line-qty" type="number" min="0.001" step="any" bind:value={poLineQty} data-testid="admin-po-line-qty" />
+        </div>
+        <div class="field-group">
+          <label for="po-line-cost">Costo unitario</label>
+          <input id="po-line-cost" type="number" bind:value={poLineCost} data-testid="admin-po-line-cost" />
+        </div>
+      </div>
+      <Button variant="ghost" icon="plus" data-testid="admin-po-line-add" onclick={addPoLine}>
+        Agregar línea
+      </Button>
+      {#if poLines.length > 0}
+        <ul class="po-lines-list" data-testid="admin-po-lines">
+          {#each poLines as line, i (i)}
+            <li>
+              {line.productId} · {line.quantity} × {line.unitCostCents} cént.
+              <button
+                type="button"
+                class="linkish"
+                data-testid={`admin-po-line-remove-${i}`}
+                onclick={() => (poLines = poLines.filter((_, idx) => idx !== i))}
+              >
+                quitar
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
       <Button variant="secondary" icon="plus" data-testid="admin-po-create-btn" onclick={() => void createOrder()}>
         Crear OC
       </Button>
+      {#if purchaseOrderId}
+        <Button variant="ghost" icon="arrow-right" data-testid="admin-po-send" onclick={() => void sendOrder()}>
+          Enviar OC
+        </Button>
+      {/if}
     </section>
   {/if}
 

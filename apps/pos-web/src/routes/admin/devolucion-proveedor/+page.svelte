@@ -1,6 +1,7 @@
 <script lang="ts">
   import { formatCents } from '$lib/cents';
   import { isPurchasingReturnsEnabled } from '$lib/features';
+  import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -39,7 +40,7 @@ import { apiFetch } from '$lib/auth/api-client';
     };
     messageOk = res.ok;
     if (!res.ok) {
-      message = json.error ?? `Error ${res.status}`;
+      message = purchasingErrorCopy(json.error);
       return;
     }
     returnId = json.returnId ?? '';
@@ -60,7 +61,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { status?: string; code?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? 'Devolución cerrada' : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? 'Devolución cerrada' : purchasingErrorCopy(json.error);
   }
 
   async function cancelReturn() {
@@ -73,7 +74,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? 'Devolución cancelada' : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? 'Devolución cancelada' : purchasingErrorCopy(json.error);
   }
 </script>
 

@@ -3,6 +3,7 @@
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { isGreEnabled, isInventoryOpsEnabled } from '$lib/features';
   import { issueRemissionGuide } from '$lib/inventory/remission-guide';
+  import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -76,7 +77,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Conteo ${json.id} abierto · estado COUNTING` : (json.error ?? 'error');
+    message = res.ok ? `Conteo ${json.id} abierto · estado COUNTING` : purchasingErrorCopy(json.error);
   }
 
   async function createLoss() {
@@ -96,7 +97,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Merma ${json.id} registrada · estado PENDING` : (json.error ?? 'error');
+    message = res.ok ? `Merma ${json.id} registrada · estado PENDING` : purchasingErrorCopy(json.error);
   }
 
   async function approveLoss() {
@@ -109,7 +110,7 @@ import { apiFetch } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Merma ${lossId} · ${json.status ?? 'APPROVED'}` : (json.error ?? 'error');
+    message = res.ok ? `Merma ${lossId} · ${json.status ?? 'APPROVED'}` : purchasingErrorCopy(json.error);
   }
 </script>
 

@@ -1,0 +1,108 @@
+# KipusPay — Tracker temporal de batches pendientes (Sello en navegador)
+# Archivo OPERATIVO TEMPORAL: se elimina al cerrar el último batch.
+# Patrón: flags del env e2e -> verificación REAL (worker + D1) -> gaps -> fixes
+# staff -> specs e2e -> regresión -> gates -> ledger -> push.
+#
+# Estado de referencia: 95 e2e pos-web + 10 marketing, unit 394, quality OK,
+# verify SUITE GREEN (ledger hasta 0425).
+
+pending:
+  - id: batch-a
+    nombre: "Caja/Ventas (apartados, cotizaciones, cuotas, crédito tienda)"
+    estado: CERRADO
+    ledger: 0423
+    specs: [layaway, quotes, installments, store-credit-admin]
+
+  - id: batch-b
+    nombre: "Catálogo (variantes/UOM), promociones, comisiones"
+    estado: CERRADO
+    ledger: 0425
+    specs: [catalog-crud, promotions, commissions]
+
+  - id: batch-c
+    nombre: "Compras/Inventario — OC parcial, devolución proveedor, inventario"
+    estado: EN_PROGRESO
+    modulos:
+      - ruta: /admin/oc-recepcion
+        contrato: "Recepción parcial -> CxP solo por qty recibida, PARTIALLY_RECEIVED, series por línea (s20, GTM-20/Cadena)"
+        flags_env_faltantes: [PUBLIC_FEATURE_PURCHASING_ORDERS, PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE, PUBLIC_FEATURE_INVENTORY_SERIALS]
+        endpoints: [/api/purchasing/orders, /api/purchasing/orders/partial-receive, /api/inventory/serials/manifests]
+        testids: [admin-po-create-btn, admin-po-id, admin-po-branch, admin-po-product, admin-po-qty, admin-po-cost, admin-po-batch, admin-po-expiry]
+      - ruta: /admin/devolucion-proveedor
+        contrato: "Crear/cerrar/cancelar; stock solo CLOSED; 0 CPE; PMP outbound; CxP explícito; override con autorización (s34, GTM-20)"
+        flags_env_faltantes: [PUBLIC_FEATURE_PURCHASING_RETURNS]
+        endpoints: [/api/purchasing/returns, /api/purchasing/returns/cancel, /api/purchasing/returns/close]
+        testids: [sr-receipt, sr-invoice, sr-product, sr-qty, sr-reason, sr-create, sr-id, sr-override, sr-authz, sr-close, sr-cancel]
+      - ruta: /admin/inventario
+        contrato: "Conteo ciego (esperado vs contado), merma con evidencia + aprobación (s38-41)"
+        flags_env_faltantes: [PUBLIC_FEATURE_INVENTORY_OPS, PUBLIC_FEATURE_INVENTORY_LOCATIONS, PUBLIC_FEATURE_INVENTORY_SERIALS]
+        endpoints: [/api/inventory/counts, /api/inventory/losses, /api/inventory/losses/approve]
+        testids: [admin-inv-branch, admin-inv-product, admin-inv-counted, admin-inv-count-start, admin-inv-loss-qty, admin-inv-evidence, admin-inv-reason, admin-inv-loss-create, admin-inv-loss-approve, gre-panel]
+    specs_previstos: [oc-recepcion, supplier-returns, inventory-ops]
+
+  - id: batch-d
+    nombre: "Integraciones/Dueño — integraciones, diario, transferencias, finanzas AR/AP"
+    estado: PENDIENTE
+    modulos:
+      - ruta: /admin/integraciones
+        contrato: "API keys (revocación), webhooks HTTPS (sale.created/cpe.accepted/cpe.rejected), import CSV, export contable (s23, Cadena+)"
+        flags_env_faltantes: [PUBLIC_FEATURE_INTEGRATIONS_API, PUBLIC_FEATURE_CATALOG_IMPORT, PUBLIC_FEATURE_ACCOUNTING_EXPORT]
+        endpoints: [por confirmar en la ruta]
+        testids: [export-block, export-preview, keys-block, created-api-key, webhooks-block, created-webhook-secret, catalog-import-block]
+      - ruta: /admin/diario
+        contrato: "Diario contable SOLO LECTURA (asientos nacen con venta/cobro/apartado/arqueo) (s32)"
+        flags_env_faltantes: [PUBLIC_FEATURE_LEDGER_CHART_OF_ACCOUNTS]
+        endpoints: [por confirmar]
+        testids: [10 testids]
+      - ruta: /admin/transferencias + /owner/transferencias
+        contrato: "Transferencias entre sucursales: ship/receive/cancel, conservación received+shrink=sent (s20)"
+        flags_env_faltantes: [PUBLIC_FEATURE_STOCK_TRANSFERS]
+        endpoints: [/api/inventory/transfers, /transfers/ship, /transfers/receive, /transfers/cancel]
+        testids: [admin 11, owner 7]
+      - ruta: /owner/finanzas
+        contrato: "AR/AP consolidado; diario solo lectura (s8)"
+        flags_env_faltantes: [] (LEDGER_AR_AP ya activo)
+        endpoints: [por confirmar]
+        testids: [10 testids]
+    specs_previstos: [integraciones, diario, transfers, owner-finanzas]
+
+  - id: batch-e
+    nombre: "Marketing — empezar, verticales, comparar, casos, blog"
+    estado: PENDIENTE
+    modulos:
+      - ruta: /empezar
+        contrato: "Onboarding 4 pasos -> credenciales (EMP/PIN) -> redirect con token (dual-app)"
+        flags: [PUBLIC_FEATURE_MARKETING_SITE, PUBLIC_POS_ORIGIN]
+        testids: [onboarding-page, onboarding-credentials, onboarding-go-pos]
+      - ruta: /para/* (5 verticales: restaurantes, farmacias, retail, servicios, cadenas)
+        contrato: "Landings por rubro con claims coherentes"
+      - ruta: /comparar
+        contrato: "Comparativa por rubro (rubro-switch), sin jerga"
+      - ruta: /casos-de-exito + /blog
+        contrato: "Casos y blog con claims = implementación exacta"
+    specs_previstos: [empezar-flujo, verticales, comparar-casos-blog]
+
+  - id: batch-f
+    nombre: "Owner restante — pagos, compras, stock, locales, yo"
+    estado: PENDIENTE
+    modulos:
+      - ruta: /owner/pagos (pagos locales Yape/Plin, uncaptured)
+      - ruta: /owner/compras (3-way + devoluciones)
+      - ruta: /owner/stock (inventario)
+      - ruta: /owner/locales (sucursales)
+      - ruta: /owner/yo (plan, referidos, export)
+    specs_previstos: [owner-pagos, owner-compras, owner-stock, owner-locales]
+
+  - id: batch-extras
+    nombre: "Vitrina/kiosk, caja/gastos, ubicaciones"
+    estado: PENDIENTE
+    modulos:
+      - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
+      - ruta: /caja/gastos (egresos de caja)
+      - ruta: /admin/ubicaciones (racks/locations, s38)
+    specs_previstos: [vitrina-kiosk, caja-gastos, ubicaciones]
+
+meta:
+  archivo_temporal: true
+  eliminar_al_cerrar: todos los batches
+  referencia_patron: "Sello en navegador (sprint 59-62, ledgers 0419-0426)"

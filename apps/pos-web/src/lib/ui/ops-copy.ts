@@ -268,3 +268,49 @@ export function salesErrorCopy(code: string | undefined): string {
   if (/^[A-Z0-9_]{6,}$/.test(code)) return GENERIC_SALES_ERROR;
   return code;
 }
+
+/** Códigos de compras/inventario (OC parcial, devolución proveedor, conteo y merma). */
+const PURCHASING_ERROR_COPY: Record<string, string> = {
+  RECEIVE_EXCEEDS_ORDERED: 'Recibes más de lo ordenado. Verifica la cantidad contra la orden.',
+  PO_INVALID_TRANSITION: 'La orden de compra no permite esa acción en su estado actual.',
+  RECEIPT_NOT_FOUND: 'No encontramos la recepción. Verifica el ID.',
+  INVOICE_NOT_FOUND: 'No encontramos la factura del proveedor.',
+  PRODUCT_NOT_ON_RECEIPT: 'El producto no está en la recepción de esta orden.',
+  PRODUCT_NOT_ON_INVOICE: 'El producto no está en la factura del proveedor.',
+  INVOICE_RECEIPT_MISMATCH: 'La factura no coincide con la recepción. Revisa cantidades y montos.',
+  SERIAL_COUNT_DIFF_MISMATCH: 'La cantidad de series no coincide con la cantidad recibida.',
+  SERIAL_COUNT_UNEXPECTED_IDENTITY: 'Una serie registrada no corresponde a este lote.',
+  SERIAL_IDENTITY_INVALID: 'El identificador de serie no es válido.',
+  SUPPLIER_RETURN_NOT_FOUND: 'No encontramos la devolución a proveedor.',
+  SUPPLIER_RETURN_ITEMS_REQUIRED: 'Agrega al menos un producto a la devolución.',
+  SUPPLIER_RETURN_QTY_EXCEEDED: 'La cantidad a devolver supera lo recibido.',
+  SUPPLIER_RETURN_INVALID_AMOUNT: 'El monto de la devolución no es válido.',
+  SUPPLIER_RETURN_COST_MISMATCH: 'El costo no coincide con el registrado en la recepción.',
+  SUPPLIER_RETURN_INVALID_STATUS: 'La devolución no permite esa acción en su estado actual.',
+  SUPPLIER_RETURN_ALREADY_CLOSED: 'La devolución ya fue cerrada.',
+  SUPPLIER_RETURN_ALREADY_TERMINAL: 'La devolución ya está en su estado final.',
+  SUPPLIER_RETURN_FAILED:
+    'No se pudo procesar la devolución. Reintenta o escribe a soporte@kipuspay.com.',
+  COUNT_INVALID: 'El conteo no es válido. Verifica las cantidades.',
+  COUNT_INVALID_QUANTITY: 'La cantidad contada no es válida.',
+  COUNT_PRODUCT_REQUIRED: 'Indica el producto del conteo.',
+  COUNT_STOCK_NOT_FOUND: 'El producto no tiene stock registrado en esta sucursal.',
+  INVALID_LOSS_QTY: 'La cantidad de merma no es válida.',
+  LOSS_CONTEXT_REQUIRED: 'Indica la sucursal y el producto de la merma.',
+  LOSS_REASON_REQUIRED: 'El motivo de la merma es obligatorio.',
+  LOSS_REJECTED: 'La merma fue rechazada. Revisa el motivo y la evidencia.',
+  INSUFFICIENT_STOCK: 'No hay stock suficiente para la operación.',
+  BRANCH_MISMATCH: 'La sucursal no coincide con la operación.',
+  AP_ALREADY_PAID: 'La cuenta por pagar ya fue pagada.',
+  AP_INSUFFICIENT: 'El pago supera la cuenta por pagar pendiente.',
+  AP_PAY_REJECTED: 'No se pudo registrar el pago a proveedor.',
+  AP_CREATE_REJECTED: 'No se pudo crear la cuenta por pagar.',
+  AR_PAY_REJECTED: 'No se pudo registrar el pago de la cuenta por cobrar.',
+};
+
+export function purchasingErrorCopy(code: string | undefined): string {
+  if (!code) return GENERIC_SALES_ERROR;
+  const known = PURCHASING_ERROR_COPY[code];
+  if (known) return known;
+  return salesErrorCopy(code);
+}

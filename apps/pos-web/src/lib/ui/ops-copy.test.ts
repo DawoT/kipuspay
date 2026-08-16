@@ -11,6 +11,7 @@ import {
   saleStatusLabel,
   salesErrorCopy,
   stockKindLabel,
+  purchasingErrorCopy,
   uomLabel,
   workflowStatusLabel,
 } from './ops-copy';
@@ -115,5 +116,15 @@ describe('salesErrorCopy', () => {
     expect(salesErrorCopy('SOME_UNKNOWN_CODE')).toMatch(/soporte@kipuspay\.com/);
     expect(salesErrorCopy(undefined)).toMatch(/soporte@kipuspay\.com/);
     expect(salesErrorCopy('No se pudo conectar')).toBe('No se pudo conectar');
+  });
+});
+
+describe('purchasingErrorCopy', () => {
+  it('mapea códigos de compras/inventario a copy legible', () => {
+    expect(purchasingErrorCopy('RECEIVE_EXCEEDS_ORDERED')).toMatch(/más de lo ordenado/);
+    expect(purchasingErrorCopy('SUPPLIER_RETURN_QTY_EXCEEDED')).toMatch(/supera lo recibido/);
+    expect(purchasingErrorCopy('COUNT_PRODUCT_REQUIRED')).toMatch(/producto del conteo/);
+    expect(purchasingErrorCopy('LOSS_REASON_REQUIRED')).toMatch(/motivo de la merma/);
+    expect(purchasingErrorCopy('SOME_PURCHASE_CODE')).toMatch(/soporte@kipuspay\.com/);
   });
 });

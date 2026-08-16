@@ -272,6 +272,51 @@ export async function runCreateApHttp(
   }
 }
 
+interface PoLineInput {
+  readonly productId?: string;
+  readonly quantity?: number;
+  readonly unitCostCents?: number;
+}
+
+function validatePoLines(lines: readonly PoLineInput[]): string | null {
+  for (const line of lines) {
+    const productId = typeof line.productId === 'string' ? line.productId.trim() : '';
+    if (
+      !productId ||
+      !(typeof line.quantity === 'number' && line.quantity > 0 && Number.isFinite(line.quantity)) ||
+      !(Number.isSafeInteger(line.unitCostCents) && (line.unitCostCents ?? 0) >= 0)
+    ) {
+      return 'Línea de OC inválida';
+    }
+  }
+  return null;
+}
+
+function buildPoLineStatements(
+  db: NonNullable<WorkerEnv['DB']>,
+  purchaseOrderId: string,
+  lines: readonly PoLineInput[],
+): never[] {
+  return lines.map(
+    (line) =>
+      db
+        .prepare(
+          `INSERT INTO purchase_order_items (
+           id, purchase_order_id, product_id, quantity_ordered, quantity_received,
+           unit_cost_cents, quantity_ordered_microunits, quantity_received_microunits
+         ) VALUES (?, ?, ?, ?, 0, ?, ?, 0)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          purchaseOrderId,
+          (line.productId as string).trim(),
+          line.quantity as number,
+          line.unitCostCents as number,
+          Math.round((line.quantity as number) * 1_000_000),
+        ) as never,
+  );
+}
+
 export async function runCreatePoHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -280,6 +325,11 @@ export async function runCreatePoHttp(
     branchId?: string;
     supplierId?: string;
     totalAmountCents?: number;
+    lines?: readonly {
+      productId?: string;
+      quantity?: number;
+      unitCostCents?: number;
+    }[];
   },
 ): Promise<HttpResult> {
   if (!isPurchasingOrdersEnabled(env)) return featureOff('FEATURE_PURCHASING_ORDERS');
@@ -290,15 +340,25 @@ export async function runCreatePoHttp(
   if (!branchId || !supplierId || !Number.isInteger(total) || total < 0) {
     return { status: 400, body: { error: 'Invalid PO', code: 'BAD_REQUEST' } };
   }
+  // Líneas de la OC: la recepción parcial valida contra quantity_ordered
+  // (s20) y el 3-way contra las líneas; sin líneas el flujo standalone es
+  // inalcanzable (RECEIVE_EXCEEDS_ORDERED para cualquier cantidad).
+  const lines: readonly PoLineInput[] = Array.isArray(body.lines) ? body.lines : [];
+  const invalid = validatePoLines(lines);
+  if (invalid) {
+    return { status: 422, body: { error: invalid, code: 'PO_LINE_INVALID' } };
+  }
   const id = crypto.randomUUID();
-  await env.DB.prepare(
-    `INSERT INTO purchase_orders (
+  const statements = [
+    env.DB.prepare(
+      `INSERT INTO purchase_orders (
          id, tenant_id, branch_id, supplier_id, status, total_amount_cents, created_by_user_id
        ) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?)`,
-  )
-    .bind(id, tenantId, branchId, supplierId, total, userId)
-    .run();
-  return { status: 200, body: { id, status: 'DRAFT' } };
+    ).bind(id, tenantId, branchId, supplierId, total, userId),
+    ...buildPoLineStatements(env.DB, id, lines),
+  ];
+  await env.DB.batch(statements);
+  return { status: 200, body: { id, status: 'DRAFT', lines: lines.length } };
 }
 
 export async function runTransitionPoHttp(
