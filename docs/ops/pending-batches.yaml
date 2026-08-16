@@ -10,18 +10,20 @@ pending:
   - id: batch-a
     nombre: "Caja/Ventas (apartados, cotizaciones, cuotas, crédito tienda)"
     estado: CERRADO
-    ledger: 0423
+    ledger: "0423"
     specs: [layaway, quotes, installments, store-credit-admin]
 
   - id: batch-b
     nombre: "Catálogo (variantes/UOM), promociones, comisiones"
     estado: CERRADO
-    ledger: 0425
+    ledger: "0425"
     specs: [catalog-crud, promotions, commissions]
 
   - id: batch-c
     nombre: "Compras/Inventario — OC parcial, devolución proveedor, inventario"
-    estado: EN_PROGRESO
+    estado: CERRADO
+    ledger: "0426"
+    specs: [oc-recepcion, supplier-returns, inventory-ops]
     modulos:
       - ruta: /admin/oc-recepcion
         contrato: "Recepción parcial -> CxP solo por qty recibida, PARTIALLY_RECEIVED, series por línea (s20, GTM-20/Cadena)"
@@ -43,7 +45,7 @@ pending:
   - id: batch-d
     nombre: "Integraciones/Dueño — integraciones, diario, transferencias, finanzas AR/AP"
     estado: CERRADO
-    ledger: 0427
+    ledger: "0427"
     specs: [integraciones, diario, transfers, owner-finanzas]
     modulos:
       - ruta: /admin/integraciones
@@ -63,7 +65,7 @@ pending:
         testids: [admin 11, owner 7]
       - ruta: /owner/finanzas
         contrato: "AR/AP consolidado; diario solo lectura (s8)"
-        flags_env_faltantes: [] (LEDGER_AR_AP ya activo)
+        flags_env_faltantes: [] # (LEDGER_AR_AP ya activo)
         endpoints: [por confirmar]
         testids: [10 testids]
     specs_previstos: [integraciones, diario, transfers, owner-finanzas]
@@ -71,14 +73,14 @@ pending:
   - id: batch-e
     nombre: "Marketing — empezar, verticales, comparar, casos, blog"
     estado: CERRADO
-    ledger: 0428
+    ledger: "0428"
     specs: [empezar-flujo, verticales, comparar-casos-blog]
     modulos:
       - ruta: /empezar
         contrato: "Onboarding 4 pasos -> credenciales (EMP/PIN) -> redirect con token (dual-app)"
         flags: [PUBLIC_FEATURE_MARKETING_SITE, PUBLIC_POS_ORIGIN]
         testids: [onboarding-page, onboarding-credentials, onboarding-go-pos]
-      - ruta: /para/* (5 verticales: restaurantes, farmacias, retail, servicios, cadenas)
+      - ruta: "/para/* (5 verticales: restaurantes, farmacias, retail, servicios, cadenas)"
         contrato: "Landings por rubro con claims coherentes"
       - ruta: /comparar
         contrato: "Comparativa por rubro (rubro-switch), sin jerga"
@@ -89,7 +91,7 @@ pending:
   - id: batch-f
     nombre: "Owner restante — pagos, compras, stock, locales, yo"
     estado: CERRADO
-    ledger: 0429
+    ledger: "0429"
     specs: [owner-pagos, owner-compras, owner-stock, owner-locales, owner-yo]
     modulos:
       - ruta: /owner/pagos (pagos locales Yape/Plin, uncaptured)
@@ -102,27 +104,27 @@ pending:
   - id: batch-extras
     nombre: "Vitrina/kiosk, caja/gastos, ubicaciones"
     estado: CERRADO
-    ledger: 0430
+    ledger: "0430"
     specs: [vitrina-kiosk, caja-gastos, ubicaciones]
   - id: batch-g
     nombre: "Series, transferencias owner, ayuda, split (cierre 100% rutas activas)"
     estado: CERRADO
-    ledger: 0431
+    ledger: "0431"
     specs: [serials, owner-transferencias, ayuda, split-claim]
   - id: batch-h
     nombre: "Núcleo transaccional real: venta offline, crédito tienda, CxC, gastos, LPDP"
     estado: CERRADO
-    ledger: 0432
+    ledger: "0432"
     specs: [lpdp-load, process-offline-sale-atomic (FK store-credit), quote-layaway-convert (CxC)]
   - id: batch-i
     nombre: "Workers fiscal/KMS: pipeline SUNAT real (breaker frío, drain outbox→R2→PSE), KMS AES-GCM"
     estado: CERRADO
-    ledger: 0433
+    ledger: "0433"
     specs: [worker-fiscal bootstrap breaker, worker-fiscal drain JOIN sales, worker-fiscal DRAIN_FAILED, worker-kms 28]
   - id: batch-j
     nombre: "Cierre de claims: paridad branch→location sellada, marketing GTM real (pricing/onboarding)"
     estado: CERRADO
-    ledger: 0434
+    ledger: "0434"
     specs: [process-offline-sale-atomic paridad location, marketing GTM-26 coherente, onboarding sin contingencia]
     modulos:
       - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
@@ -137,23 +139,23 @@ sprints_cierre:
   - id: sprint-c1
     nombre: "Doctrina de claims alineada al producto final (FEFO/merma live, matriz go-live, roadmap)"
     estado: CERRADO
-    ledger: 0435
+    ledger: "0435"
   - id: sprint-c2
     nombre: "KDS/comandas/salón/split — UI completa sobre el motor existente"
     estado: CERRADO
-    ledger: 0436
+    ledger: "0436"
   - id: sprint-c3
     nombre: "LPDP ARCO self-serve del titular"
     estado: CERRADO
-    ledger: 0437
+    ledger: "0437"
   - id: sprint-c4
     nombre: "DR/BCP interno — restauración probada + simulacro"
     estado: CERRADO
-    ledger: 0438
+    ledger: "0438"
   - id: sprint-c5
     nombre: "Sello final del producto completo"
     estado: CERRADO
-    ledger: 0439
+    ledger: "0439"
     qg: docs/ops/c5-final-product-qg.md
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
@@ -167,4 +169,5 @@ sprints_cierre:
   - id: go-live-fcm
     nombre: "Web Push VAPID + FCM HTTP v1 staging real (GTM-26)"
     estado: AGENDADO_AL_FINAL
-  referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
+
+referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
