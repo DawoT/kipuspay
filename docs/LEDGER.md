@@ -11049,3 +11049,61 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0426
+timestamp_utc: 2026-08-16T02:10:00Z
+schema_version: 2
+sprint_fase: Batch C — OC parcial, devolución proveedor e inventario (sello en navegador)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e de s20/s34/s38-41 y fix del flujo OC con líneas
+relacion: amplia
+referencias_entradas: [0425]
+referencias_documentales: [docs/ops/s20-cadena-transfers-qg.md, docs/ops/s34-supplier-returns-qg.md, apps/worker-api/src/ledger/ledger-routes.ts, apps/pos-web/tests/e2e/oc-recepcion.spec.ts, docs/ops/pending-batches.yaml]
+prev_id: 0425
+prev_hash: 0669a2c7d55d5d87185881afc76f9d31c55195f6dce70388af682e163f3202b2
+entry_hash: 00e88f10cd59e66d07f8a34584610cc69f3467b689421a83b1bc9fa5f4246767
+ticket_or_adr: Proceso §8.1, V-27, CAL-05, CAL-06
+test_ids: [oc-recepcion, supplier-returns, inventory-ops, ops-copy, ledger-routes, V-00, V-26, V-27, SUITE]
+entregable_afectado: apps/worker-api (runCreatePoHttp con líneas en db.batch), apps/pos-web (editor de líneas + Enviar OC + purchasingErrorCopy en 3 páginas), playwright.config (5 flags)
+descripcion: >
+  Sello del Batch C. GAP CRITICO encontrado en verificación real: el flujo
+  standalone de OC era inalcanzable — runCreatePoHttp creaba la OC SIN lineas
+  (nada insertaba en purchase_order_items) y el partial-receive valida contra
+  quantity_ordered -> RECEIVE_EXCEEDS_ORDERED para cualquier cantidad; ademas
+  el dominio exige DRAFT->SENT antes de recibir y la UI no ofrecia el envio.
+  Fix implementado (server + UI): runCreatePoHttp acepta lines[] validada
+  (PO_LINE_INVALID 422) e inserta la OC + sus items en un solo db.batch
+  (invariante D1); la UI gana editor de lineas (producto/cantidad/costo +
+  lista removible) y el boton "Enviar OC" (transition DRAFT->SENT); flujo
+  real verificado en D1: OC con linea (qty 10, cost 3000) -> SENT -> recepción
+  parcial 5/10 -> PARTIALLY_RECEIVED con quantity_received=5 + receipt.
+  Las 3 paginas mostraban codigos tecnicos crudos (RECEIVE_EXCEEDS_ORDERED,
+  SUPPLIER_RETURN_*, COUNT_*, LOSS_*) -> nuevo purchasingErrorCopy en
+  ops-copy.ts (46 codigos de compras/inventario) aplicado en oc-recepcion,
+  devolucion-proveedor e inventario. Dev proveedor real: crear -> CLOSED con
+  item (s34); inventario real: conteo ciego (blind=1, COUNTING) + merma con
+  evidencia -> APPROVED. Env e2e +5 flags (PURCHASING_ORDERS, PARTIAL_RECEIVE,
+  PURCHASING_RETURNS, INVENTORY_BATCHES, INVENTORY_BOM; INVENTORY_OPS no
+  existe como flag: isInventoryOpsEnabled lee BATCHES||BOM). Tracker temporal
+  docs/ops/pending-batches.yaml con todos los batches (C en progreso, D/E/F
+  pendientes).
+evidencia: >
+  RED (run-red-6h-batchc): RECEIVE_EXCEEDS_ORDERED crudo e inalcanzable (OC
+  sin lineas), PO_INVALID_TRANSITION:DRAFT->PARTIALLY_RECEIVED sin boton de
+  envio; sin e2e en los 3 modulos.
+  GREEN (run-green-6h-batchc): e2e pos-web 99/99 (4 specs nuevos Batch C);
+  unit 395/395; worker-api ledger 8/8; svelte-check 0 errores; quality Gate
+  OK (bundle 259.77 kB gz); verify.sh SUITE GREEN; flujo real OC->SENT->
+  PARTIALLY_RECEIVED, dev CLOSED y merma APPROVED en D1.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-batchc
+expected_failure: OC sin lineas -> RECEIVE_EXCEEDS_ORDERED inalcanzable / sin transicion DRAFT->SENT / codigos crudos en los 3 modulos
+green_commit_sha: 68474128f9a3c497587a5e18df5d826887d7512e
+green_run_id: run-green-6h-batchc
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
