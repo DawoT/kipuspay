@@ -109,6 +109,11 @@ pending:
     estado: CERRADO
     ledger: 0431
     specs: [serials, owner-transferencias, ayuda, split-claim]
+  - id: batch-h
+    nombre: "Núcleo transaccional real: venta offline, crédito tienda, CxC, gastos, LPDP"
+    estado: CERRADO
+    ledger: 0432
+    specs: [lpdp-load, process-offline-sale-atomic (FK store-credit), quote-layaway-convert (CxC)]
     modulos:
       - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
       - ruta: /caja/gastos (egresos de caja)
@@ -117,5 +122,5 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G: 100% rutas activas selladas)
+  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras + G + H: núcleo transaccional real verificado)
   referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
