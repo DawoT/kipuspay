@@ -11215,3 +11215,52 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0429
+timestamp_utc: 2026-08-16T03:45:00Z
+schema_version: 2
+sprint_fase: Batch F — owner restante: pagos, compras, stock, locales y yo (sello en navegador)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e de los 5 módulos Modo Dueño restantes
+relacion: amplia
+referencias_entradas: [0428]
+referencias_documentales: [docs/ops/pending-batches.yaml, apps/pos-web/src/routes/owner/stock/+page.svelte, apps/pos-web/tests/e2e/owner-pagos.spec.ts, apps/pos-web/tests/e2e/owner-yo.spec.ts]
+prev_id: 0428
+prev_hash: e213b824ddc9f27fee67b2af452ba6ab2b63b576ca9e26e43e6f08eff71e9fad
+entry_hash: c0d68fbb9efeddfdd205dece0d8222e82c2cba8fbeaf0ebaab650c1c14e848e2
+ticket_or_adr: Proceso §8.1, V-27, CAL-05, CAL-06
+test_ids: [owner-pagos, owner-compras, owner-stock, owner-locales, owner-yo, V-00, SUITE]
+entregable_afectado: apps/pos-web (owner pagos/compras/stock/locales/yo, fix new URL en stock), playwright.config (2 flags)
+descripcion: >
+  Sello del Batch F (cierra los 5 modulos Modo Dueño restantes). Verificación
+  REAL con worker + D1: /owner/pagos ("Los cobros con tarjeta o billetera
+  aparecen aquí hasta conciliarlos"), /owner/compras (órdenes abiertas,
+  recepciones sin facturar, devoluciones y ajustes), /owner/stock (alertas y
+  stock por variante en unidades base), /owner/locales (ranking por sucursal
+  server-side), /owner/yo (plan, código de referido REAL KP1647DCB8KC y enlace
+  de invitación, métricas del terminal). BUG REAL corregido en /owner/stock:
+  new URL() con apiBase vacío lanzaba FUERA del try/catch (cuando no hay
+  PUBLIC_API_BASE ni storage) dejando la página colgada en "Cargando…";
+  fix: construcción de la URL dentro del try con fallback a location.origin.
+  Env e2e +2 flags (PAYMENTS_CARD_ACQUIRER, REPORTING_CATALOG). Patrón del
+  spec de compras: los mocks page.route con string glob (sin query) funcionan;
+  el regex con query params no matcheaba el glob de stock-alerts.
+evidencia: >
+  RED (run-red-6h-batchf): /owner/stock colgado en "Cargando…" (new URL
+  inválido fuera del try) y sin e2e en los 5 modulos; el glob del mock de
+  stock-alerts no matcheaba la URL con query.
+  GREEN (run-green-6h-batchf): e2e pos-web 108/108 (5 specs nuevos Batch F);
+  unit 395/395; svelte-check 0 errores; quality Gate OK (bundle 259.77 kB
+  gz); verify.sh SUITE GREEN; flujo real referido KP1647DCB8KC en /owner/yo.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-batchf
+expected_failure: /owner/stock colgado en Cargando (new URL inválido fuera del try) / sin e2e en pagos-compras-stock-locales-yo
+green_commit_sha: 71af8e031590e33ecf32659321a07825c5d9c4f4
+green_run_id: run-green-6h-batchf
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
