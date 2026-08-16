@@ -144,7 +144,8 @@ sprints_cierre:
     ledger: 0436
   - id: sprint-c3
     nombre: "LPDP ARCO self-serve del titular"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0437
   - id: sprint-c4
     nombre: "DR/BCP interno — restauración probada + simulacro"
     estado: PENDIENTE
