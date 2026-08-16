@@ -11264,3 +11264,58 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0430
+timestamp_utc: 2026-08-16T04:30:00Z
+schema_version: 2
+sprint_fase: Extras — vitrina/kiosk, caja/gastos y ubicaciones (sello en navegador, cierre del tracker)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e de los módulos restantes y fix de IDs demo en el kiosk
+relacion: amplia
+referencias_entradas: [0429]
+referencias_documentales: [docs/ops/pending-batches.yaml, apps/pos-web/src/routes/kiosk/+page.svelte, scripts/checks/pos_demo_ids.py, apps/pos-web/tests/e2e/vitrina-kiosk.spec.ts]
+prev_id: 0429
+prev_hash: c0d68fbb9efeddfdd205dece0d8222e82c2cba8fbeaf0ebaab650c1c14e848e2
+entry_hash: 
+ticket_or_adr: Proceso §8.1, V-30, CAL-05, CAL-06
+test_ids: [vitrina-kiosk, caja-gastos, ubicaciones, V-00, V-30, SUITE]
+entregable_afectado: apps/pos-web (kiosk con sesión y producto reales, vitrina, gastos, ubicaciones), scripts/checks/pos_demo_ids.py (vocabulario ampliado), playwright.config (CASH_EXPENSES)
+descripcion: >
+  Sello del lote final (extras) que cierra el tracker de batches. GAP CRITICO
+  en /kiosk: el kiosko usaba IDs demo hardcodeados (productId 'k1',
+  branchId 'b-kiosk', sessionId 's-kiosk') y mostraba "Producto de ejemplo
+  S/ 11.80" — el cobro real fallaba contra el server (producto y sucursal
+  inexistentes) y el texto engañaba al cliente. Fix: sesión REAL vía
+  tenantBranchId + cashSessionContext (patrón vale/apartado) y primer
+  producto VENDIBLE del catálogo (/api/catalog/sellable) con estados
+  honestos (cargando/vacío/error); el botón de pago se deshabilita sin
+  producto. V-30 ampliado: el vocabulario del checker ahora incluye los
+  literales de la clase F-6 detectados (b-kiosk, s-kiosk, Item kiosko,
+  Producto de ejemplo) ademas de "demo" — el ratchet crece con cada
+  hallazgo; el fix anterior de integraciones usaba "Producto de ejemplo"
+  como nombre de fila CSV -> renombrado a "Artículo nuevo". Vitrina
+  (pantalla del cliente con total en vivo), caja/gastos (egresos contra la
+  sesión, no reemplaza el cierre Z) y admin/ubicaciones (mapa de racks y
+  export CSV, sin alterar el total de la sucursal) verificados y sellados.
+  Env e2e +1 flag (CASH_EXPENSES). Con esto docs/ops/pending-batches.yaml
+  queda COMPLETADO (batches A-F + extras).
+evidencia: >
+  RED (run-red-6h-extras): kiosk con k1/b-kiosk/s-kiosk y "Producto de
+  ejemplo" (cobro inalcanzable contra el server); sin e2e en los 4 modulos;
+  V-30 no detectaba los IDs demo sin la palabra "demo".
+  GREEN (run-green-6h-extras): e2e pos-web 112/112 (4 specs nuevos);
+  unit 395/395; svelte-check 0 errores; quality Gate OK (bundle 259.77 kB
+  gz); verify.sh SUITE GREEN; V-30 GREEN (151 archivos) con el vocabulario
+  ampliado.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-extras
+expected_failure: kiosk con IDs demo (k1/b-kiosk/s-kiosk) y producto falso que el server rechaza / V-30 ciego a literales sin la palabra demo
+green_commit_sha: 5c51c7d
+green_run_id: run-green-6h-extras
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
