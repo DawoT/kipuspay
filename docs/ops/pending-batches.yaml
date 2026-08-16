@@ -88,7 +88,9 @@ pending:
 
   - id: batch-f
     nombre: "Owner restante — pagos, compras, stock, locales, yo"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0429
+    specs: [owner-pagos, owner-compras, owner-stock, owner-locales, owner-yo]
     modulos:
       - ruta: /owner/pagos (pagos locales Yape/Plin, uncaptured)
       - ruta: /owner/compras (3-way + devoluciones)
@@ -109,4 +111,4 @@ pending:
 meta:
   archivo_temporal: true
   eliminar_al_cerrar: todos los batches
-  referencia_patron: "Sello en navegador (sprint 59-64, ledgers 0419-0428)"
+  referencia_patron: "Sello en navegador (sprint 59-65, ledgers 0419-0429)"
