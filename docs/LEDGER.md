@@ -11455,3 +11455,66 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0433
+timestamp_utc: 2026-08-16T15:10:00Z
+schema_version: 2
+sprint_fase: Batch I — workers fiscal/KMS: pipeline SUNAT real y KMS de backups/push
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real de extremo a extremo del canal fiscal (breaker, transporte HTTP PSE, drain outbox→R2) y suite KMS
+relacion: amplia
+referencias_entradas: [0432]
+referencias_documentales: [docs/ops/pending-batches.yaml, apps/worker-fiscal/src/index.ts, apps/worker-fiscal/src/fiscal-drain.ts, apps/worker-kms/src/kms-core.ts]
+prev_id: 0432
+prev_hash: 042fce6e5ed5588fb780c926afa4ac78fcef44ac5eebeab4dc2ad04b29fdea76
+entry_hash: 5f157881f1b33419711a0a12699279376044f9992f4472f7fee5e2d4b8244684
+ticket_or_adr: Proceso §8.1, F-5, B8 (fail-closed), FIS-12, invariante 5, CAL-05, CAL-06
+test_ids: [apps/worker-fiscal/src/index.test.ts, apps/worker-fiscal/src/fiscal-drain.test.ts, apps/worker-kms/src/kms.test.ts, V-00, V-30, SUITE]
+entregable_afectado: apps/worker-fiscal (bootstrap del breaker, drain con JOIN y manejo de errores), apps/worker-kms (verificado sin cambios)
+descripcion: >
+  Verificación REAL del pipeline fiscal (worker dev :8800 con bindings
+  locales KV/R2/D1/DO + endpoint PSE local que captura el POST): /cdr
+  aceptada/rechazada, /v1/fiscal/submit (mock PSE), /v1/fiscal/rc/status
+  (flag off/on), 404s. GAP CRITICO 1 (breaker en arranque en frío): con
+  FEATURE_FISCAL_CIRCUIT_BREAKER on y el KV local sin la clave, B8
+  (whitelist '0'=closed; null=OPEN) bloqueaba el submit en 503 BREAKER_OPEN
+  PERMANENTE — el DO nace CLOSED pero el submit jamás lo consulta ni
+  escribe el KV: el canal PSE quedaba muerto en un entorno nuevo. Fix:
+  bootstrapBreakerCold — SOLO en estado frío (clave ausente) consulta el
+  DO /status (lectura, no hot path) y si está closed persiste '0' + seed
+  del isolate; si open o el DO falla, mantiene el 503 fail-closed
+  (invariante 5). Tests RED->GREEN (KV vacío + DO cerrado -> 200 y KV '0';
+  KV vacío + DO abierto -> 503). Verificado real: submit en frío -> HTTP
+  real al PSE (56 bytes) -> aceptada. GAP CRITICO 2 (drain roto): el
+  selectClaimedRows consultaba document_type en fiscal_outbox (columna
+  inexistente; vive en sales) -> D1_ERROR con stack CRUDO al operador y el
+  outbox quedaba huérfano en PROCESSING; fix: INNER JOIN a sales + manejo
+  de errores F-5 (DRAIN_FAILED sin stack) + el drain también usa el
+  bootstrap (KV expirado + DO cerrado ya no skipea). Verificado real:
+  outbox PENDING -> claim -> R2 (XML) -> PSE HTTP (77 bytes) -> SENT
+  (processed 1, accepted 1). KMS (worker dev :8801): BackupKmsCore
+  roundtrip AES-GCM real (wrap con la versión activa, unwrap tras
+  rotación v1->v2), fail-closed (cross-tenant, tampering,
+  KMS_KEY_VERSION_UNAVAILABLE, KMS_UNWRAP_FAILED) y PushKmsCore (rotación
+  de ciphertext, versiones revocadas) — 28 tests verdes, sin cambios.
+evidencia: >
+  RED (run-red-6h-batchi): submit con breaker on + KV vacío -> 503
+  BREAKER_OPEN permanente (DO cerrado ignorado); drain -> D1_ERROR no such
+  column document_type con stack crudo y outbox atascado en PROCESSING.
+  GREEN (run-green-6h-batchi): submit en frío -> bootstrap -> HTTP real al
+  PSE -> aceptada/ACCEPTED; drain real -> processed 1 accepted 1 status
+  SENT; rc/status flag on -> enabled:true; unit fiscal 22/22, kms 28/28;
+  e2e pos-web 118/118; lint/typecheck limpios en fiscal y kms; quality
+  Gate OK; verify.sh SUITE GREEN.
+red_commit_sha: f301aff
+red_run_id: run-red-6h-batchi
+expected_failure: breaker en frío bloquea el PSE en 503 permanente / drain con columna inexistente y stack crudo
+green_commit_sha: f301aff
+green_run_id: run-green-6h-batchi
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
