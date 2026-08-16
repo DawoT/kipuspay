@@ -24,6 +24,7 @@ function mockDb(state: {
     prepare(sql: string) {
       const binds: unknown[] = [];
       const stmt = {
+        sql,
         bind(...args: unknown[]) {
           binds.push(...args);
           return stmt;
@@ -132,6 +133,51 @@ describe('processOrderBillingAtomic', () => {
     expect(res.sales).toHaveLength(2);
     expect(res.sales[0]!.amountCents).toBe(1000);
     expect(res.sales[1]!.amountCents).toBe(2000);
+  });
+
+  it('Sprint C2: las porciones numeran secuencialmente y el correlativo avanza N veces', async () => {
+    const sqls: string[] = [];
+    const db = mockDb({
+      sqls,
+      order: { id: 'o1', branch_id: 'b1', status: 'READY' },
+      series: { id: 'ser1', current_number: 5 },
+      items: [
+        {
+          id: 'i1',
+          product_id: 'p1',
+          product_name: 'A',
+          quantity: 1,
+          unit_price_cents: 1000,
+          status: 'READY',
+          sale_id: null,
+        },
+        {
+          id: 'i2',
+          product_id: 'p2',
+          product_name: 'B',
+          quantity: 1,
+          unit_price_cents: 2000,
+          status: 'READY',
+          sale_id: null,
+        },
+      ],
+    });
+    const res = await processOrderBillingAtomic(db, 't1', 'u1', {
+      orderId: 'o1',
+      cashRegisterSessionId: 's1',
+      series: 'NV01',
+      paymentMethodId: 'pm1',
+      portions: [
+        { saleId: 'sale1', itemIds: ['i1'] },
+        { saleId: 'sale2', itemIds: ['i2'] },
+      ],
+    });
+    expect(res.sales).toHaveLength(2);
+    expect(res.sales[0]!.number).toBe(6);
+    expect(res.sales[1]!.number).toBe(7);
+    const correlativeUpdate = sqls.filter((s) => s.includes('UPDATE branch_document_series'));
+    expect(correlativeUpdate).toHaveLength(1);
+    expect(correlativeUpdate[0]).toMatch(/current_number = current_number \+ \?/);
   });
 
   it('S19-H2: split con documentType 03 busca serie Boleta y emite PENDING', async () => {

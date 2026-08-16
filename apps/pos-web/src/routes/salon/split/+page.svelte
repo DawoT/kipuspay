@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -8,6 +9,7 @@
   import { apiFetch } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   let orderId = $state('');
   let itemA = $state('');
   let itemB = $state('');
@@ -16,6 +18,10 @@
   let series = $state('NV01');
   let result = $state('');
   let error = $state('');
+
+  onMount(() => {
+    sessionId = cashSessionContext(localStorage).sessionId;
+  });
 
   async function splitBill() {
     error = '';

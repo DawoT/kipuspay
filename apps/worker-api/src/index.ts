@@ -92,6 +92,7 @@ import {
   runMarkItemsReadyHttp,
   runMintKdsWsTicketHttp,
   consumeKdsWsTicket,
+  runKdsPendingHttp,
   runSplitBillHttp,
 } from './orders/order-routes.js';
 import {
@@ -1070,6 +1071,12 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body as Record<string, unknown>,
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/orders/kds-pending', async (c) => {
+    const jwt = c.get('jwt');
+    const branchId = c.req.query('branchId') ?? '';
+    const result = await runKdsPendingHttp(c.env, jwt?.tenantId ?? '', branchId);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
   app.post('/api/orders/split', async (c) => {
     const jwt = c.get('jwt');

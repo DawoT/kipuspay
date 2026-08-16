@@ -81,6 +81,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/orders/items/ready' },
   { method: 'POST', path: '/api/orders/items/cancel' },
   { method: 'POST', path: '/api/orders/split' },
+  { method: 'GET', path: '/api/orders/kds-pending' },
   { method: 'POST', path: '/api/kds/ws-ticket' },
   { method: 'GET', path: '/api/owner/day-summary' },
   { method: 'POST', path: '/api/owner/push/subscribe' },

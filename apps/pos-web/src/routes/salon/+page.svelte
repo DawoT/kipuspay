@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -6,11 +7,32 @@
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
   import { kdsEventLabel } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
+  import { tenantBranchId } from '$lib/admin/cash-session';
+  import { formatCents } from '$lib/cents';
 
   const enabled = isOrdersKdsEnabled();
+  let branchId = $state('default');
   let tableLabel = $state('1');
   let productId = $state('');
   let quantity = $state(1);
+  let sellable = $state<{ productId: string; name: string; priceCents: number }[]>([]);
+
+  onMount(() => {
+    branchId = tenantBranchId(localStorage) || 'default';
+    if (!enabled) return;
+    void apiFetch(`/api/catalog/sellable?branchId=${encodeURIComponent(branchId)}`, {
+      storage: localStorage,
+    })
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((body) => {
+        sellable = (body.items ?? []).map((i: { productId: string; name: string; unitPriceCents: number }) => ({
+          productId: i.productId,
+          name: i.name,
+          priceCents: i.unitPriceCents,
+        }));
+      })
+      .catch(() => {});
+  });
   let orderId = $state('');
   let status = $state('');
   let error = $state('');
@@ -23,7 +45,7 @@
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          branchId: 'default',
+          branchId,
           tableLabel,
           items: [{ productId, quantity }],
         }),
@@ -111,7 +133,16 @@
         </div>
         <div class="field-group">
           <label for="salon-prod">Producto</label>
-          <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="Código o nombre" />
+          {#if sellable.length > 0}
+            <select id="salon-prod" data-testid="salon-product" bind:value={productId}>
+              <option value="">-- Elige producto --</option>
+              {#each sellable as p (p.productId)}
+                <option value={p.productId}>{p.name} · S/ {formatCents(p.priceCents)}</option>
+              {/each}
+            </select>
+          {:else}
+            <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="ID del producto" />
+          {/if}
         </div>
         <div class="field-group">
           <label for="salon-qty-input">Cantidad</label>

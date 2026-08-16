@@ -358,6 +358,63 @@ export async function runCancelOrderItemHttp(
 }
 
 /* eslint-disable complexity -- HTTP split: session/series + billing adapter errors */
+/**
+ * S19-H1 / Sprint C2: comandas pendientes de la sucursal (replay del display
+ * de cocina). Devuelve las órdenes FIRED con sus ítems FIRED/PENDING para
+ * que un KDS que conecta tarde no pierda las comandas en cocina.
+ */
+export async function runKdsPendingHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  branchId: string,
+): Promise<HttpResult> {
+  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  if (!env?.DB) return dbUnavailable();
+  if (!tenantId || !branchId) {
+    return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
+  }
+  const rows = await env.DB.prepare(
+    `SELECT o.id AS order_id, o.table_label, o.created_at AS fired_at,
+            i.id AS item_id, i.product_name, i.quantity, i.status AS item_status
+     FROM orders o
+     INNER JOIN order_items i
+       ON i.tenant_id = o.tenant_id AND i.order_id = o.id
+     WHERE o.tenant_id = ? AND o.branch_id = ? AND o.status = 'FIRED'
+       AND i.status IN ('FIRED', 'PENDING')
+     ORDER BY o.created_at ASC, i.id ASC`,
+  )
+    .bind(tenantId, branchId)
+    .all<{
+      order_id: string;
+      table_label: string | null;
+      fired_at: string | null;
+      item_id: string;
+      product_name: string | null;
+      quantity: number;
+      item_status: string;
+    }>();
+  const orders = new Map<string, Record<string, unknown>>();
+  for (const row of rows.results ?? []) {
+    let order = orders.get(row.order_id);
+    if (!order) {
+      order = {
+        id: row.order_id,
+        tableLabel: row.table_label,
+        firedAt: row.fired_at,
+        items: [],
+      };
+      orders.set(row.order_id, order);
+    }
+    (order.items as unknown[]).push({
+      id: row.item_id,
+      productName: row.product_name,
+      quantity: row.quantity,
+      status: row.item_status,
+    });
+  }
+  return { status: 200, body: { orders: [...orders.values()] } };
+}
+
 export async function runSplitBillHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -421,8 +478,13 @@ export async function runSplitBillHttp(
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const status = msg === 'ORDER_NOT_FOUND' ? 404 : 422;
-    return { status, body: { error: msg, code: msg } };
+    if (msg === 'ORDER_NOT_FOUND') {
+      return { status: 404, body: { error: 'ORDER_NOT_FOUND', code: 'ORDER_NOT_FOUND' } };
+    }
+    if (msg.startsWith('ORDER_') || msg.startsWith('SPLIT_')) {
+      return { status: 422, body: { error: msg, code: msg } };
+    }
+    return { status: 422, body: { error: 'ORDER_SPLIT_FAILED', code: 'ORDER_SPLIT_FAILED' } };
   }
 }
 /* eslint-enable complexity */

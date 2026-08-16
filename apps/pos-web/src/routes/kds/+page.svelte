@@ -6,14 +6,32 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
-  import { kdsEventLabel } from '$lib/ui/ops-copy';
+  import { kdsEventLabel, salesErrorCopy } from '$lib/ui/ops-copy';
   import { apiFetch, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
+  import { tenantBranchId } from '$lib/admin/cash-session';
   let branchId = $state('default');
   let events = $state<{ type: string; orderId: string; orderItemId?: string; at: number }[]>([]);
+  let pending = $state<
+    { id: string; tableLabel: string | null; items: { id: string; productName: string | null; quantity: number; status: string }[] }[]
+  >([]);
   let error = $state('');
   let ws: WebSocket | null = null;
+
+  async function loadPending() {
+    try {
+      const res = await apiFetch(
+        `/api/orders/kds-pending?branchId=${encodeURIComponent(branchId)}`,
+        { storage: localStorage },
+      );
+      if (!res.ok) return;
+      const body = (await res.json()) as { orders?: typeof pending };
+      pending = body.orders ?? [];
+    } catch {
+      // el WS cubre el evento en vivo; el replay es best-effort.
+    }
+  }
 
   function kdsWebSocketUrl(id: string, ticket: string): string {
     const httpBase = resolveApiBase();
@@ -51,6 +69,9 @@
           orderItemId?: string;
           firedAtMs?: number;
         };
+        if (data.type === 'ITEM_FIRED' || data.type === 'ITEM_READY') {
+          void loadPending();
+        }
         events = [
           {
             type: data.type,
@@ -91,12 +112,19 @@
     });
     if (!res.ok) {
       const body = (await res.json()) as { error?: string };
-      error = body.error ?? 'No se pudo marcar como listo.';
+      error = salesErrorCopy(body.error ?? 'ORDER_ITEM_FAILED');
+    } else {
+      error = '';
+      void loadPending();
     }
   }
 
   onMount(() => {
-    if (enabled) void connect();
+    branchId = tenantBranchId(localStorage) || 'default';
+    if (enabled) {
+      void loadPending();
+      void connect();
+    }
   });
   onDestroy(() => ws?.close());
 </script>
@@ -133,7 +161,37 @@
     {/if}
 
     <div class="kds-board" data-testid="kds">
-      {#if events.length === 0}
+      {#if pending.length > 0}
+        <ul class="kds-pending" data-testid="kds-pending">
+          {#each pending as order (order.id)}
+            <li class="kds-pending-card">
+              <div class="kds-pending-head">
+                <span class="badge badge-warning">Mesa {order.tableLabel ?? '—'}</span>
+                <span class="order-ref">{order.id.slice(0, 8)}</span>
+              </div>
+              <ul class="kds-pending-items">
+                {#each order.items as item (item.id)}
+                  <li>
+                    <span>{item.productName ?? item.id}</span>
+                    <span class="qty">× {item.quantity}</span>
+                    {#if item.status !== 'READY'}
+                      <button
+                        type="button"
+                        class="success mark-btn"
+                        data-testid="kds-ready"
+                        onclick={() => markReady(order.id, item.id)}
+                      >
+                        <Icon name="check" size={14} />
+                        Listo
+                      </button>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </li>
+          {/each}
+        </ul>
+      {:else if events.length === 0}
         <EmptyState icon="check" title="Cocina al día" description="Cuando llegue una comanda, aparece aquí." />
       {:else}
         <ul class="kds-event-list" data-testid="kds-events">

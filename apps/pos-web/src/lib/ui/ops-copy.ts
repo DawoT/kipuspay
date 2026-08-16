@@ -228,6 +228,12 @@ const SALES_ERROR_COPY: Record<string, string> = {
     'La serie está reservada por otro terminal. Libera la reserva e intenta de nuevo.',
   SERIAL_TRANSITION_INVALID:
     'La serie no permite esa acción en su estado actual. Revisa el estado del artículo y elige otra disposición.',
+  ORDER_ITEM_INVALID:
+    'La comanda ya cambió de estado (alguien más la marcó). Se actualiza la pantalla.',
+  ORDER_REQUIRES_ITEMS: 'Agrega al menos un producto a la comanda.',
+  PRODUCT_REQUIRED: 'Elige un producto del catálogo para la comanda.',
+  ORDER_NOT_FOUND: 'No encontramos esa comanda. Verifica el número.',
+  ORDER_INVALID_TRANSITION: 'La comanda no permite esa acción en su estado actual.',
   SERIAL_NOT_AVAILABLE: 'La serie no está disponible para reserva en este momento.',
   SERIAL_TERMINAL_BRANCH_INVALID:
     'La serie no corresponde a este terminal o sucursal. Verifica el ID del terminal.',

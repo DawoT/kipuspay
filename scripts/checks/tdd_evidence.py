@@ -136,23 +136,23 @@ def main() -> int:
                 missing.append("expected_failure")
             if missing:
                 problems.append(f"{e['id']}: faltan {', '.join(missing)}")
-            # Reachability (skip if superseded by CORRIGE)
+            # Reachability + test_ids (skip if superseded by CORRIGE)
             if e["id"] not in corrected and e["id"].zfill(4) not in corrected:
                 for field in ("green_commit_sha", "red_commit_sha"):
                     sha = e.get(field, "").strip()
                     if sha and not sha.upper().startswith("N/A") and not is_ancestor_of_head(sha):
                         problems.append(f"{e['id']}: {field} {sha[:12]} no es ancestro de HEAD")
-        tids = [
-            t.strip()
-            for t in e.get("test_ids", "").replace("[", " ").replace("]", " ").split(",")
-            if t.strip()
-        ]
-        if is_code and test_names:
-            for t in tids:
-                if re.match(r"^V-\d+$", t) or t == "SUITE":
-                    continue
-                if t not in test_names:
-                    problems.append(f"{e['id']}: test_id {t} no resuelve en un test del repo")
+                tids = [
+                    t.strip()
+                    for t in e.get("test_ids", "").replace("[", " ").replace("]", " ").split(",")
+                    if t.strip()
+                ]
+                if is_code and test_names:
+                    for t in tids:
+                        if re.match(r"^V-\d+$", t) or t == "SUITE":
+                            continue
+                        if t not in test_names:
+                            problems.append(f"{e['id']}: test_id {t} no resuelve en un test del repo")
     if problems:
         print(f"RESULT V-20 RED  {len(problems)} problema(s) en el contrato TDD")
         for p in problems[:6]:

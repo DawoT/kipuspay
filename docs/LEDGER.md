@@ -11636,3 +11636,68 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0436
+timestamp_utc: 2026-08-16T18:10:00Z
+schema_version: 2
+sprint_fase: Sprint C2 — KDS/comandas/salón/split completos (cierre del claim de comandas)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: UI de cocina y salón descongeladas sobre el motor existente; fixes de replay, numeración del split y copy
+relacion: CORRIGE
+referencias_entradas: [0431, 0435]
+referencias_documentales: [docs/ops/claims-go-live.md, apps/pos-web/src/routes/kds/+page.svelte, apps/worker-api/src/orders/order-routes.ts, packages/adapters-d1/src/process-order-billing-atomic.ts]
+prev_id: 0435
+prev_hash: 3dc8cd7cb92aab9c742852878e8bb3eaa00624dbce99c8d128315ac0b69dcfd6
+entry_hash: 2cc6815ba10cf728cf4b55172791d1950097ac48b6253550066f9dfe3e0a614a
+ticket_or_adr: Proceso §8.1, F-5, COM-06, ADR-0013, CAL-05, CAL-06
+test_ids: [apps/pos-web/tests/e2e/kds-salon.spec.ts, apps/worker-api/src/orders/order-routes.test.ts, packages/adapters-d1/src/process-order-billing-atomic.test.ts, V-00, V-30, SUITE]
+entregable_afectado: apps/pos-web (kds/salon/split activos), apps/worker-api (GET kds-pending, split error mapeado), packages/adapters-d1 (numeración secuencial del split)
+descripcion: >
+  CORRIGE parcial de la entrada 0431: el spec split-claim (off-banner del
+  split, claim congelado) quedó obsoleto al descongelar comandas/KDS en el
+  Sprint C2 — su cobertura la reemplaza kds-salon.spec (3 tests). El claim
+  de comandas era el único destacado 'en preparación' de las verticales;
+  ahora el salón, la cocina y el split operan sobre el motor existente
+  (order-routes, branch-kds-hub, WS con ticket). El backend del KDS estaba
+  completo; la UI quedó descongelada con fixes reales: (1) REPLAY: un
+  display de cocina que conecta tarde perdía las comandas en cocina — el
+  hub tiene replay interno (worker->DO) pero la UI no lo consumía; nuevo
+  GET /api/orders/kds-pending (órdenes FIRED + ítems FIRED/PENDING de la
+  sucursal) y la UI lo carga al montar y tras cada evento; (2) SPLIT DE
+  DINERO: las porciones usaban el MISMO current_number del correlativo
+  (UNIQUE violation en D1: la 2ª venta repetía el número de la 1ª) y el
+  correlativo se incrementaba por porción dependiendo del orden del batch
+  (frágil); fix: numeración explícita current_number + 1 + i en el
+  preflight y UN solo UPDATE final current_number + N; (3) F-5: el split
+  devolvía el stack crudo (D1_ERROR UNIQUE) y el ready el código
+  ORDER_ITEM_INVALID:READY->READY — mapeados a ORDER_SPLIT_FAILED y copy
+  honesto de ORDER_* en salesErrorCopy; (4) /salon con branch real
+  (tenantBranchId) y selector del catálogo vendible real (antes branch
+  'default' hardcodeado e ID de producto manual); /kds y /salon/split con
+  branch y sesión reales. Verificación REAL: comanda Mesa 9 fireada
+  (Catálogo real) visible en el display de cocina con replay, Listo marcado
+  (READY), split real de la orden b1506e88 en 2 cuentas PAID
+  (S/150 + S/100, NV01-10/11) y correlativo NV01 avanzado a 11. Los
+  test_ids de la 0431 siguen vigentes salvo split-claim (reemplazado).
+evidencia: >
+  RED (run-red-6h-c2): display de cocina vacío pese a comandas fireadas
+  (sin replay); split -> D1_ERROR UNIQUE (2 porciones con el mismo número,
+  correlativo nunca avanzaba); errores crudos (ORDER_ITEM_INVALID,
+  D1_ERROR) al operador; salón con branch 'default' hardcodeado.
+  GREEN (run-green-6h-c2): kds-pending devuelve las FIRED reales; split
+  real PAID 2 cuentas NV01-10/11; unit adapters 390, worker 1166, pos 395;
+  e2e pos 118/118 (kds-salon 3/3; frozen-features con solo anular boleta);
+  svelte-check 0; quality Gate OK; verify SUITE GREEN (V-20 con la CORRIGE
+  del 0431).
+red_commit_sha: N/A
+red_run_id: run-red-6h-c2
+expected_failure: split con correlativo repetido (UNIQUE) / KDS sin replay de comandas fireadas / errores crudos al operador
+green_commit_sha: N/A
+green_run_id: run-green-6h-c2
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
