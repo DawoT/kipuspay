@@ -101,7 +101,9 @@ pending:
 
   - id: batch-extras
     nombre: "Vitrina/kiosk, caja/gastos, ubicaciones"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0430
+    specs: [vitrina-kiosk, caja-gastos, ubicaciones]
     modulos:
       - ruta: /vitrina + /kiosk (modo vitrina para el cliente)
       - ruta: /caja/gastos (egresos de caja)
@@ -110,5 +112,5 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: todos los batches
-  referencia_patron: "Sello en navegador (sprint 59-65, ledgers 0419-0429)"
+  eliminar_al_cerrar: COMPLETADO — todos los batches cerrados (A-F + extras)
+  referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"
