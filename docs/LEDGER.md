@@ -11389,3 +11389,69 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0432
+timestamp_utc: 2026-08-16T14:10:00Z
+schema_version: 2
+sprint_fase: Batch H — núcleo transaccional real (venta offline ACID, crédito tienda, CxC, gastos, LPDP)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: jornada real de extremo a extremo (worker dev + D1 + JWT minted) con fixes de motor y contrato
+relacion: amplia
+referencias_entradas: [0431]
+referencias_documentales: [docs/ops/pending-batches.yaml, packages/adapters-d1/src/process-store-credit-atomic.ts, apps/worker-api/src/sales/layaway-routes.ts, apps/pos-web/src/routes/admin/clientes/+page.svelte]
+prev_id: 0431
+prev_hash: 1b6472779fa4863eb9b5ea43d045baf64100936b772f736231dc2572c76ddc9c
+entry_hash: 042fce6e5ed5588fb780c926afa4ac78fcef44ac5eebeab4dc2ad04b29fdea76
+ticket_or_adr: Proceso §8.1, F-5, DAT-12, ADR-0019, CAL-05, CAL-06
+test_ids: [lpdp-load, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, packages/adapters-d1/src/quote-layaway-convert.integration.test.ts, V-00, V-30, SUITE]
+entregable_afectado: packages/adapters-d1 (planEnsureStoreCreditAccount), apps/worker-api (convert saleOpts), apps/pos-web (copy LPDP)
+descripcion: >
+  Jornada transaccional REAL completa sobre el tenant "Bodega Batch C"
+  (t_134499...): ventas offline ACID NV01-1 (S/177), NV01-2 (S/354) con
+  stock 9->6, NV_RETURN con re-stock (6->7), cotización
+  create->approve->convert (NV01-3), apartado create->convert con saldo a
+  crédito (NV01-4), venta con crédito de tienda ISSUE a cliente nuevo
+  (NV01-5, balance 17700), canje REDEEM completo (NV01-6, balance 0),
+  gasto de caja real (S/25, SUPPLIES) y CxC OPEN real (S/127, venta
+  579ad7ba) visible en owner/finanzas; diario con 21+ asientos reales
+  (cargo caja, IGV, ventas, store-credit). GAPS DE MOTOR corregidos:
+  (1) store_credit_accounts con cliente NUEVO violaba FK — el
+  ensureStoreCreditAccount insertaba con .run() FUERA del batch antes de
+  que el customer del plan existiera (imposible emitir crédito a cliente
+  nuevo); fix planEnsureStoreCreditAccount: el INSERT viaja DENTRO del
+  plan atómico; tests RED->GREEN (emite crédito a cliente nuevo sin FK,
+  canjea en venta siguiente). (2) El convert de apartado con
+  remainingAsCredit NO pasaba ledgerArApEnabled — el saldo a crédito se
+  cobraba sin CxC (dinero sin contrapartida); fix saleOpts con
+  isLedgerArApEnabled + test RED->GREEN (CxC OPEN balance 1360) +
+  verificación real (CxC S/127). (3) Copy LPDP: el estado inicial decía
+  "No hay clientes para esta sucursal" cuando la lista aún no se cargaba
+  (y la API lista el tenant, no la sucursal); fix: guía honesta "Pulsa
+  Actualizar..." + spec lpdp-load. Hallazgo adicional documentado: el
+  guard fail-closed de stock de location bloqueó ventas por un estado de
+  datos corrupto del dev (location en -2) — el guard es correcto; la
+  paridad se restauró en el D1 dev. El onError diag temporal del batch G
+  se revirtió.
+evidencia: >
+  RED (run-red-6h-batchh): venta con cliente nuevo + storeCreditIssue
+  -> D1_ERROR FOREIGN KEY (store_credit_accounts.customer_id);
+  convert apartado sin CxC (saldo perdido, accounts_receivable vacío);
+  LPDP mostraba "No hay clientes para esta sucursal" antes de cargar.
+  GREEN (run-green-6h-batchh): venta real ISSUE (NV01-5, customerId
+  3c206d4e, balance 17700) y REDEEM real (NV01-6, balance 0); convert
+  real con CxC OPEN S/127 visible en owner/finanzas; diario real 21+
+  asientos; e2e pos-web 118/118 (spec lpdp-load nuevo); unit pos 395,
+  worker 1164, adapters-d1 unit 389 + integración 293; svelte-check 0;
+  quality Gate OK; verify.sh SUITE GREEN.
+red_commit_sha: e2b1bd9
+red_run_id: run-red-6h-batchh
+expected_failure: crédito de tienda a cliente nuevo viola FK (ensure fuera del plan) / convert apartado sin CxC / copy LPDP engañoso
+green_commit_sha: e2b1bd9
+green_run_id: run-green-6h-batchh
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
