@@ -148,7 +148,8 @@ sprints_cierre:
     ledger: 0437
   - id: sprint-c4
     nombre: "DR/BCP interno — restauración probada + simulacro"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0438
   - id: sprint-c5
     nombre: "Sello final del producto completo"
     estado: PENDIENTE
