@@ -152,7 +152,9 @@ sprints_cierre:
     ledger: 0438
   - id: sprint-c5
     nombre: "Sello final del producto completo"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0439
+    qg: docs/ops/c5-final-product-qg.md
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
     estado: AGENDADO_AL_FINAL
