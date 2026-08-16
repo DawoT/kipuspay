@@ -4,6 +4,7 @@
   import Button from '$lib/ui/Button.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { apiFetch } from '$lib/auth/api-client';
+  import { salesErrorCopy } from '$lib/ui/ops-copy';
 
   const serialsOn = isInventorySerialsEnabled();
   let serialNumber = $state('');
@@ -35,7 +36,7 @@
     items = response.ok ? (body.items ?? []) : [];
     message = response.ok
       ? `${items.length} serie(s) encontrada(s).`
-      : [body.error, body.action].filter(Boolean).join(' ');
+      : salesErrorCopy(body.error);
   }
 
   async function acquireLease() {
@@ -56,7 +57,7 @@
     leaseToken = response.ok ? (body.leaseToken ?? '') : '';
     message = response.ok
       ? 'Reserva exclusiva para este terminal.'
-      : [body.error, body.action].filter(Boolean).join(' ');
+      : salesErrorCopy(body.error);
   }
 
   async function dispose() {
@@ -69,8 +70,12 @@
     const body = (await response.json()) as { status?: string; error?: string; action?: string };
     message = response.ok
       ? `Disposición confirmada por servidor: ${body.status ?? disposition}.`
-      : [body.error, body.action].filter(Boolean).join(' ');
-    if (response.ok) await search();
+      : salesErrorCopy(body.error);
+    if (response.ok) {
+      const confirmation = message;
+      await search();
+      message = confirmation;
+    }
   }
 
   function scannerKeydown(event: KeyboardEvent) {
@@ -125,7 +130,7 @@
           <input id="terminal-id" bind:value={terminalId} placeholder="pos-term-01" />
         </div>
 
-        <Button variant="primary" icon="search" >
+        <Button variant="primary" icon="search" onclick={() => void search()}>
           Buscar Serie
         </Button>
       </form>
@@ -144,8 +149,8 @@
             <select id="serial-select" bind:value={selectedSerialId}>
               <option value="">-- Elige serie --</option>
               {#each items as item}
-                <option value={String(item.id ?? item.serialId)}>
-                  {String(item.serialNumber ?? item.id)} ({String(item.status ?? 'UNKNOWN')})
+                <option value={String(item.serial_id ?? item.id ?? item.serialId)}>
+                  {String(item.serialNumber ?? item.serial_number ?? item.id)} ({String(item.status ?? 'UNKNOWN')})
                 </option>
               {/each}
             </select>
@@ -162,8 +167,9 @@
               <div class="disposition-group">
                 <select bind:value={disposition}>
                   <option value="RETURN_TO_STOCK">Devolver a stock</option>
-                  <option value="SCRAPPED">Dar de baja (Scrap)</option>
-                  <option value="RMA_SUPPLIER">RMA a proveedor</option>
+                  <option value="DAMAGED">Dar de baja (dañado)</option>
+                  <option value="LOST">Registrar pérdida</option>
+                  <option value="RETURN_TO_SUPPLIER">Devolución a proveedor</option>
                 </select>
                 <Button variant="primary" onclick={() =>
           void dispose()}>

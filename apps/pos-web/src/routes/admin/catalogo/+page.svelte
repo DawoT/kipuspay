@@ -16,7 +16,7 @@
   import { formatCents } from '$lib/cents';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
-  import { catalogItemLabel } from '$lib/ui/ops-copy';
+  import { catalogItemLabel, salesErrorCopy } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
   const variantsOn = isCatalogVariantsEnabled();
@@ -142,7 +142,7 @@
       storage: localStorage,
     });
     const json = (await response.json()) as { items?: unknown[]; error?: string };
-    message = response.ok ? '' : (json.error ?? `Error ${response.status}`);
+    message = response.ok ? '' : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
     messageOk = response.ok;
     catalog = response.ok ? (json.items ?? []) : [];
     loading = false;
@@ -160,7 +160,7 @@
     });
     const json = (await response.json()) as { error?: string };
     messageOk = response.ok;
-    message = response.ok ? 'Variante guardada.' : (json.error ?? `Error ${response.status}`);
+    message = response.ok ? 'Variante guardada.' : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
     if (response.ok) await loadCatalog();
   }
 
@@ -179,7 +179,7 @@
     });
     const json = (await response.json()) as { error?: string };
     messageOk = response.ok;
-    message = response.ok ? 'Unidad guardada.' : (json.error ?? `Error ${response.status}`);
+    message = response.ok ? 'Unidad guardada.' : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
     if (response.ok) await loadCatalog();
   }
 
@@ -194,7 +194,7 @@
     messageOk = response.ok;
     message = response.ok
       ? 'Seguimiento serial guardado por el servidor.'
-      : [json.error, json.action].filter(Boolean).join(' ');
+      : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
   }
 </script>
 

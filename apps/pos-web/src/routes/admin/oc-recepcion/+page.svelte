@@ -94,6 +94,7 @@
             unitCostCents,
             batchNumber: batchNumber || null,
             expiryDate: expiryDate || null,
+            ...(serialNumbers.length > 0 ? { serialNumbers } : {}),
           },
         ],
       }),

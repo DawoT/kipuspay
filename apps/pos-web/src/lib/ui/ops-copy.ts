@@ -216,6 +216,25 @@ const SALES_ERROR_COPY: Record<string, string> = {
   SESSION_NOT_FOUND: 'No hay una sesión de caja abierta. Abre la caja y reintenta.',
   CREDIT_LIMIT_EXCEEDED: 'El cliente superó el límite de crédito asignado.',
   OUTSIDE_WINDOW: 'La operación está fuera de la ventana permitida.',
+  SERIAL_STOCK_EXISTS:
+    'No se puede activar el rastreo: el producto tiene existencias sin rastrear. Descarga el stock primero.',
+  SERIAL_MANIFEST_REQUIRED:
+    'El producto requiere número de serie. Verifica que el ingreso indique cada serie.',
+  SERIAL_DUPLICATE: 'La serie ya está registrada. Verifica los números ingresados.',
+  SERIAL_CONTEXT_REQUIRED:
+    'Falta información para la operación de serie. Verifica producto, sucursal y sesión.',
+  SERIAL_NOT_FOUND: 'No encontramos esa serie. Verifica el número en el producto correcto.',
+  SERIAL_LEASE_CONFLICT:
+    'La serie está reservada por otro terminal. Libera la reserva e intenta de nuevo.',
+  SERIAL_TRANSITION_INVALID:
+    'La serie no permite esa acción en su estado actual. Revisa el estado del artículo y elige otra disposición.',
+  SERIAL_NOT_AVAILABLE: 'La serie no está disponible para reserva en este momento.',
+  SERIAL_TERMINAL_BRANCH_INVALID:
+    'La serie no corresponde a este terminal o sucursal. Verifica el ID del terminal.',
+  SERIAL_DISPOSITION_INVALID: 'La disposición elegida no aplica al estado actual de la serie.',
+  SERIAL_TRACKING_NOT_REQUIRED:
+    'El producto no usa seguimiento por serie. Quita los números de serie e intenta de nuevo.',
+  SERIAL_TRACKING_MODE_INVALID: 'El modo de seguimiento elegido no es válido.',
   LAYAWAY_NOT_FOUND: 'No encontramos el apartado. Verifica el ID.',
   LAYAWAY_ITEMS_REQUIRED: 'Agrega al menos un producto al apartado.',
   LAYAWAY_INVALID_AMOUNT: 'El monto ingresado no es válido.',

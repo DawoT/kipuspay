@@ -556,6 +556,18 @@ export async function configureSerialTrackingAtomic(
   if (input.serialTrackingMode !== 'NONE' && input.serialTrackingMode !== 'REQUIRED') {
     throw new Error('SERIAL_TRACKING_MODE_INVALID');
   }
+  if (input.serialTrackingMode === 'REQUIRED') {
+    const stock = await db
+      .prepare(
+        `SELECT COALESCE(SUM(s.quantity_microunits), 0) AS qty
+         FROM inventory_location_stock s
+         WHERE s.tenant_id = ? AND s.product_id = ?`,
+      )
+      .bind(tenantId, input.productId)
+      .first();
+    const qty = Number((stock as { qty?: unknown } | null)?.qty ?? 0);
+    if (qty !== 0) throw new Error('SERIAL_STOCK_EXISTS');
+  }
   await runD1AtomicPlan(db, (plan) => {
     plan.guardState(
       `SELECT 1 FROM products p

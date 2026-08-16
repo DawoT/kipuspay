@@ -61,7 +61,12 @@ export async function runCreateTransferHttp(
     fromBranchId?: string;
     toBranchId?: string;
     notes?: string | null;
-    lines?: readonly { productId?: string; qtySent?: number; batchId?: string | null }[];
+    lines?: readonly {
+      productId?: string;
+      qtySent?: number;
+      batchId?: string | null;
+      serialIds?: readonly string[];
+    }[];
   },
 ): Promise<HttpResult> {
   if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
@@ -83,6 +88,7 @@ export async function runCreateTransferHttp(
         productId: l.productId ?? '',
         qtySent: l.qtySent ?? 0,
         batchId: l.batchId ?? null,
+        serialIds: l.serialIds ?? [],
       })),
     });
     return { status: 201, body: { ...result } };
@@ -180,6 +186,7 @@ export async function runPartialReceivePoHttp(
       unitCostCents?: number;
       batchNumber?: string | null;
       expiryDate?: string | null;
+      serialNumbers?: readonly string[];
     }[];
   },
 ): Promise<HttpResult> {
@@ -205,6 +212,7 @@ export async function runPartialReceivePoHttp(
         unitCostCents: l.unitCostCents ?? 0,
         batchNumber: l.batchNumber ?? null,
         expiryDate: l.expiryDate ?? null,
+        serialNumbers: l.serialNumbers ?? [],
       })),
     });
     return { status: 200, body: { ...result } };

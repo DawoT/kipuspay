@@ -46,12 +46,18 @@ function adapterError(error: unknown, fallback: string): HttpResult {
   const candidate = error instanceof Error ? error.message : '';
   const expected = /^SERIAL_[A-Z0-9_]+$/.test(candidate);
   const code = expected ? candidate : fallback;
+  const actions: Record<string, string> = {
+    SERIAL_STOCK_EXISTS: 'Descarga el stock del producto antes de activar el rastreo.',
+    SERIAL_LEASE_CONFLICT:
+      'Libera la reserva desde el terminal que la adquirió e intenta de nuevo.',
+  };
   return {
     status: expected ? 422 : 500,
     body: {
       error: code,
       code,
-      action: 'Corrige la serie o libera el lease desde el terminal que lo adquirió.',
+      action:
+        actions[code] ?? 'Corrige la serie o libera el lease desde el terminal que lo adquirió.',
     },
   };
 }
