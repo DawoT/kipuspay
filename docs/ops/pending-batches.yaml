@@ -70,7 +70,9 @@ pending:
 
   - id: batch-e
     nombre: "Marketing — empezar, verticales, comparar, casos, blog"
-    estado: PENDIENTE
+    estado: CERRADO
+    ledger: 0428
+    specs: [empezar-flujo, verticales, comparar-casos-blog]
     modulos:
       - ruta: /empezar
         contrato: "Onboarding 4 pasos -> credenciales (EMP/PIN) -> redirect con token (dual-app)"
@@ -107,4 +109,4 @@ pending:
 meta:
   archivo_temporal: true
   eliminar_al_cerrar: todos los batches
-  referencia_patron: "Sello en navegador (sprint 59-63, ledgers 0419-0427)"
+  referencia_patron: "Sello en navegador (sprint 59-64, ledgers 0419-0428)"
