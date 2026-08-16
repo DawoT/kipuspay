@@ -11581,3 +11581,58 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0435
+timestamp_utc: 2026-08-16T17:00:00Z
+schema_version: 2
+sprint_fase: Sprint C1 — Doctrina de claims alineada al producto final (cierre del proyecto)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: descongelamiento FEFO/merma (GTM-16/GTM-13), matriz de go-live y roadmap de cierre
+relacion: amplia
+referencias_entradas: [0434]
+referencias_documentales: [docs/ops/claims-go-live.md, docs/ops/legal_and_sales_guide.md, docs/ROADMAP.md, apps/marketing-web/src/lib/claims/public.ts, apps/marketing-web/src/lib/content/pricing.ts]
+prev_id: 0434
+prev_hash: 4041d23e791771320937c9f9c3187678f895a545f4b4ce3c30844c727ca9fe55
+entry_hash: 3dc8cd7cb92aab9c742852878e8bb3eaa00624dbce99c8d128315ac0b69dcfd6
+ticket_or_adr: GTM-13, GTM-16, GTM-26, V-18, CAL-05
+test_ids: [apps/marketing-web/src/lib/claims/public-drift.test.ts, apps/marketing-web/src/lib/content/pricing.test.ts, V-00, V-30, SUITE]
+entregable_afectado: doctrina de claims (guía de ventas, GTM, pricing, PUBLIC_CLAIMS, roadmap) + paths.py
+descripcion: >
+  Primer sprint del cierre del proyecto: los claims ya ofrecen el producto
+  final y la doctrina deja de sub-vender. FEFO/lotes y merma entre locales
+  pasan de 'en preparación' a LIVE (GTM-16 gate S18 y GTM-13 gate S20, ya
+  descongelados en GTM; la guía §16/§124 los mantenía en el freeze y el
+  pricing los vendía como 'En preparación'). Cambios: guía
+  legal_and_sales_guide §16/§124 (freeze actualizado a lo realmente
+  pendiente: comandas/KDS hasta C2, arqueo Z ciego, LPDP self-serve,
+  DR/BCP, SUNAT en vivo); pricing.ts FEFO/recetas -> available; PUBLIC_CLAIMS
+  fefo_lots/merma_xfer -> available con el test public-drift alineado
+  (PREPARING queda kds_split + blind_z_audit); verticals.spec: retail y
+  cadenas dejan de ser 'frozen' (sus claims destacados son live), solo
+  restaurantes (KDS) permanece con badge 'En preparación' hasta el Sprint
+  C2. Nueva matriz docs/ops/claims-go-live.md: claim -> capability ->
+  evidencia interna/externa -> gate -> responsable, que alimenta el bloque
+  go-live-* del pending-batches.yaml (staging Cloudflare, SUNAT, hardware y
+  FCM AGENDADOS_AL_FINAL). Roadmap: filas 39-53 con QG y sellos reales
+  (ledgers 0419-0434), fila 6H con el cierre y nuevas filas C1-C5 + Go-live.
+  paths.py: alias 'Claims' para el nuevo doc (V-18).
+evidencia: >
+  RED (run-red-6h-c1): pricing vendía FEFO como 'En preparación' y la guía
+  §16 congelaba FEFO/merma pese a GTM-16/13 live; verticals.spec fallaba en
+  retail/cadenas al buscar el badge de preparación de claims ya live.
+  GREEN (run-green-6h-c1): marketing e2e 19/19 (verticals con retail y
+  cadenas live; restaurantes KDS en preparación), unit pricing 11/11 y
+  public-drift 5/5; quality Gate OK; verify.sh SUITE GREEN (incl. V-18 con
+  el alias Claims).
+red_commit_sha: dbf8b5f
+red_run_id: run-red-6h-c1
+expected_failure: FEFO/merma vendidos como en preparación pese a gates live / verticales frozen con claims descongelados
+green_commit_sha: dbf8b5f
+green_run_id: run-green-6h-c1
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
