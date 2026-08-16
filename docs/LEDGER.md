@@ -11162,3 +11162,56 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+---
+```
+id: 0428
+timestamp_utc: 2026-08-16T03:20:00Z
+schema_version: 2
+sprint_fase: Batch E — marketing: onboarding, verticales, comparar, casos y blog (sello en navegador)
+agente_responsable: Staff QA
+tipo: Cierre
+subtipo: verificación real + e2e del sitio de marketing (claims cableados y congelados)
+relacion: amplia
+referencias_entradas: [0427]
+referencias_documentales: [docs/ops/pending-batches.yaml, apps/marketing-web/tests/e2e/empezar-flujo.spec.ts, apps/marketing-web/tests/e2e/verticals.spec.ts, apps/marketing-web/tests/e2e/comparar-casos-blog.spec.ts]
+prev_id: 0427
+prev_hash: 18e664ff35f237c8f0656c16664eff2c7ce504200aa401e973b8ab884a76e984
+entry_hash: e213b824ddc9f27fee67b2af452ba6ab2b63b576ca9e26e43e6f08eff71e9fad
+ticket_or_adr: Proceso §8.1, V-26, CAL-05
+test_ids: [empezar-flujo, verticals, comparar-casos-blog, reclamaciones, pricing-claims, legal-pages, ayuda-footer, V-00, V-26, SUITE]
+entregable_afectado: apps/marketing-web (9 specs e2e nuevos)
+descripcion: >
+  Sello del Batch E con el patrón establecido. Verificación REAL en navegador
+  con worker + D1: onboarding de 4 pasos completo (credenciales EMP-43977,
+  copy "No usamos la palabra contingencia", redirect con tenant + token
+  single-use); /para/retail con claims y congelados "EN PREPARACIÓN" (Arqueo
+  ciego con auditoría); /comparar?vs=bsale con rubro-switch (Bsale/Alegra/
+  Siigo); /casos-de-exito con copy honesto ("Solo publicamos testimonios
+  cuando el negocio nos autoriza explícitamente"); /blog con posts publicados.
+  Hallazgo en el camino: el regex anti-jerga del spec matcheaba "publicados"
+  (falso positivo de UBL como substring) -> se usan word boundaries
+  (\bEdge|Workers|D1|ACID|CDR|UBL|PSE\b). La vertical "servicios" no muestra
+  congelados (todas sus capabilities están disponibles: correcto). El botón
+  go-pos navega por JS (window.location.assign) a app.kipuspay.com (producción):
+  el spec intercepta la ruta https://app.kipuspay.com/** y verifica el contrato
+  del redirect (tenant + token + mode + vertical). Nuevos specs: empezar-flujo
+  (4 pasos con mock del bootstrap + credenciales + redirect), verticales (5
+  landings con título, Empieza gratis, sin jerga y congelados donde aplica),
+  comparar-casos-blog (rubro-switch, casos honestos, blog con posts).
+evidencia: >
+  RED (run-red-6h-batche): sin e2e en empezar/verticales/comparar/casos/blog;
+  falso positivo de UBL en "publicados" al verificar jerga en el render.
+  GREEN (run-green-6h-batche): marketing e2e 19/19 (9 specs nuevos Batch E);
+  pos-web e2e 103/103; unit 395/395; quality Gate OK (bundle 259.77 kB gz);
+  verify.sh SUITE GREEN; flujo real onboarding EMP-43977 -> redirect con
+  tenant t_ce731eb3 + token en app.kipuspay.com.
+red_commit_sha: 19d5428e335c8b5f0de03c3f9973d1ed0bad45bb
+red_run_id: run-red-6h-batche
+expected_failure: sin e2e en los 5 modulos de marketing / falso positivo UBL en 'publicados' al validar jerga renderizada
+green_commit_sha: 2481430bc210b71557863bde24ee326799f1af71
+green_run_id: run-green-6h-batche
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
