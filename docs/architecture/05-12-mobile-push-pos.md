@@ -63,7 +63,10 @@ Los transportes normativos son Web Push estándar con VAPID para PWA y FCM HTTP 
 FCM legacy server keys queda prohibido. El registro FCM web usa un módulo vendorizado
 de carga diferida, fijado a versión y contenido; el repositorio registra licencia,
 SHA-256 y componente SBOM. No se agrega dependencia npm runtime. Si el módulo no
-carga, el producto degrada a Web Push o polling/banner sin afectar la caja.
+carga, el producto degrada a Web Push o polling/banner sin afectar la caja. El token
+FCM lo inyecta el host (WebView/Android nativo) por un seam de lectura
+`window.__KIPUS_FCM_TOKEN__` (patrón ADR-0033); sin token real el cliente registra
+solo Web Push — jamás se inventa o hardcodea un token FCM.
 
 El Worker API nunca recibe material privado VAPID ni credenciales OAuth de service
 account. Invoca por RPC un Worker de transporte aislado que posee `PUSH_KMS` y

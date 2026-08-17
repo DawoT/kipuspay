@@ -12178,3 +12178,49 @@ aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independie
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0447
+timestamp_utc: 2026-08-17T06:05:00Z
+schema_version: 2
+sprint_fase: Sprint C8 — Cliente FCM wired: registro FCM_HTTP_V1 con token real del host + degradación fail-closed
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: C8.1..C8.3 — canal FCM del cliente POS conectado (registerFcmTokenPush + seam de host + bridge SW)
+relacion: amplia
+referencias_entradas: [0446]
+referencias_documentales: [apps/pos-web/src/lib/mobile/mobile-push-client.ts, apps/pos-web/src/lib/mobile/mobile-push-client.test.ts, apps/pos-web/src/lib/mobile/mobile-push-pwa.red.test.ts, apps/pos-web/src/lib/offline-sync/offline-sync-sw.ts, apps/pos-web/src/routes/mobile/+page.svelte, docs/architecture/05-12-mobile-push-pos.md]
+prev_id: 0446
+prev_hash: 0d5a01edf9b32ac853edb10414e722946fa515047a4186232cf3b4a38b057654
+entry_hash: 12db6bf845393725af61bc7f772246a9798234982870bf50307c58d4848f0752
+ticket_or_adr: Sprint C8 (fase A del cierre interno → go-live; gap go-live-fcm fcm-vapid-real permanece, requiere credenciales reales + A+V)
+test_ids: [SUITE, V-13, V-15, V-18, V-30]
+entregable_afectado: cliente push §5.12.3/§5.12.7 (canal FCM_HTTP_V1 del POS + bridge SW de fondo)
+descripcion: >
+  El transporte KMS (sendFcmHttpV1), dispatcher y rutas ya soportaban FCM_HTTP_V1,
+  pero el cliente POS solo registraba suscripciones WEB_PUSH y el adapter FCM
+  vendorizado (loadFcmRegistrationAdapter/registerFcmWeb) no tenía call-site de
+  producción. C8 conecta el canal FCM del cliente: registerFcmTokenPush valida el
+  token real del host (PUSH_FCM_TOKEN_INVALID si vacío, fail-closed, jamás demo),
+  comparte grantConsent con Web Push (DRY) y registra provider FCM_HTTP_V1 con
+  encryptedRegistration=token. La página /mobile intenta primero el seam del host
+  window.__KIPUS_FCM_TOKEN__ (patrón ADR-0033) vía loadFcmRegistrationAdapter; si
+  el módulo no carga o el token falta, degrada a Web Push — nunca bloquea la caja
+  (§5.12.3). buildFcmBackgroundMessage reenvía mensajes FCM de fondo del host al
+  único SW para display + ACK (§5.12.7). El seam del host queda documentado en la
+  spec §5.12.3 (DRY, invariante 9).
+evidencia: >
+  RED (run-red-c8): registerFcmTokenPush inexistente (TypeError), sin camino
+  FCM_HTTP_V1 en el cliente, sin call-site del adapter FCM, sin bridge SW.
+  GREEN (run-green-c8): pos-web 410 tests unit GREEN (83 files, +4 C8), turbo
+  lint+typecheck 101/101 con --concurrency=4 (eslint --max-warnings 0, svelte-check
+  0 errors), verify SUITE GREEN (V-01..V-30; INDEX.md regenerado por V-15).
+red_commit_sha: N/A
+red_run_id: run-red-c8
+expected_failure: cliente sin registro FCM_HTTP_V1; token demo/ausente no validado; adapter FCM sin call-site
+green_commit_sha: N/A
+green_run_id: run-green-c8
+ancestry_verified: true
+aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

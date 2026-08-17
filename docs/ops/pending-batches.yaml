@@ -230,6 +230,34 @@ sprints_cierre:
         pass: "WSS pairing/allowlist + adquisición device USB por gesto conectados a la UI de config; evidencia física en go-live-hardware (matriz 58/80 mm)"
         requires_av: true
 
+  - id: sprint-c8
+    nombre: "Cliente FCM wired: registro FCM_HTTP_V1 con token real del host + degradación fail-closed (canal push §5.12.3/§5.12.7)"
+    estado: CERRADO
+    ledger: "0447"
+    gaps:
+      - id: c8-fcm-client
+        severity: closed
+        detail: "registerFcmTokenPush (mobile-push-client.ts): valida token real del host (PUSH_FCM_TOKEN_INVALID si vacío, fail-closed, jamás demo), comparte grantConsent con Web Push (DRY) y registra provider FCM_HTTP_V1 con encryptedRegistration=token"
+        can_auto_fix: true
+        status: closed
+      - id: c8-fcm-host-seam
+        severity: closed
+        detail: "Ruta /mobile intenta primero seam del host window.__KIPUS_FCM_TOKEN__ (patrón ADR-0033) vía loadFcmRegistrationAdapter; si el módulo no carga o el token falta, degrada a Web Push — nunca bloquea la caja. Seam documentado en spec §5.12.3"
+        can_auto_fix: true
+        status: closed
+      - id: c8-fcm-sw-bridge
+        severity: closed
+        detail: "buildFcmBackgroundMessage reenvía mensajes FCM de fondo del host al único SW para display + ACK (§5.12.7, FCM_BACKGROUND_MESSAGE)"
+        can_auto_fix: true
+        status: closed
+    next_actions:
+      - id: c8-fcm-vapid-real
+        owner: Staff Mobile + Staff Security
+        status: pending
+        can_auto_fix: false
+        pass: "VAPID + FCM HTTP v1 reales (go-live-fcm fcm-vapid-real, depends_on stg-secrets-real); ACK DISPLAYED p95<10s ≥99%; A+V"
+        requires_av: true
+
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
     estado: EN_CURSO

@@ -7,11 +7,13 @@
     listBrowserPushDevices,
     queueBrowserPushTest,
     registerBrowserPush,
+    registerFcmTokenPush,
     rotateBrowserPush,
     unregisterBrowserPush,
     updateBrowserPushPrivacy,
     type PushPurpose,
   } from '$lib/mobile/mobile-push-client';
+  import { loadFcmRegistrationAdapter } from '$lib/mobile/mobile-push-pwa';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -41,6 +43,15 @@
       ? 'OWNER_ALERTS'
       : 'OPERATIONAL_MOBILE',
   );
+
+  /** C8: bootstrap FCM real inyectado por el host (WebView/Android nativo). */
+  function hostFcmBootstrap(): (() => Promise<{ readonly token: string }>) | null {
+    if (typeof window === 'undefined') return null;
+    const host = (window as Window & {
+      __KIPUS_FCM_TOKEN__?: () => Promise<{ readonly token: string }>;
+    }).__KIPUS_FCM_TOKEN__;
+    return typeof host === 'function' ? host : null;
+  }
 
   onMount(() => {
     if (sessionState?.current?.authenticatedFetch) {
@@ -77,6 +88,26 @@
       return;
     }
     try {
+      // C8: si el host inyecta un token FCM real, registra FCM_HTTP_V1; si el
+      // módulo no carga o el token falta, degrada fail-closed a Web Push.
+      const bootstrap = hostFcmBootstrap();
+      if (bootstrap) {
+        const adapter = await loadFcmRegistrationAdapter(bootstrap);
+        if (adapter.registered) {
+          const registered = await registerFcmTokenPush(
+            purpose,
+            amountsMode ? 'AMOUNTS' : 'REDACTED',
+            adapter.token,
+          );
+          consentId = registered.consentId;
+          subscriptionId = registered.subscriptionId;
+          localStorage.setItem('kipuspay.push.consent', consentId);
+          localStorage.setItem('kipuspay.push.subscription', subscriptionId);
+          permission = 'granted';
+          status = 'Dispositivo registrado en el canal FCM con consentimiento vigente.';
+          return;
+        }
+      }
       const registered = await registerBrowserPush(purpose, amountsMode ? 'AMOUNTS' : 'REDACTED');
       permission = Notification.permission;
       consentId = registered.consentId;

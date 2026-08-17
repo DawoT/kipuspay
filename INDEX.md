@@ -157,10 +157,10 @@ Abre solo los archivos que esta tabla te señale.
 
 | Tabla | Sección | Archivo | Línea |
 |---|---|---|---|
-| `push_consents` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 96 |
-| `push_subscriptions` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 121 |
-| `push_events` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 154 |
-| `push_deliveries` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 184 |
+| `push_consents` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 99 |
+| `push_subscriptions` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 124 |
+| `push_events` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 157 |
+| `push_deliveries` | §5.12.5 | [`docs/architecture/05-12-mobile-push-pos.md`](docs/architecture/05-12-mobile-push-pos.md) | 187 |
 | `usage_counters` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 203 |
 | `usage_events` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 212 |
 | `billing_overages` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 223 |

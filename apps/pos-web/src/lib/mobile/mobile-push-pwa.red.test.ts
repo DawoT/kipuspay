@@ -9,6 +9,7 @@ import {
   resolveNotificationRoute,
   runLowEndOfflineParity,
 } from './mobile-push-pwa.js';
+import { buildFcmBackgroundMessage } from '../offline-sync/offline-sync-sw.js';
 
 describe('Sprint 45 unified Service Worker and PWA contract (RED)', () => {
   it('registers one versioned worker for offline sync, push, FCM, click, and ACK', async () => {
@@ -38,6 +39,14 @@ describe('Sprint 45 unified Service Worker and PWA contract (RED)', () => {
     expect(unifiedWorker).toContain('receipt');
     expect(unifiedWorker).toContain('displayedAt');
     expect(unifiedWorker).not.toContain('/api/mobile-push/deliveries/ack');
+  });
+
+  it('forwards host FCM background messages to the single SW for display + ACK', () => {
+    expect(unifiedWorker).toContain('FCM_BACKGROUND_MESSAGE');
+    expect(buildFcmBackgroundMessage({ deliveryId: 'delivery-a' })).toMatchObject({
+      type: 'FCM_BACKGROUND_MESSAGE',
+      payload: { deliveryId: 'delivery-a' },
+    });
   });
 
   it('pins the lazy FCM web module with version, license, SHA-256, and SBOM component', () => {

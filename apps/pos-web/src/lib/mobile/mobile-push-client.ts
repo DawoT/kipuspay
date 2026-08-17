@@ -40,6 +40,46 @@ export async function readPushPolicy(): Promise<PushPolicy> {
   return api<PushPolicy>('/api/push/privacy');
 }
 
+function isFcmToken(value: string): boolean {
+  return /^[A-Za-z0-9_=-]{16,4096}$/.test(value.trim());
+}
+
+async function grantConsent(
+  purpose: PushPurpose,
+  privacyMode: 'REDACTED' | 'AMOUNTS',
+  policy: PushPolicy,
+): Promise<{ readonly id: string }> {
+  return api<{ id: string }>('/api/push/consents', {
+    method: 'POST',
+    body: JSON.stringify({
+      purpose,
+      policyVersion: policy.policyVersion,
+      privacyMode,
+      ownerAmountsOptIn: privacyMode === 'AMOUNTS',
+    }),
+  });
+}
+
+export async function registerFcmTokenPush(
+  purpose: PushPurpose,
+  privacyMode: 'REDACTED' | 'AMOUNTS' = 'REDACTED',
+  token: string,
+): Promise<{ readonly consentId: string; readonly subscriptionId: string }> {
+  if (!isFcmToken(token)) throw new Error('PUSH_FCM_TOKEN_INVALID');
+  const policy = await readPushPolicy();
+  const consent = await grantConsent(purpose, privacyMode, policy);
+  const registered = await api<{ id: string }>('/api/push/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify({
+      purpose,
+      provider: 'FCM_HTTP_V1',
+      encryptedRegistration: token.trim(),
+      consentPolicyVersion: policy.policyVersion,
+    }),
+  });
+  return { consentId: consent.id, subscriptionId: registered.id };
+}
+
 export async function registerBrowserPush(
   purpose: PushPurpose,
   privacyMode: 'REDACTED' | 'AMOUNTS' = 'REDACTED',
@@ -55,15 +95,7 @@ export async function registerBrowserPush(
       userVisibleOnly: true,
       applicationServerKey: applicationServerKey(policy.vapidPublicKey),
     }));
-  const consent = await api<{ id: string }>('/api/push/consents', {
-    method: 'POST',
-    body: JSON.stringify({
-      purpose,
-      policyVersion: policy.policyVersion,
-      privacyMode,
-      ownerAmountsOptIn: privacyMode === 'AMOUNTS',
-    }),
-  });
+  const consent = await grantConsent(purpose, privacyMode, policy);
   const registered = await api<{ id: string }>('/api/push/subscriptions', {
     method: 'POST',
     body: JSON.stringify({

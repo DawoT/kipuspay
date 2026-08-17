@@ -28,6 +28,17 @@ export function buildSetApiBaseMessage(apiBase: string): { type: 'SET_API_BASE';
   return { type: 'SET_API_BASE', apiBase: apiBase.replace(/\/$/, '') };
 }
 
+/**
+ * C8: mensaje FCM de fondo que el host (WebView/Android nativo) reenvía al único
+ * SW del POS para su display + ACK (spec §5.12.7). El SW ya lo maneja.
+ */
+export function buildFcmBackgroundMessage(payload: unknown): {
+  type: 'FCM_BACKGROUND_MESSAGE';
+  payload: unknown;
+} {
+  return { type: 'FCM_BACKGROUND_MESSAGE', payload };
+}
+
 /** Registra SW si el entorno lo soporta (no-op en tests/SSR). */
 export async function registerOfflineSyncServiceWorker(
   scriptUrl: string = '/offline-sync-sw.js',
