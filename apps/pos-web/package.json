@@ -2,12 +2,13 @@
   "name": "@kipuspay/pos-web",
   "version": "0.0.0",
   "private": true,
-  "description": "KipusPay \u2014 POS web (SvelteKit), cliente Edge sin librer\u00edas de render de terceros (ADR-002).",
+  "description": "KipusPay — POS web (SvelteKit), cliente Edge sin librerías de render de terceros (ADR-002).",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
+    "deploy:staging": "PUBLIC_API_BASE=https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev pnpm build && wrangler pages deploy .svelte-kit/cloudflare --project-name kipuspay-pos-web-staging --branch staging",
     "lint": "svelte-kit sync && eslint src --max-warnings 0",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run --coverage",
@@ -26,7 +27,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.62.1",
-    "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/adapter-cloudflare": "^7.2.9",
     "@sveltejs/kit": "^2.70.2",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@vitest/coverage-v8": "^4.1.10",
@@ -36,6 +37,7 @@
     "svelte-check": "^4.7.4",
     "typescript": "^5.9.3",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.123.0"
   }
 }

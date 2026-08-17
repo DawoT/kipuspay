@@ -11953,3 +11953,40 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0442
+timestamp_utc: 2026-08-17T00:55:01Z
+schema_version: 2
+sprint_fase: Go-live staging — bootstrap Cloudflare smoke
+agente_responsable: Staff SRE
+tipo: Entregable nuevo
+subtipo: recursos staging + deploy Workers/Pages + smoke /health
+relacion: amplia
+referencias_entradas: [0439, 0441]
+referencias_documentales: [docs/ops/staging-bootstrap.md, docs/ops/pending-batches.yaml, docs/ops/claims-go-live.md]
+prev_id: 0441
+prev_hash: e98206877daeea28a6b3b09e7be3a0a02614c1566a6997c6cf9c4c9c3fa7fdda
+entry_hash: b4481fbaca6c7d2d719c6e1a9d82f73ed509ca332bee1b45a499a4cdfdf795c6
+ticket_or_adr: go-live-staging smoke (no cierre liberatorio)
+test_ids: [SUITE, V-13, V-18]
+entregable_afectado: wrangler env.staging + Pages POS/marketing + docs/ops/staging-bootstrap.md
+descripcion: >
+  Bootstrap staging Cloudflare: D1/KV/R2/Secrets Store; env.staging en
+  worker-api/fiscal/kms; POS adapter-cloudflare + Pages projects; migraciones
+  D1 aplicadas; AUTH_JWT_HS_SECRET; smoke API /health + fronts pages.dev.
+  go-live-staging permanece AGENDADO_AL_FINAL (evidencia s41-s49 pendiente).
+evidencia: >
+  RED: placeholders wrangler; POS adapter-auto; sin recursos KipusPay en cuenta.
+  GREEN: Workers staging deployed; Pages POS/marketing 200; /health ok;
+  staging-bootstrap.md publicado.
+red_commit_sha: N/A
+red_run_id: run-red-staging-bootstrap
+expected_failure: deploy fallido por placeholders / KMS sin fetch / Pages env.staging
+green_commit_sha: N/A
+green_run_id: run-green-staging-bootstrap
+ancestry_verified: true
+aprobaciones: [Staff SRE R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

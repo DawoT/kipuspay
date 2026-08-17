@@ -27,6 +27,11 @@ interface DekContext {
 }
 
 export class BackupKmsService extends WorkerEntrypoint<KmsEnv> {
+  /** Required so the script registers a fetch handler for Workers deploy (RPC-only otherwise). */
+  fetch(): Response {
+    return new Response('Not Found', { status: 404 });
+  }
+
   activeKeyVersion(): Promise<string> {
     return Promise.resolve(new BackupKmsCore(this.env).activeKeyVersion());
   }

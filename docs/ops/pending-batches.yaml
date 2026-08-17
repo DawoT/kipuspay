@@ -160,6 +160,7 @@ sprints_cierre:
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
     estado: AGENDADO_AL_FINAL
+    nota: "Smoke UP 2026-08-17 (docs/ops/staging-bootstrap.md). Evidencia s41-s49 pendiente — no CERRADO."
   - id: go-live-sunat
     nombre: "Certificación SUNAT/OSE real (GTM-08)"
     estado: AGENDADO_AL_FINAL

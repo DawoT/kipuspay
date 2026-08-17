@@ -430,11 +430,8 @@ function pushResponse(result: PushHttpResult): Response {
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   const app = new Hono<AppEnv>();
 
-  app.get('/health', (c) => c.json({ status: 'ok' }));
-
-  // M6B: CORS fail-closed (ALLOWED_ORIGINS). Debe registrarse ANTES de las
-  // rutas públicas: si el POST de login queda primero, el preflight OPTIONS
-  // sí recibe ACAO pero la respuesta real no, y el navegador oculta el body.
+  // M6B: CORS fail-closed (ALLOWED_ORIGINS). Antes de rutas públicas (incl.
+  // /health) para que el navegador del POS/marketing pueda leer respuestas.
   const publicCorsMiddleware = async (
     c: Context<{ Bindings: WorkerEnv }>,
     next: () => Promise<void>,
@@ -450,6 +447,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     await next();
   };
+
+  app.use('/health', publicCorsMiddleware);
+  app.get('/health', (c) => c.json({ status: 'ok' }));
 
   app.use('/api/auth/cashier-login', publicCorsMiddleware);
   app.post('/api/auth/cashier-login', async (c) => {
