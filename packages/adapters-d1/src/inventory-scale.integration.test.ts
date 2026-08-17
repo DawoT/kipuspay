@@ -13,7 +13,11 @@ import { sha256Hex } from './crypto.js';
 
 const NOW_MS = Date.parse('2026-08-08T17:00:00.000Z');
 const NOW_ISO = new Date(NOW_MS).toISOString();
-const LIVE_ISO = new Date(Date.now() - 500).toISOString();
+
+/** Reloj de balanza fresco en cada llamada — no fijar al load del módulo (CI >2s → STALE). */
+function freshScaleIso(offsetMs = 200): string {
+  return new Date(Date.now() - offsetMs).toISOString();
+}
 
 async function seedWeightedSale(tenantId: string) {
   const branchId = `branch-${tenantId}`;
@@ -68,7 +72,7 @@ async function seedWeightedSale(tenantId: string) {
          id, tenant_id, terminal_id, protocol, device_fingerprint, status,
          last_heartbeat_at, last_heartbeat_sequence, last_weight_microunits
        ) VALUES (?, ?, ?, 'WEBUSB', ?, 'ACTIVE', ?, NULL, 500000)`,
-    ).bind(`scale-${tenantId}`, tenantId, terminalId, `fingerprint-${tenantId}`, LIVE_ISO),
+    ).bind(`scale-${tenantId}`, tenantId, terminalId, `fingerprint-${tenantId}`, freshScaleIso()),
     env.DB.prepare(
       `INSERT INTO tenant_weight_policies (
          id, tenant_id, manual_weight_threshold_microunits
@@ -123,10 +127,20 @@ async function seedWeightedSale(tenantId: string) {
   };
 }
 
-function weightedPayload(
+async function weightedPayload(
   fixture: Awaited<ReturnType<typeof seedWeightedSale>>,
   offlineSaleId: string,
-): OfflineSalePayload {
+): Promise<OfflineSalePayload> {
+  const tenantId = offlineSaleId.replace(/^off-/, '');
+  const observedAt = freshScaleIso();
+  // Alinea heartbeat del device al mismo instante que observedAt (ventana ≤2s vs Date.now()).
+  await env.DB.prepare(
+    `UPDATE scale_devices
+     SET last_heartbeat_at = ?, last_weight_microunits = 500000
+     WHERE tenant_id = ? AND id = ?`,
+  )
+    .bind(observedAt, tenantId, `scale-${tenantId}`)
+    .run();
   return {
     offlineSaleId,
     branchId: fixture.branchId,
@@ -149,9 +163,9 @@ function weightedPayload(
           weightMicrounits: 500_000,
           measurementSource: 'DEVICE',
           scaleProtocol: 'WEBUSB',
-          scaleDeviceId: `scale-${offlineSaleId.split('-').slice(1).join('-')}`,
+          scaleDeviceId: `scale-${tenantId}`,
           heartbeatSequence: 10,
-          observedAt: LIVE_ISO,
+          observedAt,
           stable: true,
         },
       },
@@ -163,9 +177,9 @@ function weightedPayload(
           weightMicrounits: 500_000,
           measurementSource: 'DEVICE',
           scaleProtocol: 'WEBUSB',
-          scaleDeviceId: `scale-${offlineSaleId.split('-').slice(1).join('-')}`,
+          scaleDeviceId: `scale-${tenantId}`,
           heartbeatSequence: 11,
-          observedAt: LIVE_ISO,
+          observedAt,
           stable: true,
         },
       },
@@ -191,7 +205,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
   it('keeps same-product lines distinct and reconciles price, branch, location and FEFO stock', async () => {
     const tenantId = 'scale-direct';
     const fixture = await seedWeightedSale(tenantId);
-    const payload = weightedPayload(fixture, `off-${tenantId}`);
+    const payload = await weightedPayload(fixture, `off-${tenantId}`);
 
     const result = await processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, payload, {
       nowMs: NOW_MS,
@@ -285,7 +299,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
   it('fails stale device facts before any sale or stock write', async () => {
     const tenantId = 'scale-stale';
     const fixture = await seedWeightedSale(tenantId);
-    const payload = weightedPayload(fixture, `off-${tenantId}`);
+    const payload = await weightedPayload(fixture, `off-${tenantId}`);
     const stale = {
       ...payload,
       items: payload.items.map((item) => ({
@@ -348,7 +362,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       const digestHex = [...new Uint8Array(digest)]
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join('');
-      const base = weightedPayload(fixture, offlineSaleId);
+      const base = await weightedPayload(fixture, offlineSaleId);
       const manual = (authorizationToken: string): OfflineSalePayload => ({
         ...base,
         items: [
@@ -431,7 +445,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
     for (const scenario of cases) {
       const tenantId = `scale-binding-${scenario}`;
       const fixture = await seedWeightedSale(tenantId);
-      const payload = weightedPayload(fixture, `off-${tenantId}`);
+      const payload = await weightedPayload(fixture, `off-${tenantId}`);
       let terminalId = fixture.terminalId;
       if (scenario === 'other-terminal') {
         terminalId = `terminal-other-${tenantId}`;
@@ -515,7 +529,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
   it('concurrent duplicate measurement is idempotent with one sale and one stock debit', async () => {
     const tenantId = 'scale-measurement-race';
     const fixture = await seedWeightedSale(tenantId);
-    const base = weightedPayload(fixture, `off-${tenantId}`);
+    const base = await weightedPayload(fixture, `off-${tenantId}`);
     const payload: OfflineSalePayload = {
       ...base,
       items: [base.items[0]!],
@@ -594,7 +608,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       ),
     ]);
     const payload: OfflineSalePayload = {
-      ...weightedPayload(fixture, `off-${tenantId}`),
+      ...(await weightedPayload(fixture, `off-${tenantId}`)),
       items: [
         {
           productId: fixture.productId,
@@ -663,7 +677,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       env.DB,
       directTenant,
       directFixture.userId,
-      weightedPayload(directFixture, `off-${directTenant}`),
+      await weightedPayload(directFixture, `off-${directTenant}`),
       {
         nowMs: NOW_MS,
         inventoryScaleEnabled: true,
@@ -675,7 +689,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       env.DB,
       syncTenant,
       syncFixture.userId,
-      [weightedPayload(syncFixture, `off-${syncTenant}`)],
+      [await weightedPayload(syncFixture, `off-${syncTenant}`)],
       NOW_MS,
       undefined,
       false,
@@ -747,7 +761,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       ),
     ]);
     const payload: OfflineSalePayload = {
-      ...weightedPayload(fixture, `off-${tenantId}`),
+      ...(await weightedPayload(fixture, `off-${tenantId}`)),
       items: [
         {
           productId: fixture.productId,
@@ -827,7 +841,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
         env.DB,
         tenantId,
         fixture.userId,
-        weightedPayload(fixture, `off-${tenantId}`),
+        await weightedPayload(fixture, `off-${tenantId}`),
         {
           nowMs: NOW_MS,
           inventoryScaleEnabled: true,
@@ -876,8 +890,8 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
       .bind(`series-return-${tenantId}`, tenantId, fixture.branchId)
       .run();
     const originPayload: OfflineSalePayload = {
-      ...weightedPayload(fixture, `off-${tenantId}`),
-      items: [weightedPayload(fixture, `off-${tenantId}`).items[0]!],
+      ...(await weightedPayload(fixture, `off-${tenantId}`)),
+      items: [(await weightedPayload(fixture, `off-${tenantId}`)).items[0]!],
       payments: [{ paymentMethodId: fixture.paymentMethodId, amountCents: 118 }],
     };
     const origin = await processOfflineSaleAtomic(env.DB, tenantId, fixture.userId, originPayload, {
@@ -955,7 +969,7 @@ describe('Sprint 40 weighted sale ACID cutover', () => {
         fixture.branchId,
       ),
     ]);
-    const base = weightedPayload(fixture, `off-${tenantId}`);
+    const base = await weightedPayload(fixture, `off-${tenantId}`);
     const origin = await processOfflineSaleAtomic(
       env.DB,
       tenantId,

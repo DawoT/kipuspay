@@ -94,7 +94,10 @@
 
 <div class="floor-board" data-testid="salon-root">
   <div class="floor-toolbar">
-    <h1>Salón</h1>
+    <div>
+      <p class="page-eyebrow">Piso · Salón</p>
+      <h1>Salón</h1>
+    </div>
     <a class="link-action" href="/salon/split">
       <Icon name="percent" size={14} />
       Dividir cuenta
@@ -165,7 +168,6 @@
 
 <style>
   .salon-card {
-    padding: var(--inset-card);
     flex: 1;
     max-width: none;
   }

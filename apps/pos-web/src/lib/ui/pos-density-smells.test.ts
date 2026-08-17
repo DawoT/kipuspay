@@ -400,6 +400,119 @@ function scanHandoffNavGated(): Finding[] {
   return out;
 }
 
+function scanJournalShell(): Finding[] {
+  const rel = 'routes/admin/diario/+page.svelte';
+  const text = readFileSync(join(POS_SRC, rel), 'utf8');
+  const markup = text.split(/<style\b/)[0] ?? text;
+  const out: Finding[] = [];
+  if (/\bjournal-shell\b/.test(markup)) {
+    out.push({
+      id: 'JOURNAL_SHELL',
+      file: rel,
+      line: 1,
+      detail: 'journal-shell legacy — usar page-shell',
+    });
+  }
+  if (!/\bpage-shell\b/.test(markup)) {
+    out.push({
+      id: 'JOURNAL_SHELL',
+      file: rel,
+      line: 1,
+      detail: 'diario debe usar page-shell',
+    });
+  }
+  return out;
+}
+
+function scanNestedLedgerCard(file: string, text: string): Finding[] {
+  if (!file.endsWith('.svelte')) return [];
+  if (file.includes('.test.') || file.includes('/dev/')) return [];
+  const markup = text.split(/<style\b/)[0] ?? text;
+  const out: Finding[] = [];
+  const insideLedger: boolean[] = [];
+  const re = /<\/?([A-Za-z][\w:-]*)((?:\s[^>]*)?)>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markup)) !== null) {
+    const full = m[0];
+    if (full.startsWith('<!--')) continue;
+    const name = m[1];
+    const isClose = full.startsWith('</');
+    const selfClose =
+      /\/>$/.test(full) ||
+      /^(br|hr|img|input|meta|link|source|area|base|col|embed|wbr)$/i.test(name);
+
+    if (isClose) {
+      if (insideLedger.length) insideLedger.pop();
+      continue;
+    }
+
+    const classAttr = full.match(/\bclass\s*=\s*["']([^"']*)["']/);
+    const classes = classAttr ? classAttr[1].split(/\s+/).filter(Boolean) : [];
+    const hasLedger = classes.includes('ledger-card');
+    const parentLedger = insideLedger.length > 0 && insideLedger[insideLedger.length - 1];
+
+    if (hasLedger && parentLedger) {
+      out.push({
+        id: 'NESTED_LEDGER_CARD',
+        file,
+        line: lineAt(markup, m.index),
+        detail: 'ledger-card anidado dentro de ledger-card',
+      });
+    }
+
+    if (!selfClose) {
+      insideLedger.push(parentLedger || hasLedger);
+    }
+  }
+  return out;
+}
+
+function scanKdsCardStyled(): Finding[] {
+  const rel = 'routes/kds/+page.svelte';
+  const text = readFileSync(join(POS_SRC, rel), 'utf8');
+  const markup = text.split(/<style\b/)[0] ?? text;
+  const style = text.includes('<style') ? text.slice(text.indexOf('<style')) : '';
+  const out: Finding[] = [];
+  if (!/\bkds-pending-card\b/.test(markup)) {
+    return out;
+  }
+  const hasLedgerClass = /class\s*=\s*["'][^"']*\bledger-card\b[^"']*\bkds-pending-card\b|class\s*=\s*["'][^"']*\bkds-pending-card\b[^"']*\bledger-card\b/.test(
+    markup,
+  );
+  const hasPadToken = /\.kds-pending-card\s*\{[^}]*padding\s*:\s*var\(--inset-card\)/.test(style);
+  if (!hasLedgerClass && !hasPadToken) {
+    out.push({
+      id: 'KDS_CARD_UNSTYLED',
+      file: rel,
+      line: 1,
+      detail: 'kds-pending-card debe ser ledger-card o padding var(--inset-card)',
+    });
+  }
+  return out;
+}
+
+function scanDisplayPadLiteral(): Finding[] {
+  const out: Finding[] = [];
+  for (const rel of ['routes/vitrina/+page.svelte', 'routes/kiosk/+page.svelte'] as const) {
+    const text = readFileSync(join(POS_SRC, rel), 'utf8');
+    const style = text.includes('<style') ? text.slice(text.indexOf('<style')) : '';
+    const re =
+      /\.(?:vitrina|kiosk)-(?:container|shell|card)\s*\{([^}]*)\}/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(style)) !== null) {
+      if (/padding\s*:\s*(1\.5rem|2rem|2\.5rem)\b/.test(m[1])) {
+        out.push({
+          id: 'DISPLAY_PAD_LITERAL',
+          file: rel,
+          line: lineAt(style, m.index),
+          detail: `.${m[0].match(/\.[\w-]+/)?.[0]?.slice(1)} padding literal — usar --inset-shell/--inset-card`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 function collectP0(): Finding[] {
   const findings: Finding[] = [];
   for (const abs of walk(POS_SRC)) {
@@ -409,6 +522,7 @@ function collectP0(): Finding[] {
       ...scanCardPadOverride(file, text),
       ...scanBreakpoints(file, text),
       ...scanNestedSectionPad(file, text),
+      ...scanNestedLedgerCard(file, text),
       ...scanCardPad125(file, text),
       ...scanCardPad15(file, text),
       ...scanBlurOnCard(file, text),
@@ -435,6 +549,9 @@ function collectP0(): Finding[] {
     ...scanOwnerOrphanRoutes(),
     ...scanShellInShellCaja(),
     ...scanHandoffNavGated(),
+    ...scanJournalShell(),
+    ...scanKdsCardStyled(),
+    ...scanDisplayPadLiteral(),
   );
 
   return findings;

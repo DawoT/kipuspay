@@ -133,7 +133,10 @@
 
 <div class="floor-board" data-testid="kds-root">
   <div class="floor-toolbar">
-    <h1>Cocina</h1>
+    <div>
+      <p class="page-eyebrow">Piso · Cocina</p>
+      <h1>Cocina</h1>
+    </div>
     <div class="floor-toolbar-actions">
       {#if enabled}
         <label class="branch-inline" for="kds-branch-input">
@@ -164,7 +167,7 @@
       {#if pending.length > 0}
         <ul class="kds-pending" data-testid="kds-pending">
           {#each pending as order (order.id)}
-            <li class="kds-pending-card">
+            <li class="ledger-card kds-pending-card">
               <div class="kds-pending-head">
                 <span class="badge badge-warning">Mesa {order.tableLabel ?? '—'}</span>
                 <span class="order-ref">{order.id.slice(0, 8)}</span>
@@ -196,7 +199,7 @@
       {:else}
         <ul class="kds-event-list" data-testid="kds-events">
           {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
-            <li class="kds-event-item">
+            <li class="kds-event-item ledger-card">
               <span class="badge {ev.type === 'ITEM_FIRED' ? 'badge-warning' : 'badge-success'}">
                 {kdsEventLabel(ev.type)}
               </span>
@@ -242,6 +245,52 @@
     min-height: 0;
   }
 
+  .kds-pending {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 0.75rem;
+    align-content: start;
+  }
+
+  .kds-pending-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .kds-pending-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .kds-pending-items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .kds-pending-items li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-height: 44px;
+  }
+
+  .kds-pending-items .qty {
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
   .kds-event-list {
     list-style: none;
     padding: 0;
@@ -256,11 +305,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem;
     min-height: 44px;
-    background: var(--bg-glass);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
     flex-wrap: wrap;
   }
 
@@ -276,7 +321,7 @@
   }
 
   .mark-btn {
-    padding: 0.625rem 0.875rem;
+    padding: var(--inset-field);
     min-height: 44px;
     font-size: 0.8125rem;
   }

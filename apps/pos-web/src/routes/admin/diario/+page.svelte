@@ -64,15 +64,14 @@
 
 <svelte:head><title>Diario · KipusPay</title></svelte:head>
 
-<main class="journal-shell" data-testid="admin-diario">
-  <header class="masthead">
-    <div class="badge-tag">
-      <Icon name="file-text" size={14} />
-      <span>Contabilidad · Auditoría Ledger</span>
+<div class="page-shell" data-testid="admin-diario">
+  <div class="page-masthead">
+    <div>
+      <p class="page-eyebrow"><Icon name="file-text" size={12} /> Contabilidad · Auditoría</p>
+      <h1 class="page-title">Diario contable</h1>
+      <p class="page-lede">Solo lectura. Los asientos nacen con la venta, el cobro, el apartado y el arqueo.</p>
     </div>
-    <h1>Diario contable</h1>
-    <p class="lede">Solo lectura. Los asientos nacen con la venta, el cobro, el apartado y el arqueo.</p>
-  </header>
+  </div>
 
   {#if !journalOn}
     <div class="alert-box alert-off" data-testid="admin-diario-off">
@@ -81,7 +80,7 @@
     </div>
   {:else}
     <div class="journal-workbench ledger-card">
-      <div class="filter-grid">
+      <div class="filter-grid field-group">
         <div class="field">
           <label for="from-date">
             <Icon name="clock" size={14} />
@@ -107,7 +106,7 @@
         </div>
       </div>
 
-      <div class="actions">
+      <div class="actions btn-row">
         <Button variant="primary" data-testid="journal-load" onclick={() =>
           void loadJournal()}>
           <Icon name="search" size={16} />
@@ -151,38 +150,9 @@
       </div>
     </div>
   {/if}
-</main>
+</div>
 
 <style>
-  .journal-shell {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 1.5rem 1rem 5rem;
-  }
-
-  .masthead {
-    margin-bottom: 1.5rem;
-  }
-
-
-  h1 {
-    margin: 0.2rem 0;
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
-    font-family: var(--font-heading, sans-serif);
-    font-weight: 800;
-    color: var(--text-main);
-  }
-
-  .lede {
-    color: var(--text-muted);
-    font-size: 0.92rem;
-    margin: 0;
-  }
-
-  .ledger-card {
-    background: var(--bg-ledger-card);
-  }
-
   .filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -207,10 +177,6 @@
     flex-wrap: wrap;
     margin-bottom: 1.25rem;
   }
-
-
-
-
 
   .message-banner {
     display: flex;

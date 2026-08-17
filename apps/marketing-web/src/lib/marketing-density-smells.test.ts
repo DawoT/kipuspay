@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const APP_CSS = readFileSync(new URL('../app.css', import.meta.url), 'utf8');
 const COMPARE = readFileSync(new URL('../routes/comparar/+page.svelte', import.meta.url), 'utf8');
 const HOME = readFileSync(new URL('../routes/+page.svelte', import.meta.url), 'utf8');
+const EMPEZAR = readFileSync(new URL('../routes/empezar/+page.svelte', import.meta.url), 'utf8');
 
 describe('marketing density smells P0', () => {
   it('INSET_TOKENS_MISSING: density kit en :root', () => {
@@ -40,5 +41,11 @@ describe('marketing density smells P0', () => {
     const offline = HOME.match(/data-testid="offline-section"[\s\S]*?<\/section>/)?.[0] ?? '';
     expect(offline).toMatch(/offline-row/);
     expect(offline).not.toMatch(/split-card|kipus-card/);
+  });
+
+  it('EMPEZAR_PANEL_PAD: credentials-panel usa inset-card', () => {
+    const block = EMPEZAR.match(/\.credentials-panel\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(block).toMatch(/padding\s*:\s*var\(--inset-card\)/);
+    expect(block).not.toMatch(/padding\s*:\s*1\.25rem/);
   });
 });

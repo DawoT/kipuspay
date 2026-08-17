@@ -71,8 +71,8 @@ test('titular: identidad incorrecta no pasa (fail-closed)', async ({ page }) => 
       status: 403,
       contentType: 'application/json',
       body: JSON.stringify({
-        error: 'TITULAR_IDENTITY_MISMATCH',
-        code: 'TITULAR_IDENTITY_MISMATCH',
+        error: 'TITULAR_VERIFY_FAILED',
+        code: 'TITULAR_VERIFY_FAILED',
       }),
     }),
   );

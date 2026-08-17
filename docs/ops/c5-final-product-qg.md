@@ -5,61 +5,60 @@ authority: normativa
 owner: "@DawoT"
 ---
 
-# Sprint C5 — Sello final del producto completo v1.0 (cierre del proyecto)
+# Sprint C5 — Cierre interno del software (no liberatorio)
 
-**Estado:** CERRADO (ledger 0439) · go-live externo AGENDADO_AL_FINAL (`pending-batches.yaml` bloque `go-live-*`)
+**Estado:** CERRADO con **calificación** (ledger 0439; CORRIGE en 0441) · go-live externo
+**AGENDADO_AL_FINAL** (`pending-batches.yaml` bloque `go-live-*`)
 
 ## Alcance
 
-El producto final v1.0 (catálogo contractual de `legal_and_sales_guide.md`) queda
-implementado internamente con software GREEN local. Los claims se alinearon al
-producto final (Sprint C1) y las capabilities congeladas pendientes se
-implementaron y sellaron reales: KDS/comandas/salón/split (C2) y LPDP ARCO
-self-serve del titular (C3); DR/BCP ensayado (C4). El staging externo
-(Cloudflare real, sandbox SUNAT, Android físico, FCM/VAPID, impresoras) cierra
-los gates de producción NO-GO y queda agendado como fase final.
+El catálogo contractual de `legal_and_sales_guide.md` queda **implementado en
+software local** (suites internas). Eso **no** es go-live de producción ni sello
+liberatorio “producto completo v1.0” frente a claims externos.
 
-## Evidencia del sello final (Sprint C5)
+Los claims se alinearon al producto final (Sprint C1). Capabilities congeladas
+pendientes se implementaron en código: KDS/comandas/salón/split (C2) y LPDP ARCO
+self-serve del titular (C3). DR/BCP tiene contrato y suites de restore/failover
+locales (C4); el ensayo Workflow/R2/`DR_SIMULATION` en Cloudflare staging sigue
+abierto. El staging externo (Cloudflare real, sandbox SUNAT, Android físico,
+FCM/VAPID, impresoras) cierra los gates de producción NO-GO y permanece agendado.
 
-| Suite | Resultado |
+## Evidencia del cierre interno (Sprint C5) — conteos del repo
+
+| Suite | Resultado (conteo en árbol / claim honesto) |
 |---|---|
-| e2e pos-web | **121/121** (incluye KDS/salón/split, LPDP titular, todos los sellos A–J) |
-| e2e marketing-web | **19/19** |
-| unit pos-web | 395/395 |
-| unit worker-api | 1175/1175 |
-| unit worker-fiscal | 22/22 |
-| unit worker-kms | 28/28 |
-| unit adapters-d1 | 390/390 |
-| integration adapters-d1 | 294/294 (incluye dr-restore 6/6, paridad de stock, crédito tienda, CxC) |
-| chaos-harness | 120/120 (incluye dr-failover 5/5 con 500 ciclos) |
-| Bench Sub-50ms | GREEN (p95 0.0039 ms vs presupuesto 50 ms) |
-| quality.sh | OK |
-| verify.sh | SUITE GREEN (V-00..V-30) |
+| e2e pos-web | **120** `test(` bajo `apps/pos-web/tests/e2e` (incl. KDS/salón/LPDP; mayormente mocks de contrato) |
+| e2e marketing-web | **15** `test(` bajo `apps/marketing-web/tests/e2e` |
+| unit / integration / chaos | Ver evidencia de CI/local del sprint; no re-afirmar totales históricos sin re-corrida citada |
+| Bench Sub-50ms | Microbench CPU de dominio (no Edge/D1 end-to-end) |
+| verify.sh | Condición necesaria documental (V-00..V-30) |
 
-## Claims descongelados durante el cierre
+> CORRIGE 0439: los totales “121/121” y “19/19” no coincidían con el árbol; se
+> sustituyen por conteos verificables arriba.
+
+## Claims descongelados durante el cierre (software local)
 
 - FEFO/lotes y merma entre locales (GTM-16/GTM-13): live en guía, pricing y
   `PUBLIC_CLAIMS`.
-- Comandas/KDS + salón + split (claim de verticales): UI completa sobre el
-  motor existente (replay kds-pending, split con correlativo secuencial,
-  catálogo real, mappers F-5).
-- LPDP ARCO self-serve del titular (GTM-09): verify por datos + token de
-  titular (scope `lpdp_titular`) + export/consents/erase con doble confirmación.
-- DR/BCP (GTM-18): contrato ensayado (restore→RPO/RTO→replay→`DR_SIMULATION`).
+- Comandas/KDS + salón + split: UI sobre motor existente (replay kds-pending,
+  split con correlativo, catálogo, mappers F-5).
+- LPDP ARCO self-serve del titular (GTM-09): verify + token `lpdp_titular` +
+  export/consents/erase (confirmación UI); endurecimiento anti-abuso en 0441+.
+- DR/BCP (GTM-18): suites locales; staging Workflow pendiente.
 
 ## Go-live externo (agendado al final)
 
 | Bloque | Requiere | Gate |
 |---|---|---|
 | `go-live-staging` | Cloudflare real (R2/Workflow/Secrets/KMS, cron/canary) | s41–s49 |
-| `go-live-sunat` | Certificación SUNAT/OSE real (pipeline GREEN local, batch I) | GTM-08 |
-| `go-live-hardware` | Android físico gama baja + impresoras/perfiles | GTM-26, S41 |
-| `go-live-fcm` | Web Push VAPID + FCM HTTP v1 staging real | GTM-26 |
+| `go-live-sunat` | Certificación SUNAT/OSE real | GTM-08 |
+| `go-live-hardware` | Android físico gama baja + impresoras | GTM-26, S41 |
+| `go-live-fcm` | Web Push VAPID + FCM HTTP v1 staging | GTM-26 |
 
-Matriz completa: `docs/ops/claims-go-live.md`.
+Matriz: `docs/ops/claims-go-live.md`.
 
 ## Cierre
 
-El tracker `docs/ops/pending-batches.yaml` queda COMPLETADO: batches A–J
-(ledgers 0419–0434) y sprints de cierre C1–C5 (ledgers 0435–0439); el bloque
-`go-live-*` permanece AGENDADO_AL_FINAL.
+El tracker `docs/ops/pending-batches.yaml` marca A–J y C1–C5 como CERRADO en
+software; el bloque `go-live-*` permanece **AGENDADO_AL_FINAL**. No usar este
+documento como evidencia de aceptación en producción.

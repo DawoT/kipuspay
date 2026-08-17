@@ -27,7 +27,7 @@
 
 <svelte:head><title>Vitrina Cliente · KipusPay</title></svelte:head>
 
-<div class="vitrina-container" data-testid="vitrina-root">
+<div class="page-shell vitrina-shell" data-testid="vitrina-root">
   {#if !enabled}
     <div class="feature-off-banner" data-testid="vitrina-off">
       <Icon name="info" size={18} />
@@ -74,18 +74,17 @@
 </div>
 
 <style>
-  .vitrina-container {
+  .vitrina-shell {
     min-height: 85vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: var(--inset-shell);
   }
 
   .vitrina-card {
     max-width: 32rem;
     width: 100%;
-    padding: 2.5rem;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -118,7 +117,7 @@
     background: var(--bg-glass);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.5rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     align-items: center;

@@ -509,8 +509,17 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   // LPDP ARCO self-serve del titular (Sprint C3): identidad por datos y
   // token de corta duración (scope lpdp_titular). Públicas ANTES del
-  // middleware JWT; el verify no exige sesión admin.
+  // middleware JWT; el verify no exige sesión admin pero sí rate-limit.
   app.post('/api/lpdp/titular/verify', async (c) => {
+    const { decision } = await enforceRateLimit({
+      kv: c.env?.TENANT_KV,
+      key: rateLimitKey(clientIp(c.req.raw), 'lpdp-titular-verify'),
+      limit: 30,
+      windowSeconds: 3600,
+    });
+    if (!decision.allowed) {
+      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
+    }
     const body: unknown = await c.req.json().catch(() => ({}));
     const result = await runTitularVerifyHttp(c.env, (body ?? {}) as Record<string, unknown>);
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);

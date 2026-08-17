@@ -138,6 +138,13 @@ export async function processOrderBillingAtomic(
   assertOrderTransition(order.status, 'PAID');
 
   await runD1AtomicPlan(db, async (plan) => {
+    // CAS: la serie no se mueve concurrentemente (mismo patrón ND / withholding).
+    plan.guardState(
+      `SELECT 1 FROM branch_document_series
+       WHERE id = ? AND tenant_id = ? AND current_number = ?`,
+      [seriesRow.id, tenantId, seriesStartNumber],
+    );
+
     const saleItemByOrderItem = new Map<string, { saleItemId: string; saleId: string }>();
     for (let portionIndex = 0; portionIndex < portions.length; portionIndex++) {
       const portion = portions[portionIndex]!;
@@ -250,9 +257,9 @@ export async function processOrderBillingAtomic(
         .prepare(
           `UPDATE branch_document_series
            SET current_number = current_number + ?
-           WHERE id = ? AND tenant_id = ?`,
+           WHERE id = ? AND tenant_id = ? AND current_number = ?`,
         )
-        .bind(portions.length, seriesRow.id, tenantId),
+        .bind(portions.length, seriesRow.id, tenantId, seriesStartNumber),
     );
 
     for (const delta of stockDeltas) {

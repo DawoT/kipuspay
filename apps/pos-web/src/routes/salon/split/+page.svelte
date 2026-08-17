@@ -66,7 +66,10 @@
 
 <div class="floor-board" data-testid="split-root">
   <div class="floor-toolbar">
-    <h1>Dividir cuenta</h1>
+    <div>
+      <p class="page-eyebrow">Piso · Salón</p>
+      <h1>Dividir cuenta</h1>
+    </div>
     <a class="link-action" href="/salon">
       <Icon name="arrow-left" size={14} />
       Comanda de salón
@@ -133,7 +136,6 @@
 
 <style>
   .split-card {
-    padding: var(--inset-card);
     flex: 1;
     max-width: none;
   }

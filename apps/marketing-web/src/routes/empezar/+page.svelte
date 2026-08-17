@@ -304,7 +304,7 @@
     display: grid;
     gap: 0.75rem;
     margin: 1.5rem 0;
-    padding: 1.25rem;
+    padding: var(--inset-card);
     border: 1px solid var(--amber);
     background: var(--ink-2);
     color: var(--paper);

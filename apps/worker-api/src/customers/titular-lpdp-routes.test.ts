@@ -67,15 +67,38 @@ describe('LPDP ARCO self-serve del titular (Sprint C3)', () => {
     expect((res.body as { expiresInSeconds?: number }).expiresInSeconds).toBe(900);
   });
 
-  it('verify: nombre o teléfono incorrectos → 403 TITULAR_IDENTITY_MISMATCH', async () => {
-    const res = await runTitularVerifyHttp(env(), {
+  it('verify: nombre/teléfono incorrectos o titular ausente → 403 TITULAR_VERIFY_FAILED (anti-enum)', async () => {
+    const mismatch = await runTitularVerifyHttp(env(), {
       tenantId: 't1',
       documentNumber: '45123456',
       name: 'Otra Persona',
       phone: '+51999999999',
     });
-    expect(res.status).toBe(403);
-    expect((res.body as { code?: string }).code).toBe('TITULAR_IDENTITY_MISMATCH');
+    expect(mismatch.status).toBe(403);
+    expect((mismatch.body as { code?: string }).code).toBe('TITULAR_VERIFY_FAILED');
+
+    const missing = await runTitularVerifyHttp(
+      env({
+        DB: {
+          prepare: () => ({
+            bind: () => ({
+              first: () => Promise.resolve(null),
+              all: () => Promise.resolve({ results: [], success: true, meta: {} }),
+              run: () => Promise.resolve({ success: true, meta: {} }),
+            }),
+          }),
+          batch: () => Promise.resolve([]),
+        },
+      }),
+      {
+        tenantId: 't1',
+        documentNumber: '00000000',
+        name: 'Nadie',
+        phone: '+51000000000',
+      },
+    );
+    expect(missing.status).toBe(403);
+    expect((missing.body as { code?: string }).code).toBe('TITULAR_VERIFY_FAILED');
   });
 
   it('verify: flag off → 404 y datos incompletos → 400', async () => {

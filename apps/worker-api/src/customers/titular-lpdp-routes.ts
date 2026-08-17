@@ -119,12 +119,16 @@ export async function runTitularVerifyHttp(
     .bind(tenantId, documentNumber)
     .first<{ id: string; name: string | null; phone: string | null; pii_erased: number }>();
   if (!row) {
-    return { status: 404, body: { error: 'TITULAR_NOT_FOUND', code: 'TITULAR_NOT_FOUND' } };
+    // Anti-enumeración: misma respuesta que mismatch (no filtrar DNI/tenant).
+    return {
+      status: 403,
+      body: { error: 'TITULAR_VERIFY_FAILED', code: 'TITULAR_VERIFY_FAILED' },
+    };
   }
   if (normalize(row.name) !== normalize(name) || normalize(row.phone) !== normalize(phone)) {
     return {
       status: 403,
-      body: { error: 'TITULAR_IDENTITY_MISMATCH', code: 'TITULAR_IDENTITY_MISMATCH' },
+      body: { error: 'TITULAR_VERIFY_FAILED', code: 'TITULAR_VERIFY_FAILED' },
     };
   }
   const now = Date.now();

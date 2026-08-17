@@ -178,6 +178,63 @@ describe('processOrderBillingAtomic', () => {
     const correlativeUpdate = sqls.filter((s) => s.includes('UPDATE branch_document_series'));
     expect(correlativeUpdate).toHaveLength(1);
     expect(correlativeUpdate[0]).toMatch(/current_number = current_number \+ \?/);
+    expect(correlativeUpdate[0]).toMatch(/AND current_number = \?/);
+    const casGuard = sqls.find(
+      (s) =>
+        s.includes('INSERT INTO atomic_guards') &&
+        s.includes('branch_document_series') &&
+        s.includes('current_number = ?'),
+    );
+    expect(casGuard).toBeTruthy();
+  });
+
+  it('Sprint C2: carrera de correlativo → aborta con guardState CAS', async () => {
+    const sqls: string[] = [];
+    const base = mockDb({
+      sqls,
+      order: { id: 'o1', branch_id: 'b1', status: 'READY' },
+      series: { id: 'ser1', current_number: 5 },
+      items: [
+        {
+          id: 'i1',
+          product_id: 'p1',
+          product_name: 'A',
+          quantity: 1,
+          unit_price_cents: 1000,
+          status: 'READY',
+          sale_id: null,
+        },
+      ],
+    });
+    const failingDb: D1DatabaseLike = {
+      prepare: base.prepare.bind(base),
+      batch: (batchStmts) => {
+        sqls.push(...batchStmts.map((s) => (s as { sql?: string }).sql ?? ''));
+        const guard = batchStmts.find((s) =>
+          ((s as { sql?: string }).sql ?? '').includes('INSERT INTO atomic_guards'),
+        );
+        if (guard) {
+          return Promise.reject(new Error('CHECK constraint failed: atomic_guards'));
+        }
+        return Promise.resolve(batchStmts.map(() => okResult()));
+      },
+    };
+    await expect(
+      processOrderBillingAtomic(failingDb, 't1', 'u1', {
+        orderId: 'o1',
+        cashRegisterSessionId: 's1',
+        series: 'NV01',
+        paymentMethodId: 'pm1',
+        portions: [{ saleId: 'sale1', itemIds: ['i1'] }],
+      }),
+    ).rejects.toThrow(/atomic_guards/);
+    expect(sqls.some((s) => s.includes('INSERT INTO atomic_guards'))).toBe(true);
+    expect(
+      sqls.some(
+        (s) =>
+          s.includes('UPDATE branch_document_series') && s.includes('AND current_number = ?'),
+      ),
+    ).toBe(true);
   });
 
   it('S19-H2: split con documentType 03 busca serie Boleta y emite PENDING', async () => {

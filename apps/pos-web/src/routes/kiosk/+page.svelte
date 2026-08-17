@@ -94,7 +94,7 @@
 
 <svelte:head><title>Kiosko de Autoatención · KipusPay</title></svelte:head>
 
-<div class="kiosk-container" data-testid="kiosk-root">
+<div class="page-shell kiosk-shell" data-testid="kiosk-root">
   {#if !enabled}
     <div class="feature-off-banner" data-testid="kiosk-off">
       <Icon name="info" size={18} />
@@ -159,18 +159,17 @@
 </div>
 
 <style>
-  .kiosk-container {
+  .kiosk-shell {
     min-height: 80vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem;
+    padding: var(--inset-shell);
   }
 
   .kiosk-card {
     max-width: 28rem;
     width: 100%;
-    padding: var(--inset-shell);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;

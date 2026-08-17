@@ -11875,3 +11875,81 @@ aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0440
+timestamp_utc: 2026-08-17T00:00:00Z
+schema_version: 2
+sprint_fase: UX audit wave 5 — superficies post-YAML density kit
+agente_responsable: Staff Frontend
+tipo: Corrección
+subtipo: diario kit, KDS/salón, LPDP un-nest, vitrina/kiosk, empezar
+relacion: amplia
+referencias_entradas: [0423, 0439]
+referencias_documentales: [Arquitectura §0.2, docs/ops/pending-batches.yaml]
+prev_id: 0439
+prev_hash: 9725f30ca3530b51c21d50a0a75ed18fe8fee63d411f7f08e69e13c08458ec55
+entry_hash: 772e35c5e8876d82ada8ec420efd2a4c5ff44ffb384c69c821c9783d44b212fe
+ticket_or_adr: UX wave 5 post C1-C5
+test_ids: [pos-density-smells, marketing-density-smells, SUITE]
+entregable_afectado: apps/pos-web (diario, kds, salon, split, lpdp, vitrina, kiosk), apps/marketing-web (empezar), scripts/tmp/*-design-audit.mjs
+descripcion: >
+  Wave 5: (1) admin/diario journal-shell→page-shell+masthead; (2) KDS
+  kds-pending-card→ledger-card + floor-toolbar eyebrow; salon/split toolbar
+  alineado; (3) LPDP sin ledger-card anidados; vitrina/kiosk page-shell +
+  inset tokens; (4) empezar credentials-panel var(--inset-card); (5) ratchets
+  JOURNAL_SHELL, NESTED_LEDGER_CARD, KDS_CARD_UNSTYLED, DISPLAY_PAD_LITERAL,
+  EMPEZAR_PANEL_PAD; audit TEMP recreado.
+evidencia: >
+  RED: journal-shell; KDS tickets sin pad; LPDP nested cards; pads 1.5/2/2.5
+  en vitrina/kiosk; empezar 1.25rem.
+  GREEN: audits --strict P0=0; vitest smells; verify SUITE.
+ancestry_verified: true
+aprobaciones: [Staff Frontend R, Staff Product Design A, Staff Verifier V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0441
+timestamp_utc: 2026-08-17T00:05:29Z
+schema_version: 2
+sprint_fase: Audit remediación post-C5 — CI scale + sello calificado + LPDP/CAS
+agente_responsable: Staff QA
+tipo: Corrección de especificación
+subtipo: CORRIGE sello C5 + hardening runtime (scale heartbeat, LPDP verify, split CAS)
+relacion: CORRIGE
+referencias_entradas: [0439]
+referencias_documentales: [docs/ops/c5-final-product-qg.md, docs/ops/claims-go-live.md, Arquitectura §6]
+prev_id: 0440
+prev_hash: 772e35c5e8876d82ada8ec420efd2a4c5ff44ffb384c69c821c9783d44b212fe
+entry_hash: e98206877daeea28a6b3b09e7be3a0a02614c1566a6997c6cf9c4c9c3fa7fdda
+ticket_or_adr: audit_calidad_reciente / PR #2
+test_ids: [packages/adapters-d1/src/inventory-scale.integration.test.ts, packages/adapters-d1/src/process-order-billing-atomic.test.ts, apps/worker-api/src/customers/titular-lpdp-routes.test.ts, apps/pos-web/tests/e2e/lpdp-titular.spec.ts, V-13, SUITE]
+entregable_afectado: docs/ops/c5-final-product-qg.md + scale fixtures + LPDP verify + split correlativo CAS
+descripcion: >
+  CORRIGE 0439: el sello "producto completo v1.0" y los conteos e2e 121/121
+  y 19/19 no cuadraban con el árbol (pos ~120, marketing ~15). El QG C5
+  queda calificado como cierre interno de software local; go-live externo
+  permanece AGENDADO_AL_FINAL. Remediación runtime concurrente: (1)
+  fixtures inventory-scale refrescan last_heartbeat_at relativo a
+  Date.now() (SCALE_HEARTBEAT_STALE en CI); (2) POST /api/lpdp/titular/verify
+  con enforceRateLimit + respuesta uniforme TITULAR_VERIFY_FAILED (anti-
+  enumeración); (3) allocate de correlativo en split con guardState CAS y
+  UPDATE ... WHERE current_number = ?. Matriz claims-go-live actualizada
+  para C2/C3.
+evidencia: >
+  RED: quality CI fail SCALE_HEARTBEAT_STALE; QG C5 overclaim 121/19;
+  verify LPDP sin rate-limit y 404≠403; correlativo split sin CAS.
+  GREEN: inventory-scale integration 12/12; titular verify 403 uniforme +
+  429 path; billing CAS test; QG C5 calificado; verify V-13/SUITE.
+red_commit_sha: N/A
+red_run_id: run-red-audit-post-c5
+expected_failure: SCALE_HEARTBEAT_STALE y/o overclaim C5 / enum LPDP / race correlativo
+green_commit_sha: N/A
+green_run_id: run-green-audit-post-c5
+ancestry_verified: true
+aprobaciones: [Staff QA R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

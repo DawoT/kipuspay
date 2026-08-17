@@ -37,10 +37,10 @@
       });
       const body = (await res.json()) as { token?: string; error?: string; code?: string };
       if (!res.ok || !body.token) {
-        alert = body.code === 'TITULAR_IDENTITY_MISMATCH'
-          ? 'Los datos no coinciden con el titular registrado. Verifica DNI, nombre y teléfono.'
-          : body.code === 'TITULAR_NOT_FOUND'
-            ? 'No encontramos tus datos en esta tienda. Verifica la tienda y tu DNI.'
+        alert = body.code === 'TITULAR_VERIFY_FAILED'
+          ? 'Los datos no coinciden con el titular registrado. Verifica DNI, nombre, teléfono y tienda.'
+          : body.code === 'RATE_LIMITED'
+            ? 'Demasiados intentos. Espera un momento e inténtalo de nuevo.'
             : 'No se pudo verificar tu identidad. Reintenta en unos minutos.';
         return;
       }
@@ -180,7 +180,7 @@
     <div class="ledger-card section-pad" data-testid="lpdp-panel">
       <h2>Tus datos en esta tienda</h2>
 
-      <section class="ledger-card" aria-labelledby="lpdp-copy-title">
+      <section class="lpdp-block" aria-labelledby="lpdp-copy-title">
         <h3 id="lpdp-copy-title">Copia de tus datos</h3>
         <p>Toda la información que la tienda guarda sobre ti: perfil, consentimientos y compras.</p>
         <Button variant="primary" data-testid="lpdp-export" onclick={downloadCopy} icon="download">
@@ -188,7 +188,7 @@
         </Button>
       </section>
 
-      <section class="ledger-card" aria-labelledby="lpdp-consents-title">
+      <section class="lpdp-block" aria-labelledby="lpdp-consents-title">
         <h3 id="lpdp-consents-title">Tus consentimientos</h3>
         {#if consents.length === 0}
           <p>No hay comunicaciones registradas para tu DNI.</p>
@@ -211,7 +211,7 @@
         {/if}
       </section>
 
-      <section class="ledger-card" aria-labelledby="lpdp-erase-title">
+      <section class="lpdp-block" aria-labelledby="lpdp-erase-title">
         <h3 id="lpdp-erase-title">Anonimiza tus datos</h3>
         <p>
           Borra tu nombre, correo y teléfono de esta tienda. Los comprobantes fiscales se conservan
@@ -236,6 +236,19 @@
 </div>
 
 <style>
+  .lpdp-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .lpdp-block:first-of-type {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0.75rem;
+  }
   .consent-list {
     list-style: none;
     padding: 0;
