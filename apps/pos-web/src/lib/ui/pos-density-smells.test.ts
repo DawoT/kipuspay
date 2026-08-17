@@ -430,25 +430,17 @@ function scanNestedLedgerCard(file: string, text: string): Finding[] {
   const markup = text.split(/<style\b/)[0] ?? text;
   const out: Finding[] = [];
   const insideLedger: boolean[] = [];
-  const re = /<\/?([A-Za-z][\w:-]*)((?:\s[^>]*)?)>/g;
+  const re = /<\/?[A-Za-z][\w:-]*[^>]*>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(markup)) !== null) {
     const full = m[0];
     if (full.startsWith('<!--')) continue;
-    const name = m[1];
-    const isClose = full.startsWith('</');
-    const selfClose =
-      /\/>$/.test(full) ||
-      /^(br|hr|img|input|meta|link|source|area|base|col|embed|wbr)$/i.test(name);
-
-    if (isClose) {
+    const tag = parseTag(full);
+    if (tag.isClose) {
       if (insideLedger.length) insideLedger.pop();
       continue;
     }
-
-    const classAttr = full.match(/\bclass\s*=\s*["']([^"']*)["']/);
-    const classes = classAttr ? classAttr[1].split(/\s+/).filter(Boolean) : [];
-    const hasLedger = classes.includes('ledger-card');
+    const hasLedger = tag.classes.includes('ledger-card');
     const parentLedger = insideLedger.length > 0 && insideLedger[insideLedger.length - 1];
 
     if (hasLedger && parentLedger) {
@@ -460,7 +452,7 @@ function scanNestedLedgerCard(file: string, text: string): Finding[] {
       });
     }
 
-    if (!selfClose) {
+    if (!tag.selfClose) {
       insideLedger.push(parentLedger || hasLedger);
     }
   }
