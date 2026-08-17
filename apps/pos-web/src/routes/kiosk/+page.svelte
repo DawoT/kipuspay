@@ -3,7 +3,7 @@
    * Kiosko thin: mismos guards fiscales que caja (chargeCartOffline).
    */
   import { formatCents } from '$lib/cents';
-  import { isPosCheckoutEnabled } from '$lib/features';
+  import { isPosCheckoutEnabled, isPrintTemplatesEnabled } from '$lib/features';
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import { createMemoryOfflineIdb, OfflineQueueStore } from '$lib/offline-sync/offline-queue';
   import Icon from '$lib/ui/Icon.svelte';
@@ -14,9 +14,18 @@
   import { documentKindLabel } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
+  import { readTenantSession } from '$lib/tenant/session';
+  import { OfflineCorrelativeStore } from '$lib/offline-correlative/reserve';
+  import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox-store';
+  import { createPrinterTransport } from '$lib/print/printer-transport';
+  import { enqueueAndPrintTicket } from '$lib/print/enqueue-print';
+  import { buildSaleTicketSnapshot } from '$lib/print/offload-compile';
+  import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
 
   const enabled = isPosCheckoutEnabled();
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
+  const correlatives = new OfflineCorrelativeStore(1);
+  const printOutbox = new PrintOutboxStore(createBrowserPrintIdb());
   import { onMount } from 'svelte';
   let message = $state('');
   let status = $state('idle');
@@ -89,6 +98,25 @@
     );
     status = outcome.ok ? 'charged' : 'blocked';
     message = outcome.ok ? `Pagado · ${documentKindLabel(outcome.documentType)}` : outcome.message;
+    if (!outcome.ok || !isPrintTemplatesEnabled()) return;
+    const tenant = readTenantSession(sessionStorage);
+    const reserve = correlatives.reserve(outcome.offlineSaleId, 'NV01');
+    const snapshot = buildSaleTicketSnapshot({
+      enterprise: tenant.tradeName,
+      ruc: '',
+      documentType: 'NV',
+      series: 'NV01',
+      number: reserve.tentativeNumber,
+      totalCents: product.priceCents,
+      items: [{ name: product.name, qty: 1, totalCents: product.priceCents }],
+    });
+    // C7: imprime por la ladder real (best-effort; nunca bloquea el cobro).
+    void enqueueAndPrintTicket({
+      outbox: printOutbox,
+      transport: createPrinterTransport(buildPosPrinterEnv()),
+      saleId: outcome.offlineSaleId,
+      ticket: snapshot,
+    });
   }
 </script>
 

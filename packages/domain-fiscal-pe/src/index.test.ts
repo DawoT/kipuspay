@@ -7,10 +7,12 @@ import {
   cdrIsAccepted,
   classifyUnitaryXmlTarget,
   computeMustSubmitByIso,
+  createMockRcCdrPort,
   defaultSunatStatus,
   formalizeDescriptor,
   isSunatApplicable,
   resolveBranchSeries,
+  type DocumentTypeCode,
   type EmissionContext,
 } from './index.js';
 
@@ -211,5 +213,26 @@ describe('classifyUnitaryXmlTarget', () => {
   it('07/08 sin referencia resoluble → NONE (fail-closed, no asume canal)', () => {
     expect(classifyUnitaryXmlTarget('07', undefined)).toBe('NONE');
     expect(classifyUnitaryXmlTarget('08', undefined)).toBe('NONE');
+  });
+
+  it('documentType desconocido → NONE (fail-closed)', () => {
+    expect(classifyUnitaryXmlTarget('ZZ' as DocumentTypeCode)).toBe('NONE');
+  });
+});
+
+describe('createMockRcCdrPort (solo staging/tests)', () => {
+  it('acepta XML no vacío y rechaza XML vacío', async () => {
+    const port = createMockRcCdrPort();
+    const ok = await port.submit({
+      tenantId: 't',
+      summaryId: 'RC-1',
+      xml: '<summary/>',
+    });
+    expect(ok.accepted).toBe(true);
+    expect(ok.cdrCode).toBe('0');
+
+    const empty = await port.submit({ tenantId: 't', summaryId: 'RC-2', xml: '   ' });
+    expect(empty.accepted).toBe(false);
+    expect(empty.cdrCode).toBe('99');
   });
 });

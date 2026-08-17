@@ -11,6 +11,13 @@ import {
   type SystemPrintPort,
 } from '@kipuspay/print-templates';
 import { snapshotToTicketData } from './offload-compile.js';
+import {
+  createPriceLabelWebUsbTransport,
+  createPriceLabelWssTransport,
+  type PriceLabelItemTransport,
+  type SocketPort,
+  type UsbDevicePort,
+} from '../printing/price-label-transports.js';
 
 export type TransportResult =
   | { readonly ok: true; readonly adapter: PrinterStrategy }
@@ -18,6 +25,14 @@ export type TransportResult =
 
 export interface PrinterTransportEnv {
   readonly wssUrl?: string | null;
+  /** C7: hosts WSS previamente paired/allowlisted (§5.8); vacío = sin WSS. */
+  readonly allowlistedHosts?: readonly string[];
+  /** C7: fábrica del socket WSS real (inyectable; el navegador la construye). */
+  readonly socketFactory?: (url: string) => SocketPort;
+  /** C7: device WebUSB real emparejado; ausente = sin WebUSB. */
+  readonly usbDevice?: UsbDevicePort | null;
+  /** C7: inyectable para tests deterministas del nonce WSS. */
+  readonly randomBytes?: (length: number) => Uint8Array;
   /** Best-effort WA: solo señala que se puede enviar; no bloquea. */
   readonly whatsappFallback?: (snap: PrintTicketSnapshot) => Promise<boolean>;
 }
@@ -76,22 +91,37 @@ function createSystemPort(): SystemPrintPort {
   };
 }
 
-function tryWebUsb(bytes: Uint8Array): Promise<void> {
-  const nav = navigator as Navigator & {
-    usb?: {
-      requestDevice: (opts: { filters: unknown[] }) => Promise<{ open: () => Promise<void> }>;
-    };
-  };
-  if (!nav.usb) return Promise.reject(new Error('WEBUSB_UNAVAILABLE'));
-  // Pre-flight / print: sin device emparejado → fail (tests inyectan mock).
-  void bytes;
-  return Promise.reject(new Error('WEBUSB_NO_DEVICE'));
+/** itemId del ticket para el ACK WSS correlacionado (documentType:series:number). */
+function ticketItemId(ticket: PrintTicketSnapshot): string {
+  return `${ticket.documentType}:${ticket.series}:${ticket.number}`;
 }
 
-function tryWss(bytes: Uint8Array, url: string | null | undefined): Promise<void> {
-  if (!url || !url.startsWith('wss:')) return Promise.reject(new Error('WSS_URL_INVALID'));
-  void bytes;
-  return Promise.reject(new Error('WSS_NOT_CONNECTED'));
+/** C7: transport WebUSB real (§5.8: open→claim→transferOut→release→close). */
+function webUsbTransport(env: PrinterTransportEnv): PriceLabelItemTransport | null {
+  if (!env.usbDevice) return null;
+  // allowedProfiles se omite: el device ya fue emparejado por gesto del usuario.
+  return createPriceLabelWebUsbTransport({
+    device: env.usbDevice,
+    configurationValue: 1,
+    interfaceNumber: 2,
+    endpointNumber: 3,
+  });
+}
+
+/** C7: transport WSS real con host allowlisted y ACK por nonce (§5.8). */
+function wssTransport(env: PrinterTransportEnv): PriceLabelItemTransport | null {
+  if (!env.wssUrl || !env.socketFactory || !env.wssUrl.startsWith('wss:')) return null;
+  const hosts = env.allowlistedHosts ?? [];
+  try {
+    return createPriceLabelWssTransport({
+      url: env.wssUrl,
+      allowlistedHosts: hosts,
+      socketFactory: env.socketFactory,
+      ...(env.randomBytes ? { randomBytes: env.randomBytes } : {}),
+    });
+  } catch {
+    return null;
+  }
 }
 
 function tryBluetooth(bytes: Uint8Array): Promise<void> {
@@ -108,13 +138,22 @@ async function executeSingleAdapter(
   env: PrinterTransportEnv,
   system: SystemPrintPort,
 ): Promise<void> {
+  const itemId = ticketItemId(job.ticket);
   switch (adapter) {
-    case 'webusb':
+    case 'webusb': {
       if (!bytes) throw new Error('ESCPOS_REQUIRED');
-      return tryWebUsb(bytes);
-    case 'wss_lan':
+      const usb = webUsbTransport(env);
+      if (!usb) throw new Error('WEBUSB_NO_DEVICE');
+      await usb.send(itemId, bytes);
+      return;
+    }
+    case 'wss_lan': {
       if (!bytes) throw new Error('ESCPOS_REQUIRED');
-      return tryWss(bytes, env.wssUrl);
+      const wss = wssTransport(env);
+      if (!wss) throw new Error('WSS_NOT_CONNECTED');
+      await wss.send(itemId, bytes);
+      return;
+    }
     case 'bluetooth':
       if (!bytes) throw new Error('ESCPOS_REQUIRED');
       return tryBluetooth(bytes);
@@ -131,12 +170,17 @@ export function createPrinterTransport(env: PrinterTransportEnv = {}): PrinterTr
   return {
     preflight() {
       const available: PrinterStrategy[] = [];
+      if (env.usbDevice) available.push('webusb');
+      const wssReady =
+        !!env.wssUrl &&
+        env.wssUrl.startsWith('wss:') &&
+        !!env.socketFactory &&
+        (env.allowlistedHosts ?? []).includes(new URL(env.wssUrl).hostname);
+      if (wssReady) available.push('wss_lan');
       const nav =
         typeof navigator !== 'undefined'
-          ? (navigator as { usb?: unknown; bluetooth?: unknown })
+          ? (navigator as { bluetooth?: unknown })
           : undefined;
-      if (nav?.usb) available.push('webusb');
-      if (env.wssUrl?.startsWith('wss:')) available.push('wss_lan');
       if (nav?.bluetooth) available.push('bluetooth');
       available.push('system_print');
       if (env.whatsappFallback) available.push('whatsapp');

@@ -160,5 +160,23 @@ describe('buildUblInvoiceXml', () => {
     expect(() => assertWellFormedXml('<Invoice></Invoice x>')).toThrow(/MALFORMED_XML/);
     // Self-closing malformado (`/x` sin `>`).
     expect(() => assertWellFormedXml('<Invoice><a/x></Invoice>')).toThrow(/MALFORMED_XML/);
+    // Nombre vacío tras `<` (readName sin caracteres válidos).
+    expect(() => assertWellFormedXml('<Invoice>< 1></Invoice>')).toThrow(/MALFORMED_XML/);
+    // `<` solitario al final del archivo.
+    expect(() => assertWellFormedXml('<Invoice></Invoice><')).toThrow(/MALFORMED_XML/);
+  });
+
+  it('rechaza cents no enteros y líneas sin cantidad (branch divisor)', () => {
+    expect(() =>
+      buildUblInvoiceXml({
+        ...sample(),
+        totalAmountCents: 1180.5,
+      }),
+    ).toThrow(/INVALID_CENTS/);
+    const zeroQty = buildUblInvoiceXml({
+      ...sample(),
+      lines: [{ ...sample().lines[0]!, quantity: 0 }],
+    });
+    expect(zeroQty).toContain('F001-00000001');
   });
 });

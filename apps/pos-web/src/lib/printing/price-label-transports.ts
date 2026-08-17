@@ -1,4 +1,4 @@
-interface UsbDevicePort {
+export interface UsbDevicePort {
   readonly opened: boolean;
   readonly vendorId?: number;
   readonly productId?: number;
@@ -8,6 +8,16 @@ interface UsbDevicePort {
   transferOut(endpointNumber: number, data: Uint8Array): Promise<{ readonly status: string }>;
   releaseInterface(interfaceNumber: number): Promise<void>;
   close(): Promise<void>;
+}
+
+export interface SocketPort {
+  send(data: Uint8Array | string): void;
+  close(): void;
+  addEventListener?(
+    type: 'open' | 'message' | 'error' | 'close',
+    listener: (event: { readonly data?: unknown }) => void,
+    options?: { readonly once?: boolean },
+  ): void;
 }
 
 export interface PriceLabelItemTransport {
@@ -121,16 +131,6 @@ export function createPriceLabelWebUsbTransport(input: {
       }
     },
   };
-}
-
-interface SocketPort {
-  send(data: Uint8Array | string): void;
-  close(): void;
-  addEventListener?(
-    type: 'open' | 'message' | 'error' | 'close',
-    listener: (event: { readonly data?: unknown }) => void,
-    options?: { readonly once?: boolean },
-  ): void;
 }
 
 export function createPriceLabelWssTransport(input: {

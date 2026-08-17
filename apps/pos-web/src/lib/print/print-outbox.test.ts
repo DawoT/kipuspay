@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PrintJobRecord, PrintTicketSnapshot } from '@kipuspay/print-templates';
-import { compileEscPosFromSnapshot, handleOffloadMessage } from './offload-compile.js';
+import {
+  buildSaleTicketSnapshot,
+  compileEscPosFromSnapshot,
+  handleOffloadMessage,
+  snapshotToTicketData,
+} from './offload-compile.js';
 import { createOffloadClient } from './offload-client.js';
 import { enqueueAndPrintTicket } from './enqueue-print.js';
 import { createMemoryPrintIdb, PrintOutboxStore } from './print-outbox-store.js';
@@ -122,6 +127,45 @@ describe('offload compile', () => {
       qrPayload: 'https://cpe.example/q',
     });
     expect(withQr.bytes.length).toBeGreaterThan(20);
+  });
+
+  it('C7: buildSaleTicketSnapshot es recompilable y ruc se deja vacío', () => {
+    const snapshot = buildSaleTicketSnapshot({
+      enterprise: 'Tienda',
+      ruc: '',
+      documentType: 'NV',
+      series: 'NV01',
+      number: 7,
+      totalCents: 12345,
+      items: [{ name: 'A', qty: 2, totalCents: 12345 }],
+    });
+    expect(snapshot.lineWidth).toBe(32);
+    expect(snapshot.brandFooter).toBeUndefined();
+    const { escPosBase64 } = compileEscPosFromSnapshot(snapshot);
+    expect(escPosBase64.length).toBeGreaterThan(10);
+    const back = snapshotToTicketData(snapshot);
+    expect(back.ruc).toBe('');
+    expect(back.number).toBe(7);
+    expect(back.totalCents).toBe(12345);
+  });
+
+  it('C7: brandFooter se propaga al snapshot', () => {
+    const snapshot = buildSaleTicketSnapshot({
+      enterprise: 'Tienda',
+      ruc: '20111111111',
+      documentType: '03',
+      series: 'B001',
+      number: 1,
+      totalCents: 100,
+      items: [{ name: 'A', qty: 1, totalCents: 100 }],
+      brandFooter: {
+        enabled: true,
+        label: 'Emitido con KipusPay',
+        shortUrl: 'kipuspay.com',
+        qrPayload: 'https://kipuspay.com',
+      },
+    });
+    expect(snapshot.brandFooter?.enabled).toBe(true);
   });
 });
 
@@ -267,15 +311,24 @@ describe('printer transport ladder', () => {
     if (res.ok) expect(res.adapter).toBe('system_print');
   });
 
-  it('preflight lista system_print + WA', async () => {
+  it('preflight lista system_print + WA; wss_lan solo si está cableado (C7)', async () => {
     const t = createPrinterTransport({
       wssUrl: 'wss://printer.local/escpos',
       whatsappFallback: () => Promise.resolve(true),
     });
     const avail = await t.preflight();
     expect(avail).toContain('system_print');
-    expect(avail).toContain('wss_lan');
+    expect(avail).not.toContain('wss_lan');
     expect(avail).toContain('whatsapp');
+
+    const wired = createPrinterTransport({
+      wssUrl: 'wss://printer.local/escpos',
+      allowlistedHosts: ['printer.local'],
+      socketFactory: () => ({ send: () => undefined, close: () => undefined }),
+      whatsappFallback: () => Promise.resolve(true),
+    });
+    const wiredAvail = await wired.preflight();
+    expect(wiredAvail).toContain('wss_lan');
   });
 
   it('escalera real cae a WhatsApp cuando USB/WSS/BT/System fallan', async () => {

@@ -197,6 +197,39 @@ sprints_cierre:
         pass: "runPostCommitSaleHooks produce XML via FISCAL.produceMissing (waitUntil) best-effort"
         requires_av: false
 
+  - id: sprint-c7
+    nombre: "Impresión real WebUSB/WSS + enqueueAndPrintTicket en rutas de cobro (ladder §7.5/§5.8)"
+    estado: CERRADO
+    ledger: "0446"
+    gaps:
+      - id: c7-real-transports
+        severity: closed
+        detail: "Ladder de tickets reusa createPriceLabelWebUsbTransport/createPriceLabelWssTransport (WebUSB open→claim→transferOut→release→close; WSS wss:+host allowlisted+nonce/ACK); PrinterTransportEnv gana usbDevice/allowlistedHosts/socketFactory/randomBytes"
+        can_auto_fix: true
+        status: closed
+      - id: c7-honest-preflight
+        severity: closed
+        detail: "preflight ya no miente: wss_lan solo si wssUrl wss: + socketFactory + host allowlisted; webusb solo si hay device"
+        can_auto_fix: true
+        status: closed
+      - id: c7-enqueue-routes
+        severity: closed
+        detail: "printer-runtime.ts (buildPosPrinterEnv fail-closed, pairing WSS localStorage, device USB por gesto) + buildSaleTicketSnapshot (ruc vacío, nunca demo) + enqueueAndPrintTicket en +page.svelte y kiosk/+page.svelte tras chargeCartOffline OK (best-effort)"
+        can_auto_fix: true
+        status: closed
+      - id: c7-fiscal-pe-coverage
+        severity: closed
+        detail: "Coverage branches domain-fiscal-pe 94.93%→96.96% (>95% CAL-05): evaluateDeadlineBatch con acción, createMockRcCdrPort vacío/ok, canal NONE tipo desconocido, INVALID_CENTS, quantity 0, readName vacío"
+        can_auto_fix: true
+        status: closed
+    next_actions:
+      - id: c7-print-pairing-ui
+        owner: Staff QA + Staff Hardware
+        status: pending
+        can_auto_fix: false
+        pass: "WSS pairing/allowlist + adquisición device USB por gesto conectados a la UI de config; evidencia física en go-live-hardware (matriz 58/80 mm)"
+        requires_av: true
+
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
     estado: EN_CURSO

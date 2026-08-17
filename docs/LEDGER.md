@@ -12124,3 +12124,57 @@ aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independie
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0446
+timestamp_utc: 2026-08-17T05:45:00Z
+schema_version: 2
+sprint_fase: Sprint C7 — Impresión real WebUSB/WSS + enqueueAndPrintTicket en rutas de cobro
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: C7.1..C7.3 — ladder de tickets con transportes reales (§5.8/§7.5) cableada en caja + kiosk
+relacion: amplia
+referencias_entradas: [0445]
+referencias_documentales: [apps/pos-web/src/lib/print/printer-transport.ts, apps/pos-web/src/lib/print/printer-runtime.ts, apps/pos-web/src/lib/print/printer-transport.test.ts, apps/pos-web/src/lib/print/printer-runtime.test.ts, apps/pos-web/src/lib/print/offload-compile.ts, apps/pos-web/src/lib/printing/price-label-transports.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/kiosk/+page.svelte, packages/domain-fiscal-pe/src/deadlines.test.ts, packages/domain-fiscal-pe/src/index.test.ts, packages/domain-fiscal-pe/src/ubl-invoice.test.ts]
+prev_id: 0445
+prev_hash: f21185c253a91f8a0de6c8d55edac27313b54526a0cf552bc1ddc02ea70e2750
+entry_hash: 0d5a01edf9b32ac853edb10414e722946fa515047a4186232cf3b4a38b057654
+ticket_or_adr: Sprint C7 (fase A del cierre interno → go-live; gap go-live-sunat sunat-builders-nc-nd / sunat-xades-pfx sin tocar)
+test_ids: [SUITE, V-13, V-18, V-22, V-24, V-28, V-30]
+entregable_afectado: impresión §7.5 (ladder) + contrato transportes §5.8 + rutas de cobro POS/kiosk
+descripcion: >
+  C7.1 RED: printer-transport.test.ts cubre la ladder de tickets con transportes
+  reales (WebUSB inyectado → ACK real via transferOut/release/close; WSS real →
+  host allowlisted + ACK por nonce/itemId) y preflight honesto (sin wiring no
+  lista wss_lan). C7.2 la ladder reusa los factories probados de price-labels
+  (createPriceLabelWebUsbTransport/createPriceLabelWssTransport, §5.8) en vez de
+  los stubs tryWebUsb/tryWss que siempre fallaban; PrinterTransportEnv gana
+  usbDevice, allowlistedHosts, socketFactory y randomBytes (inyectables);
+  itemId del ticket = documentType:series:number; preflight ya no miente.
+  C7.3 printer-runtime.ts (buildPosPrinterEnv fail-closed: WebSocket nativo como
+  socketFactory, pairing WSS persistido en localStorage, device USB por gesto),
+  buildSaleTicketSnapshot en offload-compile.ts (snapshot post-cobro DRY; ruc
+  vacío cuando el tenant no lo expone, nunca demo) y enqueueAndPrintTicket
+  cableado en +page.svelte y kiosk/+page.svelte tras chargeCartOffline OK
+  (best-effort, nunca bloquea la venta; outbox IDB durable). Fix staff: cobertura
+  de domain-fiscal-pe elevada a branches 96.96% (>95%, CAL-05) con tests de
+  evaluateDeadlineBatch con acción, createMockRcCdrPort (acepta/vacío), canal
+  NONE por tipo desconocido, INVALID_CENTS, quantity 0 y readName vacío.
+evidencia: >
+  RED (run-red-c7): ladder con stubs que siempre rechazaban (webusb/wss);
+  preflight listaba wss_lan solo por URL aunque no hubiera wiring; enqueue
+  nunca se invocaba desde rutas .svelte; coverage branches fiscal-pe 94.93%
+  (bajo el umbral 95).
+  GREEN (run-green-c7): pos-web 406 tests unit GREEN (82 files), domain-fiscal-pe
+  90 tests + coverage branches 96.96%, turbo test 47/47 con --concurrency=4,
+  lint+typecheck monorepo GREEN (eslint --max-warnings 0), verify SUITE GREEN
+  (V-01..V-30).
+red_commit_sha: N/A
+red_run_id: run-red-c7
+expected_failure: ladder sin transportes reales; preflight deshonesto; sin enqueue en rutas; coverage fiscal-pe bajo umbral
+green_commit_sha: N/A
+green_run_id: run-green-c7
+ancestry_verified: true
+aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

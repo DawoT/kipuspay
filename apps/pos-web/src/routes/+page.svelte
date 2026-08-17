@@ -23,6 +23,10 @@
   } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
 import { createPrinterTransport } from '$lib/print/printer-transport';
+import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox-store';
+import { enqueueAndPrintTicket } from '$lib/print/enqueue-print';
+import { buildSaleTicketSnapshot, snapshotToTicketData } from '$lib/print/offload-compile';
+import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
   import { readLoginUser, writeLoginTenantId, writeLoginToken, writeLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
@@ -64,7 +68,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import {
     buildTicketHtml,
     resolveLineWidth,
-    type TicketData,
   } from '@kipuspay/print-templates';
   import {
     defaultTenantSession,
@@ -172,6 +175,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   // fallback a memoria si no hay browser IDB (SSR/tests).
   const queue = new OfflineQueueStore(createBrowserOfflineIdb());
   const correlatives = new OfflineCorrelativeStore(1);
+
+  // C7: outbox de impresión IDB durable + transport real (§7.5); best-effort,
+  // nunca bloquea la venta (solo enruta por adaptadores disponibles).
+  const printIdb = createBrowserPrintIdb();
+  const printOutbox = new PrintOutboxStore(printIdb);
 
   const totalCents = $derived(cartTotalCents(lines));
   const payableCents = $derived(cartPayableCents(lines));
@@ -357,14 +365,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     if (isPrintTemplatesEnabled()) {
       const isNv = session.formalizationMode === 'INTERNAL_CONTROL';
-      const reserve = correlatives.reserve(outcome.offlineSaleId, isNv ? 'NV01' : 'B001');
-      const mockTicket: TicketData = {
+      const series = isNv ? 'NV01' : 'B001';
+      const reserve = correlatives.reserve(outcome.offlineSaleId, series);
+      // C7: snapshot post-cobro recompilable (§7.5); el RUC del tenant aún no se
+      // expone en la sesión POS, así que va vacío (nunca se inventa un RUC demo).
+      const snapshot = buildSaleTicketSnapshot({
         enterprise: session.tradeName,
+        ruc: '',
         documentType: isNv ? 'NV' : '03',
-        series: isNv ? 'NV01' : 'B001',
+        series,
         number: reserve.tentativeNumber,
         totalCents: cartPayableCents(lines),
-        lineWidth: 32,
         items: lines.map((l) => ({
           name: l.name,
           qty: l.quantity,
@@ -381,8 +392,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               },
             }
           : {}),
-      };
-      printPreview = buildTicketHtml(mockTicket);
+      });
+      printPreview = buildTicketHtml(snapshotToTicketData(snapshot));
+      // C7: imprime por la ladder real (WebUSB/WSS si hay hardware, si no
+      // system_print/whatsapp). Best-effort: nunca bloquea ni falla la venta.
+      void enqueueAndPrintTicket({
+        outbox: printOutbox,
+        transport: createPrinterTransport(buildPosPrinterEnv()),
+        saleId: outcome.offlineSaleId,
+        ticket: snapshot,
+      });
     }
   }
 

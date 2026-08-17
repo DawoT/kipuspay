@@ -25,6 +25,35 @@ export function snapshotToTicketData(snap: PrintTicketSnapshot): TicketData {
   };
 }
 
+/**
+ * C7 — snapshot post-cobro a partir de la venta offline ya encolada y del
+ * correlativo reservado. `ruc` se deja vacío cuando el tenant no lo expone
+ * (NV/control interno, contrato TicketData); nunca se inventa un RUC demo.
+ */
+export function buildSaleTicketSnapshot(input: {
+  readonly enterprise: string;
+  readonly ruc: string;
+  readonly documentType: string;
+  readonly series: string;
+  readonly number: number;
+  readonly totalCents: number;
+  readonly items: readonly { readonly name: string; readonly qty: number; readonly totalCents: number }[];
+  readonly lineWidth?: number;
+  readonly brandFooter?: PrintTicketSnapshot['brandFooter'];
+}): PrintTicketSnapshot {
+  return {
+    enterprise: input.enterprise,
+    ruc: input.ruc,
+    documentType: input.documentType,
+    series: input.series,
+    number: input.number,
+    totalCents: input.totalCents,
+    items: input.items.map((i) => ({ name: i.name, qty: i.qty, totalCents: i.totalCents })),
+    lineWidth: input.lineWidth ?? 32,
+    ...(input.brandFooter ? { brandFooter: input.brandFooter } : {}),
+  };
+}
+
 export function compileEscPosFromSnapshot(snap: PrintTicketSnapshot): {
   readonly bytes: Uint8Array;
   readonly escPosBase64: string;

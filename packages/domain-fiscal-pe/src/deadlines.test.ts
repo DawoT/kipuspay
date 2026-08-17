@@ -56,4 +56,17 @@ describe('deadlines fiscales', () => {
     expect(boletaMustSubmitByEndOfLimaDay(issued)).toBeGreaterThan(issued);
     expect(evaluateDeadlineBatch([], 0)).toEqual([]);
   });
+
+  it('batch con candidato pendiente agrega su acción', () => {
+    const action = evaluateDeadlineBatch(
+      [
+        { ...base, id: 'sale-b', mustSubmitByMs: 1_000_000, alertT24Sent: true, alertT6Sent: true },
+        { ...base, id: 'sale-ok', sunatStatus: 'ACCEPTED', mustSubmitByMs: 1 },
+      ],
+      1_000_001,
+    );
+    expect(action).toEqual([
+      { id: 'sale-b', alert: 'DEADLINE_EXCEEDED', suggestCreditNoteEa: true },
+    ]);
+  });
 });
