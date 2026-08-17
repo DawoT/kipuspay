@@ -29,7 +29,8 @@ export function suggestDocumentType(input: SuggestDocumentInput): SuggestDocCode
 
 export function formalizationBannerMessage(mode: SuggestFormalizationMode): string {
   if (mode === 'INTERNAL_CONTROL') {
-    return 'Modo control interno — solo notas de venta (NV).';
+    // S11-E9 (GTM §3.3.1): banner persistente con el llamado a formalizar.
+    return 'Tu negocio aún no emite comprobantes electrónicos: solo notas de venta (NV). Activa facturación cuando estés listo.';
   }
   if (mode === 'FORMALIZING') {
     return 'Formalizando — puedes emitir CPE o NV según régimen.';

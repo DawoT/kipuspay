@@ -36,6 +36,10 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_BILLING_USAGE_OVERAGE?: string;
   readonly FEATURE_SALES_RETURNS?: string;
   readonly STRIPE_SECRET_KEY?: string;
+  readonly STRIPE_PRICE_ARRANQUE?: string;
+  readonly STRIPE_PRICE_CRECE?: string;
+  readonly STRIPE_PRICE_CADENA?: string;
+  readonly PLATFORM_STAFF_TOKEN?: string;
   readonly FEATURE_CPE_PORTAL?: string;
   readonly FEATURE_OFFLINE_SYNC?: string;
   readonly FEATURE_POS_CHECKOUT?: string;
@@ -47,6 +51,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 17: cierre Z ciego / movimientos / reprints (ADR-0012). */
   readonly FEATURE_CASH_BLIND_Z?: string;
   readonly FEATURE_ORDERS_KDS?: string;
+  /** S1 (Sprint 7): token interno worker→DO del KDS (broadcast/replay). */
+  readonly KDS_BROADCAST_TOKEN?: string;
   readonly FEATURE_STOCK_TRANSFERS?: string;
   readonly FEATURE_PURCHASING_PARTIAL_RECEIVE?: string;
   readonly FEATURE_PURCHASING_THREE_WAY?: string;

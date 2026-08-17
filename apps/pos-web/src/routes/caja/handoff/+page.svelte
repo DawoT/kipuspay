@@ -73,23 +73,22 @@
 
 <svelte:head><title>Cambio de turno · Caja · KipusPay</title></svelte:head>
 
-<div class="handoff-page-container">
-  <section class="glass-panel handoff-card" data-testid="shift-handoff">
-    <div class="card-header-bar">
+<div class="page-shell">
+  <section class="ledger-card handoff-card" data-testid="shift-handoff">
+    <div class="page-masthead">
       <div>
-        <span class="badge badge-indigo">Handoff de Turno</span>
+        <p class="page-eyebrow">Caja · Handoff</p>
         <h1 class="page-title">Cambio de turno sin cierre Z</h1>
+        <p class="page-lede">
+          La sesión sigue abierta: se transfiere al siguiente operador con un PIN de un solo uso.
+          El arqueo Z real queda para el cierre de la caja.
+        </p>
       </div>
       <a href="/caja" class="btn btn-secondary nav-link-btn">
         <Icon name="arrow-right" size={16} />
         Cierre Z
       </a>
     </div>
-
-    <p class="lede-text">
-      La sesión sigue abierta: se transfiere al siguiente operador con un PIN de un solo uso.
-      El arqueo Z real queda para el cierre de la caja.
-    </p>
 
     {#if !shiftOn}
       <StatusMessage tone="warning" data-testid="handoff-feature-off">
@@ -103,7 +102,7 @@
       <Field label="ID de Sesión de Caja" id="handoff-session-id">
         <Input id="handoff-session-id" bind:value={sessionId} data-testid="handoff-session-id" placeholder="Sesión de caja" />
       </Field>
-      <Field label="Operador saliente (userId)" id="handoff-outgoing">
+      <Field label="Operador que entrega el turno" id="handoff-outgoing">
         <Input id="handoff-outgoing" bind:value={outgoingUserId} data-testid="handoff-outgoing" placeholder="u-saliente" />
       </Field>
 
@@ -177,35 +176,10 @@
 </div>
 
 <style>
-  .handoff-page-container {
-    max-width: 640px;
-    margin: 0 auto;
-  }
-
   .handoff-card {
-    padding: 2rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-  }
-
-  .card-header-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-top: 0.25rem;
-  }
-
-  .lede-text {
-    color: var(--text-muted);
-    font-size: 0.9375rem;
-    line-height: 1.5;
   }
 
   .pin-reveal-card {
@@ -231,10 +205,10 @@
   }
 
   .result-revelation-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -250,5 +224,16 @@
     align-items: center;
     padding: 0.5rem 0;
     border-top: 1px solid var(--border-subtle);
+  }
+
+  @media (max-width: 899px) {
+    .page-masthead {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .pin-reveal-card {
+      flex-wrap: wrap;
+    }
   }
 </style>

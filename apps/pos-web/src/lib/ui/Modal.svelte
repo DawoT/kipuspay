@@ -149,7 +149,7 @@
     background: var(--bg-surface);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: grid;
     gap: 0.6rem;
   }

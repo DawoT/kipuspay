@@ -55,12 +55,12 @@ export const TERMS_PAGE = {
     {
       id: 'reclamaciones',
       heading: 'Reclamaciones',
-      body: 'Tienes a disposición nuestro Libro de Reclamaciones Virtual en kipuspay.com/reclamaciones, conforme a la ley de protección al consumidor.',
+      body: 'Tienes a disposición nuestro Libro de Reclamaciones Virtual en kipuspay.com/reclamaciones, conforme a la Ley 29571 (Código de Protección y Defensa del Consumidor).',
     },
     {
       id: 'jurisdiccion',
       heading: 'Ley aplicable',
-      body: 'Este contrato se rige por las leyes del Perú. Cualquier controversia se resuelve ante los tribunales de Lima, Perú.',
+      body: 'Este contrato se rige por las leyes del Perú. Cualquier controversia se resuelve ante el Distrito Judicial de Lima Centro, Perú.',
     },
   ],
 } as const;
@@ -88,7 +88,7 @@ export const PRIVACY_PAGE = {
     {
       id: 'arco',
       heading: 'Cómo ejercer tus derechos',
-      body: 'Para acceder, rectificar, cancelar u oponerte al tratamiento de tus datos, escríbenos a privacidad@kipuspay.com. Respondemos por el mismo canal con la constancia del trámite.',
+      body: 'Para acceder, rectificar, cancelar u oponerte al tratamiento de tus datos, escríbenos a privacidad@kipuspay.com. Respondemos por el mismo canal con la constancia del trámite, conforme a la Ley 29733 (Protección de Datos Personales) y su reglamento (D.S. 003-2013-JUS).',
     },
     {
       id: 'seguridad',
@@ -105,11 +105,11 @@ export const RECLAMATIONS_PAGE = {
   steps: [
     {
       title: 'Registra tu reclamo',
-      body: 'Escríbenos a contacto@kipuspay.com con tu nombre o razón social, tu documento, una descripción de lo ocurrido y tu pedido concreto.',
+      body: 'Completa el formulario de esta página. Recibirás un número de caso como acuse (Ley 29571). También puedes escribir a contacto@kipuspay.com.',
     },
     {
       title: 'Recibe la constancia',
-      body: 'Confirmamos la recepción de tu reclamo con un número de trámite por el mismo canal.',
+      body: 'El número de caso en pantalla es tu acuse. Conserva ese número. La constancia por correo está en preparación.',
     },
     {
       title: 'Respuesta en 30 días calendario',

@@ -71,4 +71,39 @@ describe('authenticated app-shell session route', () => {
       body: { code: 'UNAUTHENTICATED' },
     });
   });
+
+  it('S9-A2: expone billing status (anti-apagado) sin bloquear la caja', async () => {
+    const tenant = {
+      id: 'tenant-a',
+      status: 'active' as const,
+      subscriptionStatus: 'past_due' as const,
+      trialEndsAt: null,
+      pastGracePeriod: false,
+    };
+    const res = await runAuthenticatedSessionHttp(
+      env({ terminal_id: 'terminal-a', terminal_session_id: 'terminal-session-a' }),
+      cashier,
+      'terminal-a',
+      tenant,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      billing: {
+        subscriptionStatus: 'past_due',
+        trialEndsAt: null,
+        pastGracePeriod: false,
+      },
+    });
+    // owner (no cash role) también recibe billing.
+    const ownerRes = await runAuthenticatedSessionHttp(
+      env(null),
+      { ...cashier, role: 'owner', branchId: '' },
+      '',
+      { ...tenant, subscriptionStatus: 'trial', trialEndsAt: '2026-08-20T00:00:00.000Z' },
+    );
+    expect(ownerRes.status).toBe(200);
+    expect(ownerRes.body).toMatchObject({
+      billing: { subscriptionStatus: 'trial', trialEndsAt: '2026-08-20T00:00:00.000Z' },
+    });
+  });
 });

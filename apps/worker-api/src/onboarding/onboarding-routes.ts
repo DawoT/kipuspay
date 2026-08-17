@@ -5,9 +5,33 @@ import {
   type TenantBootstrapInput,
   type VerticalType,
 } from './onboarding-bootstrap.js';
+import {
+  generateBadgeBarcode,
+  generateCashierPin,
+  hashPinArgon2id,
+  persistBootstrap,
+} from '@kipuspay/adapters-d1';
+import { persistStripeCustomerBestEffort } from '../tenant/stripe-billing.js';
+import { signHs256, verifyJwt } from '../auth/verify-jwt.js';
+import { CASHIER_SESSION_TTL_SECONDS } from '../auth/cashier-login-route.js';
 import type { FormalizationMode } from '@kipuspay/domain-fiscal-pe';
 import { computeSetupProgress, type SetupServerState } from '@kipuspay/domain-onboarding';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+
+/** Bindings del bootstrap/claim: DB + KV (con put/delete) + secret HS256. */
+export interface BootstrapHttpEnv {
+  readonly DB?: D1Database;
+  readonly TENANT_KV?: {
+    get(key: string): Promise<string | null>;
+    put?(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+    delete?(key: string): Promise<void>;
+  };
+  readonly AUTH_JWT_HS_SECRET?: string;
+  readonly STRIPE_SECRET_KEY?: string;
+}
+
+const ONBOARDING_TOKEN_TTL_SECONDS = 15 * 60;
+const TRIAL_DAYS = 30;
 
 const VERTICALS: readonly VerticalType[] = [
   'restaurantes',
@@ -31,12 +55,14 @@ function isMode(v: unknown): v is FormalizationMode {
   return typeof v === 'string' && (MODES as readonly string[]).includes(v);
 }
 
-export function runBootstrapHttp(
-  _env: WorkerEnv,
+/** Valida el body y produce el dominio puro (sin persistir). */
+function resolveBootstrapDomain(
   raw: unknown,
-): { status: number; body: Record<string, unknown> } {
+):
+  | { ok: true; input: TenantBootstrapInput }
+  | { ok: false; status: number; body: Record<string, unknown> } {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
+    return { ok: false, status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
   }
   const o = raw as Record<string, unknown>;
   if (
@@ -45,23 +71,176 @@ export function runBootstrapHttp(
     !isMode(o.formalizationMode)
   ) {
     return {
+      ok: false,
       status: 422,
       body: { error: 'Campos de onboarding invalidos', code: 'INVALID_ONBOARDING' },
     };
   }
-  const input: TenantBootstrapInput = {
-    tradeName: o.tradeName,
-    verticalType: o.verticalType,
-    formalizationMode: o.formalizationMode,
-    ruc: typeof o.ruc === 'string' && o.ruc.length > 0 ? o.ruc : null,
+  return {
+    ok: true,
+    input: {
+      tradeName: o.tradeName,
+      verticalType: o.verticalType,
+      formalizationMode: o.formalizationMode,
+      ruc: typeof o.ruc === 'string' && o.ruc.length > 0 ? o.ruc : null,
+    },
   };
+}
+
+interface OwnerCredentials {
+  readonly branchId: string;
+  readonly registerId: string;
+  readonly sessionId: string;
+  readonly ownerUserId: string;
+  readonly ownerBadge: string;
+  readonly ownerPin: string;
+  readonly ownerPinHash: string;
+}
+
+async function generateOwnerCredentials(): Promise<OwnerCredentials> {
+  const ownerPin = generateCashierPin();
+  return {
+    branchId: crypto.randomUUID(),
+    registerId: crypto.randomUUID(),
+    sessionId: crypto.randomUUID(),
+    ownerUserId: crypto.randomUUID(),
+    ownerBadge: generateBadgeBarcode(new Set()),
+    ownerPin,
+    ownerPinHash: await hashPinArgon2id(ownerPin),
+  };
+}
+
+interface PersistedBootstrap {
+  readonly tenantId: string;
+  readonly tradeName: string;
+  readonly branchId: string;
+  readonly planId: string;
+  readonly formalizationMode: string;
+  readonly enabledDocumentTypes: readonly string[];
+  readonly trialEndsAtIso: string;
+  readonly ownerBadge: string;
+  readonly ownerPin: string;
+  readonly onboardingToken: string;
+}
+
+async function persistAndMintToken(
+  env: BootstrapHttpEnv,
+  domain: ReturnType<typeof bootstrapTenant>,
+  credentials: OwnerCredentials,
+  trialEndsAtIso: string,
+  nowMs: number,
+): Promise<
+  | { ok: true; persisted: PersistedBootstrap }
+  | { ok: false; status: number; body: Record<string, unknown> }
+> {
+  const kv = env.TENANT_KV;
+  const db = env.DB;
+  const secret = env.AUTH_JWT_HS_SECRET;
+  if (!kv?.put || !kv.delete || !db || !secret) {
+    return {
+      ok: false,
+      status: 503,
+      body: { error: 'Bootstrap unavailable', code: 'BOOTSTRAP_UNAVAILABLE' },
+    };
+  }
+  const putFn = (key: string, value: string, opts?: { expirationTtl?: number }) =>
+    kv.put!(key, value, opts);
+  const deleteFn = (key: string) => kv.delete!(key);
   try {
-    const tenantId =
-      typeof o.tenantId === 'string' && o.tenantId.length > 0
-        ? o.tenantId
-        : `t_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
-    const result = bootstrapTenant(input, tenantId);
-    return { status: 201, body: { ...result } };
+    await persistBootstrap(
+      db,
+      (key, value, opts) => putFn(key, value, opts),
+      (key) => deleteFn(key),
+      {
+        tenantId: domain.tenantId,
+        tradeName: domain.tradeName,
+        verticalType: domain.verticalType,
+        formalizationMode: domain.formalizationMode,
+        ruc: domain.ruc,
+        enabledDocumentTypes: domain.enabledDocumentTypes,
+        trialEndsAtIso,
+        branchId: credentials.branchId,
+        registerId: credentials.registerId,
+        sessionId: credentials.sessionId,
+        ownerUserId: credentials.ownerUserId,
+        ownerEmail: `owner.${domain.tenantId}@kipuspay.com`,
+        ownerBadge: credentials.ownerBadge,
+        ownerPinHash: credentials.ownerPinHash,
+        nowIso: new Date(nowMs).toISOString(),
+      },
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      status: 500,
+      body: {
+        error: err instanceof Error ? err.message : 'bootstrap failed',
+        code: 'BOOTSTRAP_PERSIST_FAILED',
+      },
+    };
+  }
+  await persistStripeCustomerBestEffort(env, domain.tenantId, domain.tradeName);
+  const jti = crypto.randomUUID();
+  const nowSec = Math.floor(nowMs / 1000);
+  const token = await signHs256(secret, {
+    sub: jti,
+    tenantId: domain.tenantId,
+    purpose: 'onboarding',
+    iat: nowSec,
+    nbf: nowSec,
+    exp: nowSec + ONBOARDING_TOKEN_TTL_SECONDS,
+  });
+  await putFn(
+    `onboarding:${jti}`,
+    JSON.stringify({
+      tenantId: domain.tenantId,
+      ownerUserId: credentials.ownerUserId,
+      branchId: credentials.branchId,
+      sessionId: credentials.sessionId,
+    }),
+    { expirationTtl: ONBOARDING_TOKEN_TTL_SECONDS },
+  );
+  return {
+    ok: true,
+    persisted: {
+      tenantId: domain.tenantId,
+      tradeName: domain.tradeName,
+      branchId: credentials.branchId,
+      planId: domain.planId,
+      formalizationMode: domain.formalizationMode,
+      enabledDocumentTypes: domain.enabledDocumentTypes,
+      trialEndsAtIso,
+      ownerBadge: credentials.ownerBadge,
+      ownerPin: credentials.ownerPin,
+      onboardingToken: token,
+    },
+  };
+}
+
+function bindingsError(
+  env: BootstrapHttpEnv,
+): { status: number; body: Record<string, unknown> } | null {
+  if (!env?.DB || !env?.TENANT_KV?.put || !env?.TENANT_KV?.delete || !env?.TENANT_KV?.get) {
+    return { status: 503, body: { error: 'Bootstrap unavailable', code: 'BOOTSTRAP_UNAVAILABLE' } };
+  }
+  if (!env.AUTH_JWT_HS_SECRET) {
+    return { status: 503, body: { error: 'Signing unavailable', code: 'SIGNING_UNAVAILABLE' } };
+  }
+  return null;
+}
+
+export async function runBootstrapHttp(
+  env: BootstrapHttpEnv,
+  raw: unknown,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const resolved = resolveBootstrapDomain(raw);
+  if (!resolved.ok) return { status: resolved.status, body: resolved.body };
+  let domain: ReturnType<typeof bootstrapTenant>;
+  try {
+    domain = bootstrapTenant(
+      resolved.input,
+      `t_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+    );
   } catch (err) {
     return {
       status: 422,
@@ -71,6 +250,124 @@ export function runBootstrapHttp(
       },
     };
   }
+  const unavailable = bindingsError(env);
+  if (unavailable) return unavailable;
+  const existing = await env.TENANT_KV?.get(`tenant:${domain.tenantId}`);
+  if (existing) {
+    return { status: 409, body: { error: 'Tenant already exists', code: 'TENANT_ALREADY_EXISTS' } };
+  }
+  const nowMs = Date.now();
+  const trialEndsAtIso = new Date(nowMs + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const credentials = await generateOwnerCredentials();
+  const result = await persistAndMintToken(env, domain, credentials, trialEndsAtIso, nowMs);
+  if (!result.ok) return { status: result.status, body: result.body };
+  const persisted = result.persisted;
+  return {
+    status: 201,
+    body: {
+      tenantId: persisted.tenantId,
+      tradeName: persisted.tradeName,
+      branchId: persisted.branchId,
+      planId: persisted.planId,
+      formalizationMode: persisted.formalizationMode,
+      enabledDocumentTypes: persisted.enabledDocumentTypes,
+      trialEndsAt: persisted.trialEndsAtIso,
+      ownerBadge: persisted.ownerBadge,
+      ownerPin: persisted.ownerPin,
+      onboardingToken: persisted.onboardingToken,
+      expiresInSeconds: ONBOARDING_TOKEN_TTL_SECONDS,
+    },
+  };
+}
+
+/**
+ * M6A: consumo del token de onboarding (single-use, TTL 15 min).
+ * Minta la sesión JWT del owner (12h) — el PIN ya no viaja por la red.
+ */
+interface ClaimedOnboarding {
+  readonly tenantId: string;
+  readonly ownerUserId: string;
+  readonly branchId: string;
+  readonly sessionId: string;
+}
+
+async function resolveClaimToken(
+  env: BootstrapHttpEnv,
+  token: string,
+): Promise<
+  | { ok: true; claimed: ClaimedOnboarding }
+  | { ok: false; status: number; body: Record<string, unknown> }
+> {
+  if (!env?.TENANT_KV?.get || !env?.TENANT_KV?.delete) {
+    return {
+      ok: false,
+      status: 503,
+      body: { error: 'Claim unavailable', code: 'CLAIM_UNAVAILABLE' },
+    };
+  }
+  const claims = await verifyJwt(env, token);
+  if (!claims) {
+    return { ok: false, status: 403, body: { error: 'Invalid token', code: 'INVALID_TOKEN' } };
+  }
+  const raw = await env.TENANT_KV.get(`onboarding:${claims.sub}`);
+  if (!raw) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Token used or expired', code: 'INVALID_TOKEN' },
+    };
+  }
+  await env.TENANT_KV.delete(`onboarding:${claims.sub}`);
+  let payload: { tenantId?: string; ownerUserId?: string; branchId?: string; sessionId?: string };
+  try {
+    payload = JSON.parse(raw) as typeof payload;
+  } catch {
+    return { ok: false, status: 403, body: { error: 'Invalid token', code: 'INVALID_TOKEN' } };
+  }
+  if (!payload.tenantId || !payload.ownerUserId || payload.tenantId !== claims.tenantId) {
+    return { ok: false, status: 403, body: { error: 'Invalid token', code: 'INVALID_TOKEN' } };
+  }
+  return {
+    ok: true,
+    claimed: {
+      tenantId: payload.tenantId,
+      ownerUserId: payload.ownerUserId,
+      branchId: payload.branchId ?? '',
+      sessionId: payload.sessionId ?? '',
+    },
+  };
+}
+
+export async function runOnboardingClaimHttp(
+  env: BootstrapHttpEnv | undefined,
+  token: string,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  if (!env?.AUTH_JWT_HS_SECRET) {
+    return { status: 503, body: { error: 'Signing unavailable', code: 'SIGNING_UNAVAILABLE' } };
+  }
+  const resolved = await resolveClaimToken(env, token);
+  if (!resolved.ok) return { status: resolved.status, body: resolved.body };
+  const claimed = resolved.claimed;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const sessionToken = await signHs256(env.AUTH_JWT_HS_SECRET, {
+    sub: claimed.ownerUserId,
+    tenantId: claimed.tenantId,
+    role: 'owner',
+    branchId: claimed.branchId,
+    auth_time: nowSec,
+    iat: nowSec,
+    nbf: nowSec,
+    exp: nowSec + CASHIER_SESSION_TTL_SECONDS,
+  });
+  return {
+    status: 200,
+    body: {
+      token: sessionToken,
+      expiresAt: new Date((nowSec + CASHIER_SESSION_TTL_SECONDS) * 1000).toISOString(),
+      user: { userId: claimed.ownerUserId, role: 'owner', branchId: claimed.branchId },
+      cashRegisterSessionId: claimed.sessionId,
+    },
+  };
 }
 
 /**
@@ -332,4 +629,51 @@ export async function runGrowthEventHttp(
     )
     .run();
   return { status: 201, body: { ok: true, eventType } };
+}
+
+export async function runListGrowthEventsHttp(
+  env: OnboardingEnv,
+  tenantId: string,
+): Promise<HttpResult> {
+  if (!tenantId) return { status: 401, body: { code: 'UNAUTHORIZED' } };
+  if (!env.DB) return { status: 503, body: { code: 'ONBOARDING_DB_UNAVAILABLE' } };
+  const db = env.DB as unknown as {
+    prepare(sql: string): {
+      bind(...params: unknown[]): {
+        all<T>(): Promise<{ results?: T[] }>;
+      };
+    };
+  };
+  const rows = await db
+    .prepare(
+      `SELECT tenant_id AS tenantId, event_type AS eventType, occurred_at AS occurredAtIso, meta_json AS metaJson
+       FROM growth_events WHERE tenant_id = ? ORDER BY occurred_at ASC`,
+    )
+    .bind(tenantId)
+    .all<{
+      tenantId: string;
+      eventType: string;
+      occurredAtIso: string;
+      metaJson: string | null;
+    }>();
+  const events = (rows.results ?? []).map((row) => {
+    let meta: Record<string, unknown> | undefined;
+    if (row.metaJson) {
+      try {
+        const parsed: unknown = JSON.parse(row.metaJson);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          meta = parsed as Record<string, unknown>;
+        }
+      } catch {
+        meta = undefined;
+      }
+    }
+    return {
+      tenantId: row.tenantId,
+      eventType: row.eventType,
+      occurredAtIso: row.occurredAtIso,
+      ...(meta ? { meta } : {}),
+    };
+  });
+  return { status: 200, body: { events } };
 }

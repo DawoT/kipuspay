@@ -69,7 +69,7 @@ function memoryDb(rows: OutboxRow[]): FiscalDrainDb & { state: MockRow[] } {
   const state = rows.map((r) => ({ ...r, next_attempt_at: new Date().toISOString() }));
   const impl = (sql: string, params: unknown[]) => ({
     all<T>() {
-      if (sql.includes("WHERE status = 'PROCESSING'")) {
+      if (sql.includes("f.status = 'PROCESSING'")) {
         return Promise.resolve({
           results: state
             .filter((r) => r.status === 'PROCESSING')

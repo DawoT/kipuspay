@@ -2,7 +2,9 @@
   import { isInventorySerialsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { apiFetch } from '$lib/auth/api-client';
+  import { salesErrorCopy } from '$lib/ui/ops-copy';
 
   const serialsOn = isInventorySerialsEnabled();
   let serialNumber = $state('');
@@ -13,13 +15,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let leaseToken = $state('');
   let message = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
-  function headers(): Record<string, string> {
+  function jsonHeaders(): Record<string, string> {
     return {
       'content-type': 'application/json',
-      authorization: auth(),
       'x-terminal-id': terminalId.trim(),
     };
   }
@@ -27,8 +25,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function search() {
     message = '';
     const query = new URLSearchParams({ serialNumber: serialNumber.trim() });
-    const response = await fetch(`${apiBase()}/api/inventory/serials?${query}`, {
-      headers: { authorization: auth() },
+    const response = await apiFetch(`/api/inventory/serials?${query}`, {
+      storage: localStorage,
     });
     const body = (await response.json()) as {
       items?: Array<Record<string, unknown>>;
@@ -38,13 +36,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     items = response.ok ? (body.items ?? []) : [];
     message = response.ok
       ? `${items.length} serie(s) encontrada(s).`
-      : [body.error, body.action].filter(Boolean).join(' ');
+      : salesErrorCopy(body.error);
   }
 
   async function acquireLease() {
-    const response = await fetch(`${apiBase()}/api/inventory/serials/leases`, {
+    const response = await apiFetch('/api/inventory/serials/leases', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage,
+      headers: jsonHeaders(),
       body: JSON.stringify({
         serialId: selectedSerialId,
         idempotencyKey: crypto.randomUUID(),
@@ -58,20 +57,25 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     leaseToken = response.ok ? (body.leaseToken ?? '') : '';
     message = response.ok
       ? 'Reserva exclusiva para este terminal.'
-      : [body.error, body.action].filter(Boolean).join(' ');
+      : salesErrorCopy(body.error);
   }
 
   async function dispose() {
-    const response = await fetch(`${apiBase()}/api/inventory/serials/disposition`, {
+    const response = await apiFetch('/api/inventory/serials/disposition', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage,
+      headers: jsonHeaders(),
       body: JSON.stringify({ serialId: selectedSerialId, disposition }),
     });
     const body = (await response.json()) as { status?: string; error?: string; action?: string };
     message = response.ok
       ? `Disposición confirmada por servidor: ${body.status ?? disposition}.`
-      : [body.error, body.action].filter(Boolean).join(' ');
-    if (response.ok) await search();
+      : salesErrorCopy(body.error);
+    if (response.ok) {
+      const confirmation = message;
+      await search();
+      message = confirmation;
+    }
   }
 
   function scannerKeydown(event: KeyboardEvent) {
@@ -99,7 +103,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       <span>Las series no están activas para este negocio.</span>
     </div>
   {:else}
-    <div class="workbench glass-card">
+    <div class="workbench ledger-card">
       <form onsubmit={(event) => { event.preventDefault(); void search(); }} class="scan-form">
         <div class="field search-field">
           <label for="serial-scan">
@@ -126,7 +130,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <input id="terminal-id" bind:value={terminalId} placeholder="pos-term-01" />
         </div>
 
-        <Button variant="primary" icon="search" >
+        <Button variant="primary" icon="search" onclick={() => void search()}>
           Buscar Serie
         </Button>
       </form>
@@ -145,8 +149,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             <select id="serial-select" bind:value={selectedSerialId}>
               <option value="">-- Elige serie --</option>
               {#each items as item}
-                <option value={String(item.id ?? item.serialId)}>
-                  {String(item.serialNumber ?? item.id)} ({String(item.status ?? 'UNKNOWN')})
+                <option value={String(item.serial_id ?? item.id ?? item.serialId)}>
+                  {String(item.serialNumber ?? item.serial_number ?? item.id)} ({String(item.status ?? 'UNKNOWN')})
                 </option>
               {/each}
             </select>
@@ -163,8 +167,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               <div class="disposition-group">
                 <select bind:value={disposition}>
                   <option value="RETURN_TO_STOCK">Devolver a stock</option>
-                  <option value="SCRAPPED">Dar de baja (Scrap)</option>
-                  <option value="RMA_SUPPLIER">RMA a proveedor</option>
+                  <option value="DAMAGED">Dar de baja (dañado)</option>
+                  <option value="LOST">Registrar pérdida</option>
+                  <option value="RETURN_TO_SUPPLIER">Devolución a proveedor</option>
                 </select>
                 <Button variant="primary" onclick={() =>
           void dispose()}>
@@ -181,6 +186,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             </div>
           {/if}
         </div>
+      {:else if message}
+        <EmptyState
+          icon="barcode"
+          title="Sin series"
+          description="No hay coincidencias. Escanea otro código o corrige el número."
+        >
+          <Button
+            variant="secondary"
+            data-testid="series-empty-search"
+            onclick={() => document.getElementById('serial-scan')?.focus()}
+          >
+            Buscar de nuevo
+          </Button>
+        </EmptyState>
       {/if}
     </div>
   {/if}
@@ -203,22 +222,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .lede {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.92rem;
     margin: 0;
   }
 
-  .glass-card {
-    background: var(--bg-glass-card, rgba(30, 41, 59, 0.65));
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    border-radius: var(--radius-md, 12px);
-    padding: 1.5rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+  .ledger-card {
+    background: var(--bg-ledger-card);
   }
 
   .scan-form {
@@ -235,7 +249,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.35rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin-bottom: 0.35rem;
     text-transform: uppercase;
   }
@@ -249,7 +263,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     left: 0.8rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
   }
 
   .input-with-icon input {
@@ -262,8 +276,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.5rem;
     padding: 0.75rem 1rem;
     background: rgba(16, 185, 129, 0.1);
-    border: 1px solid var(--emerald-green, #10b981);
-    color: var(--emerald-green, #10b981);
+    border: 1px solid var(--emerald-green);
+    color: var(--emerald-green);
     border-radius: var(--radius-sm, 8px);
     font-size: 0.88rem;
     margin-bottom: 1rem;
@@ -301,13 +315,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.65rem;
     padding: 1rem;
     background: rgba(245, 158, 11, 0.1);
-    border: 1px solid var(--amber-gold, #f59e0b);
-    color: var(--amber-gold, #f59e0b);
+    border: 1px solid var(--amber-gold);
+    color: var(--amber-gold);
     border-radius: var(--radius-md, 12px);
     font-weight: 600;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 719px) {
     .scan-form {
       grid-template-columns: 1fr;
     }

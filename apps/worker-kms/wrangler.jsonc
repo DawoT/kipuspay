@@ -70,4 +70,70 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
+  "env": {
+    "staging": {
+      "name": "kipuspay-worker-kms-staging",
+      "vars": {
+        "BACKUP_KEK_ACTIVE_VERSION": "v1",
+        "PUSH_KEK_ACTIVE_VERSION": "push-kms-v3",
+        "PUSH_REVOKED_KEY_VERSIONS": "",
+        "PUSH_VAPID_PRIVATE_KEY_REF": "secret-ref-vapid-v3",
+        "PUSH_VAPID_PUBLIC_KEY_REF": "secret-ref-vapid-public-v3",
+        "PUSH_VAPID_SUBJECT_REF": "secret-ref-vapid-subject",
+        "PUSH_FCM_SERVICE_ACCOUNT_REF": "secret-ref-fcm-v2",
+      },
+      "secrets_store_secrets": [
+        {
+          "binding": "BACKUP_KEK_V1",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "backup-kek-v1",
+        },
+        {
+          "binding": "BACKUP_KEK_V2",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "backup-kek-v2",
+        },
+        {
+          "binding": "PUSH_KEK_V1",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-kek-v1",
+        },
+        {
+          "binding": "PUSH_KEK_V2",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-kek-v2",
+        },
+        {
+          "binding": "PUSH_KEK_V3",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-kek-v3",
+        },
+        {
+          "binding": "PUSH_VAPID_PRIVATE_KEY",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-vapid-private-v3",
+        },
+        {
+          "binding": "PUSH_VAPID_PUBLIC_KEY",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-vapid-public-v3",
+        },
+        {
+          "binding": "PUSH_VAPID_SUBJECT",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-vapid-subject",
+        },
+        {
+          "binding": "PUSH_FCM_SERVICE_ACCOUNT",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-fcm-service-account-v2",
+        },
+        {
+          "binding": "PUSH_ACK_HMAC",
+          "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
+          "secret_name": "push-ack-hmac-v1",
+        },
+      ],
+    },
+  },
 }

@@ -6,7 +6,10 @@
     isDataBackupEnabled,
     type BackupSummary,
   } from '$lib/data-backup-client';
-  import { readAdminAuthenticatedSession } from '$lib/admin/authenticated-session';
+  import {
+    readAdminAuthenticatedSessionState,
+    type AdminAuthenticatedSessionState,
+  } from '$lib/admin/authenticated-session';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Badge from '$lib/ui/Badge.svelte';
@@ -25,6 +28,7 @@
   let stepUpToken = $state('');
   let selected = $state<BackupSummary | null>(null);
   const enabled = isDataBackupEnabled();
+  let sessionState = $state<AdminAuthenticatedSessionState | null>(null);
   let authenticatedFetch: typeof fetch | null = null;
 
   const client = () =>
@@ -89,6 +93,30 @@
     }
   }
 
+  async function mintStepUp() {
+    if (!selected || !authenticatedFetch) {
+      error = 'Selecciona un respaldo para emitir el token.';
+      return;
+    }
+    error = '';
+    try {
+      const response = await authenticatedFetch('/api/backups/step-up-token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ backupId: selected.id }),
+      });
+      const body = (await response.json()) as { token?: string; code?: string };
+      if (!response.ok || !body.token) {
+        error = body.code ?? 'No se pudo emitir el token de reautenticación.';
+        return;
+      }
+      stepUpToken = body.token;
+      notice = 'Token de reautenticación listo (90 s, un solo uso).';
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : 'No se pudo emitir el token.';
+    }
+  }
+
   async function download(backup: BackupSummary) {
     if (!stepUpToken) {
       error = 'Se requiere reautenticación reciente para descargar el respaldo.';
@@ -137,8 +165,23 @@
     }
   }
 
+  // F5: la sesión autenticada la provee el app-shell (provideAdminAuthenticatedSessionState,
+  // +layout.svelte) de forma asíncrona. El seam estático provideAdminAuthenticatedSession
+  // nunca se instancia; aquí se observa el state y se refresca cuando llega la sesión.
+  $effect(() => {
+    const current = sessionState?.current ?? null;
+    authenticatedFetch = current?.authenticatedFetch ?? null;
+    if (!enabled) return;
+    if (current) {
+      void refresh();
+    } else {
+      error = 'Inicia sesión para ver tus respaldos.';
+      loading = false;
+    }
+  });
+
   onMount(() => {
-    authenticatedFetch = readAdminAuthenticatedSession()?.authenticatedFetch ?? null;
+    sessionState = readAdminAuthenticatedSessionState();
     role = import.meta.env.PUBLIC_DEV_ROLE === 'owner' ? 'owner' : 'admin';
     online = navigator.onLine;
     const updateNetwork = () => {
@@ -150,8 +193,6 @@
     void countPendingOfflineSales().then((count) => {
       pendingOfflineSales = count;
     });
-    if (enabled) void refresh();
-    else loading = false;
     return () => {
       window.removeEventListener('online', updateNetwork);
       window.removeEventListener('offline', updateNetwork);
@@ -194,7 +235,7 @@
     </StatusMessage>
   {:else}
     {#if warning.visible}
-      <div class="queue-warning glass-card">
+      <div class="queue-warning ledger-card">
         <div class="warning-head">
           <Icon name="alert" size={20} class="icon-amber" />
           <h2>Cobertura requerida antes de exportar</h2>
@@ -206,7 +247,7 @@
       </div>
     {/if}
 
-    <div class="toolbar glass-card">
+    <div class="toolbar ledger-card">
       <div class="action-buttons">
         <Button
           variant="primary"
@@ -239,6 +280,14 @@
             bind:value={stepUpToken}
             placeholder="Solo en memoria para descargar"
           />
+          <Button
+            variant="secondary"
+            data-testid="mint-step-up"
+            disabled={!online || busy || !selected}
+            onclick={() => void mintStepUp()}
+          >
+            Emitir token
+          </Button>
         </div>
       {/if}
     </div>
@@ -251,17 +300,24 @@
     {/if}
 
     <div class="operations-grid">
-      <section class="history-card glass-card" aria-labelledby="history-title">
+      <section class="history-card ledger-card" aria-labelledby="history-title">
         <div class="card-head">
           <Icon name="clock" size={18} class="icon-accent" />
           <h2 id="history-title">Historial y progreso ({items.length})</h2>
         </div>
         {#if loading}
-          <div class="section-pad">
-            <Skeleton lines={3} />
-          </div>
+          <Skeleton lines={3} />
         {:else if items.length === 0}
-          <EmptyState icon="database" title="Sin exportaciones" description="No hay exportaciones registradas." />
+          <EmptyState icon="database" title="Sin exportaciones" description="No hay exportaciones registradas.">
+            <Button
+              variant="primary"
+              data-testid="backups-empty-create"
+              disabled={!online || busy}
+              onclick={createBackup}
+            >
+              Crear exportación
+            </Button>
+          </EmptyState>
         {:else}
           <ul class="backup-list">
             {#each items as backup (backup.id)}
@@ -287,7 +343,7 @@
         {/if}
       </section>
 
-      <section class="detail-card glass-card" aria-labelledby="detail-title">
+      <section class="detail-card ledger-card" aria-labelledby="detail-title">
         <div class="card-head">
           <Icon name="shield" size={18} class="icon-accent" />
           <h2 id="detail-title">Detalle y recuperación</h2>
@@ -357,17 +413,17 @@
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .scope {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.9rem;
     margin: 0;
   }
 
   .queue-warning {
-    border-left: 4px solid var(--amber-gold, #f59e0b);
+    border-left: 4px solid var(--amber-gold);
     margin-bottom: 1.25rem;
   }
 
@@ -381,7 +437,7 @@
   .warning-head h2 {
     margin: 0;
     font-size: 1.1rem;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .toolbar {
@@ -410,12 +466,12 @@
     gap: 0.35rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     text-transform: uppercase;
   }
 
   .reauth-field input {
-    padding: 0.45rem 0.75rem;
+    padding: var(--inset-field);
     font-size: 0.85rem;
   }
 
@@ -438,7 +494,7 @@
     margin: 0;
     font-size: 1.05rem;
     font-family: var(--font-heading, sans-serif);
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .backup-list {
@@ -480,7 +536,7 @@
 
   .backup-time {
     font-size: 0.78rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
   }
 
   .spec-dl {
@@ -501,7 +557,7 @@
   }
 
   dt {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.78rem;
     text-transform: uppercase;
     font-weight: 600;
@@ -509,7 +565,7 @@
 
   dd {
     margin: 0;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .hash-code {
@@ -525,7 +581,7 @@
     align-items: flex-start;
     gap: 0.4rem;
     font-size: 0.82rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     line-height: 1.4;
     margin-bottom: 1rem;
   }

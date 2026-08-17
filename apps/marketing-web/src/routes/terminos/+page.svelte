@@ -21,6 +21,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Legal
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>{TERMS_PAGE.headline}</h1>
       <p class="hero-sub">{TERMS_PAGE.lede}</p>
     </div>

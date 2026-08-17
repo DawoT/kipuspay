@@ -1,4 +1,5 @@
 /** Cliente POS — cierre Z ciego (expected solo tras confirmar conteo). */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface DenominationLine {
   readonly denominationCents: number;
@@ -37,12 +38,14 @@ export async function submitBlindClose(
   authHeader: string,
   body: BlindCloseRequest,
 ): Promise<BlindCloseResult> {
+  const headers = new Headers({
+    'content-type': 'application/json',
+    authorization: authHeader,
+  });
+  applyApiAuthHeaders(headers);
   const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/cash/sessions/blind-close`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: authHeader,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as Record<string, unknown>;

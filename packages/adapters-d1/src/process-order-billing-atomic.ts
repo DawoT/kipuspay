@@ -45,6 +45,7 @@ export interface ProcessOrderBillingResult {
     readonly saleId: string;
     readonly amountCents: number;
     readonly itemIds: readonly string[];
+    readonly number: number;
   }[];
 }
 
@@ -102,13 +103,14 @@ export async function processOrderBillingAtomic(
 
   const seriesRow = await db
     .prepare(
-      `SELECT id FROM branch_document_series
+      `SELECT id, current_number FROM branch_document_series
        WHERE tenant_id = ? AND branch_id = ? AND document_type_code = ? AND series = ?
        LIMIT 1`,
     )
     .bind(tenantId, order.branch_id, input.documentType ?? 'NV', input.series)
-    .first<{ id: string }>();
+    .first<{ id: string; current_number: number }>();
   if (!seriesRow) throw new Error('SERIES_NOT_FOUND');
+  const seriesStartNumber = Number(seriesRow.current_number ?? 0);
 
   const policy = resolveOrderStockPolicy(
     input.stockPolicy === undefined || input.stockPolicy === null
@@ -136,8 +138,16 @@ export async function processOrderBillingAtomic(
   assertOrderTransition(order.status, 'PAID');
 
   await runD1AtomicPlan(db, async (plan) => {
+    // CAS: la serie no se mueve concurrentemente (mismo patrón ND / withholding).
+    plan.guardState(
+      `SELECT 1 FROM branch_document_series
+       WHERE id = ? AND tenant_id = ? AND current_number = ?`,
+      [seriesRow.id, tenantId, seriesStartNumber],
+    );
+
     const saleItemByOrderItem = new Map<string, { saleItemId: string; saleId: string }>();
-    for (const portion of portions) {
+    for (let portionIndex = 0; portionIndex < portions.length; portionIndex++) {
+      const portion = portions[portionIndex]!;
       const portionRows = portion.itemIds.map((id) => byId.get(id)!);
       const totalAmount = portion.amountCents;
       const taxable = Math.round(totalAmount / 1.18);
@@ -156,8 +166,7 @@ export async function processOrderBillingAtomic(
                )
                SELECT
                  ?, ?, ?, ?, ?, NULL, ?, '1', '00000000', ?, ?, ?,
-                 (SELECT current_number FROM branch_document_series WHERE id = ?),
-                 'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, NULL`,
+                 ?, 'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, NULL`,
           )
           .bind(
             portion.saleId,
@@ -169,20 +178,13 @@ export async function processOrderBillingAtomic(
             input.clientName ?? 'Cliente',
             input.documentType ?? 'NV',
             input.series,
-            seriesRow.id,
+            seriesStartNumber + 1 + portionIndex,
             taxable,
             igv,
             totalAmount,
             limaTs,
             input.documentType === '03' ? 'PENDING' : 'NOT_APPLICABLE',
           ),
-      );
-      plan.add(
-        db
-          .prepare(
-            `UPDATE branch_document_series SET current_number = current_number + 1 WHERE id = ? AND tenant_id = ?`,
-          )
-          .bind(seriesRow.id, tenantId),
       );
 
       let accumulatedLineTaxable = 0;
@@ -249,6 +251,16 @@ export async function processOrderBillingAtomic(
           .bind(crypto.randomUUID(), tenantId, portion.saleId, input.paymentMethodId, totalAmount),
       );
     }
+
+    plan.add(
+      db
+        .prepare(
+          `UPDATE branch_document_series
+           SET current_number = current_number + ?
+           WHERE id = ? AND tenant_id = ? AND current_number = ?`,
+        )
+        .bind(portions.length, seriesRow.id, tenantId, seriesStartNumber),
+    );
 
     for (const delta of stockDeltas) {
       const qty = -delta.qtyDelta;
@@ -343,10 +355,11 @@ export async function processOrderBillingAtomic(
   return {
     orderId: input.orderId,
     orderStatus: 'PAID',
-    sales: portions.map((p) => ({
+    sales: portions.map((p, i) => ({
       saleId: p.saleId,
       amountCents: p.amountCents,
       itemIds: [...p.itemIds],
+      number: seriesStartNumber + 1 + i,
     })),
   };
 }

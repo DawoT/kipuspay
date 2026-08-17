@@ -44,4 +44,42 @@
     "FEATURE_FISCAL_CIRCUIT_BREAKER": "0",
     "FEATURE_FISCAL_TRANSPORT_PLUGINS": "0",
   },
+  "env": {
+    "staging": {
+      "name": "kipuspay-worker-fiscal-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "FISCAL_CIRCUIT_BREAKER_DO",
+            "class_name": "FiscalCircuitBreaker",
+          },
+        ],
+      },
+      "kv_namespaces": [
+        {
+          "binding": "FISCAL_BREAKER_KV",
+          "id": "03383ac3ee4646bb961bdfd4c9eb147b",
+        },
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FISCAL_XML_R2",
+          "bucket_name": "kipuspay-fiscal-xml-staging",
+        },
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "kipuspay-staging",
+          "database_id": "f23d7b8b-be71-483b-9489-2c7c4ebd73df",
+          "migrations_dir": "../../packages/adapters-d1/migrations",
+        },
+      ],
+      "vars": {
+        "FEATURE_FISCAL_RC": "0",
+        "FEATURE_FISCAL_CIRCUIT_BREAKER": "0",
+        "FEATURE_FISCAL_TRANSPORT_PLUGINS": "0",
+      },
+    },
+  },
 }

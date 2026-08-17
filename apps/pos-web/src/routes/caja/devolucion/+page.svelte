@@ -74,7 +74,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="rotate-ccw" size={12} /> Caja · Devolución</p>
       <h1 class="page-title">Devolución</h1>
-      <p class="page-lede">Devuelve ítems dentro de la ventana N días. Genera NC (07) o NV_RETURN según formalización. Motivo obligatorio.</p>
+      <p class="page-lede">Devuelve ítems dentro de la ventana del negocio. Genera nota de crédito o devolución según cómo factures. El motivo es obligatorio.</p>
     </div>
   </div>
 
@@ -102,7 +102,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <p class="tenant-line" data-testid="caja-returns-tenant">Tienda: {session.tradeName}</p>
 
-    <div class="glass-card return-card">
+    <div class="ledger-card return-card">
       <CardHeader title="Procesar devolución">
         <Badge variant="danger">Reversa</Badge>
       </CardHeader>
@@ -147,7 +147,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 <style>
   .return-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     max-width: 40rem;
   }
   .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.875rem; cursor: pointer; font-size: 0.875rem; color: var(--text-muted); text-transform: none; letter-spacing: 0; font-weight: 500; }

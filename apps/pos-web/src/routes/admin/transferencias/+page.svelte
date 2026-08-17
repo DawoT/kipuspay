@@ -3,7 +3,8 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
+import { apiFetch } from '$lib/auth/api-client';
 
   const xferOn = isStockTransfersEnabled();
   let fromBranchId = $state('b-origen');
@@ -18,39 +19,39 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function createTransfer() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers`, {
+    const res = await apiFetch('/api/inventory/transfers', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ fromBranchId, toBranchId, lines: [{ productId, qtySent }] }),
     });
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
     if (res.ok && json.id) transferId = json.id;
-    message = res.ok ? `Transferencia ${json.id} · DRAFT` : (json.error ?? 'error');
+    message = res.ok ? `Transferencia creada · ${workflowStatusLabel('DRAFT')}` : (json.error ?? 'error');
   }
 
   async function ship() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers/ship`, {
+    const res = await apiFetch('/api/inventory/transfers/ship', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ transferId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Enviada · ${json.status}` : (json.error ?? 'error');
+    message = res.ok ? `Enviada · ${workflowStatusLabel(json.status ?? 'PENDING')}` : (json.error ?? 'error');
   }
 
   async function receive() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers/receive`, {
+    const res = await apiFetch('/api/inventory/transfers/receive', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         transferId,
         lines: [{ lineId, qtyReceived, qtyShrink, shrinkReason: shrinkReason || null }],
@@ -58,19 +59,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Recibida · ${json.status}` : (json.error ?? 'error');
+    message = res.ok ? `Recibida · ${workflowStatusLabel(json.status ?? 'CLOSED')}` : (json.error ?? 'error');
   }
 
   async function cancelTransfer() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/transfers/cancel`, {
+    const res = await apiFetch('/api/inventory/transfers/cancel', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ transferId }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Cancelada · ${json.status}` : (json.error ?? 'error');
+    message = res.ok ? `Cancelada · ${workflowStatusLabel(json.status ?? 'CANCELLED')}` : (json.error ?? 'error');
   }
 </script>
 
@@ -100,10 +102,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="xfer-layout">
       <!-- Nueva transferencia -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Nueva transferencia</h2>
-          <span class="section-tag">DRAFT</span>
+          <span class="section-tag">Borrador</span>
         </div>
         <div class="field-group">
           <label for="xfer-from">Sucursal origen</label>
@@ -127,14 +129,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Gestionar existente -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Gestionar</h2>
           <span class="section-tag">ID de transferencia</span>
         </div>
         <div class="field-group">
-          <label for="xfer-id">Transfer ID</label>
-          <input id="xfer-id" bind:value={transferId} data-testid="xfer-id" placeholder="ID creado arriba" />
+          <label for="xfer-id">Transferencia</label>
+          <input id="xfer-id" bind:value={transferId} data-testid="xfer-id" placeholder="La creada arriba" />
         </div>
         <div class="btn-row">
           <Button variant="primary" icon="arrow-right" onclick={ship} disabled={!transferId}>
@@ -152,12 +154,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <span class="section-tag">Línea</span>
         </div>
         <div class="field-group">
-          <label for="xfer-line-id">Line ID</label>
+          <label for="xfer-line-id">Línea</label>
           <input id="xfer-line-id" bind:value={lineId} data-testid="xfer-line-id" />
         </div>
         <div class="two-col">
           <div class="field-group">
-            <label for="xfer-qty-recv">Qty recibida</label>
+            <label for="xfer-qty-recv">Cantidad recibida</label>
             <input id="xfer-qty-recv" type="number" bind:value={qtyReceived} data-testid="xfer-qty-recv" />
           </div>
           <div class="field-group">
@@ -198,7 +200,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .xfer-layout {
       grid-template-columns: 1fr;
     }

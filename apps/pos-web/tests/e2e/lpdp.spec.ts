@@ -54,7 +54,7 @@ test('erase requires double confirmation and never happens on the first click', 
   await expect(page.getByText('Confirmación final')).toBeVisible();
   await page.getByTestId('customers-erase-confirm-btn').click();
   expect(harness.eraseCalls).toBe(1);
-  await expect(page.getByRole('status')).toContainText(/cliente anonimizado/i);
+  await expect(page.getByText(/cliente anonimizado/i)).toBeVisible();
 });
 
 test('erased customer shows fiscal-only state and export fails closed', async ({ page }) => {

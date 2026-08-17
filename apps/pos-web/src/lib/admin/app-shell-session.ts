@@ -10,22 +10,57 @@ interface SessionBootstrapDto {
     readonly terminalId: string;
     readonly terminalSessionId: string;
   } | null;
+  readonly billing?: {
+    readonly subscriptionStatus: 'trial' | 'active' | 'past_due' | 'canceled';
+    readonly trialEndsAt: string | null;
+    readonly pastGracePeriod: boolean;
+  };
+}
+
+function isBillingDto(billing: unknown): boolean {
+  if (billing === undefined) return true;
+  if (typeof billing !== 'object' || billing === null) return false;
+  return ['trial', 'active', 'past_due', 'canceled'].includes(
+    String((billing as Record<string, unknown>).subscriptionStatus),
+  );
+}
+
+function isTerminalDto(terminal: unknown): boolean {
+  if (terminal === null) return true;
+  if (typeof terminal !== 'object' || Array.isArray(terminal)) return false;
+  const row = terminal as Record<string, unknown>;
+  return typeof row.terminalId === 'string' && typeof row.terminalSessionId === 'string';
 }
 
 function isBootstrapDto(value: unknown): value is SessionBootstrapDto {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const session = value as Record<string, unknown>;
-  const terminal = session.terminal;
+  if (!isBillingDto(session.billing)) return false;
   return (
     typeof session.userId === 'string' &&
     ['cashier', 'supervisor', 'admin', 'owner'].includes(String(session.role)) &&
     typeof session.branchId === 'string' &&
-    (terminal === null ||
-      (typeof terminal === 'object' &&
-        !Array.isArray(terminal) &&
-        typeof (terminal as Record<string, unknown>).terminalId === 'string' &&
-        typeof (terminal as Record<string, unknown>).terminalSessionId === 'string'))
+    isTerminalDto(session.terminal)
   );
+}
+
+function buildBootstrapHeaders(input: {
+  readonly authorization?: string;
+  readonly tenantId: string;
+  readonly requestedTerminalId: string;
+}): Headers {
+  const headers = new Headers();
+  if (input.authorization?.trim()) headers.set('authorization', input.authorization);
+  if (input.tenantId) headers.set('x-tenant-id', input.tenantId);
+  if (input.requestedTerminalId) headers.set('x-terminal-id', input.requestedTerminalId);
+  return headers;
+}
+
+function absolutizeRequestUrl(apiBase: string, request: RequestInfo | URL): string {
+  const raw =
+    typeof request === 'string' ? request : request instanceof URL ? request.href : request.url;
+  if (/^https?:\/\//i.test(raw) || /^wss?:\/\//i.test(raw)) return raw;
+  return `${apiBase}${raw.startsWith('/') ? raw : `/${raw}`}`;
 }
 
 export async function loadAuthenticatedAppShellSession(input: {
@@ -36,9 +71,12 @@ export async function loadAuthenticatedAppShellSession(input: {
 }): Promise<AdminAuthenticatedSession | null> {
   const apiBase = (input.apiBase ?? '').replace(/\/$/, '');
   const requestedTerminalId = input.storage.getItem('kipuspay:pos-terminal-id')?.trim() ?? '';
-  const bootstrapHeaders = new Headers();
-  if (input.authorization?.trim()) bootstrapHeaders.set('authorization', input.authorization);
-  if (requestedTerminalId) bootstrapHeaders.set('x-terminal-id', requestedTerminalId);
+  const tenantId = input.storage.getItem('kipuspay_tenant_id')?.trim() ?? '';
+  const bootstrapHeaders = buildBootstrapHeaders({
+    authorization: input.authorization,
+    tenantId,
+    requestedTerminalId,
+  });
   let response: Response;
   try {
     response = await input.fetcher(`${apiBase}/api/auth/session`, {
@@ -67,11 +105,16 @@ export async function loadAuthenticatedAppShellSession(input: {
   const authenticatedFetch: typeof fetch = async (request, init = {}) => {
     const headers = new Headers(init.headers);
     if (input.authorization?.trim()) headers.set('authorization', input.authorization);
+    if (tenantId) headers.set('x-tenant-id', tenantId);
     if (terminal) {
       headers.set('x-terminal-id', terminal.terminalId);
       headers.set('x-terminal-session-id', terminal.terminalSessionId);
     }
-    return input.fetcher(request, { ...init, credentials: 'include', headers });
+    return input.fetcher(absolutizeRequestUrl(apiBase, request), {
+      ...init,
+      credentials: 'include',
+      headers,
+    });
   };
   return {
     authenticatedFetch,
@@ -79,5 +122,6 @@ export async function loadAuthenticatedAppShellSession(input: {
     role: value.role,
     userId: value.userId,
     branchId: value.branchId,
+    ...(value.billing ? { billing: value.billing } : {}),
   };
 }

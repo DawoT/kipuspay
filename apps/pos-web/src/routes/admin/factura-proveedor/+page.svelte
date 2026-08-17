@@ -1,14 +1,20 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
-  import { isPurchasingThreeWayEnabled } from '$lib/features';
+  import { isLedgerArApEnabled, isPurchasingThreeWayEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
+import { apiFetch } from '$lib/auth/api-client';
 
   const threeWayOn = isPurchasingThreeWayEnabled();
-  let purchaseOrderId = $state('oc-demo');
-  let branchId = $state('b-demo');
+  const apPayOn = isLedgerArApEnabled();
+  let accountsPayableId = $state('');
+  let apPayCents = $state(0);
+  let purchaseOrderId = $state('');
+  let branchId = $state(initTenantBranchId());
   let invoiceNumber = $state('F001-00001');
   let productId = $state('p1');
   let invoicedQty = $state(10);
@@ -21,17 +27,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function matchInvoice() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/invoices/match`, {
+    const res = await apiFetch('/api/purchasing/invoices/match', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         purchaseOrderId,
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         invoiceNumber,
         totalCents,
         igvCents,
@@ -56,18 +61,38 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           : (json.error ?? `Error ${res.status}`);
       return;
     }
-    message = `Factura ${json.invoiceId} · ${json.invoiceStatus} · CxP ${formatCents(json.apAmountCents ?? 0)}`;
+    message = `Factura ${json.invoiceId} · ${workflowStatusLabel(json.invoiceStatus ?? 'OPEN')} · por pagar ${formatCents(json.apAmountCents ?? 0)}`;
+  }
+
+  async function payAp() {
+    message = '';
+    const res = await apiFetch('/api/ledger/ap/pay', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        accountsPayableId,
+        amountCents: apPayCents,
+        paymentMethod: 'transfer',
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
+      }),
+    });
+    const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
+    messageOk = res.ok;
+    message = res.ok
+      ? `Pago registrado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
+      : (json.error ?? `Error ${res.status}`);
   }
 </script>
 
-<svelte:head><title>Factura proveedor 3-way · KipusPay</title></svelte:head>
+<svelte:head><title>Factura proveedor · KipusPay</title></svelte:head>
 
 <div class="page-shell" data-testid="admin-factura-match">
   <div class="page-masthead">
     <div>
       <p class="page-eyebrow"><Icon name="clipboard-check" size={12} /> Compras · Factura Proveedor</p>
-      <h1 class="page-title">Match factura proveedor</h1>
-      <p class="page-lede">Verificación 3-way: OC × Recepción × Factura. El CxP se genera al confirmar el match.</p>
+      <h1 class="page-title">Conciliar factura de proveedor</h1>
+      <p class="page-lede">Orden, recepción y factura deben cuadrar. La cuenta por pagar se crea al confirmar.</p>
     </div>
     <a class="link-action" href="/admin/oc-recepcion">
       <Icon name="arrow-left" size={14} />
@@ -90,7 +115,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="invoice-layout">
       <!-- OC & Factura -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Orden de compra</h2>
           <span class="section-tag">Referencia</span>
@@ -110,7 +135,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Línea -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Línea de factura</h2>
           <span class="section-tag">Detalle</span>
@@ -142,9 +167,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Override -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
-          <h2>Override de precio</h2>
+          <h2>Ajuste de precio</h2>
           <span class="badge {priceDiffOverride ? 'badge-warning' : 'badge-muted'}">
             {priceDiffOverride ? 'Activo' : 'Desactivado'}
           </span>
@@ -166,10 +191,28 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           </div>
         {/if}
         <Button variant="primary" size="full" icon="clipboard-check" data-testid="inv-match-btn" onclick={matchInvoice}>
-          Confirmar match 3-way
+          Confirmar conciliación
         </Button>
       </section>
     </div>
+    {#if apPayOn}
+      <section class="ledger-card section-pad" data-testid="admin-ap-pay">
+        <div class="card-header">
+          <h2>Pagar cuenta por pagar</h2>
+        </div>
+        <div class="field-group">
+          <label for="ap-id">Cuenta por pagar</label>
+          <input id="ap-id" bind:value={accountsPayableId} data-testid="inv-ap-id" />
+        </div>
+        <div class="field-group">
+          <label for="ap-cents">Monto</label>
+          <input id="ap-cents" type="number" bind:value={apPayCents} data-testid="inv-ap-cents" />
+        </div>
+        <Button variant="secondary" icon="dollar" data-testid="inv-ap-pay" onclick={() => void payAp()}>
+          Registrar pago
+        </Button>
+      </section>
+    {/if}
   {/if}
 </div>
 
@@ -222,7 +265,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 
@@ -231,13 +274,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .invoice-layout {
       grid-template-columns: 1fr 1fr;
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .invoice-layout {
       grid-template-columns: 1fr;
     }

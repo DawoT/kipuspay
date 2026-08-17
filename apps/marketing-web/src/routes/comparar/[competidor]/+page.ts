@@ -1,12 +1,12 @@
-import { error } from '@sveltejs/kit';
-import { COMPETITOR_SLUGS, getCompare } from '$lib/content/compare';
+import { redirect } from '@sveltejs/kit';
 
-export function entries(): Array<{ competidor: string }> {
-  return COMPETITOR_SLUGS.map((competidor) => ({ competidor }));
-}
+/**
+ * M5B — las comparativas se unificaron en una sola página.
+ * Las URLs viejas redirigen 301 al selector ?vs= para conservar SEO/backlinks.
+ */
+export const prerender = false;
 
-export function load({ params }: { params: { competidor: string } }) {
-  const page = getCompare(params.competidor);
-  if (!page) error(404, 'Comparativa no encontrada');
-  return { page };
+export function load({ params }: { params: { competitor?: string } }) {
+  const vs = encodeURIComponent(params.competitor ?? 'bsale');
+  redirect(301, `/comparar?vs=${vs}`);
 }

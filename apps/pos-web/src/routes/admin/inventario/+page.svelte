@@ -1,19 +1,23 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { isGreEnabled, isInventoryOpsEnabled } from '$lib/features';
   import { issueRemissionGuide } from '$lib/inventory/remission-guide';
+  import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const invOn = isInventoryOpsEnabled();
   const greOn = isGreEnabled();
-  let branchId = $state('b-demo');
+  let branchId = $state(initTenantBranchId());
   let productId = $state('p1');
   let countedQty = $state(0);
   let systemQty = $state(0);
   let lossQty = $state(1);
-  let evidenceKey = $state('r2/merma/demo.jpg');
+  let lossId = $state('');
+  let evidenceKey = $state('');
   let reason = $state('');
   let message = $state('');
   let messageOk = $state(false);
@@ -39,7 +43,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     greMsg = '';
     greIssued = false;
     const res = await issueRemissionGuide({
-      branchId,
+      branchId: branchId.trim() || initTenantBranchId(),
       series: greSeries,
       transferReasonCode: greMotive,
       transportModeCode: greMode,
@@ -62,28 +66,28 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     greMsg = `GRE ${res.series}-${String(res.number).padStart(3, '0')} emitida (motivo ${res.transferReasonCode}, ${res.sunatStatus}).`;
   }
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function startCount() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/counts`, {
+    const res = await apiFetch('/api/inventory/counts', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ branchId, differenceThresholdCents: 1000 }),
     });
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Conteo ${json.id} abierto · estado COUNTING` : (json.error ?? 'error');
+    message = res.ok ? `Conteo ${json.id} abierto · estado COUNTING` : purchasingErrorCopy(json.error);
   }
 
   async function createLoss() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/inventory/losses`, {
+    const res = await apiFetch('/api/inventory/losses', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         productId,
         quantity: lossQty,
         category: 'DAMAGED',
@@ -93,7 +97,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     });
     const json = (await res.json()) as { id?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Merma ${json.id} registrada · estado PENDING` : (json.error ?? 'error');
+    message = res.ok ? `Merma ${json.id} registrada · estado PENDING` : purchasingErrorCopy(json.error);
+  }
+
+  async function approveLoss() {
+    message = '';
+    const res = await apiFetch('/api/inventory/losses/approve', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lossId }),
+    });
+    const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
+    message = res.ok ? `Merma ${lossId} · ${json.status ?? 'APPROVED'}` : purchasingErrorCopy(json.error);
   }
 </script>
 
@@ -127,7 +144,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="inv-grid">
       <!-- Contexto -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Contexto</h2>
           <span class="section-tag">Sucursal & Producto</span>
@@ -143,7 +160,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Conteo físico -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Conteo físico</h2>
           <span class="badge badge-warning">Hoja ciega</span>
@@ -164,18 +181,18 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Merma -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Registro de merma</h2>
-          <span class="badge badge-danger">DAMAGED</span>
+          <span class="badge badge-danger">Dañado</span>
         </div>
         <div class="field-group">
           <label for="loss-qty-input">Cantidad</label>
           <input type="number" id="loss-qty-input" bind:value={lossQty} data-testid="admin-inv-loss-qty" />
         </div>
         <div class="field-group">
-          <label for="evidence-input">Evidencia R2 Key</label>
-          <input id="evidence-input" bind:value={evidenceKey} data-testid="admin-inv-evidence" placeholder="r2/merma/foto.jpg" />
+          <label for="evidence-input">Foto de evidencia</label>
+          <input id="evidence-input" bind:value={evidenceKey} data-testid="admin-inv-evidence" placeholder="Ruta de la foto" />
         </div>
         <div class="field-group">
           <label for="reason-input">Motivo</label>
@@ -185,12 +202,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <Icon name="alert" size={14} />
           Registrar merma
         </Button>
+        <div class="field-group">
+          <label for="loss-id-input">ID de merma a aprobar</label>
+          <input id="loss-id-input" bind:value={lossId} data-testid="admin-inv-loss-id" />
+        </div>
+        <Button variant="primary" data-testid="admin-inv-loss-approve" onclick={() => void approveLoss()}>
+          Aprobar merma
+        </Button>
       </section>
     </div>
   {/if}
 
   {#if greOn}
-    <section class="glass-card section-pad gre-card" data-testid="gre-panel">
+    <section class="ledger-card section-pad gre-card" data-testid="gre-panel">
       <div class="card-header">
         <h2>Guía de Remisión Electrónica</h2>
         <span class="section-tag">Traslado · serie T (P1b)</span>
@@ -276,7 +300,33 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: start;
   }
 
+  .gre-card {
+    margin-top: 1.25rem;
+  }
 
+  .gre-lede {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0 0 1rem;
+    line-height: 1.45;
+  }
+
+  .gre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: var(--space-3);
+    margin-bottom: 1rem;
+  }
+
+  .gre-msg {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .gre-msg-ok {
+    color: var(--emerald-green);
+  }
 
   .hint-text {
     font-size: 0.8125rem;
@@ -311,13 +361,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 900px) {
-    .inv-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  @media (max-width: 600px) {
+  @media (max-width: 899px) {
     .inv-grid {
       grid-template-columns: 1fr;
     }

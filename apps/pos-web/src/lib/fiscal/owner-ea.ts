@@ -1,6 +1,7 @@
 /**
  * Cliente Dueño — backlog fiscal + Anular E-A (confirmación explícita).
  */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface FiscalBacklogItem {
   readonly saleId: string;
@@ -45,8 +46,10 @@ export async function fetchFiscalBacklog(
   apiBase: string,
   authHeader: string,
 ): Promise<readonly FiscalBacklogItem[]> {
+  const headers = new Headers({ authorization: authHeader });
+  applyApiAuthHeaders(headers);
   const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/fiscal/owner-backlog`, {
-    headers: { authorization: authHeader },
+    headers,
   });
   if (!res.ok) return [];
   const json = (await res.json()) as { items?: FiscalBacklogItem[] };
@@ -59,12 +62,14 @@ export async function submitAnularEa(
   body: AnularEaRequest,
 ): Promise<AnularEaResult> {
   assertAnularEaUiReady(body);
+  const headers = new Headers({
+    'content-type': 'application/json',
+    authorization: authHeader,
+  });
+  applyApiAuthHeaders(headers);
   const res = await fetch(`${apiBase.replace(/\/$/, '')}/api/fiscal/credit-note-ea`, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: authHeader,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const json = (await res.json()) as Record<string, unknown>;

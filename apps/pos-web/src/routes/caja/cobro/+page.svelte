@@ -11,7 +11,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Badge from '$lib/ui/Badge.svelte';
   import { pollCaptureStatus } from '$lib/payments/payment-capture';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /** Copy normativa §5.4 edge 2B (misma cadena que MANUAL_CAPTURE_AMBER_COPY). */
   const MANUAL_CAPTURE_AMBER_COPY =
@@ -33,7 +33,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let amber = $state('');
   let promotionId = $state('');
 
-  let customerId = $state('cust-demo');
+  let customerId = $state('');
   let saleIdempotencyKey = $state(`sale-${Date.now()}`);
   let loyaltyPoints = $state(10);
   let authzTokenHash = $state('');
@@ -54,9 +54,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       window.removeEventListener('offline', apply);
     };
   });
-
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   function methodAllowed(): boolean {
     if (methodCode === 'cash' || methodCode === 'card_manual' || methodCode === 'credit') {
@@ -92,15 +89,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       message = `Cola offline con captureStatus=MANUAL · ${captureStatusForEnqueue()}`;
       return;
     }
-    const res = await fetch(`${apiBase()}/api/payments/charge`, {
+    const res = await apiFetch('/api/payments/charge', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        saleId: 'sale-demo',
-        salePaymentId: 'sp-demo',
+        saleId: saleIdempotencyKey,
+        salePaymentId: saleIdempotencyKey,
         paymentMethodId,
         amountCents: 1000,
-        idempotencyKey: `demo-${Date.now()}`,
+        idempotencyKey: saleIdempotencyKey,
       }),
     });
     const json = (await res.json()) as {
@@ -114,8 +112,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       captureStatus = json.status ?? 'PENDING';
       void (async () => {
         const poll = await pollCaptureStatus({
-          apiBase: apiBase(),
-          authorization: auth(),
+          apiBase: resolveApiBase(localStorage),
+          authorization: resolveApiAuth(localStorage).authorization ?? '',
           captureId: String(json.captureId),
           intervalMs: 3000,
           maxAttempts: 10,
@@ -131,16 +129,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function reserveLoyalty() {
     loyaltyMsg = '';
     if (!loyaltyOn) {
-      loyaltyMsg = 'FEATURE_LOYALTY_POINTS off';
+      loyaltyMsg = 'Los puntos no están activos para esta tienda.';
       return;
     }
     if (!online) {
       loyaltyMsg = 'Canje offline-originado deshabilitado — reserva solo en línea';
       return;
     }
-    const res = await fetch(`${apiBase()}/api/loyalty/reserve`, {
+    const res = await apiFetch('/api/loyalty/reserve', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         customerId,
         saleIdempotencyKey,
@@ -160,9 +159,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       waMsg = 'FEATURE_MESSAGING_WHATSAPP off';
       return;
     }
-    const res = await fetch(`${apiBase()}/api/messaging/opt-in`, {
+    const res = await apiFetch('/api/messaging/opt-in', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ customerId, optedIn: waOptedIn }),
     });
     const json = (await res.json()) as { optedIn?: boolean; error?: string };
@@ -206,7 +206,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     <div class="cobro-grid">
       <!-- Método de pago -->
-      <div class="glass-card section-pad">
+      <div class="ledger-card section-pad">
         <div class="card-header">
           <h2>Método de pago</h2>
           <Icon name="credit-card" size={16} />
@@ -249,7 +249,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Cliente, WhatsApp y Puntos -->
       {#if whatsappOn || loyaltyOn}
-        <div class="glass-card section-pad">
+        <div class="ledger-card section-pad">
           <div class="card-header">
             <h2>Cliente</h2>
             <Icon name="user" size={16} />
@@ -298,14 +298,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Promociones -->
       {#if promosOn}
-        <div class="glass-card section-pad">
+        <div class="ledger-card section-pad">
           <div class="card-header">
             <h2>Promoción</h2>
             <Icon name="percent" size={16} />
           </div>
           <div class="field-group">
             <label for="cobro-promo">ID de promoción</label>
-            <input id="cobro-promo" bind:value={promotionId} data-testid="caja-promo-id" placeholder="p-demo" />
+            <input id="cobro-promo" bind:value={promotionId} data-testid="caja-promo-id" placeholder="Código de promoción" />
           </div>
           <p class="promo-hint" data-testid="caja-promo-hint">
             Se envía solo el ID en la venta offline; no se confía en el precio de pantalla.
@@ -371,7 +371,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-family: var(--font-mono);
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 719px) {
     .cobro-grid { grid-template-columns: 1fr; }
   }
 </style>

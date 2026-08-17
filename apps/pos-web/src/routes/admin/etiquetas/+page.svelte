@@ -191,7 +191,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
   {/if}
 
   <div class="workbench">
-    <section class="selection glass-card" aria-labelledby="selection-title">
+    <section class="selection ledger-card" aria-labelledby="selection-title">
       <div class="section-head">
         <div>
           <p class="step">01 · Selección</p>
@@ -252,7 +252,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
       </div>
     </section>
 
-    <section class="setup glass-card" aria-labelledby="setup-title">
+    <section class="setup ledger-card" aria-labelledby="setup-title">
       <div class="section-head">
         <div>
           <p class="step">02 · Contexto servidor</p>
@@ -305,7 +305,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
       </Button>
     </section>
 
-    <aside class="preview glass-card" aria-labelledby="preview-title">
+    <aside class="preview ledger-card" aria-labelledby="preview-title">
       <div class="section-head">
         <div>
           <p class="step">03 · Vista previa</p>
@@ -338,7 +338,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     </aside>
   </div>
 
-  <section class="batch glass-card" aria-labelledby="batch-title">
+  <section class="batch ledger-card" aria-labelledby="batch-title">
     <div class="section-head">
       <div>
         <p class="step">04 · Ejecución</p>
@@ -385,7 +385,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
 
 <style>
   .label-shell {
-    --card-bg: var(--bg-glass-card);
+    --card-bg: var(--bg-ledger-card);
     --card-border: var(--border-subtle);
     --input-bg: var(--bg-input);
     --input-border: var(--border-strong);
@@ -464,7 +464,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     background: rgba(16, 185, 129, 0.15);
     border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: var(--radius-sm, 8px);
-    color: var(--emerald-green, #10b981);
+    color: var(--emerald-green);
     font: 700 0.78rem/1 var(--font-mono, monospace);
   }
 
@@ -668,9 +668,9 @@ import { resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    border: 1px dashed #94a3b8;
-    background: #fffef8;
-    color: #0f172a;
+    border: 1px dashed var(--text-muted);
+    background: var(--paper);
+    color: var(--ink);
     border-radius: 4px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -691,14 +691,14 @@ import { resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     justify-content: space-between;
     font: 700 0.65rem/1 var(--font-mono, monospace);
-    color: #64748b;
+    color: var(--text-muted);
     letter-spacing: 0.05em;
   }
 
   .paper-title {
     font-size: 0.95rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--ink);
     line-height: 1.2;
     margin: 0.2rem 0;
   }
@@ -711,7 +711,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     border: 1px dashed rgba(217, 154, 61, 0.5);
     border-radius: 3px;
     padding: 0.1rem 0.4rem;
-    color: #92641e;
+    color: var(--amber);
     width: fit-content;
   }
 
@@ -724,7 +724,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--border-subtle);
     padding-top: 0.35rem;
     margin-top: 0.2rem;
   }
@@ -733,13 +733,13 @@ import { resolveApiBase } from '$lib/auth/api-client';
     font-family: var(--font-mono, monospace);
     font-weight: 700;
     font-size: 0.78rem;
-    color: #0f172a;
+    color: var(--ink);
   }
 
   .paper-width {
     font: 600 0.65rem/1 var(--font-mono, monospace);
-    color: #64748b;
-    background: #f1f5f9;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
     padding: 0.15rem 0.35rem;
     border-radius: 3px;
   }
@@ -772,7 +772,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
   .announcer {
     margin: 1rem 0;
     padding: 0.85rem 1.1rem;
-    border-left: 4px solid var(--amber-gold, #f59e0b);
+    border-left: 4px solid var(--amber-gold);
     background: var(--card-bg);
     border-radius: 0 var(--radius-md, 12px) var(--radius-md, 12px) 0;
     color: var(--text-primary);
@@ -780,7 +780,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     font-size: 0.88rem;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .workbench {
       grid-template-columns: 1fr 1fr;
     }
@@ -789,7 +789,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .label-shell {
       padding-inline: 0.75rem;
     }

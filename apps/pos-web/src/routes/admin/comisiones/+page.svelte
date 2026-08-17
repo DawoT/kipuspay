@@ -1,12 +1,15 @@
 <script lang="ts">
+  
+  import { tenantBranchId } from '$lib/admin/cash-session';
+  import { apiFetch } from '$lib/auth/api-client';
+  import { formatCents } from '$lib/cents';
   import { isSalesCommissionsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const commissionsOn = isSalesCommissionsEnabled();
-  let sellerId = $state('u-demo');
+  let sellerId = $state('');
   let ratePercent = $state(5);
   let rateAmountCents = $state<number | null>(null);
   let periodStartIso = $state(new Date().toISOString().slice(0, 10));
@@ -15,19 +18,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function upsertRate() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/commissions/rates`, {
+    const res = await apiFetch('/api/admin/commissions/rates', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sellerId,
         ratePercent,
         rateAmountCents,
-        branchId: 'b-demo',
+        branchId: tenantBranchId(localStorage),
       }),
     });
     const json = (await res.json()) as { rateId?: string; error?: string };
@@ -37,28 +38,30 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function createPayout() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/commissions/payouts`, {
+    const res = await apiFetch('/api/admin/commissions/payouts', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({ sellerId, periodStartIso, periodEndIso, branchId: 'b-demo' }),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sellerId, periodStartIso, periodEndIso, branchId: tenantBranchId(localStorage) }),
     });
     const json = (await res.json()) as { payoutId?: string; totalCents?: number; error?: string };
     messageOk = res.ok;
     message = res.ok
-      ? `Payout creado OPEN · ID ${json.payoutId}`
+      ? `Pago creado · ${formatCents(json.totalCents ?? 0)}`
       : (json.error ?? `Error ${res.status}`);
   }
 
   async function payPayout() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/commissions/payouts/${payoutId}/pay`, {
+    const res = await apiFetch('/api/admin/commissions/payouts/pay', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({ payoutId, branchId: 'b-demo' }),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ payoutId, branchId: tenantBranchId(localStorage) }),
     });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `PAID · ${json.status}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? 'Pago marcado como pagado' : (json.error ?? `Error ${res.status}`);
   }
 </script>
 
@@ -69,7 +72,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="percent" size={12} /> Ventas · Comisiones</p>
       <h1 class="page-title">Comisiones de vendedor</h1>
-      <p class="page-lede">Tasas y payouts — sin nómina. Los montos son fijados exclusivamente por el servidor.</p>
+      <p class="page-lede">Tasas y pagos a vendedores. Los montos los confirma el cobro, no esta pantalla.</p>
     </div>
   </div>
 
@@ -88,7 +91,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="comm-layout">
       <!-- Tasas -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Tasa de comisión</h2>
           <span class="section-tag">Configuración</span>
@@ -121,9 +124,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Payout -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
-          <h2>Gestión de payout</h2>
+          <h2>Gestión de pagos</h2>
           <span class="section-tag">Liquidación</span>
         </div>
         <div class="field-group">
@@ -135,17 +138,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <input id="payout-end" type="date" bind:value={periodEndIso} data-testid="comm-period-end" />
         </div>
         <Button variant="primary" icon="plus" data-testid="comm-create-payout" onclick={createPayout}>
-          Crear payout OPEN
+          Crear pago pendiente
         </Button>
 
         <div class="separator"></div>
 
         <div class="field-group">
-          <label for="payout-id-input">Payout ID</label>
-          <input id="payout-id-input" bind:value={payoutId} data-testid="comm-payout-id" placeholder="ID del payout creado" />
+          <label for="payout-id-input">Pago a liquidar</label>
+          <input id="payout-id-input" bind:value={payoutId} data-testid="comm-payout-id" placeholder="Elige el pago creado" />
         </div>
         <Button variant="success" icon="check" data-testid="comm-pay" onclick={payPayout} disabled={!payoutId}>
-          Marcar como PAID
+          Marcar como pagado
         </Button>
       </section>
     </div>
@@ -167,7 +170,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     margin: 0.875rem 0;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 899px) {
     .comm-layout {
       grid-template-columns: 1fr;
     }

@@ -4,7 +4,9 @@
   import { isVitrinaEnabled } from '$lib/features';
 
   import Icon from '$lib/ui/Icon.svelte';
+  import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import { subscribeVitrina, type VitrinaSnapshot } from '$lib/vitrina/channel';
+  import { vitrinaHeading, vitrinaPhaseLabel } from '$lib/vitrina/vitrina-copy';
 
   const enabled = isVitrinaEnabled();
   let snap = $state<VitrinaSnapshot>({
@@ -25,30 +27,30 @@
 
 <svelte:head><title>Vitrina Cliente · KipusPay</title></svelte:head>
 
-<div class="vitrina-container" data-testid="vitrina-root">
+<div class="page-shell vitrina-shell" data-testid="vitrina-root">
   {#if !enabled}
     <div class="feature-off-banner" data-testid="vitrina-off">
       <Icon name="info" size={18} />
       <span>La vitrina está desactivada para esta tienda.</span>
     </div>
   {:else}
-    <div class="glass-card vitrina-card" data-testid="vitrina">
+    <div class="ledger-card vitrina-card" data-testid="vitrina">
       <div class="vitrina-masthead">
         <div class="brand-logo">
-          <Icon name="store" size={28} />
+          <BrandKnot size={18} />
         </div>
         <p class="page-eyebrow">Pantalla de Cliente</p>
-        <h1 class="page-title">KipusPay</h1>
+        <h1 class="page-title">{vitrinaHeading(snap.brandLabel)}</h1>
       </div>
 
       <div class="phase-badge">
         <span class="badge {snap.phase === 'charged' ? 'badge-success' : 'badge-warning'}" data-testid="vitrina-phase">
-          {snap.phase.toUpperCase()}
+          {vitrinaPhaseLabel(snap.phase)}
         </span>
       </div>
 
       <div class="display-box">
-        <span class="display-label">TOTAL</span>
+        <span class="display-label">Total</span>
         <span class="display-amount tabular-nums" data-testid="vitrina-total">
           S/ {formatCents(snap.totalCents)}
         </span>
@@ -56,12 +58,15 @@
 
       <p class="vitrina-msg" data-testid="vitrina-message">{snap.message}</p>
 
-      {#if snap.phase === 'charged' && snap.brandLabel}
+      {#if snap.phase === 'charged'}
         <div class="brand-footer">
-          <p class="brand" data-testid="vitrina-brand">{snap.brandLabel}</p>
+          {#if snap.brandLabel}
+            <p class="brand" data-testid="vitrina-brand">{snap.brandLabel}</p>
+          {/if}
           {#if snap.brandUrl}
             <p class="brand-url" data-testid="vitrina-brand-url">{snap.brandUrl}</p>
           {/if}
+          <p class="kipus-foot">Emitido con KipusPay</p>
         </div>
       {/if}
     </div>
@@ -69,18 +74,17 @@
 </div>
 
 <style>
-  .vitrina-container {
+  .vitrina-shell {
     min-height: 85vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: var(--inset-shell);
   }
 
   .vitrina-card {
     max-width: 32rem;
     width: 100%;
-    padding: 2.5rem;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -113,7 +117,7 @@
     background: var(--bg-glass);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.5rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -155,5 +159,11 @@
     font-size: 0.8125rem;
     color: var(--text-muted);
     font-family: var(--font-mono);
+  }
+
+  .kipus-foot {
+    margin: 0.5rem 0 0;
+    font-size: 0.75rem;
+    color: var(--text-dim);
   }
 </style>

@@ -11,6 +11,8 @@ describe('content model', () => {
       expect(v.pain.length).toBeGreaterThan(10);
       expect(v.hook.length).toBeGreaterThan(10);
       expect(v.points.length).toBeGreaterThanOrEqual(2);
+      expect(v.heroPoster).not.toMatch(/hero-poster\.svg/);
+      expect(v.heroPoster).toMatch(/\.(png|jpg|jpeg|webp)$/);
       const status = resolveClaim(v.featuredClaimId);
       const badge = claimBadge(status);
       if (status.kind === 'roadmap') {

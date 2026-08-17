@@ -4,6 +4,7 @@ test('owner mode reaches the forecast workbench with controls and empty state', 
   page,
 }) => {
   await page.goto('/owner');
+  await page.getByTestId('tab-yo').click();
   await expect(page.getByRole('link', { name: 'Previsiones' })).toHaveAttribute(
     'href',
     '/owner/previsiones',

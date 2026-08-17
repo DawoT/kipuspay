@@ -1,7 +1,8 @@
 /**
- * Sprint 8 — CxC/CxP consolidado del Modo Dueño (solo lectura, GTM-14).
- * El servidor es la fuente de verdad de saldos; esta vista nunca muta.
+ * Sprint 8 — CxC/CxP del Modo Dueño. El diario sigue solo lectura (GTM-14);
+ * los abonos van a /api/ledger/ar/pay y /api/ledger/ap/pay.
  */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 
 export interface ArItem {
   readonly id: string;
@@ -43,9 +44,11 @@ async function get(
 ): Promise<{ items: LedgerItem[] } | { code: string; message: string }> {
   const doFetch = input.fetcher ?? fetch;
   try {
+    const headers = new Headers({ authorization: input.authorization });
+    applyApiAuthHeaders(headers);
     const res = await doFetch(`${input.apiBase.replace(/\/$/, '')}${path}`, {
       method: 'GET',
-      headers: { authorization: input.authorization },
+      headers,
     });
     const data = (await res.json()) as { items?: LedgerItem[]; code?: string; error?: string };
     if (!res.ok) {
@@ -102,4 +105,83 @@ export async function fetchAccountsPayable(input: {
   const res = await get('/api/ledger/ap', input);
   if ('code' in res) return { ok: false, code: res.code, message: res.message };
   return { ok: true, items: res.items.map(mapAp) };
+}
+
+async function post(
+  path: string,
+  input: { fetcher?: typeof fetch; apiBase: string; authorization: string; body: unknown },
+): Promise<{ ok: true; data: Record<string, unknown> } | { code: string; message: string }> {
+  const doFetch = input.fetcher ?? fetch;
+  try {
+    const headers = new Headers({
+      authorization: input.authorization,
+      'content-type': 'application/json',
+    });
+    applyApiAuthHeaders(headers);
+    const res = await doFetch(`${input.apiBase.replace(/\/$/, '')}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(input.body),
+    });
+    const data = (await res.json()) as Record<string, unknown> & { code?: string; error?: string };
+    if (!res.ok) {
+      return {
+        code: data.code ?? 'REJECTED',
+        message: data.error ?? data.code ?? 'Solicitud rechazada.',
+      };
+    }
+    return { ok: true, data };
+  } catch {
+    return { code: 'OFFLINE', message: 'Sin conexión con el servidor.' };
+  }
+}
+
+export async function payAccountsReceivable(input: {
+  fetcher?: typeof fetch;
+  apiBase: string;
+  authorization: string;
+  accountsReceivableId: string;
+  amountCents: number;
+  cashRegisterSessionId: string;
+}): Promise<{ ok: true; nextBalanceCents: number } | { ok: false; code: string; message: string }> {
+  const res = await post('/api/ledger/ar/pay', {
+    ...input,
+    body: {
+      accountsReceivableId: input.accountsReceivableId,
+      amountCents: input.amountCents,
+      paymentMethod: 'cash',
+      cashRegisterSessionId: input.cashRegisterSessionId,
+    },
+  });
+  if (!('ok' in res) || !res.ok) {
+    const fail = res as { code: string; message: string };
+    return { ok: false, code: fail.code, message: fail.message };
+  }
+  const next = res.data.nextBalanceCents;
+  return { ok: true, nextBalanceCents: typeof next === 'number' ? next : 0 };
+}
+
+export async function payAccountsPayable(input: {
+  fetcher?: typeof fetch;
+  apiBase: string;
+  authorization: string;
+  accountsPayableId: string;
+  amountCents: number;
+  cashRegisterSessionId: string;
+}): Promise<{ ok: true; nextBalanceCents: number } | { ok: false; code: string; message: string }> {
+  const res = await post('/api/ledger/ap/pay', {
+    ...input,
+    body: {
+      accountsPayableId: input.accountsPayableId,
+      amountCents: input.amountCents,
+      paymentMethod: 'transfer',
+      cashRegisterSessionId: input.cashRegisterSessionId,
+    },
+  });
+  if (!('ok' in res) || !res.ok) {
+    const fail = res as { code: string; message: string };
+    return { ok: false, code: fail.code, message: fail.message };
+  }
+  const next = res.data.nextBalanceCents;
+  return { ok: true, nextBalanceCents: typeof next === 'number' ? next : 0 };
 }

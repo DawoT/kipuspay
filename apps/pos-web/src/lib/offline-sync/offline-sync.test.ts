@@ -15,6 +15,7 @@ import {
   buildFlushMessage,
   isFlushAck,
   registerOfflineSyncServiceWorker,
+  buildSetApiBaseMessage,
 } from './offline-sync-sw.js';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 
@@ -116,6 +117,10 @@ describe('offline-sync-sw contract', () => {
     expect(isFlushAck({ type: 'FLUSH_ACK' })).toBe(true);
     expect(isFlushAck(null)).toBe(false);
     expect(await registerOfflineSyncServiceWorker()).toBeNull();
+    expect(buildSetApiBaseMessage('https://api.kipuspay.com/')).toEqual({
+      type: 'SET_API_BASE',
+      apiBase: 'https://api.kipuspay.com',
+    });
   });
 });
 

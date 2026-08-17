@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kipuspay-pos-web-staging",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": ".svelte-kit/cloudflare",
+  "vars": {
+    // Overridden at build time by deploy:staging (PUBLIC_API_BASE=...).
+    "PUBLIC_API_BASE": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
+  },
+}

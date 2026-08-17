@@ -28,6 +28,11 @@ describe('Admin backups workbench source contract', () => {
     expect(source).not.toMatch(/Aplicar restauración|restore-apply/);
   });
 
+  it('mints the step-up token instead of a free-text field', () => {
+    expect(source).toContain("authenticatedFetch('/api/backups/step-up-token'");
+    expect(source).toContain('data-testid="mint-step-up"');
+  });
+
   it('hides download from Admin and requires Owner reauthentication', () => {
     expect(source).toMatch(
       /\{#if role === 'owner'\}[\s\S]*Descargar respaldo[\s\S]*Ejecutar simulación[\s\S]*\{\/if\}/,

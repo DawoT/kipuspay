@@ -3,6 +3,7 @@ import {
   OFFLINE_SYNC_SW_VERSION,
   registerOfflineSyncServiceWorker,
 } from '../offline-sync/offline-sync-sw.js';
+import { resolveApiBase } from '../auth/api-client.js';
 
 export const FCM_VENDOR_MANIFEST = {
   load: 'LAZY',
@@ -86,7 +87,11 @@ export async function registerUnifiedPosServiceWorker(input?: {
   readonly existingOfflineQueueEntries?: number;
 }): Promise<UnifiedServiceWorkerReport> {
   const scope = input?.scope ?? '/';
-  const registration = await registerOfflineSyncServiceWorker('/offline-sync-sw.js', scope);
+  const registration = await registerOfflineSyncServiceWorker(
+    '/offline-sync-sw.js',
+    scope,
+    resolveApiBase(),
+  );
   return {
     registrations: 1,
     scope,

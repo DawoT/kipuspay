@@ -5,9 +5,21 @@ import {
   type FiscalSubmitRequest,
   type FiscalTransport,
 } from '@kipuspay/adapters-sunat';
-import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
+import {
+  cdrIsAccepted,
+  breakerDoName,
+  BREAKER_KV_TTL_SECONDS,
+  initialBreakerSnapshot,
+  type BreakerSnapshot,
+  type FiscalEndpoint,
+} from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
-import { readBreakerOpen, type BreakerKvLike } from './breaker-read-cache.js';
+import {
+  readBreakerOpen,
+  seedIsolateClosed,
+  writeBreakerOpenToKv,
+  type BreakerKvLike,
+} from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
 
@@ -151,10 +163,13 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
       'submit',
     );
     if (open) {
-      return new Response(JSON.stringify({ error: 'BREAKER_OPEN', code: 'BREAKER_OPEN' }), {
-        status: 503,
-        headers: { 'content-type': 'application/json' },
-      });
+      const bootstrapped = await bootstrapBreakerCold(env, 'KIPUSPAY_PSE_DIRECT', 'submit');
+      if (!bootstrapped) {
+        return new Response(JSON.stringify({ error: 'BREAKER_OPEN', code: 'BREAKER_OPEN' }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
   }
   const body: FiscalSubmitRequest = await request.json();
@@ -169,14 +184,30 @@ async function handleDrain(env: FiscalWorkerEnv): Promise<Response> {
   if (!isFiscalCircuitBreakerEnabled(env) || !env.DB || !env.FISCAL_XML_R2) {
     return new Response(JSON.stringify({ error: 'FEATURE_OFF' }), { status: 404 });
   }
-  const result = await drainFiscalOutbox({
-    db: env.DB,
-    r2: env.FISCAL_XML_R2,
-    transport: selectFiscalTransport(env),
-    isBreakerOpen: () =>
-      readBreakerOpen(env.FISCAL_BREAKER_KV ?? null, 'KIPUSPAY_PSE_DIRECT', 'submit'),
-    onInfraFailure: () => reportInfraFailure(env, 'submit'),
-  });
+  let result: Awaited<ReturnType<typeof drainFiscalOutbox>>;
+  try {
+    result = await drainFiscalOutbox({
+      db: env.DB,
+      r2: env.FISCAL_XML_R2,
+      transport: selectFiscalTransport(env),
+      isBreakerOpen: async () => {
+        const open = await readBreakerOpen(
+          env.FISCAL_BREAKER_KV ?? null,
+          'KIPUSPAY_PSE_DIRECT',
+          'submit',
+        );
+        if (!open) return false;
+        const bootstrapped = await bootstrapBreakerCold(env, 'KIPUSPAY_PSE_DIRECT', 'submit');
+        return !bootstrapped;
+      },
+      onInfraFailure: () => reportInfraFailure(env, 'submit'),
+    });
+  } catch {
+    return new Response(JSON.stringify({ error: 'DRAIN_FAILED', code: 'DRAIN_FAILED' }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
   return new Response(JSON.stringify(result), {
     status: 200,
     headers: { 'content-type': 'application/json' },
@@ -194,6 +225,42 @@ function handleRcStatus(env: FiscalWorkerEnv): Response {
     status: 200,
     headers: { 'content-type': 'application/json' },
   });
+}
+
+/**
+ * Bootstrap del breaker en arranque en frío (Sello QA Batch I): cuando el KV
+ * aún no tiene la clave (entorno nuevo sin histórico), B8 la lee como OPEN
+ * (fail-closed). El DO nace CLOSED — el submit nunca lo muta, así que sin
+ * bootstrap el canal quedaría 503 permanentemente. Aquí, SOLO en el estado
+ * frío (clave ausente), se consulta el DO /status (lectura, no hot path) y si
+ * está closed se persiste '0' (cache) y se continúa; si está open o el DO no
+ * responde, se mantiene el 503 fail-closed (invariante 5).
+ */
+export async function bootstrapBreakerCold(
+  env: FiscalWorkerEnv,
+  transport: string,
+  endpoint: FiscalEndpoint,
+): Promise<boolean> {
+  const kv = env.FISCAL_BREAKER_KV;
+  const doBinding = env.FISCAL_CIRCUIT_BREAKER_DO;
+  if (!kv || !doBinding) return false;
+  const key = breakerDoName(transport, endpoint);
+  const raw = await kv.get(key);
+  if (raw !== null) return false;
+  try {
+    const stub = doBinding.get(doBinding.idFromName(key));
+    const res = await stub.fetch(
+      `https://do/status?transport=${encodeURIComponent(transport)}&endpoint=${endpoint}`,
+    );
+    const parsed: Partial<BreakerSnapshot> = await res.json();
+    const snap: BreakerSnapshot = { ...initialBreakerSnapshot(), ...parsed };
+    if (snap.state === 'open') return false;
+    await writeBreakerOpenToKv(kv, transport, endpoint, snap, BREAKER_KV_TTL_SECONDS);
+    seedIsolateClosed(transport, endpoint, Date.now());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export default {

@@ -3,33 +3,46 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { catalogItemLabel } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const promosOn = isPricingPromotionsEnabled();
   let name = $state('2x1 fin de semana');
   let appliesTo = $state('PRODUCT');
   let productId = $state('p1');
-  let ruleJson = $state('{"kind":"buy_x_get_y","buyQty":1,"getQty":1}');
-  let maxStackJson = $state('{}');
+  let ruleJson = $state('');
+  let maxStackJson = $state('');
   let message = $state('');
   let messageOk = $state(false);
-  let listJson = $state('');
+  let promotions = $state<{ name: string }[]>([]);
+  let listed = $state(false);
   let loading = $state(false);
-
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
 
   async function createPromo() {
     message = '';
     loading = true;
-    const res = await fetch(`${apiBase()}/api/pricing/promotions`, {
+    let rule: Record<string, unknown>;
+    let stack: Record<string, unknown>;
+    try {
+      rule = ruleJson.trim()
+        ? (JSON.parse(ruleJson) as Record<string, unknown>)
+        : { kind: 'buy_x_get_y', buyQty: 1, getQty: 1 };
+      stack = maxStackJson.trim() ? (JSON.parse(maxStackJson) as Record<string, unknown>) : {};
+    } catch {
+      messageOk = false;
+      message = 'La regla no se pudo leer. Déjala vacía para un 2x1.';
+      loading = false;
+      return;
+    }
+    const res = await apiFetch('/api/pricing/promotions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         name,
         appliesTo,
-        ruleJson: JSON.parse(ruleJson) as Record<string, unknown>,
-        maxStackJson: JSON.parse(maxStackJson) as Record<string, unknown>,
+        ruleJson: rule,
+        maxStackJson: stack,
         productIds: appliesTo === 'PRODUCT' && productId ? [productId] : [],
       }),
     });
@@ -42,16 +55,18 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function listPromos() {
     message = '';
     loading = true;
-    const res = await fetch(`${apiBase()}/api/pricing/promotions`, {
-      headers: { authorization: auth() },
+    const res = await apiFetch('/api/pricing/promotions', {
+      storage: localStorage,
     });
     const json = (await res.json()) as { promotions?: unknown[]; error?: string };
     messageOk = res.ok;
     if (!res.ok) {
       message = json.error ?? `Error ${res.status}`;
+      promotions = [];
     } else {
-      listJson = JSON.stringify(json.promotions ?? [], null, 2);
+      promotions = (json.promotions ?? []).map((p, i) => ({ name: catalogItemLabel(p, i) }));
     }
+    listed = true;
     loading = false;
   }
 </script>
@@ -63,7 +78,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="percent" size={12} /> Ventas · Promociones</p>
       <h1 class="page-title">Promociones</h1>
-      <p class="page-lede">Reglas de descuento y promociones. El precio final lo impone el servidor — solo IDs en caja.</p>
+      <p class="page-lede">Descuentos y 2x1. El precio final lo confirma el cobro; en caja solo se elige la promoción.</p>
     </div>
   </div>
 
@@ -82,7 +97,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="promos-layout">
       <!-- Form -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Nueva promoción</h2>
           <span class="section-tag">Configuración</span>
@@ -96,26 +111,26 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <div class="field-group">
           <label for="promo-applies">Aplica a</label>
           <select id="promo-applies" bind:value={appliesTo} data-testid="promo-applies">
-            <option value="PRODUCT">PRODUCT</option>
-            <option value="CATEGORY">CATEGORY</option>
-            <option value="LIST">LIST</option>
-            <option value="CART">CART</option>
+            <option value="PRODUCT">Producto</option>
+            <option value="CATEGORY">Categoría</option>
+            <option value="LIST">Lista</option>
+            <option value="CART">Carrito</option>
           </select>
         </div>
 
         <div class="field-group">
-          <label for="promo-product">Producto (si PRODUCT)</label>
+          <label for="promo-product">Producto (si aplica a un producto)</label>
           <input id="promo-product" bind:value={productId} data-testid="promo-product" />
         </div>
 
         <div class="field-group">
-          <label for="promo-rule">rule_json</label>
-          <textarea id="promo-rule" bind:value={ruleJson} rows="4" data-testid="promo-rule" class="mono-area"></textarea>
+          <label for="promo-rule">Regla de descuento</label>
+          <textarea id="promo-rule" bind:value={ruleJson} rows="4" data-testid="promo-rule" class="mono-area" placeholder="Vacío = 2x1"></textarea>
         </div>
 
         <div class="field-group">
-          <label for="promo-stack">max_stack_json</label>
-          <textarea id="promo-stack" bind:value={maxStackJson} rows="2" data-testid="promo-stack" class="mono-area"></textarea>
+          <label for="promo-stack">Tope de acumulación</label>
+          <textarea id="promo-stack" bind:value={maxStackJson} rows="2" data-testid="promo-stack" class="mono-area" placeholder="Opcional"></textarea>
         </div>
 
         <div class="btn-row">
@@ -128,14 +143,21 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         </div>
       </section>
 
-      <!-- JSON output -->
-      {#if listJson}
-        <section class="glass-card section-pad">
+      {#if listed}
+        <section class="ledger-card section-pad">
           <div class="card-header">
             <h2>Promociones activas</h2>
-            <span class="badge badge-success">Cargado</span>
+            <span class="badge badge-success">{promotions.length}</span>
           </div>
-          <pre class="json-view" data-testid="promo-list-json">{listJson}</pre>
+          {#if promotions.length === 0}
+            <p class="page-lede">No hay promociones cargadas.</p>
+          {:else}
+            <ul class="item-list" data-testid="promo-list-json">
+              {#each promotions as p}
+                <li>{p.name}</li>
+              {/each}
+            </ul>
+          {/if}
         </section>
       {/if}
     </div>
@@ -159,20 +181,22 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
 
-  .json-view {
-    overflow: auto;
-    padding: 1rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.6;
-    max-height: 60vh;
+  .item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
-  @media (max-width: 700px) {
+  .item-list li {
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+
+  @media (max-width: 899px) {
     .promos-layout {
       grid-template-columns: 1fr;
     }

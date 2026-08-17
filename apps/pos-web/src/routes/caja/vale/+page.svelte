@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { isLedgerStoreCreditEnabled } from '$lib/features';
@@ -13,7 +14,7 @@
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -23,22 +24,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   onMount(() => {
     session = readTenantSession(sessionStorage);
   });
 
   async function issueVale() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/pos/offline-sale`, {
+    const res = await apiFetch('/api/pos/offline-sale', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         offlineSaleId: crypto.randomUUID(),
-        branchId: 'b-demo',
-        cashRegisterSessionId: 's-demo',
+        branchId: tenantBranchId(localStorage),
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
         documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
         series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
         clientDocumentType: '6',
@@ -64,14 +63,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 </script>
 
-<svelte:head><title>Vale / Gift card · KipusPay</title></svelte:head>
+<svelte:head><title>Vale de consumo · KipusPay</title></svelte:head>
 
 <div class="page-shell" data-testid="caja-vale">
   <div class="page-masthead">
     <div>
       <p class="page-eyebrow"><Icon name="gift" size={12} /> Caja · Crédito de tienda</p>
-      <h1 class="page-title">Vale / Gift card</h1>
-      <p class="page-lede">La venta del vale se registra como comprobante con cupo. El saldo lo impone el servidor.</p>
+      <h1 class="page-title">Vale de consumo</h1>
+      <p class="page-lede">La venta del vale se registra como comprobante con cupo. El saldo lo impone KipusPay.</p>
     </div>
   </div>
 
@@ -90,35 +89,54 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <p class="tenant-line" data-testid="caja-vale-tenant">Tienda: {session.tradeName}</p>
 
-    <div class="glass-card vale-card">
-      <CardHeader title="Emitir vale de consumo">
-        <span class="badge badge-success">Crédito tienda</span>
-      </CardHeader>
-      <Field label="RUC / DNI cliente" id="vale-doc">
-        <Input id="vale-doc" bind:value={customerDoc} data-testid="caja-vale-customer" />
-      </Field>
-      <Field label="Nombre o razón social" id="vale-name">
-        <Input id="vale-name" bind:value={customerName} data-testid="caja-vale-name" />
-      </Field>
-      <Field label="Monto del vale" id="vale-amount">
-        <Input id="vale-amount" type="number" bind:value={amountCents} data-testid="caja-vale-amount" />
-      </Field>
-      <Button
-        variant="primary"
-        data-testid="caja-vale-issue"
-        onclick={issueVale}
-        icon="gift"
-      >
-        Emitir vale
-      </Button>
+    <div class="workbench-2col">
+      <div class="ledger-card vale-card">
+        <CardHeader title="Emitir vale de consumo">
+          <span class="badge badge-success">Crédito tienda</span>
+        </CardHeader>
+        <Field label="RUC / DNI cliente" id="vale-doc">
+          <Input id="vale-doc" bind:value={customerDoc} data-testid="caja-vale-customer" />
+        </Field>
+        <Field label="Nombre o razón social" id="vale-name">
+          <Input id="vale-name" bind:value={customerName} data-testid="caja-vale-name" />
+        </Field>
+        <Field label="Monto del vale" id="vale-amount">
+          <Input id="vale-amount" type="number" bind:value={amountCents} data-testid="caja-vale-amount" />
+        </Field>
+        <Button
+          variant="primary"
+          data-testid="caja-vale-issue"
+          onclick={issueVale}
+          icon="gift"
+        >
+          Emitir vale
+        </Button>
+      </div>
+      <aside class="ledger-card vale-side">
+        <h2>Cómo funciona</h2>
+        <p>El vale crea un comprobante y deja cupo de crédito de tienda para canjes posteriores.</p>
+        <p>El monto y el saldo final los confirma KipusPay al sincronizar.</p>
+      </aside>
     </div>
   {/if}
 </div>
 
 <style>
-  .vale-card {
-    padding: 1.25rem;
-    max-width: 30rem;
+  .vale-card,
+  .vale-side {
+    padding: var(--inset-card);
+  }
+
+  .vale-side h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  .vale-side p {
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.45;
   }
 
   .tenant-line {

@@ -1,14 +1,38 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { kdsEventLabel } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
+  import { tenantBranchId } from '$lib/admin/cash-session';
+  import { formatCents } from '$lib/cents';
 
   const enabled = isOrdersKdsEnabled();
+  let branchId = $state('default');
   let tableLabel = $state('1');
   let productId = $state('');
   let quantity = $state(1);
+  let sellable = $state<{ productId: string; name: string; priceCents: number }[]>([]);
+
+  onMount(() => {
+    branchId = tenantBranchId(localStorage) || 'default';
+    if (!enabled) return;
+    void apiFetch(`/api/catalog/sellable?branchId=${encodeURIComponent(branchId)}`, {
+      storage: localStorage,
+    })
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((body) => {
+        sellable = (body.items ?? []).map((i: { productId: string; name: string; unitPriceCents: number }) => ({
+          productId: i.productId,
+          name: i.name,
+          priceCents: i.unitPriceCents,
+        }));
+      })
+      .catch(() => {});
+  });
   let orderId = $state('');
   let status = $state('');
   let error = $state('');
@@ -17,18 +41,18 @@
     error = '';
     status = '';
     try {
-      const createRes = await fetch('/api/orders', {
+      const createRes = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          branchId: 'default',
+          branchId,
           tableLabel,
           items: [{ productId, quantity }],
         }),
       });
       const created = (await createRes.json()) as { id?: string; error?: string };
       if (!createRes.ok) {
-        error = created.error ?? 'create failed';
+        error = created.error ?? 'No se pudo crear la comanda.';
         return;
       }
       orderId = created.id ?? '';
@@ -41,14 +65,14 @@
         tableLabel,
       });
 
-      const fireRes = await fetch('/api/orders/fire', {
+      const fireRes = await apiFetch('/api/orders/fire', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ orderId }),
       });
       const fired = (await fireRes.json()) as { status?: string; error?: string };
       if (!fireRes.ok) {
-        error = fired.error ?? 'fire failed';
+        error = fired.error ?? 'No se pudo enviar a cocina.';
         return;
       }
       status = fired.status ?? 'FIRED';
@@ -66,14 +90,13 @@
   }
 </script>
 
-<svelte:head><title>Salón · Comanda · KipusPay</title></svelte:head>
+<svelte:head><title>Salón · KipusPay</title></svelte:head>
 
-<div class="page-shell" data-testid="salon-root">
-  <div class="page-masthead">
+<div class="floor-board" data-testid="salon-root">
+  <div class="floor-toolbar">
     <div>
-      <p class="page-eyebrow"><Icon name="store" size={12} /> Restaurante · Salón</p>
-      <h1 class="page-title">Comanda de salón</h1>
-      <p class="page-lede">Toma pedidos por mesa y envíalos directamente a cocina (KDS).</p>
+      <p class="page-eyebrow">Piso · Salón</p>
+      <h1>Salón</h1>
     </div>
     <a class="link-action" href="/salon/split">
       <Icon name="percent" size={14} />
@@ -97,36 +120,45 @@
     {#if status}
       <StatusMessage tone="info" aria-live="polite" data-testid="salon-status">
         <Icon name="check" size={16} />
-        <span>Estado: {status}</span>
+        <span>Estado: {kdsEventLabel(status)}</span>
       </StatusMessage>
     {/if}
 
-    <div class="glass-card salon-card" data-testid="salon">
+    <div class="ledger-card salon-card" data-testid="salon">
       <div class="card-header">
         <h2>Nueva comanda</h2>
         <span class="badge badge-warning">Mesa {tableLabel || '—'}</span>
       </div>
-      <div class="field-group">
-        <label for="salon-tbl">Mesa / Ubicación</label>
-        <input id="salon-tbl" data-testid="salon-table" bind:value={tableLabel} placeholder="Ej. 12" />
-      </div>
-      <div class="two-col">
+      <div class="salon-board">
         <div class="field-group">
-          <label for="salon-prod">ID Producto</label>
-          <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="p1" />
+          <label for="salon-tbl">Mesa / Ubicación</label>
+          <input id="salon-tbl" data-testid="salon-table" bind:value={tableLabel} placeholder="Ej. 12" />
+        </div>
+        <div class="field-group">
+          <label for="salon-prod">Producto</label>
+          {#if sellable.length > 0}
+            <select id="salon-prod" data-testid="salon-product" bind:value={productId}>
+              <option value="">-- Elige producto --</option>
+              {#each sellable as p (p.productId)}
+                <option value={p.productId}>{p.name} · S/ {formatCents(p.priceCents)}</option>
+              {/each}
+            </select>
+          {:else}
+            <input id="salon-prod" data-testid="salon-product" bind:value={productId} placeholder="ID del producto" />
+          {/if}
         </div>
         <div class="field-group">
           <label for="salon-qty-input">Cantidad</label>
           <input id="salon-qty-input" data-testid="salon-qty" type="number" min="1" bind:value={quantity} />
         </div>
+        <Button variant="primary" size="full" data-testid="salon-fire" onclick={createAndFire} icon="plus">
+          Enviar a cocina
+        </Button>
       </div>
-      <Button variant="primary" size="full" data-testid="salon-fire" onclick={createAndFire} icon="plus">
-        Enviar a cocina
-      </Button>
 
       {#if orderId}
         <div class="order-id-box" data-testid="salon-order-id">
-          <span class="label">ID Comanda:</span>
+          <span class="label">Comanda:</span>
           <code>{orderId}</code>
         </div>
       {/if}
@@ -136,10 +168,26 @@
 
 <style>
   .salon-card {
-    padding: 1.25rem;
-    max-width: 32rem;
+    flex: 1;
+    max-width: none;
   }
 
+  .salon-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
+  }
+
+  .salon-board :global(.ui-btn) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 899px) {
+    .salon-board {
+      grid-template-columns: 1fr;
+    }
+  }
 
   .order-id-box {
     margin-top: 1rem;
@@ -172,7 +220,7 @@
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 
@@ -180,6 +228,4 @@
     background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
   }
-
-  @media (max-width: 600px) {  }
 </style>

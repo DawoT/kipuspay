@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
   import { formatCents } from '$lib/cents';  import {
     isCatalogQuickAddEnabled,
     isCatalogVariantsEnabled,
@@ -26,7 +25,12 @@
 import { createPrinterTransport } from '$lib/print/printer-transport';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
-  import { readLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
+  import { readLoginUser, writeLoginTenantId, writeLoginToken, writeLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
+  import {
+    claimOnboardingFromUrlIfPresent,
+    readLastOnboardingClaim,
+    readLastOnboardingError,
+  } from '$lib/auth/onboarding-claim';
   import {
     capabilitiesFromFlags,
   } from '$lib/onboarding/capabilities';
@@ -38,7 +42,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   } from '$lib/onboarding/tour-client';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
-  import { addOrBumpLine, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
+  import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import SellableCatalog from '$lib/pos/SellableCatalog.svelte';
   import { chargeCartOffline, requiresCustomerIdentity } from '$lib/pos-checkout/charge';
   import {
@@ -73,12 +77,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Modal from '$lib/ui/Modal.svelte';
+  import { formalizationModeLabel } from '$lib/ui/ops-copy';
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import MoneyInput from '$lib/ui/MoneyInput.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import {
+    cashierFacingMessage,
+    chargeButtonLabel,
+    scaleStateLabel,
+  } from '$lib/ui/cashier-copy';
+  import { stitchClass, stitchStateFromFlags } from '$lib/ui/sync-stitch';
   import {
     fetchSellableCatalog,
     type SellableCatalogItem,
@@ -87,6 +98,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { renderQrToCanvas } from '$lib/print/qr-canvas';
 
   const checkoutOn = isPosCheckoutEnabled();
+
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
   const scaleOn = isInventoryScaleEnabled();
@@ -162,23 +174,52 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const correlatives = new OfflineCorrelativeStore(1);
 
   const totalCents = $derived(cartTotalCents(lines));
+  const payableCents = $derived(cartPayableCents(lines));
   const banner = $derived(formalizationBannerMessage(session.formalizationMode));
+  const chargeSettled = $derived(status === 'completado');
+  const cobroStitch = $derived(
+    stitchClass(
+      stitchStateFromFlags({
+        online: typeof navigator === 'undefined' ? true : navigator.onLine,
+        pendingCount: 0,
+        charging: status === 'cobrando',
+      }),
+    ),
+  );
 
-  onMount(() => {
+  onMount(async () => {
     if (typeof window === 'undefined') return;
     const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
     if (fromQs) {
       writeTenantSession(sessionStorage, fromQs);
       session = fromQs;
+      writeLoginTenantId(localStorage, fromQs.tenantId);
     } else {
       session = readTenantSession(sessionStorage);
     }
-    void loadSellableCatalog();
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
     loginUser = readLoginUser(localStorage);
+    const claimed = await claimOnboardingFromUrlIfPresent();
+    // Fe de errata de walkthrough (Sprint 7): el claim es single-flight y puede
+    // ganarlo el layout; el resultado queda en el módulo — la página lo lee
+    // siempre, no solo cuando su propia llamada devuelve true.
+    const lastSession = readLastOnboardingClaim();
+    if (lastSession) onboardingSession = { branchId: lastSession.branchId, sessionId: lastSession.sessionId };
+    if (claimed) {
+      loginUser = readLoginUser(localStorage);
+    } else if (readLastOnboardingError() && !readLoginUser(localStorage)) {
+      // S7: un token ya consumido (reload con URL vieja) NO es un error si el
+      // login del claim anterior sigue activo; el notice solo aplica sin sesión.
+      onboardingNotice = `No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;
+    }
+    void loadSellableCatalog();
     maybeShowTour();
   });
+
+  // M6C: token single-use del onboarding → sesión real del owner.
+  let onboardingSession = $state<{ branchId: string; sessionId: string } | null>(null);
+  let onboardingNotice = $state('');
 
   const tourOn = isOnboardingTourEnabled();
   const tipOn = isSaleTipEnabled();
@@ -232,15 +273,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   /** S7-H2: drena la cola offline hacia POST /api/v1/sync/sales en background. */
   async function flushPendingSales(): Promise<void> {
     try {
-      const apiBase = (localStorage.getItem('kipuspay_api_base') ?? 'http://localhost:8787').replace(
-        /\/$/,
-        '',
-      );
+      const apiBase = resolveApiBase(localStorage);
       await dispatchPendingSalesChunked(
         queue,
         createHttpSyncTransport({
           endpointUrl: `${apiBase}/api/v1/sync/sales`,
           bearerToken: localStorage.getItem('kipuspay_token') ?? undefined,
+          tenantId: localStorage.getItem('kipuspay_tenant_id') ?? undefined,
         }),
       );
     } catch {
@@ -250,6 +289,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function onCharge() {
     status = 'cobrando';
+    if (!onboardingSession) {
+      // Fe de errata de walkthrough (Sprint 7): sin sesión de caja (branch +
+      // sesión OPEN) el server rechaza la venta; nunca encolar con valores demo.
+      status = 'bloqueado';
+      message = 'No hay una sesión de caja abierta. Inicia sesión o abre la caja.';
+      return;
+    }
     if (isVitrinaEnabled()) {
       publishVitrina({
         totalCents,
@@ -267,8 +313,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {
         formalizationMode: session.formalizationMode,
         taxRegime: 'RG',
-        branchId: 'b-demo',
-        cashRegisterSessionId: 's-demo',
+        branchId: onboardingSession?.branchId ?? '',
+        cashRegisterSessionId: onboardingSession?.sessionId ?? '',
         series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
         clientDocumentType: clientDocType,
         clientDocumentNumber: clientDocNumber.trim(),
@@ -305,6 +351,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       const nextSession = markTenantFirstSale(session, new Date().toISOString());
       writeTenantSession(sessionStorage, nextSession);
       session = nextSession;
+      // M6D: TTFS — primera venta real (growth_events, catálogo cerrado).
+      void recordGrowthEvent('first_sale', { vertical: session.verticalType });
     }
 
     if (isPrintTemplatesEnabled()) {
@@ -312,11 +360,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       const reserve = correlatives.reserve(outcome.offlineSaleId, isNv ? 'NV01' : 'B001');
       const mockTicket: TicketData = {
         enterprise: session.tradeName,
-        ruc: '20123456789',
         documentType: isNv ? 'NV' : '03',
         series: isNv ? 'NV01' : 'B001',
         number: reserve.tentativeNumber,
-        totalCents,
+        totalCents: cartPayableCents(lines),
         lineWidth: 32,
         items: lines.map((l) => ({
           name: l.name,
@@ -329,8 +376,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               brandFooter: {
                 enabled: true,
                 label: 'Emitido con KipusPay',
-                shortUrl: 'kipuspay.pe',
-                qrPayload: 'https://kipuspay.pe',
+                shortUrl: 'kipuspay.com',
+                qrPayload: 'https://kipuspay.com',
               },
             }
           : {}),
@@ -378,6 +425,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       catalogItems = await fetchSellableCatalog({
         apiBase: resolveApiBase(localStorage),
         authorization: resolveApiAuth(localStorage).authorization ?? '',
+        tenantId: resolveApiAuth(localStorage)['x-tenant-id'],
       });
     } catch {
       catalogError = 'No se pudo cargar el catálogo. La venta rápida sigue disponible.';
@@ -532,7 +580,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const { weightMicrounits, protocol, deviceId, sequence, observedAtEpochMs } =
       heartbeat.reading;
     lines = addOrBumpLine(lines, {
-      productId: 'weigh-demo',
+      productId: 'weigh',
       name: 'Manzana por peso',
       unitPriceCents: 100,
       quantity: 1,
@@ -568,7 +616,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       return;
     }
     lines = addOrBumpLine(lines, {
-      productId: 'weigh-demo',
+      productId: 'weigh',
       name: 'Manzana por peso',
       unitPriceCents: 100,
       quantity: 1,
@@ -621,70 +669,81 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 <div class="pos-layout">
   <!-- Top Bar Meta / Banner -->
-  <header class="pos-banner-card glass-panel">
-    <div class="banner-left">
-      <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
+  {#if onboardingNotice}
+    <div class="ledger-card onboarding-notice" role="status" data-testid="onboarding-notice">
+      <span>{onboardingNotice}</span>
+    </div>
+  {/if}
+
+  <header class="pos-banner-card ledger-card">
+    <div class="banner-row">
+      <div class="banner-left">
+        <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
+        {#if checkoutOn}
+          <div class="banner-pills">
+            <span data-testid="pos-session-bar" class="badge badge-success" role="status">
+              Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}
+            </span>
+            <span data-testid="formalization-mode" class="badge badge-warning">
+              {formalizationModeLabel(session.formalizationMode)}
+            </span>
+          </div>
+        {/if}
+      </div>
+      {#if checkoutOn && commissionsOn}
+        <div class="seller-input-group">
+          <label for="seller-id-input">Vendedor</label>
+          <input
+            id="seller-id-input"
+            bind:value={sellerId}
+            placeholder="ID Vendedor (opcional)"
+            data-testid="seller-id"
+          />
+          {#if teamOn}
+            <button
+              type="button"
+              class="secondary seller-resolve-btn"
+              data-testid="seller-resolve"
+              onclick={() => (sellerResolveOpen = true)}
+            >
+              {sellerResolvedName || 'Vincular por badge / PIN'}
+            </button>
+          {/if}
+        </div>
+      {/if}
       {#if checkoutOn}
-        <div class="banner-pills">
-          <span data-testid="pos-session-bar" class="badge badge-success" role="status">
-            Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}
-          </span>
-          <span data-testid="formalization-banner" class="badge badge-indigo" role="status">
-            {banner}
-          </span>
-          <span data-testid="formalization-mode" class="badge badge-warning">
-            {session.formalizationMode}
-          </span>
+        <div class="customer-input-group">
+          <label for="customer-doc-type">Cliente</label>
+          <select id="customer-doc-type" bind:value={clientDocType} data-testid="customer-doc-type">
+            <option value="1">DNI</option>
+            <option value="6">RUC</option>
+            <option value="4">CE</option>
+          </select>
+          <input
+            id="customer-doc-number"
+            bind:value={clientDocNumber}
+            placeholder="N.º documento"
+            data-testid="customer-doc-number"
+          />
+          <input
+            id="customer-name"
+            bind:value={clientName}
+            placeholder="Nombre / razón social"
+            data-testid="customer-name"
+          />
         </div>
       {/if}
     </div>
-    {#if checkoutOn && commissionsOn}
-      <div class="seller-input-group">
-        <label for="seller-id-input">Vendedor</label>
-        <input
-          id="seller-id-input"
-          bind:value={sellerId}
-          placeholder="ID Vendedor (opcional)"
-          data-testid="seller-id"
-        />
-        {#if teamOn}
-          <button
-            type="button"
-            class="secondary seller-resolve-btn"
-            data-testid="seller-resolve"
-            onclick={() => (sellerResolveOpen = true)}
-          >
-            {sellerResolvedName || 'Vincular por badge / PIN'}
-          </button>
-        {/if}
-      </div>
-    {/if}
-    {#if checkoutOn}
-      <div class="customer-input-group">
-        <label for="customer-doc-type">Cliente</label>
-        <select id="customer-doc-type" bind:value={clientDocType} data-testid="customer-doc-type">
-          <option value="1">DNI</option>
-          <option value="6">RUC</option>
-          <option value="4">CE</option>
-        </select>
-        <input
-          id="customer-doc-number"
-          bind:value={clientDocNumber}
-          placeholder="N.º documento"
-          data-testid="customer-doc-number"
-        />
-        <input
-          id="customer-name"
-          bind:value={clientName}
-          placeholder="Nombre / razón social"
-          data-testid="customer-name"
-        />
-      </div>
+    {#if checkoutOn && banner}
+      <StatusMessage tone="warning" role="status" data-testid="formalization-banner" class="formalization-callout">
+        <Icon name="info" size={16} />
+        <span>{banner}</span>
+      </StatusMessage>
     {/if}
   </header>
 
   {#if !checkoutOn}
-    <div class="glass-panel checkout-disabled-panel">
+    <div class="ledger-card checkout-disabled-panel">
       <div class="badge badge-danger">Caja Desactivada</div>
       <p data-testid="checkout-off">El cobro está desactivado para esta tienda. Contacta a tu proveedor.</p>
     </div>
@@ -699,11 +758,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           catalogOn={catalogOn}
           bind:query={catalogQuery}
           onAdd={addProduct}
+          onQuickSale={() => (quickSaleOpen = true)}
         />
 
         <!-- Serial Scanner Instrument Panel -->
         {#if serialsOn}
-          <section class="glass-panel serial-panel" aria-labelledby="serial-title" data-testid="main-serial-checkout">
+          <section class="ledger-card serial-panel" aria-labelledby="serial-title" data-testid="main-serial-checkout">
             <div class="card-header">
               <div>
                 <span class="instrument-eyebrow">Identidad por unidad</span>
@@ -760,7 +820,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 aria-live="polite"
                 data-testid="main-serial-status"
               >
-                {serialStatus}
+                {cashierFacingMessage(serialStatus)}
               </p>
             {/if}
           </section>
@@ -769,7 +829,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <!-- Scale Instrument Panel -->
         {#if scaleOn}
           <section
-            class="glass-panel scale-panel"
+            class="ledger-card scale-panel"
             class:manual={scaleState === 'MANUAL_REQUIRED'}
             aria-labelledby="scale-title"
             data-testid="scale-checkout"
@@ -781,7 +841,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               </div>
               <div class="scale-state-badge" data-testid="scale-state">
                 <span class="pulse-dot"></span>
-                <span>{scaleState}</span>
+                <span>{scaleStateLabel(scaleState)}</span>
               </div>
             </div>
 
@@ -796,15 +856,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             <div class="scale-actions-row">
               <button type="button" class="secondary" onclick={connectScale}>
                 <Icon name="wifi" size={16} />
-                {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar Balanza'}
+                {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar balanza'}
               </button>
               <button type="button" class="primary" onclick={captureDeviceWeight} disabled={scaleState !== 'STABLE'}>
                 <Icon name="scale" size={16} />
-                Capturar Pesada
+                Capturar pesada
               </button>
               <button type="button" class="secondary" onclick={disconnectScale}>
                 <Icon name="edit" size={16} />
-                Peso Manual
+                Peso manual
               </button>
             </div>
 
@@ -836,7 +896,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                   </div>
                 </div>
                 <button type="button" class="primary" onclick={captureManualWeight}>
-                  Confirmar Peso Manual
+                  Confirmar peso manual
                 </button>
               </div>
             {/if}
@@ -846,7 +906,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Right Column: Cart & Checkout Summary Panel -->
       <div class="pos-cart-col">
-        <section class="glass-panel cart-panel">
+        <section class="ledger-card cart-panel">
           <div class="card-header">
             <h2>Detalle de Venta</h2>
             <span class="badge badge-success">{lines.length} {lines.length === 1 ? 'ítem' : 'ítems'}</span>
@@ -855,10 +915,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <!-- Items List -->
           <div class="cart-items-scroll">
             {#if lines.length === 0}
-              <div class="empty-cart">
-                <Icon name="cart" size={36} />
-                <p>El carrito está vacío</p>
-              </div>
+              <EmptyState
+                icon="cart"
+                title="El carrito está vacío"
+                description="Agrega un producto del catálogo o cobra una venta rápida."
+              >
+                <Button
+                  variant="secondary"
+                  data-testid="empty-cart-quick"
+                  onclick={() => (quickSaleOpen = true)}
+                >
+                  Venta rápida
+                </Button>
+              </EmptyState>
             {:else}
               {#each lines as line (line.productId)}
                 <div class="cart-item-row">
@@ -868,14 +937,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                   </div>
                   <div class="item-actions">
                     <div class="quantity-controls">
-                      <button type="button" class="qty-btn" onclick={() => updateQuantity(line.productId, -1)}>-</button>
+                      <button type="button" class="qty-btn" aria-label="Quitar uno" onclick={() => updateQuantity(line.productId, -1)}>-</button>
                       <span class="qty-value tabular-nums">{line.quantity}</span>
-                      <button type="button" class="qty-btn" onclick={() => updateQuantity(line.productId, 1)}>+</button>
+                      <button type="button" class="qty-btn" aria-label="Agregar uno" onclick={() => updateQuantity(line.productId, 1)}>+</button>
                     </div>
                     <span class="item-line-total tabular-nums">
                       S/ {formatCents(line.unitPriceCents * line.quantity)}
                     </span>
-                    <button type="button" class="remove-item-btn" onclick={() => removeLine(line.productId)}>×</button>
+                    <button type="button" class="remove-item-btn" aria-label="Quitar del carrito" onclick={() => removeLine(line.productId)}>×</button>
                   </div>
                 </div>
               {/each}
@@ -885,9 +954,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <!-- Total & Charge Section -->
           <div class="cart-summary-footer">
             <div class="summary-total-box">
-              <span class="total-label">TOTAL A COBRAR</span>
-              <span data-testid="total" class="total-amount tabular-nums">
-                S/ {formatCents(totalCents)}
+              <span class="total-label">Total a cobrar</span>
+              <span
+                data-testid="total"
+                class={['total-amount', 'tabular-nums', cobroStitch, chargeSettled && 'settled']}
+              >
+                S/ {formatCents(payableCents)}
               </span>
             </div>
 
@@ -938,7 +1010,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               disabled={lines.length === 0}
               icon="credit-card"
             >
-              COBRAR (S/ {formatCents(totalCents)})
+              {chargeButtonLabel(formatCents(payableCents))}
             </Button>
             <Button
               variant="secondary"
@@ -948,14 +1020,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               onclick={() => (quickSaleOpen = true)}
               icon="plus"
             >
-              VENTA RÁPIDA (sin catálogo)
+              Venta rápida (sin catálogo)
             </Button>
           </div>
         </section>
 
         <!-- Print Preview Card -->
         {#if printPreview}
-          <div class="glass-panel print-preview-card" data-testid="print-preview">
+          <div class="ledger-card print-preview-card" data-testid="print-preview">
             <div class="card-header">
               <h3>Vista Previa Ticket Térmico 80mm</h3>
               <span class="badge badge-indigo">Listo para imprimir</span>
@@ -1024,27 +1096,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       <p class="quick-error" role="alert">{quickError}</p>
     {/if}
   </Modal>
-
-  {#if checkoutOn}
-    <nav class="pos-bottom-nav" aria-label="Navegación de caja" data-testid="pos-bottom-nav">
-      <a href="/" class="pos-nav-item" class:active={page.url.pathname === '/'} data-testid="pos-nav-cobrar">
-        <Icon name="check" size={18} />
-        <span>Cobrar</span>
-      </a>
-      <a href="/caja/historial" class="pos-nav-item" data-testid="pos-nav-historial">
-        <Icon name="receipt" size={18} />
-        <span>Historial del día</span>
-      </a>
-      <a href="/caja" class="pos-nav-item" data-testid="pos-nav-caja">
-        <Icon name="lock" size={18} />
-        <span>Caja</span>
-      </a>
-      <a href="/ayuda" class="pos-nav-item" data-testid="pos-nav-ayuda">
-        <Icon name="info" size={18} />
-        <span>Ayuda</span>
-      </a>
-    </nav>
-  {/if}
 </div>
 
 <style>
@@ -1054,52 +1105,27 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 1.25rem;
   }
 
-  .pos-bottom-nav {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1rem;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    position: sticky;
-    bottom: 0.75rem;
-    z-index: 20;
-  }
-
-  .pos-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    min-width: 88px;
-    min-height: 48px;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-md);
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: color var(--transition-fast), background var(--transition-fast);
-  }
-
-  .pos-nav-item:hover {
+  .onboarding-notice {
+    padding: 0.875rem 1.25rem;
+    border: 1px solid var(--amber-gold);
+    background: color-mix(in srgb, var(--amber-gold) 12%, transparent);
     color: var(--text-main);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .pos-nav-item.active {
-    color: var(--accent-primary);
+    font-size: 0.9375rem;
   }
 
   .pos-banner-card {
     padding: 1rem 1.25rem;
     display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .banner-row {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-
+    flex-wrap: wrap;
   }
 
   .banner-left {
@@ -1107,6 +1133,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 1rem;
     flex-wrap: wrap;
+    min-width: 0;
+    flex: 1 1 auto;
   }
 
   .pos-title {
@@ -1116,20 +1144,42 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   .banner-pills {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
 
-  .seller-input-group {
+  .seller-input-group,
+  .customer-input-group {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    min-width: 0;
   }
-  .seller-input-group label {
+
+  .seller-input-group label,
+  .customer-input-group label {
     margin-bottom: 0;
     white-space: nowrap;
   }
+
   .seller-input-group input {
     width: 180px;
+    max-width: 100%;
+    min-width: 0;
+    padding: var(--inset-field);
+  }
+
+  .customer-input-group select,
+  .customer-input-group input {
+    min-width: 0;
+    max-width: 100%;
+    padding: var(--inset-field);
+  }
+
+  :global(.formalization-callout) {
+    width: 100%;
+    max-width: 100%;
   }
 
   .checkout-disabled-panel {
@@ -1165,6 +1215,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-bottom: 1rem;
   }
   .card-header h2, .card-header h3 {
@@ -1180,16 +1232,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--accent-primary);
   }
 
-  /* Serial Scanner Panel */
-  .serial-panel {
-    padding: 1.25rem;
-  }
+  /* Serial Scanner Panel — pad from .ledger-card */
   .terminal-row, .scanner-row {
     margin-bottom: 0.875rem;
   }
   .input-with-button {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    min-width: 0;
+  }
+  .input-with-button :global(input),
+  .input-with-button :global(.ui-input) {
+    min-width: 0;
+    flex: 1 1 12rem;
   }
   .status-feedback {
     margin-top: 0.5rem;
@@ -1201,10 +1257,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--rose-red);
   }
 
-  /* Scale Panel */
-  .scale-panel {
-    padding: 1.25rem;
-  }
+  /* Scale Panel — pad from .ledger-card */
   .scale-state-badge {
     display: flex;
     align-items: center;
@@ -1265,9 +1318,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.75rem;
   }
 
-  /* Cart & Checkout Column */
+  /* Cart & Checkout Column — pad from .ledger-card */
   .cart-panel {
-    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     min-height: 520px;
@@ -1325,7 +1377,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border: 1px solid var(--border-subtle);
   }
   .qty-btn {
-    padding: 0.25rem 0.625rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
     background: transparent;
     border: none;
     color: var(--text-main);
@@ -1345,7 +1399,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border: none;
     color: var(--text-dim);
     font-size: 1.25rem;
-    padding: 0.25rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
   }
   .remove-item-btn:hover {
     color: var(--rose-red);
@@ -1370,10 +1426,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     letter-spacing: 0.05em;
   }
   .total-amount {
+    font-family: var(--font-mono);
     font-size: 2.25rem;
     font-weight: 800;
+    color: var(--text-main);
+  }
+  .total-amount.settled {
     color: var(--emerald-green);
-    text-shadow: 0 0 16px rgba(46, 158, 116, 0.25);
   }
 
   .status-tag {
@@ -1387,9 +1446,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--text-main);
   }
 
-  .print-preview-card {
-    padding: 1.25rem;
-  }
+  /* print-preview-card pad from .ledger-card */
   .ticket-render-body {
     background: #ffffff;
     color: #000000;
@@ -1419,9 +1476,42 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     margin: 0;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 899px) {
     .pos-main-grid {
       grid-template-columns: 1fr;
+    }
+
+    .banner-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .banner-left {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .seller-input-group,
+    .customer-input-group {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .seller-input-group label,
+    .customer-input-group label {
+      white-space: normal;
+    }
+
+    .seller-input-group input,
+    .customer-input-group select,
+    .customer-input-group input {
+      width: 100%;
+    }
+
+    .input-with-button {
+      flex-direction: column;
+      align-items: stretch;
     }
   }
 </style>

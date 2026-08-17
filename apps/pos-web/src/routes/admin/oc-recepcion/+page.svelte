@@ -1,14 +1,26 @@
 <script lang="ts">
-  import { isInventorySerialsEnabled, isPartialReceiveEnabled } from '$lib/features';
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
+  import { formatCents } from '$lib/cents';
+  import { isInventorySerialsEnabled, isPartialReceiveEnabled, isPurchasingOrdersEnabled } from '$lib/features';
+  import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { workflowStatusLabel } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const recvOn = isPartialReceiveEnabled();
   const serialsOn = isInventorySerialsEnabled();
-  let purchaseOrderId = $state('po-demo');
-  let branchId = $state('b-demo');
+  const ordersOn = isPurchasingOrdersEnabled();
+  let purchaseOrderId = $state('');
+  let supplierId = $state('');
+  let poTotalCents = $state(0);
+  let poLineProduct = $state('');
+  let poLineQty = $state(1);
+  let poLineCost = $state(0);
+  let poLines = $state<{ productId: string; quantity: number; unitCostCents: number }[]>([]);
+  let branchId = $state(initTenantBranchId());
   let productId = $state('p1');
   let quantity = $state(4);
   let unitCostCents = $state(500);
@@ -21,17 +33,60 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let serialScan = $state('');
   let serialNumbers = $state<string[]>([]);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
+  async function createOrder() {
+    message = '';
+    const res = await apiFetch('/api/purchasing/orders', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        branchId: branchId.trim() || initTenantBranchId(),
+        supplierId,
+        totalAmountCents: poTotalCents,
+        lines: poLines,
+      }),
+    });
+    const json = (await res.json()) as { id?: string; error?: string };
+    messageOk = res.ok;
+    if (res.ok && json.id) purchaseOrderId = json.id;
+    message = res.ok ? `OC ${json.id} creada` : purchasingErrorCopy(json.error);
+  }
+
+  function addPoLine() {
+    if (!poLineProduct.trim() || !(poLineQty > 0)) {
+      message = 'Indica el producto y la cantidad de la línea.';
+      messageOk = false;
+      return;
+    }
+    poLines = [...poLines, { productId: poLineProduct.trim(), quantity: poLineQty, unitCostCents: poLineCost }];
+    poLineProduct = '';
+    poLineQty = 1;
+    poLineCost = 0;
+  }
+
+  async function sendOrder() {
+    if (!purchaseOrderId) return;
+    message = '';
+    const res = await apiFetch('/api/purchasing/orders/transition', {
+      method: 'POST',
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ purchaseOrderId, toStatus: 'SENT' }),
+    });
+    const json = (await res.json()) as { status?: string; error?: string };
+    messageOk = res.ok;
+    message = res.ok ? `OC enviada (${json.status ?? 'SENT'})` : purchasingErrorCopy(json.error);
+  }
 
   async function partialReceive() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/purchasing/orders/partial-receive`, {
+    const res = await apiFetch('/api/purchasing/orders/partial-receive', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         purchaseOrderId,
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         lines: [
           {
             productId,
@@ -39,6 +94,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             unitCostCents,
             batchNumber: batchNumber || null,
             expiryDate: expiryDate || null,
+            ...(serialNumbers.length > 0 ? { serialNumbers } : {}),
           },
         ],
       }),
@@ -51,8 +107,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     };
     messageOk = res.ok;
     message = res.ok
-      ? `Receipt ${json.receiptId} · ${json.nextStatus} · CxP ${json.apAmountCents} céntimos`
-      : (json.error ?? 'error');
+      ? `Recepción ${json.receiptId} · ${workflowStatusLabel(json.nextStatus ?? 'OPEN')} · por pagar ${formatCents(json.apAmountCents ?? 0)}`
+      : purchasingErrorCopy(json.error);
   }
 
   function collectSerial(event: KeyboardEvent) {
@@ -64,11 +120,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function createSerialManifest() {
-    const res = await fetch(`${apiBase()}/api/inventory/serials/manifests`, {
+    const res = await apiFetch('/api/inventory/serials/manifests', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId,
+        branchId: branchId.trim() || initTenantBranchId(),
         purchaseReceiptLineId,
         locationId,
         serialNumbers,
@@ -82,8 +139,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     };
     messageOk = res.ok;
     message = res.ok
-      ? `Manifest ${json.manifestId} · ${json.serialCount} serie(s)`
-      : [json.error, json.action].filter(Boolean).join(' ');
+      ? `Manifiesto de series · ${json.serialCount} serie(s)`
+      : [purchasingErrorCopy(json.error), json.action].filter(Boolean).join(' ');
   }
 </script>
 
@@ -94,11 +151,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="clipboard" size={12} /> Compras · Recepción OC</p>
       <h1 class="page-title">Recepción parcial de OC</h1>
-      <p class="page-lede">CxP solo por cantidad recibida. Con 3-way on, el CxP se crea al match de factura.</p>
+      <p class="page-lede">La cuenta por pagar cubre solo lo recibido. Si hay conciliación con factura, se crea al confirmarla.</p>
     </div>
     <a class="link-action" href="/admin/factura-proveedor" data-testid="admin-link-factura">
       <Icon name="clipboard-check" size={14} />
-      Match factura 3-way
+      Conciliar factura
     </a>
   </div>
 
@@ -109,6 +166,69 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </StatusMessage>
   {/if}
 
+  {#if ordersOn}
+    <section class="ledger-card section-pad" data-testid="admin-po-create">
+      <div class="card-header">
+        <h2>Crear orden de compra</h2>
+      </div>
+      <div class="field-group">
+        <label for="po-supplier">Proveedor</label>
+        <input id="po-supplier" bind:value={supplierId} data-testid="admin-po-supplier" />
+      </div>
+      <div class="field-group">
+        <label for="po-total">Total</label>
+        <input id="po-total" type="number" bind:value={poTotalCents} data-testid="admin-po-total" />
+      </div>
+      <div class="field-group">
+        <label for="po-line-product">Producto de la línea</label>
+        <input
+          id="po-line-product"
+          bind:value={poLineProduct}
+          data-testid="admin-po-line-product"
+          placeholder="ID del producto"
+        />
+      </div>
+      <div class="two-col">
+        <div class="field-group">
+          <label for="po-line-qty">Cantidad</label>
+          <input id="po-line-qty" type="number" min="0.001" step="any" bind:value={poLineQty} data-testid="admin-po-line-qty" />
+        </div>
+        <div class="field-group">
+          <label for="po-line-cost">Costo unitario</label>
+          <input id="po-line-cost" type="number" bind:value={poLineCost} data-testid="admin-po-line-cost" />
+        </div>
+      </div>
+      <Button variant="ghost" icon="plus" data-testid="admin-po-line-add" onclick={addPoLine}>
+        Agregar línea
+      </Button>
+      {#if poLines.length > 0}
+        <ul class="po-lines-list" data-testid="admin-po-lines">
+          {#each poLines as line, i (i)}
+            <li>
+              {line.productId} · {line.quantity} × {line.unitCostCents} cént.
+              <button
+                type="button"
+                class="linkish"
+                data-testid={`admin-po-line-remove-${i}`}
+                onclick={() => (poLines = poLines.filter((_, idx) => idx !== i))}
+              >
+                quitar
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+      <Button variant="secondary" icon="plus" data-testid="admin-po-create-btn" onclick={() => void createOrder()}>
+        Crear OC
+      </Button>
+      {#if purchaseOrderId}
+        <Button variant="ghost" icon="arrow-right" data-testid="admin-po-send" onclick={() => void sendOrder()}>
+          Enviar OC
+        </Button>
+      {/if}
+    </section>
+  {/if}
+
   {#if !recvOn}
     <div class="feature-off-banner" data-testid="admin-po-off">
       <Icon name="info" size={18} />
@@ -117,7 +237,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="recv-layout">
       <!-- Recepción -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Datos de recepción</h2>
           <span class="section-tag">Línea</span>
@@ -161,7 +281,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
       <!-- Series -->
       {#if serialsOn}
-        <section class="glass-card section-pad">
+        <section class="ledger-card section-pad">
           <div class="card-header">
             <h2>Series de la línea</h2>
             <span class="badge {serialNumbers.length > 0 ? 'badge-success' : 'badge-muted'}">
@@ -169,11 +289,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             </span>
           </div>
           <div class="field-group">
-            <label for="serial-line-id">purchase_receipt_line_id</label>
+            <label for="serial-line-id">Línea de recepción</label>
             <input id="serial-line-id" bind:value={purchaseReceiptLineId} autocomplete="off" />
           </div>
           <div class="field-group">
-            <label for="serial-loc-id">location_id</label>
+            <label for="serial-loc-id">Ubicación</label>
             <input id="serial-loc-id" bind:value={locationId} autocomplete="off" />
           </div>
           <div class="field-group">
@@ -226,7 +346,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-weight: 600;
     text-decoration: none;
     transition: all var(--transition-fast);
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
   }
 
@@ -235,7 +355,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 899px) {
     .recv-layout {
       grid-template-columns: 1fr;
     }

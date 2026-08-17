@@ -65,6 +65,14 @@ describe('Sprint 31 variants/UOM routes', () => {
     expect(result.body.code).toBe('UOM_CODE_INVALID');
   });
 
+  it('allows variant mutation with rol del JWT en minúscula (owner real)', async () => {
+    const env = mockEnv({ byId: { 'p-leaf': { parent_product_id: null } }, children: {} });
+    const result = await runUpdateVariantHttp(env as never, 't1', 'u1', 'owner', 'p-leaf', {
+      parentProductId: 'parent',
+    });
+    expect(result.status).not.toBe(403);
+  });
+
   it('rejects variant mutation outside Admin/Owner', async () => {
     const result = await runUpdateVariantHttp(
       { FEATURE_CATALOG_VARIANTS: '1' } as never,

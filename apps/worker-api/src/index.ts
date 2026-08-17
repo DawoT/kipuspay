@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { buildSaleTotals, type OfflineSalePayload, type SaleLine } from '@kipuspay/domain-sales';
 import type { AuthTenantSnapshot } from './auth/auth-decide.js';
 import {
@@ -36,11 +36,18 @@ import {
   runPayArHttp,
   runTransitionPoHttp,
 } from './ledger/ledger-routes.js';
-import { runBlindCloseHttp, runCashMovementHttp, runSaleReprintHttp } from './cash/cash-routes.js';
+import {
+  runBlindCloseHttp,
+  runCashMovementHttp,
+  runSaleReprintHttp,
+  runAuthzTokenMintHttp,
+} from './cash/cash-routes.js';
+import { clientIp, enforceRateLimit, rateLimitKey } from './auth/rate-limit.js';
 import {
   runCreateSalesReturnHttp,
   runGetReturnPolicyHttp,
   runListSalesReturnsHttp,
+  runUpsertReturnPolicyHttp,
 } from './sales/sales-returns-routes.js';
 import {
   runCancelLayawayHttp,
@@ -83,6 +90,9 @@ import {
   runFireOrderHttp,
   runKdsWebSocketHttp,
   runMarkItemsReadyHttp,
+  runMintKdsWsTicketHttp,
+  consumeKdsWsTicket,
+  runKdsPendingHttp,
   runSplitBillHttp,
 } from './orders/order-routes.js';
 import {
@@ -190,7 +200,20 @@ import {
   runReportHttp,
   runReportsCatalogHttp,
 } from './reports/report-routes.js';
-import { runBootstrapHttp, runFormalizationStageHttp } from './onboarding/onboarding-routes.js';
+import {
+  runBootstrapHttp,
+  runFormalizationStageHttp,
+  runOnboardingClaimHttp,
+} from './onboarding/onboarding-routes.js';
+import { runUpdatePlanHttp } from './tenant/plan-routes.js';
+import { runCancelTenantHttp, runBillingPortalHttp } from './tenant/cancel-routes.js';
+import { runCheckoutSessionHttp } from './tenant/checkout-routes.js';
+import {
+  runCreateReclamacionHttp,
+  runListReclamacionesHttp,
+  runRespondReclamacionHttp,
+} from './legal/reclamaciones-routes.js';
+import { corsHeadersFor } from './auth/public-cors.js';
 import {
   runCaptureReferralHttp,
   runEnsureReferralCodeHttp,
@@ -233,6 +256,7 @@ import {
   runCreateBackupHttp,
   runDownloadBackupHttp,
   runListBackupsHttp,
+  runMintBackupStepUpTokenHttp,
   runRestoreDryRunHttp,
   type BackupActor,
   type BackupHttpResult,
@@ -244,13 +268,26 @@ import {
   type InsightsEnv,
 } from './analytics/insights-routes.js';
 import { runQuickAddHttp, runScanLookupHttp } from './catalog/quick-add-routes.js';
+import { runListSellableCatalogHttp } from './catalog/sellable-catalog-routes.js';
+import { runExportCatalogCsvHttp, runExportSalesCsvHttp } from './catalog/catalog-export-routes.js';
 import { runIssueShiftPinHttp, runShiftTransferHttp } from './cash/shift-routes.js';
 import { runResolveSellerHttp, runTeamInviteHttp } from './team/team-routes.js';
 import { runDebitNoteHttp } from './sales/debit-note-routes.js';
 import { runRemissionGuideHttp } from './inventory/remission-guide-routes.js';
 import { runPerceptionHttp, runRetentionHttp } from './fiscal/withholding-routes.js';
 import { runGetCashPolicyHttp, runPatchCashPolicyHttp } from './cash/cash-policy-routes.js';
-import { runGrowthEventHttp, runSetupProgressHttp } from './onboarding/onboarding-routes.js';
+import {
+  runGrowthEventHttp,
+  runListGrowthEventsHttp,
+  runSetupProgressHttp,
+} from './onboarding/onboarding-routes.js';
+import {
+  runTitularConsentHttp,
+  runTitularConsentsHttp,
+  runTitularEraseHttp,
+  runTitularExportHttp,
+  runTitularVerifyHttp,
+} from './customers/titular-lpdp-routes.js';
 import {
   runCancelCustomerOrderHttp,
   runCreateCustomerOrderHttp,
@@ -393,8 +430,28 @@ function pushResponse(result: PushHttpResult): Response {
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   const app = new Hono<AppEnv>();
 
+  // M6B: CORS fail-closed (ALLOWED_ORIGINS). Antes de rutas públicas (incl.
+  // /health) para que el navegador del POS/marketing pueda leer respuestas.
+  const publicCorsMiddleware = async (
+    c: Context<{ Bindings: WorkerEnv }>,
+    next: () => Promise<void>,
+  ) => {
+    const origin = c.req.header('origin') ?? null;
+    for (const [name, value] of Object.entries(
+      corsHeadersFor(c.env as { ALLOWED_ORIGINS?: string }, origin),
+    )) {
+      c.header(name, value);
+    }
+    if (c.req.method === 'OPTIONS') {
+      return c.body(null, 204);
+    }
+    await next();
+  };
+
+  app.use('/health', publicCorsMiddleware);
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
+  app.use('/api/auth/cashier-login', publicCorsMiddleware);
   app.post('/api/auth/cashier-login', async (c) => {
     const result = await runCashierLoginHttp(
       c.env,
@@ -407,6 +464,93 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 
+  app.use('/api/onboarding/claim', publicCorsMiddleware);
+
+  // M6A: consumo del token de onboarding (single-use) — público como el login.
+  app.post('/api/onboarding/claim', async (c) => {
+    const raw: unknown = await c.req.json().catch(() => null);
+    const token =
+      raw && typeof raw === 'object' && typeof (raw as { token?: unknown }).token === 'string'
+        ? (raw as { token: string }).token
+        : '';
+    const { decision } = await enforceRateLimit({
+      kv: c.env?.TENANT_KV,
+      key: rateLimitKey(clientIp(c.req.raw), 'claim'),
+      limit: 20,
+      windowSeconds: 3600,
+    });
+    if (!decision.allowed) {
+      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
+    }
+    const result = await runOnboardingClaimHttp(c.env, token);
+    return c.json(result.body, result.status as 200 | 403 | 503);
+  });
+
+  // M6B: CORS fail-closed global en /api/* (preflight antes del auth).
+  app.use('/api/*', publicCorsMiddleware);
+  // Público /v1/* (API key, CPE portal, onboarding) — ANTES de los handlers
+  // para que GET /v1/sales|documents|cpe lleven ACAO, no solo el OPTIONS.
+  app.use('/v1/*', publicCorsMiddleware);
+
+  // KDS WS: el browser no puede mandar Authorization en el handshake.
+  // Ticket one-shot (POST /api/kds/ws-ticket, JWT) ANTES del middleware JWT.
+  app.get('/api/kds/ws', async (c) => {
+    const ticket = c.req.query('ticket') ?? '';
+    const claimed = await consumeKdsWsTicket(c.env?.TENANT_KV, ticket, Date.now());
+    if (!claimed) {
+      return c.json({ error: 'KDS ticket required', code: 'UNAUTHENTICATED' }, 401);
+    }
+    const branchId = c.req.query('branchId') ?? claimed.branchId;
+    if (branchId && branchId !== claimed.branchId) {
+      return c.json({ error: 'branch mismatch', code: 'FORBIDDEN' }, 403);
+    }
+    return runKdsWebSocketHttp(c.env, claimed.tenantId, claimed.branchId, c.req.raw);
+  });
+
+  // LPDP ARCO self-serve del titular (Sprint C3): identidad por datos y
+  // token de corta duración (scope lpdp_titular). Públicas ANTES del
+  // middleware JWT; el verify no exige sesión admin pero sí rate-limit.
+  app.post('/api/lpdp/titular/verify', async (c) => {
+    const { decision } = await enforceRateLimit({
+      kv: c.env?.TENANT_KV,
+      key: rateLimitKey(clientIp(c.req.raw), 'lpdp-titular-verify'),
+      limit: 30,
+      windowSeconds: 3600,
+    });
+    if (!decision.allowed) {
+      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
+    }
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularVerifyHttp(c.env, (body ?? {}) as Record<string, unknown>);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/lpdp/titular/export', async (c) => {
+    const result = await runTitularExportHttp(c.env, c.req.header('authorization') ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
+  });
+  app.get('/api/lpdp/titular/consents', async (c) => {
+    const result = await runTitularConsentsHttp(c.env, c.req.header('authorization') ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/lpdp/titular/consent', async (c) => {
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularConsentHttp(
+      c.env,
+      c.req.header('authorization') ?? '',
+      (body ?? {}) as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+  app.post('/api/lpdp/titular/erase', async (c) => {
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularEraseHttp(
+      c.env,
+      c.req.header('authorization') ?? '',
+      (body ?? {}) as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
+  });
+
   // Rutas protegidas: auth fail-closed + Plan Guard (Sprint 2).
   app.use('/api/*', createTenantAndAuthMiddleware(authDeps));
 
@@ -415,6 +559,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.env,
       c.get('user'),
       c.req.header('x-terminal-id') ?? '',
+      c.get('tenant'),
     );
     return c.json(response.body, response.status);
   });
@@ -631,6 +776,18 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
+  // S17-H2: mint del token de autorización de caja (PIN supervisor/owner).
+  app.post('/api/cash/authz-token', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runAuthzTokenMintHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      (await c.req.json().catch(() => null)) as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 422 | 503);
+  });
   app.post('/api/cash/reprints', async (c) => {
     const jwt = c.get('jwt');
     const user = c.get('user');
@@ -759,6 +916,19 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runGetReturnPolicyHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
+  // S28-H3: upsert de la política de devolución (admin/owner, auditado).
+  app.put('/api/sales/returns/policy', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runUpsertReturnPolicyHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.userId ?? jwt?.sub ?? '',
+      user?.role ?? '',
+      await c.req.json().catch(() => null),
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 422 | 503);
+  });
   app.get('/api/sales/returns', async (c) => {
     const jwt = c.get('jwt');
     const saleId = c.req.query('saleId') ?? '';
@@ -886,8 +1056,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/quotes/expired', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runListExpiredQuotesHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.get('/api/ledger/journal', async (c) => {
     const jwt = c.get('jwt');
@@ -952,6 +1123,12 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
+  app.get('/api/orders/kds-pending', async (c) => {
+    const jwt = c.get('jwt');
+    const branchId = c.req.query('branchId') ?? '';
+    const result = await runKdsPendingHttp(c.env, jwt?.tenantId ?? '', branchId);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+  });
   app.post('/api/orders/split', async (c) => {
     const jwt = c.get('jwt');
     const user = c.get('user');
@@ -964,13 +1141,18 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
-  app.get('/api/kds/ws', async (c) => {
+  app.post('/api/kds/ws-ticket', async (c) => {
     const jwt = c.get('jwt');
-    const branchId = c.req.query('branchId') ?? '';
-    return runKdsWebSocketHttp(c.env, jwt?.tenantId ?? '', branchId, c.req.raw);
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const branchId =
+      body &&
+      typeof body === 'object' &&
+      typeof (body as { branchId?: unknown }).branchId === 'string'
+        ? (body as { branchId: string }).branchId
+        : (c.req.query('branchId') ?? '');
+    const result = await runMintKdsWsTicketHttp(c.env, jwt?.tenantId ?? '', branchId);
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
   });
-
-  // Sprint 43 — pedidos de cliente. Tenant/JWT y terminal son siempre server-trusted.
   app.get('/api/orders/customer-orders', async (c) => {
     const branchId = c.req.query('branchId');
     const status = c.req.query('status');
@@ -1203,8 +1385,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/purchasing/three-way', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerThreeWayReportHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.post('/api/purchasing/returns', async (c) => {
     const jwt = c.get('jwt');
@@ -1244,8 +1427,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/purchasing/returns', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerSupplierReturnsHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.post('/api/ledger/store-credit/issue', (c) => {
     const result = runIssueStoreCreditHttp(c.env);
@@ -1279,8 +1463,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/ledger/store-credit', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerStoreCreditHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
   app.post('/api/sales/installments', async (c) => {
     const jwt = c.get('jwt');
@@ -1310,8 +1495,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/installments/overdue', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerInstallmentsOverdueHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerInstallmentsOverdueHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.role ?? '',
+    );
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 
   app.get('/api/admin/commissions/rates', async (c) => {
@@ -1374,8 +1564,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/owner/commissions', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '');
-    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+    const user = c.get('user');
+    const result = await runOwnerCommissionsHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
   });
 
   // Sprint 30 — promociones (FEATURE_PRICING_PROMOTIONS)
@@ -1412,6 +1603,18 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   // Sprint 31 — catálogo padre/variantes + UOM racionales.
   // Sprint 50 — catalog.quick_add (default-off): alta/upsert por barcode y lector compartido.
+  // Sprint C1 — catálogo vendible del POS (fe de errata: la ruta faltaba en index.ts).
+  app.get('/api/catalog/sellable', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user') as { branchId?: string } | undefined;
+    const result = await runListSellableCatalogHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.branchId ?? '',
+    );
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
+  });
+
   app.post('/api/catalog/quick-add', async (c) => {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json();
@@ -1531,6 +1734,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         : {},
     );
     return c.json(result.body, result.status as 201 | 400 | 404 | 422 | 503);
+  });
+  app.get('/api/growth/events', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListGrowthEventsHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 503);
   });
   app.get('/api/catalog/variants-uom', async (c) => {
     const jwt = c.get('jwt');
@@ -2075,6 +2283,33 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = runReportsCatalogHttp(c.env);
     return c.json(result.body, result.status as 200 | 404);
   });
+  // S11-E10: export del catálogo en CSV (Guía Legal Q4 — el cliente exporta
+  // todo su catálogo y sus ventas; las ventas ya están en /api/reports/*).
+  app.get('/api/catalog/export', async (c) => {
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const result = await runExportCatalogCsvHttp(c.env, jwt?.tenantId ?? '');
+    if (typeof result.body === 'string') {
+      return c.body(result.body, result.status as 200, {
+        'content-type': result.contentType ?? 'text/csv; charset=utf-8',
+        'content-disposition': 'attachment; filename="catalogo.csv"',
+      });
+    }
+    return c.json(result.body, result.status as 503);
+  });
+  app.get('/api/sales/export', async (c) => {
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const result = await runExportSalesCsvHttp(c.env, jwt?.tenantId ?? '', {
+      fromDate: c.req.query('from') ?? '',
+      toDate: c.req.query('to') ?? '',
+    });
+    if (typeof result.body === 'string') {
+      return c.body(result.body, result.status as 200, {
+        'content-type': result.contentType ?? 'text/csv; charset=utf-8',
+        'content-disposition': 'attachment; filename="ventas.csv"',
+      });
+    }
+    return c.json(result.body, result.status as 503);
+  });
   app.get('/api/reports/advanced/:reportId', async (c) => {
     const jwt = c.get('jwt');
     const reportId = c.req.param('reportId');
@@ -2349,6 +2584,16 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       ),
     );
   });
+  // S42-H1: emite el step-up token one-shot (owner; consume vía x-step-up-token).
+  app.post('/api/backups/step-up-token', async (c) =>
+    backupResponse(
+      await runMintBackupStepUpTokenHttp(
+        c.env,
+        trustedBackupActor(c.get('user'), c.get('jwt')),
+        (await c.req.json().catch(() => null)) as Record<string, unknown>,
+      ),
+    ),
+  );
   app.get('/api/backups', async (c) =>
     backupResponse(
       await runListBackupsHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt'))),
@@ -2472,7 +2717,16 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const result = runBootstrapHttp(c.env, raw);
+    const { decision } = await enforceRateLimit({
+      kv: c.env?.TENANT_KV,
+      key: rateLimitKey(clientIp(c.req.raw), 'bootstrap'),
+      limit: 10,
+      windowSeconds: 3600,
+    });
+    if (!decision.allowed) {
+      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
+    }
+    const result = await runBootstrapHttp(c.env, raw);
     if (result.status === 201 && raw && typeof raw === 'object' && !Array.isArray(raw)) {
       const o = raw as Record<string, unknown>;
       if (typeof o.ref === 'string' && o.ref && typeof result.body.tenantId === 'string') {
@@ -2483,6 +2737,47 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       }
     }
     return c.json(result.body, result.status as 201 | 400 | 422);
+  });
+
+  app.post('/v1/reclamaciones', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const { decision } = await enforceRateLimit({
+      kv: c.env?.TENANT_KV,
+      key: rateLimitKey(clientIp(c.req.raw), 'reclamaciones'),
+      limit: 10,
+      windowSeconds: 3600,
+    });
+    if (!decision.allowed) {
+      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
+    }
+    const result = await runCreateReclamacionHttp(c.env, raw);
+    return c.json(result.body, result.status as 201 | 422 | 503);
+  });
+  app.get('/v1/internal/reclamaciones', async (c) => {
+    const result = await runListReclamacionesHttp(
+      c.env,
+      c.req.header('x-platform-staff-token') ?? undefined,
+    );
+    return c.json(result.body, result.status as 200 | 401 | 503);
+  });
+  app.patch('/v1/internal/reclamaciones', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = await runRespondReclamacionHttp(
+      c.env,
+      c.req.header('x-platform-staff-token') ?? undefined,
+      raw,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
   });
 
   app.patch('/api/tenant/formalization', async (c) => {
@@ -2505,6 +2800,63 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
   });
 
+  // S11-B5: cambio de plan self-serve (GTM §8) — owner/admin.
+  app.patch('/api/tenant/plan', async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const user = c.get('user') as { role?: string } | undefined;
+    const result = await runUpdatePlanHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '', raw);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
+  });
+
+  // S11-E11: cancelación self-serve (Guía Legal Parte V) — owner/admin.
+  app.post('/api/tenant/cancel', async (c) => {
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const user = c.get('user') as { role?: string } | undefined;
+    const result = await runCancelTenantHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 503);
+  });
+  app.post('/api/tenant/billing-portal', async (c) => {
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const user = c.get('user') as { role?: string } | undefined;
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      raw = {};
+    }
+    const returnUrl =
+      raw &&
+      typeof raw === 'object' &&
+      typeof (raw as { returnUrl?: unknown }).returnUrl === 'string'
+        ? (raw as { returnUrl: string }).returnUrl
+        : 'https://app.kipuspay.com/admin/configuracion';
+    const result = await runBillingPortalHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.role ?? '',
+      returnUrl,
+    );
+    return c.json(result.body, result.status as 200 | 401 | 403 | 422 | 502 | 503);
+  });
+  app.post('/api/tenant/checkout-session', async (c) => {
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const user = c.get('user') as { role?: string } | undefined;
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      raw = {};
+    }
+    const result = await runCheckoutSessionHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '', raw);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 502 | 503);
+  });
+
   // Sprint 12 — referidos (soft-launch in-memory; DDL 0010 = contrato D1)
   app.post('/v1/referrals/code', async (c) => {
     let raw: unknown;
@@ -2523,6 +2875,15 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       raw = await c.req.json();
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const { decision } = await enforceRateLimit({
+      kv: c.env?.TENANT_KV,
+      key: rateLimitKey(clientIp(c.req.raw), 'referral-capture'),
+      limit: 50,
+      windowSeconds: 3600,
+    });
+    if (!decision.allowed) {
+      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
     }
     const result = await runCaptureReferralHttp(c.env, raw);
     return c.json(result.body, result.status as 201 | 400 | 422);

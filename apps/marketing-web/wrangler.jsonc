@@ -1,7 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kipuspay-marketing-web",
+  "name": "kipuspay-marketing-web-staging",
   "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
   "pages_build_output_dir": ".svelte-kit/cloudflare",
   "vars": {
     "PUBLIC_FEATURE_MARKETING_SITE": "0",

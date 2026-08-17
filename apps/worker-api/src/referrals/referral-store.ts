@@ -98,6 +98,6 @@ export function onFirstSaleCredit(
   const refCode = ensureReferralCode(store, plan.referrerTenantId);
   return {
     credited: true,
-    inviteUrlPreview: brandInviteUrl('https://kipuspay.pe', refCode.code),
+    inviteUrlPreview: brandInviteUrl('https://kipuspay.com', refCode.code),
   };
 }

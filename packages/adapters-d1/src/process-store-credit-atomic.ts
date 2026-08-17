@@ -10,7 +10,7 @@ import {
   planStoreCreditIssue,
   redeemStoreCreditSourceRef,
 } from '@kipuspay/domain-cash';
-import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { sha256HexOf } from './crypto.js';
 import {
   appendJournalToPlan,
@@ -122,6 +122,33 @@ export async function ensureStoreCreditAccount(
   const created = await loadStoreCreditAccount(db, tenantId, customerId);
   if (!created) throw new Error(STORE_CREDIT_CUSTOMER_REQUIRED_FALLBACK);
   return created;
+}
+
+/**
+ * Variante dentro del plan atómico: si la cuenta no existe, el INSERT viaja
+ * DENTRO del mismo `db.batch` (el cliente nuevo se crea en el plan; un `.run()`
+ * fuera del batch violaría el FK customers→store_credit_accounts — gap real
+ * detectado en el Sello QA Batch H). Devuelve el row planificado.
+ */
+export async function planEnsureStoreCreditAccount(
+  plan: AtomicPlanBuilder,
+  db: D1DatabaseLike,
+  tenantId: string,
+  customerId: string,
+  expiresAtIso?: string | null,
+): Promise<StoreCreditAccountRow> {
+  const existing = await loadStoreCreditAccount(db, tenantId, customerId);
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  plan.add(
+    db
+      .prepare(
+        `INSERT INTO store_credit_accounts (id, tenant_id, customer_id, balance_cents, expires_at)
+         VALUES (?, ?, ?, 0, ?)`,
+      )
+      .bind(id, tenantId, customerId, expiresAtIso ?? null),
+  );
+  return { id, balance_cents: 0, expires_at: expiresAtIso ?? null };
 }
 
 const STORE_CREDIT_CUSTOMER_REQUIRED_FALLBACK = 'STORE_CREDIT_CUSTOMER_REQUIRED';

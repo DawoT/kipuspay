@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import {
@@ -52,7 +54,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
 
   let session = $state<PosTenantSession>(defaultTenantSession());
-  let sessionId = $state('s-demo');
+  let sessionId = $state(initCashSessionContext().sessionId);
   let qtyByDenom = $state<Record<number, number>>(
     Object.fromEntries(PEN_DENOMS.map((d) => [d, 0])),
   );
@@ -66,7 +68,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   let movementType = $state<CashMovementType>('CHANGE_FUND_IN');
   let movementAmountCents = $state<number | null>(null);
-  let movementBranchId = $state('b-demo');
+  let movementBranchId = $state(initTenantBranchId());
   let movementRef = $state('');
   let movementReason = $state('');
   let movementStatus = $state('');
@@ -75,7 +77,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let authzPin = $state('');
   let authzMsg = $state('');
   let reprintSaleId = $state('');
-  let reprintBranchId = $state('b-demo');
+  let reprintBranchId = $state(initTenantBranchId());
   let reprintReason = $state('');
   let reprintMsg = $state('');
   let reprintOk = $state(false);
@@ -85,8 +87,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     return {
       apiBase: resolveApiBase(localStorage),
       authorization: resolveApiAuth(localStorage).authorization ?? '',
-      branchId: movementBranchId.trim() || 'b-demo',
-      sessionId,
+      branchId: movementBranchId.trim() || initTenantBranchId(),
+      sessionId: sessionId || initCashSessionContext().sessionId,
       movementType,
       amountCents: movementAmountCents ?? 0,
       counterpartyRef: movementRef.trim() || null,
@@ -136,7 +138,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const apiBase = resolveApiBase(localStorage);
     const auth = resolveApiAuth(localStorage).authorization ?? '';
     const res = await submitBlindClose(apiBase, auth, {
-      sessionId,
+      sessionId: sessionId || initCashSessionContext().sessionId,
       countLines,
       differenceReason: reason.trim() || null,
       differenceThresholdCents: 0,
@@ -248,8 +250,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 <svelte:head><title>Cierre Z · Caja · KipusPay</title></svelte:head>
 
-<div class="caja-page-container">
-  <section class="glass-panel caja-card" data-testid="caja-blind-z">
+<div class="page-shell">
+  <section class="ledger-card caja-card" data-testid="caja-blind-z">
     <div class="card-header-bar">
       <div>
         <Badge variant="indigo">Control Operativo</Badge>
@@ -394,7 +396,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     {/if}
   </section>
 
-  <section class="glass-panel caja-card" data-testid="caja-movements">
+  <section class="ledger-card caja-card" data-testid="caja-movements">
     <div class="card-header-bar">
       <div>
         <Badge variant="indigo">Control Operativo</Badge>
@@ -435,7 +437,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     {/if}
   </section>
 
-  <section class="glass-panel caja-card" data-testid="caja-reprints">
+  <section class="ledger-card caja-card" data-testid="caja-reprints">
     <div class="card-header-bar">
       <div>
         <Badge variant="indigo">Control Operativo</Badge>
@@ -493,13 +495,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 </div>
 
 <style>
-  .caja-page-container {
-    max-width: 720px;
-    margin: 0 auto;
-  }
-
   .caja-card {
-    padding: 2rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -509,6 +505,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
@@ -529,13 +526,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 
   .preflight-status-card {
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(20, 22, 28, 0.6);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 0.875rem 1.125rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
     gap: 1rem;
   }
 
@@ -544,6 +542,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
+    min-width: 0;
   }
   .item-label {
     color: var(--text-muted);
@@ -556,7 +555,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   /* Denominations Grid */
   .denom-grid-container {
-    background: rgba(15, 23, 42, 0.4);
+    background: rgba(20, 22, 28, 0.4);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     overflow: hidden;
@@ -615,7 +614,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     background: rgba(16, 185, 129, 0.08);
     border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -642,10 +641,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 
   .result-revelation-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -681,5 +680,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
   .diff-zero {
     color: var(--emerald-green);
+  }
+
+  @media (max-width: 899px) {
+    .card-header-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .preflight-status-card {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>

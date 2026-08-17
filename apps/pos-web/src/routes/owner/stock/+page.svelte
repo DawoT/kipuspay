@@ -10,13 +10,14 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { stockKindLabel, uomLabel } from '$lib/ui/ops-copy';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const ownerOn = isOwnerModeEnabled();
   const invOn = isInventoryOpsEnabled();
   const variantsOn = isCatalogVariantsEnabled() || isCatalogUomEnabled();
 
-  let branchId = $state('b-demo');
+  let branchId = $state('');
   let status = $state('');
   let loading = $state(false);
   let alerts = $state<
@@ -31,10 +32,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     status = 'Cargando…';
     const apiBase = resolveApiBase(localStorage);
     const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const url = new URL(`${apiBase.replace(/\/$/, '')}/api/owner/stock-alerts`);
-    url.searchParams.set('branchId', branchId);
-    url.searchParams.set('expiryWarnDays', '30');
     try {
+      const url = new URL(`${apiBase.replace(/\/$/, '') || location.origin}/api/owner/stock-alerts`);
+      url.searchParams.set('branchId', branchId);
+      url.searchParams.set('expiryWarnDays', '30');
       const res = await fetch(url, { headers: { authorization: auth } });
       const json = (await res.json()) as {
         alerts?: typeof alerts;
@@ -79,7 +80,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 <div class="page-shell" data-testid="owner-stock-alerts">
   <div class="page-masthead">
     <div>
-      <p class="page-eyebrow"><Icon name="alert" size={12} /> Modo Dueño · Inventario</p>
+      <p class="page-eyebrow"><Icon name="alert" size={12} /> Inventario</p>
       <h1 class="page-title">Alertas de stock</h1>
       <p class="page-lede">Quiebre, punto de reposición y lotes por vencer.</p>
     </div>
@@ -97,7 +98,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
   {:else}
     <div class="stock-controls">
-      <div class="glass-card branch-card">
+      <div class="ledger-card branch-card">
         <div class="field-group">
           <label for="stock-branch">Sucursal</label>
           <input id="stock-branch" data-testid="owner-stock-branch" bind:value={branchId} />
@@ -109,7 +110,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
 
     <!-- Alertas -->
-    <div class="glass-card alerts-card">
+    <div class="ledger-card alerts-card">
       <div class="card-header">
         <h2>Alertas activas</h2>
         <span class="badge {alerts.length > 0 ? 'badge-danger' : 'badge-success'}">
@@ -117,12 +118,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         </span>
       </div>
       {#if alerts.length === 0}
-        <EmptyState icon="check" title="Sin alertas" description="Tu stock está saludable." />
+        <EmptyState icon="check" title="Sin alertas" description="Tu stock está saludable.">
+          <Button variant="secondary" href="/owner/compras">Ver compras</Button>
+        </EmptyState>
       {:else}
         <ul class="alert-list" data-testid="owner-stock-list">
           {#each alerts as a}
             <li class="alert-item">
-              <span class="badge {alertBadgeClass(a.kind)}">{a.kind}</span>
+              <span class="badge {alertBadgeClass(a.kind)}">{stockKindLabel(a.kind)}</span>
               <span class="alert-product">{a.productId}</span>
               <span class="alert-detail">{a.detail}</span>
               {#if a.suggestReorderQty}
@@ -138,20 +141,22 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
 
     {#if variantsOn}
-      <div class="glass-card variants-card">
+      <div class="ledger-card variants-card">
         <div class="card-header">
           <h2>Stock por variante</h2>
           <span class="section-tag">Unidades base</span>
         </div>
         <p class="hint-text">Vista agregada; los detalles se calculan sobre la unidad base de cada variante.</p>
         {#if variants.length === 0}
-          <EmptyState icon="layers" title="Sin variantes" description="Configura variantes para ver su stock." />
+          <EmptyState icon="layers" title="Sin variantes" description="Configura variantes para ver su stock.">
+            <Button variant="secondary" href="/admin/catalogo">Ir al catálogo</Button>
+          </EmptyState>
         {:else}
           <ul class="variant-list" data-testid="owner-variant-stock">
             {#each variants as variant}
               <li class="variant-item">
                 <span class="variant-name">{variant.name}</span>
-                <span class="badge badge-muted">{variant.uom_code ?? 'BASE'}</span>
+                <span class="badge badge-muted">{uomLabel(variant.uom_code)}</span>
                 <span class="variant-stock tabular-nums">{variant.stock_microunits / 1_000_000}</span>
               </li>
             {/each}
@@ -176,7 +181,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   .alerts-card,
   .variants-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
   }
 
   

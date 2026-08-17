@@ -67,6 +67,7 @@ describe('processDebitNoteAtomic — integración D1 (P1a)', () => {
       .bind(`ser-8-${tenantId}`)
       .first<{ current_number: number }>();
 
+    const beforeMs = Date.now();
     const res = await processDebitNoteAtomic(
       env.DB,
       tenantId,
@@ -101,10 +102,9 @@ describe('processDebitNoteAtomic — integración D1 (P1a)', () => {
     expect(nd?.sunat_status).toBe('PENDING');
     expect(nd?.must_submit_by).not.toBeNull();
     // ND de factura: ventana de factura (3 días), no la de boleta (7).
-    const windowDays =
-      (Date.parse(nd!.must_submit_by!) - Date.parse('2026-08-12T10:00:00')) / 86400000;
-    expect(windowDays).toBeGreaterThanOrEqual(3);
-    expect(windowDays).toBeLessThan(5);
+    const windowDays = (Date.parse(nd!.must_submit_by!) - beforeMs) / 86400000;
+    expect(windowDays).toBeGreaterThanOrEqual(2.9);
+    expect(windowDays).toBeLessThan(3.1);
 
     const audit = await env.DB.prepare(
       `SELECT action, payload_json FROM audit_events WHERE tenant_id = ? AND action = 'DEBIT_NOTE' LIMIT 1`,

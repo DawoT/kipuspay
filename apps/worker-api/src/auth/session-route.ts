@@ -1,5 +1,6 @@
 import type { WorkerEnv } from './control-plane.js';
 import type { UserSession } from './idp-user.js';
+import type { AuthTenantSnapshot } from './auth-decide.js';
 
 export interface AuthenticatedSessionHttpResult {
   readonly status: 200 | 401 | 403 | 503;
@@ -10,13 +11,27 @@ export async function runAuthenticatedSessionHttp(
   env: WorkerEnv,
   user: UserSession | undefined,
   terminalId: string,
+  tenant?: AuthTenantSnapshot | null,
 ): Promise<AuthenticatedSessionHttpResult> {
   if (!user) return { status: 401, body: { code: 'UNAUTHENTICATED' } };
+  const billing = tenant
+    ? {
+        subscriptionStatus: tenant.subscriptionStatus,
+        trialEndsAt: tenant.trialEndsAt,
+        pastGracePeriod: tenant.pastGracePeriod,
+      }
+    : null;
   const cashRole = user.role === 'cashier' || user.role === 'supervisor';
   if (!cashRole) {
     return {
       status: 200,
-      body: { userId: user.userId, role: user.role, branchId: user.branchId, terminal: null },
+      body: {
+        userId: user.userId,
+        role: user.role,
+        branchId: user.branchId,
+        terminal: null,
+        ...(billing ? { billing } : {}),
+      },
     };
   }
   if (!terminalId || !env.DB) {
@@ -50,6 +65,7 @@ export async function runAuthenticatedSessionHttp(
           terminalId: terminal.terminal_id,
           terminalSessionId: terminal.terminal_session_id,
         },
+        ...(billing ? { billing } : {}),
       },
     };
   } catch {

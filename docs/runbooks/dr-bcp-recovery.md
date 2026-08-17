@@ -11,7 +11,7 @@ owner: "@DawoT"
 |---|---|
 | Severidad tipica | SEV-1 (shard caído = caja detenida para ese tenant) |
 | Owner on-call | Staff SRE + Staff Backend ACID |
-| Ultima ensayada | 2026-08-12 (simulacro Sprint 48, game day dr-failover) |
+| Ultima ensayada | 2026-08-16 (Sprint C4: dr-restore 6/6 + dr-routes 6/6 + dr-failover 5/5 con 500 ciclos + guards reales por API; el workflow del backup por Workflow requiere staging real — go-live) |
 | Relaciona | Arquitectura §5.3 regla 32b · §5.9 regla 27 · ADR-0026 · Proceso §9.1 · Sprint 14/48 |
 
 ## Objetivos declarados

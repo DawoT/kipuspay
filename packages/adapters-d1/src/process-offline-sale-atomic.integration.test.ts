@@ -1862,6 +1862,142 @@ describe('S30-H2: descuento manual re-resuelto server-side (regla 2)', () => {
   });
 });
 
+const H_STORE_CREDIT_OPTS = { ledgerArApEnabled: true, storeCreditEnabled: true } as const;
+const H_STORE_CREDIT_ADMIN_OPTS = {
+  ledgerArApEnabled: true,
+  storeCreditEnabled: true,
+  storeCreditActorIsAdminOrOwner: true,
+} as const;
+const H_FULL_FEATURES_OPTS = {
+  ledgerArApEnabled: true,
+  pricingPromotionsEnabled: true,
+  catalogUomEnabled: true,
+  ledgerChartOfAccountsEnabled: true,
+  storeCreditEnabled: true,
+  storeCreditOnline: true,
+  salesInstallmentsEnabled: true,
+  salesCommissionsEnabled: true,
+  terminalId: 'term-e2e',
+} as const;
+
+describe('paridad branch→location en primera venta (Sello QA Batch J)', () => {
+  it('venta sin fila location crea la fila con la paridad del branch (positiva) y la segunda venta pasa', async () => {
+    const tenantId = 't-j-location-parity';
+    const fixture = await seedNvFixture(tenantId);
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        nvPayload(fixture, 'off-j-1', 1, 1180),
+      ),
+    ).resolves.toMatchObject({ series: 'NV01' });
+    const row = await env.DB.prepare(
+      `SELECT quantity_microunits FROM inventory_location_stock
+       WHERE tenant_id = ? AND product_id = ?`,
+    )
+      .bind(tenantId, fixture.productId)
+      .first<{ quantity_microunits: number }>();
+    // stock 10 uds (10M) - 1 ud (1M) = 9M: la fila nace POSITIVA (paridad del branch).
+    expect(row?.quantity_microunits).toBe(9000000);
+    await expect(
+      processOfflineSaleAtomic(
+        env.DB,
+        tenantId,
+        fixture.userId,
+        nvPayload(fixture, 'off-j-2', 1, 1180),
+      ),
+    ).resolves.toMatchObject({ series: 'NV01' });
+  });
+});
+
+describe('crédito de tienda con cliente nuevo (Sello QA Batch H)', () => {
+  it('inserta cliente nuevo sin guard (cliente DNI real, sin issue)', async () => {
+    const tenantId = 't-h-customer-new';
+    const fixture = await seedNvFixture(tenantId);
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-h-cust-1', 1, 1180),
+        clientDocumentNumber: '45123458',
+        clientName: 'Cliente Sello H4',
+      },
+      H_FULL_FEATURES_OPTS,
+    );
+    expect(result.customerId).toBeTruthy();
+  });
+
+  it('emite crédito de tienda a cliente nuevo sin violar FKs (ISSUE en el plan atómico)', async () => {
+    const tenantId = 't-h-storecredit-new';
+    const fixture = await seedNvFixture(tenantId);
+    const result = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-h-issue-1', 1, 1180),
+        clientDocumentNumber: '45123456',
+        clientName: 'Cliente Sello H',
+        clientPhone: '+51999999999',
+        storeCreditIssue: true,
+      },
+      H_STORE_CREDIT_OPTS,
+    );
+    expect(result.customerId).toBeTruthy();
+    const account = await env.DB.prepare(
+      'SELECT customer_id, balance_cents FROM store_credit_accounts WHERE tenant_id = ?',
+    )
+      .bind(tenantId)
+      .first();
+    expect(account).toMatchObject({ customer_id: result.customerId });
+  });
+
+  it('canjea crédito de tienda en una venta siguiente (REDEEM en el plan)', async () => {
+    const tenantId = 't-h-storecredit-redeem';
+    const fixture = await seedNvFixture(tenantId);
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO payment_methods (id, tenant_id, code, name) VALUES (?, ?, 'store_credit', 'Crédito de tienda')`,
+      ).bind('pm-sc', tenantId),
+    ]);
+    const issue = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-h-redeem-issue', 1, 1180),
+        clientDocumentNumber: '45123457',
+        clientName: 'Cliente Sello H2',
+        storeCreditIssue: true,
+      },
+      H_STORE_CREDIT_OPTS,
+    );
+    expect(issue.customerId).toBeTruthy();
+    const redeem = await processOfflineSaleAtomic(
+      env.DB,
+      tenantId,
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-h-redeem-1', 1, 1180),
+        clientDocumentNumber: '45123457',
+        clientName: 'Cliente Sello H2',
+        useStoreCredit: true,
+        payments: [{ paymentMethodId: 'pm-sc', amountCents: 0 }],
+      },
+      H_STORE_CREDIT_ADMIN_OPTS,
+    );
+    expect(redeem.saleId).toBeTruthy();
+    const account = await env.DB.prepare(
+      'SELECT balance_cents FROM store_credit_accounts WHERE tenant_id = ?',
+    )
+      .bind(tenantId)
+      .first();
+    expect(Number(account?.balance_cents ?? 0)).toBe(0);
+  });
+});
+
 describe('propinas (Backlog v10 P2)', () => {
   it('cobra propina dentro del tope: total = venta + tip, tip_cents persistido, IGV solo sobre la venta', async () => {
     const tenantId = 't-p2-tip-ok';

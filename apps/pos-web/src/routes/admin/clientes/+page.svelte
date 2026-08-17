@@ -187,7 +187,7 @@
     </div>
 
     <div class="workspace-grid">
-      <section class="glass-card section-pad" aria-labelledby="customers-title">
+      <section class="ledger-card section-pad" aria-labelledby="customers-title">
         <div class="card-header">
           <h2 id="customers-title">Clientes de esta cuenta</h2>
           <span class="badge badge-warning">{customers.length}</span>
@@ -215,20 +215,22 @@
             </button>
           {:else}
             {#if loading}
-              <div class="section-pad">
-                <Skeleton lines={3} />
-              </div>
+              <Skeleton lines={3} />
             {:else}
               <div class="empty-state">
                 <Icon name="user" size={22} />
-                <span>No hay clientes para esta sucursal.</span>
+                {#if customers.length === 0 && message.includes('Carga la lista')}
+                  <span>Pulsa Actualizar para cargar los clientes de esta cuenta.</span>
+                {:else}
+                  <span>No hay clientes para esta cuenta.</span>
+                {/if}
               </div>
             {/if}
           {/each}
         </div>
       </section>
 
-      <section class="glass-card section-pad" aria-labelledby="detail-title">
+      <section class="ledger-card section-pad" aria-labelledby="detail-title">
         <div class="card-header">
           <h2 id="detail-title">Datos del cliente</h2>
           {#if selected}<span class="badge badge-indigo">{selected.documentNumber}</span>{/if}
@@ -299,7 +301,7 @@
       bind:this={erasePanel}
       onkeydown={(event) => event.key === 'Escape' && closeErase()}
     >
-      <div class="glass-card modal-card">
+      <div class="ledger-card modal-card">
         {#if eraseStep === 'explain'}
           <h2 id="erase-title">Anonimizar los datos de {selected.documentNumber}</h2>
           <p>
@@ -350,7 +352,110 @@
 </div>
 
 <style>
-  .consent-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0 1rem; }
+  .toolbar-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+
+  .workspace-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.2fr;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .plan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .plan-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    width: 100%;
+    font: inherit;
+    color: inherit;
+  }
+  .plan-card:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-glass-hover);
+  }
+  .plan-card.active {
+    border-color: var(--accent-primary);
+    background: rgba(217, 154, 61, 0.08);
+    box-shadow: inset 3px 0 var(--accent-primary);
+  }
+
+  .plan-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .plan-customer {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--text-main);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .plan-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .history-title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 1rem 0 0.5rem;
+    color: var(--text-main);
+  }
+
+  .action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: var(--inset-card);
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .no-occurrences {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  .consent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.75rem 0 1rem;
+  }
   .consent-row {
     display: flex;
     align-items: center;
@@ -361,22 +466,118 @@
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
   }
-  .consent-info { display: grid; gap: 0.15rem; }
-  .consent-state { font-size: 0.75rem; color: var(--text-muted); }
-  .erase-note { font-size: 0.8125rem; color: var(--text-muted); }
-  .understand-line { display: flex; gap: 0.5rem; align-items: flex-start; font-weight: 600; }
+  .consent-info {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+  .consent-state {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .erase-note {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  .understand-line {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-weight: 600;
+  }
 
-  .badge-muted { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
-  .badge-success { background: rgba(46, 158, 116, 0.15); color: var(--emerald-green); }
+  .badge-muted {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+  }
+  .badge-success {
+    background: rgba(46, 158, 116, 0.15);
+    color: var(--emerald-green);
+  }
+  .badge-sm {
+    font-size: 0.6875rem;
+  }
 
-  button:focus-visible, input:focus-visible, .plan-card:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
-  .plan-card, .consent-row button { min-height: 44px; }
+  .danger-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 44px;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(217, 106, 60, 0.45);
+    background: rgba(217, 106, 60, 0.12);
+    color: var(--rose-red);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .modal-card {
+    width: min(32rem, 100%);
+    max-height: 90dvh;
+    overflow: auto;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  .plan-card:focus-visible {
+    outline: 3px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+  .plan-card,
+  .consent-row button {
+    min-height: 44px;
+  }
+
+  @media (max-width: 899px) {
+    .workspace-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .consent-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .action-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
-  }
-  @media (max-width: 650px) {
-    .consent-row { flex-direction: column; align-items: stretch; }
-    .action-grid { grid-template-columns: 1fr; }
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition: none !important;
+      animation: none !important;
+    }
   }
 </style>

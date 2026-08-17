@@ -100,9 +100,11 @@ export async function claimFiscalRows(db: FiscalDrainDb, limit: number): Promise
 export async function selectClaimedRows(db: FiscalDrainDb): Promise<readonly OutboxRow[]> {
   const res = await db
     .prepare(
-      `SELECT id, tenant_id, sale_id, attempt_count, must_submit_by, r2_xml_key, status, document_type
-       FROM fiscal_outbox
-       WHERE status = 'PROCESSING'`,
+      `SELECT f.id, f.tenant_id, f.sale_id, f.attempt_count, f.must_submit_by,
+              f.r2_xml_key, f.status, s.document_type
+       FROM fiscal_outbox f
+       INNER JOIN sales s ON s.tenant_id = f.tenant_id AND s.id = f.sale_id
+       WHERE f.status = 'PROCESSING'`,
     )
     .all<OutboxRow>();
   return res.results ?? [];

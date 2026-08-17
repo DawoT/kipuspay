@@ -39,7 +39,18 @@ SKIP_DIRS = {
     "build",
     "static",
     "src/lib/claims",
+    "tests",
 }
+
+
+def _is_scanned(name: str) -> bool:
+    """Solo superficies que renderizan copy: nada de tests ni configs de tooling.
+
+    Playwright (tests/e2e + playwright.config.ts) llegó a marketing-web con el
+    Sello QA 6H; el anti-jerga V-26 apunta al copy visible, no al código de
+    test (mismo criterio que V-27/V-30 en el POS).
+    """
+    return name.endswith(".test.ts") is False and name.endswith(".spec.ts") is False and name.endswith(".config.ts") is False
 EXT = {".svelte", ".ts", ".md", ".html", ".css"}
 
 # Comentarios de código (TS/CSS) — no son copy renderizado.
@@ -64,7 +75,7 @@ def iter_files() -> list[str]:
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for name in filenames:
             ext = os.path.splitext(name)[1]
-            if ext in EXT and not name.endswith(".test.ts"):
+            if ext in EXT and _is_scanned(name):
                 out.append(os.path.join(dirpath, name))
     return out
 

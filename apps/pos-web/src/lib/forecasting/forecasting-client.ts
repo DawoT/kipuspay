@@ -1,4 +1,5 @@
 /** Sprint 46 — analítica predictiva (ADR-0030). Cliente de /api/forecasting/. */
+import { applyApiAuthHeaders } from '../auth/api-client.js';
 export interface ForecastItem {
   readonly product_id: string;
   readonly forecast_date: string;
@@ -47,6 +48,8 @@ function forecastingError(code: string): Error {
   return error;
 }
 
+import { resolveApiBase } from '../auth/api-client.js';
+
 async function jsonResponse<T>(response: Response): Promise<T> {
   const body = (await response.json()) as T & { readonly code?: string };
   if (!response.ok) throw forecastingError(body.code ?? `FORECASTING_HTTP_${response.status}`);
@@ -54,15 +57,18 @@ async function jsonResponse<T>(response: Response): Promise<T> {
 }
 
 function apiBaseUrl(raw: string | undefined): string {
-  return (raw ?? '').replace(/\/$/, '') || 'http://localhost:8787';
+  // Sin apiBase explícito: la base unificada del POS (PUBLIC_API_BASE/runtime).
+  const explicit = (raw ?? '').replace(/\/$/, '');
+  return explicit || resolveApiBase();
 }
 
 export function createForecastingClient(dependencies: ForecastingClientDependencies) {
   const fetcher = dependencies.fetcher ?? fetch;
   const base = apiBaseUrl(dependencies.apiBase);
   const headers = (): HeadersInit => {
-    const h: Record<string, string> = { 'content-type': 'application/json' };
-    if (dependencies.authorization) h.authorization = dependencies.authorization;
+    const h = new Headers({ 'content-type': 'application/json' });
+    if (dependencies.authorization) h.set('authorization', dependencies.authorization);
+    applyApiAuthHeaders(h);
     return h;
   };
 

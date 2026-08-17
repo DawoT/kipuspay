@@ -32,19 +32,18 @@
 
 <svelte:head><title>Equipo · Admin · KipusPay</title></svelte:head>
 
-<div class="team-page-container">
-  <section class="glass-panel team-card" data-testid="team-panel">
-    <div class="card-header-bar">
+<div class="page-shell">
+  <section class="ledger-card team-card" data-testid="team-panel">
+    <div class="page-masthead">
       <div>
-        <span class="badge badge-indigo">Equipo</span>
+        <p class="page-eyebrow">Admin · Equipo</p>
         <h1 class="page-title">Invitar cajeros y vendedores</h1>
+        <p class="page-lede">
+          Cada invitado recibe un PIN de caja (tecleo rápido en el carrito) y un badge
+          <code>EMP-…</code> para el lector. Único por email.
+        </p>
       </div>
     </div>
-
-    <p class="lede-text">
-      Cada invitado recibe un PIN de caja (tecleo rápido en el carrito) y un badge
-      <code>EMP-…</code> para el lector. Único por email.
-    </p>
 
     {#if !teamOn}
       <div class="banner-box off-banner" data-testid="team-feature-off">
@@ -105,38 +104,19 @@
 </div>
 
 <style>
-  .team-page-container {
-    max-width: 620px;
-    margin: 0 auto;
-  }
-
   .team-card {
-    padding: 2rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
   }
 
-  .card-header-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-top: 0.25rem;
-  }
-
-  .lede-text {
-    color: var(--text-muted);
-    font-size: 0.9375rem;
-    line-height: 1.5;
-  }
-  .lede-text code {
+  .page-lede code {
     color: var(--emerald-green);
+  }
+
+  .form-group {
+    display: grid;
+    gap: var(--space-2);
   }
 
   .off-banner {
@@ -147,16 +127,16 @@
     display: flex;
     gap: 0.875rem;
     align-items: center;
-    color: #fbbf24;
+    color: var(--amber-gold);
   }
 
 
 
   .result-card {
-    background: rgba(15, 23, 42, 0.8);
+    background: rgba(20, 22, 28, 0.8);
     border: 1px solid var(--border-glow);
     border-radius: var(--radius-md);
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -185,5 +165,11 @@
   .cred-label {
     font-size: 0.75rem;
     color: var(--text-muted);
+  }
+
+  @media (max-width: 899px) {
+    .creds-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

@@ -16,7 +16,8 @@
   import { formatCents } from '$lib/cents';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { catalogItemLabel, salesErrorCopy } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const variantsOn = isCatalogVariantsEnabled();
   const uomOn = isCatalogUomEnabled();
@@ -48,10 +49,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   } | null>(null);
   let lookupMsg = $state('');
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
-
   async function scanLookup() {
     const raw = scanBarcode.trim();
     lookupMsg = '';
@@ -62,8 +59,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
     let response: Response;
     try {
-      response = await fetch(`${apiBase()}/api/catalog/scan/${encodeURIComponent(raw)}`, {
-        headers: { authorization: auth() },
+      response = await apiFetch(`/api/catalog/scan/${encodeURIComponent(raw)}`, {
+        storage: localStorage,
       });
     } catch {
       lookupMsg = 'No se pudo conectar para buscar el código.';
@@ -116,9 +113,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
     let response: Response;
     try {
-      response = await fetch(`${apiBase()}/api/catalog/quick-add`, {
+      response = await apiFetch('/api/catalog/quick-add', {
         method: 'POST',
-        headers: headers(),
+        storage: localStorage,
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ barcode, name, priceCents }),
       });
     } catch {
@@ -140,20 +138,21 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadCatalog() {
     loading = true;
-    const response = await fetch(`${apiBase()}/api/catalog/variants-uom`, {
-      headers: { authorization: auth() },
+    const response = await apiFetch('/api/catalog/variants-uom', {
+      storage: localStorage,
     });
     const json = (await response.json()) as { items?: unknown[]; error?: string };
-    message = response.ok ? '' : (json.error ?? `Error ${response.status}`);
+    message = response.ok ? '' : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
     messageOk = response.ok;
     catalog = response.ok ? (json.items ?? []) : [];
     loading = false;
   }
 
   async function saveVariant() {
-    const response = await fetch(`${apiBase()}/api/catalog/variants/${productId}`, {
+    const response = await apiFetch(`/api/catalog/variants/${productId}`, {
       method: 'PATCH',
-      headers: headers(),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         parentProductId: parentProductId || null,
         variantPriceOverrideCents: overrideCents === null ? null : overrideCents,
@@ -161,14 +160,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     });
     const json = (await response.json()) as { error?: string };
     messageOk = response.ok;
-    message = response.ok ? 'Variante guardada.' : (json.error ?? `Error ${response.status}`);
+    message = response.ok ? 'Variante guardada.' : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
     if (response.ok) await loadCatalog();
   }
 
   async function saveUom() {
-    const response = await fetch(`${apiBase()}/api/catalog/uoms`, {
+    const response = await apiFetch('/api/catalog/uoms', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         productId,
         uomCode,
@@ -179,21 +179,22 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     });
     const json = (await response.json()) as { error?: string };
     messageOk = response.ok;
-    message = response.ok ? 'Unidad guardada.' : (json.error ?? `Error ${response.status}`);
+    message = response.ok ? 'Unidad guardada.' : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
     if (response.ok) await loadCatalog();
   }
 
   async function saveSerialTracking() {
-    const response = await fetch(`${apiBase()}/api/inventory/serials/tracking`, {
+    const response = await apiFetch('/api/inventory/serials/tracking', {
       method: 'PATCH',
-      headers: headers(),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ productId, serialTrackingMode }),
     });
     const json = (await response.json()) as { error?: string; action?: string };
     messageOk = response.ok;
     message = response.ok
       ? 'Seguimiento serial guardado por el servidor.'
-      : [json.error, json.action].filter(Boolean).join(' ');
+      : salesErrorCopy(json.error ?? `ERROR_${response.status}`);
   }
 </script>
 
@@ -217,7 +218,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   </div>
 
   {#if quickAddOn}
-    <section class="glass-card section-pad scan-panel" data-testid="quick-add-panel" aria-labelledby="quick-add-title">
+    <section class="ledger-card section-pad scan-panel" data-testid="quick-add-panel" aria-labelledby="quick-add-title">
       <CardHeader title="Escáner rápido">
         <Badge variant="warning">~3s</Badge>
       </CardHeader>
@@ -301,7 +302,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="workbench">
       <!-- Rail: form -->
-      <aside class="glass-card rail">
+      <aside class="ledger-card rail">
         <div class="card-header">
           <h2>Editor</h2>
           <span class="section-tag">Configuración</span>
@@ -375,7 +376,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </aside>
 
       <!-- Ledger: catalog map -->
-      <section class="glass-card ledger">
+      <section class="ledger-card ledger">
         <div class="card-header">
           <h2>Mapa del catálogo</h2>
           <Button variant="secondary" onclick={loadCatalog} busy={loading} icon="refresh">
@@ -383,9 +384,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           </Button>
         </div>
         {#if catalog.length === 0}
-          <EmptyState icon="layers" title="Sin catálogo" description="Carga el catálogo para revisar padres, variantes y presentaciones." />
+          <EmptyState icon="layers" title="Sin catálogo" description="Carga el catálogo para revisar padres, variantes y presentaciones.">
+            <Button variant="primary" data-testid="catalog-empty-load" onclick={loadCatalog} busy={loading}>
+              Cargar catálogo
+            </Button>
+          </EmptyState>
         {:else}
-          <pre class="json-view">{JSON.stringify(catalog, null, 2)}</pre>
+          <ul class="item-list">
+            {#each catalog as item, i}
+              <li>{catalogItemLabel(item, i)}</li>
+            {/each}
+          </ul>
         {/if}
       </section>
     </div>
@@ -401,14 +410,45 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .rail {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     display: flex;
     flex-direction: column;
     gap: 0;
   }
 
   .ledger {
-    padding: 1.25rem;
+    padding: var(--inset-card);
+  }
+
+  .scan-panel {
+    margin-bottom: 1.25rem;
+  }
+
+  .scan-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin: 0 0 0.875rem;
+  }
+
+  .scan-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+    gap: var(--space-3);
+    align-items: end;
+  }
+
+  .scan-input {
+    min-width: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 
   .ratio-row {
@@ -443,17 +483,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     accent-color: var(--accent-primary);
   }
 
-  .json-view {
-    overflow: auto;
-    padding: 1rem;
-    background: var(--bg-primary);
+  .item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .item-list li {
+    padding: 0.625rem 0.75rem;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.6;
-    max-height: 60vh;
+    color: var(--text-main);
   }
 
   .btn-etiquetas {
@@ -494,8 +537,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--accent-primary-hover);
   }
 
-  @media (max-width: 800px) {
+  @media (max-width: 899px) {
     .workbench {
+      grid-template-columns: 1fr;
+    }
+
+    .scan-form {
       grid-template-columns: 1fr;
     }
   }

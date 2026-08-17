@@ -3,6 +3,7 @@
   import { reveal } from '$lib/components/reveal';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import { ogImageFor } from '$lib/seo';
+  import { OFFICIAL_CHANNELS } from '$lib/content/legal';
 
   const categories = allHelpCategories();
   let searchQuery = $state('');
@@ -45,6 +46,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Soporte
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>¿En qué podemos ayudarte hoy?</h1>
       <p class="hero-sub">
         Respuestas directas sobre la operación de tu negocio, sin manuales complicados.
@@ -81,6 +83,9 @@
               <details class="faq-item" open use:reveal>
                 <summary>
                   <span class="q">{item.question}</span>
+                  {#if item.availability === 'preparing'}
+                    <span class="preparing-badge">En preparación</span>
+                  {/if}
                 </summary>
                 <p class="a">{item.answer}</p>
               </details>
@@ -103,6 +108,9 @@
                   <summary>
                     <span class="num">{String(i + 1).padStart(2, '0')}</span>
                     <span class="q">{item.question}</span>
+                    {#if item.availability === 'preparing'}
+                      <span class="preparing-badge">En preparación</span>
+                    {/if}
                   </summary>
                   <p class="a">{item.answer}</p>
                 </details>
@@ -115,7 +123,10 @@
       <div class="help-contact-box" use:reveal>
         <h3>¿Necesitas asistencia directa?</h3>
         <p>Nuestro equipo de soporte atiende en español para acompañarte en tu configuración.</p>
-        <a class="btn" href="/empezar">Empieza gratis</a>
+        <div class="contact-channels">
+          <a class="btn" href="mailto:{OFFICIAL_CHANNELS.soporte}">{OFFICIAL_CHANNELS.soporte}</a>
+          <a class="btn btn-ghost" href="mailto:{OFFICIAL_CHANNELS.contacto}">{OFFICIAL_CHANNELS.contacto}</a>
+        </div>
       </div>
     </div>
   </div>
@@ -154,6 +165,12 @@
   .help-category-group {
     margin-bottom: 4rem;
   }
+  .contact-channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
   .help-contact-box {
     margin-top: 4rem;
     padding: 2rem;
@@ -167,5 +184,24 @@
   .help-contact-box p {
     margin-bottom: 1.25rem;
     color: rgba(26, 29, 35, 0.8);
+  }
+  .faq-item .q {
+    flex: 1 1 auto;
+  }
+  .preparing-badge {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    border: 1px solid currentColor;
+    border-radius: 0.25rem;
+    color: inherit;
+    opacity: 0.75;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 </style>

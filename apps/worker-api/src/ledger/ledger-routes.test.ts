@@ -147,6 +147,32 @@ describe('ledger / owner flags', () => {
     });
     expect(created.status).toBe(200);
 
+    const withLines = await runCreatePoHttp(
+      mockEnv({ FEATURE_PURCHASING_ORDERS: '1' }),
+      't1',
+      'u1',
+      {
+        branchId: 'b1',
+        supplierId: 's1',
+        totalAmountCents: 300,
+        lines: [
+          { productId: 'p1', quantity: 5, unitCostCents: 30 },
+          { productId: 'p2', quantity: 10, unitCostCents: 15 },
+        ],
+      },
+    );
+    expect(withLines.status).toBe(200);
+    expect((withLines.body as { lines: number }).lines).toBe(2);
+
+    const badLine = await runCreatePoHttp(mockEnv({ FEATURE_PURCHASING_ORDERS: '1' }), 't1', 'u1', {
+      branchId: 'b1',
+      supplierId: 's1',
+      totalAmountCents: 300,
+      lines: [{ productId: '', quantity: 5, unitCostCents: 30 }],
+    });
+    expect(badLine.status).toBe(422);
+    expect((badLine.body as { code: string }).code).toBe('PO_LINE_INVALID');
+
     const trBad = await runTransitionPoHttp(
       mockEnv({ FEATURE_PURCHASING_ORDERS: '1' }, { first: { id: 'po1', status: 'DRAFT' } }),
       't1',

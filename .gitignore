@@ -45,3 +45,10 @@ __pycache__/
 /home-*.png
 /quipu-premium-*.png
 /current-*.png
+
+# Wrangler dev secrets (nunca versionar)
+.dev.vars
+
+# Config y skills de agentes locales (tooling; no doctrina)
+.claude/
+.cursor/

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { apiFetch } from '$lib/auth/api-client';
 
   interface RcBannerState {
     loading: boolean;
@@ -13,7 +14,7 @@
   async function refresh(): Promise<void> {
     state = { ...state, loading: true };
     try {
-      const res = await fetch('/api/owner/rc-pending-banner');
+      const res = await apiFetch('/api/owner/rc-pending-banner');
       if (res.status === 404) {
         // FEATURE_FISCAL_RC off — sin banner (feature no activa).
         state = { loading: false, pending: 0, summaryDate: '', error: false };
@@ -64,9 +65,9 @@
     gap: 0.6rem;
     padding: 0.75rem 1rem;
     border-radius: 0.75rem;
-    background: #fdf3e3;
-    border: 1px solid #e8b94e;
-    color: #7a4f01;
+    background: color-mix(in srgb, var(--amber-gold) 18%, var(--paper, #f3efe6));
+    border: 1px solid var(--amber-gold);
+    color: var(--ink);
     margin-bottom: 1rem;
   }
   .rc-pending-banner p {
@@ -77,7 +78,7 @@
     width: 0.6rem;
     height: 0.6rem;
     border-radius: 50%;
-    background: #d99a3d;
+    background: var(--amber-gold);
     flex-shrink: 0;
   }
 </style>

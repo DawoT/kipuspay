@@ -25,6 +25,14 @@ import { resolveApiBase } from '$lib/auth/api-client';
   let pending = $state(false);
   let error = $state('');
   let message = $state('');
+  let briefingBullets = $derived.by(() => {
+    if (!briefing) return [] as string[];
+    try {
+      return (JSON.parse(briefing.briefing) as { bullets?: string[] }).bullets ?? [];
+    } catch {
+      return [];
+    }
+  });
 
   async function loadBriefing() {
     if (!api) return;
@@ -48,7 +56,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
       answer = await api.chat(q, crypto.randomUUID());
       message = 'Respuesta calculada por el servidor.';
     } catch (err) {
-      error = err instanceof Error ? err.message : 'INSIGHTS_FAILED';
+      error = 'No se pudo calcular la respuesta. Inténtalo de nuevo.';
     } finally {
       pending = false;
     }
@@ -83,9 +91,8 @@ import { resolveApiBase } from '$lib/auth/api-client';
         {/if}
       </div>
       {#if briefing}
-        {@const parsed = JSON.parse(briefing.briefing) as { bullets?: string[] }}
         <ul class="bullets" data-testid="briefing-bullets">
-          {#each parsed.bullets ?? [] as bullet}
+          {#each briefingBullets as bullet}
             <li>{bullet}</li>
           {/each}
         </ul>
@@ -129,7 +136,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
   .muted { color: var(--owner-muted); font-size: 0.8rem; }
   .bullets { margin: 0.5rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; font-size: 0.92rem; }
   textarea { width: 100%; min-height: 3.5rem; border-radius: 0.5rem; border: 1px solid var(--owner-border); background: var(--owner-bg); color: var(--owner-fg); padding: 0.6rem; font: inherit; }
-  .error { color: #ff8a7a; font-size: 0.85rem; margin: 0.6rem 0 0; }
+  .error { color: var(--alerta); font-size: 0.85rem; margin: 0.6rem 0 0; }
   .answer { margin: 0.8rem 0 0; padding: 0.75rem; background: var(--owner-bg); border-radius: 0.5rem; border-left: 3px solid var(--owner-accent); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }

@@ -1,11 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isOwnerModeEnabled } from '$lib/features';
+  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
   import { computeGrowthMetrics, type GrowthEvent } from '$lib/growth/metrics';
   import { readTenantSession, writeTenantSession } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import { apiFetch } from '$lib/auth/api-client';
+  import { ownerOverflowLinks } from '$lib/ui/owner-nav';
+  import { formalizationModeLabel } from '$lib/ui/ops-copy';
 
   const enabled = isOwnerModeEnabled();
+  const moreLinks = ownerOverflowLinks(isAgenticInsightsEnabled());
   let planLabel = $state('Plan: Arranque (lectura)');
   let inviteUrl = $state('');
   let referralCode = $state('');
@@ -19,27 +23,27 @@
 
   onMount(() => {
     let s = readTenantSession(sessionStorage);
-    planLabel = `Plan: Arranque · ${s.formalizationMode}`;
-
-    const demoEvents: GrowthEvent[] = [];
-    if (s.onboardingStartedAtIso) {
-      demoEvents.push({ tenantId: s.tenantId, eventType: 'onboarding_started', occurredAtIso: s.onboardingStartedAtIso });
-    }
-    if (s.firstSaleAtIso) {
-      demoEvents.push({ tenantId: s.tenantId, eventType: 'first_sale', occurredAtIso: s.firstSaleAtIso });
-    }
-    const snap = computeGrowthMetrics(demoEvents);
-    metricsLabel = {
-      ttfs: snap.ttfsMsP80 == null ? 'n/d' : `${Math.round(snap.ttfsMsP80 / 1000)}s`,
-      upgrade: snap.formalizationUpgradeRate == null ? 'n/d' : `${Math.round(snap.formalizationUpgradeRate * 100)}%`,
-      activation: snap.trialToPaidRate == null ? 'n/d' : `${Math.round(snap.trialToPaidRate * 100)}%`,
-      nrr: snap.nrrProxy === 'n/d' || snap.nrrProxy == null ? 'n/d' : `${Math.round(snap.nrrProxy * 100)}%`,
-      kFactor: snap.kFactor == null ? 'n/d' : String(snap.kFactor),
-    };
+    planLabel = `Plan: Arranque · ${formalizationModeLabel(s.formalizationMode)}`;
 
     void (async () => {
       try {
-        const res = await fetch('/v1/referrals/code', {
+        const metricsRes = await apiFetch('/api/growth/events', { storage: localStorage });
+        if (metricsRes.ok) {
+          const payload = (await metricsRes.json()) as { events?: GrowthEvent[] };
+          const snap = computeGrowthMetrics(payload.events ?? []);
+          metricsLabel = {
+            ttfs: snap.ttfsMsP80 == null ? 'n/d' : `${Math.round(snap.ttfsMsP80 / 1000)}s`,
+            upgrade: snap.formalizationUpgradeRate == null ? 'n/d' : `${Math.round(snap.formalizationUpgradeRate * 100)}%`,
+            activation: snap.trialToPaidRate == null ? 'n/d' : `${Math.round(snap.trialToPaidRate * 100)}%`,
+            nrr: snap.nrrProxy === 'n/d' || snap.nrrProxy == null ? 'n/d' : `${Math.round(snap.nrrProxy * 100)}%`,
+            kFactor: snap.kFactor == null ? 'n/d' : String(snap.kFactor),
+          };
+        }
+      } catch {
+        /* métricas n/d si la API no está */
+      }
+      try {
+        const res = await apiFetch('/v1/referrals/code', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ tenantId: s.tenantId }),
@@ -64,7 +68,7 @@
   <div class="page-shell" data-testid="owner-yo">
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="user" size={12} /> Modo Dueño · Perfil</p>
+        <p class="page-eyebrow"><Icon name="user" size={12} /> Perfil</p>
         <h1 class="page-title">Mi perfil</h1>
         <p class="page-lede">Plan, referidos, métricas de negocio y atajos.</p>
       </div>
@@ -74,8 +78,16 @@
       </a>
     </div>
 
+    {#if moreLinks.length > 0}
+      <nav class="more-links" aria-label="Más en Modo Dueño">
+        {#each moreLinks as item (item.href)}
+          <a href={item.href} data-testid={item.testid}>{item.label}</a>
+        {/each}
+      </nav>
+    {/if}
+
     <!-- Plan -->
-    <div class="glass-card plan-card" data-testid="plan-label">
+    <div class="ledger-card plan-card" data-testid="plan-label">
       <div class="card-header">
         <h2>Plan actual</h2>
         <span class="badge badge-success">Activo</span>
@@ -85,7 +97,7 @@
 
     <div class="yo-grid">
       <!-- Referidos -->
-      <div class="glass-card section-pad" data-testid="owner-invite">
+      <div class="ledger-card section-pad" data-testid="owner-invite">
         <div class="card-header">
           <h2>Invita un negocio</h2>
           <Icon name="gift" size={16} />
@@ -104,7 +116,7 @@
       </div>
 
       <!-- Métricas -->
-      <div class="glass-card section-pad" data-testid="growth-metrics">
+      <div class="ledger-card section-pad" data-testid="growth-metrics">
         <div class="card-header">
           <h2>Rendimiento del terminal</h2>
           <Icon name="trending-up" size={16} />
@@ -137,8 +149,26 @@
 {/if}
 
 <style>
+  .more-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .more-links a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
   .plan-card {
-    padding: 1.25rem;
+    padding: var(--inset-card);
     margin-bottom: 0;
   }
 
@@ -248,7 +278,7 @@
     border-color: var(--accent-primary);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .yo-grid { grid-template-columns: 1fr; }
     .metrics-grid { grid-template-columns: 1fr; }
   }

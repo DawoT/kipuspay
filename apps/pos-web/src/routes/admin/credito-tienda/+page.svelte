@@ -1,44 +1,46 @@
 <script lang="ts">
+  
+  import { tenantBranchId } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
   import { isLedgerStoreCreditEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { ledgerSignLabel, salesErrorCopy } from '$lib/ui/ops-copy';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const creditOn = isLedgerStoreCreditEnabled();
-  let customerId = $state('c-demo');
+  let customerId = $state('');
   let amountCents = $state(100);
   let adjustSign = $state<'CREDIT' | 'DEBIT'>('CREDIT');
   let authorizedByUserId = $state('');
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-
   async function expire() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/ledger/store-credit/expire`, {
+    const res = await apiFetch('/api/ledger/store-credit/expire', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
-      body: JSON.stringify({ customerId, branchId: 'b-demo' }),
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ customerId, branchId: tenantBranchId(localStorage) }),
     });
     const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
     messageOk = res.ok;
     message = res.ok
       ? `Crédito expirado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
-      : (json.error ?? `Error ${res.status}`);
+      : salesErrorCopy(json.error);
   }
 
   async function adjust() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/ledger/store-credit/adjust`, {
+    const res = await apiFetch('/api/ledger/store-credit/adjust', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: auth() },
+      storage: localStorage,
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         customerId,
-        branchId: 'b-demo',
+        branchId: tenantBranchId(localStorage),
         amountCents,
         adjustSign,
         authorizedByUserId: authorizedByUserId || null,
@@ -47,8 +49,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const json = (await res.json()) as { nextBalanceCents?: number; error?: string };
     messageOk = res.ok;
     message = res.ok
-      ? `Ajuste ${adjustSign} aplicado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
-      : (json.error ?? `Error ${res.status}`);
+      ? `Ajuste ${ledgerSignLabel(adjustSign)} aplicado · saldo ${formatCents(json.nextBalanceCents ?? 0)}`
+      : salesErrorCopy(json.error);
   }
 </script>
 
@@ -59,7 +61,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div>
       <p class="page-eyebrow"><Icon name="dollar" size={12} /> Ventas · Crédito tienda</p>
       <h1 class="page-title">Crédito de tienda</h1>
-      <p class="page-lede">Gestión de saldo de crédito del cliente — ajustes, expiración y consulta.</p>
+      <p class="page-lede">El vale se emite en Caja. Aquí solo ajustas o expiras el saldo del cliente.</p>
     </div>
   </div>
 
@@ -78,7 +80,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {:else}
     <div class="credit-layout">
       <!-- Contexto -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Cliente</h2>
           <span class="section-tag">Identificación</span>
@@ -90,11 +92,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Ajuste -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <div class="card-header">
           <h2>Ajuste de saldo</h2>
           <span class="badge {adjustSign === 'CREDIT' ? 'badge-success' : 'badge-danger'}">
-            {adjustSign}
+            {ledgerSignLabel(adjustSign)}
           </span>
         </div>
         <div class="field-group">
@@ -104,14 +106,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <div class="field-group">
           <label for="credit-sign">Tipo de ajuste</label>
           <select id="credit-sign" bind:value={adjustSign} data-testid="sc-sign">
-            <option value="CREDIT">CREDIT — Agregar saldo</option>
-            <option value="DEBIT">DEBIT — Reducir saldo</option>
+            <option value="CREDIT">Abono — agregar saldo</option>
+            <option value="DEBIT">Cargo — reducir saldo</option>
           </select>
         </div>
         <div class="field-group">
-          <label for="credit-authz">Autorizado por (ID usuario)</label>
+          <label for="credit-authz">Autorizado por</label>
           <input id="credit-authz" bind:value={authorizedByUserId} data-testid="sc-authz" placeholder="Opcional" />
         </div>
+        <p class="page-lede">Para emitir un vale nuevo, usa Caja → Vale.</p>
         <div class="btn-row">
           <Button variant="primary" icon="check" data-testid="sc-adjust" onclick={adjust}>
           Aplicar ajuste
@@ -140,7 +143,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .credit-layout {
       grid-template-columns: 1fr;
     }

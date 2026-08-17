@@ -56,7 +56,7 @@ describe('Sprint 43 customer-order UI contract (RED)', () => {
   });
 
   it('uses explicit durable notice and no-CPE copy', () => {
-    expect(source).toContain('no cobra nada ni emite CPE');
+    expect(source).toContain('no se cobra ni se emite comprobante');
     expect(source).toContain(
       'Pendiente · Reintento · Escalado son estados operativos observables.',
     );

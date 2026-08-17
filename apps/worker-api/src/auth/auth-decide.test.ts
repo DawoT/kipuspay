@@ -35,6 +35,9 @@ describe('plan-routes', () => {
       '/api/fiscal/emit',
       '/api/documents/emit',
       '/api/reports/arqueo',
+      // S9 blindaje: el sync offline de ventas nunca 402 (continuidad de caja).
+      '/api/v1/sync/sales',
+      '/api/v1/sync/quotas',
     ]) {
       expect(isCheckoutCriticalRoute(path)).toBe(true);
       expect(isPremiumFeatureRoute(path)).toBe(false);

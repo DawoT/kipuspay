@@ -1,4 +1,3 @@
-import { COMPETITOR_SLUGS } from '$lib/content/compare';
 import { VERTICAL_SLUGS } from '$lib/content/verticals';
 import { publishedPosts } from '$lib/content/blog';
 
@@ -20,7 +19,6 @@ export function GET(): Response {
     ...blogSlugs,
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),
     '/comparar',
-    ...COMPETITOR_SLUGS.map((s) => `/comparar/${s}`),
   ];
   const header = [
     '<?xml version="1.0" encoding="UTF-8"?>',

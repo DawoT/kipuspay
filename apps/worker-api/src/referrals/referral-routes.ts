@@ -11,6 +11,38 @@ import {
 /** Soft-launch: store en memoria del isolate. Persistencia D1 = migración 0010. */
 const globalStore: ReferralStore = createReferralStore();
 
+/**
+ * S11-B4 — mes gratis de referidos (GTM §7.1): al acreditar la primera venta
+ * del referido, el trial del referidor y del referido se extiende +30 días
+ * (sobre el trialEndsAt vigente, o desde hoy si ya venció). Best-effort: sin
+ * KV o sin snapshot, se omite sin romper el flujo.
+ */
+async function extendTrialByMonth(
+  kv:
+    | { get(key: string): Promise<string | null>; put?(key: string, value: string): Promise<void> }
+    | undefined,
+  tenantId: string,
+  nowMs: number,
+): Promise<string | null> {
+  if (!kv?.get || !kv.put || !tenantId) return null;
+  try {
+    const raw = await kv.get(`tenant:${tenantId}`);
+    if (!raw) return null;
+    const tenant = JSON.parse(raw) as Record<string, unknown>;
+    const current = typeof tenant.trialEndsAt === 'string' ? Date.parse(tenant.trialEndsAt) : NaN;
+    const base = Number.isFinite(current) && current > nowMs ? current : nowMs;
+    const extended = new Date(base + 30 * 86_400_000).toISOString();
+    tenant.trialEndsAt = extended;
+    if (tenant.subscriptionStatus === 'trial') {
+      tenant.subscriptionStatus = 'trial';
+    }
+    await kv.put(`tenant:${tenantId}`, JSON.stringify(tenant));
+    return extended;
+  } catch {
+    return null;
+  }
+}
+
 export function getReferralStore(): ReferralStore {
   return globalStore;
 }
@@ -29,7 +61,7 @@ export async function runEnsureReferralCodeHttp(
   const marketingOrigin =
     typeof o.marketingOrigin === 'string' && o.marketingOrigin
       ? o.marketingOrigin
-      : 'https://kipuspay.pe';
+      : 'https://kipuspay.com';
   if (env.DB) {
     // S12-H1: código persistido en D1 (idempotente por tenant).
     const { ensureReferralCodeD1 } = await import('@kipuspay/adapters-d1');
@@ -141,7 +173,14 @@ export async function runFirstSaleReferralHttp(
       referrerTenantId: attr.referrer_tenant_id,
       nowIso: now,
     });
-    return { status: 200, body: { credited: true, trialEndsAt: null } };
+    // S11-B4: mes gratis para referidor y referido (GTM §7.1 / blog §7).
+    const nowMs = Date.parse(now);
+    const referredTrial = await extendTrialByMonth(env.TENANT_KV, attr.tenant_id, nowMs);
+    await extendTrialByMonth(env.TENANT_KV, attr.referrer_tenant_id, nowMs);
+    return {
+      status: 200,
+      body: { credited: true, trialEndsAt: referredTrial ?? null },
+    };
   }
   // Fallback soft-launch in-memory.
   if (!globalStore.trials.has(o.tenantId)) {

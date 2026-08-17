@@ -262,3 +262,31 @@ Deuda normativa documentada (ADR-0034): los `pin_hash` emitidos por TEAM_INVITE
 son SHA-256 hex (SEC-03 pide argon2id; no hay runtime argon2 en el worker y los
 hashes existentes no son verificables con argon2) — la migración es un sprint
 propio.
+
+## CORS entre apps (`ALLOWED_ORIGINS`, M6B/M6D)
+
+Los navegadores del marketing (Pages `kipuspay.com`) y del POS (Pages
+`app.kipuspay.com`) llaman al worker API cross-origin. El middleware
+`publicCorsMiddleware` (`apps/worker-api/src/auth/public-cors.ts`) aplica
+**fail-closed**: sin `Origin` en la allowlist no emite `Access-Control-Allow-Origin`
+y el navegador bloquea. La allowlist se lee de la variable `ALLOWED_ORIGINS`
+(comas; `*` explícito solo sin credenciales; con origen concreto se habilita
+`Access-Control-Allow-Credentials: true`).
+
+Orígenes de producción (override por env en el despliegue del worker):
+
+```env
+ALLOWED_ORIGINS=https://kipuspay.com,https://app.kipuspay.com
+```
+
+Los preflight OPTIONS responden 204. Allow-Methods cubre `GET, POST, PUT,
+PATCH, DELETE, OPTIONS` (el POS no es solo POST: sesión, catálogo, ledger).
+Allow-Headers incluye `authorization, x-tenant-id, x-terminal-id,
+x-terminal-session-id, x-step-up-token` (contrato de auth del POS, M6D). El
+default de `wrangler.jsonc` son los orígenes de desarrollo (`localhost:4173`
+preview Playwright, `localhost:5173`/`5174` vite); CI y despliegue deben
+sobreescribirlo con la lista de producción — jamás `*` con credenciales. El
+middleware CORS se registra **antes** de las rutas públicas (`cashier-login`,
+`onboarding/claim`, `/v1/sales|documents|cpe`) y emite `Vary: Origin`. Si el
+handler queda primero, el preflight recibe ACAO pero la respuesta real no, y
+el navegador oculta el body.

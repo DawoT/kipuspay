@@ -30,6 +30,10 @@ describe('print-templates', () => {
   it('leyendas CPE vs NV', () => {
     expect(legendForDocument('NV')).toBe(NV_TICKET_LEGEND);
     expect(legendForDocument('03')).toBe(CPE_TICKET_LEGEND);
+    // S11-E8: literal contractual exacto (Guía Legal Parte I §3.3).
+    expect(NV_TICKET_LEGEND).toBe(
+      'NOTA DE VENTA — Documento de control interno no válido para fines tributarios',
+    );
   });
 
   it('ESC/POS incluye leyenda NV y anchos distintos', () => {

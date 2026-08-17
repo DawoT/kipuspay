@@ -79,7 +79,7 @@
     position: fixed;
     width: 320px;
     max-width: calc(100vw - 32px);
-    background: var(--panel-bg, #0f172a);
+    background: var(--bg-primary);
     border: 1px solid var(--border-glow, rgba(61, 187, 134, 0.4));
     border-radius: var(--radius-md, 12px);
     padding: 1rem 1.125rem;
@@ -100,19 +100,19 @@
     font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.06em;
-    color: var(--emerald-green, #3dbb86);
+    color: var(--emerald-green);
   }
 
   .tour-step-title {
     font-size: 0.875rem;
     font-weight: 700;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .tour-body {
     font-size: 0.9rem;
     line-height: 1.5;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
     margin: 0;
   }
 
@@ -127,7 +127,7 @@
   }
 
   :global(.tour-target-highlight) {
-    outline: 3px solid var(--emerald-green, #3dbb86);
+    outline: 3px solid var(--emerald-green);
     outline-offset: 2px;
     border-radius: 8px;
   }

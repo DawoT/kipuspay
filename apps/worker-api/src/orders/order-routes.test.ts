@@ -4,6 +4,7 @@ import {
   runCancelOrderItemHttp,
   runCreateOrderHttp,
   runFireOrderHttp,
+  runKdsPendingHttp,
   runMarkItemsReadyHttp,
   runSplitBillHttp,
 } from './order-routes.js';
@@ -100,6 +101,9 @@ function mockEnv(
         return Promise.resolve(null);
       },
       all<T>() {
+        if (sql.includes('INNER JOIN order_items')) {
+          return Promise.resolve(okResult<T>(itemRows as T[]));
+        }
         if (sql.includes('SELECT id, serial_tracking_mode FROM products')) {
           return Promise.resolve(
             okResult<T>(
@@ -215,6 +219,46 @@ describe('runFireOrderHttp', () => {
     const res = await runFireOrderHttp(env, 't1', { orderId: 'o1' });
     expect(res.status).toBe(200);
     expect(res.body.kdsVisible).toBe(false);
+  });
+});
+
+describe('runKdsPendingHttp (Sprint C2 — replay del display de cocina)', () => {
+  it('devuelve las comandas FIRED con sus ítems pendientes', async () => {
+    const env = mockEnv(
+      {},
+      {
+        itemRows: [
+          {
+            order_id: 'o1',
+            table_label: 'T3',
+            fired_at: '2026-08-16T17:00:00Z',
+            item_id: 'i1',
+            product_name: 'Pizza',
+            quantity: 2,
+            item_status: 'FIRED',
+          },
+        ],
+      },
+    );
+    const res = await runKdsPendingHttp(env, 't1', 'b1');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      orders: [
+        {
+          id: 'o1',
+          tableLabel: 'T3',
+          firedAt: '2026-08-16T17:00:00Z',
+          items: [{ id: 'i1', productName: 'Pizza', quantity: 2, status: 'FIRED' }],
+        },
+      ],
+    });
+  });
+
+  it('FEATURE_OFF y branchId requerido (fail-closed)', async () => {
+    expect((await runKdsPendingHttp(mockEnv({ FEATURE_ORDERS_KDS: '0' }), 't1', 'b1')).status).toBe(
+      404,
+    );
+    expect((await runKdsPendingHttp(mockEnv(), '', 'b1')).status).toBe(400);
   });
 });
 

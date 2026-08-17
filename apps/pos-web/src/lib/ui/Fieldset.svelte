@@ -34,10 +34,9 @@
 
   .ui-fieldset legend {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--accent-primary);
     padding: 0 0.375rem;
   }

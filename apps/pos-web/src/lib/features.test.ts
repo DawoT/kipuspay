@@ -9,6 +9,9 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_OWNER_MODE', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'OWNER_PUSH', '');
     vi.stubEnv('PUBLIC_FEATURE_LEDGER_AR_AP', '');
+    vi.stubEnv('PUBLIC_FEATURE_CASH_EXPENSES', '');
+    vi.stubEnv('PUBLIC_FEATURE_PURCHASING_ORDERS', '');
+    vi.stubEnv('PUBLIC_FEATURE_FISCAL_RC', '');
     vi.stubEnv('PUBLIC_FEATURE_REPORTING_CATALOG', '');
     vi.stubEnv('PUBLIC_FEATURE_REPORTING_EXPORT', '');
     vi.stubEnv('PUBLIC_FEATURE_ORDERS_KDS', '');
@@ -51,6 +54,9 @@ describe('features flags default off', () => {
     expect(mod.isOwnerModeEnabled()).toBe(false);
     expect(mod.isOwnerPushEnabled()).toBe(false);
     expect(mod.isLedgerArApEnabled()).toBe(false);
+    expect(mod.isCashExpensesEnabled()).toBe(false);
+    expect(mod.isPurchasingOrdersEnabled()).toBe(false);
+    expect(mod.isFiscalRcEnabled()).toBe(false);
     expect(mod.isReportingCatalogEnabled()).toBe(false);
     expect(mod.isReportingExportEnabled()).toBe(false);
     expect(mod.isOrdersKdsEnabled()).toBe(false);

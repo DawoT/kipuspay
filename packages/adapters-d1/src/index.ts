@@ -183,4 +183,6 @@ export * from './crypto.js';
 export * from './customer-repository.js';
 export * from './referral-d1.js';
 export * from './pin-lockout.js';
+export * from './onboarding-bootstrap-persist.js';
 export { hashPinArgon2id, isArgon2idHash, verifyPinHash } from '@kipuspay/domain-ops';
+export { generateBadgeBarcode, generateCashierPin } from '@kipuspay/domain-ops';

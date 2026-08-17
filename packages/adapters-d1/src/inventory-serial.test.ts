@@ -289,6 +289,18 @@ describe('inventory serial atomic plan', () => {
     expect(guard).toContain('serial_numbers');
   });
 
+  it('rejects REQUIRED with an honest error when untracked stock exists', async () => {
+    const db = scriptedDb((sql) =>
+      sql.includes('SUM(s.quantity_microunits)') ? { qty: 2_000_000 } : null,
+    );
+    await expect(
+      configureSerialTrackingAtomic(db, 'tenant-a', 'user-a', {
+        productId: 'product-a',
+        serialTrackingMode: 'REQUIRED',
+      }),
+    ).rejects.toThrow('SERIAL_STOCK_EXISTS');
+  });
+
   it('creates an exact receipt manifest and rejects a duplicate before commit', async () => {
     const receipt = {
       id: 'line-a',

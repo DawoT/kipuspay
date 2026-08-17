@@ -2,6 +2,8 @@ import { WorkerEntrypoint } from 'cloudflare:workers';
 import { createAuthDepsFromEnv, type WorkerEnv } from './auth/control-plane.js';
 import { createApp } from './index.js';
 import { runDailyRollupsCronHttp } from './reports/report-routes.js';
+import { runBillingRemindersScheduled } from './billing/billing-reminders-scheduled.js';
+import { runMeterOverageCronHttp } from './billing/meter-overage-routes.js';
 import {
   runRecurringManualRpc,
   runRecurringSalesScheduled,
@@ -45,6 +47,18 @@ export default {
   async scheduled(event: ScheduledEvent, env: WorkerEnv, _ctx: ExecutionContext): Promise<void> {
     if (event.cron === DAILY_ROLLUP_CRON) {
       await runDailyRollupsCronHttp(env, { scheduledTimeMs: event.scheduledTime });
+      // S9-A3: recordatorios progresivos de pago (días 1..3 de gracia).
+      try {
+        await runBillingRemindersScheduled(env, { nowMs: event.scheduledTime });
+      } catch {
+        // Best-effort: el rollup no debe tumbar los recordatorios ni viceversa.
+      }
+      try {
+        // Flag-off → 404 FEATURE_OFF; no prende FEATURE_BILLING_USAGE_OVERAGE.
+        await runMeterOverageCronHttp(env, { nowMs: event.scheduledTime }, 'owner');
+      } catch {
+        // Best-effort: el overage no tumba el rollup.
+      }
       return;
     }
     if (event.cron === FORECAST_CRON) {

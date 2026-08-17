@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { isSalesQuotesEnabled } from '$lib/features';
@@ -7,13 +9,14 @@
     readTenantSession,
     type PosTenantSession,
   } from '$lib/tenant/session';
+  import { salesErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import CardHeader from '$lib/ui/CardHeader.svelte';
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   const quotesOn = isSalesQuotesEnabled();
   let session = $state<PosTenantSession>(defaultTenantSession());
@@ -26,21 +29,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let messageOk = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
-
   onMount(() => {
     session = readTenantSession(sessionStorage);
   });
 
   async function createQuote() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes`, {
+    const res = await apiFetch('/api/sales/quotes', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        branchId: 'b-demo',
+        branchId: tenantBranchId(localStorage),
         validUntilIso: validUntil,
         items: [{ productId, enteredQuantityMicrounits: enteredMicrounits }],
       }),
@@ -53,50 +52,50 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       error?: string;
     };
     messageOk = res.ok;
-    if (!res.ok) { message = json.error ?? `Error ${res.status}`; return; }
+    if (!res.ok) { message = salesErrorCopy(json.error); return; }
     quoteId = json.quoteId ?? '';
-    message = `Cotización ${quoteId} · snapshot S/ ${formatCents(json.snapshotTotalCents ?? 0)} · CPE=${json.emitsFiscalDocument} · reserva=${json.reservesStock}`;
+    message = `Cotización lista · S/ ${formatCents(json.snapshotTotalCents ?? 0)}${json.emitsFiscalDocument ? ' · con comprobante' : ''}${json.reservesStock ? ' · reserva stock' : ''}`;
   }
 
   async function send() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/send`, { method: 'POST', headers: headers(), body: JSON.stringify({ quoteId }) });
+    const res = await apiFetch('/api/sales/quotes/send', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Enviada (${json.status})` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Enviada` : salesErrorCopy(json.error);
   }
 
   async function approve() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/approve`, { method: 'POST', headers: headers(), body: JSON.stringify({ quoteId }) });
+    const res = await apiFetch('/api/sales/quotes/approve', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Aprobada (${json.status})` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Aprobada (${json.status})` : salesErrorCopy(json.error);
   }
 
   async function convert() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/convert`, {
+    const res = await apiFetch('/api/sales/quotes/convert', {
       method: 'POST',
-      headers: headers(),
+      storage: localStorage, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         quoteId,
-        cashRegisterSessionId: 's-demo',
+        cashRegisterSessionId: cashSessionContext(localStorage).sessionId,
         series,
         documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
       }),
     });
     const json = (await res.json()) as { saleId?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Convertida a venta ${json.saleId}` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Convertida a venta ${json.saleId}` : salesErrorCopy(json.error);
   }
 
   async function cancel() {
     message = '';
-    const res = await fetch(`${apiBase()}/api/sales/quotes/cancel`, { method: 'POST', headers: headers(), body: JSON.stringify({ quoteId, reason }) });
+    const res = await apiFetch('/api/sales/quotes/cancel', { method: 'POST', storage: localStorage, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId, reason }) });
     const json = (await res.json()) as { status?: string; error?: string };
     messageOk = res.ok;
-    message = res.ok ? `Cancelada (${json.status})` : (json.error ?? `Error ${res.status}`);
+    message = res.ok ? `Cancelada (${json.status})` : salesErrorCopy(json.error);
   }
 </script>
 
@@ -128,7 +127,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     <div class="quote-layout">
       <!-- Crear -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <CardHeader title="Nueva cotización">
           <span class="section-tag">Crear</span>
         </CardHeader>
@@ -152,7 +151,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
 
       <!-- Acciones -->
-      <section class="glass-card section-pad">
+      <section class="ledger-card section-pad">
         <CardHeader title="Gestionar">
           <span class="section-tag">Acciones</span>
         </CardHeader>
@@ -234,7 +233,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-family: var(--font-mono);
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .quote-layout { grid-template-columns: 1fr; }
   }
 </style>

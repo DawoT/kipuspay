@@ -222,6 +222,17 @@ check_pos_copy() {
   return 0
 }
 
+# --- V-30: cero literales demo en el código fuente del POS (F-6) -------------
+# V-27 cubre el texto visible del template; V-30 escanea todo apps/pos-web/src
+# (.ts + .svelte) y rechaza literales 'demo' asignados como valor (estado,
+# objeto, params). Comparaciones defensivas y comentarios se permiten.
+check_pos_demo_ids() {
+  python3 scripts/checks/pos_demo_ids.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
 # --- V-05, V-06, V-08..V-12: checks estructurales ----------------------------
 check_structural() {
   python3 scripts/checks/structural.py "${DOCS[@]}"
@@ -241,6 +252,14 @@ check_ledger_chain() {
 # --- V-15: INDEX.md generado y sincronizado ----------------------------------
 check_index_drift() {
   python3 scripts/checks/gen_index.py --check
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
+# --- V-28/V-29: contrato de integración entre apps ---------------------------
+check_api_contract() {
+  python3 scripts/checks/api_contract.py
   local rc=$?
   [ $rc -ne 0 ] && FAIL=1
   return 0
@@ -266,6 +285,8 @@ check_bundle_budget
 check_migrations_mirror
 check_marketing_copy
 check_pos_copy
+check_pos_demo_ids
+check_api_contract
 
 echo ""
 if [ $FAIL -eq 0 ]; then

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchAccountsPayable, fetchAccountsReceivable } from './ledger-finance.js';
+import {
+  fetchAccountsPayable,
+  fetchAccountsReceivable,
+  payAccountsReceivable,
+} from './ledger-finance.js';
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -54,7 +58,7 @@ describe('ledger financiero (CxC/CxP, F2)', () => {
       },
     ]);
     expect(captured.url).toBe('https://api.test/api/ledger/ar');
-    expect((captured.init?.headers as Record<string, string>).authorization).toBe(AUTH);
+    expect(new Headers(captured.init?.headers).get('authorization')).toBe(AUTH);
   });
 
   it('trae cuentas por pagar con el mismo contrato', async () => {
@@ -109,5 +113,23 @@ describe('ledger financiero (CxC/CxP, F2)', () => {
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.message).toContain('Sin conexión');
+  });
+
+  it('abona CxC contra /api/ledger/ar/pay con cents INTEGER', async () => {
+    const { fetcher, captured } = captureFetcher({ nextBalanceCents: 0 }, 200);
+    const res = await payAccountsReceivable({
+      fetcher,
+      apiBase: 'https://api.test',
+      authorization: AUTH,
+      accountsReceivableId: 'ar-1',
+      amountCents: 4000,
+      cashRegisterSessionId: 'sess-1',
+    });
+    expect(res.ok).toBe(true);
+    expect(captured.url).toBe('https://api.test/api/ledger/ar/pay');
+    expect(JSON.parse(captured.init?.body as string)).toMatchObject({
+      accountsReceivableId: 'ar-1',
+      amountCents: 4000,
+    });
   });
 });

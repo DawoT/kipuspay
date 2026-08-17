@@ -115,7 +115,7 @@
     padding-top: 1.75rem;
     border-top: 1px solid var(--line);
   }
-  @media (min-width: 640px) {
+  @media (min-width: 719px) {
     .calc-results {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }

@@ -1,12 +1,15 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { isOrdersKdsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
+  import { kdsEventLabel } from '$lib/ui/ops-copy';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { apiFetch } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
+  import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   let orderId = $state('');
   let itemA = $state('');
   let itemB = $state('');
@@ -16,6 +19,10 @@
   let result = $state('');
   let error = $state('');
 
+  onMount(() => {
+    sessionId = cashSessionContext(localStorage).sessionId;
+  });
+
   async function splitBill() {
     error = '';
     result = '';
@@ -24,7 +31,7 @@
       { saleId: crypto.randomUUID(), itemIds: [itemB].filter(Boolean) },
     ].filter((p) => p.itemIds.length > 0);
 
-    const res = await fetch('/api/orders/split', {
+    const res = await apiFetch('/api/orders/split', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -44,7 +51,7 @@
       error = body.error ?? 'split failed';
       return;
     }
-    result = `${body.orderStatus} · ${body.portions?.length ?? 0} sales`;
+    result = `Cuenta dividida en ${body.portions?.length ?? 0} pagos · ${kdsEventLabel(body.orderStatus ?? '')}`;
     publishVitrina({
       totalCents: 0,
       itemCount: portions.length,
@@ -57,12 +64,11 @@
 
 <svelte:head><title>Dividir cuenta · Salón · KipusPay</title></svelte:head>
 
-<div class="page-shell" data-testid="split-root">
-  <div class="page-masthead">
+<div class="floor-board" data-testid="split-root">
+  <div class="floor-toolbar">
     <div>
-      <p class="page-eyebrow"><Icon name="percent" size={12} /> Restaurante · Salón</p>
-      <h1 class="page-title">Dividir cuenta (Split Bill)</h1>
-      <p class="page-lede">Divide una comanda de mesa entre múltiples pagos independientes.</p>
+      <p class="page-eyebrow">Piso · Salón</p>
+      <h1>Dividir cuenta</h1>
     </div>
     <a class="link-action" href="/salon">
       <Icon name="arrow-left" size={14} />
@@ -90,62 +96,85 @@
       </StatusMessage>
     {/if}
 
-    <div class="glass-card split-card" data-testid="split">
+    <div class="ledger-card split-card" data-testid="split">
       <div class="card-header">
-        <h2>Dividir orden</h2>
+        <h2>Dividir cuenta</h2>
         <span class="badge badge-indigo">Multi-pago</span>
       </div>
-      <div class="field-group">
-        <label for="sp-order">ID Orden / Comanda</label>
-        <input id="sp-order" data-testid="split-order" bind:value={orderId} placeholder="ID de la orden" />
-      </div>
-
-      <div class="two-col">
+      <div class="split-board">
         <div class="field-group">
-          <label for="sp-item-a">ID Ítem A</label>
+          <label for="sp-order">Comanda</label>
+          <input id="sp-order" data-testid="split-order" bind:value={orderId} placeholder="ID de la orden" />
+        </div>
+        <div class="field-group">
+          <label for="sp-item-a">Ítem A</label>
           <input id="sp-item-a" data-testid="split-item-a" bind:value={itemA} placeholder="Primer ítem a cobrar" />
         </div>
         <div class="field-group">
-          <label for="sp-item-b">ID Ítem B</label>
+          <label for="sp-item-b">Ítem B</label>
           <input id="sp-item-b" data-testid="split-item-b" bind:value={itemB} placeholder="Segundo ítem a cobrar" />
         </div>
-      </div>
-
-      <div class="two-col">
         <div class="field-group">
           <label for="sp-session">Sesión de caja</label>
-          <input id="sp-session" data-testid="split-session" bind:value={sessionId} placeholder="s-demo" />
+          <input id="sp-session" data-testid="split-session" bind:value={sessionId} placeholder="Sesión de caja" />
         </div>
         <div class="field-group">
           <label for="sp-pm">Método de pago</label>
-          <input id="sp-pm" data-testid="split-pm" bind:value={paymentMethodId} placeholder="pm-cash" />
+          <input id="sp-pm" data-testid="split-pm" bind:value={paymentMethodId} placeholder="Efectivo u otro método" />
         </div>
+        <div class="field-group">
+          <label for="sp-series">Serie documento</label>
+          <input id="sp-series" data-testid="split-series" bind:value={series} />
+        </div>
+        <Button variant="primary" size="full" data-testid="split-submit" onclick={splitBill} icon="percent">
+          Cobrar por partes
+        </Button>
       </div>
-
-      <div class="field-group">
-        <label for="sp-series">Serie documento</label>
-        <input id="sp-series" data-testid="split-series" bind:value={series} />
-      </div>
-
-      <Button variant="primary" size="full" data-testid="split-submit" onclick={splitBill} icon="percent">
-        Cobrar split
-      </Button>
     </div>
   {/if}
 </div>
 
 <style>
   .split-card {
-    padding: 1.25rem;
-    max-width: 32rem;
+    flex: 1;
+    max-width: none;
   }
 
+  .split-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
+  }
 
+  .split-board :global(.ui-btn) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 899px) {
+    .split-board {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .link-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-button-sec);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 44px;
+    white-space: nowrap;
+  }
 
   .link-action:hover {
     background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
   }
-
-  @media (max-width: 600px) {  }
 </style>

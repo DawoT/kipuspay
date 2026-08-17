@@ -6,19 +6,61 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
+  import { kdsEventLabel, salesErrorCopy } from '$lib/ui/ops-copy';
+  import { apiFetch, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOrdersKdsEnabled();
+  import { tenantBranchId } from '$lib/admin/cash-session';
   let branchId = $state('default');
   let events = $state<{ type: string; orderId: string; orderItemId?: string; at: number }[]>([]);
+  let pending = $state<
+    { id: string; tableLabel: string | null; items: { id: string; productName: string | null; quantity: number; status: string }[] }[]
+  >([]);
   let error = $state('');
   let ws: WebSocket | null = null;
 
-  function connect() {
+  async function loadPending() {
+    try {
+      const res = await apiFetch(
+        `/api/orders/kds-pending?branchId=${encodeURIComponent(branchId)}`,
+        { storage: localStorage },
+      );
+      if (!res.ok) return;
+      const body = (await res.json()) as { orders?: typeof pending };
+      pending = body.orders ?? [];
+    } catch {
+      // el WS cubre el evento en vivo; el replay es best-effort.
+    }
+  }
+
+  function kdsWebSocketUrl(id: string, ticket: string): string {
+    const httpBase = resolveApiBase();
+    const wsBase = httpBase.replace(/^http/i, 'ws');
+    const qs = new URLSearchParams({ branchId: id, ticket });
+    return `${wsBase}/api/kds/ws?${qs.toString()}`;
+  }
+
+  async function connect() {
     error = '';
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const url = `${proto}://${location.host}/api/kds/ws?branchId=${encodeURIComponent(branchId)}`;
     ws?.close();
-    ws = new WebSocket(url);
+    try {
+      const minted = await apiFetch('/api/kds/ws-ticket', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ branchId }),
+      });
+      const body = (await minted.json()) as { ticket?: string; error?: string };
+      if (!minted.ok || !body.ticket) {
+        error = body.error ?? 'No se pudo conectar la pantalla de cocina.';
+        return;
+      }
+      const url = kdsWebSocketUrl(branchId, body.ticket);
+      ws = new WebSocket(url);
+    } catch (e) {
+      error = String(e);
+      return;
+    }
+    if (!ws) return;
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(String(ev.data)) as {
@@ -27,6 +69,9 @@
           orderItemId?: string;
           firedAtMs?: number;
         };
+        if (data.type === 'ITEM_FIRED' || data.type === 'ITEM_READY') {
+          void loadPending();
+        }
         events = [
           {
             type: data.type,
@@ -52,12 +97,12 @@
       }
     };
     ws.onerror = () => {
-      error = 'KDS WebSocket error — reconectando';
+      error = 'Se perdió la conexión con cocina. Reintentando…';
     };
   }
 
   async function markReady(orderId: string, orderItemId?: string) {
-    const res = await fetch('/api/orders/items/ready', {
+    const res = await apiFetch('/api/orders/items/ready', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -67,30 +112,42 @@
     });
     if (!res.ok) {
       const body = (await res.json()) as { error?: string };
-      error = body.error ?? 'ready failed';
+      error = salesErrorCopy(body.error ?? 'ORDER_ITEM_FAILED');
+    } else {
+      error = '';
+      void loadPending();
     }
   }
 
   onMount(() => {
-    if (enabled) connect();
+    branchId = tenantBranchId(localStorage) || 'default';
+    if (enabled) {
+      void loadPending();
+      void connect();
+    }
   });
   onDestroy(() => ws?.close());
 </script>
 
-<svelte:head><title>KDS Cocina · KipusPay</title></svelte:head>
+<svelte:head><title>Cocina · KipusPay</title></svelte:head>
 
-<div class="page-shell" data-testid="kds-root">
-  <div class="page-masthead">
+<div class="floor-board" data-testid="kds-root">
+  <div class="floor-toolbar">
     <div>
-      <p class="page-eyebrow"><Icon name="box" size={12} /> KDS · Pantalla de cocina</p>
-      <h1 class="page-title">Display de Cocina (KDS)</h1>
-      <p class="page-lede">Monitoreo en tiempo real de comandas recibidas y marcación de despacho a garzón.</p>
+      <p class="page-eyebrow">Piso · Cocina</p>
+      <h1>Cocina</h1>
     </div>
-    {#if enabled}
-      <Button variant="secondary" data-testid="kds-reconnect" onclick={connect} icon="refresh">
-        Reconectar WS
-      </Button>
-    {/if}
+    <div class="floor-toolbar-actions">
+      {#if enabled}
+        <label class="branch-inline" for="kds-branch-input">
+          Sucursal
+          <input id="kds-branch-input" data-testid="kds-branch" bind:value={branchId} />
+        </label>
+        <Button variant="secondary" data-testid="kds-reconnect" onclick={connect} icon="refresh">
+          Reconectar
+        </Button>
+      {/if}
+    </div>
   </div>
 
   {#if !enabled}
@@ -106,68 +163,113 @@
       </StatusMessage>
     {/if}
 
-    <div class="kds-layout" data-testid="kds">
-      <div class="glass-card section-pad branch-card">
-        <div class="field-group">
-          <label for="kds-branch-input">Sucursal activa</label>
-          <input id="kds-branch-input" data-testid="kds-branch" bind:value={branchId} />
-        </div>
-      </div>
-
-      <div class="glass-card section-pad events-card">
-        <div class="card-header">
-          <h2>Comandas en cola</h2>
-          <span class="badge {events.length > 0 ? 'badge-warning' : 'badge-success'}">
-            {events.length} evento(s)
-          </span>
-        </div>
-
-        {#if events.length === 0}
-          <div class="empty-state">
-            <Icon name="check" size={28} />
-            <span>Cocina al día — sin comandas pendientes</span>
-          </div>
-        {:else}
-          <ul class="kds-event-list" data-testid="kds-events">
-            {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
-              <li class="kds-event-item">
-                <span class="badge {ev.type === 'ITEM_FIRED' ? 'badge-warning' : 'badge-success'}">
-                  {ev.type}
-                </span>
-                <span class="order-ref">
-                  <Icon name="file-text" size={14} />
-                  {ev.orderId}
-                </span>
-                {#if ev.type === 'ITEM_FIRED'}
-                  <button
-                    type="button"
-                    class="success mark-btn"
-                    data-testid="kds-ready"
-                    onclick={() => markReady(ev.orderId, ev.orderItemId)}
-                  >
-                    <Icon name="check" size={14} />
-                    Listo
-                  </button>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
+    <div class="kds-board" data-testid="kds">
+      {#if pending.length > 0}
+        <ul class="kds-pending" data-testid="kds-pending">
+          {#each pending as order (order.id)}
+            <li class="ledger-card kds-pending-card">
+              <div class="kds-pending-head">
+                <span class="badge badge-warning">Mesa {order.tableLabel ?? '—'}</span>
+                <span class="order-ref">{order.id.slice(0, 8)}</span>
+              </div>
+              <ul class="kds-pending-items">
+                {#each order.items as item (item.id)}
+                  <li>
+                    <span>{item.productName ?? item.id}</span>
+                    <span class="qty">× {item.quantity}</span>
+                    {#if item.status !== 'READY'}
+                      <button
+                        type="button"
+                        class="success mark-btn"
+                        data-testid="kds-ready"
+                        onclick={() => markReady(order.id, item.id)}
+                      >
+                        <Icon name="check" size={14} />
+                        Listo
+                      </button>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </li>
+          {/each}
+        </ul>
+      {:else if events.length === 0}
+        <EmptyState icon="check" title="Cocina al día" description="Cuando llegue una comanda, aparece aquí." />
+      {:else}
+        <ul class="kds-event-list" data-testid="kds-events">
+          {#each events as ev (ev.at + ev.orderId + (ev.orderItemId ?? ''))}
+            <li class="kds-event-item ledger-card">
+              <span class="badge {ev.type === 'ITEM_FIRED' ? 'badge-warning' : 'badge-success'}">
+                {kdsEventLabel(ev.type)}
+              </span>
+              <span class="order-ref">
+                <Icon name="file-text" size={14} />
+                {ev.orderId}
+              </span>
+              {#if ev.type === 'ITEM_FIRED'}
+                <button
+                  type="button"
+                  class="success mark-btn"
+                  data-testid="kds-ready"
+                  onclick={() => markReady(ev.orderId, ev.orderItemId)}
+                >
+                  <Icon name="check" size={14} />
+                  Listo
+                </button>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </div>
   {/if}
 </div>
 
 <style>
-  .kds-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+  .branch-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    min-height: 44px;
   }
 
+  .branch-inline input {
+    min-width: 8rem;
+  }
 
+  .kds-board {
+    flex: 1;
+    min-height: 0;
+  }
 
-  .kds-event-list {
+  .kds-pending {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 0.75rem;
+    align-content: start;
+  }
+
+  .kds-pending-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .kds-pending-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .kds-pending-items {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -176,14 +278,34 @@
     gap: 0.5rem;
   }
 
+  .kds-pending-items li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-height: 44px;
+  }
+
+  .kds-pending-items .qty {
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .kds-event-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 0.75rem;
+    align-content: start;
+  }
+
   .kds-event-item {
     display: flex;
     align-items: center;
-    gap: 0.875rem;
-    padding: 0.75rem;
-    background: var(--bg-glass);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    gap: 0.75rem;
+    min-height: 44px;
     flex-wrap: wrap;
   }
 
@@ -199,7 +321,8 @@
   }
 
   .mark-btn {
-    padding: 0.375rem 0.75rem;
+    padding: var(--inset-field);
+    min-height: 44px;
     font-size: 0.8125rem;
   }
 </style>

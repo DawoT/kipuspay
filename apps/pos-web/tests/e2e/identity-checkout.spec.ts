@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
+import { mockOnboardingClaim } from './fixtures/onboarding-claim';
 
 test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad lo desbloquea', async ({
   page,
@@ -26,7 +27,11 @@ test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad l
     }),
   );
   await mockSellableCatalog(page);
-  await page.goto('/?checkout=1');
+  // Sesión de caja real vía el claim (fe de errata de walkthrough, Sprint 7):
+  // el cobro requiere branch + cashRegisterSessionId; el fixture simula el
+  // token de onboarding en la URL y el server del claim.
+  await mockOnboardingClaim(page);
+  await page.goto('/?checkout=1&onboarding_token=e2e-claim-token&tenant=t-e2e');
   // Subir el total sobre el umbral (70000 cents): producto p1 (11800) × 6.
   for (let i = 0; i < 6; i++) {
     await page.getByTestId('add-line-p1').click();

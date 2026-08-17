@@ -5,14 +5,15 @@
   interface Props {
     server: SetupServerState;
     printerReady: boolean;
+    compact?: boolean;
   }
 
-  let { server, printerReady }: Props = $props();
+  let { server, printerReady, compact = false }: Props = $props();
 
   const progress = $derived(computeSetupProgress(server, printerReady));
 </script>
 
-<section class="glass-panel checklist-card" data-testid="setup-checklist">
+<section class="ledger-card checklist-card" class:compact data-testid="setup-checklist">
   <div class="checklist-header">
     <div>
       <span class="badge badge-indigo">Segundo día</span>
@@ -26,7 +27,7 @@
     <div class="progress-fill" style="width:{progress.percent}%;"></div>
   </div>
   <ul class="checklist-steps">
-    {#each progress.steps as step}
+    {#each progress.steps as step (step.id)}
       <li class="checklist-step" data-testid={`setup-step-${step.id}`} class:done={step.done}>
         <span class="step-dot">
           {#if step.done}
@@ -35,7 +36,9 @@
         </span>
         <div class="step-copy">
           <span class="step-title">{step.title}</span>
-          <span class="step-hint">{step.hint}</span>
+          {#if !compact}
+            <span class="step-hint">{step.hint}</span>
+          {/if}
         </div>
       </li>
     {/each}
@@ -49,7 +52,6 @@
 
 <style>
   .checklist-card {
-    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.875rem;
@@ -71,7 +73,7 @@
   .checklist-percent {
     font-size: 1.5rem;
     font-weight: 800;
-    color: var(--emerald-green, #3dbb86);
+    color: var(--emerald-green);
   }
 
   .progress-track {
@@ -115,12 +117,12 @@
     border: 2px solid rgba(148, 163, 184, 0.4);
     display: grid;
     place-items: center;
-    color: #0f172a;
+    color: var(--ink);
   }
 
   .checklist-step.done .step-dot {
-    background: var(--emerald-green, #3dbb86);
-    border-color: var(--emerald-green, #3dbb86);
+    background: var(--emerald-green);
+    border-color: var(--emerald-green);
   }
 
   .step-copy {
@@ -135,13 +137,44 @@
 
   .step-hint {
     font-size: 0.75rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
   }
 
   .checklist-done-msg {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--emerald-green, #3dbb86);
+    color: var(--emerald-green);
     font-weight: 600;
+  }
+
+  .checklist-card.compact {
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .checklist-card.compact .checklist-title {
+    margin: 0;
+    font-size: 0.9375rem;
+  }
+
+  .checklist-card.compact .checklist-percent {
+    font-size: 1.125rem;
+  }
+
+  .checklist-card.compact .badge {
+    display: none;
+  }
+
+  .checklist-card.compact .checklist-header {
+    align-items: center;
+  }
+
+  .checklist-card.compact .progress-track,
+  .checklist-card.compact .checklist-done-msg {
+    display: none;
+  }
+
+  .checklist-card.compact .checklist-steps {
+    display: none;
   }
 </style>

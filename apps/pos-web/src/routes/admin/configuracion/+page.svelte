@@ -28,13 +28,47 @@
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
   import Icon from '$lib/ui/Icon.svelte';
+  import { formalizationModeLabel } from '$lib/ui/ops-copy';
   import Button from '$lib/ui/Button.svelte';
   import Badge from '$lib/ui/Badge.svelte';
   import Modal from '$lib/ui/Modal.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib/auth/api-client';
 
   let session = $state<PosTenantSession>(defaultTenantSession());
+  // S11-B5: cambio de plan self-serve (PATCH /api/tenant/plan).
+  let selectedPlan = $state('arranque');
+  let planChanged = $state(false);
+  let planSaving = $state(false);
+  let planMessage = $state('');
+  // S11-E11: cancelación self-serve (POST /api/tenant/cancel).
+  let cancelConfirmOpen = $state(false);
+  let cancelMessage = $state('');
+
+  function confirmCancelAccount() {
+    cancelMessage = '';
+    void apiFetch('/api/tenant/cancel', {
+      method: 'POST',
+      storage: localStorage,
+      headers: {
+        authorization: resolveApiAuth(localStorage).authorization ?? '',
+        ...(resolveApiAuth(localStorage)['x-tenant-id']
+          ? { 'x-tenant-id': resolveApiAuth(localStorage)['x-tenant-id']! }
+          : {}),
+      },
+    })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => null)) as { canceled?: boolean; message?: string; code?: string } | null;
+        if (res.ok && body?.canceled) {
+          cancelMessage = body.message ?? 'Cuenta cancelada.';
+        } else {
+          cancelMessage = `No se pudo cancelar (${body?.code ?? res.status}). Contacta a soporte@kipuspay.com.`;
+        }
+      })
+      .catch(() => {
+        cancelMessage = 'Sin conexión con el servidor. Inténtalo de nuevo.';
+      });
+  }
   let focus = $state('');
   let confirmOpen = $state(false);
   let pendingMode = $state<FormalizationMode | null>(null);
@@ -99,10 +133,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   async function loadCashPolicy() {
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
-      const res = await fetch(`${apiBase}/api/cash/policy`, { headers: { authorization: auth } });
+      const res = await apiFetch('/api/cash/policy', { storage: localStorage });
       if (!res.ok) return;
       const data = (await res.json()) as { tipMaxPercent?: number; openDrawerOnCash?: boolean };
       if (typeof data.tipMaxPercent === 'number') tipMaxPercent = data.tipMaxPercent;
@@ -115,12 +147,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function saveCashPolicy() {
     policyMsg = '';
     policyOk = false;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
     try {
-      const res = await fetch(`${apiBase}/api/cash/policy`, {
+      const res = await apiFetch('/api/cash/policy', {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json', authorization: auth },
+        storage: localStorage,
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ tipMaxPercent, openDrawerOnCash }),
       });
       const data = (await res.json()) as { error?: string; code?: string };
@@ -214,6 +245,92 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     pendingMode = null;
   }
 
+  function savePlan() {
+    if (!planChanged || planSaving) return;
+    planSaving = true;
+    planMessage = '';
+    void apiFetch('/api/tenant/plan', {
+      method: 'PATCH',
+      storage: localStorage,
+      headers: {
+        authorization: resolveApiAuth(localStorage).authorization ?? '',
+        'content-type': 'application/json',
+        ...(resolveApiAuth(localStorage)['x-tenant-id']
+          ? { 'x-tenant-id': resolveApiAuth(localStorage)['x-tenant-id']! }
+          : {}),
+      },
+      body: JSON.stringify({ planId: selectedPlan }),
+    })
+      .then(async (res) => {
+        const body = (await res.json().catch(() => null)) as { planId?: string; code?: string } | null;
+        if (res.ok && body?.planId) {
+          planMessage = `Plan actualizado a ${body.planId}. La caja sigue operando igual.`;
+          planChanged = false;
+        } else {
+          planMessage = `No se pudo cambiar el plan (${body?.code ?? res.status}). ${
+            body?.code === 'ENTERPRISE_SALES_ASSISTED'
+              ? 'Enterprise se contrata con el equipo comercial.'
+              : 'Contacta a soporte@kipuspay.com.'
+          }`;
+        }
+      })
+      .catch(() => {
+        planMessage = 'Sin conexión con el servidor. Inténtalo de nuevo.';
+      })
+      .finally(() => {
+        planSaving = false;
+      });
+  }
+
+  async function openBillingPortal() {
+    planMessage = '';
+    try {
+      const res = await apiFetch('/api/tenant/billing-portal', {
+        method: 'POST',
+        storage: localStorage,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl: 'https://app.kipuspay.com/admin/configuracion',
+        }),
+      });
+      const body = (await res.json()) as { url?: string; code?: string };
+      if (res.ok && body.url) {
+        window.location.assign(body.url);
+        return;
+      }
+      planMessage = `Portal de facturación no disponible (${body.code ?? res.status}).`;
+    } catch {
+      planMessage = 'Sin conexión con el servidor. Inténtalo de nuevo.';
+    }
+  }
+
+  async function startCheckout() {
+    planMessage = '';
+    try {
+      const res = await apiFetch('/api/tenant/checkout-session', {
+        method: 'POST',
+        storage: localStorage,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          planId: selectedPlan,
+          successUrl: 'https://app.kipuspay.com/admin/configuracion?checkout=success',
+          cancelUrl: 'https://app.kipuspay.com/admin/configuracion?checkout=cancel',
+        }),
+      });
+      const body = (await res.json()) as { url?: string; code?: string };
+      if (res.ok && body.url) {
+        window.location.assign(body.url);
+        return;
+      }
+      planMessage =
+        body.code === 'ENTERPRISE_SALES_ASSISTED'
+          ? 'Enterprise se contrata con el equipo comercial.'
+          : `Pago del plan no disponible (${body.code ?? res.status}).`;
+    } catch {
+      planMessage = 'Sin conexión con el servidor. Inténtalo de nuevo.';
+    }
+  }
+
   function confirmAdvance() {
     if (!pendingMode) return;
     try {
@@ -227,8 +344,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       confirmOpen = false;
       pendingMode = null;
       // S11-H2: persiste el upgrade en el servidor (PATCH /api/tenant/formalization).
-      void fetch('/api/tenant/formalization', {
+      void apiFetch('/api/tenant/formalization', {
         method: 'PATCH',
+        storage: localStorage,
         headers: {
           authorization: resolveApiAuth(localStorage).authorization ?? '',
           'content-type': 'application/json',
@@ -273,7 +391,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function scaleRequest(path: string, method: string, body?: Record<string, unknown>) {
     scaleStatus = 'Procesando…';
     try {
-      const response = await fetch(path, {
+      const response = await fetch(absolutizeApiUrl(path, localStorage), {
         method,
         headers: {
           authorization: resolveApiAuth(localStorage).authorization ?? '',
@@ -309,6 +427,22 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       },
     });
   }
+
+  async function downloadExport(path: string, filename: string) {
+    try {
+      const res = await apiFetch(path, { storage: localStorage });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      // el usuario puede reintentar; la caja no se bloquea.
+    }
+  }
 </script>
 
 <svelte:head><title>Configuración · KipusPay</title></svelte:head>
@@ -339,7 +473,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {/if}
 
   <div class="config-grid">
-    <section id="negocio" class="glass-card">
+    <section id="negocio" class="ledger-card">
       <div class="card-head">
         <Icon name="building" size={20} class="icon-accent" />
         <h2>Datos del negocio</h2>
@@ -356,14 +490,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </div>
     </section>
 
-    <section id="facturacion" class="glass-card" class:focus={focus === 'facturacion'}>
+    <section id="facturacion" class="ledger-card" class:focus={focus === 'facturacion'}>
       <div class="card-head">
         <Icon name="file-text" size={20} class="icon-accent" />
         <h2>Etapa de formalización</h2>
       </div>
       <p class="mode-badge" data-testid="admin-mode">
         <Icon name="shield" size={14} />
-        <span>Actual: {session.formalizationMode}</span>
+        <span>Actual: {formalizationModeLabel(session.formalizationMode)}</span>
       </p>
       <p class="hint">
         Avance confirmado, sin convertir notas de venta históricas. Emisión electrónica vía KipusPay por defecto.
@@ -376,7 +510,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           onclick={() => requestAdvance('FORMALIZING')}
           icon="arrow-right"
         >
-          Activar facturación (FORMALIZING)
+          Activar facturación
         </Button>
         <Button
           variant="secondary"
@@ -385,12 +519,97 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           onclick={() => requestAdvance('ELECTRONIC_ISSUER')}
           icon="check"
         >
-          Marcar emisor electrónico
+          Pasar a emisión electrónica
         </Button>
       </div>
     </section>
 
-    <section id="marca" class="glass-card">
+    <section id="suscripcion" class="ledger-card">
+      <div class="card-head">
+        <Icon name="credit-card" size={20} class="icon-accent" />
+        <h2>Suscripción y plan</h2>
+      </div>
+      <p class="hint">
+        Cambia de plan cuando tu negocio pida más. La caja nunca se detiene por cupo ni por
+        atraso de pago.
+      </p>
+      <div class="plan-row">
+        <select
+          data-testid="plan-select"
+          bind:value={selectedPlan}
+          onchange={() => {
+            planChanged = true;
+            planMessage = '';
+          }}
+          aria-label="Plan de suscripción"
+        >
+          <option value="arranque">Arranque — S/ 49/mes</option>
+          <option value="crece">Crece — S/ 129/mes</option>
+          <option value="cadena">Cadena — S/ 349/mes + S/ 39 por sucursal</option>
+        </select>
+        <Button
+          variant="primary"
+          data-testid="save-plan"
+          disabled={!planChanged || planSaving}
+          onclick={savePlan}
+        >
+          Guardar plan
+        </Button>
+        <Button variant="secondary" data-testid="billing-portal" onclick={() => void openBillingPortal()}>
+          Gestionar facturación
+        </Button>
+        <Button variant="secondary" data-testid="billing-checkout" onclick={() => void startCheckout()}>
+          Pagar plan
+        </Button>
+      </div>
+      {#if planMessage}
+        <p class="hint" data-testid="plan-message">{planMessage}</p>
+      {/if}
+      <div class="cancel-row">
+        <Button
+          variant="secondary"
+          data-testid="cancel-account"
+          onclick={() => {
+            cancelConfirmOpen = true;
+          }}
+          icon="trash"
+        >
+          Cancelar cuenta
+        </Button>
+        <span class="hint">
+          Sin penalidad. Exporta tu catálogo en CSV
+          (<button type="button" class="linkish" data-testid="export-catalog" onclick={() => void downloadExport('/api/catalog/export', 'catalogo.csv')}>descargar</button>)
+          y tus ventas
+          (<button type="button" class="linkish" data-testid="export-sales" onclick={() => void downloadExport('/api/sales/export', 'ventas.csv')}>descargar ventas</button>)
+          antes de cancelar.
+        </span>
+      </div>
+    </section>
+
+    {#if cancelConfirmOpen}
+      <div class="cancel-overlay" role="alertdialog" aria-label="Confirmar cancelación">
+        <div class="ledger-card">
+          <h3>¿Cancelar tu cuenta?</h3>
+          <p class="hint">
+            La caja sigue operando hasta que lo decidas. No se borran tus datos: podrás exportar
+            catálogo y ventas. Esta acción marca la suscripción como cancelada.
+          </p>
+          <div class="actions">
+            <Button variant="secondary" data-testid="cancel-dismiss" onclick={() => (cancelConfirmOpen = false)}>
+              Volver
+            </Button>
+            <Button variant="danger" data-testid="cancel-confirm" onclick={confirmCancelAccount}>
+              Sí, cancelar cuenta
+            </Button>
+          </div>
+          {#if cancelMessage}
+            <p class="hint" data-testid="cancel-message">{cancelMessage}</p>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
+    <section id="marca" class="ledger-card">
       <div class="card-head">
         <Icon name="tag" size={20} class="icon-accent" />
         <h2>Marca en el punto de venta</h2>
@@ -414,7 +633,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </div>
     </section>
 
-    <section id="fiscal-status" class="glass-card">
+    <section id="fiscal-status" class="ledger-card">
       <div class="card-head">
         <Icon name="shield" size={20} class="icon-accent" />
         <h2>Estado fiscal y SUNAT</h2>
@@ -427,7 +646,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </p>
     </section>
 
-    <section id="respaldos" class="glass-card">
+    <section id="respaldos" class="ledger-card">
       <div class="card-head">
         <Icon name="download" size={20} class="icon-accent" />
         <h2>Respaldo y recuperación</h2>
@@ -441,7 +660,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </Button>
     </section>
 
-    <section id="series" class="glass-card">
+    <section id="series" class="ledger-card">
       <div class="card-head">
         <Icon name="barcode" size={20} class="icon-accent" />
         <h2>Identidad serial</h2>
@@ -455,7 +674,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   </div>
 
   {#if scaleOn}
-    <section id="balanza" class="glass-card scale-card" aria-labelledby="scale-config-title">      <div class="card-head">
+    <section id="balanza" class="ledger-card scale-card" aria-labelledby="scale-config-title">      <div class="card-head">
         <Icon name="scale" size={22} class="icon-amber" />
         <div>
           <p class="instrument-label">Hardware · Balanza</p>
@@ -553,7 +772,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {/if}
 
   {#if hardwareOn}
-    <section id="hardware" class="glass-card" aria-labelledby="hardware-config-title">
+    <section id="hardware" class="ledger-card" aria-labelledby="hardware-config-title">
       <div class="card-head">
         <Icon name="refresh" size={22} class="icon-amber" />
         <div>
@@ -756,7 +975,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 </Modal>
 
 {#if onboardingOn && serverState && !checklistDismissed}
-  <section class="glass-card checklist-wrap" aria-labelledby="setup-checklist">
+  <section class="ledger-card checklist-wrap" aria-labelledby="setup-checklist">
     <SetupChecklist server={serverState} {printerReady} />
     <div class="checklist-aux">
       <Button
@@ -811,22 +1030,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-family: var(--font-heading, sans-serif);
     font-weight: 800;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .lede {
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     font-size: 0.92rem;
     margin: 0;
   }
 
-  .glass-card {
-    background: var(--bg-glass-card);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-    border-radius: var(--radius-md, 12px);
-    padding: 1.35rem;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+  .ledger-card {
+    background: var(--bg-ledger-card);
   }
 
   .config-grid {
@@ -847,7 +1061,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-size: 1.1rem;
     font-family: var(--font-heading, sans-serif);
     font-weight: 700;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   :global(.icon-accent) {
@@ -855,7 +1069,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   :global(.icon-amber) {
-    color: var(--amber-gold, #f59e0b);
+    color: var(--amber-gold);
   }
 
   .info-rows {
@@ -873,14 +1087,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   .info-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .info-value {
     font-size: 1rem;
-    color: var(--text-main, #f8fafc);
+    color: var(--text-main);
   }
 
   .info-code {
@@ -901,16 +1115,26 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     background: rgba(245, 158, 11, 0.12);
     border: 1px solid rgba(245, 158, 11, 0.3);
     border-radius: var(--radius-sm, 8px);
-    color: var(--amber-gold, #f59e0b);
+    color: var(--amber-gold);
     font: 700 0.82rem/1 var(--font-mono, monospace);
     margin-bottom: 0.65rem;
   }
 
   .hint {
     font-size: 0.86rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     line-height: 1.45;
     margin-bottom: 0.85rem;
+  }
+
+  .hint .linkish {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .actions {
@@ -936,13 +1160,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-weight: 700;
     margin: 0;
     background: rgba(244, 63, 94, 0.12);
-    color: var(--rose-red, #f43f5e);
+    color: var(--rose-red);
     border: 1px solid rgba(244, 63, 94, 0.3);
   }
 
   .state-pill.active {
     background: rgba(16, 185, 129, 0.12);
-    color: var(--emerald-green, #10b981);
+    color: var(--emerald-green);
     border-color: rgba(16, 185, 129, 0.3);
   }
 
@@ -952,7 +1176,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   .instrument-label {
     font: 700 0.72rem/1.2 var(--font-mono, monospace);
-    color: var(--amber-gold, #f59e0b);
+    color: var(--amber-gold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin: 0;
@@ -969,7 +1193,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   .field label {
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin-bottom: 0.3rem;
   }
 
@@ -983,7 +1207,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 0.35rem;
     font-size: 0.8rem;
-    color: var(--text-muted, #94a3b8);
+    color: var(--text-muted);
     margin: 0;
   }
 
@@ -994,12 +1218,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border-radius: var(--radius-sm, 8px);
     font-family: var(--font-mono, monospace);
     font-size: 0.82rem;
-    color: var(--emerald-green, #10b981);
+    color: var(--emerald-green);
     overflow-x: auto;
   }
 
   .diagnostic.diag-bad {
-    color: #f87171;
+    color: var(--rose-red);
   }
 
   .diag-status {
@@ -1012,9 +1236,32 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     opacity: 0.85;
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 719px) {
     .config-grid {
       grid-template-columns: 1fr;
     }
+  }
+
+  .plan-row,
+  .cancel-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .cancel-row {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.25));
+  }
+  .cancel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: grid;
+    place-items: center;
+    z-index: 70;
+    padding: 1rem;
   }
 </style>

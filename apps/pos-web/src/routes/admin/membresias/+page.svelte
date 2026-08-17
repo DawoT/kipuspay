@@ -10,6 +10,7 @@
   import CardHeader from '$lib/ui/CardHeader.svelte';
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
+  import { documentKindLabel, workflowStatusLabel } from '$lib/ui/ops-copy';
   import {
     createRecurringSalesApi,
     type RecurringCancellationPreview,
@@ -286,7 +287,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
 
     <div class="workspace-grid">
       <!-- Columna 1: Calendario -->
-      <section class="glass-card section-pad" aria-labelledby="calendar-title">
+      <section class="ledger-card section-pad" aria-labelledby="calendar-title">
         <CardHeader title="Calendario">
           <Badge variant="warning">{plans.length}</Badge>
         </CardHeader>
@@ -296,11 +297,11 @@ import { resolveApiBase } from '$lib/auth/api-client';
               <div class="plan-main">
                 <strong class="plan-customer">{plan.customer_id}</strong>
                 <Badge variant={plan.status === 'ACTIVE' ? 'success' : plan.status === 'PAUSED' ? 'muted' : 'danger'}>
-                  {plan.status}
+                  {workflowStatusLabel(plan.status)}
                 </Badge>
               </div>
               <div class="plan-meta">
-                <span>{plan.document_type} · {plan.pricing_policy}</span>
+                <span>{documentKindLabel(plan.document_type)} · {plan.pricing_policy}</span>
                 <Money cents={plan.balance_due_cents} />
               </div>
               <div class="plan-next">
@@ -309,22 +310,24 @@ import { resolveApiBase } from '$lib/auth/api-client';
               </div>
             </button>
           {:else}
-            <EmptyState icon="info" title="Sin membresías" description="No hay membresías para esta sucursal." />
+            <EmptyState icon="info" title="Sin membresías" description="No hay membresías para esta sucursal.">
+              <Button variant="secondary" href="/admin/clientes">Ver clientes</Button>
+            </EmptyState>
           {/each}
         </div>
       </section>
 
       <!-- Columna 2: Detalle -->
-      <section class="glass-card section-pad" aria-labelledby="detail-title">
+      <section class="ledger-card section-pad" aria-labelledby="detail-title">
         <CardHeader title="Detalle y control">
           {#if selected}
-            <Badge variant="indigo">{selected.status}</Badge>
+            <Badge variant="indigo">{workflowStatusLabel(selected.status)}</Badge>
           {/if}
         </CardHeader>
         {#if selected}
           <dl class="detail-grid">
             <div><dt>Próxima ejecución</dt><dd>{date(selected.next_run_at)}</dd></div>
-            <div><dt>Documento</dt><dd>{selected.document_type}</dd></div>
+            <div><dt>Documento</dt><dd>{documentKindLabel(selected.document_type)}</dd></div>
             <div><dt>Política</dt><dd>{selected.pricing_policy}</dd></div>
             <div><dt>Período de gracia</dt><dd>{selected.grace_days} días</dd></div>
             <div><dt>Cuentas por cobrar</dt><dd><Money cents={selected.balance_due_cents} /></dd></div>
@@ -390,7 +393,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
           <div class="history-list">
             {#each occurrences as occurrence}
               <div class="occurrence-row">
-                <Badge variant="indigo">{String(occurrence.document_type ?? 'DOC')}</Badge>
+                <Badge variant="indigo">{documentKindLabel(String(occurrence.document_type ?? ''))}</Badge>
                 <span class="occ-dates">{date(occurrence.period_start)} → {date(occurrence.period_end)}</span>
                 <span class="occ-price">Precio aplicado: <Money cents={occurrence.total_amount_cents} /></span>
                 <span class="occ-debt">Deuda: <Money cents={occurrence.balance_due_cents} /></span>
@@ -400,12 +403,12 @@ import { resolveApiBase } from '$lib/auth/api-client';
             {/each}
           </div>
         {:else}
-          <EmptyState icon="list" title="Sin selección" description="Selecciona una membresía para ver estado, gracia, CxC e historial." />
+          <EmptyState icon="list" title="Sin selección" description="Selecciona una membresía para ver estado, gracia, cuentas por cobrar e historial." />
         {/if}
       </section>
 
       <!-- Columna 3: Crear -->
-      <aside class="glass-card section-pad" aria-labelledby="create-title">
+      <aside class="ledger-card section-pad" aria-labelledby="create-title">
         <CardHeader title={editing ? 'Editar versión' : 'Crear membresía'}>
           <Icon name="plus" size={16} />
         </CardHeader>
@@ -418,7 +421,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
         <Field label="Unidad de medida" id="uom">
           <Input id="uom" data-testid="memberships-uom-input" bind:value={productUomId} />
         </Field>
-        <Field label="Cantidad (microunidades)" id="quantity">
+        <Field label="Cantidad" id="quantity">
           <input id="quantity" data-testid="memberships-quantity-input" type="number" min="1" bind:value={quantityMicrounits} />
         </Field>
         <Field label="Tipo de documento" id="document">

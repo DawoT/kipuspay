@@ -36,7 +36,7 @@
   .ui-input {
     min-height: 44px;
     width: 100%;
-    padding: 0.625rem 0.875rem;
+    padding: var(--inset-field);
     background: var(--bg-input);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);

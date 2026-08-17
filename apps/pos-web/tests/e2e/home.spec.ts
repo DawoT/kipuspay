@@ -34,7 +34,7 @@ test('home muestra el catálogo vendible y el total al agregar', async ({ page }
   await expect(page.getByTestId('sellable-catalog')).toBeVisible();
   await expect(page.getByTestId('add-line-p1')).toBeVisible();
   await page.getByTestId('add-line-p1').click();
-  await expect(page.getByTestId('total')).toContainText('118.00');
+  await expect(page.getByTestId('total')).toContainText('139.24'); // IGV 18% sobre 118.00
 });
 
 test('home refleja el estado de conexión real del terminal', async ({ page, context }) => {

@@ -4,6 +4,7 @@
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import Button from '$lib/ui/Button.svelte';
   import type { SellableCatalogItem } from '$lib/catalog/sellable-catalog-client';
 
   let {
@@ -13,6 +14,7 @@
     catalogOn,
     onAdd,
     query = $bindable(''),
+    onQuickSale,
   }: {
     items: SellableCatalogItem[];
     loading: boolean;
@@ -20,6 +22,7 @@
     catalogOn: boolean;
     onAdd: (item: SellableCatalogItem) => void;
     query?: string;
+    onQuickSale?: () => void;
   } = $props();
 
   const visibleItems = $derived(
@@ -36,7 +39,7 @@
   );
 </script>
 
-<section class="glass-panel catalog-card" data-testid="sellable-catalog">
+<section class="ledger-card catalog-card" data-testid="sellable-catalog">
   <div class="card-header catalog-header">
     <h2>Catálogo</h2>
     {#if !loading && items.length > 0}
@@ -72,13 +75,25 @@
       icon="layers"
       title="Catálogo desactivado"
       description="El catálogo no está disponible para esta tienda. La venta rápida sigue disponible."
-    />
+    >
+      {#if onQuickSale}
+        <Button variant="secondary" data-testid="catalog-empty-quick" onclick={onQuickSale}>
+          Venta rápida
+        </Button>
+      {/if}
+    </EmptyState>
   {:else if visibleItems.length === 0}
     <EmptyState
       icon="search"
       title={query ? 'Sin coincidencias' : 'Catálogo vacío'}
       description={query ? 'Prueba con otro nombre, SKU o código.' : 'Sube tu catálogo para empezar a cobrar. La venta rápida sigue disponible.'}
-    />
+    >
+      {#if onQuickSale}
+        <Button variant="primary" data-testid="catalog-empty-quick" onclick={onQuickSale}>
+          Venta rápida
+        </Button>
+      {/if}
+    </EmptyState>
   {:else}
     <div class="products-grid">
       {#each visibleItems as item (item.productId)}
@@ -102,9 +117,6 @@
 </section>
 
 <style>
-  .catalog-card {
-    padding: 1.25rem;
-  }
   .catalog-header {
     margin-bottom: 0.75rem;
   }
@@ -133,7 +145,7 @@
     gap: 0.75rem;
   }
   .product-item-btn {
-    background: var(--bg-glass-card);
+    background: var(--bg-ledger-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 1rem;
@@ -148,7 +160,6 @@
   .product-item-btn:hover {
     background: var(--bg-glass-hover);
     border-color: var(--accent-primary);
-    transform: translateY(-2px);
   }
   .product-icon {
     font-size: 1.75rem;

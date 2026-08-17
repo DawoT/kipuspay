@@ -8,6 +8,9 @@ export default defineConfig({
       '$env/dynamic/public': fileURLToPath(
         new URL('./tests/env-dynamic-public.ts', import.meta.url),
       ),
+      '$env/dynamic/private': fileURLToPath(
+        new URL('./tests/env-dynamic-private.ts', import.meta.url),
+      ),
     },
   },
   test: {

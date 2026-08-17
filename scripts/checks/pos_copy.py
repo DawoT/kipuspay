@@ -28,13 +28,15 @@ BANNED_WORDS = re.compile(
     r"WebHID|WebUSB|Web Serial|Server-Bound|ESC/POS|"
     r"tenantId|userId|branchId|sessionId|terminalId|"
     r"s-demo|b-demo|t-demo|pm-cash|p-demo|cust-demo|oc-demo|po-demo|"
-    r"snapshot|flags|Bearer|endpoint|multitenancy|Tenant|demo"
+    r"snapshot|flags|Bearer|endpoint|multitenancy|Tenant|demo|"
+    r"JSON|json"
     r")\b",
     re.IGNORECASE,
 )
 
 BANNED_PATTERNS = [
     re.compile(r"GTM §"),
+    re.compile(r"GTM-\d+"),
     re.compile(r"DAT-\d+"),
     re.compile(r"QG Sprint"),
     re.compile(r"Rollup D1"),
@@ -45,6 +47,11 @@ STYLE_BLOCK = re.compile(r"<style\b[^>]*>.*?</style>", re.S)
 COMMENT_BLOCK = re.compile(r"<!--.*?-->", re.S)
 
 TAG = re.compile(r"<[^>]+>")
+COPY_ATTR = re.compile(
+    r"\b(?:label|placeholder|title|aria-label|aria-description|aria-valuetext)"
+    r"=[\"']([^\"']*)[\"']",
+    re.I,
+)
 STRUCTURAL_ATTR = re.compile(
     r"\b(?:id|data-testid|class|for|name|value|checked|disabled|href|target|rel|"
     r"autocomplete|inputmode|maxlength|min|max|step|pattern|rows|cols|colspan)"
@@ -57,11 +64,12 @@ EXPRESSION = re.compile(r"\{[^{}]*\}")
 def visible_text(line: str) -> str:
     if 'href={`' in line or "href={`" in line:
         return ''
+    copy_attrs = " ".join(COPY_ATTR.findall(line))
     line = TAG.sub(" ", line)
     line = STRUCTURAL_ATTR.sub(" ", line)
     line = BIND_ATTR.sub(" ", line)
     line = EXPRESSION.sub(" ", line)
-    return line
+    return f"{copy_attrs} {line}".strip()
 
 
 def template_lines(path: str) -> list[tuple[int, str]]:

@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
+import tempfile
 
 HERE = __file__.rsplit("/", 1)[0]
 
@@ -48,6 +49,15 @@ def load_migrations_mirror():
     return mod
 
 
+def load_api_contract():
+    spec = importlib.util.spec_from_file_location(
+        "api_contract", f"{HERE}/api_contract.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def load_marketing_copy():
     spec = importlib.util.spec_from_file_location(
         "marketing_copy", f"{HERE}/marketing_copy.py"
@@ -55,6 +65,32 @@ def load_marketing_copy():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def load_pos_copy():
+    spec = importlib.util.spec_from_file_location("pos_copy", f"{HERE}/pos_copy.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def load_pos_demo_ids():
+    spec = importlib.util.spec_from_file_location("pos_demo_ids", f"{HERE}/pos_demo_ids.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_TMP_COUNTER = [0]
+
+
+def __write_tmp(suffix: str, content: str) -> str:
+    """Crea un archivo temporal real para scan_file (V-30)."""
+    _TMP_COUNTER[0] += 1
+    path = os.path.join(tempfile.gettempdir(), f"v30-selftest-{_TMP_COUNTER[0]}{suffix}")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    return path
 
 
 SUCIA = """```sql
@@ -127,8 +163,11 @@ def simple_fks(st, text: str) -> list[str]:
 def main() -> int:
     st = load_structural()
     fails: list[str] = []
+    asserts = 0
 
     def expect(cond: bool, msg: str) -> None:
+        nonlocal asserts
+        asserts += 1
         if not cond:
             fails.append(msg)
 
@@ -247,11 +286,137 @@ def main() -> int:
     )
     expect(
         mc._is_comment("// GTM §4.1 — comentario interno de código"),
-        "V-26 no omite comentarios de código",
+        "V-26 no omite comentarios HTML",
+    )
+    expect(
+        mc._is_scanned("playwright.config.ts") is False
+        and mc._is_scanned("tests/e2e/pricing-claims.spec.ts") is False
+        and mc._is_scanned("src/lib/content/home.ts") is True,
+        "V-26 escanea configs o specs de test como copy",
     )
     expect(
         mc._is_comment("<!-- GTM-02 interno -->"),
         "V-26 no omite comentarios HTML",
+    )
+
+    # V-27: copy POS incluye label/placeholder (FASE E)
+    pc = load_pos_copy()
+    expect(
+        pc.BANNED_WORDS.search(pc.visible_text('<Field label="Cuota inicial (céntimos)">')) is not None,
+        "V-27 no ve céntimos en atributo label",
+    )
+    expect(
+        pc.BANNED_WORDS.search(pc.visible_text('<Input placeholder="p-demo" />')) is not None,
+        "V-27 no ve p-demo en placeholder",
+    )
+    expect(
+        "JSON" in pc.visible_text('<Field label="Ítems del plan (JSON)">'),
+        "V-27 no ve JSON en atributo label",
+    )
+    expect(
+        pc.BANNED_WORDS.search(pc.visible_text('<p>Pago de cuotas</p>')) is None,
+        "V-27 marca copy limpio de caja como jerga",
+    )
+
+    # V-28/V-29: contrato de integración entre apps (paridad epoch + POS↔API)
+    ac = load_api_contract()
+    good_migrations = "\n".join(
+        f'CREATE TRIGGER backup_epoch_{t}_{k} AFTER INSERT ON "{t}" BEGIN END;'
+        for t in ("sales", "users")
+        for k in ("insert", "update", "delete")
+    )
+    expect(
+        ac.epoch_parity_missing(["sales", "users", "tenant_data_epochs", "data_backups"], good_migrations) == [],
+        "V-29 marca tablas con triggers (o infra excluida) como faltantes",
+    )
+    bad_migrations = good_migrations.replace("backup_epoch_users_insert", "")  # users queda sin insert
+    expect(
+        ac.epoch_parity_missing(["sales", "users"], bad_migrations) == ["users"],
+        "V-29 no detecta el trigger faltante",
+    )
+    expect(
+        ac.epoch_parity_missing(["data_backups"], "") == [],
+        "V-29 no excluye la infraestructura del backup",
+    )
+    registered = [
+        ("POST", "/api/cash/:id"),
+        ("GET", "/api/pos/day-sales"),
+        ("POST", "/api/sales/returns/policy"),
+    ]
+    expect(
+        ac.route_parity_missing(
+            registered,
+            {
+                "/api/cash/authz-token": {"POST"},
+                "/api/sales/returns/policy": {"POST", "*"},
+                "/api/pos/day-sales": {"GET"},
+            },
+        )
+        == [],
+        "V-28 marca rutas registradas como faltantes",
+    )
+    expect(
+        ac.route_parity_missing(
+            registered,
+            {
+                "/api/cash/authz-token": {"POST"},
+                "/api/pos/nonexistent/deep": {"POST"},
+                "/api/pos/day-sales": {"DELETE"},
+            },
+        )
+        == [
+            "DELETE /api/pos/day-sales (registrado: ['GET'])",
+            "POST /api/pos/nonexistent/deep",
+        ],
+        "V-28 no detecta ruta o método faltante",
+    )
+    expect(
+        ac.route_parity_missing(registered, {"/api/sales/returns/policy": {"*"}}) == [],
+        "V-28 exige método cuando el cliente lo declara (path-only con *)",
+    )
+    expect(
+        ac.extract_api_paths_from_line(
+            "fetch(`${apiBase()}/api/ghost/path`, { method: 'POST' })"
+        )
+        == ["/api/ghost/path"],
+        "V-28 no ve /api/ dentro de templates ${}",
+    )
+    expect(
+        ac.extract_api_paths_from_line(
+            "fetch(`${apiBase()}/api/commissions/payouts/${payoutId}/pay`, { method: 'POST' })"
+        )
+        == ["/api/commissions/payouts/*/pay"],
+        "V-28 no colapsa ${id} a * dentro de templates",
+    )
+
+    # V-30: cero literales demo en el código fuente del POS (F-6, completo)
+    pd = load_pos_demo_ids()
+    expect(
+        pd.scan_file(__write_tmp(".ts", "let branchId = $state('b-demo');\n")) == [(1, "b-demo")],
+        "V-30 no ve literal demo asignado",
+    )
+    expect(
+        pd.scan_file(__write_tmp(".ts", "if (session.tenantId !== 'demo') {}\n")) == [],
+        "V-30 marca la comparación defensiva como hallazgo",
+    )
+    expect(
+        pd.scan_file(
+            __write_tmp(
+                ".ts",
+                "// legacy ('s-demo') antes del fix\nconst id = 'ok';\n/* b-demo histórico */\n",
+            )
+        )
+        == [],
+        "V-30 ve demo dentro de comentarios",
+    )
+    expect(
+        pd.scan_file(__write_tmp(".svelte", "<!-- demo -->\nlet evidenceKey = $state('demo.jpg');\n"))
+        == [(2, "demo.jpg")],
+        "V-30 no ve demo en template svelte fuera del comentario",
+    )
+    expect(
+        pd.scan_file(__write_tmp(".ts", "const ok = 'validId';\n")) == [],
+        "V-30 marca texto sin demo",
     )
 
     if fails:
@@ -260,7 +425,7 @@ def main() -> int:
             print(f"     {f}")
         return 1
     print("RESULT V-00 GREEN")
-    print("     23 aserciones sobre los detectores del gate")
+    print(f"     {asserts} aserciones sobre los detectores del gate")
     return 0
 
 

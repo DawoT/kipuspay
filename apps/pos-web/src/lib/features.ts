@@ -35,6 +35,18 @@ export function isLedgerArApEnabled(): boolean {
   return flagOn(pub(PF + 'LEDGER_AR_AP'));
 }
 
+export function isCashExpensesEnabled(): boolean {
+  return flagOn(pub(PF + 'CASH_EXPENSES'));
+}
+
+export function isPurchasingOrdersEnabled(): boolean {
+  return flagOn(pub(PF + 'PURCHASING_ORDERS'));
+}
+
+export function isFiscalRcEnabled(): boolean {
+  return flagOn(pub(PF + 'FISCAL_RC'));
+}
+
 export function isReportingCatalogEnabled(): boolean {
   return flagOn(pub(PF + 'REPORTING_CATALOG'));
 }
@@ -96,6 +108,11 @@ export function isAccountingExportEnabled(): boolean {
 /** Sprint 23 — API keys + webhooks. */
 export function isIntegrationsApiEnabled(): boolean {
   return flagOn(pub(PF + 'INTEGRATIONS_API'));
+}
+
+/** Sprint 21 — importación de catálogo Bsale/Alegra/CSV; siempre default-off. */
+export function isCatalogImportEnabled(): boolean {
+  return flagOn(pub(PF + 'CATALOG_IMPORT'));
 }
 
 /** Sprint 24 — WhatsApp receipt. */
@@ -291,4 +308,9 @@ export function isAnalyticsForecastingEnabled(): boolean {
 /** Sprint C1 — catálogo vendible en la terminal (grid + buscador); siempre default-off. */
 export function isCatalogSellableEnabled(): boolean {
   return flagOn(pub(PF + 'CATALOG_SELLABLE'));
+}
+
+/** Sprint 42 — respaldos D1 y DR; siempre default-off. */
+export function isDataBackupEnabled(): boolean {
+  return flagOn(pub(PF + 'DATA_BACKUP'));
 }

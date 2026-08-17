@@ -38,6 +38,7 @@ ALIASES: dict[str, tuple[str, ...]] = {
     "Roadmap": (ROADMAP_COVER, ROADMAP_PHASES),
     "GTM": (GTM,),
     "Ledger": (LEDGER,),
+    "Claims": ("docs/ops/claims-go-live.md",),
 }
 
 # Documentos que el gate trata como inmutables (append-only).

@@ -30,6 +30,7 @@ interface TenantKvPayload {
 
 function createMemDb() {
   const rows = new Map<string, Row>();
+  const tenants = new Map<string, string>();
   const keyOf = (source: string, eventId: string) => `${source}:${eventId}`;
 
   const db = {
@@ -95,6 +96,11 @@ function createMemDb() {
                 }
                 return Promise.resolve({ success: true, meta: { changes: 1 } });
               }
+              if (sql.includes('UPDATE tenants SET subscription_status')) {
+                const [status, tenantId] = args as [string, string];
+                tenants.set(tenantId, status);
+                return Promise.resolve({ success: true, meta: { changes: 1 } });
+              }
               throw new Error(`unsupported SQL: ${sql}`);
             },
           };
@@ -103,7 +109,7 @@ function createMemDb() {
     },
   };
 
-  return { db: db as unknown as D1Database, rows };
+  return { db: db as unknown as D1Database, rows, tenants };
 }
 
 function createEnv(opts: { secret?: string; doFail?: boolean; doRevoked?: boolean }): {
@@ -119,6 +125,7 @@ function createEnv(opts: { secret?: string; doFail?: boolean; doRevoked?: boolea
 
   const env: StripeWebhookEnv = {
     WEBHOOK_EVENTS_DB: mem.db,
+    DB: mem.db,
     STRIPE_WEBHOOK_SECRET: opts.secret ?? 'whsec_test_secret',
     FQDN: 'https://example.test',
     TENANT_KV: {
@@ -266,7 +273,7 @@ describe('handleStripeWebhook', () => {
   });
 
   it('subscription.deleted → DO revoke + KV revocation; lookup revoked', async () => {
-    const { env, kv, doCalls } = createEnv({});
+    const { env, kv, doCalls, mem } = createEnv({});
     kv.set(
       'tenant:t1',
       JSON.stringify({ id: 't1', status: 'active', subscriptionStatus: 'active' }),
@@ -279,6 +286,7 @@ describe('handleStripeWebhook', () => {
     expect(doCalls).toContain('/revoke');
     expect(kv.get('revocation:t1')).toBe('1');
     expect(readTenant(kv, 't1').subscriptionStatus).toBe('canceled');
+    expect(mem.tenants.get('t1')).toBe('canceled');
 
     const control: ControlPlaneEnv = {
       TENANT_KV: { get: (k) => Promise.resolve(kv.get(k) ?? null) },

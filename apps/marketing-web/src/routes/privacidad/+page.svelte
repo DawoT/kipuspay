@@ -21,6 +21,7 @@
         <span class="knot-dot" aria-hidden="true"></span>
         Privacidad
       </p>
+      <p class="brand-mark">KipusPay</p>
       <h1>{PRIVACY_PAGE.headline}</h1>
       <p class="hero-sub">{PRIVACY_PAGE.lede}</p>
     </div>

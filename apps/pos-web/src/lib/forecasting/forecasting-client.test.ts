@@ -37,7 +37,8 @@ describe('forecasting POS seams (Sprint 46)', () => {
     expect(res.disclaimer).toBe('Estimación, no garantía');
     const calls = fetcher.mock.calls as [string, RequestInit][];
     expect(calls[0]?.[0]).toBe('https://api.kipuspay.local/api/forecasting/b-demo');
-    expect(calls[0]?.[1].headers).toMatchObject({ authorization: 'Bearer demo' });
+    expect(new Headers(calls[0]?.[1].headers).get('authorization')).toBe('Bearer demo');
+    expect(new Headers(calls[0]?.[1].headers).get('content-type')).toBe('application/json');
   });
 
   it('reads stock alerts with leadTime/safety and reports breakage status', async () => {

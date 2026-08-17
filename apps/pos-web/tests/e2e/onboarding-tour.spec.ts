@@ -55,9 +55,12 @@ test('caja: el tour guía por capabilities y no reaparece al cerrarlo', async ({
   await page.goto('/');
   await expect(page.getByTestId('tour')).toBeVisible();
   await expect(page.getByTestId('tour-body')).toContainText('Agrega tus productos');
-  // En la demo (cajero/retail) hay un solo paso de capability activa: el
-  // botón cierra el tour como "Entendido".
-  await page.getByTestId('tour-next').click();
+  // El tour recorre un paso por capability activa (quick_add + promotions +
+  // variants con el env completo): avanza hasta el último y cierra.
+  for (let i = 0; i < 12; i++) {
+    if (await page.getByTestId('tour').isHidden()) break;
+    await page.getByTestId('tour-next').click();
+  }
   await expect(page.getByTestId('tour')).toBeHidden();
   expect(events).toContain('tour_started');
   expect(events).toContain('tour_completed');

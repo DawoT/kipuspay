@@ -21,6 +21,7 @@
   } from '$lib/features';
   import {
     canOfferAnularEa,
+    type AnularEaResult,
     type FiscalBacklogItem,
     submitAnularEa,
   } from '$lib/fiscal/owner-ea';
@@ -32,7 +33,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
@@ -47,6 +48,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const storeCreditOn = isLedgerStoreCreditEnabled();
   const installmentsOn = isSalesInstallmentsEnabled();
   const commissionsOn = isSalesCommissionsEnabled();
+  const BRIEFING_PLAN_GATE_KEY = 'kipuspay_briefing_plan_gate';
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
@@ -92,15 +94,38 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         idb,
         online,
         nowMs: Date.now(),
-        fetchDaySummary: async () => {
-          return {
-            totals: {
-              grossSalesCents: snap?.grossSalesCents ?? 0,
-              netSalesCents: snap?.netSalesCents ?? 0,
-              docCount: snap?.docCount ?? 0,
-            },
-            branches: [{ branch_id: 'local' }],
-          };
+        fetchDaySummary: async (reportDate: string) => {
+          // F13: el resumen del día se lee del rollup server (daily_financial_rollups),
+          // no de un valor fijo. El servidor es autoritativo; 'no en vivo' lo aclara.
+          try {
+            const response = await apiFetch(
+              `/api/owner/day-summary?date=${encodeURIComponent(reportDate)}`,
+              { storage: localStorage },
+            );
+            if (!response.ok) {
+              return {
+                totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
+                branches: [],
+              };
+            }
+            const body = (await response.json()) as {
+              totals?: { grossSalesCents?: number; netSalesCents?: number; docCount?: number };
+              branches?: ReadonlyArray<{ branch_id: string }>;
+            };
+            return {
+              totals: {
+                grossSalesCents: body.totals?.grossSalesCents ?? 0,
+                netSalesCents: body.totals?.netSalesCents ?? 0,
+                docCount: body.totals?.docCount ?? 0,
+              },
+              branches: body.branches ?? [],
+            };
+          } catch {
+            return {
+              totals: { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
+              branches: [],
+            };
+          }
         },
       },
       'tenant',
@@ -115,7 +140,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   async function loadBriefing() {
     if (!isAgenticInsightsEnabled() || typeof fetch === 'undefined') return;
     try {
-      const response = await fetch('/api/insights/briefing');
+      if (localStorage.getItem(BRIEFING_PLAN_GATE_KEY) === 'deny') return;
+      const response = await apiFetch('/api/insights/briefing', { storage: localStorage });
+      if (response.status === 403) {
+        try {
+          const body = (await response.json()) as { code?: string };
+          if (body.code === 'PLAN_REQUIRES_CADENA') {
+            localStorage.setItem(BRIEFING_PLAN_GATE_KEY, 'deny');
+          }
+        } catch {
+          // Cuerpo no legible: no gatear; el widget permanece oculto.
+        }
+        return;
+      }
       if (!response.ok) return;
       briefing = (await response.json()) as { reportDate: string; briefing: string };
     } catch {
@@ -123,38 +160,38 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
   }
 
-  function loadDemoBacklog() {
+  async function loadBacklog() {
     if (!fiscalEa) return;
-    backlog = [
-      {
-        saleId: 'demo-quarantine',
-        sunatStatus: 'QUARANTINED',
-        documentType: '01',
-        totalCents: 15000,
-        suggestCreditNoteEa: true,
-      },
-    ];
+    try {
+      const response = await apiFetch('/api/fiscal/owner-backlog', { storage: localStorage });
+      if (!response.ok) return;
+      const json = (await response.json()) as { items?: FiscalBacklogItem[] };
+      backlog = json.items ?? [];
+    } catch {
+      backlog = [];
+    }
   }
 
   async function confirmAnular() {
     if (!pendingAnular) return;
     const item = pendingAnular;
     pendingAnular = null;
-    const res = await submitAnularEa(
-      typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '',
-      resolveApiAuth(localStorage).authorization ?? '',
-      {
-        originSaleId: item.saleId,
-        confirmed: true,
-        motiveCode,
-        series: 'FC01',
-      },
-    ).catch(() => ({
-      ok: true,
-      status: 200,
-      message: 'NC E-A (local demo)',
-      creditNoteSaleId: `nc-${item.saleId}`,
-    }));
+    let res: AnularEaResult;
+    try {
+      res = await submitAnularEa(
+        resolveApiBase(localStorage),
+        resolveApiAuth(localStorage).authorization ?? '',
+        {
+          originSaleId: item.saleId,
+          confirmed: true,
+          motiveCode,
+          series: 'FC01',
+        },
+      );
+    } catch (err) {
+      eaMsg = err instanceof Error ? err.message : 'No se pudo anular. Reintenta.';
+      return;
+    }
     if (res.ok) {
       backlog = backlog.filter((b) => b.saleId !== item.saleId);
       eaMsg = `Anulado ${item.saleId} → ${res.creditNoteSaleId ?? 'NC'}`;
@@ -165,11 +202,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadOverdueLayaways() {
     if (!layawayOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/layaways/overdue`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/layaways/overdue', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       items?: { id: string; balanceCents: number; dueDate: string | null; status: string }[];
@@ -179,11 +212,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadStoreCreditReport() {
     if (!storeCreditOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/ledger/store-credit`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/ledger/store-credit', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       issuedCents?: number;
@@ -201,11 +230,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadExpiredQuotes() {
     if (!quotesOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/quotes/expired`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/quotes/expired', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       items?: {
@@ -220,11 +245,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadOverdueInstallments() {
     if (!installmentsOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/installments/overdue`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/installments/overdue', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       items?: {
@@ -241,11 +262,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   async function loadCommissionsReport() {
     if (!commissionsOn) return;
-    const apiBase = resolveApiBase(localStorage);
-    const auth = resolveApiAuth(localStorage).authorization ?? '';
-    const res = await fetch(`${apiBase}/api/owner/commissions`, {
-      headers: { authorization: auth },
-    }).catch(() => null);
+    const res = await apiFetch('/api/owner/commissions', { storage: localStorage }).catch(() => null);
     if (!res?.ok) return;
     const json = (await res.json()) as {
       pendingAccrualCents?: number;
@@ -262,7 +279,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   onMount(() => {
     if (!enabled) return;
     void refresh(typeof navigator !== 'undefined' ? navigator.onLine : true);
-    loadDemoBacklog();
+    void loadBacklog();
     void loadOverdueLayaways();
     void loadExpiredQuotes();
     void loadStoreCreditReport();
@@ -307,7 +324,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   // Backlog v10 P1c — Percepciones/Retenciones (ADR-FISCAL-005).
   const withholdingsOn = isWithholdingsEnabled();
-  let whBranchId = $state('b-demo');
+  let whBranchId = $state('');
   let whSaleId = $state('');
   let whInvoiceId = $state('');
   let whSeriesP = $state('P001');
@@ -376,11 +393,31 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
 {#if enabled}
   <div class="page-shell" data-testid="owner-hoy">
+    <div class="stat-grid" data-testid="owner-hoy-fold">
+      <div class="stat-card">
+        <span class="stat-label">Ventas netas hoy</span>
+        <span class="stat-value emerald tabular-nums" data-testid="hoy-net">S/ {formatCents(snap?.netSalesCents ?? 0)}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Comprobantes</span>
+        <span class="stat-value tabular-nums" data-testid="hoy-docs">{snap?.docCount ?? 0}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Ventas brutas</span>
+        <span class="stat-value tabular-nums">S/ {formatCents(snap?.grossSalesCents ?? 0)}</span>
+      </div>
+      <a class="stat-card" href="/owner/alertas" data-testid="hoy-alertas">
+        <span class="stat-label">Alertas</span>
+        <span class="stat-value tabular-nums">{backlog.length + overdueLayaways.length + expiredQuotes.length}</span>
+      </a>
+    </div>
+    <p class="source-note" data-testid="hoy-source">
+      {fromCache ? 'Guardado en este dispositivo' : 'Actualizado al conectar'} · no en vivo
+    </p>
+
     <div class="page-masthead">
       <div>
-        <p class="page-eyebrow"><Icon name="bar-chart" size={12} /> Modo Dueño · Resumen Hoy</p>
-        <h1 class="page-title">Dashboard principal</h1>
-        <p class="page-lede">Resumen accionable del día — métricas consolidadas del negocio.</p>
+        <h1 class="page-title">Resumen del día</h1>
       </div>
     </div>
 
@@ -389,7 +426,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     {#if onboardingOn && serverState && !checklistDismissed}
       <StatusMessage tone="info" data-testid="owner-checklist">
-        <SetupChecklist server={serverState} {printerReady} />        <button
+        <SetupChecklist server={serverState} {printerReady} compact />
+        <button
           type="button"
           class="btn-secondary btn-sm"
           data-testid="owner-checklist-hide"
@@ -410,30 +448,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </StatusMessage>
     {/if}
 
-    <!-- Stat Grid -->
-    <div class="stat-grid">
-      <div class="stat-card">
-        <span class="stat-label">Ventas netas hoy</span>
-        <span class="stat-value emerald tabular-nums" data-testid="hoy-net">S/ {formatCents(snap?.netSalesCents ?? 0)}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Comprobantes</span>
-        <span class="stat-value tabular-nums" data-testid="hoy-docs">{snap?.docCount ?? 0}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Ventas brutas</span>
-        <span class="stat-value tabular-nums">S/ {formatCents(snap?.grossSalesCents ?? 0)}</span>
-      </div>
-    </div>
-
-    <p class="source-note" data-testid="hoy-source">
-      {fromCache ? 'Desde cache local' : 'Actualizado al conectar'} · no en vivo
-    </p>
-
     {#if isAgenticInsightsEnabled() && briefing}
-      <section class="glass-card section-pad" data-testid="owner-briefing">
+      <section class="ledger-card section-pad" data-testid="owner-briefing">
         <div class="card-head">
-          <h2>Resumen del servidor</h2>
+          <h2>Notas del negocio</h2>
           <span class="briefing-stale">Datos del {briefing.reportDate}, no en vivo.</span>
         </div>
         <ul class="briefing-bullets">
@@ -446,7 +464,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
     <div class="owner-sections-grid">
       {#if layawayOn && overdueLayaways.length > 0}
-        <section class="glass-card section-pad" data-testid="owner-layaway-overdue">
+        <section class="ledger-card section-pad" data-testid="owner-layaway-overdue">
           <div class="card-header">
             <h2>Apartados vencidos</h2>
             <span class="badge badge-warning">{overdueLayaways.length}</span>
@@ -464,7 +482,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if storeCreditOn && storeCreditReport}
-        <section class="glass-card section-pad" data-testid="owner-store-credit">
+        <section class="ledger-card section-pad" data-testid="owner-store-credit">
           <div class="card-header">
             <h2>Crédito de tienda</h2>
             <Icon name="gift" size={16} />
@@ -491,7 +509,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if quotesOn && expiredQuotes.length > 0}
-        <section class="glass-card section-pad" data-testid="owner-quotes-expired">
+        <section class="ledger-card section-pad" data-testid="owner-quotes-expired">
           <div class="card-header">
             <h2>Cotizaciones vencidas</h2>
             <span class="badge badge-muted">{expiredQuotes.length}</span>
@@ -509,7 +527,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if installmentsOn && overdueInstallments.length > 0}
-        <section class="glass-card section-pad" data-testid="owner-installments-overdue">
+        <section class="ledger-card section-pad" data-testid="owner-installments-overdue">
           <div class="card-header">
             <h2>Cuotas vencidas</h2>
             <span class="badge badge-danger">{overdueInstallments.length}</span>
@@ -528,7 +546,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if commissionsOn && commissionsReport}
-        <section class="glass-card section-pad" data-testid="owner-commissions">
+        <section class="ledger-card section-pad" data-testid="owner-commissions">
           <div class="card-header">
             <h2>Comisiones pendientes</h2>
             <Icon name="percent" size={16} />
@@ -539,7 +557,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
               <span class="report-value tabular-nums">S/ {formatCents(commissionsReport.pendingAccrualCents)}</span>
             </div>
             <div class="report-item">
-              <span class="report-label">Payouts OPEN</span>
+              <span class="report-label">Por pagar</span>
               <span class="report-value tabular-nums">S/ {formatCents(commissionsReport.openPayoutCents)}</span>
             </div>
             <div class="report-item">
@@ -551,12 +569,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if fiscalEa}
-        <section class="glass-card section-pad" data-testid="owner-fiscal-backlog">
+        <section class="ledger-card section-pad" data-testid="owner-fiscal-backlog">
           <div class="card-header">
-            <h2>Fiscal · represados / cuarentena</h2>
+            <h2>Comprobantes pendientes</h2>
             <span class="badge badge-warning">{backlog.length}</span>
           </div>
-          <p class="section-desc">CPE no aceptados. Anular (E-A) exige confirmación y motivo Catálogo 09.</p>
+          <p class="section-desc">Comprobantes aún no aceptados. Anular exige confirmación y un motivo válido.</p>
 
           {#if eaMsg}
             <StatusMessage tone="info" aria-live="polite" data-testid="ea-msg">
@@ -588,10 +606,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           {#if pendingAnular}
             <div class="confirm-box" data-testid="ea-confirm">
               <p class="confirm-title">
-                Confirmar NC anulación sin CDR para <strong>{pendingAnular.saleId}</strong>
+                Confirmar anulación de <strong>{pendingAnular.saleId}</strong>
               </p>
               <div class="field-group">
-                <label for="ea-motive-input">Motivo Cat. 09</label>
+                <label for="ea-motive-input">Motivo de anulación</label>
                 <input id="ea-motive-input" data-testid="ea-motive" bind:value={motiveCode} />
               </div>
               <div class="btn-row">
@@ -608,29 +626,29 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if debitNoteOn}
-        <section class="glass-panel owner-section" data-testid="owner-debit-note">
+        <section class="ledger-card owner-section section-pad" data-testid="owner-debit-note">
           <div class="owner-section-head">
             <h2>Nota de débito</h2>
-            <span class="badge badge-indigo">Ajuste al alza (cat. 10)</span>
+            <span class="badge badge-indigo">Ajuste al alza</span>
           </div>
           <p class="owner-section-lede">
             Incrementa el valor de un comprobante aceptado (factura/boleta) por interés, aumento de valor o penalidades. No toca stock.
           </p>
           <div class="field-group">
-            <label for="dn-origin">Comprobante origen (id)</label>
-            <input id="dn-origin" bind:value={dnOriginSaleId} data-testid="dn-origin" placeholder="sale-123" />
+            <label for="dn-origin">Comprobante origen</label>
+            <input id="dn-origin" bind:value={dnOriginSaleId} data-testid="dn-origin" placeholder="ID del comprobante" />
           </div>
           <div class="field-group">
-            <label for="dn-series">Serie ND</label>
+            <label for="dn-series">Serie</label>
             <input id="dn-series" bind:value={dnSeries} data-testid="dn-series" placeholder="FC01" />
           </div>
           <div class="field-group">
-            <label for="dn-motive">Motivo (catálogo 10)</label>
+            <label for="dn-motive">Motivo</label>
             <select id="dn-motive" bind:value={dnMotiveCode} data-testid="dn-motive">
-              <option value="01">01 — Interés por mora</option>
-              <option value="02">02 — Aumento de valor</option>
-              <option value="03">03 — Penalidades / otros conceptos</option>
-              <option value="10">10 — Ajuste de otros conceptos</option>
+              <option value="01">Interés por mora</option>
+              <option value="02">Aumento de valor</option>
+              <option value="03">Penalidades / otros conceptos</option>
+              <option value="10">Ajuste de otros conceptos</option>
             </select>
           </div>
           <div class="field-group">
@@ -651,13 +669,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       {/if}
 
       {#if withholdingsOn}
-        <section class="glass-panel owner-section" data-testid="owner-withholdings">
+        <section class="ledger-card owner-section section-pad" data-testid="owner-withholdings">
           <div class="owner-section-head">
             <h2>Percepciones y retenciones</h2>
-            <span class="badge badge-indigo">Pagos adelantados (P1c)</span>
+            <span class="badge badge-indigo">Pagos adelantados</span>
           </div>
           <p class="owner-section-lede">
-            Percepción (02) al cobrar a un cliente agente; retención (20) al pagar a un proveedor sujeto. Montos calculados por el servidor.
+            Percepción al cobrar a un cliente agente; retención al pagar a un proveedor sujeto. Los montos los calcula KipusPay.
           </p>
           <div class="field-group">
             <label for="wh-branch">Sucursal</label>
@@ -678,14 +696,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           </div>
           <div class="field-group">
             <label for="wh-sale">Venta origen (percepción)</label>
-            <input id="wh-sale" bind:value={whSaleId} data-testid="wh-sale" placeholder="sale-123" />
+            <input id="wh-sale" bind:value={whSaleId} data-testid="wh-sale" placeholder="ID de la venta" />
             <Button variant="primary" data-testid="wh-perception-submit" onclick={onIssuePerception}>
               Emitir percepción
             </Button>
           </div>
           <div class="field-group">
             <label for="wh-invoice">Factura proveedor (retención)</label>
-            <input id="wh-invoice" bind:value={whInvoiceId} data-testid="wh-invoice" placeholder="si-123" />
+            <input id="wh-invoice" bind:value={whInvoiceId} data-testid="wh-invoice" placeholder="ID de la factura" />
             <Button variant="primary" data-testid="wh-retention-submit" onclick={onIssueRetention}>
               Emitir retención
             </Button>
@@ -700,6 +718,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
  {/if}
 
 <style>
+  .stat-grid a.stat-card {
+    text-decoration: none;
+    color: inherit;
+  }
+
   .source-note {
     font-size: 0.8125rem;
     color: var(--text-dim);
@@ -733,7 +756,10 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: start;
   }
 
-
+  .owner-section {
+    display: grid;
+    gap: var(--space-3);
+  }
 
   .section-desc {
     font-size: 0.8125rem;
@@ -804,9 +830,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .report-label {
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
     color: var(--text-dim);
   }
 
@@ -841,7 +866,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.5rem;
   }
 
-  @media (max-width: 700px) {
-    .owner-sections-grid { grid-template-columns: 1fr; }
+  @media (max-width: 719px) {
+    .owner-sections-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  
+  import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { isInventoryLocationsEnabled } from '$lib/features';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -6,7 +8,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import Table from '$lib/ui/Table.svelte';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch } from '$lib/auth/api-client';
 
   type LocationRow = {
     id: string;
@@ -24,7 +26,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   };
 
   const locationsOn = isInventoryLocationsEnabled();
-  let branchId = $state('b-demo');
+  let branchId = $state(initTenantBranchId());
   let code = $state('');
   let name = $state('');
   let locations = $state<LocationRow[]>([]);
@@ -36,14 +38,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let busy = $state(false);
 
-  const apiBase = () => resolveApiBase(localStorage);
-  const auth = () => resolveApiAuth(localStorage).authorization ?? '';
-  const headers = () => ({ 'content-type': 'application/json', authorization: auth() });
   const units = (microunits: number) =>
     new Intl.NumberFormat('es-PE', { maximumFractionDigits: 6 }).format(microunits / 1_000_000);
 
-  async function request(path: string, init?: RequestInit) {
-    const response = await fetch(`${apiBase()}${path}`, init);
+  async function request(path: string, init?: { method?: string; body?: string }) {
+    const response = await apiFetch(path, {
+      storage: localStorage,
+      method: init?.method,
+      headers: { 'content-type': 'application/json' },
+      body: init?.body,
+    });
     const body = (await response.json()) as Record<string, unknown>;
     if (!response.ok) throw new Error(String(body.error ?? `Error ${response.status}`));
     return body;
@@ -54,12 +58,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     message = '';
     try {
       const [locationData, stockData] = await Promise.all([
-        request(`/api/inventory/locations?branchId=${encodeURIComponent(branchId)}`, {
-          headers: headers(),
-        }),
-        request(`/api/inventory/locations/stock?branchId=${encodeURIComponent(branchId)}`, {
-          headers: headers(),
-        }),
+        request(`/api/inventory/locations?branchId=${encodeURIComponent(branchId)}`),
+        request(`/api/inventory/locations/stock?branchId=${encodeURIComponent(branchId)}`),
       ]);
       locations = (locationData.items as LocationRow[]) ?? [];
       stock = (stockData.items as StockRow[]) ?? [];
@@ -78,7 +78,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     try {
       await request('/api/inventory/locations', {
         method: 'POST',
-        headers: headers(),
         body: JSON.stringify({ branchId, code, name }),
       });
       code = '';
@@ -97,9 +96,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     try {
       await request('/api/inventory/locations/transfer', {
         method: 'POST',
-        headers: headers(),
         body: JSON.stringify({
-          branchId,
+          branchId: branchId.trim() || initTenantBranchId(),
           sourceLocationId,
           destinationLocationId,
           productId,
@@ -121,7 +119,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     try {
       await request('/api/inventory/locations', {
         method: 'DELETE',
-        headers: headers(),
         body: JSON.stringify({ branchId, locationId }),
       });
       message = 'Ubicación desactivada';
@@ -142,7 +139,6 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       const result = await request(
         `/api/inventory/locations/picking?branchId=${encodeURIComponent(branchId)}` +
           `&productId=${encodeURIComponent(productId)}&quantityMicrounits=${quantityMicrounits}`,
-        { headers: headers() },
       );
       const steps = (result.items as { locationId: string; quantityMicrounits: number }[]) ?? [];
       message = steps
@@ -154,36 +150,55 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       busy = false;
     }
   }
+
+  async function exportCsv() {
+    try {
+      const res = await apiFetch(
+        `/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`,
+        { storage: localStorage },
+      );
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = 'inventario-ubicaciones.csv';
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch {
+      message = 'No se pudo exportar el CSV.';
+    }
+  }
 </script>
 
 <svelte:head><title>Ubicaciones y Racks · KipusPay</title></svelte:head>
 
-<div class="location-admin-container" data-testid="admin-locations">
-  <header class="glass-panel admin-header">
+<div class="page-shell location-admin-container" data-testid="admin-locations">
+  <header class="page-masthead">
     <div>
-      <span class="badge badge-indigo">Inventario Avanzado · Sprint 38</span>
-      <h1 class="page-title">Ubicaciones y Racks por Sucursal</h1>
-      <p class="lede-text">Mueve, cuenta y localiza producto por estante sin alterar el agregado total de la sucursal.</p>
+      <p class="page-eyebrow">Inventario</p>
+      <h1 class="page-title">Ubicaciones y racks</h1>
+      <p class="page-lede">Mueve, cuenta y localiza producto por estante sin alterar el total de la sucursal.</p>
     </div>
     <Button
       variant="secondary"
-      href={`${apiBase()}/api/reports/inventory-by-location?format=csv&branchId=${encodeURIComponent(branchId)}`}
       icon="download"
+      onclick={() => void exportCsv()}
     >
       Exportar CSV
     </Button>
   </header>
 
   {#if !locationsOn}
-    <div class="glass-panel notice-box" data-testid="admin-locations-off">
-      <span class="badge badge-warning">No Activa</span>
+    <div class="ledger-card notice-box" data-testid="admin-locations-off">
+      <span class="badge badge-warning">No activa</span>
       <h2>Ubicaciones aún no habilitadas</h2>
       <p>Contacta a tu proveedor para activarlas.</p>
     </div>
   {:else}
-    <section class="glass-panel branch-bar">
-      <div class="branch-input-group">
-        <label for="branch-id-input">Sucursal Activa</label>
+    <section class="ledger-card branch-bar">
+      <div class="field-group branch-input-group">
+        <label for="branch-id-input">Sucursal activa</label>
         <input id="branch-id-input" bind:value={branchId} placeholder="Sucursal" />
       </div>
       <Button
@@ -192,7 +207,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         disabled={busy}
         icon="refresh"
       >
-        {busy ? 'Cargando…' : 'Actualizar Mapa'}
+        {busy ? 'Cargando…' : 'Actualizar mapa'}
       </Button>
     </section>
 
@@ -205,23 +220,22 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </StatusMessage>
     {/if}
 
-    <!-- Racks Map Grid -->
     <section class="racks-section">
       <div class="section-title-bar">
-        <h2>Mapa de Racks & Almacenes</h2>
-        <span class="badge badge-indigo">{locations.length} Racks Registrados</span>
+        <h2>Mapa de racks</h2>
+        <span class="badge badge-indigo">{locations.length} racks</span>
       </div>
 
       <div class="rack-map-grid">
         {#each locations as location}
-          <article class="glass-panel rack-card" class:inactive={location.is_active !== 1}>
+          <article class="ledger-card rack-card" class:inactive={location.is_active !== 1}>
             <div class="rack-card-header">
               <span class="rack-code-badge">{location.code}</span>
               {#if location.code === 'DEFAULT'}
                 <span class="badge badge-success">DEFAULT</span>
               {:else}
                 <span class="badge" class:badge-success={location.is_active === 1} class:badge-warning={location.is_active !== 1}>
-                  {location.is_active === 1 ? 'ACTIVO' : 'INACTIVO'}
+                  {location.is_active === 1 ? 'Activo' : 'Inactivo'}
                 </span>
               {/if}
             </div>
@@ -229,7 +243,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             <strong class="rack-name">{location.name || 'Sin nombre asignado'}</strong>
 
             <div class="rack-stats-row">
-              <span class="stat-label">Productos Almacenados:</span>
+              <span class="stat-label">Productos:</span>
               <span class="stat-count tabular-nums">
                 {stock.filter((row) => row.location_id === location.id).length} SKU
               </span>
@@ -248,35 +262,37 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             {/if}
           </article>
         {:else}
-          <div class="glass-panel empty-racks-box">
+          <div class="ledger-card empty-racks-box">
             <EmptyState
               icon="package"
               title="Sin racks"
-              description="No hay racks registrados. Crea la primera ubicación para comenzar la gestión de putaway."
-            />
+              description="No hay racks registrados. Crea la primera ubicación para comenzar."
+            >
+              <Button variant="primary" href="#nueva-ubicacion" data-testid="ubicaciones-empty-create">
+                Crear ubicación
+              </Button>
+            </EmptyState>
           </div>
         {/each}
       </div>
     </section>
 
-    <!-- Operations Workbench Grid -->
-    <div class="workbench-grid">
-      <!-- Create Location Panel -->
-      <section class="glass-panel workbench-card">
+    <div class="workbench-2col">
+      <section class="ledger-card" id="nueva-ubicacion">
         <div class="card-header">
           <div>
-            <span class="panel-label">Alta de Rack</span>
-            <h2>Nueva Ubicación</h2>
+            <span class="section-tag">Alta de rack</span>
+            <h2>Nueva ubicación</h2>
           </div>
         </div>
 
         <div class="form-body">
-          <div>
-            <label for="code-input">Código de Rack</label>
+          <div class="field-group">
+            <label for="code-input">Código de rack</label>
             <input id="code-input" bind:value={code} placeholder="Ej. RACK-A1" />
           </div>
-          <div>
-            <label for="name-input">Nombre / Descripción</label>
+          <div class="field-group">
+            <label for="name-input">Nombre / descripción</label>
             <input id="name-input" bind:value={name} placeholder="Ej. Pasillo 1 · Nivel 2" />
           </div>
           <Button
@@ -285,23 +301,22 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             disabled={busy || !code.trim()}
             icon="plus"
           >
-            Crear Ubicación
+            Crear ubicación
           </Button>
         </div>
       </section>
 
-      <!-- Transfer Stock Panel -->
-      <section class="glass-panel workbench-card">
+      <section class="ledger-card">
         <div class="card-header">
           <div>
-            <span class="panel-label">Movimiento Interno</span>
-            <h2>Transferir Stock Intra-Sucursal</h2>
+            <span class="section-tag">Movimiento interno</span>
+            <h2>Transferir stock</h2>
           </div>
         </div>
 
         <div class="form-body">
           <div class="selects-row">
-            <div>
+            <div class="field-group">
               <label for="source-select">Origen</label>
               <select id="source-select" bind:value={sourceLocationId}>
                 {#each locations as location}
@@ -309,7 +324,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 {/each}
               </select>
             </div>
-            <div>
+            <div class="field-group">
               <label for="destination-select">Destino</label>
               <select id="destination-select" bind:value={destinationLocationId}>
                 {#each locations as location}
@@ -319,16 +334,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             </div>
           </div>
 
-          <div>
+          <div class="field-group">
             <label for="product-id-input">Producto ID</label>
             <input id="product-id-input" bind:value={productId} placeholder="p1" />
           </div>
-          <div>
+          <div class="field-group">
             <label for="quantity-microunits-input">Cantidad</label>
             <input id="quantity-microunits-input" type="number" min="1" step="1" bind:value={quantityMicrounits} />
           </div>
 
-          <div class="action-buttons-row">
+          <div class="btn-row">
             <Button
               variant="primary"
               onclick={transfer}
@@ -339,7 +354,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 sourceLocationId === destinationLocationId}
               icon="arrow-right"
             >
-              Transferir Stock
+              Transferir stock
             </Button>
             <Button
               variant="secondary"
@@ -354,12 +369,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       </section>
     </div>
 
-    <!-- Granular Stock Table -->
-    <section class="glass-panel stock-table-card">
+    <section class="ledger-card">
       <div class="card-header">
         <div>
-          <span class="panel-label">Existencia Granular</span>
-          <h2>Stock por Ubicación y Producto</h2>
+          <span class="section-tag">Existencia granular</span>
+          <h2>Stock por ubicación y producto</h2>
         </div>
       </div>
 
@@ -373,7 +387,13 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         ]}
         items={stock}
         empty="No hay datos de inventario registrados para esta sucursal."
+        emptyDescription="Crea una ubicación y registra existencias para ver el stock por rack."
       >
+        {#snippet emptyAction()}
+          <Button variant="secondary" href="#nueva-ubicacion" data-testid="stock-empty-create">
+            Crear ubicación
+          </Button>
+        {/snippet}
         {#snippet cell(row: StockRow, col)}
           {#if col.label === 'Código Rack'}
             <Badge variant="indigo">{row.location_code}</Badge>
@@ -399,27 +419,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 1.25rem;
   }
 
-  .admin-header {
-    padding: 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.75rem;
-    font-weight: 800;
-    margin-top: 0.25rem;
-  }
-
-  .lede-text {
-    color: var(--text-muted);
-    font-size: 0.9375rem;
-  }
-
   .notice-box {
-    padding: 2rem;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -428,25 +428,35 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .branch-bar {
-    padding: 1rem 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     gap: 1rem;
+    flex-wrap: wrap;
   }
 
   .branch-input-group {
-    display: flex;
-    flex-direction: column;
     max-width: 320px;
     width: 100%;
+  }
+
+  .racks-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .section-title-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .section-title-bar h2 {
+    margin: 0;
+    font-size: 1.05rem;
   }
 
   .rack-map-grid {
@@ -456,16 +466,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   .rack-card {
-    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .rack-card.inactive {
+    opacity: 0.72;
   }
 
   .rack-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
   }
 
   .rack-code-badge {
@@ -494,37 +508,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--emerald-green);
   }
 
-
   .empty-racks-box {
     grid-column: 1 / -1;
-    padding: 3rem;
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .workbench-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-  }
-
-  .workbench-card {
-    padding: 1.5rem;
-  }
-
-  .panel-label {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--accent-primary);
   }
 
   .form-body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
   }
 
   .selects-row {
@@ -533,17 +525,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     gap: 0.75rem;
   }
 
-  .action-buttons-row {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .stock-table-card {
-    padding: 1.5rem;
-  }
-
-  @media (max-width: 900px) {
-    .workbench-grid {
+  @media (max-width: 899px) {
+    .selects-row {
       grid-template-columns: 1fr;
     }
   }
