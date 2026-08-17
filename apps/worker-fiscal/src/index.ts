@@ -8,22 +8,18 @@ import {
 import {
   cdrIsAccepted,
   breakerDoName,
-  BREAKER_KV_TTL_SECONDS,
-  initialBreakerSnapshot,
-  type BreakerSnapshot,
   type FiscalEndpoint,
 } from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
 import {
   readBreakerOpen,
-  seedIsolateClosed,
-  writeBreakerOpenToKv,
   type BreakerKvLike,
 } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
 
 export { FiscalCircuitBreaker };
+export { default as FiscalService } from './fiscal-service.js';
 
 export interface CdrPayload {
   readonly cdrCode: string;
@@ -228,40 +224,11 @@ function handleRcStatus(env: FiscalWorkerEnv): Response {
 }
 
 /**
- * Bootstrap del breaker en arranque en frío (Sello QA Batch I): cuando el KV
- * aún no tiene la clave (entorno nuevo sin histórico), B8 la lee como OPEN
- * (fail-closed). El DO nace CLOSED — el submit nunca lo muta, así que sin
- * bootstrap el canal quedaría 503 permanentemente. Aquí, SOLO en el estado
- * frío (clave ausente), se consulta el DO /status (lectura, no hot path) y si
- * está closed se persiste '0' (cache) y se continúa; si está open o el DO no
- * responde, se mantiene el 503 fail-closed (invariante 5).
+ * Bootstrap del breaker en arranque en frío — movido a breaker-bootstrap.ts
+ * (compartido con FiscalService sin ciclo de imports).
  */
-export async function bootstrapBreakerCold(
-  env: FiscalWorkerEnv,
-  transport: string,
-  endpoint: FiscalEndpoint,
-): Promise<boolean> {
-  const kv = env.FISCAL_BREAKER_KV;
-  const doBinding = env.FISCAL_CIRCUIT_BREAKER_DO;
-  if (!kv || !doBinding) return false;
-  const key = breakerDoName(transport, endpoint);
-  const raw = await kv.get(key);
-  if (raw !== null) return false;
-  try {
-    const stub = doBinding.get(doBinding.idFromName(key));
-    const res = await stub.fetch(
-      `https://do/status?transport=${encodeURIComponent(transport)}&endpoint=${endpoint}`,
-    );
-    const parsed: Partial<BreakerSnapshot> = await res.json();
-    const snap: BreakerSnapshot = { ...initialBreakerSnapshot(), ...parsed };
-    if (snap.state === 'open') return false;
-    await writeBreakerOpenToKv(kv, transport, endpoint, snap, BREAKER_KV_TTL_SECONDS);
-    seedIsolateClosed(transport, endpoint, Date.now());
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { bootstrapBreakerCold } from './breaker-bootstrap.js';
+export { bootstrapBreakerCold } from './breaker-bootstrap.js';
 
 export default {
   async fetch(request: Request, env: FiscalWorkerEnv = {}): Promise<Response> {
@@ -277,5 +244,11 @@ export default {
       return handleRcStatus(env);
     }
     return new Response('not found', { status: 404 });
+  },
+
+  /** C6: cron del drain — worker-fiscal se auto-reclama sin depender de worker-api. */
+  scheduled(_controller: ScheduledController, env: FiscalWorkerEnv, ctx: ExecutionContext) {
+    if (!env.DB || !env.FISCAL_XML_R2) return;
+    ctx.waitUntil(handleDrain(env));
   },
 };

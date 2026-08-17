@@ -604,6 +604,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       payload,
       user?.role === 'admin' || user?.role === 'owner',
       c.req.header('x-terminal-id') ?? '',
+      (task) => c.executionCtx.waitUntil(task),
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });

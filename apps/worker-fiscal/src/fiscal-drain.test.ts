@@ -198,6 +198,7 @@ describe('fiscal drain FIFO', () => {
         must_submit_by: '2026-08-08T00:00:00.000Z',
         r2_xml_key: key,
         status: 'FAILED',
+        document_type: '01',
       },
       {
         id: 'ok',
@@ -207,6 +208,7 @@ describe('fiscal drain FIFO', () => {
         must_submit_by: '2026-08-09T00:00:00.000Z',
         r2_xml_key: key,
         status: 'PENDING',
+        document_type: '01',
       },
     ];
     const db = memoryDb(rows);
@@ -239,6 +241,7 @@ describe('fiscal drain FIFO', () => {
         must_submit_by: '2026-08-08T00:00:00.000Z',
         r2_xml_key: key,
         status: 'PENDING',
+        document_type: '01',
       },
     ];
     const db = memoryDb(rows);
@@ -286,6 +289,99 @@ describe('fiscal drain FIFO', () => {
     expect(submitCalls).toBe(1);
     const finalStatus = (db.state.find((r) => r.id === 'r1') as { status: string }).status;
     expect(finalStatus).toBe('SENT');
+  });
+
+  it('C6: boleta (canal RC) se salta del drain — jamás se envía XML unitario', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    r2.map.set('boleta-key', '<Invoice/>');
+    db.state.push({
+      id: 'b1',
+      tenant_id: 't',
+      sale_id: 's-boleta',
+      status: 'PENDING',
+      attempt_count: 0,
+      must_submit_by: '2026-08-20T00:00:00.000Z',
+      document_type: '03',
+      r2_xml_key: 'boleta-key',
+      created_at: new Date().toISOString(),
+    } as unknown as MockRow);
+
+    let submitCalls = 0;
+    const transport: FiscalTransport = {
+      mode: 'MOCK_STAGING',
+      submit: () => {
+        submitCalls += 1;
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+        });
+      },
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+    };
+
+    const result = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+    expect(result.skippedRc).toBe(1);
+    expect(result.accepted).toBe(0);
+    expect(submitCalls).toBe(0);
+    expect(db.state.find((r) => r.id === 'b1')?.status).toBe('PROCESSING');
+  });
+
+  it('C6: fila sin r2_xml_key → self-healing produce XML y luego se envía', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    db.state.push({
+      id: 'h1',
+      tenant_id: 't',
+      sale_id: 's-orphan',
+      status: 'PENDING',
+      attempt_count: 0,
+      must_submit_by: '2026-08-20T00:00:00.000Z',
+      document_type: '01',
+      r2_xml_key: null,
+      created_at: new Date().toISOString(),
+    } as unknown as MockRow);
+
+    let produced = false;
+    let submitCalls = 0;
+    const transport: FiscalTransport = {
+      mode: 'MOCK_STAGING',
+      submit: () => {
+        submitCalls += 1;
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+        });
+      },
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+    };
+
+    const result = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+      produceMissingXml: () => {
+        produced = true;
+        r2.map.set('fiscal-xml/t/s-orphan.xml', '<Invoice/>');
+        // el producer actualiza el outbox; simulamos el efecto en memoria
+        const row = db.state.find((r) => r.id === 'h1');
+        if (row) (row as { r2_xml_key: string | null }).r2_xml_key = 'fiscal-xml/t/s-orphan.xml';
+        return Promise.resolve();
+      },
+    });
+
+    expect(produced).toBe(true);
+    expect(result.accepted).toBe(1);
+    expect(submitCalls).toBe(1);
+    expect(db.state.find((r) => r.id === 'h1')?.status).toBe('SENT');
   });
 });
 

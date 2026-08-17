@@ -5,6 +5,7 @@ import {
   NV_LEGAL_LEGEND,
   assertEmissionAllowed,
   cdrIsAccepted,
+  classifyUnitaryXmlTarget,
   computeMustSubmitByIso,
   defaultSunatStatus,
   formalizeDescriptor,
@@ -181,5 +182,34 @@ describe('computeMustSubmitByIso', () => {
     expect(computeMustSubmitByIso('NV', issued)).toBeNull();
     const factura = computeMustSubmitByIso('01', issued);
     expect(factura).toBe(new Date(issued + 3 * 24 * 3600 * 1000).toISOString());
+  });
+});
+
+describe('classifyUnitaryXmlTarget', () => {
+  it('01 factura → UNIT_XML sin depender de referencia', () => {
+    expect(classifyUnitaryXmlTarget('01')).toBe('UNIT_XML');
+    expect(classifyUnitaryXmlTarget('01', undefined)).toBe('UNIT_XML');
+  });
+
+  it('07/08 de factura → UNIT_XML; 07/08 de boleta → RC', () => {
+    expect(classifyUnitaryXmlTarget('07', '01')).toBe('UNIT_XML');
+    expect(classifyUnitaryXmlTarget('08', '01')).toBe('UNIT_XML');
+    expect(classifyUnitaryXmlTarget('07', '03')).toBe('RC');
+    expect(classifyUnitaryXmlTarget('08', '03')).toBe('RC');
+  });
+
+  it('03 boleta y 12 → RC (nunca unit XML)', () => {
+    expect(classifyUnitaryXmlTarget('03')).toBe('RC');
+    expect(classifyUnitaryXmlTarget('12')).toBe('RC');
+  });
+
+  it('NV / NV_RETURN → NONE', () => {
+    expect(classifyUnitaryXmlTarget('NV')).toBe('NONE');
+    expect(classifyUnitaryXmlTarget('NV_RETURN')).toBe('NONE');
+  });
+
+  it('07/08 sin referencia resoluble → NONE (fail-closed, no asume canal)', () => {
+    expect(classifyUnitaryXmlTarget('07', undefined)).toBe('NONE');
+    expect(classifyUnitaryXmlTarget('08', undefined)).toBe('NONE');
   });
 });

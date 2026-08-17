@@ -7,9 +7,14 @@
  */
 import {
   classifyFiscalError,
+  type FiscalErrorClass,
   createMockPseTransport,
   type FiscalTransport,
 } from '@kipuspay/adapters-sunat';
+import {
+  classifyUnitaryXmlTarget,
+  type FiscalDeliveryChannel,
+} from '@kipuspay/domain-fiscal-pe';
 
 export const POISON_RETRY_THRESHOLD = 5;
 export const CLAIM_STALE_AFTER_MINUTES = 10;
@@ -50,12 +55,16 @@ export interface OutboxRow {
   readonly r2_xml_key: string | null;
   readonly status: string;
   readonly document_type?: string | null;
+  /** C6: tipo del documento referenciado (para NC/ND 07/08). */
+  readonly referenced_document_type?: string | null;
 }
 
 export interface DrainResult {
   readonly processed: number;
   readonly quarantined: number;
   readonly skippedOpenBreaker: number;
+  /** C6: filas cuyo canal de envío NO es UNIT_XML (boletas/RC → summary). */
+  readonly skippedRc: number;
   readonly accepted: number;
   readonly rejected: number;
 }
@@ -101,13 +110,190 @@ export async function selectClaimedRows(db: FiscalDrainDb): Promise<readonly Out
   const res = await db
     .prepare(
       `SELECT f.id, f.tenant_id, f.sale_id, f.attempt_count, f.must_submit_by,
-              f.r2_xml_key, f.status, s.document_type
+              f.r2_xml_key, f.status, s.document_type, ref.document_type AS referenced_document_type
        FROM fiscal_outbox f
        INNER JOIN sales s ON s.tenant_id = f.tenant_id AND s.id = f.sale_id
+       LEFT JOIN sales ref ON ref.tenant_id = s.tenant_id AND ref.id = s.referenced_sale_id
        WHERE f.status = 'PROCESSING'`,
     )
     .all<OutboxRow>();
   return res.results ?? [];
+}
+
+/**
+ * C6: canal de envío de una fila del outbox (spec §5.2). Las boletas (RC)
+ * jamás se envían como XML unitario — las cubre buildDailySummary.
+ */
+export function outboxDeliveryChannel(row: Pick<OutboxRow, 'document_type' | 'referenced_document_type'>): FiscalDeliveryChannel {
+  return classifyUnitaryXmlTarget(
+    (row.document_type as '01' | '03' | '07' | '08' | '12' | 'NV' | 'NV_RETURN') ?? 'NV',
+    row.referenced_document_type ?? undefined,
+  );
+}
+
+/**
+ * C6: intenta producir el XML que falta (post-commit best-effort). Inyectable
+ * para tests; en producción lo provee worker-api vía `produceFiscalXmlForSale`.
+ * Nunca lanza: cualquier fallo se reporta como `null` y el drain re-intenta.
+ */
+export interface ProduceMissingXml {
+  (input: { readonly tenantId: string; readonly saleId: string }): Promise<unknown>;
+}
+
+type RowOutcome =
+  | 'SKIP_RC'
+  | 'QUARANTINED'
+  | 'FAILED_MISSING_XML'
+  | 'FAILED_R2_MISS'
+  | 'FAILED_INFRA'
+  | 'REJECTED'
+  | 'SENT';
+
+/** Clasifica el error del transporte: INFRA / BUSINESS / OK. */
+function classifySubmitOutcome(
+  outcome: Awaited<ReturnType<FiscalTransport['submit']>>,
+): FiscalErrorClass {
+  if (outcome.kind === 'accepted') {
+    return classifyFiscalError({ httpStatus: 200, cdrAccepted: true });
+  }
+  return outcome.kind === 'rejected'
+    ? classifyFiscalError({ httpStatus: 400 })
+    : classifyFiscalError({ httpStatus: 503 });
+}
+
+/** Marca FAILED sobre la fila actual (infra o XML ausente). */
+async function markRowFailed(
+  db: FiscalDrainDb,
+  row: OutboxRow,
+  reason: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
+       WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
+    )
+    .bind(reason, row.id, row.tenant_id)
+    .run();
+}
+
+/** Marca QUARANTINED con motivo (poison, business 4xx). */
+async function markRowQuarantined(
+  db: FiscalDrainDb,
+  row: OutboxRow,
+  reason: string,
+  lastError: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, last_error = ?
+       WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
+    )
+    .bind(reason, lastError, row.id, row.tenant_id)
+    .run();
+}
+
+/** Marca sunat_status de la venta como QUARANTINED/REJECTED/ACCEPTED. */
+async function markSaleStatus(
+  db: FiscalDrainDb,
+  row: OutboxRow,
+  status: 'QUARANTINED' | 'REJECTED' | 'ACCEPTED',
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE sales SET sunat_status = ?
+       WHERE id = ? AND tenant_id = ?
+         AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
+    )
+    .bind(status, row.sale_id, row.tenant_id, row.id, row.tenant_id)
+    .run();
+}
+
+/** Procesa una fila reclamada; devuelve el desenlace para contabilidad. */
+async function processClaimedRow(
+  input: {
+    readonly db: FiscalDrainDb;
+    readonly r2: FiscalXmlR2;
+    readonly transport: FiscalTransport;
+    readonly onInfraFailure: () => Promise<void>;
+    readonly produceMissingXml?: ProduceMissingXml;
+  },
+  row: OutboxRow,
+): Promise<RowOutcome> {
+  const { db, r2, transport } = input;
+  const channel = outboxDeliveryChannel(row);
+  // C6: boletas/RC nunca viajan como XML unitario (spec §5.2). La fila queda
+  // PROCESSING; la devuelve a PENDING el claim stale o la re-encola RC.
+  if (channel !== 'UNIT_XML') return 'SKIP_RC';
+
+  if (row.attempt_count >= POISON_RETRY_THRESHOLD) {
+    await markRowQuarantined(db, row, 'POISON_RETRY', 'retry_count_exceeded');
+    await markSaleStatus(db, row, 'QUARANTINED');
+    return 'QUARANTINED';
+  }
+
+  let r2XmlKey = row.r2_xml_key;
+  if (!r2XmlKey) {
+    // C6: self-healing — intenta producir el XML antes de cuarentenar.
+    if (input.produceMissingXml) {
+      try {
+        await input.produceMissingXml({ tenantId: row.tenant_id, saleId: row.sale_id });
+        const retried = await selectClaimedRows(db);
+        const fresh = retried.find(
+          (r) => r.id === row.id && r.r2_xml_key !== null && r.r2_xml_key !== undefined,
+        );
+        if (fresh?.r2_xml_key) {
+          r2XmlKey = fresh.r2_xml_key;
+        }
+      } catch {
+        // fall-through → retry via FAILED
+      }
+    }
+    if (!r2XmlKey) {
+      await markRowFailed(db, row, 'MISSING_R2_XML');
+      return 'FAILED_MISSING_XML';
+    }
+  }
+
+  const obj = await r2.get(r2XmlKey);
+  if (!obj) {
+    await markRowFailed(db, row, 'R2_MISS');
+    return 'FAILED_R2_MISS';
+  }
+  const xml = await obj.text();
+  // F5-3: el hash que viaja al transporte es el SHA-256 REAL del XML
+  // (antes literal 'drain'); integridad verificable por el PSE/OSE.
+  const xmlHash = await hashFiscalXml(xml);
+  const outcome = await transport.submit({
+    tenantId: row.tenant_id,
+    saleId: row.sale_id,
+    xml,
+    xmlHash,
+    documentType: (row.document_type as '01' | '03' | '07' | '08') || '01',
+  });
+
+  const errorClass = classifySubmitOutcome(outcome);
+
+  if (errorClass === 'INFRA') {
+    await input.onInfraFailure();
+    await markRowFailed(db, row, 'INFRA');
+    return 'FAILED_INFRA';
+  }
+
+  if (errorClass === 'BUSINESS' || outcome.kind === 'rejected') {
+    await markRowQuarantined(db, row, 'BUSINESS_4XX', 'business_reject');
+    await markSaleStatus(db, row, 'REJECTED');
+    return 'REJECTED';
+  }
+
+  await db
+    .prepare(
+      `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1
+       WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
+    )
+    .bind(row.id, row.tenant_id)
+    .run();
+  await markSaleStatus(db, row, 'ACCEPTED');
+  return 'SENT';
 }
 
 export async function drainFiscalOutbox(input: {
@@ -117,6 +303,8 @@ export async function drainFiscalOutbox(input: {
   readonly isBreakerOpen: () => Promise<boolean>;
   readonly onInfraFailure: () => Promise<void>;
   readonly limit?: number;
+  /** C6: produce el XML unitario que falta (best-effort, nunca lanza). */
+  readonly produceMissingXml?: ProduceMissingXml;
 }): Promise<DrainResult> {
   const transport = input.transport ?? createMockPseTransport();
   const claimed = await claimFiscalRows(input.db, input.limit ?? 20);
@@ -124,6 +312,7 @@ export async function drainFiscalOutbox(input: {
   let processed = 0;
   let quarantined = 0;
   let skippedOpenBreaker = 0;
+  let skippedRc = 0;
   let accepted = 0;
   let rejected = 0;
 
@@ -132,126 +321,28 @@ export async function drainFiscalOutbox(input: {
       skippedOpenBreaker += 1;
       continue;
     }
-    if (row.attempt_count >= POISON_RETRY_THRESHOLD) {
-      await input.db
-        .prepare(
-          `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, last_error = ?
-           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
-        )
-        .bind('POISON_RETRY', 'retry_count_exceeded', row.id, row.tenant_id)
-        .run();
-      await input.db
-        .prepare(
-          `UPDATE sales SET sunat_status = 'QUARANTINED'
-           WHERE id = ? AND tenant_id = ?
-             AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
-        )
-        .bind(row.sale_id, row.tenant_id, row.id, row.tenant_id)
-        .run();
-      quarantined += 1;
-      processed += 1;
-      continue;
-    }
-
-    if (!row.r2_xml_key) {
-      await input.db
-        .prepare(
-          `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
-        )
-        .bind('MISSING_R2_XML', row.id, row.tenant_id)
-        .run();
-      quarantined += 1;
-      processed += 1;
-      continue;
-    }
-
-    const obj = await input.r2.get(row.r2_xml_key);
-    if (!obj) {
-      await input.db
-        .prepare(
-          `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
-        )
-        .bind('R2_MISS', row.id, row.tenant_id)
-        .run();
-      processed += 1;
-      continue;
-    }
-    const xml = await obj.text();
-    // F5-3: el hash que viaja al transporte es el SHA-256 REAL del XML
-    // (antes literal 'drain'); integridad verificable por el PSE/OSE.
-    const xmlHash = await hashFiscalXml(xml);
-    const outcome = await transport.submit({
-      tenantId: row.tenant_id,
-      saleId: row.sale_id,
-      xml,
-      xmlHash,
-      documentType: (row.document_type as '01' | '03' | '07' | '08') || '01',
-    });
-
-    const errorClass =
-      outcome.kind === 'accepted'
-        ? classifyFiscalError({ httpStatus: 200, cdrAccepted: true })
-        : outcome.kind === 'rejected'
-          ? classifyFiscalError({ httpStatus: 400 })
-          : classifyFiscalError({ httpStatus: 503 });
-
-    if (errorClass === 'INFRA') {
-      await input.onInfraFailure();
-      await input.db
-        .prepare(
-          `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
-        )
-        .bind('INFRA', row.id, row.tenant_id)
-        .run();
-      processed += 1;
-      continue;
-    }
-
-    if (errorClass === 'BUSINESS' || outcome.kind === 'rejected') {
-      await input.db
-        .prepare(
-          `UPDATE fiscal_outbox SET status = 'QUARANTINED', quarantine_reason = ?, attempt_count = attempt_count + 1
-           WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
-        )
-        .bind('BUSINESS_4XX', row.id, row.tenant_id)
-        .run();
-      await input.db
-        .prepare(
-          `UPDATE sales SET sunat_status = 'REJECTED'
-           WHERE id = ? AND tenant_id = ?
-             AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
-        )
-        .bind(row.sale_id, row.tenant_id, row.id, row.tenant_id)
-        .run();
-      quarantined += 1;
-      rejected += 1;
-      processed += 1;
-      continue;
-    }
-
-    await input.db
-      .prepare(
-        `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1
-         WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
-      )
-      .bind(row.id, row.tenant_id)
-      .run();
-    await input.db
-      .prepare(
-        `UPDATE sales SET sunat_status = 'ACCEPTED'
-         WHERE id = ? AND tenant_id = ?
-           AND EXISTS (SELECT 1 FROM fiscal_outbox WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING')`,
-      )
-      .bind(row.sale_id, row.tenant_id, row.id, row.tenant_id)
-      .run();
-    accepted += 1;
+    const outcome = await processClaimedRow(
+      {
+        db: input.db,
+        r2: input.r2,
+        transport,
+        onInfraFailure: input.onInfraFailure,
+        ...(input.produceMissingXml ? { produceMissingXml: input.produceMissingXml } : {}),
+      },
+      row,
+    );
     processed += 1;
+    if (outcome === 'SKIP_RC') {
+      skippedRc += 1;
+    } else if (outcome === 'QUARANTINED' || outcome === 'REJECTED') {
+      quarantined += 1;
+      if (outcome === 'REJECTED') rejected += 1;
+    } else if (outcome === 'SENT') {
+      accepted += 1;
+    }
   }
 
-  return { processed, quarantined, skippedOpenBreaker, accepted, rejected };
+  return { processed, quarantined, skippedOpenBreaker, skippedRc, accepted, rejected };
 }
 
 /** Verifica que factura con deadline temprano sale antes que boletas masivas. */

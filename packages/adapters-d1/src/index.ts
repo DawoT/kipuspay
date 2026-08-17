@@ -147,6 +147,7 @@ export * from './process-withholding-atomic.js';
 export * from './process-return-atomic.js';
 export * from './process-fiscal-deadlines.js';
 export * from './build-daily-summary.js';
+export * from './fiscal-xml-producer.js';
 export * from './void-boleta-atomic.js';
 export * from './rollup-rematerialize.js';
 export * from './daily-rollups-cron.js';

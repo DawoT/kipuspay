@@ -165,6 +165,38 @@ sprints_cierre:
     ledger: "0439"
     qg: docs/ops/c5-final-product-qg.md
 
+  - id: sprint-c6
+    nombre: "Fiscal wiring real: producer XML → R2, drain self-healing, RC HTTP, bindings + cron"
+    estado: CERRADO
+    ledger: "0445"
+    gaps:
+      - id: c6-producer
+        severity: closed
+        detail: "produceFiscalXmlForSale (adapters-d1): genera XML 01, valida, persiste a R2, setea r2_xml_key + sunat_xml_hash; idempotente; RC/NONE/07-08 clasificados (spec §5.2)"
+        can_auto_fix: true
+        status: closed
+      - id: c6-drain-selfheal
+        severity: closed
+        detail: "drain filtra por canal (boletas RC nunca unit XML) y produce XML faltante antes de fallar"
+        can_auto_fix: true
+        status: closed
+      - id: c6-rc-http
+        severity: closed
+        detail: "createHttpRcCdrPort (adapters-sunat) + buildRcCdrPort en worker-api (flag FEATURE_FISCAL_TRANSPORT_PLUGINS + FISCAL_PSE_ENDPOINT_URL)"
+        can_auto_fix: true
+        status: closed
+      - id: c6-bindings
+        severity: closed
+        detail: "worker-api: FISCAL_XML_R2 + FISCAL (FiscalService) + FISCAL_PSE_ENDPOINT_URL; worker-fiscal: crons */5 + scheduled + entrypoint FiscalService"
+        can_auto_fix: true
+        status: closed
+    next_actions:
+      - id: c6-postcommit-hook
+        owner: Staff API
+        status: done
+        pass: "runPostCommitSaleHooks produce XML via FISCAL.produceMissing (waitUntil) best-effort"
+        requires_av: false
+
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
     estado: EN_CURSO
@@ -390,19 +422,40 @@ sprints_cierre:
         detail: "Credenciales PSE/OSE sandbox + CDR aceptación real; FEATURE_FISCAL_* =0"
         can_auto_fix: false
         status: open
+      - id: sunat-builders-nc-nd
+        severity: blocker
+        detail: "Builders UBL NC/ND (07/08) aún no implementados — C6 solo produce factura 01; NC/ND resuelven por documento referenciado y quedan en outbox pendientes de builder"
+        can_auto_fix: false
+        status: open
+      - id: sunat-xades-pfx
+        severity: blocker
+        detail: "XAdES completo + credenciales SOL/.pfx no incluidos en C6 (scope excluido); firmas con hash SHA-256 del XML (F5-3)"
+        can_auto_fix: false
+        status: open
     next_actions:
       - id: sunat-pse-ose
         owner: Staff Fiscal + Staff Security
-        depends_on: [go-live-staging]
+        depends_on: [go-live-staging, c6-postcommit-hook]
         status: blocked
         can_auto_fix: false
         pass: "CDR accepted en entorno SUNAT/OSE; A+V"
+        requires_av: true
+      - id: sunat-nc-nd-builders
+        owner: Staff Fiscal
+        depends_on: [sunat-pse-ose]
+        status: blocked
+        can_auto_fix: false
+        pass: "NC/ND 07/08 emitidas con CDR accepted; A+V"
         requires_av: true
     evidencia:
       - gate: GTM-08
         path: docs/ops/claims-go-live.md
         external_status: PENDIENTE
         artifacts: []
+      - gate: c6
+        path: docs/ops/c6-fiscal-wiring.md
+        external_status: GREEN
+        artifacts: ["produceFiscalXmlForSale factura 01 → R2 + sunat_xml_hash (adapters-d1)", "drain filtra boletas RC y self-heals XML faltante (worker-fiscal)", "createHttpRcCdrPort PSE HTTP fail-closed (adapters-sunat)", "FiscalService entrypoint + cron */5 + FISCAL_XML_R2 + FISCAL binding", "1696 tests unit + 294 integración GREEN; verify SUITE GREEN"]
 
   - id: go-live-hardware
     nombre: "Android físico gama baja + impresoras/perfiles (GTM-26, S41)"

@@ -153,7 +153,7 @@ importers:
         version: 4.1.10(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
       wrangler:
         specifier: ^4.123.0
-        version: 4.123.0
+        version: 4.123.0(@cloudflare/workers-types@5.20260801.1)
 
   apps/worker-api:
     dependencies:
@@ -172,6 +172,9 @@ importers:
       '@kipuspay/adapters-stripe':
         specifier: workspace:*
         version: link:../../packages/adapters-stripe
+      '@kipuspay/adapters-sunat':
+        specifier: workspace:*
+        version: link:../../packages/adapters-sunat
       '@kipuspay/domain-analytics':
         specifier: workspace:*
         version: link:../../packages/domain-analytics
@@ -227,6 +230,9 @@ importers:
 
   apps/worker-fiscal:
     dependencies:
+      '@kipuspay/adapters-d1':
+        specifier: workspace:*
+        version: link:../../packages/adapters-d1
       '@kipuspay/adapters-sunat':
         specifier: workspace:*
         version: link:../../packages/adapters-sunat
@@ -2851,7 +2857,7 @@ snapshots:
       '@cloudflare/workers-types': 4.20260702.1
       '@sveltejs/kit': 2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8(@typescript-eslint/types@8.65.0))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)))(svelte@5.56.8(@typescript-eslint/types@8.65.0))(typescript@5.9.3)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))
       worktop: 0.8.0-next.18
-      wrangler: 4.123.0
+      wrangler: 4.123.0(@cloudflare/workers-types@5.20260801.1)
 
   '@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8(@typescript-eslint/types@8.65.0))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)))(svelte@5.56.8(@typescript-eslint/types@8.65.0))(typescript@5.9.3)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1))':
     dependencies:
@@ -3815,22 +3821,6 @@ snapshots:
       workerd: 1.20260730.1
     optionalDependencies:
       '@cloudflare/workers-types': 5.20260801.1
-      fsevents: 2.3.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
-  wrangler@4.123.0:
-    dependencies:
-      '@cloudflare/kv-asset-handler': 0.5.0
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260811.1)
-      blake3-wasm: 2.1.5
-      esbuild: 0.28.1
-      miniflare: 5.20260811.1-alpha
-      path-to-regexp: 6.3.0
-      unenv: 2.0.0-rc.24
-      workerd: 1.20260811.1
-    optionalDependencies:
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil

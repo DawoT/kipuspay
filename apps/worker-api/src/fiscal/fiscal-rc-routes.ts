@@ -1,6 +1,7 @@
 /**
  * Rutas fiscal RC: void boleta, alertas Dueño, portal CPE, cron RC/plazos.
  */
+import { createHttpRcCdrPort } from '@kipuspay/adapters-sunat';
 import type { D1DatabaseLike } from '@kipuspay/adapters-d1';
 import {
   buildDailySummary,
@@ -8,7 +9,13 @@ import {
   runDailySummarySweep,
   voidBoletaAtomic,
 } from '@kipuspay/adapters-d1';
-import { mintPortalToken, renderCpePortalHtml, summaryDateLima } from '@kipuspay/domain-fiscal-pe';
+import {
+  createMockRcCdrPort,
+  mintPortalToken,
+  renderCpePortalHtml,
+  summaryDateLima,
+  type RcCdrPort,
+} from '@kipuspay/domain-fiscal-pe';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 export function isFiscalRcEnabled(env: WorkerEnv): boolean {
@@ -17,6 +24,18 @@ export function isFiscalRcEnabled(env: WorkerEnv): boolean {
 
 export function isCpePortalEnabled(env: WorkerEnv): boolean {
   return env.FEATURE_CPE_PORTAL === '1';
+}
+
+/**
+ * C6: puerto RC real si FEATURE_FISCAL_TRANSPORT_PLUGINS y hay endpoint PSE;
+ * si no, mock staging. Fail-closed: sin endpoint nunca se construye el HTTP.
+ */
+export function buildRcCdrPort(env: WorkerEnv): RcCdrPort {
+  const endpoint = env.FISCAL_PSE_ENDPOINT_URL?.trim();
+  if (env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' && endpoint) {
+    return createHttpRcCdrPort({ endpointUrl: endpoint });
+  }
+  return createMockRcCdrPort();
 }
 
 function asD1(db: D1Database): D1DatabaseLike {
@@ -226,7 +245,11 @@ export async function runFiscalCronHttp(
   if (body.action === 'daily-summary-sweep') {
     // F5b-1: cron diario — RC para todos los emisores con boletas del día.
     const summaryDate = body.summaryDate ?? summaryDateLima(nowMs);
-    const result = await runDailySummarySweep(db, { summaryDate, nowMs });
+    const result = await runDailySummarySweep(db, {
+      summaryDate,
+      nowMs,
+      cdr: buildRcCdrPort(env),
+    });
     return { status: 200, body: { ...result } };
   }
   if (!body.tenantId || !body.summaryDate) {

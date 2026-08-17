@@ -26,3 +26,8 @@ export {
   type FiscalTransport,
   type FiscalTransportMode,
 } from './fiscal-transport.js';
+
+export {
+  createHttpRcCdrPort,
+  type HttpRcCdrPortOptions,
+} from './http-rc-cdr-port.js';

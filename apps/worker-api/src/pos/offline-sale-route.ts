@@ -167,6 +167,7 @@ async function runPostCommitSaleHooks(
     customerId?: string | null;
   },
   saleId: string,
+  scheduleFiscalProduce?: (task: Promise<unknown>) => void,
 ): Promise<void> {
   try {
     if (env) {
@@ -206,6 +207,34 @@ async function runPostCommitSaleHooks(
   } catch (err) {
     console.warn('[postCommitSaleHooks] Error enviando comprobantes/lealtad:', err);
   }
+  // C6: produce el XML unitario post-commit (best-effort, no bloquea la venta).
+  // El worker-fiscal también lo hace en el drain (self-healing); esto solo
+  // adelanta el XML cuando el service binding FISCAL está disponible.
+  const fiscal = env?.FISCAL;
+  if (fiscal && typeof fiscal.produceMissing === 'function') {
+    const isCpeDoc =
+      payload.documentType === '01' ||
+      payload.documentType === '03' ||
+      payload.documentType === '07' ||
+      payload.documentType === '08';
+    if (isCpeDoc) {
+      const task = fiscal
+        .produceMissing({ tenantId, saleId })
+        .then((r) => {
+          if (r && typeof r === 'object' && 'outcome' in r) {
+            console.log(`[postCommitSaleHooks] fiscal produce: ${String(r.outcome)}`);
+          }
+        })
+        .catch((err: unknown) => {
+          console.warn('[postCommitSaleHooks] Error produciendo XML fiscal:', err);
+        });
+      if (typeof scheduleFiscalProduce === 'function') {
+        scheduleFiscalProduce(task);
+      } else {
+        void task;
+      }
+    }
+  }
 }
 /* eslint-enable complexity */
 
@@ -229,6 +258,7 @@ export async function runOfflineSaleHttp(
   payload: OfflineSalePayload,
   actorIsAdminOrOwner = false,
   terminalId = '',
+  scheduleFiscalProduce?: (task: Promise<unknown>) => void,
 ): Promise<OfflineSaleHttpResult> {
   if (!isAcidOfflineSaleEnabled(env)) {
     return { status: 404, body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' } };
@@ -275,7 +305,7 @@ export async function runOfflineSaleHttp(
     });
     const saleId = 'saleId' in result && typeof result.saleId === 'string' ? result.saleId : '';
     if (saleId) {
-      await runPostCommitSaleHooks(env, tenantId, payload, result, saleId);
+      await runPostCommitSaleHooks(env, tenantId, payload, result, saleId, scheduleFiscalProduce);
     }
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (error) {

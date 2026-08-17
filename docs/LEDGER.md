@@ -12068,3 +12068,59 @@ aprobaciones: [Staff Auditor R, @DawoT A (humano), Staff Verifier V independient
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0445
+timestamp_utc: 2026-08-17T03:05:00Z
+schema_version: 2
+sprint_fase: Sprint C6 — Fiscal wiring real (producer → R2, drain self-healing, RC HTTP, bindings + cron)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: C6.1..C6.6 — tubería fiscal unitaria real con evidencia runtime
+relacion: amplia
+referencias_entradas: [0444]
+referencias_documentales: [packages/adapters-d1/src/fiscal-xml-producer.ts, apps/worker-fiscal/src/fiscal-drain.ts, apps/worker-fiscal/src/fiscal-service.ts, packages/adapters-sunat/src/http-rc-cdr-port.ts, apps/worker-api/wrangler.jsonc, apps/worker-fiscal/wrangler.jsonc, docs/ops/pending-batches.yaml]
+prev_id: 0444
+prev_hash: c769f167f6751069cff68a7932acab4f054a48d57656b2f7bc718c9d63f28cc1
+entry_hash: f21185c253a91f8a0de6c8d55edac27313b54526a0cf552bc1ddc02ea70e2750
+ticket_or_adr: Sprint C6 (fase A del cierre interno → go-live)
+test_ids: [SUITE, V-13, V-18, V-22, V-24, V-28, V-30]
+entregable_afectado: tubería fiscal §5.2 (unitary XML) + drain §8.2 + RC HTTP + bindings staging
+descripcion: >
+  C6.1 classifyUnitaryXmlTarget + FiscalDeliveryChannel en domain-fiscal-pe
+  (factura 01/NC-ND de factura → UNIT_XML; boleta 03/12 → RC; 07/08 resuelven
+  por documento referenciado). C6.2 produceFiscalXmlForSale en adapters-d1:
+  carga sales+sale_items+tenants+referencia, clasifica canal, valida con
+  assertValidFacturaXml, persiste XML a R2 (fiscal-xml/{tenant}/{sale}.xml),
+  setea r2_xml_key + sunat_xml_hash, idempotente (no-op si r2_xml_key existe).
+  C6.3 drain filtra por canal (boletas RC nunca viajan XML unitario, spec §5.2)
+  y self-heals XML faltante: produce vía produceMissingXml antes de marcar
+  FAILED (antes QUARANTINED directo); skippedRc en DrainResult. C6.4 RcCdrPort
+  movido al dominio (adapters-d1 re-exporta); createHttpRcCdrPort en
+  adapters-sunat (fail-closed: 5xx/network → accepted false; 4xx → business
+  reject; XML vacío → 99 sin fetch); buildRcCdrPort en worker-api bajo
+  FEATURE_FISCAL_TRANSPORT_PLUGINS + FISCAL_PSE_ENDPOINT_URL. C6.5 FiscalService
+  entrypoint (drain + produceMissing) en worker-fiscal con scheduled */5 y
+  bindings FISCAL_XML_R2 + FISCAL en worker-api; bootstrapBreakerCold extraído a
+  breaker-bootstrap.ts (rompe ciclo); post-commit hook en offline-sale-route
+  dispara FISCAL.produceMissing best-effort vía waitUntil para CPE.
+  C6.6 cierre: yaml sprint-c6 CERRADO + go-live-sunat expandido (builders
+  NC/ND 07/08 y XAdES/SOL como gaps Ops-3, no bloquean C6).
+evidencia: >
+  RED (run-red-c6): sin productor XML; drain cuarentenaba sin intentar producir;
+  RC no filtrado (boletas podían ir por XML unitario); sin puerto HTTP PSE; sin
+  cron ni entrypoint; sin binding FISCAL en worker-api.
+  GREEN (run-green-c6): 1696 tests unit GREEN (domain 86, adapters-d1 399,
+  adapters-sunat 9, worker-fiscal 27, worker-api 1175) + 294 integración
+  adapters-d1; turbo typecheck 27/27; eslint --max-warnings 0; wrangler
+  dry-run staging OK (FISCAL_XML_R2/FISCAL/FISCAL_PSE_ENDPOINT_URL visibles);
+  verify SUITE GREEN.
+red_commit_sha: N/A
+red_run_id: run-red-c6
+expected_failure: boleta por canal unit XML sin filtro; missing XML a QUARANTINED
+green_commit_sha: N/A
+green_run_id: run-green-c6
+ancestry_verified: true
+aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

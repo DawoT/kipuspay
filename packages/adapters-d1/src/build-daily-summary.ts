@@ -3,44 +3,18 @@
  * CDR vía puerto inyectable (mock PSE en worker). No se dispara desde arqueo Z.
  */
 import {
+  createMockRcCdrPort,
   markVoidedAfterRc,
   planDailySummary,
   planNrusDailyConsolidation,
   canOmitUnitaryNrus,
   type BoletaForRc,
+  type RcCdrPort,
 } from '@kipuspay/domain-fiscal-pe';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 
-export interface RcCdrPort {
-  submit(input: {
-    readonly tenantId: string;
-    readonly summaryId: string;
-    readonly xml: string;
-  }): Promise<{
-    readonly accepted: boolean;
-    readonly cdrCode: string;
-    readonly cdrMessage: string;
-  }>;
-}
-
-export function createMockRcCdrPort(): RcCdrPort {
-  return {
-    submit(input) {
-      if (!input.xml.trim()) {
-        return Promise.resolve({
-          accepted: false,
-          cdrCode: '99',
-          cdrMessage: 'empty RC xml',
-        });
-      }
-      return Promise.resolve({
-        accepted: true,
-        cdrCode: '0',
-        cdrMessage: 'Mock RC CDR accepted',
-      });
-    },
-  };
-}
+export type { RcCdrPort } from '@kipuspay/domain-fiscal-pe';
+export { createMockRcCdrPort } from '@kipuspay/domain-fiscal-pe';
 
 export interface BuildDailySummaryInput {
   readonly tenantId: string;
@@ -217,7 +191,13 @@ export interface DailySummarySweepResult {
  */
 export async function runDailySummarySweep(
   db: D1DatabaseLike,
-  input: { readonly summaryDate: string; readonly nowMs: number; readonly limit?: number },
+  input: {
+    readonly summaryDate: string;
+    readonly nowMs: number;
+    readonly limit?: number;
+    /** C6: puerto RC real; sin él el sweep usa el mock (staging only). */
+    readonly cdr?: RcCdrPort;
+  },
 ): Promise<DailySummarySweepResult> {
   const limit = input.limit ?? 500;
   const pending = await db
@@ -242,6 +222,7 @@ export async function runDailySummarySweep(
       tenantId: row.tenant_id,
       summaryDate: input.summaryDate,
       nowMs: input.nowMs,
+      ...(input.cdr ? { cdr: input.cdr } : {}),
     });
     results.push({
       tenantId: row.tenant_id,

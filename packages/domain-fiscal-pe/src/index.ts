@@ -119,6 +119,62 @@ export function isCpeDocument(documentType: DocumentTypeCode): boolean {
   return CPE_CODES.has(documentType);
 }
 
+/** Puerto RC (Resumen Diario) — lo implementa adapters-sunat (HTTP) o el mock. */
+export interface RcCdrPort {
+  submit(input: {
+    readonly tenantId: string;
+    readonly summaryId: string;
+    readonly xml: string;
+  }): Promise<{
+    readonly accepted: boolean;
+    readonly cdrCode: string;
+    readonly cdrMessage: string;
+  }>;
+}
+
+/** Mock RC — solo para staging/tests; nunca para producción. */
+export function createMockRcCdrPort(): RcCdrPort {
+  return {
+    submit(input) {
+      if (!input.xml.trim()) {
+        return Promise.resolve({
+          accepted: false,
+          cdrCode: '99',
+          cdrMessage: 'empty RC xml',
+        });
+      }
+      return Promise.resolve({
+        accepted: true,
+        cdrCode: '0',
+        cdrMessage: 'Mock RC CDR accepted',
+      });
+    },
+  };
+}
+
+/**
+ * Canal de envío fiscal (spec §5.2): UNIT_XML (drain unitario) vs RC (Resumen
+ * Diario) vs NONE. 07/08 se resuelven por el documento que ajustan: NC/ND de
+ * factura → unit XML; NC/ND de boleta → línea del RC. Sin referencia resoluble
+ * → NONE (fail-closed: el drain no debe adivinar el canal).
+ */
+export type FiscalDeliveryChannel = 'UNIT_XML' | 'RC' | 'NONE';
+
+export function classifyUnitaryXmlTarget(
+  documentType: DocumentTypeCode,
+  referencedDocumentType?: string,
+): FiscalDeliveryChannel {
+  if (documentType === '01') return 'UNIT_XML';
+  if (documentType === '03' || documentType === '12') return 'RC';
+  if (documentType === 'NV' || documentType === 'NV_RETURN') return 'NONE';
+  if (documentType === '07' || documentType === '08') {
+    if (referencedDocumentType === '01') return 'UNIT_XML';
+    if (referencedDocumentType === '03') return 'RC';
+    return 'NONE';
+  }
+  return 'NONE';
+}
+
 export interface EmissionContext {
   readonly formalizationMode: FormalizationMode;
   readonly taxRegime: TaxRegime;

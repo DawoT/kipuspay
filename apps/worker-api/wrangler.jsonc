@@ -219,6 +219,10 @@
           "binding": "BACKUPS",
           "bucket_name": "kipuspay-backups-staging",
         },
+        {
+          "binding": "FISCAL_XML_R2",
+          "bucket_name": "kipuspay-fiscal-xml-staging",
+        },
       ],
       "workflows": [
         {
@@ -241,6 +245,11 @@
           "service": "kipuspay-worker-kms-staging",
           "entrypoint": "PushTransportService",
         },
+        {
+          "binding": "FISCAL",
+          "service": "kipuspay-worker-fiscal-staging",
+          "entrypoint": "FiscalService",
+        },
       ],
       "analytics_engine_datasets": [
         {
@@ -252,7 +261,14 @@
         "binding": "AI",
       },
       "triggers": {
-        "crons": ["0 8 * * *", "30 8 * * *", "*/5 * * * *", "30 3 * * *", "0 */6 * * *", "0 13 * * *"],
+        "crons": [
+          "0 8 * * *",
+          "30 8 * * *",
+          "*/5 * * * *",
+          "30 3 * * *",
+          "0 */6 * * *",
+          "0 13 * * *",
+        ],
       },
       "vars": {
         "FQDN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
@@ -262,6 +278,7 @@
         "FEATURE_FISCAL_RC": "0",
         "FEATURE_FISCAL_CIRCUIT_BREAKER": "0",
         "FEATURE_FISCAL_TRANSPORT_PLUGINS": "0",
+        "FISCAL_PSE_ENDPOINT_URL": "https://pse.kipuspay.staging.invalid/fiscal",
         "FEATURE_BILLING_USAGE_OVERAGE": "0",
         "FEATURE_CPE_PORTAL": "0",
         "FEATURE_OFFLINE_SYNC": "0",

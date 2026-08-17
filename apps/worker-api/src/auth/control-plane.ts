@@ -33,6 +33,21 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_FISCAL_RC?: string;
   readonly FEATURE_FISCAL_CIRCUIT_BREAKER?: string;
   readonly FEATURE_FISCAL_TRANSPORT_PLUGINS?: string;
+  /** C6: endpoint del PSE KipusPay para RC (worker-fiscal y RC cron). */
+  readonly FISCAL_PSE_ENDPOINT_URL?: string;
+  /** C6: R2 con los XML fiscales producidos (worker-fiscal los escribe). */
+  readonly FISCAL_XML_R2?: {
+    get(key: string): Promise<{ text(): Promise<string> } | null>;
+    put(key: string, value: string): Promise<void>;
+  };
+  /** C6: WorkerEntrypoint FiscalService del worker-fiscal (drain + produce). */
+  readonly FISCAL?: {
+    drain(options?: { readonly limit?: number }): Promise<unknown>;
+    produceMissing(input: {
+      readonly tenantId: string;
+      readonly saleId: string;
+    }): Promise<unknown>;
+  };
   readonly FEATURE_BILLING_USAGE_OVERAGE?: string;
   readonly FEATURE_SALES_RETURNS?: string;
   readonly STRIPE_SECRET_KEY?: string;
