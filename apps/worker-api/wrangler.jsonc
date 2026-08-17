@@ -251,6 +251,9 @@
       "ai": {
         "binding": "AI",
       },
+      "triggers": {
+        "crons": ["0 8 * * *", "30 8 * * *", "*/5 * * * *", "30 3 * * *", "0 */6 * * *", "0 13 * * *"],
+      },
       "vars": {
         "FQDN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
         "ALLOWED_ORIGINS": "https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-marketing-web-staging.pages.dev",

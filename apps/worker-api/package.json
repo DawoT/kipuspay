@@ -9,6 +9,8 @@
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
     "d1:migrate:staging": "wrangler d1 migrations apply DB --env staging --remote",
+    "d1:migrate:staging:dr": "wrangler d1 migrations apply DR_DB --env staging --remote",
+    "d1:migrate:staging:list": "wrangler d1 migrations list DB --env staging --remote && wrangler d1 migrations list DR_DB --env staging --remote",
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --coverage",

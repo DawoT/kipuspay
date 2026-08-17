@@ -134,7 +134,14 @@ pending:
 
 meta:
   archivo_temporal: true
-  eliminar_al_cerrar: "Fase de cierre del proyecto en curso — batches C1-C5 (ledgers 0435-0439) + go-live externo al final"
+  eliminar_al_cerrar: "Cuando TODOS los go-live-* estén CERRADO (con A+V); batches A–J y C1–C5 ya cerrados"
+  auditor_activo: "Staff Auditor (2026-08-17) — rol auditor+auto-fix; no cierra claims"
+  handoff_agente: "docs/ops/go-live-staging-checklist.md + docs/ops/staging-bootstrap.md §Auditoría"
+  smoke_urls:
+    api: "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev/health"
+    pos: "https://kipuspay-pos-web-staging.pages.dev/"
+    marketing: "https://kipuspay-marketing-web-staging.pages.dev/"
+
 sprints_cierre:
   - id: sprint-c1
     nombre: "Doctrina de claims alineada al producto final (FEFO/merma live, matriz go-live, roadmap)"
@@ -157,18 +164,306 @@ sprints_cierre:
     estado: CERRADO
     ledger: "0439"
     qg: docs/ops/c5-final-product-qg.md
+
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"
-    estado: AGENDADO_AL_FINAL
-    nota: "Smoke UP 2026-08-17 (docs/ops/staging-bootstrap.md). Evidencia s41-s49 pendiente — no CERRADO."
+    estado: EN_CURSO
+    smoke: UP
+    smoke_date: "2026-08-17"
+    gates: [s41, s42, s43, s44, s45, s46, s47, s48, s49]
+    nota: "Smoke UP + auditoría 2026-08-17. Evidencia externa s41–s49 pendiente — NO CERRADO / no liberatorio."
+    firmas_av:
+      A: null
+      V: null
+    gaps:
+      - id: stg-dr-migrate
+        severity: resolved
+        detail: "DB y DR_DB con 56/56 migraciones (0000–0055) — verificado MCP D1 2026-08-17"
+        can_auto_fix: true
+        status: closed
+      - id: stg-migrate-batch-fix
+        severity: medium
+        detail: "Batch wrangler d1 migrations apply falló con incomplete input; procedimiento one-by-one documentado"
+        can_auto_fix: true
+        status: closed
+      - id: stg-secrets-real
+        severity: blocker
+        detail: "Secrets Store kipuspay-kms-staging aún stubs (KEK backup/push, VAPID, FCM SA)"
+        can_auto_fix: false
+        status: open
+      - id: stg-vapid-public-var
+        severity: blocker
+        detail: "PUSH_VAPID_PUBLIC_KEY vacío en env.staging"
+        can_auto_fix: false
+        status: open
+      - id: stg-tenant-fixture
+        severity: blocker
+        detail: "Sin tenant staging controlado (owner JWT + step-up) para APIs backup/DR"
+        can_auto_fix: false
+        status: open
+      - id: stg-flags-s42-s48
+        severity: blocker
+        detail: "FEATURE_* todos 0 en repo (nogate); flip solo runtime con A+V"
+        can_auto_fix: false
+        status: open
+      - id: stg-s42-r2-workflow
+        severity: blocker
+        detail: "Matriz externa S42 R2 multipart + Workflow crash/replay pendiente"
+        can_auto_fix: false
+        status: open
+      - id: stg-s48-dr-sim
+        severity: blocker
+        detail: "DR_SIMULATION real en DR_DB staging pendiente"
+        can_auto_fix: false
+        status: open
+      - id: stg-crons-verify
+        severity: resolved
+        detail: "triggers.crons en env.staging (repo) desplegados y verificados 2026-08-17: API schedules muestra las 6 expresiones (modified_on 01:08:04Z, deploy activo 9daaf9b6); coinciden con top-level y con los handlers scheduled de worker.ts"
+        can_auto_fix: true
+        status: closed
+      - id: stg-ci-etapas-6
+        severity: medium
+        detail: "CI Etapas 6–11 workflow_dispatch deploy staging ausente"
+        can_auto_fix: true
+        status: open
+      - id: stg-domains-canary
+        severity: low
+        detail: "Dominios canónicos api./app./kipuspay.com pendientes"
+        can_auto_fix: false
+        status: open
+    next_actions:
+      - id: stg-secrets-real
+        owner: Staff Security
+        depends_on: []
+        status: ready
+        can_auto_fix: false
+        pass: "KMS wrap/unwrap + Secrets Store sin placeholder bytes; redeploy worker-kms-staging"
+      - id: stg-vapid-public-var
+        owner: Staff Mobile
+        depends_on: [stg-secrets-real]
+        status: blocked
+        can_auto_fix: false
+        pass: "PUSH_VAPID_PUBLIC_KEY staging set + redeploy API"
+      - id: stg-tenant-fixture
+        owner: Staff SRE
+        depends_on: [stg-secrets-real]
+        status: blocked
+        can_auto_fix: false
+        pass: "Owner JWT + step-up llama backup/DR sin 401/403 de fixture"
+      - id: stg-flags-s42-s48
+        owner: Staff Principal A + Staff Verifier V
+        depends_on: [stg-tenant-fixture]
+        status: blocked
+        can_auto_fix: false
+        pass: "Runtime FEATURE_DATA_BACKUP=1 FEATURE_PLATFORM_DR=1 (no commit 1); rutas != FEATURE_OFF"
+        requires_av: true
+      - id: stg-s42-r2-workflow
+        owner: Staff SRE
+        depends_on: [stg-flags-s42-s48]
+        status: blocked
+        can_auto_fix: false
+        pass: "QG s42 evidencia externa anexada; dry-run cero writes indebidos"
+        requires_av: true
+      - id: stg-s48-dr-sim
+        owner: Staff SRE + Staff Principal
+        depends_on: [stg-s42-r2-workflow]
+        status: blocked
+        can_auto_fix: false
+        pass: "DR_SIMULATION_PASSED rto_ms<=30m; nunca escribe DB live"
+        requires_av: true
+      - id: stg-crons-verify
+        owner: Staff SRE
+        depends_on: []
+        status: done
+        can_auto_fix: true
+        pass: "Dashboard muestra 6 crons en kipuspay-worker-api-staging; logs scheduled"
+        evidence: "API schedules 2026-08-17: 6 crons exactos (0 8, 30 8, */5, 30 3, 0 */6, 0 13); deploy 9daaf9b6 01:08Z"
+        cmd: "pnpm --filter @kipuspay/worker-api run deploy:staging"
+      - id: stg-s43-orders
+        owner: Staff PM + Staff QA
+        depends_on: [stg-flags-s42-s48]
+        status: blocked
+        can_auto_fix: false
+        pass: "FEATURE_ORDERS_CUSTOMER_ORDERS=1 evidencia s43 en staging"
+        requires_av: true
+      - id: stg-s44-recurring
+        owner: Staff PM + Staff QA
+        depends_on: [stg-crons-verify, stg-flags-s42-s48]
+        status: blocked
+        can_auto_fix: false
+        pass: "Cron */5 recurring observado; QA humana"
+        requires_av: true
+      - id: stg-s46-s49-analytics
+        owner: Staff Data + Staff PM
+        depends_on: [stg-crons-verify]
+        status: blocked
+        can_auto_fix: false
+        pass: "Briefing KV + P95 SSE Workers AI; QA"
+        requires_av: true
+      - id: stg-s47-lpdp
+        owner: Staff Security + Staff Data
+        depends_on: [stg-s42-r2-workflow]
+        status: blocked
+        can_auto_fix: false
+        pass: "ARCO titular+admin en D1/R2 real; política publicada"
+        requires_av: true
+      - id: stg-s41-soft
+        owner: Staff QA
+        depends_on: [stg-tenant-fixture]
+        status: blocked
+        can_auto_fix: true
+        pass: "Snapshots price-label API OK; claim hardware sigue en go-live-hardware"
+      - id: stg-ci-etapas-6
+        owner: Staff SRE
+        depends_on: []
+        status: ready
+        can_auto_fix: true
+        pass: "workflow_dispatch deploy staging + artifact evidence"
+      - id: stg-domains-canary
+        owner: Staff SRE
+        depends_on: [stg-s48-dr-sim]
+        status: blocked
+        can_auto_fix: false
+        pass: "DNS+TLS+CORS canónicos"
+      - id: stg-close-tracker
+        owner: Staff Principal A + Staff Verifier V
+        depends_on: [stg-s42-r2-workflow, stg-s48-dr-sim, stg-crons-verify]
+        status: blocked
+        can_auto_fix: false
+        pass: "estado CERRADO + ledger; firmas A+V"
+        requires_av: true
+    evidencia:
+      - gate: smoke
+        path: docs/ops/staging-bootstrap.md
+        external_status: GREEN
+        artifacts:
+          - "HTTP 200 API/POS/mkt 2026-08-17 (health {'status':'ok'})"
+          - "Playwright staging-browser-smoke.mjs GREEN (mkt soft-launch + POS shell + CORS API)"
+          - "D1 DB+DR 56/56 migraciones (0000-0055) via d1:migrate:staging:list"
+          - "6 crons desplegados = config (API schedules, modified_on 01:08:04Z, deploy 9daaf9b6)"
+          - "Workflow kipuspay-data-backup-staging presente; secret único AUTH_JWT_HS_SECRET"
+      - gate: s41
+        path: docs/ops/s41-price-labels-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s42
+        path: docs/ops/s42-data-backup-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s43
+        path: docs/ops/s43-customer-orders-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s44
+        path: docs/ops/s44-recurring-sales-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s45
+        path: docs/ops/s45-mobile-push-pos-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s46
+        path: docs/ops/s46-forecasting-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s47
+        path: docs/ops/s47-lpdp-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s48
+        path: docs/ops/s48-dr-bcp-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+      - gate: s49
+        path: docs/ops/s49-insights-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+
   - id: go-live-sunat
     nombre: "Certificación SUNAT/OSE real (GTM-08)"
     estado: AGENDADO_AL_FINAL
+    gates: [GTM-08]
+    firmas_av: { A: null, V: null }
+    gaps:
+      - id: sunat-pse-ose
+        severity: blocker
+        detail: "Credenciales PSE/OSE sandbox + CDR aceptación real; FEATURE_FISCAL_* =0"
+        can_auto_fix: false
+        status: open
+    next_actions:
+      - id: sunat-pse-ose
+        owner: Staff Fiscal + Staff Security
+        depends_on: [go-live-staging]
+        status: blocked
+        can_auto_fix: false
+        pass: "CDR accepted en entorno SUNAT/OSE; A+V"
+        requires_av: true
+    evidencia:
+      - gate: GTM-08
+        path: docs/ops/claims-go-live.md
+        external_status: PENDIENTE
+        artifacts: []
+
   - id: go-live-hardware
     nombre: "Android físico gama baja + impresoras/perfiles (GTM-26, S41)"
     estado: AGENDADO_AL_FINAL
+    gates: [s41, GTM-26]
+    firmas_av: { A: null, V: null }
+    gaps:
+      - id: hw-android-offline
+        severity: blocker
+        detail: "500 ventas offline Android gama baja (S45 QG)"
+        can_auto_fix: false
+        status: open
+      - id: hw-printers-matrix
+        severity: blocker
+        detail: "Matriz física 58/80 mm WebUSB + WSS LAN"
+        can_auto_fix: false
+        status: open
+    next_actions:
+      - id: hw-printers-matrix
+        owner: Staff Hardware + Staff QA
+        depends_on: []
+        status: ready
+        can_auto_fix: false
+        pass: "Matriz s41 firmada A+V"
+        requires_av: true
+      - id: hw-android-offline
+        owner: Staff Mobile + Staff QA
+        depends_on: [go-live-fcm]
+        status: blocked
+        can_auto_fix: false
+        pass: "500 ventas offline + firmas Mobile+QA+Security"
+        requires_av: true
+    evidencia:
+      - gate: s41
+        path: docs/ops/s41-price-labels-qg.md
+        external_status: PENDIENTE
+        artifacts: []
+
   - id: go-live-fcm
     nombre: "Web Push VAPID + FCM HTTP v1 staging real (GTM-26)"
     estado: AGENDADO_AL_FINAL
+    gates: [s45, GTM-26]
+    firmas_av: { A: null, V: null }
+    gaps:
+      - id: fcm-vapid-real
+        severity: blocker
+        detail: "VAPID + FCM HTTP v1 reales (no stubs); ACK DISPLAYED p95<10s ≥99%"
+        can_auto_fix: false
+        status: open
+    next_actions:
+      - id: fcm-vapid-real
+        owner: Staff Mobile + Staff Security
+        depends_on: [stg-secrets-real]
+        status: blocked
+        can_auto_fix: false
+        pass: "SLO ACK + kill-switch/rotación documentados en staging"
+        requires_av: true
+    evidencia:
+      - gate: s45
+        path: docs/ops/s45-mobile-push-pos-qg.md
+        external_status: PENDIENTE
+        artifacts: []
 
 referencia_patron: "Sello en navegador (sprint 59-66, ledgers 0419-0430) — TODOS LOS BATCHES CERRADOS"

@@ -11990,3 +11990,81 @@ aprobaciones: [Staff SRE R, @DawoT A (humano), Staff Verifier V independiente]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0443
+timestamp_utc: 2026-08-17T01:45:00Z
+schema_version: 2
+sprint_fase: Go-live staging — auditoría staff + tracker YAML
+agente_responsable: Staff Auditor
+tipo: Entregable nuevo
+subtipo: pending-batches go-live auditable + checklist + auto-fix DR scripts/crons
+relacion: amplia
+referencias_entradas: [0442]
+referencias_documentales: [docs/ops/pending-batches.yaml, docs/ops/staging-bootstrap.md, docs/ops/go-live-staging-checklist.md, docs/ops/claims-go-live.md]
+prev_id: 0442
+prev_hash: b4481fbaca6c7d2d719c6e1a9d82f73ed509ca332bee1b45a499a4cdfdf795c6
+entry_hash: 964f174916ffc9e21f79fe029aa7f93ec82dd82652dcc559c38efaf813afda1a
+ticket_or_adr: go-live-staging EN_CURSO (no cierre liberatorio)
+test_ids: [SUITE, V-13, V-18, apps/pos-web/scripts/staging-browser-smoke.mjs]
+entregable_afectado: docs/ops/pending-batches.yaml + staging-bootstrap + go-live-staging-checklist + worker-api migrate:dr/triggers
+descripcion: >
+  Auditoría staff go-live: smoke HTTP/Playwright re-GREEN; D1 DB y DR_DB
+  paridad 56/56 migraciones (MCP). Tracker pending-batches go-live-* con
+  gaps/next_actions/evidencia; go-live-staging EN_CURSO (no CERRADO).
+  Auto-fix: d1:migrate:staging:dr + list; triggers.crons bajo env.staging;
+  checklist implementador + procedimiento flags runtime (sin FEATURE_=1 en
+  repo). Secrets/VAPID/FCM/S42/S48 siguen needs_human; redeploy crons
+  pendiente del agente implementador.
+evidencia: >
+  RED: YAML go-live solo AGENDADO sin cola; DR_DB documentado incompleto;
+  sin script migrate DR; crons no explícitos en env.staging.
+  GREEN: YAML EN_CURSO + next_actions ready (secrets/crons/ci); auditoría
+  bootstrap; checklist; package scripts; wrangler staging triggers;
+  browser smoke GREEN; DR_DB 56/56.
+red_commit_sha: N/A
+red_run_id: run-red-golive-audit-yaml
+expected_failure: tracker sin gaps; DR_DB desfasado; sin handoff implementador
+green_commit_sha: N/A
+green_run_id: run-green-golive-audit-yaml
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+---
+```
+id: 0444
+timestamp_utc: 2026-08-17T02:05:00Z
+schema_version: 2
+sprint_fase: Go-live staging — auditoría de cierre del handoff (evidencia externa real)
+agente_responsable: Staff Auditor
+tipo: Corrección
+subtipo: stg-crons-verify cerrado con evidencia API real; docs de handoff actualizados; scripts/tmp ignorados
+relacion: amplia
+referencias_entradas: [0443]
+referencias_documentales: [docs/ops/pending-batches.yaml, docs/ops/staging-bootstrap.md, docs/ops/go-live-staging-checklist.md, apps/worker-api/package.json, apps/worker-api/wrangler.jsonc, .gitignore]
+prev_id: 0443
+prev_hash: 964f174916ffc9e21f79fe029aa7f93ec82dd82652dcc559c38efaf813afda1a
+entry_hash: c769f167f6751069cff68a7932acab4f054a48d57656b2f7bc718c9d63f28cc1
+ticket_or_adr: go-live-staging EN_CURSO (auditoría staff, no cierre liberatorio)
+test_ids: [SUITE, V-13, V-18, apps/pos-web/scripts/staging-browser-smoke.mjs]
+entregable_afectado: tracker go-live-* (gaps/next_actions/evidencia) + §Auditoría bootstrap + checklist handoff + .gitignore
+descripcion: >
+Auditoría de cierre del handoff de go-live-staging. Evidencia externa real verificada 2026-08-17: health API ok, POS 200, mkt 200, fiscal/kms 404 (RPC-only esperado); Playwright staging-browser-smoke.mjs GREEN; D1 DB y DR_DB paridad 56/56 (0000-0055) con d1:migrate:staging:list y :dr OK (No migrations to apply); 6 crons desplegados en kipuspay-worker-api-staging via API schedules (modified_on 01:08:04Z, deploy activo 9daaf9b6) identicos a env.staging.triggers del repo, al top-level y a los handlers scheduled de worker.ts; workflow kipuspay-data-backup-staging presente; secret unico AUTH_JWT_HS_SECRET. Con eso stg-crons-verify pasa a done/closed (antes decia deploy no ejecutado); stg-dr-migrate y stg-migrate-batch-fix closed. Tracker yaml go-live-* mantiene gaps/next_actions/evidencia; los blockers stg-secrets-real/vapid/tenant/flags-s42-s48/s42/s48 siguen open (humanos/A+V). staging-bootstrap auditoria y go-live-staging-checklist actualizados con el estado verificado. scripts/tmp/ (herramientas TEMP de audit de diseno wave 4-5) ignorados en .gitignore.
+evidencia: >
+  RED (run-red-audit-handoff): yaml decía crons pendiente de redeploy; sin
+  scripts d1:dr; scripts/tmp sin ignorar.
+  GREEN (run-green-audit-handoff): crons 6/6 verificados API schedules;
+  d1:dr/list OK 56/56; smoke navegador GREEN; docs alineados; scripts/tmp
+  ignorado; verify SUITE GREEN.
+red_commit_sha: N/A
+red_run_id: run-red-audit-handoff
+expected_failure: tracker con stg-crons-verify open aun estando desplegado; docs desalineados
+green_commit_sha: N/A
+green_run_id: run-green-audit-handoff
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

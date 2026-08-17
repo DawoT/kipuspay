@@ -52,3 +52,6 @@ __pycache__/
 # Config y skills de agentes locales (tooling; no doctrina)
 .claude/
 .cursor/
+
+# Scripts TEMP de auditoría de diseño (wave 4-5; no versionar)
+scripts/tmp/

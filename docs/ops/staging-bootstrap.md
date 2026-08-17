@@ -8,8 +8,9 @@ owner: "@DawoT"
 # Staging Cloudflare — bootstrap (smoke)
 
 **Estado:** plano staging **UP** (smoke mínimo). `go-live-staging` en
-`pending-batches.yaml` sigue **AGENDADO_AL_FINAL** hasta evidencia s41–s49
-(R2 multipart, Workflow crash/replay, DR_SIMULATION real, cron/canary A+V).
+`pending-batches.yaml` está **EN_CURSO** (no CERRADO): falta evidencia externa
+s41–s49 (R2 multipart, Workflow crash/replay, DR_SIMULATION real, cron/canary
+A+V). Checklist implementador: `docs/ops/go-live-staging-checklist.md`.
 
 Cuenta: `c5b18f62cb7e73fcd2ece5822936d699` (cristian.pcalderon@gmail.com).
 
@@ -27,6 +28,7 @@ Cuenta: `c5b18f62cb7e73fcd2ece5822936d699` (cristian.pcalderon@gmail.com).
 
 Smoke navegador (2026-08-17): marketing 200 (soft-launch copy), POS shell login
 visible, `fetch(/health)` desde origen POS con CORS OK.
+
 ## Recursos creados
 
 | Tipo | Nombre / ID |
@@ -40,7 +42,16 @@ visible, `fetch(/health)` desde origen POS con CORS OK.
 | Secrets Store | `kipuspay-kms-staging` `6c5d2aff785644d39ca233efe0d0ed34` (stubs) |
 | Workflow | `kipuspay-data-backup-staging` (bound on API) |
 
-Migraciones D1: aplicadas en `DB` (one-by-one; `wrangler d1 migrations apply` batch falló con `incomplete input`). DR_DB: aplicar espejo si aún incompleto.
+Migraciones D1: `DB` y `DR_DB` en paridad **56/56** (`0000`–`0055`, auditoría
+2026-08-17). Si un `wrangler d1 migrations apply` batch falla con
+`incomplete input`, aplicar **one-by-one** en el orden de
+`packages/adapters-d1/migrations/*.sql`. Scripts:
+
+```bash
+pnpm --filter @kipuspay/worker-api run d1:migrate:staging:list
+pnpm --filter @kipuspay/worker-api run d1:migrate:staging
+pnpm --filter @kipuspay/worker-api run d1:migrate:staging:dr
+```
 
 ## Deploy commands
 
@@ -55,22 +66,53 @@ pnpm --filter @kipuspay/marketing-web run deploy:staging
 Workers: `wrangler deploy --env staging`. Fronts: `wrangler pages deploy` a
 proyectos `*-staging` (Pages no admite `env.staging`; solo preview/production).
 
+`env.staging` declara `triggers.crons` explícitos (mismas 6 expresiones que el
+top-level). Tras cambiar triggers, **redeploy** API staging y verificar en
+dashboard.
+
 ## Secrets / flags
 
 | Item | Estado |
 |---|---|
 | `AUTH_JWT_HS_SECRET` (API staging) | Set (staging random) |
 | Stripe / PSE / VAPID real / FCM | **Pendiente** (stubs en Secrets Store) |
-| `FEATURE_*` | Todos `"0"` en staging |
-| Marketing soft-launch | `PUBLIC_FEATURE_MARKETING_SITE=0` |
+| `FEATURE_*` | Todos `"0"` en staging (repo); flip **solo runtime** con A+V |
+| Marketing soft-launch | `PUBLIC_FEATURE_MARKETING_SITE=0` (intencional) |
 | CORS | pages.dev POS + marketing |
+
+Procedimiento de flags: `docs/ops/go-live-staging-checklist.md` § Flags runtime.
+
+## Auditoría 2026-08-17 (Staff Auditor)
+
+| Check | Resultado |
+|---|---|
+| HTTP `/health` API | 200 `{"status":"ok"}` (re-verificado) |
+| POS / marketing Pages | 200 (re-verificado) |
+| worker-fiscal-staging | 404 (RPC-only, esperado) |
+| worker-kms-staging | 404 (RPC-only, esperado) |
+| Playwright `staging-browser-smoke.mjs` | GREEN (POS+API CORS; mkt soft-launch; CSP inline avisos en mkt) |
+| D1 `kipuspay-staging` `d1_migrations` | 56 filas (0000–0055) — `d1:migrate:staging:list` OK |
+| D1 `kipuspay-dr-staging` `d1_migrations` | 56 filas — **paridad OK** (`d1:migrate:staging:dr` OK, gap `stg-dr-migrate` cerrado) |
+| Bindings (wrangler staging) | R2 backups, Workflow backup, KMS service, AI, Analytics |
+| Secrets Store | Aún **stubs** (`stg-secrets-real` open) |
+| `PUSH_VAPID_PUBLIC_KEY` | vacío |
+| `FEATURE_*` | todos `"0"` |
+| Crons en config | **desplegados y verificados**: API schedules muestra las 6 expresiones (modified_on 01:08:04Z, deploy activo `9daaf9b6`); coinciden con top-level y handlers de `worker.ts` |
+| Deploy activo API staging | version `9daaf9b6-5214-4a66-b973-e53daa132956` (2026-08-17T01:08Z) |
+| Workflow `kipuspay-data-backup-staging` | presente (account workflows) |
+| Secrets del worker | solo `AUTH_JWT_HS_SECRET` (secret_text) |
+| Evidencia S42/S48 externa | PENDIENTE |
+
+Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`
+(última versión observada ~2026-08-17T01:08Z).
 
 ## Después del smoke (no cerrar tracker aún)
 
-1. Evidencia Workflow + R2 multipart + DR_SIMULATION en Cloudflare real (s42/s48).
-2. `go-live-sunat` (PSE/OSE).
-3. `go-live-fcm` (VAPID/FCM reales, no stubs).
-4. `go-live-hardware` (Android + impresoras).
-5. ADR si se alinean Queues / multi-shard del diagrama §2.
-6. CI Etapas 6–11 (`workflow_dispatch` deploy).
-7. Dominios canónicos `api.` / `app.` / `kipuspay.com` + `nodejs_compat` ya en Pages wrangler.
+Cola canónica en `pending-batches.yaml` `next_actions`. Resumen:
+
+1. `stg-secrets-real` → tenant fixture → flags A+V → S42 R2/Workflow → S48 DR_SIM.
+2. `stg-crons-verify` **done** (6 crons desplegados y verificados vía API schedules); `stg-ci-etapas-6` (auto) sigue ready.
+3. Gates s43–s49 / LPDP según flags y owners.
+4. `go-live-sunat` / `go-live-fcm` / `go-live-hardware` siguen AGENDADO_AL_FINAL.
+5. Dominios canónicos + ADR Queues/multi-shard si aplica.
+6. Cierre tracker solo con A+V (`stg-close-tracker`).
