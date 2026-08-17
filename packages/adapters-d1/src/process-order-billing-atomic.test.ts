@@ -231,8 +231,7 @@ describe('processOrderBillingAtomic', () => {
     expect(sqls.some((s) => s.includes('INSERT INTO atomic_guards'))).toBe(true);
     expect(
       sqls.some(
-        (s) =>
-          s.includes('UPDATE branch_document_series') && s.includes('AND current_number = ?'),
+        (s) => s.includes('UPDATE branch_document_series') && s.includes('AND current_number = ?'),
       ),
     ).toBe(true);
   });

@@ -468,9 +468,10 @@ function scanKdsCardStyled(): Finding[] {
   if (!/\bkds-pending-card\b/.test(markup)) {
     return out;
   }
-  const hasLedgerClass = /class\s*=\s*["'][^"']*\bledger-card\b[^"']*\bkds-pending-card\b|class\s*=\s*["'][^"']*\bkds-pending-card\b[^"']*\bledger-card\b/.test(
-    markup,
-  );
+  const hasLedgerClass =
+    /class\s*=\s*["'][^"']*\bledger-card\b[^"']*\bkds-pending-card\b|class\s*=\s*["'][^"']*\bkds-pending-card\b[^"']*\bledger-card\b/.test(
+      markup,
+    );
   const hasPadToken = /\.kds-pending-card\s*\{[^}]*padding\s*:\s*var\(--inset-card\)/.test(style);
   if (!hasLedgerClass && !hasPadToken) {
     out.push({
@@ -488,8 +489,7 @@ function scanDisplayPadLiteral(): Finding[] {
   for (const rel of ['routes/vitrina/+page.svelte', 'routes/kiosk/+page.svelte'] as const) {
     const text = readFileSync(join(POS_SRC, rel), 'utf8');
     const style = text.includes('<style') ? text.slice(text.indexOf('<style')) : '';
-    const re =
-      /\.(?:vitrina|kiosk)-(?:container|shell|card)\s*\{([^}]*)\}/gi;
+    const re = /\.(?:vitrina|kiosk)-(?:container|shell|card)\s*\{([^}]*)\}/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(style)) !== null) {
       if (/padding\s*:\s*(1\.5rem|2rem|2\.5rem)\b/.test(m[1])) {
