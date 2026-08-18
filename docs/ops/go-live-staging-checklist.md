@@ -23,14 +23,18 @@ en `wrangler.jsonc` (test nogate).
 - `stg-secrets-real`, `stg-vapid-public-var`, `stg-tenant-fixture`,
   `stg-flags-s42-s48`, `stg-s42-r2-workflow`, `stg-s48-dr-sim` → **bloqueados**
   (necesitan humanos/secrets/A+V).
-- `stg-ci-etapas-6` → **ready** (workflow_dispatch, auto).
+- `stg-ci-etapas-6` → **done**: `.github/workflows/deploy-staging.yml` creado
+  (`workflow_dispatch` manual, Etapas 0–5 en `jobs.gate`, deploy en orden §13.7
+  en `jobs.deploy`, artifact de evidencia). Check V-31 del gate lo exige.
+  Pendiente humano: setear secrets `CLOUDFLARE_API_TOKEN` +
+  `CLOUDFLARE_ACCOUNT_ID` y disparar el primer run real.
 
 ## Próximos `next_actions`
 
 | id | Owner | Pass |
 |---|---|---|
 | `stg-secrets-real` | Staff Security | Secrets Store real (KEK backup/push, VAPID, FCM SA); redeploy KMS |
-| `stg-ci-etapas-6` | Staff SRE | `workflow_dispatch` deploy staging + artifacts |
+| `stg-ci-etapas-6` | Staff SRE | **done** — workflow `deploy-staging.yml` + V-31; falta run real con secrets |
 
 Siguiente bloqueado hasta secrets + tenant + A+V flags: `stg-s42-r2-workflow` →
 `stg-s48-dr-sim`.

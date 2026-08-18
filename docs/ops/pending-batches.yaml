@@ -318,7 +318,7 @@ sprints_cierre:
         severity: medium
         detail: "CI Etapas 6–11 workflow_dispatch deploy staging ausente"
         can_auto_fix: true
-        status: open
+        status: closed
       - id: stg-domains-canary
         severity: low
         detail: "Dominios canónicos api./app./kipuspay.com pendientes"
@@ -409,9 +409,11 @@ sprints_cierre:
       - id: stg-ci-etapas-6
         owner: Staff SRE
         depends_on: []
-        status: ready
+        status: done
         can_auto_fix: true
         pass: "workflow_dispatch deploy staging + artifact evidence"
+        evidence: ".github/workflows/deploy-staging.yml — workflow_dispatch manual, jobs.gate Etapas 0-5 (verify V-00..V-31 + lint/typecheck/unit/integration/audit/build/bundle), jobs.deploy orden §13.7 (kms→api→fiscal→pos-web→marketing-web), artifact deploy-staging-evidence + smoke; check V-31 del gate lo exige"
+        cmd: "gh workflow run deploy-staging.yml (requiere secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID)"
       - id: stg-domains-canary
         owner: Staff SRE
         depends_on: [stg-s48-dr-sim]

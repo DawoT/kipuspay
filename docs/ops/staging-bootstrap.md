@@ -70,6 +70,27 @@ proyectos `*-staging` (Pages no admite `env.staging`; solo preview/production).
 top-level). Tras cambiar triggers, **redeploy** API staging y verificar en
 dashboard.
 
+## CI/CD — Etapa 6 (deploy a staging)
+
+El workflow `.github/workflows/deploy-staging.yml` (disparo **manual** vía
+`workflow_dispatch`, `Proceso §5.2` Etapa 6, `Arquitectura §13.7`, check V-31):
+
+1. **Gate** (`jobs.gate`): corre Etapas 0–5 sin saltos — gate documental
+   `scripts/verify.sh` (V-00..V-31), lint/typecheck, unit con umbrales CAL-05,
+   integración D1, audit de dependencias, build + bundle POS (CAL-06).
+2. **Deploy** (`jobs.deploy`, `needs: gate`): despliega en orden §13.7 —
+   workers `worker-kms` → `worker-api` → `worker-fiscal` y luego Pages
+   `pos-web` → `marketing-web` — usando los `deploy:staging` del monorepo.
+3. **Evidencia**: sube como artifact `deploy-staging-evidence` los logs de
+   cada deploy, la versión de wrangler y el smoke de staging
+   (`staging-browser-smoke.mjs`). Input opcional `dry_run: true` valida las
+   Etapas 0–5 sin desplegar.
+
+**Secretos requeridos** (GitHub Actions → repo): `CLOUDFLARE_API_TOKEN`
+(wrangler, permisos Workers/Pages del account `c5b18f62cb7e73fcd2ece5822936d699`)
+y `CLOUDFLARE_ACCOUNT_ID`. Sin ellos el job `deploy` falla; el job `gate` no los
+necesita.
+
 ## Secrets / flags
 
 | Item | Estado |

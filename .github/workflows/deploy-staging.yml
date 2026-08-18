@@ -1,0 +1,119 @@
+name: kipus-deploy-staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Solo valida Etapas 0-5 y compila los pasos de deploy, sin desplegar"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  # Etapas 0-5 (Proceso §5.2): el deploy a staging NO salta ninguna etapa (§13.7).
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Etapa 0 - Gate documental (V-00..V-31)
+        run: bash scripts/verify.sh
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Etapa 1 - Lint + Typecheck
+        run: |
+          pnpm lint
+          pnpm format:check
+          pnpm typecheck
+
+      - name: Etapa 2 - Unit (umbrales CAL-05)
+        run: pnpm test:unit
+
+      - name: Etapa 3 - Integration (D1 real)
+        run: pnpm test:integration
+
+      - name: Etapa 4 - Seguridad (audit de dependencias)
+        run: pnpm audit --audit-level=high
+
+      - name: Etapa 5 - Build + bundle POS (CAL-06)
+        run: |
+          pnpm build
+          pnpm --filter @kipuspay/pos-web run bundle
+
+  # Etapa 6 (Proceso §5.2): deploy a staging en orden §13.7 — workers (kms, api,
+  # fiscal) y luego Pages (pos-web, marketing-web). Sin saltos: depends on gate.
+  deploy:
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Preparar evidencia
+        run: mkdir -p deploy-logs
+
+      - name: Evidencia - versión de wrangler
+        run: pnpm exec wrangler --version > deploy-logs/00-wrangler-version.txt
+
+      - name: Deploy worker-kms (staging)
+        run: pnpm --filter @kipuspay/worker-kms run deploy:staging 2>&1 | tee deploy-logs/10-worker-kms.log
+
+      - name: Deploy worker-api (staging)
+        run: pnpm --filter @kipuspay/worker-api run deploy:staging 2>&1 | tee deploy-logs/20-worker-api.log
+
+      - name: Deploy worker-fiscal (staging)
+        run: pnpm --filter @kipuspay/worker-fiscal run deploy:staging 2>&1 | tee deploy-logs/30-worker-fiscal.log
+
+      - name: Deploy pos-web Pages (staging)
+        run: pnpm --filter @kipuspay/pos-web run deploy:staging 2>&1 | tee deploy-logs/40-pos-web.log
+
+      - name: Deploy marketing-web Pages (staging)
+        run: pnpm --filter @kipuspay/marketing-web run deploy:staging 2>&1 | tee deploy-logs/50-marketing-web.log
+
+      - name: Evidencia - smoke de staging (health + navegador)
+        run: node apps/pos-web/scripts/staging-browser-smoke.mjs 2>&1 | tee deploy-logs/60-staging-smoke.log
+
+      - name: Subir evidencia del deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-staging-evidence
+          path: deploy-logs/
+          if-no-files-found: error

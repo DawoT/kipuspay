@@ -130,6 +130,7 @@ Cada check emite `RESULT <ID> GREEN|RED` y la última línea es `RESULT SUITE GR
 | V-28 | Contrato POS↔API: todo path `/api/...` que los clientes del POS invocan debe estar registrado en `apps/worker-api/src/index.ts` (0396) |
 | V-29 | Paridad de triggers de epoch: toda tabla del registry `D1_BACKUP_TABLES` con sus 3 triggers de `tenant_data_epochs` (0396, 0052/0053) |
 | V-30 | Cero literales demo en el código fuente del POS: `apps/pos-web/src` (.ts/.svelte, sin tests ni `routes/dev/`) no asigna valores `demo` (F-6; refuerza V-27) |
+| V-31 | Contrato CI/CD del deploy a staging: existe `.github/workflows/deploy-staging.yml` disparado por `workflow_dispatch` manual, corre el gate documental como precondición y despliega los 5 targets en el orden §13.7 (workers → Pages) con artifact de evidencia (Proceso §5.2 Etapa 6, Arquitectura §13.7) |
 
 Un `SUITE GREEN` es condición **necesaria pero no suficiente**: los Quality Gates de implementación (Proceso §8.1) exigen además evidencia runtime.
 

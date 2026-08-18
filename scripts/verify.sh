@@ -265,6 +265,14 @@ check_api_contract() {
   return 0
 }
 
+# --- V-31: contrato CI/CD del deploy a staging (Etapa 6, §13.7) --------------
+check_ci_cd() {
+  python3 scripts/checks/ci_cd.py
+  local rc=$?
+  [ $rc -ne 0 ] && FAIL=1
+  return 0
+}
+
 check_selftest
 check_paths_hygiene
 check_size_budget
@@ -287,6 +295,7 @@ check_marketing_copy
 check_pos_copy
 check_pos_demo_ids
 check_api_contract
+check_ci_cd
 
 echo ""
 if [ $FAIL -eq 0 ]; then

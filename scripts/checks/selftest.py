@@ -81,6 +81,13 @@ def load_pos_demo_ids():
     return mod
 
 
+def load_ci_cd():
+    spec = importlib.util.spec_from_file_location("ci_cd", f"{HERE}/ci_cd.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 _TMP_COUNTER = [0]
 
 
@@ -418,6 +425,65 @@ def main() -> int:
         pd.scan_file(__write_tmp(".ts", "const ok = 'validId';\n")) == [],
         "V-30 marca texto sin demo",
     )
+
+    # V-31: contrato CI/CD del deploy a staging (Proceso §5.2 Etapa 6, §13.7)
+    cc = load_ci_cd()
+    GOOD_WF = """
+on:
+  workflow_dispatch:
+jobs:
+  gate:
+    steps:
+      - run: bash scripts/verify.sh
+  deploy:
+    needs: [gate]
+    steps:
+      - name: kms
+        run: pnpm --filter @kipuspay/worker-kms run deploy:staging
+      - name: api
+        run: pnpm --filter @kipuspay/worker-api run deploy:staging
+      - name: fiscal
+        run: pnpm --filter @kipuspay/worker-fiscal run deploy:staging
+      - name: pos
+        run: pnpm --filter @kipuspay/pos-web run deploy:staging
+      - name: mkt
+        run: pnpm --filter @kipuspay/marketing-web run deploy:staging
+      - uses: actions/upload-artifact@v4
+"""
+    BAD_NO_WD = GOOD_WF.replace("  workflow_dispatch:\n", "")
+    BAD_NO_GATE = GOOD_WF.replace("      - run: bash scripts/verify.sh\n", "")
+    BAD_NO_ARTIFACT = GOOD_WF.replace("      - uses: actions/upload-artifact@v4\n", "")
+    BAD_ORDER = GOOD_WF.replace(
+        "pnpm --filter @kipuspay/worker-api run deploy:staging",
+        "pnpm --filter @kipuspay/worker-fiscal run deploy:staging",
+        1,
+    )
+    import tempfile as _tf
+
+    with _tf.TemporaryDirectory() as tmp:
+        os.makedirs(f"{tmp}/.github/workflows", exist_ok=True)
+        open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(GOOD_WF)
+        expect(cc.violations(tmp) == [], "V-31 marcó un workflow correcto como violación")
+        open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_NO_WD)
+        expect(
+            any("workflow_dispatch" in v for v in cc.violations(tmp)),
+            "V-31 no detecta workflow sin workflow_dispatch",
+        )
+        open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_NO_GATE)
+        expect(
+            any("gate_documental" in v for v in cc.violations(tmp)),
+            "V-31 no exige el gate documental (Etapa 0) como precondición",
+        )
+        open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_NO_ARTIFACT)
+        expect(
+            any("artifact" in v for v in cc.violations(tmp)),
+            "V-31 no exige artifact de evidencia",
+        )
+        open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_ORDER)
+        expect(
+            any("worker-api" in v or "worker-fiscal" in v for v in cc.violations(tmp)),
+            "V-31 no detecta target ausente tras reordenar (orden §13.7)",
+        )
 
     if fails:
         print(f"RESULT V-00 RED  {len(fails)} detector(es) del gate fallan")

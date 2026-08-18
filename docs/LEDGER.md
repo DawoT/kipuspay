@@ -12224,3 +12224,51 @@ aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independie
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0448
+timestamp_utc: 2026-08-17T06:35:00Z
+schema_version: 2
+sprint_fase: Go-Live Staging — Etapa 6 CI/CD: deploy-staging workflow_dispatch + check V-31
+agente_responsable: Staff SRE
+tipo: Entregable nuevo
+subtipo: CI/CD — .github/workflows/deploy-staging.yml (Etapas 0-5 como precondición, deploy orden §13.7, artifact de evidencia) + check V-31 del gate
+relacion: amplia
+referencias_entradas: [0447]
+referencias_documentales: [.github/workflows/deploy-staging.yml, scripts/checks/ci_cd.py, scripts/verify.sh, scripts/checks/selftest.py, AGENTS.md, docs/ops/staging-bootstrap.md, docs/ops/go-live-staging-checklist.md, docs/ops/pending-batches.yaml]
+prev_id: 0447
+prev_hash: 12db6bf845393725af61bc7f772246a9798234982870bf50307c58d4848f0752
+entry_hash: 8daa7497994184230439179480d0f6a0e7dd6fc33b37f43793ed7ae79d3dda00
+ticket_or_adr: stg-ci-etapas-6 (Proceso §5.2 Etapa 6, Arquitectura §13.7)
+test_ids: [SUITE, V-00, V-31, V-13]
+entregable_afectado: pipeline CI/CD §13.7 / Proceso §5.2 Etapa 6
+descripcion: >
+  El tracker declaraba `stg-ci-etapas-6` ready: faltaba el workflow de deploy a
+  staging disparado por workflow_dispatch manual. Se crea
+  .github/workflows/deploy-staging.yml: jobs.gate corre Etapas 0-5 sin saltos
+  (verify.sh V-00..V-31, lint/typecheck, unit CAL-05, integración D1, audit,
+  build + bundle CAL-06); jobs.deploy (needs: gate) despliega en el orden §13.7
+  workers kms→api→fiscal y Pages pos-web→marketing-web con los deploy:staging
+  del monorepo y sube artifact deploy-staging-evidence + smoke; input dry_run
+  valida Etapas 0-5 sin desplegar. El gate ahora lo exige con el check nuevo
+  V-31 (scripts/checks/ci_cd.py), autotesteado en V-00, y la tabla de checks de
+  AGENTS.md se actualiza. Documentación en staging-bootstrap.md § CI/CD.
+  Requiere secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID para el run real
+  (A+V humano, fuera de scope del auto-fix).
+evidencia: >
+  RED (run-red-c8ops): V-31 RED con el detector nuevo (workflow ausente; 4
+  markers + 5 targets faltantes); suite RED.
+  GREEN (run-green-c8ops): V-31 GREEN tras crear el workflow (YAML válido vía
+  PyYAML); V-00 GREEN 58 aserciones (casos limpio, sin workflow_dispatch, sin
+  gate, sin artifact, orden roto); verify SUITE GREEN; turbo lint+typecheck+test
+  +build 108/108 con --concurrency=4; bundle POS 273.2 kB gz < 300 kB (CAL-06);
+  pnpm audit --audit-level=high exit 0 (1 low).
+red_commit_sha: N/A
+red_run_id: run-red-c8ops
+expected_failure: sin workflow de deploy a staging el gate no podía detectar la ausencia (V-31 nuevo)
+green_commit_sha: N/A
+green_run_id: run-green-c8ops
+ancestry_verified: true
+aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
