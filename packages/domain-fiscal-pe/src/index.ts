@@ -29,6 +29,20 @@ export {
 } from './ubl-invoice.js';
 
 export {
+  assertValidCreditNoteXml,
+  buildUblCreditNoteXml,
+  type UblCreditNoteInput,
+  type UblCreditNoteLine,
+} from './ubl-credit-note.js';
+
+export {
+  assertValidDebitNoteXml,
+  buildUblDebitNoteXml,
+  type UblDebitNoteInput,
+  type UblDebitNoteLine,
+} from './ubl-debit-note.js';
+
+export {
   assertCreditNoteAllowed,
   stockRestoreMicrounits,
   stockRestoreQuantity,

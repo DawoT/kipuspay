@@ -12312,3 +12312,56 @@ aprobaciones: [Staff Auditor R, @DawoT A (humano), Staff Verifier V independient
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0450
+timestamp_utc: 2026-08-18T22:10:00Z
+schema_version: 2
+sprint_fase: Ops-3 — Builders UBL NC/ND (07/08) + producer cableado (wire del gap sunat-builders-nc-nd)
+agente_responsable: Staff Principal A
+tipo: Entregable nuevo
+subtipo: ubl-credit-note.ts / ubl-debit-note.ts (dominio) + fiscal-xml-producer 07/08 PRODUCED (adapters-d1) + ubl-shared.ts (DRY)
+relacion: amplia
+referencias_entradas: [0449, 0445]
+referencias_documentales: [packages/domain-fiscal-pe/src/ubl-credit-note.ts, packages/domain-fiscal-pe/src/ubl-debit-note.ts, packages/domain-fiscal-pe/src/ubl-shared.ts, packages/domain-fiscal-pe/src/ubl-invoice.ts, packages/adapters-d1/src/fiscal-xml-producer.ts, docs/ops/pending-batches.yaml]
+prev_id: 0449
+prev_hash: 56068a0a57a36c949e0c846197a11d3a0fea820d97d8eba636032b0cc431d8c9
+entry_hash: f47b96036374a413b349f7ad0fa08f960ffb154f02080c7ec9ec23a57b49fdf2
+ticket_or_adr: sunat-builders-nc-nd (Arquitectura §5.2/§8, ADR-FISCAL-003; Ops-3 wire del gap)
+test_ids: [packages/domain-fiscal-pe/src/ubl-credit-note.test.ts, packages/domain-fiscal-pe/src/ubl-debit-note.test.ts, packages/adapters-d1/src/fiscal-xml-producer.test.ts, V-13, V-18, V-31, SUITE]
+entregable_afectado: pipeline fiscal §5.2 / §8 (NC/ND de factura → XML unitario)
+descripcion: >
+  El tracker declaraba sunat-builders-nc-nd: C6 solo producía factura 01; las
+  NC/ND (07/08) quedaban SKIP_UNSUPPORTED_BUILDER en el producer. Ops-3 cablea
+  los builders UBL 2.1 de Nota de Crédito y Nota de Débito en el dominio
+  (ubl-credit-note.ts / ubl-debit-note.ts, zero-dep, helpers DRY en
+  ubl-shared.ts: escapeXml/centsToAmount/assertWellFormedXml/hashUblXml). El
+  producer (fiscal-xml-producer.ts) ahora resuelve el documento ORIGEN
+  (resolveReferencedSale: tipo + serie-número + totales), carga sus líneas
+  (loadReferencedItems) y produce el XML unitario: NC 07 → CreditNote con
+  montos negativos y DiscrepancyResponse/BillingReference; ND 08 → DebitNote
+  con montos positivos. Canal correcto: NC/ND de factura → PRODUCED (R2 +
+  sunat_xml_hash), NC/ND de boleta → SKIP_RC (línea del RC, spec §5.2).
+  Fail-closed: sin referencia resoluble o sin líneas del origen → SKIP_NONE.
+  Validación: assertValidCreditNoteXml/assertValidDebitNoteXml exigen el tipo
+  de documento exacto (07/08), BillingReference, DiscrepancyResponse y líneas.
+  Sigue pendiente (bloqueado, can_auto_fix false): certificación PSE/OSE real
+  con CDR accepted (sunat-pse-ose) y XAdES completo (sunat-xades-pfx).
+evidencia: >
+  RED (run-red-ops3): producer devolvía SKIP_UNSUPPORTED_BUILDER para 07/08;
+  sin builders UBL NC/ND; test 07→factura esperaba SKIP_UNSUPPORTED_BUILDER.
+  GREEN (run-green-ops3): domain-fiscal-pe 96 tests (13 files, +6 NC/ND)
+  GREEN, cobertura 99.55% lines/98.36% stmts (>95% CAL-05); adapters-d1 400
+  tests (50 files) GREEN; fiscal-xml-producer 9/9 (07 PRODUCED CreditNote,
+  08 PRODUCED DebitNote, boleta SKIP_RC, factura PRODUCED, idempotente);
+  turbo lint+typecheck+test 101/101 --concurrency=4; verify SUITE GREEN
+  (V-31 incluido).
+red_commit_sha: N/A
+red_run_id: run-red-ops3
+expected_failure: NC/ND 07/08 sin builder UBL; producer sin wire (SKIP_UNSUPPORTED_BUILDER)
+green_commit_sha: N/A
+green_run_id: run-green-ops3
+ancestry_verified: true
+aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

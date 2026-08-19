@@ -1,68 +1,67 @@
 /**
- * UBL 2.1 Invoice builder mínimo (factura 01) — zero-dep Web Platform.
- * Arquitectura §5.2 / ADR-FISCAL-001. No usa npm runtime.
+ * UBL 2.1 DebitNote builder (ND `08`) — zero-dep Web Platform.
+ * Arquitectura §5.2 / §8 / ADR-FISCAL-003. Mismo esqueleto UBL que la NC
+ * (`ubl-shared`) con: `DiscrepancyResponse` (motivo Catálogo 10), referencia
+ * al comprobante que ajusta y `DebitNoteLine` con montos POSITIVOS (la ND
+ * incrementa valor; jamás toca stock, FIS-13/ADR-FISCAL-003).
  */
+/* eslint-disable no-secrets/no-secrets -- plantillas XML UBL normativas */
 
-export interface UblInvoiceLine {
+import { assertWellFormedXml, centsToAmount, escapeXml } from './ubl-shared.js';
+
+export interface UblDebitNoteLine {
   readonly id: number;
   readonly description: string;
   readonly quantity: number;
   readonly unitCode: string;
-  readonly unitPriceCents: number;
   readonly igvAffectationCode: string; // Catálogo 07
   readonly igvCents: number;
   readonly lineTotalCents: number;
   readonly icbperCents: number;
 }
 
-export interface UblInvoiceInput {
+export interface UblDebitNoteInput {
   readonly ublVersion: '2.1';
-  readonly customizationId: '2.0';
-  readonly id: string; // F001-00000001
+  readonly customizationId: '1.0';
+  readonly id: string; // FD01-00000001
   readonly issueDate: string; // YYYY-MM-DD Lima
   readonly issueTime: string; // HH:MM:SS
-  readonly invoiceTypeCode: '01' | '03';
   readonly currency: 'PEN';
   readonly issuerRuc: string;
   readonly issuerName: string;
   readonly customerDocType: string;
   readonly customerDocNumber: string;
   readonly customerName: string;
+  /** Documento origen que ajusta (factura `01`): serie-número. */
+  readonly referencedDocId: string;
+  /** Motivo Catálogo 10 (cerrado). */
+  readonly motiveCode: string;
   readonly totalTaxableCents: number;
   readonly totalIgvCents: number;
   readonly totalIcbperCents: number;
   readonly totalAmountCents: number;
-  readonly lines: readonly UblInvoiceLine[];
+  readonly lines: readonly UblDebitNoteLine[];
 }
 
-import {
-  assertWellFormedXml,
-  centsToAmount,
-  escapeXml,
-  hashUblXml,
-} from './ubl-shared.js';
-
-/** Construye XML UBL Invoice 2.1 mínimo válido para fixtures de prueba. */
-export function buildUblInvoiceXml(input: UblInvoiceInput): string {
+export function buildUblDebitNoteXml(input: UblDebitNoteInput): string {
   if (input.ublVersion !== '2.1') throw new Error('UNSUPPORTED_UBL_VERSION');
   if (!/^\d{11}$/.test(input.issuerRuc)) throw new Error('INVALID_ISSUER_RUC');
-  if (input.invoiceTypeCode === '01' && input.customerDocType !== '6') {
-    throw new Error('FACTURA_REQUIRES_RUC');
-  }
+  if (!/^[A-Za-z0-9-]{1,20}$/.test(input.referencedDocId)) throw new Error('INVALID_REFERENCED_DOC');
+  if (!/^\d{2}$/.test(input.motiveCode)) throw new Error('INVALID_MOTIVE_CODE');
   if (!input.lines.length) throw new Error('EMPTY_LINES');
+  if (input.totalAmountCents <= 0) throw new Error('ND_TOTAL_MUST_BE_POSITIVE');
 
   const linesXml = input.lines
     .map((line) => {
       const netCents = line.lineTotalCents - line.igvCents - line.icbperCents;
-      const unitValueCents = Math.round(netCents / (line.quantity || 1));
       return `
-  <cac:InvoiceLine>
+  <cac:DebitNoteLine>
     <cbc:ID>${line.id}</cbc:ID>
-    <cbc:InvoicedQuantity unitCode="${escapeXml(line.unitCode)}">${line.quantity}</cbc:InvoicedQuantity>
+    <cbc:DebitedQuantity unitCode="${escapeXml(line.unitCode)}">${line.quantity}</cbc:DebitedQuantity>
     <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(netCents)}</cbc:LineExtensionAmount>
     <cac:PricingReference>
       <cac:AlternativeConditionPrice>
-        <cbc:PriceAmount currencyID="${input.currency}">${centsToAmount(line.unitPriceCents)}</cbc:PriceAmount>
+        <cbc:PriceAmount currencyID="${input.currency}">${centsToAmount(line.lineTotalCents)}</cbc:PriceAmount>
         <cbc:PriceTypeCode>01</cbc:PriceTypeCode>
       </cac:AlternativeConditionPrice>
     </cac:PricingReference>
@@ -83,15 +82,12 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
     <cac:Item>
       <cbc:Description>${escapeXml(line.description)}</cbc:Description>
     </cac:Item>
-    <cac:Price>
-      <cbc:PriceAmount currencyID="${input.currency}">${centsToAmount(unitValueCents)}</cbc:PriceAmount>
-    </cac:Price>
-  </cac:InvoiceLine>`;
+  </cac:DebitNoteLine>`;
     })
     .join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+<DebitNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:DebitNote-2"
   xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
   xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
@@ -99,8 +95,17 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
   <cbc:ID>${escapeXml(input.id)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(input.issueDate)}</cbc:IssueDate>
   <cbc:IssueTime>${escapeXml(input.issueTime)}</cbc:IssueTime>
-  <cbc:InvoiceTypeCode listID="0101">${input.invoiceTypeCode}</cbc:InvoiceTypeCode>
+  <cbc:DebitNoteTypeCode listID="0101">08</cbc:DebitNoteTypeCode>
   <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
+  <cac:DiscrepancyResponse>
+    <cbc:ReferenceID>${escapeXml(input.referencedDocId)}</cbc:ReferenceID>
+    <cbc:ResponseCode>${escapeXml(input.motiveCode)}</cbc:ResponseCode>
+  </cac:DiscrepancyResponse>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>${escapeXml(input.referencedDocId)}</cbc:ID>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cac:PartyIdentification>
@@ -129,22 +134,20 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
     <cbc:TaxInclusiveAmount currencyID="${input.currency}">${centsToAmount(input.totalAmountCents)}</cbc:TaxInclusiveAmount>
     <cbc:PayableAmount currencyID="${input.currency}">${centsToAmount(input.totalAmountCents)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>${linesXml}
-</Invoice>
+</DebitNote>
 `;
 }
 
-/** Firma detachada SHA-256 del XML (staging / mock PSE — no XAdES completo). */
-export { hashUblXml };
-
-export { assertWellFormedXml };
-
-export function assertValidFacturaXml(xml: string): void {
+export function assertValidDebitNoteXml(xml: string): void {
   assertWellFormedXml(xml);
   if (!xml.includes('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>')) {
     throw new Error('INVALID_UBL_VERSION');
   }
-  if (!xml.includes('<cbc:InvoiceTypeCode')) throw new Error('MISSING_INVOICE_TYPE');
-  if (!xml.includes('schemeID="6"')) throw new Error('MISSING_ISSUER_RUC');
-  if (!xml.includes('<cac:InvoiceLine>')) throw new Error('MISSING_LINES');
+  if (!xml.includes('<cbc:DebitNoteTypeCode listID="0101">08</cbc:DebitNoteTypeCode>')) {
+    throw new Error('INVALID_DEBIT_NOTE_TYPE');
+  }
+  if (!xml.includes('<cac:DiscrepancyResponse>')) throw new Error('MISSING_DISCREPANCY_RESPONSE');
+  if (!xml.includes('<cac:BillingReference>')) throw new Error('MISSING_BILLING_REFERENCE');
+  if (!xml.includes('<cac:DebitNoteLine>')) throw new Error('MISSING_LINES');
   if (xml.toLowerCase().includes('contingencia')) throw new Error('CONTINGENCIA_FORBIDDEN');
 }

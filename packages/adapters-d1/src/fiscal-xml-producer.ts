@@ -9,10 +9,16 @@
  * Zero-dependency: Web Platform APIs + `buildUblInvoiceXml` del dominio.
  */
 import {
+  assertValidCreditNoteXml,
+  assertValidDebitNoteXml,
   assertValidFacturaXml,
+  buildUblCreditNoteXml,
+  buildUblDebitNoteXml,
   buildUblInvoiceXml,
   classifyUnitaryXmlTarget,
   hashUblXml,
+  type UblCreditNoteInput,
+  type UblDebitNoteInput,
   type UblInvoiceInput,
   type UblInvoiceLine,
 } from '@kipuspay/domain-fiscal-pe';
@@ -34,7 +40,6 @@ export type ProduceFiscalXmlResult =
   | { readonly outcome: 'NOOP_ALREADY_HAS_KEY'; readonly r2XmlKey: string }
   | { readonly outcome: 'SKIP_RC'; readonly channel: 'RC' }
   | { readonly outcome: 'SKIP_NONE'; readonly channel: 'NONE' }
-  | { readonly outcome: 'SKIP_UNSUPPORTED_BUILDER'; readonly documentType: string }
   | { readonly outcome: 'NOT_FOUND' };
 
 interface SaleForXml {
@@ -52,6 +57,7 @@ interface SaleForXml {
   readonly total_icbper_cents: number;
   readonly total_amount_cents: number;
   readonly issued_at_lima: string;
+  readonly credit_note_motive_code: string | null;
 }
 
 interface SaleItemForXml {
@@ -65,23 +71,33 @@ interface SaleItemForXml {
   readonly total_amount_cents: number;
 }
 
+interface ReferencedSaleForXml {
+  readonly document_type: string;
+  readonly series: string;
+  readonly number: number;
+  readonly total_amount_cents: number;
+}
+
 interface TenantForXml {
   readonly ruc: string | null;
   readonly business_name: string;
 }
 
-/** Resuelve el document_type del documento referenciado (para NC/ND 07/08). */
-export async function resolveReferencedDocumentType(
+/** Resuelve el documento referenciado (para NC/ND 07/08): tipo + serie-número. */
+export async function resolveReferencedSale(
   db: D1DatabaseLike,
   tenantId: string,
   referencedSaleId: string | null | undefined,
-): Promise<string | undefined> {
+): Promise<ReferencedSaleForXml | undefined> {
   if (!referencedSaleId) return undefined;
   const row = await db
-    .prepare(`SELECT document_type FROM sales WHERE id = ? AND tenant_id = ?`)
+    .prepare(
+      `SELECT document_type, series, number, total_amount_cents
+       FROM sales WHERE id = ? AND tenant_id = ?`,
+    )
     .bind(referencedSaleId, tenantId)
-    .first<{ document_type: string }>();
-  return row?.document_type;
+    .first<ReferencedSaleForXml>();
+  return row ?? undefined;
 }
 
 export function r2XmlKeyForSale(tenantId: string, saleId: string): string {
@@ -103,7 +119,7 @@ export async function loadSaleForXml(
       `SELECT id, tenant_id, document_type, referenced_sale_id, series, number,
               client_document_type, client_document_number, client_name,
               total_taxable_cents, total_igv_cents, total_icbper_cents,
-              total_amount_cents, issued_at_lima
+              total_amount_cents, issued_at_lima, credit_note_motive_code
        FROM sales WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`,
     )
     .bind(saleId, tenantId)
@@ -126,6 +142,30 @@ export async function loadSaleForXml(
 
   if (!tenant) return null;
   return { sale, items: items.results ?? [], tenant };
+}
+
+/** Lee las líneas del documento ORIGEN que ajusta una NC/ND (07/08). */
+export async function loadReferencedItems(
+  db: D1DatabaseLike,
+  tenantId: string,
+  referencedSaleId: string,
+): Promise<readonly SaleItemForXml[]> {
+  const items = await db
+    .prepare(
+      `SELECT ref.id, ref.product_name, ref.quantity, ref.unit_price_cents,
+              ref.igv_affectation_code, ref.igv_amount_cents,
+              ref.icbper_amount_cents, ref.total_amount_cents
+       FROM sale_items ref
+       WHERE ref.sale_id = ? AND ref.tenant_id = ?
+       ORDER BY ref.id`,
+    )
+    .bind(referencedSaleId, tenantId)
+    .all<SaleItemForXml>();
+  return items.results ?? [];
+}
+
+function documentId(sale: Pick<SaleForXml, 'series' | 'number'>): string {
+  return `${sale.series}-${String(sale.number).padStart(8, '0')}`;
 }
 
 function buildUblInput(ctx: {
@@ -155,7 +195,7 @@ function buildUblInput(ctx: {
   return {
     ublVersion: '2.1',
     customizationId: '2.0',
-    id: `${sale.series}-${String(sale.number).padStart(8, '0')}`,
+    id: documentId(sale),
     issueDate: datePart,
     issueTime: timePart.slice(0, 8),
     invoiceTypeCode: '01',
@@ -171,6 +211,58 @@ function buildUblInput(ctx: {
     totalAmountCents: sale.total_amount_cents,
     lines,
   };
+}
+
+/**
+ * Ops-3: arma el input UBL de NC (07) / ND (08). La NC/ND no persiste
+ * `sale_items` propios (el proceso ajusta el origen); las líneas del XML se
+ * construyen desde el documento ORIGEN que ajusta, con los montos de la nota.
+ * Devuelve CreditNote para 07 y DebitNote para 08 (fail-closed: tipo distinto
+ * no llega aquí — el caller ya clasificó el canal).
+ */
+function buildAdjustmentInput(
+  sale: SaleForXml,
+  tenant: TenantForXml,
+  referenced: ReferencedSaleForXml,
+  originItems: readonly SaleItemForXml[],
+  kind: '07' | '08',
+): UblCreditNoteInput | UblDebitNoteInput {
+  const [datePart = '', timePart = '00:00:00'] = sale.issued_at_lima.split('T');
+  const sign = kind === '08' ? 1 : -1;
+  const motive = sale.credit_note_motive_code ?? '01';
+  const base = {
+    ublVersion: '2.1' as const,
+    customizationId: '1.0' as const,
+    id: documentId(sale),
+    issueDate: datePart,
+    issueTime: timePart.slice(0, 8),
+    currency: 'PEN' as const,
+    issuerRuc: tenant.ruc ?? '',
+    issuerName: tenant.business_name,
+    customerDocType: sale.client_document_type,
+    customerDocNumber: sale.client_document_number,
+    customerName: sale.client_name,
+    referencedDocId: documentId(referenced),
+    motiveCode: motive,
+    totalTaxableCents: sign * sale.total_taxable_cents,
+    totalIgvCents: sign * sale.total_igv_cents,
+    totalIcbperCents: sign * sale.total_icbper_cents,
+    totalAmountCents: sign * sale.total_amount_cents,
+  };
+
+  const lines = originItems.map((item, index) => ({
+    id: index + 1,
+    description: item.product_name,
+    quantity: item.quantity,
+    unitCode: 'NIU' as const,
+    igvAffectationCode: item.igv_affectation_code || '10',
+    igvCents: item.igv_amount_cents,
+    lineTotalCents: item.total_amount_cents,
+    icbperCents: item.icbper_amount_cents,
+  }));
+
+  if (kind === '08') return { ...base, lines };
+  return { ...base, lines };
 }
 
 /**
@@ -195,26 +287,44 @@ export async function produceFiscalXmlForSale(
   if (!ctx) return { outcome: 'NOT_FOUND' };
   const { sale } = ctx;
 
-  const referencedDocType = await resolveReferencedDocumentType(
-    db,
-    tenantId,
-    sale.referenced_sale_id,
-  );
+  const referenced = await resolveReferencedSale(db, tenantId, sale.referenced_sale_id);
   const channel = classifyUnitaryXmlTarget(
     sale.document_type as '01' | '03' | '07' | '08' | '12' | 'NV' | 'NV_RETURN',
-    referencedDocType,
+    referenced?.document_type,
   );
   if (channel === 'RC') return { outcome: 'SKIP_RC', channel };
   if (channel === 'NONE') return { outcome: 'SKIP_NONE', channel };
 
-  // C6: el builder solo soporta factura 01. NC/ND (07/08) se cablean en Ops-3.
-  if (sale.document_type !== '01') {
-    return { outcome: 'SKIP_UNSUPPORTED_BUILDER', documentType: sale.document_type };
+  let ublInput: UblInvoiceInput | UblCreditNoteInput | UblDebitNoteInput;
+  let validate: (xml: string) => void;
+  if (sale.document_type === '01') {
+    ublInput = buildUblInput(ctx);
+    validate = assertValidFacturaXml;
+  } else if (sale.document_type === '08') {
+    if (!referenced || !sale.referenced_sale_id) {
+      return { outcome: 'SKIP_NONE', channel: 'NONE' };
+    }
+    const originItems = await loadReferencedItems(db, tenantId, sale.referenced_sale_id);
+    if (!originItems.length) return { outcome: 'SKIP_NONE', channel: 'NONE' };
+    ublInput = buildAdjustmentInput(sale, ctx.tenant, referenced, originItems, '08');
+    validate = assertValidDebitNoteXml;
+  } else {
+    if (!referenced || !sale.referenced_sale_id) {
+      return { outcome: 'SKIP_NONE', channel: 'NONE' };
+    }
+    const originItems = await loadReferencedItems(db, tenantId, sale.referenced_sale_id);
+    if (!originItems.length) return { outcome: 'SKIP_NONE', channel: 'NONE' };
+    ublInput = buildAdjustmentInput(sale, ctx.tenant, referenced, originItems, '07');
+    validate = assertValidCreditNoteXml;
   }
 
-  const ublInput = buildUblInput(ctx);
-  const xml = buildUblInvoiceXml(ublInput);
-  assertValidFacturaXml(xml);
+  const xml =
+    sale.document_type === '01'
+      ? buildUblInvoiceXml(ublInput as UblInvoiceInput)
+      : sale.document_type === '08'
+        ? buildUblDebitNoteXml(ublInput as UblDebitNoteInput)
+        : buildUblCreditNoteXml(ublInput as UblCreditNoteInput);
+  validate(xml);
   const xmlHash = await hashUblXml(xml);
   const key = r2XmlKeyForSale(tenantId, saleId);
   await r2.put(key, xml);

@@ -515,7 +515,7 @@ sprints_cierre:
         status: open
       - id: sunat-builders-nc-nd
         severity: blocker
-        detail: "Builders UBL NC/ND (07/08) aún no implementados — C6 solo produce factura 01; NC/ND resuelven por documento referenciado y quedan en outbox pendientes de builder"
+        detail: "Builders UBL NC/ND (07/08) IMPLEMENTADOS en Ops-3 (ubl-credit-note/ubl-debit-note + producer cableado: XML unitario de factura → PRODUCED, boleta → SKIP_RC). Pendiente: NC/ND emitidas con CDR accepted real en PSE/OSE (A+V)"
         can_auto_fix: false
         status: open
       - id: sunat-xades-pfx
@@ -536,7 +536,7 @@ sprints_cierre:
         depends_on: [sunat-pse-ose]
         status: blocked
         can_auto_fix: false
-        pass: "NC/ND 07/08 emitidas con CDR accepted; A+V"
+        pass: "NC/ND 07/08 emitidas con CDR accepted; A+V (software Ops-3 done: ubl-credit-note/ubl-debit-note + producer PRODUCED)"
         requires_av: true
     evidencia:
       - gate: GTM-08

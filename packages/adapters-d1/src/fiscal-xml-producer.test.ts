@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+/* eslint-disable no-secrets/no-secrets -- fixtures XML de prueba */
 import {
   produceFiscalXmlForSale,
   r2XmlKeyForSale,
@@ -20,9 +21,15 @@ function memoryR2(): FiscalXmlR2Like & { map: Map<string, string> } {
 
 interface MemoryDbState {
   outbox: { sale_id: string; r2_xml_key: string | null }[];
-  referenced: { document_type: string | null };
+  referenced: {
+    document_type: string | null;
+    series?: string;
+    number?: number;
+    total_amount_cents?: number;
+  };
   sale: Record<string, unknown> | null;
   items: Record<string, unknown>[];
+  referencedItems: Record<string, unknown>[];
   tenant: { ruc: string | null; business_name: string } | null;
   updates: { sql: string; params: unknown[] }[];
 }
@@ -35,7 +42,9 @@ function memoryDb(state: MemoryDbState): D1DatabaseLike {
   const impl = (sql: string, params: unknown[]) => ({
     all<T = unknown>() {
       if (sql.includes('FROM sale_items')) {
-        return Promise.resolve({ results: state.items as T[], success: true, meta: {} });
+        const isReferenced = sql.includes('ref.') || sql.includes('orig.');
+        const rows = (isReferenced ? state.referencedItems : state.items) as T[];
+        return Promise.resolve({ results: rows, success: true, meta: {} });
       }
       return Promise.resolve({ results: [] as T[], success: true, meta: {} });
     },
@@ -101,6 +110,7 @@ const baseSale = {
   total_icbper_cents: 0,
   total_amount_cents: 1180,
   issued_at_lima: '2026-08-04T15:00:00.000Z',
+  credit_note_motive_code: null,
 };
 
 const baseItems = [
@@ -122,6 +132,7 @@ function freshState(sale: Record<string, unknown> | null = baseSale): MemoryDbSt
     referenced: { document_type: null },
     sale,
     items: baseItems,
+    referencedItems: baseItems,
     tenant: { ruc: '20123456789', business_name: 'KipusPay SAC' },
     updates: [],
   };
@@ -176,9 +187,24 @@ describe('produceFiscalXmlForSale (C6 producer)', () => {
     expect(r2.map.size).toBe(0);
   });
 
-  it('07 que referencia factura → SKIP_UNSUPPORTED_BUILDER en C6 (wire en Ops-3)', async () => {
-    const state = freshState({ ...baseSale, document_type: '07', referenced_sale_id: 'sale-0' });
-    state.referenced = { document_type: '01' };
+  it('07 que referencia factura → PRODUCED (XML unitario de NC, Ops-3)', async () => {
+    const state = freshState({
+      ...baseSale,
+      document_type: '07',
+      referenced_sale_id: 'sale-0',
+      series: 'FC01',
+      number: 1,
+      total_taxable_cents: 1000,
+      total_igv_cents: 180,
+      total_amount_cents: 1180,
+      credit_note_motive_code: '01',
+    });
+    state.referenced = {
+      document_type: '01',
+      series: 'F001',
+      number: 7,
+      total_amount_cents: 1180,
+    };
     const r2 = memoryR2();
     const result = await produceFiscalXmlForSale({
       db: memoryDb(state),
@@ -186,11 +212,50 @@ describe('produceFiscalXmlForSale (C6 producer)', () => {
       tenantId: 't1',
       saleId: 'sale-1',
     });
-    expect(result).toEqual({
-      outcome: 'SKIP_UNSUPPORTED_BUILDER',
-      documentType: '07',
+    expect(result.outcome).toBe('PRODUCED');
+    const xml = r2.map.get(r2XmlKeyForSale('t1', 'sale-1'));
+    expect(xml).toBeDefined();
+    expect(xml).toContain('<CreditNote');
+    expect(xml).toContain('<cbc:CreditNoteTypeCode listID="0101">07</cbc:CreditNoteTypeCode>');
+    expect(xml).toContain('<cbc:ReferenceID>F001-00000007</cbc:ReferenceID>');
+    expect(xml).toContain('<cac:BillingReference>');
+    expect(xml).toContain('<cbc:ResponseCode>01</cbc:ResponseCode>');
+    expect(xml).toContain('FC01-00000001');
+  });
+
+  it('08 que referencia factura → PRODUCED (XML unitario de ND, Ops-3)', async () => {
+    const state = freshState({
+      ...baseSale,
+      document_type: '08',
+      referenced_sale_id: 'sale-0',
+      series: 'FD01',
+      number: 2,
+      total_taxable_cents: 500,
+      total_igv_cents: 90,
+      total_amount_cents: 590,
+      credit_note_motive_code: '02',
     });
-    expect(r2.map.size).toBe(0);
+    state.referenced = {
+      document_type: '01',
+      series: 'F001',
+      number: 8,
+      total_amount_cents: 1180,
+    };
+    const r2 = memoryR2();
+    const result = await produceFiscalXmlForSale({
+      db: memoryDb(state),
+      r2,
+      tenantId: 't1',
+      saleId: 'sale-1',
+    });
+    expect(result.outcome).toBe('PRODUCED');
+    const xml = r2.map.get(r2XmlKeyForSale('t1', 'sale-1'));
+    expect(xml).toBeDefined();
+    expect(xml).toContain('<DebitNote');
+    expect(xml).toContain('<cbc:DebitNoteTypeCode listID="0101">08</cbc:DebitNoteTypeCode>');
+    expect(xml).toContain('<cbc:ReferenceID>F001-00000008</cbc:ReferenceID>');
+    expect(xml).toContain('<cbc:ResponseCode>02</cbc:ResponseCode>');
+    expect(xml).toContain('FD01-00000002');
   });
 
   it('07 que referencia boleta → SKIP_RC', async () => {
