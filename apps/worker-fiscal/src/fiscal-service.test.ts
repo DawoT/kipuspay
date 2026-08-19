@@ -100,6 +100,10 @@ function applyUpdateEffect(
     const row = state.outbox.find((r) => r.id === params[0]);
     if (row) row.status = 'FAILED';
   }
+  if (sql.includes("SET status = 'PENDING'")) {
+    const row = state.outbox.find((r) => r.id === params[0]);
+    if (row) row.status = 'PENDING';
+  }
   if (sql.includes("status = 'QUARANTINED'")) {
     const row = state.outbox.find((r) => r.id === params[0]);
     if (row) row.status = 'QUARANTINED';
@@ -107,7 +111,12 @@ function applyUpdateEffect(
 }
 
 /** DB en memoria: outbox + sales + items + tenants con dispatcher por fragmento SQL. */
-function memoryDb(rows: OutboxMem[], sales: MemSale[], tenants: MemTenant[], items: MemItem[] = []) {
+function memoryDb(
+  rows: OutboxMem[],
+  sales: MemSale[],
+  tenants: MemTenant[],
+  items: MemItem[] = [],
+) {
   const state = {
     outbox: rows,
     sales,
@@ -138,7 +147,9 @@ function memoryDb(rows: OutboxMem[], sales: MemSale[], tenants: MemTenant[], ite
             )
             .map((r) => {
               const sale = state.sales.find((s) => s.id === r.sale_id);
-              const ref = sale ? state.sales.find((s) => s.id === sale.referenced_sale_id) : undefined;
+              const ref = sale
+                ? state.sales.find((s) => s.id === sale.referenced_sale_id)
+                : undefined;
               return {
                 ...r,
                 document_type: sale?.document_type ?? null,
@@ -248,7 +259,18 @@ describe('FiscalService (C6 entrypoint)', () => {
 
   it('produceMissing: factura 01 sin r2_xml_key → produce XML a R2 y setea key', async () => {
     const db = memoryDb(
-      [{ id: 'o1', tenant_id: 't1', sale_id: 's1', status: 'PENDING', attempt_count: 0, must_submit_by: '2026-08-20T00:00:00.000Z', r2_xml_key: null, next_attempt_at: '' }],
+      [
+        {
+          id: 'o1',
+          tenant_id: 't1',
+          sale_id: 's1',
+          status: 'PENDING',
+          attempt_count: 0,
+          must_submit_by: '2026-08-20T00:00:00.000Z',
+          r2_xml_key: null,
+          next_attempt_at: '',
+        },
+      ],
       [baseSale],
       [{ id: 't1', ruc: '20123456789', business_name: 'KipusPay SAC' }],
       items,
@@ -270,8 +292,26 @@ describe('FiscalService (C6 entrypoint)', () => {
   it('drain: boleta (RC) nunca se envía; factura sin key se produce y envía', async () => {
     const db = memoryDb(
       [
-        { id: 'o1', tenant_id: 't1', sale_id: 's-boleta', status: 'PENDING', attempt_count: 0, must_submit_by: '2026-08-20T00:00:00.000Z', r2_xml_key: 'boleta.xml', next_attempt_at: '' },
-        { id: 'o2', tenant_id: 't2', sale_id: 's-factura', status: 'PENDING', attempt_count: 0, must_submit_by: '2026-08-09T00:00:00.000Z', r2_xml_key: null, next_attempt_at: '' },
+        {
+          id: 'o1',
+          tenant_id: 't1',
+          sale_id: 's-boleta',
+          status: 'PENDING',
+          attempt_count: 0,
+          must_submit_by: '2026-08-20T00:00:00.000Z',
+          r2_xml_key: 'boleta.xml',
+          next_attempt_at: '',
+        },
+        {
+          id: 'o2',
+          tenant_id: 't2',
+          sale_id: 's-factura',
+          status: 'PENDING',
+          attempt_count: 0,
+          must_submit_by: '2026-08-09T00:00:00.000Z',
+          r2_xml_key: null,
+          next_attempt_at: '',
+        },
       ],
       [
         { ...baseSale, id: 's-boleta', document_type: '03' },
@@ -281,9 +321,7 @@ describe('FiscalService (C6 entrypoint)', () => {
         { id: 't1', ruc: '20123456789', business_name: 'RC SAC' },
         { id: 't2', ruc: '20123456789', business_name: 'Factura SAC' },
       ],
-      [
-        { ...items[0]!, id: 'i-f', sale_id: 's-factura', tenant_id: 't2' },
-      ],
+      [{ ...items[0]!, id: 'i-f', sale_id: 's-factura', tenant_id: 't2' }],
     );
     const r2 = memoryR2();
     r2.map.set('boleta.xml', '<Invoice/>');

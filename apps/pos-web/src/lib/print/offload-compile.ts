@@ -37,7 +37,11 @@ export function buildSaleTicketSnapshot(input: {
   readonly series: string;
   readonly number: number;
   readonly totalCents: number;
-  readonly items: readonly { readonly name: string; readonly qty: number; readonly totalCents: number }[];
+  readonly items: readonly {
+    readonly name: string;
+    readonly qty: number;
+    readonly totalCents: number;
+  }[];
   readonly lineWidth?: number;
   readonly brandFooter?: PrintTicketSnapshot['brandFooter'];
 }): PrintTicketSnapshot {

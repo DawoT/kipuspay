@@ -108,6 +108,9 @@ jobs:
       - name: Deploy marketing-web Pages (staging)
         run: pnpm --filter @kipuspay/marketing-web run deploy:staging 2>&1 | tee deploy-logs/50-marketing-web.log
 
+      - name: Install Playwright Chromium (smoke navegador)
+        run: pnpm --filter @kipuspay/pos-web exec playwright install --with-deps chromium
+
       - name: Evidencia - smoke de staging (health + navegador)
         run: node apps/pos-web/scripts/staging-browser-smoke.mjs 2>&1 | tee deploy-logs/60-staging-smoke.log
 

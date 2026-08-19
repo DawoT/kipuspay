@@ -5,10 +5,12 @@ import type { FetchLike } from './fiscal-transport.js';
 function stubFetch(status: number, body: unknown): FetchLike {
   return () =>
     Promise.resolve(
-      typeof body === 'string' ? new Response(body, { status }) : new Response(JSON.stringify(body), {
-          status,
-          headers: { 'content-type': 'application/json' },
-        }),
+      typeof body === 'string'
+        ? new Response(body, { status })
+        : new Response(JSON.stringify(body), {
+            status,
+            headers: { 'content-type': 'application/json' },
+          }),
     );
 }
 
@@ -57,6 +59,34 @@ describe('createHttpRcCdrPort (C6)', () => {
     const cdr = await port.submit(input);
     expect(cdr.accepted).toBe(false);
     expect(cdr.cdrMessage).toBe('PSE unreachable');
+  });
+
+  it('200 sin accepted true → fail-closed (nunca afirma CDR)', async () => {
+    const port = createHttpRcCdrPort({
+      endpointUrl: 'https://pse.kipuspay.test/rc',
+      fetchImpl: stubFetch(200, { cdrCode: '0', cdrDescription: 'ok' }),
+    });
+    const cdr = await port.submit(input);
+    expect(cdr.accepted).toBe(false);
+    expect(cdr.cdrCode).toBe('0');
+  });
+
+  it('200 accepted true sin cdrCode → fail-closed', async () => {
+    const port = createHttpRcCdrPort({
+      endpointUrl: 'https://pse.kipuspay.test/rc',
+      fetchImpl: stubFetch(200, { accepted: true, cdrDescription: 'ok' }),
+    });
+    const cdr = await port.submit(input);
+    expect(cdr.accepted).toBe(false);
+  });
+
+  it('200 cuerpo vacío → fail-closed', async () => {
+    const port = createHttpRcCdrPort({
+      endpointUrl: 'https://pse.kipuspay.test/rc',
+      fetchImpl: stubFetch(200, {}),
+    });
+    const cdr = await port.submit(input);
+    expect(cdr.accepted).toBe(false);
   });
 
   it('XML vacío → accepted false sin llamar al endpoint', async () => {

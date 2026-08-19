@@ -6,7 +6,10 @@ import {
 } from './mobile-push-client.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 function buildFetch(requests: Array<{ method: string; url: string; body: unknown }>) {
@@ -54,7 +57,9 @@ describe('C8: cliente FCM wired — registro FCM_HTTP_V1 con token real del host
       consentId: 'consent-fcm-1',
       subscriptionId: 'subscription-fcm-1',
     });
-    const subscription = requests.find((request) => request.url.endsWith('/api/push/subscriptions'));
+    const subscription = requests.find((request) =>
+      request.url.endsWith('/api/push/subscriptions'),
+    );
     expect(subscription).toBeDefined();
     expect(subscription?.body).toMatchObject({
       purpose,
@@ -69,12 +74,12 @@ describe('C8: cliente FCM wired — registro FCM_HTTP_V1 con token real del host
     const requests: Array<{ method: string; url: string; body: unknown }> = [];
     configureMobilePushApi(buildFetch(requests));
 
-    await expect(
-      registerFcmTokenPush('OWNER_ALERTS', 'REDACTED', ''),
-    ).rejects.toThrow('PUSH_FCM_TOKEN_INVALID');
-    await expect(
-      registerFcmTokenPush('OWNER_ALERTS', 'REDACTED', '   '),
-    ).rejects.toThrow('PUSH_FCM_TOKEN_INVALID');
+    await expect(registerFcmTokenPush('OWNER_ALERTS', 'REDACTED', '')).rejects.toThrow(
+      'PUSH_FCM_TOKEN_INVALID',
+    );
+    await expect(registerFcmTokenPush('OWNER_ALERTS', 'REDACTED', '   ')).rejects.toThrow(
+      'PUSH_FCM_TOKEN_INVALID',
+    );
     expect(requests.some((request) => request.url.endsWith('/api/push/subscriptions'))).toBe(false);
   });
 

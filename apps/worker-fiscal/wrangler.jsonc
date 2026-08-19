@@ -82,9 +82,7 @@
         "FISCAL_PSE_ENDPOINT_URL": "https://pse.kipuspay.staging.invalid/fiscal",
       },
       "triggers": {
-        "crons": [
-          "*/5 * * * *",
-        ],
+        "crons": ["*/5 * * * *"],
       },
     },
   },

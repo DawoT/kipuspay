@@ -2,6 +2,7 @@
  * RcCdrPort HTTP — envía el resumen diario (RC) al PSE KipusPay (spec §5.2).
  * C6: reemplaza el mock en buildDailySummary cuando FISCAL_PSE_ENDPOINT_URL
  * está configurado. Nunca hardcodea credenciales; fail-closed sin endpoint.
+ * 2xx no afirma aceptación: exige `accepted === true` y `cdrCode` no vacío.
  */
 import type { RcCdrPort } from '@kipuspay/domain-fiscal-pe';
 import type { FetchLike } from './fiscal-transport.js';
@@ -43,10 +44,13 @@ export function createHttpRcCdrPort(opts: HttpRcCdrPortOptions): RcCdrPort {
           cdrDescription?: string;
           accepted?: boolean;
         } | null;
+        const cdrCode =
+          typeof body?.cdrCode === 'string' && body.cdrCode.trim() ? body.cdrCode.trim() : '';
+        const accepted = body?.accepted === true && cdrCode.length > 0;
         return {
-          accepted: body?.accepted !== false,
-          cdrCode: body?.cdrCode ?? '0',
-          cdrMessage: body?.cdrDescription ?? 'ok',
+          accepted,
+          cdrCode: accepted ? cdrCode : cdrCode || '99',
+          cdrMessage: accepted ? (body?.cdrDescription ?? 'ok') : 'CDR_MISSING',
         };
       } catch {
         return { accepted: false, cdrCode: '503', cdrMessage: 'PSE unreachable' };

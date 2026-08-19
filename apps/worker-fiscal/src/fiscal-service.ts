@@ -34,7 +34,9 @@ export interface FiscalServiceEnv {
 }
 
 function isPluginsEnabled(env: FiscalServiceEnv): boolean {
-  return env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' || env.FEATURE_FISCAL_TRANSPORT_PLUGINS === 'true';
+  return (
+    env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' || env.FEATURE_FISCAL_TRANSPORT_PLUGINS === 'true'
+  );
 }
 
 function isBreakerEnabled(env: FiscalServiceEnv): boolean {
@@ -55,7 +57,11 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
   private async isBreakerOpen(): Promise<boolean> {
     const env = this.env;
     if (!isBreakerEnabled(env)) return false;
-    const open = await readBreakerOpen(env.FISCAL_BREAKER_KV ?? null, 'KIPUSPAY_PSE_DIRECT', 'submit');
+    const open = await readBreakerOpen(
+      env.FISCAL_BREAKER_KV ?? null,
+      'KIPUSPAY_PSE_DIRECT',
+      'submit',
+    );
     if (!open) return false;
     const bootstrapped = await bootstrapBreakerCold(env, 'KIPUSPAY_PSE_DIRECT', 'submit');
     return !bootstrapped;
@@ -71,10 +77,11 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
     if (!ns) return;
     const stub = ns.get(ns.idFromName(key));
     const path =
-      'https://breaker.local/increment?transport=' + 'KIPUSPAY_PSE_DIRECT' + '&endpoint=' + 'submit';
-    await stub.fetch(
-      new Request(path, { method: 'POST', body: JSON.stringify({ count }) }),
-    );
+      'https://breaker.local/increment?transport=' +
+      'KIPUSPAY_PSE_DIRECT' +
+      '&endpoint=' +
+      'submit';
+    await stub.fetch(new Request(path, { method: 'POST', body: JSON.stringify({ count }) }));
   }
 
   /** Drain completo: reclama filas y produce el XML que falte (self-healing). */
@@ -103,7 +110,10 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
   }
 
   /** Produce el XML de una venta individual (post-commit best-effort). */
-  async produceMissing(input: { readonly tenantId: string; readonly saleId: string }): Promise<unknown> {
+  async produceMissing(input: {
+    readonly tenantId: string;
+    readonly saleId: string;
+  }): Promise<unknown> {
     const env = this.env;
     if (!env.DB || !env.FISCAL_XML_R2) {
       return { outcome: 'FEATURE_OFF' };

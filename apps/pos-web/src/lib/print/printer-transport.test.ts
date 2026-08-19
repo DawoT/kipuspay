@@ -21,12 +21,17 @@ const snap: PrintTicketSnapshot = {
 
 type UsbDeviceMock = ReturnType<typeof vi.fn>;
 type UsbDeviceOverrides = Partial<
-  UsbDeviceMockFns & { readonly opened?: boolean; readonly vendorId?: number; readonly productId?: number }
+  UsbDeviceMockFns & {
+    readonly opened?: boolean;
+    readonly vendorId?: number;
+    readonly productId?: number;
+  }
 >;
 
-function usbDevice(
-  over: UsbDeviceOverrides = {},
-): { device: UsbDevicePort; mocks: UsbDeviceMockFns } {
+function usbDevice(over: UsbDeviceOverrides = {}): {
+  device: UsbDevicePort;
+  mocks: UsbDeviceMockFns;
+} {
   const mocks: UsbDeviceMockFns = {
     open: vi.fn(() => Promise.resolve()),
     selectConfiguration: vi.fn(() => Promise.resolve()),
@@ -56,10 +61,7 @@ describe('C7 ladder de tickets con transportes reales', () => {
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.adapter).toBe('webusb');
     expect(mocks.claimInterface).toHaveBeenCalled();
-    expect(mocks.transferOut).toHaveBeenCalledWith(
-      expect.any(Number),
-      expect.any(Uint8Array),
-    );
+    expect(mocks.transferOut).toHaveBeenCalledWith(expect.any(Number), expect.any(Uint8Array));
     expect(mocks.releaseInterface).toHaveBeenCalled();
     expect(mocks.close).toHaveBeenCalledOnce();
   });

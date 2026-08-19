@@ -43,10 +43,7 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** C6: WorkerEntrypoint FiscalService del worker-fiscal (drain + produce). */
   readonly FISCAL?: {
     drain(options?: { readonly limit?: number }): Promise<unknown>;
-    produceMissing(input: {
-      readonly tenantId: string;
-      readonly saleId: string;
-    }): Promise<unknown>;
+    produceMissing(input: { readonly tenantId: string; readonly saleId: string }): Promise<unknown>;
   };
   readonly FEATURE_BILLING_USAGE_OVERAGE?: string;
   readonly FEATURE_SALES_RETURNS?: string;

@@ -38,10 +38,7 @@ export function readPosPrinterSettings(storage: Storage): PosPrinterSettings {
   };
 }
 
-export function writePosPrinterSettings(
-  storage: Storage,
-  settings: PosPrinterSettings,
-): void {
+export function writePosPrinterSettings(storage: Storage, settings: PosPrinterSettings): void {
   if (settings.wssUrl && settings.wssUrl.trim()) {
     storage.setItem(WSS_URL_KEY, settings.wssUrl.trim());
   } else {
@@ -66,11 +63,13 @@ export function currentUsbPrinterDevice(): UsbDevicePort | null {
 }
 
 /** Construye el env de la ladder de tickets para el POS (fail-closed). */
-export function buildPosPrinterEnv(input: {
-  readonly storage?: Storage;
-  readonly usbDevice?: UsbDevicePort | null;
-  readonly whatsappFallback?: (snap: unknown) => Promise<boolean>;
-} = {}): PrinterTransportEnv {
+export function buildPosPrinterEnv(
+  input: {
+    readonly storage?: Storage;
+    readonly usbDevice?: UsbDevicePort | null;
+    readonly whatsappFallback?: (snap: unknown) => Promise<boolean>;
+  } = {},
+): PrinterTransportEnv {
   const storage = input.storage ?? (typeof localStorage !== 'undefined' ? localStorage : null);
   const settings = storage ? readPosPrinterSettings(storage) : {};
   const device = input.usbDevice !== undefined ? input.usbDevice : registeredUsbDevice;

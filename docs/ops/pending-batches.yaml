@@ -135,7 +135,7 @@ pending:
 meta:
   archivo_temporal: true
   eliminar_al_cerrar: "Cuando TODOS los go-live-* estén CERRADO (con A+V); batches A–J y C1–C5 ya cerrados"
-  auditor_activo: "Staff Auditor (2026-08-17) — rol auditor+auto-fix; no cierra claims"
+  auditor_activo: "Staff Auditor (2026-08-18) — CORRIGE honestidad C6/CI; no cierra go-live"
   handoff_agente: "docs/ops/go-live-staging-checklist.md + docs/ops/staging-bootstrap.md §Auditoría"
   smoke_urls:
     api: "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev/health"
@@ -190,12 +190,28 @@ sprints_cierre:
         detail: "worker-api: FISCAL_XML_R2 + FISCAL (FiscalService) + FISCAL_PSE_ENDPOINT_URL; worker-fiscal: crons */5 + scheduled + entrypoint FiscalService"
         can_auto_fix: true
         status: closed
+      - id: c6-staging-drain-off
+        severity: medium
+        detail: "Cron */5 existe en wrangler staging pero handleDrain exige FEATURE_FISCAL_CIRCUIT_BREAKER; staging=0 → FEATURE_OFF. PSE URL .invalid. No es evidencia de drain en Cloudflare."
+        can_auto_fix: false
+        status: open
+      - id: c6-rc-failclosed
+        severity: closed
+        detail: "createHttpRcCdrPort exige accepted===true y cdrCode presente (2xx vacío/omitido → accepted false, invariante 8)"
+        can_auto_fix: true
+        status: closed
     next_actions:
       - id: c6-postcommit-hook
         owner: Staff API
         status: done
         pass: "runPostCommitSaleHooks produce XML via FISCAL.produceMissing (waitUntil) best-effort"
         requires_av: false
+      - id: c6-staging-drain-flags
+        owner: Staff Fiscal + Staff Principal A
+        status: blocked
+        can_auto_fix: false
+        pass: "Runtime FEATURE_FISCAL_CIRCUIT_BREAKER (y CPE/RC/plugins) con A+V; cron drain deja de ser FEATURE_OFF; PSE no .invalid"
+        requires_av: true
 
   - id: sprint-c7
     nombre: "Impresión real WebUSB/WSS + enqueueAndPrintTicket en rutas de cobro (ladder §7.5/§5.8)"
@@ -316,9 +332,14 @@ sprints_cierre:
         status: closed
       - id: stg-ci-etapas-6
         severity: medium
-        detail: "CI Etapas 6–11 workflow_dispatch deploy staging ausente"
+        detail: "Archivo V-31 GREEN (.github/workflows/deploy-staging.yml). Primer workflow_dispatch real PENDIENTE (secrets GH + Playwright browsers). file-done / run-not-done."
         can_auto_fix: true
         status: closed
+      - id: stg-ci-etapas-6-run
+        severity: medium
+        detail: "Ningún run GREEN de deploy-staging.yml en GitHub Actions; requiere CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID"
+        can_auto_fix: false
+        status: open
       - id: stg-domains-canary
         severity: low
         detail: "Dominios canónicos api./app./kipuspay.com pendientes"
@@ -411,9 +432,16 @@ sprints_cierre:
         depends_on: []
         status: done
         can_auto_fix: true
-        pass: "workflow_dispatch deploy staging + artifact evidence"
-        evidence: ".github/workflows/deploy-staging.yml — workflow_dispatch manual, jobs.gate Etapas 0-5 (verify V-00..V-31 + lint/typecheck/unit/integration/audit/build/bundle), jobs.deploy orden §13.7 (kms→api→fiscal→pos-web→marketing-web), artifact deploy-staging-evidence + smoke; check V-31 del gate lo exige"
+        pass: "workflow_dispatch deploy staging + artifact evidence (archivo + V-31)"
+        evidence: ".github/workflows/deploy-staging.yml — workflow_dispatch manual, jobs.gate Etapas 0-5, jobs.deploy orden §13.7, artifact; Playwright install chromium antes del smoke. Check V-31 es regex de YAML, no un run GREEN."
         cmd: "gh workflow run deploy-staging.yml (requiere secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID)"
+      - id: stg-ci-etapas-6-run
+        owner: Staff SRE
+        depends_on: []
+        status: ready
+        can_auto_fix: false
+        pass: "Al menos un run GREEN de deploy-staging.yml (dry_run luego real) con artifact smoke"
+        cmd: "gh workflow run deploy-staging.yml -f dry_run=true"
       - id: stg-domains-canary
         owner: Staff SRE
         depends_on: [stg-s48-dr-sim]

@@ -12272,3 +12272,43 @@ aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independie
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0449
+timestamp_utc: 2026-08-18T20:40:00Z
+schema_version: 2
+sprint_fase: Auditoría staff C6–C8 + staging — CORRIGE honestidad (RC fail-closed, SKIP_RC, CI run)
+agente_responsable: Staff Auditor
+tipo: Corrección de especificación
+subtipo: CORRIGE RC HTTP fail-open + drain SKIP_RC PROCESSING + V-31 overclaim de run
+relacion: CORRIGE
+referencias_entradas: [0445, 0448]
+referencias_documentales: [packages/adapters-sunat/src/http-rc-cdr-port.ts, apps/worker-fiscal/src/fiscal-drain.ts, .github/workflows/deploy-staging.yml, docs/ops/pending-batches.yaml, docs/ops/staging-bootstrap.md, docs/ops/go-live-staging-checklist.md]
+prev_id: 0448
+prev_hash: 8daa7497994184230439179480d0f6a0e7dd6fc33b37f43793ed7ae79d3dda00
+entry_hash: 56068a0a57a36c949e0c846197a11d3a0fea820d97d8eba636032b0cc431d8c9
+ticket_or_adr: staff-audit-gaps (go-live-staging permanece EN_CURSO)
+test_ids: [packages/adapters-sunat/src/http-rc-cdr-port.test.ts, apps/worker-fiscal/src/fiscal-drain.test.ts, apps/worker-fiscal/src/fiscal-service.test.ts, V-13, V-18, V-31, SUITE]
+entregable_afectado: RcCdrPort HTTP + drain SKIP_RC + tracker CI file-done/run-not-done
+descripcion: >
+  Auditoría staff de C6–C8 + Etapa 6: el software local permanece CERRADO; go-live
+  no. CORRIGE 0445: createHttpRcCdrPort ya no trata 2xx sin CDR como aceptado
+  (exige accepted===true y cdrCode); drain SKIP_RC libera boletas a PENDING en
+  lugar de dejar PROCESSING. CORRIGE 0448: stg-ci-etapas-6 es file-done (V-31
+  regex); stg-ci-etapas-6-run queda open; Playwright Chromium se instala antes
+  del smoke. Tracker anota c6-staging-drain-off (cron FEATURE_OFF en staging).
+  go-live-staging sigue EN_CURSO; firmas A+V de go-live-* siguen null.
+evidencia: >
+  RED: RC 2xx vacío accepted true; boleta SKIP_RC queda PROCESSING; bootstrap
+  decía stg-ci-etapas-6 ready; workflow smoke sin playwright install.
+  GREEN: http-rc-cdr-port 8/8; fiscal-drain+fiscal-service 10/10; yaml
+  file-done/run-not-done; workflow instala chromium; verify SUITE.
+red_commit_sha: N/A
+red_run_id: run-red-staff-audit-gaps
+expected_failure: RC fail-open sin CDR; SKIP_RC PROCESSING; CI smoke sin browsers; tracker overclaim Etapa 6 run
+green_commit_sha: N/A
+green_run_id: run-green-staff-audit-gaps
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

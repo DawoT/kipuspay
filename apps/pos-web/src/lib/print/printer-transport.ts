@@ -178,9 +178,7 @@ export function createPrinterTransport(env: PrinterTransportEnv = {}): PrinterTr
         (env.allowlistedHosts ?? []).includes(new URL(env.wssUrl).hostname);
       if (wssReady) available.push('wss_lan');
       const nav =
-        typeof navigator !== 'undefined'
-          ? (navigator as { bluetooth?: unknown })
-          : undefined;
+        typeof navigator !== 'undefined' ? (navigator as { bluetooth?: unknown }) : undefined;
       if (nav?.bluetooth) available.push('bluetooth');
       available.push('system_print');
       if (env.whatsappFallback) available.push('whatsapp');

@@ -59,6 +59,9 @@ function applyTerminalTransition(state: MockRow[], sql: string, params: unknown[
   } else if (sql.includes("status = 'SENT'")) {
     const row = state.find((r) => r.id === String(params[0]));
     if (row) row.status = 'SENT';
+  } else if (sql.includes("SET status = 'PENDING'")) {
+    const row = state.find((r) => r.id === String(params[0]));
+    if (row) row.status = 'PENDING';
   } else if (sql.includes("status = 'FAILED'")) {
     const row = state.find((r) => r.id === String(params[0]));
     if (row) row.status = 'FAILED';
@@ -291,7 +294,7 @@ describe('fiscal drain FIFO', () => {
     expect(finalStatus).toBe('SENT');
   });
 
-  it('C6: boleta (canal RC) se salta del drain — jamás se envía XML unitario', async () => {
+  it('C6: boleta (canal RC) se salta del drain y vuelve a PENDING — jamás XML unitario', async () => {
     const db = memoryDb([]);
     const r2 = memoryR2();
     r2.map.set('boleta-key', '<Invoice/>');
@@ -330,7 +333,7 @@ describe('fiscal drain FIFO', () => {
     expect(result.skippedRc).toBe(1);
     expect(result.accepted).toBe(0);
     expect(submitCalls).toBe(0);
-    expect(db.state.find((r) => r.id === 'b1')?.status).toBe('PROCESSING');
+    expect(db.state.find((r) => r.id === 'b1')?.status).toBe('PENDING');
   });
 
   it('C6: fila sin r2_xml_key → self-healing produce XML y luego se envía', async () => {

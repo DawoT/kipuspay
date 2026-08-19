@@ -11,10 +11,7 @@ import {
   createMockPseTransport,
   type FiscalTransport,
 } from '@kipuspay/adapters-sunat';
-import {
-  classifyUnitaryXmlTarget,
-  type FiscalDeliveryChannel,
-} from '@kipuspay/domain-fiscal-pe';
+import { classifyUnitaryXmlTarget, type FiscalDeliveryChannel } from '@kipuspay/domain-fiscal-pe';
 
 export const POISON_RETRY_THRESHOLD = 5;
 export const CLAIM_STALE_AFTER_MINUTES = 10;
@@ -124,7 +121,9 @@ export async function selectClaimedRows(db: FiscalDrainDb): Promise<readonly Out
  * C6: canal de envío de una fila del outbox (spec §5.2). Las boletas (RC)
  * jamás se envían como XML unitario — las cubre buildDailySummary.
  */
-export function outboxDeliveryChannel(row: Pick<OutboxRow, 'document_type' | 'referenced_document_type'>): FiscalDeliveryChannel {
+export function outboxDeliveryChannel(
+  row: Pick<OutboxRow, 'document_type' | 'referenced_document_type'>,
+): FiscalDeliveryChannel {
   return classifyUnitaryXmlTarget(
     (row.document_type as '01' | '03' | '07' | '08' | '12' | 'NV' | 'NV_RETURN') ?? 'NV',
     row.referenced_document_type ?? undefined,
@@ -161,12 +160,19 @@ function classifySubmitOutcome(
     : classifyFiscalError({ httpStatus: 503 });
 }
 
+/** Devuelve a PENDING una fila RC reclamada por error (nunca XML unitario). */
+async function releaseSkippedRc(db: FiscalDrainDb, row: OutboxRow): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE fiscal_outbox SET status = 'PENDING'
+       WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
+    )
+    .bind(row.id, row.tenant_id)
+    .run();
+}
+
 /** Marca FAILED sobre la fila actual (infra o XML ausente). */
-async function markRowFailed(
-  db: FiscalDrainDb,
-  row: OutboxRow,
-  reason: string,
-): Promise<void> {
+async function markRowFailed(db: FiscalDrainDb, row: OutboxRow, reason: string): Promise<void> {
   await db
     .prepare(
       `UPDATE fiscal_outbox SET status = 'FAILED', last_error = ?, attempt_count = attempt_count + 1
@@ -221,9 +227,12 @@ async function processClaimedRow(
 ): Promise<RowOutcome> {
   const { db, r2, transport } = input;
   const channel = outboxDeliveryChannel(row);
-  // C6: boletas/RC nunca viajan como XML unitario (spec §5.2). La fila queda
-  // PROCESSING; la devuelve a PENDING el claim stale o la re-encola RC.
-  if (channel !== 'UNIT_XML') return 'SKIP_RC';
+  // C6: boletas/RC nunca viajan como XML unitario (spec §5.2).
+  // Liberar a PENDING para que el cron RC las reclame; no dejar PROCESSING.
+  if (channel !== 'UNIT_XML') {
+    await releaseSkippedRc(db, row);
+    return 'SKIP_RC';
+  }
 
   if (row.attempt_count >= POISON_RETRY_THRESHOLD) {
     await markRowQuarantined(db, row, 'POISON_RETRY', 'retry_count_exceeded');

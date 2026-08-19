@@ -132,7 +132,9 @@ Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`
 Cola canónica en `pending-batches.yaml` `next_actions`. Resumen:
 
 1. `stg-secrets-real` → tenant fixture → flags A+V → S42 R2/Workflow → S48 DR_SIM.
-2. `stg-crons-verify` **done** (6 crons desplegados y verificados vía API schedules); `stg-ci-etapas-6` (auto) sigue ready.
+2. `stg-crons-verify` **done** (6 crons API). `stg-ci-etapas-6` **file-done**
+   (workflow + V-31); `stg-ci-etapas-6-run` **open** (primer dispatch Actions
+   pendiente). Playwright Chromium se instala en el job de smoke.
 3. Gates s43–s49 / LPDP según flags y owners.
 4. `go-live-sunat` / `go-live-fcm` / `go-live-hardware` siguen AGENDADO_AL_FINAL.
 5. Dominios canónicos + ADR Queues/multi-shard si aplica.

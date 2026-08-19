@@ -5,16 +5,9 @@ import {
   type FiscalSubmitRequest,
   type FiscalTransport,
 } from '@kipuspay/adapters-sunat';
-import {
-  cdrIsAccepted,
-  breakerDoName,
-  type FiscalEndpoint,
-} from '@kipuspay/domain-fiscal-pe';
+import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
-import {
-  readBreakerOpen,
-  type BreakerKvLike,
-} from './breaker-read-cache.js';
+import { readBreakerOpen, type BreakerKvLike } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
 
