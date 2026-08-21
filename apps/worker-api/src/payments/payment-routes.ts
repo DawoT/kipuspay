@@ -126,10 +126,12 @@ export async function runPaymentChargeHttp(
       amountCents,
       idempotencyKey,
     });
+    // US-08: replay idempotente por UNIQUE → 200 con status 'replayed' y eco de
+    // la idempotency key (Acceptance 2; convención 200/201 de loyalty-messaging).
     if (pending.idempotent) {
       return {
         status: 200,
-        body: { captureId: pending.id, status: pending.status, idempotent: true },
+        body: { captureId: pending.id, status: 'replayed', idempotencyKey },
       };
     }
 
@@ -145,7 +147,7 @@ export async function runPaymentChargeHttp(
 
     if (charged.status === 'PENDING') {
       return {
-        status: 200,
+        status: 201,
         body: {
           captureId: pending.id,
           status: 'PENDING',
@@ -162,7 +164,7 @@ export async function runPaymentChargeHttp(
     });
 
     return {
-      status: 200,
+      status: 201,
       body: {
         captureId: settled.id,
         status: settled.status,
