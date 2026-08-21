@@ -3,7 +3,11 @@
  * Stripe billing SaaS permanece en handle-stripe-webhook (no confundir).
  */
 /* eslint-disable complexity -- charge and webhook multi-branch paths */
-import { createPendingCaptureAtomic, settleCaptureAtomic } from '@kipuspay/adapters-d1';
+import {
+  createPendingCaptureAtomic,
+  isIdempotencyMismatch,
+  settleCaptureAtomic,
+} from '@kipuspay/adapters-d1';
 import {
   isCardMethod,
   isPaymentMethodCode,
@@ -13,6 +17,7 @@ import {
   type PaymentMethodCode,
 } from '@kipuspay/domain-integrations';
 import { createPaymentAcquirer } from '@kipuspay/adapters-payments-pe';
+import { parseMoneyToCents } from '../http/money-input.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 export function isQrWalletsEnabled(env: WorkerEnv | undefined): boolean {
@@ -72,7 +77,7 @@ export async function runPaymentChargeHttp(
     saleId?: string;
     salePaymentId?: string;
     paymentMethodId?: string;
-    amountCents?: number;
+    amountCents?: number | string;
     idempotencyKey?: string;
     chargeId?: string;
   },
@@ -81,13 +86,17 @@ export async function runPaymentChargeHttp(
   const saleId = body.saleId?.trim() ?? '';
   const salePaymentId = body.salePaymentId?.trim() ?? '';
   const paymentMethodId = body.paymentMethodId?.trim() ?? '';
-  const amountCents = body.amountCents ?? 0;
+  // US-06: parseMoneyToCents devuelve resultado discriminado {ok,errorName}.
+  const parsedAmount = parseMoneyToCents(body.amountCents ?? 0);
+  const amountCents = parsedAmount.ok ? parsedAmount.cents : null;
   const idempotencyKey = body.idempotencyKey?.trim() ?? '';
   if (!saleId || !salePaymentId || !paymentMethodId || !idempotencyKey) {
     return { status: 400, body: { error: 'missing fields', code: 'BAD_REQUEST' } };
   }
-  if (!Number.isInteger(amountCents) || amountCents <= 0) {
-    return { status: 422, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
+  if (amountCents === null || amountCents <= 0) {
+    // US-01: 422 invalid_amount (contrato del acceptance — la validación
+    // ocurre ANTES de tocar D1: ningún statement se ejecuta con monto inválido).
+    return { status: 422, body: { error: 'invalid_amount', code: 'invalid_amount' } };
   }
 
   const pm = await env.DB.prepare(
@@ -162,6 +171,11 @@ export async function runPaymentChargeHttp(
       },
     };
   } catch (e) {
+    // US-02: la UNIQUE de idempotency chocó con un payload distinto → 409
+    // idempotency_mismatch, nunca un 422 crudo del constraint (mapErr).
+    if (isIdempotencyMismatch(e)) {
+      return { status: 409, body: { error: 'idempotency_mismatch', code: 'idempotency_mismatch' } };
+    }
     return mapErr(e);
   }
 }
