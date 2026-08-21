@@ -70,39 +70,78 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
 }
 
 /**
+ * Clases de fallo estables de la verificación de firma Stripe (SEC-08 / US-02).
+ * Cada rechazo tiene un `code` estable por clase — jamás un boolean colapsado:
+ * el cliente HTTP puede clasificar el fallo sin depender de mensajes ni de un
+ * 401 genérico único. Las 4 clases mapean los puntos de decisión de la
+ * verificación:
+ *  - SIGNATURE_MISSING      header `Stripe-Signature` o secret ausentes/vacíos
+ *  - SIGNATURE_MALFORMED    header sin t=/v1= parseable, t no-entero, o sin
+ *                           ninguna firma v1 hex bien formada
+ *  - SIGNATURE_REPLAY       timestamp fuera de la ventana anti-replay 0..300 s
+ *                           (futuro o vencido) — Invarian 6 / SEC-08
+ *  - SIGNATURE_MISMATCH     HMAC calculado y firmas bien formadas, pero ninguna
+ *                           v1 coincide (secret incorrecto / payload alterado)
+ */
+export type StripeSignatureFailureCode =
+  | 'SIGNATURE_MISSING'
+  | 'SIGNATURE_MALFORMED'
+  | 'SIGNATURE_REPLAY'
+  | 'SIGNATURE_MISMATCH';
+
+export type StripeSignatureVerifyResult =
+  | { ok: true }
+  | { ok: false; code: StripeSignatureFailureCode };
+
+/**
  * Valida firma Stripe HMAC-SHA256 con ventana anti-replay 0..300 s (SEC-08).
+ * Devuelve un resultado discriminado con `error.code` estable por clase de
+ * fallo (US-02); no existe rechazo "opaco".
  */
 export async function verifyStripeSignature(
   rawBody: string,
   signatureHeader: string,
   secret: string,
   nowMs: number = Date.now(),
-): Promise<boolean> {
+): Promise<StripeSignatureVerifyResult> {
   try {
-    if (!signatureHeader || !secret) return false;
+    if (!signatureHeader || !secret) {
+      return { ok: false, code: 'SIGNATURE_MISSING' };
+    }
     const parts = parseStripeSignatureHeader(signatureHeader);
     const timestamp = parts.timestamp;
     const stripeSigs = parts.v1;
-    if (!timestamp || stripeSigs.length === 0) return false;
+    if (!timestamp || stripeSigs.length === 0) {
+      return { ok: false, code: 'SIGNATURE_MALFORMED' };
+    }
 
     const timestampSeconds = Number(timestamp);
-    if (!Number.isInteger(timestampSeconds)) return false;
+    if (!Number.isInteger(timestampSeconds)) {
+      return { ok: false, code: 'SIGNATURE_MALFORMED' };
+    }
     const ageSeconds = Math.floor(nowMs / 1000) - timestampSeconds;
-    if (ageSeconds > REPLAY_WINDOW_SECONDS || ageSeconds < 0) return false;
+    if (ageSeconds > REPLAY_WINDOW_SECONDS || ageSeconds < 0) {
+      return { ok: false, code: 'SIGNATURE_REPLAY' };
+    }
 
     const computedSig = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`);
     const expected = decodeHex(computedSig);
-    if (!expected) return false;
+    if (!expected) return { ok: false, code: 'SIGNATURE_MISMATCH' };
 
-    let valid = 0;
+    let anyWellFormed = false;
     for (const stripeSig of stripeSigs) {
       const received = decodeHex(stripeSig);
       if (!received) continue;
-      valid |= bytesEqualConstantTime(expected, received) ? 1 : 0;
+      anyWellFormed = true;
+      if (bytesEqualConstantTime(expected, received)) return { ok: true };
     }
-    return valid === 1;
+    return anyWellFormed
+      ? { ok: false, code: 'SIGNATURE_MISMATCH' }
+      : { ok: false, code: 'SIGNATURE_MALFORMED' };
   } catch {
-    return false;
+    // Fail-closed (Invarian 6): sin verificación criptográfica confirmada →
+    // rechazo clasificado como mismatch; nunca acceso por omisión.
+    return { ok: false, code: 'SIGNATURE_MISMATCH' };
   }
 }
 

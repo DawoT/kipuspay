@@ -8,6 +8,7 @@ import { handleStripeWebhook, type StripeWebhookEnv } from './handle-stripe-webh
 import {
   MAX_WEBHOOK_BODY_BYTES,
   signStripeWebhookForTests,
+  verifyStripeSignature,
 } from './verify-stripe-signature.js';
 
 afterEach(() => {
@@ -195,11 +196,43 @@ describe('handleStripeWebhook', () => {
   const nowMs = 1_700_000_000_000;
   const ts = Math.floor(nowMs / 1000);
 
-  it('firma inválida → 401', async () => {
+  it('firma inválida (timestamp fuera de ventana) → 401 con code SIGNATURE_REPLAY', async () => {
     const { env } = createEnv({});
     const body = eventBody('customer.subscription.deleted', 't1', 'evt_bad');
     const res = await handleStripeWebhook(env, body, 't=1,v1=00', nowMs);
     expect(res.status).toBe(401);
+    expect(res.body.code).toBe('SIGNATURE_REPLAY');
+  });
+
+  it('US-02: header malformado → 401 con code SIGNATURE_MALFORMED', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_malformed');
+    // sin t= parseable (solo v1) — clase malformed, no un 401 genérico
+    const res = await handleStripeWebhook(env, body, 'v1=00', nowMs);
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('SIGNATURE_MALFORMED');
+  });
+
+  it('US-02: secret incorrecto → 401 con code SIGNATURE_MISMATCH', async () => {
+    const { env } = createEnv({ secret: 'whsec_real_secret' });
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_wrongsec');
+    const sig = await signStripeWebhookForTests(body, 'whsec_attacker_secret', ts);
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('SIGNATURE_MISMATCH');
+  });
+
+  it('US-02: header/secret ausentes → 400 (gate de request) sin code de firma; verify devuelve SIGNATURE_MISSING', async () => {
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_nohdr');
+    const { env } = createEnv({});
+    const missingHeader = await handleStripeWebhook(env, body, undefined, nowMs);
+    expect(missingHeader.status).toBe(400);
+    // La clase MISSING existe en el contrato de verifyStripeSignature (fallback
+    // fail-closed si el gate de request no lo interceptara).
+    await expect(verifyStripeSignature(body, '', 'whsec_real_secret', nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'SIGNATURE_MISSING',
+    });
   });
 
   it('replay PROCESSED → 200 deduplicated', async () => {
@@ -237,12 +270,13 @@ describe('handleStripeWebhook', () => {
     expect(kv.get('revocation:t1')).toBe('1');
   });
 
-  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401', async () => {
+  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401 con code SIGNATURE_REPLAY', async () => {
     const { env } = createEnv({});
     const body = eventBody('customer.subscription.deleted', 't1', 'evt_old');
     const sigOld = await signStripeWebhookForTests(body, secret, ts - 360); // > 300 s
     const res = await handleStripeWebhook(env, body, sigOld, nowMs);
     expect(res.status).toBe(401);
+    expect(res.body.code).toBe('SIGNATURE_REPLAY');
   });
 
   it('redelivery mientras PROCESSING → re-claim sin 500', async () => {

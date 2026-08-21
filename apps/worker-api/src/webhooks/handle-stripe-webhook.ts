@@ -285,9 +285,20 @@ export async function handleStripeWebhook(
   const gate = validateWebhookRequest(env, signatureHeader);
   if ('status' in gate) return gate;
 
-  const isValid = await verifyStripeSignature(rawBody, gate.signatureHeader, gate.secret, nowMs);
-  if (!isValid) {
-    return { status: 401, body: { error: 'Invalid Stripe signature' } };
+  const signatureResult = await verifyStripeSignature(
+    rawBody,
+    gate.signatureHeader,
+    gate.secret,
+    nowMs,
+  );
+  if (!signatureResult.ok) {
+    // US-02: error.code estable por clase de fallo (SIGNATURE_MISSING /
+    // SIGNATURE_MALFORMED / SIGNATURE_REPLAY / SIGNATURE_MISMATCH), jamás un
+    // 401 genérico sin code — Invarian 6 / SEC-08.
+    return {
+      status: 401,
+      body: { error: 'Invalid Stripe signature', code: signatureResult.code },
+    };
   }
 
   const event = parseAndValidateEvent(rawBody);
