@@ -15,36 +15,62 @@ const nowSec = Math.floor(nowMs / 1000);
 describe('verifyStripeSignature (SEC-08)', () => {
   it('acepta firma válida dentro de la ventana', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 10);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(true);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({ ok: true });
   });
 
-  it('rechaza timestamp futuro (age < 0)', async () => {
+  it('rechaza timestamp futuro (age < 0) → STRIPE_SIG_FUTURE_TIMESTAMP', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec + 60);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_FUTURE_TIMESTAMP',
+    });
   });
 
-  it('rechaza age > 300 s', async () => {
+  it('rechaza age > 300 s → STRIPE_SIG_EXPIRED', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 301);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_EXPIRED',
+    });
   });
 
-  it('rechaza header incompleto', async () => {
-    await expect(verifyStripeSignature(BODY, 't=123', SECRET, nowMs)).resolves.toBe(false);
-    await expect(verifyStripeSignature(BODY, 'v1=abcd', SECRET, nowMs)).resolves.toBe(false);
+  it('rechaza header incompleto → STRIPE_SIG_HEADER_MALFORMED', async () => {
+    await expect(verifyStripeSignature(BODY, 't=123', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_HEADER_MALFORMED',
+    });
+    await expect(verifyStripeSignature(BODY, 'v1=abcd', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_HEADER_MALFORMED',
+    });
   });
 
-  it('rechaza secreto incorrecto', async () => {
+  it('rechaza secreto incorrecto → STRIPE_SIG_MISMATCH', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec);
-    await expect(verifyStripeSignature(BODY, header, 'other', nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, header, 'other', nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_MISMATCH',
+    });
   });
 
-  it('rechaza v1 no-hex', async () => {
+  it('rechaza v1 no-hex → STRIPE_SIG_MALFORMED', async () => {
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=not-hex!!`, SECRET, nowMs),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ ok: false, code: 'STRIPE_SIG_MALFORMED' });
   });
 
-  it('fuzz determinista: ≥50 firmas/headers aleatorios → todos false (reproducible CI)', async () => {
+  it('sin header o secret → STRIPE_SIG_MISSING_CREDENTIALS', async () => {
+    await expect(verifyStripeSignature(BODY, '', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_MISSING_CREDENTIALS',
+    });
+    await expect(verifyStripeSignature(BODY, 't=1,v1=00', '', nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_MISSING_CREDENTIALS',
+    });
+  });
+
+  it('fuzz determinista: ≥50 firmas/headers aleatorios → todos fail con code estable (reproducible CI)', async () => {
     // PRNG seedable (mulberry32) — el run debe ser reproducible bit a bit.
     const rand = (seed: number) => {
       let s = seed >>> 0;
@@ -60,7 +86,7 @@ describe('verifyStripeSignature (SEC-08)', () => {
     const randHex = (len: number) =>
       Array.from({ length: len }, () => Math.floor(rng() * 16).toString(16)).join('');
 
-    const results: boolean[] = [];
+    const results: { ok: boolean; code?: string }[] = [];
     for (let i = 0; i < 60; i++) {
       const ts = nowSec - Math.floor(rng() * 600); // dentro y fuera de ventana
       const junk = `t=${ts},v1=${randHex(64)}`;
@@ -80,36 +106,52 @@ describe('verifyStripeSignature (SEC-08)', () => {
       const header = await signStripeWebhookForTests(BODY, `whsec_wrong_${i}`, nowSec - 5);
       results.push(await verifyStripeSignature(BODY, header, SECRET, nowMs));
     }
-    expect(results.every((r) => r === false)).toBe(true);
+    // Todo rechazo NO es un boolean colapsado: trae un code estable por clase.
+    for (const r of results) {
+      expect(r.ok).toBe(false);
+      expect(r.code).toBeDefined();
+    }
     expect(results.length).toBeGreaterThanOrEqual(50);
   });
 
   it('adversarial: borde de ventana y parseo estricto de header', async () => {
     // age = 300 s exacto → acepta (límite inclusivo)
     const edge = await signStripeWebhookForTests(BODY, SECRET, nowSec - 300);
-    await expect(verifyStripeSignature(BODY, edge, SECRET, nowMs)).resolves.toBe(true);
-    // age = 301 s → rechaza
+    await expect(verifyStripeSignature(BODY, edge, SECRET, nowMs)).resolves.toEqual({ ok: true });
+    // age = 301 s → EXPIRED
     const over = await signStripeWebhookForTests(BODY, SECRET, nowSec - 301);
-    await expect(verifyStripeSignature(BODY, over, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, over, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_EXPIRED',
+    });
     // timestamp no numérico / vacío / negativo
-    await expect(verifyStripeSignature(BODY, `t=abc,v1=abcd`, SECRET, nowMs)).resolves.toBe(false);
-    await expect(verifyStripeSignature(BODY, `t=,v1=abcd`, SECRET, nowMs)).resolves.toBe(false);
-    await expect(verifyStripeSignature(BODY, `t=-5,v1=abcd`, SECRET, nowMs)).resolves.toBe(false);
-    // hex truncado (impar o < 64 chars)
+    await expect(verifyStripeSignature(BODY, `t=abc,v1=abcd`, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_TIMESTAMP_INVALID',
+    });
+    await expect(verifyStripeSignature(BODY, `t=,v1=abcd`, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_HEADER_MALFORMED',
+    });
+    await expect(verifyStripeSignature(BODY, `t=-5,v1=abcd`, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      code: 'STRIPE_SIG_EXPIRED',
+    });
+    // hex truncado (par pero incorrecto) → MISMATCH; ('=' extra) → MALFORMED
     const valid = await signStripeWebhookForTests(BODY, SECRET, nowSec);
     const shortHex = valid.split('v1=')[1]!.slice(0, 62);
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=${shortHex}`, SECRET, nowMs),
-    ).resolves.toBe(false);
-    // v1 con '=' extra (inyección) → decodeHex falla → rechaza
+    ).resolves.toEqual({ ok: false, code: 'STRIPE_SIG_MISMATCH' });
+    // v1 con '=' extra (inyección) → decodeHex falla → MALFORMED
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=${valid.split('v1=')[1]}=evil`, SECRET, nowMs),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ ok: false, code: 'STRIPE_SIG_MALFORMED' });
     // firma con mayúsculas (hex case-insensitive) → acepta
     const upper = valid.split('v1=')[1]!.toUpperCase();
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=${upper}`, SECRET, nowMs),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ ok: true });
     // múltiples v1: cualquiera válida matchea (rotación de secretos Stripe)
     await expect(
       verifyStripeSignature(
@@ -118,13 +160,15 @@ describe('verifyStripeSignature (SEC-08)', () => {
         SECRET,
         nowMs,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ ok: true });
   });
 
   it('SEC-08 higiene de secretos: la key HMAC se importa NO extraíble y solo para firmar (jamás se exporta)', async () => {
     const importSpy = vi.spyOn(crypto.subtle, 'importKey');
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 10);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(true);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({
+      ok: true,
+    });
 
     const hmacCalls = importSpy.mock.calls.filter(
       ([, , algo]) => (algo as { name?: string } | undefined)?.name === 'HMAC',

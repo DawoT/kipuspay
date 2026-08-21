@@ -2,6 +2,7 @@ import {
   MAX_WEBHOOK_BODY_BYTES,
   verifyStripeSignature,
   webhookBodyBytes,
+  type StripeSignatureFailureCode,
 } from './verify-stripe-signature.js';
 
 const SUBSCRIPTION_TYPES = new Set([
@@ -214,9 +215,13 @@ function validateWebhookRequest(
 ): WebhookHttpResult | { env: StripeWebhookEnv; secret: string; signatureHeader: string } {
   const secret = env?.STRIPE_WEBHOOK_SECRET;
   if (!env || !signatureHeader || !secret) {
+    // US-02: error.code estable por clase — jamás un 400 genérico sin code.
     return {
       status: 400,
-      body: { error: 'Webhook signature verification failed: Missing headers/secrets' },
+      body: {
+        error: 'Webhook signature verification failed: Missing headers/secrets',
+        code: 'STRIPE_SIG_MISSING_CREDENTIALS',
+      },
     };
   }
   return { env, secret, signatureHeader };
@@ -265,6 +270,21 @@ async function runWebhookEffects(
 }
 
 /**
+ * Mensajes estables por clase de fallo de firma (US-02): un `error.code` fijo
+ * por clase para que los clientes clasifiquen sin depender del texto.
+ */
+const STRIPE_SIGNATURE_ERROR_MESSAGES: Record<StripeSignatureFailureCode, string> = {
+  STRIPE_SIG_MISSING_CREDENTIALS: 'Webhook signature verification failed: Missing headers/secrets',
+  STRIPE_SIG_HEADER_MALFORMED: 'Stripe signature header malformed: missing t= or v1=',
+  STRIPE_SIG_TIMESTAMP_INVALID: 'Stripe signature timestamp is not an integer',
+  STRIPE_SIG_FUTURE_TIMESTAMP: 'Stripe signature timestamp is in the future',
+  STRIPE_SIG_EXPIRED: 'Stripe signature timestamp is outside the anti-replay window',
+  STRIPE_SIG_MALFORMED: 'Stripe signature v1 is not valid hex',
+  STRIPE_SIG_MISMATCH: 'Stripe signature does not match the HMAC',
+  STRIPE_SIG_CRYPTO_UNAVAILABLE: 'Stripe signature verification unavailable (crypto)',
+};
+
+/**
  * Pipeline Stripe webhook: firma → dedup SEC-08 → efectos KV/DO (Arquitectura §4).
  */
 export async function handleStripeWebhook(
@@ -285,9 +305,21 @@ export async function handleStripeWebhook(
   const gate = validateWebhookRequest(env, signatureHeader);
   if ('status' in gate) return gate;
 
-  const isValid = await verifyStripeSignature(rawBody, gate.signatureHeader, gate.secret, nowMs);
-  if (!isValid) {
-    return { status: 401, body: { error: 'Invalid Stripe signature' } };
+  const verification = await verifyStripeSignature(
+    rawBody,
+    gate.signatureHeader,
+    gate.secret,
+    nowMs,
+  );
+  if (!verification.ok) {
+    // US-02: error.code estable por clase — nunca un 401 genérico sin code.
+    return {
+      status: 401,
+      body: {
+        error: STRIPE_SIGNATURE_ERROR_MESSAGES[verification.code],
+        code: verification.code,
+      },
+    };
   }
 
   const event = parseAndValidateEvent(rawBody);

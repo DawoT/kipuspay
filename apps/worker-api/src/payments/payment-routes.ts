@@ -110,7 +110,6 @@ export async function runPaymentChargeHttp(
   const paymentMethodId = body.paymentMethodId?.trim() ?? '';
   // US-06: parseMoneyToCents devuelve resultado discriminado {ok,errorName}.
   const parsedAmount = parseMoneyToCents(body.amountCents ?? 0);
-  const amountCents = parsedAmount.ok ? parsedAmount.cents : null;
   const idempotencyKey = body.idempotencyKey?.trim() ?? '';
   if (!saleId || !salePaymentId || !paymentMethodId || !idempotencyKey) {
     return { status: 400, body: { error: 'missing fields', code: 'BAD_REQUEST' } };
@@ -119,18 +118,28 @@ export async function runPaymentChargeHttp(
     // US-05 (Acceptance 2): el acceptance exige AMOUNT_OUT_OF_RANGE cuando el
     // parser discriminó 'amount_out_of_range' (|cents| > MAX_SAFE_INTEGER,
     // money-input.ts:108) — jamás colapsarlo a INVALID_AMOUNT. El resto de
-    // insumos no parseables/negativos queda en INVALID_AMOUNT (US-01). Ambos
-    // son 422 y ocurren ANTES de tocar D1: ningún statement corre con monto
-    // inválido.
+    // insumos no parseables queda en INVALID_AMOUNT (US-01). Ambos son 400
+    // (US-05: 'nunca 422') y ocurren ANTES de tocar D1: ningún statement
+    // corre con monto inválido.
     if (parsedAmount.errorName === 'amount_out_of_range') {
-      return { status: 422, body: { error: 'AMOUNT_OUT_OF_RANGE', code: 'AMOUNT_OUT_OF_RANGE' } };
+      return { status: 400, body: { error: 'AMOUNT_OUT_OF_RANGE', code: 'AMOUNT_OUT_OF_RANGE' } };
     }
-    return { status: 422, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
+    return { status: 400, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
   }
+  // Tras el early-return, parsedAmount está estrechado a {ok:true}: amountCents
+  // ES number (jamás null) — dinero INTEGER cents (V-21), sin coerción.
+  const amountCents = parsedAmount.cents;
   if (amountCents <= 0) {
-    // US-01: 422 INVALID_AMOUNT (contrato del acceptance — la validación
-    // ocurre ANTES de tocar D1: ningún statement se ejecuta con monto inválido).
-    return { status: 422, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
+    // US-10 (cero coerción): un monto canónico ≤ 0 jamás se re-escribe ni se
+    // re-parsea — se rechaza con su clase real. El negativo (p.ej. -1 cents,
+    // parseable por la gramática -?(0|[1-9]\d*)(\.\d{1,2})?) está FUERA del
+    // rango válido de un cobro (1..MAX_SAFE_INTEGER) → 400 AMOUNT_OUT_OF_RANGE;
+    // el cero se mantiene en 400 INVALID_AMOUNT. Ambos 'nunca 422' (US-05) y
+    // ocurren ANTES de tocar D1: ningún statement se ejecuta con monto inválido.
+    if (amountCents < 0) {
+      return { status: 400, body: { error: 'AMOUNT_OUT_OF_RANGE', code: 'AMOUNT_OUT_OF_RANGE' } };
+    }
+    return { status: 400, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
   }
 
   const pm = await env.DB.prepare(

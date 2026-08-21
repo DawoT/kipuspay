@@ -251,15 +251,21 @@ describe('runPaymentChargeHttp', () => {
     expect(res.body.status).toBe('CAPTURED');
   });
 
-  it('US-05 (Acceptance 2): amount_out_of_range → 422 AMOUNT_OUT_OF_RANGE, jamás INVALID_AMOUNT (motivo discriminado por la ruta)', async () => {
+  it('US-05 (Acceptance 2) + US-10: fuera de rango → 400 AMOUNT_OUT_OF_RANGE, jamás INVALID_AMOUNT ni 422 (motivo discriminado por la ruta)', async () => {
     // El parser discriminó 'amount_out_of_range' (|cents| > MAX_SAFE_INTEGER,
     // money-input.ts:108); la ruta debe exponerlo como AMOUNT_OUT_OF_RANGE en
-    // vez de colapsarlo a INVALID_AMOUNT. Validación ANTES de tocar D1.
+    // vez de colapsarlo a INVALID_AMOUNT. US-10 añade el negativo canónico
+    // (el parser acepta -1 cents y la ruta lo colapsaba a INVALID_AMOUNT):
+    // un monto negativo está FUERA del rango válido de un cobro → 400
+    // AMOUNT_OUT_OF_RANGE. Validación ANTES de tocar D1.
     vi.mocked(createPendingCaptureAtomic).mockClear();
     for (const amountCents of [
       Number.MAX_SAFE_INTEGER + 1,
       '9007199254740993',
       '999999999999999999',
+      -1,
+      -5,
+      '-0.01',
     ]) {
       const res = await runPaymentChargeHttp(mockEnv(), 't1', {
         saleId: 's1',
@@ -268,15 +274,17 @@ describe('runPaymentChargeHttp', () => {
         amountCents,
         idempotencyKey: 'k1',
       });
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
       expect(res.body).toEqual({ error: 'AMOUNT_OUT_OF_RANGE', code: 'AMOUNT_OUT_OF_RANGE' });
       expect(createPendingCaptureAtomic).not.toHaveBeenCalled();
     }
   });
 
-  it('US-05 (Acceptance 2): monto inválido no-in-rango → 422 INVALID_AMOUNT (colapso genérico)', async () => {
+  it('US-05 (Acceptance 2) + US-10: monto inválido no-in-rango → 400 INVALID_AMOUNT (nunca 422)', async () => {
     vi.mocked(createPendingCaptureAtomic).mockClear();
-    for (const amountCents of [0, -5, '007', 'abc', NaN, '1e3']) {
+    // Matriz adversarial US-10: insumos no parseables (formato, no-ASCII,
+    // inyección SQL, cero) — jamás coerción ni un 422.
+    for (const amountCents of [0, '007', 'abc', NaN, '1e3', '١٢', '1; DROP TABLE payments--']) {
       const res = await runPaymentChargeHttp(mockEnv(), 't1', {
         saleId: 's1',
         salePaymentId: 'sp1',
@@ -284,8 +292,46 @@ describe('runPaymentChargeHttp', () => {
         amountCents,
         idempotencyKey: 'k1',
       });
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
       expect(res.body).toEqual({ error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' });
+      expect(createPendingCaptureAtomic).not.toHaveBeenCalled();
+    }
+  });
+
+  it('US-10 contrato: la matriz adversarial de montos responde SIEMPRE 400 (nunca 422) con code estable por clase', async () => {
+    // Test de contrato que recorre la matriz exacta de US-10 verificando el
+    // status del acceptance (400 para INVALID_AMOUNT/AMOUNT_OUT_OF_RANGE) y
+    // que NINGÚN caso colapsa a 422 ni toca D1 (cero coerción: rechazo puro).
+    vi.mocked(createPendingCaptureAtomic).mockClear();
+    const adversarial: Array<[number | string, string]> = [
+      // INVALID_AMOUNT: insumos no parseables — unicode, SQLi, formato.
+      ['1; DROP TABLE payments--', 'INVALID_AMOUNT'],
+      ['١٢', 'INVALID_AMOUNT'],
+      ['1２3', 'INVALID_AMOUNT'],
+      ['007', 'INVALID_AMOUNT'],
+      ['abc', 'INVALID_AMOUNT'],
+      ['1e3', 'INVALID_AMOUNT'],
+      [NaN, 'INVALID_AMOUNT'],
+      [0, 'INVALID_AMOUNT'],
+      // AMOUNT_OUT_OF_RANGE: |cents| > MAX_SAFE_INTEGER o negativo canónico.
+      [-1, 'AMOUNT_OUT_OF_RANGE'],
+      [-5, 'AMOUNT_OUT_OF_RANGE'],
+      [Number.MAX_SAFE_INTEGER + 1, 'AMOUNT_OUT_OF_RANGE'],
+      ['9007199254740993', 'AMOUNT_OUT_OF_RANGE'],
+      ['999999999999999999', 'AMOUNT_OUT_OF_RANGE'],
+    ];
+    for (const [amountCents, code] of adversarial) {
+      const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+        saleId: 's1',
+        salePaymentId: 'sp1',
+        paymentMethodId: 'pm1',
+        amountCents,
+        idempotencyKey: 'k1',
+      });
+      // Acceptance US-05/US-10: 400 para ambas clases — nunca 422.
+      expect(res.status).toBe(400);
+      expect(res.status).not.toBe(422);
+      expect(res.body.code).toBe(code);
       expect(createPendingCaptureAtomic).not.toHaveBeenCalled();
     }
   });
