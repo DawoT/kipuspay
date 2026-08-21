@@ -57,39 +57,71 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
 }
 
 /**
+ * Clases de fallo estables de la verificación de firma Stripe (SEC-08).
+ * Cada clase tiene un `code` estable por `error.code` del webhook (US-02):
+ * el cliente puede clasificar el fallo sin depender de mensajes ni de un 401
+ * genérico único.
+ */
+export type StripeSignatureFailureCode =
+  | 'STRIPE_SIG_MISSING_CREDENTIALS' // header o secret ausente
+  | 'STRIPE_SIG_HEADER_MALFORMED' // falta t= o v1= en el header
+  | 'STRIPE_SIG_TIMESTAMP_INVALID' // t no es un entero
+  | 'STRIPE_SIG_FUTURE_TIMESTAMP' // age < 0 (timestamp en el futuro)
+  | 'STRIPE_SIG_EXPIRED' // age > ventana anti-replay (300 s)
+  | 'STRIPE_SIG_MALFORMED' // v1 no es hex válido (ninguna firma usable)
+  | 'STRIPE_SIG_MISMATCH' // hex válido pero HMAC no coincide
+  | 'STRIPE_SIG_CRYPTO_UNAVAILABLE'; // fallo criptográfico (catch)
+
+export type StripeSignatureVerifyResult =
+  | { ok: true }
+  | { ok: false; code: StripeSignatureFailureCode };
+
+/**
  * Valida firma Stripe HMAC-SHA256 con ventana anti-replay 0..300 s (SEC-08).
+ * Devuelve un resultado discriminado con `code` estable por clase de fallo
+ * (US-02): jamás un boolean colapsado — cada rechazo se clasifica.
  */
 export async function verifyStripeSignature(
   rawBody: string,
   signatureHeader: string,
   secret: string,
   nowMs: number = Date.now(),
-): Promise<boolean> {
+): Promise<StripeSignatureVerifyResult> {
+  if (!signatureHeader || !secret) {
+    return { ok: false, code: 'STRIPE_SIG_MISSING_CREDENTIALS' };
+  }
   try {
-    if (!signatureHeader || !secret) return false;
     const parts = parseStripeSignatureHeader(signatureHeader);
     const timestamp = parts.timestamp;
     const stripeSigs = parts.v1;
-    if (!timestamp || stripeSigs.length === 0) return false;
+    if (!timestamp || stripeSigs.length === 0) {
+      return { ok: false, code: 'STRIPE_SIG_HEADER_MALFORMED' };
+    }
 
     const timestampSeconds = Number(timestamp);
-    if (!Number.isInteger(timestampSeconds)) return false;
+    if (!Number.isInteger(timestampSeconds)) {
+      return { ok: false, code: 'STRIPE_SIG_TIMESTAMP_INVALID' };
+    }
     const ageSeconds = Math.floor(nowMs / 1000) - timestampSeconds;
-    if (ageSeconds > REPLAY_WINDOW_SECONDS || ageSeconds < 0) return false;
+    if (ageSeconds < 0) return { ok: false, code: 'STRIPE_SIG_FUTURE_TIMESTAMP' };
+    if (ageSeconds > REPLAY_WINDOW_SECONDS) return { ok: false, code: 'STRIPE_SIG_EXPIRED' };
 
     const computedSig = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`);
     const expected = decodeHex(computedSig);
-    if (!expected) return false;
+    if (!expected) return { ok: false, code: 'STRIPE_SIG_CRYPTO_UNAVAILABLE' };
 
-    let valid = 0;
+    let anyWellFormed = false;
     for (const stripeSig of stripeSigs) {
       const received = decodeHex(stripeSig);
       if (!received) continue;
-      valid |= bytesEqualConstantTime(expected, received) ? 1 : 0;
+      anyWellFormed = true;
+      if (bytesEqualConstantTime(expected, received)) return { ok: true };
     }
-    return valid === 1;
+    return anyWellFormed
+      ? { ok: false, code: 'STRIPE_SIG_MISMATCH' }
+      : { ok: false, code: 'STRIPE_SIG_MALFORMED' };
   } catch {
-    return false;
+    return { ok: false, code: 'STRIPE_SIG_CRYPTO_UNAVAILABLE' };
   }
 }
 
