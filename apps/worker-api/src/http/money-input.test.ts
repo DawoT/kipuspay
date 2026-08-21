@@ -78,9 +78,14 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
       ok: true,
       cents: Number.MAX_SAFE_INTEGER,
     });
-    expect(parseMoneyToCents(-90071992547409.91)).toEqual({
+    // Espejo por la vía number con un valor exactamente representable: el
+    // literal -90071992547409.91 NO es representable en float64 (su forma
+    // canónica es "-90071992547409.9"), por lo que jamás podría componer
+    // -MAX_SAFE_INTEGER; el parser de dígitos lo interpreta fail-closed con
+    // la precisión real del float (1 decimal → -9007199254740990).
+    expect(parseMoneyToCents(-90071992547409.9)).toEqual({
       ok: true,
-      cents: -Number.MAX_SAFE_INTEGER,
+      cents: -9007199254740990,
     });
   });
 
