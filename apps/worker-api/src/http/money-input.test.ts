@@ -43,6 +43,10 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     expect(parseMoneyToCents('0.01')).toEqual({ ok: true, cents: 1 });
     // US-05 acceptance: literal exacto '0.1' → 10 cents (1 decimal).
     expect(parseMoneyToCents('0.1')).toEqual({ ok: true, cents: 10 });
+    // US-10 acceptance: literal exacto '1.23' → 123 cents (2 decimales, sin
+    // coerción ni truncamiento: ni a 1 ni a 1.2 — la aritmética de dígitos
+    // preserva el valor exacto).
+    expect(parseMoneyToCents('1.23')).toEqual({ ok: true, cents: 123 });
     expect(parseMoneyToCents('0')).toEqual({ ok: true, cents: 0 });
     expect(parseMoneyToCents(' 12.34 ')).toEqual({ ok: true, cents: 1234 });
   });
@@ -169,6 +173,11 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
       ['١٢.٣', 'INVALID_AMOUNT'],
       ['۱۲.۳۴', 'INVALID_AMOUNT'],
       ['0.001', 'INVALID_AMOUNT'],
+      // US-10 acceptance: '١٢' (dígitos arábigos '12', sin punto decimal) NO
+      // es ASCII, aunque visualmente parezca un monto válido; y un payload de
+      // inyección SQL jamás se interpreta como monto (fail-closed CAL-01).
+      ['١٢', 'INVALID_AMOUNT'],
+      ['1; DROP TABLE payments--', 'INVALID_AMOUNT'],
       // US-05 acceptance 5: bidi control chars (format controls U+202E
       // RTL-override, U+202D LTR-override, U+200E/U+200F marks, U+2066/67
       // isolates) NO son \d ni \w de la gramática canónica ASCII
