@@ -2365,7 +2365,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 201 | 400 | 404 | 422 | 503);
   });
   app.get('/api/payments/captures/:id', async (c) => {
     const jwt = c.get('jwt');

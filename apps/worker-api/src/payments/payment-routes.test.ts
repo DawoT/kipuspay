@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { settleCaptureAtomic } from '@kipuspay/adapters-d1';
+import { createPendingCaptureAtomic, settleCaptureAtomic } from '@kipuspay/adapters-d1';
 import {
   isCardAcquirerEnabled,
   isQrWalletsEnabled,
@@ -143,8 +143,25 @@ describe('runPaymentChargeHttp', () => {
       amountCents: 1000,
       idempotencyKey: 'k1',
     });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(res.body.status).toBe('CAPTURED');
+  });
+
+  it('US-08: replay idempotente por UNIQUE → 200 con status replayed y eco de idempotencyKey', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockResolvedValueOnce({
+      id: 'cap1',
+      status: 'PENDING',
+      idempotent: true,
+    });
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ captureId: 'cap1', status: 'replayed', idempotencyKey: 'k1' });
   });
 });
 
