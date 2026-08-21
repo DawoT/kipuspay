@@ -3,6 +3,7 @@
  * Return URLs solo https (V-03).
  */
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { configuracionUrl, httpsReturnOrEmpty } from './app-origin.js';
 import {
   createStripeCheckoutSession,
   isHttpsUrl,
@@ -10,8 +11,6 @@ import {
 } from './stripe-billing.js';
 
 const ALLOWED_PLANS = new Set(['arranque', 'crece', 'cadena']);
-const DEFAULT_SUCCESS = 'https://app.kipuspay.com/admin/configuracion?checkout=success';
-const DEFAULT_CANCEL = 'https://app.kipuspay.com/admin/configuracion?checkout=cancel';
 
 interface HttpResult {
   status: number;
@@ -43,6 +42,7 @@ function checkoutOwnerAdminGate(
 
 function parseCheckoutBody(
   body: unknown,
+  env: WorkerEnv | undefined,
 ): { planId: string; successUrl: string; cancelUrl: string } | HttpResult {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
@@ -61,8 +61,14 @@ function parseCheckoutBody(
   if (!ALLOWED_PLANS.has(planId)) {
     return { status: 422, body: { error: 'Invalid planId', code: 'INVALID_PLAN' } };
   }
-  const successUrl = typeof o.successUrl === 'string' ? o.successUrl.trim() : DEFAULT_SUCCESS;
-  const cancelUrl = typeof o.cancelUrl === 'string' ? o.cancelUrl.trim() : DEFAULT_CANCEL;
+  const successUrl = httpsReturnOrEmpty(
+    typeof o.successUrl === 'string' ? o.successUrl : undefined,
+    configuracionUrl(env, '?checkout=success'),
+  );
+  const cancelUrl = httpsReturnOrEmpty(
+    typeof o.cancelUrl === 'string' ? o.cancelUrl : undefined,
+    configuracionUrl(env, '?checkout=cancel'),
+  );
   if (!isHttpsUrl(successUrl) || !isHttpsUrl(cancelUrl)) {
     return {
       status: 422,
@@ -130,7 +136,7 @@ export async function runCheckoutSessionHttp(
 ): Promise<HttpResult> {
   const denied = checkoutOwnerAdminGate(env, tenantId, role);
   if (denied) return denied;
-  const parsed = parseCheckoutBody(body);
+  const parsed = parseCheckoutBody(body, env);
   if ('status' in parsed) return parsed;
   try {
     return await createCheckoutForTenant(env!, tenantId, parsed, fetchImpl);

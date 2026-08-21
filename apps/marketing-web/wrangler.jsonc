@@ -6,5 +6,6 @@
   "pages_build_output_dir": ".svelte-kit/cloudflare",
   "vars": {
     "PUBLIC_FEATURE_MARKETING_SITE": "0",
+    "PUBLIC_POS_ORIGIN": "https://kipuspay-pos-web-staging.pages.dev",
   },
 }

@@ -28,3 +28,10 @@ export {
 } from './fiscal-transport.js';
 
 export { createHttpRcCdrPort, type HttpRcCdrPortOptions } from './http-rc-cdr-port.js';
+
+export {
+  createSunatBillTransport,
+  createSunatRcCdrPort,
+  SUNAT_BETA_BILL_SERVICE_URL,
+  type SunatBillTransportOptions,
+} from './sunat-bill-transport.js';

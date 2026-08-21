@@ -11,9 +11,12 @@
  */
 import {
   assertDebitNoteAllowed,
+  classifyUnitaryXmlTarget,
   computeMustSubmitByIso,
   type DebitNoteRequest,
+  type DocumentTypeCode,
 } from '@kipuspay/domain-fiscal-pe';
+import { splitInclusiveIgvCents } from '@kipuspay/domain-sales';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 
@@ -114,6 +117,9 @@ export async function processDebitNoteAtomic(
     .then((buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join(''));
 
   const issuedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const { taxableCents, igvCents } = splitInclusiveIgvCents(request.amountCents);
+  const originDoc = origin.document_type as DocumentTypeCode;
+  const xmlChannel = classifyUnitaryXmlTarget('08', originDoc);
   const mustSubmitByIso = computeMustSubmitByIso(
     origin.document_type === '01' ? '01' : '03',
     Date.parse(issuedAt.replace(' ', 'T')),
@@ -172,7 +178,7 @@ export async function processDebitNoteAtomic(
              SELECT
                ?, ?, ?, ?, ?, ?, ?, ?, '08', ?,
                (SELECT current_number FROM branch_document_series WHERE id = ?),
-               'PEN', 1.0, 0, 0, 0, 0, 0, 0, ?, ?, ?, 'PENDING', ?, ?`,
+               'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, 'PENDING', ?, ?`,
         )
         .bind(
           debitNoteId,
@@ -185,6 +191,8 @@ export async function processDebitNoteAtomic(
           origin.client_name,
           series,
           seriesRow.id,
+          taxableCents,
+          igvCents,
           request.amountCents,
           originSaleId,
           request.motiveCode,
@@ -234,6 +242,17 @@ export async function processDebitNoteAtomic(
       documentId: debitNoteId,
       documentType: '08',
     });
+
+    if (xmlChannel === 'UNIT_XML') {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO fiscal_outbox (id, tenant_id, sale_id, status, must_submit_by)
+             VALUES (?, ?, ?, 'PENDING', ?)`,
+          )
+          .bind(crypto.randomUUID(), tenantId, debitNoteId, mustSubmitByIso),
+      );
+    }
   };
   await runD1AtomicPlan(db, build);
 

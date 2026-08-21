@@ -27,4 +27,30 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
       expect(wrangler).toContain(`"${key}": "0"`);
     }
   });
+
+  it('worker-fiscal wrangler git no enciende flags de drain/CPE/PSE', () => {
+    const wranglerPath = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../worker-fiscal/wrangler.jsonc',
+    );
+    const wrangler = readFileSync(wranglerPath, 'utf8');
+    for (const key of [
+      'FEATURE_FISCAL_CPE',
+      'FEATURE_FISCAL_RC',
+      'FEATURE_FISCAL_CIRCUIT_BREAKER',
+      'FEATURE_FISCAL_TRANSPORT_PLUGINS',
+    ] as const) {
+      expect(wrangler, `${key} must stay 0 in git`).not.toContain(`"${key}": "1"`);
+      expect(wrangler).toContain(`"${key}": "0"`);
+    }
+    expect(wrangler).toContain('pse.kipuspay.staging.invalid');
+  });
+
+  it('staging usa pages.dev/workers.dev como canónico temporal (D0, sin dominio comprado)', () => {
+    const wranglerPath = join(dirname(fileURLToPath(import.meta.url)), '../wrangler.jsonc');
+    const wrangler = readFileSync(wranglerPath, 'utf8');
+    expect(wrangler).toContain('kipuspay-pos-web-staging.pages.dev');
+    expect(wrangler).toContain('POS_APP_ORIGIN');
+    expect(wrangler).not.toMatch(/"POS_APP_ORIGIN": "https:\/\/app\.kipuspay\.com"/);
+  });
 });

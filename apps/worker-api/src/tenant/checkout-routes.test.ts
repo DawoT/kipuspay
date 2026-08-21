@@ -22,6 +22,7 @@ function env(opts: {
     STRIPE_PRICE_ARRANQUE: opts.price ?? 'price_arr',
     STRIPE_PRICE_CRECE: 'price_crece',
     STRIPE_PRICE_CADENA: 'price_cadena',
+    POS_APP_ORIGIN: 'https://kipuspay-pos-web-staging.pages.dev',
   } as never;
 }
 
@@ -69,6 +70,37 @@ describe('runCheckoutSessionHttp', () => {
     );
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('INVALID_RETURN_URL');
+  });
+
+  it('sin URLs en body usa POS_APP_ORIGIN pages.dev, no app.kipuspay.com', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ url: 'https://checkout.stripe.com/c/pay_1' }), {
+        status: 200,
+      }),
+    );
+    const res = await runCheckoutSessionHttp(
+      env({ tenant: { id: 't1', trade_name: 'Bodega', stripe_customer_id: 'cus_1' } }),
+      't1',
+      'owner',
+      { planId: 'arranque' },
+      fetchImpl,
+    );
+    expect(res.status).toBe(200);
+    const body = String(fetchImpl.mock.calls[0]?.[1]?.body ?? '');
+    expect(body).toContain('kipuspay-pos-web-staging.pages.dev');
+    expect(body).not.toContain('app.kipuspay.com');
+  });
+
+  it('sin origen ni URLs https → 422 INVALID_RETURN_URL', async () => {
+    const bare = env({ tenant: { id: 't1', stripe_customer_id: 'cus_1' } }) as {
+      POS_APP_ORIGIN?: string;
+    };
+    delete bare.POS_APP_ORIGIN;
+    const missing = await runCheckoutSessionHttp(bare as never, 't1', 'owner', {
+      planId: 'arranque',
+    });
+    expect(missing.status).toBe(422);
+    expect(missing.body.code).toBe('INVALID_RETURN_URL');
   });
 
   it('sin price id → 503', async () => {

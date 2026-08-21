@@ -121,6 +121,8 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/fiscal/owner-alerts' },
   { method: 'GET', path: '/api/fiscal/owner-backlog' },
   { method: 'POST', path: '/api/fiscal/credit-note-ea' },
+  { method: 'GET', path: '/api/fiscal/tenant-cert' },
+  { method: 'POST', path: '/api/fiscal/tenant-cert' },
   { method: 'POST', path: '/api/fiscal/cron' },
   { method: 'POST', path: '/api/cash/sessions/blind-close' },
   { method: 'POST', path: '/api/cash/movements' },

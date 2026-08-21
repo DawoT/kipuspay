@@ -143,11 +143,11 @@ meta:
   handoff_fase_0:
     ready_now: []
     next_after_secrets: []
-    nota: "Fase 0 CERRADA (2026-08-20): secrets KMS+VAPID+tenant fixture GREEN; CI run aún BLOCKED (prettier en main hasta fix local; GH secrets presentes). FCM SA stub queda open en go-live-fcm."
+    nota: "Fase 0 CERRADA (2026-08-21): secrets KMS+VAPID+tenant fixture GREEN; CI run WAIT (API Token CF largo, no OAuth). Prettier ubl local GREEN. FCM SA stub queda open en go-live-fcm."
   handoff_fase_1:
     done: [stg-flags-s42-s48, stg-s42-r2-workflow]
     open: [stg-s48-dr-sim]
-    nota: "Runtime FEATURE_DATA_BACKUP/PLATFORM_DR=1 (no repo). S42 backup READY+kek v1. S48 DR_SIMULATION → BACKUP_MANIFEST_MISMATCH (RED)."
+    nota: "Flags+S42 GREEN parcial. P2 software registry-2 STALE. Live DR_SIMULATION_PASSED WAIT (backup nuevo post-0056). Flags cobro/fiscal S12 WAIT A+V."
   smoke_urls:
     api: "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev/health"
     pos: "https://kipuspay-pos-web-staging.pages.dev/"
@@ -159,13 +159,13 @@ camino_produccion_fases:
     estado: CERRADO
     requires_av: false
     items: [stg-secrets-real, stg-vapid-public-var, stg-tenant-fixture, stg-ci-etapas-6-run]
-    nota: "CI run documentado BLOCKED (prettier); no bloquea S42/S48. FCM SA stub fuera de alcance Fase 0."
+    nota: "CI run WAIT (token CF largo); prettier ubl local GREEN. FCM SA stub fuera de alcance Fase 0."
   - id: fase-1
     nombre: "Evidencia plataforma S42/S48 + flags cobro/fiscal"
     estado: EN_CURSO
     requires_av: true
     items: [stg-flags-s42-s48, stg-s42-r2-workflow, stg-s48-dr-sim]
-    nota: "Flags+S42 GREEN parcial; S48 RED BACKUP_MANIFEST_MISMATCH. Flags cobro/fiscal deferred."
+    nota: "Flags+S42 GREEN parcial; S48 live WAIT registry-2 + backup nuevo. Flags cobro/fiscal S12 WAIT A+V."
   - id: fase-2
     nombre: "Piloto operable (cobro + CPE sandbox + dominios)"
     estado: BLOQUEADO
@@ -231,9 +231,9 @@ sprints_cierre:
         status: closed
       - id: c6-staging-drain-off
         severity: medium
-        detail: "Cron */5 existe en wrangler staging pero handleDrain exige FEATURE_FISCAL_CIRCUIT_BREAKER; staging=0 → FEATURE_OFF. PSE URL .invalid. No es evidencia de drain en Cloudflare."
+        detail: "S12 software: handleDrain acepta FEATURE_FISCAL_CPE o breaker + DB/R2 (ya no solo breaker). Git sigue 0. Runtime Rosa Negra + A+V pendiente: cron */5 en staging sigue FEATURE_OFF. PSE URL .invalid. No es evidencia de drain Cloudflare."
         can_auto_fix: false
-        status: open
+        status: wait
       - id: c6-rc-failclosed
         severity: closed
         detail: "createHttpRcCdrPort exige accepted===true y cdrCode presente (2xx vacío/omitido → accepted false, invariante 8)"
@@ -247,9 +247,9 @@ sprints_cierre:
         requires_av: false
       - id: c6-staging-drain-flags
         owner: Staff Fiscal + Staff Principal A
-        status: blocked
+        status: wait
         can_auto_fix: false
-        pass: "Runtime FEATURE_FISCAL_CIRCUIT_BREAKER (y CPE/RC/plugins) con A+V; cron drain deja de ser FEATURE_OFF; PSE no .invalid"
+        pass: "Runtime FEATURE_FISCAL_CPE=1 (+ RC/plugins según canal) con A+V; un CPE sale por drain Worker; repo sigue 0; PSE acreditado no es .invalid"
         requires_av: true
 
   - id: sprint-c7
@@ -361,9 +361,9 @@ sprints_cierre:
         status: closed
       - id: stg-s48-dr-sim
         severity: blocker
-        detail: "DR_SIMULATION staging → 422 BACKUP_MANIFEST_MISMATCH tras unwrap KMS OK (audit DR_SIMULATION_STARTED/FAILED). Bloquea cierre Fase 1."
+        detail: "P2 software: D1_BACKUP_REGISTRY_VERSION=registry-2 (0056 tenant_certificates). Backups registry-1 → 422 BACKUP_REGISTRY_STALE antes de KMS (mismatch/expected/actual en body). Live DR_SIMULATION_PASSED sigue WAIT: aplicar 0056 en D1+DR_DB, backup READY nuevo, simulacro a DR_DB. No skip del check."
         can_auto_fix: false
-        status: open
+        status: wait
       - id: stg-crons-verify
         severity: resolved
         detail: "triggers.crons en env.staging (repo) desplegados y verificados 2026-08-17: API schedules muestra las 6 expresiones (modified_on 01:08:04Z, deploy activo 9daaf9b6); coinciden con top-level y con los handlers scheduled de worker.ts"
@@ -376,14 +376,14 @@ sprints_cierre:
         status: closed
       - id: stg-ci-etapas-6-run
         severity: medium
-        detail: "GH secrets presentes; dry_run 32426620860/32426954532 RED prettier ubl-*. Fix prettier local. BLOCKER adicional: CLOUDFLARE_API_TOKEN cargado como OAuth wrangler (caduca ~horas) — reemplazar por API Token CF de larga duración antes del deploy real. No bloquea S42/S48."
+        detail: "P1: ubl-* prettier local GREEN. BLOCKER humano: GH CLOUDFLARE_API_TOKEN debe ser API Token CF de larga duración (no OAuth wrangler). Sin eso deploy-staging.yml no cierra GREEN. --keep-vars ya en deploy."
         can_auto_fix: false
-        status: open
+        status: wait
       - id: stg-domains-canary
         severity: low
-        detail: "Dominios canónicos api./app./kipuspay.com pendientes"
+        detail: "D0 software: piloto canónico temporal pages.dev/workers.dev (POS_APP_ORIGIN + Stripe return URLs + PUBLIC_POS_ORIGIN). api./app./kipuspay.com es DM WAIT hasta compra de dominio — no RED fingido."
         can_auto_fix: false
-        status: open
+        status: wait
     next_actions:
       - id: stg-secrets-real
         owner: Staff Security
@@ -414,12 +414,12 @@ sprints_cierre:
       - id: stg-ci-etapas-6-run
         owner: Staff SRE
         depends_on: []
-        status: blocked
+        status: wait
         can_auto_fix: false
         phase: 0
         pass: "Al menos un run GREEN de deploy-staging.yml (dry_run luego real) con artifact smoke"
-        evidence: "Secrets GH OK; runs RED prettier; OAuth token GH caduca — setear API Token CF largo; prettier fix local pendiente commit+re-dispatch"
-        cmd: "gh secret set CLOUDFLARE_API_TOKEN (API Token, no OAuth); prettier fix; gh workflow run deploy-staging.yml -f dry_run=true && gh workflow run deploy-staging.yml"
+        evidence: "Prettier ubl local GREEN. WAIT: SRE setea API Token CF largo (no OAuth) y re-dispatch dry_run luego real."
+        cmd: "gh secret set CLOUDFLARE_API_TOKEN (API Token, no OAuth); gh workflow run deploy-staging.yml -f dry_run=true && gh workflow run deploy-staging.yml"
       - id: stg-flags-s42-s48
         owner: Staff Principal A + Staff Verifier V
         depends_on: [stg-tenant-fixture]
@@ -441,11 +441,11 @@ sprints_cierre:
       - id: stg-s48-dr-sim
         owner: Staff SRE + Staff Principal
         depends_on: [stg-s42-r2-workflow]
-        status: ready
+        status: wait
         can_auto_fix: false
         phase: 1
         pass: "DR_SIMULATION_PASSED rto_ms<=30m; nunca escribe DB live"
-        evidence: "RED: 422 BACKUP_MANIFEST_MISMATCH (KMS unwrap OK; audit STARTED/FAILED). Bug fix parcial: step-up changes>=1 + mint backupId."
+        evidence: "Software registry-2 STALE explícito. WAIT live: migrar 0056 + backup nuevo post-registry-2 + simulacro DR_DB. Backups d31ef057/8afaba63 son registry-1."
         requires_av: true
       - id: stg-crons-verify
         owner: Staff SRE
@@ -500,17 +500,26 @@ sprints_cierre:
       - id: stg-domains-canary
         owner: Staff SRE
         depends_on: [stg-s48-dr-sim]
-        status: blocked
+        status: wait
         can_auto_fix: false
         phase: 2
-        pass: "DNS+TLS+CORS canónicos"
+        pass: "D0: piloto en pages.dev/workers.dev (TLS CF). DM: custom domains kipuspay.com/app./api. cuando A compre el dominio. Canarios sintéticos. PUBLIC_FEATURE_MARKETING_SITE solo build Pages."
+        evidence: "POS_APP_ORIGIN + PUBLIC_POS_ORIGIN + Stripe location.origin. Smoke URLs pages.dev. WAIT-DOMINIO hasta compra."
+      - id: dm-domain-migrate
+        owner: Staff SRE + Staff Principal A
+        depends_on: [stg-close-tracker]
+        status: wait
+        can_auto_fix: false
+        phase: 5
+        pass: "Dominio comprado: custom domains + CORS + 301 desde pages.dev + copy GTM A+V. Nunca reusar staging."
+        requires_av: true
       - id: stg-close-tracker
         owner: Staff Principal A + Staff Verifier V
         depends_on: [stg-s42-r2-workflow, stg-s48-dr-sim, stg-crons-verify]
-        status: blocked
+        status: wait
         can_auto_fix: false
         phase: 4
-        pass: "estado CERRADO + ledger; firmas A+V"
+        pass: "X1: recursos production NUEVOS (nunca reusar staging) + CI Etapas 7–11 + firmas A+V nuevas. Staff no cierra go-live-staging sin A+V."
         requires_av: true
     evidencia:
       - gate: smoke
@@ -562,38 +571,70 @@ sprints_cierre:
   - id: go-live-sunat
     nombre: "Certificación SUNAT/OSE real (GTM-08)"
     estado: AGENDADO_AL_FINAL
+    software_status: GREEN
     gates: [GTM-08]
     firmas_av: { A: null, V: null }
     gaps:
+      - id: sunat-e-beta-loop
+        severity: info
+        detail: "Software+beta GREEN (ledger ciclo POS Worker-firma e-beta): sendBill/sendSummary, XAdES Edge, complementary RC no re-lista boletas ACCEPTED. GTM-08 sigue PENDIENTE. Default de producto KIPUSPAY_PSE. Rosa Negra TENANT_CERT + SOAP e-beta (ADR-FISCAL-007). No reenviar F001-8/10/11, FD01-1/2/3, FC01-1/2, B001-1/2, RC-002/003."
+        can_auto_fix: false
+        status: closed_software
       - id: sunat-pse-ose
         severity: blocker
-        detail: "Credenciales PSE/OSE sandbox + CDR aceptación real; FEATURE_FISCAL_* =0"
+        detail: "S13 WAIT — A no entregó URL de homologación/sandbox PSE distinta de .invalid ni contrato JSON ADR-FISCAL-002. isAccreditedPseEndpoint rechaza .invalid; createHttpPseTransport existe; wrangler staging sigue .invalid fail-closed. Cert de plataforma PSE ≠ CDT Rosa Negra. Tenant PSE no debe llevar SOL del piloto (SOL fuerza SOAP)."
         can_auto_fix: false
-        status: open
+        status: wait
+      - id: sunat-t6-efactura
+        severity: blocker
+        detail: "S14 WAIT — A no autorizó por escrito e-factura.sunat.gob.pe ni SOL de producción. Override runtime SUNAT_BILL_ENDPOINT_URL listo; default de código sigue e-beta (tests lo prohíben). Correlativos de producción deben ser nuevos."
+        can_auto_fix: false
+        status: wait
       - id: sunat-builders-nc-nd
         severity: blocker
-        detail: "Builders UBL NC/ND (07/08) IMPLEMENTADOS en Ops-3 (ubl-credit-note/ubl-debit-note + producer cableado: XML unitario de factura → PRODUCED, boleta → SKIP_RC). Pendiente: NC/ND emitidas con CDR accepted real en PSE/OSE (A+V)"
+        detail: "S15 WAIT — Builders UBL NC/ND (07/08) + producer + outbox unitario listos. CDR accepted en PSE acreditado o e-factura (no solo e-beta) bloqueado por S13/S14. Beta no cierra GTM-08."
         can_auto_fix: false
-        status: open
+        status: wait
       - id: sunat-xades-pfx
         severity: blocker
-        detail: "XAdES completo + credenciales SOL/.pfx no incluidos en C6 (scope excluido); firmas con hash SHA-256 del XML (F5-3)"
+        detail: "S11 WAIT — UI .p12 en Configuración POS lista (parse Worker, wrapDek backupId=tenant-cert:SUNAT, JWT owner/admin). Falta pass CDT en sesión + 01 nuevo e-beta ACCEPTED tras upload (hash R2 ≠ sign-only). Sin extract-cdt-p12.sh ni PLATFORM_STAFF_TOKEN. GTM-08 no se descongela con beta."
         can_auto_fix: false
-        status: open
+        status: wait
     next_actions:
       - id: sunat-pse-ose
         owner: Staff Fiscal + Staff Security
-        depends_on: [go-live-staging, c6-postcommit-hook]
-        status: blocked
+        depends_on: [go-live-staging]
+        status: wait
         can_auto_fix: false
-        pass: "CDR accepted en entorno SUNAT/OSE; A+V"
+        pass: "CDR accepted===true vía HTTP PSE (no SOAP beta); URL de A; cert plataforma ≠ CDT piloto; A+V"
+        requires_av: true
+      - id: sunat-t6-efactura
+        owner: Staff Fiscal
+        depends_on: []
+        status: wait
+        can_auto_fix: false
+        pass: "01+RC nuevos ACCEPTED en e-factura.sunat.gob.pe y visibles en SOL prod; default de código sigue e-beta; A+V"
         requires_av: true
       - id: sunat-nc-nd-builders
         owner: Staff Fiscal
         depends_on: [sunat-pse-ose]
-        status: blocked
+        status: wait
         can_auto_fix: false
-        pass: "NC/ND 07/08 emitidas con CDR accepted; A+V (software Ops-3 done: ubl-credit-note/ubl-debit-note + producer PRODUCED)"
+        pass: "NC/ND 07/08 emitidas con CDR accepted en PSE/OSE o prod; A+V"
+        requires_av: true
+      - id: sunat-ui-p12-live
+        owner: Staff Fiscal
+        depends_on: []
+        status: wait
+        can_auto_fix: false
+        pass: "Dueño sube .p12 en POS staging; 01 nuevo e-beta ACCEPTED sin extract-cdt-p12.sh ni PLATFORM_STAFF_TOKEN"
+        requires_av: false
+      - id: sunat-gtm08-pack
+        owner: Staff Fiscal + Staff Principal A + Staff Verifier V
+        depends_on: [sunat-pse-ose, sunat-t6-efactura, sunat-nc-nd-builders, sunat-ui-p12-live]
+        status: wait
+        can_auto_fix: false
+        pass: "Pack GTM-08 listo; firmas A+V o vacías. Staff no pone go-live-sunat CERRADO ni descongela copy GTM sin A+V. QG: mismo ticket ACCEPTED en D1 y SOL prod o OSE/PSE acreditado."
         requires_av: true
     evidencia:
       - gate: GTM-08
@@ -603,7 +644,11 @@ sprints_cierre:
       - gate: c6
         path: docs/ops/c6-fiscal-wiring.md
         external_status: GREEN
-        artifacts: ["produceFiscalXmlForSale factura 01 → R2 + sunat_xml_hash (adapters-d1)", "drain filtra boletas RC y self-heals XML faltante (worker-fiscal)", "createHttpRcCdrPort PSE HTTP fail-closed (adapters-sunat)", "FiscalService entrypoint + cron */5 + FISCAL_XML_R2 + FISCAL binding", "1696 tests unit + 294 integración GREEN; verify SUITE GREEN"]
+        artifacts: ["produceFiscalXmlForSale factura 01 → R2 + sunat_xml_hash (adapters-d1)", "drain filtra boletas RC y self-heals XML faltante (worker-fiscal)", "createHttpRcCdrPort PSE HTTP fail-closed (adapters-sunat)", "FiscalService entrypoint + cron */5 + FISCAL_XML_R2 + FISCAL binding"]
+      - gate: xades-beta
+        path: docs/ops/xades-bes-qg.md
+        external_status: GREEN_BETA
+        artifacts: ["Worker XAdES + SOAP e-beta; GTM-08 abierto"]
 
   - id: go-live-hardware
     nombre: "Android físico gama baja + impresoras/perfiles (GTM-26, S41)"
@@ -613,26 +658,26 @@ sprints_cierre:
     gaps:
       - id: hw-android-offline
         severity: blocker
-        detail: "500 ventas offline Android gama baja (S45 QG)"
+        detail: "G2 WAIT — 500 ventas offline Android gama baja (S45 QG). Depende G1 FCM real."
         can_auto_fix: false
-        status: open
+        status: wait
       - id: hw-printers-matrix
         severity: blocker
-        detail: "Matriz física 58/80 mm WebUSB + WSS LAN"
+        detail: "G2 WAIT — Matriz física 58/80 mm WebUSB + WSS LAN. Pairing UI C7 aún pending."
         can_auto_fix: false
-        status: open
+        status: wait
     next_actions:
       - id: hw-printers-matrix
         owner: Staff Hardware + Staff QA
         depends_on: []
-        status: ready
+        status: wait
         can_auto_fix: false
-        pass: "Matriz s41 firmada A+V"
+        pass: "Matriz 58/80 mm WebUSB+WSS firmada A+V (G2)"
         requires_av: true
       - id: hw-android-offline
         owner: Staff Mobile + Staff QA
         depends_on: [go-live-fcm]
-        status: blocked
+        status: wait
         can_auto_fix: false
         pass: "500 ventas offline + firmas Mobile+QA+Security"
         requires_av: true
@@ -650,16 +695,16 @@ sprints_cierre:
     gaps:
       - id: fcm-vapid-real
         severity: blocker
-        detail: "VAPID + FCM HTTP v1 reales (no stubs); ACK DISPLAYED p95<10s ≥99%"
+        detail: "G1 WAIT — VAPID + FCM HTTP v1 reales (no stubs SA); ACK DISPLAYED p95<10s ≥99%. Kill-switch/rotación documentados."
         can_auto_fix: false
-        status: open
+        status: wait
     next_actions:
       - id: fcm-vapid-real
         owner: Staff Mobile + Staff Security
         depends_on: [stg-secrets-real]
-        status: blocked
+        status: wait
         can_auto_fix: false
-        pass: "SLO ACK + kill-switch/rotación documentados en staging"
+        pass: "SLO ACK DISPLAYED p95<10s ≥99% + kill-switch/rotación documentados en staging"
         requires_av: true
     evidencia:
       - gate: s45

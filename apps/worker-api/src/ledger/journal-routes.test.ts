@@ -86,9 +86,7 @@ function literalDbEnv(): { env: WorkerEnv; sqls: string[]; bound: unknown[][] } 
           first: () => Promise.resolve(null),
           all: () => {
             const args = bound[bound.length - 1] ?? [];
-            const allSafe = args.every(
-              (v) => typeof v === 'string' && SAFE_LITERAL.test(v),
-            );
+            const allSafe = args.every((v) => typeof v === 'string' && SAFE_LITERAL.test(v));
             return Promise.resolve({
               results: allSafe ? [{ id: 'j1', account_code: '1011' }] : [],
               success: true,
@@ -187,7 +185,7 @@ describe('journal routes', () => {
     expect(a.calls[0]!.args.slice(1)).toEqual(b.calls[0]!.args.slice(1));
   });
 
-  it('US-04 acceptance: `x\' OR 1=1 --` como idempotencyKey y \u202E como metadata llegan SOLO por bind a prepare(?)', async () => {
+  it("US-04 acceptance: `x' OR 1=1 --` como idempotencyKey y \u202E como metadata llegan SOLO por bind a prepare(?)", async () => {
     const idempotencyKey = "x' OR 1=1 --";
     const rtlMetadata = 'b1\u202E'; // RIGHT-TO-LEFT OVERRIDE (U+202E) embebido
     const { env: envKey, calls: callsKey } = envWithBindCapture();

@@ -5,9 +5,13 @@
  */
 import {
   assertCreditNoteAllowed,
+  classifyUnitaryXmlTarget,
+  computeMustSubmitByIso,
   stockRestoreMicrounits,
   type CreditNoteRequest,
+  type DocumentTypeCode,
 } from '@kipuspay/domain-fiscal-pe';
+import { splitInclusiveIgvCents } from '@kipuspay/domain-sales';
 import { compensateArOnCreditNote } from '@kipuspay/domain-cash';
 import { QUANTITY_SCALE, refreshAvgCostCents } from '@kipuspay/domain-inventory';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
@@ -151,6 +155,15 @@ export async function processCreditNoteAtomic(
   }
 
   const issuedAt = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const { taxableCents, igvCents } = splitInclusiveIgvCents(request.amountCents);
+  const originDoc = origin.document_type as DocumentTypeCode;
+  const mustSubmitByIso =
+    originDoc === '01'
+      ? computeMustSubmitByIso('01', Date.parse(issuedAt.replace(' ', 'T')))
+      : originDoc === '03' || originDoc === '12'
+        ? computeMustSubmitByIso(originDoc, Date.parse(issuedAt.replace(' ', 'T')))
+        : null;
+  const xmlChannel = classifyUnitaryXmlTarget('07', originDoc);
   const resolvedStockItems = await Promise.all(
     request.items.map(async (item) => {
       const restoreMicrounits = stockRestoreMicrounits(item);
@@ -286,12 +299,13 @@ export async function processCreditNoteAtomic(
                document_type, series, number, currency, exchange_rate,
                total_taxable_cents, total_exempt_cents, total_igv_cents, total_icbper_cents,
                total_discount_cents, total_cogs_cents, total_amount_cents,
-               referenced_sale_id, credit_note_motive_code, sunat_status, issued_at_lima
+               referenced_sale_id, credit_note_motive_code, sunat_status, issued_at_lima,
+               must_submit_by
              )
              SELECT
                ?, ?, ?, ?, ?, ?, ?, ?, '07', ?,
                (SELECT current_number FROM branch_document_series WHERE id = ?),
-               'PEN', 1.0, 0, 0, 0, 0, 0, 0, ?, ?, ?, 'PENDING', ?`,
+               'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, 'PENDING', ?, ?`,
         )
         .bind(
           ncId,
@@ -304,10 +318,13 @@ export async function processCreditNoteAtomic(
           origin.client_name,
           series,
           seriesRow.id,
+          taxableCents,
+          igvCents,
           request.amountCents,
           originSaleId,
           request.motiveCode,
           issuedAt,
+          mustSubmitByIso,
         ),
     );
 
@@ -499,6 +516,17 @@ export async function processCreditNoteAtomic(
       documentId: ncId,
       documentType: '07',
     });
+
+    if (xmlChannel === 'UNIT_XML' && mustSubmitByIso) {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO fiscal_outbox (id, tenant_id, sale_id, status, must_submit_by)
+             VALUES (?, ?, ?, 'PENDING', ?)`,
+          )
+          .bind(crypto.randomUUID(), tenantId, ncId, mustSubmitByIso),
+      );
+    }
   });
 
   return {

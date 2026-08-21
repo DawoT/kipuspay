@@ -168,9 +168,7 @@ async function consumeStepUpToken(
       .run();
     // Epoch triggers on authorization_tokens bump tenant_data_epochs; D1 may
     // report changes > 1 for a successful one-shot consume.
-    return (consumed.meta?.changes ?? 0) >= 1
-      ? null
-      : result(401, { code: 'STEP_UP_REQUIRED' });
+    return (consumed.meta?.changes ?? 0) >= 1 ? null : result(401, { code: 'STEP_UP_REQUIRED' });
   } catch {
     return result(503, { code: 'BACKUP_STEP_UP_UNAVAILABLE', errorRef: errorRef() });
   }

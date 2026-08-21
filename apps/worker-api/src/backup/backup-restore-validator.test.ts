@@ -1,3 +1,4 @@
+import { D1_BACKUP_REGISTRY_VERSION } from '@kipuspay/adapters-d1';
 import { describe, expect, it, vi } from 'vitest';
 import { canonicalJson, encryptKpbk1Unit } from '@kipuspay/domain-integrations';
 import {
@@ -23,14 +24,14 @@ const ready = {
   wrapped_dek: new Uint8Array([1]).buffer,
   kek_version: 'kek-1',
   schema_version: '0035',
-  registry_version: 'registry-1',
+  registry_version: D1_BACKUP_REGISTRY_VERSION,
   global_hash: 'a'.repeat(64),
 };
 
 describe('production restore validation loader', () => {
   it('builds exhaustive registry and parses SQLite CHECK predicates', () => {
     const registry = domainRegistry();
-    expect(registry.version).toBe('registry-1');
+    expect(registry.version).toBe(D1_BACKUP_REGISTRY_VERSION);
     expect(registry.tables.some((table) => table.name === 'sales')).toBe(true);
     expect(registry.tables.some((table) => table.classification === 'SECRET')).toBe(true);
     expect(
@@ -58,6 +59,26 @@ describe('production restore validation loader', () => {
         { tenantId: 'tenant-a', backupId: 'backup-a' },
       ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('rejects pre-0056 registry-1 snapshots as STALE before KMS unwrap', async () => {
+    const unwrapDek = vi.fn();
+    await expect(
+      validateReadyBackup(
+        {
+          DB: dbWith({ ...ready, registry_version: 'registry-1' }) as never,
+          BACKUPS: { get: () => Promise.resolve(null) },
+          BACKUP_KMS: { unwrapDek },
+        },
+        { tenantId: 'tenant-a', backupId: 'backup-a' },
+      ),
+    ).rejects.toMatchObject({
+      code: 'BACKUP_REGISTRY_STALE',
+      expected: D1_BACKUP_REGISTRY_VERSION,
+      actual: 'registry-1',
+      mismatch: 'registry_version',
+    });
+    expect(unwrapDek).not.toHaveBeenCalled();
   });
 
   it('unwraps only through KMS and fails closed when unavailable', async () => {
@@ -159,7 +180,7 @@ describe('production restore validation loader', () => {
       format_version: 'KPBK1',
       global_hash: 'b'.repeat(64),
       objects: [],
-      registry_version: 'registry-1',
+      registry_version: D1_BACKUP_REGISTRY_VERSION,
       schema_version: '0035',
       tables: [],
       tenant_id: 'tenant-a',

@@ -33,6 +33,11 @@ export interface ProduceFiscalXmlInput {
   readonly r2: FiscalXmlR2Like;
   readonly tenantId: string;
   readonly saleId: string;
+  readonly signer?: FiscalXmlSigner;
+}
+
+export interface FiscalXmlSigner {
+  sign(xml: string, tenantId: string): Promise<string>;
 }
 
 export type ProduceFiscalXmlResult =
@@ -164,6 +169,12 @@ export async function loadReferencedItems(
   return items.results ?? [];
 }
 
+function limaIssueDateTime(issuedAtLima: string): { issueDate: string; issueTime: string } {
+  const normalized = issuedAtLima.includes('T') ? issuedAtLima : issuedAtLima.replace(' ', 'T');
+  const [datePart = '', timePart = '00:00:00'] = normalized.split('T');
+  return { issueDate: datePart.slice(0, 10), issueTime: timePart.slice(0, 8) };
+}
+
 function documentId(sale: Pick<SaleForXml, 'series' | 'number'>): string {
   return `${sale.series}-${String(sale.number).padStart(8, '0')}`;
 }
@@ -174,7 +185,7 @@ function buildUblInput(ctx: {
   readonly tenant: TenantForXml;
 }): UblInvoiceInput {
   const { sale, items, tenant } = ctx;
-  const [datePart = '', timePart = '00:00:00'] = sale.issued_at_lima.split('T');
+  const { issueDate, issueTime } = limaIssueDateTime(sale.issued_at_lima);
   const lines: UblInvoiceLine[] = items.map((item, index) => {
     const igvCents = item.igv_amount_cents;
     const icbperCents = item.icbper_amount_cents;
@@ -196,8 +207,8 @@ function buildUblInput(ctx: {
     ublVersion: '2.1',
     customizationId: '2.0',
     id: documentId(sale),
-    issueDate: datePart,
-    issueTime: timePart.slice(0, 8),
+    issueDate,
+    issueTime,
     invoiceTypeCode: '01',
     currency: 'PEN',
     issuerRuc: tenant.ruc ?? '',
@@ -227,15 +238,15 @@ function buildAdjustmentInput(
   originItems: readonly SaleItemForXml[],
   kind: '07' | '08',
 ): UblCreditNoteInput | UblDebitNoteInput {
-  const [datePart = '', timePart = '00:00:00'] = sale.issued_at_lima.split('T');
+  const { issueDate, issueTime } = limaIssueDateTime(sale.issued_at_lima);
   const sign = kind === '08' ? 1 : -1;
   const motive = sale.credit_note_motive_code ?? '01';
   const base = {
     ublVersion: '2.1' as const,
     customizationId: '1.0' as const,
     id: documentId(sale),
-    issueDate: datePart,
-    issueTime: timePart.slice(0, 8),
+    issueDate,
+    issueTime,
     currency: 'PEN' as const,
     issuerRuc: tenant.ruc ?? '',
     issuerName: tenant.business_name,
@@ -318,13 +329,16 @@ export async function produceFiscalXmlForSale(
     validate = assertValidCreditNoteXml;
   }
 
-  const xml =
+  let xml =
     sale.document_type === '01'
       ? buildUblInvoiceXml(ublInput as UblInvoiceInput)
       : sale.document_type === '08'
         ? buildUblDebitNoteXml(ublInput as UblDebitNoteInput)
         : buildUblCreditNoteXml(ublInput as UblCreditNoteInput);
   validate(xml);
+  if (input.signer) {
+    xml = await input.signer.sign(xml, tenantId);
+  }
   const xmlHash = await hashUblXml(xml);
   const key = r2XmlKeyForSale(tenantId, saleId);
   await r2.put(key, xml);
@@ -332,8 +346,8 @@ export async function produceFiscalXmlForSale(
   await db.batch([
     db
       .prepare(
-        `UPDATE fiscal_outbox SET r2_xml_key = ?, status = 'PENDING'
-         WHERE sale_id = ? AND tenant_id = ?`,
+        `UPDATE fiscal_outbox SET r2_xml_key = ?
+         WHERE sale_id = ? AND tenant_id = ? AND status != 'PROCESSING'`,
       )
       .bind(key, saleId, tenantId),
     db

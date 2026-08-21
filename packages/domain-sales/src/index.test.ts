@@ -4,6 +4,7 @@ import {
   buildSaleTotals,
   computeSubtotalCents,
   IGV_RATE_PER_MILLE,
+  splitInclusiveIgvCents,
 } from './index.js';
 
 describe('computeSubtotalCents', () => {
@@ -25,6 +26,13 @@ describe('applyIgvCents', () => {
     expect(applyIgvCents(1000, 180)).toBe(180);
     expect(applyIgvCents(1, 180)).toBe(0);
     expect(applyIgvCents(6, 180)).toBe(1);
+  });
+});
+
+describe('splitInclusiveIgvCents', () => {
+  it('parte un total con IGV 18% en gravado + impuesto (11800 → 10000+1800)', () => {
+    expect(splitInclusiveIgvCents(11_800)).toEqual({ taxableCents: 10_000, igvCents: 1_800 });
+    expect(splitInclusiveIgvCents(0)).toEqual({ taxableCents: 0, igvCents: 0 });
   });
 });
 

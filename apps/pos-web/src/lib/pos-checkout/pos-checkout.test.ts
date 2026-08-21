@@ -6,6 +6,7 @@ import {
   chargeCartOffline,
   p95,
   requiresCustomerIdentity,
+  resolveChargeDocument,
 } from './charge.js';
 
 const line = (id: string, price: number, qty = 1): CartLine => ({
@@ -13,6 +14,35 @@ const line = (id: string, price: number, qty = 1): CartLine => ({
   name: id,
   unitPriceCents: price,
   quantity: qty,
+});
+
+describe('resolveChargeDocument', () => {
+  it('NV en control interno → NV01; factura RUC → F001; boleta → B001', () => {
+    expect(
+      resolveChargeDocument({
+        formalizationMode: 'INTERNAL_CONTROL',
+        taxRegime: 'RG',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20612913251',
+      }),
+    ).toEqual({ documentType: 'NV', series: 'NV01' });
+    expect(
+      resolveChargeDocument({
+        formalizationMode: 'ELECTRONIC_ISSUER',
+        taxRegime: 'RG',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20612913251',
+      }),
+    ).toEqual({ documentType: '01', series: 'F001' });
+    expect(
+      resolveChargeDocument({
+        formalizationMode: 'ELECTRONIC_ISSUER',
+        taxRegime: 'RG',
+        clientDocumentType: '1',
+        clientDocumentNumber: '12345678',
+      }),
+    ).toEqual({ documentType: '03', series: 'B001' });
+  });
 });
 
 describe('pos-checkout cart', () => {

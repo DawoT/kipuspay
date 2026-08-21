@@ -29,6 +29,12 @@ Cuenta: `c5b18f62cb7e73fcd2ece5822936d699` (cristian.pcalderon@gmail.com).
 Smoke navegador (2026-08-17): marketing 200 (soft-launch copy), POS shell login
 visible, `fetch(/health)` desde origen POS con CORS OK.
 
+**Canónico temporal (D0, sin dominio comprado):** esas URLs `*.pages.dev` /
+`*.workers.dev` son el piloto. No configurar `kipuspay.com` / `app.` / `api.`
+hasta sprint **DM** (compra + zona Cloudflare). Stripe return URLs usan
+`location.origin` (POS) y `POS_APP_ORIGIN` (API). Marketing staging:
+`PUBLIC_POS_ORIGIN` = POS pages.dev.
+
 ## Recursos creados
 
 | Tipo | Nombre / ID |
@@ -135,7 +141,7 @@ Procedimiento de flags: `docs/ops/go-live-staging-checklist.md` § Flags runtime
 | Workflow `kipuspay-data-backup-staging` | READY backups `d31ef057…`, `8afaba63…` (kek_version=v1) |
 | Secrets del worker | `AUTH_JWT_HS_SECRET` (rotado Fase 0; material solo en ops local) |
 | Evidencia S42 externa | Parcial GREEN (READY); chaos/dry-run A+V pendiente |
-| Evidencia S48 externa | RED — `BACKUP_MANIFEST_MISMATCH` |
+| Evidencia S48 externa | WAIT — software `registry-2` STALE; live `DR_SIMULATION_PASSED` exige backup post-0056 |
 
 Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`.
 
@@ -147,8 +153,8 @@ Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`.
 | `worker-kms` staging | Redeploy Fase 0; bindings Secrets Store |
 | Tenant fixture | `tenant_stg_phase0_001` + owner + TENANT_KV; `/api/auth/session` 200 |
 | S42 create backup | `202` → `READY`; Workflow + R2 + `kek_version=v1` |
-| S48 `POST /api/dr/simulation` | `422 BACKUP_MANIFEST_MISMATCH` (unwrap OK) |
-| CI `deploy-staging.yml` dry_run | RED prettier (6× ubl-*); fix local; **GH token debe ser API Token (no OAuth)** |
+| S48 `POST /api/dr/simulation` | WAIT (código `BACKUP_REGISTRY_STALE` si backup es registry-1; no skip) |
+| CI `deploy-staging.yml` dry_run | WAIT: prettier ubl local GREEN; **GH token debe ser API Token CF (no OAuth)** |
 | `go-live-staging` | EN_CURSO (no CERRADO) |
 
 ## Después del smoke (no cerrar tracker aún)
@@ -159,16 +165,16 @@ Camino a producción (fases 0–4): `docs/ops/go-live-staging-checklist.md`
 
 ### Handoff Fase 0 — CERRADO
 
-Secrets + VAPID + tenant GREEN. CI run documentado BLOCKED (prettier).
+Secrets + VAPID + tenant GREEN. CI run WAIT (token CF largo).
 
 ### Handoff Fase 1 — EN_CURSO
 
-Flags + S42 READY GREEN parcial. S48 RED. Siguiente: diagnosticar
-`BACKUP_MANIFEST_MISMATCH` (manifest vs control plane) y re-ejecutar
-`DR_SIMULATION`; luego A+V. Flags cobro/fiscal deferred.
+Flags + S42 READY GREEN parcial. S48 WAIT `BACKUP_REGISTRY_STALE` (backup
+nuevo `registry-2`). Flags cobro/fiscal S12 WAIT A+V.
 
-### Siguientes fases (bloqueadas)
+### Siguientes fases
 
-4. Fase 2: `go-live-sunat` + dominios canónicos (piloto operable).
+4. Fase 2: `go-live-sunat` + piloto **pages.dev** (D0). `kipuspay.com` = DM.
 5. Fase 3: `go-live-fcm` / `go-live-hardware` / s43–s49 (claims GTM).
-6. Fase 4: recursos production + CI Etapas 7–11; `stg-close-tracker` solo con A+V.
+6. Fase 4: recursos production CF (pages.dev/workers.dev) + CI Etapas 7–11; A+V.
+7. DM: custom domains cuando A compre el dominio.

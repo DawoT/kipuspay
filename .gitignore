@@ -18,6 +18,7 @@ apps/*/build/
 apps/*/.svelte-kit/
 apps/*/.wrangler/
 packages/*/.wrangler/
+.wrangler/
 apps/*/functions/
 coverage/
 *coverage/
@@ -30,6 +31,7 @@ coverage/
 !.env.example
 *.pem
 *.pfx
+*.p12
 
 # Editor / SO
 .idea/
@@ -48,6 +50,7 @@ __pycache__/
 
 # Wrangler dev secrets (nunca versionar)
 .dev.vars
+tmp-staff/
 
 # Config y skills de agentes locales (tooling; no doctrina)
 .claude/

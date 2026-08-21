@@ -42,8 +42,7 @@ export type MoneyParseErrorName = 'INVALID_AMOUNT' | 'negative_zero' | 'amount_o
 
 /** Resultado discriminado de parseMoneyToCents (US-06). */
 export type MoneyParseResult =
-  | { ok: true; cents: number }
-  | { ok: false; errorName: MoneyParseErrorName };
+  { ok: true; cents: number } | { ok: false; errorName: MoneyParseErrorName };
 
 /**
  * Convierte dinero del body a INTEGER cents sin float (US-06, CAL-01, V-21):

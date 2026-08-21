@@ -236,6 +236,13 @@ export async function validateReadyBackup(
     .bind(input.tenantId, input.backupId)
     .first<BackupControlRow>();
   if (!backup) throw codedError('NOT_FOUND');
+  if (backup.registry_version !== D1_BACKUP_REGISTRY_VERSION) {
+    throw Object.assign(codedError('BACKUP_REGISTRY_STALE'), {
+      mismatch: 'registry_version',
+      expected: D1_BACKUP_REGISTRY_VERSION,
+      actual: backup.registry_version,
+    });
+  }
   const dek = await unwrapDek(env.BACKUP_KMS, {
     ...input,
     wrappedDek: new Uint8Array(backup.wrapped_dek),

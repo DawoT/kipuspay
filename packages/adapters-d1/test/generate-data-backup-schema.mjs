@@ -111,7 +111,13 @@ while (progressed) {
   }
 }
 
-const secret = new Set(['api_keys', 'authorization_tokens', 'users', 'webhook_endpoints']);
+const secret = new Set([
+  'api_keys',
+  'authorization_tokens',
+  'tenant_certificates',
+  'users',
+  'webhook_endpoints',
+]);
 const sensitive = new Set(['push_consents', 'push_privacy_settings', 'push_subscriptions']);
 const derived = new Set(['daily_financial_rollups', 'daily_product_rollups']);
 const ephemeral = new Set([
@@ -210,7 +216,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-1';
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET); backups registry-1 → STALE
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = ${JSON.stringify(registry, null, 2)};
 `;
 writeFileSync(
@@ -245,6 +251,7 @@ const introducedAfterSprint42 = new Set([
   'recurring_plan_items',
   'recurring_plans',
   'recurring_proration_adjustments',
+  'tenant_certificates',
 ]);
 const epochTables = registry.filter(
   (entry) =>

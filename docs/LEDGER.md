@@ -12487,3 +12487,162 @@ aprobaciones: [Staff Principal A, Staff Verifier V pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0454
+timestamp_utc: 2026-08-21T22:08:48Z
+schema_version: 2
+sprint_fase: Staff fiscal S6–S10 post e-beta (GTM-08 abierto)
+agente_responsable: Staff Fiscal + Staff Principal (orquestador)
+tipo: Entregable nuevo
+subtipo: higiene tracker + UI .p12 + WAIT S8/S9 + pack GTM-08
+relacion: amplia
+referencias_entradas: [0453]
+referencias_documentales: [docs/ops/pending-batches.yaml, docs/ops/claims-go-live.md, docs/adr/ADR-FISCAL-007-sunat-bill-beta.md, docs/runbooks/sunat-cdt-rosa-negra-staff.md, docs/ops/xades-bes-qg.md]
+prev_id: 0453
+prev_hash: c86031930d31b227e22b4ea3319edd57f8788375fabff19199a9b6f621530725
+entry_hash: 4f696030fb50a95856fda51d85f43cb76fc3d087ad282f85fbf38b8eea8eb469
+ticket_or_adr: ADR-FISCAL-006 / ADR-FISCAL-007 staff S6-S10
+test_ids: [packages/domain-fiscal-pe/src/pkcs12.test.ts, packages/domain-fiscal-pe/src/pkcs12-fail.test.ts, apps/worker-api/src/fiscal/tenant-cert-upload-routes.test.ts, apps/worker-fiscal/src/select-transport.test.ts, packages/adapters-d1/src/tenant-certificates-schema.test.ts, apps/pos-web/src/lib/pos-checkout/pos-checkout.test.ts, SUITE, V-13, V-18]
+entregable_afectado: go-live-sunat higiene + TENANT_CERT self-serve + GTM-08 pack
+descripcion: >
+  Staff fiscal S6–S10 tras el loop POS Worker-firma e-beta. S6: tracker
+  go-live-sunat alineado (software_status GREEN, estado AGENDADO_AL_FINAL,
+  firmas_av vacías); complementary RC no re-lista boletas ACCEPTED;
+  SQL de ligue daily_summary_id. S7: upload .p12 en POS (JWT owner/admin),
+  parse PKCS#12 vendorizado en Worker, wrapDek backupId=tenant-cert:SUNAT;
+  live 01 e-beta tras UI queda WAIT (pass CDT en sesión). S8 WAIT: A no
+  entregó URL PSE ≠ .invalid. S9 WAIT: A no autorizó e-factura; default de
+  código sigue e-beta (opt-in SUNAT_BILL_ENDPOINT_URL). S10: pack GTM-08
+  listo; staff no cierra go-live-sunat ni descongela copy GTM §3.
+evidencia: >
+  RED: tracker pre-loop; UI .p12 ausente; PKCS#12 Java/3DES+RC2 sin parser
+  Edge; complementary re-listaba ACCEPTED huérfanas; GTM-08 QG decía solo
+  e-beta.
+  GREEN: yaml/runbook/claims honestos; parser+UI+wrap; coverage dominio
+  ≥95% ramas; S8/S9 documentados WAIT; firmas_av vacías.
+red_commit_sha: N/A
+red_run_id: run-red-staff-fiscal-s6-s10
+expected_failure: tracker pre-0454; sin UI p12; PKCS12_UNSUPPORTED_PBE; GTM-08 mentido por e-beta
+green_commit_sha: N/A
+green_run_id: run-green-staff-fiscal-s6-s10
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0455
+timestamp_utc: 2026-08-21T22:10:30Z
+schema_version: 2
+sprint_fase: Staff fiscal S6–S10 post e-beta (GTM-08 abierto)
+agente_responsable: Staff Fiscal + Staff Principal (orquestador)
+tipo: Corrección de especificación
+subtipo: registry §0.4 ADR-FISCAL-006/007
+relacion: amplia
+referencias_entradas: [0454]
+referencias_documentales: [docs/ARCHITECTURE.md, docs/adr/ADR-FISCAL-006-xades-bes-edge.md, docs/adr/ADR-FISCAL-007-sunat-bill-beta.md]
+prev_id: 0454
+prev_hash: 4f696030fb50a95856fda51d85f43cb76fc3d087ad282f85fbf38b8eea8eb469
+entry_hash: 2e02dd7738baa2fafae6d49fa862b06d26803d4776cb8841a03ca95f89fd8bdb
+ticket_or_adr: ADR-FISCAL-006 / ADR-FISCAL-007
+test_ids: [SUITE, V-08, V-13, V-15]
+entregable_afectado: Registry §0.4 filas ADR-FISCAL-006 y ADR-FISCAL-007
+descripcion: >
+  V-08 RED: ADR-FISCAL-006/007 citados en ledger, ADR y runbook sin fila
+  en el Registry. Se agregan punteros canónicos §5.4 (XAdES Edge) y §5.2
+  (SOAP e-beta; T6 opt-in). No cierra GTM-08 ni go-live-sunat.
+evidencia: >
+  RED: RESULT V-08 RED 2 huérfanos ADR-FISCAL-006, ADR-FISCAL-007.
+  GREEN: filas en Arquitectura §0.4; INDEX regenerado.
+red_commit_sha: N/A
+red_run_id: run-red-v08-adr-fiscal-006-007
+expected_failure: V-08 huérfanos ADR-FISCAL-006/007
+green_commit_sha: N/A
+green_run_id: run-green-v08-adr-fiscal-006-007
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0456
+timestamp_utc: 2026-08-21T22:56:00Z
+schema_version: 2
+sprint_fase: Staff go-live F1–F4 (GTM-08 primero; WAIT honesto)
+agente_responsable: Staff Fiscal + Staff SRE + Staff Principal (orquestador)
+tipo: Entregable nuevo
+subtipo: registry-2 STALE + drain CPE + tracker S11–X1 WAIT
+relacion: amplia
+referencias_entradas: [0454, 0455]
+referencias_documentales: [docs/ops/pending-batches.yaml, docs/ops/go-live-staging-checklist.md, docs/ops/claims-go-live.md, docs/runbooks/sunat-cdt-rosa-negra-staff.md]
+prev_id: 0455
+prev_hash: 2e02dd7738baa2fafae6d49fa862b06d26803d4776cb8841a03ca95f89fd8bdb
+entry_hash: 0735fc274a633e1f88d361166f85a445ea4f3013c59e88fec8efa4ab4d8b8a95
+ticket_or_adr: ADR-FISCAL-006 / ADR-FISCAL-007 staff F1-F4
+test_ids: [apps/worker-api/src/backup/backup-restore-validator.test.ts, apps/worker-api/src/backup/dr-routes.test.ts, apps/worker-fiscal/src/select-transport.test.ts, apps/worker-fiscal/src/index.test.ts, apps/worker-api/test/feature-flags-staging-nogate.test.ts, packages/adapters-d1/src/tenant-certificates-schema.test.ts, SUITE, V-13]
+entregable_afectado: DR registry-2 + drain CPE + tracker go-live S11–X1
+descripcion: >
+  Camino staff GTM-08 y go-live Fases 1–4. Software: D1_BACKUP_REGISTRY_VERSION
+  registry-2 (0056 tenant_certificates); validateReadyBackup rechaza registry-1
+  como BACKUP_REGISTRY_STALE antes de KMS; DR 422 expone mismatch/expected/actual.
+  Drain cron acepta FEATURE_FISCAL_CPE (git sigue 0). isAccreditedPseEndpoint
+  rechaza .invalid; SOL del piloto sigue ganando sobre URL PSE. Tracker/runbook
+  alineados: S11–S16, P1 token, P2 live DR, P3 A+V, D1/G1–G3/X1 quedan WAIT.
+  No se cierra go-live-sunat ni se descongela copy GTM. No FEATURE_*=1 en git.
+evidencia: >
+  RED: backups post-0056 colisionaban en MANIFEST_MISMATCH opaco; drain exigía
+  breaker; S11–X1 no estaban WAIT en el tracker.
+  GREEN: STALE explícito + tests; drain CPE; yaml/checklist/runbook/claims
+  honestos; firmas_av vacías.
+red_commit_sha: N/A
+red_run_id: run-red-staff-golive-f1-f4
+expected_failure: BACKUP_MANIFEST_MISMATCH opaco; drain FEATURE_OFF sin breaker; tracker S11 ready mentido
+green_commit_sha: N/A
+green_run_id: run-green-staff-golive-f1-f4
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0457
+timestamp_utc: 2026-08-21T23:20:00Z
+schema_version: 2
+sprint_fase: Staff sprints pages.dev (D0 canónico temporal; H1–DM WAIT)
+agente_responsable: Staff SRE + Staff Fiscal + Staff Principal (orquestador)
+tipo: Entregable nuevo
+subtipo: POS_APP_ORIGIN pages.dev + Stripe return URLs + tracker WAIT-DOMINIO
+relacion: amplia
+referencias_entradas: [0456]
+referencias_documentales: [docs/ops/pending-batches.yaml, docs/ops/go-live-staging-checklist.md, docs/ops/staging-bootstrap.md]
+prev_id: 0456
+prev_hash: 0735fc274a633e1f88d361166f85a445ea4f3013c59e88fec8efa4ab4d8b8a95
+entry_hash: fcc1996aeb1dba51e44ff2d266bed7bd0fd463fd42167f17aa2e6d7586d0e51d
+ticket_or_adr: D0 pages.dev canonical (pre-DM)
+test_ids: [apps/worker-api/src/tenant/app-origin.test.ts, apps/worker-api/src/tenant/checkout-routes.test.ts, apps/pos-web/src/lib/admin/configuracion-api.test.ts, apps/marketing-web/src/lib/features.test.ts, apps/worker-api/test/feature-flags-staging-nogate.test.ts, SUITE, V-13]
+entregable_afectado: Canónico temporal Pages/Workers; Stripe sin app.kipuspay.com
+descripcion: >
+  D0: el piloto opera en pages.dev/workers.dev porque no hay dominio comprado.
+  POS Stripe usa location.origin; API POS_APP_ORIGIN/ALLOWED_ORIGINS pages.dev;
+  marketing PUBLIC_POS_ORIGIN staging al POS Pages. No se configura
+  kipuspay.com hasta DM. H1–H3, S12–S16, P2/P3, G1–G3, X1c y DM quedan WAIT
+  honestos (pass CDT, token CF, URL PSE/auth T6, DR live, FCM, hardware, A+V).
+  Staff no cierra go-live-sunat ni descongela GTM §3.
+evidencia: >
+  RED: return URLs Stripe hardcodeadas a app.kipuspay.com (host no comprado).
+  GREEN: resolvePosAppOrigin + tests; configuracion location.origin; wrangler
+  POS_APP_ORIGIN; checklist WAIT-DOMINIO.
+red_commit_sha: N/A
+red_run_id: run-red-d0-pages-canonical
+expected_failure: Stripe/portal default app.kipuspay.com sin dominio comprado
+green_commit_sha: N/A
+green_run_id: run-green-d0-pages-canonical
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```

@@ -579,6 +579,5 @@ describe('handleStripeWebhook', () => {
     // Nada se procesó ni se persiste con la firma ausente.
     expect(res.body).not.toHaveProperty('received');
     expect(mem.rows.get('stripe:evt_maxsize_nosig')).toBeUndefined();
-
   });
 });

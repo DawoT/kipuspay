@@ -37,6 +37,7 @@ describe('withholdings (P1c, ADR-FISCAL-005)', () => {
   it('rechaza bases no enteras, no positivas o tasas inválidas', () => {
     expect(() => computePerceptionCents(0, 'goods')).toThrow('INVALID_BASE_AMOUNT');
     expect(() => computePerceptionCents(10.5, 'goods')).toThrow('INVALID_BASE_AMOUNT');
+    expect(() => computePerceptionCents(100, 'nope' as never)).toThrow('INVALID_RATE');
   });
 
   it('categorías cerradas por catálogo', () => {

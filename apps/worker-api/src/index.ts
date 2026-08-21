@@ -24,6 +24,11 @@ import {
 } from './fiscal/fiscal-rc-routes.js';
 import { runCreditNoteEaHttp, runOwnerBacklogHttp } from './fiscal/owner-ea-routes.js';
 import { parseCreditNoteEaBody } from './fiscal/parse-ea-body.js';
+import { runWrapTenantDekHttp } from './fiscal/tenant-cert-wrap-routes.js';
+import {
+  runGetTenantCertHttp,
+  runUploadTenantCertHttp,
+} from './fiscal/tenant-cert-upload-routes.js';
 import { runMeterOverageCronHttp } from './billing/meter-overage-routes.js';
 import {
   runCreateApHttp,
@@ -208,6 +213,7 @@ import {
 import { runUpdatePlanHttp } from './tenant/plan-routes.js';
 import { runCancelTenantHttp, runBillingPortalHttp } from './tenant/cancel-routes.js';
 import { runCheckoutSessionHttp } from './tenant/checkout-routes.js';
+import { configuracionUrl } from './tenant/app-origin.js';
 import {
   runCreateReclamacionHttp,
   runListReclamacionesHttp,
@@ -659,6 +665,37 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       body,
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
+  app.get('/api/fiscal/tenant-cert', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runGetTenantCertHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 503);
+  });
+
+  app.post('/api/fiscal/tenant-cert', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
+    }
+    const result = await runUploadTenantCertHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      user?.role ?? '',
+      payload,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 503);
+  });
+
+  app.post('/v1/internal/tenant-cert/wrap-dek', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const result = await runWrapTenantDekHttp(c.env, c.req.header('x-platform-staff-token'), body);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 503);
   });
 
   app.post('/api/fiscal/cron', async (c) => {
@@ -2836,7 +2873,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       typeof raw === 'object' &&
       typeof (raw as { returnUrl?: unknown }).returnUrl === 'string'
         ? (raw as { returnUrl: string }).returnUrl
-        : 'https://app.kipuspay.com/admin/configuracion';
+        : configuracionUrl(c.env);
     const result = await runBillingPortalHttp(
       c.env,
       jwt?.tenantId ?? '',

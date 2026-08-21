@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { D1_BACKUP_REGISTRY_VERSION } from '@kipuspay/adapters-d1';
 import { runDrSimulationHttp, type DrRouteEnv } from './dr-routes.js';
 
 function rawImpl<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
@@ -33,7 +34,15 @@ function mockDb(options?: { readonly stepUpChanges?: number }): D1Database {
     },
     first: <T = Record<string, unknown>>() => {
       if (sql.includes('FROM data_backups')) {
-        return Promise.resolve({ id: 'bk-dr-1', global_hash: 'a'.repeat(64) } as T);
+        return Promise.resolve({
+          id: 'bk-dr-1',
+          global_hash: 'a'.repeat(64),
+          registry_version: D1_BACKUP_REGISTRY_VERSION,
+          schema_version: '0035',
+          kek_version: 'v1',
+          wrapped_dek: new Uint8Array([1]).buffer,
+          manifest_r2_key: 'ready/t/b/manifest.kpbk1',
+        } as T);
       }
       return Promise.resolve(null as T);
     },
@@ -149,5 +158,40 @@ describe('platform.dr simulation route (Sprint 48)', () => {
     expect(res.body.code).not.toBe('STEP_UP_REQUIRED');
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('BACKUP_R2_OBJECT_MISSING');
+  });
+
+  it('backup registry-1 vs código registry-2 → 422 BACKUP_REGISTRY_STALE (sin apply)', async () => {
+    const env = mockEnv();
+    const db = env.DB as unknown as { prepare(sql: string): { bind(): unknown } };
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      const stmt = original(sql) as { bind(): unknown; first<T>(): Promise<T | null> };
+      if (sql.includes('FROM data_backups')) {
+        const custom = {
+          ...stmt,
+          first: <T>() =>
+            Promise.resolve({
+              id: 'bk-dr-1',
+              global_hash: 'a'.repeat(64),
+              registry_version: 'registry-1',
+              schema_version: '0035',
+              kek_version: 'v1',
+              wrapped_dek: new Uint8Array([1]).buffer,
+              manifest_r2_key: 'k/m',
+            } as T),
+        };
+        custom.bind = () => custom;
+        return custom;
+      }
+      return stmt;
+    };
+    const res = await runDrSimulationHttp(env, actor, {
+      stepUpToken: 'tok',
+      nowMs: Date.now(),
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('BACKUP_REGISTRY_STALE');
+    expect(res.body.mismatch).toBe('registry_version');
+    expect(res.body.actual).toBe('registry-1');
   });
 });

@@ -55,6 +55,7 @@ import {
   DOWN_0053_SPRINT_M6_EPOCH_TRIGGERS_BACKFILL,
   DOWN_0054_PLATFORM_RECLAMACIONES,
   DOWN_0055_PLATFORM_RECLAMACIONES_STATUS,
+  DOWN_0056_TENANT_CERTIFICATES,
 } from './migrations-down.js';
 
 async function paymentMethodsPkColumns(): Promise<string[]> {
@@ -69,13 +70,14 @@ async function paymentMethodsPkColumns(): Promise<string[]> {
 }
 
 describe('D1 full down chain (isolate limpio post-migrate)', () => {
-  it('down 0055…0000 deja el schema sin tablas de negocio y DOWN_0051 revierte la PK', async () => {
+  it('down 0056…0000 deja el schema sin tablas de negocio y DOWN_0051 revierte la PK', async () => {
     expect(await paymentMethodsPkColumns()).toEqual(['tenant_id', 'id']);
     const markerBefore = await env.DB.prepare(
       `SELECT value FROM schema_meta WHERE key = 'sprint_m6.payment_methods_pk'`,
     ).first<{ value: string }>();
     expect(markerBefore?.value).toBe('1');
 
+    await env.DB.exec(DOWN_0056_TENANT_CERTIFICATES);
     await env.DB.exec(DOWN_0055_PLATFORM_RECLAMACIONES_STATUS);
     await env.DB.exec(DOWN_0054_PLATFORM_RECLAMACIONES);
     await env.DB.exec(DOWN_0053_SPRINT_M6_EPOCH_TRIGGERS_BACKFILL);

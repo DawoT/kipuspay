@@ -27,6 +27,9 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly ANALYTICS_ENGINE?: AnalyticsEngineDataset;
   readonly STRIPE_WEBHOOK_SECRET?: string;
   readonly FQDN?: string;
+  /** Origen HTTPS del POS (pages.dev ahora; app.kipuspay.com solo tras DM). */
+  readonly POS_APP_ORIGIN?: string;
+  readonly ALLOWED_ORIGINS?: string;
   /** Proceso §5.1: motor ACID offline desactivable sin rollback de código. */
   readonly FEATURE_ACID_OFFLINE_SALE?: string;
   readonly FEATURE_FISCAL_CPE?: string;

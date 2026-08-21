@@ -163,7 +163,9 @@ function concurrentCaptureDb(): { db: D1DatabaseLike; rows: () => CaptureRow[] }
             return Promise.resolve({ n } as T);
           }
           if (sql.includes('FROM payment_captures')) {
-            const row = rowsByKey.get(keyOf(bound._params[0] as string, bound._params[1] as string));
+            const row = rowsByKey.get(
+              keyOf(bound._params[0] as string, bound._params[1] as string),
+            );
             return Promise.resolve(
               (row
                 ? {
@@ -390,9 +392,8 @@ describe('runPaymentChargeHttp', () => {
     // evidencia runtime del invariante de la UNIQUE delegamos el create al
     // adapter REAL (vi.importActual) contra un fake D1 que materializa filas
     // con el constraint de producción (concurrentCaptureDb).
-    const real = await vi.importActual<typeof import('@kipuspay/adapters-d1')>(
-      '@kipuspay/adapters-d1',
-    );
+    const real =
+      await vi.importActual<typeof import('@kipuspay/adapters-d1')>('@kipuspay/adapters-d1');
     const { db, rows } = concurrentCaptureDb();
     const env = mockEnv({ DB: db as unknown as D1Database });
     const prevCreate = vi.mocked(createPendingCaptureAtomic).getMockImplementation();
@@ -430,9 +431,10 @@ describe('runPaymentChargeHttp', () => {
       // de US-02: exactly-1-fila por idempotency_key).
       const db = env.DB;
       if (!db) throw new Error('mock DB missing');
-      const counted = await db.prepare(
-        `SELECT COUNT(*) AS n FROM payment_captures WHERE tenant_id = ? AND idempotency_key = ?`,
-      )
+      const counted = await db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM payment_captures WHERE tenant_id = ? AND idempotency_key = ?`,
+        )
         .bind('t1', 'race-8')
         .first<{ n: number }>();
       expect(counted?.n).toBe(1);
@@ -548,7 +550,7 @@ describe('runPaymentChargeHttp', () => {
     });
     vi.mocked(settleCaptureAtomic).mockRejectedValueOnce(
       new Error(
-        "D1_ERROR: ERROR 7503: SQLITE_ERROR: SQLITE_BUSY: database is locked (SQL: UPDATE payment_captures ...)",
+        'D1_ERROR: ERROR 7503: SQLITE_ERROR: SQLITE_BUSY: database is locked (SQL: UPDATE payment_captures ...)',
       ),
     );
     const res = await runPaymentChargeHttp(mockEnv(), 't1', {

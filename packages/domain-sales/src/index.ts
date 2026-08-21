@@ -2,7 +2,7 @@ export type Cents = number;
 
 import { applyIgvCents, IGV_RATE_PER_MILLE } from './taxes.js';
 
-export { applyIgvCents, IGV_RATE_PER_MILLE } from './taxes.js';
+export { applyIgvCents, IGV_RATE_PER_MILLE, splitInclusiveIgvCents } from './taxes.js';
 
 export interface SaleLine {
   readonly productId: string;

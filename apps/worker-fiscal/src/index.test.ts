@@ -177,6 +177,44 @@ describe('drain con error de infraestructura (F-5 Sello QA Batch I)', () => {
     expect(body).toEqual({ error: 'DRAIN_FAILED', code: 'DRAIN_FAILED' });
     expect(JSON.stringify(body)).not.toContain('D1_ERROR');
   });
+
+  it('FEATURE_FISCAL_CPE on + DB/R2 → drain no es FEATURE_OFF con breaker off', async () => {
+    const bound = {
+      bind(..._args: unknown[]) {
+        return bound;
+      },
+      all: () => Promise.resolve({ results: [] }),
+      run: () => Promise.resolve({ meta: { changes: 0 } }),
+    };
+    const env = {
+      FEATURE_FISCAL_CPE: '1',
+      FEATURE_FISCAL_CIRCUIT_BREAKER: '0',
+      DB: { prepare: () => bound },
+      FISCAL_XML_R2: { get: () => Promise.resolve(null), put: () => Promise.resolve() },
+    };
+    const res = await worker.fetch(
+      new Request('https://fiscal.local/v1/fiscal/drain', { method: 'POST' }),
+      env as unknown as FiscalWorkerEnv,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { processed?: number };
+    expect(body.processed).toBe(0);
+  });
+
+  it('sin CPE ni breaker → drain FEATURE_OFF', async () => {
+    const env = {
+      FEATURE_FISCAL_CPE: '0',
+      FEATURE_FISCAL_CIRCUIT_BREAKER: '0',
+      DB: { prepare: () => ({ bind: () => ({ run: () => Promise.resolve() }) }) },
+      FISCAL_XML_R2: { get: () => Promise.resolve(null) },
+    };
+    const res = await worker.fetch(
+      new Request('https://fiscal.local/v1/fiscal/drain', { method: 'POST' }),
+      env as unknown as FiscalWorkerEnv,
+    );
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'FEATURE_OFF' });
+  });
 });
 
 describe('worker fetch', () => {

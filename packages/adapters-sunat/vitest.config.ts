@@ -7,6 +7,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
+      // Vendored inflate is third-party; exclude from CAL-05 thresholds.
+      exclude: ['src/vendor/**'],
       thresholds: {
         lines: 70,
         functions: 70,

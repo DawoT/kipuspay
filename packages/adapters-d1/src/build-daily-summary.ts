@@ -3,15 +3,19 @@
  * CDR vía puerto inyectable (mock PSE en worker). No se dispara desde arqueo Z.
  */
 import {
+  buildUblSummaryDocumentsXml,
   createMockRcCdrPort,
   markVoidedAfterRc,
+  nextRcCorrelative,
   planDailySummary,
   planNrusDailyConsolidation,
   canOmitUnitaryNrus,
+  rcSummaryId,
   type BoletaForRc,
   type RcCdrPort,
 } from '@kipuspay/domain-fiscal-pe';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import type { FiscalXmlSigner } from './fiscal-xml-producer.js';
 
 export type { RcCdrPort } from '@kipuspay/domain-fiscal-pe';
 export { createMockRcCdrPort } from '@kipuspay/domain-fiscal-pe';
@@ -21,6 +25,7 @@ export interface BuildDailySummaryInput {
   readonly summaryDate: string;
   readonly nowMs: number;
   readonly cdr?: RcCdrPort;
+  readonly signer?: FiscalXmlSigner;
 }
 
 export interface BuildDailySummaryResult {
@@ -42,18 +47,31 @@ export async function buildDailySummary(
     )
     .bind(input.tenantId, input.summaryDate)
     .first<{ id: string; status: string }>();
-  if (existing) {
-    return { status: 'ALREADY_EXISTS', dailySummaryId: existing.id, sunatStatus: existing.status };
+  const complementaryExisting = await db
+    .prepare(
+      `SELECT id, status FROM sunat_daily_summaries
+       WHERE tenant_id = ? AND summary_date = ? AND rc_type = 'COMPLEMENTARY'`,
+    )
+    .bind(input.tenantId, input.summaryDate)
+    .first<{ id: string; status: string }>();
+  if (existing && complementaryExisting) {
+    return {
+      status: 'ALREADY_EXISTS',
+      dailySummaryId: complementaryExisting.id,
+      sunatStatus: complementaryExisting.status,
+    };
   }
 
   const tenant = await db
-    .prepare(`SELECT tax_regime FROM tenants WHERE id = ?`)
+    .prepare(`SELECT tax_regime, ruc, business_name FROM tenants WHERE id = ?`)
     .bind(input.tenantId)
-    .first<{ tax_regime: string }>();
+    .first<{ tax_regime: string; ruc: string | null; business_name: string }>();
 
   const boletas = await db
     .prepare(
-      `SELECT id, branch_id, document_type, total_amount_cents, void_status, issued_at_lima
+      `SELECT id, branch_id, document_type, series, number, client_document_type,
+              client_document_number, total_amount_cents, total_taxable_cents,
+              total_igv_cents, void_status, issued_at_lima, sunat_status
        FROM sales
        WHERE tenant_id = ?
          AND deleted_at IS NULL
@@ -67,13 +85,33 @@ export async function buildDailySummary(
       id: string;
       branch_id: string;
       document_type: string;
+      series: string;
+      number: number;
+      client_document_type: string;
+      client_document_number: string;
       total_amount_cents: number;
+      total_taxable_cents: number;
+      total_igv_cents: number;
       void_status: string;
       issued_at_lima: string;
+      sunat_status: string;
     }>();
 
-  const rows = boletas.results ?? [];
-  if (rows.length === 0) return { status: 'NOOP_EMPTY' };
+  const rcType = existing ? 'COMPLEMENTARY' : 'PRIMARY';
+  let rows = boletas.results ?? [];
+  if (rcType === 'COMPLEMENTARY') {
+    rows = rows.filter((r) => r.sunat_status !== 'ACCEPTED');
+  }
+  if (rows.length === 0) {
+    if (existing) {
+      return {
+        status: 'ALREADY_EXISTS',
+        dailySummaryId: existing.id,
+        sunatStatus: existing.status,
+      };
+    }
+    return { status: 'NOOP_EMPTY' };
+  }
 
   const forRc: BoletaForRc[] = rows.map((r) => ({
     saleId: r.id,
@@ -103,7 +141,42 @@ export async function buildDailySummary(
     Date.parse(`${input.summaryDate}T23:59:59.999-05:00`) + 6 * 24 * 3600 * 1000,
   ).toISOString();
 
-  const xml = `<DailySummary tenant="${input.tenantId}" date="${input.summaryDate}" tickets="${plan.ticketCount}" nrusOmit="${nrusPlan.omittedSaleIds.length}"/>`;
+  const tickets = await db
+    .prepare(
+      `SELECT sunat_ticket FROM sunat_daily_summaries
+       WHERE tenant_id = ? AND summary_date = ?`,
+    )
+    .bind(input.tenantId, input.summaryDate)
+    .all<{ sunat_ticket: string | null }>();
+  const correlative = nextRcCorrelative(
+    input.summaryDate,
+    (tickets.results ?? []).map((t) => t.sunat_ticket ?? ''),
+    existing ? 1 : 0,
+  );
+  const sunatTicket = rcSummaryId(input.summaryDate, correlative);
+
+  let xml = `<DailySummary tenant="${input.tenantId}" date="${input.summaryDate}" tickets="${plan.ticketCount}" nrusOmit="${nrusPlan.omittedSaleIds.length}"/>`;
+  if (tenant?.ruc && /^\d{11}$/.test(tenant.ruc)) {
+    xml = buildUblSummaryDocumentsXml({
+      id: sunatTicket,
+      referenceDate: input.summaryDate,
+      issueDate: input.summaryDate,
+      issuerRuc: tenant.ruc,
+      issuerName: tenant.business_name,
+      lines: rows.map((r, i) => ({
+        lineId: i + 1,
+        documentType: r.document_type === '12' ? '12' : '03',
+        documentId: `${r.series}-${String(r.number).padStart(8, '0')}`,
+        customerDocType: r.client_document_type || '1',
+        customerDocNumber: r.client_document_number || '00000000',
+        conditionCode: r.void_status === 'VOID_PENDING_RC' ? '3' : '1',
+        totalTaxableCents: r.total_taxable_cents,
+        totalIgvCents: r.total_igv_cents,
+        totalAmountCents: r.total_amount_cents,
+      })),
+    });
+    if (input.signer) xml = await input.signer.sign(xml, input.tenantId);
+  }
   const cdrPort = input.cdr ?? createMockRcCdrPort();
   const cdr = await cdrPort.submit({
     tenantId: input.tenantId,
@@ -120,7 +193,7 @@ export async function buildDailySummary(
           `INSERT INTO sunat_daily_summaries
              (id, tenant_id, branch_id, summary_date, status, must_submit_by, rc_type, ticket_count,
               sunat_ticket, cdr_code, cdr_message, submitted_at)
-           VALUES (?, ?, NULL, ?, ?, ?, 'PRIMARY', ?, ?, ?, ?, datetime('now'))`,
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
         )
         .bind(
           summaryId,
@@ -128,8 +201,9 @@ export async function buildDailySummary(
           input.summaryDate,
           rcStatus,
           mustSubmitBy,
+          rcType,
           plan.ticketCount,
-          `RC-${summaryId.slice(0, 8)}`,
+          sunatTicket,
           cdr.cdrCode,
           cdr.cdrMessage,
         ),

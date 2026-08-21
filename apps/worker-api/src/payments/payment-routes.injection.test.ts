@@ -64,7 +64,7 @@ function envWithBindCaptureGlobal(): { env: WorkerEnv; calls: BindCall[] } {
 }
 
 describe('US-04: inyección por la ruta payment con adapter real (prepare ? + bind)', () => {
-  it('idempotencyKey `x\' OR 1=1 --` y metadata \u202E llegan por bind; prepare recibe \'?\'', async () => {
+  it("idempotencyKey `x' OR 1=1 --` y metadata \u202E llegan por bind; prepare recibe '?'", async () => {
     const idempotencyKey = "x' OR 1=1 --";
     const rtlMetadata = 'sp1\u202E'; // RIGHT-TO-LEFT OVERRIDE embebido en metadata
     const { env, calls } = envWithBindCaptureGlobal();

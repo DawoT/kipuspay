@@ -365,6 +365,8 @@ Abre solo los archivos que esta tabla te señale.
 | ADR-FISCAL-003 | §5.1/§5.2 | Nota de Débito `08` completa (Backlog v10 P1a) | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | ADR-FISCAL-004 | §5.2b | Guía de Remisión Electrónica `31` (Backlog v10 P1b) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
 | ADR-FISCAL-005 | §5.2c | Percepciones/Retenciones/Detracciones (Backlog v10 P1c) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
+| ADR-FISCAL-006 | §5.4 | XAdES-BES Edge (TENANT_CERT, WebCrypto; UI no firma) | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
+| ADR-FISCAL-007 | §5.2 | billService SOAP SUNAT beta (`TENANT_CERT`); T6 e-factura opt-in | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
 | LPDP-01 | §5.3 (6F) | Consentimiento explícito por propósito (`consent_records`) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-02 | §5.3 (6F) | Derecho de acceso/export de PII del cliente | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-03 | §5.3 (6F) | Derecho de borrado/anonimización (`pii_erased`); retención fiscal SUNAT | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |

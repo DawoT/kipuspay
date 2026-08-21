@@ -12,6 +12,8 @@ describe('admin configuración — contrato API absoluto', () => {
     expect(source).toContain("apiFetch('/api/tenant/plan'");
     expect(source).toContain("apiFetch('/api/tenant/billing-portal'");
     expect(source).toContain("apiFetch('/api/tenant/checkout-session'");
+    expect(source).toContain('location.origin');
+    expect(source).not.toMatch(/returnUrl: 'https:\/\/app\.kipuspay\.com/);
     expect(source).not.toMatch(/fetch\('\/api\/tenant\/cancel'/);
     expect(source).not.toMatch(/fetch\('\/api\/tenant\/plan'/);
   });

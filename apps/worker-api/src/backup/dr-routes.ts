@@ -78,9 +78,7 @@ async function consumeStepUpToken(
       .run();
     // Epoch triggers on authorization_tokens bump tenant_data_epochs in the same
     // statement batch, so D1 may report changes > 1 for a successful consume.
-    return (consumed.meta?.changes ?? 0) >= 1
-      ? null
-      : result(401, { code: 'STEP_UP_REQUIRED' });
+    return (consumed.meta?.changes ?? 0) >= 1 ? null : result(401, { code: 'STEP_UP_REQUIRED' });
   } catch {
     return result(503, { code: 'DR_STEP_UP_UNAVAILABLE' });
   }
@@ -247,6 +245,9 @@ async function executeDrSimulation(
         'BACKUP_CHUNK_TAMPERED',
         'BACKUP_MANIFEST_INVALID',
         'BACKUP_MANIFEST_MISMATCH',
+        'BACKUP_REGISTRY_STALE',
+        'BACKUP_REGISTRY_MISMATCH',
+        'BACKUP_REGISTRY_INCOMPLETE',
         'BACKUP_R2_OBJECT_MISSING',
         'BACKUP_CIPHERTEXT_TAMPERED',
         'DR_RESTORE_FK_CYCLE',
@@ -270,6 +271,12 @@ async function executeDrSimulation(
       if (typeof actual === 'string') detailPayload.actual = actual;
     }
     await audit('DR_SIMULATION_FAILED', detailPayload);
-    return result(422, { code: coded, errorRef: crypto.randomUUID() });
+    return result(422, {
+      code: coded,
+      errorRef: crypto.randomUUID(),
+      ...(typeof detailPayload.mismatch === 'string' ? { mismatch: detailPayload.mismatch } : {}),
+      ...(typeof detailPayload.expected === 'string' ? { expected: detailPayload.expected } : {}),
+      ...(typeof detailPayload.actual === 'string' ? { actual: detailPayload.actual } : {}),
+    });
   }
 }

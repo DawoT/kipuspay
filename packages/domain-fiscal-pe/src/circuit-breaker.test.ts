@@ -90,6 +90,7 @@ describe('circuit breaker FSM', () => {
     snap = applyBusinessFailure(snap);
     expect(snap.state).toBe('closed');
     expect(applyInfraFailures(snap, 0, 1).failureCount).toBe(0);
+    expect(applyInfraFailures(snap, 1, 1).state).toBe('closed');
     snap = applyInfraFailures(snap, BREAKER_FAILURE_THRESHOLD, 1_000);
     expect(snap.state).toBe('open');
     expect(isBreakerOpen(snap)).toBe(true);

@@ -5,6 +5,7 @@
  * suscripciones con prorrateo. La caja nunca se apaga por cancelar.
  */
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { configuracionUrl, httpsReturnOrEmpty } from './app-origin.js';
 import {
   cancelStripeSubscription,
   createStripeBillingPortalSession,
@@ -134,9 +135,13 @@ export async function runBillingPortalHttp(
       body: { error: 'Sin cliente de facturación', code: 'NO_STRIPE_CUSTOMER' },
     };
   }
-  const safeReturn = returnUrl.startsWith('https://')
-    ? returnUrl
-    : 'https://app.kipuspay.com/admin/configuracion';
+  const safeReturn = httpsReturnOrEmpty(returnUrl, configuracionUrl(env));
+  if (!safeReturn) {
+    return {
+      status: 422,
+      body: { error: 'Return URL must be https', code: 'INVALID_RETURN_URL' },
+    };
+  }
   const portal = await createStripeBillingPortalSession(customerId, safeReturn, {
     apiKey: stripeKey,
     fetchImpl,

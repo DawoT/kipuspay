@@ -194,6 +194,13 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   let faqOpen = $state(false);
   let faqItems = $state<readonly FaqItem[]>([]);
   let priorSnapshot = $state('');
+  let certUploaded = $state(false);
+  let certExpiresAt = $state('');
+  let certMessage = $state('');
+  let certBusy = $state(false);
+  let certFile = $state<File | null>(null);
+  let certPassword = $state('');
+  let certForbidden = $state(false);
 
   onMount(() => {
     session = readTenantSession(sessionStorage);
@@ -210,7 +217,76 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     if (drawerOn || tipPolicyOn) {
       void loadCashPolicy();
     }
+    void loadTenantCert();
   });
+
+  function fileToB64(file: File): Promise<string> {
+    return file.arrayBuffer().then((buf) => {
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      return btoa(binary);
+    });
+  }
+
+  async function loadTenantCert() {
+    certForbidden = false;
+    try {
+      const res = await apiFetch('/api/fiscal/tenant-cert', { storage: localStorage });
+      if (res.status === 403) {
+        certForbidden = true;
+        return;
+      }
+      const body = (await res.json().catch(() => null)) as {
+        uploaded?: boolean;
+        expiresAt?: string;
+      } | null;
+      certUploaded = Boolean(body?.uploaded);
+      certExpiresAt = typeof body?.expiresAt === 'string' ? body.expiresAt : '';
+    } catch {
+      certMessage = 'Sin conexión con el servidor. Inténtalo de nuevo.';
+    }
+  }
+
+  async function uploadTenantCert() {
+    if (certBusy || !certFile || !certPassword) return;
+    certBusy = true;
+    certMessage = '';
+    try {
+      const p12B64 = await fileToB64(certFile);
+      const res = await apiFetch('/api/fiscal/tenant-cert', {
+        method: 'POST',
+        storage: localStorage,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ p12B64, password: certPassword }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        uploaded?: boolean;
+        expiresAt?: string;
+        code?: string;
+      } | null;
+      certPassword = '';
+      if (res.ok && body?.uploaded) {
+        certUploaded = true;
+        certExpiresAt = typeof body.expiresAt === 'string' ? body.expiresAt : certExpiresAt;
+        certFile = null;
+        certMessage = 'Certificado digital actualizado.';
+      } else if (res.status === 403) {
+        certForbidden = true;
+        certMessage = 'Solo el dueño o un administrador puede cargar el certificado.';
+      } else {
+        certMessage =
+          'No se pudo abrir el archivo. Revisa la contraseña y que sea .p12 o .pfx.';
+      }
+    } catch {
+      certMessage = 'Sin conexión con el servidor. Inténtalo de nuevo.';
+    } finally {
+      certBusy = false;
+    }
+  }
 
   async function loadChecklist() {
     const res = await fetchSetupProgress();
@@ -290,7 +366,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
         storage: localStorage,
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          returnUrl: 'https://app.kipuspay.com/admin/configuracion',
+          returnUrl: `${location.origin}/admin/configuracion`,
         }),
       });
       const body = (await res.json()) as { url?: string; code?: string };
@@ -313,8 +389,8 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           planId: selectedPlan,
-          successUrl: 'https://app.kipuspay.com/admin/configuracion?checkout=success',
-          cancelUrl: 'https://app.kipuspay.com/admin/configuracion?checkout=cancel',
+          successUrl: `${location.origin}/admin/configuracion?checkout=success`,
+          cancelUrl: `${location.origin}/admin/configuracion?checkout=cancel`,
         }),
       });
       const body = (await res.json()) as { url?: string; code?: string };
@@ -644,6 +720,52 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
         El Resumen Diario (RC) se genera cada día a las 08:00 Lima para las boletas
         del día anterior. El cierre de caja (Z) no reemplaza el RC.
       </p>
+      {#if !certForbidden}
+        <div class="field" data-testid="tenant-cert-upload">
+          <h3>Certificado digital</h3>
+          <p class="hint">
+            {#if certUploaded}
+              Certificado activo{certExpiresAt
+                ? ` · vence ${certExpiresAt.slice(0, 10)}`
+                : ''}. Puedes reemplazarlo con un archivo nuevo.
+            {:else}
+              Carga el archivo .p12 o .pfx que te entregó tu proveedor. La contraseña
+              se usa una sola vez y no se guarda.
+            {/if}
+          </p>
+          <label for="tenant-cert-file">Archivo .p12 / .pfx</label>
+          <input
+            id="tenant-cert-file"
+            data-testid="tenant-cert-file"
+            type="file"
+            accept=".p12,.pfx,application/x-pkcs12"
+            onchange={(e) => {
+              const files = e.currentTarget.files;
+              certFile = files?.[0] ?? null;
+            }}
+          />
+          <label for="tenant-cert-pass">Contraseña del certificado</label>
+          <input
+            id="tenant-cert-pass"
+            data-testid="tenant-cert-pass"
+            type="password"
+            autocomplete="off"
+            bind:value={certPassword}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            data-testid="tenant-cert-submit"
+            disabled={certBusy || !certFile || !certPassword}
+            onclick={() => void uploadTenantCert()}
+          >
+            {certBusy ? 'Cargando…' : 'Guardar certificado'}
+          </Button>
+          {#if certMessage}
+            <p class="hint" data-testid="tenant-cert-message">{certMessage}</p>
+          {/if}
+        </div>
+      {/if}
     </section>
 
     <section id="respaldos" class="ledger-card">

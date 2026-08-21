@@ -40,10 +40,18 @@
     },
   ],
   "vars": {
+    "FEATURE_FISCAL_CPE": "0",
     "FEATURE_FISCAL_RC": "0",
     "FEATURE_FISCAL_CIRCUIT_BREAKER": "0",
     "FEATURE_FISCAL_TRANSPORT_PLUGINS": "0",
   },
+  "services": [
+    {
+      "binding": "BACKUP_KMS",
+      "service": "kipuspay-worker-kms",
+      "entrypoint": "BackupKmsService",
+    },
+  ],
   "env": {
     "staging": {
       "name": "kipuspay-worker-fiscal-staging",
@@ -76,11 +84,19 @@
         },
       ],
       "vars": {
+        "FEATURE_FISCAL_CPE": "0",
         "FEATURE_FISCAL_RC": "0",
         "FEATURE_FISCAL_CIRCUIT_BREAKER": "0",
         "FEATURE_FISCAL_TRANSPORT_PLUGINS": "0",
         "FISCAL_PSE_ENDPOINT_URL": "https://pse.kipuspay.staging.invalid/fiscal",
       },
+      "services": [
+        {
+          "binding": "BACKUP_KMS",
+          "service": "kipuspay-worker-kms-staging",
+          "entrypoint": "BackupKmsService",
+        },
+      ],
       "triggers": {
         "crons": ["*/5 * * * *"],
       },

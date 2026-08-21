@@ -175,6 +175,22 @@ describe('resolveBranchSeries', () => {
         requestedSeries: 'B001',
       }),
     ).toThrow('SERIES_NOT_FOUND');
+
+    expect(
+      resolveBranchSeries({
+        documentType: 'NV_RETURN',
+        branchSeries: [
+          {
+            id: 'nv1',
+            series: 'NV01',
+            documentTypeCode: 'NV_RETURN',
+            currentNumber: 2,
+            isActive: true,
+          },
+        ],
+        requestedSeries: 'NV01',
+      }),
+    ).toEqual({ seriesId: 'nv1', series: 'NV01', currentNumber: 2 });
   });
 });
 

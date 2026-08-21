@@ -82,14 +82,10 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
  *                        o fallo criptográfico (fail-closed, Invarian 6)
  */
 export type StripeSignatureFailureCode =
-  | 'MISSING_HEADER'
-  | 'TIMESTAMP_EXPIRED'
-  | 'TIMESTAMP_FUTURE'
-  | 'INVALID_SIGNATURE';
+  'MISSING_HEADER' | 'TIMESTAMP_EXPIRED' | 'TIMESTAMP_FUTURE' | 'INVALID_SIGNATURE';
 
 export type StripeSignatureVerifyResult =
-  | { ok: true }
-  | { ok: false; code: StripeSignatureFailureCode };
+  { ok: true } | { ok: false; code: StripeSignatureFailureCode };
 
 /**
  * Valida firma Stripe HMAC-SHA256 con ventana anti-replay 0..300 s (SEC-08).

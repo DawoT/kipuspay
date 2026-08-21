@@ -14,7 +14,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-1';
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-2';
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
   {
     name: 'accounts_payable',
@@ -2741,6 +2741,27 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
     tenantFrom: '"tenant_capabilities" AS t0',
     tenantPredicate: 't0."tenant_id" = ?',
     tenantVia: [],
+  },
+  {
+    name: 'tenant_certificates',
+    classification: 'SECRET',
+    primaryKey: ['id'],
+    columns: [
+      'id',
+      'tenant_id',
+      'alias',
+      'private_key_kms_ref',
+      'cert_chain_pem',
+      'fingerprint_sha256',
+      'expires_at',
+      'rotated_at',
+      'created_at',
+    ],
+    r2References: [],
+    tenantFrom: '"tenant_certificates" AS t0',
+    tenantPredicate: 't0."tenant_id" = ?',
+    tenantVia: [],
+    reason: 'contains credential or authentication material',
   },
   {
     name: 'tenant_data_epochs',

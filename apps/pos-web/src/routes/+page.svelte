@@ -48,7 +48,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import SellableCatalog from '$lib/pos/SellableCatalog.svelte';
-  import { chargeCartOffline, requiresCustomerIdentity } from '$lib/pos-checkout/charge';
+  import { chargeCartOffline, requiresCustomerIdentity, resolveChargeDocument } from '$lib/pos-checkout/charge';
   import {
     leaseScannedSerialLine,
     SerialCheckoutError,
@@ -304,11 +304,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       message = 'No hay una sesión de caja abierta. Inicia sesión o abre la caja.';
       return;
     }
+    const chargeDoc = resolveChargeDocument({
+      formalizationMode: session.formalizationMode,
+      taxRegime: 'RG',
+      clientDocumentType: clientDocType,
+      clientDocumentNumber: clientDocNumber.trim(),
+    });
     if (isVitrinaEnabled()) {
       publishVitrina({
         totalCents,
         itemCount: lines.length,
-        documentType: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV' : '03',
+        documentType: chargeDoc.documentType,
         phase: 'confirming',
         message: 'Confirma el pago',
         // S12-H2: marca KipusPay visible en la vitrina (opt-out por tenant).
@@ -323,11 +329,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         taxRegime: 'RG',
         branchId: onboardingSession?.branchId ?? '',
         cashRegisterSessionId: onboardingSession?.sessionId ?? '',
-        series: session.formalizationMode === 'INTERNAL_CONTROL' ? 'NV01' : 'B001',
+        series: chargeDoc.series,
         clientDocumentType: clientDocType,
         clientDocumentNumber: clientDocNumber.trim(),
         clientName: clientName.trim(),
         paymentMethodId: 'pm-cash',
+        documentTypeOverride: chargeDoc.documentType,
         ...(commissionsOn && sellerId.trim() ? { sellerId: sellerId.trim() } : {}),
         ...(tipOn && tipCents > 0 ? { tipCents } : {}),
       },
@@ -364,15 +371,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     }
 
     if (isPrintTemplatesEnabled()) {
-      const isNv = session.formalizationMode === 'INTERNAL_CONTROL';
-      const series = isNv ? 'NV01' : 'B001';
+      const series = chargeDoc.series;
       const reserve = correlatives.reserve(outcome.offlineSaleId, series);
       // C7: snapshot post-cobro recompilable (§7.5); el RUC del tenant aún no se
       // expone en la sesión POS, así que va vacío (nunca se inventa un RUC demo).
       const snapshot = buildSaleTicketSnapshot({
         enterprise: session.tradeName,
         ruc: '',
-        documentType: isNv ? 'NV' : '03',
+        documentType: chargeDoc.documentType,
         series,
         number: reserve.tentativeNumber,
         totalCents: cartPayableCents(lines),

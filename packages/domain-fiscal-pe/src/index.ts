@@ -364,6 +364,48 @@ export {
 } from './cpe-dto.js';
 
 export {
+  buildUblSummaryDocumentsXml,
+  nextRcCorrelative,
+  rcSummaryId,
+  assertValidSummaryDocumentsXml,
+  type UblSummaryDocumentsInput,
+  type UblSummaryLine,
+} from './ubl-summary.js';
+
+export {
+  parseTenantCertEnvelope,
+  serializeTenantCertEnvelope,
+  sealPkcs8WithDek,
+  openPkcs8WithDek,
+  randomDek,
+  envelopeBinary,
+  TENANT_CERT_ENVELOPE_V,
+  TENANT_CERT_DEK_BYTES,
+  bytesToBase64,
+  bytesFromBase64,
+  type TenantCertEnvelopeV1,
+} from './tenant-cert-envelope.js';
+
+export {
+  signCpeXml,
+  assertSignedCpeXml,
+  verifyCpeXmlSignature,
+  pemBlockToDer,
+  derToBase64,
+  base64ToDer,
+  type CpeSignMaterial,
+} from './xades-bes.js';
+
+export {
+  issueSelfSignedX509,
+  parseX509IssuerSerial,
+  extractSpkiFromX509,
+  type X509IssuerSerial,
+} from './x509-der.js';
+
+export { parsePkcs12, type ParsedPkcs12 } from './pkcs12.js';
+
+export {
   applyBusinessFailure,
   applyInfraFailures,
   applyProbeFailure,

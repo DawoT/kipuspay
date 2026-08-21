@@ -356,4 +356,59 @@ describe('fiscal RC / plazos / baja / chaos deadline', () => {
     expect(result.status).toBe('SUCCESS');
     expect(result.nrusOmittedCount).toBe(1);
   });
+
+  it('COMPLEMENTARY no re-lista boletas ACCEPTED huérfanas (S6)', async () => {
+    const tenantId = 't-rc-comp-s6';
+    const first = await seedBoletaTenant(tenantId);
+    const primary = await buildDailySummary(env.DB, {
+      tenantId,
+      summaryDate: '2026-08-01',
+      nowMs: Date.parse('2026-08-02T12:00:00.000Z'),
+    });
+    expect(primary.status).toBe('SUCCESS');
+
+    const orphan = `${first.saleId}-orphan`;
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, total_amount_cents,
+         issued_at_lima, must_submit_by, void_status, sunat_status, daily_summary_id
+       ) VALUES (?, ?, ?, ?, 'u1', '1', '12345678', 'A', '03', 'B001', 9, 500,
+                 '2026-08-01 16:00:00', '2026-08-08T23:59:59.999Z', 'NONE', 'ACCEPTED', NULL)`,
+    )
+      .bind(orphan, tenantId, first.branchId, first.sessionId)
+      .run();
+
+    const late = `${first.saleId}-late`;
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, total_amount_cents,
+         issued_at_lima, must_submit_by, void_status, sunat_status
+       ) VALUES (?, ?, ?, ?, 'u1', '1', '12345678', 'A', '03', 'B001', 10, 500,
+                 '2026-08-01 18:00:00', '2026-08-08T23:59:59.999Z', 'NONE', 'PENDING')`,
+    )
+      .bind(late, tenantId, first.branchId, first.sessionId)
+      .run();
+
+    const complementary = await buildDailySummary(env.DB, {
+      tenantId,
+      summaryDate: '2026-08-01',
+      nowMs: Date.parse('2026-08-02T18:00:00.000Z'),
+    });
+    expect(complementary.status).toBe('SUCCESS');
+    expect(complementary.ticketCount).toBe(1);
+
+    const orphanRow = await env.DB.prepare(`SELECT daily_summary_id FROM sales WHERE id = ?`)
+      .bind(orphan)
+      .first<{ daily_summary_id: string | null }>();
+    expect(orphanRow?.daily_summary_id).toBeNull();
+
+    const lateRow = await env.DB.prepare(`SELECT daily_summary_id FROM sales WHERE id = ?`)
+      .bind(late)
+      .first<{ daily_summary_id: string | null }>();
+    expect(lateRow?.daily_summary_id).toBe(complementary.dailySummaryId);
+  });
 });

@@ -73,9 +73,11 @@ function createRecordingDb() {
             return Promise.resolve({ id: 'ser-1', series: 'NV01', current_number: 0 } as T | null);
           }
           if (sql.includes('FROM customers')) return Promise.resolve(null as T | null);
-          if (sql.includes('FROM tenant_discount_policies')) return Promise.resolve(null as T | null);
+          if (sql.includes('FROM tenant_discount_policies'))
+            return Promise.resolve(null as T | null);
           if (sql.includes('FROM audit_events')) return Promise.resolve(null as T | null);
-          if (sql.includes('FROM sales WHERE id')) return Promise.resolve({ number: 42 } as T | null);
+          if (sql.includes('FROM sales WHERE id'))
+            return Promise.resolve({ number: 42 } as T | null);
           return Promise.resolve(null as T | null);
         },
         all<T>(): Promise<{ results: T[] }> {
