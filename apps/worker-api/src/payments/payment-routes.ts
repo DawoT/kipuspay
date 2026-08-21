@@ -115,7 +115,19 @@ export async function runPaymentChargeHttp(
   if (!saleId || !salePaymentId || !paymentMethodId || !idempotencyKey) {
     return { status: 400, body: { error: 'missing fields', code: 'BAD_REQUEST' } };
   }
-  if (amountCents === null || amountCents <= 0) {
+  if (!parsedAmount.ok) {
+    // US-05 (Acceptance 2): el acceptance exige AMOUNT_OUT_OF_RANGE cuando el
+    // parser discriminó 'amount_out_of_range' (|cents| > MAX_SAFE_INTEGER,
+    // money-input.ts:108) — jamás colapsarlo a INVALID_AMOUNT. El resto de
+    // insumos no parseables/negativos queda en INVALID_AMOUNT (US-01). Ambos
+    // son 422 y ocurren ANTES de tocar D1: ningún statement corre con monto
+    // inválido.
+    if (parsedAmount.errorName === 'amount_out_of_range') {
+      return { status: 422, body: { error: 'AMOUNT_OUT_OF_RANGE', code: 'AMOUNT_OUT_OF_RANGE' } };
+    }
+    return { status: 422, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
+  }
+  if (amountCents <= 0) {
     // US-01: 422 INVALID_AMOUNT (contrato del acceptance — la validación
     // ocurre ANTES de tocar D1: ningún statement se ejecuta con monto inválido).
     return { status: 422, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
