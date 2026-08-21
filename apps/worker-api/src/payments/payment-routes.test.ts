@@ -13,11 +13,18 @@ beforeEach(() => {
   vi.mocked(settleCaptureAtomic).mockClear();
 });
 
+// isIdempotencyMismatch replica el predicado real de process-payment-capture-atomic.ts
+// (contrato US-02): un Error cuyo message es exactamente 'IDEMPOTENCY_MISMATCH'.
+const isIdempotencyMismatch = vi.hoisted(
+  () => (error: unknown): boolean => error instanceof Error && error.message === 'IDEMPOTENCY_MISMATCH',
+);
+
 vi.mock('@kipuspay/adapters-d1', () => ({
   createPendingCaptureAtomic: vi.fn(() =>
     Promise.resolve({ id: 'cap1', status: 'PENDING', idempotent: false }),
   ),
   settleCaptureAtomic: vi.fn(() => Promise.resolve({ id: 'cap1', status: 'CAPTURED' })),
+  isIdempotencyMismatch,
 }));
 
 const verifyWebhook = vi.fn(
@@ -162,6 +169,37 @@ describe('runPaymentChargeHttp', () => {
     });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ captureId: 'cap1', status: 'replayed', idempotencyKey: 'k1' });
+  });
+
+  it('US-04: D1Error crudo (texto SQL/constraint) jamás llega al cliente → 500 INTERNAL_ERROR opaco', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockRejectedValueOnce(
+      new Error(
+        'D1_ERROR: UNIQUE constraint failed: payment_captures.idempotency_key, SQLITE_CONSTRAINT',
+      ),
+    );
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' });
+    expect(JSON.stringify(res)).not.toMatch(/UNIQUE|SQLITE_CONSTRAINT|payment_captures/);
+  });
+
+  it('US-04: código de dominio estable sí llega al cliente con 422 (no se esconde el motivo estable)', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockRejectedValueOnce(new Error('CAPTURE_NOT_FOUND'));
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(422);
+    expect(res.body).toEqual({ error: 'CAPTURE_NOT_FOUND', code: 'CAPTURE_NOT_FOUND' });
   });
 });
 
@@ -311,5 +349,27 @@ describe('runPaymentWebhookHttp', () => {
     );
     expect(res.status).toBe(503);
     expect(res.body.code).toBe('WEBHOOK_DEDUP_FAILED');
+  });
+
+  it('US-04: D1Error crudo en webhook → 500 INTERNAL_ERROR opaco, sin leak de SQL', async () => {
+    verifyWebhook.mockResolvedValueOnce({
+      ok: true,
+      chargeId: 'cap1',
+      status: 'CAPTURED',
+      reference: 'ref1',
+    });
+    vi.mocked(settleCaptureAtomic).mockRejectedValueOnce(
+      new Error('D1_ERROR: constraint failed: payment_captures (CHECK)'),
+    );
+    const res = await runPaymentWebhookHttp(
+      mockEnv(),
+      'yape',
+      '{"chargeId":"cap1","status":"CAPTURED"}',
+      'sig',
+      Math.floor(Date.now() / 1000),
+    );
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' });
+    expect(JSON.stringify(res)).not.toMatch(/constraint|CHECK|payment_captures/);
   });
 });

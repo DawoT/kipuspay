@@ -43,8 +43,23 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
+/**
+ * US-04: códigos de dominio estables que pueden llegar al cliente. Un D1Error
+ * real trae texto SQL/constraint: jamás se expone — se mapea a INTERNAL_ERROR
+ * opaco (fail-closed, sin leak de detalles internos al cliente HTTP).
+ */
+const STABLE_PAYMENT_CODES = new Set([
+  'CAPTURE_REQUIRES_ACQUIRER',
+  'INVALID_CAPTURE_AMOUNT',
+  'CAPTURE_NOT_FOUND',
+  'IDEMPOTENCY_MISMATCH',
+]);
+
 function mapErr(e: unknown): HttpResult {
   const msg = e instanceof Error ? e.message : String(e);
+  if (!STABLE_PAYMENT_CODES.has(msg)) {
+    return { status: 500, body: { error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' } };
+  }
   return { status: 422, body: { error: msg, code: msg } };
 }
 
