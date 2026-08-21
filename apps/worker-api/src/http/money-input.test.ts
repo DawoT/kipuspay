@@ -188,4 +188,17 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
       errorName: 'amount_out_of_range',
     });
   });
+  it('US-10 integrado: strings negativos (-19.99/-10.50/-0.01, trim), espejo number y signos malformados', () => {
+    expect(parseMoneyToCents(' -19.99 ')).toEqual({ ok: true, cents: -1999 });
+    expect(parseMoneyToCents('-19.99')).toEqual({ ok: true, cents: -1999 });
+    expect(parseMoneyToCents('-10.50')).toEqual({ ok: true, cents: -1050 });
+    expect(parseMoneyToCents('-10.5')).toEqual({ ok: true, cents: -1050 });
+    expect(parseMoneyToCents('-0.01')).toEqual({ ok: true, cents: -1 });
+    expect(parseMoneyToCents(-19.99)).toEqual({ ok: true, cents: -1999 });
+    // Signos malformados: la gramática canónica -?\d+(\.\d{1,2})? los rechaza.
+    expect(parseMoneyToCents('+-5')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('--5')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('- 5')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('-')).toEqual({ ok: false, errorName: 'invalid_amount' });
+  });
 });
