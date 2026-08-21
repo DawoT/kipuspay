@@ -129,7 +129,7 @@ export async function runPaymentChargeHttp(
     });
     // US-02/A2: el replay (perdedor) devuelve un body IDÉNTICO al del ganador:
     // mismo payment_id (el id del capture original), status REAL del capture
-    // (nunca un 'replayed' inventado) y el reasonCode estable 'IDEMPOTENT_REPLAY'.
+    // (nunca un 'replayed' inventado) y el reasonCode estable 'IDEMPOTENCY_REPLAY'.
     // Convención 200/201 de loyalty-messaging: mismo body, solo cambia el status.
     if (pending.idempotent) {
       return {
@@ -139,7 +139,7 @@ export async function runPaymentChargeHttp(
           captureId: pending.id,
           status: pending.status,
           idempotent: true,
-          reasonCode: 'IDEMPOTENT_REPLAY',
+          reasonCode: 'IDEMPOTENCY_REPLAY',
         },
       };
     }

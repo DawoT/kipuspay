@@ -250,7 +250,7 @@ describe('runPaymentChargeHttp', () => {
     expect(res.body.status).toBe('CAPTURED');
   });
 
-  it('US-02/A2: replay idempotente → 200 con body IDÉNTICO al del ganador: mismo payment_id + reasonCode IDEMPOTENT_REPLAY (nunca el shape degradado "replayed")', async () => {
+  it('US-02/A2: replay idempotente → 200 con body IDÉNTICO al del ganador: mismo payment_id + reasonCode IDEMPOTENCY_REPLAY (nunca el shape degradado "replayed")', async () => {
     vi.mocked(createPendingCaptureAtomic).mockResolvedValueOnce({
       id: 'cap1',
       status: 'PENDING',
@@ -272,7 +272,7 @@ describe('runPaymentChargeHttp', () => {
       captureId: 'cap1',
       status: 'PENDING',
       idempotent: true,
-      reasonCode: 'IDEMPOTENT_REPLAY',
+      reasonCode: 'IDEMPOTENCY_REPLAY',
     });
   });
 
@@ -295,7 +295,7 @@ describe('runPaymentChargeHttp', () => {
       captureId: 'cap1',
       status: 'CAPTURED',
       idempotent: true,
-      reasonCode: 'IDEMPOTENT_REPLAY',
+      reasonCode: 'IDEMPOTENCY_REPLAY',
     });
   });
 

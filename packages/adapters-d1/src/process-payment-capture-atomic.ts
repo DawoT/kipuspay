@@ -134,7 +134,11 @@ export async function createPendingCaptureAtomic(
     // INSERT y la UNIQUE (tenant_id, idempotency_key) rechazó el nuestro.
     // Re-SELECT de la fila ganadora: replay idempotente (o mismatch); jamás
     // propagar el error crudo del constraint a la ruta (422 no idempotente).
-    if (!isUniqueConstraint(e)) throw e;
+    // A1 (no raw 422 path): cualquier fallo del batch que NO sea la UNIQUE de
+    // idempotencia (DB caída, otro constraint) también es infraestructura →
+    // fail-closed con código estable DB_UNAVAILABLE; jamás se re-lanza el
+    // error crudo para que la ruta lo convierta en un 422 con SQL interno.
+    if (!isUniqueConstraint(e)) throw new Error('DB_UNAVAILABLE', { cause: e });
     try {
       const winner = await selectCaptureByKey(db, tenantId, input.idempotencyKey);
       if (winner) return resolveCaptureReplay(winner, input);
