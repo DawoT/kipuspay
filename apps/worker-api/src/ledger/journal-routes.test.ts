@@ -173,7 +173,7 @@ describe('journal routes', () => {
     expect(sql).not.toContain('2026-08-01');
   });
 
-  it('SEC-01: tenant ajeno — mismo query con otro tenant produce SQL idéntico y difiere SOLO en el binding', async () => {
+  it('SEC-01/SEC-04: tenant ajeno — mismo query con otro tenant produce SQL idéntico y difiere SOLO en el binding', async () => {
     const a = envWithBindCapture();
     const b = envWithBindCapture();
     const params = { fromDate: '2026-08-01', toDate: '2026-08-07', branchId: 'b1' };
@@ -187,6 +187,36 @@ describe('journal routes', () => {
     expect(a.calls[0]!.args.slice(1)).toEqual(b.calls[0]!.args.slice(1));
   });
 
+  it('US-04 acceptance: `x\' OR 1=1 --` como idempotencyKey y \u202E como metadata llegan SOLO por bind a prepare(?)', async () => {
+    const idempotencyKey = "x' OR 1=1 --";
+    const rtlMetadata = 'b1\u202E'; // RIGHT-TO-LEFT OVERRIDE (U+202E) embebido
+    const { env: envKey, calls: callsKey } = envWithBindCapture();
+    const resKey = await runListJournalHttp(envKey, 't1', {
+      fromDate: '2026-08-01',
+      toDate: '2026-08-07',
+      branchId: idempotencyKey,
+    });
+    expect(resKey.status).toBe(200);
+    expect(callsKey.length).toBe(1);
+    // prepare recibió '?': el WHERE lleva el placeholder, jamás el literal.
+    expect(callsKey[0]!.sql).toContain('je.tenant_id = ?');
+    expect(callsKey[0]!.sql).toContain('je.branch_id = ?');
+    expect(callsKey[0]!.sql).toContain('date(?)');
+    // El payload de inyección va por bind (args), no interpolado en el SQL.
+    expect(callsKey[0]!.sql).not.toContain(idempotencyKey);
+    expect(callsKey[0]!.args).toContain(idempotencyKey);
+
+    const { env: envMeta, calls: callsMeta } = envWithBindCapture();
+    const resMeta = await runListJournalHttp(envMeta, 't1', {
+      fromDate: '2026-08-01',
+      toDate: '2026-08-07',
+      branchId: rtlMetadata,
+    });
+    expect(resMeta.status).toBe(200);
+    expect(callsMeta[0]!.sql).not.toContain('\u202E');
+    expect(callsMeta[0]!.args).toContain(rtlMetadata);
+  });
+
   it('SEC-04: inyección SQL en branchId/fromDate/toDate → 0 filas y NUNCA 500 (parámetros literales)', async () => {
     const payloads: Array<[string, string, string]> = [
       // branchId
@@ -194,14 +224,20 @@ describe('journal routes', () => {
       ['b1" OR 1=1 --', '2026-08-01', '2026-08-07'],
       ['b1 OR 1=1', '2026-08-01', '2026-08-07'],
       ['b1; DROP TABLE journal_entries; --', '2026-08-01', '2026-08-07'],
+      // Acceptance US-04: payload exacto de idempotencyKey y RTL-override
+      // (\u202E) como metadata — siguen siendo literales, jamás SQL.
+      ["x' OR 1=1 --", '2026-08-01', '2026-08-07'],
+      ['b1\u202E', '2026-08-01', '2026-08-07'],
       // fromDate
       ['b1', "2026-08-01' OR '1'='1", '2026-08-07'],
       ['b1', '2026-08-01" OR 1=1 --', '2026-08-07'],
       ['b1', "2026-08-01' UNION SELECT id, secret FROM users --", '2026-08-07'],
+      ['b1', '2026-08-01\u202E', '2026-08-07'],
       // toDate
       ['b1', '2026-08-01', "2026-08-07' OR '1'='1"],
       ['b1', '2026-08-01', "2026-08-07'); DELETE FROM chart_of_accounts; --"],
       ['b1', '2026-08-01', '2026-08-07 UNION SELECT tenant_id, secret FROM users --'],
+      ['b1', '2026-08-01', '2026-08-07\u202E'],
     ];
     for (const [branchId, fromDate, toDate] of payloads) {
       const { env: injEnv, sqls } = literalDbEnv();
