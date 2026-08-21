@@ -36,7 +36,7 @@ describe('money-input (CAL-01)', () => {
 });
 
 describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () => {
-  it('gramática canónica -?\\d+(\\.\\d{1,2})?: strings → cents por dígitos', () => {
+  it('gramática canónica -?(0|[1-9]\\d*)(\\.\\d{1,2})?: strings → cents por dígitos', () => {
     expect(parseMoneyToCents('10.50')).toEqual({ ok: true, cents: 1050 });
     expect(parseMoneyToCents('10.5')).toEqual({ ok: true, cents: 1050 });
     expect(parseMoneyToCents('10')).toEqual({ ok: true, cents: 1000 });
@@ -137,6 +137,17 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
       ['10.', 'invalid_amount'],
       ['10.555', 'invalid_amount'],
       ['+5', 'invalid_amount'],
+      // US-01: ceros a la izquierda no son canónicos — '007'/'01.50'/'00.01'
+      // duplicarían representaciones del mismo monto ('007'→700 igual que
+      // '7') en la capa de dinero; la gramática (0|[1-9]\d*) los rechaza.
+      ['007', 'invalid_amount'],
+      ['01.50', 'invalid_amount'],
+      ['00.01', 'invalid_amount'],
+      ['007.5', 'invalid_amount'],
+      ['000', 'invalid_amount'],
+      ['-007', 'invalid_amount'],
+      ['-01.50', 'invalid_amount'],
+      ['-00.01', 'invalid_amount'],
       ['5.5.5', 'invalid_amount'],
       ['1e3', 'invalid_amount'],
       ['1e2', 'invalid_amount'],
@@ -173,6 +184,25 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     }
   });
 
+  it('US-01 acceptance 2: solo ^-?(0|[1-9]\\d*)(\\.\\d{1,2})?$ acepta (ceros a la izquierda bloquean)', () => {
+    // Acepta: '0' es canónico; '10.5' arranca en [1-9] y es único (no
+    // colisiona con '010.5' ni '10.50').
+    expect(parseMoneyToCents('0')).toEqual({ ok: true, cents: 0 });
+    expect(parseMoneyToCents('0.00')).toEqual({ ok: true, cents: 0 });
+    expect(parseMoneyToCents('7')).toEqual({ ok: true, cents: 700 });
+    expect(parseMoneyToCents('10.50')).toEqual({ ok: true, cents: 1050 });
+    expect(parseMoneyToCents('-0.01')).toEqual({ ok: true, cents: -1 });
+    // Rechaza representaciones duplicadas: '007'/700 == '7'/700,
+    // '01.50'/150 == '1.50'/150, '00.01'/1 == '0.01'/1 → la misma
+    // representación decimal admite UNA única cadena canónica.
+    expect(parseMoneyToCents('007')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('01.50')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('00.01')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('-007')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('-01.50')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('-00.01')).toEqual({ ok: false, errorName: 'invalid_amount' });
+  });
+
   it('US-01 adversarial: sintaxis numéricas y no-líquido siguen fail-closed, ahora discriminadas', () => {
     expect(parseMoneyToCents('1e2')).toEqual({ ok: false, errorName: 'invalid_amount' });
     expect(parseMoneyToCents('0x10')).toEqual({ ok: false, errorName: 'invalid_amount' });
@@ -195,7 +225,7 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     expect(parseMoneyToCents('-10.5')).toEqual({ ok: true, cents: -1050 });
     expect(parseMoneyToCents('-0.01')).toEqual({ ok: true, cents: -1 });
     expect(parseMoneyToCents(-19.99)).toEqual({ ok: true, cents: -1999 });
-    // Signos malformados: la gramática canónica -?\d+(\.\d{1,2})? los rechaza.
+    // Signos malformados: la gramática canónica -?(0|[1-9]\d*)(\.\d{1,2})? los rechaza.
     expect(parseMoneyToCents('+-5')).toEqual({ ok: false, errorName: 'invalid_amount' });
     expect(parseMoneyToCents('--5')).toEqual({ ok: false, errorName: 'invalid_amount' });
     expect(parseMoneyToCents('- 5')).toEqual({ ok: false, errorName: 'invalid_amount' });
