@@ -44,9 +44,16 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
+/**
+ * US-04 (Acceptance 4): error inesperado (quota/serialization/otro) — su
+ * mensaje puede embeker SQL/constraint crudo de D1 y jamás viaja al cliente.
+ * Fail-closed: 500 con motivo estable INTERNAL_ERROR; los casos clasificables
+ * ya los resolvieron los guards previos del catch (idempotency_mismatch → 409,
+ * DB_UNAVAILABLE → 503, DB_CONSTRAINT_VIOLATION → 500).
+ */
 function mapErr(e: unknown): HttpResult {
-  const msg = e instanceof Error ? e.message : String(e);
-  return { status: 422, body: { error: msg, code: msg } };
+  void e;
+  return { status: 500, body: { error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' } };
 }
 
 /**

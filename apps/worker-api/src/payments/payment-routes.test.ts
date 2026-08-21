@@ -434,6 +434,49 @@ describe('runPaymentChargeHttp', () => {
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('idempotency_mismatch');
   });
+
+  it('US-04 (Acceptance 4): error D1 inesperado de quota con SQL embebido → 500 INTERNAL_ERROR estable, jamás 422 con el mensaje crudo', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockRejectedValueOnce(
+      new Error(
+        'D1_ERROR: D1 has exceeded its storage quota (7503). Try removing some data or ' +
+          'decreasing your TTL. (SQL: INSERT INTO payment_captures ...)',
+      ),
+    );
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' });
+    // Acceptance 4: ningún fragmento del error crudo (D1/quota/SQL) llega al cliente.
+    expect(JSON.stringify(res.body)).not.toMatch(/quota|D1_ERROR|INSERT|SQL/i);
+  });
+
+  it('US-04 (Acceptance 4): serialización D1 en settle (SQLITE_BUSY) → 500 INTERNAL_ERROR, sin SQL crudo', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockResolvedValueOnce({
+      id: 'cap1',
+      status: 'PENDING',
+      idempotent: false,
+    });
+    vi.mocked(settleCaptureAtomic).mockRejectedValueOnce(
+      new Error(
+        "D1_ERROR: ERROR 7503: SQLITE_ERROR: SQLITE_BUSY: database is locked (SQL: UPDATE payment_captures ...)",
+      ),
+    );
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' });
+    expect(JSON.stringify(res.body)).not.toMatch(/SQLITE|BUSY|UPDATE|locked/i);
+  });
 });
 
 describe('runOwnerUncapturedPaymentsHttp', () => {
@@ -582,5 +625,27 @@ describe('runPaymentWebhookHttp', () => {
     );
     expect(res.status).toBe(503);
     expect(res.body.code).toBe('WEBHOOK_DEDUP_FAILED');
+  });
+
+  it('US-04 (Acceptance 4): webhook — settle con error D1 inesperado (SQL crudo) → 500 INTERNAL_ERROR, jamás 422 con el mensaje', async () => {
+    verifyWebhook.mockResolvedValueOnce({
+      ok: true,
+      chargeId: 'cap1',
+      status: 'CAPTURED',
+      reference: 'ref1',
+    });
+    vi.mocked(settleCaptureAtomic).mockRejectedValueOnce(
+      new Error('D1_ERROR: SQLITE_ERROR: database is locked (SQL: UPDATE payment_captures ...)'),
+    );
+    const res = await runPaymentWebhookHttp(
+      mockEnv(),
+      'yape',
+      '{"chargeId":"cap1","status":"CAPTURED"}',
+      'sig',
+      Math.floor(Date.now() / 1000),
+    );
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' });
+    expect(JSON.stringify(res.body)).not.toMatch(/SQLITE|locked|UPDATE/i);
   });
 });
