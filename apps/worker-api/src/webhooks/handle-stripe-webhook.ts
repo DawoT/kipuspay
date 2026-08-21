@@ -1,5 +1,6 @@
 import {
   MAX_WEBHOOK_BODY_BYTES,
+  type StripeSignatureFailureCode,
   verifyStripeSignature,
   webhookBodyBytes,
 } from './verify-stripe-signature.js';
@@ -216,7 +217,10 @@ function validateWebhookRequest(
   if (!env || !signatureHeader || !secret) {
     return {
       status: 400,
-      body: { error: 'Webhook signature verification failed: Missing headers/secrets' },
+      body: {
+        error: 'Webhook signature verification failed: Missing headers/secrets',
+        code: 'MISSING_HEADER',
+      },
     };
   }
   return { env, secret, signatureHeader };
@@ -265,6 +269,18 @@ async function runWebhookEffects(
 }
 
 /**
+ * Mensajes estables por clase de fallo de firma (US-02 / US-06): `error` texto
+ * fijo + `code` estable por clase — los clientes clasifican por `code`, nunca
+ * por texto ni por un 401/400 genérico.
+ */
+const STRIPE_SIGNATURE_ERROR_MESSAGES: Record<StripeSignatureFailureCode, string> = {
+  MISSING_HEADER: 'Webhook signature verification failed: Missing headers/secrets',
+  TIMESTAMP_EXPIRED: 'Stripe signature timestamp is outside the anti-replay window',
+  TIMESTAMP_FUTURE: 'Stripe signature timestamp is in the future',
+  INVALID_SIGNATURE: 'Invalid Stripe signature',
+};
+
+/**
  * Pipeline Stripe webhook: firma → dedup SEC-08 → efectos KV/DO (Arquitectura §4).
  */
 export async function handleStripeWebhook(
@@ -285,9 +301,23 @@ export async function handleStripeWebhook(
   const gate = validateWebhookRequest(env, signatureHeader);
   if ('status' in gate) return gate;
 
-  const isValid = await verifyStripeSignature(rawBody, gate.signatureHeader, gate.secret, nowMs);
-  if (!isValid) {
-    return { status: 401, body: { error: 'Invalid Stripe signature' } };
+  const verification = await verifyStripeSignature(
+    rawBody,
+    gate.signatureHeader,
+    gate.secret,
+    nowMs,
+  );
+  if (!verification.ok) {
+    // US-02 / US-06: error.code estable por clase — nunca un 401/400 genérico
+    // sin code. MISSING_HEADER no debería llegar aquí (el gate ya lo filtró),
+    // pero si llega responde 400; el resto son fallos de firma → 401.
+    return {
+      status: verification.code === 'MISSING_HEADER' ? 400 : 401,
+      body: {
+        error: STRIPE_SIGNATURE_ERROR_MESSAGES[verification.code],
+        code: verification.code,
+      },
+    };
   }
 
   const event = parseAndValidateEvent(rawBody);
