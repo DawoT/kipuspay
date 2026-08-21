@@ -8,6 +8,7 @@ import { handleStripeWebhook, type StripeWebhookEnv } from './handle-stripe-webh
 import {
   MAX_WEBHOOK_BODY_BYTES,
   signStripeWebhookForTests,
+  webhookBodyBytes,
 } from './verify-stripe-signature.js';
 
 afterEach(() => {
@@ -188,6 +189,21 @@ function paddedEventBody(base: string, byteLength: number): string {
   // Overhead del campo: `,"padding":"` (13) + relleno + `"}` (2).
   const pad = byteLength - base.length - 13;
   return base.slice(0, -1) + `,"padding":"${'x'.repeat(pad)}"}`;
+}
+
+/**
+ * Body Unicode multibyte (US-07 acceptance bullet 3): rellena con '€' (3 bytes
+ * UTF-8 en TextEncoder) hasta un byteLength EXACTO en bytes. La cabecera/cola son
+ * ASCII (bytes == chars); el relleno demuestra que el gate cuenta BYTES UTF-8 y
+ * no code units UTF-16 (`body.length`).
+ */
+function unicodePaddedEventBody(base: string, byteLength: number): string {
+  const header = base.slice(0, -1) + ',"padding":"';
+  const tail = '"}';
+  const fixedBytes = webhookBodyBytes(header + tail);
+  const rem = (byteLength - fixedBytes) % 3;
+  const euros = (byteLength - fixedBytes - rem) / 3;
+  return header + 'x'.repeat(rem) + '€'.repeat(euros) + tail;
 }
 
 describe('handleStripeWebhook', () => {
@@ -459,5 +475,29 @@ describe('handleStripeWebhook', () => {
 
     expect(res.status).toBe(200);
     expect(mem.rows.get('stripe:evt_maxsize')?.status).toBe('PROCESSED');
+  });
+
+  it('body Unicode multibyte de 1.048.578 bytes (349.526 × €) → 413 PAYLOAD_TOO_LARGE (US-07 acceptance bullet 3)', async () => {
+    const { env } = createEnv({});
+    const base = eventBody('customer.subscription.deleted', 't1', 'evt_unicode');
+    // Acceptance: body Unicode de 1048578 bytes (ej. caracteres € repetidos) → 413.
+    // 1048578 = 1 MiB + 2, y es múltiplo de 3: 1048578 / 3 = 349.526 '€'.
+    const body = unicodePaddedEventBody(base, 1_048_578);
+    expect(webhookBodyBytes(body)).toBe(1_048_578);
+    // Prueba el conteo en BYTES UTF-8, no en code units: un body de 349526 chars
+    // '€' ocupa 3x bytes. Si el gate contara body.length, este payload (1.049.579
+    // code units) pasaría el límite y se eludiría el anti-DoS.
+    expect(body.length).toBeLessThan(1_048_578);
+    // Firma criptográficamente VÁLIDA sobre el body: el gate debe correr antes
+    // del HMAC — si no, este payload pasaría la verificación y se procesaría.
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+    expect(res.status).toBe(413);
+    expect(res.body.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(res.body).not.toHaveProperty('received');
+    // Sin bindings validados → descarte igual en la capa más barata.
+    const bare = await handleStripeWebhook(undefined, body, undefined, nowMs);
+    expect(bare.status).toBe(413);
+    expect(bare.body.code).toBe('PAYLOAD_TOO_LARGE');
   });
 });
