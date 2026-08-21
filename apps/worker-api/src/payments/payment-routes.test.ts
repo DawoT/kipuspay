@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPendingCaptureAtomic, settleCaptureAtomic } from '@kipuspay/adapters-d1';
 import type { D1Bound, D1DatabaseLike } from '@kipuspay/adapters-d1';
+import type * as AdaptersD1 from '@kipuspay/adapters-d1';
 import {
   isCardAcquirerEnabled,
   isQrWalletsEnabled,
@@ -15,10 +16,10 @@ beforeEach(() => {
 });
 
 vi.mock('@kipuspay/adapters-d1', async (importOriginal) => {
-  // La ruta invoca isIdempotencyMismatch/isDbUnavailable en su catch (US-02);
+  // La ruta invoca isIdempotencyMismatch/isDbUnavailable en su catch (US-02/US-05);
   // el mock estático no los exportaba. Solo esos guards son código real, el
   // resto queda mockeado.
-  const actual = await importOriginal<typeof import('@kipuspay/adapters-d1')>();
+  const actual = await importOriginal<typeof AdaptersD1>();
   return {
     createPendingCaptureAtomic: vi.fn(() =>
       Promise.resolve({ id: 'cap1', status: 'PENDING', idempotent: false }),
@@ -377,6 +378,61 @@ describe('runPaymentChargeHttp', () => {
     expect(res.body.error).toBe('Database unavailable');
     // Ningún request devuelve SQL interno (UNIQUE/constraint) en el cuerpo.
     expect(JSON.stringify(res.body)).not.toMatch(/UNIQUE|constraint/i);
+  });
+
+  it('US-05: CHECK constraint del db.batch (atomic_guards ok=0) → 500 DB_CONSTRAINT_VIOLATION, jamás 422 con SQL crudo', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockRejectedValueOnce(
+      new Error('CHECK constraint failed: atomic_guards'),
+    );
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(500);
+    expect(res.body.code).toBe('DB_CONSTRAINT_VIOLATION');
+    expect(res.body.error).toBe('DB_CONSTRAINT_VIOLATION');
+    // El motivo es estable: el SQL crudo de D1 jamás viaja como code ni error.
+    expect(JSON.stringify(res.body)).not.toContain('atomic_guards');
+  });
+
+  it('US-05: UNIQUE no-idempotencia del db.batch → 500, sin db.exec ni compensating write', async () => {
+    const env = mockEnv();
+    const execSpy = vi.fn(() => Promise.resolve({ count: 0, duration: 0 }));
+    (env.DB as unknown as { exec: typeof execSpy }).exec = execSpy;
+    vi.mocked(createPendingCaptureAtomic).mockRejectedValueOnce(
+      new Error(
+        'UNIQUE constraint failed: payment_captures.tenant_id, payment_captures.idempotency_key',
+      ),
+    );
+    const res = await runPaymentChargeHttp(env, 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(500);
+    expect(res.body.code).toBe('DB_CONSTRAINT_VIOLATION');
+    // Acceptance 3: el batch ya revirtió — ni db.exec ni una escritura
+    // compensatoria adicional (settle es la única otra escritura del flujo).
+    expect(execSpy).not.toHaveBeenCalled();
+    expect(settleCaptureAtomic).not.toHaveBeenCalled();
+  });
+
+  it('US-05: IDEMPOTENCY_MISMATCH conserva precedencia → 409 (no 500 constraint)', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockRejectedValueOnce(new Error('IDEMPOTENCY_MISMATCH'));
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('idempotency_mismatch');
   });
 });
 

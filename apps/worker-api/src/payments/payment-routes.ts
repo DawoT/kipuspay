@@ -49,6 +49,20 @@ function mapErr(e: unknown): HttpResult {
   return { status: 422, body: { error: msg, code: msg } };
 }
 
+/**
+ * US-05 (Acceptance 3): db.batch rechazó por constraint/CHECK de D1 — p.ej.
+ * `CHECK constraint failed: atomic_guards` (guardState ok=0 de un settle/charge
+ * concurrente) o `UNIQUE constraint failed: ...` no-idempotencia. Es un rechazo
+ * del motor, no una validación corregible del cliente: la ruta debe devolver
+ * 409/500 con motivo ESTABLE (jamás 422 con el mensaje crudo D1 como code).
+ */
+function isDbConstraintOrCheckError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /CHECK constraint failed|UNIQUE constraint failed|FOREIGN KEY constraint failed|NOT NULL constraint failed/i.test(
+    msg,
+  );
+}
+
 function flagForMethod(code: PaymentMethodCode, env: WorkerEnv): HttpResult | null {
   if (isWalletMethod(code) && !isQrWalletsEnabled(env)) {
     return featureOff('FEATURE_PAYMENTS_QR_WALLETS');
@@ -191,6 +205,16 @@ export async function runPaymentChargeHttp(
     // (DB_UNAVAILABLE), jamás el SQL interno del constraint bajo un 422.
     if (isDbUnavailable(e)) {
       return dbUnavailable();
+    }
+    // US-05 (Acceptance 3): constraint/CHECK del db.batch (atomic_guards ok=0,
+    // UNIQUE no-idempotencia, …) → 500 fail-closed con motivo estable y sin el
+    // SQL crudo de D1; el batch ya revirtió solo: no hay db.exec ni
+    // compensating write adicional.
+    if (isDbConstraintOrCheckError(e)) {
+      return {
+        status: 500,
+        body: { error: 'DB_CONSTRAINT_VIOLATION', code: 'DB_CONSTRAINT_VIOLATION' },
+      };
     }
     return mapErr(e);
   }
