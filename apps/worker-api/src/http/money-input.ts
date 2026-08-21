@@ -2,8 +2,10 @@
  * Validación de entrada HTTP de dinero (CAL-01, Arquitectura §13.3):
  * los montos llegan como INTEGER cents y deben validarse con typeof
  * (Number(true)=1 y Number([])=0 silencian montos inválidos).
- * US-06: gramática canónica -?\d+(\.\d{1,2})? — acepta strings decimales y
- * numbers float con ≤2 decimales (19.99 → 1999) y los convierte a cents
+ * US-06: gramática canónica -?(0|[1-9]\d*)(\.\d{1,2})? — acepta strings
+ * decimales y numbers float con ≤2 decimales (19.99 → 1999) sin ceros a la
+ * izquierda (US-01: '007'/'01.50'/'00.01' se rechazan, no duplican
+ * representaciones del mismo monto) y los convierte a cents
  * enteros con aritmética de dígitos (prohibido parseFloat/Number, V-21);
  * devuelve un resultado discriminado {ok,errorName} con motivos estables:
  * negative_zero / amount_out_of_range / invalid_amount (fail-closed).
@@ -45,8 +47,9 @@ export type MoneyParseResult =
 
 /**
  * Convierte dinero del body a INTEGER cents sin float (US-06, CAL-01, V-21):
- * - gramática canónica de strings: -?\d+(\.\d{1,2})? ("10.50" → 1050, "-5" →
- *   -500, "0.01" → 1) con aritmética de dígitos, máx 2 decimales;
+ * - gramática canónica de strings: -?(0|[1-9]\d*)(\.\d{1,2})? ("10.50" →
+ *   1050, "-5" → -500, "0.01" → 1) con aritmética de dígitos, máx 2
+ *   decimales y sin ceros a la izquierda ('007' → 'invalid_amount');
  * - number entero seguro → ya son cents (se preserva tal cual); -0 → rechazo
  *   con errorName 'negative_zero';
  * - number finito no entero → cents por su representación decimal solo si
@@ -79,12 +82,13 @@ function numberToCents(value: number): MoneyParseResult {
   return decimalTextToCents(value.toString());
 }
 
-/** Gramática canónica de US-06: signo opcional + dígitos + ≤2 decimales. */
-const CANONICAL_MONEY_PATTERN = /^-?\d+(\.\d{1,2})?$/;
+/** Gramática canónica de US-06/US-01: signo opcional + 0|[1-9]\d* + ≤2 decimales. */
+const CANONICAL_MONEY_PATTERN = /^-?(0|[1-9]\d*)(\.\d{1,2})?$/;
 
 /**
  * "10.50"/"-5.5"/"10" → cents por dígitos con resultado discriminado: la
- * cadena debe respetar -?\d+(\.\d{1,2})? (si no, 'invalid_amount'); |cents|
+ * cadena debe respetar -?(0|[1-9]\d*)(\.\d{1,2})? (si no, 'invalid_amount';
+ * los ceros a la izquierda como '007' no son canónicos, US-01); |cents|
  * sobre MAX_SAFE_INTEGER → 'amount_out_of_range'; "-0"/"-0.00" →
  * 'negative_zero'. Sin parseFloat/Number: validación y aritmética solo de
  * dígitos.
