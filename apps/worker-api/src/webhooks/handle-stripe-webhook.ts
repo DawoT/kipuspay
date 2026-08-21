@@ -209,10 +209,22 @@ function validateWebhookRequest(
   signatureHeader: string | undefined,
 ): WebhookHttpResult | { env: StripeWebhookEnv; secret: string; signatureHeader: string } {
   const secret = env?.STRIPE_WEBHOOK_SECRET;
-  if (!env || !signatureHeader || !secret) {
+  if (!env || !signatureHeader) {
     return {
       status: 400,
-      body: { error: 'Webhook signature verification failed: Missing headers/secrets' },
+      body: {
+        error: 'Webhook signature verification failed: missing signature header',
+        code: 'missing-signature',
+      },
+    };
+  }
+  if (!secret) {
+    return {
+      status: 400,
+      body: {
+        error: 'Webhook signature verification failed: missing secret',
+        code: 'missing-secret',
+      },
     };
   }
   return { env, secret, signatureHeader };
@@ -272,9 +284,20 @@ export async function handleStripeWebhook(
   const gate = validateWebhookRequest(env, signatureHeader);
   if ('status' in gate) return gate;
 
-  const isValid = await verifyStripeSignature(rawBody, gate.signatureHeader, gate.secret, nowMs);
-  if (!isValid) {
-    return { status: 401, body: { error: 'Invalid Stripe signature' } };
+  const verification = await verifyStripeSignature(
+    rawBody,
+    gate.signatureHeader,
+    gate.secret,
+    nowMs,
+  );
+  if (!verification.ok) {
+    // 401 fail-closed con motivo estable máquina-legible (SEC-08): el body
+    // expone el code (missing-signature / stale-timestamp / invalid-signature)
+    // para telemetría, sin filtrar material de firma.
+    return {
+      status: 401,
+      body: { error: 'Invalid Stripe signature', code: verification.reason },
+    };
   }
 
   const event = parseAndValidateEvent(rawBody);

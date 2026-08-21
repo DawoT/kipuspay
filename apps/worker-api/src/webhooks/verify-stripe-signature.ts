@@ -5,6 +5,24 @@
 
 const REPLAY_WINDOW_SECONDS = 300;
 
+/**
+ * Motivos estables de rechazo (fail-closed, SEC-08 / AGENTS invariante 6):
+ * códigos máquina-legibles para telemetría y consumo del handler, no texto libre.
+ *  - missing-signature: header ausente/vacío o sin `t` ni `v1` parseables.
+ *  - missing-secret:    STRIPE_WEBHOOK_SECRET no configurado (fail-closed).
+ *  - stale-timestamp:   age > 300 s o age < 0 (replay/clock skew).
+ *  - invalid-signature: HMAC no coincide o material hexadecimal inválido.
+ */
+export type StripeVerificationReason =
+  | 'missing-signature'
+  | 'missing-secret'
+  | 'stale-timestamp'
+  | 'invalid-signature';
+
+export type StripeSignatureVerification =
+  | { ok: true }
+  | { ok: false; reason: StripeVerificationReason };
+
 function decodeHex(value: string): Uint8Array | null {
   if (value.length % 2 !== 0 || /[^0-9a-f]/i.test(value)) return null;
   const bytes = new Uint8Array(value.length / 2);
@@ -58,28 +76,38 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
 
 /**
  * Valida firma Stripe HMAC-SHA256 con ventana anti-replay 0..300 s (SEC-08).
+ * Devuelve un veredicto discriminado: `{ ok: true }` o `{ ok: false, reason }`
+ * con motivo estable máquina-legible (missing-signature / missing-secret /
+ * stale-timestamp / invalid-signature) — nunca un boolean mudo.
  */
 export async function verifyStripeSignature(
   rawBody: string,
   signatureHeader: string,
   secret: string,
   nowMs: number = Date.now(),
-): Promise<boolean> {
+): Promise<StripeSignatureVerification> {
   try {
-    if (!signatureHeader || !secret) return false;
+    if (!signatureHeader) return { ok: false, reason: 'missing-signature' };
+    if (!secret) return { ok: false, reason: 'missing-secret' };
     const parts = parseStripeSignatureHeader(signatureHeader);
     const timestamp = parts.timestamp;
     const stripeSigs = parts.v1;
-    if (!timestamp || stripeSigs.length === 0) return false;
+    if (!timestamp || stripeSigs.length === 0) {
+      return { ok: false, reason: 'missing-signature' };
+    }
 
     const timestampSeconds = Number(timestamp);
-    if (!Number.isInteger(timestampSeconds)) return false;
+    if (!Number.isInteger(timestampSeconds)) {
+      return { ok: false, reason: 'invalid-signature' };
+    }
     const ageSeconds = Math.floor(nowMs / 1000) - timestampSeconds;
-    if (ageSeconds > REPLAY_WINDOW_SECONDS || ageSeconds < 0) return false;
+    if (ageSeconds > REPLAY_WINDOW_SECONDS || ageSeconds < 0) {
+      return { ok: false, reason: 'stale-timestamp' };
+    }
 
     const computedSig = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`);
     const expected = decodeHex(computedSig);
-    if (!expected) return false;
+    if (!expected) return { ok: false, reason: 'invalid-signature' };
 
     let valid = 0;
     for (const stripeSig of stripeSigs) {
@@ -87,9 +115,10 @@ export async function verifyStripeSignature(
       if (!received) continue;
       valid |= bytesEqualConstantTime(expected, received) ? 1 : 0;
     }
-    return valid === 1;
+    if (valid === 1) return { ok: true };
+    return { ok: false, reason: 'invalid-signature' };
   } catch {
-    return false;
+    return { ok: false, reason: 'invalid-signature' };
   }
 }
 

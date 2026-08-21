@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { signStripeWebhookForTests, verifyStripeSignature } from './verify-stripe-signature.js';
+import {
+  signStripeWebhookForTests,
+  verifyStripeSignature,
+  type StripeVerificationReason,
+} from './verify-stripe-signature.js';
 
 const SECRET = 'whsec_test_not_for_production';
 const BODY =
@@ -7,39 +11,81 @@ const BODY =
 const nowMs = Date.parse('2026-08-04T12:00:00Z');
 const nowSec = Math.floor(nowMs / 1000);
 
+const REASONS = new Set<StripeVerificationReason>([
+  'missing-signature',
+  'missing-secret',
+  'stale-timestamp',
+  'invalid-signature',
+]);
+
 describe('verifyStripeSignature (SEC-08)', () => {
   it('acepta firma válida dentro de la ventana', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 10);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(true);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({ ok: true });
   });
 
-  it('rechaza timestamp futuro (age < 0)', async () => {
+  it('rechaza timestamp futuro (age < 0) → stale-timestamp', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec + 60);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'stale-timestamp',
+    });
   });
 
-  it('rechaza age > 300 s', async () => {
+  it('rechaza age > 300 s → stale-timestamp', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 301);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'stale-timestamp',
+    });
   });
 
-  it('rechaza header incompleto', async () => {
-    await expect(verifyStripeSignature(BODY, 't=123', SECRET, nowMs)).resolves.toBe(false);
-    await expect(verifyStripeSignature(BODY, 'v1=abcd', SECRET, nowMs)).resolves.toBe(false);
+  it('rechaza header incompleto → missing-signature', async () => {
+    // sin v1
+    await expect(verifyStripeSignature(BODY, 't=123', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'missing-signature',
+    });
+    // sin t
+    await expect(verifyStripeSignature(BODY, 'v1=abcd', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'missing-signature',
+    });
+    // header vacío
+    await expect(verifyStripeSignature(BODY, '', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'missing-signature',
+    });
+    // header sin claves parseables
+    await expect(verifyStripeSignature(BODY, 'junk', SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'missing-signature',
+    });
   });
 
-  it('rechaza secreto incorrecto', async () => {
+  it('rechaza secreto no configurado → missing-secret (fail-closed)', async () => {
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec);
-    await expect(verifyStripeSignature(BODY, header, 'other', nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, header, '', nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'missing-secret',
+    });
   });
 
-  it('rechaza v1 no-hex', async () => {
+  it('rechaza secreto incorrecto → invalid-signature', async () => {
+    const header = await signStripeWebhookForTests(BODY, SECRET, nowSec);
+    await expect(verifyStripeSignature(BODY, header, 'other', nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'invalid-signature',
+    });
+  });
+
+  it('rechaza v1 no-hex → invalid-signature', async () => {
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=not-hex!!`, SECRET, nowMs),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ ok: false, reason: 'invalid-signature' });
   });
 
-  it('fuzz determinista: ≥50 firmas/headers aleatorios → todos false (reproducible CI)', async () => {
+  it('fuzz determinista: ≥50 firmas/headers aleatorios → todos fail-closed con motivo estable (reproducible CI)', async () => {
     // PRNG seedable (mulberry32) — el run debe ser reproducible bit a bit.
     const rand = (seed: number) => {
       let s = seed >>> 0;
@@ -55,7 +101,7 @@ describe('verifyStripeSignature (SEC-08)', () => {
     const randHex = (len: number) =>
       Array.from({ length: len }, () => Math.floor(rng() * 16).toString(16)).join('');
 
-    const results: boolean[] = [];
+    const results: Array<{ ok: boolean; reason?: StripeVerificationReason }> = [];
     for (let i = 0; i < 60; i++) {
       const ts = nowSec - Math.floor(rng() * 600); // dentro y fuera de ventana
       const junk = `t=${ts},v1=${randHex(64)}`;
@@ -75,36 +121,50 @@ describe('verifyStripeSignature (SEC-08)', () => {
       const header = await signStripeWebhookForTests(BODY, `whsec_wrong_${i}`, nowSec - 5);
       results.push(await verifyStripeSignature(BODY, header, SECRET, nowMs));
     }
-    expect(results.every((r) => r === false)).toBe(true);
+    expect(results.every((r) => r.ok === false)).toBe(true);
     expect(results.length).toBeGreaterThanOrEqual(50);
+    // todo rechazo lleva un motivo estable del vocabulario cerrado
+    expect(results.every((r) => r.reason !== undefined && REASONS.has(r.reason))).toBe(true);
   });
 
   it('adversarial: borde de ventana y parseo estricto de header', async () => {
     // age = 300 s exacto → acepta (límite inclusivo)
     const edge = await signStripeWebhookForTests(BODY, SECRET, nowSec - 300);
-    await expect(verifyStripeSignature(BODY, edge, SECRET, nowMs)).resolves.toBe(true);
-    // age = 301 s → rechaza
+    await expect(verifyStripeSignature(BODY, edge, SECRET, nowMs)).resolves.toEqual({ ok: true });
+    // age = 301 s → rechaza con motivo estable
     const over = await signStripeWebhookForTests(BODY, SECRET, nowSec - 301);
-    await expect(verifyStripeSignature(BODY, over, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, over, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'stale-timestamp',
+    });
     // timestamp no numérico / vacío / negativo
-    await expect(verifyStripeSignature(BODY, `t=abc,v1=abcd`, SECRET, nowMs)).resolves.toBe(false);
-    await expect(verifyStripeSignature(BODY, `t=,v1=abcd`, SECRET, nowMs)).resolves.toBe(false);
-    await expect(verifyStripeSignature(BODY, `t=-5,v1=abcd`, SECRET, nowMs)).resolves.toBe(false);
+    await expect(verifyStripeSignature(BODY, `t=abc,v1=abcd`, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'invalid-signature',
+    });
+    await expect(verifyStripeSignature(BODY, `t=,v1=abcd`, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'missing-signature',
+    });
+    await expect(verifyStripeSignature(BODY, `t=-5,v1=abcd`, SECRET, nowMs)).resolves.toEqual({
+      ok: false,
+      reason: 'stale-timestamp',
+    });
     // hex truncado (impar o < 64 chars)
     const valid = await signStripeWebhookForTests(BODY, SECRET, nowSec);
     const shortHex = valid.split('v1=')[1]!.slice(0, 62);
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=${shortHex}`, SECRET, nowMs),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ ok: false, reason: 'invalid-signature' });
     // v1 con '=' extra (inyección) → decodeHex falla → rechaza
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=${valid.split('v1=')[1]}=evil`, SECRET, nowMs),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ ok: false, reason: 'invalid-signature' });
     // firma con mayúsculas (hex case-insensitive) → acepta
     const upper = valid.split('v1=')[1]!.toUpperCase();
     await expect(
       verifyStripeSignature(BODY, `t=${nowSec},v1=${upper}`, SECRET, nowMs),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ ok: true });
     // múltiples v1: cualquiera válida matchea (rotación de secretos Stripe)
     await expect(
       verifyStripeSignature(
@@ -113,13 +173,15 @@ describe('verifyStripeSignature (SEC-08)', () => {
         SECRET,
         nowMs,
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ ok: true });
   });
 
   it('SEC-08 higiene de secretos: la key HMAC se importa NO extraíble y solo para firmar (jamás se exporta)', async () => {
     const importSpy = vi.spyOn(crypto.subtle, 'importKey');
     const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 10);
-    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(true);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toEqual({
+      ok: true,
+    });
 
     const hmacCalls = importSpy.mock.calls.filter(
       ([, , algo]) => (algo as { name?: string } | undefined)?.name === 'HMAC',

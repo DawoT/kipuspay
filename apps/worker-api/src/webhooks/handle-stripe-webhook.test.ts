@@ -185,11 +185,38 @@ describe('handleStripeWebhook', () => {
   const nowMs = 1_700_000_000_000;
   const ts = Math.floor(nowMs / 1000);
 
-  it('firma inválida → 401', async () => {
+  it('firma inválida → 401 invalid-signature', async () => {
     const { env } = createEnv({});
     const body = eventBody('customer.subscription.deleted', 't1', 'evt_bad');
-    const res = await handleStripeWebhook(env, body, 't=1,v1=00', nowMs);
+    // timestamp dentro de ventana, HMAC incorrecto → invalid-signature
+    const res = await handleStripeWebhook(env, body, `t=${ts},v1=00`, nowMs);
     expect(res.status).toBe(401);
+    expect(res.body.code).toBe('invalid-signature');
+  });
+
+  it('header sin firma (sin t/v1) → 401 missing-signature (fail-closed)', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_headers');
+    const res = await handleStripeWebhook(env, body, 'junk', nowMs);
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('missing-signature');
+  });
+
+  it('header ausente → 400 missing-signature (fail-closed)', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_nosig');
+    const res = await handleStripeWebhook(env, body, undefined, nowMs);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('missing-signature');
+  });
+
+  it('secret no configurado → 400 missing-secret (fail-closed)', async () => {
+    const { env } = createEnv({ secret: '' });
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_nosecret');
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('missing-secret');
   });
 
   it('replay PROCESSED → 200 deduplicated', async () => {
@@ -227,12 +254,13 @@ describe('handleStripeWebhook', () => {
     expect(kv.get('revocation:t1')).toBe('1');
   });
 
-  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401', async () => {
+  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401 stale-timestamp', async () => {
     const { env } = createEnv({});
     const body = eventBody('customer.subscription.deleted', 't1', 'evt_old');
     const sigOld = await signStripeWebhookForTests(body, secret, ts - 360); // > 300 s
     const res = await handleStripeWebhook(env, body, sigOld, nowMs);
     expect(res.status).toBe(401);
+    expect(res.body.code).toBe('stale-timestamp');
   });
 
   it('redelivery mientras PROCESSING → re-claim sin 500', async () => {
