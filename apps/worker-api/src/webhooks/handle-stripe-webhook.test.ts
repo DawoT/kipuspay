@@ -5,7 +5,10 @@ import {
   type ControlPlaneEnv,
 } from '../auth/control-plane.js';
 import { handleStripeWebhook, type StripeWebhookEnv } from './handle-stripe-webhook.js';
-import { signStripeWebhookForTests } from './verify-stripe-signature.js';
+import {
+  MAX_WEBHOOK_BODY_BYTES,
+  signStripeWebhookForTests,
+} from './verify-stripe-signature.js';
 
 afterEach(() => {
   clearIsolateAuthCache();
@@ -178,6 +181,13 @@ function eventBody(type: string, tenantId: string, eventId: string, objectStatus
 
 function readTenant(kv: Map<string, string>, tenantId: string): TenantKvPayload {
   return JSON.parse(kv.get(`tenant:${tenantId}`)!) as TenantKvPayload;
+}
+
+/** Evento Stripe válido (ASCII) rellenado con un campo `padding` que parseEvent ignora. */
+function paddedEventBody(base: string, byteLength: number): string {
+  // Overhead del campo: `,"padding":"` (13) + relleno + `"}` (2).
+  const pad = byteLength - base.length - 13;
+  return base.slice(0, -1) + `,"padding":"${'x'.repeat(pad)}"}`;
 }
 
 describe('handleStripeWebhook', () => {
@@ -416,5 +426,38 @@ describe('handleStripeWebhook', () => {
     expect(res.status).toBe(200);
     // Presupuesto unitario (mem KV/DO): p95 << 100 ms. Staging E2E documentado en runbook.
     expect(elapsedMs).toBeLessThan(100);
+  });
+
+  it('body >1MB → 413 PAYLOAD_TOO_LARGE ANTES de firma y JSON.parse (anti-DoS)', async () => {
+    const { env } = createEnv({});
+    const base = eventBody('customer.subscription.deleted', 't1', 'evt_huge');
+    const body = paddedEventBody(base, MAX_WEBHOOK_BODY_BYTES + 1);
+    expect(body.length).toBe(MAX_WEBHOOK_BODY_BYTES + 1);
+    // Firma criptográficamente VÁLIDA sobre el body: el gate debe correr antes
+    // del HMAC — si no, este payload pasaría la verificación y se procesaría.
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+    expect(res.status).toBe(413);
+    expect(res.body.code).toBe('PAYLOAD_TOO_LARGE');
+    // Sin trabajo de parseo ni de efectos: nada se procesa ni se persiste.
+    expect(res.body).not.toHaveProperty('received');
+    // El gate ni siquiera necesita env/secret: un body enorme se descarta aun
+    // sin bindings validados (defensa en la capa más barata).
+    const bare = await handleStripeWebhook(undefined, body, undefined, nowMs);
+    expect(bare.status).toBe(413);
+    expect(bare.body.code).toBe('PAYLOAD_TOO_LARGE');
+  });
+
+  it('body de exactamente 1MB (borde inclusivo) → procesa si la firma es válida', async () => {
+    const { env, mem } = createEnv({});
+    const base = eventBody('customer.subscription.deleted', 't1', 'evt_maxsize');
+    const body = paddedEventBody(base, MAX_WEBHOOK_BODY_BYTES);
+    expect(body.length).toBe(MAX_WEBHOOK_BODY_BYTES);
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+
+    const res = await handleStripeWebhook(env, body, sig, nowMs);
+
+    expect(res.status).toBe(200);
+    expect(mem.rows.get('stripe:evt_maxsize')?.status).toBe('PROCESSED');
   });
 });

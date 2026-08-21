@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { signStripeWebhookForTests, verifyStripeSignature } from './verify-stripe-signature.js';
+import {
+  MAX_WEBHOOK_BODY_BYTES,
+  signStripeWebhookForTests,
+  verifyStripeSignature,
+  webhookBodyBytes,
+} from './verify-stripe-signature.js';
 
 const SECRET = 'whsec_test_not_for_production';
 const BODY =
@@ -141,5 +146,23 @@ describe('verifyStripeSignature (SEC-08)', () => {
     const key = keyPromise ? await keyPromise : (undefined as unknown as CryptoKey);
     await expect(crypto.subtle.exportKey('raw', key)).rejects.toThrow();
     importSpy.mockRestore();
+  });
+});
+
+describe('MAX_WEBHOOK_BODY_BYTES (Invarian 6: size gate anti-DoS)', () => {
+  it('define el límite en 1MB exacto', () => {
+    expect(MAX_WEBHOOK_BODY_BYTES).toBe(1024 * 1024);
+  });
+
+  it('webhookBodyBytes mide bytes UTF-8, no code units UTF-16', () => {
+    // ASCII: 1 byte por carácter
+    expect(webhookBodyBytes('{"a":1}')).toBe(7);
+    // Multi-byte: '€' es 1 code unit UTF-16 pero 3 bytes UTF-8 — un gate por
+    // .length subestimaría payloads no-ASCII.
+    expect('€'.length).toBe(1);
+    expect(webhookBodyBytes('€')).toBe(3);
+    // Borde exacto del límite (inclusivo: > MAX rechaza, MAX no)
+    expect(webhookBodyBytes('x'.repeat(MAX_WEBHOOK_BODY_BYTES))).toBe(MAX_WEBHOOK_BODY_BYTES);
+    expect(webhookBodyBytes('x'.repeat(MAX_WEBHOOK_BODY_BYTES + 1))).toBe(MAX_WEBHOOK_BODY_BYTES + 1);
   });
 });
