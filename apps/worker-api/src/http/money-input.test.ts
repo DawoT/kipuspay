@@ -59,10 +59,10 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
   it('preserva enteros seguros (ya en cents) y rechaza coerciones con errorName', () => {
     expect(parseMoneyToCents(1000)).toEqual({ ok: true, cents: 1000 });
     expect(parseMoneyToCents(0)).toEqual({ ok: true, cents: 0 });
-    expect(parseMoneyToCents(true)).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents(null)).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents(undefined)).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents([])).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents(true)).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents(null)).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents(undefined)).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents([])).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
   });
 
   it('US-01 bullet: number float con ≤2 decimales → cents enteros (19.99 → 1999)', () => {
@@ -129,47 +129,47 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     const cases: Array<[unknown, MoneyParseErrorName]> = [
       // Strings no canónicas: vacía, no numérica, separadores y sintaxis que
       // Number() aceptaría (coerción silenciosa prohibida por CAL-01/V-21).
-      ['', 'invalid_amount'],
-      [' ', 'invalid_amount'],
-      ['abc', 'invalid_amount'],
-      ['10,50', 'invalid_amount'],
-      ['.5', 'invalid_amount'],
-      ['10.', 'invalid_amount'],
-      ['10.555', 'invalid_amount'],
-      ['+5', 'invalid_amount'],
+      ['', 'INVALID_AMOUNT'],
+      [' ', 'INVALID_AMOUNT'],
+      ['abc', 'INVALID_AMOUNT'],
+      ['10,50', 'INVALID_AMOUNT'],
+      ['.5', 'INVALID_AMOUNT'],
+      ['10.', 'INVALID_AMOUNT'],
+      ['10.555', 'INVALID_AMOUNT'],
+      ['+5', 'INVALID_AMOUNT'],
       // US-01: ceros a la izquierda no son canónicos — '007'/'01.50'/'00.01'
       // duplicarían representaciones del mismo monto ('007'→700 igual que
       // '7') en la capa de dinero; la gramática (0|[1-9]\d*) los rechaza.
-      ['007', 'invalid_amount'],
-      ['01.50', 'invalid_amount'],
-      ['00.01', 'invalid_amount'],
-      ['007.5', 'invalid_amount'],
-      ['000', 'invalid_amount'],
-      ['-007', 'invalid_amount'],
-      ['-01.50', 'invalid_amount'],
-      ['-00.01', 'invalid_amount'],
-      ['5.5.5', 'invalid_amount'],
-      ['1e3', 'invalid_amount'],
-      ['1e2', 'invalid_amount'],
-      ['0x10', 'invalid_amount'],
-      ['Infinity', 'invalid_amount'],
-      ['NaN', 'invalid_amount'],
+      ['007', 'INVALID_AMOUNT'],
+      ['01.50', 'INVALID_AMOUNT'],
+      ['00.01', 'INVALID_AMOUNT'],
+      ['007.5', 'INVALID_AMOUNT'],
+      ['000', 'INVALID_AMOUNT'],
+      ['-007', 'INVALID_AMOUNT'],
+      ['-01.50', 'INVALID_AMOUNT'],
+      ['-00.01', 'INVALID_AMOUNT'],
+      ['5.5.5', 'INVALID_AMOUNT'],
+      ['1e3', 'INVALID_AMOUNT'],
+      ['1e2', 'INVALID_AMOUNT'],
+      ['0x10', 'INVALID_AMOUNT'],
+      ['Infinity', 'INVALID_AMOUNT'],
+      ['NaN', 'INVALID_AMOUNT'],
       // '1２3' mezcla ASCII + full-width: visualmente 123 pero no es decimal.
-      ['1２3', 'invalid_amount'],
+      ['1２3', 'INVALID_AMOUNT'],
       // Dígitos full-width unicode '１００': visualmente 100, no son ASCII.
-      ['１００', 'invalid_amount'],
+      ['１００', 'INVALID_AMOUNT'],
       // Signo que no es ASCII '-' (U+2212): la gramática canónica lo rechaza.
-      ['−5', 'invalid_amount'],
+      ['−5', 'INVALID_AMOUNT'],
       // No líquido: objetos, NaN e Infinity jamás se convierten a cents.
-      [{}, 'invalid_amount'],
-      [Number.NaN, 'invalid_amount'],
-      [Number.POSITIVE_INFINITY, 'invalid_amount'],
-      [Number.NEGATIVE_INFINITY, 'invalid_amount'],
+      [{}, 'INVALID_AMOUNT'],
+      [Number.NaN, 'INVALID_AMOUNT'],
+      [Number.POSITIVE_INFINITY, 'INVALID_AMOUNT'],
+      [Number.NEGATIVE_INFINITY, 'INVALID_AMOUNT'],
       // Artefactos float: 0.1+0.2 es 0.30000000000000004 (>2 decimales):
       // jamás se redondea a 30.
-      [0.1 + 0.2, 'invalid_amount'],
-      [1.005, 'invalid_amount'],
-      [1e21, 'invalid_amount'],
+      [0.1 + 0.2, 'INVALID_AMOUNT'],
+      [1.005, 'INVALID_AMOUNT'],
+      [1e21, 'INVALID_AMOUNT'],
       // Fuera de rango seguro (motivo distinguido arriba, aquí en la tabla).
       ['90071992547409.92', 'amount_out_of_range'],
       ['999999999999999999', 'amount_out_of_range'],
@@ -195,23 +195,23 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     // Rechaza representaciones duplicadas: '007'/700 == '7'/700,
     // '01.50'/150 == '1.50'/150, '00.01'/1 == '0.01'/1 → la misma
     // representación decimal admite UNA única cadena canónica.
-    expect(parseMoneyToCents('007')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('01.50')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('00.01')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('-007')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('-01.50')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('-00.01')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('007')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('01.50')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('00.01')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('-007')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('-01.50')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('-00.01')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
   });
 
   it('US-01 adversarial: sintaxis numéricas y no-líquido siguen fail-closed, ahora discriminadas', () => {
-    expect(parseMoneyToCents('1e2')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('0x10')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('１００')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents({})).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents(Number.NaN)).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('1e2')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('0x10')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('１００')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents({})).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents(Number.NaN)).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
     expect(parseMoneyToCents(Number.POSITIVE_INFINITY)).toEqual({
       ok: false,
-      errorName: 'invalid_amount',
+      errorName: 'INVALID_AMOUNT',
     });
     expect(parseMoneyToCents(Number.MAX_SAFE_INTEGER + 1)).toEqual({
       ok: false,
@@ -226,9 +226,9 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     expect(parseMoneyToCents('-0.01')).toEqual({ ok: true, cents: -1 });
     expect(parseMoneyToCents(-19.99)).toEqual({ ok: true, cents: -1999 });
     // Signos malformados: la gramática canónica -?(0|[1-9]\d*)(\.\d{1,2})? los rechaza.
-    expect(parseMoneyToCents('+-5')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('--5')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('- 5')).toEqual({ ok: false, errorName: 'invalid_amount' });
-    expect(parseMoneyToCents('-')).toEqual({ ok: false, errorName: 'invalid_amount' });
+    expect(parseMoneyToCents('+-5')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('--5')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('- 5')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    expect(parseMoneyToCents('-')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
   });
 });

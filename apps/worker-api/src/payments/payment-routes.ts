@@ -109,9 +109,9 @@ export async function runPaymentChargeHttp(
     return { status: 400, body: { error: 'missing fields', code: 'BAD_REQUEST' } };
   }
   if (amountCents === null || amountCents <= 0) {
-    // US-01: 422 invalid_amount (contrato del acceptance — la validación
+    // US-01: 422 INVALID_AMOUNT (contrato del acceptance — la validación
     // ocurre ANTES de tocar D1: ningún statement se ejecuta con monto inválido).
-    return { status: 422, body: { error: 'invalid_amount', code: 'invalid_amount' } };
+    return { status: 422, body: { error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' } };
   }
 
   const pm = await env.DB.prepare(
