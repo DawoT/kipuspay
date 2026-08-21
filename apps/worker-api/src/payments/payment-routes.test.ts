@@ -250,7 +250,7 @@ describe('runPaymentChargeHttp', () => {
     expect(res.body.status).toBe('CAPTURED');
   });
 
-  it('US-08: replay idempotente por UNIQUE → 200 con status replayed y eco de idempotencyKey', async () => {
+  it('US-02/A2: replay idempotente → 200 con body IDÉNTICO al del ganador: mismo payment_id + reasonCode IDEMPOTENT_REPLAY (nunca el shape degradado "replayed")', async () => {
     vi.mocked(createPendingCaptureAtomic).mockResolvedValueOnce({
       id: 'cap1',
       status: 'PENDING',
@@ -264,7 +264,39 @@ describe('runPaymentChargeHttp', () => {
       idempotencyKey: 'k1',
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ captureId: 'cap1', status: 'replayed', idempotencyKey: 'k1' });
+    // A2: el perdedor recibe el mismo body que el ganador — mismo payment_id,
+    // status REAL del capture (no 'replayed'), eco de captureId e idempotent,
+    // más el reasonCode estable del contrato de idempotencia.
+    expect(res.body).toEqual({
+      payment_id: 'cap1',
+      captureId: 'cap1',
+      status: 'PENDING',
+      idempotent: true,
+      reasonCode: 'IDEMPOTENT_REPLAY',
+    });
+  });
+
+  it('US-02: replay de un capture ya CAPTURED → 200 con el status REAL (A3), no PENDING hardcodeado', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockResolvedValueOnce({
+      id: 'cap1',
+      status: 'CAPTURED',
+      idempotent: true,
+    });
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: 1000,
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      payment_id: 'cap1',
+      captureId: 'cap1',
+      status: 'CAPTURED',
+      idempotent: true,
+      reasonCode: 'IDEMPOTENT_REPLAY',
+    });
   });
 
   it('US-02: carrera N=8 con la misma idempotency_key → COUNT(*)=1 sobre filas reales y todas las respuestas 2xx con el MISMO id', async () => {
