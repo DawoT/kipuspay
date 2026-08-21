@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearIsolateAuthCache,
   isTenantRevokedCached,
@@ -9,9 +9,24 @@ import {
   MAX_WEBHOOK_BODY_BYTES,
   signStripeWebhookForTests,
 } from './verify-stripe-signature.js';
+import type * as VerifyStripeSignatureModule from './verify-stripe-signature.js';
+
+// US-07 acceptance bullet 4: stub/spy sobre verifyStripeSignature. El mock
+// delega en la implementación real (registra cada invocación) para poder PROBAR
+// que el size gate corta ANTES del trabajo criptográfico: con body >1MB el spy
+// debe quedar en cero llamadas, no solo devolver 413.
+const verifyStripeSignatureMock = vi.hoisted(() => vi.fn());
+vi.mock('./verify-stripe-signature.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof VerifyStripeSignatureModule>();
+  // Spy delegante: mantiene el comportamiento real (firma HMAC + ventana) y
+  // registra cada invocación para las aserciones de no-llamada del size gate.
+  verifyStripeSignatureMock.mockImplementation(actual.verifyStripeSignature);
+  return { ...actual, verifyStripeSignature: verifyStripeSignatureMock };
+});
 
 afterEach(() => {
   clearIsolateAuthCache();
+  verifyStripeSignatureMock.mockClear();
 });
 
 interface Row {
@@ -436,9 +451,15 @@ describe('handleStripeWebhook', () => {
     // Firma criptográficamente VÁLIDA sobre el body: el gate debe correr antes
     // del HMAC — si no, este payload pasaría la verificación y se procesaría.
     const sig = await signStripeWebhookForTests(body, secret, ts);
+    verifyStripeSignatureMock.mockClear();
     const res = await handleStripeWebhook(env, body, sig, nowMs);
     expect(res.status).toBe(413);
     expect(res.body.code).toBe('PAYLOAD_TOO_LARGE');
+    // Stub/spy (US-07 acceptance bullet 4): verificaStripeSignature NO se invoca
+    // con body >1MB — el spy queda en cero llamadas, el gate corta sin trabajo
+    // criptográfico. La firma válida hace la prueba significativa: si alguien
+    // moviera el gate después del HMAC, el spy registraría la llamada y fallaría.
+    expect(verifyStripeSignatureMock).not.toHaveBeenCalled();
     // Sin trabajo de parseo ni de efectos: nada se procesa ni se persiste.
     expect(res.body).not.toHaveProperty('received');
     // El gate ni siquiera necesita env/secret: un body enorme se descarta aun
@@ -446,6 +467,7 @@ describe('handleStripeWebhook', () => {
     const bare = await handleStripeWebhook(undefined, body, undefined, nowMs);
     expect(bare.status).toBe(413);
     expect(bare.body.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(verifyStripeSignatureMock).not.toHaveBeenCalled();
   });
 
   it('body de exactamente 1MB (borde inclusivo) → procesa si la firma es válida', async () => {
@@ -459,5 +481,31 @@ describe('handleStripeWebhook', () => {
 
     expect(res.status).toBe(200);
     expect(mem.rows.get('stripe:evt_maxsize')?.status).toBe('PROCESSED');
+  });
+
+  it('body de exactamente 1MB SIN firma → NUNCA 413 (borde inclusivo; falta firma → 400)', async () => {
+    // Acceptance bullet 5: un body de exactamente 1048576 bytes NO se rechaza
+    // por límite. El gate de tamaño es estricto (`>`): en el borde pasa, y al
+    // faltar el header de firma la petición cae a validateWebhookRequest (400
+    // genérico en main). La aserción de error.code MISSING_HEADER /
+    // INVALID_SIGNATURE es de US-02 (staff/fix-US-02-codes, pendiente de
+    // merge); aquí se sella SOLO la parte US-07: "nunca 413" (rechazo por la
+    // clase de firma ausente, jamás por el límite de tamaño).
+    const { env, mem } = createEnv({});
+    const base = eventBody('customer.subscription.deleted', 't1', 'evt_maxsize_nosig');
+    const body = paddedEventBody(base, MAX_WEBHOOK_BODY_BYTES);
+    expect(body.length).toBe(MAX_WEBHOOK_BODY_BYTES);
+
+    const res = await handleStripeWebhook(env, body, undefined, nowMs);
+
+    // En el borde exacto el gate `>` NO dispara 413, aunque falte la firma:
+    expect(res.status).not.toBe(413);
+    expect(res.body).not.toMatchObject({ code: 'PAYLOAD_TOO_LARGE' });
+    // El rechazo es por la vía de firma ausente (validateWebhookRequest), que
+    // hoy emite un 400 genérico; US-02 solo añadirá el `code`, no cambia el 400.
+    expect(res.status).toBe(400);
+    // Nada se procesó ni se persiste con la firma ausente.
+    expect(res.body).not.toHaveProperty('received');
+    expect(mem.rows.get('stripe:evt_maxsize_nosig')).toBeUndefined();
   });
 });
