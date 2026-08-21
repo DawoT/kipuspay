@@ -5,6 +5,7 @@
 /* eslint-disable complexity -- charge and webhook multi-branch paths */
 import {
   createPendingCaptureAtomic,
+  isDbUnavailable,
   isIdempotencyMismatch,
   settleCaptureAtomic,
 } from '@kipuspay/adapters-d1';
@@ -126,12 +127,20 @@ export async function runPaymentChargeHttp(
       amountCents,
       idempotencyKey,
     });
-    // US-08: replay idempotente por UNIQUE → 200 con status 'replayed' y eco de
-    // la idempotency key (Acceptance 2; convención 200/201 de loyalty-messaging).
+    // US-02/A2: el replay (perdedor) devuelve un body IDÉNTICO al del ganador:
+    // mismo payment_id (el id del capture original), status REAL del capture
+    // (nunca un 'replayed' inventado) y el reasonCode estable 'IDEMPOTENCY_REPLAY'.
+    // Convención 200/201 de loyalty-messaging: mismo body, solo cambia el status.
     if (pending.idempotent) {
       return {
         status: 200,
-        body: { captureId: pending.id, status: 'replayed', idempotencyKey },
+        body: {
+          payment_id: pending.id,
+          captureId: pending.id,
+          status: pending.status,
+          idempotent: true,
+          reasonCode: 'IDEMPOTENCY_REPLAY',
+        },
       };
     }
 
@@ -177,6 +186,11 @@ export async function runPaymentChargeHttp(
     // idempotency_mismatch, nunca un 422 crudo del constraint (mapErr).
     if (isIdempotencyMismatch(e)) {
       return { status: 409, body: { error: 'idempotency_mismatch', code: 'idempotency_mismatch' } };
+    }
+    // US-02: re-SELECT del ganador con la DB caída → fail-closed 503 estable
+    // (DB_UNAVAILABLE), jamás el SQL interno del constraint bajo un 422.
+    if (isDbUnavailable(e)) {
+      return dbUnavailable();
     }
     return mapErr(e);
   }
