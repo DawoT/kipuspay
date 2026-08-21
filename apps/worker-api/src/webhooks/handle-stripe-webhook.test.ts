@@ -195,11 +195,42 @@ describe('handleStripeWebhook', () => {
   const nowMs = 1_700_000_000_000;
   const ts = Math.floor(nowMs / 1000);
 
-  it('firma inválida → 401', async () => {
+  it('firma inválida (replay/expired) → 401 TIMESTAMP_EXPIRED', async () => {
     const { env } = createEnv({});
     const body = eventBody('customer.subscription.deleted', 't1', 'evt_bad');
     const res = await handleStripeWebhook(env, body, 't=1,v1=00', nowMs);
     expect(res.status).toBe(401);
+    // US-02 / US-06: code estable por clase — nunca un 401 genérico sin code.
+    expect((res.body as { code?: string }).code).toBe('TIMESTAMP_EXPIRED');
+  });
+
+  it('firma inválida (timestamp futuro) → 401 TIMESTAMP_FUTURE', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_future');
+    const sigFuture = await signStripeWebhookForTests(body, secret, ts + 60);
+    const res = await handleStripeWebhook(env, body, sigFuture, nowMs);
+    expect(res.status).toBe(401);
+    expect((res.body as { code?: string }).code).toBe('TIMESTAMP_FUTURE');
+  });
+
+  it('firma inválida (HMAC mismatch) → 401 INVALID_SIGNATURE', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_mismatch');
+    const sigWrong = await signStripeWebhookForTests(body, 'whsec_wrong', ts);
+    const res = await handleStripeWebhook(env, body, sigWrong, nowMs);
+    expect(res.status).toBe(401);
+    expect((res.body as { code?: string }).code).toBe('INVALID_SIGNATURE');
+  });
+
+  it('sin header/secret → 400 MISSING_HEADER (nunca 400 genérico sin code)', async () => {
+    const { env } = createEnv({});
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_nocred');
+    const noHeader = await handleStripeWebhook(env, body, undefined, nowMs);
+    expect(noHeader.status).toBe(400);
+    expect((noHeader.body as { code?: string }).code).toBe('MISSING_HEADER');
+    const noSecret = await handleStripeWebhook(undefined, body, 't=1,v1=00', nowMs);
+    expect(noSecret.status).toBe(400);
+    expect((noSecret.body as { code?: string }).code).toBe('MISSING_HEADER');
   });
 
   it('replay PROCESSED → 200 deduplicated', async () => {
@@ -237,12 +268,13 @@ describe('handleStripeWebhook', () => {
     expect(kv.get('revocation:t1')).toBe('1');
   });
 
-  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401', async () => {
+  it('ataque replay FUERA de ventana (timestamp viejo re-firmado) → 401 TIMESTAMP_EXPIRED', async () => {
     const { env } = createEnv({});
     const body = eventBody('customer.subscription.deleted', 't1', 'evt_old');
     const sigOld = await signStripeWebhookForTests(body, secret, ts - 360); // > 300 s
     const res = await handleStripeWebhook(env, body, sigOld, nowMs);
     expect(res.status).toBe(401);
+    expect((res.body as { code?: string }).code).toBe('TIMESTAMP_EXPIRED');
   });
 
   it('redelivery mientras PROCESSING → re-claim sin 500', async () => {
