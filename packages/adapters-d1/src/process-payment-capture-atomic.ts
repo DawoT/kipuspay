@@ -26,21 +26,79 @@ export interface SettleCaptureInput {
   readonly acquirerRef?: string | null;
 }
 
+export interface CreatePendingCaptureResult {
+  readonly id: string;
+  readonly status: CaptureStatus;
+  readonly idempotent: boolean;
+}
+
+/**
+ * US-02: la misma idempotencyKey con payload distinto es un error de cliente
+ * (409 idempotency_mismatch en la ruta), nunca un replay silencioso de una
+ * fila ajena. Código estable (no es el mensaje crudo del constraint D1).
+ */
+export function isIdempotencyMismatch(error: unknown): boolean {
+  return error instanceof Error && error.message === 'IDEMPOTENCY_MISMATCH';
+}
+
+/**
+ * US-02: fallo de infraestructura en el camino idempotente (re-SELECT del
+ * ganador con la DB caída). Código estable fail-closed: la ruta lo convierte
+ * en 503 DB_UNAVAILABLE, jamás en un 422 con el SQL interno del constraint.
+ */
+export function isDbUnavailable(error: unknown): boolean {
+  return error instanceof Error && error.message === 'DB_UNAVAILABLE';
+}
+
+interface CaptureReplayRow {
+  id: string;
+  status: CaptureStatus;
+  sale_id: string;
+  sale_payment_id: string;
+  amount_cents: number;
+}
+
+/** Fallo de constraint en batch D1 (patrón existente en process-offline-sale-atomic). */
+function isUniqueConstraint(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /UNIQUE|constraint/i.test(msg);
+}
+
+async function selectCaptureByKey(
+  db: D1DatabaseLike,
+  tenantId: string,
+  idempotencyKey: string,
+): Promise<CaptureReplayRow | null> {
+  return db
+    .prepare(
+      `SELECT id, status, sale_id, sale_payment_id, amount_cents FROM payment_captures
+       WHERE tenant_id = ? AND idempotency_key = ? LIMIT 1`,
+    )
+    .bind(tenantId, idempotencyKey)
+    .first<CaptureReplayRow>();
+}
+
+function resolveCaptureReplay(
+  row: CaptureReplayRow,
+  input: CreatePendingCaptureInput,
+): CreatePendingCaptureResult {
+  if (
+    row.sale_id !== input.saleId ||
+    row.sale_payment_id !== input.salePaymentId ||
+    row.amount_cents !== input.amountCents
+  ) {
+    throw new Error('IDEMPOTENCY_MISMATCH');
+  }
+  return { id: row.id, status: row.status, idempotent: true };
+}
+
 export async function createPendingCaptureAtomic(
   db: D1DatabaseLike,
   tenantId: string,
   input: CreatePendingCaptureInput,
-): Promise<{ readonly id: string; readonly status: CaptureStatus; readonly idempotent: boolean }> {
-  const existing = await db
-    .prepare(
-      `SELECT id, status FROM payment_captures
-       WHERE tenant_id = ? AND idempotency_key = ? LIMIT 1`,
-    )
-    .bind(tenantId, input.idempotencyKey)
-    .first<{ id: string; status: CaptureStatus }>();
-  if (existing) {
-    return { id: existing.id, status: existing.status, idempotent: true };
-  }
+): Promise<CreatePendingCaptureResult> {
+  const existing = await selectCaptureByKey(db, tenantId, input.idempotencyKey);
+  if (existing) return resolveCaptureReplay(existing, input);
 
   const acquirer = methodCodeToAcquirer(input.methodCode);
   if (!acquirer) throw new Error('CAPTURE_REQUIRES_ACQUIRER');
@@ -49,27 +107,48 @@ export async function createPendingCaptureAtomic(
   }
 
   const id = crypto.randomUUID();
-  await runD1AtomicPlan(db, (plan) => {
-    plan.add(
-      db
-        .prepare(
-          `INSERT INTO payment_captures (
-               id, tenant_id, sale_id, sale_payment_id, acquirer, acquirer_ref,
-               status, amount_cents, idempotency_key
-             ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
-        )
-        .bind(
-          id,
-          tenantId,
-          input.saleId,
-          input.salePaymentId,
-          acquirer,
-          input.acquirerRef ?? null,
-          input.amountCents,
-          input.idempotencyKey,
-        ),
-    );
-  });
+  try {
+    await runD1AtomicPlan(db, (plan) => {
+      plan.add(
+        db
+          .prepare(
+            `INSERT INTO payment_captures (
+                 id, tenant_id, sale_id, sale_payment_id, acquirer, acquirer_ref,
+                 status, amount_cents, idempotency_key
+               ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`,
+          )
+          .bind(
+            id,
+            tenantId,
+            input.saleId,
+            input.salePaymentId,
+            acquirer,
+            input.acquirerRef ?? null,
+            input.amountCents,
+            input.idempotencyKey,
+          ),
+      );
+    });
+  } catch (e) {
+    // US-02: carrera concurrente multi-dispositivo — el otro request ganó el
+    // INSERT y la UNIQUE (tenant_id, idempotency_key) rechazó el nuestro.
+    // Re-SELECT de la fila ganadora: replay idempotente (o mismatch); jamás
+    // propagar el error crudo del constraint a la ruta (422 no idempotente).
+    if (!isUniqueConstraint(e)) throw e;
+    try {
+      const winner = await selectCaptureByKey(db, tenantId, input.idempotencyKey);
+      if (winner) return resolveCaptureReplay(winner, input);
+    } catch (inner) {
+      // IDEMPOTENCY_MISMATCH es error de cliente y se propaga; cualquier otro
+      // fallo del re-SELECT (DB caída) es infraestructura: fail-closed con
+      // código estable DB_UNAVAILABLE, jamás el SQL interno del constraint.
+      if (isIdempotencyMismatch(inner)) throw inner;
+      throw new Error('DB_UNAVAILABLE');
+    }
+    // El UNIQUE disparó pero la fila ganadora no es visible: sin DB no hay
+    // reconciliación idempotente posible → fail-closed (503 en la ruta).
+    throw new Error('DB_UNAVAILABLE');
+  }
   return { id, status: 'PENDING', idempotent: false };
 }
 

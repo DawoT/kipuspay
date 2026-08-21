@@ -5,6 +5,7 @@
 /* eslint-disable complexity -- charge and webhook multi-branch paths */
 import {
   createPendingCaptureAtomic,
+  isDbUnavailable,
   isIdempotencyMismatch,
   settleCaptureAtomic,
 } from '@kipuspay/adapters-d1';
@@ -177,6 +178,11 @@ export async function runPaymentChargeHttp(
     // idempotency_mismatch, nunca un 422 crudo del constraint (mapErr).
     if (isIdempotencyMismatch(e)) {
       return { status: 409, body: { error: 'idempotency_mismatch', code: 'idempotency_mismatch' } };
+    }
+    // US-02: re-SELECT del ganador con la DB caída → fail-closed 503 estable
+    // (DB_UNAVAILABLE), jamás el SQL interno del constraint bajo un 422.
+    if (isDbUnavailable(e)) {
+      return dbUnavailable();
     }
     return mapErr(e);
   }
