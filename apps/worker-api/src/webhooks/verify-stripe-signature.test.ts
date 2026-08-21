@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { signStripeWebhookForTests, verifyStripeSignature } from './verify-stripe-signature.js';
 
 const SECRET = 'whsec_test_not_for_production';
@@ -114,5 +114,32 @@ describe('verifyStripeSignature (SEC-08)', () => {
         nowMs,
       ),
     ).resolves.toBe(true);
+  });
+
+  it('SEC-08 higiene de secretos: la key HMAC se importa NO extraíble y solo para firmar (jamás se exporta)', async () => {
+    const importSpy = vi.spyOn(crypto.subtle, 'importKey');
+    const header = await signStripeWebhookForTests(BODY, SECRET, nowSec - 10);
+    await expect(verifyStripeSignature(BODY, header, SECRET, nowMs)).resolves.toBe(true);
+
+    const hmacCalls = importSpy.mock.calls.filter(
+      ([, , algo]) => (algo as { name?: string } | undefined)?.name === 'HMAC',
+    );
+    expect(hmacCalls.length).toBeGreaterThan(0);
+    // Cada import de la secret: formato raw, extractable=false (no exportable)
+    // y usages mínimos ['sign'] — sin derivación ni extracción posible.
+    for (const call of hmacCalls) {
+      expect(call[0]).toBe('raw');
+      expect(call[2]).toEqual({ name: 'HMAC', hash: 'SHA-256' });
+      expect(call[3]).toBe(false);
+      expect(call[4]).toEqual(['sign']);
+    }
+    // Evidencia runtime del no-export: exportKey('raw', key) rechaza.
+    const keyPromise = importSpy.mock.results
+      .map((r) => r.value as Promise<CryptoKey> | undefined)
+      .find((p) => p !== undefined);
+    expect(keyPromise).toBeDefined();
+    const key = keyPromise ? await keyPromise : (undefined as unknown as CryptoKey);
+    await expect(crypto.subtle.exportKey('raw', key)).rejects.toThrow();
+    importSpy.mockRestore();
   });
 });
