@@ -88,15 +88,23 @@ export async function runPaymentChargeHttp(
   const paymentMethodId = body.paymentMethodId?.trim() ?? '';
   // US-06: parseMoneyToCents devuelve resultado discriminado {ok,errorName}.
   const parsedAmount = parseMoneyToCents(body.amountCents ?? 0);
-  const amountCents = parsedAmount.ok ? parsedAmount.cents : null;
   const idempotencyKey = body.idempotencyKey?.trim() ?? '';
   if (!saleId || !salePaymentId || !paymentMethodId || !idempotencyKey) {
     return { status: 400, body: { error: 'missing fields', code: 'BAD_REQUEST' } };
   }
-  if (amountCents === null || amountCents <= 0) {
-    // US-01: 422 invalid_amount (contrato del acceptance — la validación
-    // ocurre ANTES de tocar D1: ningún statement se ejecuta con monto inválido).
-    return { status: 422, body: { error: 'invalid_amount', code: 'invalid_amount' } };
+  // US-01: el discriminator del parser llega al cliente HTTP — 400 con el
+  // reasonCode EXACTO (constante estable del contrato de errores de
+  // money-input: invalid_amount / negative_zero / amount_out_of_range), nunca
+  // un 422 'invalid_amount' aplanado. La validación ocurre ANTES de tocar D1:
+  // ningún statement se ejecuta con un monto inválido.
+  if (!parsedAmount.ok) {
+    return { status: 400, body: { error: parsedAmount.errorName, code: parsedAmount.errorName } };
+  }
+  const amountCents = parsedAmount.cents;
+  if (amountCents <= 0) {
+    // Monto parseable pero no positivo (0 o negativo sintáctico): rechazo de
+    // input con el motivo genérico declarado en el mismo contrato.
+    return { status: 400, body: { error: 'invalid_amount', code: 'invalid_amount' } };
   }
 
   const pm = await env.DB.prepare(

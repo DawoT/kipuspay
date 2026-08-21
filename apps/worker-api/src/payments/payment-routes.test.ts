@@ -163,6 +163,76 @@ describe('runPaymentChargeHttp', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ captureId: 'cap1', status: 'replayed', idempotencyKey: 'k1' });
   });
+
+  it('US-01: fallo de parse → 400 con reasonCode EXACTO (constante del contrato), nunca 422 aplanado', async () => {
+    // Acceptance US-01: el discriminator del parser (money-input.ts) llega al
+    // cliente HTTP — status 400 y code idéntico a la constante declarada:
+    // invalid_amount / negative_zero / amount_out_of_range.
+    const cases: Array<[unknown, string]> = [
+      ['abc', 'invalid_amount'],
+      ['10,50', 'invalid_amount'],
+      [true, 'invalid_amount'],
+      ['', 'invalid_amount'],
+      ['-0', 'negative_zero'],
+      [-0, 'negative_zero'],
+      ['90071992547409.92', 'amount_out_of_range'],
+      ['999999999999999999', 'amount_out_of_range'],
+      [Number.MAX_SAFE_INTEGER + 1, 'amount_out_of_range'],
+    ];
+    for (const [amountCents, expectedCode] of cases) {
+      const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+        saleId: 's1',
+        salePaymentId: 'sp1',
+        paymentMethodId: 'pm1',
+        amountCents: amountCents as never,
+        idempotencyKey: 'k1',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe(expectedCode);
+    }
+  });
+
+  it('US-01: parse OK pero monto ≤ 0 → 400 invalid_amount, sin tocar D1', async () => {
+    // 0 / -0 / negativos sintácticos parsean a cents válidos (US-06/US-10)
+    // pero son insumos inválidos para un cobro: la ruta los rechaza con el
+    // motivo genérico del contrato, ANTES de ejecutar cualquier statement.
+    const env = mockEnv();
+    const db = env.DB as unknown as { prepare: (...a: unknown[]) => unknown; batch: (...a: unknown[]) => unknown };
+    const prepare = vi.fn(() => ({ bind: () => ({ first: () => Promise.resolve(null) }) }));
+    const batch = vi.fn(() => Promise.resolve([]));
+    db.prepare = prepare;
+    db.batch = batch;
+
+    for (const amountCents of ['0', 0, '-5', '-0.01']) {
+      const res = await runPaymentChargeHttp(env, 't1', {
+        saleId: 's1',
+        salePaymentId: 'sp1',
+        paymentMethodId: 'pm1',
+        amountCents,
+        idempotencyKey: 'k1',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('invalid_amount');
+    }
+    expect(prepare).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('US-01: decimal canónico como string → cobra con INTEGER cents (entero parseado a D1)', async () => {
+    const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+      saleId: 's1',
+      salePaymentId: 'sp1',
+      paymentMethodId: 'pm1',
+      amountCents: '10.50',
+      idempotencyKey: 'k1',
+    });
+    expect(res.status).toBe(201);
+    expect(createPendingCaptureAtomic).toHaveBeenCalledWith(
+      expect.anything(),
+      't1',
+      expect.objectContaining({ amountCents: 1050 }),
+    );
+  });
 });
 
 describe('runOwnerUncapturedPaymentsHttp', () => {
