@@ -58,12 +58,12 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     expect(() => buildUblDebitNoteXml({ ...sample(), totalAmountCents: 0 })).toThrow(
       /ND_TOTAL_MUST_BE_POSITIVE/,
     );
-    expect(() =>
-      buildUblDebitNoteXml({ ...sample(), totalAmountCents: -590 }),
-    ).toThrow(/ND_TOTAL_MUST_BE_POSITIVE/);
-    expect(() =>
-      buildUblDebitNoteXml({ ...sample(), referencedDocId: 'NO ESPACIOS' }),
-    ).toThrow(/INVALID_REFERENCED_DOC/);
+    expect(() => buildUblDebitNoteXml({ ...sample(), totalAmountCents: -590 })).toThrow(
+      /ND_TOTAL_MUST_BE_POSITIVE/,
+    );
+    expect(() => buildUblDebitNoteXml({ ...sample(), referencedDocId: 'NO ESPACIOS' })).toThrow(
+      /INVALID_REFERENCED_DOC/,
+    );
     expect(() => buildUblDebitNoteXml({ ...sample(), motiveCode: 'ABC' })).toThrow(
       /INVALID_MOTIVE_CODE/,
     );
@@ -104,16 +104,11 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     );
     expect(() => assertValidDebitNoteXml(noLines + '</DebitNote>')).toThrow(/MISSING_LINES/);
     expect(() =>
-      assertValidDebitNoteXml(
-        xml.replace('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>', ''),
-      ),
+      assertValidDebitNoteXml(xml.replace('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>', '')),
     ).toThrow(/INVALID_UBL_VERSION/);
     expect(() =>
       assertValidDebitNoteXml(
-        xml.replace(
-          '<cbc:UBLVersionID>2.1</cbc:UBLVersionID>',
-          '<cbc:UBLVersionID>2.1',
-        ),
+        xml.replace('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>', '<cbc:UBLVersionID>2.1'),
       ),
     ).toThrow(/MALFORMED_XML/);
     expect(() => assertWellFormedXml('<DebitNote><a></a>')).toThrow(/MALFORMED_XML/);

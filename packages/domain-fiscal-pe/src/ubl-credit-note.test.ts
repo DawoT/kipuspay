@@ -55,12 +55,12 @@ describe('buildUblCreditNoteXml (Ops-3)', () => {
   });
 
   it('rechaza inputs inválidos (monto positivo, referencia, motivo, RUC, líneas)', () => {
-    expect(() =>
-      buildUblCreditNoteXml({ ...sample(), totalAmountCents: 1180 }),
-    ).toThrow(/NC_TOTAL_MUST_BE_NEGATIVE/);
-    expect(() =>
-      buildUblCreditNoteXml({ ...sample(), referencedDocId: 'NO ESPACIOS' }),
-    ).toThrow(/INVALID_REFERENCED_DOC/);
+    expect(() => buildUblCreditNoteXml({ ...sample(), totalAmountCents: 1180 })).toThrow(
+      /NC_TOTAL_MUST_BE_NEGATIVE/,
+    );
+    expect(() => buildUblCreditNoteXml({ ...sample(), referencedDocId: 'NO ESPACIOS' })).toThrow(
+      /INVALID_REFERENCED_DOC/,
+    );
     expect(() => buildUblCreditNoteXml({ ...sample(), motiveCode: 'ABC' })).toThrow(
       /INVALID_MOTIVE_CODE/,
     );
@@ -101,16 +101,11 @@ describe('buildUblCreditNoteXml (Ops-3)', () => {
     );
     expect(() => assertValidCreditNoteXml(noLines + '</CreditNote>')).toThrow(/MISSING_LINES/);
     expect(() =>
-      assertValidCreditNoteXml(
-        xml.replace('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>', ''),
-      ),
+      assertValidCreditNoteXml(xml.replace('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>', '')),
     ).toThrow(/INVALID_UBL_VERSION/);
     expect(() =>
       assertValidCreditNoteXml(
-        xml.replace(
-          '<cbc:UBLVersionID>2.1</cbc:UBLVersionID>',
-          '<cbc:UBLVersionID>2.1',
-        ),
+        xml.replace('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>', '<cbc:UBLVersionID>2.1'),
       ),
     ).toThrow(/MALFORMED_XML/);
     expect(() => assertWellFormedXml('<CreditNote><a></a>')).toThrow(/MALFORMED_XML/);

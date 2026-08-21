@@ -135,13 +135,52 @@ pending:
 meta:
   archivo_temporal: true
   eliminar_al_cerrar: "Cuando TODOS los go-live-* estén CERRADO (con A+V); batches A–J y C1–C5 ya cerrados"
-  auditor_activo: "Staff Auditor (2026-08-18) — CORRIGE honestidad C6/CI; no cierra go-live"
-  handoff_agente: "docs/ops/go-live-staging-checklist.md + docs/ops/staging-bootstrap.md §Auditoría"
+  auditor_activo: "Staff Auditor (2026-08-20) — camino a producción fases 0–4; no cierra go-live"
+  handoff_agente: "docs/ops/go-live-staging-checklist.md §Handoff Fase 0 + §Camino a producción"
+  camino_produccion: "docs/ops/go-live-staging-checklist.md#camino-a-produccion-fases-0-4"
+  fase_actual: 1
+  veredicto_produccion: NO-GO
+  handoff_fase_0:
+    ready_now: []
+    next_after_secrets: []
+    nota: "Fase 0 CERRADA (2026-08-20): secrets KMS+VAPID+tenant fixture GREEN; CI run aún BLOCKED (prettier en main hasta fix local; GH secrets presentes). FCM SA stub queda open en go-live-fcm."
+  handoff_fase_1:
+    done: [stg-flags-s42-s48, stg-s42-r2-workflow]
+    open: [stg-s48-dr-sim]
+    nota: "Runtime FEATURE_DATA_BACKUP/PLATFORM_DR=1 (no repo). S42 backup READY+kek v1. S48 DR_SIMULATION → BACKUP_MANIFEST_MISMATCH (RED)."
   smoke_urls:
     api: "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev/health"
     pos: "https://kipuspay-pos-web-staging.pages.dev/"
     marketing: "https://kipuspay-marketing-web-staging.pages.dev/"
 
+camino_produccion_fases:
+  - id: fase-0
+    nombre: "Plataforma staging usable"
+    estado: CERRADO
+    requires_av: false
+    items: [stg-secrets-real, stg-vapid-public-var, stg-tenant-fixture, stg-ci-etapas-6-run]
+    nota: "CI run documentado BLOCKED (prettier); no bloquea S42/S48. FCM SA stub fuera de alcance Fase 0."
+  - id: fase-1
+    nombre: "Evidencia plataforma S42/S48 + flags cobro/fiscal"
+    estado: EN_CURSO
+    requires_av: true
+    items: [stg-flags-s42-s48, stg-s42-r2-workflow, stg-s48-dr-sim]
+    nota: "Flags+S42 GREEN parcial; S48 RED BACKUP_MANIFEST_MISMATCH. Flags cobro/fiscal deferred."
+  - id: fase-2
+    nombre: "Piloto operable (cobro + CPE sandbox + dominios)"
+    estado: BLOQUEADO
+    requires_av: true
+    items: [go-live-sunat, stg-domains-canary]
+  - id: fase-3
+    nombre: "Claims GTM (FCM, hardware, s43–s49)"
+    estado: BLOQUEADO
+    requires_av: true
+    items: [go-live-fcm, go-live-hardware]
+  - id: fase-4
+    nombre: "Cutover producción (recursos nuevos + CI 7–11)"
+    estado: BLOQUEADO
+    requires_av: true
+    items: [stg-close-tracker]
 sprints_cierre:
   - id: sprint-c1
     nombre: "Doctrina de claims alineada al producto final (FEFO/merma live, matriz go-live, roadmap)"
@@ -280,7 +319,7 @@ sprints_cierre:
     smoke: UP
     smoke_date: "2026-08-17"
     gates: [s41, s42, s43, s44, s45, s46, s47, s48, s49]
-    nota: "Smoke UP + auditoría 2026-08-17. Evidencia externa s41–s49 pendiente — NO CERRADO / no liberatorio."
+    nota: "Smoke UP + auditoría. Camino a producción fases 0–4 en checklist. Evidencia s41–s49 pendiente — NO CERRADO / no liberatorio. Veredicto producción NO-GO."
     firmas_av:
       A: null
       V: null
@@ -296,33 +335,33 @@ sprints_cierre:
         can_auto_fix: true
         status: closed
       - id: stg-secrets-real
-        severity: blocker
-        detail: "Secrets Store kipuspay-kms-staging aún stubs (KEK backup/push, VAPID, FCM SA)"
+        severity: resolved
+        detail: "Secrets Store kipuspay-kms-staging KEK backup/push + VAPID reales; worker-kms redeployed; FCM SA sigue stub (go-live-fcm)"
         can_auto_fix: false
-        status: open
+        status: closed
       - id: stg-vapid-public-var
-        severity: blocker
-        detail: "PUSH_VAPID_PUBLIC_KEY vacío en env.staging"
+        severity: resolved
+        detail: "PUSH_VAPID_PUBLIC_KEY runtime set en API staging (var override; secret put conflictuaba con wrangler vars vacío)"
         can_auto_fix: false
-        status: open
+        status: closed
       - id: stg-tenant-fixture
-        severity: blocker
-        detail: "Sin tenant staging controlado (owner JWT + step-up) para APIs backup/DR"
+        severity: resolved
+        detail: "tenant_stg_phase0_001 + owner + TENANT_KV + JWT; /api/auth/session 200; step-up DR mint 200"
         can_auto_fix: false
-        status: open
+        status: closed
       - id: stg-flags-s42-s48
-        severity: blocker
-        detail: "FEATURE_* todos 0 en repo (nogate); flip solo runtime con A+V"
+        severity: resolved
+        detail: "Runtime FEATURE_DATA_BACKUP=1 FEATURE_PLATFORM_DR=1 en API staging (no commit); /api/backups 200"
         can_auto_fix: false
-        status: open
+        status: closed
       - id: stg-s42-r2-workflow
-        severity: blocker
-        detail: "Matriz externa S42 R2 multipart + Workflow crash/replay pendiente"
+        severity: medium
+        detail: "Backup KPBK1 READY en staging (ids d31ef057…, 8afaba63…; kek_version=v1; Workflow+R2). Matriz chaos crash/replay completa y dry-run restore aún pendientes A+V."
         can_auto_fix: false
-        status: open
+        status: closed
       - id: stg-s48-dr-sim
         severity: blocker
-        detail: "DR_SIMULATION real en DR_DB staging pendiente"
+        detail: "DR_SIMULATION staging → 422 BACKUP_MANIFEST_MISMATCH tras unwrap KMS OK (audit DR_SIMULATION_STARTED/FAILED). Bloquea cierre Fase 1."
         can_auto_fix: false
         status: open
       - id: stg-crons-verify
@@ -337,7 +376,7 @@ sprints_cierre:
         status: closed
       - id: stg-ci-etapas-6-run
         severity: medium
-        detail: "Ningún run GREEN de deploy-staging.yml en GitHub Actions; requiere CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID"
+        detail: "GH secrets presentes; dry_run 32426620860/32426954532 RED prettier ubl-*. Fix prettier local. BLOCKER adicional: CLOUDFLARE_API_TOKEN cargado como OAuth wrangler (caduca ~horas) — reemplazar por API Token CF de larga duración antes del deploy real. No bloquea S42/S48."
         can_auto_fix: false
         status: open
       - id: stg-domains-canary
@@ -349,41 +388,64 @@ sprints_cierre:
       - id: stg-secrets-real
         owner: Staff Security
         depends_on: []
-        status: ready
+        status: done
         can_auto_fix: false
+        phase: 0
         pass: "KMS wrap/unwrap + Secrets Store sin placeholder bytes; redeploy worker-kms-staging"
+        evidence: "Store 6c5d2aff… KEKs+VAPID; wrap/unwrap smoke ok kekVersion=v1 wrappedLen=60; backup READY kek_version=v1"
+        cmd: "wrangler secrets-store + pnpm --filter @kipuspay/worker-kms run deploy:staging"
       - id: stg-vapid-public-var
         owner: Staff Mobile
         depends_on: [stg-secrets-real]
-        status: blocked
+        status: done
         can_auto_fix: false
+        phase: 0
         pass: "PUSH_VAPID_PUBLIC_KEY staging set + redeploy API"
+        evidence: "API staging var PUSH_VAPID_PUBLIC_KEY non-empty (deploy --var); deploy:staging ahora --keep-vars"
       - id: stg-tenant-fixture
         owner: Staff SRE
         depends_on: [stg-secrets-real]
+        status: done
+        can_auto_fix: false
+        phase: 0
+        pass: "Owner JWT + step-up llama backup/DR sin 401/403 de fixture; login POS staging"
+        evidence: "tenant_stg_phase0_001; /api/auth/session 200; capabilities data.backup+platform.dr; POS pages 200"
+        cmd: "seed tenant en kipuspay-staging D1; probar https://kipuspay-pos-web-staging.pages.dev/"
+      - id: stg-ci-etapas-6-run
+        owner: Staff SRE
+        depends_on: []
         status: blocked
         can_auto_fix: false
-        pass: "Owner JWT + step-up llama backup/DR sin 401/403 de fixture"
+        phase: 0
+        pass: "Al menos un run GREEN de deploy-staging.yml (dry_run luego real) con artifact smoke"
+        evidence: "Secrets GH OK; runs RED prettier; OAuth token GH caduca — setear API Token CF largo; prettier fix local pendiente commit+re-dispatch"
+        cmd: "gh secret set CLOUDFLARE_API_TOKEN (API Token, no OAuth); prettier fix; gh workflow run deploy-staging.yml -f dry_run=true && gh workflow run deploy-staging.yml"
       - id: stg-flags-s42-s48
         owner: Staff Principal A + Staff Verifier V
         depends_on: [stg-tenant-fixture]
-        status: blocked
+        status: done
         can_auto_fix: false
+        phase: 1
         pass: "Runtime FEATURE_DATA_BACKUP=1 FEATURE_PLATFORM_DR=1 (no commit 1); rutas != FEATURE_OFF"
+        evidence: "API staging vars runtime; GET /api/backups 200 (no FEATURE_OFF)"
         requires_av: true
       - id: stg-s42-r2-workflow
         owner: Staff SRE
         depends_on: [stg-flags-s42-s48]
-        status: blocked
+        status: done
         can_auto_fix: false
+        phase: 1
         pass: "QG s42 evidencia externa anexada; dry-run cero writes indebidos"
+        evidence: "POST /api/backups → READY (8afaba63…, chunk_count=5, kek v1, Workflow kipuspay-data-backup-staging). Dry-run restore / chaos matrix A+V pendiente."
         requires_av: true
       - id: stg-s48-dr-sim
         owner: Staff SRE + Staff Principal
         depends_on: [stg-s42-r2-workflow]
-        status: blocked
+        status: ready
         can_auto_fix: false
+        phase: 1
         pass: "DR_SIMULATION_PASSED rto_ms<=30m; nunca escribe DB live"
+        evidence: "RED: 422 BACKUP_MANIFEST_MISMATCH (KMS unwrap OK; audit STARTED/FAILED). Bug fix parcial: step-up changes>=1 + mint backupId."
         requires_av: true
       - id: stg-crons-verify
         owner: Staff SRE
@@ -435,24 +497,19 @@ sprints_cierre:
         pass: "workflow_dispatch deploy staging + artifact evidence (archivo + V-31)"
         evidence: ".github/workflows/deploy-staging.yml — workflow_dispatch manual, jobs.gate Etapas 0-5, jobs.deploy orden §13.7, artifact; Playwright install chromium antes del smoke. Check V-31 es regex de YAML, no un run GREEN."
         cmd: "gh workflow run deploy-staging.yml (requiere secrets CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID)"
-      - id: stg-ci-etapas-6-run
-        owner: Staff SRE
-        depends_on: []
-        status: ready
-        can_auto_fix: false
-        pass: "Al menos un run GREEN de deploy-staging.yml (dry_run luego real) con artifact smoke"
-        cmd: "gh workflow run deploy-staging.yml -f dry_run=true"
       - id: stg-domains-canary
         owner: Staff SRE
         depends_on: [stg-s48-dr-sim]
         status: blocked
         can_auto_fix: false
+        phase: 2
         pass: "DNS+TLS+CORS canónicos"
       - id: stg-close-tracker
         owner: Staff Principal A + Staff Verifier V
         depends_on: [stg-s42-r2-workflow, stg-s48-dr-sim, stg-crons-verify]
         status: blocked
         can_auto_fix: false
+        phase: 4
         pass: "estado CERRADO + ledger; firmas A+V"
         requires_av: true
     evidencia:

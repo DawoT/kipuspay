@@ -46,7 +46,8 @@ export interface UblDebitNoteInput {
 export function buildUblDebitNoteXml(input: UblDebitNoteInput): string {
   if (input.ublVersion !== '2.1') throw new Error('UNSUPPORTED_UBL_VERSION');
   if (!/^\d{11}$/.test(input.issuerRuc)) throw new Error('INVALID_ISSUER_RUC');
-  if (!/^[A-Za-z0-9-]{1,20}$/.test(input.referencedDocId)) throw new Error('INVALID_REFERENCED_DOC');
+  if (!/^[A-Za-z0-9-]{1,20}$/.test(input.referencedDocId))
+    throw new Error('INVALID_REFERENCED_DOC');
   if (!/^\d{2}$/.test(input.motiveCode)) throw new Error('INVALID_MOTIVE_CODE');
   if (!input.lines.length) throw new Error('EMPTY_LINES');
   if (input.totalAmountCents <= 0) throw new Error('ND_TOTAL_MUST_BE_POSITIVE');

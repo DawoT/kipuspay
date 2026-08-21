@@ -91,15 +91,27 @@ El workflow `.github/workflows/deploy-staging.yml` (disparo **manual** vía
 y `CLOUDFLARE_ACCOUNT_ID`. Sin ellos el job `deploy` falla; el job `gate` no los
 necesita.
 
+**Importante (Fase 0 subagente):** el secret GH no debe ser un token OAuth de
+`wrangler login` (caduca en horas). Usar un **API Token** de Cloudflare de larga
+duración con Workers/Pages/D1/R2/Secrets Store. El token cargado el 2026-08-20
+via OAuth caducaba ~23:47Z — **reemplazar antes** del próximo `deploy` real.
+
+**VAPID / flags runtime:** `apps/worker-api` `deploy:staging` usa `--keep-vars`
+para no pisar `PUSH_VAPID_PUBLIC_KEY` ni `FEATURE_*` runtime con los `""`/`"0"`
+del repo. Si se despliega a mano sin `--keep-vars`, re-pasar
+`--var PUSH_VAPID_PUBLIC_KEY:…` (y los FEATURE de evidencia).
+
 ## Secrets / flags
 
 | Item | Estado |
 |---|---|
 | `AUTH_JWT_HS_SECRET` (API staging) | Set (staging random) |
-| Stripe / PSE / VAPID real / FCM | **Pendiente** (stubs en Secrets Store) |
-| `FEATURE_*` | Todos `"0"` en staging (repo); flip **solo runtime** con A+V |
+| Stripe / PSE / FCM SA | **Pendiente** (FCM stub en Secrets Store → `go-live-fcm`) |
+| VAPID | **Real** (Secrets Store + runtime `PUSH_VAPID_PUBLIC_KEY`) |
+| `FEATURE_*` | Repo `"0"`; staging runtime backup/DR `"1"` (keep-vars) |
 | Marketing soft-launch | `PUBLIC_FEATURE_MARKETING_SITE=0` (intencional) |
 | CORS | pages.dev POS + marketing |
+| Fixture owner | `tenant_stg_phase0_001` / `user_stg_owner_001` (creds fuera de repo) |
 
 Procedimiento de flags: `docs/ops/go-live-staging-checklist.md` § Flags runtime.
 
@@ -115,27 +127,48 @@ Procedimiento de flags: `docs/ops/go-live-staging-checklist.md` § Flags runtime
 | D1 `kipuspay-staging` `d1_migrations` | 56 filas (0000–0055) — `d1:migrate:staging:list` OK |
 | D1 `kipuspay-dr-staging` `d1_migrations` | 56 filas — **paridad OK** (`d1:migrate:staging:dr` OK, gap `stg-dr-migrate` cerrado) |
 | Bindings (wrangler staging) | R2 backups, Workflow backup, KMS service, AI, Analytics |
-| Secrets Store | Aún **stubs** (`stg-secrets-real` open) |
-| `PUSH_VAPID_PUBLIC_KEY` | vacío |
-| `FEATURE_*` | todos `"0"` |
+| Secrets Store | **Reales** KEK backup/push + VAPID (FCM SA stub; `stg-secrets-real` closed) |
+| `PUSH_VAPID_PUBLIC_KEY` | set (runtime var API staging) |
+| `FEATURE_*` | repo `"0"`; runtime staging `FEATURE_DATA_BACKUP=1` `FEATURE_PLATFORM_DR=1` |
 | Crons en config | **desplegados y verificados**: API schedules muestra las 6 expresiones (modified_on 01:08:04Z, deploy activo `9daaf9b6`); coinciden con top-level y handlers de `worker.ts` |
-| Deploy activo API staging | version `9daaf9b6-5214-4a66-b973-e53daa132956` (2026-08-17T01:08Z) |
-| Workflow `kipuspay-data-backup-staging` | presente (account workflows) |
-| Secrets del worker | solo `AUTH_JWT_HS_SECRET` (secret_text) |
-| Evidencia S42/S48 externa | PENDIENTE |
+| Deploy activo API staging | version `691e6096-862d-4632-b5cb-871f0eddc683` (2026-08-20 Fase 1) |
+| Workflow `kipuspay-data-backup-staging` | READY backups `d31ef057…`, `8afaba63…` (kek_version=v1) |
+| Secrets del worker | `AUTH_JWT_HS_SECRET` (rotado Fase 0; material solo en ops local) |
+| Evidencia S42 externa | Parcial GREEN (READY); chaos/dry-run A+V pendiente |
+| Evidencia S48 externa | RED — `BACKUP_MANIFEST_MISMATCH` |
 
-Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`
-(última versión observada ~2026-08-17T01:08Z).
+Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`.
+
+## Auditoría 2026-08-20 (Fase 0 humano + Fase 1)
+
+| Check | Resultado |
+|---|---|
+| Secrets Store `6c5d2aff…` | KEK v1/v2 + push KEKs + VAPID; FCM stub; wrap/unwrap smoke `ok:true` `kekVersion:v1` |
+| `worker-kms` staging | Redeploy Fase 0; bindings Secrets Store |
+| Tenant fixture | `tenant_stg_phase0_001` + owner + TENANT_KV; `/api/auth/session` 200 |
+| S42 create backup | `202` → `READY`; Workflow + R2 + `kek_version=v1` |
+| S48 `POST /api/dr/simulation` | `422 BACKUP_MANIFEST_MISMATCH` (unwrap OK) |
+| CI `deploy-staging.yml` dry_run | RED prettier (6× ubl-*); fix local; **GH token debe ser API Token (no OAuth)** |
+| `go-live-staging` | EN_CURSO (no CERRADO) |
 
 ## Después del smoke (no cerrar tracker aún)
 
-Cola canónica en `pending-batches.yaml` `next_actions`. Resumen:
+Cola canónica: `pending-batches.yaml` (`camino_produccion_fases` + `next_actions`).
+Camino a producción (fases 0–4): `docs/ops/go-live-staging-checklist.md`
+§Camino a producción. **Veredicto: NO-GO** a producción/piloto liberatorio.
 
-1. `stg-secrets-real` → tenant fixture → flags A+V → S42 R2/Workflow → S48 DR_SIM.
-2. `stg-crons-verify` **done** (6 crons API). `stg-ci-etapas-6` **file-done**
-   (workflow + V-31); `stg-ci-etapas-6-run` **open** (primer dispatch Actions
-   pendiente). Playwright Chromium se instala en el job de smoke.
-3. Gates s43–s49 / LPDP según flags y owners.
-4. `go-live-sunat` / `go-live-fcm` / `go-live-hardware` siguen AGENDADO_AL_FINAL.
-5. Dominios canónicos + ADR Queues/multi-shard si aplica.
-6. Cierre tracker solo con A+V (`stg-close-tracker`).
+### Handoff Fase 0 — CERRADO
+
+Secrets + VAPID + tenant GREEN. CI run documentado BLOCKED (prettier).
+
+### Handoff Fase 1 — EN_CURSO
+
+Flags + S42 READY GREEN parcial. S48 RED. Siguiente: diagnosticar
+`BACKUP_MANIFEST_MISMATCH` (manifest vs control plane) y re-ejecutar
+`DR_SIMULATION`; luego A+V. Flags cobro/fiscal deferred.
+
+### Siguientes fases (bloqueadas)
+
+4. Fase 2: `go-live-sunat` + dominios canónicos (piloto operable).
+5. Fase 3: `go-live-fcm` / `go-live-hardware` / s43–s49 (claims GTM).
+6. Fase 4: recursos production + CI Etapas 7–11; `stg-close-tracker` solo con A+V.

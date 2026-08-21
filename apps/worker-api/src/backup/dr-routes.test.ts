@@ -11,7 +11,8 @@ function rawImpl<T = unknown[]>(options?: {
   );
 }
 
-function mockDb(): D1Database {
+function mockDb(options?: { readonly stepUpChanges?: number }): D1Database {
+  const stepUpChanges = options?.stepUpChanges ?? 1;
   const meta = (changes: number): D1Meta & Record<string, unknown> => ({
     changes,
     duration: 0,
@@ -37,7 +38,9 @@ function mockDb(): D1Database {
       return Promise.resolve(null as T);
     },
     run: <T = Record<string, unknown>>() =>
-      Promise.resolve(d1Result([] as T[], sql.includes('authorization_tokens') ? 1 : 0)),
+      Promise.resolve(
+        d1Result([] as T[], sql.includes('authorization_tokens') ? stepUpChanges : 0),
+      ),
     all: <T = Record<string, unknown>>() => Promise.resolve(d1Result([] as T[])),
     raw: rawImpl,
   });
@@ -56,10 +59,10 @@ function mockDb(): D1Database {
   return db;
 }
 
-function mockEnv(): DrRouteEnv {
+function mockEnv(options?: { readonly stepUpChanges?: number }): DrRouteEnv {
   return {
     FEATURE_PLATFORM_DR: '1',
-    DB: mockDb(),
+    DB: mockDb(options),
     DR_DB: mockDb(),
     BACKUPS: {
       get: () => Promise.resolve(null),
@@ -125,13 +128,26 @@ describe('platform.dr simulation route (Sprint 48)', () => {
     expect(res.body.code).toBe('DR_DEPENDENCY_UNAVAILABLE');
   });
 
-  it('validación del snapshot falla → 422 DR_SIMULATION_FAILED (fail-closed, sin apply)', async () => {
+  it('validación del snapshot falla → 422 BACKUP_R2_OBJECT_MISSING (fail-closed, sin apply)', async () => {
     const env = mockEnv();
     const res = await runDrSimulationHttp(env, actor, {
       stepUpToken: 'tok',
       nowMs: Date.now(),
     });
     expect(res.status).toBe(422);
-    expect(res.body.code).toBe('DR_SIMULATION_FAILED');
+    expect(res.body.code).toBe('BACKUP_R2_OBJECT_MISSING');
+  });
+
+  it('step-up consume acepta meta.changes>=1 (epoch trigger en authorization_tokens)', async () => {
+    // D1 cuenta el UPDATE del token + el UPDATE de tenant_data_epochs vía trigger.
+    const env = mockEnv({ stepUpChanges: 2 });
+    const res = await runDrSimulationHttp(env, actor, {
+      stepUpToken: 'tok',
+      nowMs: Date.now(),
+    });
+    expect(res.status).not.toBe(401);
+    expect(res.body.code).not.toBe('STEP_UP_REQUIRED');
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('BACKUP_R2_OBJECT_MISSING');
   });
 });

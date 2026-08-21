@@ -76,7 +76,11 @@ async function consumeStepUpToken(
     )
       .bind(actor.tenantId, actor.userId, tokenHash, 'PLATFORM_DR_SIMULATION', input.backupId)
       .run();
-    return consumed.meta?.changes === 1 ? null : result(401, { code: 'STEP_UP_REQUIRED' });
+    // Epoch triggers on authorization_tokens bump tenant_data_epochs in the same
+    // statement batch, so D1 may report changes > 1 for a successful consume.
+    return (consumed.meta?.changes ?? 0) >= 1
+      ? null
+      : result(401, { code: 'STEP_UP_REQUIRED' });
   } catch {
     return result(503, { code: 'DR_STEP_UP_UNAVAILABLE' });
   }
@@ -235,21 +239,37 @@ async function executeDrSimulation(
     await audit('DR_SIMULATION_PASSED', payload);
     return result(200, payload);
   } catch (cause) {
-    const safe =
+    const coded =
       cause instanceof Error &&
       [
         'BACKUP_KMS_UNAVAILABLE',
         'BACKUP_TENANT_MISMATCH',
         'BACKUP_CHUNK_TAMPERED',
+        'BACKUP_MANIFEST_INVALID',
+        'BACKUP_MANIFEST_MISMATCH',
+        'BACKUP_R2_OBJECT_MISSING',
+        'BACKUP_CIPHERTEXT_TAMPERED',
         'DR_RESTORE_FK_CYCLE',
+        'NOT_FOUND',
       ].includes(cause.message)
         ? cause.message
         : 'DR_SIMULATION_FAILED';
-    await audit('DR_SIMULATION_FAILED', {
+    const detail = cause instanceof Error ? cause.message.slice(0, 200) : 'unknown';
+    const detailPayload: Record<string, unknown> = {
       backupId,
-      code: safe,
+      code: coded,
+      detail,
       errorRef: crypto.randomUUID(),
-    });
-    return result(422, { code: safe, errorRef: crypto.randomUUID() });
+    };
+    if (cause && typeof cause === 'object') {
+      const mismatch = (cause as { mismatch?: unknown }).mismatch;
+      const expected = (cause as { expected?: unknown }).expected;
+      const actual = (cause as { actual?: unknown }).actual;
+      if (typeof mismatch === 'string') detailPayload.mismatch = mismatch;
+      if (typeof expected === 'string') detailPayload.expected = expected;
+      if (typeof actual === 'string') detailPayload.actual = actual;
+    }
+    await audit('DR_SIMULATION_FAILED', detailPayload);
+    return result(422, { code: coded, errorRef: crypto.randomUUID() });
   }
 }

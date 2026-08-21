@@ -166,7 +166,11 @@ async function consumeStepUpToken(
     )
       .bind(actor.tenantId, actor.userId, tokenHash, input.action, input.backupId)
       .run();
-    return consumed.meta?.changes === 1 ? null : result(401, { code: 'STEP_UP_REQUIRED' });
+    // Epoch triggers on authorization_tokens bump tenant_data_epochs; D1 may
+    // report changes > 1 for a successful one-shot consume.
+    return (consumed.meta?.changes ?? 0) >= 1
+      ? null
+      : result(401, { code: 'STEP_UP_REQUIRED' });
   } catch {
     return result(503, { code: 'BACKUP_STEP_UP_UNAVAILABLE', errorRef: errorRef() });
   }
@@ -553,19 +557,22 @@ export async function runMintBackupStepUpTokenHttp(
     return result(403, { code: 'FORBIDDEN' });
   }
   const backupId = typeof body.backupId === 'string' ? body.backupId : '';
+  const rawAction = typeof body.action === 'string' ? body.action : 'DATA_BACKUP_DOWNLOAD';
   const action =
-    body.action === 'PLATFORM_DR_SIMULATION' ? 'PLATFORM_DR_SIMULATION' : 'DATA_BACKUP_DOWNLOAD';
-  if (action === 'DATA_BACKUP_DOWNLOAD' && !backupId) {
+    rawAction === 'PLATFORM_DR_SIMULATION'
+      ? 'PLATFORM_DR_SIMULATION'
+      : rawAction === 'DATA_BACKUP_RESTORE_DRY_RUN'
+        ? 'DATA_BACKUP_RESTORE_DRY_RUN'
+        : 'DATA_BACKUP_DOWNLOAD';
+  if (!backupId) {
     return result(400, { error: 'backupId required', code: 'BAD_REQUEST' });
   }
-  if (action === 'DATA_BACKUP_DOWNLOAD') {
-    const row = await env.DB.prepare(
-      `SELECT id FROM data_backups WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1`,
-    )
-      .bind(actor.tenantId, backupId)
-      .first<{ id: string }>();
-    if (!row) return result(404, { error: 'Not found', code: 'BACKUP_NOT_FOUND' });
-  }
+  const row = await env.DB.prepare(
+    `SELECT id FROM data_backups WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1`,
+  )
+    .bind(actor.tenantId, backupId)
+    .first<{ id: string }>();
+  if (!row) return result(404, { error: 'Not found', code: 'BACKUP_NOT_FOUND' });
 
   const token = `backup_${crypto.randomUUID()}`;
   const tokenHash = await sha256Hex(token);
@@ -576,21 +583,13 @@ export async function runMintBackupStepUpTokenHttp(
        action, actor_user_id
      ) VALUES (?, ?, ?, ?, datetime('now', '+90 seconds'), ?, ?, ?)`,
   )
-    .bind(
-      id,
-      actor.tenantId,
-      tokenHash,
-      actor.userId,
-      action === 'DATA_BACKUP_DOWNLOAD' ? backupId : null,
-      action,
-      actor.userId,
-    )
+    .bind(id, actor.tenantId, tokenHash, actor.userId, backupId, action, actor.userId)
     .run();
 
   return result(200, {
     token,
     action,
-    backupId: action === 'DATA_BACKUP_DOWNLOAD' ? backupId : null,
+    backupId,
     expiresInSeconds: 90,
     oneShot: true,
   });

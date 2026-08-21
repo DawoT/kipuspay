@@ -266,16 +266,32 @@ export async function validateReadyBackup(
     manifestAad,
   );
   const manifest = parseKpbk1Manifest(manifestBytes);
-  if (
-    manifest.tenant_id !== input.tenantId ||
-    manifest.backup_id !== input.backupId ||
-    manifest.schema_version !== backup.schema_version ||
-    manifest.registry_version !== backup.registry_version ||
-    manifest.global_hash !== backup.global_hash
-  ) {
-    throw codedError(
-      manifest.tenant_id !== input.tenantId ? 'BACKUP_TENANT_MISMATCH' : 'BACKUP_MANIFEST_MISMATCH',
-    );
+  if (manifest.tenant_id !== input.tenantId) {
+    throw codedError('BACKUP_TENANT_MISMATCH');
+  }
+  if (manifest.backup_id !== input.backupId) {
+    throw Object.assign(codedError('BACKUP_MANIFEST_MISMATCH'), {
+      mismatch: 'backup_id',
+    });
+  }
+  if (manifest.schema_version !== backup.schema_version) {
+    throw Object.assign(codedError('BACKUP_MANIFEST_MISMATCH'), {
+      mismatch: 'schema_version',
+      expected: backup.schema_version,
+      actual: manifest.schema_version,
+    });
+  }
+  if (manifest.registry_version !== backup.registry_version) {
+    throw Object.assign(codedError('BACKUP_MANIFEST_MISMATCH'), {
+      mismatch: 'registry_version',
+      expected: backup.registry_version,
+      actual: manifest.registry_version,
+    });
+  }
+  if (manifest.global_hash !== backup.global_hash) {
+    throw Object.assign(codedError('BACKUP_MANIFEST_MISMATCH'), {
+      mismatch: 'global_hash',
+    });
   }
 
   const chunkRows = await env.DB.prepare(

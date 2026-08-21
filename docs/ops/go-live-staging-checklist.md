@@ -13,73 +13,86 @@ Bootstrap: `docs/ops/staging-bootstrap.md`. Matriz claims: `docs/ops/claims-go-l
 **No cerrar** el ítem ni QGs externos sin firmas A+V. Prohibido commit `FEATURE_*=1`
 en `wrangler.jsonc` (test nogate).
 
-## Estado auditado (2026-08-17)
+**Veredicto producción:** NO-GO. Software local GREEN; staging = smoke + Fase 0/1
+parcial. Claims GTM vendibles exigen evidencia externa + A+V.
 
-- `stg-crons-verify` → **done**: 6 crons desplegados y verificados vía API
-  `schedules` (modified_on 01:08:04Z, deploy activo `9daaf9b6`); coinciden con
-  `env.staging.triggers` del repo, el top-level y los handlers `scheduled` de
-  `worker.ts`. Evidencia en `staging-bootstrap.md` §Auditoría y en el yaml.
-- `stg-dr-migrate` / `stg-migrate-batch-fix` → **closed** (D1 DB+DR 56/56).
-- `stg-secrets-real`, `stg-vapid-public-var`, `stg-tenant-fixture`,
-  `stg-flags-s42-s48`, `stg-s42-r2-workflow`, `stg-s48-dr-sim` → **bloqueados**
-  (necesitan humanos/secrets/A+V).
-- `stg-ci-etapas-6` → **file-done**: `.github/workflows/deploy-staging.yml`
-  (`workflow_dispatch` manual, Etapas 0–5 en `jobs.gate`, deploy §13.7,
-  artifact, `playwright install --with-deps chromium` antes del smoke).
-  V-31 es contrato de archivo, no un run GREEN. `stg-ci-etapas-6-run` sigue
-  **open** hasta el primer dispatch (secrets `CLOUDFLARE_API_TOKEN` +
-  `CLOUDFLARE_ACCOUNT_ID`).
+## Estado auditado (2026-08-20 — Fase 0 humano + Fase 1)
 
-## Próximos `next_actions`
+- `stg-crons-verify` → **done** (previo).
+- `stg-dr-migrate` / `stg-migrate-batch-fix` → **closed**.
+- `stg-secrets-real` → **done** (KEK + VAPID Secrets Store; FCM SA stub queda en
+  `go-live-fcm`).
+- `stg-vapid-public-var` → **done** (runtime var API).
+- `stg-tenant-fixture` → **done** (`tenant_stg_phase0_001`, session 200, step-up).
+- `stg-ci-etapas-6` → **file-done**; `stg-ci-etapas-6-run` → **blocked** (GH secrets
+  OK; dry_run RED por prettier ubl-*; fix local pendiente de commit).
+- `stg-flags-s42-s48` → **done** (runtime only).
+- `stg-s42-r2-workflow` → **done parcial** (backup READY + kek v1 + Workflow; chaos
+  matrix / restore dry-run A+V pendientes).
+- `stg-s48-dr-sim` → **open/RED** (`BACKUP_MANIFEST_MISMATCH`).
+- `go-live-staging` → **EN_CURSO** (nunca CERRADO en este ciclo).
 
-| id | Owner | Pass |
+## Handoff Fase 0 — CERRADO (2026-08-20)
+
+| id | Owner | Status | Pass |
+|---|---|---|---|
+| `stg-secrets-real` | Staff Security | **done** | Store real; KMS redeploy; wrap vía backup READY |
+| `stg-vapid-public-var` | Staff Mobile | **done** | `PUSH_VAPID_PUBLIC_KEY` runtime + redeploy API |
+| `stg-tenant-fixture` | Staff SRE | **done** | Owner JWT + KV + session/step-up |
+| `stg-ci-etapas-6-run` | Staff SRE | **blocked** | Prettier fix local + **reemplazar GH `CLOUDFLARE_API_TOKEN` OAuth por API Token CF** antes del deploy real |
+
+## Handoff Fase 1 — EN_CURSO
+
+| id | Status | Evidencia |
 |---|---|---|
-| `stg-secrets-real` | Staff Security | Secrets Store real (KEK backup/push, VAPID, FCM SA); redeploy KMS |
-| `stg-ci-etapas-6` | Staff SRE | **file-done** — workflow + V-31 + Playwright install |
-| `stg-ci-etapas-6-run` | Staff SRE | Primer `gh workflow run deploy-staging.yml` GREEN |
+| `stg-flags-s42-s48` | **done** | Runtime `FEATURE_DATA_BACKUP=1` / `FEATURE_PLATFORM_DR=1` |
+| `stg-s42-r2-workflow` | **done parcial** | Backups `d31ef057…`, `8afaba63…` READY |
+| `stg-s48-dr-sim` | **RED** | `DR_SIMULATION` → `BACKUP_MANIFEST_MISMATCH` |
 
-Siguiente bloqueado hasta secrets + tenant + A+V flags: `stg-s42-r2-workflow` →
-`stg-s48-dr-sim`.
+Fixes de producto desplegados en staging (no liberatorios): step-up
+`meta.changes >= 1` (epoch trigger); mint step-up exige `backupId` también para DR /
+restore dry-run.
 
-## Comandos útiles
+Flags cobro/fiscal piloto: **deferred** (Fase 2).
 
-```bash
-# Paridad migraciones DB vs DR_DB
-pnpm --filter @kipuspay/worker-api run d1:migrate:staging:list
-pnpm --filter @kipuspay/worker-api run d1:migrate:staging
-pnpm --filter @kipuspay/worker-api run d1:migrate:staging:dr
+## Camino a producción (fases 0–4)
 
-# Si batch apply falla con "incomplete input": aplicar one-by-one
-# (mismo orden que packages/adapters-d1/migrations/*.sql)
+No marcar `go-live-*` CERRADO ni claims GTM vendibles hasta A+V independientes.
+Piloto acotado (Fase 2) puede ir antes de FCM/hardware (Fase 3).
 
-pnpm --filter @kipuspay/worker-api run deploy:staging
-pnpm --filter @kipuspay/worker-kms run deploy:staging
-node apps/pos-web/scripts/staging-browser-smoke.mjs
-```
+### Fase 0 — Plataforma staging usable — **CERRADO** (CI run documentado BLOCKED)
 
-## Flags runtime (solo con A+V)
+### Fase 1 — Evidencia plataforma (A+V) — **EN_CURSO**
 
-No editar el repo. Tras aprobación, flip en dashboard / `wrangler secret` /
-vars de deploy para evidencia:
+6. Runtime `FEATURE_DATA_BACKUP=1`, `FEATURE_PLATFORM_DR=1` — **done**.
+7. Matriz externa S42 — **parcial** (READY; falta dry-run/chaos A+V).
+8. `DR_SIMULATION` S48 — **RED** (`BACKUP_MANIFEST_MISMATCH`).
+9. Flags piloto cobro/fiscal — **deferred**.
 
-- `FEATURE_DATA_BACKUP=1`, `FEATURE_PLATFORM_DR=1` (S42/S48)
-- Luego, por gate: `FEATURE_ORDERS_CUSTOMER_ORDERS`, `FEATURE_SALES_RECURRING`,
-  `FEATURE_ANALYTICS_*`, `FEATURE_LPDP`, `FEATURE_CATALOG_PRICE_LABELS`, etc.
-- POS: rebuild Pages con `PUBLIC_FEATURE_*` alineados si la UI debe probarse.
+### Fase 2 — Piloto operable (mínimo producción real)
 
-Rollback: redeploy con vars `"0"` (estado default del repo).
+10. `go-live-sunat` — PSE/OSE sandbox, CDR accepted; XAdES/SOL; NC/ND con CDR.
+11. Dominios canónicos + CORS (`api.` / `app.` / `kipuspay.com`).
+12. Observabilidad + canarios sintéticos (Proceso §5.2 / §6).
+13. Rollback probado + Review Board A+V (Proceso §8.1).
+14. Marketing: `PUBLIC_FEATURE_MARKETING_SITE=1` en build Pages **o** soft-launch.
 
-## Pass S42 (externo — no afirmar GREEN aquí)
+### Fase 3 — Claims GTM (después del piloto)
 
-Ver `docs/ops/s42-data-backup-qg.md` § evidencia externa: R2 multipart
-timeout/partial/resume/abort; Workflow crash/replay/idempotencia; Secrets Store
-sin material en D1/R2/logs; KMS unwrap versionado; dry-run cero writes indebidos.
+| Bloque | Pass | Gate |
+|---|---|---|
+| `go-live-fcm` | VAPID+FCM reales; ACK DISPLAYED p95&lt;10s ≥99% | s45 / GTM-26 |
+| `go-live-hardware` | Matriz 58/80 mm + 500 ventas Android | s41 / GTM-26 |
+| s43 / s44 / s46–s49 / s47 | Evidencia staging + QA humana | claims-go-live |
+| s53 | Matriz caja física + offline dispositivos | claims matriz |
 
-## Pass S48 (externo)
+### Fase 4 — Cutover producción
 
-Ver `docs/ops/s48-dr-bcp-qg.md`: `DR_SIMULATION` contra `DR_DB` staging;
-`rto_ms` ≤ 30 min; RPO; never write live `DB`; A+V.
+15. Recursos **production** nuevos (no reusar staging).
+16. CI Etapas 7–11.
+17. Cerrar `go-live-staging` + ledger liberatorio solo con A+V nuevos.
 
-## Soft-launch marketing
+## Flags runtime (recordatorio)
 
-`PUBLIC_FEATURE_MARKETING_SITE=0` es intencional. No es gap de staging smoke.
+Flip **solo** en dashboard/`wrangler deploy --var` / secrets de entorno. Nunca
+commitear `FEATURE_*=1` en `wrangler.jsonc`.

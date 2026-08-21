@@ -12365,3 +12365,125 @@ aprobaciones: [Staff Principal A, @DawoT A (humano), Staff Verifier V independie
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+```
+id: 0451
+timestamp_utc: 2026-08-20T16:45:00Z
+schema_version: 2
+sprint_fase: Auditoría readiness producción — camino fases 0–4 + handoff Fase 0
+agente_responsable: Staff Auditor
+tipo: Entregable nuevo
+subtipo: checklist camino a producción + tracker meta/fases (sin cierre liberatorio)
+relacion: amplia
+referencias_entradas: [0449, 0450]
+referencias_documentales: [docs/ops/go-live-staging-checklist.md, docs/ops/pending-batches.yaml, docs/ops/staging-bootstrap.md, docs/ops/claims-go-live.md]
+prev_id: 0450
+prev_hash: f47b96036374a413b349f7ad0fa08f960ffb154f02080c7ec9ec23a57b49fdf2
+entry_hash: a2d94e8e6020ce7c706558135f93f289e8fe90073d2495d3988802d13899d43d
+ticket_or_adr: prod-readiness-audit (go-live-staging EN_CURSO; veredicto NO-GO)
+test_ids: [SUITE, V-13, V-18]
+entregable_afectado: docs/ops go-live checklist + pending-batches camino_produccion_fases
+descripcion: >
+  Auditoría staff de readiness a producción: software local GREEN; staging smoke;
+  producción/piloto NO-GO. Se documenta el camino en fases 0–4 (secrets/tenant/CI
+  → S42/S48 → piloto SUNAT/dominios → claims GTM FCM/hardware → cutover prod) en
+  go-live-staging-checklist.md y pending-batches.yaml (meta.fase_actual=0,
+  camino_produccion_fases, handoff_fase_0). Handoff Fase 0 ready_now:
+  stg-secrets-real + stg-ci-etapas-6-run; next_after_secrets: tenant + vapid.
+  go-live-staging permanece EN_CURSO; firmas A+V null; sin FEATURE_=1 en repo.
+evidencia: >
+  RED: sin mapa operativo fases producción; bootstrap sin handoff Fase 0 explícito.
+  GREEN: checklist §Camino a producción + §Handoff Fase 0; yaml meta + fases;
+  bootstrap alineado; verify SUITE.
+red_commit_sha: N/A
+red_run_id: run-red-prod-readiness-audit
+expected_failure: agente sin cola clara para producción; go-live overclaim
+green_commit_sha: N/A
+green_run_id: run-green-prod-readiness-audit
+ancestry_verified: true
+aprobaciones: [Staff Auditor R, @DawoT A (humano), Staff Verifier V independiente]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```
+id: 0452
+timestamp_utc: 2026-08-20T23:21:21Z
+schema_version: 2
+sprint_fase: Fase 0 humano secrets/tenant + Fase 1 flags S42/S48 (parcial)
+agente_responsable: Staff SRE/Security + Staff Principal (orquestador)
+tipo: Entregable nuevo
+subtipo: ops staging Fase 0 CERRADO / Fase 1 EN_CURSO (no liberatorio)
+relacion: amplia
+referencias_entradas: [0451]
+referencias_documentales: [docs/ops/pending-batches.yaml, docs/ops/go-live-staging-checklist.md, docs/ops/staging-bootstrap.md, docs/ops/s42-data-backup-qg.md, docs/ops/s48-dr-bcp-qg.md]
+prev_id: 0451
+prev_hash: a2d94e8e6020ce7c706558135f93f289e8fe90073d2495d3988802d13899d43d
+entry_hash: 899f1a76ec166086ba3db8314e84f01438a63060f4423306c3cf8be62c79bb18
+ticket_or_adr: phase0-human-phase1 (A @DawoT staging; V pendiente)
+test_ids: [apps/worker-api/src/backup/dr-routes.test.ts, SUITE, V-13, V-18]
+entregable_afectado: staging Secrets/VAPID/tenant + runtime backup/DR + tracker fases
+descripcion: >
+  Fase 0 (humano SRE/Security): Secrets Store kipuspay-kms-staging con KEK
+  backup/push y VAPID reales (FCM SA stub queda open); redeploy worker-kms;
+  PUSH_VAPID_PUBLIC_KEY runtime en API; tenant_stg_phase0_001 + TENANT_KV +
+  JWT owner; /api/auth/session 200. CI deploy-staging dry_run disparado con
+  secrets GH presentes pero RED por prettier ubl-* (fix local; re-dispatch
+  pendiente). Fase 1: runtime FEATURE_DATA_BACKUP=1 FEATURE_PLATFORM_DR=1
+  (sin commit); backups READY (kek_version=v1) vía Workflow; DR_SIMULATION
+  RED BACKUP_MANIFEST_MISMATCH. Fixes producto en staging: step-up consume
+  meta.changes>=1 (epoch trigger) y mint step-up con backupId para DR.
+  go-live-staging EN_CURSO; fase_actual=1; sin cierre liberatorio ni claims.
+evidencia: >
+  RED: Secrets Store stubs; VAPID vacío; sin fixture; FEATURE_OFF; sin READY;
+  step-up DR fallaba (changes===1 / backup_id null); CI sin secrets.
+  GREEN: KMS+VAPID+tenant; session/step-up; backups READY; flags runtime;
+  tracker/checklist/bootstrap actualizados; dr-routes tests GREEN; S48 gap open.
+red_commit_sha: N/A
+red_run_id: run-red-phase0-phase1-staging
+expected_failure: stubs/fixture/FEATURE_OFF; S48 no PASSED
+green_commit_sha: N/A
+green_run_id: run-green-phase0-phase1-staging
+ancestry_verified: true
+aprobaciones: [Staff Principal A (@DawoT humano staging), Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```
+id: 0453
+timestamp_utc: 2026-08-20T23:23:07Z
+schema_version: 2
+sprint_fase: Follow-up subagente Fase 0 — keep-vars + token GH
+agente_responsable: Staff Principal (orquestador)
+tipo: Corrección de especificación
+subtipo: ops handoff post-Fase 0 (no liberatorio)
+relacion: amplia
+referencias_entradas: [0452]
+referencias_documentales: [docs/ops/staging-bootstrap.md, docs/ops/pending-batches.yaml, docs/ops/go-live-staging-checklist.md, apps/worker-api/package.json]
+prev_id: 0452
+prev_hash: 899f1a76ec166086ba3db8314e84f01438a63060f4423306c3cf8be62c79bb18
+entry_hash: c86031930d31b227e22b4ea3319edd57f8788375fabff19199a9b6f621530725
+ticket_or_adr: phase0-subagent-followup
+test_ids: [SUITE, V-13, V-18]
+entregable_afectado: deploy:staging keep-vars + docs CI token OAuth
+descripcion: >
+  Follow-up del subagente Fase 0 SRE/Security: (1) deploy:staging de
+  worker-api pasa a wrangler --keep-vars para no borrar PUSH_VAPID_PUBLIC_KEY
+  ni FEATURE_* runtime con los literales del repo; (2) documenta que
+  CLOUDFLARE_API_TOKEN en GH no puede ser OAuth de wrangler login (caduca) y
+  debe ser API Token CF de larga duración antes del deploy real; (3) anexa
+  evidencia wrap/unwrap smoke del subagente. Sin cerrar go-live ni S48.
+evidencia: >
+  RED: próximo deploy:staging sin --keep-vars reseteaba VAPID/flags; GH token
+  OAuth caducaba ~horas; docs sin aviso.
+  GREEN: package.json keep-vars; bootstrap/checklist/yaml actualizados; verify.
+red_commit_sha: N/A
+red_run_id: run-red-phase0-followup-keepvars
+expected_failure: wipe VAPID en redeploy; CI deploy real con OAuth caduco
+green_commit_sha: N/A
+green_run_id: run-green-phase0-followup-keepvars
+ancestry_verified: true
+aprobaciones: [Staff Principal A, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:staging": "wrangler deploy --env staging --keep-vars",
     "d1:migrate:staging": "wrangler d1 migrations apply DB --env staging --remote",
     "d1:migrate:staging:dr": "wrangler d1 migrations apply DR_DB --env staging --remote",
     "d1:migrate:staging:list": "wrangler d1 migrations list DB --env staging --remote && wrangler d1 migrations list DR_DB --env staging --remote",

@@ -35,12 +35,7 @@ export interface UblInvoiceInput {
   readonly lines: readonly UblInvoiceLine[];
 }
 
-import {
-  assertWellFormedXml,
-  centsToAmount,
-  escapeXml,
-  hashUblXml,
-} from './ubl-shared.js';
+import { assertWellFormedXml, centsToAmount, escapeXml, hashUblXml } from './ubl-shared.js';
 
 /** Construye XML UBL Invoice 2.1 mínimo válido para fixtures de prueba. */
 export function buildUblInvoiceXml(input: UblInvoiceInput): string {

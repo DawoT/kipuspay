@@ -44,17 +44,15 @@ export interface UblCreditNoteInput {
   readonly lines: readonly UblCreditNoteLine[];
 }
 
-function buildCreditNoteLines(
-  input: UblCreditNoteInput,
-  linesXml: string,
-): string {
+function buildCreditNoteLines(input: UblCreditNoteInput, linesXml: string): string {
   return linesXml;
 }
 
 export function buildUblCreditNoteXml(input: UblCreditNoteInput): string {
   if (input.ublVersion !== '2.1') throw new Error('UNSUPPORTED_UBL_VERSION');
   if (!/^\d{11}$/.test(input.issuerRuc)) throw new Error('INVALID_ISSUER_RUC');
-  if (!/^[A-Za-z0-9-]{1,20}$/.test(input.referencedDocId)) throw new Error('INVALID_REFERENCED_DOC');
+  if (!/^[A-Za-z0-9-]{1,20}$/.test(input.referencedDocId))
+    throw new Error('INVALID_REFERENCED_DOC');
   if (!/^\d{2}$/.test(input.motiveCode)) throw new Error('INVALID_MOTIVE_CODE');
   if (!input.lines.length) throw new Error('EMPTY_LINES');
   if (input.totalAmountCents >= 0) throw new Error('NC_TOTAL_MUST_BE_NEGATIVE');
