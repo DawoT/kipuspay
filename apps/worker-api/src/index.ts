@@ -2930,7 +2930,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const rawBody = await c.req.text();
     const signatureHeader = c.req.header('stripe-signature') ?? undefined;
     const result = await handleStripeWebhook(c.env, rawBody, signatureHeader);
-    return c.json(result.body, result.status as 200 | 400 | 401 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 413 | 503);
   });
 
   app.onError((_error, c) => c.json({ code: 'INTERNAL_ERROR' }, 500));

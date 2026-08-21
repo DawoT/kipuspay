@@ -1,4 +1,8 @@
-import { verifyStripeSignature } from './verify-stripe-signature.js';
+import {
+  MAX_WEBHOOK_BODY_BYTES,
+  verifyStripeSignature,
+  webhookBodyBytes,
+} from './verify-stripe-signature.js';
 
 const SUBSCRIPTION_TYPES = new Set([
   'customer.subscription.deleted',
@@ -269,6 +273,15 @@ export async function handleStripeWebhook(
   signatureHeader: string | undefined,
   nowMs: number = Date.now(),
 ): Promise<WebhookHttpResult> {
+  // Size gate PREVIO a firma HMAC y JSON.parse (Invarian 6 / SEC-08): un body
+  // >1MB se descarta sin trabajo criptográfico ni de parseo (anti-DoS).
+  if (webhookBodyBytes(rawBody) > MAX_WEBHOOK_BODY_BYTES) {
+    return {
+      status: 413,
+      body: { error: 'Webhook body too large', code: 'PAYLOAD_TOO_LARGE' },
+    };
+  }
+
   const gate = validateWebhookRequest(env, signatureHeader);
   if ('status' in gate) return gate;
 

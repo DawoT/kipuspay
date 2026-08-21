@@ -5,6 +5,19 @@
 
 const REPLAY_WINDOW_SECONDS = 300;
 
+/**
+ * Límite duro de tamaño de body de webhook (Invarian 6 / SEC-08): cualquier
+ * payload >1MB se rechaza con 413/PAYLOAD_TOO_LARGE ANTES de verificar la
+ * firma HMAC o hacer JSON.parse — guard anti-DoS y contra trabajo
+ * criptográfico/de parseo innecesario. Stripe no envía eventos de este tamaño.
+ */
+export const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+
+/** Longitud del body crudo en bytes UTF-8 (no code units UTF-16). */
+export function webhookBodyBytes(rawBody: string): number {
+  return new TextEncoder().encode(rawBody).length;
+}
+
 function decodeHex(value: string): Uint8Array | null {
   if (value.length % 2 !== 0 || /[^0-9a-f]/i.test(value)) return null;
   const bytes = new Uint8Array(value.length / 2);
