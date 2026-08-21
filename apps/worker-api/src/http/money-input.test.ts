@@ -41,6 +41,8 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     expect(parseMoneyToCents('10.5')).toEqual({ ok: true, cents: 1050 });
     expect(parseMoneyToCents('10')).toEqual({ ok: true, cents: 1000 });
     expect(parseMoneyToCents('0.01')).toEqual({ ok: true, cents: 1 });
+    // US-05 acceptance: literal exacto '0.1' → 10 cents (1 decimal).
+    expect(parseMoneyToCents('0.1')).toEqual({ ok: true, cents: 10 });
     expect(parseMoneyToCents('0')).toEqual({ ok: true, cents: 0 });
     expect(parseMoneyToCents(' 12.34 ')).toEqual({ ok: true, cents: 1234 });
   });
@@ -160,6 +162,28 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
       ['１００', 'INVALID_AMOUNT'],
       // Signo que no es ASCII '-' (U+2212): la gramática canónica lo rechaza.
       ['−5', 'INVALID_AMOUNT'],
+      // US-05 acceptance: literales exactos de fixtures — dígitos
+      // arábigos (U+0661..U+0663) e indo-arábigos extendidos
+      // (U+06F1..U+06F4) son visualmente '12.3' pero no decimales ASCII;
+      // '0.001' excede el máximo de 2 decimales de la gramática canónica.
+      ['١٢.٣', 'INVALID_AMOUNT'],
+      ['۱۲.۳۴', 'INVALID_AMOUNT'],
+      ['0.001', 'INVALID_AMOUNT'],
+      // US-05 acceptance 5: bidi control chars (format controls U+202E
+      // RTL-override, U+202D LTR-override, U+200E/U+200F marks, U+2066/67
+      // isolates) NO son \d ni \w de la gramática canónica ASCII
+      // (money-input.ts CANONICAL_MONEY_PATTERN) ni los limpia trim():
+      // rechazo determinístico del monto, jamás cents silenciosos.
+      ['\u202E100', 'INVALID_AMOUNT'],
+      ['100\u202E', 'INVALID_AMOUNT'],
+      ['10\u202E0', 'INVALID_AMOUNT'],
+      ['10.\u202E50', 'INVALID_AMOUNT'],
+      ['\u202D10.50', 'INVALID_AMOUNT'],
+      ['10.50\u202D', 'INVALID_AMOUNT'],
+      ['\u200E7', 'INVALID_AMOUNT'],
+      ['\u200F7', 'INVALID_AMOUNT'],
+      ['\u206610.00', 'INVALID_AMOUNT'],
+      ['\u206710.00', 'INVALID_AMOUNT'],
       // No líquido: objetos, NaN e Infinity jamás se convierten a cents.
       [{}, 'INVALID_AMOUNT'],
       [Number.NaN, 'INVALID_AMOUNT'],
@@ -182,6 +206,33 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     for (const [input, errorName] of cases) {
       expect(parseMoneyToCents(input)).toEqual({ ok: false, errorName });
     }
+  });
+
+  it('US-05 acceptance (bullet 5): bidi control chars en amount strings → rechazo determinístico INVALID_AMOUNT', () => {
+    // Los format controls (U+202E RIGHT-TO-LEFT OVERRIDE, U+202D
+    // LEFT-TO-RIGHT OVERRIDE, U+200E LTR MARK, U+200F RTL MARK y los
+    // isolates U+2066/U+2067) son invisibles pero no \d ni \w de la
+    // gramática canónica ASCII-only (money-input.ts:86); además
+    // String.trim() NO los limpia (no son WhiteSpace), así que el rechazo
+    // es determinístico incluso rodeado de espacios: un monto spoofeado
+    // jamás compone cents (fail-closed, CAL-01).
+    const bidiAmounts = [
+      '\u202E100',
+      '100\u202E',
+      '10\u202E0',
+      '10.\u202E50',
+      '\u202D10.50\u202D',
+      '\u200E7',
+      '\u200F7',
+      '\u206610.00',
+      '\u206710.00',
+      ' \u202E10.50 ',
+    ];
+    for (const amount of bidiAmounts) {
+      expect(parseMoneyToCents(amount)).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+    }
+    // Control positivo: la misma cadena sin format control sí parsea a cents.
+    expect(parseMoneyToCents('10.50')).toEqual({ ok: true, cents: 1050 });
   });
 
   it('US-01 acceptance 2: solo ^-?(0|[1-9]\\d*)(\\.\\d{1,2})?$ acepta (ceros a la izquierda bloquean)', () => {

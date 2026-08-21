@@ -251,6 +251,45 @@ describe('runPaymentChargeHttp', () => {
     expect(res.body.status).toBe('CAPTURED');
   });
 
+  it('US-05 (Acceptance 2): amount_out_of_range → 422 AMOUNT_OUT_OF_RANGE, jamás INVALID_AMOUNT (motivo discriminado por la ruta)', async () => {
+    // El parser discriminó 'amount_out_of_range' (|cents| > MAX_SAFE_INTEGER,
+    // money-input.ts:108); la ruta debe exponerlo como AMOUNT_OUT_OF_RANGE en
+    // vez de colapsarlo a INVALID_AMOUNT. Validación ANTES de tocar D1.
+    vi.mocked(createPendingCaptureAtomic).mockClear();
+    for (const amountCents of [
+      Number.MAX_SAFE_INTEGER + 1,
+      '9007199254740993',
+      '999999999999999999',
+    ]) {
+      const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+        saleId: 's1',
+        salePaymentId: 'sp1',
+        paymentMethodId: 'pm1',
+        amountCents,
+        idempotencyKey: 'k1',
+      });
+      expect(res.status).toBe(422);
+      expect(res.body).toEqual({ error: 'AMOUNT_OUT_OF_RANGE', code: 'AMOUNT_OUT_OF_RANGE' });
+      expect(createPendingCaptureAtomic).not.toHaveBeenCalled();
+    }
+  });
+
+  it('US-05 (Acceptance 2): monto inválido no-in-rango → 422 INVALID_AMOUNT (colapso genérico)', async () => {
+    vi.mocked(createPendingCaptureAtomic).mockClear();
+    for (const amountCents of [0, -5, '007', 'abc', NaN, '1e3']) {
+      const res = await runPaymentChargeHttp(mockEnv(), 't1', {
+        saleId: 's1',
+        salePaymentId: 'sp1',
+        paymentMethodId: 'pm1',
+        amountCents,
+        idempotencyKey: 'k1',
+      });
+      expect(res.status).toBe(422);
+      expect(res.body).toEqual({ error: 'INVALID_AMOUNT', code: 'INVALID_AMOUNT' });
+      expect(createPendingCaptureAtomic).not.toHaveBeenCalled();
+    }
+  });
+
   it('US-02/A2: replay idempotente → 200 con body IDÉNTICO al del ganador: mismo payment_id + reasonCode IDEMPOTENCY_REPLAY (nunca el shape degradado "replayed")', async () => {
     vi.mocked(createPendingCaptureAtomic).mockResolvedValueOnce({
       id: 'cap1',
