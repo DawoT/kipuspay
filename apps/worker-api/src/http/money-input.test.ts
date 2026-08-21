@@ -41,6 +41,8 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     expect(parseMoneyToCents('10.5')).toEqual({ ok: true, cents: 1050 });
     expect(parseMoneyToCents('10')).toEqual({ ok: true, cents: 1000 });
     expect(parseMoneyToCents('0.01')).toEqual({ ok: true, cents: 1 });
+    // US-05 acceptance: literal exacto '0.1' → 10 cents (1 decimal).
+    expect(parseMoneyToCents('0.1')).toEqual({ ok: true, cents: 10 });
     expect(parseMoneyToCents('0')).toEqual({ ok: true, cents: 0 });
     expect(parseMoneyToCents(' 12.34 ')).toEqual({ ok: true, cents: 1234 });
   });
@@ -160,6 +162,13 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
       ['１００', 'INVALID_AMOUNT'],
       // Signo que no es ASCII '-' (U+2212): la gramática canónica lo rechaza.
       ['−5', 'INVALID_AMOUNT'],
+      // US-05 acceptance: literales exactos de fixtures — dígitos
+      // arábigos (U+0661..U+0663) e indo-arábigos extendidos
+      // (U+06F1..U+06F4) son visualmente '12.3' pero no decimales ASCII;
+      // '0.001' excede el máximo de 2 decimales de la gramática canónica.
+      ['١٢.٣', 'INVALID_AMOUNT'],
+      ['۱۲.۳۴', 'INVALID_AMOUNT'],
+      ['0.001', 'INVALID_AMOUNT'],
       // No líquido: objetos, NaN e Infinity jamás se convierten a cents.
       [{}, 'INVALID_AMOUNT'],
       [Number.NaN, 'INVALID_AMOUNT'],
