@@ -8,7 +8,7 @@
  * representaciones del mismo monto) y los convierte a cents
  * enteros con aritmética de dígitos (prohibido parseFloat/Number, V-21);
  * devuelve un resultado discriminado {ok,errorName} con motivos estables:
- * negative_zero / amount_out_of_range / invalid_amount (fail-closed).
+ * negative_zero / amount_out_of_range / INVALID_AMOUNT (fail-closed).
  */
 
 /** true si value es un entero seguro (dinero en cents o conteos). */
@@ -33,12 +33,12 @@ export function parseMoneyInteger(value: unknown): number | null {
 
 /**
  * Motivos estables de rechazo de un monto (US-06, CAL-01): códigos
- * máquina-legibles para el handler, no texto libre. `invalid_amount` es el
+ * máquina-legibles para el handler, no texto libre. `INVALID_AMOUNT` es el
  * genérico para insumo no parseable; `negative_zero` y `amount_out_of_range`
  * distinguen los dos fallos que el acceptance exige discriminar (motivo
  * distinguible en vez de un null mudo).
  */
-export type MoneyParseErrorName = 'invalid_amount' | 'negative_zero' | 'amount_out_of_range';
+export type MoneyParseErrorName = 'INVALID_AMOUNT' | 'negative_zero' | 'amount_out_of_range';
 
 /** Resultado discriminado de parseMoneyToCents (US-06). */
 export type MoneyParseResult =
@@ -49,19 +49,19 @@ export type MoneyParseResult =
  * Convierte dinero del body a INTEGER cents sin float (US-06, CAL-01, V-21):
  * - gramática canónica de strings: -?(0|[1-9]\d*)(\.\d{1,2})? ("10.50" →
  *   1050, "-5" → -500, "0.01" → 1) con aritmética de dígitos, máx 2
- *   decimales y sin ceros a la izquierda ('007' → 'invalid_amount');
+ *   decimales y sin ceros a la izquierda ('007' → 'INVALID_AMOUNT');
  * - number entero seguro → ya son cents (se preserva tal cual); -0 → rechazo
  *   con errorName 'negative_zero';
  * - number finito no entero → cents por su representación decimal solo si
- *   tiene ≤ 2 decimales; NaN/Infinity/artefactos float → 'invalid_amount';
+ *   tiene ≤ 2 decimales; NaN/Infinity/artefactos float → 'INVALID_AMOUNT';
  * - |cents| fuera del rango seguro (9007199254740991) → 'amount_out_of_range';
- * - cualquier otro valor (booleano, array, no-numérico) → 'invalid_amount'.
+ * - cualquier otro valor (booleano, array, no-numérico) → 'INVALID_AMOUNT'.
  */
 export function parseMoneyToCents(value: unknown): MoneyParseResult {
   if (typeof value === 'number') return numberToCents(value);
-  if (typeof value !== 'string') return { ok: false, errorName: 'invalid_amount' };
+  if (typeof value !== 'string') return { ok: false, errorName: 'INVALID_AMOUNT' };
   const trimmed = value.trim();
-  if (trimmed === '') return { ok: false, errorName: 'invalid_amount' };
+  if (trimmed === '') return { ok: false, errorName: 'INVALID_AMOUNT' };
   return decimalTextToCents(trimmed);
 }
 
@@ -78,7 +78,7 @@ function numberToCents(value: number): MoneyParseResult {
     if (Object.is(value, -0)) return { ok: false, errorName: 'negative_zero' };
     return { ok: true, cents: value };
   }
-  if (!Number.isFinite(value)) return { ok: false, errorName: 'invalid_amount' };
+  if (!Number.isFinite(value)) return { ok: false, errorName: 'INVALID_AMOUNT' };
   return decimalTextToCents(value.toString());
 }
 
@@ -87,7 +87,7 @@ const CANONICAL_MONEY_PATTERN = /^-?(0|[1-9]\d*)(\.\d{1,2})?$/;
 
 /**
  * "10.50"/"-5.5"/"10" → cents por dígitos con resultado discriminado: la
- * cadena debe respetar -?(0|[1-9]\d*)(\.\d{1,2})? (si no, 'invalid_amount';
+ * cadena debe respetar -?(0|[1-9]\d*)(\.\d{1,2})? (si no, 'INVALID_AMOUNT';
  * los ceros a la izquierda como '007' no son canónicos, US-01); |cents|
  * sobre MAX_SAFE_INTEGER → 'amount_out_of_range'; "-0"/"-0.00" →
  * 'negative_zero'. Sin parseFloat/Number: validación y aritmética solo de
@@ -97,7 +97,7 @@ function decimalTextToCents(trimmed: string): MoneyParseResult {
   // "10." incompleto, "10,50"/"1e3"/"0x10"/"１００" y "+5" no son decimales
   // canónicos; validación puramente sobre la cadena.
   if (!CANONICAL_MONEY_PATTERN.test(trimmed)) {
-    return { ok: false, errorName: 'invalid_amount' };
+    return { ok: false, errorName: 'INVALID_AMOUNT' };
   }
   const negative = trimmed.startsWith('-');
   const unsigned = negative ? trimmed.slice(1) : trimmed;
