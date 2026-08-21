@@ -195,6 +195,53 @@ describe('submit count review', () => {
     expect(binds.flat()).not.toContain(999);
   });
 
+  it('US-05: rechaza costo autoridad degenerado sin coalescer a 0 (422 fail-closed)', async () => {
+    for (const degenerate of [null, undefined, 12.5, -5, '100', Number.NaN]) {
+      const res = await runSubmitCountReviewHttp(
+        mockDbEnv({
+          first: (sql) =>
+            sql.includes('FROM inventory_counts')
+              ? { status: 'COUNTING', branch_id: 'b1' }
+              : {
+                  quantity_microunits: 10_000_000,
+                  pmp_unit_cost_cents: degenerate,
+                  location_id: 'loc-1',
+                },
+        }),
+        't1',
+        'owner',
+        { countId: 'c1', lines: [{ productId: 'p1', countedQty: 8 }] },
+      );
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('COUNT_UNIT_COST_INVALID');
+    }
+  });
+
+  it('US-05: costo autoridad grande tipado persiste diff_value_cents exacto (sin drift)', async () => {
+    const binds: unknown[][] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 10_000_000,
+                pmp_unit_cost_cents: 123_456_789,
+                location_id: 'loc-1',
+              },
+      }),
+      't1',
+      'owner',
+      { countId: 'c1', lines: [{ productId: 'p1', countedQty: 3 }] },
+    );
+    expect(res.status).toBe(200);
+    // counted 3 vs system 10 → difference -7 microunidades × 123_456_789 cents
+    expect(binds.flat()).toContain(123_456_789);
+    expect(binds.flat()).toContain(-864_197_523);
+    expect(binds.flat()).not.toContain(0);
+  });
+
   it('exige identidades exactas al enviar conteo serializado', async () => {
     const res = await runSubmitCountReviewHttp(
       mockDbEnv({
@@ -434,6 +481,88 @@ describe('approve count', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('APPROVED');
     expect(sqls.some((sql) => sql.includes('inventory_location_stock'))).toBe(true);
+  });
+
+  it('US-05: rechaza fila degenerada unit_cost_cents NULL sin persistir costo-0 (422 fail-closed)', async () => {
+    const sqls: string[] = [];
+    const res = await runApproveCountHttp(
+      mockDbEnv({
+        sqls,
+        first: (sql) => {
+          if (sql.includes('FROM users')) return { role: 'owner' };
+          return {
+            status: 'DIFFERENCE_REVIEW',
+            difference_threshold_cents: 100,
+            branch_id: 'b1',
+          };
+        },
+        all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: null }],
+      }),
+      't1',
+      'u1',
+      'owner',
+      { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('COUNT_UNIT_COST_REQUIRED');
+    // Fail-closed: nada se persiste — ni movimiento con unit_cost_cents=0 ni ajuste de stock.
+    expect(sqls.some((sql) => sql.includes('inventory_movements'))).toBe(false);
+    expect(sqls.some((sql) => sql.includes('UPDATE branch_product_stock'))).toBe(false);
+  });
+
+  it('US-05: rechaza tipos invalidos en costo almacenado sin coalescer a 0 (422)', async () => {
+    for (const degenerate of [undefined, 99.5, -1, '100']) {
+      const res = await runApproveCountHttp(
+        mockDbEnv({
+          first: () => ({
+            status: 'DIFFERENCE_REVIEW',
+            difference_threshold_cents: 100,
+            branch_id: 'b1',
+          }),
+          all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: degenerate }],
+        }),
+        't1',
+        'u1',
+        'owner',
+        { countId: 'c1', adjustmentReason: 'Conteo físico' },
+      );
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('COUNT_UNIT_COST_REQUIRED');
+    }
+  });
+
+  it('US-05: costo tipado grande pasa intacto al movimiento AJUSTE (sin drift ni coalescing)', async () => {
+    const binds: unknown[][] = [];
+    const res = await runApproveCountHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) => {
+          if (sql.includes('FROM users')) return { role: 'admin' };
+          return {
+            status: 'DIFFERENCE_REVIEW',
+            difference_threshold_cents: 100,
+            branch_id: 'b1',
+          };
+        },
+        all: () => [
+          {
+            id: 'line-1',
+            product_id: 'p1',
+            location_id: 'loc-1',
+            difference_qty: -5,
+            difference_qty_microunits: -5_000_000,
+            unit_cost_cents: 4_000_000_000_000,
+            serial_tracking_mode: 'NONE',
+          },
+        ],
+      }),
+      't1',
+      'u1',
+      'owner',
+      { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
+    );
+    expect(res.status).toBe(200);
+    expect(binds.flat()).toContain(4_000_000_000_000);
   });
 
   it('rechaza diff serial que no coincide con identidades actuales', async () => {

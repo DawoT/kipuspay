@@ -46,6 +46,23 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
+// US-05 guard tipado fail-closed ante costo degenerado: la columna
+// inventory_count_lines.unit_cost_cents es NULLABLE (migrations 0011) y el PMP
+// autoritativo cruza el driver como number | null. Un costo ausente, no entero
+// o negativo NUNCA se coalesce implícitamente a 0 — un ajuste valorizado con
+// costo-0-implícito llegaría a diff_value_cents / inventory_movements.
+function isValidUnitCostCents(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+/** Exige costo tipado en una línea persistida del conteo; falla cerrado si es degenerado. */
+function requireStoredUnitCostCents(line: { unit_cost_cents: number | null }): number {
+  if (!isValidUnitCostCents(line.unit_cost_cents)) {
+    throw new Error('COUNT_UNIT_COST_REQUIRED');
+  }
+  return line.unit_cost_cents;
+}
+
 export async function runCreateInventoryCountHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -194,6 +211,9 @@ export async function runSubmitCountReviewHttp(
             throw new Error('SERIAL_IDENTITY_INVALID');
           }
           const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+          if (!isValidUnitCostCents(authority.pmp_unit_cost_cents)) {
+            throw new Error('COUNT_UNIT_COST_INVALID');
+          }
           return {
             productId,
             batchId: line.batchId ?? null,
@@ -201,7 +221,7 @@ export async function runSubmitCountReviewHttp(
             countedMicrounits,
             systemMicrounits: authority.quantity_microunits,
             differenceMicrounits,
-            unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+            unitCostCents: authority.pmp_unit_cost_cents,
             countLineId: crypto.randomUUID(),
             serials,
           };
@@ -336,7 +356,7 @@ export async function runApproveCountHttp(
       location_id: string;
       difference_qty: number;
       difference_qty_microunits: number;
-      unit_cost_cents: number;
+      unit_cost_cents: number | null;
       serial_tracking_mode: string;
     }>();
 
@@ -419,7 +439,7 @@ export async function runApproveCountHttp(
       lines: (lines.results ?? []).map((l) => ({
         productId: l.product_id,
         differenceQty: l.difference_qty,
-        unitCostCents: l.unit_cost_cents ?? 0,
+        unitCostCents: requireStoredUnitCostCents(l),
       })),
       differenceThresholdCents: count.difference_threshold_cents ?? 0,
       authorizedByUserId: body.authorizedByUserId ?? null,
@@ -479,7 +499,7 @@ export async function runApproveCountHttp(
             l.product_id,
             l.difference_qty,
             l.difference_qty_microunits,
-            l.unit_cost_cents ?? 0,
+            requireStoredUnitCostCents(l),
             tenantId,
             count.branch_id,
             l.product_id,
