@@ -8,7 +8,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy:staging": "PUBLIC_API_BASE=https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev PUBLIC_FEATURE_POS_CHECKOUT=1 PUBLIC_FEATURE_CATALOG_SELLABLE=1 PUBLIC_FEATURE_OWNER_MODE=1 PUBLIC_FEATURE_FISCAL_RC=1 pnpm build && wrangler pages deploy .svelte-kit/cloudflare --project-name kipuspay-app --branch staging",
+    "deploy:staging": "PUBLIC_API_BASE=https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev PUBLIC_FEATURE_POS_CHECKOUT=1 PUBLIC_FEATURE_CATALOG_SELLABLE=1 PUBLIC_FEATURE_OWNER_MODE=1 PUBLIC_FEATURE_FISCAL_RC=1 pnpm build && wrangler pages deploy .svelte-kit/cloudflare --project-name kipuspay-app --branch main",
     "lint": "svelte-kit sync && eslint src --max-warnings 0",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run --coverage",
