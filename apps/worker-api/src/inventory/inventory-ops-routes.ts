@@ -51,6 +51,61 @@ function dbUnavailable(): HttpResult {
 /** 1 unidad = 1_000_000 microunidades (escala de cantidad del inventario). */
 const MICROS_PER_UNIT = 1_000_000;
 
+/**
+ * US-05: costo unitario tipado fail-closed. La columna
+ * `inventory_count_lines.unit_cost_cents` es NULLABLE y el PMP autoritativo
+ * cruza el driver como `number | null`. Un costo ausente, no entero o negativo
+ * NUNCA se coalesce a 0 — eso inventaría un AJUSTE valorizado a costo cero.
+ */
+function isValidUnitCostCents(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+/** Exige costo tipado en una línea persistida del conteo; falla cerrado si es degenerado. */
+function requireStoredUnitCostCents(line: { unit_cost_cents: number | null }): number {
+  if (!isValidUnitCostCents(line.unit_cost_cents)) {
+    throw new Error('COUNT_UNIT_COST_REQUIRED');
+  }
+  return line.unit_cost_cents;
+}
+
+/**
+ * US-05: forma tipada de qty de una línea de conteo ANTES de tocar D1.
+ * - `countedQtyMicrounits` presente → entero seguro ≥ 0 (sin coerción).
+ * - si no, `countedQty` en unidades → entero seguro ≥ 0 convertido con
+ *   aritmética exacta a microunits (overflow → inválido).
+ * - ambos ausentes o tipo basura → COUNT_INVALID_QUANTITY (jamás `?? 0`).
+ */
+function shapeCountLineQuantity(line: {
+  productId?: string;
+  countedQty?: unknown;
+  countedQtyMicrounits?: unknown;
+}):
+  | { ok: true; productId: string; countedMicrounits: number }
+  | { ok: false; code: 'COUNT_PRODUCT_REQUIRED' | 'COUNT_INVALID_QUANTITY'; lineIndex?: number } {
+  const productId = typeof line.productId === 'string' ? line.productId.trim() : '';
+  if (!productId) return { ok: false, code: 'COUNT_PRODUCT_REQUIRED' };
+
+  const microRaw = line.countedQtyMicrounits;
+  const qtyRaw = line.countedQty;
+  if (microRaw !== undefined && microRaw !== null) {
+    if (typeof microRaw !== 'number' || !Number.isSafeInteger(microRaw) || microRaw < 0) {
+      return { ok: false, code: 'COUNT_INVALID_QUANTITY' };
+    }
+    return { ok: true, productId, countedMicrounits: microRaw };
+  }
+  if (qtyRaw !== undefined && qtyRaw !== null) {
+    if (typeof qtyRaw !== 'number' || !Number.isSafeInteger(qtyRaw) || qtyRaw < 0) {
+      return { ok: false, code: 'COUNT_INVALID_QUANTITY' };
+    }
+    if (qtyRaw > Math.floor(Number.MAX_SAFE_INTEGER / MICROS_PER_UNIT)) {
+      return { ok: false, code: 'COUNT_INVALID_QUANTITY' };
+    }
+    return { ok: true, productId, countedMicrounits: qtyRaw * MICROS_PER_UNIT };
+  }
+  return { ok: false, code: 'COUNT_INVALID_QUANTITY' };
+}
+
 export type DiffValueCentsExact =
   | { ok: true; valueCents: number; subCentRemainderMicroCents: number }
   | {
@@ -152,8 +207,8 @@ export async function runSubmitCountReviewHttp(
     countId?: string;
     lines?: readonly {
       productId?: string;
-      countedQty?: number;
-      countedQtyMicrounits?: number;
+      countedQty?: unknown;
+      countedQtyMicrounits?: unknown;
       locationId?: string;
       /** @deprecated ignorado: autoridad server-side */
       systemQty?: number;
@@ -174,6 +229,30 @@ export async function runSubmitCountReviewHttp(
   }
   const countId = body.countId?.trim() ?? '';
   if (!countId) return { status: 400, body: { error: 'countId required', code: 'BAD_REQUEST' } };
+
+  // US-05 AC1/AC4: forma tipada fail-closed ANTES de cualquier prepare/batch.
+  // El body llega como JSON crudo: los tipos estáticos no garantizan nada.
+  const clientLines = body.lines ?? [];
+  const shapedLines: {
+    line: (typeof clientLines)[number];
+    productId: string;
+    countedMicrounits: number;
+  }[] = [];
+  for (let lineIndex = 0; lineIndex < clientLines.length; lineIndex++) {
+    const line = clientLines[lineIndex]!;
+    const shaped = shapeCountLineQuantity(line);
+    if (!shaped.ok) {
+      return {
+        status: 400,
+        body: { error: shaped.code, code: shaped.code, lineIndex },
+      };
+    }
+    shapedLines.push({
+      line,
+      productId: shaped.productId,
+      countedMicrounits: shaped.countedMicrounits,
+    });
+  }
 
   const count = await env.DB.prepare(
     `SELECT status, branch_id FROM inventory_counts WHERE id = ? AND tenant_id = ? LIMIT 1`,
@@ -202,7 +281,6 @@ export async function runSubmitCountReviewHttp(
   );
   if (gate.replay) return gate.replay;
 
-  const clientLines = body.lines ?? [];
   let lines: {
     productId: string;
     batchId: string | null;
@@ -219,27 +297,12 @@ export async function runSubmitCountReviewHttp(
     serials: readonly PreparedSerialIdentity[];
   }[];
   try {
+    // La forma (productId/qty) ya fue validada fail-closed arriba: aquí solo
+    // queda la validación que DEPENDE del estado en D1 (stock, seriales, PMP).
     lines = await Promise.all(
-      clientLines.map(
+      shapedLines.map(
         // eslint-disable-next-line complexity -- serial + aggregate authority validation
-        async (line) => {
-          const productId = line.productId?.trim() ?? '';
-          if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
-          // US-02: fail-closed ante tipos inválidos, sin coerción implícita
-          // (`"8" * 1_000_000` antes convertía un string en cantidad válida).
-          let countedMicrounits: number;
-          if (line.countedQtyMicrounits != null) {
-            countedMicrounits = line.countedQtyMicrounits;
-          } else {
-            const countedQty = line.countedQty ?? 0;
-            if (typeof countedQty !== 'number' || !Number.isFinite(countedQty)) {
-              throw new Error('COUNT_INVALID_QUANTITY');
-            }
-            countedMicrounits = Math.round(countedQty * MICROS_PER_UNIT);
-          }
-          if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
-            throw new Error('COUNT_INVALID_QUANTITY');
-          }
+        async ({ line, productId, countedMicrounits }) => {
           const requestedLocationId = line.locationId?.trim() || null;
           const authority = await env
             .DB!.prepare(
@@ -262,7 +325,7 @@ export async function runSubmitCountReviewHttp(
             .bind(requestedLocationId, requestedLocationId, tenantId, count.branch_id, productId)
             .first<{
               quantity_microunits: number;
-              pmp_unit_cost_cents: number;
+              pmp_unit_cost_cents: number | null;
               location_id: string | null;
               serial_tracking_mode: string;
             }>();
@@ -287,7 +350,11 @@ export async function runSubmitCountReviewHttp(
             throw new Error('SERIAL_IDENTITY_INVALID');
           }
           const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
-          const unitCostCents = authority.pmp_unit_cost_cents ?? 0;
+          // US-05: jamás `?? 0` — un PMP ausente/degenerado es fail-closed.
+          if (!isValidUnitCostCents(authority.pmp_unit_cost_cents)) {
+            throw new Error('COUNT_INVALID_UNIT_COST');
+          }
+          const unitCostCents = authority.pmp_unit_cost_cents;
           // US-02: el costo derivado se computa exacto y con guard de rango
           // ANTES del plan atómico — overflow 2^53 ⇒ error fail-closed estable.
           // US-03 aporta el mismo criterio exacto en http/exact-cents.ts; en
@@ -472,7 +539,7 @@ export async function runApproveCountHttp(
       location_id: string;
       difference_qty: number;
       difference_qty_microunits: number;
-      unit_cost_cents: number;
+      unit_cost_cents: number | null;
       serial_tracking_mode: string;
     }>();
 
@@ -543,6 +610,16 @@ export async function runApproveCountHttp(
     return { status: 422, body: { error: message, code: message } };
   }
 
+  let pricedLines: Array<{
+    id: string;
+    product_id: string;
+    batch_id: string | null;
+    location_id: string;
+    difference_qty: number;
+    difference_qty_microunits: number;
+    unitCostCents: number;
+    serial_tracking_mode: string;
+  }>;
   try {
     assertInventoryCountTransition(count.status, 'APPROVED');
     // S18-H3: 0 ajustes sin motivo — si hay diferencia valorizada > umbral,
@@ -551,11 +628,22 @@ export async function runApproveCountHttp(
     if (hasDiff && !(body.adjustmentReason ?? '').trim()) {
       return { status: 422, body: { error: 'Ajuste requiere motivo', code: 'REASON_REQUIRED' } };
     }
+    // US-05: materializa costos tipados una sola vez (fail-closed; sin ?? 0).
+    pricedLines = (lines.results ?? []).map((l) => ({
+      id: l.id,
+      product_id: l.product_id,
+      batch_id: l.batch_id,
+      location_id: l.location_id,
+      difference_qty: l.difference_qty,
+      difference_qty_microunits: l.difference_qty_microunits,
+      unitCostCents: requireStoredUnitCostCents(l),
+      serial_tracking_mode: l.serial_tracking_mode,
+    }));
     assertCountDiffAuthorized({
-      lines: (lines.results ?? []).map((l) => ({
+      lines: pricedLines.map((l) => ({
         productId: l.product_id,
         differenceQty: l.difference_qty,
-        unitCostCents: l.unit_cost_cents ?? 0,
+        unitCostCents: l.unitCostCents,
       })),
       differenceThresholdCents: count.difference_threshold_cents ?? 0,
       authorizedByUserId: body.authorizedByUserId ?? null,
@@ -573,7 +661,7 @@ export async function runApproveCountHttp(
            adjustment_reason = ?
        WHERE id = ? AND tenant_id = ?`,
     ).bind(userId, (body.adjustmentReason ?? '').trim() || null, countId, tenantId),
-    ...(lines.results ?? [])
+    ...pricedLines
       .filter((l) => l.difference_qty !== 0)
       .map((l) =>
         env
@@ -592,7 +680,7 @@ export async function runApproveCountHttp(
             l.product_id,
           ),
       ),
-    ...(lines.results ?? [])
+    ...pricedLines
       .filter((l) => l.difference_qty !== 0)
       .map((l) =>
         env
@@ -615,7 +703,7 @@ export async function runApproveCountHttp(
             l.product_id,
             l.difference_qty,
             l.difference_qty_microunits,
-            l.unit_cost_cents ?? 0,
+            l.unitCostCents,
             tenantId,
             count.branch_id,
             l.product_id,
@@ -739,6 +827,18 @@ export async function runCreateStockLossHttp(
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const id = crypto.randomUUID();
+  const branchId = body.branchId?.trim() ?? '';
+  const productId = body.productId?.trim() ?? '';
+  // US-05 staff: qty tipada fail-closed ANTES de D1 (incl. el gate) — jamás `?? 0`.
+  const qtyRaw: unknown = body.quantity;
+  if (typeof qtyRaw !== 'number' || !Number.isSafeInteger(qtyRaw) || qtyRaw <= 0) {
+    return { status: 400, body: { error: 'INVALID_LOSS_QTY', code: 'INVALID_LOSS_QTY' } };
+  }
+  if (qtyRaw > Math.floor(Number.MAX_SAFE_INTEGER / MICROS_PER_UNIT)) {
+    return { status: 400, body: { error: 'INVALID_LOSS_QTY', code: 'INVALID_LOSS_QTY' } };
+  }
+  const quantityMicrounits = qtyRaw * MICROS_PER_UNIT;
   // US-03: el reenvío con la misma key devuelve la merma PENDING original sin
   // insertar un duplicado (exactamente-una-vez).
   const gate = await openIdempotencyGate(
@@ -749,15 +849,9 @@ export async function runCreateStockLossHttp(
     body,
   );
   if (gate.replay) return gate.replay;
-  const id = crypto.randomUUID();
-  const branchId = body.branchId?.trim() ?? '';
-  const productId = body.productId?.trim() ?? '';
-  const quantityMicrounits = Math.round((body.quantity ?? 0) * 1_000_000);
   let locationId = body.locationId?.trim() || null;
   let serials: readonly PreparedSerialIdentity[] = [];
   try {
-    // Validate shape via approve planner preconditions loosely
-    if (!(body.quantity && body.quantity > 0)) throw new Error('INVALID_LOSS_QTY');
     if (!(body.reason && body.reason.trim())) throw new Error('LOSS_REASON_REQUIRED');
     if (!branchId || !productId) throw new Error('LOSS_CONTEXT_REQUIRED');
     const product = await env.DB.prepare(

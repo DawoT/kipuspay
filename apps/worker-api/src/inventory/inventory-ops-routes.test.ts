@@ -394,6 +394,143 @@ describe('submit count review', () => {
     expect(sqls.some((sql) => sql.includes('INSERT INTO serial_manifests'))).toBe(true);
     expect(sqls.some((sql) => sql.includes('INSERT INTO serial_manifest_items'))).toBe(true);
   });
+
+  it('US-05: rechaza costo autoridad degenerado sin coalescer a 0 (422 fail-closed)', async () => {
+    for (const degenerate of [null, undefined, 12.5, -5, '100', Number.NaN]) {
+      const res = await runSubmitCountReviewHttp(
+        mockDbEnv({
+          first: (sql) =>
+            sql.includes('FROM inventory_counts')
+              ? { status: 'COUNTING', branch_id: 'b1' }
+              : {
+                  quantity_microunits: 10_000_000,
+                  pmp_unit_cost_cents: degenerate,
+                  location_id: 'loc-1',
+                },
+        }),
+        't1',
+        'owner',
+        { countId: 'c1', lines: [{ productId: 'p1', countedQty: 8 }] },
+      );
+      expect(res.status).toBe(422);
+      expect(res.body.code).toBe('COUNT_INVALID_UNIT_COST');
+    }
+  });
+});
+
+describe('US-05: orden fail-closed y replay de submit review', () => {
+  function envConBatchContado(opts: {
+    sqls: string[];
+    binds?: unknown[][];
+    first?: (sql: string) => Row | null;
+  }): { env: WorkerEnv; batchCalls: () => number } {
+    let batches = 0;
+    const env = mockDbEnv(opts);
+    const db = env.DB as unknown as {
+      batch: (statements: readonly unknown[]) => Promise<unknown[]>;
+    };
+    db.batch = () => {
+      batches += 1;
+      return Promise.resolve([]);
+    };
+    return { env, batchCalls: () => batches };
+  }
+
+  it('AC4: countedQtyMicrounits no numérico → 400 COUNT_INVALID_QUANTITY con cero prepare/batch', async () => {
+    const sqls: string[] = [];
+    const { env, batchCalls } = envConBatchContado({ sqls });
+    const res = await runSubmitCountReviewHttp(env, 't1', 'owner', {
+      countId: 'c1',
+      lines: [{ productId: 'p1', countedQtyMicrounits: '2500000' as unknown as number }],
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('COUNT_INVALID_QUANTITY');
+    expect(sqls).toHaveLength(0);
+    expect(batchCalls()).toBe(0);
+  });
+
+  it('AC4: tipos y rangos inválidos de qty → 400 estable, todos sin tocar D1', async () => {
+    const casos: ReadonlyArray<[string, Record<string, unknown>]> = [
+      ['countedQtyMicrounits string', { countedQtyMicrounits: '12' }],
+      ['countedQty string (coerción bloqueada)', { countedQty: '2' }],
+      ['countedQtyMicrounits NaN', { countedQtyMicrounits: Number.NaN }],
+      ['countedQtyMicrounits Infinito', { countedQtyMicrounits: Number.POSITIVE_INFINITY }],
+      ['countedQty NaN', { countedQty: Number.NaN }],
+      ['countedQty Infinito', { countedQty: Number.POSITIVE_INFINITY }],
+      ['microunits negativos', { countedQtyMicrounits: -1 }],
+      ['microunits no enteros', { countedQtyMicrounits: 2.5 }],
+      ['microunits fuera de safe integer', { countedQtyMicrounits: 2 ** 53 }],
+      ['qty que desborda microunits safe', { countedQty: 1e15 }],
+      ['ambos ausentes (no ?? 0)', {}],
+    ];
+    for (const [label, qtyFields] of casos) {
+      const sqls: string[] = [];
+      const { env, batchCalls } = envConBatchContado({ sqls });
+      const res = await runSubmitCountReviewHttp(env, 't1', 'owner', {
+        countId: 'c1',
+        lines: [{ productId: 'p1', ...qtyFields }],
+      });
+      expect([label, res.status]).toEqual([label, 400]);
+      expect(res.body.code).toBe('COUNT_INVALID_QUANTITY');
+      expect(sqls).toHaveLength(0);
+      expect(batchCalls()).toBe(0);
+    }
+  });
+
+  it('línea sin productId → 400 COUNT_PRODUCT_REQUIRED, también antes de D1', async () => {
+    const sqls: string[] = [];
+    const { env, batchCalls } = envConBatchContado({ sqls });
+    const res = await runSubmitCountReviewHttp(env, 't1', 'owner', {
+      countId: 'c1',
+      lines: [{ productId: '   ', countedQtyMicrounits: 1_000_000 }],
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('COUNT_PRODUCT_REQUIRED');
+    expect(sqls).toHaveLength(0);
+    expect(batchCalls()).toBe(0);
+  });
+
+  it('replay 5x concurrente (Promise.all): rechazo 400 idempotente, cero prepare/bind/batch acumulado', async () => {
+    const sqls: string[] = [];
+    const binds: unknown[][] = [];
+    const { env, batchCalls } = envConBatchContado({ sqls, binds });
+    const request = () =>
+      runSubmitCountReviewHttp(env, 't1', 'owner', {
+        countId: 'c1',
+        lines: [{ productId: 'p1', countedQty: 'x' as unknown as number }],
+      });
+    const results = await Promise.all(Array.from({ length: 5 }, () => request()));
+    expect(results).toHaveLength(5);
+    for (const res of results) {
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('COUNT_INVALID_QUANTITY');
+    }
+    expect(sqls).toHaveLength(0);
+    expect(binds).toHaveLength(0);
+    expect(batchCalls()).toBe(0);
+  });
+
+  it('el guard no sobre-bloquea: línea válida sigue llegando a D1 y aprueba la revisión', async () => {
+    const sqls: string[] = [];
+    const { env } = envConBatchContado({
+      sqls,
+      first: (sql) =>
+        sql.includes('FROM inventory_counts')
+          ? { status: 'COUNTING', branch_id: 'b1' }
+          : {
+              quantity_microunits: 10_000_000,
+              pmp_unit_cost_cents: 100,
+              location_id: 'loc-1',
+            },
+    });
+    const res = await runSubmitCountReviewHttp(env, 't1', 'owner', {
+      countId: 'c1',
+      lines: [{ productId: 'p1', countedQtyMicrounits: 8_000_000 }],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('DIFFERENCE_REVIEW');
+    expect(sqls.length).toBeGreaterThan(0);
+  });
 });
 
 describe('approve count', () => {
@@ -519,6 +656,66 @@ describe('approve count', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('APPROVED');
     expect(sqls.some((sql) => sql.includes('inventory_location_stock'))).toBe(true);
+  });
+
+  it('US-05: rechaza fila degenerada unit_cost_cents NULL sin persistir costo-0 (422 fail-closed)', async () => {
+    const sqls: string[] = [];
+    const res = await runApproveCountHttp(
+      mockDbEnv({
+        sqls,
+        first: (sql) => {
+          if (sql.includes('FROM users')) return { role: 'owner' };
+          return {
+            status: 'DIFFERENCE_REVIEW',
+            difference_threshold_cents: 100,
+            branch_id: 'b1',
+          };
+        },
+        all: () => [{ product_id: 'p1', difference_qty: -5, unit_cost_cents: null }],
+      }),
+      't1',
+      'u1',
+      'owner',
+      { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('COUNT_UNIT_COST_REQUIRED');
+    expect(sqls.some((sql) => sql.includes('inventory_movements'))).toBe(false);
+    expect(sqls.some((sql) => sql.includes('UPDATE branch_product_stock'))).toBe(false);
+  });
+
+  it('US-05: costo tipado grande pasa intacto al movimiento AJUSTE (sin drift ni coalescing)', async () => {
+    const binds: unknown[][] = [];
+    const res = await runApproveCountHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) => {
+          if (sql.includes('FROM users')) return { role: 'admin' };
+          return {
+            status: 'DIFFERENCE_REVIEW',
+            difference_threshold_cents: 100,
+            branch_id: 'b1',
+          };
+        },
+        all: () => [
+          {
+            id: 'line-1',
+            product_id: 'p1',
+            location_id: 'loc-1',
+            difference_qty: -5,
+            difference_qty_microunits: -5_000_000,
+            unit_cost_cents: 4_000_000_000_000,
+            serial_tracking_mode: 'NONE',
+          },
+        ],
+      }),
+      't1',
+      'u1',
+      'owner',
+      { countId: 'c1', authorizedByUserId: 'mgr1', adjustmentReason: 'Conteo físico' },
+    );
+    expect(res.status).toBe(200);
+    expect(binds.flat()).toContain(4_000_000_000_000);
   });
 
   it('aprueba con authz y genera AJUSTE', async () => {
@@ -649,14 +846,24 @@ describe('approve count', () => {
 });
 
 describe('stock loss', () => {
-  it('create valida qty/reason', async () => {
+  it('create valida qty/reason fail-closed (400 tipado, sin ?? 0)', async () => {
     const bad = await runCreateStockLossHttp(mockDbEnv(), 't1', 'u1', {
       branchId: 'b1',
       productId: 'p1',
       quantity: 0,
       reason: 'x',
     });
-    expect(bad.status).toBe(422);
+    expect(bad.status).toBe(400);
+    expect(bad.body.code).toBe('INVALID_LOSS_QTY');
+
+    const coerced = await runCreateStockLossHttp(mockDbEnv(), 't1', 'u1', {
+      branchId: 'b1',
+      productId: 'p1',
+      quantity: '2' as unknown as number,
+      reason: 'x',
+    });
+    expect(coerced.status).toBe(400);
+    expect(coerced.body.code).toBe('INVALID_LOSS_QTY');
 
     const ok = await runCreateStockLossHttp(mockDbEnv(), 't1', 'u1', {
       branchId: 'b1',
@@ -1107,34 +1314,24 @@ describe('US-02: diff_value_cents con aritmética entera exacta y guard 2^53', (
     });
   });
 
-  it('route: countedQty tipo string → 422 estable COUNT_INVALID_QUANTITY', async () => {
-    const res = await runSubmitCountReviewHttp(
-      mockDbEnv({
-        first: (sql) =>
-          sql.includes('FROM inventory_counts')
-            ? { status: 'COUNTING', branch_id: 'b1' }
-            : { quantity_microunits: 0, pmp_unit_cost_cents: 100, location_id: 'loc-1' },
-      }),
-      't1',
-      'owner',
-      { countId: 'c1', lines: [{ productId: 'p1', countedQty: '8' as unknown as number }] },
-    );
-    expect(res).toMatchObject({ status: 422, body: { code: 'COUNT_INVALID_QUANTITY' } });
+  it('route: countedQty tipo string → 400 estable COUNT_INVALID_QUANTITY (antes de D1)', async () => {
+    const sqls: string[] = [];
+    const res = await runSubmitCountReviewHttp(mockDbEnv({ sqls }), 't1', 'owner', {
+      countId: 'c1',
+      lines: [{ productId: 'p1', countedQty: '8' as unknown as number }],
+    });
+    expect(res).toMatchObject({ status: 400, body: { code: 'COUNT_INVALID_QUANTITY' } });
+    expect(sqls).toHaveLength(0);
   });
 
-  it('route: countedQtyMicrounits flotante → 422 estable COUNT_INVALID_QUANTITY', async () => {
-    const res = await runSubmitCountReviewHttp(
-      mockDbEnv({
-        first: (sql) =>
-          sql.includes('FROM inventory_counts')
-            ? { status: 'COUNTING', branch_id: 'b1' }
-            : { quantity_microunits: 0, pmp_unit_cost_cents: 100, location_id: 'loc-1' },
-      }),
-      't1',
-      'owner',
-      { countId: 'c1', lines: [{ productId: 'p1', countedQtyMicrounits: 1.5 }] },
-    );
-    expect(res).toMatchObject({ status: 422, body: { code: 'COUNT_INVALID_QUANTITY' } });
+  it('route: countedQtyMicrounits flotante → 400 estable COUNT_INVALID_QUANTITY (antes de D1)', async () => {
+    const sqls: string[] = [];
+    const res = await runSubmitCountReviewHttp(mockDbEnv({ sqls }), 't1', 'owner', {
+      countId: 'c1',
+      lines: [{ productId: 'p1', countedQtyMicrounits: 1.5 }],
+    });
+    expect(res).toMatchObject({ status: 400, body: { code: 'COUNT_INVALID_QUANTITY' } });
+    expect(sqls).toHaveLength(0);
   });
 
   it('route: persiste diff_value_cents EXACTO con producto > 2^53 (no el float)', async () => {
