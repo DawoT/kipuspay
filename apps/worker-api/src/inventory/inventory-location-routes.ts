@@ -8,7 +8,11 @@ import {
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryLocationsEnabled } from '../auth/features.js';
-import { microunitsErrorResult, parseMicrounits } from '../http/microunits-input.js';
+import {
+  parseQuantityMicrounits,
+  parseQuantityMicrounitsQuery,
+  QUANTITY_MICROUNITS_BAD_REQUEST,
+} from '../http/quantity-input.js';
 
 export { isInventoryLocationsEnabled };
 
@@ -195,11 +199,13 @@ export async function runInventoryLocationTransferHttp(
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role, true);
   if (denied) return denied;
-  // US-03: microunits con validación tipada fail-closed (un parser, cinco
-  // sitios, veredictos idénticos) — un tipo inválido es 400 estable ANTES del
-  // try, nunca una coacción Number() que degradaba el veredicto a 422.
-  const quantity = parseMicrounits(body.quantityMicrounits);
-  if (!quantity.ok) return microunitsErrorResult(quantity.errorName);
+  // US-04: parse tipado fail-closed de *Microunits (sin Number(): 400 estable
+  // ante tipos inválidos, sin NaN ni 500; antes un string/bool llegaba
+  // coercionado al adapter y moría como 422 opaco o NaN).
+  const transferQuantity = parseQuantityMicrounits(body.quantityMicrounits);
+  if (!transferQuantity.ok) {
+    return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
+  }
   try {
     const result = await processInventoryLocationTransferAtomic(env!.DB!, tenantId, userId, {
       branchId: typeof body.branchId === 'string' ? body.branchId : '',
@@ -208,7 +214,7 @@ export async function runInventoryLocationTransferHttp(
         typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
       productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
-      quantityMicrounits: quantity.microunits,
+      quantityMicrounits: transferQuantity.microunits,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });
@@ -223,25 +229,21 @@ export async function runInventoryLocationPickingHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
-  query: { branchId?: string; productId?: string; quantityMicrounits?: unknown },
+  // US-04: el query param llega SIEMPRE como string; se valida tipado aquí
+  // con gramática canónica (el index.ts ya no coerciona con Number()).
+  query: { branchId?: string; productId?: string; quantityMicrounits?: string | undefined },
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   const productId = query.productId?.trim() ?? '';
-  // US-03: el valor crudo del query string entra al parser canónico (un
-  // parser, cinco sitios, veredictos idénticos) — un tipo inválido es 400
-  // estable; SOLO la ausencia del parámetro (undefined) conserva el default
-  // legacy 0 (no positivo, rechazado abajo como BAD_REQUEST); null ya es un
-  // tipo inválido con el mismo veredicto que en los otros cuatro sitios.
-  const requestedParsed = parseMicrounits(
-    query.quantityMicrounits === undefined ? 0 : query.quantityMicrounits,
-  );
-  if (!requestedParsed.ok) return microunitsErrorResult(requestedParsed.errorName);
-  const requested = requestedParsed.microunits;
-  if (!branchId || !productId || requested <= 0) {
+  // Shape 400 preexistente conservado ('invalid picking query'): ausente, no
+  // numérico, fuera de rango o ≤ 0 son igualmente BAD_REQUEST.
+  const requestedQuantity = parseQuantityMicrounitsQuery(query.quantityMicrounits);
+  if (!branchId || !productId || !requestedQuantity.ok || requestedQuantity.microunits <= 0) {
     return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
   }
+  const requested = requestedQuantity.microunits;
   const rows = await env!
     .DB!.prepare(
       `SELECT s.location_id, l.code AS location_code, s.batch_id,

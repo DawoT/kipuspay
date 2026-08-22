@@ -15,7 +15,10 @@ import {
   isLedgerChartOfAccountsEnabled,
   isSalesLayawayEnabled,
 } from '../auth/features.js';
-import { microunitsErrorResult, parseMicrounits } from '../http/microunits-input.js';
+import {
+  parseQuantityMicrounits,
+  QUANTITY_MICROUNITS_BAD_REQUEST,
+} from '../http/quantity-input.js';
 
 export { isLedgerChartOfAccountsEnabled, isSalesLayawayEnabled } from '../auth/features.js';
 
@@ -81,9 +84,8 @@ export async function runCreateLayawayHttp(
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   const cashRegisterSessionId =
     typeof body.cashRegisterSessionId === 'string' ? body.cashRegisterSessionId : '';
-  // US-03: microunits con validación tipada fail-closed (un parser, cinco
-  // sitios, veredictos idénticos) — un tipo inválido es 400 estable, nunca
-  // una coacción Number() que acepta true/[5]/'+1'/' 42 '.
+  // US-04: parse tipado fail-closed de *Microunits (sin Number(): 400 estable
+  // ante tipos inválidos, sin NaN ni 500).
   const items: {
     productId: string;
     uomId: string | null;
@@ -93,8 +95,10 @@ export async function runCreateLayawayHttp(
   if (Array.isArray(body.items)) {
     for (const raw of body.items) {
       const item = raw as Record<string, unknown>;
-      const quantity = parseMicrounits(item.enteredQuantityMicrounits);
-      if (!quantity.ok) return microunitsErrorResult(quantity.errorName);
+      const quantity = parseQuantityMicrounits(item.enteredQuantityMicrounits);
+      if (!quantity.ok) {
+        return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
+      }
       items.push({
         productId: typeof item.productId === 'string' ? item.productId : '',
         uomId: typeof item.uomId === 'string' ? item.uomId : null,

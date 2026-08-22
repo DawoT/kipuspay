@@ -347,6 +347,9 @@ export async function runSubmitCountReviewHttp(
             line.unitCostCents,
             // US-02: valor EXACTO de computeDiffValueCentsExact — el producto
             // float64 anterior desviaba ≥1 centavo con productos > 2^53.
+            // Auditoría US-04: mismo criterio de aritmética entera exacta y
+            // guard de rango (su helper deriveMicrounitValueCents queda
+            // contratado en src/http/quantity-input.test.ts).
             line.diffValueCents,
           ),
       );

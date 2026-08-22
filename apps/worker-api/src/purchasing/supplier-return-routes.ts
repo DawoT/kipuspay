@@ -7,7 +7,10 @@ import {
   processSupplierReturnCreateAtomic,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { microunitsErrorResult, parseMicrounits } from '../http/microunits-input.js';
+import {
+  parseQuantityMicrounits,
+  QUANTITY_MICROUNITS_BAD_REQUEST,
+} from '../http/quantity-input.js';
 
 export function isPurchasingReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_RETURNS === '1' || env?.FEATURE_PURCHASING_RETURNS === 'true';
@@ -67,6 +70,38 @@ function opts(env: WorkerEnv | undefined) {
   };
 }
 
+/** Línea de devolución ya validada (US-04): microunits entero seguro ≥ 0. */
+interface SupplierReturnItem {
+  productId: string;
+  enteredQuantityMicrounits: number;
+  uomId: string | null;
+  batchId: string | null;
+}
+
+/**
+ * US-04: parse tipado fail-closed de *Microunits — sin Number(): ante un tipo
+ * inválido devuelve null (la ruta responde 400 estable); nunca lanza ni
+ * produce NaN. Valida TODA fila recibida, incluida la que el filtro de
+ * productId vacío habría descartado silenciosamente.
+ */
+function parseSupplierReturnItems(items: readonly unknown[]): SupplierReturnItem[] | null {
+  const parsed: SupplierReturnItem[] = [];
+  for (const raw of items) {
+    const row = raw as Record<string, unknown>;
+    const quantity = parseQuantityMicrounits(row.enteredQuantityMicrounits);
+    if (!quantity.ok) return null;
+    const item: SupplierReturnItem = {
+      productId: typeof row.productId === 'string' ? row.productId : '',
+      enteredQuantityMicrounits: quantity.microunits,
+      uomId: typeof row.uomId === 'string' ? row.uomId : null,
+      batchId: typeof row.batchId === 'string' ? row.batchId : null,
+    };
+    if (item.productId.length > 0) parsed.push(item);
+  }
+  return parsed;
+}
+
+// eslint-disable-next-line complexity -- HTTP create: flags/authz + validación de items US-04 en un handler
 export async function runCreateSupplierReturnHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -81,30 +116,13 @@ export async function runCreateSupplierReturnHttp(
   const purchaseReceiptId =
     typeof body.purchaseReceiptId === 'string' ? body.purchaseReceiptId : '';
   const reason = typeof body.reason === 'string' ? body.reason : '';
-  // US-03: microunits con validación tipada fail-closed (un parser, cinco
-  // sitios, veredictos idénticos) — un tipo inválido es 400 estable, nunca
-  // una coacción Number() que acepta true/[5]/'+1'/' 42 '. Se valida TODA
-  // fila antes del filtro de productId: basura tipada no pasa en silencio.
-  const allItems = Array.isArray(body.items) ? body.items : [];
-  const items: {
-    productId: string;
-    enteredQuantityMicrounits: number;
-    uomId: string | null;
-    batchId: string | null;
-  }[] = [];
-  for (const raw of allItems) {
-    const row = raw as Record<string, unknown>;
-    const quantity = parseMicrounits(row.enteredQuantityMicrounits);
-    if (!quantity.ok) return microunitsErrorResult(quantity.errorName);
-    items.push({
-      productId: typeof row.productId === 'string' ? row.productId : '',
-      enteredQuantityMicrounits: quantity.microunits,
-      uomId: typeof row.uomId === 'string' ? row.uomId : null,
-      batchId: typeof row.batchId === 'string' ? row.batchId : null,
-    });
+  // US-04: parse tipado fail-closed (ver parseSupplierReturnItems) — 400
+  // estable ante tipos inválidos, sin NaN ni coerción Number().
+  const items = Array.isArray(body.items) ? parseSupplierReturnItems(body.items) : [];
+  if (!items) {
+    return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
   }
-  const filteredItems = items.filter((l) => l.productId.length > 0);
-  if (!purchaseReceiptId || filteredItems.length === 0) {
+  if (!purchaseReceiptId || items.length === 0) {
     return {
       status: 400,
       body: { error: 'purchaseReceiptId and items required', code: 'BAD_REQUEST' },
@@ -123,7 +141,7 @@ export async function runCreateSupplierReturnHttp(
         reason,
         supplierCreditNoteRef:
           typeof body.supplierCreditNoteRef === 'string' ? body.supplierCreditNoteRef : null,
-        items: filteredItems,
+        items,
       },
       opts(env),
     );
