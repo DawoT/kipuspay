@@ -107,6 +107,47 @@ export async function runSubmitCountReviewHttp(
   const countId = body.countId?.trim() ?? '';
   if (!countId) return { status: 400, body: { error: 'countId required', code: 'BAD_REQUEST' } };
 
+  // US-05 AC1/AC4: la forma del payload se valida tipada y fail-closed ANTES de
+  // cualquier acceso a D1 — cero prepare/batch ante qty inválida y rechazo 400
+  // estable. El body entra como JSON crudo (`body as Record<string, unknown>`
+  // en index.ts): los tipos estáticos no garantizan nada, el tipo se chequea en
+  // runtime (sin coerción implícita tipo Number()).
+  const clientLines = body.lines ?? [];
+  type ClientLine = (typeof clientLines)[number];
+  const shapedLines: { line: ClientLine; productId: string; countedMicrounits: number }[] = [];
+  for (let lineIndex = 0; lineIndex < clientLines.length; lineIndex++) {
+    const line = clientLines[lineIndex]!;
+    const productId = line.productId?.trim() ?? '';
+    if (!productId) {
+      return {
+        status: 400,
+        body: { error: 'COUNT_PRODUCT_REQUIRED', code: 'COUNT_PRODUCT_REQUIRED', lineIndex },
+      };
+    }
+    const microunitsRaw: unknown = line.countedQtyMicrounits;
+    const qtyRaw: unknown = line.countedQty;
+    if (
+      (microunitsRaw !== undefined && microunitsRaw !== null && typeof microunitsRaw !== 'number') ||
+      (qtyRaw !== undefined && qtyRaw !== null && typeof qtyRaw !== 'number')
+    ) {
+      return {
+        status: 400,
+        body: { error: 'COUNT_INVALID_QUANTITY', code: 'COUNT_INVALID_QUANTITY', lineIndex },
+      };
+    }
+    const countedMicrounits =
+      typeof microunitsRaw === 'number'
+        ? microunitsRaw
+        : Math.round((typeof qtyRaw === 'number' ? qtyRaw : 0) * 1_000_000);
+    if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
+      return {
+        status: 400,
+        body: { error: 'COUNT_INVALID_QUANTITY', code: 'COUNT_INVALID_QUANTITY', lineIndex },
+      };
+    }
+    shapedLines.push({ line, productId, countedMicrounits });
+  }
+
   const count = await env.DB.prepare(
     `SELECT status, branch_id FROM inventory_counts WHERE id = ? AND tenant_id = ? LIMIT 1`,
   )
@@ -123,7 +164,6 @@ export async function runSubmitCountReviewHttp(
     };
   }
 
-  const clientLines = body.lines ?? [];
   let lines: {
     productId: string;
     batchId: string | null;
@@ -136,17 +176,11 @@ export async function runSubmitCountReviewHttp(
     serials: readonly PreparedSerialIdentity[];
   }[];
   try {
+    // La forma (productId/qty) ya fue validada fail-closed arriba: aquí solo
+    // queda la validación que DEPENDE del estado en D1 (stock, seriales).
     lines = await Promise.all(
-      clientLines.map(
-        // eslint-disable-next-line complexity -- serial + aggregate authority validation
-        async (line) => {
-          const productId = line.productId?.trim() ?? '';
-          if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
-          const countedMicrounits =
-            line.countedQtyMicrounits ?? Math.round((line.countedQty ?? 0) * 1_000_000);
-          if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
-            throw new Error('COUNT_INVALID_QUANTITY');
-          }
+      shapedLines.map(
+        async ({ line, productId, countedMicrounits }) => {
           const requestedLocationId = line.locationId?.trim() || null;
           const authority = await env
             .DB!.prepare(
