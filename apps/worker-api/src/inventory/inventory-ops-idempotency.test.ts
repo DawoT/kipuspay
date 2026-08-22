@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  runCreateInventoryCountHttp,
-  runSubmitCountReviewHttp,
-} from './inventory-ops-routes.js';
+import { runCreateInventoryCountHttp, runSubmitCountReviewHttp } from './inventory-ops-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 interface StoredRow {
@@ -18,9 +15,7 @@ interface StoredRow {
  * funcional y contadores de efectos, que prueba que el reenvío con la misma key
  * (a) responde idéntico al primer uso y (b) aplica los efectos UNA sola vez.
  */
-function opsEnvWithIdempotency(
-  opts: { countStatus?: string; stockFound?: boolean } = {},
-): {
+function opsEnvWithIdempotency(opts: { countStatus?: string; stockFound?: boolean } = {}): {
   env: WorkerEnv;
   countLinesInserted: () => number;
   countsInserted: () => number;

@@ -4,7 +4,8 @@
 -- la misma key con payload distinto es un 409 idempotency_mismatch (convención
 -- US-02 de payment_captures.idempotency_key). request_hash = SHA-256 del body
 -- canónico (stableStringify); response_body_json es la respuesta exacta del
--- primer uso. Cache derivada: NO es fuente de verdad (fuera de D1_BACKUP_TABLES).
+-- primer uso. Clasificación EPHEMERAL en D1_BACKUP_TABLES (estado operativo;
+-- no es fuente de verdad de negocio) + triggers de epoch (V-29).
 CREATE TABLE IF NOT EXISTS inventory_ops_idempotency (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -16,3 +17,7 @@ CREATE TABLE IF NOT EXISTS inventory_ops_idempotency (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (tenant_id, scope, idempotency_key)
 );
+
+CREATE TRIGGER backup_epoch_inventory_ops_idempotency_insert AFTER INSERT ON "inventory_ops_idempotency" BEGIN UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = NEW."tenant_id"; END;
+CREATE TRIGGER backup_epoch_inventory_ops_idempotency_update AFTER UPDATE ON "inventory_ops_idempotency" BEGIN UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = NEW."tenant_id"; END;
+CREATE TRIGGER backup_epoch_inventory_ops_idempotency_delete BEFORE DELETE ON "inventory_ops_idempotency" BEGIN UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = OLD."tenant_id"; END;

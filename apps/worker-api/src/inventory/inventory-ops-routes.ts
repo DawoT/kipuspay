@@ -122,18 +122,20 @@ export async function runCreateInventoryCountHttp(
   // S39-H1: el umbral de authz es SERVER-side (política del tenant), nunca del
   // cliente — un cashier no puede auto-definir un umbral gigante para aprobar
   // diferencias valorizadas sin autorización.
-  const policy = await db.prepare(
-    `SELECT max_amount_without_auth_cents FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
-  )
+  const policy = await db
+    .prepare(
+      `SELECT max_amount_without_auth_cents FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
+    )
     .bind(tenantId)
     .first<{ max_amount_without_auth_cents: number }>();
   const threshold = policy?.max_amount_without_auth_cents ?? 2000;
   const id = crypto.randomUUID();
-  await db.prepare(
-    `INSERT INTO inventory_counts (
+  await db
+    .prepare(
+      `INSERT INTO inventory_counts (
          id, tenant_id, branch_id, created_by_user_id, status, blind, difference_threshold_cents
        ) VALUES (?, ?, ?, ?, 'COUNTING', 1, ?)`,
-  )
+    )
     .bind(id, tenantId, branchId, userId, threshold)
     .run();
   const ok: HttpResult = { status: 200, body: { id, status: 'COUNTING', blind: true } };

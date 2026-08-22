@@ -99,12 +99,11 @@ const SITES: readonly MicrounitsSite[] = [
     name: 'picking vía index.ts → runInventoryLocationPickingHttp (query string crudo)',
     applies: (value) => value !== undefined,
     run: (value) =>
-      runInventoryLocationPickingHttp(
-        env({ FEATURE_INVENTORY_LOCATIONS: '1' }),
-        't1',
-        'cashier',
-        { branchId: 'b1', productId: 'p1', quantityMicrounits: value },
-      ),
+      runInventoryLocationPickingHttp(env({ FEATURE_INVENTORY_LOCATIONS: '1' }), 't1', 'cashier', {
+        branchId: 'b1',
+        productId: 'p1',
+        quantityMicrounits: value,
+      }),
   },
 ];
 

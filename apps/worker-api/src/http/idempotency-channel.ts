@@ -34,12 +34,10 @@ export const INVENTORY_OPS_SCOPES = {
   lossReject: 'inventory-ops:loss-reject',
 } as const;
 
-const SELECT_SQL =
-  `SELECT request_hash, response_status, response_body_json FROM inventory_ops_idempotency
+const SELECT_SQL = `SELECT request_hash, response_status, response_body_json FROM inventory_ops_idempotency
     WHERE tenant_id = ? AND scope = ? AND idempotency_key = ? LIMIT 1`;
 
-const INSERT_SQL =
-  `INSERT INTO inventory_ops_idempotency (
+const INSERT_SQL = `INSERT INTO inventory_ops_idempotency (
        id, tenant_id, scope, idempotency_key, request_hash,
        response_status, response_body_json
      ) VALUES (?, ?, ?, ?, ?, ?, ?)`;

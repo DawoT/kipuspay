@@ -22,8 +22,7 @@ export type MicrounitsParseErrorName = 'MICROUNITS_INVALID' | 'MICROUNITS_OUT_OF
 
 /** Resultado discriminado de parseMicrounits (US-03). */
 export type MicrounitsParseResult =
-  | { ok: true; microunits: number }
-  | { ok: false; errorName: MicrounitsParseErrorName };
+  { ok: true; microunits: number } | { ok: false; errorName: MicrounitsParseErrorName };
 
 /**
  * Convierte una cantidad `*Microunits` de entrada HTTP a entero seguro sin
@@ -92,6 +91,42 @@ function digitsToSafeInt(digits: string): number | null {
 }
 
 /**
+ * Techo de dígitos para el wire de query/body texto (US-04 hostile): 15 dígitos
+ * caben en MAX_SAFE_INTEGER; el 16.º se corta antes de aritmética de dígitos.
+ */
+export const MAX_MICROUNITS_DIGITS = 15;
+
+/** Firma del guard de longitud (espía/inyectable en tests hostiles). */
+export type MicrounitsLengthGuard = (digits: string) => boolean;
+
+/** Guard de longitud canónico: 1..MAX_MICROUNITS_DIGITS dígitos. */
+export function microunitsLengthGuard(digits: string): boolean {
+  return digits.length >= 1 && digits.length <= MAX_MICROUNITS_DIGITS;
+}
+
+/** Parser inyectable en rutas (default = parseMicrounitsInput). */
+export type MicrounitsParser = (value: unknown) => MicrounitsParseResult;
+
+/** Solo dígitos (formato cableado GET / body texto). */
+const DIGITS_ONLY_PATTERN = /^\d+$/;
+
+/**
+ * Entrada HTTP de microunits con guard de longitud inyectable (US-04 hostile):
+ * reutiliza la semántica fail-closed de `parseMicrounits` y corta overflow de
+ * dígitos antes de convertir. Nunca invoca valueOf/toString del input.
+ */
+export function parseMicrounitsInput(
+  value: unknown,
+  lengthGuard: MicrounitsLengthGuard = microunitsLengthGuard,
+): MicrounitsParseResult {
+  if (typeof value === 'string' && DIGITS_ONLY_PATTERN.test(value)) {
+    if (!lengthGuard(value)) return { ok: false, errorName: 'MICROUNITS_INVALID' };
+    return digitsTextToMicrounits(value);
+  }
+  return parseMicrounits(value);
+}
+
+/**
  * Fixture de frontera canónica (US-03): un solo conjunto de casos compartido
  * por el parser y por el test cross-site de veredictos idénticos. Cada caso
  * fija el veredicto esperado para que los cinco sitios no puedan divergir.
@@ -136,12 +171,27 @@ export const MICROUNITS_BOUNDARY_FIXTURE: readonly MicrounitsBoundaryCase[] = [
   { name: 'artefacto float', value: 0.1 + 0.2, ok: false, errorName: 'MICROUNITS_INVALID' },
   { name: 'NaN', value: Number.NaN, ok: false, errorName: 'MICROUNITS_INVALID' },
   { name: 'Infinity', value: Number.POSITIVE_INFINITY, ok: false, errorName: 'MICROUNITS_INVALID' },
-  { name: '-Infinity', value: Number.NEGATIVE_INFINITY, ok: false, errorName: 'MICROUNITS_INVALID' },
+  {
+    name: '-Infinity',
+    value: Number.NEGATIVE_INFINITY,
+    ok: false,
+    errorName: 'MICROUNITS_INVALID',
+  },
   // rango
   { name: 'negativo', value: -1, ok: false, errorName: 'MICROUNITS_OUT_OF_RANGE' },
   { name: 'menos cero', value: -0, ok: false, errorName: 'MICROUNITS_OUT_OF_RANGE' },
-  { name: 'sobre MAX_SAFE_INTEGER', value: MAX_SAFE + 1, ok: false, errorName: 'MICROUNITS_OUT_OF_RANGE' },
+  {
+    name: 'sobre MAX_SAFE_INTEGER',
+    value: MAX_SAFE + 1,
+    ok: false,
+    errorName: 'MICROUNITS_OUT_OF_RANGE',
+  },
   { name: 'texto negativo', value: '-5', ok: false, errorName: 'MICROUNITS_OUT_OF_RANGE' },
   { name: 'texto menos cero', value: '-0', ok: false, errorName: 'MICROUNITS_OUT_OF_RANGE' },
-  { name: 'texto sobre MAX_SAFE_INTEGER', value: '9007199254740992', ok: false, errorName: 'MICROUNITS_OUT_OF_RANGE' },
+  {
+    name: 'texto sobre MAX_SAFE_INTEGER',
+    value: '9007199254740992',
+    ok: false,
+    errorName: 'MICROUNITS_OUT_OF_RANGE',
+  },
 ];

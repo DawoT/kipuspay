@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/prefer-promise-reject-errors -- exercises hostile non-Error rejection */
 import { describe, expect, it } from 'vitest';
 import {
   appendPushIntentAfterOrigin,

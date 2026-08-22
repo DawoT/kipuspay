@@ -70,8 +70,6 @@ describe('diffValueCentsExact (US-03: costo derivado auditado, sin drift de cent
 
   it('fail-closed: resultado fuera del rango seguro lanza MICROUNITS_COST_OUT_OF_RANGE', () => {
     expect(() => diffValueCentsExact(MAX_SAFE, 2_000_000)).toThrow('MICROUNITS_COST_OUT_OF_RANGE');
-    expect(() => diffValueCentsExact(-MAX_SAFE, 2_000_000)).toThrow(
-      'MICROUNITS_COST_OUT_OF_RANGE',
-    );
+    expect(() => diffValueCentsExact(-MAX_SAFE, 2_000_000)).toThrow('MICROUNITS_COST_OUT_OF_RANGE');
   });
 });

@@ -11,6 +11,7 @@ import {
   parseQuantityMicrounits,
   QUANTITY_MICROUNITS_BAD_REQUEST,
 } from '../http/quantity-input.js';
+import type { MicrounitsParser, MicrounitsParseResult } from '../http/microunits-input.js';
 
 export function isPurchasingReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_RETURNS === '1' || env?.FEATURE_PURCHASING_RETURNS === 'true';
@@ -20,6 +21,19 @@ export interface HttpResult {
   status: number;
   body: Record<string, unknown>;
 }
+
+/** Default body parser: quantity-input canónico (US-04-v2), shape MicrounitsParser. */
+const defaultQuantityParser: MicrounitsParser = (value) => {
+  const quantity = parseQuantityMicrounits(value);
+  if (quantity.ok) return { ok: true, microunits: quantity.microunits };
+  return {
+    ok: false,
+    errorName:
+      quantity.errorName === 'quantity_out_of_range' || quantity.errorName === 'negative_zero'
+        ? 'MICROUNITS_OUT_OF_RANGE'
+        : 'MICROUNITS_INVALID',
+  };
+};
 
 function featureOff(): HttpResult {
   return { status: 404, body: { error: 'FEATURE_PURCHASING_RETURNS off', code: 'FEATURE_OFF' } };
@@ -82,13 +96,22 @@ interface SupplierReturnItem {
  * US-04: parse tipado fail-closed de *Microunits — sin Number(): ante un tipo
  * inválido devuelve null (la ruta responde 400 estable); nunca lanza ni
  * produce NaN. Valida TODA fila recibida, incluida la que el filtro de
- * productId vacío habría descartado silenciosamente.
+ * productId vacío habría descartado silenciosamente. Parser inyectable
+ * (tests hostiles); si el helper lanza → null → 400 estable.
  */
-function parseSupplierReturnItems(items: readonly unknown[]): SupplierReturnItem[] | null {
+function parseSupplierReturnItems(
+  items: readonly unknown[],
+  parseMicrounits: MicrounitsParser,
+): SupplierReturnItem[] | null {
   const parsed: SupplierReturnItem[] = [];
   for (const raw of items) {
     const row = raw as Record<string, unknown>;
-    const quantity = parseQuantityMicrounits(row.enteredQuantityMicrounits);
+    let quantity: MicrounitsParseResult;
+    try {
+      quantity = parseMicrounits(row.enteredQuantityMicrounits);
+    } catch {
+      return null;
+    }
     if (!quantity.ok) return null;
     const item: SupplierReturnItem = {
       productId: typeof row.productId === 'string' ? row.productId : '',
@@ -107,6 +130,7 @@ export async function runCreateSupplierReturnHttp(
   tenantId: string,
   userId: string,
   body: Record<string, unknown>,
+  parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
   if (!isPurchasingReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
@@ -118,7 +142,9 @@ export async function runCreateSupplierReturnHttp(
   const reason = typeof body.reason === 'string' ? body.reason : '';
   // US-04: parse tipado fail-closed (ver parseSupplierReturnItems) — 400
   // estable ante tipos inválidos, sin NaN ni coerción Number().
-  const items = Array.isArray(body.items) ? parseSupplierReturnItems(body.items) : [];
+  const items = Array.isArray(body.items)
+    ? parseSupplierReturnItems(body.items, parseMicrounits)
+    : [];
   if (!items) {
     return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
   }

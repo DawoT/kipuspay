@@ -16,6 +16,7 @@ import {
   parseQuantityMicrounits,
   QUANTITY_MICROUNITS_BAD_REQUEST,
 } from '../http/quantity-input.js';
+import type { MicrounitsParser } from '../http/microunits-input.js';
 
 export { isSalesQuotesEnabled };
 
@@ -23,6 +24,19 @@ export interface HttpResult {
   status: number;
   body: Record<string, unknown>;
 }
+
+/** Default body parser: quantity-input canónico (US-04-v2), shape MicrounitsParser. */
+const defaultQuantityParser: MicrounitsParser = (value) => {
+  const quantity = parseQuantityMicrounits(value);
+  if (quantity.ok) return { ok: true, microunits: quantity.microunits };
+  return {
+    ok: false,
+    errorName:
+      quantity.errorName === 'quantity_out_of_range' || quantity.errorName === 'negative_zero'
+        ? 'MICROUNITS_OUT_OF_RANGE'
+        : 'MICROUNITS_INVALID',
+  };
+};
 
 function featureOff(): HttpResult {
   return { status: 404, body: { error: 'FEATURE_SALES_QUOTES off', code: 'FEATURE_OFF' } };
@@ -74,6 +88,7 @@ export async function runCreateQuoteHttp(
   tenantId: string,
   userId: string,
   body: Record<string, unknown>,
+  parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
   if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
@@ -81,7 +96,7 @@ export async function runCreateQuoteHttp(
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   // US-04: parse tipado fail-closed de *Microunits (sin Number(): 400 estable
-  // ante tipos inválidos, sin NaN ni 500).
+  // ante tipos inválidos, sin NaN ni 500). Helper inyectado que lanza → 400.
   const items: {
     productId: string;
     uomId: string | null;
@@ -91,14 +106,20 @@ export async function runCreateQuoteHttp(
   if (Array.isArray(body.items)) {
     for (const raw of body.items) {
       const item = raw as Record<string, unknown>;
-      const quantity = parseQuantityMicrounits(item.enteredQuantityMicrounits);
-      if (!quantity.ok) {
+      let enteredQuantityMicrounits: number;
+      try {
+        const quantity = parseMicrounits(item.enteredQuantityMicrounits);
+        if (!quantity.ok) {
+          return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
+        }
+        enteredQuantityMicrounits = quantity.microunits;
+      } catch {
         return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
       }
       items.push({
         productId: typeof item.productId === 'string' ? item.productId : '',
         uomId: typeof item.uomId === 'string' ? item.uomId : null,
-        enteredQuantityMicrounits: quantity.microunits,
+        enteredQuantityMicrounits,
         batchId: typeof item.batchId === 'string' ? item.batchId : null,
       });
     }

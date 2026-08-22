@@ -15,15 +15,11 @@
  * `{ error: 'invalid picking query', code: 'BAD_REQUEST' }`.
  */
 
-export type QuantityParseErrorName =
-  | 'INVALID_QUANTITY'
-  | 'negative_zero'
-  | 'quantity_out_of_range';
+export type QuantityParseErrorName = 'INVALID_QUANTITY' | 'negative_zero' | 'quantity_out_of_range';
 
 /** Resultado discriminado de parseQuantityMicrounits / parseQuantityMicrounitsQuery. */
 export type QuantityParseResult =
-  | { ok: true; microunits: number }
-  | { ok: false; errorName: QuantityParseErrorName };
+  { ok: true; microunits: number } | { ok: false; errorName: QuantityParseErrorName };
 
 /**
  * Shape 400 estable y compartido para `*Microunits` inválidos (US-04): las

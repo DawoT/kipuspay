@@ -39,7 +39,9 @@ function idempotentDb(opts: { failSelect?: boolean } = {}): {
             selects++;
             if (opts.failSelect) return Promise.reject(new Error('D1 connection lost'));
             const [tenantId, scope, key] = values as [string, string, string];
-            return Promise.resolve((rows.get(`${tenantId}|${scope}|${key}`) as T | undefined) ?? null);
+            return Promise.resolve(
+              (rows.get(`${tenantId}|${scope}|${key}`) as T | undefined) ?? null,
+            );
           },
           run: () => {
             if (!sql.includes('INSERT INTO inventory_ops_idempotency')) {
@@ -61,7 +63,11 @@ function idempotentDb(opts: { failSelect?: boolean } = {}): {
                 new Error('UNIQUE constraint failed: inventory_ops_idempotency.tenant_id'),
               );
             }
-            rows.set(mapKey, { request_hash: hash, response_status: status, response_body_json: bodyJson });
+            rows.set(mapKey, {
+              request_hash: hash,
+              response_status: status,
+              response_body_json: bodyJson,
+            });
             return Promise.resolve({ results: [], success: true, meta: {} });
           },
           all: () => Promise.resolve({ results: [], success: true, meta: {} }),

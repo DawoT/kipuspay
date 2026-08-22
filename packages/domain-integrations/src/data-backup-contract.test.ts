@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await -- deterministic async port stubs */
 import { describe, expect, it } from 'vitest';
 import {
   KPBK1_CHUNK_LIMIT_BYTES,

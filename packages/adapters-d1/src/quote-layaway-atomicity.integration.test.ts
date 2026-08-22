@@ -224,12 +224,18 @@ describe('US-03 atomicidad real: fallo parcial de batch revierte TODO (D1 worker
     const fixture = await seedAtomicityFixture(tenantId);
     // Control: una conversión limpia SÍ aplica (prueba que el flujo llega al batch).
     await seedQuoteConvertible(tenantId, fixture, 'q-us03-ok');
-    const control = await processQuoteConvertAtomic(env.DB, tenantId, fixture.userIdA, {
-      quoteId: 'q-us03-ok',
-      cashRegisterSessionId: fixture.sessionId,
-      series: 'NV01',
-      documentType: 'NV',
-    }, { nowMs: NOW });
+    const control = await processQuoteConvertAtomic(
+      env.DB,
+      tenantId,
+      fixture.userIdA,
+      {
+        quoteId: 'q-us03-ok',
+        cashRegisterSessionId: fixture.sessionId,
+        series: 'NV01',
+        documentType: 'NV',
+      },
+      { nowMs: NOW },
+    );
     expect(control.saleId).toBeTruthy();
     expect(await seriesCurrentNumber(tenantId)).toBe(1);
 
@@ -254,9 +260,7 @@ describe('US-03 atomicidad real: fallo parcial de batch revierte TODO (D1 worker
     expect(await stockMicrounits(tenantId, fixture.productId)).toBe(8_000_000);
     expect(await seriesCurrentNumber(tenantId)).toBe(1);
     expect(await auditCount(tenantId, 'QUOTE_CONVERT')).toBe(1);
-    const quote = await env.DB.prepare(
-      `SELECT status FROM quotes WHERE tenant_id = ? AND id = ?`,
-    )
+    const quote = await env.DB.prepare(`SELECT status FROM quotes WHERE tenant_id = ? AND id = ?`)
       .bind(tenantId, 'q-us03-poison')
       .first<{ status: string }>();
     expect(quote?.status).toBe('APPROVED');
@@ -267,13 +271,19 @@ describe('US-03 atomicidad real: fallo parcial de batch revierte TODO (D1 worker
     const fixture = await seedAtomicityFixture(tenantId);
     // Control: conversión limpia de otro apartado SÍ aplica.
     await seedOpenDeposit(tenantId, fixture, `d-${tenantId}-ok`);
-    const control = await processLayawayConvertAtomic(env.DB, tenantId, fixture.userIdA, {
-      depositId: `d-${tenantId}-ok`,
-      cashRegisterSessionId: fixture.sessionId,
-      series: 'NV01',
-      documentType: 'NV',
-      remainingAsCredit: true,
-    }, { nowMs: NOW });
+    const control = await processLayawayConvertAtomic(
+      env.DB,
+      tenantId,
+      fixture.userIdA,
+      {
+        depositId: `d-${tenantId}-ok`,
+        cashRegisterSessionId: fixture.sessionId,
+        series: 'NV01',
+        documentType: 'NV',
+        remainingAsCredit: true,
+      },
+      { nowMs: NOW },
+    );
     expect(control.saleId).toBeTruthy();
 
     await seedOpenDeposit(tenantId, fixture, `d-${tenantId}-poison`);
@@ -316,11 +326,17 @@ describe('US-03 atomicidad real: fallo parcial de batch revierte TODO (D1 worker
     const fixture = await seedAtomicityFixture(tenantId);
     // Control: cancelación limpia de otro apartado SÍ restaura stock (+2 µu).
     await seedOpenDeposit(tenantId, fixture, `d-${tenantId}-ok`);
-    const control = await processLayawayCancelAtomic(env.DB, tenantId, fixture.userIdA, {
-      depositId: `d-${tenantId}-ok`,
-      reason: 'cliente desiste',
-      cashRegisterSessionId: fixture.sessionId,
-    }, { nowMs: NOW });
+    const control = await processLayawayCancelAtomic(
+      env.DB,
+      tenantId,
+      fixture.userIdA,
+      {
+        depositId: `d-${tenantId}-ok`,
+        reason: 'cliente desiste',
+        cashRegisterSessionId: fixture.sessionId,
+      },
+      { nowMs: NOW },
+    );
     expect(control.status).toBe('CANCELLED');
     expect(control.refundCents).toBe(500);
     expect(await stockMicrounits(tenantId, fixture.productId)).toBe(12_000_000);
@@ -331,7 +347,11 @@ describe('US-03 atomicidad real: fallo parcial de batch revierte TODO (D1 worker
         withMidBatchPoison(env.DB, `us03-guard-${tenantId}`),
         tenantId,
         fixture.userIdA,
-        { depositId: `d-${tenantId}-cancel`, reason: 'cliente desiste', cashRegisterSessionId: fixture.sessionId },
+        {
+          depositId: `d-${tenantId}-cancel`,
+          reason: 'cliente desiste',
+          cashRegisterSessionId: fixture.sessionId,
+        },
         { nowMs: NOW },
       ),
     ).rejects.toThrow();
@@ -356,12 +376,18 @@ describe('US-03 interleaving multi-device: exactamente UN efecto (D1 serializa)'
     await seedQuoteConvertible(tenantId, fixture, 'q-us03-race');
 
     const attempt = (userId: string) =>
-      processQuoteConvertAtomic(env.DB, tenantId, userId, {
-        quoteId: 'q-us03-race',
-        cashRegisterSessionId: fixture.sessionId,
-        series: 'NV01',
-        documentType: 'NV',
-      }, { nowMs: NOW });
+      processQuoteConvertAtomic(
+        env.DB,
+        tenantId,
+        userId,
+        {
+          quoteId: 'q-us03-race',
+          cashRegisterSessionId: fixture.sessionId,
+          series: 'NV01',
+          documentType: 'NV',
+        },
+        { nowMs: NOW },
+      );
 
     const outcomes = await Promise.allSettled([attempt(fixture.userIdA), attempt(fixture.userIdB)]);
     expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
@@ -371,9 +397,7 @@ describe('US-03 interleaving multi-device: exactamente UN efecto (D1 serializa)'
     expect(await stockMicrounits(tenantId, fixture.productId)).toBe(8_000_000);
     expect(await seriesCurrentNumber(tenantId)).toBe(1);
     expect(await auditCount(tenantId, 'QUOTE_CONVERT')).toBe(1);
-    const quote = await env.DB.prepare(
-      `SELECT status FROM quotes WHERE tenant_id = ? AND id = ?`,
-    )
+    const quote = await env.DB.prepare(`SELECT status FROM quotes WHERE tenant_id = ? AND id = ?`)
       .bind(tenantId, 'q-us03-race')
       .first<{ status: string }>();
     expect(quote?.status).toBe('CONVERTED');
@@ -385,13 +409,19 @@ describe('US-03 interleaving multi-device: exactamente UN efecto (D1 serializa)'
     await seedOpenDeposit(tenantId, fixture, `d-${tenantId}-race`);
 
     const attempt = (userId: string) =>
-      processLayawayConvertAtomic(env.DB, tenantId, userId, {
-        depositId: `d-${tenantId}-race`,
-        cashRegisterSessionId: fixture.sessionId,
-        series: 'NV01',
-        documentType: 'NV',
-        remainingAsCredit: true,
-      }, { nowMs: NOW });
+      processLayawayConvertAtomic(
+        env.DB,
+        tenantId,
+        userId,
+        {
+          depositId: `d-${tenantId}-race`,
+          cashRegisterSessionId: fixture.sessionId,
+          series: 'NV01',
+          documentType: 'NV',
+          remainingAsCredit: true,
+        },
+        { nowMs: NOW },
+      );
 
     const outcomes = await Promise.allSettled([attempt(fixture.userIdA), attempt(fixture.userIdB)]);
     expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);

@@ -13,6 +13,7 @@ import {
   parseQuantityMicrounitsQuery,
   QUANTITY_MICROUNITS_BAD_REQUEST,
 } from '../http/quantity-input.js';
+import type { MicrounitsParser } from '../http/microunits-input.js';
 
 export { isInventoryLocationsEnabled };
 
@@ -20,6 +21,19 @@ export interface HttpResult {
   status: number;
   body: Record<string, unknown>;
 }
+
+/** Default body parser: quantity-input canónico (US-04-v2), shape MicrounitsParser. */
+const defaultQuantityParser: MicrounitsParser = (value) => {
+  const quantity = parseQuantityMicrounits(value);
+  if (quantity.ok) return { ok: true, microunits: quantity.microunits };
+  return {
+    ok: false,
+    errorName:
+      quantity.errorName === 'quantity_out_of_range' || quantity.errorName === 'negative_zero'
+        ? 'MICROUNITS_OUT_OF_RANGE'
+        : 'MICROUNITS_INVALID',
+  };
+};
 
 function featureOff(): HttpResult {
   return {
@@ -196,14 +210,20 @@ export async function runInventoryLocationTransferHttp(
   userId: string,
   role: string | undefined,
   body: Record<string, unknown>,
+  parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role, true);
   if (denied) return denied;
   // US-04: parse tipado fail-closed de *Microunits (sin Number(): 400 estable
-  // ante tipos inválidos, sin NaN ni 500; antes un string/bool llegaba
-  // coercionado al adapter y moría como 422 opaco o NaN).
-  const transferQuantity = parseQuantityMicrounits(body.quantityMicrounits);
-  if (!transferQuantity.ok) {
+  // ante tipos inválidos, sin NaN ni 500). Helper inyectado que lanza → 400.
+  let quantityMicrounits: number;
+  try {
+    const transferQuantity = parseMicrounits(body.quantityMicrounits);
+    if (!transferQuantity.ok) {
+      return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
+    }
+    quantityMicrounits = transferQuantity.microunits;
+  } catch {
     return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
   }
   try {
@@ -214,7 +234,7 @@ export async function runInventoryLocationTransferHttp(
         typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
       productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
-      quantityMicrounits: transferQuantity.microunits,
+      quantityMicrounits,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });

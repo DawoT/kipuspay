@@ -1,0 +1,4 @@
+DROP TRIGGER IF EXISTS backup_epoch_inventory_ops_idempotency_insert;
+DROP TRIGGER IF EXISTS backup_epoch_inventory_ops_idempotency_update;
+DROP TRIGGER IF EXISTS backup_epoch_inventory_ops_idempotency_delete;
+DROP TABLE IF EXISTS inventory_ops_idempotency;

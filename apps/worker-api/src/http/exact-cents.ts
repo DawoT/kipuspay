@@ -32,7 +32,7 @@ export function diffValueCentsExact(differenceMicrounits: number, unitCostCents:
   if (product >= 0n) {
     // Mitad hacia arriba: Math.round(1.5) === 2.
     const q = product / SCALE;
-    cents = product % SCALE * 2n >= SCALE ? q + 1n : q;
+    cents = (product % SCALE) * 2n >= SCALE ? q + 1n : q;
   } else {
     // Mitad hacia +∞: Math.round(-1.5) === -1 (no simétrico).
     const q = product / SCALE;

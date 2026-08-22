@@ -149,7 +149,7 @@ describe('S34-H2: doble CLOSE concurrente aborta con guardState', () => {
       ),
     ).rejects.toThrow();
     // El batch jamás debió contener los writes de stock/CxP tras el guard.
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- mock de batch expuesto en el objeto mock
+
     expect(db.batch).not.toHaveBeenCalled();
   });
 });

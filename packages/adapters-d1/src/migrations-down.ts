@@ -19,9 +19,11 @@ import down0053 from '../migrations-down/0053_sprint_m6_epoch_triggers_backfill.
 import down0054 from '../migrations-down/0054_platform_reclamaciones.sql?raw';
 import down0055 from '../migrations-down/0055_platform_reclamaciones_status.sql?raw';
 import down0056 from '../migrations-down/0056_tenant_certificates.sql?raw';
+import down0057 from '../migrations-down/0057_inventory_ops_idempotency.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0057_INVENTORY_OPS_IDEMPOTENCY = down0057;
 export const DOWN_0056_TENANT_CERTIFICATES = down0056;
 export const DOWN_0055_PLATFORM_RECLAMACIONES_STATUS = down0055;
 export const DOWN_0054_PLATFORM_RECLAMACIONES = down0054;
