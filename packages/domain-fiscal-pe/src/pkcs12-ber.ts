@@ -12,6 +12,7 @@ function fail(reason: string): never {
   throw new Error(`PKCS12_BER:${reason}`);
 }
 
+// eslint-disable-next-line complexity -- BER definite/indefinite + constructed OCTET STRING
 export function readBer(
   data: Uint8Array,
   offset = 0,

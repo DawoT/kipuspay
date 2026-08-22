@@ -39,7 +39,10 @@ function makeP12B64(): string {
       ],
       { stdio: 'pipe' },
     );
-    return readFileSync(p12).toString('base64');
+    const bytes = new Uint8Array(readFileSync(p12));
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -55,8 +58,8 @@ describe('runUploadTenantCertHttp', () => {
     const env = {
       BACKUP_KMS: { wrapDek },
       DB: {
-        prepare: (sql: string) => ({
-          bind: (..._p: unknown[]) => ({
+        prepare: () => ({
+          bind: () => ({
             first: () => Promise.resolve(null),
             run: () => Promise.resolve({}),
           }),

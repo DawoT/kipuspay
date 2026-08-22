@@ -58,6 +58,10 @@ const testOverrides = {
     'security/detect-non-literal-fs-filename': 'off',
     'no-secrets/no-secrets': ['error', { tolerance: 4.2 }],
     '@typescript-eslint/no-unsafe-assignment': 'off',
+    // node:crypto / execFileSync fixtures often fail projectService resolution in tests
+    '@typescript-eslint/no-unsafe-call': 'off',
+    '@typescript-eslint/no-unsafe-argument': 'off',
+    '@typescript-eslint/no-unsafe-return': 'off',
   },
 };
 
@@ -78,6 +82,9 @@ export default tseslint.config(
       'apps/pos-web/src/lib/vendor/**',
       // argon2-browser MIT parcheado (ruta embedded, wasm embebido) — lint del original fuera de scope
       'packages/domain-ops/src/vendor/**',
+      // Vendors crypto/inflate (tiny-inflate / PBE DES-EDE3/RC2): lint del original fuera de scope
+      'packages/adapters-sunat/src/vendor/**',
+      'packages/domain-fiscal-pe/src/vendor/**',
       'apps/worker-api/src/auth/tenant-state.ts',
       'apps/worker-api/src/worker.ts',
       'apps/worker-fiscal/src/fiscal-circuit-breaker.ts',

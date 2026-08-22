@@ -538,7 +538,6 @@ export async function runRestoreDryRunHttp(
  * download/restore-dry-run/DR devolvían 401 en producción. Owner + permiso
  * + token one-shot TTL 90s con scope DATA_BACKUP_DOWNLOAD | PLATFORM_DR_SIMULATION.
  */
-// eslint-disable-next-line complexity -- step-up token: role × scope × lockout branches
 export async function runMintBackupStepUpTokenHttp(
   env: BackupRouteEnv | undefined,
   actor: BackupActor,

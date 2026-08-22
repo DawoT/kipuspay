@@ -36,6 +36,7 @@ export interface BuildDailySummaryResult {
   readonly nrusOmittedCount?: number;
 }
 
+// eslint-disable-next-line complexity -- PRIMARY/COMPLEMENTARY RC + ticket selection branches
 export async function buildDailySummary(
   db: D1DatabaseLike,
   input: BuildDailySummaryInput,

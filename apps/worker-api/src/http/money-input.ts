@@ -82,6 +82,7 @@ function numberToCents(value: number): MoneyParseResult {
 }
 
 /** Gramática canónica de US-06/US-01: signo opcional + 0|[1-9]\d* + ≤2 decimales. */
+// eslint-disable-next-line security/detect-unsafe-regex -- bounded decimal grammar (≤2 frac digits)
 const CANONICAL_MONEY_PATTERN = /^-?(0|[1-9]\d*)(\.\d{1,2})?$/;
 
 /**

@@ -159,6 +159,7 @@ export async function runDrSimulationHttp(
   return executeDrSimulation(env, actor, backup, nowMs);
 }
 
+// eslint-disable-next-line complexity -- DR sim: step-up × registry × R2 × DR_DB branches
 async function executeDrSimulation(
   env: DrRouteEnv,
   actor: DrActor,

@@ -147,11 +147,11 @@ export async function createPendingCaptureAtomic(
       // fallo del re-SELECT (DB caída) es infraestructura: fail-closed con
       // código estable DB_UNAVAILABLE, jamás el SQL interno del constraint.
       if (isIdempotencyMismatch(inner)) throw inner;
-      throw new Error('DB_UNAVAILABLE');
+      throw new Error('DB_UNAVAILABLE', { cause: inner });
     }
     // El UNIQUE disparó pero la fila ganadora no es visible: sin DB no hay
     // reconciliación idempotente posible → fail-closed (503 en la ruta).
-    throw new Error('DB_UNAVAILABLE');
+    throw new Error('DB_UNAVAILABLE', { cause: e });
   }
   return { id, status: 'PENDING', idempotent: false };
 }

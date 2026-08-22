@@ -70,8 +70,7 @@ export async function runUploadTenantCertHttp(
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
-  const wrap = env.BACKUP_KMS?.wrapDek;
-  if (!wrap) {
+  if (!env.BACKUP_KMS?.wrapDek) {
     return { status: 503, body: { error: 'KMS unavailable', code: 'MISSING_KMS' } };
   }
   if (!env.DB) {
@@ -99,7 +98,11 @@ export async function runUploadTenantCertHttp(
   }
   const dek = randomDek();
   const sealed = await sealPkcs8WithDek(dek, parsed.pkcs8Der);
-  const wrapped = await wrap({ tenantId, backupId: TENANT_CERT_BACKUP_ID, dek });
+  const wrapped = await env.BACKUP_KMS.wrapDek({
+    tenantId,
+    backupId: TENANT_CERT_BACKUP_ID,
+    dek,
+  });
   const envelope = serializeTenantCertEnvelope({
     kekVersion: wrapped.kekVersion,
     backupId: TENANT_CERT_BACKUP_ID,

@@ -209,6 +209,7 @@ function findSigReverse(zip: Uint8Array, until: number, b2: number, b3: number):
   return -1;
 }
 
+// eslint-disable-next-line complexity -- ZIP local-file scan + inflate/store branches
 async function unzipByScanningLocals(
   zip: Uint8Array,
   until: number,

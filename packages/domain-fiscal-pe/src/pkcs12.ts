@@ -147,6 +147,7 @@ function bagValue(node: BerNode): Uint8Array {
   return unwrapExplicit(node).bytes;
 }
 
+// eslint-disable-next-line complexity -- PKCS#12 SafeBag / shroudedKeyBag walk
 function walkBags(safe: Uint8Array, bags: { pkcs8?: Uint8Array; certs: Uint8Array[] }): void {
   const items = safe[0] === 0x30 ? unwrapSequence(readBer(safe, 0).node) : childrenOf(safe);
   for (const item of items) {

@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets -- fixtures XML CPE de prueba */
 import { describe, expect, it } from 'vitest';
 import { SUNAT_BETA_BILL_SERVICE_URL } from '@kipuspay/adapters-sunat';
 import {

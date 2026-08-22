@@ -181,6 +181,7 @@ describe('drain con error de infraestructura (F-5 Sello QA Batch I)', () => {
   it('FEATURE_FISCAL_CPE on + DB/R2 → drain no es FEATURE_OFF con breaker off', async () => {
     const bound = {
       bind(..._args: unknown[]) {
+        void _args;
         return bound;
       },
       all: () => Promise.resolve({ results: [] }),
@@ -194,10 +195,10 @@ describe('drain con error de infraestructura (F-5 Sello QA Batch I)', () => {
     };
     const res = await worker.fetch(
       new Request('https://fiscal.local/v1/fiscal/drain', { method: 'POST' }),
-      env as unknown as FiscalWorkerEnv,
+      env,
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { processed?: number };
+    const body = await res.json();
     expect(body.processed).toBe(0);
   });
 

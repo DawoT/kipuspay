@@ -18,6 +18,7 @@ function staffAuthorized(env: WorkerEnv, header: string | undefined): boolean {
   return diff === 0;
 }
 
+// eslint-disable-next-line complexity -- staff auth + KMS/FISCAL wrap branches
 export async function runWrapTenantDekHttp(
   env: WorkerEnv,
   staffToken: string | undefined,
@@ -28,11 +29,6 @@ export async function runWrapTenantDekHttp(
   }
   if (!staffAuthorized(env, staffToken)) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
-  }
-  const wrap = env.BACKUP_KMS?.wrapDek;
-  const fiscalWrap = env.FISCAL?.wrapTenantDek;
-  if (!wrap && !fiscalWrap) {
-    return { status: 503, body: { error: 'KMS unavailable', code: 'MISSING_KMS' } };
   }
   const tenantId = typeof body.tenantId === 'string' ? body.tenantId.trim() : '';
   const dekB64 = typeof body.dekB64 === 'string' ? body.dekB64.trim() : '';
@@ -52,8 +48,8 @@ export async function runWrapTenantDekHttp(
   if (dek.byteLength !== 32) {
     return { status: 400, body: { error: 'DEK must be 32 bytes', code: 'KMS_DEK_INVALID' } };
   }
-  if (wrap) {
-    const wrapped = await wrap({ tenantId, backupId, dek });
+  if (env.BACKUP_KMS) {
+    const wrapped = await env.BACKUP_KMS.wrapDek({ tenantId, backupId, dek });
     return {
       status: 200,
       body: {
@@ -63,7 +59,10 @@ export async function runWrapTenantDekHttp(
       },
     };
   }
-  const fiscal = await fiscalWrap!({ tenantId, backupId, dek });
+  if (!env.FISCAL?.wrapTenantDek) {
+    return { status: 503, body: { error: 'KMS unavailable', code: 'MISSING_KMS' } };
+  }
+  const fiscal = await env.FISCAL.wrapTenantDek({ tenantId, backupId, dek });
   if ('error' in fiscal) {
     return { status: 503, body: { error: fiscal.error, code: 'MISSING_KMS' } };
   }

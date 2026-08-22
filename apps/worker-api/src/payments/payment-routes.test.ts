@@ -392,8 +392,7 @@ describe('runPaymentChargeHttp', () => {
     // evidencia runtime del invariante de la UNIQUE delegamos el create al
     // adapter REAL (vi.importActual) contra un fake D1 que materializa filas
     // con el constraint de producción (concurrentCaptureDb).
-    const real =
-      await vi.importActual<typeof import('@kipuspay/adapters-d1')>('@kipuspay/adapters-d1');
+    const real = await vi.importActual<typeof AdaptersD1>('@kipuspay/adapters-d1');
     const { db, rows } = concurrentCaptureDb();
     const env = mockEnv({ DB: db as unknown as D1Database });
     const prevCreate = vi.mocked(createPendingCaptureAtomic).getMockImplementation();

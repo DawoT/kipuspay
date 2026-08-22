@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unnecessary-type-assertion -- hoisted adapter test doubles */
+/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unnecessary-type-assertion -- hoisted adapter test doubles */
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerEnv } from '../auth/control-plane.js';
 const sendQuote = vi.hoisted(() => vi.fn(async () => ({ accepted: true })));

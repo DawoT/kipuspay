@@ -89,6 +89,7 @@ describe('unzipFirstFile', () => {
 
   it('DEFLATE con data descriptor (CDR SUNAT) lee ResponseCode', async () => {
     const xml = new TextEncoder().encode(
+      // eslint-disable-next-line no-secrets/no-secrets -- CDR XML fixture
       '<cbc:ResponseCode listAgencyName="PE:SUNAT">0</cbc:ResponseCode><cbc:Description>aceptada</cbc:Description>',
     );
     const zip = await zipDeflateDataDescriptor('R-20612913251-01-F001-00000008.xml', xml);
@@ -155,6 +156,7 @@ describe('unzipFirstFile', () => {
 
   it('DEFLATE con tamaños locales mentira (cs=2, us=0, flg=2) lee ResponseCode', async () => {
     const xml = new TextEncoder().encode(
+      // eslint-disable-next-line no-secrets/no-secrets -- CDR XML fixture
       '<cbc:ResponseCode listAgencyName="PE:SUNAT">0</cbc:ResponseCode>',
     );
     const zip = await zipDeflateDataDescriptor('R.xml', xml);

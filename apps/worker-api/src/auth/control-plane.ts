@@ -47,6 +47,13 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FISCAL?: {
     drain(options?: { readonly limit?: number }): Promise<unknown>;
     produceMissing(input: { readonly tenantId: string; readonly saleId: string }): Promise<unknown>;
+    wrapTenantDek?(input: {
+      readonly tenantId: string;
+      readonly backupId: string;
+      readonly dek: Uint8Array;
+    }): Promise<
+      { readonly wrappedDekB64: string; readonly kekVersion: string } | { readonly error: string }
+    >;
   };
   readonly FEATURE_BILLING_USAGE_OVERAGE?: string;
   readonly FEATURE_SALES_RETURNS?: string;

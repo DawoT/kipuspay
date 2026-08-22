@@ -86,7 +86,8 @@ describe('runCheckoutSessionHttp', () => {
       fetchImpl,
     );
     expect(res.status).toBe(200);
-    const body = String(fetchImpl.mock.calls[0]?.[1]?.body ?? '');
+    const init = fetchImpl.mock.calls[0]?.[1] as { body?: string } | undefined;
+    const body = String(init?.body ?? '');
     expect(body).toContain('kipuspay-pos-web-staging.pages.dev');
     expect(body).not.toContain('app.kipuspay.com');
   });

@@ -677,9 +677,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/fiscal/tenant-cert', async (c) => {
     const jwt = c.get('jwt');
     const user = c.get('user');
-    let payload: Record<string, unknown> = {};
+    let payload: Record<string, unknown>;
     try {
-      payload = (await c.req.json()) as Record<string, unknown>;
+      payload = await c.req.json();
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }

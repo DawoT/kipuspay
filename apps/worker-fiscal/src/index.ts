@@ -2,7 +2,6 @@ import {
   applyCdrToSaleStatus,
   createMockPseTransport,
   type FiscalSubmitRequest,
-  type FiscalTransport,
 } from '@kipuspay/adapters-sunat';
 import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';

@@ -39,6 +39,7 @@ export interface ProcessCreditNoteOptions {
   readonly serialIdsByProduct?: Readonly<Record<string, readonly string[]>>;
 }
 
+// eslint-disable-next-line complexity -- NC atomic: origin/series/ledger/serial branches
 export async function processCreditNoteAtomic(
   db: D1DatabaseLike,
   tenantId: string,

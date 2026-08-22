@@ -171,6 +171,7 @@ function decodeDirectoryString(node: DerNode): string {
   fail('dirstring');
 }
 
+// eslint-disable-next-line complexity -- RFC 2253 special-char escapes
 function escapeRfc2253(value: string): string {
   let out = '';
   for (let i = 0; i < value.length; i += 1) {
