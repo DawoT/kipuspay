@@ -24,7 +24,7 @@ function env(tenantExists: boolean, kvMap?: Map<string, string>) {
         return Promise.resolve();
       }),
     },
-    POS_APP_ORIGIN: 'https://kipuspay-pos-web-staging.pages.dev',
+    POS_APP_ORIGIN: 'https://kipuspay-app.pages.dev',
   } as never;
 }
 

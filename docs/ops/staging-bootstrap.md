@@ -22,8 +22,8 @@ Cuenta: `c5b18f62cb7e73fcd2ece5822936d699` (cristian.pcalderon@gmail.com).
 | Health | https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev/health → `{"status":"ok"}` |
 | Fiscal | https://kipuspay-worker-fiscal-staging.cristian-pcalderon.workers.dev |
 | KMS | https://kipuspay-worker-kms-staging.cristian-pcalderon.workers.dev (404 RPC-only) |
-| POS Pages | https://kipuspay-pos-web-staging.pages.dev |
-| Marketing Pages | https://kipuspay-marketing-web-staging.pages.dev |
+| POS Pages | https://kipuspay-app.pages.dev |
+| Marketing Pages | https://kipuspay-web.pages.dev |
 | Browser smoke | `apps/pos-web/scripts/staging-browser-smoke.mjs` (Playwright) |
 
 Smoke navegador (2026-08-17): marketing 200 (soft-launch copy), POS shell login

@@ -150,8 +150,8 @@ meta:
     nota: "Flags+S42 GREEN parcial. P2 software registry-2 STALE. Live DR_SIMULATION_PASSED WAIT (backup nuevo post-0056). Flags cobro/fiscal S12 WAIT A+V."
   smoke_urls:
     api: "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev/health"
-    pos: "https://kipuspay-pos-web-staging.pages.dev/"
-    marketing: "https://kipuspay-marketing-web-staging.pages.dev/"
+    pos: "https://kipuspay-app.pages.dev/"
+    marketing: "https://kipuspay-web.pages.dev/"
 
 camino_produccion_fases:
   - id: fase-0
@@ -378,7 +378,8 @@ sprints_cierre:
         severity: medium
         detail: "P1: ubl-* prettier local GREEN. BLOCKER humano: GH CLOUDFLARE_API_TOKEN debe ser API Token CF de larga duración (no OAuth wrangler). Sin eso deploy-staging.yml no cierra GREEN. --keep-vars ya en deploy."
         can_auto_fix: false
-        status: wait
+        status: closed
+        closure: "2026-08-22 run 32599644683 GREEN (gate+deploy, artifact deploy-staging-evidence). Fixes: disable no-secrets a nivel archivo en fixture CDR (3d3beae; el inline dentro de expresión concatenada no mapea el nodo), push de 7 commits locales pendientes, wrangler via --filter worker-api porque hoist=false deja el binario fuera de la raíz (49625fb). Secrets GH configurados por owner."
       - id: stg-domains-canary
         severity: low
         detail: "D0 software: piloto canónico temporal pages.dev/workers.dev (POS_APP_ORIGIN + Stripe return URLs + PUBLIC_POS_ORIGIN). api./app./kipuspay.com es DM WAIT hasta compra de dominio — no RED fingido."
@@ -410,7 +411,7 @@ sprints_cierre:
         phase: 0
         pass: "Owner JWT + step-up llama backup/DR sin 401/403 de fixture; login POS staging"
         evidence: "tenant_stg_phase0_001; /api/auth/session 200; capabilities data.backup+platform.dr; POS pages 200"
-        cmd: "seed tenant en kipuspay-staging D1; probar https://kipuspay-pos-web-staging.pages.dev/"
+        cmd: "seed tenant en kipuspay-staging D1; probar https://kipuspay-app.pages.dev/"
       - id: stg-ci-etapas-6-run
         owner: Staff SRE
         depends_on: []

@@ -53,7 +53,7 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
   it('staging usa pages.dev/workers.dev como canónico temporal (D0, sin dominio comprado)', () => {
     const wranglerPath = join(dirname(fileURLToPath(import.meta.url)), '../wrangler.jsonc');
     const wrangler = readFileSync(wranglerPath, 'utf8');
-    expect(wrangler).toContain('kipuspay-pos-web-staging.pages.dev');
+    expect(wrangler).toContain('kipuspay-app.pages.dev');
     expect(wrangler).toContain('POS_APP_ORIGIN');
     expect(wrangler).not.toMatch(/"POS_APP_ORIGIN": "https:\/\/app\.kipuspay\.com"/);
   });

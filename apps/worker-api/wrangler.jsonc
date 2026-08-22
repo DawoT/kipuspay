@@ -272,8 +272,8 @@
       },
       "vars": {
         "FQDN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
-        "POS_APP_ORIGIN": "https://kipuspay-pos-web-staging.pages.dev",
-        "ALLOWED_ORIGINS": "https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-marketing-web-staging.pages.dev",
+        "POS_APP_ORIGIN": "https://kipuspay-app.pages.dev",
+        "ALLOWED_ORIGINS": "https://kipuspay-app.pages.dev,https://kipuspay-web.pages.dev",
         "FEATURE_ACID_OFFLINE_SALE": "0",
         "FEATURE_FISCAL_CPE": "0",
         "FEATURE_FISCAL_RC": "0",

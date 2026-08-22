@@ -22,7 +22,7 @@ function env(opts: {
     STRIPE_PRICE_ARRANQUE: opts.price ?? 'price_arr',
     STRIPE_PRICE_CRECE: 'price_crece',
     STRIPE_PRICE_CADENA: 'price_cadena',
-    POS_APP_ORIGIN: 'https://kipuspay-pos-web-staging.pages.dev',
+    POS_APP_ORIGIN: 'https://kipuspay-app.pages.dev',
   } as never;
 }
 
@@ -88,7 +88,7 @@ describe('runCheckoutSessionHttp', () => {
     expect(res.status).toBe(200);
     const init = fetchImpl.mock.calls[0]?.[1] as { body?: string } | undefined;
     const body = String(init?.body ?? '');
-    expect(body).toContain('kipuspay-pos-web-staging.pages.dev');
+    expect(body).toContain('kipuspay-app.pages.dev');
     expect(body).not.toContain('app.kipuspay.com');
   });
 

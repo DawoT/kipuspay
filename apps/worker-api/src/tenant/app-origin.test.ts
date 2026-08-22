@@ -5,19 +5,19 @@ describe('resolvePosAppOrigin (D0 pages.dev, no dominio comprado)', () => {
   it('POS_APP_ORIGIN gana y no cae a app.kipuspay.com', () => {
     expect(
       resolvePosAppOrigin({
-        POS_APP_ORIGIN: 'https://kipuspay-pos-web-staging.pages.dev/',
+        POS_APP_ORIGIN: 'https://kipuspay-app.pages.dev/',
         ALLOWED_ORIGINS: 'https://app.kipuspay.com',
       }),
-    ).toBe('https://kipuspay-pos-web-staging.pages.dev');
+    ).toBe('https://kipuspay-app.pages.dev');
   });
 
   it('sin POS_APP_ORIGIN usa el Pages del POS en ALLOWED_ORIGINS', () => {
     expect(
       resolvePosAppOrigin({
         ALLOWED_ORIGINS:
-          'https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-marketing-web-staging.pages.dev',
+          'https://kipuspay-app.pages.dev,https://kipuspay-web.pages.dev',
       }),
-    ).toBe('https://kipuspay-pos-web-staging.pages.dev');
+    ).toBe('https://kipuspay-app.pages.dev');
   });
 
   it('sin env no inventa kipuspay.com', () => {
@@ -28,14 +28,14 @@ describe('resolvePosAppOrigin (D0 pages.dev, no dominio comprado)', () => {
   });
 
   it('httpsReturnOrEmpty rechaza no-https y el fallback vacío', () => {
-    expect(httpsReturnOrEmpty('ftp://evil', 'https://kipuspay-pos-web-staging.pages.dev/x')).toBe(
+    expect(httpsReturnOrEmpty('ftp://evil', 'https://kipuspay-app.pages.dev/x')).toBe(
       '',
     );
     expect(
       httpsReturnOrEmpty(
         undefined,
-        'https://kipuspay-pos-web-staging.pages.dev/admin/configuracion',
+        'https://kipuspay-app.pages.dev/admin/configuracion',
       ),
-    ).toBe('https://kipuspay-pos-web-staging.pages.dev/admin/configuracion');
+    ).toBe('https://kipuspay-app.pages.dev/admin/configuracion');
   });
 });
