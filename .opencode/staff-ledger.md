@@ -143,3 +143,53 @@ aprobaciones: ["A: Staff Principal (lente aprobador)", "V: Staff Verifier (segun
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0004
+timestamp_utc: 2026-08-22T22:10:20Z
+schema_version: 2
+sprint_fase: Transversal — Camino a producción (fase-1)
+agente_responsable: Staff Principal (supervisión; owner humano delega la ejecución)
+tipo: Milestone de operación
+subtipo: CI/CD staging operativo + renombre Pages
+relacion: amplía
+referencias_entradas: [0003]
+referencias_documentales: ["docs/ops/pending-batches.yaml", "docs/ops/staging-bootstrap.md"]
+prev_id: 0003
+prev_hash: 281a8e4b6e270f1081f517f33c0cfb1a98ba0c5bbfaf20240e0b15003396903a
+entry_hash: d5146524b4d22e0bfbf806357b4db09078df86510ca60d940f1256848f0b73bf
+ticket_or_adr: operación delegada por owner (sin ADR normativo)
+test_ids: [SUITE, V-31, worker-api 1352 tests, marketing-web 161 tests]
+entregable_afectado: .github/workflows/deploy-staging.yml · apps/pos-web · apps/marketing-web · apps/worker-api (orígenes) · docs/ops/pending-batches.yaml
+descripcion: >
+  Paso 0: 5 MCP de Cloudflare instalados en opencode config (OAuth pendiente del
+  owner) + skills CF ya presentes. H1 CERRADO: secrets GH CLOUDFLARE_API_TOKEN/
+  ACCOUNT_ID configurados por owner; primer workflow_dispatch GREEN completo
+  (run 32599644683 gate+deploy, artifact deploy-staging-evidence). Tres fixes
+  para lograrlo: (a) disable no-secrets a nivel archivo en fixture CDR de
+  adapters-sunat — el eslint-disable-next-line dentro de una expresión
+  concatenada multi-línea no mapea el nodo AST y el error reaparecía en otra
+  línea (commit 3d3beae); (b) push de 7 commits locales que llevaban días sin
+  subir a origin/main — CI compilaba estado viejo (4f6a40e..3d3beae);
+  (c) wrangler invocado vía --filter @kipuspay/worker-api porque hoist=false
+  deja el binario fuera del node_modules raíz (49625fb). Fase C COMPLETA:
+  proyectos Pages nuevos kipuspay-app/kipuspay-web creados (--production-branch
+  main), renombre mecánico en 12 archivos versionados (orígenes POS_APP_ORIGIN,
+  ALLOWED_ORIGINS, PUBLIC_POS_ORIGIN, scripts deploy, tests tenant/app-origin),
+  deploy a branch main para servir producción del proyecto — con --branch
+  staging quedaba preview y el dominio raíz en 404 (15b723f). Smoke final:
+  kipuspay-app.pages.dev 200, kipuspay-web.pages.dev 200, worker health 401
+  (up, auth requerida). Runs GREEN: 32599644683, 32600659461, 32601235592.
+evidencia: >
+  RED inicial: Etapa 1 lint por entropía en fixture CDR; segundo fallo idéntico
+  por commits sin push; tercer fallo en 'Evidencia - versión de wrangler' por
+  binario ausente en raíz; cuarto run GREEN pero Pages 404 por preview branch;
+  quinto fallo prettier tras renombre.
+  GREEN: run 32601235592 completed success; smoke 200/200/401; worker-api
+  1352 tests + marketing-web 161 + gate documental SUITE GREEN local y en CI.
+  Gap stg-ci-etapas-6-run cerrado en tracker con closure detallada.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (lente aprobador)", "V: Staff Verifier (smoke runtime + runs CI)", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
