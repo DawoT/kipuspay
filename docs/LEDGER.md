@@ -12685,3 +12685,42 @@ aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0459
+timestamp_utc: 2026-08-22T04:30:00Z
+schema_version: 2
+sprint_fase: FASE FL-1 piloto e-beta CDT (F001-12)
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: UBL 01 local anexo + tasa IGV + send-beta-cpe staff
+relacion: amplia
+referencias_entradas: [0458]
+referencias_documentales: [docs/ops/fl-fiscal-live-qg.md, docs/ops/xades-bes-qg.md, docs/ops/pending-batches.yaml, scripts/staff/send-beta-cpe.mjs]
+prev_id: 0458
+prev_hash: cf7a430f69949683a2720d89f67266a4b578f177b941e152fdfa236281ed17c1
+entry_hash: eaa9678024cfe35b1a7f49d87837a843eec30a3bdf526084e0490cd878a7fe0b
+ticket_or_adr: ADR-FISCAL-007
+test_ids: [packages/domain-fiscal-pe/src/ubl-invoice.test.ts, packages/domain-fiscal-pe/src/ubl-credit-note.test.ts, packages/domain-fiscal-pe/src/ubl-debit-note.test.ts, packages/adapters-sunat/src/staff-cdr-report.test.ts, SUITE, V-13]
+entregable_afectado: Arquitectura §5.2 · e-beta Rosa Negra F001-12
+descripcion: >
+  El UBL 01 mínimo no pasaba validación e-beta (3030 local anexo, 2992 tasa
+  IGV, 3244 tipo de transacción). Se añade AddressTypeCode 0000, Percent
+  catálogo 07, ProfileID 0101 y FormaPago Contado. Staff send-beta-cpe.mjs
+  reporta CDR sin secretos. F001-12 ACCEPTED en e-beta (RUC 20612913251).
+  No se prende FEATURE_*=1 en git ni se cierra GTM-08. S11 UI / S12 drain
+  siguen WAIT (pass CDT en sesión, AUTH_JWT, flags runtime).
+evidencia: >
+  RED: sendBill F001-12 rechazado 3030/2992/3244; script staff no existía.
+  GREEN: tests UBL + staff-cdr-report; CDR e-beta kind=accepted cdrCode=0
+  "La Factura numero F001-00000012, ha sido aceptada".
+red_commit_sha: N/A
+red_run_id: run-red-piloto-ebeta-f001-12
+expected_failure: UBL 01 sin AddressTypeCode/Percent/ProfileID rechazado en e-beta
+green_commit_sha: N/A
+green_run_id: run-green-piloto-ebeta-f001-12
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```

@@ -35,7 +35,13 @@ export interface UblInvoiceInput {
   readonly lines: readonly UblInvoiceLine[];
 }
 
-import { assertWellFormedXml, centsToAmount, escapeXml, hashUblXml } from './ubl-shared.js';
+import {
+  assertWellFormedXml,
+  centsToAmount,
+  escapeXml,
+  hashUblXml,
+  ublIgvPercent,
+} from './ubl-shared.js';
 
 /** Construye XML UBL Invoice 2.1 mínimo válido para fixtures de prueba. */
 export function buildUblInvoiceXml(input: UblInvoiceInput): string {
@@ -64,8 +70,10 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
     <cac:TaxTotal>
       <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(line.igvCents + line.icbperCents)}</cbc:TaxAmount>
       <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="${input.currency}">${centsToAmount(netCents)}</cbc:TaxableAmount>
         <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(line.igvCents)}</cbc:TaxAmount>
         <cac:TaxCategory>
+          <cbc:Percent>${ublIgvPercent(line.igvAffectationCode)}</cbc:Percent>
           <cbc:TaxExemptionReasonCode>${escapeXml(line.igvAffectationCode)}</cbc:TaxExemptionReasonCode>
           <cac:TaxScheme>
             <cbc:ID>1000</cbc:ID>
@@ -91,10 +99,11 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
   xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
   <cbc:CustomizationID>${input.customizationId}</cbc:CustomizationID>
+  <cbc:ProfileID>0101</cbc:ProfileID>
   <cbc:ID>${escapeXml(input.id)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(input.issueDate)}</cbc:IssueDate>
   <cbc:IssueTime>${escapeXml(input.issueTime)}</cbc:IssueTime>
-  <cbc:InvoiceTypeCode listID="0101">${input.invoiceTypeCode}</cbc:InvoiceTypeCode>
+  <cbc:InvoiceTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">${input.invoiceTypeCode}</cbc:InvoiceTypeCode>
   <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
   <cac:AccountingSupplierParty>
     <cac:Party>
@@ -103,6 +112,9 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(input.issuerName)}</cbc:RegistrationName>
+        <cac:RegistrationAddress>
+          <cbc:AddressTypeCode>0000</cbc:AddressTypeCode>
+        </cac:RegistrationAddress>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>
@@ -116,8 +128,24 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>
+  <cac:PaymentTerms>
+    <cbc:ID>FormaPago</cbc:ID>
+    <cbc:PaymentMeansID>Contado</cbc:PaymentMeansID>
+  </cac:PaymentTerms>
   <cac:TaxTotal>
     <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(input.totalIgvCents + input.totalIcbperCents)}</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(input.totalIgvCents)}</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:Percent>${input.totalIgvCents === 0 ? '0.00' : '18.00'}</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>1000</cbc:ID>
+          <cbc:Name>IGV</cbc:Name>
+          <cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
   </cac:TaxTotal>
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:LineExtensionAmount>
@@ -141,5 +169,6 @@ export function assertValidFacturaXml(xml: string): void {
   if (!xml.includes('<cbc:InvoiceTypeCode')) throw new Error('MISSING_INVOICE_TYPE');
   if (!xml.includes('schemeID="6"')) throw new Error('MISSING_ISSUER_RUC');
   if (!xml.includes('<cac:InvoiceLine>')) throw new Error('MISSING_LINES');
+  if (!xml.includes('<cbc:AddressTypeCode>')) throw new Error('MISSING_ESTABLISHMENT_CODE');
   if (xml.toLowerCase().includes('contingencia')) throw new Error('CONTINGENCIA_FORBIDDEN');
 }

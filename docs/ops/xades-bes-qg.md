@@ -9,13 +9,14 @@ owner: "@DawoT"
 
 **Estado software:** GREEN local (tests de dominio + producer + wrapDek + RC XAdES)  
 **Estado homologación / GTM-08 / producción SUNAT:** NO-GO (T6 `e-factura`).
-Matriz **beta** Rosa Negra 2026-08-21: `01` F001-8, `08` FD01-1, `07` FC01-1,
-RC-20260821-002 (boleta B001-1) con CDR `accepted` en e-beta (sign-only).
-Loop POS Worker-firma (S1–S4): wrapDek KMS + produceMissing F001-9,
-caja F001-11, ND FD01-3, NC FC01-2, boleta B001-2 via RC-20260821-003
-COMPLEMENTARY. **S11 WAIT:** CDR e-beta de un `01` *después* de upload UI
-(sin scripts staff) exige pass CDT en sesión. No descongela GTM-08 ni cierra
-`go-live-sunat`. `sign-only-cpe.mjs` queda break-glass. FASE FL-1 WAIT pass CDT.  
+Matriz **beta** Rosa Negra: `01` F001-8 y **F001-12** (2026-08-21, sign-only
+SOAP e-beta, CDR `accepted` / `cdrCode` 0), `08` FD01-1, `07` FC01-1,
+RC-20260821-002 (boleta B001-1). Loop POS Worker-firma (S1–S4): wrapDek KMS +
+produceMissing F001-9, caja F001-11, ND FD01-3, NC FC01-2, boleta B001-2 via
+RC-20260821-003 COMPLEMENTARY. **S11 WAIT:** CDR e-beta de un `01` *después* de
+upload UI (sin scripts staff) exige pass CDT en sesión. F001-12 no descongela
+GTM-08 ni cierra `go-live-sunat`. `sign-only-cpe.mjs` / `send-beta-cpe.mjs`
+quedan break-glass. FASE FL-1 S12 WAIT flags runtime.  
 **Capability:** firma Edge `TENANT_CERT` (ADR-FISCAL-006); default producto
 `KIPUSPAY_PSE` intacto  
 **Spec:** Arquitectura §5.2 · §5.4 · ADR-FISCAL-006

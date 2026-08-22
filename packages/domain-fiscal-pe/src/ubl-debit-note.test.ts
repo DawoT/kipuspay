@@ -44,6 +44,8 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     const xml = buildUblDebitNoteXml(sample());
     expect(() => assertValidDebitNoteXml(xml)).not.toThrow();
     expect(xml).toContain('FD01-00000001');
+    expect(xml).toContain('<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>');
+    expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
     expect(xml).toContain('<cbc:DebitNoteTypeCode listID="0101">08</cbc:DebitNoteTypeCode>');
     expect(xml).toContain('<cbc:ReferenceID>F001-00000007</cbc:ReferenceID>');
     expect(xml).toContain('<cac:BillingReference>');

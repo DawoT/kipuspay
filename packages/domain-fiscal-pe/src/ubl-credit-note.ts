@@ -8,7 +8,7 @@
  */
 /* eslint-disable no-secrets/no-secrets -- plantillas XML UBL normativas */
 
-import { assertWellFormedXml, centsToAmount, escapeXml } from './ubl-shared.js';
+import { assertWellFormedXml, centsToAmount, escapeXml, ublIgvPercent } from './ubl-shared.js';
 
 export interface UblCreditNoteLine {
   readonly id: number;
@@ -74,8 +74,10 @@ export function buildUblCreditNoteXml(input: UblCreditNoteInput): string {
     <cac:TaxTotal>
       <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(line.igvCents + line.icbperCents)}</cbc:TaxAmount>
       <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="${input.currency}">${centsToAmount(netCents)}</cbc:TaxableAmount>
         <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(line.igvCents)}</cbc:TaxAmount>
         <cac:TaxCategory>
+          <cbc:Percent>${ublIgvPercent(line.igvAffectationCode)}</cbc:Percent>
           <cbc:TaxExemptionReasonCode>${escapeXml(line.igvAffectationCode)}</cbc:TaxExemptionReasonCode>
           <cac:TaxScheme>
             <cbc:ID>1000</cbc:ID>
@@ -119,6 +121,9 @@ export function buildUblCreditNoteXml(input: UblCreditNoteInput): string {
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(input.issuerName)}</cbc:RegistrationName>
+        <cac:RegistrationAddress>
+          <cbc:AddressTypeCode>0000</cbc:AddressTypeCode>
+        </cac:RegistrationAddress>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingSupplierParty>

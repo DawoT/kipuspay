@@ -31,6 +31,12 @@ export {
 export { createHttpRcCdrPort, type HttpRcCdrPortOptions } from './http-rc-cdr-port.js';
 
 export {
+  formatStaffSunatOutcome,
+  sendBetaCpeXml,
+  type StaffCdrReport,
+} from './staff-cdr-report.js';
+
+export {
   createSunatBillTransport,
   createSunatRcCdrPort,
   SUNAT_BETA_BILL_SERVICE_URL,

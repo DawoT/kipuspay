@@ -597,7 +597,7 @@ sprints_cierre:
         status: wait
       - id: sunat-xades-pfx
         severity: blocker
-        detail: "FL-1 / S11 WAIT — UI .p12 en Configuración POS lista (parse Worker, wrapDek backupId=tenant-cert:SUNAT, JWT owner/admin). Falta pass CDT en sesión + 01 nuevo e-beta ACCEPTED tras upload (hash R2 ≠ sign-only). Sin extract-cdt-p12.sh ni PLATFORM_STAFF_TOKEN. GTM-08 no se descongela con beta. Flags FEATURE_FISCAL_* git 0."
+        detail: "FL-1 / S11 — UI .p12 lista; cert staging ACTIVE (fingerprint CDT Rosa Negra). e-beta F001-12 ACCEPTED por SOAP sign-only (no es S11 UI). Falta pass CDT en sesión + 01 nuevo vía upload Dueño (hash R2 ≠ sign-only) y drain cron con flags runtime. Sin extract-cdt-p12.sh ni PLATFORM_STAFF_TOKEN para el pass S11. GTM-08 no se descongela con beta. Flags FEATURE_FISCAL_* git 0."
         can_auto_fix: false
         status: wait
     next_actions:

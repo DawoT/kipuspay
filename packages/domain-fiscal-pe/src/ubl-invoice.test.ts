@@ -7,6 +7,7 @@ import {
   hashUblXml,
   type UblInvoiceInput,
 } from './ubl-invoice.js';
+import { ublIgvPercent } from './ubl-shared.js';
 
 const sample = (): UblInvoiceInput => ({
   ublVersion: '2.1',
@@ -45,6 +46,10 @@ describe('buildUblInvoiceXml', () => {
     const xml = buildUblInvoiceXml(sample());
     expect(() => assertValidFacturaXml(xml)).not.toThrow();
     expect(xml).toContain('F001-00000001');
+    expect(xml).toContain('<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>');
+    expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
+    expect(xml).toContain('<cbc:ProfileID>0101</cbc:ProfileID>');
+    expect(xml).toContain('<cbc:PaymentMeansID>Contado</cbc:PaymentMeansID>');
     expect(xml).toContain('TaxExemptionReasonCode>10<');
     expect(xml).toContain('A&amp;B');
     const hash = await hashUblXml(xml);
@@ -80,6 +85,11 @@ describe('buildUblInvoiceXml', () => {
     expect(() =>
       assertValidFacturaXml(
         '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine>contingencia</Invoice>',
+      ),
+    ).toThrow(/MISSING_ESTABLISHMENT_CODE/);
+    expect(() =>
+      assertValidFacturaXml(
+        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine><cbc:AddressTypeCode>0000</cbc:AddressTypeCode>contingencia</Invoice>',
       ),
     ).toThrow(/CONTINGENCIA_FORBIDDEN/);
   });
@@ -178,5 +188,19 @@ describe('buildUblInvoiceXml', () => {
       lines: [{ ...sample().lines[0]!, quantity: 0 }],
     });
     expect(zeroQty).toContain('F001-00000001');
+  });
+
+  it('tasa IGV catálogo 07: gravado 18, resto 0', () => {
+    expect(ublIgvPercent('10')).toBe('18.00');
+    expect(ublIgvPercent('20')).toBe('0.00');
+    const exo = buildUblInvoiceXml({
+      ...sample(),
+      totalIgvCents: 0,
+      totalAmountCents: 1000,
+      lines: [
+        { ...sample().lines[0]!, igvAffectationCode: '20', igvCents: 0, lineTotalCents: 1000 },
+      ],
+    });
+    expect(exo).toContain('<cbc:Percent>0.00</cbc:Percent>');
   });
 });

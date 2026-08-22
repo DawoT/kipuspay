@@ -44,6 +44,8 @@ describe('buildUblCreditNoteXml (Ops-3)', () => {
     const xml = buildUblCreditNoteXml(sample());
     expect(() => assertValidCreditNoteXml(xml)).not.toThrow();
     expect(xml).toContain('FC01-00000001');
+    expect(xml).toContain('<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>');
+    expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
     expect(xml).toContain('<cbc:CreditNoteTypeCode listID="0101">07</cbc:CreditNoteTypeCode>');
     expect(xml).toContain('<cbc:ReferenceID>F001-00000007</cbc:ReferenceID>');
     expect(xml).toContain('<cac:BillingReference>');

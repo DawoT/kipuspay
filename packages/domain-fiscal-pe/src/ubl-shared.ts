@@ -22,6 +22,11 @@ export function centsToAmount(cents: number): string {
   return `${sign}${whole}.${frac}`;
 }
 
+/** Tasa IGV catálogo 07 (ratio, no dinero). Gravado `10` = 18%; resto 0. */
+export function ublIgvPercent(affectationCode: string): string {
+  return affectationCode === '10' ? '18.00' : '0.00';
+}
+
 /** Firma detachada SHA-256 del XML (staging / mock PSE — no XAdES completo). */
 export async function hashUblXml(xml: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(xml));
