@@ -5,7 +5,6 @@
  * al comprobante que ajusta y `DebitNoteLine` con montos POSITIVOS (la ND
  * incrementa valor; jamás toca stock, FIS-13/ADR-FISCAL-003).
  */
-/* eslint-disable no-secrets/no-secrets -- plantillas XML UBL normativas */
 
 import {
   assertWellFormedXml,

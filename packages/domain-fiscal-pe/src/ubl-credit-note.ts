@@ -6,7 +6,6 @@
  * `BillingReference` al comprobante que ajusta y `CreditNoteLine` con montos
  * unsigned (e-beta 2999 rechaza TaxableAmount negativo; el tipo 07 da el sentido).
  */
-/* eslint-disable no-secrets/no-secrets -- plantillas XML UBL normativas */
 
 import {
   assertWellFormedXml,
