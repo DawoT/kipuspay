@@ -12646,3 +12646,42 @@ aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0458
+timestamp_utc: 2026-08-22T04:10:00Z
+schema_version: 2
+sprint_fase: FASE FL — Facturador Live (FL-0 fail-closed + FL-5 UBL no-pago)
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: transporte MISCONFIGURED + drain CPE/RC honesto + UBL GRE/02/20
+relacion: amplia
+referencias_entradas: [0457]
+referencias_documentales: [docs/roadmap/fase-fiscal-live.md, docs/adr/ADR-FISCAL-008-transport-misconfigured.md, docs/ops/fl-fiscal-live-qg.md, docs/architecture/05-2-fiscal-pipeline.md]
+prev_id: 0457
+prev_hash: fcc1996aeb1dba51e44ff2d266bed7bd0fd463fd42167f17aa2e6d7586d0e51d
+entry_hash: cf7a430f69949683a2720d89f67266a4b578f177b941e152fdfa236281ed17c1
+ticket_or_adr: ADR-FISCAL-008
+test_ids: [apps/worker-fiscal/src/select-transport.test.ts, apps/worker-fiscal/src/fiscal-drain.test.ts, apps/worker-fiscal/src/fiscal-non-sale-drain.test.ts, packages/adapters-sunat/src/fiscal-error.test.ts, packages/domain-fiscal-pe/src/ubl-despatch.test.ts, packages/adapters-d1/src/fiscal-non-sale-outbox-schema.test.ts, apps/pos-web/src/lib/fiscal/sunat-status-label.test.ts, apps/worker-api/test/feature-flags-staging-nogate.test.ts, SUITE, V-13]
+entregable_afectado: Arquitectura §5.2 · FASE FL · worker-fiscal · fiscal_non_sale_outbox
+descripcion: >
+  FASE FL software: plugins on sin SOL/URL ya no mockean ACCEPTED (MISCONFIGURED
+  503). Drain live exige ds:Signature; RC no re-lista boletas ACCEPTED; Dueño y
+  ticket no dicen aceptada sin CDR. GRE/02/20 tienen UBL + outbox + drain.
+  Flags FEATURE_FISCAL_* siguen 0 en git. go-live-sunat y GTM-08 siguen WAIT
+  (pass CDT, URL PSE, A+V). Detracción bancaria NO-GO.
+evidencia: >
+  RED: selectFiscalTransport plugins on sin credenciales devolvía mock ACCEPTED;
+  HTTP 2xx vacio afirmaba CDR; GRE/02/20 quedaban PENDING sin XML.
+  GREEN: createMisconfiguredFiscalTransport + tests drain/UI/UBL; migracion 0058;
+  fase-fiscal-live.md; ADR-FISCAL-008. Staff no cierra GTM-08.
+red_commit_sha: N/A
+red_run_id: run-red-fl-failclosed
+expected_failure: plugins on sin SOL/URL escribian ACCEPTED desde mock
+green_commit_sha: N/A
+green_run_id: run-green-fl-failclosed
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```

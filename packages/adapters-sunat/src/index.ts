@@ -16,6 +16,7 @@ export {
   applyCdrToSaleStatus,
   assertTransportContract,
   createHttpPseTransport,
+  createMisconfiguredFiscalTransport,
   createMockPseTransport,
   createOseTransport,
   createPseThirdPartyTransport,

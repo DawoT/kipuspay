@@ -31,6 +31,7 @@ owner: "@DawoT"
 | 6F    | Analítica Predictiva, Compliance e Inteligencia del Negocio          | 46–49   | `[roadmap/fase-6f.md](roadmap/fase-6f.md)` |
 | 6G    | Flujo del Cliente                                                    | 50–53   | `[roadmap/fase-6g.md](roadmap/fase-6g.md)` |
 | 6H    | Remediación y Sello QA (auditoría browser)                           | 54–59   | `[ops/browser-functional-audit.md](ops/browser-functional-audit.md)` |
+| FL    | Facturador Live (CPE fail-closed + CDR; GRE/02/20 después)           | FL-0–FL-5 | `[roadmap/fase-fiscal-live.md](roadmap/fase-fiscal-live.md)` |
 
 
 
@@ -90,6 +91,12 @@ owner: "@DawoT"
 | 49     | 6F   | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica)                                       | Software GREEN local; QG `docs/ops/s49-insights-qg.md`; sellado (batch F, ledger 0429); producción NO-GO |
 | 50–53  | 6G   | Actualizada (FASE 6G reglas 34–37 — flujo del cliente)                                                      | Cerrado (QG s50–s53; sellos batches A–E, ledgers 0422–0428) |
 | 54–59  | 6H   | Actualizada (Fase 6H — Remediación y Sello QA; `docs/ops/browser-functional-audit.md`)                      | Cerrado (ledgers 0407–0434; QG `docs/ops/6h-remediation-qg.md`) |
+| FL-0   | FL   | Actualizada (fail-closed transporte/drain/UI; ADR-FISCAL-008)                                               | Software GREEN local; QG `docs/ops/fl-fiscal-live-qg.md`; GTM-08 WAIT |
+| FL-1   | FL   | Actualizada (piloto e-beta = runbook S11+S12)                                                               | WAIT A (pass CDT, flags runtime); flags git 0 |
+| FL-2   | FL   | Actualizada (PSE HTTP acreditado)                                                                           | WAIT A (URL HTTPS ≠ `.invalid`) |
+| FL-3   | FL   | Actualizada (NC/ND + RC en canal acreditado)                                                                | WAIT canal FL-2; software GREEN |
+| FL-4   | FL   | Actualizada (pack GTM-08 + T6 opt-in)                                                                       | WAIT firmas A+V; no descongelar GTM-08 |
+| FL-5   | FL   | Actualizada (UBL GRE 31 / 02 / 20 + outbox; detracción NO-GO banco)                                         | Software GREEN local; flags git 0; claims Cadena WAIT |
 | C1–C5  | Cierre | Fase de cierre del proyecto: doctrina de claims, KDS/salón/split UI, LPDP self-serve, DR interno, sello final | Planificado (ledgers 0435–0439)                               |
 | Go-live | Cierre | Staging Cloudflare real, sandbox SUNAT, Android físico, FCM/VAPID, impresoras — paquete por QG s41–s49      | Agenda al final (`pending-batches.yaml` bloque go-live)        |
 

@@ -3,6 +3,7 @@ import {
   assertFifoOrder,
   drainFiscalOutbox,
   putFiscalXml,
+  xmlReadyForLiveSubmit,
   type FiscalDrainDb,
   type FiscalXmlR2,
   type OutboxRow,
@@ -114,6 +115,17 @@ function memoryDb(rows: OutboxRow[]): FiscalDrainDb & { state: MockRow[] } {
 }
 
 describe('fiscal drain FIFO', () => {
+  it('xmlReadyForLiveSubmit: mock acepta XML no vacío; live exige firma + root UBL', () => {
+    expect(xmlReadyForLiveSubmit('<Invoice/>', 'MOCK_STAGING')).toBe(true);
+    expect(xmlReadyForLiveSubmit('<Invoice/>', 'KIPUSPAY_PSE_DIRECT')).toBe(false);
+    expect(xmlReadyForLiveSubmit('<Invoice><ds:Signature/></Invoice>', 'sunat_bill_beta')).toBe(
+      true,
+    );
+    expect(xmlReadyForLiveSubmit('<Invoice><ds:Signature/></Invoice>', 'MISCONFIGURED')).toBe(
+      false,
+    );
+  });
+
   it('F5-3: xmlHash enviado al transporte es el SHA-256 REAL del XML (no literal)', async () => {
     const db = memoryDb([]);
     const r2 = memoryR2();
@@ -334,6 +346,89 @@ describe('fiscal drain FIFO', () => {
     expect(result.accepted).toBe(0);
     expect(submitCalls).toBe(0);
     expect(db.state.find((r) => r.id === 'b1')?.status).toBe('PENDING');
+  });
+
+  it('canal live + XML sin ds:Signature → QUARANTINED, 0 ACCEPTED', async () => {
+    const r2 = memoryR2();
+    const key = await putFiscalXml(r2, 't', 's1', '<Invoice><cbc:ID>F001-1</cbc:ID></Invoice>');
+    const db = memoryDb([
+      {
+        id: 'u1',
+        tenant_id: 't',
+        sale_id: 's1',
+        attempt_count: 0,
+        must_submit_by: '2026-08-08T00:00:00.000Z',
+        r2_xml_key: key,
+        status: 'PENDING',
+        document_type: '01',
+      },
+    ]);
+    let submitCalls = 0;
+    const transport: FiscalTransport = {
+      mode: 'KIPUSPAY_PSE_DIRECT',
+      submit: () => {
+        submitCalls += 1;
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'ok', accepted: true },
+        });
+      },
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'ok', accepted: true }),
+    };
+    const res = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+    expect(res.accepted).toBe(0);
+    expect(res.quarantined).toBe(1);
+    expect(submitCalls).toBe(0);
+  });
+
+  it('NC 07 firmada en canal live se envía (FL-3 software)', async () => {
+    const r2 = memoryR2();
+    const key = await putFiscalXml(
+      r2,
+      't',
+      'nc1',
+      '<CreditNote><ds:Signature>x</ds:Signature></CreditNote>',
+    );
+    const db = memoryDb([
+      {
+        id: 'n1',
+        tenant_id: 't',
+        sale_id: 'nc1',
+        attempt_count: 0,
+        must_submit_by: '2026-08-08T00:00:00.000Z',
+        r2_xml_key: key,
+        status: 'PENDING',
+        document_type: '07',
+        referenced_document_type: '01',
+      },
+    ]);
+    const types: string[] = [];
+    const transport: FiscalTransport = {
+      mode: 'KIPUSPAY_PSE_DIRECT',
+      submit: (req) => {
+        types.push(req.documentType);
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'ok', accepted: true },
+        });
+      },
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'ok', accepted: true }),
+    };
+    const res = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+    expect(res.accepted).toBe(1);
+    expect(types).toEqual(['07']);
   });
 
   it('C6: fila sin r2_xml_key → self-healing produce XML y luego se envía', async () => {

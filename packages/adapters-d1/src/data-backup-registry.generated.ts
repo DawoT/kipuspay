@@ -13,7 +13,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency (EPHEMERAL)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL)
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
   {
     name: 'accounts_payable',
@@ -805,6 +805,30 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
     tenantFrom: '"external_entity_map" AS t0',
     tenantPredicate: 't0."tenant_id" = ?',
     tenantVia: [],
+  },
+  {
+    name: 'fiscal_non_sale_outbox',
+    classification: 'EPHEMERAL',
+    primaryKey: ['id'],
+    columns: [
+      'id',
+      'tenant_id',
+      'document_type',
+      'entity_id',
+      'status',
+      'attempt_count',
+      'must_submit_by',
+      'next_attempt_at',
+      'last_error',
+      'r2_xml_key',
+      'quarantine_reason',
+      'created_at',
+    ],
+    r2References: [],
+    tenantFrom: '"fiscal_non_sale_outbox" AS t0',
+    tenantPredicate: 't0."tenant_id" = ?',
+    tenantVia: [],
+    reason: 'operational control-plane state',
   },
   {
     name: 'fiscal_outbox',

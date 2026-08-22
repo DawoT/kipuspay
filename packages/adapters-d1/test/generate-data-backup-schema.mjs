@@ -128,6 +128,7 @@ const ephemeral = new Set([
   'data_backup_table_manifests',
   'data_backups',
   'fiscal_outbox',
+  'fiscal_non_sale_outbox',
   'fiscal_owner_alerts',
   'growth_events',
   'inventory_ops_idempotency',
@@ -216,7 +217,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency (EPHEMERAL)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL)
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = ${JSON.stringify(registry, null, 2)};
 `;
 writeFileSync(
@@ -253,6 +254,7 @@ const introducedAfterSprint42 = new Set([
   'recurring_proration_adjustments',
   'tenant_certificates',
   'inventory_ops_idempotency',
+  'fiscal_non_sale_outbox',
 ]);
 const epochTables = registry.filter(
   (entry) =>

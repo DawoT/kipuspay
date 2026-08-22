@@ -5,7 +5,7 @@ import type { TicketData } from './ticket-data.js';
 
 /** HTML imprimible (window.print / SystemPrint). Sin npm PDF. */
 export function buildTicketHtml(data: TicketData): string {
-  const legend = legendForDocument(data.documentType);
+  const legend = legendForDocument(data.documentType, data.digestValue);
   const isNv = data.documentType === 'NV' || data.documentType === 'NV_RETURN';
   const items = data.items
     .map(

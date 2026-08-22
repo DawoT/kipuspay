@@ -11,7 +11,7 @@ export function buildEscPosPayload(data: TicketData): Uint8Array {
   const cmd: number[] = [];
   const lineWidth = data.lineWidth || 32;
   const separator = '-'.repeat(lineWidth) + '\n';
-  const legend = legendForDocument(data.documentType);
+  const legend = legendForDocument(data.documentType, data.digestValue);
   const isNv = data.documentType === 'NV' || data.documentType === 'NV_RETURN';
 
   cmd.push(0x1b, 0x40);

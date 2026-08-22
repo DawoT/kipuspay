@@ -11,7 +11,11 @@ export const NV_TICKET_LEGEND =
 export const CPE_TICKET_LEGEND =
   'Representación impresa del comprobante electrónico. Consulte validez en SUNAT.';
 
-export function legendForDocument(documentType: string): string {
+export const CPE_PENDING_TICKET_LEGEND =
+  'Comprobante electrónico pendiente de envío. No afirma aceptación.';
+
+export function legendForDocument(documentType: string, digestValue?: string): string {
   if (documentType === 'NV' || documentType === 'NV_RETURN') return NV_TICKET_LEGEND;
+  if (!digestValue?.trim()) return CPE_PENDING_TICKET_LEGEND;
   return CPE_TICKET_LEGEND;
 }

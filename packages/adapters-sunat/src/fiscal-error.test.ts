@@ -3,6 +3,7 @@ import {
   assertTransportContract,
   classifyFiscalError,
   createHttpPseTransport,
+  createMisconfiguredFiscalTransport,
   createMockPseTransport,
   createOseTransport,
   createPseThirdPartyTransport,
@@ -59,6 +60,22 @@ describe('FiscalTransport contract suite', () => {
     });
     expect(ok.kind).toBe('accepted');
     expect((await http.submitInvoice!(dto)).errorClass).toBe('OK');
+
+    const omitted = createHttpPseTransport({
+      endpointUrl: 'https://pse.example/submit',
+      fetchImpl: () => Promise.resolve(new Response('{}', { status: 200 })),
+    });
+    expect(
+      (
+        await omitted.submit({
+          tenantId: 't',
+          saleId: 's',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        })
+      ).kind,
+    ).toBe('unreachable');
 
     const biz = createHttpPseTransport({
       endpointUrl: 'https://pse.example/submit',
@@ -136,6 +153,20 @@ describe('FiscalTransport contract suite', () => {
     await expect(createPseThirdPartyTransport(true).queryCdr('x')).rejects.toThrow(tpMiss);
     assertTransportContract(createOseTransport(true));
     assertTransportContract(createPseThirdPartyTransport(true));
+    const misconfigured = createMisconfiguredFiscalTransport();
+    assertTransportContract(misconfigured);
+    expect(
+      (
+        await misconfigured.submit({
+          tenantId: 't',
+          saleId: 's',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        })
+      ).kind,
+    ).toBe('unreachable');
+    expect((await misconfigured.queryCdr('x')).accepted).toBe(false);
     expect(() => assertTransportContract({ mode: '' } as never)).toThrow('CONTRACT_SUBMIT_MISSING');
     expect(() =>
       assertTransportContract({

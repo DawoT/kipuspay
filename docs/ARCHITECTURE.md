@@ -128,6 +128,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | ADR-FISCAL-005 | §5.2c | Percepciones/Retenciones/Detracciones (Backlog v10 P1c) |
 | ADR-FISCAL-006 | §5.4 | XAdES-BES Edge (TENANT_CERT, WebCrypto; UI no firma) |
 | ADR-FISCAL-007 | §5.2 | billService SOAP SUNAT beta (`TENANT_CERT`); T6 e-factura opt-in |
+| ADR-FISCAL-008 | §5.2 | Transporte MISCONFIGURED ≠ mock ACCEPTED (fail-closed plugins) |
 | LPDP-01 | §5.3 (6F) | Consentimiento explícito por propósito (`consent_records`) |
 | LPDP-02 | §5.3 (6F) | Derecho de acceso/export de PII del cliente |
 | LPDP-03 | §5.3 (6F) | Derecho de borrado/anonimización (`pii_erased`); retención fiscal SUNAT |

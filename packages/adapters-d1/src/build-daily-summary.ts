@@ -36,7 +36,6 @@ export interface BuildDailySummaryResult {
   readonly nrusOmittedCount?: number;
 }
 
-// eslint-disable-next-line complexity -- PRIMARY/COMPLEMENTARY RC + ticket selection branches
 export async function buildDailySummary(
   db: D1DatabaseLike,
   input: BuildDailySummaryInput,
@@ -99,10 +98,7 @@ export async function buildDailySummary(
     }>();
 
   const rcType = existing ? 'COMPLEMENTARY' : 'PRIMARY';
-  let rows = boletas.results ?? [];
-  if (rcType === 'COMPLEMENTARY') {
-    rows = rows.filter((r) => r.sunat_status !== 'ACCEPTED');
-  }
+  const rows = (boletas.results ?? []).filter((r) => r.sunat_status !== 'ACCEPTED');
   if (rows.length === 0) {
     if (existing) {
       return {

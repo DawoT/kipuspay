@@ -70,7 +70,7 @@ Piloto acotado (Fase 2) puede ir antes de FCM/hardware (Fase 3).
 
 ### Fase 2 — Piloto operable (mínimo producción real)
 
-10. `go-live-sunat` — **WAIT** S11–S16 (e-beta ≠ GTM-08; PSE HTTP y e-factura WAIT A).
+10. `go-live-sunat` — **WAIT** FASE FL-1..FL-4 / S11–S16 (e-beta ≠ GTM-08; PSE HTTP y e-factura WAIT A).
 11. Canónico **temporal** Pages/Workers (`*.pages.dev` / `*.workers.dev`) — **D0 software**. `kipuspay.com` **WAIT-DOMINIO** (no comprado).
 12. Observabilidad + canarios sintéticos contra esos hosts (Proceso §5.2 / §6) — smoke Pages ya existe; WAIT cobertura continua.
 13. Rollback probado + Review Board A+V (Proceso §8.1) — **WAIT**.

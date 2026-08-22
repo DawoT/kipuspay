@@ -25,6 +25,7 @@
     type FiscalBacklogItem,
     submitAnularEa,
   } from '$lib/fiscal/owner-ea';
+  import { sunatStatusLabel } from '$lib/fiscal/sunat-status-label';
   import {
     createMemoryOwnerRollupIdb,
     loadOwnerDayView,
@@ -455,7 +456,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <span class="briefing-stale">Datos del {briefing.reportDate}, no en vivo.</span>
         </div>
         <ul class="briefing-bullets">
-          {#each briefingBullets as bullet}
+          {#each briefingBullets as bullet, i (i)}
             <li>{bullet}</li>
           {/each}
         </ul>
@@ -587,7 +588,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
             {#each backlog as item (item.saleId)}
               <li class="item-row" data-testid="backlog-item">
                 <span class="item-id">{item.saleId}</span>
-                <span class="badge badge-danger">{item.sunatStatus}</span>
+                <span class="badge badge-danger" data-testid="backlog-status">{sunatStatusLabel(item.sunatStatus)}</span>
                 <span class="item-amount tabular-nums">S/ {formatCents(item.totalCents)}</span>
                 {#if canOfferAnularEa(item.sunatStatus)}
                   <Button

@@ -105,4 +105,42 @@ describe('selectFiscalTransport TENANT_CERT / SOAP', () => {
     expect(isAccreditedPseEndpoint('http://pse.example.com/fiscal')).toBe(false);
     expect(isAccreditedPseEndpoint('https://ose.example.com/v1/submit')).toBe(true);
   });
+
+  it('plugins on sin SOL ni endpoint → MISCONFIGURED, submit never ACCEPTED', async () => {
+    const t = selectFiscalTransport({ FEATURE_FISCAL_TRANSPORT_PLUGINS: '1' });
+    expect(t.mode).toBe('MISCONFIGURED');
+    expect(
+      (
+        await t.submit({
+          tenantId: 't',
+          saleId: 's',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        })
+      ).kind,
+    ).toBe('unreachable');
+  });
+
+  it('HTTP contra .invalid no afirma ACCEPTED (fetch falla)', async () => {
+    const endpoint = 'https://pse.kipuspay.staging.invalid/fiscal';
+    const t = selectFiscalTransport({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      FISCAL_PSE_ENDPOINT_URL: endpoint,
+      FISCAL_PSE_FETCH: () => Promise.reject(new Error('ENOTFOUND')),
+    });
+    expect(isAccreditedPseEndpoint(endpoint)).toBe(false);
+    expect(t.mode).toBe('KIPUSPAY_PSE_DIRECT');
+    expect(
+      (
+        await t.submit({
+          tenantId: 't',
+          saleId: 's',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        })
+      ).kind,
+    ).toBe('unreachable');
+  });
 });

@@ -15,7 +15,7 @@ Loop POS Worker-firma (S1–S4): wrapDek KMS + produceMissing F001-9,
 caja F001-11, ND FD01-3, NC FC01-2, boleta B001-2 via RC-20260821-003
 COMPLEMENTARY. **S11 WAIT:** CDR e-beta de un `01` *después* de upload UI
 (sin scripts staff) exige pass CDT en sesión. No descongela GTM-08 ni cierra
-`go-live-sunat`. `sign-only-cpe.mjs` queda break-glass.  
+`go-live-sunat`. `sign-only-cpe.mjs` queda break-glass. FASE FL-1 WAIT pass CDT.  
 **Capability:** firma Edge `TENANT_CERT` (ADR-FISCAL-006); default producto
 `KIPUSPAY_PSE` intacto  
 **Spec:** Arquitectura §5.2 · §5.4 · ADR-FISCAL-006

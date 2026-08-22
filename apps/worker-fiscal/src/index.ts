@@ -8,6 +8,7 @@ import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
 import { readBreakerOpen, type BreakerKvLike } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
+import { drainFiscalNonSaleOutbox } from './fiscal-non-sale-drain.js';
 import {
   hasSunatSolCredentials,
   isAccreditedPseEndpoint,
@@ -175,7 +176,25 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
     }
   }
   const body: FiscalSubmitRequest = await request.json();
-  const result = await submitViaSelectedTransport(env, body);
+  const transport = selectFiscalTransport(env);
+  if (transport.mode === 'MISCONFIGURED') {
+    return new Response(
+      JSON.stringify({ error: 'TRANSPORT_MISCONFIGURED', code: 'TRANSPORT_MISCONFIGURED' }),
+      {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      },
+    );
+  }
+  const outcome = await transport.submit(body);
+  const sunatStatus = await applyCdrToSaleStatus(outcome);
+  const verdict =
+    sunatStatus === 'ACCEPTED'
+      ? 'aceptada'
+      : sunatStatus === 'REJECTED'
+        ? 'rechazada'
+        : 'cuarentena';
+  const result = { verdict, sunatStatus };
   return new Response(JSON.stringify(result), {
     status: 200,
     headers: { 'content-type': 'application/json' },
@@ -194,10 +213,11 @@ async function handleDrain(env: FiscalWorkerEnv): Promise<Response> {
   }
   let result: Awaited<ReturnType<typeof drainFiscalOutbox>>;
   try {
-    result = await drainFiscalOutbox({
+    const transport = selectFiscalTransport(env);
+    const drainOpts = {
       db: env.DB,
       r2: env.FISCAL_XML_R2,
-      transport: selectFiscalTransport(env),
+      transport,
       isBreakerOpen: async () => {
         const open = await readBreakerOpen(
           env.FISCAL_BREAKER_KV ?? null,
@@ -209,7 +229,14 @@ async function handleDrain(env: FiscalWorkerEnv): Promise<Response> {
         return !bootstrapped;
       },
       onInfraFailure: () => reportInfraFailure(env, 'submit'),
-    });
+    };
+    result = await drainFiscalOutbox(drainOpts);
+    const nonSale = await drainFiscalNonSaleOutbox(drainOpts);
+    result = {
+      ...result,
+      processed: result.processed + nonSale.processed,
+      accepted: result.accepted + nonSale.accepted,
+    };
   } catch {
     return new Response(JSON.stringify({ error: 'DRAIN_FAILED', code: 'DRAIN_FAILED' }), {
       status: 500,

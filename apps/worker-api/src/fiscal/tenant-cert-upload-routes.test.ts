@@ -58,56 +58,57 @@ describe('runUploadTenantCertHttp', () => {
     '403 cajero; 400 p12 inválido; 200 wrapDek + D1 sin persistir p12',
     { timeout: 20_000 },
     async () => {
-    const wrapDek = vi.fn().mockResolvedValue({
-      wrappedDek: new Uint8Array(48).fill(2),
-      kekVersion: 'v1',
-    });
-    const batches: string[] = [];
-    const env = {
-      BACKUP_KMS: { wrapDek },
-      DB: {
-        prepare: () => ({
-          bind: () => ({
-            first: () => Promise.resolve(null),
-            run: () => Promise.resolve({}),
+      const wrapDek = vi.fn().mockResolvedValue({
+        wrappedDek: new Uint8Array(48).fill(2),
+        kekVersion: 'v1',
+      });
+      const batches: string[] = [];
+      const env = {
+        BACKUP_KMS: { wrapDek },
+        DB: {
+          prepare: () => ({
+            bind: () => ({
+              first: () => Promise.resolve(null),
+              run: () => Promise.resolve({}),
+            }),
           }),
-        }),
-        batch: (stmts: { toString?: () => string }[]) => {
-          batches.push(String(stmts.length));
-          return Promise.resolve([]);
+          batch: (stmts: { toString?: () => string }[]) => {
+            batches.push(String(stmts.length));
+            return Promise.resolve([]);
+          },
         },
-      },
-    } as unknown as WorkerEnv;
+      } as unknown as WorkerEnv;
 
-    const cashier = await runUploadTenantCertHttp(env, 't1', 'cashier', {
-      p12B64: 'AAAA',
-      password: 'x',
-    });
-    expect(cashier.status).toBe(403);
+      const cashier = await runUploadTenantCertHttp(env, 't1', 'cashier', {
+        p12B64: 'AAAA',
+        password: 'x',
+      });
+      expect(cashier.status).toBe(403);
 
-    const bad = await runUploadTenantCertHttp(env, 't1', 'owner', {
-      p12B64: btoa('not-a-p12-file-contents-xxxxxxxx'),
-      password: 'x',
-    });
-    expect(bad.status).toBe(400);
-    expect(bad.body.code).toBe('PKCS12_INVALID');
+      const bad = await runUploadTenantCertHttp(env, 't1', 'owner', {
+        p12B64: btoa('not-a-p12-file-contents-xxxxxxxx'),
+        password: 'x',
+      });
+      expect(bad.status).toBe(400);
+      expect(bad.body.code).toBe('PKCS12_INVALID');
 
-    const p12B64 = makeP12B64();
-    const ok = await runUploadTenantCertHttp(env, 't1', 'owner', {
-      p12B64,
-      password: 'owner-pass',
-    });
-    expect(ok.status).toBe(200);
-    expect(ok.body.fingerprintSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(JSON.stringify(ok.body)).not.toMatch(/BEGIN PRIVATE/);
-    expect(wrapDek).toHaveBeenCalledTimes(1);
-    expect(batches.length).toBe(1);
+      const p12B64 = makeP12B64();
+      const ok = await runUploadTenantCertHttp(env, 't1', 'owner', {
+        p12B64,
+        password: 'owner-pass',
+      });
+      expect(ok.status).toBe(200);
+      expect(ok.body.fingerprintSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(JSON.stringify(ok.body)).not.toMatch(/BEGIN PRIVATE/);
+      expect(wrapDek).toHaveBeenCalledTimes(1);
+      expect(batches.length).toBe(1);
 
-    const cashierGet = await runGetTenantCertHttp(env, 't1', 'cashier');
-    expect(cashierGet.status).toBe(403);
+      const cashierGet = await runGetTenantCertHttp(env, 't1', 'cashier');
+      expect(cashierGet.status).toBe(403);
 
-    const listed = await runGetTenantCertHttp(env, 't1', 'owner');
-    expect(listed.status).toBe(200);
-    expect(listed.body.uploaded).toBe(false);
-  });
+      const listed = await runGetTenantCertHttp(env, 't1', 'owner');
+      expect(listed.status).toBe(200);
+      expect(listed.body.uploaded).toBe(false);
+    },
+  );
 });

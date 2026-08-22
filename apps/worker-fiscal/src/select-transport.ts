@@ -1,10 +1,11 @@
 /**
  * Selección del FiscalTransport (ADR-FISCAL-002 / ADR-FISCAL-007).
- * TENANT_CERT + SOL → billService SOAP; si no, PSE HTTP o mock.
+ * TENANT_CERT + SOL → billService SOAP; si no, PSE HTTP o MISCONFIGURED.
  * `FISCAL_PSE_ENDPOINT_URL` de staging no se usa cuando hay SOL.
  */
 import {
   createHttpPseTransport,
+  createMisconfiguredFiscalTransport,
   createMockPseTransport,
   createSunatBillTransport,
   type FiscalTransport,
@@ -49,7 +50,7 @@ export function isAccreditedPseEndpoint(url: string | undefined): boolean {
  * Flag off → MOCK_STAGING.
  * Flag on + SOL user/password → SOAP billService (beta por defecto).
  * Flag on + solo endpoint PSE → HTTP JSON del PSE KipusPay.
- * Flag on sin SOL ni endpoint → MOCK_STAGING (fail-closed de configuración).
+ * Flag on sin SOL ni endpoint → MISCONFIGURED (unreachable, nunca ACCEPTED).
  */
 export function selectFiscalTransport(env: FiscalTransportSelectEnv): FiscalTransport {
   if (!isFiscalTransportPluginsEnabled(env)) {
@@ -74,5 +75,5 @@ export function selectFiscalTransport(env: FiscalTransportSelectEnv): FiscalTran
       ...(fetchImpl ? { fetchImpl } : {}),
     });
   }
-  return createMockPseTransport();
+  return createMisconfiguredFiscalTransport();
 }

@@ -8,7 +8,7 @@ interface World {
   guardFails?: boolean;
 }
 
-function mockDb(world: World = {}): never {
+function mockDb(world: World = {}, captured: string[] = []): never {
   const first = (sql: string) => {
     if (sql.includes('FROM sales')) return world.sale ?? null;
     if (sql.includes('FROM supplier_invoices')) return world.supplierInvoice ?? null;
@@ -25,6 +25,7 @@ function mockDb(world: World = {}): never {
   return {
     prepare,
     batch: (stmts: readonly { sql?: string }[]) => {
+      for (const stmt of stmts) captured.push(stmt.sql ?? '');
       const guard = stmts.find((s) => (s.sql ?? '').includes('INSERT INTO atomic_guards'));
       if (guard && world.guardFails) throw new Error('CHECK constraint failed: atomic_guards');
       return Promise.resolve(stmts.map(() => ({ meta: { changes: 1 } })));
@@ -148,5 +149,39 @@ describe('processWithholdingAtomic (P1c)', () => {
         'goods',
       ),
     ).rejects.toThrow('CHECK constraint failed');
+  });
+
+  it('encola fiscal_non_sale_outbox 02 y 20 en el mismo batch', async () => {
+    const perceptionSql: string[] = [];
+    await processPerceptionAtomic(
+      mockDb(worldWith(), perceptionSql),
+      't1',
+      'b1',
+      'u1',
+      's1',
+      'P001',
+      10_000,
+      'goods',
+    );
+    expect(perceptionSql.some((sql) => sql.includes('INSERT INTO fiscal_non_sale_outbox'))).toBe(
+      true,
+    );
+    const retentionSql: string[] = [];
+    await processRetentionAtomic(
+      mockDb(
+        worldWith({ series: { id: 'ser-r', series: 'R001', current_number: 3 } }),
+        retentionSql,
+      ),
+      't1',
+      'b1',
+      'u1',
+      'si1',
+      'R001',
+      10_000,
+      'services',
+    );
+    expect(retentionSql.some((sql) => sql.includes('INSERT INTO fiscal_non_sale_outbox'))).toBe(
+      true,
+    );
   });
 });

@@ -19,7 +19,7 @@ const REQUEST: RemissionGuideRequest = {
   items: [{ productId: 'p1', quantityMicrounits: 5_000_000, uomCode: 'NIU' }],
 };
 
-function mockDb(world: World = {}): never {
+function mockDb(world: World = {}, captured: string[] = []): never {
   const first = (sql: string) => {
     if (sql.includes('FROM branch_document_series')) return world.series ?? null;
     if (sql.includes('row_hash')) return null;
@@ -34,6 +34,7 @@ function mockDb(world: World = {}): never {
   return {
     prepare,
     batch: (stmts: readonly { sql?: string }[]) => {
+      for (const stmt of stmts) captured.push(stmt.sql ?? '');
       const guard = stmts.find((s) => (s.sql ?? '').includes('INSERT INTO atomic_guards'));
       if (guard && world.guardFails) throw new Error('CHECK constraint failed: atomic_guards');
       return Promise.resolve(stmts.map(() => ({ meta: { changes: 1 } })));
@@ -79,5 +80,11 @@ describe('processRemissionGuideAtomic (P1b)', () => {
         REQUEST,
       ),
     ).rejects.toThrow('CHECK constraint failed');
+  });
+
+  it('encola fiscal_non_sale_outbox 31 en el mismo batch', async () => {
+    const captured: string[] = [];
+    await processRemissionGuideAtomic(mockDb(worldWith(), captured), 't1', 'b1', 'u1', REQUEST);
+    expect(captured.some((sql) => sql.includes('INSERT INTO fiscal_non_sale_outbox'))).toBe(true);
   });
 });

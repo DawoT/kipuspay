@@ -11,8 +11,8 @@ owner: "@DawoT"
 |---|---|
 | Severidad tipica | SEV-2 (piloto interno) |
 | Owner on-call | Staff Fiscal + Staff Security |
-| Ultima ensayada | 2026-08-21 (S11–S16 WAIT documentado; e-beta software GREEN; GTM-08 abierto) |
-| Relaciona | Arquitectura §5.2 · §5.4 · ADR-FISCAL-006 · ADR-FISCAL-007 · docs/ops/xades-bes-qg.md |
+| Ultima ensayada | 2026-08-21 (FL-1 / S11–S16 WAIT; e-beta software GREEN; GTM-08 abierto) |
+| Relaciona | Arquitectura §5.2 · §5.4 · ADR-FISCAL-006 · ADR-FISCAL-007 · ADR-FISCAL-008 · docs/ops/fl-fiscal-live-qg.md |
 
 ## Sintomas
 

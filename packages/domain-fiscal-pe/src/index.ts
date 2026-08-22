@@ -43,6 +43,19 @@ export {
 } from './ubl-debit-note.js';
 
 export {
+  assertValidDespatchXml,
+  buildUblDespatchXml,
+  type UblDespatchInput,
+  type UblDespatchLine,
+} from './ubl-despatch.js';
+
+export {
+  assertValidWithholdingXml,
+  buildUblWithholdingXml,
+  type UblWithholdingInput,
+} from './ubl-withholding.js';
+
+export {
   assertCreditNoteAllowed,
   stockRestoreMicrounits,
   stockRestoreQuantity,

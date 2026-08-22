@@ -11,6 +11,7 @@ import {
   type RemissionGuideRequest,
 } from '@kipuspay/domain-fiscal-pe';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { enqueueNonSaleOutbox, nonSaleMustSubmitByIso } from './fiscal-non-sale-outbox.js';
 
 export interface RemissionGuideResult {
   readonly remissionGuideId: string;
@@ -157,6 +158,12 @@ export async function processRemissionGuideAtomic(
           rowHash,
         ),
     );
+    enqueueNonSaleOutbox(db, plan, {
+      tenantId,
+      documentType: '31',
+      entityId: remissionGuideId,
+      mustSubmitByIso: nonSaleMustSubmitByIso('31', request.transferStartedAt),
+    });
   };
   await runD1AtomicPlan(db, build);
 

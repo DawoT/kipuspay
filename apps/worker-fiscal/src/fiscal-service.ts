@@ -7,6 +7,7 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import {
   createTenantCertSigner,
+  produceFiscalXmlForNonSale,
   produceFiscalXmlForSale,
   type D1DatabaseLike,
 } from '@kipuspay/adapters-d1';
@@ -15,6 +16,7 @@ import { breakerDoName } from '@kipuspay/domain-fiscal-pe';
 import { readBreakerOpen } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
+import { drainFiscalNonSaleOutbox } from './fiscal-non-sale-drain.js';
 import { bootstrapBreakerCold } from './breaker-bootstrap.js';
 import { selectFiscalTransport, type FiscalTransportSelectEnv } from './select-transport.js';
 
@@ -102,13 +104,17 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
     }
     const db = env.DB;
     const r2 = env.FISCAL_XML_R2;
-    return drainFiscalOutbox({
+    const transport = selectTransport(env);
+    const shared = {
       db,
       r2,
-      transport: selectTransport(env),
+      transport,
       isBreakerOpen: () => this.isBreakerOpen(),
       onInfraFailure: () => this.onInfraFailure(),
       ...(options.limit !== undefined ? { limit: options.limit } : {}),
+    };
+    const sale = await drainFiscalOutbox({
+      ...shared,
       produceMissingXml: ({ tenantId, saleId }) => {
         const signer = xmlSigner(env);
         return produceFiscalXmlForSale({
@@ -120,6 +126,24 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
         });
       },
     });
+    const nonSale = await drainFiscalNonSaleOutbox({
+      ...shared,
+      produceMissingXml: ({ tenantId, outboxId }) => {
+        const signer = xmlSigner(env);
+        return produceFiscalXmlForNonSale({
+          db,
+          r2,
+          tenantId,
+          outboxId,
+          ...(signer ? { signer } : {}),
+        });
+      },
+    });
+    return {
+      ...sale,
+      processed: sale.processed + nonSale.processed,
+      accepted: sale.accepted + nonSale.accepted,
+    };
   }
 
   /** Produce el XML de una venta individual (post-commit best-effort). */

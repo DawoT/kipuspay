@@ -118,7 +118,10 @@ export function zipBaseName(id: CpeZipIdentity): string {
 }
 
 export function parseCpeZipIdentity(xml: string, documentType: string): CpeZipIdentity | null {
-  const supplierAt = xml.indexOf('AccountingSupplierParty');
+  const supplierAt = Math.max(
+    xml.indexOf('AccountingSupplierParty'),
+    xml.indexOf('DespatchSupplierParty'),
+  );
   const rootAt = rootDocumentOffset(xml);
   if (supplierAt < 0 || rootAt < 0) return null;
   const ruc = firstCbcIdAfter(xml, supplierAt);

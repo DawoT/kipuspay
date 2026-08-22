@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildEscPosPayload, openDrawerBytes } from './build-escpos.js';
 import { buildTicketHtml } from './build-html.js';
-import { CPE_TICKET_LEGEND, NV_TICKET_LEGEND, legendForDocument } from './legends.js';
+import {
+  CPE_TICKET_LEGEND,
+  CPE_PENDING_TICKET_LEGEND,
+  NV_TICKET_LEGEND,
+  legendForDocument,
+} from './legends.js';
 import { resolveLineWidth } from './line-width.js';
 import { printTicket } from './system-print.js';
 import type { TicketData } from './ticket-data.js';
@@ -29,7 +34,8 @@ describe('print-templates', () => {
 
   it('leyendas CPE vs NV', () => {
     expect(legendForDocument('NV')).toBe(NV_TICKET_LEGEND);
-    expect(legendForDocument('03')).toBe(CPE_TICKET_LEGEND);
+    expect(legendForDocument('03')).toBe(CPE_PENDING_TICKET_LEGEND);
+    expect(legendForDocument('03', 'abc')).toBe(CPE_TICKET_LEGEND);
     // S11-E8: literal contractual exacto (Guía Legal Parte I §3.3).
     expect(NV_TICKET_LEGEND).toBe(
       'NOTA DE VENTA — Documento de control interno no válido para fines tributarios',

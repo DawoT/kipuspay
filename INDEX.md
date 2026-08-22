@@ -152,6 +152,12 @@ Abre solo los archivos que esta tabla te señale.
 | 25 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 14 | sin fila de estado | — |
 | 26 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 30 | sin fila de estado | — |
 | 27 | 8 | [`docs/roadmap/fase-8.md`](docs/roadmap/fase-8.md) | 49 | sin fila de estado | — |
+| FL-0 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 17 | sin fila de estado | — |
+| FL-1 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 31 | sin fila de estado | — |
+| FL-2 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 40 | sin fila de estado | — |
+| FL-3 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 47 | sin fila de estado | — |
+| FL-4 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 54 | sin fila de estado | — |
+| FL-5 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 63 | sin fila de estado | — |
 
 ## Tablas DDL → capítulo y línea
 
@@ -164,6 +170,7 @@ Abre solo los archivos que esta tabla te señale.
 | `usage_counters` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 203 |
 | `usage_events` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 212 |
 | `billing_overages` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 223 |
+| `fiscal_non_sale_outbox` | §5.2 | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) | 71 |
 | `tenant_capabilities` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 63 |
 | `audit_events` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 73 |
 | `authorization_tokens` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 96 |
@@ -367,6 +374,7 @@ Abre solo los archivos que esta tabla te señale.
 | ADR-FISCAL-005 | §5.2c | Percepciones/Retenciones/Detracciones (Backlog v10 P1c) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
 | ADR-FISCAL-006 | §5.4 | XAdES-BES Edge (TENANT_CERT, WebCrypto; UI no firma) | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) |
 | ADR-FISCAL-007 | §5.2 | billService SOAP SUNAT beta (`TENANT_CERT`); T6 e-factura opt-in | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
+| ADR-FISCAL-008 | §5.2 | Transporte MISCONFIGURED ≠ mock ACCEPTED (fail-closed plugins) | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) |
 | LPDP-01 | §5.3 (6F) | Consentimiento explícito por propósito (`consent_records`) | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-02 | §5.3 (6F) | Derecho de acceso/export de PII del cliente | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
 | LPDP-03 | §5.3 (6F) | Derecho de borrado/anonimización (`pii_erased`); retención fiscal SUNAT | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) |
@@ -413,4 +421,4 @@ Abre solo los archivos que esta tabla te señale.
 | `pos-web` | SvelteKit | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 99 |
 | `worker-api` | Hono composition root | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 100 |
 
-<!-- generado desde: 27 archivo(s) de especificación + 17 de proceso/roadmap -->
+<!-- generado desde: 27 archivo(s) de especificación + 18 de proceso/roadmap -->

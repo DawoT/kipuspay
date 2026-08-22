@@ -7,7 +7,12 @@ import { classifySunatResponse, type SunatOutcome } from './classify-sunat.js';
 import { classifyFiscalError, type FiscalErrorClass } from './fiscal-error.js';
 
 export type FiscalTransportMode =
-  'KIPUSPAY_PSE_DIRECT' | 'MOCK_STAGING' | 'ose_generic' | 'pse_third_party' | 'sunat_bill_beta';
+  | 'KIPUSPAY_PSE_DIRECT'
+  | 'MOCK_STAGING'
+  | 'MISCONFIGURED'
+  | 'ose_generic'
+  | 'pse_third_party'
+  | 'sunat_bill_beta';
 
 export type FiscalEndpoint = 'submit' | 'cdr_query' | 'rc_submit';
 
@@ -16,7 +21,7 @@ export interface FiscalSubmitRequest {
   readonly saleId: string;
   readonly xml: string;
   readonly xmlHash: string;
-  readonly documentType: '01' | '03' | '07' | '08';
+  readonly documentType: '01' | '03' | '07' | '08' | '31' | '02' | '20';
 }
 
 export interface FiscalSubmitResult {
@@ -75,7 +80,53 @@ export function createMockPseTransport(): FiscalTransport {
   };
 }
 
+/**
+ * Plugins on sin SOL ni endpoint: never ACCEPTED. Drain/HTTP 503, no mock.
+ * ADR-FISCAL-008 / FASE FL-0.1.
+ */
+export function createMisconfiguredFiscalTransport(): FiscalTransport {
+  const unreachable = { kind: 'unreachable' as const };
+  const cdr: CdrEnvelope = {
+    cdrCode: '0',
+    cdrDescription: 'TRANSPORT_MISCONFIGURED',
+    accepted: false,
+  };
+  return {
+    mode: 'MISCONFIGURED',
+    submit() {
+      return Promise.resolve(unreachable);
+    },
+    submitInvoice(dto) {
+      assertCpeInvoiceDto(dto);
+      return Promise.resolve({
+        outcome: unreachable,
+        errorClass: 'INFRA',
+      });
+    },
+    queryCdr() {
+      return Promise.resolve(cdr);
+    },
+  };
+}
+
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+
+/** Fail-closed: 2xx sin `accepted===true` + `cdrCode` no afirma CDR. */
+function cdrFromPseHttpBody(
+  body: {
+    cdrCode?: string;
+    cdrDescription?: string;
+    accepted?: boolean;
+  } | null,
+): CdrEnvelope | null {
+  const cdrCode = String(body?.cdrCode ?? '').trim();
+  if (body?.accepted !== true || cdrCode.length === 0) return null;
+  return {
+    cdrCode,
+    cdrDescription: body.cdrDescription ?? 'ok',
+    accepted: true,
+  };
+}
 
 /**
  * PSE KipusPay directo — HTTP inyectable (staging/mock). Sin credenciales hardcode.
@@ -113,11 +164,8 @@ export function createHttpPseTransport(opts: {
           cdrDescription?: string;
           accepted?: boolean;
         } | null;
-        const cdr: CdrEnvelope = {
-          cdrCode: body?.cdrCode ?? '0',
-          cdrDescription: body?.cdrDescription ?? 'ok',
-          accepted: body?.accepted !== false,
-        };
+        const cdr = cdrFromPseHttpBody(body);
+        if (!cdr) return { kind: 'unreachable' };
         return classifySunatResponse({ httpStatus: 200, cdr });
       } catch {
         return { kind: 'unreachable' };
@@ -131,12 +179,11 @@ export function createHttpPseTransport(opts: {
           headers: { 'content-type': 'application/xml' },
           body: dto.xml,
         });
-        const errorClass = classifyFiscalError({
-          httpStatus: res.status,
-          ...(res.status === 200 ? { cdrAccepted: true as const } : {}),
-        });
         if (res.status >= 500 || res.status === 0) {
-          return { outcome: { kind: 'unreachable' }, errorClass };
+          return {
+            outcome: { kind: 'unreachable' },
+            errorClass: classifyFiscalError({ httpStatus: res.status }),
+          };
         }
         if (res.status >= 400) {
           return {
@@ -148,7 +195,7 @@ export function createHttpPseTransport(opts: {
                 accepted: false,
               },
             },
-            errorClass,
+            errorClass: classifyFiscalError({ httpStatus: res.status }),
           };
         }
         const body = (await res.json().catch(() => null)) as {
@@ -156,11 +203,13 @@ export function createHttpPseTransport(opts: {
           cdrDescription?: string;
           accepted?: boolean;
         } | null;
-        const cdr: CdrEnvelope = {
-          cdrCode: body?.cdrCode ?? '0',
-          cdrDescription: body?.cdrDescription ?? 'ok',
-          accepted: body?.accepted !== false,
-        };
+        const cdr = cdrFromPseHttpBody(body);
+        if (!cdr) {
+          return {
+            outcome: { kind: 'unreachable' },
+            errorClass: classifyFiscalError({ httpStatus: 0, networkError: true }),
+          };
+        }
         return {
           outcome: classifySunatResponse({ httpStatus: 200, cdr }),
           errorClass: classifyFiscalError({
@@ -181,7 +230,18 @@ export function createHttpPseTransport(opts: {
       if (!res.ok) {
         return { cdrCode: '0', cdrDescription: 'unreachable', accepted: false };
       }
-      return (await res.json()) as CdrEnvelope;
+      const body = (await res.json().catch(() => null)) as {
+        cdrCode?: string;
+        cdrDescription?: string;
+        accepted?: boolean;
+      } | null;
+      return (
+        cdrFromPseHttpBody(body) ?? {
+          cdrCode: '0',
+          cdrDescription: 'cdr_missing',
+          accepted: false,
+        }
+      );
     },
   };
 }

@@ -21,6 +21,10 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
       'FEATURE_OFFLINE_SYNC',
       'FEATURE_ACID_OFFLINE_SALE',
       'FEATURE_BILLING_USAGE_OVERAGE',
+      'FEATURE_SALES_DEBIT_NOTE',
+      'FEATURE_GRE',
+      'FEATURE_FISCAL_WITHHOLDINGS',
+      'FEATURE_FISCAL_TRANSPORT_PLUGINS',
     ] as const;
     for (const key of liveSensitive) {
       expect(wrangler, `${key} must stay off until staging QG A+V`).not.toContain(`"${key}": "1"`);

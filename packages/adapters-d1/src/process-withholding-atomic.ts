@@ -12,6 +12,7 @@ import {
   computeRetentionCents,
 } from '@kipuspay/domain-fiscal-pe';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { enqueueNonSaleOutbox, nonSaleMustSubmitByIso } from './fiscal-non-sale-outbox.js';
 
 export interface PerceptionResult {
   readonly perceptionId: string;
@@ -154,6 +155,12 @@ export async function processPerceptionAtomic(
           tail.hash,
         ),
     );
+    enqueueNonSaleOutbox(db, plan, {
+      tenantId,
+      documentType: '02',
+      entityId: perceptionId,
+      mustSubmitByIso: nonSaleMustSubmitByIso('02'),
+    });
   };
   await runD1AtomicPlan(db, build);
 
@@ -245,6 +252,12 @@ export async function processRetentionAtomic(
           tail.hash,
         ),
     );
+    enqueueNonSaleOutbox(db, plan, {
+      tenantId,
+      documentType: '20',
+      entityId: retentionId,
+      mustSubmitByIso: nonSaleMustSubmitByIso('20'),
+    });
   };
   await runD1AtomicPlan(db, build);
 

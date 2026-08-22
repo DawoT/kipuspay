@@ -55,10 +55,43 @@ transferencia conservativa de inventario.
   FEATURE_FISCAL_WITHHOLDINGS` default-off; claims Cadena/Enterprise (GTM §4.1)
   solo tras gate.
 
+GRE `31`, percepción `02` y retención `20` viajan por `fiscal_non_sale_outbox`
+(migración 0058, FASE FL-5): XML UBL en R2, drain FIFO, CDR. Detracción bancaria
+sigue NO-GO hasta staging banco; no se finge CDR.
+
+### **5.2d Transporte fiscal fail-closed (FASE FL, ADR-FISCAL-008)**
+
+Plugins de transporte **off** → mock solo en tests locales (`MOCK_STAGING`).
+Plugins **on** sin SOL y sin `FISCAL_PSE_ENDPOINT_URL` → modo `MISCONFIGURED`
+(HTTP 503 / `unreachable`); **nunca** `ACCEPTED`. Un body HTTP 2xx sin
+`accepted===true` y `cdrCode` no vacío es `unreachable`. Hostname `.invalid`
+no es canal acreditado (`isAccreditedPseEndpoint`).
+
+```sql
+CREATE TABLE fiscal_non_sale_outbox (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    document_type TEXT NOT NULL CHECK (document_type IN ('31','02','20')),
+    entity_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    must_submit_by DATETIME,
+    next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_error TEXT,
+    r2_xml_key TEXT,
+    quarantine_reason TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, id),
+    UNIQUE (tenant_id, document_type, entity_id),
+    CHECK (status IN ('PENDING','PROCESSING','SENT','FAILED','QUARANTINED'))
+);
+```
+
 **Representación impresa / PDF CPE (mínimo obligatorio):**
 
 - RUC, razón social, dirección, serie-número, fecha/hora Lima.
-- Código **hash** del XML y **QR** de consulta.
+- Código **hash** del XML y **QR** de consulta. Sin digest firmado: leyenda de
+  pendiente; jamás “aceptada” ni QR SUNAT. NV: sin hash/QR SUNAT.
 - Leyendas: *"Representación impresa de la [FACTURA/BOLETA/NOTA] ELECTRÓNICA"*; *"Autorizado mediante Resolución …"* (o equivalente PSE).
 - NV: solo leyenda de control interno (sin hash/QR SUNAT).
 

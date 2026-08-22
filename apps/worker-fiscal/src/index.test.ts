@@ -40,11 +40,19 @@ describe('F5-2: selectFiscalTransport (fail-closed sin mezcla)', () => {
     expect(t.mode).toBe('KIPUSPAY_PSE_DIRECT');
   });
 
-  it('flag on SIN endpoint → MOCK_STAGING documentado (no falla en local)', () => {
+  it('flag on SIN endpoint → MISCONFIGURED (nunca ACCEPTED)', async () => {
     const t = selectFiscalTransport({
       FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
     });
-    expect(t.mode).toBe('MOCK_STAGING');
+    expect(t.mode).toBe('MISCONFIGURED');
+    const outcome = await t.submit({
+      tenantId: 't1',
+      saleId: 's1',
+      xml: '<Invoice/>',
+      xmlHash: 'abc',
+      documentType: '01',
+    });
+    expect(outcome.kind).toBe('unreachable');
   });
 
   it('flag on + endpoint: el drain envía por HTTP real (fetchImpl spy)', async () => {
@@ -246,5 +254,24 @@ describe('worker fetch', () => {
 
     const miss = await worker.fetch(new Request('https://fiscal.local/nope'));
     expect(miss.status).toBe(404);
+
+    const misconfigured = await worker.fetch(
+      new Request('https://fiscal.local/v1/fiscal/submit', {
+        method: 'POST',
+        body: JSON.stringify({
+          tenantId: 't1',
+          saleId: 's1',
+          xml: '<Invoice/>',
+          xmlHash: 'h',
+          documentType: '01',
+        }),
+      }),
+      { FEATURE_FISCAL_TRANSPORT_PLUGINS: '1' },
+    );
+    expect(misconfigured.status).toBe(503);
+    expect(await misconfigured.json()).toEqual({
+      error: 'TRANSPORT_MISCONFIGURED',
+      code: 'TRANSPORT_MISCONFIGURED',
+    });
   });
 });

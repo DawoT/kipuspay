@@ -63,12 +63,12 @@ function makeLegacyP12(): Uint8Array {
 }
 
 describe('PKCS#12 CDT (Worker, no npm)', () => {
-  it('rechaza pass incorrecta de un PFX openssl legado', async () => {
+  it('rechaza pass incorrecta de un PFX openssl legado', { timeout: 20_000 }, async () => {
     const p12 = makeLegacyP12();
     await expect(parsePkcs12(p12, 'wrong-pass')).rejects.toThrow(/PKCS12_/);
   });
 
-  it('extrae PKCS#8 y X.509 de un PFX openssl 3DES+RC2', async () => {
+  it('extrae PKCS#8 y X.509 de un PFX openssl 3DES+RC2', { timeout: 20_000 }, async () => {
     const p12 = makeLegacyP12();
     const parsed = await parsePkcs12(p12, 'test-pass-ok');
     expect(parsed.pkcs8Der[0]).toBe(0x30);

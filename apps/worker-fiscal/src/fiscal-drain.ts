@@ -10,6 +10,7 @@ import {
   type FiscalErrorClass,
   createMockPseTransport,
   type FiscalTransport,
+  type FiscalTransportMode,
 } from '@kipuspay/adapters-sunat';
 import { classifyUnitaryXmlTarget, type FiscalDeliveryChannel } from '@kipuspay/domain-fiscal-pe';
 
@@ -137,6 +138,18 @@ export function outboxDeliveryChannel(
  */
 export interface ProduceMissingXml {
   (input: { readonly tenantId: string; readonly saleId: string }): Promise<unknown>;
+}
+
+const LIVE_XML_ROOT = /<(Invoice|CreditNote|DebitNote|DespatchAdvice|Perception|Retention)\b/;
+
+/**
+ * Canal live (no MOCK): XML unitario sin firma no se envía ni se marca ACCEPTED.
+ * Mock local sigue aceptando XML no vacío.
+ */
+export function xmlReadyForLiveSubmit(xml: string, mode: FiscalTransportMode): boolean {
+  if (mode === 'MOCK_STAGING') return xml.trim().length > 0;
+  if (mode === 'MISCONFIGURED') return false;
+  return xml.includes('<ds:Signature') && LIVE_XML_ROOT.test(xml);
 }
 
 type RowOutcome =
@@ -269,6 +282,11 @@ async function processClaimedRow(
     return 'FAILED_R2_MISS';
   }
   const xml = await obj.text();
+  if (!xmlReadyForLiveSubmit(xml, transport.mode)) {
+    await markRowQuarantined(db, row, 'MISSING_XADES', 'unsigned_or_invalid_ubl');
+    await markSaleStatus(db, row, 'QUARANTINED');
+    return 'QUARANTINED';
+  }
   // F5-3: el hash que viaja al transporte es el SHA-256 REAL del XML
   // (antes literal 'drain'); integridad verificable por el PSE/OSE.
   const xmlHash = await hashFiscalXml(xml);
@@ -277,7 +295,7 @@ async function processClaimedRow(
     saleId: row.sale_id,
     xml,
     xmlHash,
-    documentType: (row.document_type as '01' | '03' | '07' | '08') || '01',
+    documentType: (row.document_type as '01' | '03' | '07' | '08' | '31' | '02' | '20') || '01',
   });
 
   const errorClass = classifySubmitOutcome(outcome);
