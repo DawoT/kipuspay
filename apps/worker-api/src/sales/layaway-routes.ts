@@ -15,6 +15,7 @@ import {
   isLedgerChartOfAccountsEnabled,
   isSalesLayawayEnabled,
 } from '../auth/features.js';
+import { ENTERED_QUANTITY_RULE, parseMicrounitsInput } from '../http/quantity-input.js';
 
 export { isLedgerChartOfAccountsEnabled, isSalesLayawayEnabled } from '../auth/features.js';
 
@@ -80,17 +81,32 @@ export async function runCreateLayawayHttp(
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   const cashRegisterSessionId =
     typeof body.cashRegisterSessionId === 'string' ? body.cashRegisterSessionId : '';
-  const items = Array.isArray(body.items)
-    ? body.items.map((raw) => {
-        const item = raw as Record<string, unknown>;
+  // US-05 AC1/AC3: parser único fail-closed (sin Number()): tipos inválidos →
+  // 400 QUANTITY_MICROUNITS_INVALID estable, antes de cualquier acceso a D1.
+  const items: {
+    productId: string;
+    uomId: string | null;
+    enteredQuantityMicrounits: number;
+    batchId: string | null;
+  }[] = [];
+  if (Array.isArray(body.items)) {
+    for (const raw of body.items) {
+      const item = raw as Record<string, unknown>;
+      const qty = parseMicrounitsInput(item.enteredQuantityMicrounits, ENTERED_QUANTITY_RULE);
+      if (!qty.ok) {
         return {
-          productId: typeof item.productId === 'string' ? item.productId : '',
-          uomId: typeof item.uomId === 'string' ? item.uomId : null,
-          enteredQuantityMicrounits: Number(item.enteredQuantityMicrounits),
-          batchId: typeof item.batchId === 'string' ? item.batchId : null,
+          status: 400,
+          body: { error: 'QUANTITY_MICROUNITS_INVALID', code: 'QUANTITY_MICROUNITS_INVALID' },
         };
-      })
-    : [];
+      }
+      items.push({
+        productId: typeof item.productId === 'string' ? item.productId : '',
+        uomId: typeof item.uomId === 'string' ? item.uomId : null,
+        enteredQuantityMicrounits: qty.microunits,
+        batchId: typeof item.batchId === 'string' ? item.batchId : null,
+      });
+    }
+  }
   if (!branchId || !cashRegisterSessionId || items.length === 0) {
     return {
       status: 400,

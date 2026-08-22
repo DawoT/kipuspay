@@ -1,12 +1,14 @@
 /**
  * Sprint 34 — devolución a proveedor (FEATURE_PURCHASING_RETURNS, default off).
  */
+/* eslint-disable complexity -- HTTP create/close: flags/DB/items + adapter errors (patrón quote/layaway) */
 import {
   processSupplierReturnCancelAtomic,
   processSupplierReturnCloseAtomic,
   processSupplierReturnCreateAtomic,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { ENTERED_QUANTITY_RULE, parseMicrounitsInput } from '../http/quantity-input.js';
 
 export function isPurchasingReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_RETURNS === '1' || env?.FEATURE_PURCHASING_RETURNS === 'true';
@@ -80,19 +82,35 @@ export async function runCreateSupplierReturnHttp(
   const purchaseReceiptId =
     typeof body.purchaseReceiptId === 'string' ? body.purchaseReceiptId : '';
   const reason = typeof body.reason === 'string' ? body.reason : '';
-  const items = Array.isArray(body.items)
-    ? body.items
-        .map((raw) => {
-          const row = raw as Record<string, unknown>;
-          return {
-            productId: typeof row.productId === 'string' ? row.productId : '',
-            enteredQuantityMicrounits: Number(row.enteredQuantityMicrounits),
-            uomId: typeof row.uomId === 'string' ? row.uomId : null,
-            batchId: typeof row.batchId === 'string' ? row.batchId : null,
-          };
-        })
-        .filter((l) => l.productId.length > 0)
-    : [];
+  // US-05 AC1/AC3: parser único fail-closed (sin Number()): tipos inválidos →
+  // 400 QUANTITY_MICROUNITS_INVALID estable. El filtro de filas sin productId
+  // se preserva: solo se valida la cantidad de filas que sí participan.
+  const items: {
+    productId: string;
+    enteredQuantityMicrounits: number;
+    uomId: string | null;
+    batchId: string | null;
+  }[] = [];
+  if (Array.isArray(body.items)) {
+    for (const raw of body.items) {
+      const row = raw as Record<string, unknown>;
+      const productId = typeof row.productId === 'string' ? row.productId : '';
+      if (productId.length === 0) continue;
+      const qty = parseMicrounitsInput(row.enteredQuantityMicrounits, ENTERED_QUANTITY_RULE);
+      if (!qty.ok) {
+        return {
+          status: 400,
+          body: { error: 'QUANTITY_MICROUNITS_INVALID', code: 'QUANTITY_MICROUNITS_INVALID' },
+        };
+      }
+      items.push({
+        productId,
+        enteredQuantityMicrounits: qty.microunits,
+        uomId: typeof row.uomId === 'string' ? row.uomId : null,
+        batchId: typeof row.batchId === 'string' ? row.batchId : null,
+      });
+    }
+  }
   if (!purchaseReceiptId || items.length === 0) {
     return {
       status: 400,

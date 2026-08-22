@@ -23,6 +23,11 @@ import {
   type PreparedSerialIdentity,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import {
+  COUNT_QUANTITY_RULE,
+  parseMicrounitsInput,
+  type MicrounitsInputResult,
+} from '../http/quantity-input.js';
 
 export function isInventoryOpsEnabled(env: WorkerEnv | undefined): boolean {
   return (
@@ -76,6 +81,63 @@ export async function runCreateInventoryCountHttp(
   return { status: 200, body: { id, status: 'COUNTING', blind: true } };
 }
 
+/**
+ * US-05 AC3 — la cantidad contada pasa por la MISMA regla única de dominio
+ * (entero seguro ≥ 0; contar 0 stock es válido): sin coerción — `true` y
+ * ' 12 ' ya no se convierten en cantidad vía `?? Math.round(x * 1_000_000)`.
+ * `countedQtyMicrounits` gana sobre `countedQty` (unidades float → microuni-
+ *dades solo desde un number finito, con redondeo half-up determinista).
+ */
+export function resolveCountedMicrounits(line: {
+  readonly countedQty?: unknown;
+  readonly countedQtyMicrounits?: unknown;
+}): MicrounitsInputResult {
+  const microRaw: unknown = line.countedQtyMicrounits;
+  if (microRaw !== undefined && microRaw !== null) {
+    return parseMicrounitsInput(microRaw, COUNT_QUANTITY_RULE);
+  }
+  const unitsRaw: unknown = line.countedQty;
+  if (unitsRaw !== undefined && unitsRaw !== null) {
+    if (typeof unitsRaw !== 'number' || !Number.isFinite(unitsRaw)) {
+      return { ok: false, errorName: 'MICROUNITS_INPUT_INVALID' };
+    }
+    return parseMicrounitsInput(Math.round(unitsRaw * 1_000_000), COUNT_QUANTITY_RULE);
+  }
+  return parseMicrounitsInput(0, COUNT_QUANTITY_RULE);
+}
+
+export type CountDiffValueResult =
+  | { ok: true; diffValueCents: number }
+  | { ok: false; errorName: 'COUNT_VALUE_OUT_OF_RANGE' };
+
+/**
+ * US-05 AC2 — auditoría del costo derivado `diff_value_cents`
+ * (inventory_count_lines): el viejo `Math.round((diff * cost) / 1_000_000)`
+ * multiplicaba dos enteros seguros en float y corría silenciosamente cuando
+ * el producto excedía 2^53. Ahora es aritmética EXACTA (BigInt) con los
+ * mismos valores que Math.round producía en rango (half toward +∞:
+ * floor((n + SCALE/2) / SCALE), floor real para negativos) y guard fail-
+ * closed de rango seguro: fuera de [MIN_SAFE, MAX_SAFE] → COUNT_VALUE_
+ * OUT_OF_RANGE, jamás un monto corrupto.
+ */
+export function deriveCountDiffValueCents(
+  differenceMicrounits: number,
+  unitCostCents: number,
+): CountDiffValueResult {
+  if (!Number.isSafeInteger(differenceMicrounits) || !Number.isSafeInteger(unitCostCents)) {
+    return { ok: false, errorName: 'COUNT_VALUE_OUT_OF_RANGE' };
+  }
+  const product = BigInt(differenceMicrounits) * BigInt(unitCostCents);
+  const shifted = product + BigInt(500_000); // SCALE/2 exacto
+  const scale = BigInt(1_000_000);
+  const truncated = shifted / scale;
+  const floored = shifted < 0n && shifted % scale !== 0n ? truncated - 1n : truncated;
+  if (floored > BigInt(Number.MAX_SAFE_INTEGER) || floored < BigInt(Number.MIN_SAFE_INTEGER)) {
+    return { ok: false, errorName: 'COUNT_VALUE_OUT_OF_RANGE' };
+  }
+  return { ok: true, diffValueCents: Number(floored) };
+}
+
 // eslint-disable-next-line complexity -- count review: authz × AJUSTE multi-línea
 export async function runSubmitCountReviewHttp(
   env: WorkerEnv | undefined,
@@ -85,8 +147,10 @@ export async function runSubmitCountReviewHttp(
     countId?: string;
     lines?: readonly {
       productId?: string;
-      countedQty?: number;
-      countedQtyMicrounits?: number;
+      // US-05 AC1: el body entra como JSON crudo — la cantidad del conteo es
+      // unknown y se valida en runtime con el parser único (fail-closed).
+      countedQty?: unknown;
+      countedQtyMicrounits?: unknown;
       locationId?: string;
       /** @deprecated ignorado: autoridad server-side */
       systemQty?: number;
@@ -132,6 +196,7 @@ export async function runSubmitCountReviewHttp(
     systemMicrounits: number;
     differenceMicrounits: number;
     unitCostCents: number;
+    diffValueCents: number;
     countLineId: string;
     serials: readonly PreparedSerialIdentity[];
   }[];
@@ -142,11 +207,10 @@ export async function runSubmitCountReviewHttp(
         async (line) => {
           const productId = line.productId?.trim() ?? '';
           if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
-          const countedMicrounits =
-            line.countedQtyMicrounits ?? Math.round((line.countedQty ?? 0) * 1_000_000);
-          if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
-            throw new Error('COUNT_INVALID_QUANTITY');
-          }
+          // US-05 AC3: regla única (parser fail-closed) — sin copia inline.
+          const counted = resolveCountedMicrounits(line);
+          if (!counted.ok) throw new Error('COUNT_INVALID_QUANTITY');
+          const countedMicrounits = counted.microunits;
           const requestedLocationId = line.locationId?.trim() || null;
           const authority = await env
             .DB!.prepare(
@@ -194,6 +258,14 @@ export async function runSubmitCountReviewHttp(
             throw new Error('SERIAL_IDENTITY_INVALID');
           }
           const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+          // US-05 AC2: el costo derivado se audita ANTES del batch — exacto y
+          // con guard de rango; fuera de rango es 422 estable, no un monto
+          // corrupto por overflow de float.
+          const diffValue = deriveCountDiffValueCents(
+            differenceMicrounits,
+            authority.pmp_unit_cost_cents ?? 0,
+          );
+          if (!diffValue.ok) throw new Error('COUNT_VALUE_OUT_OF_RANGE');
           return {
             productId,
             batchId: line.batchId ?? null,
@@ -202,6 +274,7 @@ export async function runSubmitCountReviewHttp(
             systemMicrounits: authority.quantity_microunits,
             differenceMicrounits,
             unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+            diffValueCents: diffValue.diffValueCents,
             countLineId: crypto.randomUUID(),
             serials,
           };
@@ -244,7 +317,9 @@ export async function runSubmitCountReviewHttp(
             line.differenceMicrounits / 1_000_000,
             line.differenceMicrounits,
             line.unitCostCents,
-            Math.round((line.differenceMicrounits * line.unitCostCents) / 1_000_000),
+            // US-05 AC2: valor ya derivado EXACTO (BigInt) y auditado en el
+            // shaping — aquí no se recalcula con float.
+            line.diffValueCents,
           ),
       );
       for (const serial of line.serials) {

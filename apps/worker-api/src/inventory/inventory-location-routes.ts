@@ -8,6 +8,7 @@ import {
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryLocationsEnabled } from '../auth/features.js';
+import { ENTERED_QUANTITY_RULE, parseMicrounitsInput } from '../http/quantity-input.js';
 
 export { isInventoryLocationsEnabled };
 
@@ -194,6 +195,16 @@ export async function runInventoryLocationTransferHttp(
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role, true);
   if (denied) return denied;
+  // US-05 AC1/AC3: parser único fail-closed (sin Number()): '\u00A012',
+  // ' 12 ', true y [] ya no se convierten en cantidad — 400 estable antes
+  // del plan atómico.
+  const qty = parseMicrounitsInput(body.quantityMicrounits, ENTERED_QUANTITY_RULE);
+  if (!qty.ok) {
+    return {
+      status: 400,
+      body: { error: 'QUANTITY_MICROUNITS_INVALID', code: 'QUANTITY_MICROUNITS_INVALID' },
+    };
+  }
   try {
     const result = await processInventoryLocationTransferAtomic(env!.DB!, tenantId, userId, {
       branchId: typeof body.branchId === 'string' ? body.branchId : '',
@@ -202,7 +213,7 @@ export async function runInventoryLocationTransferHttp(
         typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
       productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
-      quantityMicrounits: Number(body.quantityMicrounits),
+      quantityMicrounits: qty.microunits,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });
@@ -217,16 +228,19 @@ export async function runInventoryLocationPickingHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
-  query: { branchId?: string; productId?: string; quantityMicrounits?: number },
+  // US-05: la cantidad llega CRUDA (query text o número) y se valida con el
+  // parser único fail-closed; el tipo declarado ya no promete un number.
+  query: { branchId?: string; productId?: string; quantityMicrounits?: unknown },
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   const productId = query.productId?.trim() ?? '';
-  const requested = query.quantityMicrounits ?? 0;
-  if (!branchId || !productId || !Number.isSafeInteger(requested) || requested <= 0) {
+  const requestedQty = parseMicrounitsInput(query.quantityMicrounits, ENTERED_QUANTITY_RULE);
+  if (!branchId || !productId || !requestedQty.ok) {
     return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
   }
+  const requested = requestedQty.microunits;
   const rows = await env!
     .DB!.prepare(
       `SELECT s.location_id, l.code AS location_code, s.batch_id,
