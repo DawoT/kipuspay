@@ -91,6 +91,24 @@ describe('layaway routes', () => {
     expect(res.body.emitsFiscalDocument).toBe(false);
   });
 
+  it('US-04: enteredQuantityMicrounits de tipo inválido → 400 estable sin tocar el adapter', async () => {
+    const { processLayawayCreateAtomic } = await import('@kipuspay/adapters-d1');
+    const callsBefore = vi.mocked(processLayawayCreateAtomic).mock.calls.length;
+    for (const bad of ['1000000', true, null, [1_000_000], {}, NaN]) {
+      const res = await runCreateLayawayHttp(env(), 't1', 'u1', {
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        items: [{ productId: 'p1', enteredQuantityMicrounits: bad as unknown as number }],
+      });
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        error: 'invalid quantity microunits',
+        code: 'INVALID_QUANTITY_MICROUNITS',
+      });
+    }
+    expect(vi.mocked(processLayawayCreateAtomic).mock.calls.length).toBe(callsBefore);
+  });
+
   it('lists overdue for owner', async () => {
     const res = await runListOverdueLayawaysHttp(env(), 't1');
     expect(res.status).toBe(200);

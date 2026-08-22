@@ -23,6 +23,7 @@ import {
   type PreparedSerialIdentity,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { deriveMicrounitValueCents } from '../http/quantity-input.js';
 
 export function isInventoryOpsEnabled(env: WorkerEnv | undefined): boolean {
   return (
@@ -132,6 +133,8 @@ export async function runSubmitCountReviewHttp(
     systemMicrounits: number;
     differenceMicrounits: number;
     unitCostCents: number;
+    /** diff_value_cents derivado con aritmética exacta (auditoría US-04). */
+    diffValueCents: number;
     countLineId: string;
     serials: readonly PreparedSerialIdentity[];
   }[];
@@ -194,6 +197,16 @@ export async function runSubmitCountReviewHttp(
             throw new Error('SERIAL_IDENTITY_INVALID');
           }
           const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+          // Auditoría US-04 (diff_value_cents): el producto directo
+          // `differenceMicrounits × unitCostCents` desborda MAX_SAFE_INTEGER
+          // mucho antes que sus operandos y redondeaba centavos en silencio.
+          // deriveMicrounitValueCents usa aritmética exacta con guard de
+          // rango; null → rechazo estable (422), jamás un centavo inventado.
+          const diffValueCents = deriveMicrounitValueCents(
+            differenceMicrounits,
+            authority.pmp_unit_cost_cents ?? 0,
+          );
+          if (diffValueCents === null) throw new Error('COUNT_DIFF_VALUE_OUT_OF_RANGE');
           return {
             productId,
             batchId: line.batchId ?? null,
@@ -202,6 +215,7 @@ export async function runSubmitCountReviewHttp(
             systemMicrounits: authority.quantity_microunits,
             differenceMicrounits,
             unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+            diffValueCents,
             countLineId: crypto.randomUUID(),
             serials,
           };
@@ -244,7 +258,9 @@ export async function runSubmitCountReviewHttp(
             line.differenceMicrounits / 1_000_000,
             line.differenceMicrounits,
             line.unitCostCents,
-            Math.round((line.differenceMicrounits * line.unitCostCents) / 1_000_000),
+            // Auditoría US-04: valor derivado precomputado con aritmética
+            // exacta + guard de rango (antes: Math.round del producto float).
+            line.diffValueCents,
           ),
       );
       for (const serial of line.serials) {

@@ -7,6 +7,10 @@ import {
   processSupplierReturnCreateAtomic,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import {
+  parseQuantityMicrounits,
+  QUANTITY_MICROUNITS_BAD_REQUEST,
+} from '../http/quantity-input.js';
 
 export function isPurchasingReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_RETURNS === '1' || env?.FEATURE_PURCHASING_RETURNS === 'true';
@@ -66,6 +70,38 @@ function opts(env: WorkerEnv | undefined) {
   };
 }
 
+/** Línea de devolución ya validada (US-04): microunits entero seguro ≥ 0. */
+interface SupplierReturnItem {
+  productId: string;
+  enteredQuantityMicrounits: number;
+  uomId: string | null;
+  batchId: string | null;
+}
+
+/**
+ * US-04: parse tipado fail-closed de *Microunits — sin Number(): ante un tipo
+ * inválido devuelve null (la ruta responde 400 estable); nunca lanza ni
+ * produce NaN. Valida TODA fila recibida, incluida la que el filtro de
+ * productId vacío habría descartado silenciosamente.
+ */
+function parseSupplierReturnItems(items: readonly unknown[]): SupplierReturnItem[] | null {
+  const parsed: SupplierReturnItem[] = [];
+  for (const raw of items) {
+    const row = raw as Record<string, unknown>;
+    const quantity = parseQuantityMicrounits(row.enteredQuantityMicrounits);
+    if (!quantity.ok) return null;
+    const item: SupplierReturnItem = {
+      productId: typeof row.productId === 'string' ? row.productId : '',
+      enteredQuantityMicrounits: quantity.microunits,
+      uomId: typeof row.uomId === 'string' ? row.uomId : null,
+      batchId: typeof row.batchId === 'string' ? row.batchId : null,
+    };
+    if (item.productId.length > 0) parsed.push(item);
+  }
+  return parsed;
+}
+
+// eslint-disable-next-line complexity -- HTTP create: flags/authz + validación de items US-04 en un handler
 export async function runCreateSupplierReturnHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -80,19 +116,12 @@ export async function runCreateSupplierReturnHttp(
   const purchaseReceiptId =
     typeof body.purchaseReceiptId === 'string' ? body.purchaseReceiptId : '';
   const reason = typeof body.reason === 'string' ? body.reason : '';
-  const items = Array.isArray(body.items)
-    ? body.items
-        .map((raw) => {
-          const row = raw as Record<string, unknown>;
-          return {
-            productId: typeof row.productId === 'string' ? row.productId : '',
-            enteredQuantityMicrounits: Number(row.enteredQuantityMicrounits),
-            uomId: typeof row.uomId === 'string' ? row.uomId : null,
-            batchId: typeof row.batchId === 'string' ? row.batchId : null,
-          };
-        })
-        .filter((l) => l.productId.length > 0)
-    : [];
+  // US-04: parse tipado fail-closed (ver parseSupplierReturnItems) — 400
+  // estable ante tipos inválidos, sin NaN ni coerción Number().
+  const items = Array.isArray(body.items) ? parseSupplierReturnItems(body.items) : [];
+  if (!items) {
+    return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
+  }
   if (!purchaseReceiptId || items.length === 0) {
     return {
       status: 400,

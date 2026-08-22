@@ -195,6 +195,65 @@ describe('submit count review', () => {
     expect(binds.flat()).not.toContain(999);
   });
 
+  it('US-04 auditoría :247: diff_value_cents exacto con aritmética entera en montos grandes', async () => {
+    const binds: unknown[][] = [];
+    const sqls: string[] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        binds,
+        sqls,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 0,
+                pmp_unit_cost_cents: 679_131_554,
+                location_id: 'loc-1',
+              },
+      }),
+      't1',
+      'owner',
+      {
+        countId: 'c1',
+        lines: [{ productId: 'p1', countedQtyMicrounits: 5_507_490_250_751 }],
+      },
+    );
+    expect(res.status).toBe(200);
+    const insertIdx = sqls.findIndex((sql) => sql.includes('INSERT INTO inventory_count_lines'));
+    expect(insertIdx).toBeGreaterThanOrEqual(0);
+    const diffValueCents = binds[insertIdx]?.at(-1);
+    // Verdad BigInt: el producto float legado reportaba ...377 (un centavo de
+    // más por desborde de MAX_SAFE_INTEGER); la aritmética exacta, ...376.
+    expect(diffValueCents).toBe(3_740_310_412_632_376);
+    expect(diffValueCents).not.toBe(Math.round((5_507_490_250_751 * 679_131_554) / 1_000_000));
+  });
+
+  it('US-04 auditoría :247: producto fuera del rango exacto → 422 estable, sin centavo inventado', async () => {
+    const binds: unknown[][] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 0,
+                pmp_unit_cost_cents: Number.MAX_SAFE_INTEGER,
+                location_id: 'loc-1',
+              },
+      }),
+      't1',
+      'owner',
+      {
+        countId: 'c1',
+        lines: [{ productId: 'p1', countedQtyMicrounits: Number.MAX_SAFE_INTEGER }],
+      },
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('COUNT_DIFF_VALUE_OUT_OF_RANGE');
+    expect(binds.flat()).not.toContain(Number.MAX_SAFE_INTEGER);
+  });
+
   it('exige identidades exactas al enviar conteo serializado', async () => {
     const res = await runSubmitCountReviewHttp(
       mockDbEnv({

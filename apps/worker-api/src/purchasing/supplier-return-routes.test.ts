@@ -82,6 +82,32 @@ describe('supplier-return-routes', () => {
     expect(cancelled.status).toBe(200);
   });
 
+  it('US-04: enteredQuantityMicrounits de tipo inválido → 400 estable sin tocar el adapter', async () => {
+    const { processSupplierReturnCreateAtomic } = await import('@kipuspay/adapters-d1');
+    const callsBefore = vi.mocked(processSupplierReturnCreateAtomic).mock.calls.length;
+    for (const bad of ['1000000', true, null, [1_000_000], {}, NaN]) {
+      const res = await runCreateSupplierReturnHttp(env(), 't1', 'u1', {
+        purchaseReceiptId: 'r1',
+        reason: 'dañado',
+        items: [{ productId: 'p1', enteredQuantityMicrounits: bad as unknown as number }],
+      });
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        error: 'invalid quantity microunits',
+        code: 'INVALID_QUANTITY_MICROUNITS',
+      });
+    }
+    // Fail-closed también para filas que el filtro de productId vacío habría
+    // descartado antes: un tipo inválido se rechaza, no se ignora.
+    const ghostRow = await runCreateSupplierReturnHttp(env(), 't1', 'u1', {
+      purchaseReceiptId: 'r1',
+      reason: 'dañado',
+      items: [{ productId: '', enteredQuantityMicrounits: '999' }],
+    });
+    expect(ghostRow.status).toBe(400);
+    expect(vi.mocked(processSupplierReturnCreateAtomic).mock.calls.length).toBe(callsBefore);
+  });
+
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {
     const res = await runOwnerSupplierReturnsHttp(env(), 't1', 'cashier');
     expect(res.status).toBe(403);

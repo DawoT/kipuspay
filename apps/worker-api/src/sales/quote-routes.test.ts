@@ -91,6 +91,41 @@ describe('quote routes', () => {
     expect(res.body.reservesStock).toBe(false);
   });
 
+  it('US-04: enteredQuantityMicrounits de tipo inválido → 400 estable sin tocar el adapter', async () => {
+    const { processQuoteCreateAtomic } = await import('@kipuspay/adapters-d1');
+    const callsBefore = vi.mocked(processQuoteCreateAtomic).mock.calls.length;
+    for (const bad of ['1000000', true, null, [1_000_000], {}, 1.5]) {
+      const res = await runCreateQuoteHttp(env(), 't1', 'u1', {
+        branchId: 'b1',
+        items: [{ productId: 'p1', enteredQuantityMicrounits: bad as unknown as number }],
+      });
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        error: 'invalid quantity microunits',
+        code: 'INVALID_QUANTITY_MICROUNITS',
+      });
+    }
+    expect(vi.mocked(processQuoteCreateAtomic).mock.calls.length).toBe(callsBefore);
+  });
+
+  it('US-04: microunits enteros grandes siguen fluyendo al adapter sin NaN', async () => {
+    const { processQuoteCreateAtomic } = await import('@kipuspay/adapters-d1');
+    const res = await runCreateQuoteHttp(env(), 't1', 'u1', {
+      branchId: 'b1',
+      items: [
+        { productId: 'p1', enteredQuantityMicrounits: 9_007_199_254_740_991 },
+        { productId: 'p2', uomId: 'u1', batchId: null, enteredQuantityMicrounits: 0 },
+      ],
+    });
+    expect(res.status).toBe(200);
+    const items = vi.mocked(processQuoteCreateAtomic).mock.calls.at(-1)?.[3]?.items as [
+      { enteredQuantityMicrounits: number },
+      { enteredQuantityMicrounits: number },
+    ];
+    expect(items[0]?.enteredQuantityMicrounits).toBe(9_007_199_254_740_991);
+    expect(items[1]?.enteredQuantityMicrounits).toBe(0);
+  });
+
   it('lists expired for owner', async () => {
     const res = await runListExpiredQuotesHttp(env(), 't1', 'owner');
     expect(res.status).toBe(200);

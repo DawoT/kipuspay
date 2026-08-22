@@ -12,6 +12,10 @@ import {
 import { markQuoteExpired, type QuoteStatus } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isSalesQuotesEnabled } from '../auth/features.js';
+import {
+  parseQuantityMicrounits,
+  QUANTITY_MICROUNITS_BAD_REQUEST,
+} from '../http/quantity-input.js';
 
 export { isSalesQuotesEnabled };
 
@@ -76,17 +80,29 @@ export async function runCreateQuoteHttp(
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const items = Array.isArray(body.items)
-    ? body.items.map((raw) => {
-        const item = raw as Record<string, unknown>;
-        return {
-          productId: typeof item.productId === 'string' ? item.productId : '',
-          uomId: typeof item.uomId === 'string' ? item.uomId : null,
-          enteredQuantityMicrounits: Number(item.enteredQuantityMicrounits),
-          batchId: typeof item.batchId === 'string' ? item.batchId : null,
-        };
-      })
-    : [];
+  // US-04: parse tipado fail-closed de *Microunits (sin Number(): 400 estable
+  // ante tipos inválidos, sin NaN ni 500).
+  const items: {
+    productId: string;
+    uomId: string | null;
+    enteredQuantityMicrounits: number;
+    batchId: string | null;
+  }[] = [];
+  if (Array.isArray(body.items)) {
+    for (const raw of body.items) {
+      const item = raw as Record<string, unknown>;
+      const quantity = parseQuantityMicrounits(item.enteredQuantityMicrounits);
+      if (!quantity.ok) {
+        return { status: 400, body: { ...QUANTITY_MICROUNITS_BAD_REQUEST } };
+      }
+      items.push({
+        productId: typeof item.productId === 'string' ? item.productId : '',
+        uomId: typeof item.uomId === 'string' ? item.uomId : null,
+        enteredQuantityMicrounits: quantity.microunits,
+        batchId: typeof item.batchId === 'string' ? item.batchId : null,
+      });
+    }
+  }
   if (!branchId || items.length === 0) {
     return { status: 400, body: { error: 'branchId and items required', code: 'BAD_REQUEST' } };
   }
