@@ -20,6 +20,31 @@ Los hooks no viajan en un `git clone`: sin esto, los commits no pasan por la bat
 
 `AGENTS.md` completo. Las 10 invariantes son NO-GO: violar una invalida el entregable, sin importar la calidad del resto.
 
+## 1b. Delegar al agente staff especializado
+
+El roster ejecutable vive en `.opencode/agents/` (registro: `.opencode/staff-ledger.md`). Antes de ejecutar, identifica el rubro y delega vía Task (o `@mención`):
+
+| Rubro | Agente |
+|---|---|
+| Decisiones arquitectónicas, ADRs, desempates, firma RACI A | `kipus-principal` |
+| DDL, migraciones up/down, sharding, índices | `kipus-data` |
+| Motor transaccional, `db.batch`, idempotencia, reconciliación | `kipus-acid` |
+| Auth/tenant, HMAC webhooks, anti-replay, PIN/lockout | `kipus-security` |
+| Pipeline fiscal SUNAT, UBL/XAdES, CDR, NC/ND, DLQ | `kipus-fiscal` |
+| POS offline-first (`apps/pos-web`), sync chunked, bundle | `kipus-pos` |
+| Impresión/periféricos, ESC/POS, balanzas, kioskos | `kipus-hardware` |
+| Modo Dueño, push accionable, PWA móvil | `kipus-owner` |
+| SLO/observabilidad, runbooks, deploy staging | `kipus-sre` |
+| Suites chaos, escenarios adversariales, RED→GREEN | `kipus-qa` |
+| Sistema de diseño, WCAG AA, UX premium | `kipus-design` |
+| Landings/SEO/CWV, claim gate, métricas de crecimiento | `kipus-growth` |
+| Copy ×3 audiencias, anti-jerga, documentación narrada | `kipus-content` |
+| Rollups/reporting, TTFS/NRR/K-factor, atribución | `kipus-analytics` |
+| Backlog por impacto, criterios de negocio por sprint | `kipus-pm` |
+| User stories de funcionamiento real (Gherkin trazable) | `kipus-stories` |
+
+Reglas de delegación: un rubro = un agente responsable (R); las firmas de la Matriz de Calidad (`Proceso §4`) exigen los DOS agentes indicados; nunca un agente aprueba su propio entregable crítico (`Proceso §0.6`). Las historias de flujo real se producen SIEMPRE con `kipus-stories` antes de implementar el sprint.
+
 ## 2. Localizar el trabajo
 
 `INDEX.md` es el mapa de punteros (generado, no normativo):
