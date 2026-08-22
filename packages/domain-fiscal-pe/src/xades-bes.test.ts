@@ -88,7 +88,7 @@ const invoice = (): UblInvoiceInput => ({
 
 const creditNote = (): UblCreditNoteInput => ({
   ublVersion: '2.1',
-  customizationId: '2.0',
+  customizationId: '1.0',
   id: 'FC01-00000001',
   issueDate: '2026-08-20',
   issueTime: '10:00:00',

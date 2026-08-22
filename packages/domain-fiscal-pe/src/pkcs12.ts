@@ -36,7 +36,9 @@ function fail(reason: string): never {
 }
 
 function asBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 function hexSha256(bytes: Uint8Array): Promise<string> {

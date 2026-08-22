@@ -7,7 +7,7 @@ import { classifySunatResponse, type SunatOutcome } from './classify-sunat.js';
 import { classifyFiscalError, type FiscalErrorClass } from './fiscal-error.js';
 
 export type FiscalTransportMode =
-  'KIPUSPAY_PSE_DIRECT' | 'MOCK_STAGING' | 'ose_generic' | 'pse_third_party';
+  'KIPUSPAY_PSE_DIRECT' | 'MOCK_STAGING' | 'ose_generic' | 'pse_third_party' | 'sunat_bill_beta';
 
 export type FiscalEndpoint = 'submit' | 'cdr_query' | 'rc_submit';
 

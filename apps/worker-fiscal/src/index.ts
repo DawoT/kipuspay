@@ -186,6 +186,12 @@ async function handleDrain(env: FiscalWorkerEnv): Promise<Response> {
   if (!isFiscalDrainEnabled(env)) {
     return new Response(JSON.stringify({ error: 'FEATURE_OFF' }), { status: 404 });
   }
+  if (!env.DB || !env.FISCAL_XML_R2) {
+    return new Response(JSON.stringify({ error: 'DRAIN_FAILED', code: 'DRAIN_FAILED' }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
   let result: Awaited<ReturnType<typeof drainFiscalOutbox>>;
   try {
     result = await drainFiscalOutbox({

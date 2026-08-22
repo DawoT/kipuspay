@@ -7,5 +7,10 @@
   "vars": {
     // Overridden at build time by deploy:staging (PUBLIC_API_BASE=...).
     "PUBLIC_API_BASE": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
+    // Pilot Pages runtime flags (git-declared for staging project only; Workers FEATURE_* stay 0).
+    "PUBLIC_FEATURE_POS_CHECKOUT": "1",
+    "PUBLIC_FEATURE_CATALOG_SELLABLE": "1",
+    "PUBLIC_FEATURE_OWNER_MODE": "1",
+    "PUBLIC_FEATURE_FISCAL_RC": "1",
   },
 }

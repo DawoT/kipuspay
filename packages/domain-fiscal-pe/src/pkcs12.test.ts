@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { parsePkcs12 } from './pkcs12.js';
 
 function asBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 function makeLegacyP12(): Uint8Array {

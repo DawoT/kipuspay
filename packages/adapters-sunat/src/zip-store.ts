@@ -100,10 +100,15 @@ export function zipStore(fileName: string, content: Uint8Array): Uint8Array {
   return zipStoreFiles([{ name: fileName, content }]);
 }
 
-async function inflateWith(format: CompressionFormat, data: Uint8Array): Promise<Uint8Array> {
+async function inflateWith(
+  format: 'deflate' | 'deflate-raw' | 'gzip',
+  data: Uint8Array,
+): Promise<Uint8Array> {
   const ds = new DecompressionStream(format);
   const writer = ds.writable.getWriter();
-  await writer.write(data);
+  const copy = new Uint8Array(data.byteLength);
+  copy.set(data);
+  await writer.write(copy);
   await writer.close();
   return new Uint8Array(await new Response(ds.readable).arrayBuffer());
 }

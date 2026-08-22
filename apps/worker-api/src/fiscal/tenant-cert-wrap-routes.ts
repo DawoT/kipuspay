@@ -48,7 +48,7 @@ export async function runWrapTenantDekHttp(
   if (dek.byteLength !== 32) {
     return { status: 400, body: { error: 'DEK must be 32 bytes', code: 'KMS_DEK_INVALID' } };
   }
-  if (env.BACKUP_KMS) {
+  if (env.BACKUP_KMS?.wrapDek) {
     const wrapped = await env.BACKUP_KMS.wrapDek({ tenantId, backupId, dek });
     return {
       status: 200,

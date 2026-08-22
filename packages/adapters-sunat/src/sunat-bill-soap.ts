@@ -230,7 +230,7 @@ export function cdrAcceptedFromCode(code: string): boolean {
 }
 
 function decodeText(bytes: Uint8Array): string {
-  return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+  return new TextDecoder('utf-8', { fatal: false, ignoreBOM: true }).decode(bytes);
 }
 
 function hexHead(bytes: Uint8Array, n = 24): string {

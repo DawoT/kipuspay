@@ -18,7 +18,9 @@ export interface TenantCertEnvelopeV1 {
 }
 
 function asBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 function derToBase64(der: Uint8Array): string {

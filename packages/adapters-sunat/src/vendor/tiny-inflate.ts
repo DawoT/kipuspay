@@ -17,10 +17,12 @@ class InflateState {
   destLen = 0;
   readonly ltree = new Tree();
   readonly dtree = new Tree();
-  constructor(
-    readonly source: Uint8Array,
-    readonly dest: Uint8Array,
-  ) {}
+  readonly source: Uint8Array;
+  readonly dest: Uint8Array;
+  constructor(source: Uint8Array, dest: Uint8Array) {
+    this.source = source;
+    this.dest = dest;
+  }
 }
 
 const sltree = new Tree();
@@ -69,7 +71,11 @@ function buildTree(t: Tree, codeLengths: Uint8Array, off: number, num: number): 
   }
   for (let i = 0; i < num; i += 1) {
     const len = codeLengths[off + i]!;
-    if (len) t.trans[offs[len]++] = i;
+    if (len) {
+      const at = offs[len]!;
+      t.trans[at] = i;
+      offs[len] = at + 1;
+    }
   }
 }
 

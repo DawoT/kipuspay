@@ -198,7 +198,7 @@ describe('drain con error de infraestructura (F-5 Sello QA Batch I)', () => {
       env,
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as { processed?: number };
     expect(body.processed).toBe(0);
   });
 
