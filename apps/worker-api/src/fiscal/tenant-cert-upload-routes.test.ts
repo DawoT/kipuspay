@@ -6,7 +6,11 @@ import { join } from 'node:path';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { runGetTenantCertHttp, runUploadTenantCertHttp } from './tenant-cert-upload-routes.js';
 
+/** Un solo PKCS#12 por worker: openssl genrsa bajo suite paralelo suele pasar de 5s. */
+let cachedP12B64: string | null = null;
+
 function makeP12B64(): string {
+  if (cachedP12B64 !== null) return cachedP12B64;
   const dir = mkdtempSync(join(tmpdir(), 'kp-up-'));
   try {
     const key = join(dir, 'k.pem');
@@ -42,14 +46,18 @@ function makeP12B64(): string {
     const bytes = new Uint8Array(readFileSync(p12));
     let bin = '';
     for (const b of bytes) bin += String.fromCharCode(b);
-    return btoa(bin);
+    cachedP12B64 = btoa(bin);
+    return cachedP12B64;
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
 describe('runUploadTenantCertHttp', () => {
-  it('403 cajero; 400 p12 inválido; 200 wrapDek + D1 sin persistir p12', async () => {
+  it(
+    '403 cajero; 400 p12 inválido; 200 wrapDek + D1 sin persistir p12',
+    { timeout: 20_000 },
+    async () => {
     const wrapDek = vi.fn().mockResolvedValue({
       wrappedDek: new Uint8Array(48).fill(2),
       kekVersion: 'v1',
