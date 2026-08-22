@@ -206,7 +206,7 @@ describe('verifyStripeSignature (SEC-08)', () => {
 
 describe('MAX_WEBHOOK_BODY_BYTES (Invarian 6: size gate anti-DoS)', () => {
   it('define el límite en 1MB exacto', () => {
-    expect(MAX_WEBHOOK_BODY_BYTES).toBe(1024 * 1024);
+    expect(MAX_WEBHOOK_BODY_BYTES).toBe(1_000_000);
   });
 
   it('webhookBodyBytes mide bytes UTF-8, no code units UTF-16', () => {

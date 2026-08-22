@@ -531,17 +531,19 @@ describe('handleStripeWebhook', () => {
     expect(mem.rows.get('stripe:evt_maxsize')?.status).toBe('PROCESSED');
   });
 
-  it('body Unicode multibyte de 1.048.578 bytes (349.526 × €) → 413 PAYLOAD_TOO_LARGE (US-07 acceptance bullet 3)', async () => {
+  it('body Unicode multibyte >1_000_000 bytes (caracteres €) → 413 PAYLOAD_TOO_LARGE (US-07 acceptance bullet 3)', async () => {
     const { env } = createEnv({});
     const base = eventBody('customer.subscription.deleted', 't1', 'evt_unicode');
-    // Acceptance: body Unicode de 1048578 bytes (ej. caracteres € repetidos) → 413.
-    // 1048578 = 1 MiB + 2, y es múltiplo de 3: 1048578 / 3 = 349.526 '€'.
-    const body = unicodePaddedEventBody(base, 1_048_578);
-    expect(webhookBodyBytes(body)).toBe(1_048_578);
-    // Prueba el conteo en BYTES UTF-8, no en code units: un body de 349526 chars
-    // '€' ocupa 3x bytes. Si el gate contara body.length, este payload (1.049.579
-    // code units) pasaría el límite y se eludiría el anti-DoS.
-    expect(body.length).toBeLessThan(1_048_578);
+    // Acceptance: body Unicode por encima del límite decimal US-01 (1_000_000).
+    // Se elige un techo múltiplo de 3 bytes ('€') para TextEncoder exacto.
+    const overBytes = Math.ceil((MAX_WEBHOOK_BODY_BYTES + 1) / 3) * 3;
+    const body = unicodePaddedEventBody(base, overBytes);
+    expect(webhookBodyBytes(body)).toBe(overBytes);
+    expect(overBytes).toBeGreaterThan(MAX_WEBHOOK_BODY_BYTES);
+    // Prueba el conteo en BYTES UTF-8, no en code units: un body de N chars
+    // '€' ocupa 3x bytes. Si el gate contara body.length, este payload
+    // pasaría el límite y se eludiría el anti-DoS.
+    expect(body.length).toBeLessThan(overBytes);
     // Firma criptográficamente VÁLIDA sobre el body: el gate debe correr antes
     // del HMAC — si no, este payload pasaría la verificación y se procesaría.
     const sig = await signStripeWebhookForTests(body, secret, ts);
@@ -555,14 +557,11 @@ describe('handleStripeWebhook', () => {
     expect(bare.body.code).toBe('PAYLOAD_TOO_LARGE');
   });
 
-  it('body de exactamente 1MB SIN firma → NUNCA 413 (borde inclusivo; falta firma → 400)', async () => {
-    // Acceptance bullet 5: un body de exactamente 1048576 bytes NO se rechaza
-    // por límite. El gate de tamaño es estricto (`>`): en el borde pasa, y al
-    // faltar el header de firma la petición cae a validateWebhookRequest (400
-    // genérico en main). La aserción de error.code MISSING_HEADER /
-    // INVALID_SIGNATURE es de US-02 (staff/fix-US-02-codes, pendiente de
-    // merge); aquí se sella SOLO la parte US-07: "nunca 413" (rechazo por la
-    // clase de firma ausente, jamás por el límite de tamaño).
+  it('body de exactamente 1_000_000 bytes SIN firma → NUNCA 413 (borde inclusivo; falta firma → 400)', async () => {
+    // Acceptance US-07 bullet 5 + US-01 bytes: un body de exactamente
+    // MAX_WEBHOOK_BODY_BYTES (1_000_000) NO se rechaza por límite. El gate es
+    // estricto (`>`): en el borde pasa, y al faltar el header de firma la
+    // petición cae a validateWebhookRequest (400 + MISSING_HEADER).
     const { env, mem } = createEnv({});
     const base = eventBody('customer.subscription.deleted', 't1', 'evt_maxsize_nosig');
     const body = paddedEventBody(base, MAX_WEBHOOK_BODY_BYTES);
@@ -573,11 +572,11 @@ describe('handleStripeWebhook', () => {
     // En el borde exacto el gate `>` NO dispara 413, aunque falte la firma:
     expect(res.status).not.toBe(413);
     expect(res.body).not.toMatchObject({ code: 'PAYLOAD_TOO_LARGE' });
-    // El rechazo es por la vía de firma ausente (validateWebhookRequest), que
-    // hoy emite un 400 genérico; US-02 solo añadirá el `code`, no cambia el 400.
+    // El rechazo es por la vía de firma ausente (validateWebhookRequest).
     expect(res.status).toBe(400);
+    expect((res.body as { code?: string }).code).toBe('MISSING_HEADER');
     // Nada se procesó ni se persiste con la firma ausente.
     expect(res.body).not.toHaveProperty('received');
-    expect(mem.rows.get('stripe:evt_maxsize_nosig')).toBeUndefined();
+    expect(mem.rows.size).toBe(0);
   });
 });
