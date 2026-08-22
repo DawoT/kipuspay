@@ -438,10 +438,6 @@
     align-items: end;
   }
 
-  .scan-input {
-    min-width: 0;
-  }
-
   .sr-only {
     position: absolute;
     width: 1px;
