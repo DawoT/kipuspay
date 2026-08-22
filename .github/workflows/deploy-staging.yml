@@ -91,7 +91,7 @@ jobs:
         run: mkdir -p deploy-logs
 
       - name: Evidencia - versión de wrangler
-        run: pnpm exec wrangler --version > deploy-logs/00-wrangler-version.txt
+        run: pnpm --filter @kipuspay/worker-api exec wrangler --version > deploy-logs/00-wrangler-version.txt
 
       - name: Deploy worker-kms (staging)
         run: pnpm --filter @kipuspay/worker-kms run deploy:staging 2>&1 | tee deploy-logs/10-worker-kms.log
