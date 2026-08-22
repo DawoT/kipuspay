@@ -196,6 +196,50 @@ describe('submit count review', () => {
     expect(binds.flat()).not.toContain(999);
   });
 
+  it('US-03: deriva el costo exacto sin drift para montos grandes (MAX_SAFE × 1 cent)', async () => {
+    const binds: unknown[][] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : { quantity_microunits: 0, pmp_unit_cost_cents: 1, location_id: 'loc-1' },
+      }),
+      't1',
+      'owner',
+      {
+        countId: 'c1',
+        lines: [{ productId: 'p1', countedQtyMicrounits: Number.MAX_SAFE_INTEGER }],
+      },
+    );
+    expect(res.status).toBe(200);
+    // 9007199254740991 / 1e6 = 9007199254.740991 → mitad hacia +∞ → 9007199255
+    expect(binds.flat()).toContain(9007199255);
+  });
+
+  it('US-03: costo derivado fuera del rango seguro es fail-closed 422 (código estable de la ruta, variante US-02 con resto auditable)', async () => {
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : { quantity_microunits: 0, pmp_unit_cost_cents: 2_000_000, location_id: 'loc-1' },
+      }),
+      't1',
+      'owner',
+      {
+        countId: 'c1',
+        lines: [{ productId: 'p1', countedQtyMicrounits: 9_000_000_000_000_000 }],
+      },
+    );
+    // Resolución de conflicto US-02×US-03 (prioridad dinero igual): la ruta usa
+    // computeDiffValueCentsExact (US-02, superset con resto sub-cent); el código
+    // MICROUNITS_COST_OUT_OF_RANGE del helper US-03 sigue contratado en
+    // src/http/exact-cents.test.ts. Ambos son fail-closed 422.
+    expect(res).toMatchObject({ status: 422, body: { code: 'COUNT_DIFF_VALUE_OVERFLOW' } });
+  });
+
   it('exige identidades exactas al enviar conteo serializado', async () => {
     const res = await runSubmitCountReviewHttp(
       mockDbEnv({
@@ -675,6 +719,74 @@ describe('stock loss', () => {
     expect(res.body.adjustmentQty).toBe(-2);
   });
 
+  it('US-03: aprueba no-serial con guard PENDING dentro del plan (anti doble aplicación)', async () => {
+    const sqls: string[] = [];
+    const binds: unknown[][] = [];
+    const res = await runApproveStockLossHttp(
+      mockDbEnv({
+        sqls,
+        binds,
+        first: (sql) =>
+          sql.includes('FROM stock_losses')
+            ? {
+                status: 'PENDING',
+                quantity: 2,
+                quantity_microunits: 2_000_000,
+                category: 'DAMAGED',
+                evidence_r2_key: 'r2/e',
+                reason: 'roto',
+                branch_id: 'b1',
+                location_id: null,
+                product_id: 'p1',
+                batch_id: null,
+              }
+            : null,
+      }),
+      't1',
+      'u1',
+      'owner',
+      { lossId: 'l1' },
+    );
+    expect(res.status).toBe(200);
+    // El re-chequeo de estado existe TAMBIÉN sin seriales: dos aprobaciones
+    // concurrentes ya no pueden sumar el ajuste dos veces porque el perdedor
+    // del race computa ok=0 en atomic_guards y D1 revierte su lote completo.
+    const guardIdx = sqls.findIndex((sql) => sql.includes('INSERT INTO atomic_guards'));
+    expect(guardIdx).toBeGreaterThanOrEqual(0);
+    expect(sqls[guardIdx]).toContain("sl.status = 'PENDING'");
+    // Guard solo-de-estado: exactamente [guardId, lossId, tenantId]. Un bind
+    // NULL de ubicación haría el EXISTS insatisfacible y bloquearía TODA
+    // aprobación no-serial sin location.
+    expect(binds[guardIdx]).toEqual([expect.any(String), 'l1', 't1']);
+  });
+
+  it('US-03: aprobar una merma ya resuelta falla en preflight sin escribir stock', async () => {
+    const sqls: string[] = [];
+    const res = await runApproveStockLossHttp(
+      mockDbEnv({
+        sqls,
+        first: () => ({
+          status: 'APPROVED',
+          quantity: 2,
+          quantity_microunits: 2_000_000,
+          category: 'DAMAGED',
+          evidence_r2_key: 'r2/e',
+          reason: 'roto',
+          branch_id: 'b1',
+          location_id: null,
+          product_id: 'p1',
+          batch_id: null,
+        }),
+      }),
+      't1',
+      'u1',
+      'owner',
+      { lossId: 'l1' },
+    );
+    expect(res.status).toBe(422);
+    expect(sqls.some((sql) => sql.includes('UPDATE branch_product_stock'))).toBe(false);
+  });
+
   it('approve loss transiciona identidades en el mismo plan sin segundo débito', async () => {
     const sqls: string[] = [];
     const binds: unknown[][] = [];
@@ -741,6 +853,12 @@ describe('stock loss', () => {
     expect(sqls.some((sql) => sql.includes('UPDATE serial_numbers'))).toBe(true);
     expect(binds.flat()).toContain('DAMAGED');
     expect(sqls.filter((sql) => sql.includes('UPDATE branch_product_stock'))).toHaveLength(1);
+    // US-03: el camino serial sigue protegido por el guard de estado de la
+    // transición serial (status/version del serial), que es el guard vigente
+    // del plan — la doble aplicación serial ya estaba cerrada y no cambia.
+    const serialGuard = sqls.find((sql) => sql.includes('INSERT INTO atomic_guards'));
+    expect(serialGuard).toContain('CASE WHEN EXISTS (');
+    expect(serialGuard).toContain('FROM serial_numbers');
   });
 
   it('reject loss', async () => {

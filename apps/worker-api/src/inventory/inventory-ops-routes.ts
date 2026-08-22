@@ -23,6 +23,8 @@ import {
   type PreparedSerialIdentity,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+// US-03: canal de idempotencia-key — reenvío exactamente-una-vez por endpoint mutante.
+import { INVENTORY_OPS_SCOPES, openIdempotencyGate } from '../http/idempotency-channel.js';
 
 export function isInventoryOpsEnabled(env: WorkerEnv | undefined): boolean {
   return (
@@ -100,30 +102,43 @@ export async function runCreateInventoryCountHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   userId: string,
-  body: { branchId?: string; differenceThresholdCents?: number },
+  body: { branchId?: string; differenceThresholdCents?: number; idempotencyKey?: string },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const db = env.DB;
   const branchId = body.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
+  // US-03: el reenvío con la misma idempotency-key devuelve la respuesta del
+  // primer uso SIN crear un conteo duplicado (exactamente-una-vez).
+  const gate = await openIdempotencyGate(
+    db,
+    tenantId,
+    INVENTORY_OPS_SCOPES.countCreate,
+    body.idempotencyKey ?? '',
+    body,
+  );
+  if (gate.replay) return gate.replay;
   // S39-H1: el umbral de authz es SERVER-side (política del tenant), nunca del
   // cliente — un cashier no puede auto-definir un umbral gigante para aprobar
   // diferencias valorizadas sin autorización.
-  const policy = await env.DB.prepare(
+  const policy = await db.prepare(
     `SELECT max_amount_without_auth_cents FROM tenant_discount_policies WHERE tenant_id = ? LIMIT 1`,
   )
     .bind(tenantId)
     .first<{ max_amount_without_auth_cents: number }>();
   const threshold = policy?.max_amount_without_auth_cents ?? 2000;
   const id = crypto.randomUUID();
-  await env.DB.prepare(
+  await db.prepare(
     `INSERT INTO inventory_counts (
          id, tenant_id, branch_id, created_by_user_id, status, blind, difference_threshold_cents
        ) VALUES (?, ?, ?, ?, 'COUNTING', 1, ?)`,
   )
     .bind(id, tenantId, branchId, userId, threshold)
     .run();
-  return { status: 200, body: { id, status: 'COUNTING', blind: true } };
+  const ok: HttpResult = { status: 200, body: { id, status: 'COUNTING', blind: true } };
+  await gate.record(ok);
+  return ok;
 }
 
 // eslint-disable-next-line complexity -- count review: authz × AJUSTE multi-línea
@@ -145,6 +160,7 @@ export async function runSubmitCountReviewHttp(
       batchId?: string | null;
       observedSerialIds?: readonly string[];
     }[];
+    idempotencyKey?: string;
   },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
@@ -172,6 +188,17 @@ export async function runSubmitCountReviewHttp(
       body: { error: String(e instanceof Error ? e.message : e), code: 'COUNT_INVALID' },
     };
   }
+  // US-03: el gate abre tras authz + estado (un replay jamás sirve una respuesta
+  // cacheada a un rol menor ni memoriza un 4xx): reenviar con la misma key
+  // devuelve el 200 original sin duplicar líneas de conteo.
+  const gate = await openIdempotencyGate(
+    env.DB,
+    tenantId,
+    INVENTORY_OPS_SCOPES.countReview,
+    body.idempotencyKey ?? '',
+    body,
+  );
+  if (gate.replay) return gate.replay;
 
   const clientLines = body.lines ?? [];
   let lines: {
@@ -182,7 +209,7 @@ export async function runSubmitCountReviewHttp(
     systemMicrounits: number;
     differenceMicrounits: number;
     unitCostCents: number;
-    /** US-02: costo derivado EXACTO (BigInt + guard 2^53) — nunca float64. */
+    /** US-02+US-03: costo derivado EXACTO (BigInt, guard 2^53) — nunca float64. */
     diffValueCents: number;
     /** US-02: resto sub-cent con signo, auditado del redondeo exacto. */
     diffValueSubCentRemainderMicroCents: number;
@@ -261,6 +288,9 @@ export async function runSubmitCountReviewHttp(
           const unitCostCents = authority.pmp_unit_cost_cents ?? 0;
           // US-02: el costo derivado se computa exacto y con guard de rango
           // ANTES del plan atómico — overflow 2^53 ⇒ error fail-closed estable.
+          // US-03 aporta el mismo criterio exacto en http/exact-cents.ts; en
+          // este sitio prevalece la variante US-02 por su resto sub-cent
+          // auditable (prioridad igual ⇒ se conservan ambas historias).
           const diffValue = computeDiffValueCentsExact(differenceMicrounits, unitCostCents);
           if (!diffValue.ok) throw new Error(diffValue.reason);
           return {
@@ -344,7 +374,8 @@ export async function runSubmitCountReviewHttp(
   const subCentRoundedLineCount = lines.filter(
     (line) => line.diffValueSubCentRemainderMicroCents !== 0,
   ).length;
-  return {
+  // US-03: la respuesta pasa por el canal de idempotencia (reenvío ⇒ mismo 200).
+  const ok: HttpResult = {
     status: 200,
     body: {
       id: countId,
@@ -353,6 +384,8 @@ export async function runSubmitCountReviewHttp(
       subCentRoundedLineCount,
     },
   };
+  await gate.record(ok);
+  return ok;
 }
 
 /* eslint-disable complexity -- approve count: authz + AJUSTE multi-línea en un batch */
@@ -361,7 +394,12 @@ export async function runApproveCountHttp(
   tenantId: string,
   userId: string,
   role = '',
-  body: { countId?: string; authorizedByUserId?: string | null; adjustmentReason?: string | null },
+  body: {
+    countId?: string;
+    authorizedByUserId?: string | null;
+    adjustmentReason?: string | null;
+    idempotencyKey?: string;
+  },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
@@ -372,6 +410,17 @@ export async function runApproveCountHttp(
   }
   const countId = body.countId?.trim() ?? '';
   if (!countId) return { status: 400, body: { error: 'countId required', code: 'BAD_REQUEST' } };
+  // US-03: aprobar aplica el AJUSTE de stock una única vez; el reenvío con la
+  // misma key devuelve el 200 original sin re-aplicar deltas (el gate abre tras
+  // authz/params para no memorizar 4xx ni servir cache a un rol menor).
+  const gate = await openIdempotencyGate(
+    env.DB,
+    tenantId,
+    INVENTORY_OPS_SCOPES.countApprove,
+    body.idempotencyKey ?? '',
+    body,
+  );
+  if (gate.replay) return gate.replay;
 
   // S18-H3: el autorizador de un ajuste sobre umbral debe ser admin/owner
   // (nunca un string libre sin rol). El creador no puede auto-autorizarse.
@@ -659,7 +708,9 @@ export async function runApproveCountHttp(
       atomicPlan.add(env.DB!.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(guardId));
     }
   });
-  return { status: 200, body: { id: countId, status: 'APPROVED' } };
+  const ok: HttpResult = { status: 200, body: { id: countId, status: 'APPROVED' } };
+  await gate.record(ok);
+  return ok;
 }
 /* eslint-enable complexity */
 
@@ -678,10 +729,21 @@ export async function runCreateStockLossHttp(
     evidenceR2Key?: string | null;
     reason?: string;
     serialIds?: readonly string[];
+    idempotencyKey?: string;
   },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  // US-03: el reenvío con la misma key devuelve la merma PENDING original sin
+  // insertar un duplicado (exactamente-una-vez).
+  const gate = await openIdempotencyGate(
+    env.DB,
+    tenantId,
+    INVENTORY_OPS_SCOPES.lossCreate,
+    body.idempotencyKey ?? '',
+    body,
+  );
+  if (gate.replay) return gate.replay;
   const id = crypto.randomUUID();
   const branchId = body.branchId?.trim() ?? '';
   const productId = body.productId?.trim() ?? '';
@@ -761,7 +823,9 @@ export async function runCreateStockLossHttp(
       });
     }
   });
-  return { status: 200, body: { id, status: 'PENDING' } };
+  const ok: HttpResult = { status: 200, body: { id, status: 'PENDING' } };
+  await gate.record(ok);
+  return ok;
 }
 
 export async function runApproveStockLossHttp(
@@ -769,7 +833,7 @@ export async function runApproveStockLossHttp(
   tenantId: string,
   userId: string,
   role = '',
-  body: { lossId?: string },
+  body: { lossId?: string; idempotencyKey?: string },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
@@ -779,6 +843,16 @@ export async function runApproveStockLossHttp(
   }
   const lossId = body.lossId?.trim() ?? '';
   if (!lossId) return { status: 400, body: { error: 'lossId required', code: 'BAD_REQUEST' } };
+  // US-03: el ajuste de merma aprobado se aplica una única vez; el reenvío con
+  // la misma key devuelve el 200 original (gate tras authz/params).
+  const gate = await openIdempotencyGate(
+    env.DB,
+    tenantId,
+    INVENTORY_OPS_SCOPES.lossApprove,
+    body.idempotencyKey ?? '',
+    body,
+  );
+  if (gate.replay) return gate.replay;
 
   const row = await env.DB.prepare(
     `SELECT status, quantity, quantity_microunits, category, evidence_r2_key, reason,
@@ -908,6 +982,14 @@ export async function runApproveStockLossHttp(
   ];
   const deltaMicrounits = Math.round(plan.adjustmentQty * 1_000_000);
   await runD1AtomicPlan(env.DB, async (atomicPlan) => {
+    // US-03 (doble aplicación concurrente): el re-chequeo de estado ya no es
+    // exclusivo del camino serial. Sin él, dos aprobaciones concurrentes de
+    // la misma merma no-serial leían ambas status='PENDING' en el preflight y
+    // cada una sumaba plan.adjustmentQty → el ajuste se aplicaba DOS veces.
+    // Ahora TODA aprobación exige, dentro del batch (Arquitectura §6), que la
+    // merma siga PENDING: el perdedor del race computa ok=0, el CHECK ok=1 de
+    // atomic_guards aborta y D1 revierte el lote completo. Las comprobaciones
+    // de suficiencia de stock siguen siendo exclusivas del camino serial.
     if (serials.length > 0) {
       atomicPlan.guardState(
         `SELECT 1 FROM stock_losses sl
@@ -924,6 +1006,12 @@ export async function runApproveStockLossHttp(
                AND l.quantity_microunits >= ?
            )`,
         [lossId, tenantId, -deltaMicrounits, row.location_id, -deltaMicrounits],
+      );
+    } else {
+      atomicPlan.guardState(
+        `SELECT 1 FROM stock_losses sl
+         WHERE sl.id = ? AND sl.tenant_id = ? AND sl.status = 'PENDING'`,
+        [lossId, tenantId],
       );
     }
     for (const statement of stockLossStatements) atomicPlan.add(statement);
@@ -955,17 +1043,19 @@ export async function runApproveStockLossHttp(
       });
     }
   });
-  return {
+  const ok: HttpResult = {
     status: 200,
     body: { id: lossId, status: plan.nextStatus, adjustmentQty: plan.adjustmentQty },
   };
+  await gate.record(ok);
+  return ok;
 }
 /* eslint-enable complexity */
 
 export async function runRejectStockLossHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
-  body: { lossId?: string },
+  body: { lossId?: string; idempotencyKey?: string },
 ): Promise<HttpResult> {
   if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
@@ -976,6 +1066,16 @@ export async function runRejectStockLossHttp(
     .bind(lossId, tenantId)
     .first<{ status: StockLossStatus }>();
   if (!row) return { status: 404, body: { error: 'Loss not found', code: 'NOT_FOUND' } };
+  // US-03: gate tras el 404 y ANTES de la aserción de estado — el reenvío con
+  // la misma key devuelve el 200 REJECTED original, no un 422 del re-intento.
+  const gate = await openIdempotencyGate(
+    env.DB,
+    tenantId,
+    INVENTORY_OPS_SCOPES.lossReject,
+    body.idempotencyKey ?? '',
+    body,
+  );
+  if (gate.replay) return gate.replay;
   try {
     assertStockLossReject(row.status);
   } catch (e) {
@@ -987,7 +1087,9 @@ export async function runRejectStockLossHttp(
   await env.DB.prepare(`UPDATE stock_losses SET status = 'REJECTED' WHERE id = ? AND tenant_id = ?`)
     .bind(lossId, tenantId)
     .run();
-  return { status: 200, body: { id: lossId, status: 'REJECTED' } };
+  const ok: HttpResult = { status: 200, body: { id: lossId, status: 'REJECTED' } };
+  await gate.record(ok);
+  return ok;
 }
 
 /* eslint-disable complexity -- alerts: policies × stock × batches */

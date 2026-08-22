@@ -15,6 +15,7 @@ import {
   isLedgerChartOfAccountsEnabled,
   isSalesLayawayEnabled,
 } from '../auth/features.js';
+import { microunitsErrorResult, parseMicrounits } from '../http/microunits-input.js';
 
 export { isLedgerChartOfAccountsEnabled, isSalesLayawayEnabled } from '../auth/features.js';
 
@@ -80,17 +81,28 @@ export async function runCreateLayawayHttp(
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   const cashRegisterSessionId =
     typeof body.cashRegisterSessionId === 'string' ? body.cashRegisterSessionId : '';
-  const items = Array.isArray(body.items)
-    ? body.items.map((raw) => {
-        const item = raw as Record<string, unknown>;
-        return {
-          productId: typeof item.productId === 'string' ? item.productId : '',
-          uomId: typeof item.uomId === 'string' ? item.uomId : null,
-          enteredQuantityMicrounits: Number(item.enteredQuantityMicrounits),
-          batchId: typeof item.batchId === 'string' ? item.batchId : null,
-        };
-      })
-    : [];
+  // US-03: microunits con validación tipada fail-closed (un parser, cinco
+  // sitios, veredictos idénticos) — un tipo inválido es 400 estable, nunca
+  // una coacción Number() que acepta true/[5]/'+1'/' 42 '.
+  const items: {
+    productId: string;
+    uomId: string | null;
+    enteredQuantityMicrounits: number;
+    batchId: string | null;
+  }[] = [];
+  if (Array.isArray(body.items)) {
+    for (const raw of body.items) {
+      const item = raw as Record<string, unknown>;
+      const quantity = parseMicrounits(item.enteredQuantityMicrounits);
+      if (!quantity.ok) return microunitsErrorResult(quantity.errorName);
+      items.push({
+        productId: typeof item.productId === 'string' ? item.productId : '',
+        uomId: typeof item.uomId === 'string' ? item.uomId : null,
+        enteredQuantityMicrounits: quantity.microunits,
+        batchId: typeof item.batchId === 'string' ? item.batchId : null,
+      });
+    }
+  }
   if (!branchId || !cashRegisterSessionId || items.length === 0) {
     return {
       status: 400,
