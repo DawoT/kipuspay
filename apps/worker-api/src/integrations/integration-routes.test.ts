@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion -- mock DB/KV */
+ 
 import { describe, expect, it, vi } from 'vitest';
 import {
   isAccountingExportEnabled,

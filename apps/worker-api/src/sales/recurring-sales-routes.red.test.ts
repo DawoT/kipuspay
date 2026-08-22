@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-unsafe-member-access -- hoisted adapter and D1 test doubles */
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@kipuspay/adapters-d1/process-recurring-sale-atomic', () => ({
   createRecurringPlanAtomic: vi.fn(async (_db, input) => ({

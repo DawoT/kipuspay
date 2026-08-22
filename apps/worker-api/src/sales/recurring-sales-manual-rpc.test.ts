@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/require-await -- focused Worker RPC/D1 boundary fake */
+/* eslint-disable @typescript-eslint/no-explicit-any -- focused Worker RPC/D1 boundary fake */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('cloudflare:workers', () => ({

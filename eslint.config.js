@@ -53,12 +53,13 @@ const adapterOverrides = {
 };
 
 const testOverrides = {
-  files: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
+  files: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx', '**/*.red.test.ts'],
+  extends: [tseslint.configs.disableTypeChecked],
   rules: {
     'security/detect-non-literal-fs-filename': 'off',
     'no-secrets/no-secrets': ['error', { tolerance: 4.2 }],
     '@typescript-eslint/no-unsafe-assignment': 'off',
-    // node:crypto / execFileSync fixtures often fail projectService resolution in tests
+    // Tests are often excluded from app tsconfigs; disable type-aware rules for them.
     '@typescript-eslint/no-unsafe-call': 'off',
     '@typescript-eslint/no-unsafe-argument': 'off',
     '@typescript-eslint/no-unsafe-return': 'off',
