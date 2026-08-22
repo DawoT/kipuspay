@@ -301,10 +301,10 @@ export async function runSubmitCountReviewHttp(
     // queda la validación que DEPENDE del estado en D1 (stock, seriales, PMP).
     lines = await Promise.all(
       shapedLines.map(async ({ line, productId, countedMicrounits }) => {
-          const requestedLocationId = line.locationId?.trim() || null;
-          const authority = await env
-            .DB!.prepare(
-              `SELECT COALESCE(s.quantity_microunits, 0) AS quantity_microunits,
+        const requestedLocationId = line.locationId?.trim() || null;
+        const authority = await env
+          .DB!.prepare(
+            `SELECT COALESCE(s.quantity_microunits, 0) AS quantity_microunits,
                 b.pmp_unit_cost_cents,
                 COALESCE(?, d.id) AS location_id,
                 p.serial_tracking_mode
@@ -319,62 +319,61 @@ export async function runSubmitCountReviewHttp(
           AND s.product_id = b.product_id AND s.location_id = COALESCE(?, d.id)
          WHERE b.tenant_id = ? AND b.branch_id = ? AND b.product_id = ?
          LIMIT 1`,
-            )
-            .bind(requestedLocationId, requestedLocationId, tenantId, count.branch_id, productId)
-            .first<{
-              quantity_microunits: number;
-              pmp_unit_cost_cents: number | null;
-              location_id: string | null;
-              serial_tracking_mode: string;
-            }>();
-          if (!authority?.location_id) throw new Error('COUNT_STOCK_NOT_FOUND');
-          const serials =
-            authority.serial_tracking_mode === 'REQUIRED'
-              ? await loadSerialsForStockOperation(
-                  env.DB!,
-                  tenantId,
-                  count.branch_id,
-                  [
-                    {
-                      productId,
-                      quantityMicrounits: countedMicrounits,
-                      serialIds: line.observedSerialIds ?? [],
-                    },
-                  ],
-                  'AVAILABLE',
-                )
-              : [];
-          if (serials.some((serial) => serial.locationId !== authority.location_id)) {
-            throw new Error('SERIAL_IDENTITY_INVALID');
-          }
-          const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
-          // US-05: jamás `?? 0` — un PMP ausente/degenerado es fail-closed.
-          if (!isValidUnitCostCents(authority.pmp_unit_cost_cents)) {
-            throw new Error('COUNT_INVALID_UNIT_COST');
-          }
-          const unitCostCents = authority.pmp_unit_cost_cents;
-          // US-02: el costo derivado se computa exacto y con guard de rango
-          // ANTES del plan atómico — overflow 2^53 ⇒ error fail-closed estable.
-          // US-03 aporta el mismo criterio exacto en http/exact-cents.ts; en
-          // este sitio prevalece la variante US-02 por su resto sub-cent
-          // auditable (prioridad igual ⇒ se conservan ambas historias).
-          const diffValue = computeDiffValueCentsExact(differenceMicrounits, unitCostCents);
-          if (!diffValue.ok) throw new Error(diffValue.reason);
-          return {
-            productId,
-            batchId: line.batchId ?? null,
-            locationId: authority.location_id,
-            countedMicrounits,
-            systemMicrounits: authority.quantity_microunits,
-            differenceMicrounits,
-            unitCostCents,
-            diffValueCents: diffValue.valueCents,
-            diffValueSubCentRemainderMicroCents: diffValue.subCentRemainderMicroCents,
-            countLineId: crypto.randomUUID(),
-            serials,
-          };
-        },
-      ),
+          )
+          .bind(requestedLocationId, requestedLocationId, tenantId, count.branch_id, productId)
+          .first<{
+            quantity_microunits: number;
+            pmp_unit_cost_cents: number | null;
+            location_id: string | null;
+            serial_tracking_mode: string;
+          }>();
+        if (!authority?.location_id) throw new Error('COUNT_STOCK_NOT_FOUND');
+        const serials =
+          authority.serial_tracking_mode === 'REQUIRED'
+            ? await loadSerialsForStockOperation(
+                env.DB!,
+                tenantId,
+                count.branch_id,
+                [
+                  {
+                    productId,
+                    quantityMicrounits: countedMicrounits,
+                    serialIds: line.observedSerialIds ?? [],
+                  },
+                ],
+                'AVAILABLE',
+              )
+            : [];
+        if (serials.some((serial) => serial.locationId !== authority.location_id)) {
+          throw new Error('SERIAL_IDENTITY_INVALID');
+        }
+        const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+        // US-05: jamás `?? 0` — un PMP ausente/degenerado es fail-closed.
+        if (!isValidUnitCostCents(authority.pmp_unit_cost_cents)) {
+          throw new Error('COUNT_INVALID_UNIT_COST');
+        }
+        const unitCostCents = authority.pmp_unit_cost_cents;
+        // US-02: el costo derivado se computa exacto y con guard de rango
+        // ANTES del plan atómico — overflow 2^53 ⇒ error fail-closed estable.
+        // US-03 aporta el mismo criterio exacto en http/exact-cents.ts; en
+        // este sitio prevalece la variante US-02 por su resto sub-cent
+        // auditable (prioridad igual ⇒ se conservan ambas historias).
+        const diffValue = computeDiffValueCentsExact(differenceMicrounits, unitCostCents);
+        if (!diffValue.ok) throw new Error(diffValue.reason);
+        return {
+          productId,
+          batchId: line.batchId ?? null,
+          locationId: authority.location_id,
+          countedMicrounits,
+          systemMicrounits: authority.quantity_microunits,
+          differenceMicrounits,
+          unitCostCents,
+          diffValueCents: diffValue.valueCents,
+          diffValueSubCentRemainderMicroCents: diffValue.subCentRemainderMicroCents,
+          countLineId: crypto.randomUUID(),
+          serials,
+        };
+      }),
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
