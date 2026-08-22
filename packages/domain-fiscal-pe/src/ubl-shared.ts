@@ -27,6 +27,16 @@ export function ublIgvPercent(affectationCode: string): string {
   return affectationCode === '10' ? '18.00' : '0.00';
 }
 
+/** Catálogo 09 — descripción de discrepancia NC (e-beta 2136 exige el tag). */
+export function ublNcMotiveDescription(motiveCode: string): string {
+  return motiveCode === '01' ? 'Anulacion de la operacion' : 'Ajuste del comprobante';
+}
+
+/** Catálogo 10 — descripción de discrepancia ND. */
+export function ublNdMotiveDescription(motiveCode: string): string {
+  return motiveCode === '02' ? 'Aumento en el valor' : 'Ajuste del comprobante';
+}
+
 /** Firma detachada SHA-256 del XML (staging / mock PSE — no XAdES completo). */
 export async function hashUblXml(xml: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(xml));

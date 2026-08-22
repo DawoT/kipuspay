@@ -7,7 +7,7 @@ import {
   hashUblXml,
   type UblInvoiceInput,
 } from './ubl-invoice.js';
-import { ublIgvPercent } from './ubl-shared.js';
+import { ublIgvPercent, ublNcMotiveDescription, ublNdMotiveDescription } from './ubl-shared.js';
 
 const sample = (): UblInvoiceInput => ({
   ublVersion: '2.1',
@@ -202,5 +202,12 @@ describe('buildUblInvoiceXml', () => {
       ],
     });
     expect(exo).toContain('<cbc:Percent>0.00</cbc:Percent>');
+  });
+
+  it('descripcion discrepancia NC/ND (e-beta 2136)', () => {
+    expect(ublNcMotiveDescription('01')).toBe('Anulacion de la operacion');
+    expect(ublNcMotiveDescription('02')).toBe('Ajuste del comprobante');
+    expect(ublNdMotiveDescription('02')).toBe('Aumento en el valor');
+    expect(ublNdMotiveDescription('01')).toBe('Ajuste del comprobante');
   });
 });

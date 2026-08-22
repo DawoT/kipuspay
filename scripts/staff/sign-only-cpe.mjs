@@ -101,16 +101,14 @@ function unsignedXml() {
       ...issuer,
       referencedDocId: process.env.REF_ID ?? 'F001-00000001',
       motiveCode: '01',
-      totalTaxableCents: -100,
-      totalIgvCents: -18,
+      totalTaxableCents: 100,
+      totalIgvCents: 18,
       totalIcbperCents: 0,
-      totalAmountCents: -118,
+      totalAmountCents: 118,
       lines: [
         {
           ...line,
           description: 'NC homologacion SUNAT beta',
-          igvCents: -18,
-          lineTotalCents: -118,
         },
       ],
     });

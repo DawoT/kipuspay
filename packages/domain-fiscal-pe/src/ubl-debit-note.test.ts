@@ -9,7 +9,7 @@ import { assertWellFormedXml, hashUblXml } from './ubl-shared.js';
 
 const sample = (): UblDebitNoteInput => ({
   ublVersion: '2.1',
-  customizationId: '1.0',
+  customizationId: '2.0',
   id: 'FD01-00000001',
   issueDate: '2026-08-05',
   issueTime: '11:00:00',
@@ -44,14 +44,29 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     const xml = buildUblDebitNoteXml(sample());
     expect(() => assertValidDebitNoteXml(xml)).not.toThrow();
     expect(xml).toContain('FD01-00000001');
+    expect(xml).toContain('<cbc:ProfileID>0101</cbc:ProfileID>');
     expect(xml).toContain('<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>');
     expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
-    expect(xml).toContain('<cbc:DebitNoteTypeCode listID="0101">08</cbc:DebitNoteTypeCode>');
+    expect(xml).not.toContain('<cac:PaymentTerms>');
+    expect(xml).toContain('<cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>');
+    expect(xml).toContain(
+      '<cbc:DebitNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">08</cbc:DebitNoteTypeCode>',
+    );
     expect(xml).toContain('<cbc:ReferenceID>F001-00000007</cbc:ReferenceID>');
     expect(xml).toContain('<cac:BillingReference>');
     expect(xml).toContain('<cbc:ResponseCode>02</cbc:ResponseCode>');
+    expect(xml).toContain('<cbc:Description>Aumento en el valor</cbc:Description>');
     expect(xml).toContain('<cbc:PayableAmount currencyID="PEN">5.90</cbc:PayableAmount>');
     expect(xml).toContain('A&amp;B');
+    const exo = buildUblDebitNoteXml({
+      ...sample(),
+      totalIgvCents: 0,
+      totalAmountCents: 500,
+      lines: [
+        { ...sample().lines[0]!, igvAffectationCode: '20', igvCents: 0, lineTotalCents: 500 },
+      ],
+    });
+    expect(exo).toContain('<cbc:Percent>0.00</cbc:Percent>');
     const hash = await hashUblXml(xml);
     expect(hash).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -81,12 +96,14 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
   it('assertValidDebitNoteXml detecta XML incompleto y malformado', () => {
     const xml = buildUblDebitNoteXml(sample());
     expect(() =>
-      assertValidDebitNoteXml(xml.replace('listID="0101">08', 'listID="0101">99')),
+      assertValidDebitNoteXml(
+        xml.replace('>08</cbc:DebitNoteTypeCode>', '>99</cbc:DebitNoteTypeCode>'),
+      ),
     ).toThrow(/INVALID_DEBIT_NOTE_TYPE/);
     expect(() =>
       assertValidDebitNoteXml(
         xml.replace(
-          '<cac:DiscrepancyResponse>\n    <cbc:ReferenceID>F001-00000007</cbc:ReferenceID>\n    <cbc:ResponseCode>02</cbc:ResponseCode>\n  </cac:DiscrepancyResponse>',
+          '<cac:DiscrepancyResponse>\n    <cbc:ReferenceID>F001-00000007</cbc:ReferenceID>\n    <cbc:ResponseCode>02</cbc:ResponseCode>\n    <cbc:Description>Aumento en el valor</cbc:Description>\n  </cac:DiscrepancyResponse>',
           '',
         ),
       ),
@@ -94,11 +111,22 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     expect(() =>
       assertValidDebitNoteXml(
         xml.replace(
-          '<cac:BillingReference>\n    <cac:InvoiceDocumentReference>\n      <cbc:ID>F001-00000007</cbc:ID>\n    </cac:InvoiceDocumentReference>\n  </cac:BillingReference>',
+          '<cac:BillingReference>\n    <cac:InvoiceDocumentReference>\n      <cbc:ID>F001-00000007</cbc:ID>\n      <cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>\n    </cac:InvoiceDocumentReference>\n  </cac:BillingReference>',
           '',
         ),
       ),
     ).toThrow(/MISSING_BILLING_REFERENCE/);
+    expect(() =>
+      assertValidDebitNoteXml(xml.replace('<cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>', '')),
+    ).toThrow(/MISSING_REFERENCE_DOCUMENT_TYPE/);
+    expect(() =>
+      assertValidDebitNoteXml(
+        xml.replace('<cbc:Description>Aumento en el valor</cbc:Description>', ''),
+      ),
+    ).toThrow(/MISSING_DISCREPANCY_DESCRIPTION/);
+    expect(() =>
+      assertValidDebitNoteXml(xml.replace('</DebitNote>', 'contingencia</DebitNote>')),
+    ).toThrow(/CONTINGENCIA_FORBIDDEN/);
     expect(() => assertValidDebitNoteXml('<DebitNote/>')).toThrow(/INVALID_UBL_VERSION/);
     const noLines = buildUblDebitNoteXml(sample()).slice(
       0,

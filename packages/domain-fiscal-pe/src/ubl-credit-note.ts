@@ -2,13 +2,19 @@
  * UBL 2.1 CreditNote builder (NC `07`) — zero-dep Web Platform.
  * Arquitectura §5.2 / §8 / ADR-FISCAL-001. Usa el mismo esqueleto UBL que la
  * factura (`ubl-shared`) y añade: `DiscrepancyResponse` (motivo Catálogo 09),
+ * sin `PaymentTerms` Contado (e-beta 3246; RS 193-2020 solo Credito en NC),
  * `BillingReference` al comprobante que ajusta y `CreditNoteLine` con montos
- * negativos (la NC resta). Las líneas provienen del documento ORIGEN que la NC
- * ajusta (la NC en sí no persiste sale_items: el monto viaja en la línea).
+ * unsigned (e-beta 2999 rechaza TaxableAmount negativo; el tipo 07 da el sentido).
  */
 /* eslint-disable no-secrets/no-secrets -- plantillas XML UBL normativas */
 
-import { assertWellFormedXml, centsToAmount, escapeXml, ublIgvPercent } from './ubl-shared.js';
+import {
+  assertWellFormedXml,
+  centsToAmount,
+  escapeXml,
+  ublIgvPercent,
+  ublNcMotiveDescription,
+} from './ubl-shared.js';
 
 export interface UblCreditNoteLine {
   readonly id: number;
@@ -23,7 +29,7 @@ export interface UblCreditNoteLine {
 
 export interface UblCreditNoteInput {
   readonly ublVersion: '2.1';
-  readonly customizationId: '1.0'; // NC de factura (boleta usa RC, no XML unitario)
+  readonly customizationId: '2.0'; // UBL-PE 2.1 (e-beta 2072 rechaza 1.0)
   readonly id: string; // FC01-00000001
   readonly issueDate: string; // YYYY-MM-DD Lima
   readonly issueTime: string; // HH:MM:SS
@@ -55,7 +61,7 @@ export function buildUblCreditNoteXml(input: UblCreditNoteInput): string {
     throw new Error('INVALID_REFERENCED_DOC');
   if (!/^\d{2}$/.test(input.motiveCode)) throw new Error('INVALID_MOTIVE_CODE');
   if (!input.lines.length) throw new Error('EMPTY_LINES');
-  if (input.totalAmountCents >= 0) throw new Error('NC_TOTAL_MUST_BE_NEGATIVE');
+  if (input.totalAmountCents <= 0) throw new Error('NC_TOTAL_MUST_BE_POSITIVE');
 
   const linesXml = input.lines
     .map((line) => {
@@ -100,18 +106,21 @@ export function buildUblCreditNoteXml(input: UblCreditNoteInput): string {
   xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
   <cbc:CustomizationID>${input.customizationId}</cbc:CustomizationID>
+  <cbc:ProfileID>0101</cbc:ProfileID>
   <cbc:ID>${escapeXml(input.id)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(input.issueDate)}</cbc:IssueDate>
   <cbc:IssueTime>${escapeXml(input.issueTime)}</cbc:IssueTime>
-  <cbc:CreditNoteTypeCode listID="0101">07</cbc:CreditNoteTypeCode>
+  <cbc:CreditNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">07</cbc:CreditNoteTypeCode>
   <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
   <cac:DiscrepancyResponse>
     <cbc:ReferenceID>${escapeXml(input.referencedDocId)}</cbc:ReferenceID>
     <cbc:ResponseCode>${escapeXml(input.motiveCode)}</cbc:ResponseCode>
+    <cbc:Description>${escapeXml(ublNcMotiveDescription(input.motiveCode))}</cbc:Description>
   </cac:DiscrepancyResponse>
   <cac:BillingReference>
     <cac:InvoiceDocumentReference>
       <cbc:ID>${escapeXml(input.referencedDocId)}</cbc:ID>
+      <cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>
     </cac:InvoiceDocumentReference>
   </cac:BillingReference>
   <cac:AccountingSupplierParty>
@@ -139,6 +148,18 @@ export function buildUblCreditNoteXml(input: UblCreditNoteInput): string {
   </cac:AccountingCustomerParty>
   <cac:TaxTotal>
     <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(input.totalIgvCents + input.totalIcbperCents)}</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(input.totalIgvCents)}</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:Percent>${input.totalIgvCents === 0 ? '0.00' : '18.00'}</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>1000</cbc:ID>
+          <cbc:Name>IGV</cbc:Name>
+          <cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
   </cac:TaxTotal>
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:LineExtensionAmount>
@@ -154,11 +175,23 @@ export function assertValidCreditNoteXml(xml: string): void {
   if (!xml.includes('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>')) {
     throw new Error('INVALID_UBL_VERSION');
   }
-  if (!xml.includes('<cbc:CreditNoteTypeCode listID="0101">07</cbc:CreditNoteTypeCode>')) {
+  if (!xml.includes('<cbc:CreditNoteTypeCode') || !xml.includes('>07</cbc:CreditNoteTypeCode>')) {
     throw new Error('INVALID_CREDIT_NOTE_TYPE');
   }
   if (!xml.includes('<cac:DiscrepancyResponse>')) throw new Error('MISSING_DISCREPANCY_RESPONSE');
+  const discStart = xml.indexOf('<cac:DiscrepancyResponse>');
+  const discEnd = xml.indexOf('</cac:DiscrepancyResponse>');
+  if (
+    discStart < 0 ||
+    discEnd < 0 ||
+    !xml.slice(discStart, discEnd).includes('<cbc:Description>')
+  ) {
+    throw new Error('MISSING_DISCREPANCY_DESCRIPTION');
+  }
   if (!xml.includes('<cac:BillingReference>')) throw new Error('MISSING_BILLING_REFERENCE');
+  if (!xml.includes('<cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>')) {
+    throw new Error('MISSING_REFERENCE_DOCUMENT_TYPE');
+  }
   if (!xml.includes('<cac:CreditNoteLine>')) throw new Error('MISSING_LINES');
   if (xml.toLowerCase().includes('contingencia')) throw new Error('CONTINGENCIA_FORBIDDEN');
 }

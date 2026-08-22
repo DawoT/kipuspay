@@ -16,7 +16,7 @@ Staff **no** marca `go-live-sunat: CERRADO` ni descongela GTM-07/08.
 | FL-0 | GREEN: `MISCONFIGURED` 503; drain live sin firma → cuarentena; Dueño/ticket honestos | — | Review QG |
 | FL-1 (= S11+S12) | UI `.p12` + cron `*/5` + flags git 0; UBL 01 con local anexo + tasa IGV + ProfileID | e-beta **F001-12 ACCEPTED** (SOAP sign-only, RUC `20612913251`). S11 UI y S12 drain WAIT: pass CDT en sesión, `AUTH_JWT_HS_SECRET`, flags runtime. SOL ya está en Secrets Store del worker-fiscal; cert staging ACTIVE (fingerprint CDT). | Pass sesión / flags |
 | FL-2 (= S13) | Cliente HTTP + `.invalid` no acreditado | WAIT URL HTTPS ≠ `.invalid` | URL / cert plataforma |
-| FL-3 (= S15) | UBL `07`/`08` + RC fail-closed | WAIT CDR en canal FL-2 | Canal acreditado |
+| FL-3 (= S15) | UBL `07`/`08` + RC fail-closed; NC unsigned sin PaymentTerms Contado | e-beta **FC01-11 y FC01-13 ACCEPTED** (anulan F001-9 y F001-12; sign-only). No cierra FL-3. POS returns: JWT+`x-tenant-id` → **404 FEATURE_OFF** (`FEATURE_SALES_RETURNS` staging `0`). Residual D1 = 0. No se prendió el flag. | Canal acreditado |
 | FL-4 (= S16+S14) | Pack de evidencia + override T6 listo; default e-beta | WAIT firmas A+V; T6 escrito | A+V; auth e-factura |
 | FL-5 | UBL `31`/`02`/`20` + `fiscal_non_sale_outbox` + drain | WAIT flags runtime; detracción banco NO-GO | Flags Cadena |
 

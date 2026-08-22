@@ -216,10 +216,15 @@ describe('produceFiscalXmlForSale (C6 producer)', () => {
     const xml = r2.map.get(r2XmlKeyForSale('t1', 'sale-1'));
     expect(xml).toBeDefined();
     expect(xml).toContain('<CreditNote');
-    expect(xml).toContain('<cbc:CreditNoteTypeCode listID="0101">07</cbc:CreditNoteTypeCode>');
+    expect(xml).toContain(
+      '<cbc:CreditNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">07</cbc:CreditNoteTypeCode>',
+    );
     expect(xml).toContain('<cbc:ReferenceID>F001-00000007</cbc:ReferenceID>');
     expect(xml).toContain('<cac:BillingReference>');
     expect(xml).toContain('<cbc:ResponseCode>01</cbc:ResponseCode>');
+    expect(xml).toContain('<cbc:Description>Anulacion de la operacion</cbc:Description>');
+    expect(xml).toContain('<cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>');
+    expect(xml).toContain('<cbc:PayableAmount currencyID="PEN">11.80</cbc:PayableAmount>');
     expect(xml).toContain('FC01-00000001');
   });
 
@@ -252,9 +257,13 @@ describe('produceFiscalXmlForSale (C6 producer)', () => {
     const xml = r2.map.get(r2XmlKeyForSale('t1', 'sale-1'));
     expect(xml).toBeDefined();
     expect(xml).toContain('<DebitNote');
-    expect(xml).toContain('<cbc:DebitNoteTypeCode listID="0101">08</cbc:DebitNoteTypeCode>');
+    expect(xml).toContain(
+      '<cbc:DebitNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">08</cbc:DebitNoteTypeCode>',
+    );
     expect(xml).toContain('<cbc:ReferenceID>F001-00000008</cbc:ReferenceID>');
     expect(xml).toContain('<cbc:ResponseCode>02</cbc:ResponseCode>');
+    expect(xml).toContain('<cbc:Description>Aumento en el valor</cbc:Description>');
+    expect(xml).toContain('<cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>');
     expect(xml).toContain('FD01-00000002');
   });
 

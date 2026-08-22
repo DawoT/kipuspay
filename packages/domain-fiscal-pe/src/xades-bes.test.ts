@@ -88,7 +88,7 @@ const invoice = (): UblInvoiceInput => ({
 
 const creditNote = (): UblCreditNoteInput => ({
   ublVersion: '2.1',
-  customizationId: '1.0',
+  customizationId: '2.0',
   id: 'FC01-00000001',
   issueDate: '2026-08-20',
   issueTime: '10:00:00',
@@ -100,10 +100,10 @@ const creditNote = (): UblCreditNoteInput => ({
   customerName: 'Cliente SAC',
   referencedDocId: 'F001-00000001',
   motiveCode: '01',
-  totalTaxableCents: -1000,
-  totalIgvCents: -180,
+  totalTaxableCents: 1000,
+  totalIgvCents: 180,
   totalIcbperCents: 0,
-  totalAmountCents: -1180,
+  totalAmountCents: 1180,
   lines: [
     {
       id: 1,
@@ -111,8 +111,8 @@ const creditNote = (): UblCreditNoteInput => ({
       quantity: 1,
       unitCode: 'NIU',
       igvAffectationCode: '10',
-      igvCents: -180,
-      lineTotalCents: -1180,
+      igvCents: 180,
+      lineTotalCents: 1180,
       icbperCents: 0,
     },
   ],

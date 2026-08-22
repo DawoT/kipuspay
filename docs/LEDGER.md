@@ -12724,3 +12724,46 @@ aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```
+id: 0460
+timestamp_utc: 2026-08-22T05:01:45Z
+schema_version: 2
+sprint_fase: FASE FL-3 piloto e-beta NC 07 (FC01-11/13)
+agente_responsable: Staff Fiscal
+tipo: Entregable nuevo
+subtipo: UBL NC/ND paridad e-beta + sendBill 07 + D1 honesto
+relacion: amplia
+referencias_entradas: [0450, 0459]
+referencias_documentales: [docs/ops/fl-fiscal-live-qg.md, docs/ops/xades-bes-qg.md, docs/ops/pending-batches.yaml, docs/roadmap/fase-fiscal-live.md, scripts/staff/sign-only-cpe.mjs, scripts/staff/seed-rosa-negra-nc-07-ebeta-accepted.sql]
+prev_id: 0459
+prev_hash: eaa9678024cfe35b1a7f49d87837a843eec30a3bdf526084e0490cd878a7fe0b
+entry_hash: 93b8020bba3933a2501fe8a643c0d10f868520e02c736afe74644dc545cc244a
+ticket_or_adr: ADR-FISCAL-007
+test_ids: [packages/domain-fiscal-pe/src/ubl-credit-note.test.ts, packages/domain-fiscal-pe/src/ubl-debit-note.test.ts, packages/domain-fiscal-pe/src/ubl-invoice.test.ts, packages/adapters-d1/src/fiscal-xml-producer.test.ts, SUITE, V-13]
+entregable_afectado: Arquitectura §5.2 · §8 · e-beta Rosa Negra NC 07
+descripcion: >
+  Anulación de 01 abiertas en e-beta con NC 07 (no NV). UBL NC/ND al listón
+  del 01: ProfileID 0101, typeCode con listAgencyName, BillingReference
+  DocumentTypeCode 01, TaxSubtotal cabecera, CustomizationID 2.0, Description
+  en DiscrepancyResponse (2136). Sin PaymentTerms Contado en NC/ND (3246;
+  RS 193-2020). Montos UBL unsigned (2999; corrige el signo XML de 0450).
+  sendBill FC01-11 anula F001-9 y FC01-13 anula F001-12 (cdrCode 0). No se
+  reutilizan FC01-3..10 ni FC01-12. D1: F001-12 + NC ACCEPTED; FC01
+  current_number 13. POS returns WAIT (404 FEATURE_OFF). No FEATURE_*=1 ni
+  GTM-08 ni go-live-sunat CERRADO.
+evidencia: >
+  RED: NC e-beta 2072/2136/3246/2999; tests exigían PaymentTerms Contado y
+  montos negativos.
+  GREEN: domain-fiscal-pe 161 tests; producer 9/9; CDR accepted FC01-11 y
+  FC01-13; D1 residual 0; POST /api/sales/returns 404 FEATURE_OFF.
+red_commit_sha: N/A
+red_run_id: run-red-nc-07-ebeta-ubl
+expected_failure: PaymentTerms Contado 3246; TaxableAmount negativo 2999; Description ausente 2136
+green_commit_sha: N/A
+green_run_id: run-green-nc-07-ebeta-fc01-11-13
+ancestry_verified: true
+aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
+estado_gov: EN REVISION
+estado: Vigente
+```

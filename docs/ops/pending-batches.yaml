@@ -577,7 +577,7 @@ sprints_cierre:
     gaps:
       - id: sunat-e-beta-loop
         severity: info
-        detail: "Software+beta GREEN (ledger ciclo POS Worker-firma e-beta): sendBill/sendSummary, XAdES Edge, complementary RC no re-lista boletas ACCEPTED. GTM-08 sigue PENDIENTE. Default de producto KIPUSPAY_PSE. Rosa Negra TENANT_CERT + SOAP e-beta (ADR-FISCAL-007). No reenviar F001-8/10/11, FD01-1/2/3, FC01-1/2, B001-1/2, RC-002/003."
+        detail: "Software+beta GREEN (ledger ciclo POS Worker-firma e-beta): sendBill/sendSummary, XAdES Edge, complementary RC no re-lista boletas ACCEPTED. GTM-08 sigue PENDIENTE. Default de producto KIPUSPAY_PSE. Rosa Negra TENANT_CERT + SOAP e-beta (ADR-FISCAL-007). No reenviar F001-8/10/11/12, FD01-1/2/3, FC01-1/2/11/13, B001-1/2, RC-002/003. NC 07 e-beta FC01-11 (F001-9) y FC01-13 (F001-12) ACCEPTED; no reusar FC01-3..10 ni FC01-12."
         can_auto_fix: false
         status: closed_software
       - id: sunat-pse-ose
@@ -592,7 +592,7 @@ sprints_cierre:
         status: wait
       - id: sunat-builders-nc-nd
         severity: blocker
-        detail: "FL-3 / S15 WAIT — Builders UBL NC/ND (07/08) + producer + outbox unitario listos. CDR accepted en PSE acreditado o e-factura (no solo e-beta) bloqueado por FL-2/FL-4. Beta no cierra GTM-08."
+        detail: "FL-3 / S15 WAIT — Builders UBL NC/ND (07/08) + producer + outbox unitario listos. e-beta FC01-11/13 ACCEPTED (sign-only, no canal acreditado). CDR accepted en PSE acreditado o e-factura (no solo e-beta) bloqueado por FL-2/FL-4. Beta no cierra GTM-08."
         can_auto_fix: false
         status: wait
       - id: sunat-xades-pfx

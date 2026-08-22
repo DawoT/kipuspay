@@ -156,8 +156,8 @@ Abre solo los archivos que esta tabla te señale.
 | FL-1 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 31 | sin fila de estado | — |
 | FL-2 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 40 | sin fila de estado | — |
 | FL-3 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 47 | sin fila de estado | — |
-| FL-4 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 54 | sin fila de estado | — |
-| FL-5 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 63 | sin fila de estado | — |
+| FL-4 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 55 | sin fila de estado | — |
+| FL-5 | FL | [`docs/roadmap/fase-fiscal-live.md`](docs/roadmap/fase-fiscal-live.md) | 64 | sin fila de estado | — |
 
 ## Tablas DDL → capítulo y línea
 

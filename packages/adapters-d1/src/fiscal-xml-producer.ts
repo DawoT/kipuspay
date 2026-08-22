@@ -227,8 +227,8 @@ function buildUblInput(ctx: {
 /**
  * Ops-3: arma el input UBL de NC (07) / ND (08). La NC/ND no persiste
  * `sale_items` propios (el proceso ajusta el origen); las líneas del XML se
- * construyen desde el documento ORIGEN que ajusta, con los montos de la nota.
- * Devuelve CreditNote para 07 y DebitNote para 08 (fail-closed: tipo distinto
+ * construyen desde el documento ORIGEN que ajusta, con los montos unsigned de la nota
+ * (e-beta 2999). Devuelve CreditNote para 07 y DebitNote para 08 (fail-closed:
  * no llega aquí — el caller ya clasificó el canal).
  */
 function buildAdjustmentInput(
@@ -239,11 +239,10 @@ function buildAdjustmentInput(
   kind: '07' | '08',
 ): UblCreditNoteInput | UblDebitNoteInput {
   const { issueDate, issueTime } = limaIssueDateTime(sale.issued_at_lima);
-  const sign = kind === '08' ? 1 : -1;
   const motive = sale.credit_note_motive_code ?? '01';
   const base = {
     ublVersion: '2.1' as const,
-    customizationId: '1.0' as const,
+    customizationId: '2.0' as const,
     id: documentId(sale),
     issueDate,
     issueTime,
@@ -255,10 +254,10 @@ function buildAdjustmentInput(
     customerName: sale.client_name,
     referencedDocId: documentId(referenced),
     motiveCode: motive,
-    totalTaxableCents: sign * sale.total_taxable_cents,
-    totalIgvCents: sign * sale.total_igv_cents,
-    totalIcbperCents: sign * sale.total_icbper_cents,
-    totalAmountCents: sign * sale.total_amount_cents,
+    totalTaxableCents: sale.total_taxable_cents,
+    totalIgvCents: sale.total_igv_cents,
+    totalIcbperCents: sale.total_icbper_cents,
+    totalAmountCents: sale.total_amount_cents,
   };
 
   const lines = originItems.map((item, index) => ({

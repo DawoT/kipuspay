@@ -49,6 +49,7 @@ CDR `accepted===true`. Sin URL de A este sprint permanece WAIT (no mock GREEN).
 **Referencia:** Arquitectura §5.2 · §8 · ADR-FISCAL-003
 
 Pass: `07`/`08` + RC/baja E-C con CDR accepted fuera de e-beta.
+e-beta Rosa Negra **FC01-11 / FC01-13 ACCEPTED** (sign-only) no cierra este sprint.
 `FEATURE_SALES_DEBIT_NOTE` runtime on, git 0.
 
 #### Sprint FL-4 — Pack GTM-08 y T6 opt-in (mapea S16+S14)
