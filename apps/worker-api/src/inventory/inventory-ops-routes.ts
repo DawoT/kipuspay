@@ -300,9 +300,7 @@ export async function runSubmitCountReviewHttp(
     // La forma (productId/qty) ya fue validada fail-closed arriba: aquí solo
     // queda la validación que DEPENDE del estado en D1 (stock, seriales, PMP).
     lines = await Promise.all(
-      shapedLines.map(
-        // eslint-disable-next-line complexity -- serial + aggregate authority validation
-        async ({ line, productId, countedMicrounits }) => {
+      shapedLines.map(async ({ line, productId, countedMicrounits }) => {
           const requestedLocationId = line.locationId?.trim() || null;
           const authority = await env
             .DB!.prepare(
