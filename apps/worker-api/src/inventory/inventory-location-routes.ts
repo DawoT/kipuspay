@@ -8,6 +8,10 @@ import {
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryLocationsEnabled } from '../auth/features.js';
+import {
+  parseMicrounitsInput,
+  type MicrounitsParser,
+} from '../http/microunits-input.js';
 
 export { isInventoryLocationsEnabled };
 
@@ -191,9 +195,22 @@ export async function runInventoryLocationTransferHttp(
   userId: string,
   role: string | undefined,
   body: Record<string, unknown>,
+  parseMicrounits: MicrounitsParser = parseMicrounitsInput,
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role, true);
   if (denied) return denied;
+  // Validación tipada fail-closed (V-21): sin coerción Number(); un helper
+  // inyectado que lanza también cae al 400 estable, con D1 intacto.
+  let quantityMicrounits: number;
+  try {
+    const parsed = parseMicrounits(body.quantityMicrounits);
+    if (!parsed.ok) {
+      return { status: 400, body: { error: 'invalid quantityMicrounits', code: 'INVALID_MICROUNITS' } };
+    }
+    quantityMicrounits = parsed.microunits;
+  } catch {
+    return { status: 400, body: { error: 'invalid quantityMicrounits', code: 'INVALID_MICROUNITS' } };
+  }
   try {
     const result = await processInventoryLocationTransferAtomic(env!.DB!, tenantId, userId, {
       branchId: typeof body.branchId === 'string' ? body.branchId : '',
@@ -202,7 +219,7 @@ export async function runInventoryLocationTransferHttp(
         typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
       productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
-      quantityMicrounits: Number(body.quantityMicrounits),
+      quantityMicrounits,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });
@@ -217,14 +234,25 @@ export async function runInventoryLocationPickingHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
-  query: { branchId?: string; productId?: string; quantityMicrounits?: number },
+  query: { branchId?: string; productId?: string; quantityMicrounits?: unknown },
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   const productId = query.productId?.trim() ?? '';
-  const requested = query.quantityMicrounits ?? 0;
-  if (!branchId || !productId || !Number.isSafeInteger(requested) || requested <= 0) {
+  // Validación tipada fail-closed (V-21): el query string llega como texto y
+  // se convierte por aritmética de dígitos; tipos inválidos → 400 estable.
+  let requested: number;
+  try {
+    const parsed = parseMicrounitsInput(query.quantityMicrounits ?? 0);
+    if (!parsed.ok) {
+      return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
+    }
+    requested = parsed.microunits;
+  } catch {
+    return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
+  }
+  if (!branchId || !productId || requested <= 0) {
     return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
   }
   const rows = await env!

@@ -12,12 +12,24 @@ import {
 import { markQuoteExpired, type QuoteStatus } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isSalesQuotesEnabled } from '../auth/features.js';
+import {
+  parseMicrounitsInput,
+  type MicrounitsParser,
+} from '../http/microunits-input.js';
 
 export { isSalesQuotesEnabled };
 
 export interface HttpResult {
   status: number;
   body: Record<string, unknown>;
+}
+
+/** 400 estable ante `*Microunits` hostiles (tipos inválidos, fail-closed). */
+function invalidMicrounits(): HttpResult {
+  return {
+    status: 400,
+    body: { error: 'invalid enteredQuantityMicrounits', code: 'INVALID_MICROUNITS' },
+  };
 }
 
 function featureOff(): HttpResult {
@@ -70,23 +82,41 @@ export async function runCreateQuoteHttp(
   tenantId: string,
   userId: string,
   body: Record<string, unknown>,
+  parseMicrounits: MicrounitsParser = parseMicrounitsInput,
 ): Promise<HttpResult> {
   if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const items = Array.isArray(body.items)
-    ? body.items.map((raw) => {
-        const item = raw as Record<string, unknown>;
-        return {
-          productId: typeof item.productId === 'string' ? item.productId : '',
-          uomId: typeof item.uomId === 'string' ? item.uomId : null,
-          enteredQuantityMicrounits: Number(item.enteredQuantityMicrounits),
-          batchId: typeof item.batchId === 'string' ? item.batchId : null,
-        };
-      })
-    : [];
+  interface QuoteItemInput {
+    productId: string;
+    uomId: string | null;
+    enteredQuantityMicrounits: number;
+    batchId: string | null;
+  }
+  const items: QuoteItemInput[] = [];
+  if (Array.isArray(body.items)) {
+    for (const raw of body.items) {
+      const item = raw as Record<string, unknown>;
+      // Validación tipada fail-closed (V-21): sin coerción Number(); un
+      // helper inyectado que lanza también cae al 400 estable.
+      let enteredQuantityMicrounits: number;
+      try {
+        const parsed = parseMicrounits(item.enteredQuantityMicrounits);
+        if (!parsed.ok) return invalidMicrounits();
+        enteredQuantityMicrounits = parsed.microunits;
+      } catch {
+        return invalidMicrounits();
+      }
+      items.push({
+        productId: typeof item.productId === 'string' ? item.productId : '',
+        uomId: typeof item.uomId === 'string' ? item.uomId : null,
+        enteredQuantityMicrounits,
+        batchId: typeof item.batchId === 'string' ? item.batchId : null,
+      });
+    }
+  }
   if (!branchId || items.length === 0) {
     return { status: 400, body: { error: 'branchId and items required', code: 'BAD_REQUEST' } };
   }
