@@ -54,7 +54,12 @@ export function restoreTableOrder(input: TopoInput): readonly string[] {
     let progressed = false;
     for (const table of remaining) {
       const depends = input.foreignKeys
-        .filter((fk) => fk.table === table && remaining.has(fk.parentTable))
+        // Auto-referencia (p. ej. price_label_batches.reprint_of_batch_id) no es
+        // dependencia entre tablas: contarla declaraba un ciclo falso.
+        .filter(
+          (fk) =>
+            fk.table === table && fk.parentTable !== table && remaining.has(fk.parentTable),
+        )
         .map((fk) => fk.parentTable);
       if (depends.length === 0) {
         order.push(table);

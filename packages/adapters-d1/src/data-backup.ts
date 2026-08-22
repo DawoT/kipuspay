@@ -441,7 +441,7 @@ export function createBackupSnapshotReader(dependencies: SnapshotReaderDependenc
   };
 }
 
-interface RestoreColumn {
+export interface RestoreColumn {
   readonly type: string;
   readonly notNull: boolean;
 }
@@ -469,7 +469,7 @@ interface RestoreSchema {
   readonly tables: Readonly<Record<string, RestoreSchemaTable>>;
 }
 
-interface RestoreAuditRow {
+export interface RestoreAuditRow {
   readonly id: string;
   readonly prevHash: string | null;
   readonly rowHash: string;
@@ -548,7 +548,7 @@ function compareRestoreKey(left: BackupRow, right: BackupRow, columns: readonly 
   return restoreKey(left, columns).localeCompare(restoreKey(right, columns));
 }
 
-function validateRestoreValue(
+export function validateRestoreValue(
   table: string,
   row: BackupRow,
   columns: Readonly<Record<string, RestoreColumn>>,
@@ -560,10 +560,16 @@ function validateRestoreValue(
     }
     if (value === null || value === undefined) continue;
     const type = definition.type.toUpperCase();
+    // BOOLEAN se almacena como entero 0/1 en SQLite (convención del DDL propio);
+    // tratarlo como string rompía la restauración DR de toda tabla con booleanos.
+    const numeric = type.includes('INT') || type === 'BOOLEAN';
     const valid =
-      (type.includes('INT') && typeof value === 'number' && Number.isSafeInteger(value)) ||
+      (numeric &&
+        typeof value === 'number' &&
+        Number.isSafeInteger(value) &&
+        (type !== 'BOOLEAN' || value === 0 || value === 1)) ||
       (type.includes('BLOB') && typeof value === 'string') ||
-      (!type.includes('INT') && !type.includes('BLOB') && typeof value === 'string');
+      (!numeric && !type.includes('BLOB') && typeof value === 'string');
     if (!valid) throw codedError('BACKUP_TYPE_INVALID', { table, column: name });
   }
 }
@@ -589,17 +595,64 @@ function validateRestoreCheck(table: string, row: BackupRow, check: RestoreCheck
   if (!valid) throw codedError('BACKUP_CHECK_FAILED', { table, column: check.column });
 }
 
-async function verifyRestoreAuditChain(rows: AsyncIterable<RestoreAuditRow>): Promise<void> {
-  let previous: string | null = null;
+export async function verifyRestoreAuditChain(rows: AsyncIterable<RestoreAuditRow>): Promise<{
+  forks: number;
+}> {
+  // La cadena de auditoría se valida como DAG alcanzable desde el génesis
+  // (prev_hash NULL), siguiendo los enlaces prev→row. NO se asume orden total:
+  // escritores concurrentes pueden producir forks legítimos (dos hijos del mismo
+  // prev) — se cuentan y reportan, no bloquean. SÍ es fail-closed: filas
+  // desconectadas (huérfanas), ausencia de génesis, ids duplicados, formato
+  // no-hex y divergencia de hash canónico.
+  const byPrev = new Map<string, RestoreAuditRow[]>();
+  let genesis: RestoreAuditRow | null = null;
+  let total = 0;
+  const seenRowIds = new Set<string>();
   for await (const row of rows) {
+    if (seenRowIds.has(row.id)) {
+      throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
+    }
+    seenRowIds.add(row.id);
+    if (!/^[0-9a-f]{64}$/.test(row.rowHash ?? '')) {
+      throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
+    }
     if (
-      row.prevHash !== previous ||
-      (row.canonicalBytes && (await restoreSha256(row.canonicalBytes)) !== row.rowHash)
+      row.canonicalBytes &&
+      (await restoreSha256(row.canonicalBytes)) !== row.rowHash
     ) {
       throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
     }
-    previous = row.rowHash;
+    total += 1;
+    if (row.prevHash === null || row.prevHash === undefined) {
+      if (genesis !== null) {
+        throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
+      }
+      genesis = row;
+      continue;
+    }
+    const bucket = byPrev.get(row.prevHash) ?? [];
+    bucket.push(row);
+    byPrev.set(row.prevHash, bucket);
   }
+  if (total === 0) return { forks: 0 };
+  if (genesis === null) {
+    throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: 'genesis' });
+  }
+  let walked = 0;
+  let forks = 0;
+  const stack: RestoreAuditRow[] = [genesis];
+  while (stack.length > 0) {
+    const current = stack.pop() as RestoreAuditRow;
+    walked += 1;
+    const next: readonly RestoreAuditRow[] = byPrev.get(current.rowHash) ?? [];
+    if (next.length > 1) forks += next.length - 1;
+    byPrev.delete(current.rowHash);
+    for (const child of next) stack.push(child);
+  }
+  if (walked !== total || byPrev.size > 0) {
+    throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: 'disconnected' });
+  }
+  return { forks };
 }
 
 /**

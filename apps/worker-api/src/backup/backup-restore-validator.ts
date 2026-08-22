@@ -434,14 +434,15 @@ function verificationInput(input: {
     readReferencedObject: input.readReferencedObject,
     readAuditRows: async function* () {
       await Promise.resolve();
-      let previous: string | null = null;
       for (const row of input.orderedAudit) {
-        const prevHash = typeof row.prev_hash === 'string' ? row.prev_hash : null;
+        const prevHash = typeof row.prev_hash === 'string' && row.prev_hash !== '' ? row.prev_hash : null;
         const rowHash = typeof row.row_hash === 'string' ? row.row_hash : '';
-        if (prevHash !== previous || !/^[0-9a-f]{64}$/.test(rowHash)) {
+        // Solo formato aquí: la estructura de la cadena (génesis + enlaces
+        // prev→row, independiente del orden de filas) la valida íntegramente
+        // verifyRestoreAuditChain en el motor.
+        if (!/^[0-9a-f]{64}$/.test(rowHash)) {
           throw codedError('BACKUP_AUDIT_CHAIN_INVALID');
         }
-        previous = rowHash;
         yield { id: String(row.id), prevHash, rowHash };
       }
     },

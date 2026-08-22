@@ -108,6 +108,23 @@ describe('platform.dr restore apply (Sprint 48)', () => {
     expect(order.indexOf('branches')).toBeLessThan(order.indexOf('sales'));
   });
 
+  it('autoreferencia (price_label_batches.reprint_of_batch_id) no es un ciclo', () => {
+    // Caso real staging: reprint_of_batch_id REFERENCES la misma tabla; el topo
+    // debe ignorar auto-aristas, no declarar ciclo inexistente.
+    expect(() =>
+      restoreTableOrder({
+        rowsByTable: new Map([
+          ['tenants', []],
+          ['price_label_batches', []],
+        ]),
+        foreignKeys: [
+          { table: 'price_label_batches', parentTable: 'tenants' },
+          { table: 'price_label_batches', parentTable: 'price_label_batches' },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
   it('restoreTableOrder falla cerrado ante ciclo de FKs', () => {
     expect(() =>
       restoreTableOrder({

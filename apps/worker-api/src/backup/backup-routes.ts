@@ -1,5 +1,9 @@
 import type { BackupKmsBinding } from './backup-workflow.js';
-import { appendBackupAudit, runRestoreDryRunAudited } from '@kipuspay/adapters-d1';
+import {
+  appendBackupAudit,
+  runRestoreDryRunAudited,
+  D1_BACKUP_REGISTRY_VERSION,
+} from '@kipuspay/adapters-d1';
 import { decryptKpbk1Unit } from '@kipuspay/domain-integrations';
 import { safeBackupErrorCode } from './backup-errors.js';
 import { safeRestoreValidationError, validateReadyBackup } from './backup-restore-validator.js';
@@ -206,10 +210,10 @@ export async function runCreateBackupHttp(
       `INSERT INTO data_backups (
            id, tenant_id, idempotency_key, format_version, registry_version,
            schema_version, snapshot_epoch, status, created_by_user_id, expires_at
-         ) VALUES (?, ?, ?, 'KPBK1', 'd1-s42-v1', '0035', 0, 'PENDING', ?,
+         ) VALUES (?, ?, ?, 'KPBK1', ?, '0035', 0, 'PENDING', ?,
                    datetime('now', '+7 days'))`,
     )
-      .bind(backupId, actor.tenantId, key, actor.userId)
+      .bind(backupId, actor.tenantId, key, D1_BACKUP_REGISTRY_VERSION, actor.userId)
       .run();
     await appendBackupAudit(env.DB, {
       tenantId: actor.tenantId,

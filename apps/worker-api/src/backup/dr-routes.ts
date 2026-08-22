@@ -267,9 +267,13 @@ async function executeDrSimulation(
       const mismatch = (cause as { mismatch?: unknown }).mismatch;
       const expected = (cause as { expected?: unknown }).expected;
       const actual = (cause as { actual?: unknown }).actual;
+      const table = (cause as { table?: unknown }).table;
+      const column = (cause as { column?: unknown }).column;
       if (typeof mismatch === 'string') detailPayload.mismatch = mismatch;
       if (typeof expected === 'string') detailPayload.expected = expected;
       if (typeof actual === 'string') detailPayload.actual = actual;
+      if (typeof table === 'string') detailPayload.table = table;
+      if (typeof column === 'string') detailPayload.column = column;
     }
     await audit('DR_SIMULATION_FAILED', detailPayload);
     return result(422, {
