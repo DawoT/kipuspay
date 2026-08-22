@@ -25,6 +25,10 @@
     caption,
   }: Props = $props();
 
+  // Captura inicial intencional: el prop solo fija la pose de arranque del demo;
+  // triggerCheckout() reasigna el estado localmente, por eso $derived no aplica.
+  // Los padres pasan literales estaticos del contenido: el prop nunca muta.
+  // svelte-ignore state_referenced_locally
   let activeSyncState = $state<'pending' | 'synced'>(initialSyncState);
   let isCharging = $state(false);
 
