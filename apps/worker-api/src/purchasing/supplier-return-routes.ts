@@ -7,6 +7,10 @@ import {
   processSupplierReturnCreateAtomic,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import {
+  parseQuantityMicrounits,
+  type MicrounitParseErrorName,
+} from '../http/money-input.js';
 
 export function isPurchasingReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_RETURNS === '1' || env?.FEATURE_PURCHASING_RETURNS === 'true';
@@ -66,6 +70,42 @@ function opts(env: WorkerEnv | undefined) {
   };
 }
 
+/** Fila de devolución ya validada tipada (US-01): cantidad entera positiva exacta. */
+interface ParsedReturnItem {
+  productId: string;
+  enteredQuantityMicrounits: number;
+  uomId: string | null;
+  batchId: string | null;
+}
+
+/**
+ * US-01: parsea las filas tipado fail-closed — Number() silencioso convertía
+ * []/null→0 y true→1 y el valor coaccionado llegaba directo a la atómica.
+ * Devuelve {ok:false,errorName} ante un tipo hostil (la ruta responde 400
+ * estable sin llamar la atómica). Se conserva la semántica original: las filas
+ * sin productId se descartan antes de validar (jamás llegaron a D1).
+ */
+function parseSupplierReturnItems(
+  value: unknown,
+): { ok: true; items: ParsedReturnItem[] } | { ok: false; errorName: MicrounitParseErrorName } {
+  if (!Array.isArray(value)) return { ok: true, items: [] };
+  const items: ParsedReturnItem[] = [];
+  for (const raw of value) {
+    const row = raw as Record<string, unknown>;
+    const productId = typeof row.productId === 'string' ? row.productId : '';
+    if (productId.length === 0) continue;
+    const quantity = parseQuantityMicrounits(row.enteredQuantityMicrounits);
+    if (!quantity.ok) return { ok: false, errorName: quantity.errorName };
+    items.push({
+      productId,
+      enteredQuantityMicrounits: quantity.microunits,
+      uomId: typeof row.uomId === 'string' ? row.uomId : null,
+      batchId: typeof row.batchId === 'string' ? row.batchId : null,
+    });
+  }
+  return { ok: true, items };
+}
+
 export async function runCreateSupplierReturnHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -80,19 +120,11 @@ export async function runCreateSupplierReturnHttp(
   const purchaseReceiptId =
     typeof body.purchaseReceiptId === 'string' ? body.purchaseReceiptId : '';
   const reason = typeof body.reason === 'string' ? body.reason : '';
-  const items = Array.isArray(body.items)
-    ? body.items
-        .map((raw) => {
-          const row = raw as Record<string, unknown>;
-          return {
-            productId: typeof row.productId === 'string' ? row.productId : '',
-            enteredQuantityMicrounits: Number(row.enteredQuantityMicrounits),
-            uomId: typeof row.uomId === 'string' ? row.uomId : null,
-            batchId: typeof row.batchId === 'string' ? row.batchId : null,
-          };
-        })
-        .filter((l) => l.productId.length > 0)
-    : [];
+  const parsed = parseSupplierReturnItems(body.items);
+  if (!parsed.ok) {
+    return { status: 400, body: { error: parsed.errorName, code: parsed.errorName } };
+  }
+  const items = parsed.items;
   if (!purchaseReceiptId || items.length === 0) {
     return {
       status: 400,

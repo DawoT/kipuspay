@@ -1872,7 +1872,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runInventoryLocationPickingHttp(c.env, jwt?.tenantId ?? '', user?.role, {
       branchId: c.req.query('branchId') ?? '',
       productId: c.req.query('productId') ?? '',
-      quantityMicrounits: Number(c.req.query('quantityMicrounits') ?? 0),
+      // US-01: texto crudo sin Number() — '0x10'/'1e3' se parsean tipado
+      // fail-closed dentro de runInventoryLocationPickingHttp (400 estable).
+      quantityMicrounits: c.req.query('quantityMicrounits'),
     });
     return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
   });

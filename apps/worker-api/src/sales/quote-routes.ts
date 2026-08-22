@@ -12,6 +12,7 @@ import {
 import { markQuoteExpired, type QuoteStatus } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isSalesQuotesEnabled } from '../auth/features.js';
+import { parseQuantityMicrounits } from '../http/money-input.js';
 
 export { isSalesQuotesEnabled };
 
@@ -76,17 +77,30 @@ export async function runCreateQuoteHttp(
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
-  const items = Array.isArray(body.items)
-    ? body.items.map((raw) => {
-        const item = raw as Record<string, unknown>;
-        return {
-          productId: typeof item.productId === 'string' ? item.productId : '',
-          uomId: typeof item.uomId === 'string' ? item.uomId : null,
-          enteredQuantityMicrounits: Number(item.enteredQuantityMicrounits),
-          batchId: typeof item.batchId === 'string' ? item.batchId : null,
-        };
-      })
-    : [];
+  // US-01: cantidad en microunits validada tipada fail-closed — Number()
+  // silencioso convertía []/null→0 y true→1 y los dejaba llegar a la atómica.
+  // Ante un tipo hostil la ruta responde 400 estable sin llamarla.
+  const items: Array<{
+    productId: string;
+    uomId: string | null;
+    enteredQuantityMicrounits: number;
+    batchId: string | null;
+  }> = [];
+  if (Array.isArray(body.items)) {
+    for (const raw of body.items) {
+      const item = raw as Record<string, unknown>;
+      const quantity = parseQuantityMicrounits(item.enteredQuantityMicrounits);
+      if (!quantity.ok) {
+        return { status: 400, body: { error: quantity.errorName, code: quantity.errorName } };
+      }
+      items.push({
+        productId: typeof item.productId === 'string' ? item.productId : '',
+        uomId: typeof item.uomId === 'string' ? item.uomId : null,
+        enteredQuantityMicrounits: quantity.microunits,
+        batchId: typeof item.batchId === 'string' ? item.batchId : null,
+      });
+    }
+  }
   if (!branchId || items.length === 0) {
     return { status: 400, body: { error: 'branchId and items required', code: 'BAD_REQUEST' } };
   }

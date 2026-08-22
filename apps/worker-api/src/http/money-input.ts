@@ -122,3 +122,70 @@ function digitsToSafeInt(digits: string): number | null {
   }
   return acc;
 }
+
+/**
+ * Motivos estables de rechazo de una cantidad en microunits (US-01):
+ * - `INVALID_QUANTITY`: tipo hostil (booleano/array/null/objeto) o texto no
+ *   canónico ('0x10', '1e3', '+5', '007', '1.5', '') — exactamente los insumos
+ *   que Number() silenciaba ([]→0, true→1, '0x10'→16);
+ * - `QUANTITY_OUT_OF_RANGE`: parseable como entero pero fuera del dominio
+ *   válido 1..MAX_SAFE_INTEGER (0, negativos, NaN, ±Infinity, float).
+ */
+export type MicrounitParseErrorName = 'INVALID_QUANTITY' | 'QUANTITY_OUT_OF_RANGE';
+
+/** Resultado discriminado de parseQuantityMicrounits (US-01). */
+export type MicrounitParseResult =
+  | { ok: true; microunits: number }
+  | { ok: false; errorName: MicrounitParseErrorName };
+
+/**
+ * ¿Es un conteo canónico US-01: '0' o [1-9]\d* sin ceros a la izquierda?
+ * Verificación carácter a carácter (misma disciplina sin regex/float que
+ * digitsToSafeInt): rechaza '', '+5', '-1', ' 5', '007', '1e3', '0x10' y
+ * cualquier dígito no-ASCII.
+ */
+function isCanonicalCount(trimmed: string): boolean {
+  if (trimmed === '0') return true;
+  const first = trimmed.charCodeAt(0) - 48;
+  if (trimmed.length === 0 || first < 1 || first > 9) return false;
+  for (let i = 1; i < trimmed.length; i++) {
+    const d = trimmed.charCodeAt(i) - 48;
+    if (d < 0 || d > 9) return false;
+  }
+  return true;
+}
+
+/**
+ * Cantidad entera positiva en microunits sin coerción (US-01, V-21): fail-closed
+ * ante tipos hostiles — number entero seguro > 0 pasa tal cual (sin drift:
+ * MAX_SAFE_INTEGER se preserva bit a bit); string decimal canónico se convierte
+ * por aritmética de dígitos (jamás parseFloat/Number, así '0x10'/'1e3'/'+5' son
+ * INVALID_QUANTITY y no cantidades silenciosas); cualquier otro tipo, o un
+ * entero fuera de 1..MAX_SAFE_INTEGER, es rechazo con motivo estable. La ruta
+ * responde 400 ANTES de tocar D1: ninguna escritura consume idempotencyKey con
+ * una cantidad que el cliente nunca envió.
+ */
+export function parseQuantityMicrounits(value: unknown): MicrounitParseResult {
+  if (typeof value === 'number') {
+    // Cubre NaN/±Infinity/no-enteros/0/negativos/-0: el isSafeInteger de la
+    // capa atómica aceptaba 0 y 1 (true→1) porque solo valida rango, no dominio.
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      return { ok: false, errorName: 'QUANTITY_OUT_OF_RANGE' };
+    }
+    return { ok: true, microunits: value };
+  }
+  if (typeof value === 'string') {
+    // Los query params llegan como texto: misma gramática estricta del dinero
+    // (US-06) sin signo — '0x10'→16 pasaba el isSafeInteger posterior.
+    const trimmed = value.trim();
+    if (!isCanonicalCount(trimmed)) {
+      return { ok: false, errorName: 'INVALID_QUANTITY' };
+    }
+    const parsed = digitsToSafeInt(trimmed);
+    if (parsed === null || parsed <= 0) {
+      return { ok: false, errorName: 'QUANTITY_OUT_OF_RANGE' };
+    }
+    return { ok: true, microunits: parsed };
+  }
+  return { ok: false, errorName: 'INVALID_QUANTITY' };
+}

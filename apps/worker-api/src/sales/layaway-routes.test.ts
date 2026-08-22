@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { processLayawayCreateAtomic } from '@kipuspay/adapters-d1';
 import {
   isSalesLayawayEnabled,
   runCancelLayawayHttp,
@@ -187,5 +188,47 @@ describe('layaway routes', () => {
       't1',
     );
     expect(noDb.status).toBe(503);
+  });
+});
+
+describe('US-01 layaway: coerción hostil sobre enteredQuantityMicrounits (fail-closed)', () => {
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['true (Number→1)', true],
+    ['[] (Number→0)', []],
+    ["'0x10' (Number→16)", '0x10'],
+    ["'' (Number→0)", ''],
+    ['{} (Number→NaN)', {}],
+    ['0 (cantidad nula)', 0],
+    ['-1 (negativa)', -1],
+    ['1.5 (no entera)', 1.5],
+  ])('%s → 400 estable sin llamar la atómica', async (_label, hostile) => {
+    const atomic = vi.mocked(processLayawayCreateAtomic);
+    atomic.mockClear();
+    const res = await runCreateLayawayHttp(env(), 't1', 'u1', {
+      branchId: 'b1',
+      cashRegisterSessionId: 's1',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: hostile as unknown as number }],
+    });
+    expect(res.status).toBe(400);
+    expect(['INVALID_QUANTITY', 'QUANTITY_OUT_OF_RANGE']).toContain(res.body.code);
+    // El valor coaccionado jamás llega a la función atómica.
+    expect(atomic).not.toHaveBeenCalled();
+  });
+
+  it('microunits grandes pasan exactos a la atómica (sin drift de float)', async () => {
+    const atomic = vi.mocked(processLayawayCreateAtomic);
+    atomic.mockClear();
+    const big = 900_719_925_474_091;
+    const res = await runCreateLayawayHttp(env(), 't1', 'u1', {
+      branchId: 'b1',
+      cashRegisterSessionId: 's1',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: big }],
+    });
+    expect(res.status).toBe(200);
+    const call = atomic.mock.calls[0];
+    const input = call?.[3] as { items: Array<{ enteredQuantityMicrounits: number }> };
+    expect(input.items[0]?.enteredQuantityMicrounits).toBe(big);
   });
 });

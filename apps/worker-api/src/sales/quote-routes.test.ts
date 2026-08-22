@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { processQuoteCreateAtomic } from '@kipuspay/adapters-d1';
 import {
   isSalesQuotesEnabled,
   runApproveQuoteHttp,
@@ -191,5 +192,48 @@ describe('quote routes', () => {
       't1',
     );
     expect(noDb.status).toBe(503);
+  });
+});
+
+describe('US-01 quote: coerción hostil sobre enteredQuantityMicrounits (fail-closed)', () => {
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['true (Number→1)', true],
+    ['false (Number→0)', false],
+    ['[] (Number→0)', []],
+    ['[5] (Number→5)', [5]],
+    ["'0x10' (Number→16)", '0x10'],
+    ["'1e3' (Number→1000)", '1e3'],
+    ["'' (Number→0)", ''],
+    ['{} (Number→NaN)', {}],
+    ['0 (cantidad nula)', 0],
+    ['-1 (negativa)', -1],
+    ['1.5 (no entera)', 1.5],
+  ])('%s → 400 estable sin llamar la atómica', async (_label, hostile) => {
+    const atomic = vi.mocked(processQuoteCreateAtomic);
+    atomic.mockClear();
+    const res = await runCreateQuoteHttp(env(), 't1', 'u1', {
+      branchId: 'b1',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: hostile as unknown as number }],
+    });
+    expect(res.status).toBe(400);
+    expect(['INVALID_QUANTITY', 'QUANTITY_OUT_OF_RANGE']).toContain(res.body.code);
+    // Ningún statement corre con la cantidad que el cliente nunca envió.
+    expect(atomic).not.toHaveBeenCalled();
+  });
+
+  it('microunits grandes pasan exactos a la atómica (sin drift de float)', async () => {
+    const atomic = vi.mocked(processQuoteCreateAtomic);
+    atomic.mockClear();
+    const big = 900_719_925_474_091; // cerca de MAX_SAFE_INTEGER, exacto en float
+    const res = await runCreateQuoteHttp(env(), 't1', 'u1', {
+      branchId: 'b1',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: big }],
+    });
+    expect(res.status).toBe(200);
+    const call = atomic.mock.calls[0];
+    const input = call?.[3] as { items: Array<{ enteredQuantityMicrounits: number }> };
+    expect(input.items[0]?.enteredQuantityMicrounits).toBe(big);
   });
 });

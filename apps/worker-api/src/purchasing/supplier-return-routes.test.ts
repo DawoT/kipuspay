@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { processSupplierReturnCreateAtomic } from '@kipuspay/adapters-d1';
 import {
   isPurchasingReturnsEnabled,
   runCancelSupplierReturnHttp,
@@ -92,5 +93,59 @@ describe('supplier-return-routes', () => {
     const res = await runOwnerSupplierReturnsHttp(env(), 't1', 'owner');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('openReturns');
+  });
+});
+
+describe('US-01 supplier-return: coerción hostil sobre enteredQuantityMicrounits (fail-closed)', () => {
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['true (Number→1)', true],
+    ['[] (Number→0)', []],
+    ["'0x10' (Number→16)", '0x10'],
+    ["'' (Number→0)", ''],
+    ['{} (Number→NaN)', {}],
+    ['0 (cantidad nula)', 0],
+    ['-1 (negativa)', -1],
+    ['1.5 (no entera)', 1.5],
+  ])('%s → 400 estable sin llamar la atómica', async (_label, hostile) => {
+    const atomic = vi.mocked(processSupplierReturnCreateAtomic);
+    atomic.mockClear();
+    const res = await runCreateSupplierReturnHttp(env(), 't1', 'u1', {
+      purchaseReceiptId: 'r1',
+      reason: 'dañado',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: hostile as unknown as number }],
+    });
+    expect(res.status).toBe(400);
+    expect(['INVALID_QUANTITY', 'QUANTITY_OUT_OF_RANGE']).toContain(res.body.code);
+    // El valor coaccionado jamás llega a la función atómica.
+    expect(atomic).not.toHaveBeenCalled();
+  });
+
+  it('microunits grandes pasan exactos a la atómica (sin drift de float)', async () => {
+    const atomic = vi.mocked(processSupplierReturnCreateAtomic);
+    atomic.mockClear();
+    const big = 900_719_925_474_091;
+    const res = await runCreateSupplierReturnHttp(env(), 't1', 'u1', {
+      purchaseReceiptId: 'r1',
+      reason: 'dañado',
+      items: [{ productId: 'p1', enteredQuantityMicrounits: big }],
+    });
+    expect(res.status).toBe(200);
+    const call = atomic.mock.calls[0];
+    const input = call?.[3] as { items: Array<{ enteredQuantityMicrounits: number }> };
+    expect(input.items[0]?.enteredQuantityMicrounits).toBe(big);
+  });
+
+  it('filas sin productId siguen descartándose antes de validar (semántica original)', async () => {
+    const res = await runCreateSupplierReturnHttp(env(), 't1', 'u1', {
+      purchaseReceiptId: 'r1',
+      reason: 'dañado',
+      items: [{ productId: '', enteredQuantityMicrounits: true as unknown as number }],
+    });
+    // La fila hostil se descarta por productId vacío → BAD_REQUEST de items
+    // requeridos, no un falso 400 de cantidad.
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('BAD_REQUEST');
   });
 });

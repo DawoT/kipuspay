@@ -8,6 +8,7 @@ import {
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryLocationsEnabled } from '../auth/features.js';
+import { parseQuantityMicrounits } from '../http/money-input.js';
 
 export { isInventoryLocationsEnabled };
 
@@ -194,6 +195,14 @@ export async function runInventoryLocationTransferHttp(
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role, true);
   if (denied) return denied;
+  // US-01: fail-closed ANTES de la atómica — Number() silencioso convertía
+  // []/null→0 (escritura de 0 microunits consumiendo idempotencyKey) y true→1
+  // (el isSafeInteger de la capa atómica no cubre el dominio ≤ 0). Ante un
+  // tipo hostil la ruta responde 400 estable sin ejecutar ningún statement.
+  const quantity = parseQuantityMicrounits(body.quantityMicrounits);
+  if (!quantity.ok) {
+    return { status: 400, body: { error: quantity.errorName, code: quantity.errorName } };
+  }
   try {
     const result = await processInventoryLocationTransferAtomic(env!.DB!, tenantId, userId, {
       branchId: typeof body.branchId === 'string' ? body.branchId : '',
@@ -202,7 +211,7 @@ export async function runInventoryLocationTransferHttp(
         typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
       productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
-      quantityMicrounits: Number(body.quantityMicrounits),
+      quantityMicrounits: quantity.microunits,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });
@@ -217,14 +226,16 @@ export async function runInventoryLocationPickingHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
-  query: { branchId?: string; productId?: string; quantityMicrounits?: number },
+  // US-01: la cantidad llega cruda del query string (index.ts ya no coacciona
+  // con Number(), donde '0x10'→16 pasaba el isSafeInteger posterior).
+  query: { branchId?: string; productId?: string; quantityMicrounits?: unknown },
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   const productId = query.productId?.trim() ?? '';
-  const requested = query.quantityMicrounits ?? 0;
-  if (!branchId || !productId || !Number.isSafeInteger(requested) || requested <= 0) {
+  const requested = parseQuantityMicrounits(query.quantityMicrounits);
+  if (!branchId || !productId || !requested.ok) {
     return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
   }
   const rows = await env!
@@ -257,7 +268,7 @@ export async function runInventoryLocationPickingHttp(
         expiresAtIso: row.expiration_date,
         quantityMicrounits: row.quantity_microunits,
       })),
-      requested,
+      requested.microunits,
       new Date().toISOString().slice(0, 10),
     );
     return { status: 200, body: { items } };

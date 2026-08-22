@@ -5,6 +5,7 @@ import {
   parseFiniteNumber,
   parseMoneyInteger,
   parseMoneyToCents,
+  parseQuantityMicrounits,
   type MoneyParseErrorName,
 } from './money-input.js';
 
@@ -290,5 +291,75 @@ describe('parseMoneyToCents (US-06: resultado discriminado {ok,errorName})', () 
     expect(parseMoneyToCents('--5')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
     expect(parseMoneyToCents('- 5')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
     expect(parseMoneyToCents('-')).toEqual({ ok: false, errorName: 'INVALID_AMOUNT' });
+  });
+});
+
+describe('parseQuantityMicrounits (US-01: fail-closed, cero Number() silencioso)', () => {
+  it('tipos hostiles que Number() silenciaba → INVALID_QUANTITY', () => {
+    expect(parseQuantityMicrounits(true)).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+    expect(parseQuantityMicrounits(false)).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+    expect(parseQuantityMicrounits(null)).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+    expect(parseQuantityMicrounits(undefined)).toEqual({
+      ok: false,
+      errorName: 'INVALID_QUANTITY',
+    });
+    expect(parseQuantityMicrounits([])).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+    expect(parseQuantityMicrounits([5])).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+    expect(parseQuantityMicrounits({})).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+  });
+
+  it.each([
+    ['0x10 (hex → 16 con Number())', '0x10'],
+    ['1e3 (exponencial → 1000)', '1e3'],
+    ['+5 (signo explícito)', '+5'],
+    ['-1 (signo)', '-1'],
+    ['007 (cero a la izquierda)', '007'],
+    ['1.5 (decimal)', '1.5'],
+    ["'' (vacío)", ''],
+    ['"   " (blancos)', '   '],
+    ['abc', 'abc'],
+    ['１００ (dígitos full-width)', '１００'],
+  ])('texto no canónico %s → INVALID_QUANTITY', (_label, hostile) => {
+    expect(parseQuantityMicrounits(hostile)).toEqual({ ok: false, errorName: 'INVALID_QUANTITY' });
+  });
+
+  it.each([
+    ['0 (Number([])=0 pasaba el isSafeInteger atómico)', 0],
+    ['-1', -1],
+    ['-0', -0],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['1.5 (float)', 1.5],
+    ['MAX_SAFE_INTEGER + 1', Number.MAX_SAFE_INTEGER + 1],
+  ])('entero fuera del dominio 1..MAX_SAFE_INTEGER (%s) → QUANTITY_OUT_OF_RANGE', (_label, hostile) => {
+    expect(parseQuantityMicrounits(hostile)).toEqual({
+      ok: false,
+      errorName: 'QUANTITY_OUT_OF_RANGE',
+    });
+  });
+
+  it("'0' textual y dígitos sobre MAX_SAFE_INTEGER → QUANTITY_OUT_OF_RANGE", () => {
+    expect(parseQuantityMicrounits('0')).toEqual({ ok: false, errorName: 'QUANTITY_OUT_OF_RANGE' });
+    expect(parseQuantityMicrounits('9007199254740992')).toEqual({
+      ok: false,
+      errorName: 'QUANTITY_OUT_OF_RANGE',
+    });
+  });
+
+  it('acepta enteros positivos y strings decimales canónicos', () => {
+    expect(parseQuantityMicrounits(1)).toEqual({ ok: true, microunits: 1 });
+    expect(parseQuantityMicrounits(500_000)).toEqual({ ok: true, microunits: 500_000 });
+    expect(parseQuantityMicrounits('500000')).toEqual({ ok: true, microunits: 500_000 });
+    expect(parseQuantityMicrounits(' 500000 ')).toEqual({ ok: true, microunits: 500_000 });
+  });
+
+  it('exactitud en montos grandes: MAX_SAFE_INTEGER pasa bit a bit, sin drift de float', () => {
+    const big = Number.MAX_SAFE_INTEGER;
+    expect(parseQuantityMicrounits(big)).toEqual({ ok: true, microunits: big });
+    expect(parseQuantityMicrounits(String(big))).toEqual({ ok: true, microunits: big });
+    // El valor jamás se recalcula vía float: identidad exacta.
+    expect(parseQuantityMicrounits(big).ok && parseQuantityMicrounits(big).microunits === big).toBe(
+      true,
+    );
   });
 });
