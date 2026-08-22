@@ -23,6 +23,7 @@ import {
   type PreparedSerialIdentity,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { diffValueCentsExact } from '../http/exact-cents.js';
 
 export function isInventoryOpsEnabled(env: WorkerEnv | undefined): boolean {
   return (
@@ -132,6 +133,8 @@ export async function runSubmitCountReviewHttp(
     systemMicrounits: number;
     differenceMicrounits: number;
     unitCostCents: number;
+    /** US-03: costo derivado exacto (BigInt, sin drift de centavos). */
+    diffValueCents: number;
     countLineId: string;
     serials: readonly PreparedSerialIdentity[];
   }[];
@@ -194,6 +197,11 @@ export async function runSubmitCountReviewHttp(
             throw new Error('SERIAL_IDENTITY_INVALID');
           }
           const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+          const unitCostCents = authority.pmp_unit_cost_cents ?? 0;
+          // US-03: costo derivado auditado — producto exacto en BigInt con
+          // guard de rango (fail-closed); el float64 Math.round((d*u)/1e6)
+          // derivaba con drift de centavos en montos grandes.
+          const diffValueCents = diffValueCentsExact(differenceMicrounits, unitCostCents);
           return {
             productId,
             batchId: line.batchId ?? null,
@@ -201,7 +209,8 @@ export async function runSubmitCountReviewHttp(
             countedMicrounits,
             systemMicrounits: authority.quantity_microunits,
             differenceMicrounits,
-            unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+            unitCostCents,
+            diffValueCents,
             countLineId: crypto.randomUUID(),
             serials,
           };
@@ -244,7 +253,7 @@ export async function runSubmitCountReviewHttp(
             line.differenceMicrounits / 1_000_000,
             line.differenceMicrounits,
             line.unitCostCents,
-            Math.round((line.differenceMicrounits * line.unitCostCents) / 1_000_000),
+            line.diffValueCents,
           ),
       );
       for (const serial of line.serials) {
@@ -826,6 +835,14 @@ export async function runApproveStockLossHttp(
   ];
   const deltaMicrounits = Math.round(plan.adjustmentQty * 1_000_000);
   await runD1AtomicPlan(env.DB, async (atomicPlan) => {
+    // US-03 (doble aplicación concurrente): el re-chequeo de estado ya no es
+    // exclusivo del camino serial. Sin él, dos aprobaciones concurrentes de
+    // la misma merma no-serial leían ambas status='PENDING' en el preflight y
+    // cada una sumaba plan.adjustmentQty → el ajuste se aplicaba DOS veces.
+    // Ahora TODA aprobación exige, dentro del batch (Arquitectura §6), que la
+    // merma siga PENDING: el perdedor del race computa ok=0, el CHECK ok=1 de
+    // atomic_guards aborta y D1 revierte el lote completo. Las comprobaciones
+    // de suficiencia de stock siguen siendo exclusivas del camino serial.
     if (serials.length > 0) {
       atomicPlan.guardState(
         `SELECT 1 FROM stock_losses sl
@@ -842,6 +859,12 @@ export async function runApproveStockLossHttp(
                AND l.quantity_microunits >= ?
            )`,
         [lossId, tenantId, -deltaMicrounits, row.location_id, -deltaMicrounits],
+      );
+    } else {
+      atomicPlan.guardState(
+        `SELECT 1 FROM stock_losses sl
+         WHERE sl.id = ? AND sl.tenant_id = ? AND sl.status = 'PENDING'`,
+        [lossId, tenantId],
       );
     }
     for (const statement of stockLossStatements) atomicPlan.add(statement);

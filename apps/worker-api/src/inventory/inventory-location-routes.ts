@@ -8,6 +8,7 @@ import {
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryLocationsEnabled } from '../auth/features.js';
+import { microunitsErrorResult, parseMicrounits } from '../http/microunits-input.js';
 
 export { isInventoryLocationsEnabled };
 
@@ -194,6 +195,11 @@ export async function runInventoryLocationTransferHttp(
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role, true);
   if (denied) return denied;
+  // US-03: microunits con validación tipada fail-closed (un parser, cinco
+  // sitios, veredictos idénticos) — un tipo inválido es 400 estable ANTES del
+  // try, nunca una coacción Number() que degradaba el veredicto a 422.
+  const quantity = parseMicrounits(body.quantityMicrounits);
+  if (!quantity.ok) return microunitsErrorResult(quantity.errorName);
   try {
     const result = await processInventoryLocationTransferAtomic(env!.DB!, tenantId, userId, {
       branchId: typeof body.branchId === 'string' ? body.branchId : '',
@@ -202,7 +208,7 @@ export async function runInventoryLocationTransferHttp(
         typeof body.destinationLocationId === 'string' ? body.destinationLocationId : '',
       productId: typeof body.productId === 'string' ? body.productId : '',
       batchId: typeof body.batchId === 'string' ? body.batchId : null,
-      quantityMicrounits: Number(body.quantityMicrounits),
+      quantityMicrounits: quantity.microunits,
       idempotencyKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : '',
       actorIsAdminOrOwner: true,
     });
@@ -217,14 +223,23 @@ export async function runInventoryLocationPickingHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
-  query: { branchId?: string; productId?: string; quantityMicrounits?: number },
+  query: { branchId?: string; productId?: string; quantityMicrounits?: unknown },
 ): Promise<HttpResult> {
   const denied = gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   const productId = query.productId?.trim() ?? '';
-  const requested = query.quantityMicrounits ?? 0;
-  if (!branchId || !productId || !Number.isSafeInteger(requested) || requested <= 0) {
+  // US-03: el valor crudo del query string entra al parser canónico (un
+  // parser, cinco sitios, veredictos idénticos) — un tipo inválido es 400
+  // estable; SOLO la ausencia del parámetro (undefined) conserva el default
+  // legacy 0 (no positivo, rechazado abajo como BAD_REQUEST); null ya es un
+  // tipo inválido con el mismo veredicto que en los otros cuatro sitios.
+  const requestedParsed = parseMicrounits(
+    query.quantityMicrounits === undefined ? 0 : query.quantityMicrounits,
+  );
+  if (!requestedParsed.ok) return microunitsErrorResult(requestedParsed.errorName);
+  const requested = requestedParsed.microunits;
+  if (!branchId || !productId || requested <= 0) {
     return { status: 400, body: { error: 'invalid picking query', code: 'BAD_REQUEST' } };
   }
   const rows = await env!
