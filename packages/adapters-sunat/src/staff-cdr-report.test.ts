@@ -31,6 +31,7 @@ function soapAccepted(): string {
     ` xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"` +
     ` xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">` +
     `<cac:DocumentResponse><cac:Response>` +
+    // eslint-disable-next-line no-secrets/no-secrets -- fixture XML CDR de prueba, no es un secreto
     `<cbc:ResponseCode listAgencyName="PE:SUNAT">0</cbc:ResponseCode>` +
     `<cbc:Description>aceptada</cbc:Description>` +
     `</cac:Response></cac:DocumentResponse></ApplicationResponse>`;
