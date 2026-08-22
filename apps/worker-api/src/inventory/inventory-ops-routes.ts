@@ -46,6 +46,56 @@ function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
+/** 1 unidad = 1_000_000 microunidades (escala de cantidad del inventario). */
+const MICROS_PER_UNIT = 1_000_000;
+
+export type DiffValueCentsExact =
+  | { ok: true; valueCents: number; subCentRemainderMicroCents: number }
+  | {
+      ok: false;
+      reason: 'COUNT_INVALID_DIFFERENCE' | 'COUNT_INVALID_UNIT_COST' | 'COUNT_DIFF_VALUE_OVERFLOW';
+    };
+
+/**
+ * US-02: diff_value_cents con aritmética entera exacta y guard de rango 2^53.
+ *
+ * El producto differenceMicrounits × unitCostCents excede 2^53 mucho antes de
+ * que las entradas dejen de ser enteros seguros; en float64 el redondeo de
+ * representación desvía el monto en ≥1 centavo sin aviso (caso de prueba:
+ * (2^52+1) × 2_000_001 → float 9007203758340622 vs exacto 9007203758340620).
+ * El producto se calcula en BigInt, la división produce cociente y resto
+ * EXACTOS y el redondeo half-away-from-zero se decide sobre el resto entero:
+ * el resto sub-cent queda auditado (≠0 ⇒ hubo redondeo determinista, nunca el
+ * silencio de Math.round sobre un float). Si el resultado no cabe en un entero
+ * seguro (2^53) se falla cerrado: D1 jamás persiste un monto desviado.
+ */
+export function computeDiffValueCentsExact(
+  differenceMicrounits: number,
+  unitCostCents: number,
+): DiffValueCentsExact {
+  if (!Number.isSafeInteger(differenceMicrounits)) {
+    return { ok: false, reason: 'COUNT_INVALID_DIFFERENCE' };
+  }
+  if (!Number.isSafeInteger(unitCostCents) || unitCostCents < 0) {
+    return { ok: false, reason: 'COUNT_INVALID_UNIT_COST' };
+  }
+  const scale = BigInt(MICROS_PER_UNIT);
+  const product = BigInt(Math.abs(differenceMicrounits)) * BigInt(unitCostCents);
+  let magnitude = product / scale;
+  const remainder = product % scale;
+  if (remainder * 2n >= scale) magnitude += 1n;
+  if (differenceMicrounits < 0) magnitude = -magnitude;
+  const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+  if (magnitude > maxSafe || magnitude < -maxSafe) {
+    return { ok: false, reason: 'COUNT_DIFF_VALUE_OVERFLOW' };
+  }
+  return {
+    ok: true,
+    valueCents: Number(magnitude),
+    subCentRemainderMicroCents: Number(differenceMicrounits < 0 ? -remainder : remainder),
+  };
+}
+
 export async function runCreateInventoryCountHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -132,6 +182,10 @@ export async function runSubmitCountReviewHttp(
     systemMicrounits: number;
     differenceMicrounits: number;
     unitCostCents: number;
+    /** US-02: costo derivado EXACTO (BigInt + guard 2^53) — nunca float64. */
+    diffValueCents: number;
+    /** US-02: resto sub-cent con signo, auditado del redondeo exacto. */
+    diffValueSubCentRemainderMicroCents: number;
     countLineId: string;
     serials: readonly PreparedSerialIdentity[];
   }[];
@@ -142,8 +196,18 @@ export async function runSubmitCountReviewHttp(
         async (line) => {
           const productId = line.productId?.trim() ?? '';
           if (!productId) throw new Error('COUNT_PRODUCT_REQUIRED');
-          const countedMicrounits =
-            line.countedQtyMicrounits ?? Math.round((line.countedQty ?? 0) * 1_000_000);
+          // US-02: fail-closed ante tipos inválidos, sin coerción implícita
+          // (`"8" * 1_000_000` antes convertía un string en cantidad válida).
+          let countedMicrounits: number;
+          if (line.countedQtyMicrounits != null) {
+            countedMicrounits = line.countedQtyMicrounits;
+          } else {
+            const countedQty = line.countedQty ?? 0;
+            if (typeof countedQty !== 'number' || !Number.isFinite(countedQty)) {
+              throw new Error('COUNT_INVALID_QUANTITY');
+            }
+            countedMicrounits = Math.round(countedQty * MICROS_PER_UNIT);
+          }
           if (!Number.isSafeInteger(countedMicrounits) || countedMicrounits < 0) {
             throw new Error('COUNT_INVALID_QUANTITY');
           }
@@ -194,6 +258,11 @@ export async function runSubmitCountReviewHttp(
             throw new Error('SERIAL_IDENTITY_INVALID');
           }
           const differenceMicrounits = countedMicrounits - authority.quantity_microunits;
+          const unitCostCents = authority.pmp_unit_cost_cents ?? 0;
+          // US-02: el costo derivado se computa exacto y con guard de rango
+          // ANTES del plan atómico — overflow 2^53 ⇒ error fail-closed estable.
+          const diffValue = computeDiffValueCentsExact(differenceMicrounits, unitCostCents);
+          if (!diffValue.ok) throw new Error(diffValue.reason);
           return {
             productId,
             batchId: line.batchId ?? null,
@@ -201,7 +270,9 @@ export async function runSubmitCountReviewHttp(
             countedMicrounits,
             systemMicrounits: authority.quantity_microunits,
             differenceMicrounits,
-            unitCostCents: authority.pmp_unit_cost_cents ?? 0,
+            unitCostCents,
+            diffValueCents: diffValue.valueCents,
+            diffValueSubCentRemainderMicroCents: diffValue.subCentRemainderMicroCents,
             countLineId: crypto.randomUUID(),
             serials,
           };
@@ -244,7 +315,9 @@ export async function runSubmitCountReviewHttp(
             line.differenceMicrounits / 1_000_000,
             line.differenceMicrounits,
             line.unitCostCents,
-            Math.round((line.differenceMicrounits * line.unitCostCents) / 1_000_000),
+            // US-02: valor EXACTO de computeDiffValueCentsExact — el producto
+            // float64 anterior desviaba ≥1 centavo con productos > 2^53.
+            line.diffValueCents,
           ),
       );
       for (const serial of line.serials) {
@@ -267,9 +340,18 @@ export async function runSubmitCountReviewHttp(
         .bind(countId, tenantId),
     );
   });
+  // US-02: auditoría del redondeo — cuántas líneas tuvieron resto sub-cent.
+  const subCentRoundedLineCount = lines.filter(
+    (line) => line.diffValueSubCentRemainderMicroCents !== 0,
+  ).length;
   return {
     status: 200,
-    body: { id: countId, status: 'DIFFERENCE_REVIEW', lineCount: lines.length },
+    body: {
+      id: countId,
+      status: 'DIFFERENCE_REVIEW',
+      lineCount: lines.length,
+      subCentRoundedLineCount,
+    },
   };
 }
 

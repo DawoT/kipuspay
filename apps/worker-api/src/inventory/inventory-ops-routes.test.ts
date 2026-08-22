@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  computeDiffValueCentsExact,
   isInventoryOpsEnabled,
   runApproveCountHttp,
   runApproveStockLossHttp,
@@ -846,5 +847,158 @@ describe('S39-H1: authz de conteos y mermas', () => {
     // El INSERT usa el umbral de la política (2000), no el del cliente.
     const insertBind = binds.find((b) => b.length >= 5 && b[4] === 2000);
     expect(insertBind).toBeDefined();
+  });
+});
+
+describe('US-02: diff_value_cents con aritmética entera exacta y guard 2^53', () => {
+  it('helper: producto > 2^53 exacto donde float64 desvía ≥1 centavo', () => {
+    // (2^51+1) × 999_983: producto de 71 bits supera 2^53 y Math.round sobre
+    // float64 da …417 (+1 centavo); el exacto es …416 y cabe en entero seguro.
+    expect(Math.round((2_251_799_813_685_249 * 999_983) / 1_000_000)).toBe(2_251_761_533_088_417);
+    expect(computeDiffValueCentsExact(2_251_799_813_685_249, 999_983)).toMatchObject({
+      ok: true,
+      valueCents: 2_251_761_533_088_416,
+      subCentRemainderMicroCents: 350_767,
+    });
+  });
+
+  it('helper: resto sub-cent auditado, redondeo half-away-from-zero exacto', () => {
+    expect(computeDiffValueCentsExact(1, 500_000)).toMatchObject({
+      ok: true,
+      valueCents: 1,
+      subCentRemainderMicroCents: 500_000,
+    });
+    // El viejo Math.round(-0.5) → -0 perdía el centavo hacia +Infinito.
+    expect(computeDiffValueCentsExact(-1, 500_000)).toMatchObject({
+      ok: true,
+      valueCents: -1,
+      subCentRemainderMicroCents: -500_000,
+    });
+    expect(computeDiffValueCentsExact(3, 1_000_000)).toMatchObject({
+      ok: true,
+      valueCents: 3,
+      subCentRemainderMicroCents: 0,
+    });
+    // Monto grande negativo: exactitud simétrica contra ground-truth BigInt.
+    const d = -2_251_799_813_685_249;
+    const expected = Number((BigInt(d) * 999_983n) / 1_000_000n);
+    expect(computeDiffValueCentsExact(d, 999_983)).toMatchObject({
+      ok: true,
+      valueCents: expected,
+      subCentRemainderMicroCents: -350_767,
+    });
+  });
+
+  it('helper: guard de rango 2^53 → fail-closed COUNT_DIFF_VALUE_OVERFLOW', () => {
+    // 1e13 × 1e9 microunidades·cents ⇒ 1e16 cents > MAX_SAFE_INTEGER.
+    expect(computeDiffValueCentsExact(10_000_000_000_000, 1_000_000_000)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_DIFF_VALUE_OVERFLOW',
+    });
+    expect(computeDiffValueCentsExact(-10_000_000_000_000, 1_000_000_000)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_DIFF_VALUE_OVERFLOW',
+    });
+  });
+
+  it('helper: tipos inválidos fail-closed (sin coerción)', () => {
+    expect(computeDiffValueCentsExact('9' as unknown as number, 100)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_INVALID_DIFFERENCE',
+    });
+    expect(computeDiffValueCentsExact(Number.NaN, 100)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_INVALID_DIFFERENCE',
+    });
+    expect(computeDiffValueCentsExact(1_000_000, -5)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_INVALID_UNIT_COST',
+    });
+    expect(computeDiffValueCentsExact(1_000_000, 2.5)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_INVALID_UNIT_COST',
+    });
+    expect(computeDiffValueCentsExact(1_000_000, '100' as unknown as number)).toMatchObject({
+      ok: false,
+      reason: 'COUNT_INVALID_UNIT_COST',
+    });
+  });
+
+  it('route: countedQty tipo string → 422 estable COUNT_INVALID_QUANTITY', async () => {
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : { quantity_microunits: 0, pmp_unit_cost_cents: 100, location_id: 'loc-1' },
+      }),
+      't1',
+      'owner',
+      { countId: 'c1', lines: [{ productId: 'p1', countedQty: '8' as unknown as number }] },
+    );
+    expect(res).toMatchObject({ status: 422, body: { code: 'COUNT_INVALID_QUANTITY' } });
+  });
+
+  it('route: countedQtyMicrounits flotante → 422 estable COUNT_INVALID_QUANTITY', async () => {
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : { quantity_microunits: 0, pmp_unit_cost_cents: 100, location_id: 'loc-1' },
+      }),
+      't1',
+      'owner',
+      { countId: 'c1', lines: [{ productId: 'p1', countedQtyMicrounits: 1.5 }] },
+    );
+    expect(res).toMatchObject({ status: 422, body: { code: 'COUNT_INVALID_QUANTITY' } });
+  });
+
+  it('route: persiste diff_value_cents EXACTO con producto > 2^53 (no el float)', async () => {
+    const binds: unknown[][] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        binds,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 0,
+                pmp_unit_cost_cents: 999_983,
+                location_id: 'loc-1',
+              },
+      }),
+      't1',
+      'owner',
+      { countId: 'c1', lines: [{ productId: 'p1', countedQtyMicrounits: 2_251_799_813_685_249 }] },
+    );
+    expect(res.status).toBe(200);
+    // El producto tiene resto sub-cent ⇒ la línea queda auditada en la respuesta.
+    expect(res.body.subCentRoundedLineCount).toBe(1);
+    expect(binds.flat()).toContain(2_251_761_533_088_416);
+    // El valor desviado por float64 jamás se persiste.
+    expect(binds.flat()).not.toContain(2_251_761_533_088_417);
+  });
+
+  it('route: overflow 2^53 → 422 estable COUNT_DIFF_VALUE_OVERFLOW sin INSERT', async () => {
+    const sqls: string[] = [];
+    const res = await runSubmitCountReviewHttp(
+      mockDbEnv({
+        sqls,
+        first: (sql) =>
+          sql.includes('FROM inventory_counts')
+            ? { status: 'COUNTING', branch_id: 'b1' }
+            : {
+                quantity_microunits: 0,
+                pmp_unit_cost_cents: 1_000_000_000,
+                location_id: 'loc-1',
+              },
+      }),
+      't1',
+      'owner',
+      { countId: 'c1', lines: [{ productId: 'p1', countedQtyMicrounits: 10_000_000_000_000 }] },
+    );
+    expect(res).toMatchObject({ status: 422, body: { code: 'COUNT_DIFF_VALUE_OVERFLOW' } });
+    expect(sqls.some((sql) => sql.includes('INSERT INTO inventory_count_lines'))).toBe(false);
   });
 });
