@@ -193,3 +193,54 @@ aprobaciones: ["A: Staff Principal (lente aprobador)", "V: Staff Verifier (smoke
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0005
+timestamp_utc: 2026-08-22T23:20:00Z
+schema_version: 2
+sprint_fase: Transversal — Fase B (S48 DR-sim)
+agente_responsable: Staff Principal (supervisor); ejecución delegada a Kipus SRE (subagente general bajo doctrina .opencode/agents/kipus-sre.md)
+tipo: Entregable nuevo
+subtipo: Primer simulacro DR end-to-end live + 4 fixes de motor
+relacion: amplía
+referencias_entradas: [0003, 0004]
+referencias_documentales: ["docs/ops/pending-batches.yaml", "docs/architecture/06-acid-engine.md"]
+prev_id: 0004
+prev_hash: d5146524b4d22e0bfbf806357b4db09078df86510ca60d940f1256848f0b73bf
+entry_hash: 310d487285813855e148e51879ced0c374986946d32c6d4bcfca09a4dea973d2
+ticket_or_adr: Fase B del plan aprobado por owner
+test_ids: [adapters-d1 data-backup.restore-validate.test.ts (10), adapters-d1 427, worker-api 1352, SUITE]
+entregable_afectado: packages/adapters-d1/src/data-backup.ts · dr-restore.ts · apps/worker-api/src/backup/backup-routes.ts · backup-restore-validator.ts · dr-routes.ts · apps/worker-api/wrangler.jsonc (flags staging)
+descripcion: >
+  Delegación supervisada: Kipus SRE aplicó migraciones 0057/0058 en ambas D1 y
+  diagnosticó el bloqueo real (credenciales owner). El supervisor completó vía
+  camino legítimo del repo (mint-owner-jwt): rotación de AUTH_JWT_HS_SECRET
+  (material en ops local) y secuencia completa backup→step-up→simulation.
+  Cuatro defectos reales descubiertos por los checks fail-closed y corregidos
+  con RED/GREEN: (1) registry_version hardcodeado d1-s42-v1 en INSERT de
+  backups — todo backup nacía obsoleto; (2) validador de restore rechazaba
+  BOOLEAN 0/1 (convención SQLite del DDL propio) — tumbaba toda tabla con
+  booleanos; (3) verificador de cadena asumía orden total — reescrito como DAG
+  desde génesis que cuenta forks de escritores concurrentes y sigue fail-closed
+  para huérfanos/doble-génesis/formato; (4) orden topológico declaraba ciclo
+  falso ante auto-referencias (price_label_batches.reprint_of_batch_id).
+  Incidente de integridad detectado y documentado: fork histórico real en
+  audit_events staging (rowids 22-23, carrera prev-read→insert) — irreparable
+  por triggers AUDIT_APPEND_ONLY (doctrina respetada; intento de UPDATE
+  bloqueado por el storage mismo) y ahora tolerado-explícito vía forks count.
+  Flags FEATURE_DATA_BACKUP/PLATFORM_DR fijados en config staging (los deploys
+  pisaban runtime vars). Simulacro final: 111 tablas / 22 filas / RTO 84s OK /
+  RPO tx 0 OK / replay dedup OK — veredicto RPO_VIOLATION solo por ausencia de
+  rollup del día en fixture vacío. Paso restante trazado en tracker.
+evidencia: >
+  RED inicial: FEATURE_OFF → TENANT_HINT_MISMATCH → 401 firma → BACKUP_REGISTRY_STALE
+  → BACKUP_TYPE_INVALID(branches.is_active) → BACKUP_AUDIT_CHAIN_INVALID ×2 →
+  DR_RESTORE_FK_CYCLE → RPO_VIOLATION actual.
+  GREEN: worker-api 1352 tests + adapters-d1 427 + SUITE GREEN; deploys
+  b8daeebb/05fbd0fc/ee5edf0d; simulacro JSON con métricas completas registrado;
+  commits 8671077 (código) pusheado.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: checks fail-closed del propio motor + suites", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
