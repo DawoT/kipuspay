@@ -343,3 +343,49 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0008
+timestamp_utc: 2026-08-23T04:40:00Z
+schema_version: 2
+sprint_fase: Transversal — Fase M3 prevención sistémica
+agente_responsable: Staff Principal (supervisor); ejecución delegada a Kipus SRE
+tipo: Milestone de operación
+subtipo: Matriz anti-deriva + runbook de secretos + cierre 0452–0460 (LEDGER 0461)
+relacion: amplía
+referencias_entradas: [0007]
+referencias_documentales: ["docs/ops/flag-drift-audit-staging.md", "docs/runbooks/secrets-ops-material.md", "docs/PROCESS.md §8.1"]
+prev_id: 0007
+prev_hash: a14a8e1eccc92eb19d6983f4d3c42d8efc448663a19ecf863eb8c0b4080b2201
+entry_hash: e6f8651a668ff99031a8ac20e1d83bf68cc7c9ba8f5891ca4a7bcd174db2437b
+ticket_or_adr: Fase M3 del plan aprobado por owner
+test_ids: [SUITE, V-13, V-16, V-17, V-18, V-20]
+entregable_afectado: docs/ops/flag-drift-audit-staging.md · docs/runbooks/secrets-ops-material.md · docs/LEDGER.md (entrada 0461, hash f81593a8…)
+descripcion: >
+  M3 completada por Kipus SRE bajo supervisión del Staff Principal.
+  (1) Matriz de deriva: 75 vars worker-api staging + marketing + pos auditadas;
+  3 FIXED ya en HEAD (DATA_BACKUP/PLATFORM_DR/REPORTING_ROLLUPS), 1 DRIFT-RISK
+  mitigado documentado (PUSH_VAPID_PUBLIC_KEY vacía en git por decisión
+  registrada, --keep-vars protege runtime), 66 INTENTIONAL-OFF intactos,
+  cero cambios adicionales necesarios. (2) Runbook secrets-ops-material:
+  9 secretos con ubicación local, rotación exacta y procedimiento de rotación
+  ciega aprendido hoy; sin valores. (3) Auditoría 0452–0460: test_ids
+  verificados, run_ids presentes, evidencia coherente con tracker; veredicto
+  CERRAR-TAL-CUAL ×9; decisión del supervisor sobre SHAs N/A = clasificación
+  no-código aceptada (V-20 GREEN), vía CORRIGE-con-SHAs documentada. Acto del
+  supervisor: entrada 0461 en docs/LEDGER.md (tipo Cierre, cadena V-13 GREEN,
+  f81593a8…) que pasa las nueve a GOV-APROBADO colectivamente sin editar
+  originales. Desviación menor aceptada del agente: authority "operativa" no
+  existe en el gate → usó derivada/normativa según corresponda.
+evidencia: >
+  RED: clase de fallo flags-pisados sin matriz; secretos sin rastro de
+  material; 9 entradas EN REVISION desde su registro.
+  GREEN: SUITE GREEN con nuevos docs en alcance del gate (V-17/V-18 verdes);
+  spot-checks del supervisor (PUSH_VAPID vs config real; test_ids 0460
+  resuelven); V-13/V-16/V-20 verdes tras 0461.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: auditoría SRE + spot-checks supervisor", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

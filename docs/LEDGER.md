@@ -12767,3 +12767,45 @@ aprobaciones: [Staff Principal A pendiente, Staff Verifier V pendiente]
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```text
+id: 0461
+timestamp_utc: 2026-08-23T04:36:37Z
+schema_version: 2
+sprint_fase: Transversal — Gobernanza (Fase M3 del plan staff)
+agente_responsable: Staff Principal (A) con auditoría previa de Kipus SRE
+tipo: Cierre
+subtipo: Cierre RACI colectivo EN_REVISION → GOV-APROBADO (0452–0460)
+relacion: milestone
+referencias_entradas: [0452, 0453, 0454, 0455, 0456, 0457, 0458, 0459, 0460]
+referencias_documentales: ["docs/PROCESS.md §8.1", "docs/ops/pending-batches.yaml", "docs/ops/flag-drift-audit-staging.md", "docs/runbooks/secrets-ops-material.md"]
+prev_id: 0460
+prev_hash: 93b8020bba3933a2501fe8a643c0d10f868520e02c736afe74644dc545cc244a
+entry_hash: f81593a89550ba5b0e51a8f830c86ee65c2721a02de4406484f2ea56671ea6a8
+ticket_or_adr: Fase M3 del plan staff aprobado por owner
+test_ids: [V-13, V-16, V-20, SUITE]
+entregable_afectado: docs/LEDGER.md (estado gubernamental de 0452–0460)
+descripcion: >
+  Cierre RACI colectivo de las nueve entradas que permanecían EN REVISION.
+  Auditoría previa (Kipus SRE, supervisada por Staff Principal): test_ids de
+  todas resuelven a archivos existentes del monorepo; red/green_run_id
+  presentes; evidencia coherente con docs/ops/pending-batches.yaml; veredicto
+  CERRAR-TAL-CUAL en las nueve. Decisión sobre SHAs N/A: V-20 las clasifica
+  entradas no-código (evidencia ops/fiscal), CAL-07 estricto no aplica — la
+  vía CORRIGE-con-SHAs queda documentada como camino si se requiere re-clasificación.
+  Evidencia runtime adicional posterior a esas entradas y registrada en 0004–0007
+  del staff ledger de agentes: deploy-staging GREEN completo, renombre Pages,
+  DR_SIMULATION_PASSED live (gap stg-s48-dr-sim CLOSED) y anti-fork estructural
+  M1. Estado de las nueve entradas referenciadas pasa a GOV-APROBADO por este
+  acto (append-only: no se editan las originales).
+evidencia: >
+  RED: 9 entradas sin cierre RACI desde su registro (0452–0460).
+  GREEN: matriz flag-drift-audit-staging (75 vars auditadas, 0 drifts sin
+  mitigar) + runbook secrets-ops-material + spot-checks del supervisor
+  (PUSH_VAPID_PUBLIC_KEY contra config real, test_ids 0460 resuelven);
+  scripts/verify.sh RESULT SUITE GREEN con V-13/V-16/V-18/V-20 verdes.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: Staff Verifier (auditoría SRE + spot-checks supervisor)", "Caveat: mismo sistema para actos internos; liberatorios exigen humano"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
