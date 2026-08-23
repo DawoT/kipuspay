@@ -34,7 +34,11 @@ describe('validateRestoreValue: columnas BOOLEAN', () => {
         validateRestoreValue('branches', { is_active: v as unknown as number }, col('BOOLEAN')),
       ).toThrow('BACKUP_TYPE_INVALID');
       expect(() =>
-        validateRestoreValue('branches', { is_active: v as unknown as number }, col('BOOLEAN', false)),
+        validateRestoreValue(
+          'branches',
+          { is_active: v as unknown as number },
+          col('BOOLEAN', false),
+        ),
       ).not.toThrow();
     }
   });
@@ -43,12 +47,63 @@ describe('validateRestoreValue: columnas BOOLEAN', () => {
     const intCol: Readonly<Record<string, RestoreColumn>> = {
       total_amount_cents: { type: 'INTEGER', notNull: true },
     };
-    expect(() =>
-      validateRestoreValue('sales', { total_amount_cents: 1180 }, intCol),
-    ).not.toThrow();
+    expect(() => validateRestoreValue('sales', { total_amount_cents: 1180 }, intCol)).not.toThrow();
     expect(() =>
       validateRestoreValue('sales', { total_amount_cents: '1180' as unknown as number }, intCol),
     ).toThrow('BACKUP_TYPE_INVALID');
+  });
+});
+
+// RED/GREEN (S48 DR): las columnas REAL llegan del lector D1 como number
+// (JSONL solo puede contener enteros seguros); tratarlas como solo-string
+// tumbaba la restauración DR de toda tabla con REAL NOT NULL
+// (sale_items.quantity fue el primer caso real en staging).
+describe('validateRestoreValue: columnas REAL', () => {
+  const col = (type: string, notNull = true): Readonly<Record<string, RestoreColumn>> => ({
+    quantity: { type, notNull },
+  });
+
+  it('REAL acepta numbers finitos (convención del lector D1 sobre JSONL)', () => {
+    expect(() => validateRestoreValue('sale_items', { quantity: 1 }, col('REAL'))).not.toThrow();
+    expect(() =>
+      validateRestoreValue('sale_items', { quantity: Number.MAX_SAFE_INTEGER }, col('REAL')),
+    ).not.toThrow();
+  });
+
+  it('REAL rechaza strings y no-finitos (fail-closed)', () => {
+    for (const bad of ['1', '1.0', Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        validateRestoreValue('sale_items', { quantity: bad as unknown as number }, col('REAL')),
+      ).toThrow('BACKUP_TYPE_INVALID');
+    }
+  });
+
+  it('REAL NOT NULL rechaza null/undefined; nullable los acepta', () => {
+    const nulos = [null, undefined];
+    for (const v of nulos) {
+      expect(() =>
+        validateRestoreValue('sale_items', { quantity: v as unknown as number }, col('REAL')),
+      ).toThrow('BACKUP_TYPE_INVALID');
+      expect(() =>
+        validateRestoreValue(
+          'sale_items',
+          { quantity: v as unknown as number },
+          col('REAL', false),
+        ),
+      ).not.toThrow();
+    }
+  });
+
+  it('afinidades DOUB/FLOA equivalentes; TEXT sigue exigiendo string (regresión)', () => {
+    expect(() => validateRestoreValue('sale_items', { quantity: 1 }, col('DOUBLE'))).not.toThrow();
+    expect(() => validateRestoreValue('sale_items', { quantity: 1 }, col('FLOAT'))).not.toThrow();
+    const textCol: Readonly<Record<string, RestoreColumn>> = {
+      quantity: { type: 'TEXT', notNull: true },
+    };
+    expect(() => validateRestoreValue('sale_items', { quantity: '1' }, textCol)).not.toThrow();
+    expect(() => validateRestoreValue('sale_items', { quantity: 1 }, textCol)).toThrow(
+      'BACKUP_TYPE_INVALID',
+    );
   });
 });
 
@@ -63,8 +118,7 @@ describe('verifyRestoreAuditChain: orden-independiente', () => {
   const third: RestoreAuditRow = { id: 'c', prevHash: H(2), rowHash: H(3) };
   const fourth: RestoreAuditRow = { id: 'd', prevHash: H(3), rowHash: H(4) };
 
-  const rows =
-    (...list: readonly RestoreAuditRow[]) =>
+  const rows = (...list: readonly RestoreAuditRow[]) =>
     async function* (): AsyncIterable<RestoreAuditRow> {
       for (const r of list) yield r;
     };

@@ -435,7 +435,8 @@ function verificationInput(input: {
     readAuditRows: async function* () {
       await Promise.resolve();
       for (const row of input.orderedAudit) {
-        const prevHash = typeof row.prev_hash === 'string' && row.prev_hash !== '' ? row.prev_hash : null;
+        const prevHash =
+          typeof row.prev_hash === 'string' && row.prev_hash !== '' ? row.prev_hash : null;
         const rowHash = typeof row.row_hash === 'string' ? row.row_hash : '';
         // Solo formato aquí: la estructura de la cadena (génesis + enlaces
         // prev→row, independiente del orden de filas) la valida íntegramente

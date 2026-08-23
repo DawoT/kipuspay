@@ -14,6 +14,8 @@
  * verificados por verifyDrReplay.
  */
 import type { BackupRow } from '@kipuspay/domain-integrations';
+import type { D1DatabaseLike } from './index.js';
+import { isClosedReportDate, rematerializeDailyRollup } from './rollup-rematerialize.js';
 
 export const RTO_TARGET_MS = 30 * 60 * 1000;
 export const DR_BATCH_STATEMENTS = 100;
@@ -57,8 +59,7 @@ export function restoreTableOrder(input: TopoInput): readonly string[] {
         // Auto-referencia (p. ej. price_label_batches.reprint_of_batch_id) no es
         // dependencia entre tablas: contarla declaraba un ciclo falso.
         .filter(
-          (fk) =>
-            fk.table === table && fk.parentTable !== table && remaining.has(fk.parentTable),
+          (fk) => fk.table === table && fk.parentTable !== table && remaining.has(fk.parentTable),
         )
         .map((fk) => fk.parentTable);
       if (depends.length === 0) {
@@ -107,6 +108,38 @@ export async function applyRestoreRowsToShard(input: {
     }
   }
   return { tables: order.length, rowsInserted };
+}
+
+/**
+ * Reconstruye los rollups DERIVED del shard DR a partir de las ventas ya
+ * restauradas (registry: "rebuildable from authoritative business records").
+ * daily_financial_rollups no viaja en el backup, así que el simulacro debe
+ * rematerializarlos con la misma semántica del cron de producción: solo días
+ * Lima cerrados (report_date < hoy), por par (branch, día) con ventas vivas.
+ * Idempotente: DELETE+INSERT por PK dentro de rematerializeDailyRollup.
+ */
+export async function rebuildDerivedRollupsOnDrShard(input: {
+  db: D1DatabaseLike;
+  tenantId: string;
+  nowMs?: number;
+}): Promise<{ readonly reportDates: readonly string[] }> {
+  const nowMs = input.nowMs ?? Date.now();
+  const pairs = await input.db
+    .prepare(
+      `SELECT branch_id AS branchId, date(issued_at_lima) AS day
+       FROM sales
+       WHERE tenant_id = ? AND deleted_at IS NULL
+       GROUP BY branch_id, date(issued_at_lima)`,
+    )
+    .bind(input.tenantId)
+    .all<{ branchId: string; day: string | null }>();
+  const closedDays = new Set<string>();
+  for (const pair of pairs.results ?? []) {
+    if (!pair.day || !isClosedReportDate(pair.day, nowMs)) continue;
+    closedDays.add(pair.day);
+    await rematerializeDailyRollup(input.db, input.tenantId, pair.branchId, pair.day);
+  }
+  return { reportDates: [...closedDays].sort() };
 }
 
 export interface DrReplayVerification {

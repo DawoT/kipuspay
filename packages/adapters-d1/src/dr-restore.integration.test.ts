@@ -1,7 +1,12 @@
 import { env } from 'cloudflare:workers';
 import { runDrFailoverChaosScenario } from '@kipuspay/chaos-harness';
 import { describe, expect, it } from 'vitest';
-import { applyRestoreRowsToShard, restoreTableOrder, verifyDrReplay } from './dr-restore.js';
+import {
+  applyRestoreRowsToShard,
+  rebuildDerivedRollupsOnDrShard,
+  restoreTableOrder,
+  verifyDrReplay,
+} from './dr-restore.js';
 import type { BackupRow } from '@kipuspay/domain-integrations';
 
 describe('platform.dr restore apply (Sprint 48)', () => {
@@ -180,6 +185,78 @@ describe('platform.dr restore apply (Sprint 48)', () => {
     expect(verification.rpoTxZero).toBe(true);
     expect(verification.rpoRollupOneDay).toBe(true);
     expect(verification.duplicatesBlocked).toBeGreaterThanOrEqual(1);
+  });
+
+  it('rebuildDerivedRollupsOnDrShard: reconstruye rollups DERIVED desde sales restauradas (RPO≤1d)', async () => {
+    // Caso real staging: daily_financial_rollups es DERIVED (registry) y NO viaja
+    // en el backup; el shard DR debe reconstruirlos desde las ventas restauradas.
+    const rowsByTable = fkClosure();
+    rowsByTable.set('sales', [
+      ...(rowsByTable.get('sales') ?? []),
+      {
+        id: 's-dr-closed',
+        tenant_id: tenantId,
+        branch_id: 'b-dr',
+        cash_register_session_id: 'cs-dr',
+        user_id: 'u-dr',
+        client_document_type: '1',
+        client_document_number: '12345678',
+        client_name: 'Cliente DR',
+        series: 'NV01',
+        number: 2,
+        document_type: 'NV',
+        total_amount_cents: 590,
+        issued_at_lima: '2026-08-03 18:30:00',
+        sunat_status: 'NOT_APPLICABLE',
+      },
+      {
+        id: 's-dr-open-day',
+        tenant_id: tenantId,
+        branch_id: 'b-dr',
+        cash_register_session_id: 'cs-dr',
+        user_id: 'u-dr',
+        client_document_type: '1',
+        client_document_number: '12345678',
+        client_name: 'Cliente DR',
+        series: 'NV01',
+        number: 3,
+        document_type: 'NV',
+        total_amount_cents: 100,
+        issued_at_lima: '2026-08-04 09:00:00',
+        sunat_status: 'NOT_APPLICABLE',
+      },
+    ]);
+    await applyRestoreRowsToShard({ db: env.DR_DB, rowsByTable });
+
+    const nowMs = Date.parse('2026-08-04T15:00:00.000Z');
+    const rebuilt = await rebuildDerivedRollupsOnDrShard({ db: env.DR_DB, tenantId, nowMs });
+    expect(rebuilt.reportDates).toEqual(['2026-08-03']);
+
+    const rollupRow = await env.DR_DB.prepare(
+      `SELECT gross_sales_cents AS gross FROM daily_financial_rollups
+       WHERE tenant_id = ? AND report_date = ?`,
+    )
+      .bind(tenantId, '2026-08-03')
+      .first<{ gross: number }>();
+    expect(rollupRow?.gross).toBe(590);
+
+    const verification = await verifyDrReplay({
+      db: env.DR_DB,
+      tenantId,
+      expectedSalesCount: 3,
+      nowMs,
+    });
+    expect(verification.rpoRollupOneDay).toBe(true);
+    expect(verification.rollupLatestDay).toBe('2026-08-03');
+
+    const second = await rebuildDerivedRollupsOnDrShard({ db: env.DR_DB, tenantId, nowMs });
+    expect(second.reportDates).toEqual(['2026-08-03']);
+    const count = await env.DR_DB.prepare(
+      `SELECT COUNT(*) AS n FROM daily_financial_rollups WHERE tenant_id = ?`,
+    )
+      .bind(tenantId)
+      .first<{ n: number }>();
+    expect(count?.n).toBe(1);
   });
 
   it('verifyDrReplay: RPO=0 falla si faltan tx comprometidas', async () => {

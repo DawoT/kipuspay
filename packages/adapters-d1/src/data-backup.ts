@@ -548,6 +548,26 @@ function compareRestoreKey(left: BackupRow, right: BackupRow, columns: readonly 
   return restoreKey(left, columns).localeCompare(restoreKey(right, columns));
 }
 
+function restoreTypeAccepts(declaredType: string, value: unknown): boolean {
+  const type = declaredType.toUpperCase();
+  // BOOLEAN se almacena como entero 0/1 en SQLite (convención del DDL propio);
+  // tratarlo como string rompía la restauración DR de toda tabla con booleanos.
+  const numeric = type.includes('INT') || type === 'BOOLEAN';
+  // REAL (afinidad REAL/FLOA/DOUB) llega del lector D1 como number: el JSONL
+  // solo transporta enteros seguros, pero el tipo declarado es flotante.
+  const floating = type.includes('REAL') || type.includes('FLOA') || type.includes('DOUB');
+  if (numeric) {
+    return (
+      typeof value === 'number' &&
+      Number.isSafeInteger(value) &&
+      (type !== 'BOOLEAN' || value === 0 || value === 1)
+    );
+  }
+  if (floating) return typeof value === 'number' && Number.isFinite(value);
+  if (type.includes('BLOB')) return typeof value === 'string';
+  return typeof value === 'string';
+}
+
 export function validateRestoreValue(
   table: string,
   row: BackupRow,
@@ -559,18 +579,9 @@ export function validateRestoreValue(
       throw codedError('BACKUP_TYPE_INVALID', { table, column: name });
     }
     if (value === null || value === undefined) continue;
-    const type = definition.type.toUpperCase();
-    // BOOLEAN se almacena como entero 0/1 en SQLite (convención del DDL propio);
-    // tratarlo como string rompía la restauración DR de toda tabla con booleanos.
-    const numeric = type.includes('INT') || type === 'BOOLEAN';
-    const valid =
-      (numeric &&
-        typeof value === 'number' &&
-        Number.isSafeInteger(value) &&
-        (type !== 'BOOLEAN' || value === 0 || value === 1)) ||
-      (type.includes('BLOB') && typeof value === 'string') ||
-      (!numeric && !type.includes('BLOB') && typeof value === 'string');
-    if (!valid) throw codedError('BACKUP_TYPE_INVALID', { table, column: name });
+    if (!restoreTypeAccepts(definition.type, value)) {
+      throw codedError('BACKUP_TYPE_INVALID', { table, column: name });
+    }
   }
 }
 
@@ -595,6 +606,23 @@ function validateRestoreCheck(table: string, row: BackupRow, check: RestoreCheck
   if (!valid) throw codedError('BACKUP_CHECK_FAILED', { table, column: check.column });
 }
 
+async function restoreAuditRowIntegrityError(
+  row: RestoreAuditRow,
+  seenRowIds: Set<string>,
+): Promise<Error | null> {
+  if (seenRowIds.has(row.id)) {
+    return codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
+  }
+  seenRowIds.add(row.id);
+  if (!/^[0-9a-f]{64}$/.test(row.rowHash ?? '')) {
+    return codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
+  }
+  if (row.canonicalBytes && (await restoreSha256(row.canonicalBytes)) !== row.rowHash) {
+    return codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
+  }
+  return null;
+}
+
 export async function verifyRestoreAuditChain(rows: AsyncIterable<RestoreAuditRow>): Promise<{
   forks: number;
 }> {
@@ -609,19 +637,8 @@ export async function verifyRestoreAuditChain(rows: AsyncIterable<RestoreAuditRo
   let total = 0;
   const seenRowIds = new Set<string>();
   for await (const row of rows) {
-    if (seenRowIds.has(row.id)) {
-      throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
-    }
-    seenRowIds.add(row.id);
-    if (!/^[0-9a-f]{64}$/.test(row.rowHash ?? '')) {
-      throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
-    }
-    if (
-      row.canonicalBytes &&
-      (await restoreSha256(row.canonicalBytes)) !== row.rowHash
-    ) {
-      throw codedError('BACKUP_AUDIT_CHAIN_INVALID', { id: row.id });
-    }
+    const integrityError = await restoreAuditRowIntegrityError(row, seenRowIds);
+    if (integrityError) throw integrityError;
     total += 1;
     if (row.prevHash === null || row.prevHash === undefined) {
       if (genesis !== null) {

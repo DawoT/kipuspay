@@ -205,6 +205,7 @@ import {
   runReportHttp,
   runReportsCatalogHttp,
 } from './reports/report-routes.js';
+import { runStaffDailyRollupsHttp } from './reports/run-rollups-staff-routes.js';
 import {
   runBootstrapHttp,
   runFormalizationStageHttp,
@@ -696,6 +697,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const result = await runWrapTenantDekHttp(c.env, c.req.header('x-platform-staff-token'), body);
     return c.json(result.body, result.status as 200 | 400 | 401 | 503);
+  });
+
+  app.post('/v1/internal/reports/run-rollups', async (c) => {
+    const result = await runStaffDailyRollupsHttp(c.env, c.req.header('x-platform-staff-token'));
+    return c.json(result.body, result.status as 200 | 401 | 404 | 503);
   });
 
   app.post('/api/fiscal/cron', async (c) => {

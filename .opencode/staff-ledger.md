@@ -244,3 +244,49 @@ aprobaciones: ["A: Staff Principal", "V: checks fail-closed del propio motor + s
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0006
+timestamp_utc: 2026-08-23T00:27:33Z
+schema_version: 2
+sprint_fase: Transversal — Fase B (S48 DR-sim) CERRADO
+agente_responsable: Staff Principal (supervisor); ejecución delegada a Kipus SRE
+tipo: Milestone de operación
+subtipo: DR_SIMULATION_PASSED live — gap stg-s48-dr-sim CLOSED
+relacion: amplía
+referencias_entradas: [0005]
+referencias_documentales: ["docs/ops/pending-batches.yaml", "docs/architecture/09-reporting.md"]
+prev_id: 0005
+prev_hash: 310d487285813855e148e51879ced0c374986946d32c6d4bcfca09a4dea973d2
+entry_hash: __ENTRY_HASH__
+ticket_or_adr: Fase B del plan aprobado por owner (M2)
+test_ids: [adapters-d1 431, dr-restore.integration 302, worker-api 1356, SUITE]
+entregable_afectado: apps/worker-api (route staff rollups, dr-routes rebuild DERIVED) · packages/adapters-d1 (validador REAL/DAG/topo) · scripts/staff/seed-dr-drill-staging.sql · docs/ops/pending-batches.yaml
+descripcion: >
+  M2 completada por Kipus SRE bajo supervisión del Staff Principal. Cadena del
+  drill: staff trigger break-glass POST /v1/internal/reports/run-rollups (guard
+  constant-time + fail-closed 503/401, patrón wrap-dek, test RED→GREEN 4/4);
+  seed venta dr-drill-001 (118 cents NV NOT_APPLICABLE, día Lima cerrado
+  2026-08-21 — el SoT solo procesa días cerrados); FEATURE_REPORTING_ROLLUPS=1
+  en config staging (mismo patrón DATA_BACKUP/PLATFORM_DR). Dos defectos más
+  descubiertos y corregidos con RED→GREEN por la primera venta real en scope:
+  (a) validador trataba columnas REAL como solo-string cuando D1 las entrega
+  como number → BACKUP_TYPE_INVALID sale_items.quantity; (b) los rollups son
+  DERIVED y no viajan en el backup: nadie los rematerializaba en el shard DR →
+  nuevo rebuildDerivedRollupsOnDrShard con semántica idéntica al cron (solo
+  días Lima cerrados, DELETE+INSERT idempotente), wired entre apply y verify.
+  Veredicto final auditado en audit_events: PASSED — backup cd6e01db registry-2,
+  111 tablas / 43 filas / 1 venta restaurada, RTO 88.5s de 1800s, RPO tx 0,
+  RPO rollup OK (2026-08-21), replay dedup 3. Gap stg-s48-dr-sim → closed en
+  tracker con closure completa. Supervisor verificó independientemente: payload
+  en D1, diffs críticos (guard/rebuild/REAL), suites 431+1356, SUITE GREEN,
+  prettier limpia. Siguiente según plan aprobado: M1 anti-fork estructural.
+evidencia: >
+  RED: simulacro #1 BACKUP_TYPE_INVALID sale_items.quantity; #2 rollupLatestDay
+  null (DERIVED ausente). GREEN: simulacro #3 HTTP 200 verdict PASSED; tests
+  adapters-d1 431 / integration 302 / worker-api 1356; SUITE GREEN; prettier OK.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (diffs revisados + verificación runtime independiente)", "V: checks fail-closed del motor + audit_events firmado", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

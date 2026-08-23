@@ -11,6 +11,7 @@ import {
   applyRestoreRowsToShard,
   appendBackupAudit,
   RTO_TARGET_MS,
+  rebuildDerivedRollupsOnDrShard,
   verifyDrReplay,
   type BackupAuditAction,
 } from '@kipuspay/adapters-d1';
@@ -202,6 +203,14 @@ async function executeDrSimulation(
       rowsByTable: collected,
       foreignKeys,
     });
+    // Los rollups son DERIVED (registry) y no viajan en el backup: se
+    // reconstruyen en el shard DR desde las ventas restauradas, con la misma
+    // semántica del cron (solo días Lima cerrados).
+    const derived = await rebuildDerivedRollupsOnDrShard({
+      db: env.DR_DB!,
+      tenantId: actor.tenantId,
+      nowMs,
+    });
     const rtoMs = Date.now() - startedAtMs;
 
     const salesInManifest = collected.get('sales')?.length ?? 0;
@@ -227,6 +236,8 @@ async function executeDrSimulation(
       rtoOk,
       tablesApplied: apply.tables,
       rowsApplied: apply.rowsInserted,
+      derivedRollupsRebuilt: derived.reportDates.length,
+      derivedRollupDates: derived.reportDates,
       salesRestored: salesInManifest,
       rollupLatestDay: verification.rollupLatestDay,
       replayDuplicatesBlocked: verification.duplicatesBlocked,
