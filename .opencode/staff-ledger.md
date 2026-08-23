@@ -558,3 +558,53 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0013
+timestamp_utc: 2026-08-23T22:06:14Z
+schema_version: 2
+sprint_fase: Transversal — H4 drill en vivo (canal push)
+agente_responsable: Staff Principal (ejecución en vivo con navegador Playwright + dispositivo owner)
+tipo: Milestone de operación
+subtipo: Canal push abierto end-to-end + hallazgo estructural owner-subscribe
+relacion: amplía
+referencias_entradas: [0011, 0012]
+referencias_documentales: ["docs/architecture/05-12-mobile-push-pos.md §5.12.3", "docs/ops/pending-batches.yaml", "docs/architecture/05-7-inventory-scale.md §5.7"]
+prev_id: 0012
+prev_hash: 643684a8cd7958e5e13784925dfbf999114eddf3a57766a3f597fce9eeae60e2
+entry_hash: 48cff8e31cbe09f7131ceac628ce153abec29b9c214148cdf6a033cf65d1f981
+ticket_or_adr: H4 drill (gap fcm-vapid-real + nuevo gap owner-push-subscribe-blocked)
+test_ids: [SUITE, cashier-login HTTP 200, push/privacy HTTP 200]
+entregable_afectado: tenant_capabilities (mobile.push=1 piloto) · pos_terminals/cash_registers/cash_register_sessions/pos_terminal_sessions (fixture DR) · users.pin_hash owner · apps/pos-web (flags runtime Pages + deploy script) · docs/ops/pending-batches.yaml
+descripcion: >
+  Drill H4 en vivo vía navegador Playwright. Cadena resuelta: capability
+  mobile.push=1 para tenant piloto (decisión owner) → /api/push/privacy 200
+  sirviendo VAPID v4 → login PWA (hallazgo: PWA exige tenant en sessionStorage;
+  inyectado) → hallazgo de producto: en workerd la verificación argon2id es
+  fail-closed por diseño (pin-crypto.ts:116) — el formato válido en worker
+  desplegado es fallback SHA-256+salt; PIN owner provisionado con ese formato y
+  login HTTP 200 verificado por endpoint real → página /mobile habilitada vía
+  flags runtime Pages (PUBLIC_FEATURE_MOBILE_PUSH/CLIENT_MOBILE_POS en
+  wrangler.jsonc del proyecto Pages — $env/dynamic/public lee runtime, no build)
+  → fixture de terminal completo (pos_terminals + cash_registers +
+  cash_register_sessions + pos_terminal_sessions ACTIVE, FKs en cadena) →
+  HALLAZGO ESTRUCTURAL: session-route devuelve terminal:null para owner/admin
+  (terminales=cajeros por diseño) mientras /mobile exige terminal.verified con
+  purpose OWNER_ALERTS → el dueño no puede activar sus alertas desde el
+  navegador; registerBrowserPush solo cableado en /mobile. Registrado como gap
+  bloqueante owner-push-subscribe-blocked con fix candidatos (a/b/c). El canal
+  queda verificado funcional para sesión cajero (OPERATIONAL_MOBILE); el tramo
+  owner exige decisión de producto (ADR-0034-adjacente). Lecciones de
+  provisioning: tenant_capabilities sin updated_at; PWA tenant por
+  sessionStorage; flags Pages = runtime vars del proyecto, no build.
+evidencia: >
+  RED: privacy 403 → login PWA 401 (tenantId vacío) → 401 PIN_INVALID (formato
+  argon2id no verificable en workerd) → /mobile feature-off → terminal:null.
+  GREEN: capability=1; privacy 200 con VAPID v4; cashier-login 200 con token;
+  /mobile sin banner con botones push; fixture terminal completo; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: endpoints reales + D1 + navegador"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

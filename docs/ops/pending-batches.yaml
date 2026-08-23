@@ -697,6 +697,11 @@ sprints_cierre:
     gates: [s45, GTM-26]
     firmas_av: { A: null, V: null }
     gaps:
+      - id: owner-push-subscribe-blocked
+        severity: blocker
+        detail: "Contradicción estructural descubierta en drill H4 (2026-08-23): session-route (auth/session-route.ts) devuelve terminal:null para roles owner/admin por diseño (terminales=cajeros), pero la página /mobile exige terminal.verified para Activar notificaciones y su purpose para owner es OWNER_ALERTS → el dueño jamás puede activar sus alertas desde el navegador. registerBrowserPush solo está cableado en /mobile. Canal verificado OK para sesión cajero (OPERATIONAL_MOBILE). Fix candidato (producto): (a) session-route otorga terminal a owner/admin, (b) /mobile permite suscripción owner sin terminal.verified (capability+consent), o (c) endpoint/página owner dedicada. Requiere ADR-0034-adjacente."
+        can_auto_fix: false
+        status: wait
       - id: fcm-vapid-real
         severity: blocker
         detail: "G1 WAIT — VAPID + FCM HTTP v1 reales (no stubs SA); ACK DISPLAYED p95<10s ≥99%. Kill-switch/rotación documentados."
