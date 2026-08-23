@@ -510,3 +510,51 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0012
+timestamp_utc: 2026-08-23T19:08:58Z
+schema_version: 2
+sprint_fase: Transversal — H4 prep (canal Web Push funcional)
+agente_responsable: Staff Principal (supervisor); ejecución delegada (Security+SRE doble gorra)
+tipo: Milestone de operación
+subtipo: VAPID v4 rotación ciega + flags push activos en staging
+relacion: amplía
+referencias_entradas: [0011]
+referencias_documentales: ["docs/architecture/05-12-mobile-push-pos.md §5.12.3", "docs/runbooks/secrets-ops-material.md", "docs/ops/pending-batches.yaml"]
+prev_id: 0011
+prev_hash: f5d09198e0063336908bc94e3c057174f3c5efa1a27c40db687dee26045bc612
+entry_hash: 643684a8cd7958e5e13784925dfbf999114eddf3a57766a3f597fce9eeae60e2
+ticket_or_adr: H4 prep del plan staff (gap fcm-vapid-real, avance)
+test_ids: [worker-api 1356, SUITE]
+entregable_afectado: Secrets Store (push-vapid-private/public-v4) · apps/worker-kms/wrangler.jsonc (bindings v4) · apps/worker-api/wrangler.jsonc (flags=1 + pública v4 real) · runbook · tracker
+descripcion: >
+  Decisión de integración resuelta por delegación con citas: FLUJO B — Web Push
+  estándar con VAPID propia para PWA (spec §5.12.3 textual; PWA usa
+  pushManager.subscribe con la clave servida por /api/push/privacy; FCM HTTP v1
+  queda para tokens nativos Android vía seam window.__KIPUS_FCM_TOKEN__ ADR-0033).
+  El certificado Web Push del panel Firebase NO aplica (importarlo crearía
+  segunda fuente criptográfica — invariante 9). Ejecutado: rotación ciega v4
+  (par P-256 JWK, formato primer branch del consumidor importEcPrivate), secretos
+  push-vapid-private/public-v4 en Secrets Store (v3 intacta rollback-only),
+  bindings kms v3→v4, redeploy kms+api, FEATURE_MOBILE_PUSH/OWNER_PUSH=1 y
+  PUSH_VAPID_PUBLIC_KEY=v4 real EN CONFIG (corrige el DRIFT-RISK de la matriz —
+  los deploys ya no la pisan). Paridad criptográfica verificada por triple
+  comparación string (config == material local == binding kms). Reparación
+  colateral: parser YAML del tracker roto pre-existente (escapes inválidos).
+  Verificación supervisor: settings API (flags=1, vapid=BKIPWeAjjzcK…), store
+  v4 (5ea02dc3/c7d5ef90), /api/push/privacy → 403 PUSH_SCOPE_FORBIDDEN honesto
+  (capability mobile.push sin filas en tenant_capabilities — decisión de
+  producto, no forzable por SRE). Pendientes de cierre total del gap:
+  habilitar capability del tenant piloto (owner) + dispositivo Android real
+  (H4) con ACK DISPLAYED p95<10s ≥99%.
+evidencia: >
+  RED: FEATURE_MOBILE_PUSH=0, PUSH_VAPID_PUBLIC_KEY="" (push muerto fail-closed).
+  GREEN: settings API flags=1 + vapid real; store 12 secretos con v4 ACTIVE;
+  worker-api 1356 tests; SUITE GREEN; tracker YAML parsea.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: API Cloudflare directa + curl 403 + triple comparación de claves"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

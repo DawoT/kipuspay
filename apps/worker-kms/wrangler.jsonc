@@ -109,14 +109,15 @@
           "secret_name": "push-kek-v3",
         },
         {
+          // v4 activa; v3 (push-vapid-private-v3/public-v3) queda en el store SOLO para rollback.
           "binding": "PUSH_VAPID_PRIVATE_KEY",
           "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
-          "secret_name": "push-vapid-private-v3",
+          "secret_name": "push-vapid-private-v4",
         },
         {
           "binding": "PUSH_VAPID_PUBLIC_KEY",
           "store_id": "6c5d2aff785644d39ca233efe0d0ed34",
-          "secret_name": "push-vapid-public-v3",
+          "secret_name": "push-vapid-public-v4",
         },
         {
           "binding": "PUSH_VAPID_SUBJECT",
