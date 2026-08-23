@@ -13,6 +13,7 @@ import {
   type CashMovementType,
 } from '@kipuspay/domain-cash';
 import {
+  appendAuditEvent,
   appendJournalToPlan,
   clearPinLockout,
   hashPinArgon2id,
@@ -48,17 +49,6 @@ async function sha256Hex(input: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function previousAuditHash(db: D1Database, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
-}
-
 async function insertAudit(
   db: D1Database,
   input: {
@@ -71,36 +61,24 @@ async function insertAudit(
     payload: Record<string, unknown>;
   },
 ): Promise<void> {
-  const prev = await previousAuditHash(db, input.tenantId);
-  const id = crypto.randomUUID();
-  const rowHash = await sha256Hex(
-    JSON.stringify({
-      action: input.action,
-      entity_id: input.entityId,
-      prev_hash: prev,
-      payload: input.payload,
-    }),
-  );
-  await db
-    .prepare(
-      `INSERT INTO audit_events (
-           id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-           payload_json, prev_hash, row_hash
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      id,
-      input.tenantId,
-      input.branchId,
-      input.actorUserId,
-      input.action,
-      input.entityType,
-      input.entityId,
-      JSON.stringify(input.payload),
-      prev,
-      rowHash,
-    )
-    .run();
+  await appendAuditEvent(db, { tenantId: input.tenantId }, async (prev) => ({
+    id: crypto.randomUUID(),
+    branchId: input.branchId,
+    actorUserId: input.actorUserId,
+    action: input.action,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    payloadJson: JSON.stringify(input.payload),
+    prevHash: prev,
+    rowHash: await sha256Hex(
+      JSON.stringify({
+        action: input.action,
+        entity_id: input.entityId,
+        prev_hash: prev,
+        payload: input.payload,
+      }),
+    ),
+  }));
 }
 
 const MOVEMENT_TYPES: ReadonlySet<CashMovementType> = new Set([

@@ -401,12 +401,9 @@ export async function cancelOrderItemAtomic(
   }
 
   const prevHash = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
+    .prepare(`SELECT last_hash AS row_hash FROM audit_chain_heads WHERE tenant_id = ?`)
     .bind(tenantId)
-    .first<{ row_hash: string }>();
+    .first<{ row_hash: string | null }>();
 
   const auditId = crypto.randomUUID();
   const payload = {
@@ -451,6 +448,7 @@ export async function cancelOrderItemAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash?.row_hash ?? null, [rowHash]);
     if (tokenId) {
       plan.add(
         db

@@ -10,6 +10,9 @@ import {
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   processLayawayCreateAtomic: vi.fn(() =>
     Promise.resolve({
       depositId: 'd1',

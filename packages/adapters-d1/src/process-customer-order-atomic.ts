@@ -4,6 +4,7 @@ import {
   planCustomerOrderNotification,
   type CustomerOrderStatus,
 } from '@kipuspay/domain-sales';
+import { auditChainClaimStatements, readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { sha256Hex } from './crypto.js';
 import {
@@ -77,14 +78,7 @@ function opaqueToken(): string {
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 async function auditHash(input: Record<string, unknown>): Promise<string> {
@@ -125,6 +119,9 @@ function appendAudit(
         input.rowHash,
       ),
   );
+  for (const c of auditChainClaimStatements(db, input.tenantId, input.prevHash, [input.rowHash])) {
+    plan.add(c);
+  }
 }
 
 interface CatalogRow {

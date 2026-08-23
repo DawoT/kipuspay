@@ -10,6 +10,9 @@ import {
 } from './customer-lpdp-routes.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   listCustomers: vi.fn(() =>
     Promise.resolve([
       { documentTypeCode: '1', documentNumber: '12345678', name: 'Ana', piiErased: false },

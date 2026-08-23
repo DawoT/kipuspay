@@ -18,6 +18,7 @@ import {
   type QuoteStatus,
 } from '@kipuspay/domain-sales';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
+import { auditChainClaimStatements, readAuditChainHead } from './audit-chain.js';
 import {
   processOfflineSaleAtomic,
   type ProcessOfflineSaleOptions,
@@ -76,14 +77,7 @@ interface QuoteRow {
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 async function loadQuote(db: D1DatabaseLike, tenantId: string, quoteId: string): Promise<QuoteRow> {
@@ -142,6 +136,9 @@ async function persistExpiredIfNeeded(
             rowHash,
           ),
       );
+      for (const claim of auditChainClaimStatements(db, tenantId, prevHash, [rowHash])) {
+        builder.add(claim);
+      }
     });
     return { ...quote, status: 'EXPIRED' };
   }
@@ -359,6 +356,9 @@ export async function processQuoteCreateAtomic(
           rowHash,
         ),
     );
+    for (const claim of auditChainClaimStatements(db, tenantId, prevHash, [rowHash])) {
+      builder.add(claim);
+    }
   });
   return {
     quoteId,
@@ -414,6 +414,9 @@ async function transitionQuote<TStatus extends 'SENT' | 'APPROVED' | 'CANCELLED'
           rowHash,
         ),
     );
+    for (const claim of auditChainClaimStatements(db, tenantId, prevHash, [rowHash])) {
+      builder.add(claim);
+    }
   });
   return { quoteId, status: nextStatus, emitsFiscalDocument: false };
 }
@@ -598,6 +601,9 @@ export async function processQuoteConvertAtomic(
             rowHash,
           ),
       );
+      for (const claim of auditChainClaimStatements(db, tenantId, auditPrevHash, [rowHash])) {
+        builder.add(claim);
+      }
     },
   });
   if (sale.status !== 'SUCCESS') throw new Error('QUOTE_CONVERT_FAILED');

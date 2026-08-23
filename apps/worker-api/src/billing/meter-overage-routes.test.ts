@@ -3,6 +3,9 @@ import type { WorkerEnv } from '../auth/control-plane.js';
 import { isBillingUsageOverageEnabled, runMeterOverageCronHttp } from './meter-overage-routes.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   runMeterOverageCron: vi.fn().mockResolvedValue({
     tenantsScanned: 1,
     reported: 1,

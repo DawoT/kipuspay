@@ -19,6 +19,7 @@ import {
   QUANTITY_SCALE,
   refreshAvgCostOnOutboundCents,
 } from '@kipuspay/domain-inventory';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 import { appendLocationStockDeltaToPlan } from './process-inventory-location-atomic.js';
@@ -88,14 +89,7 @@ interface ReturnItemRow {
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 async function loadReturn(
@@ -779,6 +773,7 @@ export async function processSupplierReturnCloseAtomic(
           rowHash,
         ),
     );
+    builder.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
 
   return {

@@ -3,6 +3,7 @@
  * Preflight fuera; todos los writes de cada hecho usan un único db.batch.
  */
 import { assertLocationCanDeactivate, planLocationTransfer } from '@kipuspay/domain-inventory';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { sha256HexOf } from './crypto.js';
 import {
@@ -21,14 +22,7 @@ function assertPrivileged(input: LocationAtomicActorInput): void {
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 export function defaultLocationId(tenantId: string, branchId: string): string {
@@ -214,6 +208,7 @@ export async function createInventoryLocationAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   return { locationId };
 }
@@ -276,6 +271,7 @@ export async function updateInventoryLocationAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   return { locationId: input.locationId };
 }
@@ -489,6 +485,7 @@ export async function processInventoryLocationTransferAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
 
   return {

@@ -11,6 +11,7 @@ import {
   applyRestoreRowsToShard,
   appendBackupAudit,
   RTO_TARGET_MS,
+  rebuildAuditChainHeadsOnDrShard,
   rebuildDerivedRollupsOnDrShard,
   verifyDrReplay,
   type BackupAuditAction,
@@ -205,12 +206,15 @@ async function executeDrSimulation(
     });
     // Los rollups son DERIVED (registry) y no viajan en el backup: se
     // reconstruyen en el shard DR desde las ventas restauradas, con la misma
-    // semántica del cron (solo días Lima cerrados).
+    // semántica del cron (solo días Lima cerrados). audit_chain_heads también
+    // es DERIVED: sin rematerializarla, la primera emisión post-failover
+    // crearía un segundo génesis (fork contra el historial restaurado).
     const derived = await rebuildDerivedRollupsOnDrShard({
       db: env.DR_DB!,
       tenantId: actor.tenantId,
       nowMs,
     });
+    await rebuildAuditChainHeadsOnDrShard({ db: env.DR_DB! });
     const rtoMs = Date.now() - startedAtMs;
 
     const salesInManifest = collected.get('sales')?.length ?? 0;

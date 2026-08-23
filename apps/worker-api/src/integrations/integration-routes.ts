@@ -3,6 +3,7 @@
  * Plan Guard Cadena+; cobro nunca 402.
  */
 import {
+  appendAuditEvent,
   exportAccountingEntries,
   enqueueWebhookDeliveryAtomic,
   claimWebhookDeliveryAtomic,
@@ -82,20 +83,6 @@ async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function previousAuditHash(
-  db: NonNullable<WorkerEnv['DB']>,
-  tenantId: string,
-): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
-}
-
 // eslint-disable-next-line complexity -- export: target × journal × audit append
 export async function runAccountingExportHttp(
   env: WorkerEnv | undefined,
@@ -137,27 +124,17 @@ export async function runAccountingExportHttp(
         target,
         entriesCount: entries.length,
       };
-      const rowHash = await sha256Hex(JSON.stringify(payload));
-      const prevHash = await previousAuditHash(env.DB, tenantId);
-      await env.DB.prepare(
-        `INSERT INTO audit_events (
-           id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-           payload_json, prev_hash, row_hash
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-        .bind(
-          crypto.randomUUID(),
-          tenantId,
-          branchId,
-          actorUserId,
-          'ACCOUNTING_EXPORT',
-          'accounting',
-          `${target}:${fromDate}_${toDate}`,
-          JSON.stringify(payload),
-          prevHash,
-          rowHash,
-        )
-        .run();
+      await appendAuditEvent(env.DB, { tenantId }, async (prevHash) => ({
+        id: crypto.randomUUID(),
+        branchId,
+        actorUserId,
+        action: 'ACCOUNTING_EXPORT',
+        entityType: 'accounting',
+        entityId: `${target}:${fromDate}_${toDate}`,
+        payloadJson: JSON.stringify(payload),
+        prevHash,
+        rowHash: await sha256Hex(JSON.stringify(payload)),
+      }));
     }
 
     return {

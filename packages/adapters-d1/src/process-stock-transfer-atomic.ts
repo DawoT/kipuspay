@@ -13,6 +13,7 @@ import {
   refreshAvgCostCents,
   type TransferStatus,
 } from '@kipuspay/domain-inventory';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { sha256Hex } from './crypto.js';
 import {
@@ -387,6 +388,9 @@ export async function receiveStockTransferAtomic(
           ),
       );
     }
+    if (currentPrev !== null && currentPrev !== initialPrevHash) {
+      plan.claimAuditChain(tenantId, initialPrevHash, [currentPrev]);
+    }
   });
 
   return { id: input.transferId, status: 'RECEIVED' };
@@ -702,12 +706,5 @@ function addCreditStock(
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }

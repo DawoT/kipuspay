@@ -69,10 +69,32 @@ export class AtomicPlanBuilder {
   private readonly db: D1DatabaseLike;
   private readonly guardId: string;
   private stateGuard: { sql: string; params: readonly unknown[] } | null = null;
+  private chainClaim: {
+    tenantId: string;
+    prevHeadHash: string | null;
+    chainedRowHashes: readonly string[];
+  } | null = null;
 
   constructor(db: D1DatabaseLike, guardId: string = crypto.randomUUID()) {
     this.db = db;
     this.guardId = guardId;
+  }
+
+  /**
+   * M1 anti-fork: declara el claim CAS de `audit_chain_heads` para el tramo
+   * de auditoría encadenado en este plan. El claim (UPDATE/INSERT génesis +
+   * guard fail-closed) se emite AL FINAL del batch, después de TODOS los
+   * statements registrados — un solo claim por orquestador, sin forks.
+   */
+  claimAuditChain(
+    tenantId: string,
+    prevHeadHash: string | null,
+    chainedRowHashes: readonly string[],
+  ): this {
+    if (chainedRowHashes.length > 0) {
+      this.chainClaim = { tenantId, prevHeadHash, chainedRowHashes };
+    }
+    return this;
   }
 
   add(statement: D1Bound): this {
@@ -117,7 +139,16 @@ export class AtomicPlanBuilder {
     const guardDelete = this.db
       .prepare(`DELETE FROM atomic_guards WHERE id = ?`)
       .bind(this.guardId);
-    return runBatch(this.db, [guardInsert, ...this.statements, guardDelete]);
+    const claimStatements =
+      this.chainClaim !== null
+        ? auditChainClaimStatements(
+            this.db,
+            this.chainClaim.tenantId,
+            this.chainClaim.prevHeadHash,
+            this.chainClaim.chainedRowHashes,
+          )
+        : [];
+    return runBatch(this.db, [guardInsert, ...this.statements, ...claimStatements, guardDelete]);
   }
 }
 
@@ -134,6 +165,8 @@ export async function runD1AtomicPlan(
   await build(plan);
   return plan.commit(options?.ok ?? true);
 }
+
+import { auditChainClaimStatements } from './audit-chain.js';
 
 export * from './process-offline-sale-atomic.js';
 export * from './process-layaway-atomic.js';
@@ -176,6 +209,7 @@ export * from './usage-meter-batch.js';
 export * from './meter-overage-cron.js';
 export * from './price-labels.js';
 export * from './data-backup.js';
+export * from './audit-chain.js';
 export * from './dr-restore.js';
 export * from './insights-repository.js';
 export * from './process-customer-order-atomic.js';

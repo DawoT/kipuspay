@@ -776,11 +776,11 @@ export async function appendWeightMeasurementToPlan(
     input.previousAuditHash === undefined
       ? await db
           .prepare(
-            `SELECT row_hash FROM audit_events
-             WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+            `SELECT last_hash AS row_hash FROM audit_chain_heads
+             WHERE tenant_id = ?`,
           )
           .bind(input.tenantId)
-          .first<{ row_hash: string }>()
+          .first<{ row_hash: string | null }>()
       : null;
   const previousHash =
     input.previousAuditHash === undefined
@@ -889,8 +889,8 @@ export async function appendWeightMeasurementToPlan(
       .prepare(
         `INSERT INTO atomic_guards (id, ok)
          SELECT ?, CASE WHEN COALESCE((
-           SELECT row_hash FROM audit_events
-           WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1
+           SELECT last_hash FROM audit_chain_heads
+           WHERE tenant_id = ?
          ), '') = COALESCE(?, '') THEN 1 ELSE 0 END`,
       )
       .bind(auditGuardId, input.tenantId, previousHash),
@@ -913,6 +913,7 @@ export async function appendWeightMeasurementToPlan(
         rowHash,
       ),
   );
+  plan.claimAuditChain(input.tenantId, previousHash, [rowHash]);
   plan.add(db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(auditGuardId));
   return { rowHash };
 }

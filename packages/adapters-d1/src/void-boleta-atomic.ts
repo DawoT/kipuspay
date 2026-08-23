@@ -6,6 +6,7 @@ import {
   summaryDateLima,
   type VoidStatus,
 } from '@kipuspay/domain-fiscal-pe';
+import { appendAuditEvent } from './audit-chain.js';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 
 export interface VoidBoletaResult {
@@ -149,34 +150,20 @@ export async function voidBoletaAtomic(
   assertNoVoidRace(stockBefore, stockAfter, cashStatus, sessionAfter ? sessionAfter.status : null);
 
   // S17-H3: toda baja de boleta genera audit_events VOID (cadena hash, append-only).
-  const prevHash = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  const rowHash = await sha256Hex(
-    JSON.stringify({ action: 'VOID', entity_id: saleId, prev: prevHash?.row_hash ?? null }),
-  );
-  await db
-    .prepare(
-      `INSERT INTO audit_events (
-         id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-         prev_hash, row_hash, payload_json
-       ) VALUES (?, ?, ?, ?, 'VOID', 'sale', ?, ?, ?, ?)`,
-    )
-    .bind(
-      crypto.randomUUID(),
-      tenantId,
-      sale.branch_id,
-      userId,
-      saleId,
-      prevHash?.row_hash ?? null,
-      rowHash,
-      JSON.stringify({ voidStatus: 'VOID_PENDING_RC', documentType: sale.document_type }),
-    )
-    .run();
+  await appendAuditEvent(db, { tenantId }, async (prev) => ({
+    id: crypto.randomUUID(),
+    branchId: sale.branch_id,
+    actorUserId: userId,
+    action: 'VOID',
+    entityType: 'sale',
+    entityId: saleId,
+    payloadJson: JSON.stringify({
+      voidStatus: 'VOID_PENDING_RC',
+      documentType: sale.document_type,
+    }),
+    prevHash: prev,
+    rowHash: await sha256Hex(JSON.stringify({ action: 'VOID', entity_id: saleId, prev })),
+  }));
 
   return {
     status: 'SUCCESS',

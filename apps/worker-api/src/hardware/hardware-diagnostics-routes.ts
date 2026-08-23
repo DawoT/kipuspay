@@ -6,6 +6,7 @@
  * Ambos fail-closed: flag + capability + rol; sin lista no hay acceso por
  * omisión (invariante 5).
  */
+import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import { parseHardwareDiagAuditPayload } from '@kipuspay/domain-hardware';
 export interface HardwareDiagEnv {
   readonly FEATURE_HARDWARE_DIAGNOSTICS?: string;
@@ -34,17 +35,6 @@ async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest('SHA-256', data);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function previousAuditHash(db: D1Database, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
 }
 
 async function buildHardwareDiagAuditStatement(
@@ -143,7 +133,9 @@ export async function runReportHardwareDiagnosticsHttp(
   try {
     // S53-H1: la cadena de audit se encadena EN MEMORIA y se persiste en UN
     // solo batch (0 bifurcación bajo concurrencia, 0 parciales si falla).
-    let prevHash = await previousAuditHash(env.DB, actor.tenantId);
+    const initialHead = await readAuditChainHead(env.DB, actor.tenantId);
+    let prevHash: string | null = initialHead;
+    const chainHashes: string[] = [];
     const statements: { run(): Promise<unknown> }[] = [];
     for (const report of reports) {
       const built = await buildHardwareDiagAuditStatement(env.DB, {
@@ -155,8 +147,12 @@ export async function runReportHardwareDiagnosticsHttp(
       });
       statements.push(built.statement);
       prevHash = built.rowHash;
+      chainHashes.push(built.rowHash);
     }
-    await env.DB.batch(statements as never);
+    await env.DB.batch([
+      ...(statements as never[]),
+      ...auditChainClaimStatements(env.DB, actor.tenantId, initialHead, chainHashes),
+    ] as never);
     return { status: 202, body: { recorded: reports.length } };
   } catch {
     return { status: 500, body: { code: 'HARDWARE_DIAG_FAILED' } };

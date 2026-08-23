@@ -17,6 +17,7 @@ import {
   type CommissionRateRow,
 } from '@kipuspay/domain-sales';
 import { runD1AtomicPlan, type D1Bound, type D1DatabaseLike } from './index.js';
+import { readAuditChainHead } from './audit-chain.js';
 import { sha256HexOf } from './crypto.js';
 import {
   appendJournalToPlan,
@@ -33,14 +34,7 @@ export async function previousCommissionAuditHash(
   db: D1DatabaseLike,
   tenantId: string,
 ): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 export async function loadCommissionRates(
@@ -145,8 +139,9 @@ export async function appendCommissionAccrualToBatch(
         rowHash,
       ),
   );
+  let tipRowHash = rowHash;
   if (input.chartOn) {
-    await appendJournalToPlan(plan, db, {
+    const jr = await appendJournalToPlan(plan, db, {
       tenantId: input.tenantId,
       branchId: input.branchId,
       userId: input.userId,
@@ -158,8 +153,9 @@ export async function appendCommissionAccrualToBatch(
         amountCents: accrual.amountCents,
       }),
     });
+    tipRowHash = jr.rowHash;
   }
-  return { accrualId, rowHash };
+  return { accrualId, rowHash: tipRowHash };
 }
 
 export function appendCommissionReverseOnSale(
@@ -252,7 +248,7 @@ export async function appendCommissionReverseWithJournal(
         ),
     );
     if (input.chartOn) {
-      await appendJournalToPlan(plan, db, {
+      const jr = await appendJournalToPlan(plan, db, {
         tenantId: input.tenantId,
         branchId: input.branchId,
         userId: input.userId,
@@ -264,8 +260,10 @@ export async function appendCommissionReverseWithJournal(
           amountCents: rev.amountCents,
         }),
       });
+      prev = jr.rowHash;
+    } else {
+      prev = rowHash;
     }
-    prev = rowHash;
   }
   return prev;
 }
@@ -368,6 +366,7 @@ export async function processCommissionRateUpsertAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   return { rateId };
 }
@@ -476,6 +475,7 @@ export async function processCommissionPayoutAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   void options.nowMs;
   return { payoutId, grossCents: payoutPlan.grossCents, status: 'OPEN' };
@@ -559,6 +559,7 @@ export async function processCommissionPayoutPayAtomic(
         }),
       });
     }
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   return { payoutId: row.id, status: 'PAID', grossCents: row.gross_cents };
 }
@@ -617,6 +618,7 @@ export async function processCommissionPayoutVoidAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   return { payoutId: row.id, status: 'VOID' };
 }

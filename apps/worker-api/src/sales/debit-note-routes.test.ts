@@ -4,6 +4,9 @@ import { runDebitNoteHttp, type DebitNoteEnv } from './debit-note-routes.js';
 const processDebitNoteAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   processDebitNoteAtomic: (
     a: unknown,
     b: unknown,

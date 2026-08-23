@@ -17,6 +17,7 @@ import {
   type FormalizationMode,
   type TaxRegime,
 } from '@kipuspay/domain-fiscal-pe';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { appendUsageMeterToPlan } from './usage-meter-batch.js';
 import { sha256Hex } from './crypto.js';
@@ -88,14 +89,7 @@ function parseTimestamp(value: string, code: string): number {
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 async function auditHash(input: Record<string, unknown>): Promise<string> {
@@ -312,6 +306,7 @@ export async function createRecurringPlanAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(input.tenantId, prevHash, [rowHash]);
   });
   return { planId, planVersion: 1, alreadyApplied: false };
 }
@@ -1318,6 +1313,7 @@ export async function processRecurringSaleAtomic(
             rowHash,
           ),
       );
+      plan.claimAuditChain(input.tenantId, prevHash, [rowHash]);
     });
   } catch (error) {
     const replayAfterRace = await loadOccurrenceReplay(db, input);
@@ -1403,6 +1399,8 @@ export async function transitionRecurringPlanAtomic(
       ? ['ACTIVE', 'GRACE'].includes(current.status)
       : ['PAUSED', 'GRACE'].includes(current.status);
   if (!allowed) fail('RECURRING_INVALID_STATUS_TRANSITION');
+  const prevHash = await previousAuditHash(db, input.tenantId);
+  const pauseRowHash = crypto.randomUUID();
   await guardedMutation(db, 'RECURRING_CONFLICT', (plan) => {
     plan.guardState(
       `SELECT 1 FROM recurring_plans
@@ -1424,8 +1422,8 @@ export async function transitionRecurringPlanAtomic(
         .prepare(
           `INSERT INTO audit_events (
              id, tenant_id, branch_id, actor_user_id, action, entity_type,
-             entity_id, payload_json, row_hash
-           ) VALUES (?, ?, ?, ?, ?, 'recurring_plan', ?, ?, ?)`,
+             entity_id, payload_json, prev_hash, row_hash
+           ) VALUES (?, ?, ?, ?, ?, 'recurring_plan', ?, ?, ?, ?)`,
         )
         .bind(
           crypto.randomUUID(),
@@ -1435,9 +1433,11 @@ export async function transitionRecurringPlanAtomic(
           input.target === 'PAUSED' ? 'RECURRING_PAUSED' : 'RECURRING_RESUMED',
           input.planId,
           JSON.stringify({ reason: input.reason ?? null }),
+          prevHash,
           crypto.randomUUID(),
         ),
     );
+    plan.claimAuditChain(input.tenantId, prevHash, [pauseRowHash]);
   });
   return { status: input.target };
 }
@@ -1619,6 +1619,7 @@ export async function cancelRecurringPlanAtomic(
             cancelRowHash,
           ),
       );
+      batch.claimAuditChain(input.tenantId, cancelPrevHash, [cancelRowHash]);
     });
     return {
       status: 'CANCEL_AT_PERIOD_END',
@@ -1879,6 +1880,7 @@ export async function cancelRecurringPlanAtomic(
           cancelRowHash,
         ),
     );
+    batch.claimAuditChain(input.tenantId, cancelPrevHash, [cancelRowHash]);
   });
   return {
     status: 'CANCELLED',

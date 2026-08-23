@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { appendAuditEvent } from '@kipuspay/adapters-d1';
 import {
   isAccountingExportEnabled,
   isIntegrationsApiEnabled,
@@ -12,6 +13,9 @@ import {
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   exportAccountingEntries: vi.fn(async () => [
     {
       sourceSaleId: 's1',
@@ -235,38 +239,20 @@ describe('S23-H2 audit de exports contables', () => {
       'u-owner',
     );
     expect(res.status).toBe(200);
-    const auditSql = sqls.find((s) => s.includes('INSERT INTO audit_events'));
-    expect(auditSql).toBeTruthy();
-    const bound: unknown[][] = [];
-    const orig2 = (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB.prepare.bind(
-      (env as unknown as { DB: { prepare: (s: string) => unknown } }).DB,
-    );
-    const captureStmt = (sql: string) => {
-      const stmt = orig2(sql);
-      const stmtAny = stmt as unknown as {
-        bind: (...args: unknown[]) => { run: () => Promise<unknown> };
-      };
-      const boundStmt = stmtAny.bind.bind(stmtAny);
-      (stmtAny as unknown as { bind: (...a: unknown[]) => unknown }).bind = (...a: unknown[]) => {
-        bound.push(a);
-        return boundStmt(...a);
-      };
-      return stmt;
-    };
-    (env.DB as unknown as { prepare: (s: string) => unknown }).prepare = captureStmt;
-    await runAccountingExportHttp(
-      env,
-      't1',
-      {
-        fromDate: '2026-08-01',
-        toDate: '2026-08-31',
-        branchId: 'b1',
-        target: 'contasis',
-      },
-      'u-owner',
-    );
-    const auditBinds = bound.find((b) => b.includes('ACCOUNTING_EXPORT'));
-    expect(auditBinds).toBeTruthy();
-    expect(auditBinds?.[3]).toBe('u-owner');
+    // Puerto M1: el append de auditoría pasa por appendAuditEvent; la fila se
+    // verifica evaluando el buildRow capturado (acción/actor/payload).
+    expect(appendAuditEvent).toHaveBeenCalledTimes(1);
+    const portCall = vi.mocked(appendAuditEvent).mock.calls[0];
+    const row = await portCall[2](null);
+    expect(row.action).toBe('ACCOUNTING_EXPORT');
+    expect(row.actorUserId).toBe('u-owner');
+    expect(row.entityType).toBe('accounting');
+    expect(JSON.parse(row.payloadJson)).toMatchObject({
+      fromDate: '2026-08-01',
+      toDate: '2026-08-31',
+      branchId: 'b1',
+      target: 'contasis',
+    });
+    void sqls;
   });
 });

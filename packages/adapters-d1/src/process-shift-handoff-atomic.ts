@@ -20,6 +20,7 @@ import {
   type ShiftTransferCommand,
 } from '@kipuspay/domain-ops';
 import { computeExpectedCashCents } from '@kipuspay/domain-cash';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
 import { sha256Hex } from './crypto.js';
 
@@ -45,14 +46,7 @@ async function computeAuditHash(event: Record<string, unknown>): Promise<string>
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 async function loadSession(
@@ -394,6 +388,7 @@ export async function processShiftTransferAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(input.tenantId, auditTail, [rowHash]);
   };
 
   try {
@@ -534,6 +529,7 @@ export async function processTeamInviteAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(input.tenantId, auditTail, [rowHash]);
   };
   await runD1AtomicPlan(db, build);
 

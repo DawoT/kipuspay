@@ -12,6 +12,9 @@ import {
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   createStockTransferAtomic: vi.fn(() => Promise.resolve({ id: 'tr-new', status: 'DRAFT' })),
   shipStockTransferAtomic: vi.fn(() => Promise.resolve({ id: 'tr-1', status: 'IN_TRANSIT' })),
   receiveStockTransferAtomic: vi.fn(() => Promise.resolve({ id: 'tr-1', status: 'RECEIVED' })),

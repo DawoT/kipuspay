@@ -11,9 +11,9 @@ import {
 } from './data-backup.js';
 
 describe('Sprint 42 audit chain coordinator', () => {
-  it('guards the tenant tail inside the same batch to prevent concurrent forks', async () => {
+  it('claims audit_chain_heads by CAS inside the same batch to prevent concurrent forks', async () => {
     const batch = vi.fn().mockResolvedValue([]);
-    const first = vi.fn().mockResolvedValue({ row_hash: 'tail-a' });
+    const first = vi.fn().mockResolvedValue({ last_hash: 'head-a' });
     const db = {
       prepare: vi.fn((sql: string) => ({
         bind: vi.fn((...params: unknown[]) => ({ sql, params, first, run: vi.fn() })),
@@ -27,11 +27,15 @@ describe('Sprint 42 audit chain coordinator', () => {
       backupId: 'backup-a',
       payload: { backupId: 'backup-a' },
     });
-    const statements = batch.mock.calls[0]?.[0] as { sql: string }[];
-    expect(statements[0]?.sql).toContain('atomic_guards');
-    expect(statements[0]?.sql).toContain('SELECT row_hash FROM audit_events');
-    expect(statements[1]?.sql).toContain('INSERT INTO audit_events');
-    expect(statements[2]?.sql).toContain('DELETE FROM atomic_guards');
+    const statements = batch.mock.calls[0]?.[0] as { sql: string; params: unknown[] }[];
+    expect(statements[0]?.sql).toContain('INSERT INTO audit_events');
+    expect(statements[1]?.sql).toContain('UPDATE audit_chain_heads');
+    const claimParams = statements[1]?.params as unknown[];
+    expect(claimParams[1]).toBe('tenant-a');
+    expect(claimParams[2]).toBe('head-a');
+    expect(claimParams[0]).toMatch(/^[0-9a-f]{64}$/);
+    expect(statements[2]?.sql).toContain('atomic_guards');
+    expect(statements[3]?.sql).toContain('DELETE FROM atomic_guards');
   });
 
   it('emits restore start then PASSED or FAILED result with safe metadata', async () => {

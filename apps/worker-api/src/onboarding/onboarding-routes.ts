@@ -6,6 +6,7 @@ import {
   type VerticalType,
 } from './onboarding-bootstrap.js';
 import {
+  appendAuditEvent,
   generateBadgeBarcode,
   generateCashierPin,
   hashPinArgon2id,
@@ -395,35 +396,23 @@ async function persistFormalizationStage(
   if ((updated.meta?.changes ?? 0) !== 1) {
     return { status: 404, body: { error: 'Tenant not found', code: 'TENANT_NOT_FOUND' } };
   }
-  const prevAudit = await env.DB.prepare(
-    `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-     ORDER BY created_at DESC, id DESC LIMIT 1`,
-  )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  const rowHash = await sha256Hex(
-    JSON.stringify({
-      action: 'FORMALIZATION_MODE',
-      entity_id: tenantId,
-      prev: prevAudit?.row_hash ?? null,
-    }),
-  );
-  await env.DB.prepare(
-    `INSERT INTO audit_events (
-       id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-       prev_hash, row_hash, payload_json
-     ) VALUES (?, ?, NULL, ?, 'FORMALIZATION_MODE', 'tenant', ?, ?, ?, ?)`,
-  )
-    .bind(
-      crypto.randomUUID(),
-      tenantId,
-      actorUserId,
-      tenantId,
-      prevAudit?.row_hash ?? null,
-      rowHash,
-      JSON.stringify({ from: fromMode, to: result.formalizationMode }),
-    )
-    .run();
+  await appendAuditEvent(env.DB, { tenantId }, async (prev) => ({
+    id: crypto.randomUUID(),
+    branchId: null,
+    actorUserId,
+    action: 'FORMALIZATION_MODE',
+    entityType: 'tenant',
+    entityId: tenantId,
+    payloadJson: JSON.stringify({ from: fromMode, to: result.formalizationMode }),
+    prevHash: prev,
+    rowHash: await sha256Hex(
+      JSON.stringify({
+        action: 'FORMALIZATION_MODE',
+        entity_id: tenantId,
+        prev,
+      }),
+    ),
+  }));
   return null;
 }
 

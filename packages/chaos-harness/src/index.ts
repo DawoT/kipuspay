@@ -511,6 +511,18 @@ export {
 } from './dr-failover.js';
 
 export {
+  judgeAuditChainFork,
+  runLegacyConcurrentAuditAppends,
+  runPortConcurrentAuditAppends,
+  walkAuditChainDag,
+  type AuditChainAppendPort,
+  type AuditChainChaosDb,
+  type AuditChainChaosOptions,
+  type AuditChainForkStats,
+  type AuditChainForkVerdict,
+} from './audit-chain-fork.js';
+
+export {
   CUSTOMER_ORDER_FAILURES,
   CUSTOMER_ORDER_FAULTS,
   judgeCustomerOrderChaos,

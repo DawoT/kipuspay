@@ -292,3 +292,56 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0007
+timestamp_utc: 2026-08-23T04:08:32Z
+schema_version: 2
+sprint_fase: Transversal — Fase M1 anti-fork estructural
+agente_responsable: Staff Principal (supervisor); ejecución delegada a Kipus Acid
+tipo: Entregable nuevo
+subtipo: Puerto appendAuditEvent con CAS atómico — forks de auditoría imposibles
+relacion: amplía
+referencias_entradas: [0005, 0006]
+referencias_documentales: ["docs/architecture/06-acid-engine.md", "packages/adapters-d1/migrations/0060_audit_chain_heads.sql"]
+prev_id: 0006
+prev_hash: __ENTRY_HASH__
+18799aa767562cf6034b82028cef0fba4f0a9f99c73e35184ffb3eea74f9060b
+entry_hash: __ENTRY_HASH__
+entry_hash: d2937ae823643afe8414c363060779866da037da28604a3992d1d4578fe2f555
+ticket_or_adr: M1 del plan aprobado por owner (anti-fork estructural completo)
+test_ids: [adapters-d1 audit-chain.test.ts (11), audit-chain.integration.test.ts (3), adapters-d1 442, worker-api 1356, chaos-harness 120, SUITE]
+entregable_afectado: packages/adapters-d1/src/audit-chain.ts · migrations/0060 (+down) · chaos-harness/src/audit-chain-fork.ts · todos los escritores de audit_events migrados al puerto
+descripcion: >
+  M1 completada por Kipus Acid bajo supervisión. Diseño: tabla audit_chain_heads
+  (cabeza por tenant) con claim CAS dentro de la MISMA db.batch que el INSERT —
+  guard atomic_guards aborta el batch completo si otro escritor ganó la cabeza,
+  reintento ≤3 con backoff y error AUDIT_CHAIN_CONTENTION. El índice único fue
+  descartado por el supervisor: el fork histórico de staging lo hacía inaplicable;
+  la tabla cabeza es DERIVED (excluida del backup, rematerializada en DR vía
+  rebuildAuditChainHeadsOnDrShard). Backfill determinista ROW_NUMBER por tenant;
+  triggers de epoch incluidos (V-29); espejo down completo. TODOS los escritores
+  migrados al puerto: LPDP_ERASE, appendBackupAudit (backup-routes + dr-routes),
+  cashier-login/onboarding, cash-routes, sales-returns, catalog variants-UoM,
+  quick-add, hardware-diagnostics, integrations, pricing-promotions,
+  recurring-sales-scheduled + planes compuestos (venta offline ×5 eventos,
+  customer-order, quote, layaway, void-boleta) vía head-read + claim al final.
+  Chaos RED→GREEN contra D1 real: read-then-insert legacy forkea bajo barrera
+  cíclica de 8 escritores; puerto CAS 8×5=40 filas, forks=0, unreachable=0,
+  headMatchesTip=true; génesis concurrente PASS. Nota de transparencia: una
+  tentativa delegada previa (abortada por red) dejó trabajo avanzado en tree;
+  el agente lo verificó línea a línea y completó el resto sin reescribir.
+  Supervisor verificó independientemente: cabezas en ambas D1, diseño de
+  migración y down, lógica CAS+guard, cero patrones prohibidos, suites
+  442/1356/120, integración 305, SUITE GREEN, prettier limpia.
+evidencia: >
+  RED: legacy read-then-insert con barrera cíclica → forks>0 asertado.
+  GREEN: STATS_GREEN {"rows":40,"forks":0,"unreachable":0,"headMatchesTip":true};
+  migración aplicada en kipuspay-staging y kipuspay-dr-staging (7 commands c/u);
+  heads=2 == tenants con eventos; Quality Gate OK (CAL-06 bundle 275kB≤300).
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (diseño + revisión de código crítico)", "V: chaos D1 real + suites completas re-ejecutadas por supervisor", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

@@ -516,7 +516,7 @@ describe('data.backup Workflow, R2 and KMS contracts', () => {
     });
     expect(scheduled).toHaveLength(1);
     await Promise.all(scheduled);
-    expect(batches.map((batch) => batch[1]?.params[3])).toEqual([
+    expect(batches.map((batch) => batch[0]?.params[4])).toEqual([
       'RESTORE_DRY_RUN_STARTED',
       'RESTORE_DRY_RUN_PASSED',
     ]);
@@ -547,7 +547,7 @@ describe('data.backup Workflow, R2 and KMS contracts', () => {
         })),
       })),
       batch: vi.fn((statements: { params: unknown[] }[]) => {
-        actions.push(String(statements[1]?.params[3]));
+        actions.push(String(statements[0]?.params[4]));
         return Promise.resolve([]);
       }),
     };

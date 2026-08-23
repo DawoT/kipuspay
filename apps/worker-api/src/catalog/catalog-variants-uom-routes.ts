@@ -1,5 +1,6 @@
 /** Sprint 31 — tenant-scoped Admin CRUD variantes/UOM (ADR-0015). */
 /* eslint-disable complexity -- validación fail-closed de RBAC/flags/factor/tenant en handlers */
+import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import {
   assertVariantTopology,
   normalizeUomCode,
@@ -30,6 +31,12 @@ async function sha256Hex(input: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+interface BuiltAudit {
+  readonly statement: D1PreparedStatement;
+  readonly prevHash: string | null;
+  readonly rowHash: string;
+}
+
 async function auditStatement(
   db: D1Database,
   tenantId: string,
@@ -37,19 +44,12 @@ async function auditStatement(
   action: 'VARIANT_CHANGE' | 'UOM_CHANGE',
   entityId: string,
   payload: Record<string, unknown>,
-): Promise<D1PreparedStatement> {
-  const previous = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  const prevHash = previous?.row_hash ?? null;
+): Promise<BuiltAudit> {
+  const prevHash = await readAuditChainHead(db, tenantId);
   const rowHash = await sha256Hex(
     JSON.stringify({ action, entity_id: entityId, prev_hash: prevHash, payload }),
   );
-  return db
+  const statement = db
     .prepare(
       `INSERT INTO audit_events (
          id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
@@ -66,6 +66,7 @@ async function auditStatement(
       prevHash,
       rowHash,
     );
+  return { statement, prevHash, rowHash };
 }
 
 export async function runListVariantsUomHttp(
@@ -235,8 +236,11 @@ export async function runUpdateVariantHttp(
       ).bind(tenantId, prev.parent_product_id, tenantId, prev.parent_product_id),
     );
   }
-  statements.push(audit);
-  await env.DB.batch(statements.filter((s): s is D1PreparedStatement => s !== null));
+  statements.push(audit.statement);
+  await env.DB.batch([
+    ...statements.filter((s): s is D1PreparedStatement => s !== null),
+    ...auditChainClaimStatements(env.DB, tenantId, audit.prevHash, [audit.rowHash]),
+  ]);
   return { status: 200, body: { productId } };
 }
 
@@ -309,9 +313,12 @@ export async function runUpsertProductUomHttp(
     factorDenominator: denominator,
     isBase: body.isBase === true,
   });
-  statements.push(audit);
+  statements.push(audit.statement);
   try {
-    await env.DB.batch(statements);
+    await env.DB.batch([
+      ...statements,
+      ...auditChainClaimStatements(env.DB, tenantId, audit.prevHash, [audit.rowHash]),
+    ]);
   } catch {
     return { status: 422, body: { error: 'UOM base conflict', code: 'UOM_BASE_CONFLICT' } };
   }

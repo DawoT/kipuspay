@@ -119,7 +119,7 @@ const secret = new Set([
   'webhook_endpoints',
 ]);
 const sensitive = new Set(['push_consents', 'push_privacy_settings', 'push_subscriptions']);
-const derived = new Set(['daily_financial_rollups', 'daily_product_rollups']);
+const derived = new Set(['audit_chain_heads', 'daily_financial_rollups', 'daily_product_rollups']);
 const ephemeral = new Set([
   'ai_usage_counters',
   'billing_overages',
@@ -217,7 +217,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL) + 0060 audit_chain_heads (DERIVED)
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = ${JSON.stringify(registry, null, 2)};
 `;
 writeFileSync(
@@ -230,6 +230,7 @@ writeFileSync(
 // corresponding epoch triggers.
 const introducedAfterSprint42 = new Set([
   'ai_usage_counters',
+  'audit_chain_heads',
   'cash_register_shifts',
   'perceptions',
   'remission_guide_items',

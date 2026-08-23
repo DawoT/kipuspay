@@ -11,6 +11,7 @@ import {
   redeemStoreCreditSourceRef,
 } from '@kipuspay/domain-cash';
 import { runD1AtomicPlan, type AtomicPlanBuilder, type D1DatabaseLike } from './index.js';
+import { readAuditChainHead } from './audit-chain.js';
 import { sha256HexOf } from './crypto.js';
 import {
   appendJournalToPlan,
@@ -71,14 +72,7 @@ export async function previousStoreCreditAuditHash(
   db: D1DatabaseLike,
   tenantId: string,
 ): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 function parseExpiresAtMs(expiresAt: string | null | undefined): number | null {
@@ -416,6 +410,7 @@ export async function processStoreCreditIssueAtomic(
       postDate,
     });
     txnId = posted.txnId;
+    if (posted.rowHash !== '') plan.claimAuditChain(tenantId, prevHash, [posted.rowHash]);
   });
   return {
     status: 'SUCCESS',
@@ -510,6 +505,7 @@ export async function processStoreCreditExpireAtomic(
         }),
       });
     }
+    plan.claimAuditChain(tenantId, prevHash, [rowHash]);
   });
   return { status: 'SUCCESS', txnId, nextBalanceCents: 0 };
 }
@@ -633,6 +629,7 @@ export async function processStoreCreditAdjustAtomic(
           }),
         });
       }
+      plan.claimAuditChain(tenantId, prevHash, [rowHash]);
     });
   } catch {
     // Perdedor de la carrera de dedup: el batch fue abortado por el guard o por

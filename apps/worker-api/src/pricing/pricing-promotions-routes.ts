@@ -2,6 +2,7 @@
  * Sprint 30 — CRUD promociones + audit PROMOTION_CHANGE (FEATURE_PRICING_PROMOTIONS).
  */
 /* eslint-disable complexity -- CRUD create/update con validación rule/stack; split diferido */
+import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import { parseMaxStackJson, parsePromoRuleJson, PROMO_RULE_INVALID } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -64,21 +65,20 @@ function validateRuleAndStack(
   }
 }
 
-async function appendPromotionAudit(
+interface BuiltPromoAudit {
+  readonly statement: D1PreparedStatement;
+  readonly prevHash: string | null;
+  readonly rowHash: string;
+}
+
+async function buildPromotionAudit(
   db: D1Database,
   tenantId: string,
   userId: string,
   promotionId: string,
   payload: Record<string, unknown>,
-) {
-  const prev = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  const prevHash = prev?.row_hash ?? null;
+): Promise<BuiltPromoAudit> {
+  const prevHash = await readAuditChainHead(db, tenantId);
   const rowHash = await sha256Hex(
     JSON.stringify({
       action: 'PROMOTION_CHANGE',
@@ -87,7 +87,7 @@ async function appendPromotionAudit(
       payload,
     }),
   );
-  return db
+  const statement = db
     .prepare(
       `INSERT INTO audit_events (
          id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
@@ -103,6 +103,15 @@ async function appendPromotionAudit(
       prevHash,
       rowHash,
     );
+  return { statement, prevHash, rowHash };
+}
+
+function promotionAuditClaims(
+  db: D1Database,
+  tenantId: string,
+  audit: BuiltPromoAudit,
+): readonly D1PreparedStatement[] {
+  return auditChainClaimStatements(db, tenantId, audit.prevHash, [audit.rowHash]);
 }
 
 function targetInserts(
@@ -182,23 +191,29 @@ export async function runCreatePromotionHttp(
   if (!validated.ok) return validated.result;
 
   const id = crypto.randomUUID();
-  const stmts = [
-    env.DB.prepare(
-      `INSERT INTO promotions (
+  const insertPromo = env.DB.prepare(
+    `INSERT INTO promotions (
          id, tenant_id, name, active, starts_at, ends_at, applies_to,
          rule_json, max_stack_json, created_by_user_id
        ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
-    ).bind(
-      id,
-      tenantId,
-      name,
-      body.startsAt ?? null,
-      body.endsAt ?? null,
-      appliesTo,
-      validated.ruleJsonStr,
-      validated.maxStackJsonStr,
-      userId,
-    ),
+  ).bind(
+    id,
+    tenantId,
+    name,
+    body.startsAt ?? null,
+    body.endsAt ?? null,
+    appliesTo,
+    validated.ruleJsonStr,
+    validated.maxStackJsonStr,
+    userId,
+  );
+  const promoAudit = await buildPromotionAudit(env.DB, tenantId, userId, id, {
+    op: 'create',
+    name,
+    appliesTo,
+  });
+  const stmts = [
+    insertPromo,
     ...targetInserts(
       env.DB,
       tenantId,
@@ -207,11 +222,8 @@ export async function runCreatePromotionHttp(
       body.categoryIds ?? [],
       body.priceListIds ?? [],
     ),
-    await appendPromotionAudit(env.DB, tenantId, userId, id, {
-      op: 'create',
-      name,
-      appliesTo,
-    }),
+    promoAudit.statement,
+    ...promotionAuditClaims(env.DB, tenantId, promoAudit),
   ];
 
   await env.DB.batch(stmts);
@@ -264,6 +276,9 @@ export async function runUpdatePromotionHttp(
     }
   }
 
+  const updateAudit = await buildPromotionAudit(env.DB, tenantId, userId, promotionId, {
+    op: 'update',
+  });
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE promotions SET
@@ -286,7 +301,8 @@ export async function runUpdatePromotionHttp(
       tenantId,
       promotionId,
     ),
-    await appendPromotionAudit(env.DB, tenantId, userId, promotionId, { op: 'update' }),
+    updateAudit.statement,
+    ...promotionAuditClaims(env.DB, tenantId, updateAudit),
   ]);
 
   return { status: 200, body: { promotionId } };

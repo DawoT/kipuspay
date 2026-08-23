@@ -36,10 +36,14 @@ vi.mock('@kipuspay/adapters-d1/process-recurring-sale-atomic', () => ({
   runRecurringScheduler,
 }));
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   runD1AtomicPlan: vi.fn(async (_db: unknown, build: (plan: any) => Promise<void>) => {
     const statements: any[] = [];
     await build({
       guardState: vi.fn(),
+      claimAuditChain: vi.fn(),
       add(statement: any) {
         statements.push(statement);
       },

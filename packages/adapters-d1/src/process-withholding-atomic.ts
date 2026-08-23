@@ -60,12 +60,9 @@ async function auditTail(
   entityId: string,
 ): Promise<{ prev: string | null; id: string; hash: string }> {
   const prev = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
+    .prepare(`SELECT last_hash AS row_hash FROM audit_chain_heads WHERE tenant_id = ?`)
     .bind(tenantId)
-    .first<{ row_hash: string }>();
+    .first<{ row_hash: string | null }>();
   const id = crypto.randomUUID();
   const hash = await crypto.subtle
     .digest(
@@ -155,6 +152,7 @@ export async function processPerceptionAtomic(
           tail.hash,
         ),
     );
+    plan.claimAuditChain(tenantId, tail.prev, [tail.hash]);
     enqueueNonSaleOutbox(db, plan, {
       tenantId,
       documentType: '02',
@@ -252,6 +250,7 @@ export async function processRetentionAtomic(
           tail.hash,
         ),
     );
+    plan.claimAuditChain(tenantId, tail.prev, [tail.hash]);
     enqueueNonSaleOutbox(db, plan, {
       tenantId,
       documentType: '20',

@@ -1,3 +1,4 @@
+import { appendAuditEvent } from './audit-chain.js';
 import {
   canonicalJson,
   classifyTenantSchema,
@@ -51,15 +52,7 @@ export async function appendBackupAudit(
     readonly payload: Readonly<Record<string, unknown>>;
   },
 ): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const tail = await db
-      .prepare(
-        `SELECT row_hash FROM audit_events
-         WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-      )
-      .bind(input.tenantId)
-      .first<{ row_hash: string }>();
-    const previous = tail?.row_hash ?? null;
+  await appendAuditEvent(db, { tenantId: input.tenantId }, async (previous: string | null) => {
     const payloadJson = JSON.stringify(input.payload);
     const rowHash = Array.from(
       new Uint8Array(
@@ -77,42 +70,18 @@ export async function appendBackupAudit(
       ),
       (byte) => byte.toString(16).padStart(2, '0'),
     ).join('');
-    const guardId = crypto.randomUUID();
-    try {
-      await db.batch([
-        db
-          .prepare(
-            `INSERT INTO atomic_guards (id, ok)
-             SELECT ?, CASE WHEN COALESCE((
-               SELECT row_hash FROM audit_events
-               WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1
-             ), '') = COALESCE(?, '') THEN 1 ELSE 0 END`,
-          )
-          .bind(guardId, input.tenantId, previous),
-        db
-          .prepare(
-            `INSERT INTO audit_events (
-               id, tenant_id, actor_user_id, action, entity_type, entity_id,
-               payload_json, prev_hash, row_hash
-             ) VALUES (?, ?, ?, ?, 'data_backup', ?, ?, ?, ?)`,
-          )
-          .bind(
-            crypto.randomUUID(),
-            input.tenantId,
-            input.actorUserId,
-            input.action,
-            input.backupId,
-            payloadJson,
-            previous,
-            rowHash,
-          ),
-        db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(guardId),
-      ]);
-      return;
-    } catch (cause) {
-      if (attempt === 2) throw cause;
-    }
-  }
+    return {
+      id: crypto.randomUUID(),
+      branchId: null,
+      actorUserId: input.actorUserId ?? '',
+      action: input.action,
+      entityType: 'data_backup',
+      entityId: input.backupId,
+      payloadJson,
+      prevHash: previous,
+      rowHash,
+    };
+  });
 }
 
 interface RegistryInspectionPort {

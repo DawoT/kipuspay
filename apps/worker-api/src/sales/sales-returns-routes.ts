@@ -1,7 +1,7 @@
 /**
  * Sprint 28 — POST/GET sales returns (FEATURE_SALES_RETURNS, default off).
  */
-import { processReturnAtomic } from '@kipuspay/adapters-d1';
+import { appendAuditEvent, processReturnAtomic } from '@kipuspay/adapters-d1';
 import { parseReturnPolicyRow } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -352,39 +352,26 @@ export async function runUpsertReturnPolicyHttp(
       .run();
   }
 
-  // Regla 12: cambio de config sensible → audit_events.
-  const prev = await env.DB.prepare(
-    `SELECT row_hash FROM audit_events
-     WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-  )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  const id = crypto.randomUUID();
+  // Regla 12: cambio de config sensible → audit_events (puerto anti-fork M1).
   const payload = {
     windowDays,
     byPaymentMethodJson,
     refundToOriginalMethod: refundFlag,
     allowTurnClosedWithAuth: closedFlag,
   };
-  const rowHash = await sha256HexSafe(
-    JSON.stringify({ tenantId, actorUserId, action: 'RETURN_POLICY_UPDATE', payload }),
-  );
-  await env.DB.prepare(
-    `INSERT INTO audit_events (
-       id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-       payload_json, prev_hash, row_hash
-     ) VALUES (?, ?, NULL, ?, 'RETURN_POLICY_UPDATE', 'return_policies', ?, ?, ?, ?)`,
-  )
-    .bind(
-      id,
-      tenantId,
-      actorUserId,
-      tenantId,
-      JSON.stringify(payload),
-      prev?.row_hash ?? null,
-      rowHash,
-    )
-    .run();
+  await appendAuditEvent(env.DB, { tenantId }, async (prev) => ({
+    id: crypto.randomUUID(),
+    branchId: null,
+    actorUserId,
+    action: 'RETURN_POLICY_UPDATE',
+    entityType: 'return_policies',
+    entityId: tenantId,
+    payloadJson: JSON.stringify(payload),
+    prevHash: prev,
+    rowHash: await sha256HexSafe(
+      JSON.stringify({ tenantId, actorUserId, action: 'RETURN_POLICY_UPDATE', payload }),
+    ),
+  }));
 
   return {
     status: 200,

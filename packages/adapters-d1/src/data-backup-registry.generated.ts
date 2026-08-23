@@ -13,7 +13,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL) + 0060 audit_chain_heads (DERIVED)
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
   {
     name: 'accounts_payable',
@@ -123,6 +123,17 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
     tenantPredicate: 't0."tenant_id" = ?',
     tenantVia: [],
     reason: 'contains credential or authentication material',
+  },
+  {
+    name: 'audit_chain_heads',
+    classification: 'DERIVED',
+    primaryKey: ['tenant_id'],
+    columns: ['tenant_id', 'last_hash', 'updated_at'],
+    r2References: [],
+    tenantFrom: '"audit_chain_heads" AS t0',
+    tenantPredicate: 't0."tenant_id" = ?',
+    tenantVia: [],
+    reason: 'rebuildable from authoritative business records',
   },
   {
     name: 'audit_events',

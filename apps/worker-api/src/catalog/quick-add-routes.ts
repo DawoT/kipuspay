@@ -9,6 +9,7 @@
  *
  * Gating: flag default-off → 404; rol owner/admin. El tenant viene del JWT.
  */
+import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import { classifyScan, isReservedBarcode } from '@kipuspay/domain-catalog';
 
 export interface QuickAddEnv {
@@ -110,7 +111,7 @@ export async function runQuickAddHttp(
   // S50-H1: INSERT + audit en UN solo batch (atómico, invariante 2) y el
   // UNIQUE del barcode se maneja como 200 (producto ya creado), jamás 500.
   try {
-    const auditStmt = await buildQuickAddAuditStatement(db, actor, {
+    const audit = await buildQuickAddAuditStatement(db, actor, {
       productId,
       barcode,
       name,
@@ -125,10 +126,11 @@ export async function runQuickAddHttp(
            ) VALUES (?, ?, ?, ?, ?, 'physical', 'NIU', ?, 0, '10')`,
         )
         .bind(productId, actor.tenantId, `QUICK-${barcode}`, barcode, name, priceCents),
-      auditStmt,
+      audit.statement,
+      ...auditChainClaimStatements(db, actor.tenantId, audit.prevHash, [audit.rowHash]),
     ]);
   } catch (cause) {
-    if (cause instanceof Error && /UNIQUE|constraint/i.test(cause.message)) {
+    if (cause instanceof Error && /UNIQUE constraint failed/i.test(cause.message)) {
       const existingAfter = await db
         .prepare(
           `SELECT id, sku, barcode, name, price_cents, product_type FROM products
@@ -187,6 +189,12 @@ export async function runScanLookupHttp(
   return result(422, { code: 'UNSUPPORTED_SCAN' });
 }
 
+interface BuiltQuickAddAudit {
+  readonly statement: unknown;
+  readonly prevHash: string | null;
+  readonly rowHash: string;
+}
+
 async function buildQuickAddAuditStatement(
   db: Db,
   actor: QuickAddActor,
@@ -196,14 +204,8 @@ async function buildQuickAddAuditStatement(
     readonly name: string;
     readonly priceCents: number;
   },
-) {
-  const tail = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(actor.tenantId)
-    .first<{ row_hash: string }>();
-  const previous = tail?.row_hash ?? null;
+): Promise<BuiltQuickAddAudit> {
+  const previous = await readAuditChainHead(db, actor.tenantId);
   const payloadJson = JSON.stringify({
     productId: input.productId,
     barcode: input.barcode,
@@ -221,20 +223,24 @@ async function buildQuickAddAuditStatement(
     ),
     (byte) => byte.toString(16).padStart(2, '0'),
   ).join('');
-  return db
-    .prepare(
-      `INSERT INTO audit_events (
-         id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-         payload_json, prev_hash, row_hash
-       ) VALUES (?, ?, NULL, ?, 'QUICK_ADD', 'product', ?, ?, ?, ?)`,
-    )
-    .bind(
-      crypto.randomUUID(),
-      actor.tenantId,
-      actor.userId,
-      input.productId,
-      payloadJson,
-      previous,
-      rowHash,
-    );
+  return {
+    prevHash: previous,
+    rowHash,
+    statement: db
+      .prepare(
+        `INSERT INTO audit_events (
+           id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+           payload_json, prev_hash, row_hash
+         ) VALUES (?, ?, NULL, ?, 'QUICK_ADD', 'product', ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        actor.tenantId,
+        actor.userId,
+        input.productId,
+        payloadJson,
+        previous,
+        rowHash,
+      ),
+  };
 }

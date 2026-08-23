@@ -3,6 +3,7 @@
  * Un solo db.batch por create/deposit/convert/cancel. Sin CPE hasta convertir.
  */
 /* eslint-disable complexity -- orquestador multi-rama reserva/abono/convert/cancel */
+import { auditChainClaimStatements, readAuditChainHead } from './audit-chain.js';
 import { planLayawayDepositJournal, planLayawayRefundJournal } from '@kipuspay/domain-cash';
 import { convertEnteredToBaseMicrounits, QUANTITY_SCALE } from '@kipuspay/domain-inventory';
 import {
@@ -85,14 +86,7 @@ function limaDate(nowMs: number): string {
 }
 
 async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 async function resolveItemSnapshot(
@@ -719,6 +713,9 @@ export async function processLayawayConvertAtomic(
             rowHash,
           ),
       );
+      for (const claim of auditChainClaimStatements(db, tenantId, auditPrevHash, [rowHash])) {
+        builder.add(claim);
+      }
     },
   });
   if (sale.status !== 'SUCCESS') throw new Error('LAYAWAY_CONVERT_FAILED');

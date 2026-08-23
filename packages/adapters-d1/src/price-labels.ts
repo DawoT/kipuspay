@@ -575,11 +575,11 @@ export async function createPriceLabelBatchAtomic(
   const previousAudit = input.reprintOfBatchId
     ? await db
         .prepare(
-          `SELECT row_hash FROM audit_events
-           WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1`,
+          `SELECT last_hash AS row_hash FROM audit_chain_heads
+           WHERE tenant_id = ?`,
         )
         .bind(input.tenantId)
-        .first<{ row_hash: string }>()
+        .first<{ row_hash: string | null }>()
     : null;
   const auditPayload = input.reprintOfBatchId
     ? { originalBatchId: input.reprintOfBatchId, batchId, snapshotHash }
@@ -697,8 +697,7 @@ export async function createPriceLabelBatchAtomic(
             .prepare(
               `INSERT INTO atomic_guards (id, ok)
                SELECT ?, CASE WHEN COALESCE((
-                 SELECT row_hash FROM audit_events WHERE tenant_id = ?
-                 ORDER BY rowid DESC LIMIT 1
+                 SELECT last_hash FROM audit_chain_heads WHERE tenant_id = ?
                ), '') = COALESCE(?, '') THEN 1 ELSE 0 END`,
             )
             .bind(auditGuardId, input.tenantId, previousAudit?.row_hash ?? null),
@@ -722,6 +721,7 @@ export async function createPriceLabelBatchAtomic(
               auditHash,
             ),
         );
+        plan.claimAuditChain(input.tenantId, previousAudit?.row_hash ?? null, [auditHash]);
         plan.add(db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(auditGuardId));
       }
     });

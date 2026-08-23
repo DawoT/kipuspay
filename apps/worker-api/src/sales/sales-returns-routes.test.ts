@@ -68,19 +68,24 @@ describe('sales-returns-routes', () => {
       void rest;
       return Promise.resolve(null);
     });
-    const run = vi.fn((...args: unknown[]) => {
-      sqls.push(String(args[0]));
-      return Promise.resolve({ success: true });
-    });
     const env = {
       FEATURE_SALES_RETURNS: '1',
       DB: {
         prepare: (sql: string) => ({
-          bind: (...args: unknown[]) => ({
-            first: (): Promise<unknown> => first(sql, ...args),
-            run: (): Promise<{ success: boolean }> => run(sql, ...args),
+          bind: (...params: unknown[]) => ({
+            sql,
+            params,
+            first: (): Promise<unknown> => first(sql, ...params),
+            run: (): Promise<{ success: boolean }> => {
+              sqls.push(sql);
+              return Promise.resolve({ success: true });
+            },
           }),
         }),
+        batch: async (statements: readonly { sql: string }[]): Promise<readonly unknown[]> => {
+          for (const statement of statements) sqls.push(statement.sql);
+          return statements.map(() => ({ success: true }));
+        },
       },
     } as unknown as WorkerEnv;
     const res = await runUpsertReturnPolicyHttp(env, 't1', 'u1', 'owner', {
@@ -93,7 +98,7 @@ describe('sales-returns-routes', () => {
     expect(res.body.refundToOriginalMethod).toBe(false);
     const inserts = sqls.filter((s) => s.includes('INSERT INTO return_policies'));
     expect(inserts.length).toBe(1);
-    const audits = sqls.filter((s) => s.includes('RETURN_POLICY_UPDATE'));
+    const audits = sqls.filter((s) => s.includes('INSERT INTO audit_events'));
     expect(audits.length).toBe(1);
   });
 

@@ -5,6 +5,9 @@ const processPerceptionAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>(
 const processRetentionAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   processPerceptionAtomic: (
     a: unknown,
     b: unknown,

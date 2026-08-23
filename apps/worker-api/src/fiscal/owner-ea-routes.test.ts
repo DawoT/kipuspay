@@ -10,6 +10,9 @@ import {
 const processCreditNoteAtomic = vi.fn();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   processCreditNoteAtomic: (...args: unknown[]) =>
     processCreditNoteAtomic(...args) as Promise<unknown>,
 }));

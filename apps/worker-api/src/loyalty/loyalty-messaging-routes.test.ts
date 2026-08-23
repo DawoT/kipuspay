@@ -12,6 +12,9 @@ import {
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   reserveLoyaltyPointsAtomic: vi.fn((_db: unknown, _t: string, input: { points: number }) => {
     if (input.points === 99) return Promise.reject(new Error('LOYALTY_INSUFFICIENT_POINTS'));
     return Promise.resolve({

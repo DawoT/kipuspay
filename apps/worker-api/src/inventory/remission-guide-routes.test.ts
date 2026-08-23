@@ -4,6 +4,9 @@ import { runRemissionGuideHttp, type GreEnv } from './remission-guide-routes.js'
 const processRemissionGuideAtomic = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   processRemissionGuideAtomic: (...args: unknown[]) => processRemissionGuideAtomic(...args),
 }));
 

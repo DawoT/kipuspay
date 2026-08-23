@@ -552,6 +552,16 @@ describe('processLayawayConvertAtomic (G1/G2/G5)', () => {
     )
       .bind(`aud-seed-${tenantId}`, tenantId, fixture.userId)
       .run();
+    // M1: el seed escribe audit_events directo — debe dejar la cabeza
+    // consistente (mismo contrato que el backfill de 0060) para que el
+    // encadenado por puerto tome esa fila como prev.
+    await env.DB.prepare(
+      `INSERT INTO audit_chain_heads (tenant_id, last_hash)
+       VALUES (?, 'seed-prior-hash')
+       ON CONFLICT (tenant_id) DO UPDATE SET last_hash = excluded.last_hash`,
+    )
+      .bind(tenantId)
+      .run();
     const now = Date.parse('2026-08-04T15:00:00.000Z');
 
     await processLayawayConvertAtomic(

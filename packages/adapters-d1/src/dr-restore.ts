@@ -142,6 +142,40 @@ export async function rebuildDerivedRollupsOnDrShard(input: {
   return { reportDates: [...closedDays].sort() };
 }
 
+/**
+ * Rematerializa audit_chain_heads (DERIVED, no viaja en el backup) desde el
+ * audit_events YA restaurado en el shard DR. Sin esto, la primera emisión
+ * post-failover vería cabeza vacía y crearía un segundo génesis → fork contra
+ * el historial restaurado. Misma caminata determinista que el backfill de la
+ * migración 0060: por tenant, la fila más reciente (created_at DESC, id DESC).
+ * Idempotente: DELETE+INSERT global dentro de un solo batch.
+ */
+export async function rebuildAuditChainHeadsOnDrShard(input: {
+  readonly db: DrTargetDb;
+}): Promise<{ readonly tenants: number }> {
+  await input.db.batch([
+    input.db.prepare(`DELETE FROM audit_chain_heads`),
+    input.db.prepare(
+      `INSERT INTO audit_chain_heads (tenant_id, last_hash, updated_at)
+       SELECT tenant_id, row_hash, CURRENT_TIMESTAMP
+       FROM (
+           SELECT tenant_id, row_hash,
+                  ROW_NUMBER() OVER (
+                      PARTITION BY tenant_id
+                      ORDER BY created_at DESC, id DESC
+                  ) AS rn
+           FROM audit_events
+       )
+       WHERE rn = 1`,
+    ),
+  ]);
+  const heads = await input.db
+    .prepare(`SELECT COUNT(*) AS n FROM audit_chain_heads`)
+    .bind()
+    .first<{ n: number }>();
+  return { tenants: heads?.n ?? 0 };
+}
+
 export interface DrReplayVerification {
   readonly salesCount: number;
   readonly expectedSalesCount: number;

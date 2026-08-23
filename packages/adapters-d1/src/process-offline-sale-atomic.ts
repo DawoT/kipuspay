@@ -60,6 +60,7 @@ import {
   type PaymentMethodCode,
 } from '@kipuspay/domain-integrations';
 import { runD1AtomicPlan, resolveShardId, type D1Bound, type D1DatabaseLike } from './index.js';
+import { readAuditChainHead } from './audit-chain.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 import {
   appendStoreCreditIssueToPlan,
@@ -162,17 +163,6 @@ function isUniqueConstraint(error: unknown): boolean {
 
 async function computeAuditHash(event: Record<string, unknown>): Promise<string> {
   return sha256Hex(JSON.stringify(event));
-}
-
-async function previousAuditHash(db: D1DatabaseLike, tenantId: string): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
 }
 
 async function loadAlreadySynced(
@@ -1369,7 +1359,8 @@ export async function processOfflineSaleAtomic(
     prevHash: string | null;
     rowHash: string;
   }> = [];
-  let chainPrev = await previousAuditHash(db, tenantId);
+  const chainHeadAtRead = await readAuditChainHead(db, tenantId);
+  let chainPrev: string | null = chainHeadAtRead;
   if (!isReturn) {
     for (const [productId, qty] of qtyByProduct) {
       if (!isPhysicalStockType(catalog.get(productId)!.type)) continue;
@@ -1938,19 +1929,6 @@ export async function processOfflineSaleAtomic(
               measurement.observedAt,
               measurement.authorizationTokenId,
             ),
-        );
-        const auditGuardId = crypto.randomUUID();
-        stockGuardIds.push(auditGuardId);
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO atomic_guards (id, ok)
-               SELECT ?, CASE WHEN COALESCE((
-                 SELECT row_hash FROM audit_events
-                 WHERE tenant_id = ? ORDER BY rowid DESC LIMIT 1
-               ), '') = COALESCE(?, '') THEN 1 ELSE 0 END`,
-            )
-            .bind(auditGuardId, tenantId, weightAudit.prevHash),
         );
         plan.add(
           db
@@ -2570,6 +2548,14 @@ export async function processOfflineSaleAtomic(
             .bind(tokenId, tenantId),
         );
       }
+
+      // M1 anti-fork: claim CAS de audit_chain_heads por TODO el tramo
+      // encadenado en memoria (head leída → punta final), en este mismo batch.
+      plan.claimAuditChain(
+        tenantId,
+        chainHeadAtRead,
+        auditTail !== null && auditTail !== chainHeadAtRead ? [auditTail] : [],
+      );
 
       if (opts.afterSaleStatements) {
         await opts.afterSaleStatements(plan, saleId, auditTail);

@@ -23,6 +23,7 @@ import {
   type ReturnDocType,
   type ReturnLineRequest,
 } from '@kipuspay/domain-sales';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type D1DatabaseLike } from './index.js';
 import { appendJournalToPlan, loadChartAccountsByCode } from './journal-post.js';
 import {
@@ -407,13 +408,9 @@ export async function processReturnAtomic(
   const returnId = crypto.randomUUID();
   const documentSaleId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
-  const prevHash = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
+  const chainHeadAtRead = await readAuditChainHead(db, tenantId);
+  let auditTail: string | null = chainHeadAtRead;
+  const prevHash = { row_hash: chainHeadAtRead };
   const rowHash = await sha256HexOf({
     action: 'RETURN',
     entity_id: returnId,
@@ -783,10 +780,11 @@ export async function processReturnAtomic(
               isUncatalogued: l.isUncatalogued,
             })),
           }),
-          prevHash?.row_hash ?? null,
+          prevHash.row_hash,
           rowHash,
         ),
     );
+    auditTail = rowHash;
     for (const reversal of weightReversalPlans) {
       plan.add(
         db
@@ -814,6 +812,9 @@ export async function processReturnAtomic(
           ),
       );
     }
+    if (weightReversalPlans.length > 0) {
+      auditTail = reversalPrevHash;
+    }
 
     if (issueStoreCredit && storeCreditAccount && origin.customer_id) {
       const issue = planStoreCreditIssue({
@@ -833,21 +834,22 @@ export async function processReturnAtomic(
         saleId: documentSaleId,
         prevBalanceCents: storeCreditAccount.balance_cents,
         nextBalanceCents: issue.nextBalanceCents,
-        prevAuditHash: prevHash?.row_hash ?? null,
+        prevAuditHash: auditTail,
         chartOn,
         accountsByCode: chartAccounts,
         postDate: issuedAt.slice(0, 10),
       });
       storeCreditTxnId = posted.txnId;
+      if (posted.rowHash !== '') auditTail = posted.rowHash;
     }
 
     if (chartOn) {
-      await appendJournalToPlan(plan, db, {
+      const jr = await appendJournalToPlan(plan, db, {
         tenantId,
         branchId: origin.branch_id,
         userId,
         accountsByCode: chartAccounts,
-        prevAuditHash: prevHash?.row_hash ?? null,
+        prevAuditHash: auditTail,
         entry: planSalesReturnJournal({
           sourceId: returnId,
           postDate: issuedAt.slice(0, 10),
@@ -865,20 +867,27 @@ export async function processReturnAtomic(
           ],
         }),
       });
+      auditTail = jr.rowHash;
     }
 
     if (commissionsOn) {
-      await appendCommissionReverseWithJournal(plan, db, {
+      const commissionTip = await appendCommissionReverseWithJournal(plan, db, {
         tenantId,
         userId,
         branchId: origin.branch_id,
         saleId: input.originSaleId,
         nowIso: issuedAt,
-        prevAuditHash: prevHash?.row_hash ?? null,
+        prevAuditHash: auditTail,
         chartOn,
         accountsByCode: chartAccounts,
         postDate: issuedAt.slice(0, 10),
       });
+      if (commissionTip) auditTail = commissionTip;
+    }
+
+    // M1 anti-fork: claim único del tramo completo (cabeza leída → punta).
+    if (auditTail !== null && auditTail !== chainHeadAtRead) {
+      plan.claimAuditChain(tenantId, chainHeadAtRead, [auditTail]);
     }
 
     appendUsageMeterToPlan(plan, db, {

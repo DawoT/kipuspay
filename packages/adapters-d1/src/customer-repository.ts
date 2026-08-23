@@ -21,6 +21,7 @@ import {
   type ErasePlan,
 } from '@kipuspay/domain-customers';
 import type { D1Bound, D1DatabaseLike } from './index.js';
+import { auditChainClaimStatements, readAuditChainHead } from './audit-chain.js';
 import { sha256HexOf } from './crypto.js';
 
 export interface CustomerInventoryRow {
@@ -288,15 +289,7 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
     deleted: customer.deleted_at !== null,
   });
 
-  const prevAudit = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC
-       LIMIT 1`,
-    )
-    .bind(input.tenantId)
-    .first<{ row_hash: string }>();
+  const prevAuditHash = await readAuditChainHead(db, input.tenantId);
 
   const fiscalRows = await db
     .prepare(
@@ -397,7 +390,7 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
     entity_id: input.customerId,
     tenant_id: input.tenantId,
     payload: payloadJson,
-    prev: prevAudit?.row_hash ?? null,
+    prev: prevAuditHash,
   });
   statements.push(
     db
@@ -414,13 +407,16 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
         input.actorUserId,
         input.customerId,
         payloadJson,
-        prevAudit?.row_hash ?? null,
+        prevAuditHash,
         rowHash,
         input.nowIso,
       ),
   );
 
-  await db.batch(statements);
+  await db.batch([
+    ...statements,
+    ...auditChainClaimStatements(db, input.tenantId, prevAuditHash, [rowHash]),
+  ]);
 
   return {
     customerId: input.customerId,

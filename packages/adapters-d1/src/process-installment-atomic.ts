@@ -16,6 +16,7 @@ import {
   type InstallmentScheduleItemInput,
   type InstallmentStatus,
 } from '@kipuspay/domain-sales';
+import { readAuditChainHead } from './audit-chain.js';
 import { runD1AtomicPlan, type D1Bound, type D1DatabaseLike } from './index.js';
 import { sha256HexOf } from './crypto.js';
 import {
@@ -60,14 +61,7 @@ export async function previousInstallmentAuditHash(
   db: D1DatabaseLike,
   tenantId: string,
 ): Promise<string | null> {
-  const row = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events
-       WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
-    .bind(tenantId)
-    .first<{ row_hash: string }>();
-  return row?.row_hash ?? null;
+  return readAuditChainHead(db, tenantId);
 }
 
 export function appendCancelPendingInstallmentsOnArClosed(
@@ -374,7 +368,9 @@ export async function processInstallmentPayAtomic(
   });
 
   const paymentId = crypto.randomUUID();
-  const prevHash = await previousInstallmentAuditHash(db, tenantId);
+  const headAtRead = await previousInstallmentAuditHash(db, tenantId);
+  const prevHash = headAtRead;
+
   const accounts = chartOn ? await loadChartAccountsByCode(db, tenantId) : new Map();
   const postDate = nowIso.slice(0, 10);
 
@@ -504,6 +500,7 @@ export async function processInstallmentPayAtomic(
         }),
       });
     }
+    plan.claimAuditChain(tenantId, headAtRead, [rowHash]);
   });
 
   return {

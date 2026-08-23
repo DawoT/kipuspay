@@ -4,6 +4,9 @@ import { reminderDayFor, runBillingRemindersScheduled } from './billing-reminder
 
 const appendPushEventAtomic = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true }));
 vi.mock('@kipuspay/adapters-d1', () => ({
+  appendAuditEvent: vi.fn(async () => undefined),
+  readAuditChainHead: vi.fn(async () => null),
+  auditChainClaimStatements: vi.fn(() => []),
   appendPushEventAtomic,
 }));
 

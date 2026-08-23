@@ -218,12 +218,9 @@ export async function processSupplierInvoiceMatchAtomic(
 
   const auditId = crypto.randomUUID();
   const prevHash = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
+    .prepare(`SELECT last_hash AS row_hash FROM audit_chain_heads WHERE tenant_id = ?`)
     .bind(tenantId)
-    .first<{ row_hash: string }>();
+    .first<{ row_hash: string | null }>();
   const rowHash = await sha256HexOf({
     action: matchPlan.requiresPriceDiffAudit ? 'SUPPLIER_PRICE_DIFF' : 'SUPPLIER_INVOICE_MATCH',
     entity_id: invoiceId,
@@ -235,6 +232,7 @@ export async function processSupplierInvoiceMatchAtomic(
     ? await loadChartAccountsByCode(db, tenantId)
     : new Map<string, string>();
 
+  // eslint-disable-next-line complexity -- invoice-match: multi-rama + claim M1
   await runD1AtomicPlan(db, async (plan) => {
     plan.add(
       db
@@ -414,6 +412,7 @@ export async function processSupplierInvoiceMatchAtomic(
           ),
       );
     }
+    plan.claimAuditChain(tenantId, prevHash?.row_hash ?? null, [rowHash]);
   });
 
   return {

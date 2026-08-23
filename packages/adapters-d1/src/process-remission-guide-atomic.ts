@@ -44,12 +44,9 @@ export async function processRemissionGuideAtomic(
   const remissionGuideId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const prevHash = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
+    .prepare(`SELECT last_hash AS row_hash FROM audit_chain_heads WHERE tenant_id = ?`)
     .bind(tenantId)
-    .first<{ row_hash: string }>();
+    .first<{ row_hash: string | null }>();
   const rowHash = await crypto.subtle
     .digest(
       'SHA-256',
@@ -158,6 +155,7 @@ export async function processRemissionGuideAtomic(
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, prevHash?.row_hash ?? null, [rowHash]);
     enqueueNonSaleOutbox(db, plan, {
       tenantId,
       documentType: '31',

@@ -90,7 +90,7 @@ class RecordingD1 implements D1DatabaseLike {
     if (sql.includes("status = 'ACTIVE' LIMIT 1") && sql.includes('price_label_templates')) {
       return this.options.activeTemplate === false ? null : { id: 'template-1' };
     }
-    if (sql.includes('SELECT row_hash FROM audit_events')) {
+    if (sql.includes('SELECT last_hash FROM audit_chain_heads')) {
       return this.options.previousAuditHash ? { row_hash: this.options.previousAuditHash } : null;
     }
     if (sql.includes('SELECT status FROM price_label_batches')) {
@@ -565,7 +565,7 @@ describe('Sprint 41 price-label adapter unit branches', () => {
         ?.map((statement) => statement.sql)
         .join('\n') ?? '';
     expect(planSql).toContain('PRICE_LABEL_REPRINT');
-    expect(planSql).toContain('SELECT row_hash FROM audit_events');
+    expect(planSql).toContain('SELECT last_hash FROM audit_chain_heads');
     expect(planSql.match(/DELETE FROM atomic_guards/g)?.length).toBeGreaterThanOrEqual(2);
     await expect(
       reprintPriceLabelBatchAtomic(new RecordingD1(), {

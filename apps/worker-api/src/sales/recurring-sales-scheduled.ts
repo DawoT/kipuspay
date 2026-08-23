@@ -1,5 +1,5 @@
 import { runRecurringScheduler } from '@kipuspay/adapters-d1/process-recurring-sale-atomic';
-import { runD1AtomicPlan } from '@kipuspay/adapters-d1';
+import { readAuditChainHead, runD1AtomicPlan } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isRecurringSalesEnabled } from '../auth/features.js';
 
@@ -176,6 +176,7 @@ async function authorizeManualRpc(
   }
   try {
     const auditRowHash = await sha256(`${tenantId}:${idempotencyHash}:${action}:ACCEPTED`);
+    const auditHead = await readAuditChainHead(env.DB!, tenantId);
     await runD1AtomicPlan(env.DB!, (plan) => {
       plan.guardState(
         `SELECT 1 FROM authorization_tokens
@@ -199,9 +200,9 @@ async function authorizeManualRpc(
           .DB!.prepare(
             `INSERT INTO audit_events (
              id, tenant_id, actor_user_id, action, entity_type, entity_id,
-             payload_json, row_hash
+             payload_json, prev_hash, row_hash
            ) VALUES (?, ?, ?, 'RECURRING_MANUAL_RUN_ACCEPTED',
-                     'recurring_scheduler', ?, ?, ?)`,
+                     'recurring_scheduler', ?, ?, ?, ?)`,
           )
           .bind(
             crypto.randomUUID(),
@@ -215,9 +216,11 @@ async function authorizeManualRpc(
               idempotencyHash,
               limit,
             }),
+            auditHead,
             auditRowHash,
           ),
       );
+      plan.claimAuditChain(tenantId, auditHead, [auditRowHash]);
     });
   } catch {
     fail('RECURRING_SUPPORT_AUTH_INVALID');
@@ -246,6 +249,7 @@ async function persistManualOutcome(
     limit: authorization.limit,
   });
   const rowHash = await sha256(`${tenantId}:${authorization.id}:${payload}`);
+  const auditHead = await readAuditChainHead(env.DB!, tenantId);
   await runD1AtomicPlan(env.DB!, (plan) => {
     plan.guardState(
       `SELECT 1 FROM authorization_tokens
@@ -265,8 +269,8 @@ async function persistManualOutcome(
         .DB!.prepare(
           `INSERT INTO audit_events (
              id, tenant_id, actor_user_id, action, entity_type, entity_id,
-             payload_json, row_hash
-           ) VALUES (?, ?, ?, ?, 'recurring_scheduler', ?, ?, ?)`,
+             payload_json, prev_hash, row_hash
+           ) VALUES (?, ?, ?, ?, 'recurring_scheduler', ?, ?, ?, ?)`,
         )
         .bind(
           crypto.randomUUID(),
@@ -277,9 +281,11 @@ async function persistManualOutcome(
             : 'RECURRING_MANUAL_RUN_COMPLETE',
           authorization.id,
           payload,
+          auditHead,
           rowHash,
         ),
     );
+    plan.claimAuditChain(tenantId, auditHead, [rowHash]);
   });
 }
 

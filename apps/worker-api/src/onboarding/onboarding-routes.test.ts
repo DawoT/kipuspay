@@ -191,16 +191,34 @@ describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalizati
   function dbWithTenant(mode: string): unknown {
     const rows = { mode };
     const prepared: string[] = [];
+    const heads = new Map<string, string>();
     return {
+      heads,
       prepared,
+      async batch(statements: readonly { sql: string; params: readonly unknown[] }[]) {
+        for (const statement of statements) {
+          prepared.push(statement.sql);
+          if (statement.sql.startsWith('UPDATE audit_chain_heads')) {
+            heads.set(String(statement.params[1]), String(statement.params[0]));
+          } else if (statement.sql.includes('VALUES (?, ?) ON CONFLICT')) {
+            heads.set(String(statement.params[0]), String(statement.params[1]));
+          }
+        }
+        return statements.map(() => ({ results: [], success: true, meta: {} }));
+      },
       prepare(sql: string) {
         prepared.push(sql);
         return {
           bind(...args: unknown[]) {
             return {
+              sql,
+              params: args,
               first: () => {
                 if (sql.includes('FROM tenants')) {
                   return Promise.resolve({ formalization_mode: rows.mode });
+                }
+                if (sql.includes('FROM audit_chain_heads')) {
+                  return Promise.resolve(heads.has('t1') ? { last_hash: heads.get('t1') } : null);
                 }
                 return Promise.resolve(null);
               },
@@ -242,8 +260,11 @@ describe('S11-H2: formalization stage persistente (PATCH /api/tenant/formalizati
       formalization_mode: string;
     };
     expect(after.formalization_mode).toBe('FORMALIZING');
-    // S17-H3: el cambio de modo emite audit_events FORMALIZATION_MODE.
-    expect(dbRaw.prepared.some((s) => s.includes("'FORMALIZATION_MODE'"))).toBe(true);
+    // S17-H3: el cambio de modo emite audit_events FORMALIZATION_MODE
+    // (puerto M1: la acción viaja como parámetro del INSERT genérico y la
+    // cabeza del chain avanza con el claim CAS dentro del mismo batch).
+    expect(dbRaw.prepared.some((s) => s.includes('INSERT INTO audit_events'))).toBe(true);
+    expect((dbRaw as unknown as { heads: Map<string, string> }).heads.size).toBe(1);
   });
 
   it('salto de etapa sin confirmar → 422 y NO persiste', async () => {

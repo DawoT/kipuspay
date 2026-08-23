@@ -114,12 +114,9 @@ export async function processCreditNoteAtomic(
   const ncId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const prevHash = await db
-    .prepare(
-      `SELECT row_hash FROM audit_events WHERE tenant_id = ?
-       ORDER BY created_at DESC, id DESC LIMIT 1`,
-    )
+    .prepare(`SELECT last_hash AS row_hash FROM audit_chain_heads WHERE tenant_id = ?`)
     .bind(tenantId)
-    .first<{ row_hash: string }>();
+    .first<{ row_hash: string | null }>();
   const rowHash = await crypto.subtle
     .digest(
       'SHA-256',
@@ -236,6 +233,8 @@ export async function processCreditNoteAtomic(
     prevHash: string;
     rowHash: string;
   }> = [];
+  const chainHeadAtRead = prevHash?.row_hash ?? null;
+  let auditTail: string | null = chainHeadAtRead;
   let reversalPrevHash = rowHash;
   for (const resolved of resolvedStockItems) {
     if (!resolved.measurementId || !resolved.item.originalSaleItemId) continue;
@@ -282,6 +281,7 @@ export async function processCreditNoteAtomic(
       ? await loadChartAccountsByCode(db, tenantId)
       : new Map<string, string>();
 
+  // eslint-disable-next-line complexity -- NC: orquestador multi-rama + claim M1
   await runD1AtomicPlan(db, async (plan) => {
     plan.add(
       db
@@ -349,6 +349,7 @@ export async function processCreditNoteAtomic(
           rowHash,
         ),
     );
+    auditTail = rowHash;
 
     for (const resolved of resolvedStockItems) {
       const { item, restoreMicrounits } = resolved;
@@ -439,6 +440,10 @@ export async function processCreditNoteAtomic(
             reversal.rowHash,
           ),
       );
+    }
+    if (weightReversalAudits.length > 0) auditTail = reversalPrevHash;
+    if (auditTail !== null && auditTail !== chainHeadAtRead) {
+      plan.claimAuditChain(tenantId, chainHeadAtRead, [auditTail]);
     }
     for (const serial of preparedSerials) {
       await appendSerialTransitionToPlan(plan, db, {
