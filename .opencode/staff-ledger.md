@@ -389,3 +389,80 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0009
+timestamp_utc: 2026-08-23T05:20:00Z
+schema_version: 2
+sprint_fase: Transversal — Game Day 001 (caos + auditoría en vivo)
+agente_responsable: Kipus QA (Staff Chaos Engineering)
+tipo: Evidencia de resiliencia adversarial
+subtipo: Núcleo transaccional bajo caos + integridad de auditoría en staging
+relacion: amplía
+referencias_entradas: [0007]
+referencias_documentales: ["docs/ops/game-day-001-qg.md", "docs/ops/game-day-001-evidence/e3-sql-queries.sql", "docs/PROCESS.md §6"]
+prev_id: 0008
+prev_hash: e6f8651a668ff99031a8ac20e1d83bf68cc7c9ba8f5891ca4a7bcd174db2437b
+entry_hash: 12a8b1f4bb92be9a5c8aa89f06f328576a1c9c05e5e3ffd1023777777acd55bf
+ticket_or_adr: Game Day 001 — primer game day formal del escuadrón
+test_ids: [packages/chaos-harness/src/offline-sale-concurrency.test.ts, packages/adapters-d1/src/offline-sale-game-day.integration.test.ts]
+entregable_afectado: chaos-harness offline-sale-concurrency (jueces E1/E2) · adapters-d1 offline-sale-game-day.integration · docs/ops/game-day-001-qg.md
+descripcion: >
+  Game Day 001 ejecutado con veredicto PASS×3. E1: ráfaga N=8 processOfflineSaleAtomic
+  mismo tenant+caja contra D1 real → 8/8 SUCCESS, correlativos 1..8 únicos contiguos,
+  totales 1180 cents exactos, cero escrituras parciales (sales/sale_items/sale_payments/
+  stock/serie/atomic_guards barridos). E2: wrapper del puerto D1 lanza tras el k-ésimo
+  statement (k=4, plan=15) → error explícito y rollback total; CHECK violado a mitad del
+  plan (16 statements) → rollback total en 5 tablas + contadores; formaliza y extiende el
+  patrón preexistente t-acid-midroll. E3: caminata DAG EN VIVO de audit_events en
+  kipuspay-staging (solo lectura) → phase0_001 40/40 alcanzables, 0 huérfanos, 1 fork
+  histórico documentado (carrera read-then-insert previa al M1 anti-fork), cabeza ==
+  rowid máx; rosa_negra_001 6/6, 0 huérfanos, 0 forks. Detectores RED→GREEN por contrato
+  (convención customer-orders.red): 12/12. Suites: chaos-harness 132, adapters-d1 unit
+  442, integration 308 (D1 real), worker-api 1356; tsc/eslint/prettier limpios;
+  scripts/verify.sh SUITE GREEN. Sin commits ni toques a producción/e-beta.
+evidencia: >
+  STATS_GD1_E1 {"verdict":"PASS","successes":8,"rejections":0,"failures":[],"numbers":[1..8]};
+  STATS_GD1_E2A {"statementsInPlan":15,"observedError":"CHAOS_MIDBATCH_ABORT_AFTER_STATEMENT_4"};
+  STATS_GD1_E2B SQLITE_CONSTRAINT_CHECK observada; e3-dag-walk.json + SQL cruda en
+  docs/ops/game-day-001-evidence/.
+ancestry_verified: true
+aprobaciones: ["A: pendiente firma Staff Principal sobre commit", "V: jueces deterministas + D1 real re-ejecutable", "Caveat: mismo sistema"]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```text
+id: 0010
+timestamp_utc: 2026-08-23T06:23:38Z
+schema_version: 2
+sprint_fase: Transversal — Game Day 001
+agente_responsable: Staff Principal (supervisor)
+tipo: Cierre
+subtipo: Cierre RACI de 0009 — GD-001 APROBADO
+relacion: amplía
+referencias_entradas: [0009]
+referencias_documentales: ["docs/ops/game-day-001-qg.md", "docs/ops/game-day-001-evidence/"]
+prev_id: 0009
+prev_hash: 12a8b1f4bb92be9a5c8aa89f06f328576a1c9c05e5e3ffd1023777777acd55bf
+entry_hash: df5126d031c84ffda032320676038c1400f2a946b11ffce031347c9c2bd9936a
+ticket_or_adr: Game Day 001 formal (primer drill del escuadrón)
+test_ids: [adapters-d1 offline-sale-game-day.integration (3), chaos-harness 132, adapters-d1 442, worker-api 1356, SUITE]
+entregable_afectado: docs/ops/game-day-001-qg.md · chaos-harness/src/offline-sale-concurrency.ts · docs/ops/game-day-001-evidence/
+descripcion: >
+  Firma A del supervisor sobre la 0009 (Kipus QA). Verificación independiente:
+  caminata DAG propia sobre staging coincide exactamente (phase0 40 filas,
+  génesis 1, forks 1 histórico documentado, huérfanos 0; rosa_negra 6/6 limpio);
+  suites re-ejecutadas: integración 308, chaos-harness 132, SUITE GREEN,
+  prettier limpia. GD-001 queda APROBADO como primer game day formal; los
+  detectores E1/E2 quedan permanentes para nightly chaos. Cadencia aprobada:
+  game day mensual rotando capa.
+evidencia: >
+  Supervisor replicó E3 con script propio → números idénticos al reporte QA;
+  sin hallazgos accionables nuevos; tracker sin cambios.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (firma)", "V: re-ejecución independiente de suites + DAG walk propio"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

@@ -523,6 +523,18 @@ export {
 } from './audit-chain-fork.js';
 
 export {
+  judgeOfflineSaleConcurrency,
+  judgeOfflineSaleMidBatchAbort,
+  type MidBatchAbortPostCounts,
+  type OfflineSaleAttemptEvidence,
+  type OfflineSaleChaosJudgement,
+  type OfflineSaleConcurrencyInput,
+  type OfflineSaleConcurrencyPostState,
+  type OfflineSaleMidBatchAbortInput,
+  type OfflineSaleOutcome,
+} from './offline-sale-concurrency.js';
+
+export {
   CUSTOMER_ORDER_FAILURES,
   CUSTOMER_ORDER_FAULTS,
   judgeCustomerOrderChaos,

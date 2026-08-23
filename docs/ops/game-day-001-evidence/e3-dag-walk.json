@@ -1,0 +1,43 @@
+[
+  {
+    "tenant_id": "tenant_stg_phase0_001",
+    "total_rows": 40,
+    "genesis_rows": 1,
+    "reachable_from_genesis": 40,
+    "orphans_unreachable": 0,
+    "duplicate_ids": 0,
+    "non_hex_row_hash": 0,
+    "forks_extra_children": 1,
+    "fork_branch_points": 1,
+    "fork_details": [
+      {
+        "prev_hash": "5154ce0abfd2a1941662f5798042f3464db065aa2beb0a4c72fef0e9b9d67c66",
+        "prev_rowid": 21,
+        "children": [
+          {
+            "id": "79e4fa17-61ad-493d-b1b8-944c4dfce145",
+            "rowid": 22,
+            "row_hash": "3994cc397b1f0fb27d0c712d2fb2f5d3f9192fcf61a3b91cc172f0804fd1af28"
+          },
+          {
+            "id": "0a04c1ab-11c5-4eda-a7af-a62147eb2777",
+            "rowid": 23,
+            "row_hash": "b76f1e0d1b703f3a76b6e3e8c07f097cd962a4ab960f72fe265c5af638214785"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "tenant_id": "tenant_stg_rosa_negra_001",
+    "total_rows": 6,
+    "genesis_rows": 1,
+    "reachable_from_genesis": 6,
+    "orphans_unreachable": 0,
+    "duplicate_ids": 0,
+    "non_hex_row_hash": 0,
+    "forks_extra_children": 0,
+    "fork_branch_points": 0,
+    "fork_details": []
+  }
+]
