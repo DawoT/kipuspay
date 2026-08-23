@@ -702,6 +702,7 @@ sprints_cierre:
         detail: "G1 WAIT — VAPID + FCM HTTP v1 reales (no stubs SA); ACK DISPLAYED p95<10s ≥99%. Kill-switch/rotación documentados."
         can_auto_fix: false
         status: wait
+        progress: "2026-08-23 Staff FCM: SA real instalado — Secrets Store 6c5d2aff… secret push-fcm-service-account-v2 (id f778c594…) actualizado vía `wrangler secrets-store secret update --remote` con la clave del SA firebase-adminsdk-fbsvc@kipuspay-staging generada en Firebase console (material local tmp-staff/fcm-sa-staging.json, fuera de repo). Token mint OAuth2 verificado HTTP 200 (JWT RS256 → oauth2.googleapis.com/token, scope firebase.messaging, expires_in 3599). PENDIENTE para cierre: prueba end-to-end de entrega/ACK DISPLAYED en dispositivo Android real (H4) + SLO p95<10s ≥99%."
     next_actions:
       - id: fcm-vapid-real
         owner: Staff Mobile + Staff Security

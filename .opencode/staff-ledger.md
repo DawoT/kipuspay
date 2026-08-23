@@ -466,3 +466,47 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0011
+timestamp_utc: 2026-08-23T17:37:19Z
+schema_version: 2
+sprint_fase: Transversal — H3 Firebase SA real (go-live-fcm)
+agente_responsable: Staff Principal (completó y verificó tras aborto de delegación experta Firebase/Playwright)
+tipo: Milestone de operación
+subtipo: FCM SA real instalado y verificado — stub eliminado
+relacion: amplía
+referencias_entradas: [0010]
+referencias_documentales: ["docs/ops/pending-batches.yaml", "docs/runbooks/secrets-ops-material.md", "docs/ops/staging-bootstrap.md"]
+prev_id: 0010
+prev_hash: df5126d031c84ffda032320676038c1400f2a946b11ffce031347c9c2bd9936a
+entry_hash: f5d09198e0063336908bc94e3c057174f3c5efa1a27c40db687dee26045bc612
+ticket_or_adr: H3 del plan staff (gap fcm-vapid-real, avance)
+test_ids: [SUITE, token-mint-oauth2 HTTP 200]
+entregable_afectado: Secrets Store 6c5d2aff… secret push-fcm-service-account-v2 (id f778c594…) · docs/runbooks/secrets-ops-material.md · docs/ops/pending-batches.yaml
+descripcion: >
+  H3 ejecutado vía navegador Playwright con sesión del owner (proyecto Firebase
+  kipuspay-staging creado por el owner). Delegación experta se detuvo por red
+  tras completar lo crítico; el supervisor verificó cada claim de forma
+  independiente y completó el resto. Verificado: (1) SA válido en
+  tmp-staff/fcm-sa-staging.json (PKCS8 1624 chars body, DER 308204bc, RSA-2048);
+  (2) secreto push-fcm-service-account-v2 ACTUALIZADO hoy 16:36 UTC (API
+  Cloudflare: comment con client_email del SA real, id f778c594… coincide);
+  (3) token mint OAuth2 RS256 → oauth2.googleapis.com/token HTTP 200 con
+  access_token otorgado (replicación independiente del supervisor; el primer
+  intento falló por error del propio supervisor: pasar PEM textual donde
+  importKey exige DER). Runbook: fila FCM SA añadida con rotación y riesgo.
+  Tracker: gap fcm-vapid-real permanece WAIT con progress actualizado — el
+  cierre total exige entrega/ACK DISPLAYED en dispositivo Android real (H4) y
+  SLO p95<10s ≥99%. Nota: wrangler secrets-store secret list (beta) devolvió
+  vacío falsamente; la verificación fiable fue la API directa de Cloudflare.
+evidencia: >
+  RED: stub FCM SA en Secrets Store desde 2026-08-17; pushes fail-closed.
+  GREEN: modified 2026-08-23T16:36:28Z en API; token mint HTTP 200
+  expires_in 3599; SUITE GREEN con runbook y tracker actualizados.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: API Cloudflare directa + replicación token mint"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```
