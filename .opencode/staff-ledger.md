@@ -305,10 +305,8 @@ relacion: amplía
 referencias_entradas: [0005, 0006]
 referencias_documentales: ["docs/architecture/06-acid-engine.md", "packages/adapters-d1/migrations/0060_audit_chain_heads.sql"]
 prev_id: 0006
-prev_hash: __ENTRY_HASH__
-18799aa767562cf6034b82028cef0fba4f0a9f99c73e35184ffb3eea74f9060b
-entry_hash: __ENTRY_HASH__
-entry_hash: d2937ae823643afe8414c363060779866da037da28604a3992d1d4578fe2f555
+prev_hash: 18799aa767562cf6034b82028cef0fba4f0a9f99c73e35184ffb3eea74f9060b
+entry_hash: a14a8e1eccc92eb19d6983f4d3c42d8efc448663a19ecf863eb8c0b4080b2201
 ticket_or_adr: M1 del plan aprobado por owner (anti-fork estructural completo)
 test_ids: [adapters-d1 audit-chain.test.ts (11), audit-chain.integration.test.ts (3), adapters-d1 442, worker-api 1356, chaos-harness 120, SUITE]
 entregable_afectado: packages/adapters-d1/src/audit-chain.ts · migrations/0060 (+down) · chaos-harness/src/audit-chain-fork.ts · todos los escritores de audit_events migrados al puerto
