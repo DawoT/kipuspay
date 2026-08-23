@@ -259,6 +259,7 @@ referencias_documentales: ["docs/ops/pending-batches.yaml", "docs/architecture/0
 prev_id: 0005
 prev_hash: 310d487285813855e148e51879ced0c374986946d32c6d4bcfca09a4dea973d2
 entry_hash: __ENTRY_HASH__
+entry_hash: 18799aa767562cf6034b82028cef0fba4f0a9f99c73e35184ffb3eea74f9060b
 ticket_or_adr: Fase B del plan aprobado por owner (M2)
 test_ids: [adapters-d1 431, dr-restore.integration 302, worker-api 1356, SUITE]
 entregable_afectado: apps/worker-api (route staff rollups, dr-routes rebuild DERIVED) · packages/adapters-d1 (validador REAL/DAG/topo) · scripts/staff/seed-dr-drill-staging.sql · docs/ops/pending-batches.yaml
@@ -289,4 +290,5 @@ ancestry_verified: true
 aprobaciones: ["A: Staff Principal (diffs revisados + verificación runtime independiente)", "V: checks fail-closed del motor + audit_events firmado", "Caveat: mismo sistema"]
 estado_gov: GOV-APROBADO
 estado: Vigente
+
 ```
