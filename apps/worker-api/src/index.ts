@@ -425,13 +425,29 @@ function trustedPushActor(c: {
   };
 }
 
-function pushResponse(result: PushHttpResult): Response {
-  return result.status === 204
-    ? new Response(null, { status: 204 })
-    : new Response(JSON.stringify(result.body), {
-        status: result.status,
-        headers: { 'content-type': 'application/json; charset=UTF-8' },
-      });
+function pushResponse(
+  c: {
+    env: Partial<WorkerEnv>;
+    req: { header: (name: string) => string | undefined };
+  },
+  result: PushHttpResult,
+): Response {
+  // M6B: los handlers de push devuelven Response crudos; sin esto las cabeceras
+  // CORS del middleware no llegan al navegador y /api/push/* es inaccesible
+  // cross-origin (bloqueo determinístico del gate owner ADR-0035).
+  const origin = c.req.header('origin') ?? null;
+  const headers = new Headers(
+    result.status === 204 ? undefined : { 'content-type': 'application/json; charset=UTF-8' },
+  );
+  for (const [name, value] of Object.entries(
+    corsHeadersFor(c.env as { ALLOWED_ORIGINS?: string }, origin),
+  )) {
+    headers.set(name, value);
+  }
+  return new Response(result.status === 204 ? null : JSON.stringify(result.body), {
+    status: result.status,
+    headers,
+  });
 }
 
 export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
@@ -2259,41 +2275,45 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   // Sprint 45 — authenticated Zero-Trust mobile push. Identity/scope are never body-derived.
   app.post('/api/push/consents', async (c) =>
-    pushResponse(await grantPushConsentHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await grantPushConsentHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.delete('/api/push/consents', async (c) =>
-    pushResponse(await revokePushConsentHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await revokePushConsentHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.post('/api/push/subscriptions', async (c) =>
-    pushResponse(await subscribePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await subscribePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.put('/api/push/subscriptions/rotate', async (c) =>
-    pushResponse(await rotatePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await rotatePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.delete('/api/push/subscriptions', async (c) =>
-    pushResponse(await revokePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await revokePushDeviceHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.get('/api/push/devices', async (c) =>
-    pushResponse(await listPushDevicesHttp(c.env, trustedPushActor(c))),
+    pushResponse(c, await listPushDevicesHttp(c.env, trustedPushActor(c))),
   );
   app.patch('/api/push/privacy', async (c) =>
-    pushResponse(await updatePushPrivacyHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await updatePushPrivacyHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.get('/api/push/privacy', async (c) =>
-    pushResponse(await getPushPrivacyPolicyHttp(c.env, trustedPushActor(c))),
+    pushResponse(c, await getPushPrivacyPolicyHttp(c.env, trustedPushActor(c))),
   );
   app.put('/api/push/privacy-policy', async (c) =>
-    pushResponse(await updatePushPrivacyPolicyHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(
+      c,
+      await updatePushPrivacyPolicyHttp(c.env, trustedPushActor(c), await c.req.json()),
+    ),
   );
   app.post('/api/push/test', async (c) =>
-    pushResponse(await sendTestPushHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await sendTestPushHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   app.post('/api/push/ack', async (c) =>
-    pushResponse(await acknowledgeDisplayedHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(c, await acknowledgeDisplayedHttp(c.env, trustedPushActor(c), await c.req.json())),
   );
   // Compatibility paths map to the same engine and purpose, never a second transport.
   app.post('/api/owner/push/subscribe', async (c) =>
     pushResponse(
+      c,
       await subscribePushDeviceHttp(c.env, trustedPushActor(c), {
         ...objectBody(await c.req.json()),
         purpose: 'OWNER_ALERTS',
@@ -2302,6 +2322,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   );
   app.post('/api/owner/push/send', async (c) =>
     pushResponse(
+      c,
       await sendTestPushHttp(c.env, trustedPushActor(c), {
         ...objectBody(await c.req.json()),
         purpose: 'OWNER_ALERTS',

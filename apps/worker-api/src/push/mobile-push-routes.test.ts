@@ -195,6 +195,87 @@ describe('mobile push route persistence and authorization', () => {
     });
   });
 
+  it('scopes every owner push route to the actor tenant (cross-tenant owner fails closed)', async () => {
+    // ADR-0035 matriz rol×capability: un owner de otro tenant jamás ve ni muta
+    // filas ajenas — toda query se ancla al tenantId del actor (DAT-12).
+    const boundTenants: string[] = [];
+    const env = {
+      FEATURE_MOBILE_PUSH: '1',
+      FEATURE_CLIENT_MOBILE_POS: '1',
+      DB: {
+        prepare: (sql: string) => ({
+          bind(...values: unknown[]) {
+            boundTenants.push(String(values[0]));
+            return {
+              first: () =>
+                Promise.resolve(
+                  sql.includes('tenant_capabilities')
+                    ? { enabled: 1 }
+                    : sql.includes('push_consents')
+                      ? null
+                      : sql.includes('FROM push_subscriptions') && values[0] === 'tenant-a'
+                        ? { provider: 'WEB_PUSH' }
+                        : null,
+                ),
+              all: () => Promise.resolve({ results: [] }),
+              run: () => Promise.resolve({ success: true, meta: { changes: 0 }, results: [] }),
+            };
+          },
+        }),
+      },
+      PUSH_KMS: { encryptEnvelope: vi.fn(), verifyAckReceipt: vi.fn() },
+    } as unknown as WorkerEnv;
+    const foreignOwner: PushActor = {
+      tenantId: 'tenant-b',
+      userId: 'owner-b',
+      branchId: 'branch-b',
+      role: 'owner',
+      deviceFingerprint: 'device-b',
+    };
+
+    await expect(
+      subscribePushDeviceHttp(env, foreignOwner, {
+        purpose: 'OWNER_ALERTS',
+        provider: 'WEB_PUSH',
+        encryptedRegistration: webRegistration,
+        consentPolicyVersion: 's45-v1',
+      }),
+    ).resolves.toMatchObject({ status: 403, body: { code: 'PUSH_SCOPE_FORBIDDEN' } });
+    await expect(
+      revokePushDeviceHttp(env, foreignOwner, { subscriptionId: 'subscription-a' }),
+    ).resolves.toMatchObject({ status: 204, body: {} });
+    await expect(listPushDevicesHttp(env, foreignOwner)).resolves.toMatchObject({
+      status: 200,
+      body: { devices: [] },
+    });
+    expect(boundTenants).not.toContain('tenant-a');
+    expect(boundTenants).toContain('tenant-b');
+  });
+
+  it('persists owner subscriptions without terminal pair (ADR-0035)', async () => {
+    // Sin terminal operativa la fila NO puede llevar branch del actor solo:
+    // push_subscriptions exige (branch_id, terminal_id) ambos NULL o ambos
+    // presentes con FK a pos_terminals (accountability de caja, §5.7).
+    const fixture = routeEnv();
+    await subscribePushDeviceHttp(
+      fixture.env,
+      { ...owner, terminalSessionId: null },
+      {
+        purpose: 'OWNER_ALERTS',
+        provider: 'FCM_HTTP_V1',
+        encryptedRegistration: 'opaque-fcm-token',
+        consentPolicyVersion: 's45-v1',
+      },
+    );
+    const insert = fixture.queries.find(({ sql }) =>
+      sql.includes('INSERT INTO push_subscriptions'),
+    );
+    const bindings = insert?.bindings ?? [];
+    expect(bindings[3]).toBe('consent-a');
+    expect(bindings[4]).toBeNull();
+    expect(bindings[5]).toBeNull();
+  });
+
   it('encrypts and persists a browser subscription without trusting body ownership fields', async () => {
     const fixture = routeEnv();
     const response = await subscribePushDeviceHttp(fixture.env, owner, {

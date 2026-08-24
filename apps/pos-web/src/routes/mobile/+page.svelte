@@ -28,7 +28,7 @@
   const mobilePushOn = isMobilePushEnabled();
   const sessionState = readAdminAuthenticatedSessionState();
   let installPrompt = $state<InstallPromptEvent | null>(null);
-  let status = $state('Comprobando este dispositivo…');
+  let status = $state('');
   let permission = $state<NotificationPermission>('default');
   let online = $state(true);
   let consentId = $state('');
@@ -37,12 +37,27 @@
   let deviceCount = $state(0);
 
   const terminal = $derived(sessionState?.current?.terminal ?? null);
-  const canRegister = $derived(Boolean(terminal?.verified && mobilePushOn));
-  const purpose: PushPurpose = $derived(
-    ['owner', 'admin'].includes(sessionState?.current?.role?.toLowerCase() ?? '')
-      ? 'OWNER_ALERTS'
-      : 'OPERATIONAL_MOBILE',
+  // ADR-0035: la puerta del dueño es capability+consent (servidor), no terminal.
+  const ownerRole = $derived(['owner', 'admin'].includes(sessionState?.current?.role?.toLowerCase() ?? ''));
+  const canRegister = $derived(Boolean(mobilePushOn && (terminal?.verified || ownerRole)));
+  const purpose: PushPurpose = $derived(ownerRole ? 'OWNER_ALERTS' : 'OPERATIONAL_MOBILE');
+  // Mensaje de arranque reactivo: la sesión hidrata async (GET /api/auth/session)
+  // y el texto debe seguir a terminal/ownerRole cuando lleguen.
+  const bootstrapStatus = $derived(
+    terminal?.verified
+      ? 'Terminal móvil vinculada a la sesión existente.'
+      : ownerRole
+        ? 'Activa las alertas de tu negocio en este dispositivo.'
+        : 'Vincula esta instalación como terminal POS para activar notificaciones.',
   );
+
+  // La sesión hidrata async (GET /api/auth/session): el fetcher autenticado
+  // se conecta en cuanto current aparece; un configure en onMount llega tarde
+  // y deja las llamadas push sin Authorization (401).
+  $effect(() => {
+    const authenticatedFetch = sessionState?.current?.authenticatedFetch;
+    if (authenticatedFetch) configureMobilePushApi(authenticatedFetch);
+  });
 
   /** C8: bootstrap FCM real inyectado por el host (WebView/Android nativo). */
   function hostFcmBootstrap(): (() => Promise<{ readonly token: string }>) | null {
@@ -54,16 +69,10 @@
   }
 
   onMount(() => {
-    if (sessionState?.current?.authenticatedFetch) {
-      configureMobilePushApi(sessionState.current.authenticatedFetch);
-    }
     consentId = localStorage.getItem('kipuspay.push.consent') ?? '';
     subscriptionId = localStorage.getItem('kipuspay.push.subscription') ?? '';
     permission = typeof Notification === 'undefined' ? 'denied' : Notification.permission;
     online = navigator.onLine;
-    status = terminal?.verified
-      ? 'Terminal móvil vinculada a la sesión existente.'
-      : 'Vincula esta instalación como terminal POS para activar notificaciones.';
     const captureInstall = (event: Event) => {
       event.preventDefault();
       installPrompt = event as InstallPromptEvent;
@@ -234,10 +243,10 @@
       </div>
     </div>
   {:else}
-    {#if status}
+    {#if status || bootstrapStatus}
       <StatusMessage tone="info" role="status" aria-live="polite">
         <Icon name="check" size={16} />
-        <span>{status}</span>
+        <span>{status || bootstrapStatus}</span>
       </StatusMessage>
     {/if}
 

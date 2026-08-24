@@ -17,6 +17,18 @@ const authedApp = createApp({
 });
 
 describe('worker-api', () => {
+  it('CORS /api/push/* (ADR-0035): la respuesta del handler lleva ACAO, no solo el preflight', async () => {
+    const res = await authedApp.request(
+      '/api/push/privacy',
+      {
+        headers: { origin: 'https://kipuspay-app.pages.dev', authorization: 'Bearer tok' },
+      },
+      { ALLOWED_ORIGINS: 'https://kipuspay-app.pages.dev', FEATURE_MOBILE_PUSH: '1' },
+    );
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://kipuspay-app.pages.dev');
+    expect(res.headers.get('Access-Control-Allow-Credentials')).toBe('true');
+  });
+
   it('expone /health sin auth', async () => {
     const res = await createApp().request('/health');
     expect(res.status).toBe(200);

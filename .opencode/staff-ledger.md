@@ -608,3 +608,54 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0014
+timestamp_utc: 2026-08-24T01:37:24Z
+schema_version: 2
+sprint_fase: Transversal — H4 drill push E2E (suscripción OK, envío bloqueado)
+agente_responsable: Staff Principal (ejecución en vivo + auditoría de delegación ADR-0035)
+tipo: Milestone de operación
+subtipo: ADR-0035 implementado + suscripción owner lograda + 2 defectos de envío diagnosticados
+relacion: amplía
+referencias_entradas: [0013]
+referencias_documentales: ["docs/adr/ADR-0035-owner-full-access-plan-guard.md", "docs/ops/pending-batches.yaml"]
+prev_id: 0013
+prev_hash: 48cff8e31cbe09f7131ceac628ce153abec29b9c214148cdf6a033cf65d1f981
+entry_hash: 3e081f739d7ccd3fcff4223c807a8d45f4c36a73b1a775b897f676c7804db6a1
+ticket_or_adr: ADR-0035 + gap owner-push-subscribe-blocked (CLOSED) + fcm-vapid-real (drill findings)
+test_ids: [worker-api 1359, pos-web 412, chaos-harness 132, SUITE]
+entregable_afectado: docs/adr/ADR-0035 · apps/pos-web/src/routes/mobile/+page.svelte · apps/worker-api/src/index.ts (CORS pushResponse) · apps/worker-api/src/push/mobile-push-routes.ts (par NULL) · push_subscriptions/push_consents (filas reales) · tracker
+descripcion: >
+  Owner decidió el principio: acceso total del owner limitado por Plan Guard.
+  ADR-0035 redactado y aceptado (ancla owner = capability+consent LPDP; el
+  modelo de terminales queda intacto para cajeros; alternativas a/c descartadas
+  con razones). Implementación delegada y auditada: gate /mobile alineado al
+  contrato server que ya existía (OWNER_ROLES), +3 defectos descubiertos y
+  corregidos en el camino con RED→GREEN: (1) hidratación async del gate
+  ($effect), (2) pushResponse perdía cabeceras CORS M6B — TODO /api/push/* era
+  inaccesible browser-side, (3) INSERT de suscripción violaba CHECK+FK
+  branch/terminal cuando no hay terminal (par NULL). E2E logrado: consents 200
+  (OWNER_ALERTS, REDACTED), subscriptions 201, Dispositivos(1), filas reales en
+  D1 (suscripción 0a28f120 ACTIVE WEB_PUSH/RFC8291 cifrada KMS; consent
+  31ccaa76). Envío de prueba: 202 queued + evento CASH_CLOSE OWNER_ALERTS, pero
+  la entrega NO completa. Dos defectos diagnosticados en vivo: (a) MISMATCH
+  TTL-vs-CRON — push_events ttl 60s vs dispatcher cron */5 (300s): el evento
+  SIEMPRE está expirado cuando el dispatcher despierta; (b) el send inmediato
+  post-lease falla en silencio ANTES de invocar worker-kms (tail kms: 0
+  invocaciones; delivery LEASED attempt 0 sin failure_reason). Ambos
+  documentados en tracker (drill_findings) con fix requerido. Divulgación
+  honesta del agente: DELETE sin targeting durante limpieza afectó solo su fila
+  sintética (verificado antes/después).
+evidencia: >
+  RED: /mobile owner botón disabled; privacy 401 sin Bearer; subscriptions 500
+  FK/CHECK; CORS ERR_FAILED en todo /api/push/*.
+  GREEN: privacy 200; consents 200; subscriptions 201; Dispositivos(1);
+  suites 1359/412/132; SUITE GREEN; push test 202 con evento OWNER_ALERTS
+  creado (entrega bloqueada por defectos (a)/(b) documentados).
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: D1 + navegador + API settings verificados por supervisor"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

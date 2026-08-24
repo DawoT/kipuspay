@@ -308,7 +308,10 @@ async function persistPushSubscription(input: {
       input.actor.tenantId,
       input.actor.userId,
       consent.id,
-      input.authorization.terminal?.branch_id ?? input.actor.branchId ?? null,
+      // ADR-0035: (branch_id, terminal_id) es un par indivisible anclado a la
+      // terminal operativa (§5.7). Sin terminal (owner/admin) ambos van NULL —
+      // heredar el branch del actor rompe el CHECK/FK de pos_terminals.
+      input.authorization.terminal?.branch_id ?? null,
       input.authorization.terminal?.terminal_id ?? null,
       input.provider,
       input.provider === 'WEB_PUSH' ? 'RFC8291' : 'FCM_HTTP_V1',
