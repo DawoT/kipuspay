@@ -417,14 +417,15 @@ async function dispatchOne(
   // eventType es metadata de copy server-side: el allowlist del transporte
   // (validatePayload en worker-kms) no lo admite y su presencia provocaba
   // PUSH_PAYLOAD_NOT_ALLOWED en TODOS los sends (drill fcm-vapid-real).
-  const lockscreenWire: Record<string, unknown> = buildLockscreenPayload({
+  const built = buildLockscreenPayload({
     eventType: context.event_type,
     privacyMode,
     ...(context.amount_cents === null ? {} : { amount_cents: context.amount_cents }),
     deepLinkKind: context.deep_link_kind,
     deepLinkEntityId: context.deep_link_entity_id,
   });
-  delete lockscreenWire.eventType;
+  const lockscreenWire = { ...built };
+  delete (lockscreenWire as { eventType?: unknown }).eventType;
   const payload = { ...lockscreenWire, deliveryId: delivery.id, receipt: receipt.token };
   let raw: ProviderResult;
   let sendFailureReason: string | null = null;
