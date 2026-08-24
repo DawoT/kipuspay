@@ -13045,3 +13045,49 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0467
+timestamp_utc: 2026-08-24T18:00:00Z
+schema_version: 2
+sprint_fase: FL-1 sellado + ADR-0036 aceptado
+agente_responsable: Staff Principal (ejecución: kipus-fiscal + kipus-sre; auditoría: Staff Principal)
+tipo: Milestone de homologación + decisión de arquitectura
+subtipo: batería FL-1 y despacho push inline
+relacion: amplia
+referencias_entradas: [0466]
+referencias_documentales: [docs/adr/ADR-0036-push-dispatch-inline.md, docs/ops/push-ack-slo-baseline.md, tmp-staff/homologacion-fl1-resultados.json]
+prev_id: 0466
+prev_hash: caaf4f5e66632c84f408abf85eb6da6b7f72858ee4d1cf819aace6520901b3bc
+entry_hash: 82a100a3fb9c8637093956241cd38fa57224cbe4bdc9ec595fc2c63caae93d0b
+ticket_or_adr: ADR-0036; FL-1; gap fcm-vapid-real
+test_ids: [packages/domain-fiscal-pe/src/ubl-debit-note.test.ts, packages/domain-fiscal-pe/src/ubl-invoice.test.ts, V-13]
+entregable_afectado: packages/domain-fiscal-pe/src/ubl-debit-note.ts; packages/domain-fiscal-pe/src/ubl-invoice.ts; packages/domain-fiscal-pe/src/ubl-shared.ts; docs/adr/ADR-0036-push-dispatch-inline.md
+descripcion: >
+  Batería de homologación FL-1 (kipus-fiscal, 8 envíos e-beta, auditada): ND
+  con schema corregido ACEPTADA (FD01-00000004, CDR 0 — DebitNote usa
+  RequestedMonetaryTotal y SIN DebitNoteTypeCode en el schema restringido
+  SUNAT), RC multi-documento ACEPTADO (RC-20260824-001, CDR 0, 3 boletas).
+  Canal sellado: factura 01, NC 07, ND 08, RC. Hallazgos normativos
+  registrados: exonerada 3111 (regla e-beta exige IGV≠0 por línea), ICBPER
+  3051 (catálogo 5 de e-beta desactualizado — shape nuestro ya canónico),
+  ND motivo 06 → 2172 (taxonomía interna ADR-FISCAL-003 ≠ catálogo 10 wire
+  de SUNAT — requiere tabla de traducción + corrección de spec, ciclo
+  propio). kipus-sre redactó ADR-0036 (despacho push inline post-enqueue vía
+  waitUntil, cron como backstop, flag FEATURE_PUSH_INLINE_DISPATCH, tope 16
+  deliveries por techo de service bindings); Staff Principal lo ACEPTA:
+  la evidencia muestra que el tramo real cumple (4.853s) y el 98% de la
+  latencia es cola del cron; redefinir el SLO (opción B) viola SLO-first.
+evidencia: >
+  RED: ND motivo 06 → 0306×2 (schema) → 2172 (catálogo); exonerada 3111;
+  ICBPER 2992→3051; staff-ledger 0019 con línea estado duplicada que
+  truncaba el bloque V-13 (reparada por el agente, re-verificada). GREEN:
+  FD01-00000004 CDR 0; RC-20260824-001 CDR 0; domain-fiscal-pe 165/165;
+  V-13 dual GREEN (staff 0001→0020 íntegra); RESULT SUITE GREEN; auditoría
+  del supervisor: resultados JSON coinciden 1:1, secrets gitignored
+  verificado, commits limpios (8274bd5).
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

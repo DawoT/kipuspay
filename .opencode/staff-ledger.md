@@ -894,3 +894,38 @@ aprobaciones: ["Ejecutó: Kipus Fiscal", "A: pendiente Staff Principal", "V: pen
 estado_gov: EN REVISION
 estado: Vigente
 ```
+
+```text
+id: 0021
+timestamp_utc: 2026-08-24T18:05:00Z
+agente: Staff Principal
+tarea: Ciclo delegación→auditoría — kipus-fiscal (batería FL-1) + kipus-sre (ADR-0036)
+estado: Vigente
+prev_id: 0020
+prev_hash: ad181b5910bbc5f36fbbcdaab657c02917b4baa24466423f3815a75bf23cddee
+entry_hash: 9906c87cd14bf9d4db6313c156be06e0b96562f60328538851d7de70faa86788
+ticket_or_adr: ADR-0036; LEDGER 0467; FL-1
+test_ids: [domain-fiscal-pe 165, V-13 dual, SUITE]
+entregable_afectado: docs/adr/ADR-0036-push-dispatch-inline.md · packages/domain-fiscal-pe/src/ubl-debit-note.ts · tmp-staff/homologacion-fl1-resultados.json · docs/LEDGER.md (0467, hash 82a100a3…)
+descripcion: >
+  Ciclo completo con dos agentes en paralelo (primer intento rate-limited 429,
+  retry OK). kipus-fiscal ejecutó 8 envíos e-beta: ND corregida ACEPTADA
+  (RequestedMonetaryTotal, sin DebitNoteTypeCode — schema restringido SUNAT),
+  RC multi-doc ACEPTADO; exonerada/ICBPER/motivo-06 registrados como hallazgos
+  normativos (catálogos e-beta desactualizados o taxonomía interna ≠ wire —
+  ciclo propio pendiente). Además reparó la cabecera de 0019 (línea estado
+  duplicada truncaba V-13) y selló 0020. kipus-sre redactó ADR-0036 con costos
+  de plataforma verificados (waitUntil 30s, techo service bindings → tope 16
+  deliveries inline); Staff Principal lo ACEPTÓ (opción A: inline post-enqueue,
+  cron backstop, flag, tope 16). Auditoría del supervisor: resultados JSON 1:1,
+  V-13 dual GREEN, suites GREEN, secrets gitignored. Deuda menor detectada:
+  warning complejidad fiscal-drain.ts:231 (16>15) preexistente — backlog.
+evidencia: >
+  RED: rate-limit 429 en primer par de delegaciones; ND m06 0306→2172;
+  exonerada 3111; ICBPER 3051. GREEN: FD01-4 CDR 0; RC CDR 0; 165/165;
+  SUITE GREEN; V-13 dual GREEN; ADR-0036 Aceptado; commits 8274bd5 + este.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: kipus-fiscal + kipus-sre (independientes) + supervisor"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
