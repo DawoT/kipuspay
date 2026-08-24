@@ -13195,3 +13195,54 @@ aprobaciones: [Staff Principal (brief con texto base), Staff Fiscal (ejecución)
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0470
+timestamp_utc: 2026-08-24T22:00:00Z
+schema_version: 2
+sprint_fase: CI desbloqueado + fail-closed restaurado + deploy staging GREEN
+agente_responsable: Staff Principal (ejecución: kipus-sre + kipus-fiscal/ACID; auditoría: Staff Principal)
+tipo: Corrección crítica de CI y seguridad fiscal
+subtipo: guard MISSING_SIGNER + lint fatal + deploy GREEN
+relacion: corrige
+referencias_entradas: [0468, 0469]
+referencias_documentales: [docs/ops/adr0036-gameday-staging.md, docs/adr/ADR-0036-push-dispatch-inline.md]
+prev_id: 0469
+prev_hash: e7fde9f0d3814e798ab58e1b4cac2cecf88401a984a3da0da1a2dadf3d16b09b
+entry_hash: b2b378d89354224904d39b646fff8133189792a51953b380581bfd70254f04ac
+ticket_or_adr: ADR-0036; FIS-13; run 32780353982
+test_ids: [packages/adapters-d1/src/fiscal-rc.integration.test.ts, packages/adapters-d1/src/build-daily-summary.ts, V-13]
+entregable_afectado: packages/adapters-d1/src/build-daily-summary.ts; packages/adapters-d1/src/process-credit-note-atomic.ts; apps/worker-fiscal/src/fiscal-drain.ts; apps/worker-api/src/push/mobile-push-dispatcher.ts; apps/worker-api/src/fiscal/fiscal-rc-routes.ts
+descripcion: >
+  El game day del ADR-0036 (kipus-sre) se BLOQUEÓ en el paso 1 con hallazgo
+  operacional grave: el deploy-staging llevaba ~2 días roto sin detección
+  (lint fatal --max-warnings 0 desde d558492). Correcciones en cascada hasta
+  CI verde: (1) fiscal-drain.ts complejidad 16→12 (ensureR2XmlKey helper);
+  (2) worker-api lint fatal: unbound-method fiscal-rc (bind explícito),
+  _eventType vía delete tipado, completeDelivery 17→10
+  (computeDeliveryOutcome helper puro); (3) worker-kms typecheck (wirePayload
+  preserva Omit estructural); (4) lockscreenWire spread mutable (TS2322).
+  kipus-fiscal/ACID destapó y corrigió la joya: build-daily-summary.ts NUNCA
+  verificaba pse_mode — un emisor TENANT_CERT sin signer obtenía SUCCESS con
+  XML sin firmar (violación §5.2/invariante 8) Y el sweep del cron descartaba
+  el signer en silencio (bug latente de producción). Guard fail-closed antes
+  de armar XML/CDR/persistir + sweep propaga signer + NC E-A sin CDR no
+  encola (reversión contable + audit CREDIT_NOTE_NO_CDR). Resultado: run
+  32780353982 SUCCESS — staging desplegado con ADR-0036 en el binario (flag
+  OFF pendiente de game day). Lección de proceso: el claim "deuda TDD
+  liquidada" de 0466/0468 cubría el camino unitario pero NO test:integration
+  — los gates de integración en CI existen por algo y su rojo debe alertar.
+evidencia: >
+  RED: run 32771456386 FAILURE (lint fiscal-drain); 32772925517 FAILURE
+  (worker-api lint ×3); 32775446059 FAILURE (worker-kms TS2739); 32776273934
+  FAILURE (integration: MISSING_SIGNER esperado pero SUCCESS + 3 fiscal-rc);
+  test TENANT_CERT sin signer esperaba MISSING_SIGNER recibía SUCCESS.
+  GREEN: run 32780353982 SUCCESS (gate 5m46s + deploy 1m44s, 5 targets);
+  adapters-d1 integration 313/313; worker-api 1375/1375; domain-fiscal-pe
+  172/172; V-13 dual GREEN (0469 doctrinal aplicado por kipus-fiscal:
+  FIS-13 §5.1 + ADR-FISCAL-003 enmendados); RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
