@@ -12911,3 +12911,45 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0464
+timestamp_utc: 2026-08-24T15:10:00Z
+schema_version: 2
+sprint_fase: Sprint F — Fase 3 (H4 dispositivo real)
+agente_responsable: Staff Principal
+tipo: Milestone de verificación E2E física
+subtipo: push ACK displayed en Android real
+relacion: corrige
+referencias_entradas: [0462, 0463]
+referencias_documentales: [docs/ops/pending-batches.yaml (gap fcm-vapid-real), docs/adr/ADR-0035-owner-full-access-plan-guard.md]
+prev_id: 0463
+prev_hash: d4c9af33fdafda03629168ce6faab99ee21ced981c5e2497eba89759bebe5475
+entry_hash: b699ece335036da67f5092f18712529fffd145e0186f095c1ac909d7a687f280
+ticket_or_adr: gap fcm-vapid-real (H4); ADR-0035
+test_ids: [apps/pos-web/src/lib/offline-sync/offline-sync.test.ts, V-13, V-20]
+entregable_afectado: apps/pos-web/static/offline-sync-sw.js; docs/ops/pending-batches.yaml
+descripcion: >
+  H4 cerrado con dispositivo Android real (Zebra Z2466 vía ADB/CDP): loop físico
+  completo server→Google→dispositivo→SW→ACK verificado. displayed_at =
+  accepted_at + 4.8s (SLO p95<10s cumplido en muestra). Notificación "Cierre de
+  caja" visible en bandeja (evidencia screenshot). El E2E destapó y corrigió un
+  tercer defecto encadenado: el SW despertado en frío por un push pierde el
+  estado de módulo kipuspayApiBase (nadie llamaba buildSetApiBaseMessage y el
+  estado no sobrevive reinicios) → el ACK fetch-eaba al origen de Pages (404
+  silencioso). Fix: SET_API_BASE persiste en IDB (kipus_push_auth/config/
+  apiBase, DB v2 con store config) y dispatchDisplayedAck lo recupera en
+  cold-start. La suscripción WEB_PUSH sobrevive el update del SW; el flujo de
+  login real escribe el espejo de credenciales (0463).
+evidencia: >
+  RED: 0 requests a /api/push/ack en observabilidad del worker pese a
+  notificación visible en dispositivo; SW nuevo en waiting tras update.
+  GREEN: push_deliveries (cb0c7914, dispositivo) status=DISPLAYED,
+  displayed_at=2026-08-24T14:55:26.853Z, ack_consumed_at atómico,
+  display_context=NORMAL; pos-web 418/418; typecheck 0; RESULT SUITE GREEN;
+  deploy staging con SW final (idbOpen + config store) verificado en dispositivo.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

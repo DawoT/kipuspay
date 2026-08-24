@@ -85,48 +85,81 @@ async function notifyClients(type) {
 async function readAuthMirror() {
   // El SW no ve localStorage: el login espejea {token, tenantId} en IDB
   // (kipus_push_auth/auth/current) para que el ACK pueda autenticar.
+  return idbGet('auth', 'current', (v) =>
+    v &&
+    typeof v.token === 'string' &&
+    v.token.length > 0 &&
+    typeof v.tenantId === 'string' &&
+    v.tenantId.length > 0
+      ? { token: v.token, tenantId: v.tenantId }
+      : null,
+  );
+}
+
+async function idbOpen() {
   if (typeof indexedDB === 'undefined') return null;
+  return new Promise((resolve) => {
+    const req = indexedDB.open('kipus_push_auth', 2);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('auth')) db.createObjectStore('auth');
+      if (!db.objectStoreNames.contains('config')) db.createObjectStore('config');
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(null);
+    req.onblocked = () => resolve(null);
+  });
+}
+
+async function idbGet(store, key, validate) {
   try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('kipus_push_auth', 1);
-      req.onupgradeneeded = () => {
-        if (!req.result.objectStoreNames.contains('auth')) req.result.createObjectStore('auth');
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error ?? new Error('IDB_OPEN_FAILED'));
-    });
+    const db = await idbOpen();
+    if (!db) return null;
     const value = await new Promise((resolve, reject) => {
-      const tx = db['transaction']('auth', 'readonly');
-      const req = tx.objectStore('auth').get('current');
+      const tx = db['transaction'](store, 'readonly');
+      const req = tx.objectStore(store).get(key);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error ?? new Error('IDB_GET_FAILED'));
     });
     db.close();
-    if (
-      value &&
-      typeof value.token === 'string' &&
-      value.token.length > 0 &&
-      typeof value.tenantId === 'string' &&
-      value.tenantId.length > 0
-    ) {
-      return { token: value.token, tenantId: value.tenantId };
-    }
-    return null;
+    return validate(value);
   } catch {
     return null;
+  }
+}
+
+async function idbPut(store, key, value) {
+  try {
+    const db = await idbOpen();
+    if (!db) return;
+    await new Promise((resolve, reject) => {
+      const tx = db['transaction'](store, 'readwrite');
+      tx.objectStore(store).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('IDB_PUT_FAILED'));
+    });
+    db.close();
+  } catch {
+    // Fail-soft: la configuración persistida es optimización, no requisito.
   }
 }
 
 async function dispatchDisplayedAck(deliveryId, receipt, displayedAt) {
   if (!deliveryId || !receipt) return;
   try {
+    // Cold start: un SW despertado por un push pierde el estado de módulo —
+    // el apiBase se recupera de IDB (persistido por SET_API_BASE).
+    let apiBase = kipuspayApiBase;
+    if (!apiBase)
+      apiBase =
+        (await idbGet('config', 'apiBase', (v) => (typeof v === 'string' ? v : null))) ?? '';
     const headers = { 'content-type': 'application/json' };
     const auth = await readAuthMirror();
     if (auth) {
       headers.authorization = `Bearer ${auth.token}`;
       headers['x-tenant-id'] = auth.tenantId;
     }
-    await fetch(`${kipuspayApiBase}/api/push/ack`, {
+    await fetch(`${apiBase}/api/push/ack`, {
       method: 'POST',
       credentials: 'include',
       headers,
@@ -210,6 +243,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SET_API_BASE' && typeof event.data.apiBase === 'string') {
     kipuspayApiBase = String(event.data.apiBase).replace(/\/$/, '');
+    // Persistir para cold starts: el push despierta una instancia nueva sin estado.
+    if (kipuspayApiBase) void idbPut('config', 'apiBase', kipuspayApiBase);
   }
   if (event.data && event.data.type === 'FLUSH_OFFLINE_QUEUE') {
     event.source?.postMessage({ type: 'FLUSH_ACK', version: VERSION });

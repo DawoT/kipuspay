@@ -312,6 +312,7 @@ sprints_cierre:
         can_auto_fix: false
         pass: "VAPID + FCM HTTP v1 reales (go-live-fcm fcm-vapid-real, depends_on stg-secrets-real); ACK DISPLAYED p95<10s ≥99%; A+V"
         requires_av: true
+        progress: "2026-08-24 H4 DISPOSITIVO REAL (Zebra Z2466, USB/ADB): loop físico completo VERIFICADO — login real (espejo auth IDB escrito por producción), suscripción WEB_PUSH cb0c7914, push ACCEPTED→DISPLAYED con displayed_at=accepted+4.8s (SLO p95<10s ✓), ack_consumed_at atómico, notificación 'Cierre de caja' visible en bandeja (screenshot). Bugs corregidos en el camino: (a) middleware Bearer-only vs SW con cookies → espejo de credenciales IndexedDB (auth-mirror.ts); (b) SW cold-start pierde kipuspayApiBase → persistencia en IDB config/apiBase vía SET_API_BASE. Pendiente para cierre total: SLO ≥99% (requiere volumen) y canal FCM_HTTP_V1 nativo (opcional, Web Push cubre el caso)."
 
   - id: go-live-staging
     nombre: "Staging Cloudflare real (s41-s49: R2/Workflow/Secrets/KMS, cron/canary)"

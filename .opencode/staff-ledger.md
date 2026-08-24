@@ -738,3 +738,38 @@ aprobaciones: ["A: Staff Principal", "V: suites + gate re-ejecutados"]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0017
+timestamp_utc: 2026-08-24T15:12:00Z
+agente: Staff Principal
+tarea: H4 dispositivo real — loop físico push→ACK verificado (Zebra Z2466)
+estado: GREEN
+prev_id: 0016
+prev_hash: d1675b278b3e8e06419c5f650b7b9786367352c03c35ea37e4140380261086ae
+entry_hash: b60162c6d82254358f22786936fa14c7b6f928f63b77ecc42765d5d056db6c5e
+ticket_or_adr: gap fcm-vapid-real; LEDGER 0464
+test_ids: [pos-web 418, SUITE, push_deliveries DISPLAYED]
+entregable_afectado: apps/pos-web/static/offline-sync-sw.js · docs/ops/pending-batches.yaml · docs/LEDGER.md (0464, hash b699ece3…)
+descripcion: >
+  Tercer defecto encadenado del pipeline push cazado en dispositivo real: el SW
+  en cold-start pierde kipuspayApiBase (estado de módulo) y nadie persistía el
+  apiBase → ACK fetch al origen equivocado (404 silencioso, 0 trazas en worker).
+  Fix: persistencia IDB (config/apiBase, DB v2) + recuperación en
+  dispatchDisplayedAck. Verificación física completa vía ADB+CDP: login real
+  (espejo auth escrito por producción), suscripción cb0c7914, push ACCEPTED →
+  DISPLAYED en 4.8s, notificación visible en bandeja (screenshot). Nota técnica:
+  la query ORDER BY rowid DESC LIMIT 1 engaña con múltiples suscripciones (la
+  muerta se inserta después) — filtrar por subscription_id del dispositivo.
+  Pendiente honesto: SLO ≥99% requiere volumen; canal FCM_HTTP_V1 nativo
+  opcional (Web Push lo cubre).
+evidencia: >
+  RED: 0 requests /api/push/ack en observabilidad pese a notificación visible;
+  notificaciones en bandeja con when viejos (14:10/14:30) tras push nuevo.
+  GREEN: displayed_at=14:55:26.853 (accepted 14:55:22, Δ4.8s); pos-web 418/418;
+  SUITE GREEN; V-13 GREEN; deploy verificado en dispositivo (idbOpen presente).
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: D1 + bandeja Android + observabilidad worker"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
