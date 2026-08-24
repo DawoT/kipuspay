@@ -113,6 +113,17 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
   <cbc:IssueTime>${escapeXml(input.issueTime)}</cbc:IssueTime>
   <cbc:InvoiceTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">${input.invoiceTypeCode}</cbc:InvoiceTypeCode>
   <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
+  <cac:Signature>
+    <cbc:ID>KipusPaySign</cbc:ID>
+    <cac:SignatoryParty>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="6">${escapeXml(input.issuerRuc)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>${escapeXml(input.issuerName)}</cbc:Name>
+      </cac:PartyName>
+    </cac:SignatoryParty>
+  </cac:Signature>
   <cac:AccountingSupplierParty>
     <cac:Party>
       <cac:PartyIdentification>
@@ -136,18 +147,6 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>
-  <cac:Signature>
-    <cbc:ID>KipusPaySign</cbc:ID>
-    <cac:SignatoryParty>
-      <cac:PartyIdentification>
-        <cbc:ID schemeID="6">${escapeXml(input.issuerRuc)}</cbc:ID>
-      </cac:PartyIdentification>
-      <cac:PartyName>
-        <cbc:Name>${escapeXml(input.issuerName)}</cbc:Name>
-      </cac:PartyName>
-    </cac:SignatoryParty>
-    <cbc:URI>#KipusPaySign</cbc:URI>
-  </cac:Signature>
   <cac:PaymentTerms>
     <cbc:ID>FormaPago</cbc:ID>
     <cbc:PaymentMeansID>Contado</cbc:PaymentMeansID>

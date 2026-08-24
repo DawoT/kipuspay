@@ -54,7 +54,13 @@ describe('buildUblInvoiceXml', () => {
     expect(xml).toContain('A&amp;B');
     expect(xml).toContain('<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>');
     expect(xml).toContain('<cac:SignatoryParty>');
-    expect(xml).toContain('<cbc:URI>#KipusPaySign</cbc:URI>');
+    // SUNAT e-beta (CDR 0306, 2026-08-24): su schema restringido NO permite
+    // cbc:URI dentro de cac:Signature — el firmante vive en SignatoryParty.
+    expect(xml).not.toContain('<cbc:URI>#KipusPaySign</cbc:URI>');
+    // Orden canónico validado por SUNAT: Signature antes de AccountingSupplierParty.
+    expect(xml.indexOf('<cac:Signature>')).toBeLessThan(
+      xml.indexOf('<cac:AccountingSupplierParty>'),
+    );
     expect(xml).toContain('<cbc:TaxableAmount');
     expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
     expect(xml).toContain('<cbc:ProfileID>0101</cbc:ProfileID>');
