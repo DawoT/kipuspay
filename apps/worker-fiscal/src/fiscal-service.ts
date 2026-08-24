@@ -11,14 +11,18 @@ import {
   produceFiscalXmlForSale,
   type D1DatabaseLike,
 } from '@kipuspay/adapters-d1';
-import { type FiscalTransport } from '@kipuspay/adapters-sunat';
-import { breakerDoName } from '@kipuspay/domain-fiscal-pe';
+import { createSunatRcCdrPort, type FiscalTransport } from '@kipuspay/adapters-sunat';
+import { breakerDoName, bytesToBase64 } from '@kipuspay/domain-fiscal-pe';
 import { readBreakerOpen } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
 import { drainFiscalOutbox, type FiscalDrainDb, type FiscalXmlR2 } from './fiscal-drain.js';
 import { drainFiscalNonSaleOutbox } from './fiscal-non-sale-drain.js';
 import { bootstrapBreakerCold } from './breaker-bootstrap.js';
-import { selectFiscalTransport, type FiscalTransportSelectEnv } from './select-transport.js';
+import {
+  isFiscalTransportPluginsEnabled,
+  selectFiscalTransport,
+  type FiscalTransportSelectEnv,
+} from './select-transport.js';
 
 export interface FiscalServiceEnv extends FiscalTransportSelectEnv {
   readonly DB?: FiscalDrainDb & D1DatabaseLike;
@@ -32,6 +36,11 @@ export interface FiscalServiceEnv extends FiscalTransportSelectEnv {
       readonly wrappedDek: Uint8Array;
       readonly kekVersion: string;
     }): Promise<Uint8Array>;
+    wrapDek?(input: {
+      readonly tenantId: string;
+      readonly backupId: string;
+      readonly dek: Uint8Array;
+    }): Promise<{ readonly wrappedDek: Uint8Array; readonly kekVersion: string }>;
   };
   readonly FISCAL_BREAKER_KV?: {
     get(key: string): Promise<string | null>;
@@ -63,6 +72,17 @@ function xmlSigner(env: FiscalServiceEnv) {
     },
     kms: env.BACKUP_KMS,
   });
+}
+
+const TENANT_CERT_BACKUP_ID = 'tenant-cert:SUNAT';
+
+/** ¿El emisor exige certificado propio (firma obligatoria, sin mock)? */
+async function tenantRequiresTenantCert(db: D1DatabaseLike, tenantId: string): Promise<boolean> {
+  const row = await db
+    .prepare(`SELECT pse_mode FROM tenants WHERE id = ?`)
+    .bind(tenantId)
+    .first<{ readonly pse_mode?: string | null }>();
+  return row?.pse_mode === 'TENANT_CERT';
 }
 
 export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
@@ -117,12 +137,15 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
       ...shared,
       produceMissingXml: ({ tenantId, saleId }) => {
         const signer = xmlSigner(env);
-        return produceFiscalXmlForSale({
-          db,
-          r2,
-          tenantId,
-          saleId,
-          ...(signer ? { signer } : {}),
+        return tenantRequiresTenantCert(db, tenantId).then((needsCert) => {
+          if (!signer && needsCert) return { outcome: 'MISSING_SIGNER' as const };
+          return produceFiscalXmlForSale({
+            db,
+            r2,
+            tenantId,
+            saleId,
+            ...(signer ? { signer } : {}),
+          });
         });
       },
     });
@@ -146,7 +169,11 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
     };
   }
 
-  /** Produce el XML de una venta individual (post-commit best-effort). */
+  /**
+   * Produce el XML de una venta individual (post-commit best-effort).
+   * Fail-closed (§5.2): un emisor TENANT_CERT sin material KMS no emite XML
+   * unsigned — MISSING_SIGNER, nunca PRODUCED sin firma.
+   */
   async produceMissing(input: {
     readonly tenantId: string;
     readonly saleId: string;
@@ -156,12 +183,69 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
       return { outcome: 'FEATURE_OFF' };
     }
     const signer = xmlSigner(env);
+    if (!signer && (await tenantRequiresTenantCert(env.DB, input.tenantId))) {
+      return { outcome: 'MISSING_SIGNER' };
+    }
     return produceFiscalXmlForSale({
       db: env.DB,
       r2: env.FISCAL_XML_R2,
       tenantId: input.tenantId,
       saleId: input.saleId,
       ...(signer ? { signer } : {}),
+    });
+  }
+
+  /**
+   * Wrap del DEK de tenant vía KMS de backup (RPC consumido por
+   * worker-api /v1/fiscal/tenant-cert/wrap). Sin KMS → MISSING_KMS fail-closed.
+   */
+  async wrapTenantDek(input: {
+    readonly tenantId: string;
+    readonly dek: Uint8Array;
+    readonly backupId?: string;
+  }): Promise<
+    | { readonly wrappedDekB64: string; readonly kekVersion: string }
+    | { readonly error: 'MISSING_KMS' }
+  > {
+    const kms = this.env.BACKUP_KMS;
+    if (!kms?.wrapDek) return { error: 'MISSING_KMS' };
+    const wrapped = await kms.wrapDek({
+      tenantId: input.tenantId,
+      backupId: input.backupId ?? TENANT_CERT_BACKUP_ID,
+      dek: input.dek,
+    });
+    return { kekVersion: wrapped.kekVersion, wrappedDekB64: bytesToBase64(wrapped.wrappedDek) };
+  }
+
+  /**
+   * Envía el Resumen Diario por SOAP sendSummary (ADR-FISCAL-007). Sin flag +
+   * SOL + endpoint explícito → SOL_UNAVAILABLE (nunca mock, nunca ACCEPTED).
+   */
+  async submitRc(input: {
+    readonly tenantId: string;
+    readonly summaryId: string;
+    readonly xml: string;
+  }): Promise<{
+    readonly accepted: boolean;
+    readonly cdrCode: string;
+    readonly cdrMessage: string;
+  }> {
+    const env = this.env;
+    const solUser = env.SUNAT_SOL_USER?.trim();
+    const billUrl = env.SUNAT_BILL_ENDPOINT_URL?.trim();
+    if (!isFiscalTransportPluginsEnabled(env) || !solUser || !env.SUNAT_SOL_PASSWORD || !billUrl) {
+      return { accepted: false, cdrCode: '503', cdrMessage: 'SOL_UNAVAILABLE' };
+    }
+    const port = createSunatRcCdrPort({
+      solUser,
+      solPassword: env.SUNAT_SOL_PASSWORD,
+      endpointUrl: billUrl,
+      ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
+    });
+    return port.submit({
+      tenantId: input.tenantId,
+      summaryId: input.summaryId,
+      xml: input.xml,
     });
   }
 }

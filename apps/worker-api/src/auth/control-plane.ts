@@ -54,7 +54,23 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
     }): Promise<
       { readonly wrappedDekB64: string; readonly kekVersion: string } | { readonly error: string }
     >;
+    submitRc?(input: {
+      readonly tenantId: string;
+      readonly summaryId: string;
+      readonly xml: string;
+    }): Promise<{
+      readonly accepted: boolean;
+      readonly cdrCode: string;
+      readonly cdrMessage: string;
+    }>;
   };
+  /** ADR-FISCAL-007: SOL del emisor para SOAP billService (worker-api y RPC). */
+  readonly SUNAT_SOL_USER?: string;
+  readonly SUNAT_SOL_PASSWORD?: string;
+  readonly SUNAT_BILL_ENDPOINT_URL?: string;
+  readonly FISCAL_PSE_FETCH?: typeof fetch;
+  /** Envelope cifrado del certificado de tenant (secreto o binding con get()). */
+  readonly TENANT_CERT_ENVELOPE?: string | { get(): Promise<string> };
   readonly FEATURE_BILLING_USAGE_OVERAGE?: string;
   readonly FEATURE_SALES_RETURNS?: string;
   readonly STRIPE_SECRET_KEY?: string;

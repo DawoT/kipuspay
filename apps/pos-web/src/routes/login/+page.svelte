@@ -7,6 +7,7 @@
   import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import { cashierLogin, LoginError } from '$lib/auth/cashier-login';
   import { writeLoginTenantId, writeLoginToken, writeLoginUser } from '$lib/auth/token-store';
+  import { mirrorAuthTokenForServiceWorker } from '$lib/push/auth-mirror';
   import { defaultTenantSession, readTenantSession } from '$lib/tenant/session';
 import { resolveApiBase } from '$lib/auth/api-client';
 
@@ -53,6 +54,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
         pin,
       });
       writeLoginToken(localStorage, result.token);
+      void mirrorAuthTokenForServiceWorker(result.token, tenantId);
       writeLoginTenantId(localStorage, tenantId);
       writeLoginUser(localStorage, {
         userId: result.user.userId,

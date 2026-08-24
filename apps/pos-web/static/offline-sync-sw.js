@@ -82,13 +82,54 @@ async function notifyClients(type) {
   for (const client of windows) client.postMessage({ type, version: VERSION });
 }
 
+async function readAuthMirror() {
+  // El SW no ve localStorage: el login espejea {token, tenantId} en IDB
+  // (kipus_push_auth/auth/current) para que el ACK pueda autenticar.
+  if (typeof indexedDB === 'undefined') return null;
+  try {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('kipus_push_auth', 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains('auth')) req.result.createObjectStore('auth');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error ?? new Error('IDB_OPEN_FAILED'));
+    });
+    const value = await new Promise((resolve, reject) => {
+      const tx = db['transaction']('auth', 'readonly');
+      const req = tx.objectStore('auth').get('current');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error ?? new Error('IDB_GET_FAILED'));
+    });
+    db.close();
+    if (
+      value &&
+      typeof value.token === 'string' &&
+      value.token.length > 0 &&
+      typeof value.tenantId === 'string' &&
+      value.tenantId.length > 0
+    ) {
+      return { token: value.token, tenantId: value.tenantId };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function dispatchDisplayedAck(deliveryId, receipt, displayedAt) {
   if (!deliveryId || !receipt) return;
   try {
+    const headers = { 'content-type': 'application/json' };
+    const auth = await readAuthMirror();
+    if (auth) {
+      headers.authorization = `Bearer ${auth.token}`;
+      headers['x-tenant-id'] = auth.tenantId;
+    }
     await fetch(`${kipuspayApiBase}/api/push/ack`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify({ deliveryId, receipt, displayedAt }),
     });
   } catch {
@@ -159,7 +200,11 @@ self.addEventListener('push', (event) => {
   } catch {
     payload = {};
   }
-  event.waitUntil(displayNotification(payload));
+  // Retornar la promesa es no-op para el navegador (waitUntil manda) pero
+  // hace determinista el harness de tests que await-ea el handler.
+  const shown = displayNotification(payload);
+  event.waitUntil(shown);
+  return shown;
 });
 
 self.addEventListener('message', (event) => {

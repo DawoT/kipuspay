@@ -1,0 +1,61 @@
+- generic [ref=e2]:
+  - link "Saltar a contenido" [ref=e3] [cursor=pointer]:
+    - /url: "#contenido"
+  - generic [ref=e5]:
+    - banner [ref=e6]:
+      - generic [ref=e8]:
+        - generic [ref=e10]: KipusPay
+        - generic [ref=e13]: Dispositivo móvil
+      - generic [ref=e14]:
+        - status "En línea" [ref=e15]
+        - button "Cambiar modo claro y oscuro" [ref=e18] [cursor=pointer]
+    - main [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e26]:
+          - paragraph [ref=e27]: Dispositivo del terminal
+          - heading "Configura este dispositivo" [level=1] [ref=e30]
+          - paragraph [ref=e31]: Usa el mismo checkout, permisos, sesión e impresión del POS.
+        - status [ref=e32]:
+          - generic [ref=e35]: Vincula esta instalación como terminal POS para activar notificaciones.
+        - generic [ref=e36]:
+          - region [ref=e37]:
+            - generic [ref=e38]:
+              - heading "1. Dispositivo" [level=2] [ref=e39]
+              - generic [ref=e40]: Pendiente
+            - generic [ref=e41]:
+              - generic [ref=e42]:
+                - generic [ref=e43]: Terminal
+                - generic [ref=e44]: Sin terminal activa
+              - generic [ref=e45]:
+                - generic [ref=e46]: Red
+                - generic [ref=e47]: Conectado
+            - button "Instalar KipusPay" [ref=e48] [cursor=pointer]
+          - region [ref=e52]:
+            - heading "2. Notificaciones" [level=2] [ref=e54]
+            - paragraph [ref=e57]: En la pantalla bloqueada no se muestran por defecto montos ni datos fiscales de clientes.
+            - generic [ref=e58] [cursor=pointer]:
+              - checkbox "Mostrar montos (requiere opt-in del owner)" [disabled] [ref=e59]
+              - generic [ref=e60]: Mostrar montos (requiere opt-in del owner)
+            - button "Activar notificaciones" [disabled] [ref=e61]
+            - paragraph [ref=e62]: "Permiso del navegador: default"
+            - generic [ref=e63]:
+              - button "Rotar registro" [disabled] [ref=e64]
+              - button "Revocar" [disabled] [ref=e65]
+              - button "Dispositivos (0)" [ref=e66] [cursor=pointer]
+          - region [ref=e67]:
+            - heading "3. Prueba y recuperación" [level=2] [ref=e69]
+            - paragraph [ref=e75]: Si push o sync fallan, KipusPay conmuta a avisos en app. Las ventas y la caja no se bloquean.
+            - generic [ref=e76]:
+              - button "Probar aviso local" [ref=e77] [cursor=pointer]
+              - button "Probar push servidor" [disabled] [ref=e78]
+              - link "Continuar vendiendo" [ref=e79] [cursor=pointer]:
+                - /url: /
+    - navigation "Navegación de caja" [ref=e80]:
+      - link "Cobrar" [ref=e81] [cursor=pointer]:
+        - /url: /
+      - link "Historial del día" [ref=e85] [cursor=pointer]:
+        - /url: /caja/historial
+      - link "Caja" [ref=e90] [cursor=pointer]:
+        - /url: /caja
+      - link "Ayuda" [ref=e95] [cursor=pointer]:
+        - /url: /ayuda

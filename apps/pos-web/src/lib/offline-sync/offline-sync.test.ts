@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { evaluateQuota } from './quota-guardian.js';
 import {
   createBrowserOfflineIdb,
@@ -121,6 +123,108 @@ describe('offline-sync-sw contract', () => {
       type: 'SET_API_BASE',
       apiBase: 'https://api.kipuspay.com',
     });
+  });
+});
+
+/**
+ * Push displayed ACK — corre el asset REAL que se despliega
+ * (static/offline-sync-sw.js) con `self` stubeado. Contrato:
+ * receipt válido → POST /api/push/ack; receipt ausente/inválido → no postea.
+ */
+describe('offline-sync-sw push displayed ACK (asset real)', () => {
+  const listeners = new Map<string, Array<(event: unknown) => unknown>>();
+  const fetchCalls: Array<{ url: string; init: RequestInit | undefined }> = [];
+  const showNotification = vi.fn(async () => {});
+  const validReceipt = `${'a4'.repeat(12)}.${'b7'.repeat(12)}`;
+  const pushEvent = (payload: unknown) => ({
+    data: { json: () => payload },
+    waitUntil: (promise: Promise<unknown>) => promise,
+  });
+  const messageEvent = (data: unknown) => ({ data, source: undefined });
+
+  beforeAll(() => {
+    const source = readFileSync(path.join(process.cwd(), 'static', 'offline-sync-sw.js'), 'utf8');
+    const selfStub = {
+      addEventListener: (type: string, handler: (event: unknown) => unknown) => {
+        const list = listeners.get(type) ?? [];
+        list.push(handler);
+        listeners.set(type, list);
+      },
+      registration: { showNotification },
+      clients: { matchAll: async () => [] },
+      location: { origin: 'https://pos.staging.local' },
+    };
+    vi.stubGlobal(
+      'self',
+      selfStub as unknown as { addEventListener(type: string, fn: unknown): void },
+    );
+    vi.stubGlobal('fetch', (url: string | URL, init?: RequestInit) => {
+      const normalized = String(url);
+      if (normalized.includes('/api/push/ack')) fetchCalls.push({ url: normalized, init });
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+    new Function('self', 'caches', source)(selfStub, {
+      open: async () => ({ put: async () => {}, match: async () => null }),
+      keys: async () => [],
+      delete: async () => true,
+    });
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('receipt válido → POST /api/push/ack con body {deliveryId, receipt, displayedAt}', async () => {
+    const [message] = listeners.get('message')!;
+    await message(messageEvent({ type: 'SET_API_BASE', apiBase: 'https://api.staging.local/' }));
+    expect(fetchCalls).toHaveLength(0);
+
+    const [push] = listeners.get('push')!;
+    await push(
+      pushEvent({
+        title: 'Alerta',
+        deepLink: { kind: 'billing', entityId: 'inv_0001' },
+        deliveryId: 'pd_20260823_000042',
+        receipt: validReceipt,
+      }),
+    );
+
+    expect(showNotification).toHaveBeenCalledOnce();
+    expect(fetchCalls).toHaveLength(1);
+    const call = fetchCalls[0]!;
+    expect(call.url).toBe('https://api.staging.local/api/push/ack');
+    expect(call.init?.method).toBe('POST');
+    expect(call.init?.credentials).toBe('include');
+    const body = JSON.parse(String(call.init?.body)) as Record<string, string>;
+    expect(body.deliveryId).toBe('pd_20260823_000042');
+    expect(body.receipt).toBe(validReceipt);
+    expect(Number.isNaN(Date.parse(body.displayedAt))).toBe(false);
+  });
+
+  it('receipt ausente → muestra notificación pero NO postea ack', async () => {
+    expect(fetchCalls).toHaveLength(1);
+    const [push] = listeners.get('push')!;
+    await push(
+      pushEvent({
+        deepLink: { kind: 'inventory', entityId: 'sku_9' },
+        deliveryId: 'pd_20260823_000043',
+      }),
+    );
+    expect(showNotification).toHaveBeenCalledTimes(2);
+    expect(fetchCalls).toHaveLength(1);
+  });
+
+  it('receipt malformado (regex {16,1024}) → no postea ack', async () => {
+    const [push] = listeners.get('push')!;
+    await push(
+      pushEvent({
+        deepLink: { kind: 'cash_close', entityId: 'cc_1' },
+        deliveryId: 'pd_20260823_000044',
+        receipt: 'corto.mal',
+      }),
+    );
+    expect(showNotification).toHaveBeenCalledTimes(3);
+    expect(fetchCalls).toHaveLength(1);
   });
 });
 

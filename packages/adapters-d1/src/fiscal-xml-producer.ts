@@ -45,6 +45,8 @@ export type ProduceFiscalXmlResult =
   | { readonly outcome: 'NOOP_ALREADY_HAS_KEY'; readonly r2XmlKey: string }
   | { readonly outcome: 'SKIP_RC'; readonly channel: 'RC' }
   | { readonly outcome: 'SKIP_NONE'; readonly channel: 'NONE' }
+  /** Fail-closed §5.2: emisor TENANT_CERT sin material KMS no emite XML unsigned. */
+  | { readonly outcome: 'MISSING_SIGNER' }
   | { readonly outcome: 'NOT_FOUND' };
 
 interface SaleForXml {

@@ -69,30 +69,6 @@ export interface ChargeBlocked {
 
 export type ChargeOutcome = ChargeResult | ChargeBlocked;
 
-export function resolveChargeDocument(input: {
-  readonly formalizationMode: FormalizationMode;
-  readonly taxRegime: TaxRegime;
-  readonly clientDocumentType: string;
-  readonly clientDocumentNumber: string;
-  readonly documentTypeOverride?: ChargeContext['documentTypeOverride'];
-}): { documentType: NonNullable<ChargeContext['documentTypeOverride']>; series: string } {
-  const documentType =
-    input.documentTypeOverride ??
-    suggestDocumentType({
-      formalizationMode: input.formalizationMode,
-      taxRegime: input.taxRegime,
-      clientDocumentType: input.clientDocumentType,
-      clientDocumentNumber: input.clientDocumentNumber,
-    });
-  const series =
-    documentType === 'NV' || documentType === 'NV_RETURN'
-      ? 'NV01'
-      : documentType === '01'
-        ? 'F001'
-        : 'B001';
-  return { documentType, series };
-}
-
 function guardMessage(code: string): string {
   if (code === 'BOLETA_ID_REQUIRED') {
     return 'Boleta ≥ S/ 700 requiere DNI/CE y nombre del cliente.';

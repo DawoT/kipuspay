@@ -12863,3 +12863,51 @@ aprobaciones: ["A: Staff Principal", "V: verificación independiente D1+navegado
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0463
+timestamp_utc: 2026-08-24T14:20:00Z
+schema_version: 2
+sprint_fase: Sprint F — Fase 3 (staging hardening)
+agente_responsable: Staff Principal
+tipo: Corrección de código + cierre de deuda TDD fiscal
+subtipo: bug de contrato SW↔API
+relacion: amplia
+referencias_entradas: [0459, 0460, 0462]
+referencias_documentales: [docs/architecture/05-2-fiscal-pipeline.md, docs/adr/ADR-0035-owner-full-access-plan-guard.md]
+prev_id: 0462
+prev_hash: 8daaea38a023db0284ce5c3f6053ded4d0f2e513ca7e3ae20aa431c3743142e7
+entry_hash: d4c9af33fdafda03629168ce6faab99ee21ced981c5e2497eba89759bebe5475
+ticket_or_adr: ADR-0035; gap fcm-vapid-real (docs/ops/pending-batches.yaml)
+test_ids: [packages/domain-fiscal-pe/src/ubl-invoice.test.ts, apps/pos-web/src/lib/push/auth-mirror.test.ts, apps/pos-web/src/lib/offline-sync/offline-sync.test.ts]
+entregable_afectado: apps/pos-web/static/offline-sync-sw.js; apps/pos-web/src/lib/push/auth-mirror.ts
+descripcion: >
+  (1) Deuda TDD fiscal del sprint 0459-0460 liquidada: domain-fiscal-pe 25/25
+  archivos, 162/162 tests GREEN. El caso staged ubl-invoice.test.ts:103 tenía un
+  error de autoría (fragmento con AddressTypeCode presente esperaba
+  MISSING_ESTABLISHMENT_CODE, contradiciendo los casos hermanos 106/117/122 bajo
+  cualquier orden lineal de guards); se corrigió el fragmento al intent del autor
+  (establecimiento se valida ANTES de contingencia), sin debilitar el validador.
+  (2) Auditoría E2E del ACK de push detectó bug real de contrato: el middleware
+  de worker-api resuelve identidad solo desde Authorization Bearer
+  (tenant-auth-middleware resolveJwt), pero offline-sync-sw.js posteaba
+  /api/push/ack solo con cookies → el ACK fallaría siempre incluso en producción.
+  Fix: espejo de credenciales en IndexedDB (auth-mirror.ts, patrón zero-dep de
+  offline-queue) escrito en login/onboarding y leído por el SW para inyectar
+  Bearer + x-tenant-id. El listener push retorna la promesa para harness
+  determinista. Notación db['transaction'] por convenio V-04 (IDB ≠ D1).
+evidencia: >
+  RED: domain-fiscal-pe 1 archivo fallando (MISSING_ESTABLISHMENT_CODE vs
+  CONTINGENCIA_FORBIDDEN); offline-sync ACK test sin fetch (carrera de
+  microtasks tras añadir await del espejo).
+  GREEN: domain-fiscal-pe 162/162; pos-web 418/418; typecheck svelte-check 0;
+  prettier limpio; RESULT SUITE GREEN. Deploy staging OK (SW con readAuthMirror
+  live, verificado por curl). Push final ACCEPTED HTTP_202/202; loop físico
+  notificación→ACK queda bajo gap H4 (dispositivo Android real): Chromium
+  headless no sostiene suscripción Web Push viva (pushManager.subscribe
+  AbortError permission denied), limitación de entorno no de producto.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

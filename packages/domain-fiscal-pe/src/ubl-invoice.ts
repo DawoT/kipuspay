@@ -25,6 +25,8 @@ export interface UblInvoiceInput {
   readonly currency: 'PEN';
   readonly issuerRuc: string;
   readonly issuerName: string;
+  /** Código de establecimiento anexo (catálogo 20). Default domicilio fiscal `0000`. */
+  readonly issuerEstablishmentCode?: string;
   readonly customerDocType: string;
   readonly customerDocNumber: string;
   readonly customerName: string;
@@ -47,6 +49,12 @@ import {
 export function buildUblInvoiceXml(input: UblInvoiceInput): string {
   if (input.ublVersion !== '2.1') throw new Error('UNSUPPORTED_UBL_VERSION');
   if (!/^\d{11}$/.test(input.issuerRuc)) throw new Error('INVALID_ISSUER_RUC');
+  // IssueDate es xsd:date — SUNAT 0306 rechaza timestamp con hora.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.issueDate)) throw new Error('INVALID_ISSUE_DATE');
+  // IssueTime xsd:time sin fracción — SUNAT rechaza milisegundos.
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(input.issueTime)) throw new Error('INVALID_ISSUE_TIME');
+  const establishmentCode = input.issuerEstablishmentCode ?? '0000';
+  if (!/^\d{4}$/.test(establishmentCode)) throw new Error('INVALID_ESTABLISHMENT_CODE');
   if (input.invoiceTypeCode === '01' && input.customerDocType !== '6') {
     throw new Error('FACTURA_REQUIRES_RUC');
   }
@@ -113,7 +121,7 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       <cac:PartyLegalEntity>
         <cbc:RegistrationName>${escapeXml(input.issuerName)}</cbc:RegistrationName>
         <cac:RegistrationAddress>
-          <cbc:AddressTypeCode>0000</cbc:AddressTypeCode>
+          <cbc:AddressTypeCode>${establishmentCode}</cbc:AddressTypeCode>
         </cac:RegistrationAddress>
       </cac:PartyLegalEntity>
     </cac:Party>
@@ -128,6 +136,18 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:AccountingCustomerParty>
+  <cac:Signature>
+    <cbc:ID>KipusPaySign</cbc:ID>
+    <cac:SignatoryParty>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="6">${escapeXml(input.issuerRuc)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>${escapeXml(input.issuerName)}</cbc:Name>
+      </cac:PartyName>
+    </cac:SignatoryParty>
+    <cbc:URI>#KipusPaySign</cbc:URI>
+  </cac:Signature>
   <cac:PaymentTerms>
     <cbc:ID>FormaPago</cbc:ID>
     <cbc:PaymentMeansID>Contado</cbc:PaymentMeansID>
@@ -171,4 +191,8 @@ export function assertValidFacturaXml(xml: string): void {
   if (!xml.includes('<cac:InvoiceLine>')) throw new Error('MISSING_LINES');
   if (!xml.includes('<cbc:AddressTypeCode>')) throw new Error('MISSING_ESTABLISHMENT_CODE');
   if (xml.toLowerCase().includes('contingencia')) throw new Error('CONTINGENCIA_FORBIDDEN');
+  // FIS-12: el CPE declara firmante (cac:SignatoryParty) o trae ds:Signature.
+  if (!xml.includes('<cac:SignatoryParty>') && !xml.includes('<ds:Signature')) {
+    throw new Error('MISSING_UBL_SIGNATURE');
+  }
 }

@@ -5,6 +5,7 @@
  */
 import { resolveApiBase } from './api-client.js';
 import { writeLoginTenantId, writeLoginToken, writeLoginUser } from './token-store.js';
+import { mirrorAuthTokenForServiceWorker } from '../push/auth-mirror.js';
 
 export interface OnboardingClaimSession {
   readonly branchId: string;
@@ -96,6 +97,7 @@ async function claimFromUrlOnce(): Promise<boolean> {
     return false;
   }
   writeLoginToken(localStorage, result.token);
+  void mirrorAuthTokenForServiceWorker(result.token, tenantIdFromUrl ?? '');
   writeLoginUser(localStorage, {
     userId: result.user.userId,
     role: result.user.role,

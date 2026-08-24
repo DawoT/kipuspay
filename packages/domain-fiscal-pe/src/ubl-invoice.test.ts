@@ -98,7 +98,7 @@ describe('buildUblInvoiceXml', () => {
     ).toThrow(/MISSING_LINES/);
     expect(() =>
       assertValidFacturaXml(
-        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine><cbc:AddressTypeCode>0000</cbc:AddressTypeCode><cac:SignatoryParty></cac:SignatoryParty>contingencia</Invoice>',
+        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine><cac:SignatoryParty></cac:SignatoryParty>contingencia</Invoice>',
       ),
     ).toThrow(/MISSING_ESTABLISHMENT_CODE/);
     expect(() =>

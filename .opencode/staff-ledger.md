@@ -258,7 +258,7 @@ referencias_entradas: [0005]
 referencias_documentales: ["docs/ops/pending-batches.yaml", "docs/architecture/09-reporting.md"]
 prev_id: 0005
 prev_hash: 310d487285813855e148e51879ced0c374986946d32c6d4bcfca09a4dea973d2
-entry_hash: __ENTRY_HASH__
+entry_hash: d1675b278b3e8e06419c5f650b7b9786367352c03c35ea37e4140380261086ae
 entry_hash: 18799aa767562cf6034b82028cef0fba4f0a9f99c73e35184ffb3eea74f9060b
 ticket_or_adr: Fase B del plan aprobado por owner (M2)
 test_ids: [adapters-d1 431, dr-restore.integration 302, worker-api 1356, SUITE]
@@ -701,4 +701,40 @@ aprobaciones: ["A: Staff Principal", "V: D1 + navegador + suites re-ejecutadas p
 estado_gov: GOV-APROBADO
 estado: Vigente
 
+```
+
+```text
+id: 0016
+timestamp_utc: 2026-08-24T14:25:00Z
+agente: Staff Principal
+tarea: Cierre deuda TDD fiscal + auditoría E2E ACK push (bug de contrato auth SW)
+estado: GREEN
+prev_id: 0015
+prev_hash: 1243d91b6a24616088414e0c7d36630946d8d8a23ffd417e89419dc6d1dc5b03
+entry_hash: d1675b278b3e8e06419c5f650b7b9786367352c03c35ea37e4140380261086ae
+ticket_or_adr: ADR-0035; LEDGER 0463; gap fcm-vapid-real
+test_ids: [domain-fiscal-pe 162, pos-web 418, worker-api 1364, SUITE]
+entregable_afectado: packages/domain-fiscal-pe/src/ubl-invoice.test.ts · apps/pos-web/src/lib/push/auth-mirror.ts · apps/pos-web/static/offline-sync-sw.js · docs/LEDGER.md (0463, hash d4c9af33…)
+descripcion: >
+  Auditoría del trabajo del agente muerto (deuda fiscal 0459-0460): 24/25
+  archivos GREEN; el caso restante tenía error de autoría en el fragmento
+  staged (contradecía a los casos hermanos bajo cualquier orden lineal de
+  guards) — corregido al intent del autor sin debilitar el validador → 162/162.
+  E2E del ACK destapó bug real de contrato: middleware Bearer-only vs SW que
+  postea solo cookies → ACK imposible incluso en producción. Fix con espejo
+  IndexedDB (patrón offline-queue, db['transaction'] por V-04), wiring en
+  login/onboarding, listener push retorna promesa para harness determinista.
+  Delegaciones Task fallidas hoy: 5 (network/cancelled/empty) — ejecución
+  directa del supervisor. Pendiente honesto: loop físico notificación→ACK en
+  dispositivo real (H4); Chromium headless no sostiene suscripción viva.
+evidencia: >
+  RED: ubl-invoice 1 fail; offline-sync ACK test sin fetch (carrera microtask);
+  V-04 RED por db.transaction IDB; V-13 RED por hash mal calculado (rango).
+  GREEN: domain-fiscal-pe 162/162; pos-web 418/418; typecheck 0; prettier;
+  V-13/V-20 GREEN; RESULT SUITE GREEN; deploy staging OK (readAuthMirror live
+  por curl); push final ACCEPTED.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: suites + gate re-ejecutados"]
+estado_gov: GOV-APROBADO
+estado: Vigente
 ```

@@ -2,6 +2,7 @@ import {
   applyCdrToSaleStatus,
   createMockPseTransport,
   type FiscalSubmitRequest,
+  type SunatOutcome,
 } from '@kipuspay/adapters-sunat';
 import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
@@ -90,40 +91,49 @@ export function isFiscalTransportPluginsEnabled(env: FiscalWorkerEnv): boolean {
  * F5-2 / ADR-FISCAL-007: SOL → SOAP; si no, PSE HTTP o mock.
  */
 
-export async function submitViaMockPse(request: FiscalSubmitRequest): Promise<{
-  verdict: 'aceptada' | 'rechazada' | 'cuarentena';
-  sunatStatus: 'ACCEPTED' | 'REJECTED' | 'QUARANTINED';
-}> {
-  const transport = createMockPseTransport();
-  const outcome = await transport.submit(request);
-  const sunatStatus = await applyCdrToSaleStatus(outcome);
+/** Resultado del submit: el CDR es la única confirmación y viaja al cliente. */
+export interface FiscalSubmitResponse {
+  readonly verdict: 'aceptada' | 'rechazada' | 'cuarentena';
+  readonly sunatStatus: 'ACCEPTED' | 'REJECTED' | 'QUARANTINED';
+  readonly cdrCode?: string;
+  readonly cdrDescription?: string;
+}
+
+function responseOf(
+  outcome: SunatOutcome,
+  sunatStatus: 'ACCEPTED' | 'REJECTED' | 'QUARANTINED',
+): FiscalSubmitResponse {
   const verdict =
     sunatStatus === 'ACCEPTED'
       ? 'aceptada'
       : sunatStatus === 'REJECTED'
         ? 'rechazada'
         : 'cuarentena';
-  return { verdict, sunatStatus };
+  if (outcome.kind === 'unreachable') return { verdict, sunatStatus };
+  return {
+    verdict,
+    sunatStatus,
+    cdrCode: outcome.cdr.cdrCode,
+    cdrDescription: outcome.cdr.cdrDescription,
+  };
+}
+
+export async function submitViaMockPse(
+  request: FiscalSubmitRequest,
+): Promise<FiscalSubmitResponse> {
+  const transport = createMockPseTransport();
+  const outcome = await transport.submit(request);
+  return responseOf(outcome, await applyCdrToSaleStatus(outcome));
 }
 
 /** F5-2: submit por el transporte seleccionado (mock staging o PSE HTTP real). */
 export async function submitViaSelectedTransport(
   env: FiscalWorkerEnv,
   request: FiscalSubmitRequest,
-): Promise<{
-  verdict: 'aceptada' | 'rechazada' | 'cuarentena';
-  sunatStatus: 'ACCEPTED' | 'REJECTED' | 'QUARANTINED';
-}> {
+): Promise<FiscalSubmitResponse> {
   const transport = selectFiscalTransport(env);
   const outcome = await transport.submit(request);
-  const sunatStatus = await applyCdrToSaleStatus(outcome);
-  const verdict =
-    sunatStatus === 'ACCEPTED'
-      ? 'aceptada'
-      : sunatStatus === 'REJECTED'
-        ? 'rechazada'
-        : 'cuarentena';
-  return { verdict, sunatStatus };
+  return responseOf(outcome, await applyCdrToSaleStatus(outcome));
 }
 
 export async function reportInfraFailure(
@@ -187,14 +197,7 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
     );
   }
   const outcome = await transport.submit(body);
-  const sunatStatus = await applyCdrToSaleStatus(outcome);
-  const verdict =
-    sunatStatus === 'ACCEPTED'
-      ? 'aceptada'
-      : sunatStatus === 'REJECTED'
-        ? 'rechazada'
-        : 'cuarentena';
-  const result = { verdict, sunatStatus };
+  const result = responseOf(outcome, await applyCdrToSaleStatus(outcome));
   return new Response(JSON.stringify(result), {
     status: 200,
     headers: { 'content-type': 'application/json' },
