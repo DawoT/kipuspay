@@ -160,9 +160,9 @@ describe('ack receipt wire contract (drill fcm-vapid-real)', () => {
     deepLink: { kind: 'cash_close', entityId: 'close-1' },
     ttlSeconds: 300,
   };
-  const wirePayload = (receipt: string) => {
-    const rest: Record<string, unknown> = { ...base };
-    delete rest.ttlSeconds;
+  const wirePayload = (receipt: string): Omit<typeof base, 'ttlSeconds'> & { receipt: string } => {
+    const rest = { ...base };
+    delete (rest as { ttlSeconds?: unknown }).ttlSeconds;
     return { ...rest, receipt };
   };
 
