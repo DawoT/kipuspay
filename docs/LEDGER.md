@@ -12953,3 +12953,50 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0465
+timestamp_utc: 2026-08-24T16:20:00Z
+schema_version: 2
+sprint_fase: Sprint F — Fase 3 (ciclo de auditoría consolidada)
+agente_responsable: Staff Principal (auditoría: kipus-qa; baseline: kipus-sre)
+tipo: Corrección de código + extensión de gate + baseline SLO
+subtipo: hallazgos de auditoría adversarial
+relacion: corrige
+referencias_entradas: [0463, 0464]
+referencias_documentales: [docs/ops/push-ack-slo-baseline.md, docs/adr/ADR-0035-owner-full-access-plan-guard.md]
+prev_id: 0464
+prev_hash: b699ece335036da67f5092f18712529fffd145e0186f095c1ac909d7a687f280
+entry_hash: 3c55d58b5c45b9e5e567382254efd57db0bd29af11d2d63c188021c505c7d14a
+ticket_or_adr: gap fcm-vapid-real; auditoría kipus-qa 2026-08-24
+test_ids: [apps/pos-web/src/lib/offline-sync/offline-sync.test.ts, V-13]
+entregable_afectado: apps/pos-web/src/lib/push/auth-mirror.ts; apps/pos-web/static/offline-sync-sw.js; scripts/checks/ledger_chain.py; docs/ops/push-ack-slo-baseline.md
+descripcion: >
+  Ciclo de auditoría con agentes staff independientes. kipus-qa (adversarial)
+  emitió NO-GO con 2 BLOQUEANTES: (B1) skew de versión IDB entre auth-mirror
+  (v1) y SW (v2) → VersionError silencioso congelaba el espejo de credenciales
+  tras el primer open del SW — fix AUTH_MIRROR_DB_VERSION=2 exportada + test de
+  contrato que compara la versión del asset contra la constante; (B2) el fetch
+  del ACK no inspeccionaba response.ok → 401/403/410 invisibles — fix
+  notificación DISPLAYED_ACK_HTTP_<status> a clients. Además: corrupción
+  preexistente del staff-ledger (placeholder en 0006 + hashes truncados en
+  0016/0017) invisible porque el gate solo validaba el ledger principal —
+  reparación en cascada 0006→0018 y ledger_chain.py extendido para validar
+  AMBAS cadenas (V-13 dual). kipus-sre entregó baseline SLO (docs/ops/
+  push-ack-slo-baseline.md): 1/21 DISPLAYED (la muestra H4, Δ4.85s ✓), cron
+  */5 domina queued→accepted (hasta 554s) — el SLO §5.12.4 desde created_at es
+  estructuralmente imposible sin despacho inline; SLO ≥99% exige flota+volumen;
+  FCM_HTTP_V1 nativo: APLAZAR (Web Push cubre el caso). Lint preexistente
+  worker-kms (_ttl unused) corregido.
+evidencia: >
+  RED: ledger_chain extendido en RED (staff 0006/0017 stored != computed);
+  eslint worker-kms 1 error; skew IDB verificado por lectura (v1 vs v2).
+  GREEN: V-13 dual GREEN (ambas cadenas); pos-web 419/419 (incluye test de
+  versión IDB); worker-kms 26/26 + lint OK; prettier limpio; RESULT SUITE
+  GREEN; baseline D1 verificado por supervisor (14 ACCEPTED / 1 DISPLAYED /
+  5 EXPIRED / 1 FAILED = 21).
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

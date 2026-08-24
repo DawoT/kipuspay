@@ -161,7 +161,8 @@ describe('ack receipt wire contract (drill fcm-vapid-real)', () => {
     ttlSeconds: 300,
   };
   const wirePayload = (receipt: string) => {
-    const { ttlSeconds: _ttl, ...rest } = base;
+    const rest: Record<string, unknown> = { ...base };
+    delete rest.ttlSeconds;
     return { ...rest, receipt };
   };
 

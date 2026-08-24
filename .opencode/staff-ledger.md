@@ -820,3 +820,40 @@ aprobaciones: ["A: Staff Principal", "V: kipus-qa (auditoría independiente)"]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0019
+timestamp_utc: 2026-08-24T16:25:00Z
+agente: Staff Principal
+tarea: Ciclo de auditoría consolidada — kipus-qa (NO-GO→remediado) + kipus-sre (baseline SLO)
+estado: Vigente
+prev_id: 0018
+prev_hash: 58899726d7fe0bd97772a8700594b5a02d9c5449d28d4723c9298a7bfe7b6d50
+entry_hash: a7be29d52553bf45c3c71e4c142266f3da9e7c1635d6ff8e4ee528002e4cb924
+ticket_or_adr: LEDGER 0465; gap fcm-vapid-real
+test_ids: [pos-web 419, worker-kms 26, V-13 dual]
+entregable_afectado: apps/pos-web/src/lib/push/auth-mirror.ts · apps/pos-web/static/offline-sync-sw.js · scripts/checks/ledger_chain.py · docs/ops/push-ack-slo-baseline.md · docs/LEDGER.md (0465, hash 3c55d58b…)
+descripcion: >
+  Primer ciclo completo delegación→auditoría→corrección del pipeline push.
+  kipus-qa ejecutó auditoría adversarial real (re-ejecutó 5 suites, recomputó
+  hashes, cazó huevos de serpiente por lectura de código) y emitió NO-GO
+  fundado: 2 BLOQUEANTES de código (skew IDB, ACK silencioso) + corrupción de
+  la propia cadena staff que este supervisor había introducido/mechanically
+  heredado. Ambos bloqueantes corregidos con test de contrato; cascada
+  0006→0018 re-derivada; gate V-13 ahora valida ambas cadenas — la clase de
+  defecto no puede recurrir invisiblemente. kipus-sre entregó baseline honesto:
+  el SLO §5.12.4 (desde created_at) es estructuralmente imposible con cron */5
+  (hasta 554s queued→accepted) — requiere decisión ADR de despacho inline o
+  presupuesto segmentado; FCM nativo APLAZAR. Lección de proceso: la muestra
+  H4 (1 delivery DISPLAYED) no ejercitaba el camino roto (re-login→refresh de
+  espejo) — exactamente el patrón que CAL-04 existe para cazar.
+evidencia: >
+  RED: NO-GO de kipus-qa con hashes staff no verificables; eslint worker-kms
+  1 error; ledger_chain extendido en RED inicial. GREEN: V-13 dual GREEN;
+  pos-web 419/419; worker-kms 26/26 lint OK; SUITE GREEN; baseline D1
+  verificado independientemente por el supervisor (21 filas exactas).
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: kipus-qa + kipus-sre (independientes)"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
