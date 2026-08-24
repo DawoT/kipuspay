@@ -29,11 +29,82 @@ export interface BuildDailySummaryInput {
 }
 
 export interface BuildDailySummaryResult {
-  readonly status: 'SUCCESS' | 'NOOP_EMPTY' | 'ALREADY_EXISTS';
+  readonly status: 'SUCCESS' | 'NOOP_EMPTY' | 'ALREADY_EXISTS' | 'MISSING_SIGNER';
   readonly dailySummaryId?: string;
   readonly sunatStatus?: string;
   readonly ticketCount?: number;
   readonly nrusOmittedCount?: number;
+  /** FIS-03 — tipo de sobre RC emitido (solo en SUCCESS). */
+  readonly rcType?: 'PRIMARY' | 'COMPLEMENTARY';
+  /** ID UBL del sobre `RC-YYYYMMDD-NNN` (solo en SUCCESS). */
+  readonly rcUblId?: string;
+}
+
+/** Fail-closed §5.2 (ADR-FISCAL-008): ¿emisor TENANT_CERT sin material de firma? */
+function isTenantCertWithoutSigner(
+  tenant: { readonly pse_mode: string | null } | null | undefined,
+  signer: FiscalXmlSigner | undefined,
+): boolean {
+  return tenant?.pse_mode === 'TENANT_CERT' && !signer;
+}
+
+interface RcXmlRow {
+  readonly document_type: string;
+  readonly series: string;
+  readonly number: number;
+  readonly client_document_type: string;
+  readonly client_document_number: string;
+  readonly void_status: string;
+  readonly total_taxable_cents: number;
+  readonly total_igv_cents: number;
+  readonly total_amount_cents: number;
+}
+
+interface RcXmlTenant {
+  readonly ruc: string | null;
+  readonly business_name: string;
+}
+
+/**
+ * Sobre del RC: UBL SummaryDocuments real cuando el emisor tiene RUC válido
+ * (firmado si hay signer); placeholder staging-only para PSE sin RUC (el mock
+ * CDR lo acepta — jamás llega a SUNAT real).
+ */
+async function buildRcEnvelopeXml(input: {
+  readonly tenantId: string;
+  readonly summaryDate: string;
+  readonly ticketCount: number;
+  readonly nrusOmitted: number;
+  readonly sunatTicket: string;
+  readonly tenant: RcXmlTenant | null;
+  readonly rows: readonly RcXmlRow[];
+  readonly signer?: FiscalXmlSigner | undefined;
+}): Promise<string> {
+  const tenant = input.tenant;
+  const ruc = tenant?.ruc ?? null;
+  if (!(tenant && ruc && /^\d{11}$/.test(ruc))) {
+    return `<DailySummary tenant="${input.tenantId}" date="${input.summaryDate}" tickets="${input.ticketCount}" nrusOmit="${input.nrusOmitted}"/>`;
+  }
+  let xml = buildUblSummaryDocumentsXml({
+    id: input.sunatTicket,
+    referenceDate: input.summaryDate,
+    issueDate: input.summaryDate,
+    issuerRuc: ruc,
+    issuerName: tenant.business_name,
+    lines: input.rows.map((r, i) => ({
+      lineId: i + 1,
+      documentType: r.document_type === '12' ? '12' : '03',
+      documentId: `${r.series}-${String(r.number).padStart(8, '0')}`,
+      customerDocType: r.client_document_type || '1',
+      customerDocNumber: r.client_document_number || '00000000',
+      conditionCode: r.void_status === 'VOID_PENDING_RC' ? '3' : '1',
+      totalTaxableCents: r.total_taxable_cents,
+      totalIgvCents: r.total_igv_cents,
+      totalAmountCents: r.total_amount_cents,
+    })),
+  });
+  if (input.signer) xml = await input.signer.sign(xml, input.tenantId);
+  return xml;
 }
 
 export async function buildDailySummary(
@@ -63,9 +134,14 @@ export async function buildDailySummary(
   }
 
   const tenant = await db
-    .prepare(`SELECT tax_regime, ruc, business_name FROM tenants WHERE id = ?`)
+    .prepare(`SELECT tax_regime, ruc, business_name, pse_mode FROM tenants WHERE id = ?`)
     .bind(input.tenantId)
-    .first<{ tax_regime: string; ruc: string | null; business_name: string }>();
+    .first<{
+      tax_regime: string;
+      ruc: string | null;
+      business_name: string;
+      pse_mode: string | null;
+    }>();
 
   const boletas = await db
     .prepare(
@@ -110,6 +186,14 @@ export async function buildDailySummary(
     return { status: 'NOOP_EMPTY' };
   }
 
+  // Fail-closed §5.2 (ADR-FISCAL-008): un emisor TENANT_CERT sin material de
+  // firma jamás emite RC — ni placeholder ni SummaryDocuments unsigned llegan
+  // al puerto CDR. Con boletas pendientes el resultado es MISSING_SIGNER;
+  // sin boletas no había nada que emitir (NOOP_EMPTY ya retornó arriba).
+  if (isTenantCertWithoutSigner(tenant, input.signer)) {
+    return { status: 'MISSING_SIGNER' };
+  }
+
   const forRc: BoletaForRc[] = rows.map((r) => ({
     saleId: r.id,
     branchId: r.branch_id,
@@ -152,28 +236,16 @@ export async function buildDailySummary(
   );
   const sunatTicket = rcSummaryId(input.summaryDate, correlative);
 
-  let xml = `<DailySummary tenant="${input.tenantId}" date="${input.summaryDate}" tickets="${plan.ticketCount}" nrusOmit="${nrusPlan.omittedSaleIds.length}"/>`;
-  if (tenant?.ruc && /^\d{11}$/.test(tenant.ruc)) {
-    xml = buildUblSummaryDocumentsXml({
-      id: sunatTicket,
-      referenceDate: input.summaryDate,
-      issueDate: input.summaryDate,
-      issuerRuc: tenant.ruc,
-      issuerName: tenant.business_name,
-      lines: rows.map((r, i) => ({
-        lineId: i + 1,
-        documentType: r.document_type === '12' ? '12' : '03',
-        documentId: `${r.series}-${String(r.number).padStart(8, '0')}`,
-        customerDocType: r.client_document_type || '1',
-        customerDocNumber: r.client_document_number || '00000000',
-        conditionCode: r.void_status === 'VOID_PENDING_RC' ? '3' : '1',
-        totalTaxableCents: r.total_taxable_cents,
-        totalIgvCents: r.total_igv_cents,
-        totalAmountCents: r.total_amount_cents,
-      })),
-    });
-    if (input.signer) xml = await input.signer.sign(xml, input.tenantId);
-  }
+  const xml = await buildRcEnvelopeXml({
+    tenantId: input.tenantId,
+    summaryDate: input.summaryDate,
+    ticketCount: plan.ticketCount,
+    nrusOmitted: nrusPlan.omittedSaleIds.length,
+    sunatTicket,
+    tenant,
+    rows,
+    signer: input.signer,
+  });
   const cdrPort = input.cdr ?? createMockRcCdrPort();
   const cdr = await cdrPort.submit({
     tenantId: input.tenantId,
@@ -237,6 +309,8 @@ export async function buildDailySummary(
     sunatStatus: rcStatus,
     ticketCount: plan.ticketCount,
     nrusOmittedCount: nrusPlan.omittedSaleIds.length,
+    rcType,
+    rcUblId: sunatTicket,
   };
 }
 
@@ -268,6 +342,11 @@ export async function runDailySummarySweep(
     readonly limit?: number;
     /** C6: puerto RC real; sin él el sweep usa el mock (staging only). */
     readonly cdr?: RcCdrPort;
+    /**
+     * Fail-closed §5.2: signer para emisores TENANT_CERT. Sin él, esos
+     * emisores reportan MISSING_SIGNER (nunca RC unsigned).
+     */
+    readonly signer?: FiscalXmlSigner;
   },
 ): Promise<DailySummarySweepResult> {
   const limit = input.limit ?? 500;
@@ -294,6 +373,7 @@ export async function runDailySummarySweep(
       summaryDate: input.summaryDate,
       nowMs: input.nowMs,
       ...(input.cdr ? { cdr: input.cdr } : {}),
+      ...(input.signer ? { signer: input.signer } : {}),
     });
     results.push({
       tenantId: row.tenant_id,

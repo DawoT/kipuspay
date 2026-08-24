@@ -161,6 +161,13 @@ export async function processCreditNoteAtomic(
       : originDoc === '03' || originDoc === '12'
         ? computeMustSubmitByIso(originDoc, Date.parse(issuedAt.replace(' ', 'T')))
         : null;
+  // Excepción E-A (§8): la NC de anulación sin CDR del origen jamás viaja a
+  // SUNAT — es reversión contable + audit CREDIT_NOTE_NO_CDR. Estado
+  // NOT_APPLICABLE y sin must_submit_by: el cron de plazos no debe alertar un
+  // envío que no existe ("no queda atrapado en la cola fiscal", §8).
+  const eaNoCdr = gate.requiresNoCdrAudit;
+  const ncSunatStatus = eaNoCdr ? 'NOT_APPLICABLE' : 'PENDING';
+  const ncMustSubmitByIso = eaNoCdr ? null : mustSubmitByIso;
   const xmlChannel = classifyUnitaryXmlTarget('07', originDoc);
   const resolvedStockItems = await Promise.all(
     request.items.map(async (item) => {
@@ -306,7 +313,7 @@ export async function processCreditNoteAtomic(
              SELECT
                ?, ?, ?, ?, ?, ?, ?, ?, '07', ?,
                (SELECT current_number FROM branch_document_series WHERE id = ?),
-               'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, 'PENDING', ?, ?`,
+               'PEN', 1.0, ?, 0, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?`,
         )
         .bind(
           ncId,
@@ -324,8 +331,9 @@ export async function processCreditNoteAtomic(
           request.amountCents,
           originSaleId,
           request.motiveCode,
+          ncSunatStatus,
           issuedAt,
-          mustSubmitByIso,
+          ncMustSubmitByIso,
         ),
     );
 
@@ -523,7 +531,8 @@ export async function processCreditNoteAtomic(
       documentType: '07',
     });
 
-    if (xmlChannel === 'UNIT_XML' && mustSubmitByIso) {
+    // E-A (§8): la NC sin CDR del origen no se encola — jamás viaja a SUNAT.
+    if (!eaNoCdr && xmlChannel === 'UNIT_XML' && mustSubmitByIso) {
       plan.add(
         db
           .prepare(
