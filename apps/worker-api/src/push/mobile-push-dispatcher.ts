@@ -251,21 +251,26 @@ function warnPushFailure(input: {
   console.warn(JSON.stringify({ ...input }));
 }
 
-async function completeDelivery(
-  env: WorkerEnv,
-  delivery: ClaimedPushDelivery,
+/** Desenlace terminal de una delivery, derivado puro (sin I/O). */
+interface DeliveryOutcome {
+  readonly terminalStatus: 'ACCEPTED' | 'RETRY' | 'FAILED' | 'EXPIRED';
+  readonly nextRetryAt: string | null;
+  readonly ackReceiptHash: string | null;
+  readonly ackExpiresAt: string | null;
+  readonly persistedFailure: string | null;
+}
+
+function computeDeliveryOutcome(
+  result: ProviderResult,
   context: DeliveryContext,
-  rawResult: ProviderResult,
-  receipt: { readonly receiptHash: string; readonly keyVersion: string },
+  receipt: { readonly receiptHash: string },
+  attemptCount: number,
   nowMs: number,
-  exceptionReason: string | null = null,
-): Promise<void> {
-  if (!env.DB) return;
-  const result = sanitizeProviderResult(rawResult);
-  const now = new Date(nowMs).toISOString();
+  exceptionReason: string | null,
+): DeliveryOutcome {
   const remainingTtl = Math.max(0, Math.floor((Date.parse(context.expires_at) - nowMs) / 1000));
   const retrySeconds = computePushRetryDelaySeconds(
-    delivery.attemptCount + 1,
+    attemptCount + 1,
     result.retryAfterSeconds,
     remainingTtl,
   );
@@ -288,6 +293,23 @@ async function completeDelivery(
         : terminalStatus === 'RETRY' && exceptionReason
           ? exceptionReason
           : null;
+  return { terminalStatus, nextRetryAt, ackReceiptHash, ackExpiresAt, persistedFailure };
+}
+
+async function completeDelivery(
+  env: WorkerEnv,
+  delivery: ClaimedPushDelivery,
+  context: DeliveryContext,
+  rawResult: ProviderResult,
+  receipt: { readonly receiptHash: string; readonly keyVersion: string },
+  nowMs: number,
+  exceptionReason: string | null = null,
+): Promise<void> {
+  if (!env.DB) return;
+  const result = sanitizeProviderResult(rawResult);
+  const now = new Date(nowMs).toISOString();
+  const { terminalStatus, nextRetryAt, ackReceiptHash, ackExpiresAt, persistedFailure } =
+    computeDeliveryOutcome(result, context, receipt, delivery.attemptCount, nowMs, exceptionReason);
   const statements = [
     env.DB.prepare(
       `UPDATE push_deliveries
@@ -395,13 +417,14 @@ async function dispatchOne(
   // eventType es metadata de copy server-side: el allowlist del transporte
   // (validatePayload en worker-kms) no lo admite y su presencia provocaba
   // PUSH_PAYLOAD_NOT_ALLOWED en TODOS los sends (drill fcm-vapid-real).
-  const { eventType: _eventType, ...lockscreenWire } = buildLockscreenPayload({
+  const lockscreenWire: Record<string, unknown> = buildLockscreenPayload({
     eventType: context.event_type,
     privacyMode,
     ...(context.amount_cents === null ? {} : { amount_cents: context.amount_cents }),
     deepLinkKind: context.deep_link_kind,
     deepLinkEntityId: context.deep_link_entity_id,
   });
+  delete lockscreenWire.eventType;
   const payload = { ...lockscreenWire, deliveryId: delivery.id, receipt: receipt.token };
   let raw: ProviderResult;
   let sendFailureReason: string | null = null;

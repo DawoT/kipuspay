@@ -45,9 +45,10 @@ export function buildRcCdrPort(env: WorkerEnv): RcCdrPort {
       ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
     });
   }
-  const submitRc = env.FISCAL?.submitRc;
-  if (submitRc) {
-    return { submit: (input) => submitRc(input) };
+  const fiscal = env.FISCAL;
+  if (fiscal?.submitRc) {
+    const boundSubmitRc = fiscal.submitRc.bind(fiscal);
+    return { submit: (input) => boundSubmitRc(input) };
   }
   const endpoint = env.FISCAL_PSE_ENDPOINT_URL?.trim();
   if (env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' && endpoint) {
