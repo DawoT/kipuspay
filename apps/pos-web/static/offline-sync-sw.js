@@ -159,12 +159,17 @@ async function dispatchDisplayedAck(deliveryId, receipt, displayedAt) {
       headers.authorization = `Bearer ${auth.token}`;
       headers['x-tenant-id'] = auth.tenantId;
     }
-    await fetch(`${apiBase}/api/push/ack`, {
+    const response = await fetch(`${apiBase}/api/push/ack`, {
       method: 'POST',
       credentials: 'include',
       headers,
       body: JSON.stringify({ deliveryId, receipt, displayedAt }),
     });
+    // Un 401/403/410 resuelto como éxito = ACK perdido en silencio (hallazgo
+    // BLOQUEANTE-2 auditoría 2026-08-24): telemetría visible + señal a clients.
+    if (!response.ok) {
+      await notifyClients(`DISPLAYED_ACK_HTTP_${response.status}`);
+    }
   } catch {
     await notifyClients('DISPLAYED_ACK_PENDING');
   }

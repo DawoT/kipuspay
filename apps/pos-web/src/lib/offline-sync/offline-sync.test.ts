@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { AUTH_MIRROR_DB_VERSION } from '../push/auth-mirror.js';
 import { evaluateQuota } from './quota-guardian.js';
 import {
   createBrowserOfflineIdb,
@@ -136,6 +137,13 @@ describe('offline-sync-sw push displayed ACK (asset real)', () => {
   const fetchCalls: Array<{ url: string; init: RequestInit | undefined }> = [];
   const showNotification = vi.fn(async () => {});
   const validReceipt = `${'a4'.repeat(12)}.${'b7'.repeat(12)}`;
+
+  it('contrato de versión IDB: auth-mirror y SW abren kipus_push_auth en la MISMA versión (skew = VersionError silencioso)', () => {
+    const source = readFileSync(path.join(process.cwd(), 'static', 'offline-sync-sw.js'), 'utf8');
+    const swVersion = source.match(/indexedDB\.open\('kipus_push_auth',\s*(\d+)\)/)?.[1];
+    expect(swVersion).toBe(String(AUTH_MIRROR_DB_VERSION));
+  });
+
   const pushEvent = (payload: unknown) => ({
     data: { json: () => payload },
     waitUntil: (promise: Promise<unknown>) => promise,

@@ -11,6 +11,13 @@
  */
 
 const AUTH_MIRROR_DB = 'kipus_push_auth';
+/**
+ * Debe coincidir con la versión que abre el Service Worker
+ * (offline-sync-sw.js idbOpen). Abrir en versión menor que la existente lanza
+ * VersionError y el fail-soft lo tragaría → espejo muerto tras el primer open
+ * del SW (hallazgo BLOQUEANTE-1 de la auditoría 2026-08-24).
+ */
+export const AUTH_MIRROR_DB_VERSION = 2;
 const AUTH_MIRROR_STORE = 'auth';
 const AUTH_MIRROR_KEY = 'current';
 
@@ -25,7 +32,7 @@ function hasIndexedDb(): boolean {
 
 function openMirrorDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(AUTH_MIRROR_DB, 1);
+    const req = indexedDB.open(AUTH_MIRROR_DB, AUTH_MIRROR_DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(AUTH_MIRROR_STORE)) {
