@@ -104,7 +104,9 @@ export function buildUblDebitNoteXml(input: UblDebitNoteInput): string {
   <cbc:ID>${escapeXml(input.id)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(input.issueDate)}</cbc:IssueDate>
   <cbc:IssueTime>${escapeXml(input.issueTime)}</cbc:IssueTime>
-  <cbc:DebitNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">08</cbc:DebitNoteTypeCode>
+  <!-- Sin cbc:DebitNoteTypeCode: el schema restringido de SUNAT e-beta NO lo
+       admite (CDR 0306 cvc-particle, FL-1 2026-08-24); el tipo 08 vive en el
+       root <DebitNote>. Shape idéntico al FD01-00000001 ACEPTADO (CDR 0). -->
   <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
   <cac:DiscrepancyResponse>
     <cbc:ReferenceID>${escapeXml(input.referencedDocId)}</cbc:ReferenceID>
@@ -155,11 +157,13 @@ export function buildUblDebitNoteXml(input: UblDebitNoteInput): string {
       </cac:TaxCategory>
     </cac:TaxSubtotal>
   </cac:TaxTotal>
-  <cac:LegalMonetaryTotal>
+  <!-- UBL 2.1 DebitNote usa cac:RequestedMonetaryTotal (no LegalMonetaryTotal;
+       e-beta 0306 cvc-particle, FL-1 2026-08-24). -->
+  <cac:RequestedMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:LineExtensionAmount>
     <cbc:TaxInclusiveAmount currencyID="${input.currency}">${centsToAmount(input.totalAmountCents)}</cbc:TaxInclusiveAmount>
     <cbc:PayableAmount currencyID="${input.currency}">${centsToAmount(input.totalAmountCents)}</cbc:PayableAmount>
-  </cac:LegalMonetaryTotal>${linesXml}
+  </cac:RequestedMonetaryTotal>${linesXml}
 </DebitNote>
 `;
 }
@@ -169,9 +173,8 @@ export function assertValidDebitNoteXml(xml: string): void {
   if (!xml.includes('<cbc:UBLVersionID>2.1</cbc:UBLVersionID>')) {
     throw new Error('INVALID_UBL_VERSION');
   }
-  if (!xml.includes('<cbc:DebitNoteTypeCode') || !xml.includes('>08</cbc:DebitNoteTypeCode>')) {
-    throw new Error('INVALID_DEBIT_NOTE_TYPE');
-  }
+  // e-beta 0306 (FL-1 2026-08-24): el schema restringido rechaza el elemento.
+  if (xml.includes('<cbc:DebitNoteTypeCode')) throw new Error('INVALID_DEBIT_NOTE_TYPE');
   if (!xml.includes('<cac:DiscrepancyResponse>')) throw new Error('MISSING_DISCREPANCY_RESPONSE');
   const discStart = xml.indexOf('<cac:DiscrepancyResponse>');
   const discEnd = xml.indexOf('</cac:DiscrepancyResponse>');

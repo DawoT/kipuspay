@@ -63,15 +63,23 @@ const issuer = {
   currency: 'PEN',
 };
 
+// Montos base por env (cents enteros; default = shape validado en e-beta).
+const taxableCents = Number.parseInt(process.env.TAXABLE_CENTS ?? '100', 10);
+const igvCents = Number.parseInt(process.env.IGV_CENTS ?? '18', 10);
+const icbperCents = Number.parseInt(process.env.ICBPER_CENTS ?? '0', 10);
+const affectationCode = process.env.IGV_AFFECTATION ?? (igvCents > 0 ? '10' : '20');
+const totalCents = taxableCents + igvCents + icbperCents;
+const ndMotiveCode = process.env.ND_MOTIVE ?? '01';
+
 const line = {
   id: 1,
   description: process.env.LINE_DESC ?? 'Homologacion SUNAT beta',
   quantity: 1,
   unitCode: 'NIU',
-  igvAffectationCode: '10',
-  igvCents: 18,
-  lineTotalCents: 118,
-  icbperCents: 0,
+  igvAffectationCode: affectationCode,
+  igvCents,
+  lineTotalCents: totalCents,
+  icbperCents,
 };
 
 function unsignedXml() {
@@ -84,11 +92,11 @@ function unsignedXml() {
       issueTime: process.env.ISSUE_TIME ?? '12:00:00',
       invoiceTypeCode: '01',
       ...issuer,
-      totalTaxableCents: 100,
-      totalIgvCents: 18,
-      totalIcbperCents: 0,
-      totalAmountCents: 118,
-      lines: [{ ...line, unitPriceCents: 118 }],
+      totalTaxableCents: taxableCents,
+      totalIgvCents: igvCents,
+      totalIcbperCents: icbperCents,
+      totalAmountCents: totalCents,
+      lines: [{ ...line, unitPriceCents: totalCents }],
     });
   }
   if (kind === '07') {
@@ -100,11 +108,11 @@ function unsignedXml() {
       issueTime: process.env.ISSUE_TIME ?? '13:00:00',
       ...issuer,
       referencedDocId: process.env.REF_ID ?? 'F001-00000001',
-      motiveCode: '01',
-      totalTaxableCents: 100,
-      totalIgvCents: 18,
-      totalIcbperCents: 0,
-      totalAmountCents: 118,
+      motiveCode: process.env.NC_MOTIVE ?? '01',
+      totalTaxableCents: taxableCents,
+      totalIgvCents: igvCents,
+      totalIcbperCents: icbperCents,
+      totalAmountCents: totalCents,
       lines: [
         {
           ...line,
@@ -122,35 +130,37 @@ function unsignedXml() {
       issueTime: process.env.ISSUE_TIME ?? '13:10:00',
       ...issuer,
       referencedDocId: process.env.REF_ID ?? 'F001-00000001',
-      motiveCode: '01',
-      totalTaxableCents: 100,
-      totalIgvCents: 18,
-      totalIcbperCents: 0,
-      totalAmountCents: 118,
+      motiveCode: ndMotiveCode,
+      totalTaxableCents: taxableCents,
+      totalIgvCents: igvCents,
+      totalIcbperCents: icbperCents,
+      totalAmountCents: totalCents,
       lines: [{ ...line, description: 'ND homologacion SUNAT beta' }],
     });
   }
   if (kind === 'RC') {
     const date = process.env.ISSUE_DATE ?? '2026-08-21';
+    // RC multi-documento: RC_LINES_N boletas (B001 correlativos desde RC_FIRST_B).
+    const n = Number.parseInt(process.env.RC_LINES_N ?? '1', 10) || 1;
+    const firstB = Number.parseInt(process.env.RC_FIRST_B ?? '1', 10) || 1;
+    const rcLines = Array.from({ length: n }, (_, i) => ({
+      lineId: i + 1,
+      documentType: '03',
+      documentId: `B001-${String(firstB + i).padStart(8, '0')}`,
+      customerDocType: '6',
+      customerDocNumber,
+      conditionCode: '1',
+      totalTaxableCents: taxableCents,
+      totalIgvCents: igvCents,
+      totalAmountCents: totalCents,
+    }));
     return buildUblSummaryDocumentsXml({
       id: rcSummaryId(date, Number.parseInt(process.env.RC_CORR ?? '1', 10) || 1),
       referenceDate: date,
       issueDate: date,
       issuerRuc: issuer.issuerRuc,
       issuerName: issuer.issuerName,
-      lines: [
-        {
-          lineId: 1,
-          documentType: '03',
-          documentId: process.env.CPE_ID ?? 'B001-00000001',
-          customerDocType: '6',
-          customerDocNumber,
-          conditionCode: '1',
-          totalTaxableCents: 100,
-          totalIgvCents: 18,
-          totalAmountCents: 118,
-        },
-      ],
+      lines: rcLines,
     });
   }
   throw new Error(`UNSUPPORTED_DOC_KIND:${kind}`);

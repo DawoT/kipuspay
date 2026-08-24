@@ -254,5 +254,69 @@ describe('buildUblInvoiceXml', () => {
     expect(ublNcMotiveDescription('02')).toBe('Ajuste del comprobante');
     expect(ublNdMotiveDescription('02')).toBe('Aumento en el valor');
     expect(ublNdMotiveDescription('01')).toBe('Ajuste del comprobante');
+    // Catálogo 10 oficial SUNAT (wire): 06 = Intereses por mora.
+    expect(ublNdMotiveDescription('06')).toBe('Intereses por mora');
+  });
+
+  it('factura exonerada: TaxExemptionReasonCode 20 en línea Y cabecera, sin IGV', () => {
+    const xml = buildUblInvoiceXml({
+      ...sample(),
+      totalIgvCents: 0,
+      totalAmountCents: 1000,
+      lines: [
+        { ...sample().lines[0]!, igvAffectationCode: '20', igvCents: 0, lineTotalCents: 1000 },
+      ],
+    });
+    expect(() => assertValidFacturaXml(xml)).not.toThrow();
+    // Línea y cabecera declaran el código de exoneración (catálogo 07).
+    expect(xml.match(/<cbc:TaxExemptionReasonCode>20<\/cbc:TaxExemptionReasonCode>/g)).toHaveLength(
+      2,
+    );
+    expect(xml).toContain('<cbc:Percent>0.00</cbc:Percent>');
+    expect(xml).toContain('<cbc:PayableAmount currencyID="PEN">10.00</cbc:PayableAmount>');
+    // Sin ICBPER no hay esquema 3000.
+    expect(xml).not.toContain('<cbc:ID>3000</cbc:ID>');
+  });
+
+  it('factura con ICBPER: subtotal propio 3000/EXC en línea y cabecera, sin mezclar con IGV', () => {
+    const xml = buildUblInvoiceXml({
+      ...sample(),
+      totalTaxableCents: 1000,
+      totalIgvCents: 180,
+      totalIcbperCents: 20,
+      totalAmountCents: 1200,
+      lines: [
+        {
+          ...sample().lines[0]!,
+          igvCents: 180,
+          icbperCents: 20,
+          lineTotalCents: 1200,
+          unitPriceCents: 1200,
+        },
+      ],
+    });
+    expect(() => assertValidFacturaXml(xml)).not.toThrow();
+    // Esquema ICBPER presente en línea y cabecera (2 ocurrencias), con tasa.
+    expect(xml.match(/<cbc:ID>3000<\/cbc:ID>/g)).toHaveLength(2);
+    expect(xml.match(/<cbc:Name>ICBPER<\/cbc:Name>/g)).toHaveLength(2);
+    expect(xml.match(/<cbc:TaxTypeCode>EXC<\/cbc:TaxTypeCode>/g)).toHaveLength(2);
+    // e-beta 2992: el tributo 3000 exige tag de tasa (cbc:Percent).
+    expect(xml.match(/<cbc:Percent>0\.00<\/cbc:Percent>\s*<cac:TaxScheme>\s*<cbc:ID>3000/g)).toHaveLength(2);
+    // El IGV sigue en su esquema 1000/VAT con monto propio.
+    expect(xml).toContain('<cbc:Name>IGV</cbc:Name>');
+    expect(xml).toContain('<cbc:TaxAmount currencyID="PEN">0.20</cbc:TaxAmount>');
+    // Total pagable incluye bolsa: 10.00 + 1.80 + 0.20 = 12.00.
+    expect(xml).toContain('<cbc:PayableAmount currencyID="PEN">12.00</cbc:PayableAmount>');
+    // Gravada pura: la CABECERA no declara exoneración (Percent → TaxScheme directo).
+    expect(xml).toMatch(/<cbc:Percent>18\.00<\/cbc:Percent>\s*<cac:TaxScheme>/);
+  });
+
+  it('shape gravado validado por e-beta permanece intacto (sin 3000, sin exoneración de cabecera)', () => {
+    const xml = buildUblInvoiceXml(sample());
+    expect(xml).not.toContain('<cbc:ID>3000</cbc:ID>');
+    // Cabecera gravada: Percent seguido directo de TaxScheme (sin exemption code).
+    expect(xml).toMatch(/<cbc:Percent>18\.00<\/cbc:Percent>\s*<cac:TaxScheme>/);
+    // Una sola línea → un solo TaxSubtotal de línea.
+    expect(xml.match(/<cac:TaxSubtotal>/g)).toHaveLength(2); // 1 línea + 1 cabecera
   });
 });

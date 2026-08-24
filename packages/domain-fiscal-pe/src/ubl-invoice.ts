@@ -60,6 +60,28 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
   }
   if (!input.lines.length) throw new Error('EMPTY_LINES');
 
+  // ICBPER (bolsa plástica): esquema 3000/EXC en TaxSubtotal propio — jamás
+  // mezclado con el IGV (1000/VAT). Exonerada: el código de afectación viaja
+  // también en la cabecera cuando TODAS las líneas comparten un código no
+  // gravado (catálogo 07); gravado puro mantiene el shape validado por e-beta.
+  const affectationCodes = new Set(input.lines.map((line) => line.igvAffectationCode));
+  const headerExemptionCode =
+    affectationCodes.size === 1 && !affectationCodes.has('10') ? [...affectationCodes][0] : null;
+
+  const icbperSubtotal = (amountCents: number): string => `
+      <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="${input.currency}">0.00</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(amountCents)}</cbc:TaxAmount>
+        <cac:TaxCategory>
+          <cbc:Percent>0.00</cbc:Percent>
+          <cac:TaxScheme>
+            <cbc:ID>3000</cbc:ID>
+            <cbc:Name>ICBPER</cbc:Name>
+            <cbc:TaxTypeCode>EXC</cbc:TaxTypeCode>
+          </cac:TaxScheme>
+        </cac:TaxCategory>
+      </cac:TaxSubtotal>`;
+
   const linesXml = input.lines
     .map((line) => {
       const netCents = line.lineTotalCents - line.igvCents - line.icbperCents;
@@ -89,7 +111,7 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
             <cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
           </cac:TaxScheme>
         </cac:TaxCategory>
-      </cac:TaxSubtotal>
+      </cac:TaxSubtotal>${line.icbperCents > 0 ? icbperSubtotal(line.icbperCents) : ''}
     </cac:TaxTotal>
     <cac:Item>
       <cbc:Description>${escapeXml(line.description)}</cbc:Description>
@@ -157,14 +179,14 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       <cbc:TaxableAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:TaxableAmount>
       <cbc:TaxAmount currencyID="${input.currency}">${centsToAmount(input.totalIgvCents)}</cbc:TaxAmount>
       <cac:TaxCategory>
-        <cbc:Percent>${input.totalIgvCents === 0 ? '0.00' : '18.00'}</cbc:Percent>
+        <cbc:Percent>${input.totalIgvCents === 0 ? '0.00' : '18.00'}</cbc:Percent>${headerExemptionCode ? `\n        <cbc:TaxExemptionReasonCode>${escapeXml(headerExemptionCode)}</cbc:TaxExemptionReasonCode>` : ''}
         <cac:TaxScheme>
           <cbc:ID>1000</cbc:ID>
           <cbc:Name>IGV</cbc:Name>
           <cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
         </cac:TaxScheme>
       </cac:TaxCategory>
-    </cac:TaxSubtotal>
+    </cac:TaxSubtotal>${input.totalIcbperCents > 0 ? icbperSubtotal(input.totalIcbperCents) : ''}
   </cac:TaxTotal>
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount currencyID="${input.currency}">${centsToAmount(input.totalTaxableCents)}</cbc:LineExtensionAmount>

@@ -49,9 +49,9 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
     expect(xml).not.toContain('<cac:PaymentTerms>');
     expect(xml).toContain('<cbc:DocumentTypeCode>01</cbc:DocumentTypeCode>');
-    expect(xml).toContain(
-      '<cbc:DebitNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">08</cbc:DebitNoteTypeCode>',
-    );
+    // e-beta 0306 (FL-1 2026-08-24): el schema restringido NO admite
+    // cbc:DebitNoteTypeCode — el tipo 08 vive en el root <DebitNote>.
+    expect(xml).not.toContain('<cbc:DebitNoteTypeCode');
     expect(xml).toContain('<cbc:ReferenceID>F001-00000007</cbc:ReferenceID>');
     expect(xml).toContain('<cac:BillingReference>');
     expect(xml).toContain('<cbc:ResponseCode>02</cbc:ResponseCode>');
@@ -97,7 +97,7 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     const xml = buildUblDebitNoteXml(sample());
     expect(() =>
       assertValidDebitNoteXml(
-        xml.replace('>08</cbc:DebitNoteTypeCode>', '>99</cbc:DebitNoteTypeCode>'),
+        xml.replace('<cbc:DocumentCurrencyCode>', '<cbc:DebitNoteTypeCode>08</cbc:DebitNoteTypeCode><cbc:DocumentCurrencyCode>'),
       ),
     ).toThrow(/INVALID_DEBIT_NOTE_TYPE/);
     expect(() =>

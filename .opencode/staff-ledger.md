@@ -826,10 +826,9 @@ id: 0019
 timestamp_utc: 2026-08-24T16:25:00Z
 agente: Staff Principal
 tarea: Ciclo de auditoría consolidada — kipus-qa (NO-GO→remediado) + kipus-sre (baseline SLO)
-estado: Vigente
 prev_id: 0018
 prev_hash: 58899726d7fe0bd97772a8700594b5a02d9c5449d28d4723c9298a7bfe7b6d50
-entry_hash: a7be29d52553bf45c3c71e4c142266f3da9e7c1635d6ff8e4ee528002e4cb924
+entry_hash: d786ee4ba469d6a112b0d94d22d1fc51f27ed9b4dd6fc77c8f9e8ec448fe3f84
 ticket_or_adr: LEDGER 0465; gap fcm-vapid-real
 test_ids: [pos-web 419, worker-kms 26, V-13 dual]
 entregable_afectado: apps/pos-web/src/lib/push/auth-mirror.ts · apps/pos-web/static/offline-sync-sw.js · scripts/checks/ledger_chain.py · docs/ops/push-ack-slo-baseline.md · docs/LEDGER.md (0465, hash 3c55d58b…)
@@ -855,5 +854,43 @@ evidencia: >
 ancestry_verified: true
 aprobaciones: ["A: Staff Principal", "V: kipus-qa + kipus-sre (independientes)"]
 estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0020
+timestamp_utc: 2026-08-24T18:35:00Z
+agente: Kipus Fiscal (Staff Fiscal)
+tarea: Batería homologación FL-1 SUNAT e-beta — RC multi-doc y shape ND sellados (CDR 0); hallazgos exonerada/ICBPER/motivo-06
+prev_id: 0019
+prev_hash: d786ee4ba469d6a112b0d94d22d1fc51f27ed9b4dd6fc77c8f9e8ec448fe3f84
+entry_hash: ad181b5910bbc5f36fbbcdaab657c02917b4baa24466423f3815a75bf23cddee
+ticket_or_adr: FL-1; hallazgo ADR-FISCAL-003; Arquitectura §5.2
+test_ids: [domain-fiscal-pe 165, V-13 dual]
+entregable_afectado: packages/domain-fiscal-pe/src/ubl-invoice.ts · ubl-debit-note.ts · ubl-shared.ts (+tests) · scripts/staff/sign-only-cpe.mjs · tmp-staff/homologacion-fl1-resultados.json
+descripcion: >
+  Batería FL-1 (8 envíos reales a e-beta, CDT ROSA NEGRA): RC-20260824-001 con
+  3 boletas ACEPTADA (CDR 0) y FD01-00000004 ACEPTADA (CDR 0) — primera ND del
+  piloto validada con el builder de dominio. Dos defectos de schema corregidos
+  en ubl-debit-note (e-beta no admite cbc:DebitNoteTypeCode; exige
+  cac:RequestedMonetaryTotal) y un gap de forma en ICBPER (Percent del tributo
+  3000). Hallazgos registrados sin retry agotado: (1) catálogo 10 wire de
+  e-beta rechaza motivo ND 06 (CDR 2172) mientras acepta 01 — la taxonomía
+  interna de ADR-FISCAL-003/§5.1 no coincide con el catálogo oficial SUNAT
+  para ND y requiere tabla interna→wire en ciclo normativo propio;
+  (2) catálogo 5 de e-beta sin {3000,ICBPER} (CDR 3051) — ambiente desactualizado;
+  (3) exonerada con subtotal IGV 0.00 por línea rechazada (CDR 3111) pese al
+  shape canónico con TaxExemptionReasonCode 20 — pendiente variante pre-go-live.
+  Cabecera 0019 reparada (línea estado duplicada truncaba el bloque V-13 y
+  dejaba su entry_hash sin verificar); hash re-derivado.
+evidencia: >
+  RED inicial: F001-14 CDR 3111; F001-15 CDR 2992→3051; FD01-04 m06
+  0306→0306→2172. GREEN: RC-20260824-001 CDR 0 (3 boletas B001-3/4/5);
+  FD01-00000004 m01 CDR 0; domain-fiscal-pe 165/165 (tests exonerada cabecera,
+  ICBPER 3000/EXC+Percent, estabilidad shape gravado, motivo 06);
+  verify.sh SUITE GREEN 32 checks; cadena staff 0001→0020 verificada.
+ancestry_verified: true
+aprobaciones: ["Ejecutó: Kipus Fiscal", "A: pendiente Staff Principal", "V: pendiente independiente"]
+estado_gov: EN REVISION
 estado: Vigente
 ```
