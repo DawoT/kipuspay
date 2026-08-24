@@ -170,7 +170,7 @@ Abre solo los archivos que esta tabla te señale.
 | `usage_counters` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 203 |
 | `usage_events` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 212 |
 | `billing_overages` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 223 |
-| `fiscal_non_sale_outbox` | §5.2 | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) | 71 |
+| `fiscal_non_sale_outbox` | §5.2 | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) | 102 |
 | `tenant_capabilities` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 63 |
 | `audit_events` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 73 |
 | `authorization_tokens` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 96 |
@@ -229,9 +229,9 @@ Abre solo los archivos que esta tabla te señale.
 | `webhook_endpoints` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 73 |
 | `webhook_deliveries` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 87 |
 | `tenant_certificates` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 104 |
-| `webhook_events` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 118 |
-| `loyalty_accounts` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 132 |
-| `loyalty_reservations` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 144 |
+| `webhook_events` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 119 |
+| `loyalty_accounts` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 133 |
+| `loyalty_reservations` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 145 |
 | `tenants` | §5.5 | [`docs/architecture/05-5-ddl-base.md`](docs/architecture/05-5-ddl-base.md) | 20 |
 | `branches` | §5.5 | [`docs/architecture/05-5-ddl-base.md`](docs/architecture/05-5-ddl-base.md) | 53 |
 | `cash_registers` | §5.5 | [`docs/architecture/05-5-ddl-base.md`](docs/architecture/05-5-ddl-base.md) | 68 |
@@ -397,7 +397,7 @@ Abre solo los archivos que esta tabla te señale.
 | `AccountingExporter` | Asientos / libros para el contador | Contasis, Concar | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 72 |
 | `MessagingSender` | Envío post-venta de representación (PDF/QR) | WhatsApp Business | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 73 |
 | `PublicApiWebhook` | Eventos salientes firmados a integradores | HMAC + reintentos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 74 |
-| `FiscalTransport` | Envío/consulta CPE (ADR-FISCAL-002) | `KIPUSPAY_PSE_DIRECT` (default), `ose_*`, `pse_third_party` | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 75 |
+| `FiscalTransport` | Envío/consulta CPE (ADR-FISCAL-002 / ADR-FISCAL-007) | `KIPUSPAY_PSE_DIRECT` (default), `sunat_bill_beta` (`TENANT_CERT`), `ose_*`, `pse_third_party` | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 75 |
 | `PrinterTransport` | Entrega de ticket ESC/POS o sistema | WebUSB → WSS LAN → Web Bluetooth → `window.print()` / SystemPrint | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 76 |
 
 ## Packages destino (monorepo objetivo §1.1)

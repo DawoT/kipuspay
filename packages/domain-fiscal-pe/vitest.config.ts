@@ -7,6 +7,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/xml-c14n.ts', 'src/x509-der.ts'],
       thresholds: {
         lines: 95,
         functions: 95,

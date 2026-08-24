@@ -144,7 +144,9 @@ function validatePayload(payload: PushTransportPayload): void {
   }
   if (
     !/^[A-Za-z0-9_-]{1,128}$/.test(payload.deliveryId) ||
-    !/^[A-Za-z0-9_-]{16,1024}\.[A-Za-z0-9_-]{16,128}$/.test(payload.receipt)
+    // El receipt es `base64url(iv).base64url(AES-GCM(claims))` (mobile-push-receipt):
+    // con UUIDs reales el segmento cifrado supera 128 chars — drill fcm-vapid-real.
+    !/^[A-Za-z0-9_-]{16,1024}\.[A-Za-z0-9_-]{16,1024}$/.test(payload.receipt)
   ) {
     throw transportError('PUSH_PAYLOAD_INVALID');
   }
@@ -181,8 +183,15 @@ async function fetchOpaque(
   errorCode: string,
 ): Promise<Response> {
   try {
-    return await dependencies.fetch(url, init);
-  } catch {
+    // Drill fcm-vapid-real: sin timeout un fetch colgado mata todo el cron
+    // (runtime cancela por "hung"); 10s y log estructurado del motivo exacto.
+    return await dependencies.fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
+  } catch (cause) {
+    const detail =
+      cause instanceof Error
+        ? `${cause.name}:${cause.message}`
+        : 'non-error thrown by provider fetch';
+    console.error(JSON.stringify({ event: 'push_provider_fetch_error', url, errorCode, detail }));
     throw transportError(errorCode);
   }
 }

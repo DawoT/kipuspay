@@ -1,13 +1,14 @@
 /**
  * Rutas fiscal RC: void boleta, alertas Dueño, portal CPE, cron RC/plazos.
  */
-import { createHttpRcCdrPort } from '@kipuspay/adapters-sunat';
-import type { D1DatabaseLike } from '@kipuspay/adapters-d1';
+import { createHttpRcCdrPort, createSunatRcCdrPort } from '@kipuspay/adapters-sunat';
 import {
   buildDailySummary,
+  createTenantCertSigner,
   processFiscalDeadlines,
   runDailySummarySweep,
   voidBoletaAtomic,
+  type D1DatabaseLike,
 } from '@kipuspay/adapters-d1';
 import {
   createMockRcCdrPort,
@@ -27,10 +28,27 @@ export function isCpePortalEnabled(env: WorkerEnv): boolean {
 }
 
 /**
- * C6: puerto RC real si FEATURE_FISCAL_TRANSPORT_PLUGINS y hay endpoint PSE;
- * si no, mock staging. Fail-closed: sin endpoint nunca se construye el HTTP.
+ * C6 / ADR-FISCAL-007: SOL + flag → sendSummary SOAP; si no, PSE HTTP JSON;
+ * si no, mock staging. `.invalid` del PSE no se usa cuando hay SOL.
  */
 export function buildRcCdrPort(env: WorkerEnv): RcCdrPort {
+  if (
+    env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' &&
+    env.SUNAT_SOL_USER?.trim() &&
+    env.SUNAT_SOL_PASSWORD
+  ) {
+    const billUrl = env.SUNAT_BILL_ENDPOINT_URL?.trim();
+    return createSunatRcCdrPort({
+      solUser: env.SUNAT_SOL_USER.trim(),
+      solPassword: env.SUNAT_SOL_PASSWORD,
+      ...(billUrl ? { endpointUrl: billUrl } : {}),
+      ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
+    });
+  }
+  const submitRc = env.FISCAL?.submitRc;
+  if (submitRc) {
+    return { submit: (input) => submitRc(input) };
+  }
   const endpoint = env.FISCAL_PSE_ENDPOINT_URL?.trim();
   if (env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' && endpoint) {
     return createHttpRcCdrPort({ endpointUrl: endpoint });
@@ -40,6 +58,28 @@ export function buildRcCdrPort(env: WorkerEnv): RcCdrPort {
 
 function asD1(db: D1Database): D1DatabaseLike {
   return db;
+}
+
+async function readTenantCertEnvelope(env: WorkerEnv): Promise<string | null> {
+  const binding = env.TENANT_CERT_ENVELOPE;
+  if (!binding) return null;
+  if (typeof binding === 'string') return binding;
+  return binding.get();
+}
+
+function rcSigner(env: WorkerEnv) {
+  if (!env.DB || !env.BACKUP_KMS) return undefined;
+  const kms = env.BACKUP_KMS;
+  return createTenantCertSigner({
+    db: asD1(env.DB),
+    kms: {
+      unwrapDek: (input) => {
+        if (!kms.unwrapDek) return Promise.reject(new Error('MISSING_KMS'));
+        return kms.unwrapDek(input);
+      },
+    },
+    secrets: { get: () => readTenantCertEnvelope(env) },
+  });
 }
 
 /** Comparación de token portal (evita timing-attack lint; SHA-256 hex). */
@@ -234,6 +274,7 @@ export async function runFiscalCronHttp(
   }
   const db = asD1(env.DB);
   const nowMs = body.nowMs ?? Date.now();
+  const signer = rcSigner(env);
   if (body.action === 'deadlines') {
     const result = await processFiscalDeadlines(
       db,
@@ -249,6 +290,7 @@ export async function runFiscalCronHttp(
       summaryDate,
       nowMs,
       cdr: buildRcCdrPort(env),
+      ...(signer ? { signer } : {}),
     });
     return { status: 200, body: { ...result } };
   }
@@ -262,6 +304,8 @@ export async function runFiscalCronHttp(
     tenantId: body.tenantId,
     summaryDate: body.summaryDate,
     nowMs,
+    cdr: buildRcCdrPort(env),
+    ...(signer ? { signer } : {}),
   });
   return { status: 200, body: { ...result, limaHint: summaryDateLima(nowMs) } };
 }

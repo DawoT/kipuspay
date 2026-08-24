@@ -29,6 +29,38 @@ export {
 } from './ubl-invoice.js';
 
 export {
+  assertSignedCpeXml,
+  fingerprintSha256Hex,
+  pemBlockToDer,
+  derToBase64,
+  base64ToDer,
+  signCpeXml,
+  stripEnvelopedSignature,
+  verifyCpeXmlSignature,
+  type CpeSignMaterial,
+} from './xades-bes.js';
+
+export {
+  extractSpkiFromX509,
+  issueSelfSignedX509,
+  parseX509IssuerSerial,
+  type X509IssuerSerial,
+} from './x509-der.js';
+
+export {
+  bytesFromBase64,
+  bytesToBase64,
+  envelopeBinary,
+  openPkcs8WithDek,
+  parseTenantCertEnvelope,
+  randomDek,
+  sealPkcs8WithDek,
+  serializeTenantCertEnvelope,
+  TENANT_CERT_DEK_BYTES,
+  type TenantCertEnvelopeV1,
+} from './tenant-cert-envelope.js';
+
+export {
   assertValidCreditNoteXml,
   buildUblCreditNoteXml,
   type UblCreditNoteInput,
@@ -318,6 +350,15 @@ export {
 } from './deadlines.js';
 
 export {
+  assertValidSummaryDocumentsXml,
+  buildUblSummaryDocumentsXml,
+  rcSummaryId,
+  nextRcCorrelative,
+  type UblSummaryDocumentsInput,
+  type UblSummaryLine,
+} from './ubl-summary.js';
+
+export {
   assertRcKeyIsEmisorDay,
   cashCloseMustNotTriggerRc,
   planDailySummary,
@@ -376,45 +417,7 @@ export {
   type CpeDocumentType,
 } from './cpe-dto.js';
 
-export {
-  buildUblSummaryDocumentsXml,
-  nextRcCorrelative,
-  rcSummaryId,
-  assertValidSummaryDocumentsXml,
-  type UblSummaryDocumentsInput,
-  type UblSummaryLine,
-} from './ubl-summary.js';
-
-export {
-  parseTenantCertEnvelope,
-  serializeTenantCertEnvelope,
-  sealPkcs8WithDek,
-  openPkcs8WithDek,
-  randomDek,
-  envelopeBinary,
-  TENANT_CERT_ENVELOPE_V,
-  TENANT_CERT_DEK_BYTES,
-  bytesToBase64,
-  bytesFromBase64,
-  type TenantCertEnvelopeV1,
-} from './tenant-cert-envelope.js';
-
-export {
-  signCpeXml,
-  assertSignedCpeXml,
-  verifyCpeXmlSignature,
-  pemBlockToDer,
-  derToBase64,
-  base64ToDer,
-  type CpeSignMaterial,
-} from './xades-bes.js';
-
-export {
-  issueSelfSignedX509,
-  parseX509IssuerSerial,
-  extractSpkiFromX509,
-  type X509IssuerSerial,
-} from './x509-der.js';
+export { TENANT_CERT_ENVELOPE_V } from './tenant-cert-envelope.js';
 
 export { parsePkcs12, type ParsedPkcs12 } from './pkcs12.js';
 

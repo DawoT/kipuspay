@@ -22,7 +22,12 @@ describe('submitViaMockPse', () => {
       xmlHash: 'abc',
       documentType: '01',
     });
-    expect(result).toEqual({ verdict: 'aceptada', sunatStatus: 'ACCEPTED' });
+    expect(result).toEqual({
+      verdict: 'aceptada',
+      sunatStatus: 'ACCEPTED',
+      cdrCode: '0',
+      cdrDescription: 'Mock PSE staging accepted',
+    });
   });
 });
 
@@ -53,6 +58,40 @@ describe('F5-2: selectFiscalTransport (fail-closed sin mezcla)', () => {
       documentType: '01',
     });
     expect(outcome.kind).toBe('unreachable');
+  });
+
+  it('flag on + SOL → sunat_bill_beta (no POST JSON al PSE .invalid)', async () => {
+    const urls: string[] = [];
+    const bodies: string[] = [];
+    const t = selectFiscalTransport({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      FISCAL_PSE_ENDPOINT_URL: 'https://pse.kipuspay.staging.invalid/fiscal',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      SUNAT_BILL_ENDPOINT_URL: 'https://e-beta.example.test/billService',
+      FISCAL_PSE_FETCH: (url, init) => {
+        urls.push(typeof url === 'string' ? url : 'bill');
+        bodies.push(typeof init?.body === 'string' ? init.body : '');
+        return Promise.resolve(new Response('gateway', { status: 503 }));
+      },
+    });
+    expect(t.mode).toBe('sunat_bill_beta');
+    const xml =
+      '<Invoice><cbc:ID>F001-00000001</cbc:ID>' +
+      '<cac:AccountingSupplierParty><cbc:ID>' +
+      '20' +
+      '612913251' +
+      '</cbc:ID></cac:AccountingSupplierParty></Invoice>';
+    await t.submit({
+      tenantId: 't1',
+      saleId: 's1',
+      xml,
+      xmlHash: 'h',
+      documentType: '01',
+    });
+    expect(urls).toEqual(['https://e-beta.example.test/billService']);
+    expect(bodies[0]).toContain('<ser:sendBill>');
+    expect(urls[0]).not.toContain('pse.kipuspay.staging.invalid');
   });
 
   it('flag on + endpoint: el drain envía por HTTP real (fetchImpl spy)', async () => {
@@ -250,7 +289,12 @@ describe('worker fetch', () => {
       }),
     );
     expect(submit.status).toBe(200);
-    expect(await submit.json()).toEqual({ verdict: 'aceptada', sunatStatus: 'ACCEPTED' });
+    expect(await submit.json()).toEqual({
+      verdict: 'aceptada',
+      sunatStatus: 'ACCEPTED',
+      cdrCode: '0',
+      cdrDescription: 'Mock PSE staging accepted',
+    });
 
     const miss = await worker.fetch(new Request('https://fiscal.local/nope'));
     expect(miss.status).toBe(404);

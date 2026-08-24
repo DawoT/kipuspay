@@ -83,7 +83,9 @@ export class PushTransportService extends WorkerEntrypoint<PushTransportEnv> {
     return {
       kms: core,
       secret: (reference) => this.secret(reference),
-      fetch,
+      // Referencia pelada del fetch global → "Illegal invocation" en workerd
+      // (drill fcm-vapid-real): debe llamarse con el global como `this`.
+      fetch: (input, init) => fetch(input, init),
       now: Date.now,
     };
   }

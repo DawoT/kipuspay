@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:staging": "wrangler deploy --env staging --keep-vars",
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --coverage",

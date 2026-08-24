@@ -52,6 +52,14 @@ describe('buildUblInvoiceXml', () => {
     expect(xml).toContain('<cbc:PaymentMeansID>Contado</cbc:PaymentMeansID>');
     expect(xml).toContain('TaxExemptionReasonCode>10<');
     expect(xml).toContain('A&amp;B');
+    expect(xml).toContain('<cbc:AddressTypeCode>0000</cbc:AddressTypeCode>');
+    expect(xml).toContain('<cac:SignatoryParty>');
+    expect(xml).toContain('<cbc:URI>#KipusPaySign</cbc:URI>');
+    expect(xml).toContain('<cbc:TaxableAmount');
+    expect(xml).toContain('<cbc:Percent>18.00</cbc:Percent>');
+    expect(xml).toContain('<cbc:ProfileID>0101</cbc:ProfileID>');
+    expect(xml).toContain('<cbc:ID>FormaPago</cbc:ID>');
+    expect(xml).toContain('<cbc:PaymentMeansID>Contado</cbc:PaymentMeansID>');
     const hash = await hashUblXml(xml);
     expect(hash).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -66,6 +74,12 @@ describe('buildUblInvoiceXml', () => {
     );
     expect(() => buildUblInvoiceXml({ ...sample(), ublVersion: '2.0' as '2.1' })).toThrow(
       /UNSUPPORTED_UBL_VERSION/,
+    );
+    expect(() => buildUblInvoiceXml({ ...sample(), issuerEstablishmentCode: '00' })).toThrow(
+      /INVALID_ESTABLISHMENT_CODE/,
+    );
+    expect(buildUblInvoiceXml({ ...sample(), issuerEstablishmentCode: '0001' })).toContain(
+      '<cbc:AddressTypeCode>0001</cbc:AddressTypeCode>',
     );
 
     expect(() => assertValidFacturaXml('<Invoice/>')).toThrow(/INVALID_UBL_VERSION/);
@@ -84,7 +98,7 @@ describe('buildUblInvoiceXml', () => {
     ).toThrow(/MISSING_LINES/);
     expect(() =>
       assertValidFacturaXml(
-        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine>contingencia</Invoice>',
+        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine><cbc:AddressTypeCode>0000</cbc:AddressTypeCode><cac:SignatoryParty></cac:SignatoryParty>contingencia</Invoice>',
       ),
     ).toThrow(/MISSING_ESTABLISHMENT_CODE/);
     expect(() =>
@@ -92,10 +106,20 @@ describe('buildUblInvoiceXml', () => {
         '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine><cbc:AddressTypeCode>0000</cbc:AddressTypeCode>contingencia</Invoice>',
       ),
     ).toThrow(/CONTINGENCIA_FORBIDDEN/);
+    expect(() =>
+      assertValidFacturaXml(
+        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine></Invoice>',
+      ),
+    ).toThrow(/MISSING_ESTABLISHMENT_CODE/);
+    expect(() =>
+      assertValidFacturaXml(
+        '<Invoice><cbc:UBLVersionID>2.1</cbc:UBLVersionID><cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>schemeID="6"<cac:InvoiceLine></cac:InvoiceLine><cbc:AddressTypeCode>0000</cbc:AddressTypeCode></Invoice>',
+      ),
+    ).toThrow(/MISSING_UBL_SIGNATURE/);
   });
 
   it('F5-1: rechaza XML malformado aunque los substrings UBL estén presentes', () => {
-    // Tag de apertura sin cierre — los 5 includes de assertValidFacturaXml pasan.
+    // Tag de apertura sin cierre — los includes de assertValidFacturaXml pasan.
     const broken = buildUblInvoiceXml(sample()).replace(
       '<cbc:UBLVersionID>2.1</cbc:UBLVersionID>',
       '<cbc:UBLVersionID>2.1',
@@ -188,6 +212,21 @@ describe('buildUblInvoiceXml', () => {
       lines: [{ ...sample().lines[0]!, quantity: 0 }],
     });
     expect(zeroQty).toContain('F001-00000001');
+    const exo = buildUblInvoiceXml({
+      ...sample(),
+      totalIgvCents: 0,
+      lines: [{ ...sample().lines[0]!, igvAffectationCode: '20', igvCents: 0 }],
+    });
+    expect(exo).toContain('<cbc:Percent>0.00</cbc:Percent>');
+  });
+
+  it('IssueDate xsd:date — rechaza timestamp Lima con hora (SUNAT 0306)', () => {
+    expect(() => buildUblInvoiceXml({ ...sample(), issueDate: '2026-08-21 13:41:12' })).toThrow(
+      /INVALID_ISSUE_DATE/,
+    );
+    expect(() => buildUblInvoiceXml({ ...sample(), issueTime: '13:41:12.512' })).toThrow(
+      /INVALID_ISSUE_TIME/,
+    );
   });
 
   it('tasa IGV catálogo 07: gravado 18, resto 0', () => {

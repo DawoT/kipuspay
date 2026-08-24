@@ -30,6 +30,9 @@ parcial. Claims GTM vendibles exigen evidencia externa + A+V.
   matrix / restore dry-run A+V pendientes).
 - `stg-s48-dr-sim` → **WAIT** (software `registry-2` STALE; live `DR_SIMULATION_PASSED` exige backup READY post-0056).
 - `go-live-staging` → **EN_CURSO** (nunca CERRADO en este ciclo).
+- `go-live-sunat` → **AGENDADO** (matriz sign-only + loop POS Worker-firma
+  e-beta 2026-08-21: F001-11, FD01-3, FC01-2, B001-2 via RC-003; GTM-08 y T6
+  `e-factura` fuera; A+V vacías; no CERRADO).
 
 ## Handoff Fase 0 — CERRADO (2026-08-20)
 

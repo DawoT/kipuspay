@@ -151,3 +151,45 @@ describe('Sprint 45 isolated push transport Worker contract (RED)', () => {
     },
   );
 });
+
+describe('ack receipt wire contract (drill fcm-vapid-real)', () => {
+  const base = {
+    deliveryId: 'delivery-a',
+    title: 'Cierre de caja',
+    body: 'Abre KipusPay para ver el detalle',
+    deepLink: { kind: 'cash_close', entityId: 'close-1' },
+    ttlSeconds: 300,
+  };
+  const wirePayload = (receipt: string) => {
+    const { ttlSeconds: _ttl, ...rest } = base;
+    return { ...rest, receipt };
+  };
+
+  it('accepts a real-length ack receipt token (iv.ciphertext >= ~390 chars total)', async () => {
+    await expect(
+      sendWebPushVapid({
+        secrets,
+        encryptedSubscription: 'ciphertext',
+        keyVersion: 'push-kms-v3',
+        ttlSeconds: 300,
+        payload: wirePayload(`${'a'.repeat(16)}.${'b'.repeat(370)}`),
+      }),
+    ).resolves.toMatchObject({ status: 'ACCEPTED', responseCode: 'HTTP_201' });
+  });
+
+  it.each([
+    ['short iv segment', `${'a'.repeat(8)}.${'b'.repeat(370)}`],
+    ['oversized ciphertext segment', `${'a'.repeat(16)}.${'b'.repeat(1100)}`],
+    ['missing ciphertext segment', 'a'.repeat(32)],
+  ])('rejects %s with PUSH_PAYLOAD_INVALID', async (_label, receipt) => {
+    await expect(
+      sendWebPushVapid({
+        secrets,
+        encryptedSubscription: 'ciphertext',
+        keyVersion: 'push-kms-v3',
+        ttlSeconds: 300,
+        payload: wirePayload(receipt),
+      }),
+    ).rejects.toThrow('PUSH_PAYLOAD_INVALID');
+  });
+});

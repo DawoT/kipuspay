@@ -110,6 +110,7 @@ CREATE TABLE tenant_certificates (
     fingerprint_sha256 TEXT NOT NULL,
     expires_at DATETIME NOT NULL,
     rotated_at DATETIME,
+    UNIQUE (tenant_id, id),
     UNIQUE (tenant_id, alias),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 );

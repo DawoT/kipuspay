@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import { issueSelfSignedX509, signCpeXml } from '@kipuspay/domain-fiscal-pe';
 import {
   buildDailySummary,
   runDailySummarySweep,
@@ -108,6 +109,112 @@ describe('fiscal RC / plazos / baja / chaos deadline', () => {
     expect(rc?.tenant_id).toBe(tenantId);
     expect(rc?.summary_date).toBe('2026-08-01');
     expect(rc?.branch_id).toBeNull();
+  });
+
+  it('COMPLEMENTARY RC cuando PRIMARY existe y entra una boleta nueva', async () => {
+    const tenantId = 't-rc-comp-1';
+    const seeded = await seedBoletaTenant(tenantId);
+    const first = await buildDailySummary(env.DB, {
+      tenantId,
+      summaryDate: '2026-08-01',
+      nowMs: Date.parse('2026-08-02T12:00:00.000Z'),
+    });
+    expect(first.status).toBe('SUCCESS');
+    expect(first.rcType).toBe('PRIMARY');
+    expect(first.rcUblId).toBe('RC-20260801-001');
+
+    await env.DB.prepare(
+      `INSERT INTO sales (
+         id, tenant_id, branch_id, cash_register_session_id, user_id,
+         client_document_type, client_document_number, client_name,
+         document_type, series, number, total_amount_cents,
+         issued_at_lima, must_submit_by, void_status, sunat_status, alert_t24_sent, alert_t6_sent
+       ) VALUES (?, ?, ?, ?, ?, '1', '12345678', 'Cliente', '03', 'B001', 2, 400,
+                 '2026-08-01 13:00:00', '2026-08-08T23:59:59.999Z', 'NONE', 'PENDING', 0, 0)`,
+    )
+      .bind(`sale-${tenantId}-2`, tenantId, seeded.branchId, seeded.sessionId, `u-${tenantId}`)
+      .run();
+
+    const second = await buildDailySummary(env.DB, {
+      tenantId,
+      summaryDate: '2026-08-01',
+      nowMs: Date.parse('2026-08-02T12:00:00.000Z'),
+    });
+    expect(second.status).toBe('SUCCESS');
+    expect(second.rcType).toBe('COMPLEMENTARY');
+    expect(second.rcUblId).toBe('RC-20260801-002');
+  });
+
+  it('TENANT_CERT sin signer → MISSING_SIGNER (fail-closed)', async () => {
+    const tenantId = 't-rc-sign-1';
+    await seedBoletaTenant(tenantId);
+    await env.DB.prepare(`UPDATE tenants SET pse_mode = 'TENANT_CERT' WHERE id = ?`)
+      .bind(tenantId)
+      .run();
+    const result = await buildDailySummary(env.DB, {
+      tenantId,
+      summaryDate: '2026-08-01',
+      nowMs: Date.now(),
+    });
+    expect(result.status).toBe('MISSING_SIGNER');
+  });
+
+  it('TENANT_CERT con signer → SUCCESS y SummaryDocuments firmado', async () => {
+    const tenantId = 't-rc-sign-ok';
+    await seedBoletaTenant(tenantId);
+    await env.DB.prepare(
+      `UPDATE tenants SET pse_mode = 'TENANT_CERT', ruc = '20612913251', business_name = 'Rosa Negra' WHERE id = ?`,
+    )
+      .bind(tenantId)
+      .run();
+    const pair = await crypto.subtle.generateKey(
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+      },
+      true,
+      ['sign', 'verify'],
+    );
+    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey));
+    const spki = new Uint8Array(await crypto.subtle.exportKey('spki', pair.publicKey));
+    const certDer = await issueSelfSignedX509({
+      privateKeyPkcs8Der: pkcs8,
+      spkiDer: spki,
+      commonName: 'RC Fixture',
+      organization: 'KipusPay Test',
+      country: 'PE',
+    });
+    let submittedXml = '';
+    const result = await buildDailySummary(env.DB, {
+      tenantId,
+      summaryDate: '2026-08-01',
+      nowMs: Date.parse('2026-08-02T12:00:00.000Z'),
+      signer: {
+        sign: (xml) =>
+          signCpeXml(xml, {
+            privateKeyPkcs8Der: pkcs8,
+            certDer,
+            signingTime: '2026-08-21T16:00:00.000Z',
+          }),
+      },
+      cdr: {
+        submit(input) {
+          submittedXml = input.xml;
+          return Promise.resolve({
+            accepted: true,
+            cdrCode: '0',
+            cdrMessage: 'Mock RC CDR accepted',
+          });
+        },
+      },
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(result.rcUblId).toBe('RC-20260801-001');
+    expect(submittedXml).toContain('<SummaryDocuments');
+    expect(submittedXml).toContain('<ds:Signature');
+    expect(submittedXml).toContain('<xades:QualifyingProperties');
   });
 
   it('Z no dispara RC', () => {

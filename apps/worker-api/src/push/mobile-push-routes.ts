@@ -731,7 +731,11 @@ export async function sendTestPushHttp(
     payloadRedactedJson: JSON.stringify({ test: true }),
     deepLinkKind: 'cash_close',
     deepLinkEntityId: sourceEntityId,
-    ttlSeconds: 60,
+    // Drill fcm-vapid-real (2026-08-23): el cron del dispatcher corre */5
+    // (300s); TTL 60 dejaba el evento de test SIEMPRE expirado al despertar.
+    // Solo la ruta de TEST usa 600s — el TTL de CASH_CLOSE real lo decide
+    // producto y no se toca aquí.
+    ttlSeconds: 600,
     collapseKey: `push-test:${actor.userId}`,
   });
   return { status: 202, body: { queued: true } };

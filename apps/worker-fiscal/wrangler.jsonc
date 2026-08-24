@@ -17,6 +17,13 @@
       "bucket_name": "kipuspay-fiscal-xml-local",
     },
   ],
+  "services": [
+    {
+      "binding": "BACKUP_KMS",
+      "service": "kipuspay-worker-kms",
+      "entrypoint": "BackupKmsService",
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -73,6 +80,13 @@
         {
           "binding": "FISCAL_XML_R2",
           "bucket_name": "kipuspay-fiscal-xml-staging",
+        },
+      ],
+      "services": [
+        {
+          "binding": "BACKUP_KMS",
+          "service": "kipuspay-worker-kms-staging",
+          "entrypoint": "BackupKmsService",
         },
       ],
       "d1_databases": [

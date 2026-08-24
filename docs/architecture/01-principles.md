@@ -72,7 +72,7 @@ Contrato staff para que el corpus no escale como monolito improvisado. **No reab
 | `AccountingExporter` | Asientos / libros para el contador | Contasis, Concar |
 | `MessagingSender` | Envío post-venta de representación (PDF/QR) | WhatsApp Business |
 | `PublicApiWebhook` | Eventos salientes firmados a integradores | HMAC + reintentos |
-| `FiscalTransport` | Envío/consulta CPE (ADR-FISCAL-002) | `KIPUSPAY_PSE_DIRECT` (default), `ose_*`, `pse_third_party` |
+| `FiscalTransport` | Envío/consulta CPE (ADR-FISCAL-002 / ADR-FISCAL-007) | `KIPUSPAY_PSE_DIRECT` (default), `sunat_bill_beta` (`TENANT_CERT`), `ose_*`, `pse_third_party` |
 | `PrinterTransport` | Entrega de ticket ESC/POS o sistema | WebUSB → WSS LAN → Web Bluetooth → `window.print()` / SystemPrint |
 
 Stripe/MercadoPago en middleware de **suscripción KipusPay** ≠ `PaymentAcquirer` de punto de venta.

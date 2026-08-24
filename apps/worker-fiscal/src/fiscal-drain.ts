@@ -248,8 +248,8 @@ async function processClaimedRow(
   }
 
   if (row.attempt_count >= POISON_RETRY_THRESHOLD) {
-    await markRowQuarantined(db, row, 'POISON_RETRY', 'retry_count_exceeded');
     await markSaleStatus(db, row, 'QUARANTINED');
+    await markRowQuarantined(db, row, 'POISON_RETRY', 'retry_count_exceeded');
     return 'QUARANTINED';
   }
 
@@ -307,11 +307,16 @@ async function processClaimedRow(
   }
 
   if (errorClass === 'BUSINESS' || outcome.kind === 'rejected') {
-    await markRowQuarantined(db, row, 'BUSINESS_4XX', 'business_reject');
+    const rejectDetail =
+      outcome.kind === 'rejected'
+        ? `${outcome.cdr.cdrCode}:${outcome.cdr.cdrDescription}`
+        : 'business_reject';
     await markSaleStatus(db, row, 'REJECTED');
+    await markRowQuarantined(db, row, 'BUSINESS_4XX', rejectDetail);
     return 'REJECTED';
   }
 
+  await markSaleStatus(db, row, 'ACCEPTED');
   await db
     .prepare(
       `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1
@@ -319,7 +324,6 @@ async function processClaimedRow(
     )
     .bind(row.id, row.tenant_id)
     .run();
-  await markSaleStatus(db, row, 'ACCEPTED');
   return 'SENT';
 }
 

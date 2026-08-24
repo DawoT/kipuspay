@@ -160,6 +160,43 @@ describe('Sprint 45 D1/workerd mobile push contract', () => {
     expect(claims.flatMap((claim) => claim.deliveries)[0]?.tenantId).toBe(fixture.tenantId);
   });
 
+  it('reclaims a delivery stuck in LEASED once its lease has expired (drill D1-iii)', async () => {
+    const fixture = await seedPushFixture('stale-lease');
+    // Simula el crash post-claim observado en staging: LEASED, attempt 0,
+    // lease_expires_at en el pasado → antes era invisible para siempre.
+    await env.DB.prepare(
+      `UPDATE push_deliveries
+       SET status = 'LEASED', attempt_count = 0,
+           lease_owner_hash = 'worker-crashed', lease_expires_at = ?,
+           accepted_at = NULL, ack_receipt_hash = NULL,
+           ack_key_version = NULL, ack_expires_at = NULL
+       WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind('2026-08-08T20:00:30.000Z', fixture.tenantId, fixture.deliveryId)
+      .run();
+    const before = await claimPushDeliveries(env.DB, {
+      tenantId: fixture.tenantId,
+      workerIdHash: 'worker-live',
+      limit: 50,
+      now: '2026-08-08T20:00:10.000Z',
+    });
+    expect(before.deliveries).toHaveLength(0);
+    const reclaimed = await claimPushDeliveries(env.DB, {
+      tenantId: fixture.tenantId,
+      workerIdHash: 'worker-live',
+      limit: 50,
+      now: '2026-08-08T20:01:00.000Z',
+    });
+    expect(reclaimed.deliveries).toHaveLength(1);
+    expect(reclaimed.deliveries[0]).toMatchObject({ id: fixture.deliveryId });
+    const row = await env.DB.prepare(
+      `SELECT status, lease_owner_hash FROM push_deliveries WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(fixture.tenantId, fixture.deliveryId)
+      .first<{ status: string; lease_owner_hash: string }>();
+    expect(row).toMatchObject({ status: 'LEASED', lease_owner_hash: 'worker-live' });
+  });
+
   it('rejects cross-tenant subscription references and invalidates stale provider tokens', async () => {
     const left = await seedPushFixture('tenant-left');
     const right = await seedPushFixture('tenant-right');

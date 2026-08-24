@@ -41,6 +41,10 @@ owner: "@DawoT"
 2. Requeue `fiscal_outbox` PENDING; no borrar ventas.
 3. Feature `FEATURE_FISCAL_CPE=0` rollback inmediato.
 
+Piloto CDT Rosa Negra (staff, no UI): `docs/runbooks/sunat-cdt-rosa-negra-staff.md`.
+Homologación/producción SUNAT exige URL real (hoy `FISCAL_PSE_ENDPOINT_URL` es
+`.invalid`) y firmas A+V. No afirmar CDR.
+
 ## Ensayo
 
 - Mock submit → ACCEPTED; queryCdr → código 0.

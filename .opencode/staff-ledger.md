@@ -659,3 +659,46 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 
 ```
+
+```text
+id: 0015
+timestamp_utc: 2026-08-24T03:50:00Z
+schema_version: 2
+sprint_fase: Transversal — Última milla del push (E2E COMPLETO)
+agente_responsable: Staff Principal (supervisor); ejecución delegada (SRE+Acid)
+tipo: Milestone de operación
+subtipo: Primera notificación push REAL entregada — cadena de 5 causa-raíz resuelta
+relacion: amplía
+referencias_entradas: [0014]
+referencias_documentales: ["docs/adr/ADR-0035-owner-full-access-plan-guard.md", "docs/LEDGER.md (0462)"]
+prev_id: 0014
+prev_hash: 3e081f739d7ccd3fcff4223c807a8d45f4c36a73b1a775b897f676c7804db6a1
+entry_hash: 1243d91b6a24616088414e0c7d36630946d8d8a23ffd417e89419dc6d1dc5b03
+ticket_or_adr: ADR-0035 + cierre efectivo de fcm-vapid-real/owner-push-subscribe-blocked
+test_ids: [worker-api 1364, worker-kms 398, pos-web 412, adapters-d1 442, SUITE]
+entregable_afectado: pipeline completo de push (worker-api dispatcher/routes, worker-kms kms/transport, pos-web SW) · docs/LEDGER.md (0462, hash 8daaea38…)
+descripcion: >
+  La última milla. La delegación destapó una cadena de 5 causa-raíz encadenadas
+  (cada instrumentación reveló la siguiente): (1) kms.ts pasaba fetch global
+  pelado → Illegal invocation en cada fetch al provider — el canal JAMÁS había
+  enviado un push; (2) dispatcher tragaba errores del send sin rastro;
+  (3) issueAckReceipt sin try/catch mataba el cron entero; (4) allowlist de
+  payload rechazaba eventType; (5) regex del receipt {16,128} vs ~370 chars
+  reales — el ACK jamás se posteaba (mismo regex en el SW). Más: claim de
+  leases expirados inexistente y discovery ciega a deliveries huérfanas.
+  TODO corregido con RED→GREEN. Resultado final verificado por el supervisor
+  de forma independiente: push_deliveries ACCEPTED attempt 1 provider HTTP_201
+  (Google) + notificación VISIBLE en el navegador ("Alerta operativa") con
+  click-through al deep link. Pendiente honesto: ACK automático del SW sin JWT
+  (decisión de producto); tests fiscales staged preexistentes en RED.
+evidencia: >
+  RED: Illegal invocation; deliveries LEASED eterno; PUSH_PAYLOAD_NOT_ALLOWED;
+  PUSH_PAYLOAD_INVALID; ACK nunca posteado.
+  GREEN: delivery ACCEPTED HTTP_201; getNotifications()=1 "Alerta operativa";
+  dispatch accepted=2 retry=1 failed=0; suites 1364/398/412/442; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: D1 + navegador + suites re-ejecutadas por supervisor"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+
+```

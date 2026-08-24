@@ -204,6 +204,98 @@ describe('Sprint 45 push dispatcher policy', () => {
     );
   });
 
+  it('discovers tenants from actionable deliveries, not only live events (drill D1-i)', () => {
+    const discovery = dispatcherSource.slice(
+      dispatcherSource.indexOf('SELECT DISTINCT tenant_id FROM ('),
+      dispatcherSource.indexOf('ORDER BY tenant_id LIMIT'),
+    );
+    expect(discovery).toContain('FROM push_deliveries');
+    expect(discovery).toContain("d.status = 'LEASED' AND d.lease_expires_at <= ?");
+    expect(dispatcherSource).toContain('push_ack_receipt_failed');
+  });
+
+  it('survives an ack-receipt RPC failure and marks the delivery RETRY with failure_reason', async () => {
+    const receiptFailed = delivery('web-ack-fail', 'WEB_PUSH');
+    const next = delivery('web-after-fail', 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [receiptFailed, next],
+      hasMore: false,
+    });
+    const fixture = dispatcherEnv({
+      [receiptFailed.id]: context(receiptFailed.id),
+      [next.id]: context(next.id),
+    });
+    fixture.issueAckReceipt.mockRejectedValueOnce(new Error('RPC disconnected'));
+    fixture.sendWebPush.mockResolvedValue({
+      provider: 'WEB_PUSH',
+      status: 'ACCEPTED',
+      responseCode: '201',
+      providerMessageIdHash: 'provider-web-2',
+      retryAfterSeconds: null,
+      invalidateSubscription: false,
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      await expect(
+        runMobilePushDispatcher(fixture.env, {
+          scheduledTime: Date.parse('2026-08-08T20:00:00.000Z'),
+        }),
+      ).resolves.toMatchObject({ claimed: 2, retry: 1, accepted: 1 });
+      expect(fixture.issueAckReceipt).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('"event":"push_ack_receipt_failed"'),
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('ACK_RECEIPT_ERROR:RPC disconnected');
+      const completion = fixture.batches.find((batch) =>
+        batch.some(
+          ({ sql }) =>
+            sql.includes('UPDATE push_deliveries') && !sql.includes('push_subscriptions'),
+        ),
+      );
+      expect(completion?.[0]?.bindings[0]).toBe('RETRY');
+      expect(completion?.[0]?.bindings).toContain('ACK_RECEIPT_ERROR:RPC disconnected');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('persists the send failure reason and warns structurally instead of swallowing it', async () => {
+    const failing = delivery('web-send-boom', 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [failing],
+      hasMore: false,
+    });
+    const fixture = dispatcherEnv({ [failing.id]: context(failing.id) });
+    fixture.sendWebPush.mockRejectedValue(new Error('PUSH_SECRET_REFERENCE_INVALID'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      await expect(
+        runMobilePushDispatcher(fixture.env, {
+          scheduledTime: Date.parse('2026-08-08T20:00:00.000Z'),
+        }),
+      ).resolves.toMatchObject({ claimed: 1, retry: 1 });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"event":"push_send_failed"'));
+      const logged = JSON.parse(String(warnSpy.mock.calls[0]?.[0])) as {
+        tenantId: string;
+        deliveryId: string;
+        reason: string;
+      };
+      expect(logged).toMatchObject({
+        tenantId: 'tenant-a',
+        deliveryId: failing.id,
+        reason: 'SEND_ERROR:PUSH_SECRET_REFERENCE_INVALID',
+      });
+      const completion = fixture.batches.find((batch) =>
+        batch.some(({ sql }) => sql.includes('UPDATE push_deliveries')),
+      );
+      expect(completion?.[0]?.bindings).toContain('SEND_ERROR:PUSH_SECRET_REFERENCE_INVALID');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it('materializes, claims, and completes accepted Web Push and retried FCM deliveries', async () => {
     const accepted = delivery('web-accepted', 'WEB_PUSH');
     const retried = delivery('fcm-retry', 'FCM_HTTP_V1', 2);
@@ -245,6 +337,21 @@ describe('Sprint 45 push dispatcher policy', () => {
         }) as unknown,
       }),
     );
+    // El wire payload debe ajustarse al allowlist estricto del transporte
+    // (validatePayload en worker-kms): eventType jamás viaja (PUSH_PAYLOAD_NOT_ALLOWED).
+    const wirePayload = (
+      fixture.sendWebPush.mock.calls[0]?.[0] as {
+        payload: Record<string, unknown>;
+      }
+    ).payload;
+    expect(Object.keys(wirePayload).sort()).toEqual([
+      'amount_cents',
+      'body',
+      'deepLink',
+      'deliveryId',
+      'receipt',
+      'title',
+    ]);
     expect(fixture.sendFcm).toHaveBeenCalledWith(
       expect.objectContaining({ encryptedToken: 'cipher-fcm-retry' }),
     );

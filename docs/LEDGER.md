@@ -12809,3 +12809,57 @@ aprobaciones: ["A: Staff Principal", "V: Staff Verifier (auditoría SRE + spot-c
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0462
+timestamp_utc: 2026-08-24T03:45:59Z
+schema_version: 2
+sprint_fase: Transversal — ADR-0035 + canal push Modo Dueño E2E
+agente_responsable: Staff Principal (A) con implementación delegada auditada
+tipo: Entregable nuevo
+subtipo: ADR-0035 + suscripción owner E2E + 5 fixes del pipeline de entrega
+relacion: milestone
+referencias_entradas: [0461]
+referencias_documentales: ["docs/adr/ADR-0035-owner-full-access-plan-guard.md", "docs/architecture/05-12-mobile-push-pos.md", "docs/ops/pending-batches.yaml"]
+prev_id: 0461
+prev_hash: f81593a89550ba5b0e51a8f830c86ee65c2721a02de4406484f2ea56671ea6a8
+entry_hash: 8daaea38a023db0284ce5c3f6053ded4d0f2e513ca7e3ae20aa431c3743142e7
+ticket_or_adr: ADR-0035
+test_ids: [apps/worker-api/src/push/mobile-push-routes.test.ts, apps/worker-api/src/index.test.ts, packages/adapters-d1/src/process-mobile-push-atomic.integration.test.ts, packages/worker-kms/src/mobile-push-transport.test.ts, apps/pos-web/src/lib/mobile/mobile-push-client.test.ts, SUITE]
+entregable_afectado: docs/adr/ADR-0035 · apps/pos-web/src/routes/mobile/+page.svelte · apps/worker-api/src/index.ts · apps/worker-api/src/push/mobile-push-routes.ts · apps/worker-api/src/push/mobile-push-dispatcher.ts · packages/adapters-d1/src/process-mobile-push-atomic.ts · apps/worker-kms/src/kms.ts · apps/worker-kms/src/mobile-push-transport.ts · apps/pos-web/static/offline-sync-sw.js
+descripcion: >
+  ADR-0035 (aceptado): acceso total del owner a los módulos de su negocio
+  limitado por Plan Guard — el ancla de la suscripción OWNER_ALERTS es
+  capability+consent LPDP, no la sesión de terminal (que queda intacta como
+  accountability de cajeros, ADR-0034). Implementación: gate /mobile alineado
+  al contrato server existente (OWNER_ROLES) + reactividad de hidratación.
+  El drill E2E destapó y corrigió cinco defectos del pipeline de entrega, cada
+  uno con RED→GREEN: (1) pushResponse perdía las cabeceras CORS M6B — todo
+  /api/push/* era inaccesible browser-side; (2) INSERT de suscripción violaba
+  CHECK+FK branch/terminal cuando no hay terminal (par NULL legítimo para
+  owner); (3) kms.ts pasaba el fetch global como referencia pelada — Illegal
+  invocation en CADA fetch al push provider (el canal jamás había enviado);
+  (4) dispatcher tragaba errores del send sin failure_reason y issueAckReceipt
+  sin try/catch mataba el cron dejando deliveries LEASED para siempre;
+  (5) contratos wire jamás ejercitados: allowlist de payload rechazaba
+  eventType y el regex del receipt exigía {16,128} cuando uno real da ~370
+  chars — el ACK jamás se posteaba. Además: claimPushDeliveries ahora reclama
+  leases expirados, discovery dual (eventos+deliveries), TTL del evento TEST
+  60→600s. Resultado E2E verificado por el supervisor: delivery ACCEPTED con
+  provider_response_code HTTP_201 (Google) y notificación visible en el
+  navegador (title "Alerta operativa") con click-through al deep link.
+  Pendiente documentado: ACK automático del SW no persiste (no porta JWT) —
+  decisión de producto pendiente; 4 tests fiscales integración + 3
+  ubl-invoice son TDD-RED preexistentes (staged del sprint de integración).
+evidencia: >
+  RED: owner botón disabled; CORS ERR_FAILED en /api/push/*; subscriptions 500
+  FK/CHECK; kms tail 0 invocaciones con Illegal invocation; deliveries LEASED
+  attempt 0 para siempre; PUSH_PAYLOAD_NOT_ALLOWED; PUSH_PAYLOAD_INVALID.
+  GREEN: delivery ACCEPTED HTTP_201 attempt 1; notificación visible en
+  navegador; worker-api 1364, worker-kms 398, pos-web 412, adapters-d1 442;
+  SUITE GREEN; prettier limpia.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: verificación independiente D1+navegador+suites re-ejecutadas"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

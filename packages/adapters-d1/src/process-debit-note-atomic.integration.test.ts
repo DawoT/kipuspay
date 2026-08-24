@@ -125,6 +125,14 @@ describe('processDebitNoteAtomic — integración D1 (P1a)', () => {
       .bind(res.debitNoteId)
       .first<{ n: number }>();
     expect(stockRows?.n).toBe(0);
+
+    const outbox = await env.DB.prepare(
+      `SELECT status, must_submit_by FROM fiscal_outbox WHERE sale_id = ? AND tenant_id = ?`,
+    )
+      .bind(res.debitNoteId, tenantId)
+      .first<{ status: string; must_submit_by: string | null }>();
+    expect(outbox?.status).toBe('PENDING');
+    expect(outbox?.must_submit_by).not.toBeNull();
   });
 
   it('rechaza ND sobre boleta sin CDR (FISCAL_CDR_REQUIRED) sin mover la serie', async () => {

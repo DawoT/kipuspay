@@ -234,6 +234,23 @@ async function deliveryContext(
     .first<DeliveryContext>();
 }
 
+function failureReason(cause: unknown, prefix: string): string {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return `${prefix}:${detail}`.slice(0, 200);
+}
+
+function warnPushFailure(input: {
+  readonly event: 'push_send_failed' | 'push_ack_receipt_failed';
+  readonly tenantId: string;
+  readonly deliveryId: string;
+  readonly subscriptionId: string;
+  readonly provider: Provider;
+  readonly attempt: number;
+  readonly reason: string;
+}): void {
+  console.warn(JSON.stringify({ ...input }));
+}
+
 async function completeDelivery(
   env: WorkerEnv,
   delivery: ClaimedPushDelivery,
@@ -241,6 +258,7 @@ async function completeDelivery(
   rawResult: ProviderResult,
   receipt: { readonly receiptHash: string; readonly keyVersion: string },
   nowMs: number,
+  exceptionReason: string | null = null,
 ): Promise<void> {
   if (!env.DB) return;
   const result = sanitizeProviderResult(rawResult);
@@ -262,6 +280,14 @@ async function completeDelivery(
     terminalStatus === 'ACCEPTED'
       ? new Date(nowMs + Math.min(300, remainingTtl) * 1000).toISOString()
       : null;
+  const persistedFailure =
+    terminalStatus === 'EXPIRED'
+      ? (exceptionReason ?? 'TTL_EXPIRED')
+      : terminalStatus === 'FAILED'
+        ? (exceptionReason ?? result.responseCode)
+        : terminalStatus === 'RETRY' && exceptionReason
+          ? exceptionReason
+          : null;
   const statements = [
     env.DB.prepare(
       `UPDATE push_deliveries
@@ -272,7 +298,7 @@ async function completeDelivery(
            ack_receipt_hash = COALESCE(?, ack_receipt_hash),
            ack_key_version = CASE WHEN ? IS NULL THEN ack_key_version ELSE ? END,
            ack_expires_at = COALESCE(?, ack_expires_at),
-           failure_reason = CASE WHEN ? IN ('FAILED','EXPIRED') THEN ? ELSE NULL END,
+           failure_reason = CASE WHEN ? = 'ACCEPTED' THEN NULL ELSE ? END,
            updated_at = ?
        WHERE tenant_id = ? AND id = ? AND status = 'LEASED'`,
     ).bind(
@@ -287,7 +313,7 @@ async function completeDelivery(
       receipt.keyVersion,
       ackExpiresAt,
       terminalStatus,
-      terminalStatus === 'EXPIRED' ? 'TTL_EXPIRED' : result.responseCode,
+      persistedFailure,
       now,
       context.tenant_id,
       delivery.id,
@@ -324,24 +350,61 @@ async function dispatchOne(
     issuedAtSeconds + 300,
     Math.floor(Date.parse(context.expires_at) / 1000),
   );
-  const receipt = await binding.issueAckReceipt({
-    tenantId: context.tenant_id,
-    userId: context.user_id,
-    deliveryId: delivery.id,
-    subscriptionId: context.subscription_id,
-    deviceFingerprint: context.device_fingerprint,
-    issuedAtSeconds,
-    expiresAtSeconds,
-  });
-  const lockscreen = buildLockscreenPayload({
+  let receipt: Awaited<ReturnType<PushTransportBinding['issueAckReceipt']>>;
+  try {
+    receipt = await binding.issueAckReceipt({
+      tenantId: context.tenant_id,
+      userId: context.user_id,
+      deliveryId: delivery.id,
+      subscriptionId: context.subscription_id,
+      deviceFingerprint: context.device_fingerprint,
+      issuedAtSeconds,
+      expiresAtSeconds,
+    });
+  } catch (cause) {
+    // El receipt es RPC previo al send: un fallo aquí jamás debe abortar el
+    // loop del dispatcher (dejaría el resto de leases pegados sin intento).
+    const reason = failureReason(cause, 'ACK_RECEIPT_ERROR');
+    warnPushFailure({
+      event: 'push_ack_receipt_failed',
+      tenantId: context.tenant_id,
+      deliveryId: delivery.id,
+      subscriptionId: context.subscription_id,
+      provider: delivery.provider,
+      attempt: delivery.attemptCount,
+      reason,
+    });
+    await completeDelivery(
+      env,
+      delivery,
+      context,
+      {
+        provider: delivery.provider,
+        status: 'RETRY',
+        responseCode: 'NETWORK_ERROR',
+        providerMessageIdHash: '',
+        retryAfterSeconds: null,
+        invalidateSubscription: false,
+      },
+      { receiptHash: '', keyVersion: '' },
+      nowMs,
+      reason,
+    );
+    return 'retry';
+  }
+  // eventType es metadata de copy server-side: el allowlist del transporte
+  // (validatePayload en worker-kms) no lo admite y su presencia provocaba
+  // PUSH_PAYLOAD_NOT_ALLOWED en TODOS los sends (drill fcm-vapid-real).
+  const { eventType: _eventType, ...lockscreenWire } = buildLockscreenPayload({
     eventType: context.event_type,
     privacyMode,
     ...(context.amount_cents === null ? {} : { amount_cents: context.amount_cents }),
     deepLinkKind: context.deep_link_kind,
     deepLinkEntityId: context.deep_link_entity_id,
   });
-  const payload = { ...lockscreen, deliveryId: delivery.id, receipt: receipt.token };
+  const payload = { ...lockscreenWire, deliveryId: delivery.id, receipt: receipt.token };
   let raw: ProviderResult;
+  let sendFailureReason: string | null = null;
   try {
     const common = {
       tenantId: context.tenant_id,
@@ -366,7 +429,18 @@ async function dispatchOne(
             ...common,
             encryptedToken: context.endpoint_token_ciphertext,
           });
-  } catch {
+  } catch (cause) {
+    // Jamás silencio: el motivo exacto queda en el log estructurado y en la fila.
+    sendFailureReason = failureReason(cause, 'SEND_ERROR');
+    warnPushFailure({
+      event: 'push_send_failed',
+      tenantId: context.tenant_id,
+      deliveryId: delivery.id,
+      subscriptionId: context.subscription_id,
+      provider: delivery.provider,
+      attempt: delivery.attemptCount,
+      reason: sendFailureReason,
+    });
     raw = {
       provider: delivery.provider,
       status: 'RETRY',
@@ -376,7 +450,7 @@ async function dispatchOne(
       invalidateSubscription: false,
     };
   }
-  await completeDelivery(env, delivery, context, raw, receipt, nowMs);
+  await completeDelivery(env, delivery, context, raw, receipt, nowMs, sendFailureReason);
   return raw.status === 'ACCEPTED' ? 'accepted' : raw.status === 'RETRY' ? 'retry' : 'failed';
 }
 
@@ -395,15 +469,28 @@ export async function runMobilePushDispatcher(
   }
   const nowMs = options.scheduledTime ?? Date.now();
   const now = new Date(nowMs).toISOString();
+  // Discovery dual: eventos vivos Y deliveries accionables (huérfanos de un
+  // evento expirado o leases estancados) — drill fcm-vapid-real (2026-08-23).
   const tenantRows = await env.DB.prepare(
-    `SELECT DISTINCT e.tenant_id
-     FROM push_events e
-     JOIN tenant_capabilities tc ON tc.tenant_id = e.tenant_id
-     WHERE e.status IN ('PENDING','DISPATCHING') AND e.expires_at > ?
-       AND tc.capability IN ('mobile.push','owner.push_alerts') AND tc.enabled = 1
-     ORDER BY e.tenant_id LIMIT 100`,
+    `SELECT DISTINCT tenant_id FROM (
+       SELECT e.tenant_id
+       FROM push_events e
+       JOIN tenant_capabilities tc ON tc.tenant_id = e.tenant_id
+       WHERE e.status IN ('PENDING','DISPATCHING') AND e.expires_at > ?
+         AND tc.capability IN ('mobile.push','owner.push_alerts') AND tc.enabled = 1
+       UNION
+       SELECT d.tenant_id
+       FROM push_deliveries d
+       JOIN tenant_capabilities tc ON tc.tenant_id = d.tenant_id
+       WHERE (
+              (d.status IN ('PENDING','RETRY')
+                AND (d.next_retry_at IS NULL OR d.next_retry_at <= ?))
+              OR (d.status = 'LEASED' AND d.lease_expires_at <= ?)
+             )
+         AND tc.capability IN ('mobile.push','owner.push_alerts') AND tc.enabled = 1
+     ) ORDER BY tenant_id LIMIT 100`,
   )
-    .bind(now)
+    .bind(now, now, now)
     .all<{ tenant_id: string }>();
   const summary = { tenants: 0, claimed: 0, accepted: 0, retry: 0, failed: 0 };
   for (const { tenant_id: tenantId } of tenantRows.results ?? []) {

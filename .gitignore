@@ -58,3 +58,9 @@ tmp-staff/
 
 # Scripts TEMP de auditoría de diseño (wave 4-5; no versionar)
 scripts/tmp/
+
+# Estado local wrangler / Miniflare (nunca versionar)
+.wrangler/
+
+# Artefactos staff (PEM, envelope, XML firmado). No mezclar con doctrina.
+tmp-staff/

@@ -411,6 +411,8 @@ describe('mobile push route persistence and authorization', () => {
         tenantId: 'tenant-a',
         targetBranchId: 'branch-a',
         eventType: 'INVENTORY_STOCKOUT',
+        // Drill fcm-vapid-real: el cron corre */5; TTL 60 moría antes del dispatch.
+        ttlSeconds: 600,
       }),
     );
   });

@@ -225,12 +225,15 @@ export async function claimPushDeliveries(
     db,
     `SELECT id FROM push_deliveries
      WHERE tenant_id = ?
-       AND status IN ('PENDING','RETRY')
-       AND (next_retry_at IS NULL OR next_retry_at <= ?)
-       AND (lease_expires_at IS NULL OR lease_expires_at <= ?)
+       AND (
+         (status IN ('PENDING','RETRY')
+           AND (next_retry_at IS NULL OR next_retry_at <= ?)
+           AND (lease_expires_at IS NULL OR lease_expires_at <= ?))
+         OR (status = 'LEASED' AND lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
+       )
      ORDER BY COALESCE(next_retry_at, created_at), created_at, id
      LIMIT ?`,
-    [input.tenantId, input.now, input.now, limit + 1],
+    [input.tenantId, input.now, input.now, input.now, limit + 1],
   );
   const selected = candidates.slice(0, limit);
   if (selected.length === 0) return { deliveries: [], hasMore: false };
@@ -245,9 +248,12 @@ export async function claimPushDeliveries(
          SET status = 'LEASED', lease_owner_hash = ?, lease_expires_at = ?,
              updated_at = ?
          WHERE tenant_id = ? AND id = ?
-           AND status IN ('PENDING','RETRY')
-           AND (lease_expires_at IS NULL OR lease_expires_at <= ?)`,
-        [input.workerIdHash, leaseExpiresAt, input.now, input.tenantId, id, input.now],
+           AND (
+             (status IN ('PENDING','RETRY')
+               AND (next_retry_at IS NULL OR next_retry_at <= ?))
+             OR (status = 'LEASED' AND lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
+           )`,
+        [input.workerIdHash, leaseExpiresAt, input.now, input.tenantId, id, input.now, input.now],
       ),
     ),
   );

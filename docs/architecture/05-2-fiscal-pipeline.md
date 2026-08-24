@@ -21,6 +21,37 @@ section: "5.2"
 - `buildDailySummaryCron`: agrupa boletas/NC-boleta del día Lima por **emisor (`tenant_id` + `summary_date`)** — SUNAT admite **un único RC por día por emisor**; `branch_id` queda como atributo de cada línea (boleta→branch), nunca como clave del RC (corrección FIS-03). Genera RC; espera CDR; permite baja (`void`) de boleta informada en RC del mismo día de emisión. **RC complementaria (SYN-11):** una boleta con `issued_at` de un día cerrado que sincroniza después admite **RC complementaria del mismo `summary_date`** mientras esté dentro de `must_submit_by`, con alerta Modo Dueño; si se vence la ventana, runbook de NC/re-facturación (reusa E-A/E-B §8).
 - **Arqueo Z / cierre de caja ≠ Resumen Diario.** El RC es job fiscal independiente; banner si hay boletas del día sin RC aceptado.
 
+**Firma XAdES-BES (`pse_mode = TENANT_CERT`, ADR-FISCAL-006):** el Worker inserta
+`ds:Signature` en `ext:UBLExtensions` (C14N 1.0 + RSA-SHA256) **antes** del PUT a R2.
+El `DigestValue` de `URI=""` es SHA-256 de C14N 1.0 del documento sin `ds:Signature`
+(sin declaración XML). `ds:SignedInfo` y `xades:SignedProperties` se firman con
+C14N 1.0 **inclusive in-context** (xmlns UBL heredados en el ápice) y
+`xades:IssuerSerial` (`ds:X509IssuerName` RFC 2253 + `ds:X509SerialNumber`
+decimal). SUNAT 2335 si el digest es UTF-8 crudo o si `SignatureValue` cubre
+C14N de documento suelto; SUNAT 0306 si falta `IssuerSerial`; SUNAT 3030 si
+falta `cbc:AddressTypeCode` (catálogo 20, domicilio fiscal `0000`). El UBL
+incluye `cac:Signature`/`cac:SignatoryParty` (FIS-12).
+`sunat_xml_hash`
+es integridad del XML firmado, no un sustituto de XMLDSig. El default de producto
+permanece `KIPUSPAY_PSE` (ADR-FISCAL-001). Sin material KMS el producer no emite
+XML unsigned (`MISSING_SIGNER`). Nunca afirmar aceptación antes del CDR.
+
+**Canal `TENANT_CERT` / billService (ADR-FISCAL-007):** con
+`FEATURE_FISCAL_TRANSPORT_PLUGINS` y secretos `SUNAT_SOL_USER` /
+`SUNAT_SOL_PASSWORD`, worker-fiscal envía SOAP `sendBill` (`01`/`07`/`08`) y
+`sendSummary` (RC de boleta `03`) a SUNAT beta. No usa el POST JSON de
+`FISCAL_PSE_ENDPOINT_URL`. 5xx/timeout → `unreachable` (breaker); SOAP Fault
+de negocio → `rejected` (cuarentena, sin breaker). El RC usa UBL
+`SummaryDocuments`. Producción `e-factura` queda fuera de este canal (T6).
+El default de producto sigue `KIPUSPAY_PSE`.
+
+**UBL PE de notas y RC (XSD SUNAT, no OASIS genérico):** CreditNote/DebitNote
+no llevan `CreditNoteTypeCode`/`DebitNoteTypeCode` (SUNAT 0306). DebitNote
+usa `cac:RequestedMonetaryTotal` (no `LegalMonetaryTotal`). El input de
+dominio de la NC es negativo (la nota resta en caja); el XML serializa valor
+absoluto (SUNAT 2999 en `TaxableAmount`). SummaryDocuments exige
+`cbc:CustomerAssignedAccountID` del emisor y del receptor (SUNAT 2217/2014).
+
 ### **5.2b Guía de Remisión Electrónica (GRE `31` — Backlog v10 P1b, ADR-FISCAL-004)**
 
 | Campo | Valor |

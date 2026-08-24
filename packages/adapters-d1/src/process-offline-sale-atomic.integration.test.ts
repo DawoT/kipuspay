@@ -725,6 +725,67 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
       .bind('t-acid-nc', fixture.productId)
       .first<{ stock: number }>();
     expect(afterStock?.stock).toBe(beforeStock?.stock); // E-B: no restore
+
+    const ncOutbox = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM fiscal_outbox WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind('t-acid-nc', nc.creditNoteSaleId)
+      .first<{ n: number }>();
+    expect(ncOutbox?.n).toBe(0);
+  });
+
+  it('NC sobre factura ACCEPTED inserta fiscal_outbox PENDING', async () => {
+    const fixture = await seedNvFixture('t-acid-nc-outbox');
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE tenants SET formalization_mode = 'ELECTRONIC_ISSUER', tax_regime = 'RG' WHERE id = ?`,
+      ).bind('t-acid-nc-outbox'),
+      env.DB.prepare(
+        `INSERT INTO branch_document_series
+           (id, tenant_id, branch_id, document_type_code, series, current_number, authorization_status)
+         VALUES ('ser-f-nc2', ?, ?, '01', 'F001', 0, 'INTERNAL'),
+                ('ser-nc2', ?, ?, '07', 'FC01', 0, 'INTERNAL')`,
+      ).bind('t-acid-nc-outbox', fixture.branchId, 't-acid-nc-outbox', fixture.branchId),
+    ]);
+    const now = Date.parse('2026-08-04T15:00:00.000Z');
+    const cpe = await processOfflineSaleAtomic(
+      env.DB,
+      't-acid-nc-outbox',
+      fixture.userId,
+      {
+        ...nvPayload(fixture, 'off-nc-acc', 1, 1180),
+        documentType: '01',
+        series: 'F001',
+        clientDocumentType: '6',
+        clientDocumentNumber: '20123456789',
+        clientName: 'ACME',
+      },
+      now,
+    );
+    expect(cpe.status).toBe('SUCCESS');
+    if (cpe.status !== 'SUCCESS') return;
+    await env.DB.prepare(`UPDATE sales SET sunat_status = 'ACCEPTED' WHERE id = ?`)
+      .bind(cpe.saleId)
+      .run();
+    const nc = await processCreditNoteAtomic(
+      env.DB,
+      't-acid-nc-outbox',
+      fixture.userId,
+      cpe.saleId,
+      {
+        motiveCode: '01',
+        amountCents: 1180,
+        fullCancellation: true,
+        items: [{ productId: fixture.productId, quantity: 1, isUncatalogued: true }],
+      },
+      'FC01',
+    );
+    const outbox = await env.DB.prepare(
+      `SELECT status FROM fiscal_outbox WHERE tenant_id = ? AND sale_id = ?`,
+    )
+      .bind('t-acid-nc-outbox', nc.creditNoteSaleId)
+      .first<{ status: string }>();
+    expect(outbox?.status).toBe('PENDING');
   });
   it('Sprint 4: fallo inyectado A MITAD del batch revierte todo (venta, stock, pagos)', async () => {
     const fixture = await seedNvFixture('t-acid-midroll');

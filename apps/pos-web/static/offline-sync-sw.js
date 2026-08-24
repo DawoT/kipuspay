@@ -32,8 +32,22 @@ function safeRoute(kind, entityId) {
 
 function safePayload(value) {
   const payload = value && typeof value === 'object' ? value : {};
-  const copy = Object.hasOwn(COPY, payload.eventType)
-    ? COPY[payload.eventType]
+  // El wire no lleva eventType (allowlist del transporte): el copy se deriva
+  // de deepLink.kind — drill fcm-vapid-real (2026-08-24).
+  const KIND_EVENT = {
+    cash_close: 'CASH_CLOSE',
+    cash_discrepancy: 'CASH_DISCREPANCY',
+    inventory: 'INVENTORY_STOCKOUT',
+    installment: 'INSTALLMENT_OVERDUE',
+    accounts_receivable: 'ACCOUNTS_RECEIVABLE_OVERDUE',
+    customer_order: 'CUSTOMER_ORDER_EXPIRY',
+    recurring_sale: 'RECURRING_GRACE',
+    billing: 'BILLING_REMINDER',
+  };
+  const eventType =
+    typeof payload.eventType === 'string' ? payload.eventType : KIND_EVENT[payload.deepLink?.kind];
+  const copy = Object.hasOwn(COPY, eventType)
+    ? COPY[eventType]
     : ['Alerta operativa', 'Revisa el detalle al iniciar sesión.'];
   return {
     title: copy[0],
@@ -43,7 +57,7 @@ function safePayload(value) {
       payload.deepLink?.entityId || payload.deep_link_entity_id,
     ),
     deliveryId: /^[A-Za-z0-9_-]{1,128}$/.test(payload.deliveryId || '') ? payload.deliveryId : '',
-    receipt: /^[A-Za-z0-9_-]{16,1024}\.[A-Za-z0-9_-]{16,128}$/.test(payload.receipt || '')
+    receipt: /^[A-Za-z0-9_-]{16,1024}\.[A-Za-z0-9_-]{16,1024}$/.test(payload.receipt || '')
       ? payload.receipt
       : '',
   };

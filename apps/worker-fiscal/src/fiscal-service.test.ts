@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import {
+  bytesToBase64,
+  issueSelfSignedX509,
+  randomDek,
+  sealPkcs8WithDek,
+  serializeTenantCertEnvelope,
+} from '@kipuspay/domain-fiscal-pe';
 import FiscalService, { type FiscalServiceEnv } from './fiscal-service.js';
 import type { FiscalXmlR2 } from './fiscal-drain.js';
 
@@ -58,6 +65,7 @@ interface MemTenant {
   id: string;
   ruc: string | null;
   business_name: string;
+  pse_mode?: string;
 }
 
 interface MemItem {
@@ -71,6 +79,13 @@ interface MemItem {
   igv_amount_cents: number;
   icbper_amount_cents: number;
   total_amount_cents: number;
+}
+
+interface TenantCertRow {
+  tenant_id: string;
+  alias: string;
+  private_key_kms_ref: string;
+  cert_chain_pem: string;
 }
 
 /** Aplica el efecto real de un UPDATE del producer/drain sobre la memoria. */
@@ -116,12 +131,14 @@ function memoryDb(
   sales: MemSale[],
   tenants: MemTenant[],
   items: MemItem[] = [],
+  certs: TenantCertRow[] = [],
 ) {
   const state = {
     outbox: rows,
     sales,
     tenants,
     items,
+    certs,
     updates: [] as { sql: string; params: unknown[] }[],
   };
   const claim = (limit: number): number => {
@@ -181,6 +198,10 @@ function memoryDb(
       if (sql.includes('FROM tenants')) {
         const tenant = state.tenants.find((t) => t.id === params[0]);
         return Promise.resolve((tenant ?? null) as T | null);
+      }
+      if (sql.includes('FROM tenant_certificates')) {
+        const row = state.certs.find((c) => c.tenant_id === params[0]);
+        return Promise.resolve((row ?? null) as T | null);
       }
       return Promise.resolve(null as T | null);
     },
@@ -334,5 +355,121 @@ describe('FiscalService (C6 entrypoint)', () => {
     expect(result.skippedRc).toBe(1);
     expect(result.accepted).toBe(1);
     expect(r2.map.has('fiscal-xml/t2/s-factura.xml')).toBe(true);
+  });
+
+  it('produceMissing TENANT_CERT sin KMS → MISSING_SIGNER', async () => {
+    const db = memoryDb(
+      [],
+      [baseSale],
+      [{ id: 't1', ruc: '20612913251', business_name: 'Rosa Negra', pse_mode: 'TENANT_CERT' }],
+      items,
+    );
+    const r2 = memoryR2();
+    const svc = makeService({ DB: db as never, FISCAL_XML_R2: r2 });
+    const result = await svc.produceMissing({ tenantId: 't1', saleId: 's1' });
+    expect(result).toEqual({ outcome: 'MISSING_SIGNER' });
+    expect(r2.map.size).toBe(0);
+  });
+
+  it('produceMissing TENANT_CERT + mock KMS → PRODUCED firmado', async () => {
+    const pair = await crypto.subtle.generateKey(
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]),
+      },
+      true,
+      ['sign', 'verify'],
+    );
+    const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey));
+    const spki = new Uint8Array(await crypto.subtle.exportKey('spki', pair.publicKey));
+    const certDer = await issueSelfSignedX509({
+      privateKeyPkcs8Der: pkcs8,
+      spkiDer: spki,
+      commonName: 'Signer Fixture',
+      organization: 'KipusPay Test',
+      country: 'PE',
+    });
+    const dek = randomDek();
+    const sealed = await sealPkcs8WithDek(dek, pkcs8);
+    const envelope = serializeTenantCertEnvelope({
+      kekVersion: 'v1',
+      backupId: 'tenant-cert:SUNAT',
+      wrappedDekB64: bytesToBase64(new Uint8Array(60).fill(7)),
+      nonceB64: bytesToBase64(sealed.nonce),
+      ciphertextB64: bytesToBase64(sealed.ciphertext),
+    });
+    const certPem = `-----BEGIN CERTIFICATE-----\n${bytesToBase64(certDer)}\n-----END CERTIFICATE-----`;
+    const db = memoryDb(
+      [],
+      [baseSale],
+      [{ id: 't1', ruc: '20612913251', business_name: 'Rosa Negra', pse_mode: 'TENANT_CERT' }],
+      items,
+      [
+        {
+          tenant_id: 't1',
+          alias: 'SUNAT',
+          private_key_kms_ref: 'secret:TENANT_CERT_ENVELOPE',
+          cert_chain_pem: certPem,
+        },
+      ],
+    );
+    const r2 = memoryR2();
+    const svc = makeService({
+      DB: db as never,
+      FISCAL_XML_R2: r2,
+      TENANT_CERT_ENVELOPE: envelope,
+      BACKUP_KMS: { unwrapDek: () => Promise.resolve(dek) },
+    });
+    const result = await svc.produceMissing({ tenantId: 't1', saleId: 's1' });
+    expect(result).toMatchObject({ outcome: 'PRODUCED' });
+    expect(r2.map.get('fiscal-xml/t1/s1.xml')).toContain('<ds:Signature');
+  });
+
+  it('wrapTenantDek sin KMS → MISSING_KMS; con wrapDek → wrappedDekB64', async () => {
+    const missing = makeService({});
+    await expect(
+      missing.wrapTenantDek({ tenantId: 't1', dek: new Uint8Array(32) }),
+    ).resolves.toEqual({ error: 'MISSING_KMS' });
+    const wrappedDek = new Uint8Array(60).fill(4);
+    const svc = makeService({
+      BACKUP_KMS: {
+        unwrapDek: () => Promise.resolve(new Uint8Array(32)),
+        wrapDek: () => Promise.resolve({ wrappedDek, kekVersion: 'v1' }),
+      },
+    });
+    const out = await svc.wrapTenantDek({
+      tenantId: 'tenant_stg_rosa_negra_001',
+      dek: new Uint8Array(32).fill(1),
+    });
+    expect(out).toMatchObject({ kekVersion: 'v1' });
+    if ('wrappedDekB64' in out) expect(out.wrappedDekB64.length).toBeGreaterThan(20);
+  });
+
+  it('submitRc sin SOL → SOL_UNAVAILABLE; con SOL llama sendSummary', async () => {
+    const missing = makeService({});
+    await expect(
+      missing.submitRc({ tenantId: 't1', summaryId: 'RC-1', xml: '<SummaryDocuments/>' }),
+    ).resolves.toEqual({ accepted: false, cdrCode: '503', cdrMessage: 'SOL_UNAVAILABLE' });
+
+    const urls: string[] = [];
+    const svc = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      SUNAT_BILL_ENDPOINT_URL: 'https://e-beta.example.test/billService',
+      FISCAL_PSE_FETCH: (url) => {
+        urls.push(typeof url === 'string' ? url : 'bill');
+        return Promise.resolve(new Response('gateway', { status: 503 }));
+      },
+    });
+    const out = await svc.submitRc({
+      tenantId: 't1',
+      summaryId: 'RC-20260821-003',
+      xml: '<SummaryDocuments/>',
+    });
+    expect(out.accepted).toBe(false);
+    expect(urls).toEqual(['https://e-beta.example.test/billService']);
   });
 });

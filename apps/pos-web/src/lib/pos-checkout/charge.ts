@@ -6,6 +6,7 @@ import {
   formalizationBannerMessage,
   suggestDocumentType,
   type FormalizationMode,
+  type SuggestDocCode,
   type TaxRegime,
 } from '@kipuspay/domain-fiscal-pe';
 import { buildSaleTotals } from '@kipuspay/domain-sales';
@@ -125,6 +126,31 @@ function buildPaymentLine(
     ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
     ...(tip > 0 ? { tipCents: tip } : {}),
   };
+}
+
+/** Serie AUTHORIZED del tenant Rosa Negra / default PE: 01→F001, 03→B001, NV→NV01. */
+export function seriesForDocumentType(documentType: SuggestDocCode | 'NV_RETURN'): string {
+  if (documentType === '01') return 'F001';
+  if (documentType === '03') return 'B001';
+  return 'NV01';
+}
+
+export function resolveChargeDocument(input: {
+  readonly formalizationMode: FormalizationMode;
+  readonly taxRegime: TaxRegime;
+  readonly clientDocumentType: string;
+  readonly clientDocumentNumber: string;
+  readonly documentTypeOverride?: 'NV' | 'NV_RETURN' | '01' | '03';
+}): { readonly documentType: SuggestDocCode | 'NV_RETURN' | '01' | '03'; readonly series: string } {
+  const documentType =
+    input.documentTypeOverride ??
+    suggestDocumentType({
+      formalizationMode: input.formalizationMode,
+      taxRegime: input.taxRegime,
+      clientDocumentType: input.clientDocumentType,
+      clientDocumentNumber: input.clientDocumentNumber,
+    });
+  return { documentType, series: seriesForDocumentType(documentType) };
 }
 
 export async function chargeCartOffline(

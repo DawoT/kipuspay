@@ -69,8 +69,11 @@ function applyTerminalTransition(state: MockRow[], sql: string, params: unknown[
   }
 }
 
-function memoryDb(rows: OutboxRow[]): FiscalDrainDb & { state: MockRow[] } {
+function memoryDb(
+  rows: OutboxRow[],
+): FiscalDrainDb & { state: MockRow[]; sales: Map<string, string> } {
   const state = rows.map((r) => ({ ...r, next_attempt_at: new Date().toISOString() }));
+  const sales = new Map<string, string>();
   const impl = (sql: string, params: unknown[]) => ({
     all<T>() {
       if (sql.includes("f.status = 'PROCESSING'")) {
@@ -91,6 +94,18 @@ function memoryDb(rows: OutboxRow[]): FiscalDrainDb & { state: MockRow[] } {
           meta: { changes: claimRows(state, Number(params[1] ?? 20)) },
         });
       }
+      if (sql.includes('UPDATE sales SET sunat_status')) {
+        const outboxId = String(params[3]);
+        const tenantId = String(params[2]);
+        const row = state.find((r) => r.id === outboxId && r.tenant_id === tenantId);
+        if (row?.status === 'PROCESSING') {
+          sales.set(`${String(params[1])}:${tenantId}`, String(params[0]));
+        }
+        return Promise.resolve({
+          success: true,
+          meta: { changes: row?.status === 'PROCESSING' ? 1 : 0 },
+        });
+      }
       applyTerminalTransition(state, sql, params);
       return Promise.resolve({ success: true, meta: { changes: 1 } });
     },
@@ -108,6 +123,7 @@ function memoryDb(rows: OutboxRow[]): FiscalDrainDb & { state: MockRow[] } {
   };
   return {
     state,
+    sales,
     prepare(sql: string) {
       return chainable(sql);
     },
@@ -171,6 +187,8 @@ describe('fiscal drain FIFO', () => {
     expect(submittedHashes[0]).toBe(expectedHex);
     expect(submittedHashes[0]).not.toBe('drain');
     expect(result.accepted).toBe(1);
+    expect(db.sales.get('s1:t1')).toBe('ACCEPTED');
+    expect(db.state.find((r) => r.id === 'f1')?.status).toBe('SENT');
   });
 
   it('factura cercana a deadline antes que cola masiva', () => {

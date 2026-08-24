@@ -4,6 +4,7 @@ import { mintPortalToken } from '@kipuspay/domain-fiscal-pe';
 import {
   isCpePortalEnabled,
   isFiscalRcEnabled,
+  buildRcCdrPort,
   runCpePortalHttp,
   runFiscalCronHttp,
   runRcPendingBannerHttp,
@@ -25,6 +26,56 @@ describe('fiscal-rc routes flags', () => {
     expect(isFiscalRcEnabled({ FEATURE_FISCAL_RC: '1' } as WorkerEnv)).toBe(true);
     expect(isCpePortalEnabled({ FEATURE_CPE_PORTAL: '0' } as WorkerEnv)).toBe(false);
     expect(isCpePortalEnabled({ FEATURE_CPE_PORTAL: '1' } as WorkerEnv)).toBe(true);
+  });
+
+  it('SOL + plugins → sendSummary SOAP, no PSE .invalid', async () => {
+    const urls: string[] = [];
+    const bodies: string[] = [];
+    const port = buildRcCdrPort({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      FISCAL_PSE_ENDPOINT_URL: 'https://pse.kipuspay.staging.invalid/fiscal',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      SUNAT_BILL_ENDPOINT_URL: 'https://e-beta.example.test/billService',
+      FISCAL_PSE_FETCH: (url, init) => {
+        urls.push(typeof url === 'string' ? url : 'bill');
+        bodies.push(typeof init?.body === 'string' ? init.body : '');
+        return Promise.resolve(new Response('gateway', { status: 503 }));
+      },
+    } as WorkerEnv);
+    const cdr = await port.submit({
+      tenantId: 't1',
+      summaryId: 'sum-1',
+      xml: '<DailySummary date="2026-08-21" tickets="1"/>',
+    });
+    expect(cdr.accepted).toBe(false);
+    expect(urls).toEqual(['https://e-beta.example.test/billService']);
+    expect(bodies[0]).toContain('<ser:sendSummary>');
+    expect(urls[0]).not.toContain('pse.kipuspay.staging.invalid');
+  });
+
+  it('sin SOL local usa FISCAL.submitRc (no PSE .invalid)', async () => {
+    const submitRc = vi.fn().mockResolvedValue({
+      accepted: true,
+      cdrCode: '0',
+      cdrMessage: 'rpc',
+    });
+    const port = buildRcCdrPort({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      FISCAL_PSE_ENDPOINT_URL: 'https://pse.kipuspay.staging.invalid/fiscal',
+      FISCAL: {
+        drain: () => Promise.resolve({}),
+        produceMissing: () => Promise.resolve({}),
+        submitRc,
+      },
+    } as WorkerEnv);
+    const cdr = await port.submit({
+      tenantId: 'tenant_stg_rosa_negra_001',
+      summaryId: 'RC-20260821-003',
+      xml: '<SummaryDocuments/>',
+    });
+    expect(cdr).toEqual({ accepted: true, cdrCode: '0', cdrMessage: 'rpc' });
+    expect(submitRc).toHaveBeenCalledTimes(1);
   });
 
   it('flag off → 404 void y cron', async () => {

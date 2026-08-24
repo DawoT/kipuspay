@@ -252,3 +252,33 @@ describe('chargeCartOffline', () => {
     if (!cpe.ok) expect(cpe.code).toBe('CPE_BLOCKED_INTERNAL_CONTROL');
   });
 });
+
+describe('resolveChargeDocument', () => {
+  it('RUC + RG → factura F001; DNI → boleta B001; control interno → NV01', async () => {
+    const { resolveChargeDocument } = await import('./charge.js');
+    expect(
+      resolveChargeDocument({
+        formalizationMode: 'ELECTRONIC_ISSUER',
+        taxRegime: 'RG',
+        clientDocumentType: '6',
+        clientDocumentNumber: '10715001701',
+      }),
+    ).toEqual({ documentType: '01', series: 'F001' });
+    expect(
+      resolveChargeDocument({
+        formalizationMode: 'ELECTRONIC_ISSUER',
+        taxRegime: 'RG',
+        clientDocumentType: '1',
+        clientDocumentNumber: '12345678',
+      }),
+    ).toEqual({ documentType: '03', series: 'B001' });
+    expect(
+      resolveChargeDocument({
+        formalizationMode: 'INTERNAL_CONTROL',
+        taxRegime: 'RG',
+        clientDocumentType: '6',
+        clientDocumentNumber: '10715001701',
+      }),
+    ).toEqual({ documentType: 'NV', series: 'NV01' });
+  });
+});
