@@ -2305,7 +2305,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     ),
   );
   app.post('/api/push/test', async (c) =>
-    pushResponse(c, await sendTestPushHttp(c.env, trustedPushActor(c), await c.req.json())),
+    pushResponse(
+      c,
+      // ADR-0036: despacho inline post-enqueue vía waitUntil (flag FEATURE_PUSH_INLINE_DISPATCH).
+      await sendTestPushHttp(c.env, trustedPushActor(c), await c.req.json(), (task) =>
+        c.executionCtx.waitUntil(task),
+      ),
+    ),
   );
   app.post('/api/push/ack', async (c) =>
     pushResponse(c, await acknowledgeDisplayedHttp(c.env, trustedPushActor(c), await c.req.json())),
@@ -2323,10 +2329,16 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.post('/api/owner/push/send', async (c) =>
     pushResponse(
       c,
-      await sendTestPushHttp(c.env, trustedPushActor(c), {
-        ...objectBody(await c.req.json()),
-        purpose: 'OWNER_ALERTS',
-      }),
+      // ADR-0036: mismo productor inline que /api/push/test (compat path).
+      await sendTestPushHttp(
+        c.env,
+        trustedPushActor(c),
+        {
+          ...objectBody(await c.req.json()),
+          purpose: 'OWNER_ALERTS',
+        },
+        (task) => c.executionCtx.waitUntil(task),
+      ),
     ),
   );
 

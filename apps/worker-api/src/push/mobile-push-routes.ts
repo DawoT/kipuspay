@@ -5,6 +5,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import { buildLockscreenPayload, evaluatePushPrivacy } from '@kipuspay/domain-integrations';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { dispatchPushNow, isInlinePushDispatchEnabled } from './mobile-push-dispatcher.js';
 
 export type PushPurpose = 'OWNER_ALERTS' | 'OPERATIONAL_MOBILE';
 type PushRole = 'owner' | 'admin' | 'supervisor' | 'cashier';
@@ -713,13 +714,14 @@ export async function sendTestPushHttp(
   env: Partial<WorkerEnv>,
   actor: PushActor,
   body: Record<string, unknown>,
+  scheduleInlineDispatch?: (task: Promise<unknown>) => void,
 ): Promise<PushHttpResult> {
   const requestedPurpose = purpose(body) ?? 'OWNER_ALERTS';
   const authorization = await authorize(env, actor, requestedPurpose);
   if (authorization.result) return authorization.result;
   if (!env.DB) return unavailable('DB_UNAVAILABLE');
   const sourceEntityId = crypto.randomUUID();
-  await appendPushEventAtomic(env.DB, {
+  const appended = await appendPushEventAtomic(env.DB, {
     tenantId: actor.tenantId,
     userId: actor.userId,
     purpose: requestedPurpose,
@@ -731,13 +733,24 @@ export async function sendTestPushHttp(
     payloadRedactedJson: JSON.stringify({ test: true }),
     deepLinkKind: 'cash_close',
     deepLinkEntityId: sourceEntityId,
-    // Drill fcm-vapid-real (2026-08-23): el cron del dispatcher corre */5
-    // (300s); TTL 60 dejaba el evento de test SIEMPRE expirado al despertar.
-    // Solo la ruta de TEST usa 600s — el TTL de CASH_CLOSE real lo decide
-    // producto y no se toca aquí.
+    // Drill fcm-vapid-real (2026-08-23): el cron del dispatcher corre cada
+    // 5 minutos (300s); TTL 60 dejaba el evento de test SIEMPRE expirado al
+    // despertar. Solo la ruta de TEST usa 600s — el TTL de CASH_CLOSE real lo
+    // decide producto y no se toca aquí.
     ttlSeconds: 600,
     collapseKey: `push-test:${actor.userId}`,
   });
+  // ADR-0036: fire-and-forget vía executionCtx.waitUntil — el 202 no espera el
+  // envío; flag off ⇒ cero dispatch inline (comportamiento actual, rollback).
+  // El cron */5 queda intacto como red de reintento/backstop.
+  if (scheduleInlineDispatch && isInlinePushDispatchEnabled(env)) {
+    scheduleInlineDispatch(
+      dispatchPushNow(env as WorkerEnv, {
+        tenantId: actor.tenantId,
+        eventId: appended.eventId,
+      }),
+    );
+  }
   return { status: 202, body: { queued: true } };
 }
 

@@ -134,6 +134,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   /** Sprint 45: push operacional y cliente PWA móvil; ambos default-off. */
   readonly FEATURE_MOBILE_PUSH?: string;
   readonly FEATURE_CLIENT_MOBILE_POS?: string;
+  /** ADR-0036: despacho push inline post-enqueue vía waitUntil; default-off (palanca de rollback). */
+  readonly FEATURE_PUSH_INLINE_DISPATCH?: string;
   /** Sprint 46: analítica predictiva (Holt-Winters), default-off. */
   readonly FEATURE_ANALYTICS_FORECASTING?: string;
   readonly FEATURE_ANALYTICS_AGENTIC_INSIGHTS?: string;

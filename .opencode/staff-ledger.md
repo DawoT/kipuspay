@@ -929,3 +929,90 @@ aprobaciones: ["A: Staff Principal", "V: kipus-fiscal + kipus-sre (independiente
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0022
+timestamp_utc: 2026-08-24T20:05:00Z
+agente: Kipus Fiscal (Staff Fiscal)
+tarea: Tabla de traducción motivo ND interno→wire catálogo 10 fail-closed — liquidación hallazgo FL-1 FINDING-1
+prev_id: 0021
+prev_hash: 9906c87cd14bf9d4db6313c156be06e0b96562f60328538851d7de70faa86788
+entry_hash: d39a030368524d9f501b8278c2bf5b1d5df4a2f8a954dcbf57ba73b4d7da93ff
+ticket_or_adr: ADR-FISCAL-003; Arquitectura §5.1 regla 5; FL-1 FINDING-1; FIS-13
+test_ids: [nd-motive-catalog.test 7, domain-fiscal-pe 172, adapters-d1 442, worker-fiscal 47, adapters-sunat 44, V-13 dual, SUITE]
+entregable_afectado: packages/domain-fiscal-pe/src/nd-motive-catalog.ts (+test) · packages/domain-fiscal-pe/src/ubl-debit-note.ts · ubl-shared.ts · ubl-invoice.ts (+tests) · index.ts · packages/adapters-d1/src/fiscal-xml-producer.test.ts
+descripcion: >
+  Nueva tabla de traducción interna→wire para motivos ND (catálogo 10 oficial
+  verificado contra Anexo Nro. 8 y evidencia e-beta: 01 Intereses por mora,
+  02 Aumento en el valor, 03 Penalidades / otros conceptos; 11 exportación y
+  12 IVAP existen en el Anexo 8 sin uso interno). La verificación REFUTÓ la
+  premisa de FL-1 FINDING-1: el wire 06 no existe en catálogo 10 (CDR 2172
+  "Valor no se encuentra en el catalogo: 10") y la lista wire atribuida al
+  catálogo oficial (01 anulación ítems … 06 intereses mora) es una mezcla del
+  catálogo 09 de NC — la taxonomía interna {01,02,03} coincide semánticamente
+  con el catálogo 10 real. El defecto de código era el alias '06' más fallback
+  silencioso en ublNdMotiveDescription (eliminada; DRY en nd-motive-catalog).
+  El builder ND ahora recibe motivo INTERNO y traduce vía translateNdMotiveToWire
+  (pura, tipada): desconocido → UnknownNdMotiveError; interno '10' válido en
+  taxonomía pero sin homologación e-beta → NdMotiveWireUnhomologatedError
+  (fail-closed: jamás XML inválido; el drain lo lleva a FAILED_MISSING_XML y
+  luego cuarentena POISON_RETRY, try/catch por fila fiscal-drain.ts:260).
+  FD01-4 queda estable (interno 01 → wire 01 Intereses por mora, CDR 0).
+  Deuda preexistente de 8274bd5 liquidada: lint complejidad buildUblInvoiceXml
+  15>12 (guards extraídos a assertInvoiceInput, XML byte-idéntico) y test
+  fiscal-xml-producer que aún esperaba cbc:DebitNoteTypeCode rechazado por
+  e-beta 0306 — ahora aserta el shape ACEPTADO (sin DNTC + RequestedMonetaryTotal).
+  Corrección doctrinal propuesta para ADR-FISCAL-003/§5.1 en reporte al
+  supervisor (spec normativa no tocada).
+evidencia: >
+  RED: fiscal-xml-producer.test esperaba DebitNoteTypeCode (shape pre-FL-1);
+  eslint complejidad buildUblInvoiceXml 15>12 heredado de 8274bd5.
+  GREEN: domain-fiscal-pe 172/172 (7 tests nuevos en nd-motive-catalog.test:
+  tabla completa internal→wire, exhaustividad contra DEBIT_NOTE_MOTIVE_CODES,
+  FD01-4 estable, desconocidos con 06 incluido → UnknownNdMotiveError,
+  interno 10 → NdMotiveWireUnhomologatedError, builder fail-closed sin XML);
+  adapters-d1 442/442; worker-fiscal 47/47; adapters-sunat 44/44;
+  lint --max-warnings 0 GREEN; typecheck GREEN; prettier aplicado;
+  verify.sh RESULT SUITE GREEN (32 checks, V-13 dual incluido).
+ancestry_verified: true
+aprobaciones: ["Ejecutó: Kipus Fiscal", "A: pendiente Staff Principal", "V: pendiente independiente"]
+estado_gov: EN REVISION
+estado: Vigente
+```
+
+```text
+id: 0023
+timestamp_utc: 2026-08-24T19:05:00Z
+agente: Staff Principal
+tarea: Ciclo delegación→auditoría — kipus-sre (ADR-0036 implementado) + kipus-fiscal (catálogo 10 ND)
+estado: Vigente
+prev_id: 0022
+prev_hash: d39a030368524d9f501b8278c2bf5b1d5df4a2f8a954dcbf57ba73b4d7da93ff
+entry_hash: 6d4c9d9be7eff24baf0975f915d274769c8126b2be704dfbce49f503fd2b5ab9
+ticket_or_adr: ADR-0036; LEDGER 0468
+test_ids: [worker-api 1375, domain-fiscal-pe 172, V-13 dual, SUITE]
+entregable_afectado: apps/worker-api/src/push/* · packages/adapters-d1/src/process-mobile-push-atomic.ts · packages/domain-fiscal-pe/src/nd-motive-catalog.ts · docs/LEDGER.md (0468, hash 975348f0…)
+descripcion: >
+  Segundo ciclo paralelo. kipus-sre implementó ADR-0036 con TDD (10 tests
+  T1-T5 RED→GREEN): pipeline único reutilizado con filtro eventId en el claim,
+  tope 16, flag default-off con rollback conductual garantizado por T1, fallos
+  jamás tragados (T4 — regresión del drill). kipus-fiscal REFUTÓ el catálogo
+  wire de mi brief (mezclaba catálogo 09 de NC) verificando contra Anexo 8 +
+  CDR 2172 de e-beta antes de implementar — evidencia sobre autoridad,
+  incluida la del supervisor; la taxonomía interna ya era identidad con el
+  catálogo 10 oficial; el defecto real era el alias '06' + fallback
+  silencioso. Fix fail-closed con errores tipados y '10' bloqueado hasta
+  homologación. Propuesta doctrinal para ADR-FISCAL-003 pendiente de ciclo
+  normativo propio. Auditoría del supervisor: suites re-ejecutadas (172/172,
+  1375/1375 — 3 flaky en un run), flag/tope/catálogo verificados por lectura,
+  V-13 dual GREEN, SUITE GREEN. Siguiente: deploy con flag OFF → game day →
+  activar flag → batería de métricas ADR.
+evidencia: >
+  RED: 10 tests dispatcher/routes pre-implementación; tests ND con alias 06;
+  3 flaky worker-api en run cargado. GREEN: 1375/1375; 172/172 (cobertura
+  99.02%); 442/442; 47/47; 44/44; prettier; V-13 dual GREEN; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: kipus-sre + kipus-fiscal (independientes) + supervisor"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

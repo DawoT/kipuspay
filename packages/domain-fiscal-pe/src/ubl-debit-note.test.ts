@@ -82,7 +82,11 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
       /INVALID_REFERENCED_DOC/,
     );
     expect(() => buildUblDebitNoteXml({ ...sample(), motiveCode: 'ABC' })).toThrow(
-      /INVALID_MOTIVE_CODE/,
+      /UNKNOWN_ND_MOTIVE/,
+    );
+    // FL-1 (CDR 2172): el wire 06 no existe en catálogo 10 — fail-closed.
+    expect(() => buildUblDebitNoteXml({ ...sample(), motiveCode: '06' })).toThrow(
+      /UNKNOWN_ND_MOTIVE/,
     );
     expect(() => buildUblDebitNoteXml({ ...sample(), lines: [] })).toThrow(/EMPTY_LINES/);
     expect(() => buildUblDebitNoteXml({ ...sample(), issuerRuc: '123' })).toThrow(
@@ -97,7 +101,10 @@ describe('buildUblDebitNoteXml (Ops-3)', () => {
     const xml = buildUblDebitNoteXml(sample());
     expect(() =>
       assertValidDebitNoteXml(
-        xml.replace('<cbc:DocumentCurrencyCode>', '<cbc:DebitNoteTypeCode>08</cbc:DebitNoteTypeCode><cbc:DocumentCurrencyCode>'),
+        xml.replace(
+          '<cbc:DocumentCurrencyCode>',
+          '<cbc:DebitNoteTypeCode>08</cbc:DebitNoteTypeCode><cbc:DocumentCurrencyCode>',
+        ),
       ),
     ).toThrow(/INVALID_DEBIT_NOTE_TYPE/);
     expect(() =>

@@ -32,13 +32,8 @@ export function ublNcMotiveDescription(motiveCode: string): string {
   return motiveCode === '01' ? 'Anulacion de la operacion' : 'Ajuste del comprobante';
 }
 
-/** Catálogo 10 — descripción de discrepancia ND. */
-export function ublNdMotiveDescription(motiveCode: string): string {
-  if (motiveCode === '02') return 'Aumento en el valor';
-  // Catálogo 10 oficial SUNAT (wire): 06 = Intereses por mora.
-  if (motiveCode === '06') return 'Intereses por mora';
-  return 'Ajuste del comprobante';
-}
+// La descripción/motivo wire de la ND vive en `nd-motive-catalog.ts`
+// (traducción interna→catálogo 10, fail-closed). No re-introducirla aquí.
 
 /** Firma detachada SHA-256 del XML (staging / mock PSE — no XAdES completo). */
 export async function hashUblXml(xml: string): Promise<string> {

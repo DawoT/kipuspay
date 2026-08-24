@@ -45,8 +45,12 @@ import {
   ublIgvPercent,
 } from './ubl-shared.js';
 
-/** Construye XML UBL Invoice 2.1 mínimo válido para fixtures de prueba. */
-export function buildUblInvoiceXml(input: UblInvoiceInput): string {
+/**
+ * Guards de entrada del builder Invoice (fail-closed). Extraídos como función
+ * pura para acotar la complejidad del builder (deuda lint 8274bd5); el XML
+ * generado permanece byte-idéntico.
+ */
+function assertInvoiceInput(input: UblInvoiceInput): void {
   if (input.ublVersion !== '2.1') throw new Error('UNSUPPORTED_UBL_VERSION');
   if (!/^\d{11}$/.test(input.issuerRuc)) throw new Error('INVALID_ISSUER_RUC');
   // IssueDate es xsd:date — SUNAT 0306 rechaza timestamp con hora.
@@ -59,6 +63,12 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
     throw new Error('FACTURA_REQUIRES_RUC');
   }
   if (!input.lines.length) throw new Error('EMPTY_LINES');
+}
+
+/** Construye XML UBL Invoice 2.1 mínimo válido para fixtures de prueba. */
+export function buildUblInvoiceXml(input: UblInvoiceInput): string {
+  assertInvoiceInput(input);
+  const establishmentCode = input.issuerEstablishmentCode ?? '0000';
 
   // ICBPER (bolsa plástica): esquema 3000/EXC en TaxSubtotal propio — jamás
   // mezclado con el IGV (1000/VAT). Exonerada: el código de afectación viaja

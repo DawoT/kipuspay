@@ -1,18 +1,14 @@
 /**
  * UBL 2.1 DebitNote builder (ND `08`) — zero-dep Web Platform.
  * Arquitectura §5.2 / §8 / ADR-FISCAL-003. Mismo esqueleto UBL que la NC
- * (`ubl-shared`) con: `DiscrepancyResponse` (motivo Catálogo 10), referencia
+ * (`ubl-shared`) con: `DiscrepancyResponse` (motivo INTERNO traducido a wire
+ * catálogo 10 vía `nd-motive-catalog` — FL-1: CDR 2172 con wire 06), referencia
  * al comprobante que ajusta y `DebitNoteLine` con montos POSITIVOS (la ND
  * incrementa valor; jamás toca stock, FIS-13/ADR-FISCAL-003).
  */
 
-import {
-  assertWellFormedXml,
-  centsToAmount,
-  escapeXml,
-  ublIgvPercent,
-  ublNdMotiveDescription,
-} from './ubl-shared.js';
+import { assertWellFormedXml, centsToAmount, escapeXml, ublIgvPercent } from './ubl-shared.js';
+import { translateNdMotiveToWire } from './nd-motive-catalog.js';
 
 export interface UblDebitNoteLine {
   readonly id: number;
@@ -39,7 +35,8 @@ export interface UblDebitNoteInput {
   readonly customerName: string;
   /** Documento origen que ajusta (factura `01`): serie-número. */
   readonly referencedDocId: string;
-  /** Motivo Catálogo 10 (cerrado). */
+  /** Motivo INTERNO (taxonomía ADR-FISCAL-003: 01|02|03|10); se traduce a
+   *  wire catálogo 10 — desconocido o sin homologar lanza error tipado. */
   readonly motiveCode: string;
   readonly totalTaxableCents: number;
   readonly totalIgvCents: number;
@@ -53,7 +50,10 @@ export function buildUblDebitNoteXml(input: UblDebitNoteInput): string {
   if (!/^\d{11}$/.test(input.issuerRuc)) throw new Error('INVALID_ISSUER_RUC');
   if (!/^[A-Za-z0-9-]{1,20}$/.test(input.referencedDocId))
     throw new Error('INVALID_REFERENCED_DOC');
-  if (!/^\d{2}$/.test(input.motiveCode)) throw new Error('INVALID_MOTIVE_CODE');
+  // Fail-closed: el motivo interno se traduce a wire catálogo 10 ANTES de
+  // construir XML — desconocido (p.ej. `06`, CDR 2172 FL-1) o sin homologar
+  // (`10`) lanza error tipado y jamás produce DebitNote.
+  const motiveWire = translateNdMotiveToWire(input.motiveCode);
   if (!input.lines.length) throw new Error('EMPTY_LINES');
   if (input.totalAmountCents <= 0) throw new Error('ND_TOTAL_MUST_BE_POSITIVE');
 
@@ -110,8 +110,8 @@ export function buildUblDebitNoteXml(input: UblDebitNoteInput): string {
   <cbc:DocumentCurrencyCode>${input.currency}</cbc:DocumentCurrencyCode>
   <cac:DiscrepancyResponse>
     <cbc:ReferenceID>${escapeXml(input.referencedDocId)}</cbc:ReferenceID>
-    <cbc:ResponseCode>${escapeXml(input.motiveCode)}</cbc:ResponseCode>
-    <cbc:Description>${escapeXml(ublNdMotiveDescription(input.motiveCode))}</cbc:Description>
+    <cbc:ResponseCode>${escapeXml(motiveWire.responseCode)}</cbc:ResponseCode>
+    <cbc:Description>${escapeXml(motiveWire.description)}</cbc:Description>
   </cac:DiscrepancyResponse>
   <cac:BillingReference>
     <cac:InvoiceDocumentReference>

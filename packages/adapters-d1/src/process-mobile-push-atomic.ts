@@ -218,9 +218,12 @@ export async function claimPushDeliveries(
     readonly limit: number;
     readonly now: string;
     readonly leaseSeconds?: number;
+    /** ADR-0036: acota el lease al evento productor (despacho inline post-enqueue). */
+    readonly eventId?: string;
   },
 ): Promise<{ readonly deliveries: readonly ClaimedPushDelivery[]; readonly hasMore: boolean }> {
   const limit = Math.min(100, Math.max(1, Math.floor(input.limit)));
+  const eventClause = input.eventId ? 'AND event_id = ?' : '';
   const candidates = await all<{ id: string }>(
     db,
     `SELECT id FROM push_deliveries
@@ -231,9 +234,17 @@ export async function claimPushDeliveries(
            AND (lease_expires_at IS NULL OR lease_expires_at <= ?))
          OR (status = 'LEASED' AND lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
        )
+       ${eventClause}
      ORDER BY COALESCE(next_retry_at, created_at), created_at, id
      LIMIT ?`,
-    [input.tenantId, input.now, input.now, input.now, limit + 1],
+    [
+      input.tenantId,
+      input.now,
+      input.now,
+      input.now,
+      ...(input.eventId ? [input.eventId] : []),
+      limit + 1,
+    ],
   );
   const selected = candidates.slice(0, limit);
   if (selected.length === 0) return { deliveries: [], hasMore: false };

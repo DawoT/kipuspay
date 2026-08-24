@@ -7,7 +7,7 @@ import {
   hashUblXml,
   type UblInvoiceInput,
 } from './ubl-invoice.js';
-import { ublIgvPercent, ublNcMotiveDescription, ublNdMotiveDescription } from './ubl-shared.js';
+import { ublIgvPercent, ublNcMotiveDescription } from './ubl-shared.js';
 
 const sample = (): UblInvoiceInput => ({
   ublVersion: '2.1',
@@ -249,13 +249,11 @@ describe('buildUblInvoiceXml', () => {
     expect(exo).toContain('<cbc:Percent>0.00</cbc:Percent>');
   });
 
-  it('descripcion discrepancia NC/ND (e-beta 2136)', () => {
+  it('descripcion discrepancia NC (e-beta 2136)', () => {
     expect(ublNcMotiveDescription('01')).toBe('Anulacion de la operacion');
     expect(ublNcMotiveDescription('02')).toBe('Ajuste del comprobante');
-    expect(ublNdMotiveDescription('02')).toBe('Aumento en el valor');
-    expect(ublNdMotiveDescription('01')).toBe('Ajuste del comprobante');
-    // Catálogo 10 oficial SUNAT (wire): 06 = Intereses por mora.
-    expect(ublNdMotiveDescription('06')).toBe('Intereses por mora');
+    // La descripción/motivo wire de la ND vive en nd-motive-catalog.test.ts
+    // (traducción interna→catálogo 10, fail-closed tras CDR 2172 FL-1).
   });
 
   it('factura exonerada: TaxExemptionReasonCode 20 en línea Y cabecera, sin IGV', () => {
@@ -301,7 +299,9 @@ describe('buildUblInvoiceXml', () => {
     expect(xml.match(/<cbc:Name>ICBPER<\/cbc:Name>/g)).toHaveLength(2);
     expect(xml.match(/<cbc:TaxTypeCode>EXC<\/cbc:TaxTypeCode>/g)).toHaveLength(2);
     // e-beta 2992: el tributo 3000 exige tag de tasa (cbc:Percent).
-    expect(xml.match(/<cbc:Percent>0\.00<\/cbc:Percent>\s*<cac:TaxScheme>\s*<cbc:ID>3000/g)).toHaveLength(2);
+    expect(
+      xml.match(/<cbc:Percent>0\.00<\/cbc:Percent>\s*<cac:TaxScheme>\s*<cbc:ID>3000/g),
+    ).toHaveLength(2);
     // El IGV sigue en su esquema 1000/VAT con monto propio.
     expect(xml).toContain('<cbc:Name>IGV</cbc:Name>');
     expect(xml).toContain('<cbc:TaxAmount currencyID="PEN">0.20</cbc:TaxAmount>');

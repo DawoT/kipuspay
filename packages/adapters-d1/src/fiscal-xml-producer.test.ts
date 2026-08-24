@@ -257,9 +257,10 @@ describe('produceFiscalXmlForSale (C6 producer)', () => {
     const xml = r2.map.get(r2XmlKeyForSale('t1', 'sale-1'));
     expect(xml).toBeDefined();
     expect(xml).toContain('<DebitNote');
-    expect(xml).toContain(
-      '<cbc:DebitNoteTypeCode listID="0101" listAgencyName="PE:SUNAT" listName="Tipo de Operacion">08</cbc:DebitNoteTypeCode>',
-    );
+    // Shape ACEPTADO por e-beta (FD01-4 CDR 0, FL-1): el schema restringido NO
+    // admite cbc:DebitNoteTypeCode y exige cac:RequestedMonetaryTotal.
+    expect(xml).not.toContain('<cbc:DebitNoteTypeCode');
+    expect(xml).toContain('<cac:RequestedMonetaryTotal>');
     expect(xml).toContain('<cbc:ReferenceID>F001-00000008</cbc:ReferenceID>');
     expect(xml).toContain('<cbc:ResponseCode>02</cbc:ResponseCode>');
     expect(xml).toContain('<cbc:Description>Aumento en el valor</cbc:Description>');

@@ -13091,3 +13091,56 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0468
+timestamp_utc: 2026-08-24T19:00:00Z
+schema_version: 2
+sprint_fase: ADR-0036 implementado + taxonomía ND corregida
+agente_responsable: Staff Principal (ejecución: kipus-sre + kipus-fiscal; auditoría: Staff Principal)
+tipo: Implementación de ADR + corrección de dominio fiscal
+subtipo: despacho push inline + catálogo 10 ND
+relacion: implementa
+referencias_entradas: [0467]
+referencias_documentales: [docs/adr/ADR-0036-push-dispatch-inline.md]
+prev_id: 0467
+prev_hash: 82a100a3fb9c8637093956241cd38fa57224cbe4bdc9ec595fc2c63caae93d0b
+entry_hash: 975348f08cc771f7374fdf37b5131cc2da6342423a447b0387dc0438ab428072
+ticket_or_adr: ADR-0036; FL-1 FINDING-1
+test_ids: [apps/worker-api/src/push/mobile-push-dispatcher.test.ts, apps/worker-api/src/push/mobile-push-routes.test.ts, packages/domain-fiscal-pe/src/nd-motive-catalog.test.ts]
+entregable_afectado: apps/worker-api/src/push/mobile-push-dispatcher.ts; apps/worker-api/src/push/mobile-push-routes.ts; packages/adapters-d1/src/process-mobile-push-atomic.ts; packages/domain-fiscal-pe/src/nd-motive-catalog.ts
+descripcion: >
+  (1) ADR-0036 IMPLEMENTADO (flag FEATURE_PUSH_INLINE_DISPATCH default-off,
+  rollback = apagar): dispatchPushNow reutiliza el pipeline único
+  (materializeDeliveries→claimPushDeliveries(limit:16, eventId)→dispatchOne)
+  con filtro eventId en el claim (sin SQL duplicado); scheduleInlineDispatch
+  tipado vía waitUntil en /api/push/test y /api/owner/push/send; jamás
+  rechaza (warn estructurado push_inline_dispatch_failed — regresión del
+  drill 2026-08-23); excedente del tope queda para el discovery dual del
+  cron. 10 tests T1-T5 RED→GREEN. Pendiente: deploy con flag OFF → game day
+  → activar flag. (2) TAXONOMÍA ND CORREGIDA: el hallazgo FL-1 FINDING-1
+  interpretó mal la evidencia — el catálogo 10 OFICIAL (Anexo 8) es
+  {01 Intereses por mora, 02 Aumento en el valor, 03 Penalidades, 11
+  exportación, 12 IVAP}; la taxonomía interna ADR-FISCAL-003 {01,02,03} ya
+  era identidad con el wire; el defecto era el alias '06' inventado +
+  fallback silencioso en ublNdMotiveDescription. Fix: nd-motive-catalog.ts
+  (traducción identidad enforceable, UNKNOWN_ND_MOTIVE y
+  ND_MOTIVE_WIRE_UNHOMOLOGATED para '10' fail-closed), builder ND usa el
+  traductor, ublNdMotiveDescription eliminada (DRY). Corrección doctrinal
+  para ADR-FISCAL-003/§5.1 propuesta por el agente — PENDIENTE ciclo
+  normativo propio (no aplicada). (3) Deuda menor: guards de
+  buildUblInvoiceXml extraídos a assertInvoiceInput (complejidad GREEN,
+  XML byte-idéntico); test fiscal-xml-producer reparado al shape aceptado
+  por e-beta.
+evidencia: >
+  RED: 10 tests nuevos del dispatcher/routes en rojo pre-implementación;
+  tests ND con alias '06'. GREEN: worker-api 1375/1375 (3 flaky en un run
+  bajo carga paralela, GREEN en re-run); domain-fiscal-pe 172/172 (cobertura
+  99.02%); adapters-d1 442/442; worker-fiscal 47/47; adapters-sunat 44/44;
+  prettier limpio; V-13 dual GREEN (staff 0022 sellada por el agente);
+  RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

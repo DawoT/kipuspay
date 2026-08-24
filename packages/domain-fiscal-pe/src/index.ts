@@ -106,6 +106,15 @@ export {
 } from './debit-note.js';
 
 export {
+  ND_MOTIVE_INTERNAL_PENDING_WIRE,
+  ND_MOTIVE_WIRE_CATALOG,
+  NdMotiveWireUnhomologatedError,
+  translateNdMotiveToWire,
+  UnknownNdMotiveError,
+  type NdMotiveWire,
+} from './nd-motive-catalog.js';
+
+export {
   assertRemissionGuideAllowed,
   remissionStockImpact,
   TRANSFER_REASON_CODES,

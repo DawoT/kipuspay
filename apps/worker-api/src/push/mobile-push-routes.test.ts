@@ -18,6 +18,7 @@ import {
 const adapters = vi.hoisted(() => ({
   acknowledgePushDeliveryAtomic: vi.fn(),
   appendPushEventAtomic: vi.fn(),
+  claimPushDeliveries: vi.fn(),
   revokePushConsentAtomic: vi.fn(),
 }));
 vi.mock('@kipuspay/adapters-d1', () => adapters);
@@ -124,6 +125,9 @@ function routeEnv(options: RouteDbOptions = {}) {
     };
     return statement;
   });
+  // ADR-0036: materializeDeliveries del dispatcher usa db.batch — el inline
+  // solo se agenda con flag on, pero el fixture debe soportarlo.
+  const batch = vi.fn(() => Promise.resolve([]));
   const encryptEnvelope = vi.fn(
     ({ purpose }: { purpose: 'ENDPOINT_TOKEN' | 'WEB_PUSH_CREDENTIAL' }) =>
       Promise.resolve({
@@ -137,10 +141,10 @@ function routeEnv(options: RouteDbOptions = {}) {
     FEATURE_MOBILE_PUSH: '1',
     FEATURE_CLIENT_MOBILE_POS: '1',
     PUSH_VAPID_PUBLIC_KEY: 'vapid-public',
-    DB: { prepare },
+    DB: { prepare, batch },
     PUSH_KMS: { encryptEnvelope, verifyAckReceipt },
   } as unknown as WorkerEnv;
-  return { env, prepare, queries, encryptEnvelope, verifyAckReceipt };
+  return { env, prepare, batch, queries, encryptEnvelope, verifyAckReceipt };
 }
 
 const owner: PushActor = {
@@ -619,5 +623,101 @@ describe('S45-H3: re-grant de consentimiento idempotente', () => {
       privacyMode: 'REDACTED',
     });
     expect(regrant.status).toBe(200);
+  });
+});
+
+describe('ADR-0036 inline dispatch scheduling (sendTestPushHttp)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    adapters.appendPushEventAtomic.mockResolvedValue({
+      queued: true,
+      alreadyApplied: false,
+      eventId: 'event-a',
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('T1-flag-off: schedules nothing — rollback = comportamiento actual (solo cron)', async () => {
+    const fixture = routeEnv();
+    const schedule = vi.fn();
+    await expect(sendTestPushHttp(fixture.env, owner, {}, schedule)).resolves.toEqual({
+      status: 202,
+      body: { queued: true },
+    });
+    expect(schedule).not.toHaveBeenCalled();
+    expect(adapters.claimPushDeliveries).not.toHaveBeenCalled();
+  });
+
+  it('T2-waitUntil: flag on agenda el dispatch con {tenantId, eventId} y responde 202 sin bloquearse', async () => {
+    const fixture = routeEnv();
+    fixture.env.FEATURE_PUSH_INLINE_DISPATCH = '1';
+    let release!: (value: unknown) => void;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    adapters.claimPushDeliveries.mockReturnValueOnce(
+      gate.then(() => ({ deliveries: [], hasMore: false })),
+    );
+    const schedule = vi.fn();
+
+    const response = await sendTestPushHttp(fixture.env, owner, {}, schedule);
+
+    // El 202 volvió mientras el task sigue estancado en el claim (gate cerrado):
+    // waitUntil, no await en el path de respuesta.
+    expect(response).toEqual({ status: 202, body: { queued: true } });
+    expect(schedule).toHaveBeenCalledTimes(1);
+    // Drenamos microtasks SIN soltar el gate: el task queda aparcado dentro del
+    // claim, lo que permite afirmar sus argumentos de forma determinista.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(adapters.claimPushDeliveries).toHaveBeenCalledWith(
+      fixture.env.DB,
+      expect.objectContaining({ tenantId: 'tenant-a', eventId: 'event-a', limit: 16 }),
+    );
+
+    const task = schedule.mock.calls[0]?.[0] as Promise<unknown>;
+    release({ deliveries: [], hasMore: false });
+    await expect(task).resolves.toMatchObject({ claimed: 0 });
+  });
+
+  it('T4-route: un crash del inline jamás rechaza el task y deja log estructurado', async () => {
+    const fixture = routeEnv();
+    fixture.env.FEATURE_PUSH_INLINE_DISPATCH = '1';
+    adapters.claimPushDeliveries.mockRejectedValueOnce(new Error('D1_TIMEOUT'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const schedule = vi.fn();
+      await expect(sendTestPushHttp(fixture.env, owner, {}, schedule)).resolves.toMatchObject({
+        status: 202,
+      });
+      const task = schedule.mock.calls[0]?.[0] as Promise<unknown>;
+      await expect(task).resolves.toMatchObject({ claimed: 0 });
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('"event":"push_inline_dispatch_failed"'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('T2-idempotent-replay: un replay de enqueue también agenda inline con su eventId', async () => {
+    const fixture = routeEnv();
+    fixture.env.FEATURE_PUSH_INLINE_DISPATCH = '1';
+    adapters.appendPushEventAtomic.mockResolvedValueOnce({
+      queued: true,
+      alreadyApplied: true,
+      eventId: 'event-replay',
+    });
+    adapters.claimPushDeliveries.mockResolvedValueOnce({ deliveries: [], hasMore: false });
+    const schedule = vi.fn();
+    await sendTestPushHttp(fixture.env, owner, {}, schedule);
+    // Drenamos microtasks: el task inline corre post-respuesta (waitUntil).
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(adapters.claimPushDeliveries).toHaveBeenCalledWith(
+      fixture.env.DB,
+      expect.objectContaining({ tenantId: 'tenant-a', eventId: 'event-replay' }),
+    );
   });
 });

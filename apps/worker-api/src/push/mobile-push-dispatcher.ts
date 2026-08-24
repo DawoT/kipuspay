@@ -520,3 +520,70 @@ export async function runMobilePushDispatcher(
   console.log(JSON.stringify({ event: 'mobile_push_dispatch', ...summary }));
   return summary;
 }
+
+/** ADR-0036: techo de fan-out inline por request (2 RPC KMS por delivery ⇒ ≤32 invocaciones de service binding). */
+export const INLINE_MAX_DELIVERIES = 16;
+
+/** ADR-0036: feature flag estricto '1' — default off; es además la palanca de rollback. */
+export function isInlinePushDispatchEnabled(env: Partial<WorkerEnv> | undefined): boolean {
+  return env?.FEATURE_PUSH_INLINE_DISPATCH === '1';
+}
+
+export interface InlineDispatchScope {
+  readonly tenantId: string;
+  readonly eventId: string;
+}
+
+/**
+ * ADR-0036 — despacho inline post-enqueue: reutiliza el pipeline ÚNICO del
+ * dispatcher (materializeDeliveries → claimPushDeliveries → dispatchOne),
+ * acotado al evento productor y al tope de fan-out INLINE_MAX_DELIVERIES.
+ * El excedente queda PENDING/RETRY y el discovery dual del cron cada 5 min lo
+ * toma como backstop/retry. Errores jamás silenciosos (drill 2026-08-23):
+ * toda excepción se registra estructurada y las filas quedan accionables para
+ * el cron (lease vence a los 60 s o permanecen PENDING); la promesa jamás
+ * rechaza — corre bajo ctx.waitUntil y un rejection sería ruido en Workers Logs.
+ */
+export async function dispatchPushNow(
+  env: WorkerEnv,
+  scope: InlineDispatchScope,
+  options: { readonly nowMs?: number } = {},
+): Promise<{
+  readonly claimed: number;
+  readonly accepted: number;
+  readonly retry: number;
+  readonly failed: number;
+}> {
+  const summary = { claimed: 0, accepted: 0, retry: 0, failed: 0 };
+  if (!isMobilePushEnabled(env) || !env.DB || !env.PUSH_KMS) return summary;
+  const nowMs = options.nowMs ?? Date.now();
+  try {
+    const now = new Date(nowMs).toISOString();
+    await materializeDeliveries(env, scope.tenantId, now);
+    const page = await claimPushDeliveries(env.DB, {
+      tenantId: scope.tenantId,
+      workerIdHash: crypto.randomUUID(),
+      limit: INLINE_MAX_DELIVERIES,
+      now,
+      eventId: scope.eventId,
+    });
+    for (const delivery of page.deliveries) {
+      summary.claimed += 1;
+      const outcome = await dispatchOne(env, delivery, nowMs);
+      if (outcome === 'accepted') summary.accepted += 1;
+      else if (outcome === 'retry') summary.retry += 1;
+      else if (outcome === 'failed') summary.failed += 1;
+    }
+  } catch (cause) {
+    console.warn(
+      JSON.stringify({
+        event: 'push_inline_dispatch_failed',
+        tenantId: scope.tenantId,
+        eventId: scope.eventId,
+        reason: failureReason(cause, 'INLINE_DISPATCH_ERROR'),
+      }),
+    );
+  }
+  console.log(JSON.stringify({ event: 'mobile_push_dispatch_inline', ...summary }));
+  return summary;
+}

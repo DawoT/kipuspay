@@ -4,7 +4,10 @@ import type { WorkerEnv } from '../auth/control-plane.js';
 // @ts-expect-error -- Vite raw source import is supported by Vitest.
 import dispatcherSource from './mobile-push-dispatcher.ts?raw';
 import {
+  INLINE_MAX_DELIVERIES,
   computePushRetryDelaySeconds,
+  dispatchPushNow,
+  isInlinePushDispatchEnabled,
   pushDeliveryObservation,
   runMobilePushDispatcher,
   sanitizeProviderResult,
@@ -430,5 +433,153 @@ describe('Sprint 45 push dispatcher policy', () => {
     );
     expect(completion?.[0]?.bindings[0]).toBe('EXPIRED');
     expect(completion?.[0]?.bindings).toContain('TTL_EXPIRED');
+  });
+});
+
+describe('ADR-0036 inline dispatch (dispatchPushNow)', () => {
+  const NOW = Date.parse('2026-08-08T20:00:00.000Z');
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('T-flag: gates inline dispatch behind FEATURE_PUSH_INLINE_DISPATCH strictly "1"', () => {
+    expect(isInlinePushDispatchEnabled(undefined)).toBe(false);
+    expect(isInlinePushDispatchEnabled({})).toBe(false);
+    expect(isInlinePushDispatchEnabled({ FEATURE_PUSH_INLINE_DISPATCH: 'true' })).toBe(false);
+    expect(isInlinePushDispatchEnabled({ FEATURE_PUSH_INLINE_DISPATCH: '1' } as WorkerEnv)).toBe(
+      true,
+    );
+  });
+
+  it('T2-contract: dispatches inline scoped to {tenantId, eventId} reusing the single pipeline', async () => {
+    const inline = delivery('web-inline-a', 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [inline],
+      hasMore: false,
+    });
+    const fixture = dispatcherEnv({ [inline.id]: context(inline.id) });
+    fixture.sendWebPush.mockResolvedValue({
+      provider: 'WEB_PUSH',
+      status: 'ACCEPTED',
+      responseCode: '201',
+      providerMessageIdHash: 'provider-inline-1',
+      retryAfterSeconds: null,
+      invalidateSubscription: false,
+    });
+
+    await expect(
+      dispatchPushNow(
+        fixture.env,
+        { tenantId: 'tenant-a', eventId: inline.eventId },
+        { nowMs: NOW },
+      ),
+    ).resolves.toEqual({ claimed: 1, accepted: 1, retry: 0, failed: 0 });
+
+    // T6 DRY: el inline ejercita las funciones exportadas existentes —
+    // materializeDeliveries (batch) + claim + dispatchOne; cero SQL duplicado.
+    expect(fixture.batches.length).toBeGreaterThan(0);
+    expect(adapters.claimPushDeliveries).toHaveBeenCalledWith(
+      fixture.env.DB,
+      expect.objectContaining({ tenantId: 'tenant-a', eventId: inline.eventId }),
+    );
+    expect(fixture.sendWebPush).toHaveBeenCalledTimes(1);
+  });
+
+  it('T3-cap: caps the inline fan-out at 16 deliveries per invocation', () => {
+    expect(INLINE_MAX_DELIVERIES).toBe(16);
+  });
+
+  it('T3-cap: requests exactly the fan-out cap from the claim (excedente queda para el cron)', async () => {
+    adapters.claimPushDeliveries.mockResolvedValueOnce({ deliveries: [], hasMore: false });
+    const fixture = dispatcherEnv({});
+    await dispatchPushNow(
+      fixture.env,
+      { tenantId: 'tenant-a', eventId: 'event-x' },
+      { nowMs: NOW },
+    );
+    expect(adapters.claimPushDeliveries).toHaveBeenCalledWith(
+      fixture.env.DB,
+      expect.objectContaining({ tenantId: 'tenant-a', eventId: 'event-x', limit: 16 }),
+    );
+  });
+
+  it('T4-surfaced: persists failure_reason and warns structurally when an inline send fails', async () => {
+    const failing = delivery('web-inline-boom', 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({
+      deliveries: [failing],
+      hasMore: false,
+    });
+    const fixture = dispatcherEnv({ [failing.id]: context(failing.id) });
+    fixture.sendWebPush.mockRejectedValue(new Error('KMS_DOWN'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      await expect(
+        dispatchPushNow(
+          fixture.env,
+          { tenantId: 'tenant-a', eventId: failing.eventId },
+          { nowMs: NOW },
+        ),
+      ).resolves.toMatchObject({ claimed: 1, retry: 1 });
+
+      // Drill 2026-08-23: jamás LEASED attempt_count=0 sin razón — la fila
+      // completa con failure_reason persistida vía completeDelivery.
+      const completion = fixture.batches.find((batch) =>
+        batch.some(({ sql }) => sql.includes('UPDATE push_deliveries')),
+      );
+      expect(completion?.[0]?.bindings[0]).toBe('RETRY');
+      expect(completion?.[0]?.bindings).toContain('SEND_ERROR:KMS_DOWN');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"event":"push_send_failed"'));
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('SEND_ERROR:KMS_DOWN');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('T4-contained: an inline crash never rejects the waitUntil task and logs push_inline_dispatch_failed', async () => {
+    adapters.claimPushDeliveries.mockRejectedValueOnce(new Error('D1_TIMEOUT'));
+    const fixture = dispatcherEnv({});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      await expect(
+        dispatchPushNow(
+          fixture.env,
+          { tenantId: 'tenant-a', eventId: 'event-crash' },
+          { nowMs: NOW },
+        ),
+      ).resolves.toEqual({ claimed: 0, accepted: 0, retry: 0, failed: 0 });
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('"event":"push_inline_dispatch_failed"'),
+      );
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('INLINE_DISPATCH_ERROR:D1_TIMEOUT');
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('"eventId":"event-crash"');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('T5-backstop: the cron path stays tenant-wide and ignores the inline flag entirely', async () => {
+    const cron = delivery('web-cron-backstop', 'WEB_PUSH');
+    adapters.claimPushDeliveries.mockResolvedValueOnce({ deliveries: [cron], hasMore: false });
+    const fixture = dispatcherEnv({ [cron.id]: context(cron.id) });
+    fixture.env.FEATURE_PUSH_INLINE_DISPATCH = '1';
+    fixture.sendWebPush.mockResolvedValue({
+      provider: 'WEB_PUSH',
+      status: 'ACCEPTED',
+      responseCode: '201',
+      providerMessageIdHash: 'provider-cron-1',
+      retryAfterSeconds: null,
+      invalidateSubscription: false,
+    });
+
+    await expect(
+      runMobilePushDispatcher(fixture.env, { scheduledTime: NOW }),
+    ).resolves.toMatchObject({ tenants: 1, claimed: 1, accepted: 1 });
+
+    // El cron NO se acota por evento: discovery dual intacto como red de reintento.
+    const claimInput = adapters.claimPushDeliveries.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(claimInput).not.toHaveProperty('eventId');
   });
 });
