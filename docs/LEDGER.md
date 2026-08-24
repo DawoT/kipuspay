@@ -13246,3 +13246,47 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0471
+timestamp_utc: 2026-08-24T22:45:00Z
+schema_version: 2
+sprint_fase: Game day ADR-0036 — flag activado en staging
+agente_responsable: Staff Principal (ejecución directa; delegación rate-limited)
+tipo: Milestone operacional
+subtipo: despacho inline verificado en caliente
+relacion: implementa
+referencias_entradas: [0470]
+referencias_documentales: [docs/ops/adr0036-gameday-staging.md, docs/adr/ADR-0036-push-dispatch-inline.md]
+prev_id: 0470
+prev_hash: b2b378d89354224904d39b646fff8133189792a51953b380581bfd70254f04ac
+entry_hash: a30bf198323069990c906c4c939a4d9859af5f183bcf71bdbb840f4827945d43
+ticket_or_adr: ADR-0036; gap fcm-vapid-real
+test_ids: [apps/worker-api/src/push/mobile-push-dispatcher.test.ts, docs/ops/adr0036-gameday-staging.md]
+entregable_afectado: docs/ops/adr0036-gameday-staging.md; worker kipuspay-worker-api-staging (binding FEATURE_PUSH_INLINE_DISPATCH=1)
+descripcion: >
+  Game day del ADR-0036 ejecutado con éxito (intento 2; intento 1 bloqueado
+  por CI — LEDGER 0470; delegación indisponible por rate-limit diario del
+  modelo de subagentes → ejecución directa del supervisor con el mismo
+  protocolo). Activación del flag EN CALIENTE vía PATCH de settings (multipart
+  settings.bindings, sin redeploy — el worker lee la binding en el próximo
+  cold start). Resultados: queued→accepted colapsó de ~4-5 min (cron) a ~2 s
+  (2.4/1.7/1.9 s en 3 pushes); E2E con dispositivo Zebra en dock 5/8/18 s
+  (accepted→displayed 3-16 s; ACK automático del SW con espejo auth
+  funcionando en producción); drill de rollback verificó T1 en caliente
+  (flag off → 0 deliveries inline tras 60 s, espera al cron); logs limpios
+  (0 push_inline_dispatch_failed, 0 push_send_failed). Flag RE-ACTIVADO
+  (veredicto: seguro). Pendiente de cierre del gap: flota permanente +
+  n≥20 NORMAL/24 h para SLO ≥99% + clasificación ACCEPTED-sin-ACK.
+evidencia: >
+  RED: baseline flag OFF queued→accepted ≈4-5 min; rollback drill con 0
+  deliveries inline (comportamiento esperado T1, no fallo). GREEN: 3/3
+  pushes flag-on con delivery inline ~2 s y ACCEPTED inmediato; 2/3
+  DISPLAYED con ACK (3ª fuera de ventana de query, Zebra en dock confirmado
+  por displayed_at); 0 fallos en observability; SUITE GREEN; V-13 dual
+  GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

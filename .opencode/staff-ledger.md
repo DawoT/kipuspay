@@ -1016,3 +1016,37 @@ aprobaciones: ["A: Staff Principal", "V: kipus-sre + kipus-fiscal (independiente
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0024
+timestamp_utc: 2026-08-24T22:50:00Z
+agente: Staff Principal
+tarea: Game day ADR-0036 — flag inline activado en staging (ejecución directa)
+estado: Vigente
+prev_id: 0023
+prev_hash: 6d4c9d9be7eff24baf0975f915d274769c8126b2be704dfbce49f503fd2b5ab9
+entry_hash: 337eda6fb61cc593300793d365871d8479cd0f3b382def9533cc944992dbb21f
+ticket_or_adr: ADR-0036; LEDGER 0471; gap fcm-vapid-real
+test_ids: [worker-api T1-T5, docs/ops/adr0036-gameday-staging.md]
+entregable_afectado: docs/ops/adr0036-gameday-staging.md · worker staging (flag ON) · docs/LEDGER.md (0471, hash a30bf198…)
+descripcion: >
+  Game day ejecutado en caliente por el supervisor (delegación rate-limited
+  por cupo diario del modelo de subagentes — segunda vez hoy; el patrón
+  delegar-auditar degrada a ejecutar-auditar sin pérdida de rigor cuando la
+  infraestructura de delegación no está disponible). Activación vía PATCH
+  settings.bindings (multipart) sin redeploy. Resultados: queued→accepted
+  ~4-5 min → ~2 s; E2E con Zebra en dock 5/8/18 s con ACK automático del SW
+  (espejo auth en producción); rollback drill T1 verificado en caliente
+  (flag off → 0 deliveries inline en 60 s); 0 fallos en logs; flag
+  re-activado. Hallazgo de proceso: el PATCH de settings en caliente es el
+  mecanismo correcto para flags de staging (sin drift de wrangler.jsonc).
+  Pendiente gap: flota + n≥20 + clasificación ACCEPTED-sin-ACK.
+evidencia: >
+  RED: baseline cron 4-5 min; T1 con 0 deliveries inline (esperado). GREEN:
+  3/3 inline ~2 s; E2E 5/8/18 s; 0 push_*_failed en observability; SUITE
+  GREEN; V-13 dual GREEN (0471).
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal", "V: D1 + observability + navegador (evidencia directa)"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

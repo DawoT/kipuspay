@@ -99,3 +99,39 @@ apps/worker-fiscal/src/fiscal-drain.ts
 - Un warning de lint tratado como error es correcto (max-warnings 0 evita pudrición),
   pero exige que el autor del commit corra `pnpm lint` pre-push; considerar
   `pre-push` hook además del `pre-commit`.
+
+## Ejecución exitosa (2026-08-24 22:10–22:30 UTC) — Staff Principal directo
+
+> Intento 2 tras desbloquear el CI (LEDGER 0470). Delegación indisponible
+> (rate-limit diario del modelo de subagentes); ejecución directa del
+> supervisor con el mismo protocolo.
+
+### Secuencia y resultados
+
+| Paso | Resultado |
+|---|---|
+| Salud `/health` | 200 ✓ |
+| Baseline flag OFF (1 push 22:10) | delivery materializada en cron 22:15:22 → queued→accepted ≈ **4–5 min** |
+| Activación flag en caliente | PATCH settings vía API (multipart `settings.bindings`), 93→94 bindings, **sin redeploy** |
+| Batería flag ON (3 pushes) | queued→accepted ≈ **2 s** (2.4/1.7/1.9 s) — colapso del término dominante |
+| E2E con dispositivo (Zebra en dock) | accepted→displayed 3–16 s; E2E total **5 s / 8 s / 18 s** (p95<10 s en 2/3; la de 18 s incluye wake del device) |
+| Drill rollback (flag off 22:23) | evento 22:23:11 con **0 deliveries tras 60 s** — comportamiento T1 exacto (espera al cron) |
+| Re-activación | flag ON (veredicto: seguro) |
+| Logs | **0** `push_inline_dispatch_failed`, **0** `push_send_failed`, 0 waitUntil cancelados |
+
+### Veredicto
+
+**El flag es SEGURO y queda ACTIVADO en staging.** El despacho inline eliminó
+el término dominante (cola del cron) sin fallos observados; el backstop del
+cron quedó intacto (T1 verificado en caliente). Pendiente para cierre total
+del gap `fcm-vapid-real`: flota permanente + n≥20 NORMAL/24 h para el SLO
+≥99% (hoy n=3, 100% DISPLAYED de las alcanzables).
+
+### Notas técnicas
+
+- La activación en caliente vía PATCH de settings NO requiere redeploy: el
+  worker lee la binding en el próximo request (cold start).
+- Cada push genera 2 deliveries (Zebra viva + suscripción headless muerta
+  346db140): las ACCEPTED-sin-display son de la muerta — clasificación
+  ACCEPTED-sin-ACK pendiente de implementar (baseline SLO §3).
+- El JWT del game day expira en 1 h; regenerar por sesión (patrón .dev.vars).
