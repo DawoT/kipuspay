@@ -227,6 +227,32 @@ async function markSaleStatus(
     .run();
 }
 
+/**
+ * C6: self-healing — resuelve la clave R2 del XML, intentando producirlo si
+ * falta. Devuelve null si no hay clave producible (→ MISSING_R2_XML).
+ */
+async function ensureR2XmlKey(
+  input: {
+    readonly db: FiscalDrainDb;
+    readonly produceMissingXml?: ProduceMissingXml;
+  },
+  row: OutboxRow,
+): Promise<string | null> {
+  if (row.r2_xml_key) return row.r2_xml_key;
+  if (!input.produceMissingXml) return null;
+  try {
+    await input.produceMissingXml({ tenantId: row.tenant_id, saleId: row.sale_id });
+    const retried = await selectClaimedRows(input.db);
+    const fresh = retried.find(
+      (r) => r.id === row.id && r.r2_xml_key !== null && r.r2_xml_key !== undefined,
+    );
+    if (fresh?.r2_xml_key) return fresh.r2_xml_key;
+  } catch {
+    // fall-through → retry via FAILED
+  }
+  return null;
+}
+
 /** Procesa una fila reclamada; devuelve el desenlace para contabilidad. */
 async function processClaimedRow(
   input: {
@@ -253,27 +279,10 @@ async function processClaimedRow(
     return 'QUARANTINED';
   }
 
-  let r2XmlKey = row.r2_xml_key;
+  const r2XmlKey = await ensureR2XmlKey(input, row);
   if (!r2XmlKey) {
-    // C6: self-healing — intenta producir el XML antes de cuarentenar.
-    if (input.produceMissingXml) {
-      try {
-        await input.produceMissingXml({ tenantId: row.tenant_id, saleId: row.sale_id });
-        const retried = await selectClaimedRows(db);
-        const fresh = retried.find(
-          (r) => r.id === row.id && r.r2_xml_key !== null && r.r2_xml_key !== undefined,
-        );
-        if (fresh?.r2_xml_key) {
-          r2XmlKey = fresh.r2_xml_key;
-        }
-      } catch {
-        // fall-through → retry via FAILED
-      }
-    }
-    if (!r2XmlKey) {
-      await markRowFailed(db, row, 'MISSING_R2_XML');
-      return 'FAILED_MISSING_XML';
-    }
+    await markRowFailed(db, row, 'MISSING_R2_XML');
+    return 'FAILED_MISSING_XML';
   }
 
   const obj = await r2.get(r2XmlKey);

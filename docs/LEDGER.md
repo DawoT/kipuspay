@@ -13144,3 +13144,54 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0469
+timestamp_utc: 2026-08-24T20:03:53Z
+schema_version: 2
+sprint_fase: P1a — cierre corrección doctrinal motivos ND
+agente_responsable: Staff Fiscal (Kipus Fiscal; delegación Staff Principal)
+tipo: Corrección de especificación
+subtipo: taxonomía motivos ND = catálogo 10 wire (Anexo Nro. 8)
+relacion: corrige
+referencias_entradas: [0468]
+referencias_documentales: [docs/architecture/05-1-formalization-matrix.md, docs/adr/ADR-FISCAL-003-debit-note.md]
+prev_id: 0468
+prev_hash: 975348f08cc771f7374fdf37b5131cc2da6342423a447b0387dc0438ab428072
+entry_hash: e7fde9f0d3814e798ab58e1b4cac2cecf88401a984a3da0da1a2dadf3d16b09b
+ticket_or_adr: ADR-FISCAL-003; FL-1 FINDING-1; FIS-13
+test_ids: [packages/domain-fiscal-pe/src/nd-motive-catalog.test.ts, V-12, V-13]
+entregable_afectado: docs/architecture/05-1-formalization-matrix.md §5.1 regla 5; docs/adr/ADR-FISCAL-003-debit-note.md §Decisión
+descripcion: >
+  Aplica la corrección doctrinal pendiente desde 0468 (ciclo normativo
+  propio): los motivos de la ND usan directamente el catálogo 10 wire de
+  SUNAT (Anexo Nro. 8) — 01 Intereses por mora, 02 Aumento en el valor,
+  03 Penalidades/otros conceptos — homologados por identidad semántica y
+  aceptación e-beta (FD01-00000004, CDR 0). No hay traducción con desvío:
+  la correspondencia interno→wire es identidad y vive enforceable en
+  nd-motive-catalog.ts (única fuente, DRY). El código interno 10 (ajuste
+  de otros conceptos) es taxonomía de producto pero NO emitible hasta
+  homologación e-beta (el catálogo 10 no lo lista: produciría CDR 2172);
+  el builder lo bloquea con ND_MOTIVE_WIRE_UNHOMOLOGATED (fail-closed,
+  ADR-FISCAL-008). Prohibido introducir alias internos de motivos o
+  fallbacks silenciosos de descripción: todo motivo desconocido es error
+  tipado (UNKNOWN_ND_MOTIVE) antes de construir XML. Los códigos 04–09
+  pertenecen al catálogo 09 (NC); 11/12 fuera de alcance hasta ciclo
+  propio. Edición en §5.1 regla 5 y ADR-FISCAL-003 Decisión 1: la spec
+  ahora coincide con el código enforceable ya implementado en
+  nd-motive-catalog.ts; sin cambio de puntero canónico FIS-13 (registry
+  §0.4 intacto).
+evidencia: >
+  Antes (inconsistencia doctrinal): §5.1/ADR listaban {01,02,03,10} como
+  catálogo cerrado emitible, contradiciendo el código enforceable (10
+  bloqueado con ND_MOTIVE_WIRE_UNHOMOLOGATED) y la evidencia e-beta (CDR
+  2172 ante wire inexistente en catálogo 10). Después (GREEN): spec y ADR
+  reflejan la identidad interno→wire homologada {01,02,03};
+  nd-motive-catalog.test.ts fija la tabla (dominio 172/172 en staff 0022);
+  ledger_chain.py GREEN; verify.sh SUITE GREEN; prettier limpio en docs
+  tocados.
+ancestry_verified: true
+aprobaciones: [Staff Principal (brief con texto base), Staff Fiscal (ejecución)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

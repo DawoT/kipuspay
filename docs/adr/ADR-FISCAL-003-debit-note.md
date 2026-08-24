@@ -26,11 +26,22 @@ comprobante aceptado (factura/boleta) por motivos del catálogo 10 de SUNAT.
 
 ## Decisión
 
-1. **Dominio** `ubl-debit-note.ts` (patrón de `credit-note.ts`): motivos
-   catálogo 10 cerrados (`01` interés por mora, `02` aumento de valor,
-   `03` penalidades/otros conceptos, `10` ajuste de otros conceptos),
-   guard de origen `ACCEPTED` (mismos NO_CDR_STATUSES de la NC: ND sin CDR
-   exige anulación total E-A/E-B), `amountCents > 0`, referencia al
+1. **Dominio** `ubl-debit-note.ts` (patrón de `credit-note.ts`): los motivos
+   usan directamente el catálogo 10 wire de SUNAT (Anexo Nro. 8): `01`
+   Intereses por mora, `02` Aumento en el valor, `03` Penalidades/otros
+   conceptos — homologados por identidad semántica y aceptación e-beta
+   (FD01-00000004, CDR 0). No hay traducción con desvío: la correspondencia
+   interno→wire es identidad y vive enforceable en `nd-motive-catalog.ts`
+   (única fuente, DRY). El código interno `10` (ajuste de otros conceptos)
+   es taxonomía de producto pero NO emitible hasta homologación e-beta (el
+   catálogo 10 no lo lista: produciría CDR 2172); el builder lo bloquea con
+   `ND_MOTIVE_WIRE_UNHOMOLOGATED` (fail-closed, ADR-FISCAL-008). Prohibido
+   introducir alias internos de motivos o fallbacks silenciosos de
+   descripción: todo motivo desconocido es error tipado
+   (`UNKNOWN_ND_MOTIVE`) antes de construir XML. Los códigos `04`–`09`
+   pertenecen al catálogo 09 (NC); `11`/`12` fuera de alcance hasta ciclo
+   propio. Guard de origen `ACCEPTED` (mismos NO_CDR_STATUSES de la NC: ND
+   sin CDR exige anulación total E-A/E-B), `amountCents > 0`, referencia al
    comprobante origen por serie/número.
 2. **Motor** `process-debit-note-atomic.ts` (patrón del NC): idempotencia por
    `(tenant, serie, número)` + clave externa, correlativo server-side en
