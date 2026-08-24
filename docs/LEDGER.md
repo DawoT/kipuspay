@@ -13000,3 +13000,48 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0466
+timestamp_utc: 2026-08-24T17:05:00Z
+schema_version: 2
+sprint_fase: FL-1 — piloto e-beta (factura 01 validada)
+agente_responsable: Staff Principal
+tipo: Milestone de validación fiscal externa
+subtipo: sendBill factura 01 ACEPTADA por SUNAT e-beta
+relacion: amplia
+referencias_entradas: [0462, 0465]
+referencias_documentales: [docs/ops/push-ack-slo-baseline.md]
+prev_id: 0465
+prev_hash: 3c55d58b5c45b9e5e567382254efd57db0bd29af11d2d63c188021c505c7d14a
+entry_hash: caaf4f5e66632c84f408abf85eb6da6b7f72858ee4d1cf819aace6520901b3bc
+ticket_or_adr: FL-1 piloto e-beta; CDT ROSA NEGRA 20612913251 (EREP_SUNAT_2026000802457)
+test_ids: [packages/domain-fiscal-pe/src/ubl-invoice.test.ts, V-13]
+entregable_afectado: packages/domain-fiscal-pe/src/ubl-invoice.ts
+descripcion: >
+  Con el CDT del contribuyente de prueba (RUC 20612913251, ROSA NEGRA DIGITAL,
+  RENIEC CA Class 1 II, USO TRIBUTARIO, vigente hasta 2029-06-09, RSA 2048 —
+  fingerprint 4dc90110… idéntico al ya provisionado en D1/envelope) se validó
+  el módulo de FACTURAS contra SUNAT e-beta: F001-00000013 ACEPTADA (CDR 0,
+  "ha sido aceptada"). Dos defectos de schema UBL corregidos en el builder:
+  (1) cac:Signature iba después de AccountingCustomerParty — el orden canónico
+  que SUNAT valida es Signature ANTES de AccountingSupplierParty; (2) cbc:URI
+  dentro de cac:Signature NO pertenece al schema restringido de SUNAT (CDR 0306
+  cvc-complex-type 2.4 con URI en ambas posiciones) — eliminado; el firmante
+  vive en SignatoryParty. Estado del canal e-beta con este CDT: facturas 01 ✓
+  (F001-13), NC 07 ✓ (FC01-11/13 aceptadas previas), ND 08 ✓, RC ✓ — módulos
+  del pipeline fiscal validados end-to-end con firma real. Credenciales SOL
+  confirmadas operativas (usuario 20612913251ESCUEZER).
+evidencia: >
+  RED: CDR 0306 cvc-particle 2.1 (Signature fuera de posición); CDR 0306
+  cvc-complex-type 2.4 (cbc:URI en Signature, ambas posiciones); 2 tests del
+  dominio en rojo tras el fix (assertaban URI). GREEN: CDR 0 "La Factura
+  numero F001-00000013, ha sido aceptada"; domain-fiscal-pe 162/162 con
+  asserts del shape validado por SUNAT; worker-api 1364/1364; adapters-d1
+  442/442; RESULT SUITE GREEN; material de firma en tmp-staff (gitignored,
+  verificado con git check-ignore).
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
