@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { claimBadge, resolveClaim } from '../claims/registry.js';
-import { allCompares, COMPETITOR_SLUGS, compareDisclaimer, getCompare } from './compare.js';
+import {
+  allCompares,
+  COMPARE_ROWS,
+  COMPETITOR_SLUGS,
+  compareDisclaimer,
+  getCompare,
+} from './compare.js';
 import { HOME } from './home.js';
 import { allVerticals, getVertical, otherVerticals, VERTICAL_SLUGS } from './verticals.js';
 
@@ -135,9 +141,9 @@ describe('landings verticales — contenido de rubro', () => {
     }
   });
 
-  it('FAQ de rubro: preguntas reales y respuestas que no prometen de más', () => {
+  it('FAQ de rubro: exactamente 5 preguntas operativas por cada vertical (total 25)', () => {
     for (const v of allVerticals()) {
-      expect(v.faq.length).toBeGreaterThanOrEqual(3);
+      expect(v.faq).toHaveLength(5);
       for (const f of v.faq) {
         expect(f.q).toMatch(/^¿/);
         expect(f.a.length).toBeGreaterThan(30);
@@ -174,14 +180,35 @@ describe('landings verticales — contenido de rubro', () => {
 });
 
 describe('comparativas — diferenciadas y defendibles', () => {
-  it('cada competidor trae gancho, razones, filas propias y FAQ', () => {
+  it('COMPARE_ROWS contiene 8 filas clave de diferenciación', () => {
+    expect(COMPARE_ROWS).toHaveLength(8);
+    const expectedLabels = [
+      'Cobro continuo en hora punta',
+      'Equipos y hardware',
+      'Puesta en marcha y migración',
+      'Modo Dueño en el celular',
+      'Emisión SUNAT automática',
+      'Actualizaciones de sistema',
+      'Curva de aprendizaje del cajero',
+      'Soporte y atención',
+    ];
+    for (const label of expectedLabels) {
+      const row = COMPARE_ROWS.find((r) => r.label === label);
+      expect(row, `Fila "${label}" debe existir`).toBeDefined();
+      expect(row!.reported.length).toBeGreaterThan(10);
+      expect(row!.kipus.length).toBeGreaterThan(10);
+    }
+  });
+
+  it('cada competidor trae gancho, razones, filas propias y 6 FAQs', () => {
     for (const c of allCompares()) {
       expect(c.hook.length).toBeGreaterThan(15);
       expect(c.whyMigrate).toHaveLength(3);
       expect(c.rows.length).toBeGreaterThanOrEqual(2);
-      expect(c.faq.length).toBeGreaterThanOrEqual(3);
+      expect(c.faq).toHaveLength(6);
       for (const f of c.faq) {
         expect(f.q).toMatch(/^¿/);
+        expect(f.a.length).toBeGreaterThan(25);
       }
     }
   });

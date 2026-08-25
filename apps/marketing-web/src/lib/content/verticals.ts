@@ -44,6 +44,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         q: '¿Necesito una impresora especial?',
         a: 'No. Empiezas con el comprobante digital y conectas la impresora térmica después; nunca bloquea el cobro.',
       },
+      {
+        q: '¿Puedo dividir cuentas entre varios clientes en una misma mesa?',
+        a: 'Sí. Puedes separar consumos o cobrar partes iguales con distintos medios de pago (efectivo, tarjeta o billetera digital) emitiendo el comprobante correspondiente para cada comensal.',
+      },
+      {
+        q: '¿Cómo controlo las recetas y el consumo de insumos en cocina?',
+        a: 'Puedes vincular los platos de tu carta a sus insumos principales, de modo que cada venta descuente automáticamente las porciones y alerten cuando sea momento de reponer en almacén.',
+      },
     ],
     checkout: {
       documentLabel: 'Boleta electrónica',
@@ -101,6 +109,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         q: '¿Cuánto demora cargar mi catálogo?',
         a: 'Puedes importarlo desde un archivo CSV y cobrar el mismo día.',
+      },
+      {
+        q: '¿Puedo buscar medicamentos por principio activo o laboratorio?',
+        a: 'Sí. El buscador inteligente del mostrador te permite encontrar medicamentos por nombre comercial, principio activo, concentración o laboratorio en milisegundos.',
+      },
+      {
+        q: '¿Cómo manejo la venta de pastillas por caja, blíster o unidad suelta?',
+        a: 'Configuras factores de fracción exactos: el sistema descuenta las unidades individuales del inventario total y calcula el precio por fracción automáticamente sin descuadres.',
       },
     ],
     checkout: {
@@ -160,6 +176,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         q: '¿Puedo usarlo en la computadora que ya tengo?',
         a: 'Sí. Funciona en la tablet, el celular o la computadora que ya tienes, sin instalador.',
       },
+      {
+        q: '¿Es compatible con pistolas lectoras de código de barras?',
+        a: 'Sí. Cualquier lector de código de barras USB o Bluetooth funciona de inmediato al conectarlo, permitiendo un cobro ágil y continuo en mostrador.',
+      },
+      {
+        q: '¿Puedo vender por peso conectando una balanza digital?',
+        a: 'Sí. Puedes conectar una balanza digital compatible para lectura automática del peso o ingresar el peso manualmente en pantalla con cálculo instantáneo del precio total.',
+      },
     ],
     checkout: {
       documentLabel: 'Nota de venta',
@@ -218,6 +242,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         q: '¿Y si todavía no estoy formalizado?',
         a: 'Empiezas con nota de venta de control interno y activas facturación desde Configuración, sin perder historial.',
       },
+      {
+        q: '¿Puedo emitir cotizaciones antes de confirmar el trabajo?',
+        a: 'Sí. Creas una cotización con los servicios presupuestados y, cuando el cliente aprueba, la conviertes en comprobante de pago en un solo toque sin redigitar.',
+      },
+      {
+        q: '¿Puedo registrar anticipos o pagos en cuotas por servicios realizados?',
+        a: 'Sí. Puedes registrar abonos parciales, controlar el saldo pendiente de cada cliente y emitir el comprobante correspondiente con total transparencia.',
+      },
     ],
     checkout: {
       documentLabel: 'Factura electrónica',
@@ -274,6 +306,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         q: '¿Y las transferencias entre locales?',
         a: 'Sí: registras transferencias de mercadería y control de merma entre tus sucursales con trazabilidad completa.',
+      },
+      {
+        q: '¿Cómo controlo las compras y recepciones en almacén central?',
+        a: 'Puedes generar órdenes de compra, registrar recepciones parciales o totales de mercadería y cotejar contra la factura del proveedor antes de autorizar el pago.',
+      },
+      {
+        q: '¿Puedo asignar permisos diferenciados para administradores y cajeros?',
+        a: 'Sí. Defines roles con permisos específicos: los cajeros solo operan su turno de venta, mientras que los administradores y dueños acceden a reportes y transferencias.',
       },
     ],
     checkout: {

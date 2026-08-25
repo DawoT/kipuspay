@@ -28,17 +28,35 @@
     {
       id: 'restaurante',
       label: 'Restaurante',
-      highlightLabels: ['Continuidad operativa', 'Puesta en marcha', 'Empezar a usarlo'],
+      highlightLabels: [
+        'Cobro continuo en hora punta',
+        'Puesta en marcha y migración',
+        'Curva de aprendizaje del cajero',
+        'Empezar a usarlo',
+        'Experiencia en mostrador',
+      ],
     },
     {
       id: 'tienda',
       label: 'Tienda',
-      highlightLabels: ['Continuidad operativa', 'Control del negocio', 'Equipo necesario'],
+      highlightLabels: [
+        'Cobro continuo en hora punta',
+        'Modo Dueño en el celular',
+        'Equipos y hardware',
+        'Equipo necesario',
+        'Enfoque principal',
+      ],
     },
     {
       id: 'servicios',
       label: 'Servicios',
-      highlightLabels: ['Puesta en marcha', 'Facturación SUNAT', 'Curva de aprendizaje'],
+      highlightLabels: [
+        'Puesta en marcha y migración',
+        'Emisión SUNAT automática',
+        'Curva de aprendizaje del cajero',
+        'Curva de aprendizaje',
+        'Configuración inicial',
+      ],
     },
   ] as const;
 

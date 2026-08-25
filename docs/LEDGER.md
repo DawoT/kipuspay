@@ -14015,3 +14015,36 @@ aprobaciones: [Staff Editorial Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0489
+timestamp_utc: 2026-08-25T21:42:00Z
+schema_version: 2
+sprint_fase: Fase A — Enriquecimiento y Densidad de Contenido (Ayuda, Comparativas, Verticales)
+agente_responsable: Staff Content Enrichment Implementer / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Consolidación y Ampliación de FAQs, Periféricos y Diferenciación Competitiva
+relacion: amplia
+referencias_entradas: [0488]
+referencias_documentales: [apps/marketing-web/src/lib/content/help.ts, apps/marketing-web/src/lib/content/compare.ts, apps/marketing-web/src/lib/content/verticals.ts, apps/marketing-web/src/routes/comparar/+page.svelte]
+prev_id: 0488
+prev_hash: 46c7ff88827ca7be56e0b584179206532e66111982ec7c12ae8561aeab599102
+entry_hash: b7b25df428d6bd858c9c2f26f1249195aa05318ac6b048969bc4da35878c149c
+ticket_or_adr: GTM-01; GTM-05; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/content/help.test.ts, apps/marketing-web/src/lib/content/content.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/content/help.ts; apps/marketing-web/src/lib/content/compare.ts; apps/marketing-web/src/lib/content/verticals.ts; apps/marketing-web/src/routes/comparar/+page.svelte
+descripcion: >
+  Enriquecimiento exhaustivo de contenido y resolución de dudas operativas del comerciante peruano:
+  (1) Centro de Ayuda (help.ts): reorganizado en 6 categorías con 45 preguntas frecuentes operativas, cubriendo hardware compatible (impresoras térmicas 58/80mm Bluetooth/USB/Red, gavetas RJ11, balanzas digitales, lectores de código de barras 1D/2D) y exportación contable a SIRE/Concar.
+  (2) Matriz Comparativa (compare.ts): expandida a 8 filas universales de diferenciación y 6 FAQs específicas por competidor (Bsale, Alegra, Siigo) para resolver dudas de migración de catálogo, importador CSV y certificados digitales.
+  (3) Verticales de Negocio (verticals.ts): ampliadas a 5 FAQs operativas de alto impacto por rubro (25 FAQs totales) para Restaurantes, Farmacias, Retail, Servicios y Cadenas.
+  (4) Actualización de tabs de categoría en comparar/+page.svelte y tests unitarios en help.test.ts y content.test.ts.
+evidencia: >
+  Marketing Web Vitest: 41 test files, 243 tests pasando al 100% (97.5% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 286.4 kB (< 300 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Content Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
