@@ -114,10 +114,11 @@ describe('UBL SummaryDocuments RC', () => {
     expect(xml).toContain('<cbc:ID schemeID="1">10715001701</cbc:ID>');
   });
 
-  it('H1 E2E: línea ND (08) — BillingReference opt-in (e-beta 0306: schema restringido lo rechaza tras cbc:ID)', () => {
-    // Default OFF: forma validada por e-beta (RC-20260824-001 CDR 0 sin BR;
-    // RC-20260825-002 con BR tras ID → CDR 0306 cvc-particle). El XSD oficial
-    // SUNAT sí lo ubica tras cbc:ID — canal producción usa billingReference:true.
+  it('H1 E2E: línea ND (08) — BillingReference DIRECTO obligatorio (e-beta 2583 exige tipo doc que modifica; 0306 rechazó el wrapper InvoiceDocumentReference)', () => {
+    // Evidencia runtime 2026-08-25: sin BR → CDR 2583 ("si tipo de
+    // comprobante es nota, debe existir informacion del tipo de documento que
+    // modifica"); con wrapper cac:InvoiceDocumentReference → CDR 0306. La
+    // forma e-beta validada es directa: cbc:InvoiceTypeCode + cbc:ID hijos.
     const xmlDefault = buildUblSummaryDocumentsXml({
       ...summary(),
       lines: [
@@ -136,35 +137,13 @@ describe('UBL SummaryDocuments RC', () => {
         },
       ],
     });
-    expect(xmlDefault).not.toContain('<cac:BillingReference>');
-    const xmlOn = buildUblSummaryDocumentsXml({
-      ...summary(),
-      lines: [
-        {
-          lineId: 1,
-          documentType: '08' as const,
-          documentId: 'B001-00000001',
-          customerDocType: '1',
-          customerDocNumber: '10715001701',
-          conditionCode: '1' as const,
-          totalTaxableCents: 10,
-          totalIgvCents: 0,
-          totalAmountCents: 10,
-          referencedDocId: 'B001-00000006',
-          referencedDocTypeCode: '03' as const,
-          billingReference: true,
-        },
-      ],
-    });
-    const refIdx = xmlOn.indexOf('<cac:BillingReference>');
-    const idIdx = xmlOn.indexOf('<cbc:ID>B001-00000001</cbc:ID>');
-    const partyIdx = xmlOn.indexOf('<cac:AccountingCustomerParty>');
-    expect(refIdx).toBeGreaterThan(idIdx);
-    expect(partyIdx).toBeGreaterThan(refIdx);
-    expect(xmlOn).toContain(
-      '<cac:InvoiceDocumentReference><cbc:ID>B001-00000006</cbc:ID>' +
-        '<cbc:DocumentTypeCode>03</cbc:DocumentTypeCode></cac:InvoiceDocumentReference>',
+    expect(xmlDefault).toContain('<cac:InvoiceDocumentReference><cbc:ID>B001-00000006</cbc:ID>');
+    expect(xmlDefault).toContain(
+      '<cbc:DocumentTypeCode>03</cbc:DocumentTypeCode></cac:InvoiceDocumentReference>',
     );
+    // Orden canónico SummaryDocumentsLine: BillingReference TRAS el party.
+    const partyClose = xmlDefault.indexOf('</cac:AccountingCustomerParty>');
+    expect(xmlDefault.indexOf('<cac:BillingReference>')).toBeGreaterThan(partyClose);
   });
 
   it('boleta sin referencia no emite BillingReference', () => {

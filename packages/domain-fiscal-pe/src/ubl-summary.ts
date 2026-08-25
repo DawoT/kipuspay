@@ -83,22 +83,25 @@ export function buildUblSummaryDocumentsXml(input: UblSummaryDocumentsInput): st
     .map((line) => {
       const taxable = Math.max(0, line.totalTaxableCents);
       const scheme = taxSchemeFor(line.igvAffectationCode);
-      // Nota (07/08) sobre CPE: referencia al documento afectado. Opt-in:
-      // e-beta (schema restringido) rechaza el nodo tras cbc:ID (0306).
+      // Nota (07/08) sobre CPE: referencia al documento afectado — OBLIGATORIA
+      // para notas (e-beta CDR 2583). Forma canónica: wrapper
+      // cac:InvoiceDocumentReference (cbc:ID + cbc:DocumentTypeCode),
+      // posicionada TRAS cac:AccountingCustomerParty (orden del
+      // SummaryDocumentsLine; antes del party → CDR 0306 posicional).
       const billingReference =
-        line.referencedDocId && line.billingReference
+        line.referencedDocId && line.referencedDocTypeCode
           ? `
     <cac:BillingReference>
       <cac:InvoiceDocumentReference><cbc:ID>${escapeXml(line.referencedDocId)}</cbc:ID><cbc:DocumentTypeCode>${escapeXml(
-          line.referencedDocTypeCode ?? '03',
-        )}</cbc:DocumentTypeCode></cac:InvoiceDocumentReference>
+        line.referencedDocTypeCode,
+      )}</cbc:DocumentTypeCode></cac:InvoiceDocumentReference>
     </cac:BillingReference>`
           : '';
       return `
   <sac:SummaryDocumentsLine>
     <cbc:LineID>${line.lineId}</cbc:LineID>
     <cbc:DocumentTypeCode>${line.documentType}</cbc:DocumentTypeCode>
-    <cbc:ID>${escapeXml(line.documentId)}</cbc:ID>${billingReference}
+    <cbc:ID>${escapeXml(line.documentId)}</cbc:ID>
     <cac:AccountingCustomerParty>
       <cbc:CustomerAssignedAccountID>${escapeXml(line.customerDocNumber)}</cbc:CustomerAssignedAccountID>
       <cbc:AdditionalAccountID>${escapeXml(line.customerDocType)}</cbc:AdditionalAccountID>
@@ -107,7 +110,7 @@ export function buildUblSummaryDocumentsXml(input: UblSummaryDocumentsInput): st
           <cbc:ID schemeID="${escapeXml(line.customerDocType)}">${escapeXml(line.customerDocNumber)}</cbc:ID>
         </cac:PartyIdentification>
       </cac:Party>
-    </cac:AccountingCustomerParty>
+    </cac:AccountingCustomerParty>${billingReference}
     <cac:Status>
       <cbc:ConditionCode>${line.conditionCode}</cbc:ConditionCode>
     </cac:Status>
