@@ -13290,3 +13290,55 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0472
+timestamp_utc: 2026-08-25T00:30:00Z
+schema_version: 2
+sprint_fase: FL-2 — canal producción preparado (decisión owner: emisión directa)
+agente_responsable: Staff Principal (ejecución: kipus-fiscal ×2; auditoría: Staff Principal)
+tipo: Preparación de canal de producción + runbook operativo
+subtipo: canal dual SUNAT + onboarding fiscal por negocio
+relacion: amplia
+referencias_entradas: [0471]
+referencias_documentales: [docs/runbooks/fiscal-onboarding-tenant.md]
+prev_id: 0471
+prev_hash: a30bf198323069990c906c4c939a4d9859af5f183bcf71bdbb840f4827945d43
+entry_hash: 6e89cea4d86323b443dd333f2144a0528d2b1b3fcc604bfb687ff9df56a5c18a
+ticket_or_adr: FL-2; decisión owner emisión directa (PSE a futuro)
+test_ids: [packages/adapters-sunat/src/sunat-channel.test.ts, packages/adapters-sunat/src/select-transport.test.ts]
+entregable_afectado: packages/adapters-sunat/src/sunat-channel.ts; packages/adapters-sunat/src/select-transport.ts; docs/runbooks/fiscal-onboarding-tenant.md
+descripcion: >
+  Decisión del owner registrada: emisión directa por negocio (cada RUC con su
+  certificado + SOL) ahora; PSE homologado a futuro. (1) Canal dual
+  fail-closed: sunat-channel.ts (regla única DRY) — SUNAT_BILL_CHANNEL
+  staging→e-beta default / production→SOLO la URL oficial
+  https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService (allowlist
+  exacta, verificada contra SUNAT/Greenter/WSDL vivo — el brief decía
+  e-fact, el agente corrigió con 3 fuentes). Errores tipados antes de
+  encolar: SUNAT_CHANNEL_INVALID, SUNAT_PRODUCTION_PLUGINS_OFF,
+  SUNAT_PRODUCTION_SOL_MISSING (sin fallback a PSE tercero ni mock),
+  SUNAT_PRODUCTION_ENDPOINT_FORBIDDEN. Enforcement en capas (adaptador
+  fail-closed aunque un caller se salte el selector). 24 tests nuevos.
+  (2) Runbook de onboarding fiscal por negocio
+  (docs/runbooks/fiscal-onboarding-tenant.md): prerrequisitos humanos,
+  provisioning técnico con comandos verificados contra el código real
+  (extract-cdt-p12.sh, wrap-tenant-cert.mjs, tenant-cert-upload-routes,
+  migración 0056), cutover con checklist, seguridad/rotación/revocación, y
+  sección futuro-PSE (pse_mode + alias PSE_PLATFORM ya previsto en CHECK
+  0056 — sin forks). 6 gaps de automatización registrados (SOL por worker
+  vs por tenant, alta de tenant copy-paste, validación p12 pre-upload,
+  alerta de vencimiento de cert, conversión manual de fechas, ubicación
+  autoritativa de secrets SOL).
+evidencia: >
+  RED: URL beta hardcodeada; override SUNAT_BILL_ENDPOINT_URL aceptado a
+  ciegas (producción apuntando a .invalid no producía error); URL prod no
+  existía. GREEN: adapters-sunat 55/55; worker-fiscal 57/57; worker-api
+  fiscal+auth 551/551; V-13 dual GREEN (staff 0025); RESULT SUITE GREEN;
+  auditoría del supervisor: allowlist/errores/runbook verificados por
+  lectura, suites re-ejecutadas.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
