@@ -150,10 +150,10 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
     if (parsed.statusContentB64 && (parsed.statusCode === '0' || parsed.statusCode === '00')) {
       return outcomeFromZipB64(parsed.statusContentB64);
     }
-    if (parsed.statusCode === '98') return { kind: 'unreachable' };
     if (followTicket && parsed.ticket) {
       return queryStatus(parsed.ticket);
     }
+    if (parsed.statusCode === '98') return { kind: 'unreachable' };
     if (isSoapFaultBusiness(parsed)) {
       return outcomeFromSoapFault(parsed);
     }

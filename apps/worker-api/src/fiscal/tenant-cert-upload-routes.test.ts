@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { WorkerEnv } from '../auth/control-plane.js';
@@ -17,8 +17,23 @@ function cdtSubject(ruc: string, usoTributario = true): string {
 }
 
 const p12Cache = new Map<string, string>();
+let sharedRsaKeyPem: string | null = null;
 
-/** Un PKCS#12 por spec (openssl genrsa bajo suite paralelo suele pasar de 5s). */
+function getSharedRsaKeyPem(): string {
+  if (!sharedRsaKeyPem) {
+    const dir = mkdtempSync(join(tmpdir(), 'kp-rsa-'));
+    const keyPath = join(dir, 'k.pem');
+    try {
+      execFileSync('openssl', ['genrsa', '-out', keyPath, '2048'], { stdio: 'pipe' });
+      sharedRsaKeyPem = readFileSync(keyPath, 'utf8');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  return sharedRsaKeyPem;
+}
+
+/** Un PKCS#12 por spec (reutiliza llave RSA compartida para evitar lentitud bajo carga). */
 function makeP12B64(subj: string, validity?: { notBefore?: string; notAfter?: string }): string {
   const cacheKey = `${subj}|${validity?.notBefore ?? ''}|${validity?.notAfter ?? ''}`;
   const cached = p12Cache.get(cacheKey);
@@ -28,7 +43,7 @@ function makeP12B64(subj: string, validity?: { notBefore?: string; notAfter?: st
     const key = join(dir, 'k.pem');
     const cert = join(dir, 'c.pem');
     const p12 = join(dir, 't.p12');
-    execFileSync('openssl', ['genrsa', '-out', key, '2048'], { stdio: 'pipe' });
+    writeFileSync(key, getSharedRsaKeyPem(), 'utf8');
     const reqArgs = ['req', '-new', '-x509', '-key', key, '-out', cert];
     if (validity?.notAfter) {
       reqArgs.push('-not_before', validity.notBefore ?? '20260101000000Z');

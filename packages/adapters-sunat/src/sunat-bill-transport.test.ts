@@ -383,6 +383,40 @@ describe('createSunatBillTransport', () => {
     expect(actions[1]).toBe('urn:getStatus');
   });
 
+  it('sendSummary con ticket y statusCode 98 → invoca getStatus (no unreachable prematuro)', async () => {
+    const actions: string[] = [];
+    const soapWithTicketAndStatus98 =
+      `<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+      `<soap:Body><ns2:sendSummaryResponse xmlns:ns2="http://service.sunat.gob.pe">` +
+      `<ticket>ticket-rc-98</ticket>` +
+      `<statusCode>98</statusCode>` +
+      `</ns2:sendSummaryResponse></soap:Body></soap:Envelope>`;
+
+    const transport = createSunatBillTransport({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: (_url, init) => {
+        const headers = new Headers(init?.headers);
+        actions.push(headers.get('SOAPAction') ?? '');
+        if (actions.length === 1) {
+          return Promise.resolve(new Response(soapWithTicketAndStatus98, { status: 200 }));
+        }
+        return Promise.resolve(new Response(soapGetStatus('0', 'RC aceptado'), { status: 200 }));
+      },
+    });
+
+    const outcome = await transport.submit({
+      tenantId: 't',
+      saleId: 'sum-1',
+      xml: '<DailySummary date="2026-08-21" tickets="1"/>',
+      xmlHash: 'h',
+      documentType: '03',
+    });
+
+    expect(actions).toEqual(['urn:sendSummary', 'urn:getStatus']);
+    expect(outcome.kind).toBe('accepted');
+  });
+
   it('network error → unreachable', async () => {
     const transport = createSunatBillTransport({
       solUser: SOL_USER,

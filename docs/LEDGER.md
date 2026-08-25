@@ -13677,3 +13677,42 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0480
+timestamp_utc: 2026-08-25T16:15:00Z
+schema_version: 2
+sprint_fase: Fix deuda transporte SUNAT — orden ticket/statusCode 98 + optimización fixture CDT
+agente_responsable: Staff Principal (@DawoT)
+tipo: Refactor / Fix de transporte fiscal
+subtipo: classifyBody evalúa followTicket antes de statusCode 98 (FINDING-H1-3 remediado)
+relacion: amplia
+referencias_entradas: [0478, 0479]
+referencias_documentales: [packages/adapters-sunat/src/sunat-bill-transport.ts, packages/adapters-sunat/src/sunat-bill-transport.test.ts, apps/worker-api/src/fiscal/tenant-cert-upload-routes.test.ts]
+prev_id: 0479
+prev_hash: fb4e621290ebfd120817273d3cba7dc36fe8497ac5dd426178209930dc902e03
+entry_hash: e7832091018085eac4061fd681e42e891537de2fdd44aac7d337f2c453c14986
+ticket_or_adr: FINDING-H1-3; ADR-FISCAL-007; SEC-03
+test_ids: [packages/adapters-sunat/src/sunat-bill-transport.test.ts, apps/worker-api/src/fiscal/tenant-cert-upload-routes.test.ts]
+entregable_afectado: packages/adapters-sunat/src/sunat-bill-transport.ts; packages/adapters-sunat/src/sunat-bill-transport.test.ts; apps/worker-api/src/fiscal/tenant-cert-upload-routes.test.ts
+descripcion: >
+  Remediación completa de la deuda técnica de transporte SUNAT registrada en
+  FINDING-H1-3 (LEDGER 0478): classifyBody evaluaba parsed.statusCode 98
+  antes de followTicket con ticket, provocando retornos prematuros
+  unreachable sobre respuestas sendSummary que incluían ticket con status 98,
+  dejando envíos opacos sin invocar getStatus. Con el fix, followTicket se evalúa
+  primero, permitiendo que queryStatus consulte el ticket normalmente.
+  Adicionalmente: (1) se optimizó makeP12B64 en tenant-cert-upload-routes.test.ts
+  reutilizando llave RSA 2048 compartida, eliminando flakiness/demoras de CPU bajo
+  carga concurrente; (2) se eliminaron 13 worktrees huérfanos stale y sus 27 ramas
+  locales en tmp-staff/wt-US-*.
+evidencia: >
+  RED: sunat-bill-transport.test.ts fallaba con AssertionError en sendSummary
+  con ticket y statusCode 98. GREEN: adapters-sunat 56/56 tests passing;
+  worker-api tenant-cert-upload-routes 6/6 passing en 1.15s; pnpm test 47/47 tasks
+  GREEN; scripts/verify.sh RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Principal (@DawoT)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
