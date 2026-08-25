@@ -13938,3 +13938,45 @@ aprobaciones: [Staff Copy Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0487
+timestamp_utc: 2026-08-25T20:15:00Z
+schema_version: 2
+sprint_fase: S11 — Login tenant hydration + Pages redeploy S11
+agente_responsable: Staff Principal (ejecución: kipus-pos + kipus-sre; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Login tenant UX fail-closed + Deploy Pages CertificateManager
+relacion: corrige
+referencias_entradas: [0486]
+referencias_documentales: [apps/pos-web/src/lib/auth/login-tenant.ts, apps/pos-web/src/routes/login/+page.svelte, apps/pos-web/src/lib/fiscal/CertificateManager.svelte]
+prev_id: 0486
+prev_hash: 2e1024d03b17b641cf8865bbd6f9154e4510a385557a95d97820b61b283488cc
+entry_hash: d302cfb051a8f420fa4c05b8a2ee8ddfae87678fef3591c74aef441f346387e3
+ticket_or_adr: S11; V-27; V-30
+test_ids: [apps/pos-web/src/lib/auth/login-tenant.test.ts, apps/pos-web/src/lib/fiscal/CertificateManager.svelte, V-27, V-30, SUITE]
+entregable_afectado: apps/pos-web/src/lib/auth/login-tenant.ts §resolveLoginTenantId; apps/pos-web/src/routes/login/+page.svelte §tenant hydration; apps/pos-web/.svelte-kit/cloudflare (Pages deploy)
+descripcion: >
+  Cierre S11 por UI real. Login enviaba tenantId:"" silencioso cuando
+  sessionStorage vacío → 401 genérico. Fix: helper resolveLoginTenantId
+  puro con orden sessionStorage kipuspay.pos.tenant.v1 → ?tenant= → 
+  localStorage kipuspay_tenant_id, filtra vacíos/demo, fail-closed con
+  mensaje MISSING_TENANT_MESSAGE en español de negocio (V-27) sin exponer ID
+  crudo; nunca fetchea con "". Hydratación al montar + re-resolución en
+  onSubmit. Deploy Pages staging con CertificateManager.svelte HEAD (4 estados
+  semáforo, preflight WebCrypto zero-dep) — staging servía JS inline viejo sin
+  cert-traffic-light; build+deploy Pages llevó hash a1ed... con 2 hits
+  cert-traffic-light verificados post-deploy. Login E2E staging verificado
+  vía playwright: sin tenant muestra ayuda y no envía, con tenant resuelve
+  correctamente.
+evidencia: >
+  RED: login sin tenant → 401 tenantId:"" silencioso; staging bundle sin
+  cert-traffic-light. GREEN: login-tenant 12/12 + pos-web 480/480 (91 files);
+  staging bundle a1ed... con 2 hits cert-traffic-light post-deploy;
+  login E2E playwright 200 JWT owner con tenant; V-27 GREEN (53 rutas),
+  V-30 GREEN (158 archivos), SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Pos, Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

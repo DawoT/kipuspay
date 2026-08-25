@@ -1764,3 +1764,34 @@ aprobaciones: [Staff QA, Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0039
+timestamp_utc: 2026-08-25T20:20:00Z
+schema_version: 2
+sprint_fase: S11 — Fix login tenant hydration + verificación Pages
+agente_responsable: Staff Principal (ejecución: kipus-pos + kipus-sre; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Login tenant fail-closed + Deploy Pages verificado
+relacion: corrige
+referencias_entradas: [0038]
+referencias_documentales: [apps/pos-web/src/lib/auth/login-tenant.ts, apps/pos-web/src/routes/login/+page.svelte]
+prev_id: 0038
+prev_hash: 77b30621dd0c1570b4aeff16e27401316630c9953732343405f4046ad3311097
+entry_hash: 8c414eeaa715dac6cbba830d2f76656437cdccc904bc52ca7ba698dd253392d9
+ticket_or_adr: S11; V-27; V-30
+test_ids: [apps/pos-web/src/lib/auth/login-tenant.test.ts, SUITE]
+entregable_afectado: apps/pos-web/src/lib/auth/login-tenant.ts; apps/pos-web/src/routes/login/+page.svelte
+descripcion: >
+  Auditoría del ciclo S11: login enviaba tenant vacío y staging Pages
+  desactualizado. Fix login con helper puro y mensaje de negocio; deploy
+  Pages con CertificateManager verificado post-deploy (hash a1ed...).
+evidencia: >
+  RED: login 401 tenantId:"" silencioso; staging sin cert-traffic-light.
+  GREEN: 480/480 pos-web, bundle a1ed... con 2 hits, V-27/V-30 GREEN,
+  SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Pos, Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

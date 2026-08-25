@@ -15,7 +15,7 @@ for (const v of VERTICALS) {
   test(`vertical ${v.slug}: landing con claims y sin jerga técnica`, async ({ page }) => {
     await page.goto(`/para/${v.slug}`);
     await expect(page).toHaveTitle(v.title);
-    await expect(page.getByText(/Empieza gratis/).first()).toBeVisible();
+    await expect(page.getByText(/Probar gratis|Empieza gratis/).first()).toBeVisible();
     await expect(page.locator('main')).not.toContainText(
       /\b(?:Edge|Workers|D1|ACID|CDR|UBL|PSE)\b/i,
     );

@@ -16,23 +16,23 @@ owner: "@DawoT"
 
 ## 1. Propuesta de Valor — Una Sola Frase
 
-**"El único POS que no se cae contigo."**
+**"Atiende más rápido, factura en automático y controla tu negocio desde el celular."**
 
-Frase de respaldo (para contextos donde se necesite más de 6 palabras): *"Vende, cobra y emite boletas aunque se corte la luz, el internet, o sea tu día de más gente en la tienda."*
+Frase de respaldo (para contextos donde se necesite mayor extensión): *"La solución completa de caja y facturación electrónica para el comercio peruano: cobra en segundos con cualquier medio de pago, emite comprobantes a SUNAT sin complicaciones y mira tus ventas y ganancias en tiempo real con Modo Dueño. Todo en orden, sin colas y listo en 5 minutos."*
 
-Esta propuesta de valor está diseñada para funcionar igual de bien en la boca de un vendedor telefónico, en un titular de landing page, y en un anuncio de Facebook de 15 segundos — porque no depende de que el cliente entienda tecnología. Depende de que reconozca un dolor que ya vivió: el sistema lento en hora punta, la venta que se perdió porque "se cayó el internet", el descuadre de caja que nadie puede explicar a fin de mes.
+Esta propuesta de valor está diseñada para conectar directamente con las motivaciones reales del comerciante peruano (bodegas, restaurantes, minimarkets, ferreterías, farmacias, servicios): velocidad en mostrador, delegación confiable con Modo Dueño, tranquilidad tributaria ante SUNAT y fluidez continua en todo momento.
 
-### 1.1 Los Tres Dolores que KipusPay Vende (no las tres features que KipusPay tiene)
+### 1.1 Los Tres Motores de Valor Real (Beneficios Tangibles de KipusPay)
 
-Todo el frontend, todo el copy y todo el pricing de KipusPay se organiza alrededor de tres dolores universales de cualquier negocio con caja registradora — desde una farmacia de barrio hasta una cadena de 40 locales:
+Todo el frontend, todo el copy y todo el pricing de KipusPay se organiza alrededor de tres motores de crecimiento y tranquilidad del negocio:
 
-| Dolor del dueño de negocio | Lo que siente | Lo que KipusPay resuelve | Frase de venta |
+| Motor de Valor | Lo que el comerciante busca | Lo que KipusPay entrega | Frase de venta |
 |---|---|---|---|
-| **"Se me llenó la cola y el sistema no aguantó"** | Vergüenza frente al cliente, ventas perdidas por gente que se va | Responde igual de rápido en la venta 1 que en la venta 10,000 | *"Despide a las colas. Atiende al triple sin que se ponga lento."* |
-| **"Se cortó el internet y tuve que cerrar la caja"** | Impotencia, pérdida de ingresos en horas pico que no vuelven | Sigue vendiendo, cobrando e imprimiendo sin conexión; sincroniza solo al volver la señal | *"El internet caído dejó de ser excusa para cerrar la caja."* |
-| **"No sé por qué la caja no cuadra"** | Sospecha sobre el personal, horas perdidas cuadrando planillas a mano | Cada sol y cada unidad de stock queda registrado exacto, sin huecos ni ventas "fantasma" | *"Cada sol cuadra. Siempre."* |
+| **1. Velocidad y agilidad en caja** | Atender rápido en hora punta sin que se formen colas ni se vayan clientes | Cobro ultrarrápido en un toque con efectivo, tarjetas y Yape/Plin; pantalla táctil intuitiva | *"Atención ágil en segundos: Cero colas en tu hora punta."* |
+| **2. Continuidad y fluidez total** | Que su mostrador nunca se detenga bajo ninguna circunstancia | Operación fluida y estable continua; sincronización automática en segundo plano | *"Venta asegurada: Tu mostrador funciona con total fluidez, siempre."* |
+| **3. Cuentas claras y Modo Dueño** | Saber exactamente cuánto vende y gana desde su celular, con SUNAT al día | Arqueos automáticos en un clic, control de stock y emisión legal ante SUNAT | *"Cuentas claras y tranquilidad total: Cada sol en su lugar."* |
 
-Nótese lo que NO aparece en esta tabla: sharding, Edge, latencia, arquitectura, transacciones ACID, D1, Workers. Ese vocabulario vive exclusivamente en el documento técnico interno. En todo material de cara al cliente, la regla es simple: **si el dueño de la ferretería no lo diría en una conversación con su contador, no va en la landing.**
+Nótese lo que NO aparece en esta tabla: jerga técnica interna de infraestructura (D1, Workers, Edge, ACID, CDR, UBL, PSE) ni encuadres defensivos o clínicos (prohibido el uso de la palabra "dolor" en UI, "no se cae", "robo hormiga" o "descuadres inexplicables"). En todo material de cara al cliente, la regla es: **comunicar empoderamiento, velocidad, control y tranquilidad en un lenguaje cercano, profesional y transparente.**
 
 ---
 

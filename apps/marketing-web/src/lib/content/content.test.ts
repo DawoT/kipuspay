@@ -44,7 +44,7 @@ describe('home — arco narrativo GTM §5', () => {
   });
 
   it('sección ledger (5.5): cada sol cuadra', () => {
-    expect(HOME.ledger.headline).toContain('descuadre');
+    expect(HOME.ledger.headline).toMatch(/financiero|sol a sol/i);
     expect(HOME.ledger.points).toHaveLength(3);
   });
 
@@ -80,7 +80,7 @@ describe('home — arco narrativo GTM §5', () => {
 
   it('CTA final (5.10)', () => {
     expect(HOME.finalCta.headline).toContain('KipusPay');
-    expect(HOME.finalCta.cta).toMatch(/Empieza/);
+    expect(HOME.finalCta.cta).toMatch(/Probar gratis|Empieza/);
     expect(HOME.finalCta.microcopy).toMatch(/30 días/);
   });
 });

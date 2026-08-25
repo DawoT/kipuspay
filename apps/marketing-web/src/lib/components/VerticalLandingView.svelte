@@ -32,7 +32,7 @@
         <h1>{landing.hook}</h1>
         <p class="hero-sub">{landing.pain}</p>
         <div class="hero-actions">
-          <a class="btn" href="/empezar">Empieza gratis</a>
+          <a class="btn" href="/empezar">Probar gratis ahora</a>
           <a class="btn btn-ghost" href="#destacado">Ver detalle</a>
         </div>
       </div>
@@ -75,9 +75,9 @@
         <div class="sec-head" use:reveal>
           <p class="eyebrow">
             <span class="knot-dot" aria-hidden="true"></span>
-            Lo que escuchamos en tu rubro
+            Realidad de tu mostrador
           </p>
-          <h2>Si esto te suena, ya sabemos por qué viniste.</h2>
+          <h2>Respuestas concretas a los desafíos de tu rubro</h2>
         </div>
         <div class="pain-grid editorial-pains">
           {#each landing.pains as item, i (item.pain)}
@@ -221,7 +221,7 @@
       </p>
       <p class="cta-brand">Tu rubro merece una caja que no se cae.</p>
       <div class="cta-row" style="margin-top: 1.6rem;">
-        <a class="btn" href="/empezar">Empieza gratis</a>
+        <a class="btn" href="/empezar">Probar gratis ahora</a>
         <a class="btn btn-ghost" href="/precios">Ver planes</a>
       </div>
 
@@ -241,5 +241,5 @@
     </div>
   </section>
 
-  <a class="btn btn-sticky" href="/empezar">Empieza gratis</a>
+  <a class="btn btn-sticky" href="/empezar">Probar gratis ahora</a>
 </article>

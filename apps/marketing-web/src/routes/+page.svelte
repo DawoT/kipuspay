@@ -38,10 +38,10 @@
 </script>
 
 <svelte:head>
-  <title>KipusPay — El único POS que no se cae contigo</title>
+  <title>KipusPay — Atiende más rápido, factura en automático y controla tu negocio</title>
   <meta
     name="description"
-    content="Vende, cobra y factura aunque se corte el internet. POS y facturación para comercios en el Perú."
+    content="Punto de venta y facturación electrónica para comercios del Perú. Cobra en segundos, factura a SUNAT y controla tu negocio con Modo Dueño."
   />
   <meta property="og:title" content="KipusPay" />
   <meta property="og:description" content={HOME.subheadline} />
@@ -51,7 +51,10 @@
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="KipusPay — El único POS que no se cae contigo" />
+  <meta
+    name="twitter:title"
+    content="KipusPay — Atiende más rápido, factura en automático y controla tu negocio"
+  />
   <meta name="twitter:description" content={HOME.subheadline} />
   <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/" />
@@ -75,6 +78,18 @@
         <a class="btn btn-ghost" href="#como">{HOME.ctaSecondary}</a>
       </div>
       <p class="trust">{HOME.activation} · {HOME.trustLine}</p>
+
+      <div class="hero-badges" aria-label="Beneficios principales">
+        {#each HOME.heroBadges as badge}
+          <div class="hero-badge-item">
+            <span class="hero-badge-icon" aria-hidden="true">{badge.icon}</span>
+            <div class="hero-badge-text">
+              <strong>{badge.title}</strong>
+              <span>{badge.description}</span>
+            </div>
+          </div>
+        {/each}
+      </div>
     </div>
   </div>
 </section>
@@ -88,12 +103,11 @@
       <div class="sec-head" use:reveal>
         <p class="eyebrow">
           <span class="knot-dot" aria-hidden="true"></span>
-          Para tu negocio
+          Soluciones a la medida de tu rubro
         </p>
-        <h2>Elige tu cordel</h2>
+        <h2>Diseñado para la realidad de tu comercio</h2>
         <p class="section-lead">
-          Cada rubro tiene su propio dolor. Elige el tuyo y mira el plan hecho para el mostrador de
-          tu local.
+          Elige tu rubro y mira la solución hecha para el mostrador y la gestión de tu local.
         </p>
       </div>
       <div class="vertical-picker editorial-picker">
@@ -110,7 +124,7 @@
   </div>
 </section>
 
-<section class="section section-paper">
+<section class="section section-paper" data-testid="pillars-section">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="entry" tone="paper" />
@@ -119,18 +133,19 @@
       <div class="sec-head" use:reveal>
         <p class="eyebrow">
           <span class="knot-dot" aria-hidden="true"></span>
-          El problema que ya conoces
+          Beneficios reales
         </p>
-        <h2>Si te suena a tu local, es por algo.</h2>
+        <h2>Agilidad, confiabilidad y control en cada venta</h2>
       </div>
       <div class="pain-grid editorial-pains">
-        {#each HOME.pains as item, i (item.pain)}
+        {#each HOME.pillars as item, i (item.key)}
           <article use:reveal data-reveal-delay={i % 3}>
-            <p class="quote">“{item.pain}”</p>
-            <p class="relief">
+            <p class="pillar-eyebrow">
               <span class="knot-dot" aria-hidden="true"></span>
-              {item.relief}
+              {item.eyebrow}
             </p>
+            <h3>{item.title}</h3>
+            <p class="pillar-desc">{item.description}</p>
           </article>
         {/each}
       </div>
@@ -147,10 +162,10 @@
       <div class="sec-head" use:reveal>
         <p class="eyebrow">
           <span class="knot-dot" aria-hidden="true"></span>
-          Como funciona
+          Cómo funciona
         </p>
-        <h2>Tres nudos y estas vendiendo.</h2>
-        <p class="section-lead">Sin instalador, sin capacitacion, sin letra chica.</p>
+        <h2>Tres pasos y estás vendiendo.</h2>
+        <p class="section-lead">Sin instalador, sin capacitación larga, sin letra chica.</p>
       </div>
       <ol class="knot-steps" use:reveal>
         {#each HOME.steps as step, i (step.title)}
@@ -264,7 +279,7 @@
               <td class="kipus"><span class="kipus-mark">REGISTRADO</span></td>
             </tr>
             <tr>
-              <th scope="row">Ventas del dia</th>
+              <th scope="row">Ventas del día</th>
               <td class="kipus"><span class="kipus-mark">REGISTRADO</span></td>
             </tr>
             <tr>
@@ -299,7 +314,7 @@
       </div>
       <div class="phone-mock" use:reveal aria-hidden="true">
         <div class="phone-screen">
-          <p class="pm-title">Modo Dueno</p>
+          <p class="pm-title">Modo Dueño</p>
           <div class="pm-row">
             <span class="pm-label">Ventas de hoy</span>
             <span class="pm-dot ok"></span>
@@ -336,7 +351,7 @@
         </p>
         <h2>En la caja se siente, no se explica.</h2>
         <p class="section-lead">
-          Sin jerga tecnica: asi cambia tu dia a dia frente al sistema tradicional.
+          Sin jerga técnica: así cambia tu día a día frente al sistema tradicional.
         </p>
       </div>
       <div class="ledger-table-wrap comparison-table-wrap" use:reveal>

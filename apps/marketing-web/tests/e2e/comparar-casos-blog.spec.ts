@@ -9,7 +9,9 @@ test('comparar: rubro-switch entre Bsale/Alegra/Siigo con tabla', async ({ page 
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/vs Bsale/);
   await expect(page.getByRole('link', { name: /Bsale/ }).first()).toBeVisible();
   await expect(page.locator('main')).not.toContainText(/\b(?:Edge|Workers|D1|ACID|CDR|UBL|PSE)\b/i);
-  await expect(page.getByRole('link', { name: /Empieza gratis/ }).first()).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: /Probar gratis|Empieza gratis/ }).first(),
+  ).toBeVisible();
 });
 
 test('casos de éxito: copy honesto de autorización explícita', async ({ page }) => {

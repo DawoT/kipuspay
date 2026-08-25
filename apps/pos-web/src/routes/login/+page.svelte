@@ -8,19 +8,24 @@
   import { cashierLogin, LoginError } from '$lib/auth/cashier-login';
   import { writeLoginTenantId, writeLoginToken, writeLoginUser } from '$lib/auth/token-store';
   import { mirrorAuthTokenForServiceWorker } from '$lib/push/auth-mirror';
-  import { defaultTenantSession, readTenantSession } from '$lib/tenant/session';
-import { resolveApiBase } from '$lib/auth/api-client';
+  import { readTenantSession, writeTenantSession } from '$lib/tenant/session';
+  import { MISSING_TENANT_MESSAGE, resolveLoginTenantId } from '$lib/auth/login-tenant';
+  import { resolveApiBase } from '$lib/auth/api-client';
 
-  let tenantId = $state(defaultTenantSession().tenantId);
+  let tenantId = $state(
+    typeof window !== 'undefined'
+      ? resolveLoginTenantId({
+          sessionStorage: typeof sessionStorage !== 'undefined' ? sessionStorage : null,
+          localStorage: typeof localStorage !== 'undefined' ? localStorage : null,
+          search: window.location.search,
+        })
+      : '',
+  );
   let identifier = $state('');
   let pin = $state('');
   let busy = $state(false);
   let error = $state('');
   let success = $state('');
-
-  if (typeof sessionStorage !== 'undefined') {
-    tenantId = readTenantSession(sessionStorage).tenantId;
-  }
 
   function messageFor(code: string): string {
     switch (code) {
@@ -45,17 +50,37 @@ import { resolveApiBase } from '$lib/auth/api-client';
       error = 'Ingresa tu badge o usuario y tu PIN.';
       return;
     }
+    const effectiveTenantId = resolveLoginTenantId({
+      sessionStorage: typeof sessionStorage !== 'undefined' ? sessionStorage : null,
+      localStorage: typeof localStorage !== 'undefined' ? localStorage : null,
+      search: typeof window !== 'undefined' ? window.location.search : '',
+    });
+    if (!effectiveTenantId) {
+      error = MISSING_TENANT_MESSAGE;
+      return;
+    }
     busy = true;
     try {
       const result = await cashierLogin({
         apiBase: resolveApiBase(localStorage),
-        tenantId,
+        tenantId: effectiveTenantId,
         identifier: id,
         pin,
       });
       writeLoginToken(localStorage, result.token);
-      void mirrorAuthTokenForServiceWorker(result.token, tenantId);
-      writeLoginTenantId(localStorage, tenantId);
+      void mirrorAuthTokenForServiceWorker(result.token, effectiveTenantId);
+      writeLoginTenantId(localStorage, effectiveTenantId);
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          const current = readTenantSession(sessionStorage);
+          if (current.tenantId !== effectiveTenantId) {
+            writeTenantSession(sessionStorage, { ...current, tenantId: effectiveTenantId });
+          }
+        }
+      } catch {
+        // storage bloqueado: el login ya es válido
+      }
+      tenantId = effectiveTenantId;
       writeLoginUser(localStorage, {
         userId: result.user.userId,
         role: result.user.role,

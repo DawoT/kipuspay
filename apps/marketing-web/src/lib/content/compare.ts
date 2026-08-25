@@ -5,36 +5,38 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
     slug: 'bsale',
     name: 'Bsale',
     title: 'KipusPay vs Bsale',
-    metaDescription: 'Compara KipusPay con Bsale: vende aunque se corte el internet, en minutos.',
-    intro: 'Si buscas una alternativa a Bsale, mira la diferencia en el día a día de tu caja.',
-    hook: 'La caja no se detiene cuando se cae la señal.',
+    metaDescription:
+      'Compara KipusPay con Bsale: listo en 5 minutos, cobro continuo y control en vivo con Modo Dueño.',
+    intro:
+      'Descubre una experiencia de venta más ágil, fácil de configurar y con control total desde tu celular.',
+    hook: 'Tu mostrador siempre en marcha: cobro fluido y listo en 5 minutos.',
     whyMigrate: [
       {
         icon: 'senal',
-        title: 'La venta no espera al internet',
-        body: 'Cobras igual con la señal caída y el envío se completa solo cuando vuelve.',
+        title: 'Operación continua asegurada',
+        body: 'Sigue cobrando y emitiendo comprobantes con total estabilidad; la sincronización trabaja sola en segundo plano.',
       },
       {
         icon: 'reloj',
-        title: 'Empiezas hoy, no el mes que viene',
-        body: 'Sin instalador ni visita técnica: entras desde el equipo que ya tienes.',
+        title: 'Puesta en marcha en 5 minutos',
+        body: 'Sin demoras ni instalaciones técnicas complejas: empieza a vender el mismo día desde cualquier equipo.',
       },
       {
-        icon: 'etiqueta',
-        title: 'Un precio que entiendes',
-        body: 'Un plan claro en lugar de módulos sueltos que se suman al final del mes.',
+        icon: 'panel',
+        title: 'Modo Dueño en tu celular',
+        body: 'Supervisa tus ventas, caja y ganancias en tiempo real desde tu teléfono, con planes claros y transparentes.',
       },
     ],
     rows: [
       {
         label: 'Empezar a usarlo',
-        reported: 'Coordinar instalación y capacitación',
-        kipus: 'Abres el navegador y cobras',
+        reported: 'Coordinar instalación y capacitación previa',
+        kipus: 'Listo para cobrar en 5 minutos desde el navegador',
       },
       {
         label: 'Equipo necesario',
-        reported: 'Compra de caja y periféricos',
-        kipus: 'La tablet o computadora que ya tienes',
+        reported: 'Hardware dedicado o periféricos específicos',
+        kipus: 'Cualquier tablet, celular o computadora que ya tengas',
       },
     ],
     faq: [
@@ -56,36 +58,38 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
     slug: 'alegra',
     name: 'Alegra',
     title: 'KipusPay vs Alegra',
-    metaDescription: 'Compara KipusPay con Alegra: cobro simple y facturación sin drama.',
-    intro: 'Si evaluas salir de Alegra, esto es lo que cambia en tu mostrador.',
-    hook: 'Primero cobrar, después contabilizar.',
+    metaDescription:
+      'Compara KipusPay con Alegra: punto de venta ágil, SUNAT automático y control desde el celular.',
+    intro:
+      'Diseñado específicamente para el ritmo de la caja y el mostrador del comercio en el Perú.',
+    hook: 'Agilidad en tu caja, facturación automática y control en tiempo real.',
     whyMigrate: [
       {
         icon: 'caja',
-        title: 'Nace del mostrador',
-        body: 'La pantalla está pensada para el cajero en hora punta, no para el escritorio del contador.',
+        title: 'Diseñado para la agilidad en caja',
+        body: 'Pantalla optimizada para la hora punta: cobros en un toque, tickets rápidos y cero colas.',
       },
       {
         icon: 'senal',
-        title: 'Sigue vendiendo sin señal',
-        body: 'La venta se guarda primero en tu equipo y se envía después, sin bloquear la cola.',
+        title: 'Venta ágil y asegurada',
+        body: 'El cobro y registro se procesan de inmediato en tu equipo con máxima estabilidad en todo momento.',
       },
       {
         icon: 'documento',
-        title: 'El documento de tu etapa',
-        body: 'Nota de venta de control interno si aún te formalizas; boleta o factura cuando corresponde.',
+        title: 'SUNAT al día y Modo Dueño',
+        body: 'Boletas y facturas 100% legales emitidas sin fricción y reportes en vivo en tu celular.',
       },
     ],
     rows: [
       {
-        label: 'Punto de partida',
-        reported: 'Primero la contabilidad, después el punto de venta',
-        kipus: 'Primero el mostrador: cobrar rápido y bien',
+        label: 'Enfoque principal',
+        reported: 'Sistemas con foco contable tradicional',
+        kipus: 'Mostrador ágil: cobrar rápido y controlar el negocio',
       },
       {
-        label: 'Qué ve tu cajero',
-        reported: 'Formularios pensados para oficina',
-        kipus: 'Producto, total grande y botón de cobrar',
+        label: 'Experiencia en mostrador',
+        reported: 'Formularios con pasos múltiples',
+        kipus: 'Producto, total grande y cobro en un solo toque',
       },
     ],
     faq: [
@@ -95,11 +99,11 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
       },
       {
         q: '¿Y mi contador?',
-        a: 'Puedes exportar tus ventas para tu contador. KipusPay no reemplaza tu contabilidad: se encarga del mostrador.',
+        a: 'Puedes exportar tus ventas para tu contador. KipusPay se encarga de la agilidad en tu mostrador y facilita el reporte contable.',
       },
       {
         q: '¿Tengo que migrar todo de golpe?',
-        a: 'No. Muchos empiezan por una caja, la usan una semana y recién ahí mueven el resto.',
+        a: 'No. Muchos empiezan por una caja, la usan unos días y luego suman las demás sucursales con total tranquilidad.',
       },
     ],
   },
@@ -107,36 +111,38 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
     slug: 'siigo',
     name: 'Siigo',
     title: 'KipusPay vs Siigo',
-    metaDescription: 'Compara KipusPay con Siigo: implementacion en minutos, no en semanas.',
-    intro: 'Si Siigo se siente pesado para tu local, mira cómo KipusPay simplifica el cobro.',
-    hook: 'Todo lo que tu caja necesita. Nada de lo que no usa.',
+    metaDescription:
+      'Compara KipusPay con Siigo: fácil de usar, listo en 5 minutos y control total en vivo.',
+    intro:
+      'Una solución ligera, potente e intuitiva que tu equipo aprende a usar en un solo turno.',
+    hook: 'Todo lo que tu comercio necesita para vender rápido y crecer con orden.',
     whyMigrate: [
       {
         icon: 'reloj',
         title: 'Se aprende en un turno',
-        body: 'Sin semanas de implementación ni un manual para el equipo del mostrador.',
+        body: 'Intuitivo y directo: tu equipo empieza a vender de inmediato sin capacitaciones complejas.',
       },
       {
         icon: 'panel',
-        title: 'Solo lo que tu negocio usa',
-        body: 'Si no manejas inventario, no ves campos de inventario.',
+        title: 'Modo Dueño en vivo',
+        body: 'Revisa ventas, caja e ingresos en tiempo real desde tu celular, estés donde estés.',
       },
       {
         icon: 'senal',
-        title: 'La caída de señal no para el día',
-        body: 'Sigues cobrando y la información se pone al día cuando vuelve la conexión.',
+        title: 'Operación continua y estable',
+        body: 'Tu mostrador nunca se detiene: atiende, cobra e imprime con máxima fluidez en todo momento.',
       },
     ],
     rows: [
       {
         label: 'Curva de aprendizaje',
-        reported: 'Capacitación por módulos',
-        kipus: 'Un turno con tu equipo y listo',
+        reported: 'Capacitaciones extensas por módulos',
+        kipus: 'Tu equipo lo domina en un turno de trabajo',
       },
       {
         label: 'Configuración inicial',
-        reported: 'Proyecto de implementación',
-        kipus: 'Preguntas básicas y tu primera venta',
+        reported: 'Procesos largos de implementación',
+        kipus: 'Listo para tu primera venta en 5 minutos',
       },
     ],
     faq: [
@@ -150,7 +156,7 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
       },
       {
         q: '¿Necesito ayuda para migrar?',
-        a: 'Puedes hacerlo tú mismo. Si te trabas, el soporte responde en español, con personas reales.',
+        a: 'Puedes hacerlo tú mismo en minutos. Si tienes dudas, nuestro soporte te acompaña con personas reales en español.',
       },
     ],
   },
@@ -169,31 +175,30 @@ export function allCompares(): readonly ComparePage[] {
   return COMPETITOR_SLUGS.map((s) => BY_SLUG[s]);
 }
 
-/** Filas de negocio GTM §5.7 — sin jerga técnica. */
+/** Filas de negocio comparativas — sin jerga técnica. */
 export const COMPARE_ROWS: readonly CompareRow[] = [
   {
-    label: 'Si se corta el internet',
-    reported: 'Dejas de vender',
-    kipus: 'Sigues vendiendo normal',
+    label: 'Continuidad operativa',
+    reported: 'Dependencia de conexión constante',
+    kipus: 'Operación continua sin interrupciones',
   },
   {
-    label: 'Implementación',
-    reported: 'Semanas, con instalador',
-    kipus: 'Minutos, tú solo',
+    label: 'Puesta en marcha',
+    reported: 'Semanas y configuración técnica',
+    kipus: 'Listo para vender en 5 minutos',
   },
   {
-    label: 'Costo mensual',
-    reported: 'Cuotas altas + instalación + soporte aparte',
-    kipus: 'Desde un plan claro, todo incluido',
+    label: 'Control del negocio',
+    reported: 'Reportes diferidos de escritorio',
+    kipus: 'Modo Dueño en tiempo real desde el celular',
   },
   {
-    label: 'Soporte',
-    reported: 'Ticket y espera',
-    kipus: 'Chat según plan; prioritario 24/7 en Enterprise',
+    label: 'Facturación SUNAT',
+    reported: 'Gestión compleja o demoras en emisión',
+    kipus: '100% legal y automática en cada venta',
   },
 ];
 
-/** Lo comparado es lo reportado por comercios, no una afirmacion sobre el producto ajeno. */
 export function compareDisclaimer(name: string): string {
-  return `Comparativa basada en lo que nos reportan comercios que migran y en información pública de ${name}. No representamos a ${name} ni usamos su marca para sugerir vínculo alguno.`;
+  return `Comparativa basada en testimonios de comercios y en información pública de ${name}. No representamos a ${name} ni usamos su marca para sugerir vínculo comercial.`;
 }

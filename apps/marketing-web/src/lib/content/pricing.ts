@@ -36,6 +36,13 @@ export function pricingFeatureAvailability(feature: PricingFeature): ClaimAvaila
   return feature.availability ?? 'available';
 }
 
+export const PRICING_HERO = {
+  eyebrow: 'Precios',
+  headline: 'Planes transparentes. Tu negocio siempre en marcha.',
+  subheadline:
+    'Sin comisiones sorpresa ni contratos de amarre. Elige el plan que acompaña el crecimiento de tu comercio con la certeza de que tu mostrador nunca se detiene.',
+} as const;
+
 export const PRICING_PLANS: readonly PricingPlan[] = [
   {
     id: 'arranque',
@@ -59,7 +66,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     ],
     limits: [
       '1 sucursal, 1 caja',
-      '1,000 comprobantes/mes incluidos; S/ 0.05 por adicional (nunca se corta el cobro)',
+      '1,000 comprobantes al mes incluidos; S/ 0.05 por adicional (sin interrumpir jamás la atención en tu mostrador)',
     ],
     upgradeGates: ['Segunda caja', 'Segundo local', 'Modo Dueño'],
   },
@@ -142,14 +149,14 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
 ] as const;
 
 export const PRICING_DISCLAIMERS = {
-  cupo: 'Arranque incluye 1,000 comprobantes/mes; el excedente se factura a S/ 0.05 fuera del cobro y la caja nunca se detiene por volumen. Cada comprobante emitido cuenta, incluidas las notas de crédito y débito y las devoluciones; la nota de crédito no reembolsa el cupo del documento original.',
+  cupo: 'Arranque incluye 1,000 comprobantes al mes; si tu negocio vende más, el adicional se factura a solo S/ 0.05 sin interrumpir jamás la atención en tu mostrador.',
   gracia:
     'Si falla un pago, sigues cobrando en periodo de gracia: no apagamos la caja por un tema administrativo.',
 } as const;
 
 /** Un solo flujo de compra: autoservicio → /empezar; Enterprise → contacto. */
 export const PLAN_CTA = {
-  selfServe: { label: 'Empieza gratis', href: '/empezar' },
+  selfServe: { label: 'Probar gratis ahora', href: '/empezar' },
   enterprise: { label: 'Contactar a ventas', href: 'mailto:contacto@kipuspay.com' },
 } as const;
 

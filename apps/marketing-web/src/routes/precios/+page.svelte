@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PRICING_DISCLAIMERS, PRICING_PLANS, planCta, pricingFeatureAvailability, pricingFeatureText } from '$lib/content/pricing';
+  import { PRICING_DISCLAIMERS, PRICING_HERO, PRICING_PLANS, planCta, pricingFeatureAvailability, pricingFeatureText } from '$lib/content/pricing';
   import { PLAN_MATRIX, planMatrixAvailability, planMatrixIncluded, planOrder, type PlanMatrixRow } from '$lib/content/plan-matrix';
   import { recommendPlan, type PickerCapability } from '$lib/content/plan-picker';
   import { reveal } from '$lib/components/reveal';
@@ -80,13 +80,13 @@
     content="Planes Arranque, Crece, Cadena y Enterprise. El cobro nunca se apaga por volumen."
   />
   <meta property="og:title" content="Precios · KipusPay" />
-  <meta property="og:description" content="Cuatro planes. Cupo transparente. Sin apagar la caja." />
+  <meta property="og:description" content={PRICING_HERO.subheadline} />
   <meta property="og:image" content={ogImageFor()} />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Precios · KipusPay" />
   <meta
     name="twitter:description"
-    content="Cuatro planes. Cupo transparente. Sin apagar la caja."
+    content={PRICING_HERO.subheadline}
   />
   <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/precios" />
@@ -98,16 +98,13 @@
     <div class="hero-copy">
       <p class="eyebrow">
         <span class="knot-dot" aria-hidden="true"></span>
-        Pricing
+        {PRICING_HERO.eyebrow}
       </p>
       <p class="brand-mark">KipusPay</p>
-      <h1>Planes claros. El cobro no se apaga.</h1>
-      <p class="hero-sub">
-        Empieza en Arranque, sube cuando tu negocio pida una capacidad nueva — nunca porque se te
-        acabaron los comprobantes.
-      </p>
+      <h1>{PRICING_HERO.headline}</h1>
+      <p class="hero-sub">{PRICING_HERO.subheadline}</p>
       <div class="hero-actions">
-        <a class="btn" href="/empezar">Empieza gratis</a>
+        <a class="btn" href="/empezar">Probar gratis ahora</a>
         <a class="btn btn-ghost" href="#planes">Ver planes</a>
       </div>
     </div>
@@ -125,10 +122,9 @@
           <span class="knot-dot" aria-hidden="true"></span>
           Planes
         </p>
-        <h2>Cuatro planes. Sin letra chica de “sin límite”.</h2>
+        <h2>Planes diseñados para cada etapa de tu comercio</h2>
         <p class="section-lead">
-          Arranque incluye 1,000 comprobantes/mes; el adicional se factura fuera del cobro. Nunca hay
-          interrupción en la caja.
+          {PRICING_DISCLAIMERS.cupo}
         </p>
       </div>
 

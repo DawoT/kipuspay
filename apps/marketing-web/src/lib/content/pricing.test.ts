@@ -159,7 +159,7 @@ describe('pricing content', () => {
   it('publica cupo Arranque activo (GTM-04)', () => {
     expect(PRICING_DISCLAIMERS.cupo).toMatch(/1,000/);
     expect(PRICING_DISCLAIMERS.cupo).toMatch(/0\.05/);
-    expect(PRICING_DISCLAIMERS.cupo).toMatch(/no reembolsa/);
+    expect(PRICING_DISCLAIMERS.cupo).toMatch(/sin interrumpir/);
     expect(PRICING_DISCLAIMERS.cupo).not.toMatch(/Sprint 27/);
     expect(PRICING_DISCLAIMERS.gracia).toMatch(/gracia/i);
   });

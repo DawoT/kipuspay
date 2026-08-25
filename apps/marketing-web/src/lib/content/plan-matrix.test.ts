@@ -43,7 +43,7 @@ describe('matriz de planes (M5A — documento maestro Parte I §6)', () => {
 
 describe('CTA de compra unificado (M5A)', () => {
   it('una sola etiqueta para los planes autoservicio', () => {
-    expect(PLAN_CTA.selfServe).toEqual({ label: 'Empieza gratis', href: '/empezar' });
+    expect(PLAN_CTA.selfServe).toEqual({ label: 'Probar gratis ahora', href: '/empezar' });
   });
 
   it('Enterprise va a contacto de ventas, no al onboarding', () => {

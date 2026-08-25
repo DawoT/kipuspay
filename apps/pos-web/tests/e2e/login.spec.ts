@@ -25,7 +25,7 @@ test('login con badge y PIN inicia sesión y redirige al terminal', async ({ pag
       user: { userId: 'u1', role: 'cashier', branchId: 'b1' },
     },
   });
-  await page.goto('/login');
+  await page.goto('/login?tenant=t-e2e');
   await page.getByTestId('login-identifier').fill('EMP-12345');
   await page.getByTestId('login-pin').fill('1234');
   await page.getByTestId('login-submit').click();
@@ -37,7 +37,7 @@ test('login con badge y PIN inicia sesión y redirige al terminal', async ({ pag
 
 test('PIN incorrecto muestra credenciales inválidas', async ({ page }) => {
   await mockLogin(page, { status: 403, body: { code: 'PIN_INVALID' } });
-  await page.goto('/login');
+  await page.goto('/login?tenant=t-e2e');
   await page.getByTestId('login-identifier').fill('EMP-12345');
   await page.getByTestId('login-pin').fill('9999');
   await page.getByTestId('login-submit').click();
@@ -46,7 +46,7 @@ test('PIN incorrecto muestra credenciales inválidas', async ({ page }) => {
 
 test('lockout muestra el aviso de espera', async ({ page }) => {
   await mockLogin(page, { status: 403, body: { code: 'PIN_LOCKED' } });
-  await page.goto('/login');
+  await page.goto('/login?tenant=t-e2e');
   await page.getByTestId('login-identifier').fill('EMP-12345');
   await page.getByTestId('login-pin').fill('1234');
   await page.getByTestId('login-submit').click();
@@ -55,9 +55,27 @@ test('lockout muestra el aviso de espera', async ({ page }) => {
 
 test('capability off muestra el aviso del entorno', async ({ page }) => {
   await mockLogin(page, { status: 404, body: { code: 'FEATURE_OFF' } });
-  await page.goto('/login');
+  await page.goto('/login?tenant=t-e2e');
   await page.getByTestId('login-identifier').fill('EMP-12345');
   await page.getByTestId('login-pin').fill('1234');
   await page.getByTestId('login-submit').click();
   await expect(page.getByTestId('login-error')).toContainText('desactivado');
+});
+
+test('sin tienda muestra ayuda y no envía login vacío (S11)', async ({ page }) => {
+  let requested = false;
+  await page.route('**/api/auth/cashier-login', (route) => {
+    requested = true;
+    return route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'UNAUTHORIZED' }),
+    });
+  });
+  await page.goto('/login');
+  await page.getByTestId('login-identifier').fill('EMP-12345');
+  await page.getByTestId('login-pin').fill('1234');
+  await page.getByTestId('login-submit').click();
+  await expect(page.getByTestId('login-error')).toContainText('Selecciona tu tienda');
+  expect(requested).toBe(false);
 });

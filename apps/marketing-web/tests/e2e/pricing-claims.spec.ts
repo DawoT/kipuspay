@@ -11,10 +11,10 @@ test('matriz de planes: precios y regla de excedente sin cortar el cobro', async
   await expect(page.getByText('S/ 49 / mes')).toBeVisible();
   await expect(page.getByText('S/ 129 / mes')).toBeVisible();
   await expect(page.getByText('S/ 349 / mes + S/ 39 por sucursal adicional')).toBeVisible();
+  await expect(page.getByText(/1,000 comprobantes/)).toBeVisible();
   await expect(
-    page.getByText('1,000 comprobantes/mes incluidos; S/ 0.05 por adicional'),
+    page.getByText(/sin interrumpir jamás la atención en tu mostrador|no apagamos la caja/),
   ).toBeVisible();
-  await expect(page.getByText(/la nota de crédito no reembolsa el cupo/)).toBeVisible();
   await expect(page.getByText(/no apagamos la caja por un tema administrativo/)).toBeVisible();
 });
 

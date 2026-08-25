@@ -28,17 +28,17 @@
     {
       id: 'restaurante',
       label: 'Restaurante',
-      highlightLabels: ['Si se corta el internet', 'Implementacion', 'Empezar a usarlo'],
+      highlightLabels: ['Continuidad operativa', 'Puesta en marcha', 'Empezar a usarlo'],
     },
     {
       id: 'tienda',
       label: 'Tienda',
-      highlightLabels: ['Si se corta el internet', 'Costo mensual', 'Equipo necesario'],
+      highlightLabels: ['Continuidad operativa', 'Control del negocio', 'Equipo necesario'],
     },
     {
       id: 'servicios',
       label: 'Servicios',
-      highlightLabels: ['Implementacion', 'Costo mensual', 'Soporte'],
+      highlightLabels: ['Puesta en marcha', 'Facturación SUNAT', 'Curva de aprendizaje'],
     },
   ] as const;
 
@@ -79,7 +79,7 @@
         <h1>{selected.title}</h1>
         <p class="hero-sub">{selected.hook}</p>
         <div class="hero-actions">
-          <a class="btn" href="/empezar">Empieza gratis</a>
+          <a class="btn" href="/empezar">Probar gratis ahora</a>
           <a class="btn btn-ghost" href="#tabla">Ver la tabla</a>
         </div>
       </div>
@@ -231,7 +231,7 @@
         {/each}
       </div>
       <div class="cta-row" style="margin-top: 2.4rem;">
-        <a class="btn" href="/empezar">Empieza gratis</a>
+        <a class="btn" href="/empezar">Probar gratis ahora</a>
         <a class="btn btn-ghost" href="/precios">Ver planes</a>
       </div>
     </div>

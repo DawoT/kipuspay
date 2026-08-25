@@ -1,27 +1,59 @@
 export const HOME = {
   brand: 'KipusPay',
-  eyebrow: 'POS y facturación para comercios del Perú',
-  headline: 'El único POS que no se cae contigo.',
-  subheadline: 'Vende, cobra y factura aunque se corte la luz o el internet.',
-  ctaPrimary: 'Empieza gratis',
+  eyebrow: 'PUNTO DE VENTA Y FACTURACIÓN ELECTRÓNICA · PERÚ',
+  headline: 'Atiende más rápido, factura en automático y controla tu negocio desde el celular.',
+  subheadline:
+    'La solución completa de caja y facturación electrónica diseñada para el comercio peruano. Cobra en segundos con cualquier medio de pago, emite tus boletas a SUNAT sin complicaciones y mira tus ventas y ganancias en tiempo real con Modo Dueño. Todo en orden, sin colas y listo para usar en 5 minutos.',
+  ctaPrimary: 'Probar gratis ahora',
   ctaSecondary: 'Ver cómo funciona',
-  trustLine: 'Sin contratos largos · Tus datos, siempre tuyos',
-  activation: 'Tu primera venta en menos de 5 minutos',
-  pains: [
+  trustLine: '100% legal ante SUNAT · Sin contratos de permanencia',
+  activation: 'Tu primera venta en 5 minutos',
+  heroBadges: [
     {
+      icon: '⚡',
+      title: 'Cobro en segundos',
+      description: 'Efectivo, tarjetas y Yape / Plin sin demoras',
+    },
+    {
+      icon: '📱',
+      title: 'Modo Dueño en vivo',
+      description: 'Ventas, caja y stock en tiempo real desde tu celular',
+    },
+    {
+      icon: '🇵🇪',
+      title: '100% legal ante SUNAT',
+      description: 'Boletas y facturas emitidas en automático',
+    },
+    {
+      icon: '🔄',
+      title: 'Operación fluida continua',
+      description: 'Tu mostrador nunca se detiene',
+    },
+  ],
+  pillars: [
+    {
+      key: 'speed',
       icon: 'reloj',
-      pain: 'Se me llenó la cola y el sistema se puso lento.',
-      relief: 'Tu caja sigue al ritmo de tu local.',
+      eyebrow: 'Agilidad en caja',
+      title: 'Atención ágil en segundos: Cero colas en tu hora punta.',
+      description:
+        'Tus clientes no tienen que esperar. Cobra en un toque con efectivo, tarjeta o billeteras digitales (Yape/Plin), imprime o envía el ticket al instante y atiende al ritmo que tu local merece.',
     },
     {
+      key: 'continuity',
       icon: 'senal',
-      pain: 'Se cortó el internet y perdí la venta.',
-      relief: 'Sigues cobrando; se sincroniza después.',
+      eyebrow: 'Confiabilidad total',
+      title: 'Venta asegurada: Tu mostrador funciona con total fluidez, siempre.',
+      description:
+        'Diseñado para el ritmo real del comercio en el Perú. Sigue cobrando, emitiendo comprobantes e imprimiendo con máxima estabilidad en todo momento. La sincronización trabaja sola en segundo plano sin interrumpir tu venta.',
     },
     {
+      key: 'control',
       icon: 'balanza',
-      pain: 'A fin de mes nadie explica el descuadre.',
-      relief: 'Ves el día con claridad, sin drama.',
+      eyebrow: 'Modo Dueño y SUNAT',
+      title: 'Cuentas claras y tranquilidad total: Cada sol en su lugar.',
+      description:
+        'Cierra el día en un clic con arqueos automáticos y revisa tus ingresos en tiempo real desde tu celular con Modo Dueño. Emite boletas y facturas 100% legales ante SUNAT a tiempo y sin estrés contable.',
     },
   ],
   steps: [
@@ -60,16 +92,16 @@ export const HOME = {
     },
   },
   offline: {
-    eyebrow: 'Offline de verdad',
+    eyebrow: 'Confiabilidad total',
     headline: 'El internet se corta. Tus ventas, no.',
-    body: 'Si tu conexión falla, KipusPay sigue funcionando exactamente igual: cobras, imprimes y sigues atendiendo. Cuando la señal regresa, todo se sincroniza solo — el envío de comprobantes y el resumen diario incluidos — y te avisa si algo se acerca al plazo legal.',
+    body: 'Si tu conexión falla, KipusPay sigue funcionando con total fluidez: cobras, imprimes y sigues atendiendo. Cuando la señal regresa, todo se sincroniza solo — el envío de comprobantes y el resumen diario incluidos — y te avisa si algo se acerca al plazo legal.',
     withOthers: 'Dejas de vender',
     withKipus: 'Sigues cobrando; se sincroniza después',
   },
   ledger: {
-    eyebrow: 'Control antipérdidas',
-    headline: 'Se acabaron los descuadres que nadie puede explicar.',
-    body: 'KipusPay descuenta el inventario exacto en el momento exacto de cada venta. Si un producto salió de tu tienda, quedó registrado. Al cerrar caja, ves en un vistazo si algo no cuadra, y por qué.',
+    eyebrow: 'Control financiero',
+    headline: 'Control financiero transparente sol a sol.',
+    body: 'Inspirado en los quipus: cada venta, ingreso o cobro queda registrado de forma ordenada, inmutable y clara para ti y tu contador.',
     points: [
       'Cada venta queda registrada, sin huecos ni ventas fantasma',
       'Cierre de caja claro: la diferencia se explica sola',
@@ -208,7 +240,7 @@ export const HOME = {
   ],
   finalCta: {
     headline: 'Tu próxima venta puede ser la primera con KipusPay.',
-    cta: 'Empieza gratis ahora',
+    cta: 'Probar gratis ahora',
     microcopy: '30 días de prueba real · Cancela cuando quieras · Sin letra chica',
   },
 } as const;
