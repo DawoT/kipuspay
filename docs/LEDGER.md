@@ -13397,3 +13397,51 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0474
+timestamp_utc: 2026-08-25T02:00:00Z
+schema_version: 2
+sprint_fase: Cierre gaps onboarding — onboard-tenant + secrets SOL
+agente_responsable: Staff Principal (ejecución: kipus-acid + kipus-sre; auditoría: Staff Principal)
+tipo: Automatización operativa + documentación autoritativa
+subtipo: alta de tenant atómica + ubicación/rotación secrets SOL
+relacion: corrige
+referencias_entradas: [0473]
+referencias_documentales: [docs/runbooks/fiscal-onboarding-tenant.md, docs/runbooks/secrets-ops-material.md]
+prev_id: 0473
+prev_hash: dec3b440992455c7c433ce253a5e169c2c23eb5b3c3da85fa3cbd9ea4f50f711
+entry_hash: 46f7690646d74c28c71ccb746db8a866d1dd0442990601b19873a48d08506aa1
+ticket_or_adr: gaps 2 y 6 de LEDGER 0472; ADR-FISCAL-007 (deriva detectada)
+test_ids: [scripts/staff/onboard-tenant.test.mjs]
+entregable_afectado: scripts/staff/onboard-tenant.mjs; docs/runbooks/secrets-ops-material.md; docs/runbooks/fiscal-onboarding-tenant.md
+descripcion: >
+  Cierre de los 2 gaps restantes del onboarding fiscal. (1) Comando
+  scripts/staff/onboard-tenant.mjs: alta atómica y parametrizada de negocio
+  emisor (dry-run default, --apply con preflight SELECT por id Y ruc,
+  batch D1 all-or-nothing — atomicidad PROBADA con probe real de fallo a
+  mitad, no asumida —, snapshot TENANT_KV, post-verificación de conteos,
+  PARTIAL_APPLY visible). RUC con checksum módulo 11 SUNAT validado contra
+  los RUC reales del piloto; sin UPSERT (colisión = error tipado
+  TENANT_EXISTS/RUC_ALREADY_REGISTERED); 47 tests. Runbook §2.1 actualizado:
+  el comando es canónico, el seed Rosa Negra queda como fixture histórico.
+  (2) Ubicación autoritativa de secrets SOL confirmada contra API CF +
+  wrangler: viven en kipuspay-worker-fiscal-staging como secret_text
+  (SUNAT_SOL_USER/PASSWORD + TENANT_CERT_ENVELOPE); worker-api NO los tiene
+  (latente, no roto: flags fiscales en 0 y el RC delega al worker-fiscal).
+  Rotación documentada (wrangler secret put ×2 + verificación con 1 envío
+  e-beta esperando CDR 0). Precedencia real: fila tenant_sol_credentials >
+  env del worker > fail-closed. HALLAZGO DOCUMENTAL: ADR-FISCAL-007 enuncia
+  "SOL solo Secrets Store" pero la realidad es secret_text del worker + filas
+  por tenant (0061) — requiere ADR corrector (pendiente, ciclo normativo).
+evidencia: >
+  RED: alta de tenant era seed SQL copy-paste; ubicación SOL marcada
+  DESCONOCIDA en runbook. GREEN: onboard-tenant 47/47 (validaciones
+  fail-closed incl. SQL injection attempt, checksum RUC, atomicidad probe);
+  secrets-ops-material con sección SOL completa (7 refs); V-13 dual GREEN
+  (staff 0028/0029 encadenadas); RESULT SUITE GREEN; commits 93fad72 + este.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
