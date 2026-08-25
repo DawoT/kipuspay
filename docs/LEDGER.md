@@ -13342,3 +13342,58 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0473
+timestamp_utc: 2026-08-25T01:15:00Z
+schema_version: 2
+sprint_fase: Automatización fiscal — SEC-03 + SOL por tenant
+agente_responsable: Staff Principal (ejecución: kipus-security + kipus-acid; auditoría: Staff Principal)
+tipo: Implementación de seguridad y multi-emisor
+subtipo: validación p12 + alerta vencimiento + routing SOL por tenant
+relacion: amplia
+referencias_entradas: [0472]
+referencias_documentales: [docs/runbooks/fiscal-onboarding-tenant.md]
+prev_id: 0472
+prev_hash: 6e89cea4d86323b443dd333f2144a0528d2b1b3fcc604bfb687ff9df56a5c18a
+entry_hash: dec3b440992455c7c433ce253a5e169c2c23eb5b3c3da85fa3cbd9ea4f50f711
+ticket_or_adr: SEC-03; gaps onboarding 1-4 (LEDGER 0472)
+test_ids: [packages/domain-fiscal-pe/src/sunat-cert-subject.test.ts, apps/worker-api/src/fiscal/cert-expiry-scheduled.test.ts, packages/adapters-d1/src/tenant-sol-credentials.test.ts]
+entregable_afectado: packages/domain-fiscal-pe/src/sunat-cert-subject.ts; apps/worker-api/src/fiscal/tenant-cert-upload-routes.ts; apps/worker-api/src/fiscal/cert-expiry-scheduled.ts; packages/adapters-d1/src/tenant-sol-credentials.ts; migrations/0061
+descripcion: >
+  Ciclo paralelo que cierra 4 de los 6 gaps de automatización del onboarding
+  fiscal. (1) SEC-03 validación p12 fail-closed en upload: identidad del RUC
+  SOLO desde marcadores estructurados (organizationIdentifier NTRPE-<RUC>
+  prioritario, fallback OU=<11 dígitos>; el CN es razón social libre —
+  anti-spoofing test-fijado), comparación contra tenants.ruc (no tenant_id
+  opaco), orden determinista identidad→vigencia→uso tributario, rechazo 400
+  ANTES de KMS/D1 (0 llamadas wrapDek en rechazo). Códigos: CERT_RUC_MISMATCH,
+  CERT_EXPIRED, CERT_USO_INVALIDO, CERT_TENANT_NO_RUC. (2) Alerta T-30d de
+  vencimiento: job en el cron fiscal RC existente (sin cron nuevo), dedup por
+  huella (idempotency_key_hash cert-expiry:<tenant>:<fingerprint> — una
+  alerta por certificado, no por día; patrón F5b-4), evento CERT_EXPIRY_WARNING
+  registrado en los 3 catálogos de push (el typecheck destapó que sin el
+  registro la alerta jamás llegaría). (3) SOL por tenant: tabla
+  tenant_sol_credentials (0061, envelope AES-GCM con DEK KMS, SECRET registry,
+  triggers epoch, down espejo con atomic_guards), puerto
+  loadTenantSolCredentials (corrupto → throw tipado, NUNCA null-fallback — un
+  degradado silencioso emitiría con el SOL de OTRO emisor), routing wrapper
+  con caché por tenant, drain resuelve transport por fila (error de canal
+  cuarentena la fila sin abortar el drain de otros tenants), fallback al env
+  del worker backward-compatible. Migración 0061 aplicada a staging por el
+  supervisor. Quedan 2 gaps menores: alta de tenant copy-paste (comando
+  onboard-tenant) y ubicación autoritativa de secrets SOL.
+evidencia: >
+  RED: upload aceptaba cert ajeno/vencido/sin uso (200 en vez de 400×4);
+  runCertExpiryScheduled inexistente; routing SOL por tenant inexistente
+  (drain moría completo con excepción de canal — reproducido). GREEN:
+  domain-fiscal-pe 180/180; domain-integrations 128/128; adapters-d1 449/449
+  unit + 313/313 integración; worker-fiscal 72/72; worker-api 1392/1392;
+  pnpm quality OK; V-13 dual GREEN (staff 0026/0027); V-25 espejo + V-29
+  triggers; RESULT SUITE GREEN; migración 0061 aplicada en staging
+  (tenant_sol_credentials verificada); commit bdf1052.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
