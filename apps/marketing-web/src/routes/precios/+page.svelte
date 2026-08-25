@@ -153,49 +153,53 @@
             data-plan={plan.id}
             id={`plan-${plan.id}`}
             use:reveal
-            data-reveal-delay={i % 3}
+            data-reveal-delay={i % 4}
           >
-            <p class="pricing-name">
-              {plan.name}
-              {#if plan.badge}
-                <span class="pricing-badge">{plan.badge}</span>
-              {/if}
-            </p>
-            <p class="pricing-price">
-              {isAnnual ? plan.annualLabel : plan.monthlyLabel}
-            </p>
-            {#if isAnnual && plan.id !== 'enterprise'}
-              <p class="pricing-annual-sub">Facturación anual diferida</p>
-            {/if}
-            <p class="pricing-audience">{plan.audience}</p>
-            <ul>
-              {#each plan.features as feature (pricingFeatureText(feature))}
-                <li class="pricing-feature">
-                  {pricingFeatureText(feature)}
-                  {#if pricingFeatureAvailability(feature) === 'preparing'}
-                    <span class="preparing-badge">En preparación</span>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-            <ul class="pricing-limits">
-              {#each plan.limits as limit (limit)}
-                <li>{limit}</li>
-              {/each}
-            </ul>
-            {#if plan.upgradeGates.length > 0}
-              <p class="pricing-gates">
-                Subes de plan cuando pides: {plan.upgradeGates.join(' · ')}.
+            <div class="pricing-card-content">
+              <p class="pricing-name">
+                {plan.name}
+                {#if plan.badge}
+                  <span class="pricing-badge">{plan.badge}</span>
+                {/if}
               </p>
-            {/if}
-            <a
-              class="btn"
-              class:btn-ghost={plan.id === 'enterprise'}
-              href={planCta(plan.id).href}
-              data-testid={`plan-cta-${plan.id}`}
-            >
-              {planCta(plan.id).label}
-            </a>
+              <p class="pricing-price">
+                {isAnnual ? plan.annualLabel : plan.monthlyLabel}
+              </p>
+              {#if isAnnual && plan.id !== 'enterprise'}
+                <p class="pricing-annual-sub">Facturación anual diferida</p>
+              {/if}
+              <p class="pricing-audience">{plan.audience}</p>
+              <ul>
+                {#each plan.features as feature (pricingFeatureText(feature))}
+                  <li class="pricing-feature">
+                    {pricingFeatureText(feature)}
+                    {#if pricingFeatureAvailability(feature) === 'preparing'}
+                      <span class="preparing-badge">En preparación</span>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+              <ul class="pricing-limits">
+                {#each plan.limits as limit (limit)}
+                  <li>{limit}</li>
+                {/each}
+              </ul>
+              {#if plan.upgradeGates.length > 0}
+                <p class="pricing-gates">
+                  Subes de plan cuando pides: {plan.upgradeGates.join(' · ')}.
+                </p>
+              {/if}
+            </div>
+            <div class="pricing-card-action">
+              <a
+                class="btn"
+                class:btn-ghost={plan.id === 'enterprise'}
+                href={planCta(plan.id).href}
+                data-testid={`plan-cta-${plan.id}`}
+              >
+                {planCta(plan.id).label}
+              </a>
+            </div>
           </article>
         {/each}
       </div>

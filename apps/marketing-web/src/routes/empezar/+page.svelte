@@ -22,12 +22,15 @@
   let step = $state<Step>(0);
   let tradeName = $state('');
   let ruc = $state('');
+  let rucError = $state('');
   let verticalType = $state<OnboardingVertical>('retail');
   let formalizationMode = $state<FormalizationMode>('INTERNAL_CONTROL');
   let error = $state('');
   let busy = $state(false);
   let refCode = $state('');
   let credentials = $state<OnboardingCredentials | null>(null);
+  let copyLabel = $state('Copiar credenciales');
+  let copyDone = $state(false);
 
   onMount(() => {
     refCode = $page.url.searchParams.get('ref') ?? '';
@@ -65,7 +68,44 @@
       error = 'Cuéntanos el nombre de tu negocio.';
       return;
     }
+    if (step === 0) {
+      rucError = validateRuc(ruc);
+      if (rucError) return;
+    }
     if (step < 3) step = (step + 1) as Step;
+  }
+
+  /** Valida formato de RUC peruano: 11 dígitos, empieza en 10 o 20. */
+  function validateRuc(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) return ''; // campo opcional
+    if (!/^\d{11}$/.test(trimmed)) return 'El RUC debe tener 11 dígitos.';
+    if (!trimmed.startsWith('10') && !trimmed.startsWith('20')) {
+      return 'El RUC debe empezar con 10 (persona natural) o 20 (empresa).';
+    }
+    return '';
+  }
+
+  function handleRucInput() {
+    rucError = validateRuc(ruc);
+  }
+
+  async function copyCredentials() {
+    if (!credentials) return;
+    const text = `Identificador: ${credentials.badge}\nPIN: ${credentials.pin}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      return; // sin acceso al portapapeles (SSR, tests)
+    }
+    copyDone = true;
+    copyLabel = '¡Copiado! ✓';
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const delay = prefersReduced ? 0 : 2000;
+    setTimeout(() => {
+      copyDone = false;
+      copyLabel = 'Copiar credenciales';
+    }, delay);
   }
 
   function back() {
@@ -191,8 +231,19 @@
       </label>
       <label class="onb-field">
         RUC (opcional)
-        <input bind:value={ruc} inputmode="numeric" maxlength="11" />
+        <input
+          bind:value={ruc}
+          inputmode="numeric"
+          maxlength="11"
+          data-testid="ruc-input"
+          aria-invalid={Boolean(rucError)}
+          aria-describedby={rucError ? 'ruc-error-msg' : undefined}
+          oninput={handleRucInput}
+        />
       </label>
+      {#if rucError}
+        <p id="ruc-error-msg" class="onb-error" role="alert">{rucError}</p>
+      {/if}
     {:else if step === 1}
       <h2>Tu rubro</h2>
       <div class="onb-cards">
@@ -228,7 +279,7 @@
         </p>
         <div class="credentials-panel" data-testid="onboarding-credentials">
           <div class="credential-row">
-            <span class="credential-label">Badge</span>
+            <span class="credential-label">Identificador</span>
             <code class="credential-value">{credentials.badge}</code>
           </div>
           <div class="credential-row">
@@ -236,6 +287,16 @@
             <code class="credential-value">{credentials.pin}</code>
           </div>
         </div>
+        <button
+          type="button"
+          class="btn btn-copy"
+          class:copy-done={copyDone}
+          data-testid="copy-credentials-btn"
+          aria-label="Copiar identificador y PIN al portapapeles"
+          onclick={copyCredentials}
+        >
+          {copyLabel}
+        </button>
         <p class="section-lead">Guárdalos (captura o apunta). Te llevamos a la caja para tu primera venta.</p>
       {:else}
         <p class="section-lead">
@@ -330,5 +391,34 @@
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--amber-bright);
+  }
+
+  .btn-copy {
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.6rem 1.25rem;
+    background: transparent;
+    border: 1.5px solid var(--amber);
+    color: var(--amber-bright);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-copy:hover {
+    background: var(--amber);
+    color: var(--ink);
+  }
+  .btn-copy.copy-done {
+    background: var(--sello);
+    border-color: var(--sello-bright);
+    color: var(--paper);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-copy {
+      transition: none;
+    }
   }
 </style>

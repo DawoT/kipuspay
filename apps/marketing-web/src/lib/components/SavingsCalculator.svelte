@@ -2,11 +2,35 @@
   import { reveal } from './reveal';
   import { computeSavings, DEFAULT_ASSUMPTIONS } from './savings';
 
+  interface Preset {
+    readonly id: string;
+    readonly label: string;
+    readonly ticketsPerDay: number;
+    readonly avgTicketSoles: number;
+  }
+
+  const PRESETS: readonly Preset[] = [
+    { id: 'bodega',      label: 'Bodega',      ticketsPerDay: 8,  avgTicketSoles: 15 },
+    { id: 'cafeteria',   label: 'Cafetería',   ticketsPerDay: 35, avgTicketSoles: 22 },
+    { id: 'minimarket',  label: 'Minimarket',  ticketsPerDay: 60, avgTicketSoles: 45 },
+  ];
+
   let ticketsPerDay = $state(DEFAULT_ASSUMPTIONS.ticketsPerDay);
   let minutesPerTicket = $state(DEFAULT_ASSUMPTIONS.minutesPerTicket);
   let hourlyRateSoles = $state(DEFAULT_ASSUMPTIONS.hourlyRateSoles);
+  let activePreset = $state<string | null>(null);
 
   const result = $derived(computeSavings({ ticketsPerDay, minutesPerTicket, hourlyRateSoles }));
+
+  function applyPreset(preset: Preset) {
+    ticketsPerDay = preset.ticketsPerDay;
+    hourlyRateSoles = preset.avgTicketSoles;
+    activePreset = preset.id;
+  }
+
+  function clearPreset() {
+    activePreset = null;
+  }
 </script>
 
 <div class="savings-calculator" use:reveal data-testid="savings-calculator">
@@ -19,6 +43,21 @@
   </div>
 
   <div class="calc-body">
+    <div class="preset-row" role="group" aria-label="Tipo de negocio">
+      {#each PRESETS as preset (preset.id)}
+        <button
+          type="button"
+          class="preset-btn"
+          class:preset-active={activePreset === preset.id}
+          data-testid="preset-{preset.id}"
+          aria-pressed={activePreset === preset.id}
+          onclick={() => applyPreset(preset)}
+        >
+          {preset.label}
+        </button>
+      {/each}
+    </div>
+
     <div class="calc-control">
       <label for="ticket-slider">
         Ventas o tickets por día en tu local:
@@ -31,6 +70,7 @@
         max="300"
         step="10"
         bind:value={ticketsPerDay}
+        oninput={clearPreset}
       />
     </div>
 
@@ -46,6 +86,7 @@
         max="5"
         step="0.5"
         bind:value={minutesPerTicket}
+        oninput={clearPreset}
       />
     </div>
 
@@ -61,6 +102,7 @@
         max="50"
         step="5"
         bind:value={hourlyRateSoles}
+        oninput={clearPreset}
       />
     </div>
 
@@ -94,6 +136,43 @@
     font-size: 1.4rem;
     margin-bottom: 1.5rem;
   }
+
+  /* ── Presets ─────────────────────────────────────────────── */
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .preset-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1.5px solid var(--line);
+    color: var(--paper);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .preset-btn:hover {
+    border-color: var(--amber);
+    color: var(--amber-bright);
+  }
+  .preset-btn.preset-active {
+    border-color: var(--amber);
+    background: rgba(217, 154, 61, 0.15);
+    color: var(--amber-bright);
+    font-weight: 700;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .preset-btn {
+      transition: none;
+    }
+  }
+
+  /* ── Controls ────────────────────────────────────────────── */
   .calc-control label {
     display: block;
     font-size: 1.05rem;

@@ -333,6 +333,7 @@ li {
   cursor: pointer;
   color: rgba(243, 239, 230, 0.86);
   transition: color 0.18s ease;
+  padding: 0.25rem 0;
 }
 
 .nav summary:hover {
@@ -350,13 +351,23 @@ li {
 .dropdown {
   display: none;
   position: absolute;
-  top: 1.7rem;
+  top: calc(100% + 0.35rem);
   left: 0;
   min-width: 13rem;
   padding: 0.5rem;
   background: var(--ink-2);
   border: 1px solid var(--line);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* Safe-zone o puente invisible para evitar cierres accidentales al mover el cursor */
+.dropdown::before {
+  content: '';
+  position: absolute;
+  top: -0.5rem;
+  left: 0;
+  right: 0;
+  height: 0.5rem;
 }
 
 .dropdown a {
@@ -374,30 +385,36 @@ li {
 }
 
 /*
- * Menu movil sin JS: <details> nativo, enfocable con teclado y cerrable con Esc.
- * Debajo de 900px el nav largo desaparece y este toma su lugar.
+ * Menú móvil moderno: botón accesible + drawer lateral con backdrop y soporte Esc/touch.
+ * Debajo de 899px el nav largo desaparece y este toma su lugar.
  */
 .nav-sm {
   position: relative;
   display: block;
 }
 
-.nav-sm > summary {
+.nav-sm-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.5rem 0.2rem;
-  list-style: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 0.6rem;
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--paper);
+  transition: all 0.18s ease;
 }
 
-.nav-sm > summary::-webkit-details-marker {
-  display: none;
+.nav-sm-toggle:hover,
+.nav-sm-toggle:focus-visible {
+  border-color: var(--line);
+  color: var(--amber-bright);
 }
 
 .burger {
@@ -409,58 +426,136 @@ li {
   box-shadow:
     0 -6px 0 var(--paper),
     0 6px 0 var(--paper);
+  transition: all 0.2s ease;
 }
 
-.nav-sm[open] .burger {
+.nav-sm-toggle[aria-expanded='true'] .burger {
   background: var(--amber-bright);
   box-shadow:
     0 -6px 0 var(--amber-bright),
     0 6px 0 var(--amber-bright);
 }
 
-.nav-sm-panel {
-  position: absolute;
-  top: calc(100% + 0.75rem);
-  right: 0;
-  display: grid;
-  gap: 0.15rem;
-  min-width: min(17rem, calc(100vw - 3rem));
-  padding: 0.7rem;
-  background: var(--ink-2);
-  border: 1px solid var(--line);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+.mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(20, 22, 28, 0.6);
+  backdrop-filter: blur(2px);
+  animation: backdropFadeIn 0.25s ease-out both;
 }
 
-.nav-sm-panel a {
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  width: min(22rem, calc(100vw - 2.5rem));
+  max-width: 100vw;
+  background: var(--ink-2);
+  border-left: 1px solid var(--line);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: drawerSlideIn 0.28s var(--ease-out) both;
+}
+
+.drawer-header {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0.6rem 0.55rem;
-  color: rgba(243, 239, 230, 0.9);
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  min-height: var(--header-h);
 }
 
-.nav-sm-panel a:hover {
+.drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--paper);
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.drawer-close:hover,
+.drawer-close:focus-visible {
+  border-color: var(--line);
+  color: var(--amber-bright);
+  background: var(--ink-3);
+}
+
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.25rem 2.5rem;
+  gap: 0.25rem;
+}
+
+.drawer-nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  color: rgba(243, 239, 230, 0.9);
+  font-size: 0.95rem;
+  transition: all 0.15s ease;
+}
+
+.drawer-nav a:hover,
+.drawer-nav a:focus-visible {
   background: var(--ink-3);
   color: var(--amber-bright);
 }
 
-.nav-sm-panel .btn {
-  margin-top: 0.6rem;
+.drawer-nav .btn {
+  margin-top: 1rem;
+  width: 100%;
   justify-content: center;
+  min-height: 44px;
 }
 
-.nav-sm-title {
-  margin: 0.6rem 0 0.25rem;
-  padding: 0 0.55rem;
+.drawer-section-title {
+  margin: 1.1rem 0 0.35rem;
+  padding: 0 0.75rem;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.nav-sm-title:first-child {
+.drawer-section-title:first-child {
   margin-top: 0;
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .nav-lg {
@@ -472,8 +567,10 @@ li {
     display: flex;
   }
 
-  .nav-sm {
-    display: none;
+  .nav-sm,
+  .mobile-backdrop,
+  .mobile-drawer {
+    display: none !important;
   }
 }
 
@@ -1870,7 +1967,7 @@ li {
   border-top: 1px solid var(--line-ink);
 }
 
-@media (min-width: 899px) {
+@media (min-width: 719px) {
   .pricing-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1881,12 +1978,38 @@ li {
   .pricing-card {
     border-top: 1px solid var(--line-ink);
   }
+
+  .pricing-card:nth-child(2n) {
+    border-right: 1px solid var(--line-ink);
+  }
+}
+
+@media (min-width: 899px) {
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    border-top: none;
+  }
+
+  .pricing-card {
+    border-top: 1px solid var(--line-ink);
+    border-right: none;
+  }
+
+  .pricing-card:last-child {
+    border-right: 1px solid var(--line-ink);
+  }
 }
 
 .pricing-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
   border: none;
   border-bottom: 1px solid var(--line-ink);
-  border-left: 3px solid transparent;
+  border-left: 3px solid var(--line-ink);
   padding: 1.35rem 1.1rem 1.5rem;
   background: transparent;
   border-radius: 0;
@@ -1894,11 +2017,23 @@ li {
 
 .pricing-card.highlight {
   border-left-color: var(--amber);
+  background: rgba(217, 154, 61, 0.03);
   box-shadow: none;
 }
 
 .pricing-card[data-plan='arranque'] {
   border-left-color: var(--line-ink);
+}
+
+.pricing-card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+.pricing-card-action {
+  margin-top: 1.5rem;
+  width: 100%;
 }
 
 .pricing-name {
@@ -1937,6 +2072,7 @@ li {
 
 .pricing-card .btn {
   width: 100%;
+  margin-top: auto;
 }
 
 .pricing-note {

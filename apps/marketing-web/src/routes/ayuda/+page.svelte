@@ -52,14 +52,38 @@
         Respuestas directas sobre la operación de tu negocio, sin manuales complicados.
       </p>
       <div class="search-box">
-        <label for="help-search" class="visually-hidden">Buscar en el centro de ayuda</label>
-        <input
-          id="help-search"
-          type="search"
-          placeholder="Busca por tema: impresora, SUNAT, offline, caja…"
-          bind:value={searchQuery}
-        />
-      </div>
+          <label for="help-search" class="visually-hidden">Buscar en el centro de ayuda</label>
+          <div class="search-input-wrap">
+            <input
+              id="help-search"
+              type="search"
+              placeholder="Busca por tema: impresora, factura, offline, caja…"
+              bind:value={searchQuery}
+              autocomplete="off"
+            />
+            {#if searchQuery.trim().length > 0}
+              <button
+                class="search-clear"
+                type="button"
+                data-testid="clear-search-btn"
+                aria-label="Limpiar búsqueda"
+                onclick={() => (searchQuery = '')}
+              >✕</button>
+            {/if}
+          </div>
+          {#if isSearching}
+            <p
+              class="search-results-count"
+              role="status"
+              aria-live="polite"
+              data-testid="search-results-count"
+            >
+              {filteredSearchResults.length === 1
+                ? '1 pregunta encontrada'
+                : `${filteredSearchResults.length} preguntas encontradas`}
+            </p>
+          {/if}
+        </div>
     </div>
   </div>
 </section>
@@ -76,7 +100,12 @@
           <h2>Resultados para "{searchQuery}"</h2>
         </div>
         {#if filteredSearchResults.length === 0}
-          <p use:reveal>No encontramos preguntas que coincidan con tu búsqueda.</p>
+          <div class="help-empty-state" use:reveal data-testid="search-empty-state">
+            <p class="help-empty-state__msg">
+              No encontramos esa pregunta. ¿Te ayudamos directamente?
+            </p>
+            <a class="btn" href="mailto:soporte@kipuspay.com">Escríbenos</a>
+          </div>
         {:else}
           <div class="faq">
             {#each filteredSearchResults as item (item.id)}
@@ -147,6 +176,15 @@
   .search-box {
     margin-top: 1.5rem;
   }
+
+  /* Sprint 11C: Input wrapper with clear button */
+  .search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    max-width: 32rem;
+  }
+
   .search-box input {
     width: 100%;
     max-width: 32rem;
@@ -203,5 +241,63 @@
     opacity: 0.75;
     white-space: nowrap;
     vertical-align: middle;
+  }
+  /* Sprint 11C: Clear button */
+  .search-clear {
+    position: absolute;
+    right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    min-width: 44px;
+    min-height: 44px;
+    background: transparent;
+    border: none;
+    color: var(--paper);
+    font-size: 0.85rem;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.18s ease;
+  }
+
+  .search-clear:hover,
+  .search-clear:focus-visible {
+    opacity: 1;
+    color: var(--amber-bright);
+  }
+
+  /* Add right padding to input so text doesn't hide under clear btn */
+  .search-input-wrap input {
+    padding-right: 2.5rem;
+  }
+
+  /* Sprint 11C: Results counter */
+  .search-results-count {
+    margin: 0.6rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--amber-bright);
+    letter-spacing: 0.04em;
+  }
+
+  /* Sprint 11C: Friendly empty state */
+  .help-empty-state {
+    padding: 2rem;
+    border: 1px dashed rgba(243, 239, 230, 0.22);
+    text-align: center;
+  }
+
+  .help-empty-state__msg {
+    margin: 0 0 1.1rem;
+    color: rgba(243, 239, 230, 0.82);
+    font-size: 1rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .search-clear {
+      transition: none;
+    }
   }
 </style>

@@ -16,6 +16,45 @@
   let scrolled = $state(false);
   /** Marca que el hero (y su CTA) ya quedaron atras: habilita el CTA de pulgar. */
   let pastHero = $state(false);
+  /** Estado del drawer de navegación móvil accesible. */
+  let mobileMenuOpen = $state(false);
+
+  function openMobileMenu() {
+    mobileMenuOpen = true;
+  }
+
+  function closeMobileMenu() {
+    mobileMenuOpen = false;
+  }
+
+  // Cierre automático al navegar
+  $effect(() => {
+    if (pathname) {
+      mobileMenuOpen = false;
+    }
+  });
+
+  // Cierre con tecla Escape y bloqueo de scroll cuando el drawer está activo
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        closeMobileMenu();
+      }
+    };
+
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', onKeyDown);
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  });
 
   $effect(() => {
     const onScroll = () => {
@@ -110,33 +149,99 @@
       <a class="btn" href="/empezar">Empieza gratis</a>
     </nav>
 
-    <details class="nav-sm">
-      <summary aria-label="Abrir menu">
+    <div class="nav-sm">
+      <button
+        type="button"
+        class="nav-sm-toggle"
+        aria-expanded={mobileMenuOpen}
+        aria-controls="mobile-drawer"
+        aria-label="Abrir menú de navegación"
+        onclick={() => {
+          if (mobileMenuOpen) {
+            closeMobileMenu();
+          } else {
+            openMobileMenu();
+          }
+        }}
+        data-testid="mobile-menu-toggle"
+      >
         <span class="burger" aria-hidden="true"></span>
-        <span class="burger-label">Menu</span>
-      </summary>
-      <nav class="nav-sm-panel" aria-label="Principal movil">
-        <p class="nav-sm-title">Para tu negocio</p>
-        {#each verticals as v (v.slug)}
-          <a
-            href={`/para/${v.slug}`}
-            data-cord={v.slug}
-            aria-current={pathname === `/para/${v.slug}` ? 'page' : undefined}
-          >
-            <span class="knot-dot" aria-hidden="true"></span>
-            {v.navLabel}
+        <span class="burger-label">Menú</span>
+      </button>
+    </div>
+
+    {#if mobileMenuOpen}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="mobile-backdrop"
+        onclick={closeMobileMenu}
+        aria-hidden="true"
+        data-testid="mobile-backdrop"
+      ></div>
+
+      <div
+        id="mobile-drawer"
+        class="mobile-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menú de navegación"
+        data-testid="mobile-drawer"
+      >
+        <div class="drawer-header">
+          <a class="brand" href="/" onclick={closeMobileMenu}>
+            <span class="brand-knot" aria-hidden="true"></span>
+            KipusPay
           </a>
-        {/each}
-        <p class="nav-sm-title">Sitio</p>
-        <a href="/precios" aria-current={pathname === '/precios' ? 'page' : undefined}>Precios</a>
-        <a href="/seguridad" aria-current={pathname === '/seguridad' ? 'page' : undefined}>Seguridad</a>
-        <a href="/casos-de-exito" aria-current={pathname === '/casos-de-exito' ? 'page' : undefined}>Casos de éxito</a>
-        <a href="/comparar" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined}>Comparar</a>
-        <a href="/ayuda" aria-current={pathname === '/ayuda' ? 'page' : undefined}>Ayuda</a>
-        <a href="{posOrigin}/login">Ingresar</a>
-        <a class="btn" href="/empezar">Empieza gratis</a>
-      </nav>
-    </details>
+          <button
+            type="button"
+            class="drawer-close"
+            aria-label="Cerrar menú"
+            onclick={closeMobileMenu}
+            data-testid="drawer-close"
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+
+        <nav class="drawer-nav" aria-label="Principal móvil">
+          <p class="drawer-section-title">Para tu negocio</p>
+          {#each verticals as v (v.slug)}
+            <a
+              href={`/para/${v.slug}`}
+              data-cord={v.slug}
+              aria-current={pathname === `/para/${v.slug}` ? 'page' : undefined}
+              onclick={closeMobileMenu}
+            >
+              <span class="knot-dot" aria-hidden="true"></span>
+              {v.navLabel}
+            </a>
+          {/each}
+          <p class="drawer-section-title">Sitio</p>
+          <a href="/precios" aria-current={pathname === '/precios' ? 'page' : undefined} onclick={closeMobileMenu}>
+            Precios
+          </a>
+          <a href="/seguridad" aria-current={pathname === '/seguridad' ? 'page' : undefined} onclick={closeMobileMenu}>
+            Seguridad
+          </a>
+          <a href="/casos-de-exito" aria-current={pathname === '/casos-de-exito' ? 'page' : undefined} onclick={closeMobileMenu}>
+            Casos de éxito
+          </a>
+          <a href="/comparar" aria-current={pathname.startsWith('/comparar') ? 'page' : undefined} onclick={closeMobileMenu}>
+            Comparar
+          </a>
+          <a href="/ayuda" aria-current={pathname === '/ayuda' ? 'page' : undefined} onclick={closeMobileMenu}>
+            Ayuda
+          </a>
+          <a href="{posOrigin}/login" onclick={closeMobileMenu}>
+            Ingresar
+          </a>
+          <a class="btn" href="/empezar" onclick={closeMobileMenu}>
+            Empieza gratis
+          </a>
+        </nav>
+      </div>
+    {/if}
   </header>
 
   <main id="contenido">

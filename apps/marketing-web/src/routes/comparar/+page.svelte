@@ -13,6 +13,45 @@
   const selected = $derived(getCompare(vsParam) ?? getCompare('bsale')!);
 
   const rows = $derived([...COMPARE_ROWS, ...selected.rows]);
+
+  /* ── Sprint 11C: Filtro por categoría de negocio ──────────────────── */
+
+  interface CategoryTab {
+    readonly id: string;
+    readonly label: string;
+    /** Filas relevantes para este tipo de negocio (undefined = todas). */
+    readonly highlightLabels?: readonly string[];
+  }
+
+  const CATEGORY_TABS: readonly CategoryTab[] = [
+    { id: 'todos', label: 'Todos' },
+    {
+      id: 'restaurante',
+      label: 'Restaurante',
+      highlightLabels: ['Si se corta el internet', 'Implementacion', 'Empezar a usarlo'],
+    },
+    {
+      id: 'tienda',
+      label: 'Tienda',
+      highlightLabels: ['Si se corta el internet', 'Costo mensual', 'Equipo necesario'],
+    },
+    {
+      id: 'servicios',
+      label: 'Servicios',
+      highlightLabels: ['Implementacion', 'Costo mensual', 'Soporte'],
+    },
+  ] as const;
+
+  let activeCategory = $state<string>('todos');
+
+  const filteredRows = $derived(
+    activeCategory === 'todos'
+      ? rows
+      : rows.filter((r) => {
+          const tab = CATEGORY_TABS.find((t) => t.id === activeCategory);
+          return tab?.highlightLabels?.includes(r.label) ?? true;
+        }),
+  );
 </script>
 
 <svelte:head>
@@ -115,25 +154,52 @@
           </p>
           <h2>El día a día de tu caja, fila por fila.</h2>
         </div>
+
+        <!-- Sprint 11C: Selector de categoría de negocio -->
+        <div
+          class="compare-tabs"
+          role="tablist"
+          aria-label="Filtrar comparativa por tipo de negocio"
+        >
+          {#each CATEGORY_TABS as tab}
+            <button
+              class="compare-tab"
+              class:is-active={activeCategory === tab.id}
+              role="tab"
+              aria-selected={activeCategory === tab.id}
+              data-testid="compare-tab-{tab.id}"
+              onclick={() => (activeCategory = tab.id)}
+            >
+              {tab.label}
+            </button>
+          {/each}
+        </div>
+
         <div class="ledger-table-wrap comparison-table-wrap" use:reveal>
-          <table class="ledger-table comparison-table" aria-label={selected.title}>
-            <thead>
-              <tr>
-                <th scope="col"></th>
-                <th scope="col">Lo que nos cuentan de {selected.name}</th>
-                <th scope="col">KipusPay</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each rows as row (row.label)}
+          {#if filteredRows.length > 0}
+            <table class="ledger-table comparison-table" aria-label={selected.title}>
+              <thead>
                 <tr>
-                  <th scope="row">{row.label}</th>
-                  <td data-label={`Experiencia con ${selected.name}`}>{row.reported}</td>
-                  <td class="kipus" data-label="KipusPay">{row.kipus}</td>
+                  <th scope="col"></th>
+                  <th scope="col">Lo que nos cuentan de {selected.name}</th>
+                  <th scope="col">KipusPay</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each filteredRows as row (row.label)}
+                  <tr>
+                    <th scope="row">{row.label}</th>
+                    <td data-label={`Experiencia con ${selected.name}`}>{row.reported}</td>
+                    <td class="kipus" data-label="KipusPay">{row.kipus}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {:else}
+            <p class="compare-empty">
+              No hay filas específicas para este tipo de negocio en la comparativa actual.
+            </p>
+          {/if}
         </div>
         <p class="compare-note">{compareDisclaimer(selected.name)}</p>
       </div>
@@ -167,3 +233,62 @@
     </div>
   </section>
 </article>
+
+<style>
+  /* ── Sprint 11C: Compare category tabs ─────────────────────────────── */
+
+  .compare-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .compare-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.55rem 1.1rem;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--paper);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .compare-tab:hover,
+  .compare-tab:focus-visible {
+    border-color: var(--amber);
+    color: var(--amber-bright);
+    background: rgba(217, 154, 61, 0.08);
+  }
+
+  .compare-tab.is-active,
+  .compare-tab[aria-selected='true'] {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: var(--ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .compare-tab {
+      transition: none;
+    }
+  }
+
+  .compare-empty {
+    padding: 2rem;
+    text-align: center;
+    color: rgba(243, 239, 230, 0.65);
+    font-size: 0.9375rem;
+    border: 1px dashed var(--line);
+  }
+</style>

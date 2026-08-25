@@ -302,16 +302,45 @@ export async function buildDailySummary(
 ): Promise<BuildDailySummaryResult> {
   const cdrPort = input.cdr ?? createMockRcCdrPort();
 
-  // 1. Si existe un resumen en PROCESSING con ticket de recepción, consultar queryStatus antes de generar nuevo XML
-  const processing = await db
+  /**
+   * F-05a — Ventana atómica documentada:
+   * Antes: await cdrPort.submit() (:604) → await runD1AtomicPlan INSERT (:626).
+   * Si el proceso muere tras recibir ticket SUNAT-TICKET-98765 (SUNAT ya lo tiene)
+   * pero antes del INSERT, el ticket se pierde (D1 no lo persiste) y el siguiente
+   * buildDailySummary generaría un RC duplicado con correlativo distinto.
+   * Solución crash-safe: INSERT optimista del RC en PROCESSING con
+   * sunat_reception_ticket=NULL ANTES de submit, luego UPDATE con ticket tras
+   * submit exitoso. Si el proceso muere entre submit y UPDATE, queda un
+   * PROCESSING huérfano sin ticket para ese (tenant,summary_date,correlative);
+   * al reintentar, buildDailySummary detecta el PROCESSING sin ticket y lo
+   * reusa (resubmit idempotente con mismo summaryId/sunatTicket) sin pérdida.
+   * Alternativa WAL pre-INSERT es aceptable pero se eligió INSERT optimista por
+   * minimizar cambios y mantener una sola tabla como fuente de verdad.
+   * La ventana ahora es submit→UPDATE (más corta) y es recuperable vía
+   * summaryId determinista RC-YYYYMMDD-NNN (ublId) o vía fila huérfana.
+   */
+
+  // 1. Manejo de todos los PROCESSING (F-05c: sin LIMIT 1, itera todos)
+  // Hacemos un fetch de tenant temprano para reusar en recuperación de huérfanos
+  const tenantEarly = await db
+    .prepare(`SELECT tax_regime, ruc, business_name, pse_mode FROM tenants WHERE id = ?`)
+    .bind(input.tenantId)
+    .first<{
+      tax_regime: string;
+      ruc: string | null;
+      business_name: string;
+      pse_mode: string | null;
+    }>();
+
+  const processingAll = await db
     .prepare(
       `SELECT id, status, rc_type, ticket_count, sunat_ticket, sunat_reception_ticket, correlative
        FROM sunat_daily_summaries
        WHERE tenant_id = ? AND summary_date = ? AND status = 'PROCESSING'
-       ORDER BY correlative ASC LIMIT 1`,
+       ORDER BY correlative ASC`,
     )
     .bind(input.tenantId, input.summaryDate)
-    .first<{
+    .all<{
       id: string;
       status: string;
       rc_type: 'PRIMARY' | 'COMPLEMENTARY';
@@ -321,144 +350,353 @@ export async function buildDailySummary(
       correlative: number;
     }>();
 
-  if (
-    processing &&
-    processing.sunat_reception_ticket &&
-    typeof cdrPort.queryStatus === 'function'
-  ) {
-    const queryResult = await cdrPort.queryStatus({
-      tenantId: input.tenantId,
-      ticket: processing.sunat_reception_ticket,
-    });
+  const processings = processingAll.results ?? [];
+  let pendingProcessing: (typeof processings)[number] | null = null;
+  let lastAccepted: (typeof processings)[number] | null = null;
+  let lastRejected: (typeof processings)[number] | null = null;
+  let lastAcceptedTicket: string | null = null;
+  let lastRejectedTicket: string | null = null;
+  let pendingTicket: string | null = null;
+  let hasAcceptedInLoop = false;
 
-    if (queryResult.status === 'ACCEPTED' || queryResult.accepted) {
+  for (const proc of processings) {
+    if (proc.sunat_reception_ticket) {
+      if (typeof cdrPort.queryStatus !== 'function') {
+        if (!pendingProcessing) pendingProcessing = proc;
+        continue;
+      }
+      const queryResult = await cdrPort.queryStatus({
+        tenantId: input.tenantId,
+        ticket: proc.sunat_reception_ticket,
+      });
+
+      if (queryResult.status === 'ACCEPTED' || queryResult.accepted) {
+        await runD1AtomicPlan(db, (planBuilder) => {
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sunat_daily_summaries
+                 SET status = 'ACCEPTED', cdr_code = ?, cdr_message = ?
+                 WHERE id = ? AND tenant_id = ?`,
+              )
+              .bind(
+                queryResult.cdrCode ?? '0',
+                queryResult.cdrMessage ?? 'Aceptado',
+                proc.id,
+                input.tenantId,
+              ),
+          );
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sales
+                 SET sunat_status = 'ACCEPTED',
+                     void_status = CASE WHEN void_status = 'VOID_PENDING_RC' THEN 'VOIDED' ELSE void_status END
+                 WHERE daily_summary_id = ? AND tenant_id = ?`,
+              )
+              .bind(proc.id, input.tenantId),
+          );
+        });
+
+        if (input.archive) {
+          await archiveRcCdrOnly({
+            db,
+            archive: input.archive,
+            tenantId: input.tenantId,
+            summaryId: proc.id,
+            cdr: {
+              accepted: true,
+              cdrCode: queryResult.cdrCode ?? '0',
+              cdrMessage: queryResult.cdrMessage ?? 'Aceptado',
+              cdrZipB64: queryResult.cdrZipB64,
+            },
+          });
+        }
+        hasAcceptedInLoop = true;
+        lastAccepted = proc;
+        lastAcceptedTicket = proc.sunat_reception_ticket;
+      } else if (queryResult.status === 'REJECTED') {
+        await runD1AtomicPlan(db, (planBuilder) => {
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sunat_daily_summaries
+                 SET status = 'REJECTED', cdr_code = ?, cdr_message = ?
+                 WHERE id = ? AND tenant_id = ?`,
+              )
+              .bind(
+                queryResult.cdrCode ?? '99',
+                queryResult.cdrMessage ?? 'Rechazado',
+                proc.id,
+                input.tenantId,
+              ),
+          );
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sales
+                 SET sunat_status = 'REJECTED'
+                 WHERE daily_summary_id = ? AND tenant_id = ?`,
+              )
+              .bind(proc.id, input.tenantId),
+          );
+        });
+        lastRejected = proc;
+        lastRejectedTicket = proc.sunat_reception_ticket;
+      } else {
+        // PROCESSING o UNREACHABLE: sigue en proceso en SUNAT
+        if (!pendingProcessing) {
+          pendingProcessing = proc;
+          pendingTicket = proc.sunat_reception_ticket;
+        }
+      }
+    } else {
+      // F-05a — huérfano sin ticket (crash entre INSERT optimista y UPDATE)
+      // Recuperación: reconstruir XML desde sales vinculadas y resubmit idempotente
+      const linked = await db
+        .prepare(
+          `SELECT document_type, series, number, client_document_type, client_document_number,
+                  void_status, total_taxable_cents, total_igv_cents, total_amount_cents, credit_note_motive_code
+           FROM sales
+           WHERE daily_summary_id = ? AND tenant_id = ?`,
+        )
+        .bind(proc.id, input.tenantId)
+        .all<RcXmlRow>();
+      const linkedRows = linked.results ?? [];
+      if (linkedRows.length === 0) {
+        // Sin ventas vinculadas: huérfano vacío, marcar como pendiente para no bloquear
+        if (!pendingProcessing) {
+          pendingProcessing = proc;
+          pendingTicket = proc.sunat_reception_ticket;
+        }
+        continue;
+      }
+      const tenantForOrphan = tenantEarly;
+      // Reconstruir XML con mismo sunatTicket/correlative
+      let xmlOrphan: string;
+      try {
+        xmlOrphan = await buildRcEnvelopeXml({
+          tenantId: input.tenantId,
+          summaryDate: input.summaryDate,
+          ticketCount: proc.ticket_count,
+          nrusOmitted: 0,
+          sunatTicket: proc.sunat_ticket ?? rcSummaryId(input.summaryDate, proc.correlative),
+          tenant: tenantForOrphan,
+          rows: linkedRows,
+          signer: input.signer,
+        });
+      } catch {
+        if (!pendingProcessing) {
+          pendingProcessing = proc;
+          pendingTicket = proc.sunat_reception_ticket;
+        }
+        continue;
+      }
+      let cdrOrphan: RcSubmitResult;
+      try {
+        cdrOrphan = await cdrPort.submit({
+          tenantId: input.tenantId,
+          summaryId: proc.id,
+          xml: xmlOrphan,
+          ...(proc.sunat_ticket ? { ublId: proc.sunat_ticket } : {}),
+        });
+      } catch {
+        if (!pendingProcessing) {
+          pendingProcessing = proc;
+          pendingTicket = proc.sunat_reception_ticket;
+        }
+        continue;
+      }
+      let newRcStatus: 'ACCEPTED' | 'PROCESSING' | 'REJECTED';
+      let newSaleStatus: 'ACCEPTED' | 'PROCESSING' | 'REJECTED';
+      const receptionTicketOrphan = cdrOrphan.ticket ?? null;
+      if (cdrOrphan.status === 'PROCESSING') {
+        newRcStatus = 'PROCESSING';
+        newSaleStatus = 'PROCESSING';
+      } else if (cdrOrphan.accepted || cdrOrphan.status === 'ACCEPTED') {
+        newRcStatus = 'ACCEPTED';
+        newSaleStatus = 'ACCEPTED';
+      } else {
+        newRcStatus = 'REJECTED';
+        newSaleStatus = 'REJECTED';
+      }
       await runD1AtomicPlan(db, (planBuilder) => {
         planBuilder.add(
           db
             .prepare(
               `UPDATE sunat_daily_summaries
-               SET status = 'ACCEPTED', cdr_code = ?, cdr_message = ?
+               SET status = ?, sunat_reception_ticket = ?, cdr_code = ?, cdr_message = ?, submitted_at = datetime('now')
                WHERE id = ? AND tenant_id = ?`,
             )
             .bind(
-              queryResult.cdrCode ?? '0',
-              queryResult.cdrMessage ?? 'Aceptado',
-              processing.id,
+              newRcStatus,
+              receptionTicketOrphan,
+              cdrOrphan.cdrCode ?? (newRcStatus === 'ACCEPTED' ? '0' : null),
+              cdrOrphan.cdrMessage ?? (newRcStatus === 'PROCESSING' ? 'En proceso' : null),
+              proc.id,
               input.tenantId,
             ),
         );
-        planBuilder.add(
-          db
-            .prepare(
-              `UPDATE sales
-               SET sunat_status = 'ACCEPTED',
-                   void_status = CASE WHEN void_status = 'VOID_PENDING_RC' THEN 'VOIDED' ELSE void_status END
-               WHERE daily_summary_id = ? AND tenant_id = ?`,
-            )
-            .bind(processing.id, input.tenantId),
-        );
+        if (newRcStatus === 'ACCEPTED') {
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sales
+                 SET sunat_status = ?, void_status = CASE WHEN void_status = 'VOID_PENDING_RC' THEN 'VOIDED' ELSE void_status END
+                 WHERE daily_summary_id = ? AND tenant_id = ?`,
+              )
+              .bind(newSaleStatus, proc.id, input.tenantId),
+          );
+        } else {
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sales SET sunat_status = ? WHERE daily_summary_id = ? AND tenant_id = ?`,
+              )
+              .bind(newSaleStatus, proc.id, input.tenantId),
+          );
+        }
       });
-
       if (input.archive) {
-        await archiveRcCdrOnly({
-          db,
-          archive: input.archive,
-          tenantId: input.tenantId,
-          summaryId: processing.id,
-          cdr: {
-            accepted: true,
-            cdrCode: queryResult.cdrCode ?? '0',
-            cdrMessage: queryResult.cdrMessage ?? 'Aceptado',
-            cdrZipB64: queryResult.cdrZipB64,
-          },
-        });
+        if (newRcStatus === 'ACCEPTED') {
+          await archiveRcEnvelope({
+            db,
+            archive: input.archive,
+            tenantId: input.tenantId,
+            summaryId: proc.id,
+            xml: xmlOrphan,
+            cdr: cdrOrphan,
+          });
+        } else {
+          await archiveRcXmlOnly({
+            db,
+            archive: input.archive,
+            tenantId: input.tenantId,
+            summaryId: proc.id,
+            xml: xmlOrphan,
+          });
+        }
       }
+      if (newRcStatus === 'ACCEPTED') {
+        hasAcceptedInLoop = true;
+        lastAccepted = proc;
+        lastAcceptedTicket = receptionTicketOrphan;
+      } else if (newRcStatus === 'REJECTED') {
+        lastRejected = proc;
+        lastRejectedTicket = receptionTicketOrphan;
+      } else {
+        if (!pendingProcessing) {
+          pendingProcessing = proc;
+          pendingTicket = receptionTicketOrphan;
+        }
+      }
+    }
+  }
 
-      // Verificar si quedan otras boletas pendientes del día
-      const remainingBoletas = await db
-        .prepare(
-          `SELECT COUNT(*) AS n
-           FROM sales
-           WHERE tenant_id = ?
-             AND deleted_at IS NULL
-             AND (
-               document_type IN ('03','12')
-               OR (
-                 document_type IN ('07','08')
-                 AND EXISTS (
-                   SELECT 1 FROM sales orig
-                   WHERE orig.tenant_id = sales.tenant_id
-                     AND orig.id = sales.referenced_sale_id
-                     AND orig.document_type IN ('03','12')
-                 )
+  // Si queda algún PROCESSING pendiente sin resolver, retornamos ese estado
+  // (comportamiento original: no crear nuevo RC mientras hay uno en PROCESSING)
+  // Pero con múltiples, si hay al menos uno pendiente, retornamos el primero pendiente
+  // solo si no hay boletas pendientes adicionales que justifiquen un COMPLEMENTARY
+  // La decisión final de crear nuevo RC se toma después de verificar pending boletas;
+  // aquí solo retornamos early si hay pendiente y no hay aceptados recientes con resto.
+
+  // Si hubo un REJECTED y no hay pendientes adicionales, retornamos REJECTED
+  // (mantiene compatibilidad con test de rechazo)
+  if (lastRejected && !hasAcceptedInLoop && !pendingProcessing) {
+    // Verificar si hay boletas pendientes: si no hay, retornar REJECTED como antes
+    const remainingCheck = await db
+      .prepare(
+        `SELECT COUNT(*) AS n
+         FROM sales
+         WHERE tenant_id = ?
+           AND deleted_at IS NULL
+           AND (
+             document_type IN ('03','12')
+             OR (
+               document_type IN ('07','08')
+               AND EXISTS (
+                 SELECT 1 FROM sales orig
+                 WHERE orig.tenant_id = sales.tenant_id
+                   AND orig.id = sales.referenced_sale_id
+                   AND orig.document_type IN ('03','12')
                )
              )
-             AND sunat_status IN ('PENDING','PROCESSING','ACCEPTED','DEADLINE_EXCEEDED')
-             AND daily_summary_id IS NULL
-             AND date(issued_at_lima) = ?`,
-        )
-        .bind(input.tenantId, input.summaryDate)
-        .first<{ n: number }>();
-
-      if (!remainingBoletas || remainingBoletas.n === 0) {
-        return {
-          status: 'SUCCESS',
-          dailySummaryId: processing.id,
-          sunatStatus: 'ACCEPTED',
-          ticketCount: processing.ticket_count,
-          rcType: processing.rc_type,
-          rcUblId: processing.sunat_ticket ?? undefined,
-          sunatReceptionTicket: processing.sunat_reception_ticket,
-        };
-      }
-    } else if (queryResult.status === 'REJECTED') {
-      await runD1AtomicPlan(db, (planBuilder) => {
-        planBuilder.add(
-          db
-            .prepare(
-              `UPDATE sunat_daily_summaries
-               SET status = 'REJECTED', cdr_code = ?, cdr_message = ?
-               WHERE id = ? AND tenant_id = ?`,
-            )
-            .bind(
-              queryResult.cdrCode ?? '99',
-              queryResult.cdrMessage ?? 'Rechazado',
-              processing.id,
-              input.tenantId,
-            ),
-        );
-        planBuilder.add(
-          db
-            .prepare(
-              `UPDATE sales
-               SET sunat_status = 'REJECTED'
-               WHERE daily_summary_id = ? AND tenant_id = ?`,
-            )
-            .bind(processing.id, input.tenantId),
-        );
-      });
-
+           )
+           AND sunat_status IN ('PENDING','PROCESSING','ACCEPTED','DEADLINE_EXCEEDED')
+           AND daily_summary_id IS NULL
+           AND date(issued_at_lima) = ?`,
+      )
+      .bind(input.tenantId, input.summaryDate)
+      .first<{ n: number }>();
+    if (!remainingCheck || remainingCheck.n === 0) {
       return {
         status: 'SUCCESS',
-        dailySummaryId: processing.id,
+        dailySummaryId: lastRejected.id,
         sunatStatus: 'REJECTED',
-        ticketCount: processing.ticket_count,
-        rcType: processing.rc_type,
-        rcUblId: processing.sunat_ticket ?? undefined,
-        sunatReceptionTicket: processing.sunat_reception_ticket,
-      };
-    } else {
-      // PROCESSING o UNREACHABLE: sigue en proceso en SUNAT
-      return {
-        status: 'SUCCESS',
-        dailySummaryId: processing.id,
-        sunatStatus: 'PROCESSING',
-        ticketCount: processing.ticket_count,
-        rcType: processing.rc_type,
-        rcUblId: processing.sunat_ticket ?? undefined,
-        sunatReceptionTicket: processing.sunat_reception_ticket,
+        ticketCount: lastRejected.ticket_count,
+        rcType: lastRejected.rc_type,
+        rcUblId: lastRejected.sunat_ticket ?? undefined,
+        sunatReceptionTicket:
+          lastRejectedTicket ?? lastRejected.sunat_reception_ticket ?? undefined,
       };
     }
+  }
+
+  if (pendingProcessing && !hasAcceptedInLoop) {
+    // Hay al menos un PROCESSING que sigue en PROCESSING y no se resolvió a ACCEPTED
+    // Comportamiento legacy: retornar PROCESSING sin crear nuevo RC
+    // Verificamos si ya no hay boletas pendientes adicionales; si las hay, igual retornamos PROCESSING
+    // (el caller podrá decidir crear complementario en siguiente intento)
+    return {
+      status: 'SUCCESS',
+      dailySummaryId: pendingProcessing.id,
+      sunatStatus: 'PROCESSING',
+      ticketCount: pendingProcessing.ticket_count,
+      rcType: pendingProcessing.rc_type,
+      rcUblId: pendingProcessing.sunat_ticket ?? undefined,
+      sunatReceptionTicket: pendingTicket ?? pendingProcessing.sunat_reception_ticket ?? undefined,
+    };
+  }
+
+  // Si hubo aceptados y no hay pendientes, retornamos el último aceptado (original: check remaining==0)
+  if (hasAcceptedInLoop && lastAccepted) {
+    const remainingBoletasAfterAccept = await db
+      .prepare(
+        `SELECT COUNT(*) AS n
+         FROM sales
+         WHERE tenant_id = ?
+           AND deleted_at IS NULL
+           AND (
+             document_type IN ('03','12')
+             OR (
+               document_type IN ('07','08')
+               AND EXISTS (
+                 SELECT 1 FROM sales orig
+                 WHERE orig.tenant_id = sales.tenant_id
+                   AND orig.id = sales.referenced_sale_id
+                   AND orig.document_type IN ('03','12')
+               )
+             )
+           )
+           AND sunat_status IN ('PENDING','PROCESSING','ACCEPTED','DEADLINE_EXCEEDED')
+           AND daily_summary_id IS NULL
+           AND date(issued_at_lima) = ?`,
+      )
+      .bind(input.tenantId, input.summaryDate)
+      .first<{ n: number }>();
+    if (!remainingBoletasAfterAccept || remainingBoletasAfterAccept.n === 0) {
+      return {
+        status: 'SUCCESS',
+        dailySummaryId: lastAccepted.id,
+        sunatStatus: 'ACCEPTED',
+        ticketCount: lastAccepted.ticket_count,
+        rcType: lastAccepted.rc_type,
+        rcUblId: lastAccepted.sunat_ticket ?? undefined,
+        sunatReceptionTicket:
+          lastAcceptedTicket ?? lastAccepted.sunat_reception_ticket ?? undefined,
+      };
+    }
+    // Si quedan boletas, continuamos para crear COMPLEMENTARY
   }
 
   // 2. Consultar resúmenes existentes del día para este emisor
@@ -478,17 +716,8 @@ export async function buildDailySummary(
     }>();
 
   const summaryRows = existingSummaries.results ?? [];
-  const existingPrimary = summaryRows.find((s) => s.rc_type === 'PRIMARY');
 
-  const tenant = await db
-    .prepare(`SELECT tax_regime, ruc, business_name, pse_mode FROM tenants WHERE id = ?`)
-    .bind(input.tenantId)
-    .first<{
-      tax_regime: string;
-      ruc: string | null;
-      business_name: string;
-      pse_mode: string | null;
-    }>();
+  const tenant = tenantEarly;
 
   // H1 (auditoría 0031): el RC lleva boletas/tickets (03/12) Y las notas
   // (07/08) cuyo documento afectado es boleta/ticket — regla SUNAT §5.2.
@@ -580,33 +809,138 @@ export async function buildDailySummary(
     .map((r) => ({ saleId: r.id, totalAmountCents: r.total_amount_cents }));
   const nrusPlan = planNrusDailyConsolidation(nrusLines);
 
-  const summaryId = crypto.randomUUID();
   const mustSubmitBy = new Date(
     Date.parse(`${input.summaryDate}T23:59:59.999-05:00`) + 6 * 24 * 3600 * 1000,
   ).toISOString();
 
-  const correlative =
-    summaryRows.length > 0 ? Math.max(...summaryRows.map((r) => r.correlative ?? 1)) + 1 : 1;
-  const rcType = existingPrimary ? 'COMPLEMENTARY' : 'PRIMARY';
-  const sunatTicket = rcSummaryId(input.summaryDate, correlative);
+  /**
+   * F-05b — Correlativo serializable:
+   * Antes: correlative = max(...)+1 computado fuera de la tx (no serializable).
+   * Dos buildDailySummary concurrentes para mismo (tenant,date) calculaban mismo
+   * correlative y chocaban en UNIQUE → 500.
+   * Ahora: SELECT COALESCE(MAX(correlative),0)+1 DENTRO de cada intento de tx
+   * (leído justo antes del INSERT optimista) + retry en UNIQUE. Si INSERT falla
+   * con SQLITE_CONSTRAINT_UNIQUE correlative, reintentar una vez con
+   * correlative+1 (recalculando MAX). Esto serializa la reserva sin bloqueos.
+   */
+  let summaryId: string | null = null;
+  let correlative: number | null = null;
+  let rcType: 'PRIMARY' | 'COMPLEMENTARY' | null = null;
+  let sunatTicket: string | null = null;
+  let xml: string | null = null;
+  let attempt = 0;
+  const maxAttempts = 3;
+  let lastCorrelativeErr: unknown = null;
 
-  const xml = await buildRcEnvelopeXml({
-    tenantId: input.tenantId,
-    summaryDate: input.summaryDate,
-    ticketCount: plan.ticketCount,
-    nrusOmitted: nrusPlan.omittedSaleIds.length,
-    sunatTicket,
-    tenant,
-    rows,
-    signer: input.signer,
-  });
+  while (attempt < maxAttempts) {
+    attempt += 1;
+    // Recalcular MAX dentro del intento (cerca de la tx)
+    const maxRes = await db
+      .prepare(
+        `SELECT COALESCE(MAX(correlative), 0) AS maxCorr FROM sunat_daily_summaries WHERE tenant_id = ? AND summary_date = ?`,
+      )
+      .bind(input.tenantId, input.summaryDate)
+      .first<{ maxCorr: number }>();
+    const nextCorr = (maxRes?.maxCorr ?? 0) + 1;
+    correlative = nextCorr;
+    const primaryCheck = await db
+      .prepare(
+        `SELECT id FROM sunat_daily_summaries WHERE tenant_id = ? AND summary_date = ? AND rc_type = 'PRIMARY' LIMIT 1`,
+      )
+      .bind(input.tenantId, input.summaryDate)
+      .first<{ id: string }>();
+    rcType = primaryCheck ? 'COMPLEMENTARY' : 'PRIMARY';
+    sunatTicket = rcSummaryId(input.summaryDate, correlative);
+    summaryId = crypto.randomUUID();
 
-  const cdr = await cdrPort.submit({
-    tenantId: input.tenantId,
-    summaryId,
-    xml,
-    ublId: sunatTicket,
-  });
+    xml = await buildRcEnvelopeXml({
+      tenantId: input.tenantId,
+      summaryDate: input.summaryDate,
+      ticketCount: plan.ticketCount,
+      nrusOmitted: nrusPlan.omittedSaleIds.length,
+      sunatTicket,
+      tenant,
+      rows,
+      signer: input.signer,
+    });
+
+    // F-05a — INSERT optimista en PROCESSING con ticket NULL ANTES de submit
+    try {
+      await runD1AtomicPlan(db, (planBuilder) => {
+        planBuilder.add(
+          db
+            .prepare(
+              `INSERT INTO sunat_daily_summaries
+                 (id, tenant_id, branch_id, summary_date, status, must_submit_by, rc_type, ticket_count,
+                  sunat_ticket, sunat_reception_ticket, correlative, cdr_code, cdr_message, submitted_at)
+               VALUES (?, ?, NULL, ?, 'PROCESSING', ?, ?, ?, ?, NULL, ?, NULL, NULL, datetime('now'))`,
+            )
+            .bind(
+              summaryId,
+              input.tenantId,
+              input.summaryDate,
+              mustSubmitBy,
+              rcType,
+              plan.ticketCount,
+              sunatTicket,
+              correlative,
+            ),
+        );
+        for (const saleId of plan.saleIds) {
+          planBuilder.add(
+            db
+              .prepare(
+                `UPDATE sales SET daily_summary_id = ?, sunat_status = ?
+                 WHERE id = ? AND tenant_id = ?`,
+              )
+              .bind(summaryId, 'PROCESSING', saleId, input.tenantId),
+          );
+        }
+      });
+      break; // éxito, salir del retry
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (
+        /UNIQUE constraint failed.*correlative/i.test(msg) ||
+        /UNIQUE constraint failed.*sunat_daily_summaries/i.test(msg)
+      ) {
+        lastCorrelativeErr = e;
+        if (attempt >= maxAttempts) throw e;
+        // retry con nuevo correlative
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  if (!summaryId || correlative === null || !rcType || !sunatTicket || !xml) {
+    if (lastCorrelativeErr instanceof Error) throw lastCorrelativeErr;
+    throw new Error('RC_CORRELATIVE_RETRY_EXHAUSTED');
+  }
+
+  // Submit fuera de la tx (idempotente por summaryId+ublId)
+  let cdr: RcSubmitResult;
+  try {
+    cdr = await cdrPort.submit({
+      tenantId: input.tenantId,
+      summaryId,
+      xml,
+      ublId: sunatTicket,
+    });
+  } catch {
+    // Fallo de red/transporte: dejamos el RC en PROCESSING sin ticket para que
+    // el siguiente buildDailySummary lo recupere vía huérfano (F-05a)
+    return {
+      status: 'SUCCESS',
+      dailySummaryId: summaryId,
+      sunatStatus: 'PROCESSING',
+      ticketCount: plan.ticketCount,
+      nrusOmittedCount: nrusPlan.omittedSaleIds.length,
+      rcType,
+      rcUblId: sunatTicket,
+      sunatReceptionTicket: undefined,
+    };
+  }
 
   let rcStatus: 'ACCEPTED' | 'PROCESSING' | 'REJECTED';
   let saleStatus: 'ACCEPTED' | 'PROCESSING' | 'REJECTED';
@@ -623,28 +957,22 @@ export async function buildDailySummary(
     saleStatus = 'REJECTED';
   }
 
+  // F-05a — segunda fase: UPDATE con ticket tras submit exitoso
   await runD1AtomicPlan(db, (planBuilder) => {
     planBuilder.add(
       db
         .prepare(
-          `INSERT INTO sunat_daily_summaries
-             (id, tenant_id, branch_id, summary_date, status, must_submit_by, rc_type, ticket_count,
-              sunat_ticket, sunat_reception_ticket, correlative, cdr_code, cdr_message, submitted_at)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+          `UPDATE sunat_daily_summaries
+           SET status = ?, sunat_reception_ticket = ?, cdr_code = ?, cdr_message = ?, submitted_at = datetime('now')
+           WHERE id = ? AND tenant_id = ?`,
         )
         .bind(
-          summaryId,
-          input.tenantId,
-          input.summaryDate,
           rcStatus,
-          mustSubmitBy,
-          rcType,
-          plan.ticketCount,
-          sunatTicket,
           receptionTicket,
-          correlative,
           cdr.cdrCode ?? (rcStatus === 'ACCEPTED' ? '0' : null),
           cdr.cdrMessage ?? (rcStatus === 'PROCESSING' ? 'En proceso' : null),
+          summaryId,
+          input.tenantId,
         ),
     );
     for (const saleId of plan.saleIds) {
@@ -655,30 +983,29 @@ export async function buildDailySummary(
           planBuilder.add(
             db
               .prepare(
-                `UPDATE sales SET daily_summary_id = ?, sunat_status = ?, void_status = ?
-                 WHERE id = ? AND tenant_id = ?`,
+                `UPDATE sales SET sunat_status = ?, void_status = ?
+                 WHERE daily_summary_id = ? AND tenant_id = ? AND id = ?`,
               )
-              .bind(summaryId, saleStatus, voidNext, saleId, input.tenantId),
+              .bind(saleStatus, voidNext, summaryId, input.tenantId, saleId),
           );
         } else {
           planBuilder.add(
             db
               .prepare(
-                `UPDATE sales SET daily_summary_id = ?, sunat_status = ?
-                 WHERE id = ? AND tenant_id = ?`,
+                `UPDATE sales SET sunat_status = ?
+                 WHERE daily_summary_id = ? AND tenant_id = ? AND id = ?`,
               )
-              .bind(summaryId, saleStatus, saleId, input.tenantId),
+              .bind(saleStatus, summaryId, input.tenantId, saleId),
           );
         }
       } else {
-        // En PROCESSING o REJECTED: se asigna daily_summary_id y sunat_status, sin marcar void_status como VOIDED
         planBuilder.add(
           db
             .prepare(
-              `UPDATE sales SET daily_summary_id = ?, sunat_status = ?
-               WHERE id = ? AND tenant_id = ?`,
+              `UPDATE sales SET sunat_status = ?
+               WHERE daily_summary_id = ? AND tenant_id = ? AND id = ?`,
             )
-            .bind(summaryId, saleStatus, saleId, input.tenantId),
+            .bind(saleStatus, summaryId, input.tenantId, saleId),
         );
       }
     }
@@ -738,6 +1065,9 @@ export interface DailySummarySweepResult {
  * F5b-1: sweep multi-tenant del RC diario — lista tenants con boletas del día
  * aún sin RC (PENDING/PROCESSING/ACCEPTED/DEADLINE_EXCEEDED, daily_summary_id
  * NULL) y construye su RC. El cron llama esto con summaryDate = día Lima previo.
+ * F-05c: el sweep ahora resuelve TODOS los PROCESSING del día (sin LIMIT 1) vía
+ * buildDailySummary que itera todos los PROCESSING del tenant; si hay 2
+ * PROCESSING del mismo día, ambos quedan resueltos en un solo sweep.
  */
 export async function runDailySummarySweep(
   db: D1DatabaseLike,
@@ -805,6 +1135,9 @@ export async function runDailySummarySweep(
 
   const results: DailySummarySweepResult['results'][number][] = [];
   for (const tenantId of tenants) {
+    // F-05c: buildDailySummary ahora resuelve todos los PROCESSING del tenant
+    // en una sola llamada (loop sin LIMIT 1), por lo que un sweep basta para
+    // huérfanos múltiples del mismo día.
     const r = await buildDailySummary(db, {
       tenantId,
       summaryDate: input.summaryDate,

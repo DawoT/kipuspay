@@ -417,6 +417,67 @@ describe('createSunatBillTransport', () => {
     expect(outcome.kind).toBe('accepted');
   });
 
+  it('GAP F-04: sendSummary 98 sin <ticket> con ticketContext heredado → processing (rama ?? ticketContext; orden followTicket antes de 98)', async () => {
+    const ticket = 'SUNAT-TICKET-HEREDADO';
+    const soapSendSummaryTicketAnd98 =
+      `<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+      `<soap:Body><ns2:sendSummaryResponse xmlns:ns2="http://service.sunat.gob.pe">` +
+      `<ticket>${ticket}</ticket>` +
+      `<statusCode>98</statusCode>` +
+      `</ns2:sendSummaryResponse></soap:Body></soap:Envelope>`;
+    const soapGetStatus98SinTicket =
+      `<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+      `<soap:Body><ns2:getStatusResponse xmlns:ns2="http://service.sunat.gob.pe">` +
+      `<statusCode>98</statusCode>` +
+      `</ns2:getStatusResponse></soap:Body></soap:Envelope>`;
+
+    const actions: string[] = [];
+    const transport = createSunatBillTransport({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: (_url, init) => {
+        const headers = new Headers(init?.headers);
+        actions.push(headers.get('SOAPAction') ?? '');
+        if (actions.length === 1) {
+          return Promise.resolve(new Response(soapSendSummaryTicketAnd98, { status: 200 }));
+        }
+        expect(requestBody(init)).toContain(ticket);
+        return Promise.resolve(new Response(soapGetStatus98SinTicket, { status: 200 }));
+      },
+    });
+
+    const outcome = await transport.submit({
+      tenantId: 't',
+      saleId: 'sum-1',
+      xml: '<DailySummary date="2026-08-21" tickets="1"/>',
+      xmlHash: 'h',
+      documentType: '03',
+    });
+
+    // Si se re-invierte orden followTicket/98 (2be2090), no invoca getStatus → falla
+    expect(actions).toEqual(['urn:sendSummary', 'urn:getStatus']);
+    expect(outcome.kind).toBe('processing');
+    if (outcome.kind === 'processing') {
+      expect(outcome.ticket).toBe(ticket);
+    }
+
+    // Rama directa getStatus 98 sin ticket con ticketContext — ?? ticketContext
+    // Si se rompe ?? (solo parsed.ticket), ticket seria undefined → falla
+    const transport2 = createSunatBillTransport({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: (_url, init) => {
+        expect(requestBody(init)).toContain(ticket);
+        return Promise.resolve(new Response(soapGetStatus98SinTicket, { status: 200 }));
+      },
+    });
+    const direct = await transport2.querySummaryStatus!(ticket);
+    expect(direct.kind).toBe('processing');
+    if (direct.kind === 'processing') {
+      expect(direct.ticket).toBe(ticket);
+    }
+  });
+
   it('network error → unreachable', async () => {
     const transport = createSunatBillTransport({
       solUser: SOL_USER,

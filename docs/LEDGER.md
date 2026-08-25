@@ -13749,3 +13749,45 @@ aprobaciones: [Staff Principal (@DawoT), Staff QA V]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0482
+timestamp_utc: 2026-08-25T18:30:00Z
+schema_version: 2
+sprint_fase: Fase 1 — Remediación F-04/F-05 (Async Ticket Hardening)
+agente_responsable: Staff Principal (ejecución: kipus-qa + kipus-acid; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Cobertura ticketContext + crash-safe correlative + sweep multi-PROCESSING
+relacion: corrige
+referencias_entradas: [0481]
+referencias_documentales: [packages/adapters-sunat/src/sunat-bill-transport.ts, packages/adapters-d1/src/build-daily-summary.ts]
+prev_id: 0481
+prev_hash: 5251eda7349c81b23ea81e08357bf3140485afe3a06c4ccbb426fdeeedc21206
+entry_hash: b5843d4f65c1a5a712c9c37296467926d13c1995a406910c63714c8a7fb4a9ea
+ticket_or_adr: F-04, F-05; ADR-FISCAL-007
+test_ids: [packages/adapters-sunat/src/sunat-bill-transport.test.ts, packages/adapters-d1/src/fiscal-rc-f05.integration.test.ts, V-13, V-25, V-29]
+entregable_afectado: packages/adapters-sunat/src/sunat-bill-transport.ts §classifyBody; packages/adapters-d1/src/build-daily-summary.ts §correlative/sweep
+descripcion: >
+  Cierre de GAPs F-04 y F-05 detectados en auditoría de Sprints 63-65.
+  F-04: rama 98 sin <ticket> pero con ticketContext heredado no estaba testeada;
+  se añadió test que verifica parsed.ticket ?? ticketContext y el orden
+  followTicket antes de 98. F-05a: ventana no atómica submit→INSERT resuelta
+  con INSERT optimista PROCESSING con sunat_reception_ticket=NULL antes de
+  submit y UPDATE posterior; crash entre ambos deja fila huérfana recuperable
+  vía summaryId determinista RC-YYYYMMDD-NNN. F-05b: correlative = MAX+1 fuera
+  de tx serializable → SELECT COALESCE(MAX(correlative),0) dentro de loop con
+  retry en UNIQUE constraint (hasta 3 intentos) con regeneración de summaryId/XML.
+  F-05c: sweep LIMIT 1 solo resolvía el más antiguo → SELECT sin LIMIT + loop
+  sobre todos los PROCESSING, un solo sweep limpia N filas.
+evidencia: >
+  RED: sunat-bill-transport.test.ts fallaba en 98 sin ticket con ticketContext
+  (expected null to be 'SUNAT-TICKET-HEREDADO'); fiscal-rc-f05 huérfano sin
+  ticket quedaba undefined y concurrentes chocaban 500 UNIQUE.
+  GREEN: adapters-sunat 60/60 (7 archivos), adapters-d1 452/452 unit + 330/330
+  integration (45 archivos, 4 nuevos F-05), worker-fiscal 76/76, SUITE GREEN
+  (31/31), V-13 dual GREEN, V-25 espejo, V-29 triggers. Prettier --check limpio.
+ancestry_verified: true
+aprobaciones: [Staff QA, Staff ACID, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
