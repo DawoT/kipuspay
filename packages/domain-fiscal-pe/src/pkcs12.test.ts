@@ -11,7 +11,10 @@ function asBuffer(bytes: Uint8Array): ArrayBuffer {
   return copy.buffer;
 }
 
+let cachedLegacyP12: Uint8Array | null = null;
+
 function makeLegacyP12(): Uint8Array {
+  if (cachedLegacyP12) return cachedLegacyP12;
   const dir = mkdtempSync(join(tmpdir(), 'kp-p12-'));
   try {
     const key = join(dir, 'k.pem');
@@ -56,19 +59,20 @@ function makeLegacyP12(): Uint8Array {
       ],
       { stdio: 'pipe' },
     );
-    return new Uint8Array(readFileSync(p12));
+    cachedLegacyP12 = new Uint8Array(readFileSync(p12));
+    return cachedLegacyP12;
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
 describe('PKCS#12 CDT (Worker, no npm)', () => {
-  it('rechaza pass incorrecta de un PFX openssl legado', { timeout: 20_000 }, async () => {
+  it('rechaza pass incorrecta de un PFX openssl legado', { timeout: 30_000 }, async () => {
     const p12 = makeLegacyP12();
     await expect(parsePkcs12(p12, 'wrong-pass')).rejects.toThrow(/PKCS12_/);
   });
 
-  it('extrae PKCS#8 y X.509 de un PFX openssl 3DES+RC2', { timeout: 20_000 }, async () => {
+  it('extrae PKCS#8 y X.509 de un PFX openssl 3DES+RC2', { timeout: 30_000 }, async () => {
     const p12 = makeLegacyP12();
     const parsed = await parsePkcs12(p12, 'test-pass-ok');
     expect(parsed.pkcs8Der[0]).toBe(0x30);

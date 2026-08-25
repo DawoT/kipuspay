@@ -2648,6 +2648,8 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
       'submitted_at',
       'r2_rc_xml_key',
       'r2_cdr_key',
+      'sunat_reception_ticket',
+      'correlative',
     ],
     r2References: [],
     tenantFrom: '"sunat_daily_summaries" AS t0',

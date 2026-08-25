@@ -334,9 +334,14 @@ async function submitRcInner(
     channel: env.SUNAT_BILL_CHANNEL,
     ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
   });
-  return port.submit({
+  const result = await port.submit({
     tenantId: input.tenantId,
     summaryId: input.summaryId,
     xml: input.xml,
   });
+  return {
+    accepted: result.accepted,
+    cdrCode: result.cdrCode ?? '0',
+    cdrMessage: result.cdrMessage ?? 'RC processed',
+  };
 }

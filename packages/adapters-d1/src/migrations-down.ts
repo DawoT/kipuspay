@@ -24,9 +24,11 @@ import down0058 from '../migrations-down/0058_fiscal_non_sale_outbox.sql?raw';
 import down0060 from '../migrations-down/0060_audit_chain_heads.sql?raw';
 import down0061 from '../migrations-down/0061_tenant_sol_credentials.sql?raw';
 import down0062 from '../migrations-down/0062_fiscal_rc_archive.sql?raw';
+import down0063 from '../migrations-down/0063_fiscal_rc_ticket_and_correlative.sql?raw';
 import down0036 from '../migrations-down/0036_sprint43_customer_orders.sql?raw';
 import down0035 from '../migrations-down/0035_sprint42_data_backup.sql?raw';
 
+export const DOWN_0063_FISCAL_RC_TICKET_AND_CORRELATIVE = down0063;
 export const DOWN_0062_FISCAL_RC_ARCHIVE = down0062;
 export const DOWN_0061_TENANT_SOL_CREDENTIALS = down0061;
 export const DOWN_0058_FISCAL_NON_SALE_OUTBOX = down0058;

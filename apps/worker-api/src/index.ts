@@ -30,6 +30,7 @@ import {
   runGetTenantCertHttp,
   runUploadTenantCertHttp,
 } from './fiscal/tenant-cert-upload-routes.js';
+import { runGetFiscalDlqStatusHttp } from './fiscal/fiscal-dlq-routes.js';
 import { runMeterOverageCronHttp } from './billing/meter-overage-routes.js';
 import {
   runCreateApHttp,
@@ -670,6 +671,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const jwt = c.get('jwt');
     const result = await runOwnerBacklogHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 404 | 503);
+  });
+
+  app.get('/api/fiscal/dlq-status', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runGetFiscalDlqStatusHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '');
+    return c.json(result.body, result.status as 200 | 401 | 403 | 503);
   });
 
   app.post('/api/fiscal/credit-note-ea', async (c) => {

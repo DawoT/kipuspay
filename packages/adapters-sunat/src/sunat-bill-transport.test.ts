@@ -541,6 +541,127 @@ describe('createSunatRcCdrPort', () => {
       xml: '<DailySummary date="2026-08-21" tickets="1"/>',
     });
     expect(cdr.accepted).toBe(false);
+    expect(cdr.status).toBe('UNREACHABLE');
     expect(cdr.cdrMessage).toBe('SUNAT unreachable');
+  });
+
+  it('submit RC con statusCode 98 (En proceso) → retorna status PROCESSING con ticket', async () => {
+    let n = 0;
+    const port = createSunatRcCdrPort({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: () => {
+        n += 1;
+        if (n === 1)
+          return Promise.resolve(new Response(soapTicket('T-ASYNC-98'), { status: 200 }));
+        return Promise.resolve(
+          new Response(
+            `<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+              `<soap:Body><ns2:getStatusResponse xmlns:ns2="http://service.sunat.gob.pe">` +
+              `<statusCode>98</statusCode>` +
+              `</ns2:getStatusResponse></soap:Body></soap:Envelope>`,
+            { status: 200 },
+          ),
+        );
+      },
+    });
+    const result = await port.submit({
+      tenantId: 'tenant-1',
+      summaryId: 'sum-1',
+      xml: '<DailySummary date="2026-08-21" tickets="2"/>',
+      ublId: 'RC-20260821-001',
+    });
+    expect(result.accepted).toBe(false);
+    expect(result.status).toBe('PROCESSING');
+    expect(result.ticket).toBe('T-ASYNC-98');
+    expect(result.ublId).toBe('RC-20260821-001');
+    expect(n).toBe(2);
+  });
+
+  it('queryStatus en createSunatRcCdrPort: ACCEPTED, PROCESSING (98), REJECTED, UNREACHABLE', async () => {
+    const portOk = createSunatRcCdrPort({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: () =>
+        Promise.resolve(new Response(soapGetStatus('0', 'Resumen aceptado'), { status: 200 })),
+    });
+    const resOk = await portOk.queryStatus!({ tenantId: 'tenant-1', ticket: 'T-OK' });
+    expect(resOk.accepted).toBe(true);
+    expect(resOk.status).toBe('ACCEPTED');
+    expect(resOk.cdrCode).toBe('0');
+    expect(resOk.ticket).toBe('T-OK');
+
+    const portProc = createSunatRcCdrPort({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: () =>
+        Promise.resolve(
+          new Response(
+            `<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+              `<soap:Body><ns2:getStatusResponse xmlns:ns2="http://service.sunat.gob.pe">` +
+              `<statusCode>98</statusCode>` +
+              `</ns2:getStatusResponse></soap:Body></soap:Envelope>`,
+            { status: 200 },
+          ),
+        ),
+    });
+    const resProc = await portProc.queryStatus!({ tenantId: 'tenant-1', ticket: 'T-PROC' });
+    expect(resProc.accepted).toBe(false);
+    expect(resProc.status).toBe('PROCESSING');
+    expect(resProc.ticket).toBe('T-PROC');
+
+    const portReject = createSunatRcCdrPort({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: () =>
+        Promise.resolve(
+          new Response(soapFault('Client.2335 El número de comprobante ya fue informado'), {
+            status: 500,
+          }),
+        ),
+    });
+    const resReject = await portReject.queryStatus!({ tenantId: 'tenant-1', ticket: 'T-REJ' });
+    expect(resReject.accepted).toBe(false);
+    expect(resReject.status).toBe('REJECTED');
+    expect(resReject.cdrCode).toBe('2335');
+
+    const portFail = createSunatRcCdrPort({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: () => Promise.resolve(new Response('', { status: 500 })),
+    });
+    const resFail = await portFail.queryStatus!({ tenantId: 'tenant-1', ticket: 'T-FAIL' });
+    expect(resFail.accepted).toBe(false);
+    expect(resFail.status).toBe('UNREACHABLE');
+
+    const emptyTicket = await portOk.queryStatus!({ tenantId: 'tenant-1', ticket: '  ' });
+    expect(emptyTicket.accepted).toBe(false);
+    expect(emptyTicket.status).toBe('REJECTED');
+  });
+
+  it('submit RC con rechazo SOAP Fault retorna status REJECTED', async () => {
+    let n = 0;
+    const port = createSunatRcCdrPort({
+      solUser: SOL_USER,
+      solPassword: SOL_PASS,
+      fetchImpl: () => {
+        n += 1;
+        if (n === 1)
+          return Promise.resolve(new Response(soapTicket('T-REJ-SOAP'), { status: 200 }));
+        return Promise.resolve(
+          new Response(soapFault('Client.1033 El comprobante fue registrado previamente'), {
+            status: 500,
+          }),
+        );
+      },
+    });
+    const result = await port.submit({
+      tenantId: 'tenant-1',
+      summaryId: 'sum-1',
+      xml: '<DailySummary date="2026-08-21" tickets="2"/>',
+    });
+    expect(result.accepted).toBe(false);
+    expect(result.status).toBe('REJECTED');
+    expect(result.cdrCode).toBe('1033');
   });
 });

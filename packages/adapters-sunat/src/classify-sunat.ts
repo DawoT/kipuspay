@@ -8,6 +8,7 @@ export interface SunatSendTicket {
 export type SunatOutcome =
   | { readonly kind: 'accepted'; readonly cdr: CdrEnvelope }
   | { readonly kind: 'rejected'; readonly cdr: CdrEnvelope }
+  | { readonly kind: 'processing'; readonly ticket?: string | undefined }
   | { readonly kind: 'unreachable' };
 
 export function classifySunatResponse(ticket: SunatSendTicket): SunatOutcome {

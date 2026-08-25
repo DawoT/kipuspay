@@ -237,18 +237,27 @@ describe('classifyUnitaryXmlTarget', () => {
 });
 
 describe('createMockRcCdrPort (solo staging/tests)', () => {
-  it('acepta XML no vacío y rechaza XML vacío', async () => {
+  it('acepta XML no vacío y rechaza XML vacío con status ACCEPTED/REJECTED', async () => {
     const port = createMockRcCdrPort();
     const ok = await port.submit({
       tenantId: 't',
       summaryId: 'RC-1',
       xml: '<summary/>',
+      ublId: 'RC-20260801-001',
     });
     expect(ok.accepted).toBe(true);
+    expect(ok.status).toBe('ACCEPTED');
     expect(ok.cdrCode).toBe('0');
+    expect(ok.ublId).toBe('RC-20260801-001');
 
     const empty = await port.submit({ tenantId: 't', summaryId: 'RC-2', xml: '   ' });
     expect(empty.accepted).toBe(false);
+    expect(empty.status).toBe('REJECTED');
     expect(empty.cdrCode).toBe('99');
+
+    const queried = await port.queryStatus!({ tenantId: 't', ticket: 'ticket-123' });
+    expect(queried.accepted).toBe(true);
+    expect(queried.status).toBe('ACCEPTED');
+    expect(queried.ticket).toBe('ticket-123');
   });
 });

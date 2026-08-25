@@ -142,6 +142,7 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
     status: number,
     body: string,
     followTicket: boolean,
+    ticketContext?: string,
   ): Promise<SunatOutcome> => {
     const parsed = parseSunatSoapBody(body);
     if (parsed.applicationResponseB64) {
@@ -151,9 +152,15 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
       return outcomeFromZipB64(parsed.statusContentB64);
     }
     if (followTicket && parsed.ticket) {
-      return queryStatus(parsed.ticket);
+      const queried = await queryStatus(parsed.ticket);
+      if (queried.kind === 'processing' || queried.kind === 'unreachable') {
+        return { kind: 'processing', ticket: parsed.ticket };
+      }
+      return queried;
     }
-    if (parsed.statusCode === '98') return { kind: 'unreachable' };
+    if (parsed.statusCode === '98') {
+      return { kind: 'processing', ticket: parsed.ticket ?? ticketContext };
+    }
     if (isSoapFaultBusiness(parsed)) {
       return outcomeFromSoapFault(parsed);
     }
@@ -168,7 +175,7 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
         ticket: ticketId,
       });
       const res = await postSoap('getStatus', envelope);
-      return classifyBody(res.status, res.body, false);
+      return classifyBody(res.status, res.body, false, ticketId);
     } catch {
       return { kind: 'unreachable' };
     }
@@ -231,6 +238,9 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
       if (outcome.kind === 'accepted' || outcome.kind === 'rejected') return outcome.cdr;
       return { cdrCode: '0', cdrDescription: 'unreachable', accepted: false };
     },
+    querySummaryStatus(ticketId: string) {
+      return queryStatus(ticketId);
+    },
   };
 }
 
@@ -239,7 +249,13 @@ export function createSunatRcCdrPort(opts: SunatBillTransportOptions): RcCdrPort
   return {
     async submit(input) {
       if (!input.xml.trim()) {
-        return { accepted: false, cdrCode: '99', cdrMessage: 'empty RC xml' };
+        return {
+          accepted: false,
+          status: 'REJECTED',
+          cdrCode: '99',
+          cdrMessage: 'empty RC xml',
+          ublId: input.ublId,
+        };
       }
       const dto: CPESummaryDTO = {
         tenantId: input.tenantId,
@@ -260,18 +276,90 @@ export function createSunatRcCdrPort(opts: SunatBillTransportOptions): RcCdrPort
       if (outcome.kind === 'accepted') {
         return {
           accepted: true,
+          status: 'ACCEPTED',
           cdrCode: outcome.cdr.cdrCode,
           cdrMessage: outcome.cdr.cdrDescription,
+          ublId: input.ublId,
         };
       }
       if (outcome.kind === 'rejected') {
         return {
           accepted: false,
+          status: 'REJECTED',
           cdrCode: outcome.cdr.cdrCode,
           cdrMessage: outcome.cdr.cdrDescription,
+          ublId: input.ublId,
         };
       }
-      return { accepted: false, cdrCode: '503', cdrMessage: 'SUNAT unreachable' };
+      if (outcome.kind === 'processing') {
+        return {
+          accepted: false,
+          status: 'PROCESSING',
+          ticket: outcome.ticket,
+          ublId: input.ublId,
+        };
+      }
+      return {
+        accepted: false,
+        status: 'UNREACHABLE',
+        cdrCode: '503',
+        cdrMessage: 'SUNAT unreachable',
+        ublId: input.ublId,
+      };
+    },
+    async queryStatus(input) {
+      if (!input.ticket.trim()) {
+        return {
+          accepted: false,
+          status: 'REJECTED',
+          cdrCode: '99',
+          cdrMessage: 'empty ticket',
+          ticket: input.ticket,
+        };
+      }
+      const outcome = transport.querySummaryStatus
+        ? await transport.querySummaryStatus(input.ticket)
+        : await (async () => {
+            const cdr = await transport.queryCdr(input.ticket);
+            if (cdr.accepted) return { kind: 'accepted' as const, cdr };
+            if (cdr.cdrCode && cdr.cdrCode !== '0' && cdr.cdrCode !== '503') {
+              return { kind: 'rejected' as const, cdr };
+            }
+            return { kind: 'unreachable' as const };
+          })();
+
+      if (outcome.kind === 'accepted') {
+        return {
+          accepted: true,
+          status: 'ACCEPTED',
+          cdrCode: outcome.cdr.cdrCode,
+          cdrMessage: outcome.cdr.cdrDescription,
+          ticket: input.ticket,
+        };
+      }
+      if (outcome.kind === 'rejected') {
+        return {
+          accepted: false,
+          status: 'REJECTED',
+          cdrCode: outcome.cdr.cdrCode,
+          cdrMessage: outcome.cdr.cdrDescription,
+          ticket: input.ticket,
+        };
+      }
+      if (outcome.kind === 'processing') {
+        return {
+          accepted: false,
+          status: 'PROCESSING',
+          ticket: outcome.ticket ?? input.ticket,
+        };
+      }
+      return {
+        accepted: false,
+        status: 'UNREACHABLE',
+        cdrCode: '503',
+        cdrMessage: 'SUNAT unreachable',
+        ticket: input.ticket,
+      };
     },
   };
 }

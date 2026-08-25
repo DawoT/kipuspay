@@ -204,40 +204,45 @@ export function isCpeDocument(documentType: DocumentTypeCode): boolean {
   return CPE_CODES.has(documentType);
 }
 
-/** Puerto RC (Resumen Diario) — lo implementa adapters-sunat (HTTP) o el mock. */
-export interface RcCdrPort {
-  submit(input: {
-    readonly tenantId: string;
-    readonly summaryId: string;
-    readonly xml: string;
-  }): Promise<{
-    readonly accepted: boolean;
-    readonly cdrCode: string;
-    readonly cdrMessage: string;
-    /**
-     * H3 (auditoría 0031): CDR completo (zip) en base64 cuando el transporte
-     * lo entrega. Opcional: el PSE HTTP actual responde solo envelope JSON;
-     * sin zip, el caller archiva un receipt JSON con el envelope.
-     */
-    readonly cdrZipB64?: string;
-  }>;
-}
+import type { RcCdrPort, RcSubmitResult } from './daily-summary.js';
+export type { RcSubmitResult, RcCdrPort } from './daily-summary.js';
 
 /** Mock RC — solo para staging/tests; nunca para producción. */
 export function createMockRcCdrPort(): RcCdrPort {
   return {
-    submit(input) {
+    submit(input: {
+      readonly tenantId: string;
+      readonly summaryId: string;
+      readonly xml: string;
+      readonly ublId?: string;
+    }): Promise<RcSubmitResult> {
       if (!input.xml.trim()) {
         return Promise.resolve({
           accepted: false,
+          status: 'REJECTED',
           cdrCode: '99',
           cdrMessage: 'empty RC xml',
+          ...(input.ublId ? { ublId: input.ublId } : {}),
         });
       }
       return Promise.resolve({
         accepted: true,
+        status: 'ACCEPTED',
         cdrCode: '0',
         cdrMessage: 'Mock RC CDR accepted',
+        ...(input.ublId ? { ublId: input.ublId } : {}),
+      });
+    },
+    queryStatus(input: {
+      readonly tenantId: string;
+      readonly ticket: string;
+    }): Promise<RcSubmitResult> {
+      return Promise.resolve({
+        accepted: true,
+        status: 'ACCEPTED',
+        cdrCode: '0',
+        cdrMessage: 'Mock RC CDR accepted',
+        ticket: input.ticket,
       });
     },
   };

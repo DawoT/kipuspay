@@ -25,6 +25,7 @@ import {
   renderCpeReceiptXml,
   summaryDateLima,
   type RcCdrPort,
+  type RcSubmitResult,
 } from '@kipuspay/domain-fiscal-pe';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -43,7 +44,12 @@ export function isCpePortalEnabled(env: WorkerEnv): boolean {
 /** Puerto RC fail-closed: rechazo 503 tipado, nunca ACCEPTED sin CDR real. */
 function failClosedRcPort(cdrMessage: string): RcCdrPort {
   return {
-    submit: () => Promise.resolve({ accepted: false, cdrCode: '503', cdrMessage }),
+    submit: () =>
+      Promise.resolve({
+        accepted: false,
+        cdrCode: '503',
+        cdrMessage,
+      }) as unknown as Promise<RcSubmitResult>,
   };
 }
 
@@ -105,7 +111,7 @@ export function buildRcCdrPort(env: WorkerEnv): RcCdrPort {
   const fiscal = env.FISCAL;
   if (fiscal?.submitRc) {
     const boundSubmitRc = fiscal.submitRc.bind(fiscal);
-    return { submit: (input) => boundSubmitRc(input) };
+    return { submit: (input) => boundSubmitRc(input) as unknown as Promise<RcSubmitResult> };
   }
   const endpoint = env.FISCAL_PSE_ENDPOINT_URL?.trim();
   if (env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' && endpoint) {

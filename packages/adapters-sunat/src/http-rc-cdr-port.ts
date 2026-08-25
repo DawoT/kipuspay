@@ -40,6 +40,7 @@ function resultFromPse2xx(body: PseRcBody | null): RcSubmitResult {
   const zip = cdrZipFromPseBody(body);
   return {
     accepted,
+    status: accepted ? 'ACCEPTED' : 'REJECTED',
     cdrCode: accepted ? cdrCode : cdrCode || '99',
     cdrMessage: accepted ? (body?.cdrDescription ?? 'ok') : 'CDR_MISSING',
     ...(zip !== undefined ? { cdrZipB64: zip } : {}),
@@ -51,7 +52,13 @@ export function createHttpRcCdrPort(opts: HttpRcCdrPortOptions): RcCdrPort {
   return {
     async submit(input) {
       if (!input.xml.trim()) {
-        return { accepted: false, cdrCode: '99', cdrMessage: 'empty RC xml' };
+        return {
+          accepted: false,
+          status: 'REJECTED',
+          cdrCode: '99',
+          cdrMessage: 'empty RC xml',
+          ublId: input.ublId,
+        };
       }
       try {
         const res = await fetchImpl(opts.endpointUrl, {
@@ -62,21 +69,32 @@ export function createHttpRcCdrPort(opts: HttpRcCdrPortOptions): RcCdrPort {
         if (res.status >= 500 || res.status === 0) {
           return {
             accepted: false,
+            status: 'UNREACHABLE',
             cdrCode: String(res.status),
             cdrMessage: 'PSE unreachable',
+            ublId: input.ublId,
           };
         }
         if (res.status >= 400) {
           return {
             accepted: false,
+            status: 'REJECTED',
             cdrCode: String(res.status),
             cdrMessage: 'business_reject',
+            ublId: input.ublId,
           };
         }
         const body = (await res.json().catch(() => null)) as PseRcBody | null;
-        return resultFromPse2xx(body);
+        const result = resultFromPse2xx(body);
+        return { ...result, ...(input.ublId ? { ublId: input.ublId } : {}) };
       } catch {
-        return { accepted: false, cdrCode: '503', cdrMessage: 'PSE unreachable' };
+        return {
+          accepted: false,
+          status: 'UNREACHABLE',
+          cdrCode: '503',
+          cdrMessage: 'PSE unreachable',
+          ublId: input.ublId,
+        };
       }
     },
   };

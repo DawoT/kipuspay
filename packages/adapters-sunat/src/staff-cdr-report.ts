@@ -15,6 +15,7 @@ export interface StaffCdrReport {
 /** CDR público para staff: nunca incluye SOL, PEM ni pass. */
 export function formatStaffSunatOutcome(outcome: SunatOutcome): StaffCdrReport {
   if (outcome.kind === 'unreachable') return { kind: 'unreachable' };
+  if (outcome.kind === 'processing') return { kind: 'processing' };
   return {
     kind: outcome.kind,
     cdrCode: outcome.cdr.cdrCode,

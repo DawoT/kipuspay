@@ -13716,3 +13716,36 @@ aprobaciones: [Staff Principal (@DawoT)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+
+
+```
+id: 0481
+timestamp_utc: 2026-08-25T16:50:00Z
+schema_version: 2
+sprint_fase: Sprint 63-65 (Fase 1-3) — Resiliencia tickets SUNAT statusCode 98, Observabilidad DLQ/Alertas CI/CD y Certificate Manager UX
+agente_responsable: Staff Principal (@DawoT)
+tipo: Implementación de arquitectura fiscal, SRE y UX
+subtipo: Migración D1 0063 + Resiliencia tickets 98 + Endpoint DLQ /api/fiscal/dlq-status + Validador client-side y CertificateManager Svelte 5
+relacion: amplia
+referencias_entradas: [0480]
+referencias_documentales: [packages/adapters-d1/migrations/0063_fiscal_rc_ticket_and_correlative.sql, packages/adapters-d1/src/build-daily-summary.ts, apps/worker-api/src/fiscal/fiscal-dlq-routes.ts, apps/pos-web/src/lib/fiscal/cert-client-validator.ts, apps/pos-web/src/lib/fiscal/CertificateManager.svelte]
+prev_id: 0480
+prev_hash: e7832091018085eac4061fd681e42e891537de2fdd44aac7d337f2c453c14986
+entry_hash: 5251eda7349c81b23ea81e08357bf3140485afe3a06c4ccbb426fdeeedc21206
+ticket_or_adr: ADR-FISCAL-007; SEC-03; CAL-01..07; V-28; V-30; V-31
+test_ids: [packages/adapters-d1/src/fiscal-rc-async-ticket.integration.test.ts, packages/adapters-d1/src/fiscal-rc-ticket-correlative-schema.test.ts, apps/worker-api/src/fiscal/fiscal-dlq-routes.test.ts, apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts, apps/pos-web/src/lib/fiscal/CertificateManager.test.ts, V-00, V-24, V-25, V-27, V-28, V-30, V-31, SUITE]
+entregable_afectado: packages/adapters-d1; packages/domain-fiscal-pe; packages/adapters-sunat; apps/worker-api; apps/pos-web; .github/workflows
+descripcion: >
+  Implementación integral de la iniciativa de resiliencia fiscal, observabilidad SRE y UX del certificado:
+  (1) Sprint 63 (Fiscal SUNAT): migración D1 0063 con columnas sunat_reception_ticket y correlative incremental con índice UNIQUE (tenant_id, summary_date, correlative); adaptador SOAP clasifica statusCode 98 en PROCESSING y expone queryStatus(ticket); buildDailySummary consulta tickets previos en PROCESSING antes de crear nuevo XML y el cron de sweep resuelve estados asíncronos sin duplicación.
+  (2) Sprint 64 (SRE & CI/CD): notificaciones de fallo en .github/workflows/deploy-staging.yml y quality.yml con curl nativo y secret CI_FAILURE_WEBHOOK_URL; nuevo endpoint autenticado GET /api/fiscal/dlq-status con RBAC estricto (403 a cajeros, 200 a admin/owner) y aislamiento multi-tenant DAT-12, con métricas de comprobantes QUARANTINED, FAILED y DEADLINE_EXCEEDED sugiriendo NC E-A.
+  (3) Sprint 65 (Product & UX): validador client-side de certificados PKCS#12 en microsegundos con WebCrypto nativo sin dependencias npm externas; componente CertificateManager.svelte (Svelte 5 runes) con semáforo visual de 4 estados e integrado en /admin/configuracion, cumpliendo presupuesto de bundle (V-24), sin jerga técnica (V-27) ni literales demo (V-30).
+evidencia: >
+  RED: adaptadores D1 y transporte sin soporte de tickets 98 en PROCESSING; worker-api sin endpoint dlq-status; pos-web sin validación preflight de certificados.
+  GREEN: 330/330 tests integración D1 workerd; 1416/1416 tests unitarios worker-api; 455/455 tests pos-web; 203/203 domain-fiscal-pe; 59/59 adapters-sunat; typecheck y lint limpios en los 27 paquetes; V-00 a V-31 100% GREEN (RESULT SUITE GREEN).
+ancestry_verified: true
+aprobaciones: [Staff Principal (@DawoT), Staff QA V]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

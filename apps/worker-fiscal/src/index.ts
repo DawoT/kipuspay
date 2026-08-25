@@ -137,6 +137,9 @@ function responseOf(
         ? 'rechazada'
         : 'cuarentena';
   if (outcome.kind === 'unreachable') return { verdict, sunatStatus };
+  if (outcome.kind === 'processing') {
+    return { verdict, sunatStatus, cdrCode: '98', cdrDescription: 'En proceso' };
+  }
   return {
     verdict,
     sunatStatus,

@@ -59,3 +59,39 @@ export function planDailySummary(
 export function cashCloseMustNotTriggerRc(): false {
   return false;
 }
+
+/**
+ * Resultado de submit o queryStatus del Resumen Diario (RC).
+ * Soporta aceptación síncrona/asíncrona (status: ACCEPTED), rechazo (REJECTED),
+ * ticket en procesamiento (PROCESSING - SUNAT 98) e inalcanzable (UNREACHABLE).
+ */
+export interface RcSubmitResult {
+  readonly accepted: boolean;
+  readonly status: 'ACCEPTED' | 'REJECTED' | 'PROCESSING' | 'UNREACHABLE';
+  readonly cdrCode?: string | undefined;
+  readonly cdrMessage?: string | undefined;
+  /**
+   * H3 (auditoría 0031): CDR completo (zip) en base64 cuando el transporte
+   * lo entrega. Opcional: el PSE HTTP actual responde solo envelope JSON;
+   * sin zip, el caller archiva un receipt JSON con el envelope.
+   */
+  readonly cdrZipB64?: string | undefined;
+  /** Número de ticket de recepción retornado por SUNAT (p. ej. en estado PROCESSING 98). */
+  readonly ticket?: string | undefined;
+  /** Identificador UBL del resumen (p. ej. RC-20260801-001). */
+  readonly ublId?: string | undefined;
+}
+
+/** Puerto RC (Resumen Diario) — lo implementa adapters-sunat (HTTP) o el mock. */
+export interface RcCdrPort {
+  submit(input: {
+    readonly tenantId: string;
+    readonly summaryId: string;
+    readonly xml: string;
+    readonly ublId?: string;
+  }): Promise<RcSubmitResult>;
+  queryStatus?(input: {
+    readonly tenantId: string;
+    readonly ticket: string;
+  }): Promise<RcSubmitResult>;
+}

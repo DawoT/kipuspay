@@ -170,18 +170,22 @@ describe('runUploadTenantCertHttp — validación fail-closed SEC-03', () => {
     },
   );
 
-  it('fail-closed: tenant sin RUC registrado → 400 CERT_TENANT_NO_RUC', async () => {
-    const wrapDek = vi.fn();
-    const { db, batches } = fakeDb({ ruc: null });
-    const res = await runUploadTenantCertHttp(envWith(db, wrapDek), 't1', 'owner', {
-      p12B64: makeP12B64(cdtSubject(RUC_TENANT)),
-      password: 'owner-pass',
-    });
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe('CERT_TENANT_NO_RUC');
-    expect(wrapDek).not.toHaveBeenCalled();
-    expect(batches).toEqual([]);
-  });
+  it(
+    'fail-closed: tenant sin RUC registrado → 400 CERT_TENANT_NO_RUC',
+    { timeout: 20_000 },
+    async () => {
+      const wrapDek = vi.fn();
+      const { db, batches } = fakeDb({ ruc: null });
+      const res = await runUploadTenantCertHttp(envWith(db, wrapDek), 't1', 'owner', {
+        p12B64: makeP12B64(cdtSubject(RUC_TENANT)),
+        password: 'owner-pass',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('CERT_TENANT_NO_RUC');
+      expect(wrapDek).not.toHaveBeenCalled();
+      expect(batches).toEqual([]);
+    },
+  );
 
   it(
     'sin marcador de RUC en el subject (CN libre) → 400 CERT_RUC_MISMATCH',

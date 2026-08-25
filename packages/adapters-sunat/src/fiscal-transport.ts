@@ -35,6 +35,7 @@ export interface FiscalTransport {
   submit(request: FiscalSubmitRequest): Promise<SunatOutcome>;
   submitInvoice?(dto: CPEInvoiceDTO): Promise<FiscalSubmitResult>;
   queryCdr(ticketId: string): Promise<CdrEnvelope>;
+  querySummaryStatus?(ticketId: string): Promise<SunatOutcome>;
 }
 
 /** Mock PSE staging: siempre CDR 0 aceptado si XML no vacío. */
