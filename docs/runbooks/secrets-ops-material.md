@@ -34,7 +34,7 @@ estos secretos (offline-first); lo que se degrada es plataforma y evidencia.
 | Envelope cert tenant (`TENANT_CERT_ENVELOPE`) | DEK del certificado digital CDT wrappeada para backup (`backupId=tenant-cert:SUNAT`) | Copias ops: `tmp-staff/cdt-rosa-negra/envelope.json`, `envelope.kms.json`, `insert-tenant-cert.sql`; autoritativo: D1 staging tabla `tenant_certificates` | Re-upload del .p12 por camino dueño (UI POS Configuración) o break-glass con `scripts/staff/extract-cdt-p12.sh` + SQL de insert | 2026-08-20 | Sin envelope no hay restore del cert ni firma SOAP del piloto; regenerable re-subiendo el .p12 con su pass |
 | KEKs backup/push (Secrets Store `kipuspay-kms-staging` id `6c5d2aff785644d39ca233efe0d0ed34`) | Wrapping AES-GCM de DEKs de backups KPBK (`backup-kek-v1/v2`) y cifrado push (`push-kek-v1/v2/v3`) | SOLO Secrets Store CF (no hay copia local; así debe ser) | Nueva versión del secreto en Secrets Store + binding en `apps/worker-kms/wrangler.jsonc` + redeploy worker-kms; NUNCA borrar la versión previa (backups viejos exigen su KEK) | Reales desde Fase 0, 2026-08-20 | Pérdida total = backups existentes irrecuperables (DR/RPO mueren); rotación mal hecha = backups antiguos ilegibles |
 | VAPID keypair (`PUSH_VAPID_PRIVATE_KEY` / pública) | Web Push del canal Modo Dueño/push | Privada en Secrets Store (`push-vapid-private-v4`, binding en `apps/worker-kms/wrangler.jsonc`; copia ops-local JWK en `tmp-staff/vapid-v4.json`, chmod 600); pública como var runtime `PUSH_VAPID_PUBLIC_KEY` del worker-api Y binding `push-vapid-public-v4` del worker-kms (`push-vapid-private/public-v3` quedan en el store SOLO para rollback) | Nuevo par vN en Secrets Store + redeploy kms + var pública al API (`deploy --var PUSH_VAPID_PUBLIC_KEY:...`); ambas copias de la pública deben ser idénticas | 2026-08-23 | Dispositivos suscritos quedan inválidos (re-suscripción); sin var pública el push falla fail-closed |
-| Credenciales SUNAT SOL (piloto Rosa Negra, worker-fiscal staging) | Acceso portal SOL e-beta SOAP (sendBill/sendSummary del piloto) | Secretos del Worker `kipuspay-worker-fiscal-staging` (dashboard CF o wrangler secret; binding NO visible en `apps/worker-fiscal/wrangler.jsonc` — mecanismo exacto DESCONOCIDO desde repo) | `pnpm --filter @kipuspay/worker-fiscal exec wrangler secret put <SOL_USER/SOL_PASS> --env staging` (nombres exactos DESCONOCIDO en repo; confirmar en dashboard antes de rotar) | DESCONOCIDO (no registrado; primera rotación documentada = pendiente) | Sin SOL no hay SOAP e-beta (GTM-08 piloto bloqueado); compromiso = terceros emiten con el RUC del piloto |
+| Credenciales SUNAT SOL (piloto Rosa Negra, worker-fiscal staging) | Acceso portal SOL e-beta SOAP (sendBill/sendSummary del piloto) | Bindings `secret_text` `SUNAT_SOL_USER` + `SUNAT_SOL_PASSWORD` del Worker `kipuspay-worker-fiscal-staging` (ubicación autoritativa CONFIRMADA 2026-08-24 vía API settings + `wrangler secret list`; NO existen en `kipuspay-worker-api-staging`). Fuente por-emisor desde migración 0061: filas `tenant_sol_credentials` (D1 + envelope KMS) con precedencia sobre el env; escritura de filas aún manual (SQL staff) | Ver «Rotación credenciales SUNAT SOL» más abajo: nueva clave en SUNAT → persistir ops-local → `wrangler secret put` ×2 `--env staging` → 1 envío e-beta con CDR 0 | DESCONOCIDO (ubicación confirmada 2026-08-24; primera rotación documentada = pendiente) | Sin SOL no hay SOAP e-beta (GTM-08 piloto bloqueado); compromiso = terceros emiten con el RUC del piloto |
 | Certificado .p12 Rosa Negra (CDT ACTIVE) | Firma XAdES-BES de CPE del piloto (RUC 20612913251) | `certificado.p12` en raíz del repo (gitignored); extraído en `tmp-staff/cdt-rosa-negra/` (`private.pem`, `leaf.pem`, `chain.pem`, `cert-chain.pem`, `leaf-meta.json`); pass solo en sesión del dueño (nunca en disco) | Nuevo CDT ante SUNAT (proceso externo) y luego camino dueño UI o break-glass `extract-cdt-p12.sh` + `insert-tenant-cert.sql` | 2026-08-20 (ACTIVE) | Pérdida de .p12+pass = revocar y solicitar CDT nuevo a SUNAT (días); compromiso = suplantación fiscal del RUC piloto |
 | SA Firebase FCM (`PUSH_FCM_SERVICE_ACCOUNT` → `push-fcm-service-account-v2`, Secrets Store `6c5d2aff…`) | Envío de pushes del Modo Dueño vía FCM HTTP v1 (worker-kms firma el JWT OAuth2 de Google) | `tmp-staff/fcm-sa-staging.json` (chmod 600; PKCS8 de firebase-adminsdk-fbsvc@kipuspay-staging) | Regenerar clave en Firebase console → Service accounts → reemplazar valor del secreto en el store (API o `wrangler secrets-store secret put`) | 2026-08-23 (stub → real; token mint HTTP 200 verificado) | Sin SA real los pushes no salen (fail-closed, jamás éxito fingido); filtrado = terceros pueden enviar push a los dispositivos suscritos |
 | `CLOUDFLARE_API_TOKEN` CI | Deploy staging vía `.github/workflows/deploy-staging.yml` (Workers/Pages/D1/R2/Secrets Store, cuenta `c5b18f62cb7e73fcd2ece5822936d699`) | GitHub repo secrets (Settings, Actions) — creado/reemplazado el 2026-08-22 como API Token CF de larga duración (NO OAuth) | Dashboard CF: roll del token; luego `gh secret set CLOUDFLARE_API_TOKEN` + `gh workflow run deploy-staging.yml -f dry_run=true` | 2026-08-22 | CI Etapa 6 RED (sin deploys verificados); token filtrado = deploy arbitrario a staging |
@@ -87,6 +87,85 @@ pnpm --filter @kipuspay/worker-api exec wrangler secret put PLATFORM_STAFF_TOKEN
 ```
 
 Ultima rotacion real: 2026-08-22.
+
+## Credenciales SUNAT SOL (ubicación autoritativa y rotación)
+
+Cierra el Gap 6 de LEDGER 0472 («ubicación autoritativa de secrets SOL»).
+Ubicación verificada el 2026-08-24 contra la cuenta CF — solo nombres/tipos,
+jamás valores:
+
+| Fuente | Ubicación | Verificación |
+| --- | --- | --- |
+| Fallback del worker (piloto Rosa Negra) | Bindings `secret_text` `SUNAT_SOL_USER` + `SUNAT_SOL_PASSWORD` del Worker `kipuspay-worker-fiscal-staging` | `GET /accounts/{account_id}/workers/scripts/kipuspay-worker-fiscal-staging/settings` y `wrangler secret list --env staging`: ambos listan exactamente esos dos + `TENANT_CERT_ENVELOPE` como `secret_text` |
+| Por tenant (LEDGER 0473, migración 0061) | Filas `tenant_sol_credentials` en D1 staging (envelope AES-GCM, DEK wrappeada por KMS) | Puerto `loadTenantSolCredentials` (`packages/adapters-d1/src/tenant-sol-credentials.ts`); material corrupto → `TENANT_SOL_UNAVAILABLE` fail-closed (nunca emitir con el SOL de otro emisor) |
+
+Hechos operativos verificados (no asumidos):
+
+- Precedencia de resolución (`selectFiscalTransport`, apps/worker-fiscal):
+  fila del tenant > env del worker > `MISCONFIGURED` (staging) /
+  `SUNAT_PRODUCTION_SOL_MISSING` (production). Nunca mock silencioso con
+  flags on.
+- `kipuspay-worker-api-staging` NO tiene los secrets SOL (sus únicos
+  `secret_text`: `AUTH_JWT_HS_SECRET`, `PLATFORM_STAFF_TOKEN`,
+  `TENANT_CERT_ENVELOPE`). Su código RC
+  (`apps/worker-api/src/fiscal/fiscal-rc-routes.ts`) consume SOL solo para
+  envío directo; sin bindings delega al binding de servicio `FISCAL`
+  (worker-fiscal), que sí los tiene.
+- Los deploys de CI no tocan estos secretos:
+  `.github/workflows/deploy-staging.yml` solo usa los GitHub secrets
+  `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`; un `wrangler deploy` no
+  borra bindings `secret_text` existentes.
+
+### Mecanismo de actualización (verificado)
+
+Canónico — wrangler. Acceso verificado operativo contra este worker el
+2026-08-24 (`wrangler secret list --env staging` responde con auth vigente;
+`put` usa el mismo acceso):
+
+```bash
+pnpm --filter @kipuspay/worker-fiscal exec wrangler secret put SUNAT_SOL_USER --env staging
+pnpm --filter @kipuspay/worker-fiscal exec wrangler secret put SUNAT_SOL_PASSWORD --env staging
+```
+
+`wrangler secret put` crea una versión nueva del Worker y la despliega
+inmediatamente (docs CF Workers); los demás bindings quedan intactos.
+
+Alternativas equivalentes: dashboard CF (Worker → Settings → Variables and
+Secrets) o el endpoint bulk de secrets de la API CF (los secretos no incluidos
+en el request quedan sin cambio). **NUNCA** usar PUT del script completo para
+rotar un secreto: reemplaza el metadata entero y exige re-enviar todos los
+bindings.
+
+### Rotación credenciales SUNAT SOL (procedimiento completo)
+
+0. Identificar la fuente activa del emisor: si el tenant tiene fila en
+   `tenant_sol_credentials`, la rotación es de la FILA (re-wrap del envelope,
+   mismo patrón wrap-dek de la sección 2.4 de
+   docs/runbooks/fiscal-onboarding-tenant.md; hoy sin ruta de escritura
+   automatizada → SQL staff break-glass), no del env del worker. Sin fila →
+   este procedimiento sobre el env.
+1. Nueva clave en SUNAT (lado humano, dueño del RUC): portal SOL → usuario
+   secundario de integración (perfil facturación electrónica) → cambio/reset
+   de contraseña. Al cambiarla, SUNAT invalida la anterior.
+2. Persistir PRIMERO ops-local (chmod 600, fuera de git) — regla de rotación
+   ciega de este runbook.
+3. Aplicar al consumidor: los dos `wrangler secret put` de arriba
+   (`--env staging`). Si algún día se habilita envío directo RC/production
+   desde worker-api, replicar los bindings ahí ANTES de encender ese camino
+   (hoy no los tiene).
+4. Verificar con 1 envío e-beta: `scripts/staff/send-beta-cpe.mjs` con las
+   credenciales nuevas (`STAFF_SEND_BETA=1 SIGNED_XML=... DOC_KIND=01|03
+   SUNAT_SOL_USER=... SUNAT_SOL_PASSWORD=...`) esperando CDR código 0
+   (sección 3 de docs/runbooks/fiscal-onboarding-tenant.md). Sin CDR no hay
+   verificación (invariante 8).
+5. Registrar la fecha en la matriz de arriba; entrada de ledger si fue
+   rotación ciega o incidente.
+
+Nota ADR-FISCAL-007: su decisión enuncia «`SUNAT_SOL_USER` /
+`SUNAT_SOL_PASSWORD` solo Secrets Store»; la implementación vigente usa
+`secret_text` del worker (+ filas por tenant desde 0061). Migrar el material
+a Secrets Store exige decisión de Staff Fiscal/Principal con ADR que corrija
+la redacción — no hacerlo por iniciativa local.
 
 ## Procedimiento de rotación ciega (aprendido 2026-08-22)
 

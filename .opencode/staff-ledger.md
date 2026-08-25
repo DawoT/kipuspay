@@ -1187,3 +1187,107 @@ aprobaciones: ["A: Staff Backend ACID", "V: gate documental V-00..V-31 GREEN + q
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0028
+timestamp_utc: 2026-08-24T23:05:00Z
+agente: Kipus SRE/Security
+tarea: Cierre Gap 6 LEDGER 0472 - ubicacion autoritativa de secrets SOL + rotacion documentada
+estado: Vigente
+prev_id: 0027
+prev_hash: f581186340bfc7ae5ab87c74b286a2340848276cbfaf4bafa00c826de178eb2f
+entry_hash: bed0de52c9efb625bbab0edff888d02139c19ebb30f95d71168d4be640f0d41c
+ticket_or_adr: SEC-03; Gap 6 LEDGER 0472; nota deriva ADR-FISCAL-007 (Secrets Store vs secret_text)
+test_ids: []
+entregable_afectado: docs/runbooks/secrets-ops-material.md; docs/runbooks/fiscal-onboarding-tenant.md
+descripcion: >
+  Verificacion contra la API CF (GET settings, solo nombres/tipos, jamas valores) +
+  wrangler secret list --env staging: SUNAT_SOL_USER y SUNAT_SOL_PASSWORD son bindings
+  secret_text del Worker kipuspay-worker-fiscal-staging (junto a TENANT_CERT_ENVELOPE).
+  kipuspay-worker-api-staging NO los tiene (sus secret_text: AUTH_JWT_HS_SECRET,
+  PLATFORM_STAFF_TOKEN, TENANT_CERT_ENVELOPE): su buildRcCdrPort delega al servicio FISCAL
+  cuando no hay SOL local - hallazgo LATENTE, sin rotura hoy (flags fiscales en 0 en el
+  runtime staging de ambos workers). Mecanismo verificado: wrangler secret put (version
+  nueva + deploy inmediato; acceso probado via secret list); alternativas dashboard /
+  endpoint bulk de secrets; NUNCA PUT del script completo para rotar. Docs:
+  secrets-ops-material.md gana seccion Credenciales SUNAT SOL (ubicacion autoritativa,
+  mecanismo, rotacion completa: nueva clave en SUNAT -> persistir ops-local chmod 600 ->
+  put x2 --env staging -> 1 envio e-beta con CDR codigo 0) y matriz corregida;
+  fiscal-onboarding-tenant.md 2.6 deja la marca DESCONOCIDA y documenta precedencia fila
+  tenant_sol_credentials (0061) > env del worker > fail-closed. Deriva documental
+  registrada: ADR-FISCAL-007 enuncia solo Secrets Store; la realidad es secret_text del
+  worker + filas por tenant - requiere decision Staff Fiscal/Principal con ADR.
+  Sin rotacion real ejecutada (solo procedimiento); docs/LEDGER.md intacto.
+evidencia: >
+  GET /workers/scripts/{kipuspay-worker-api-staging,kipuspay-worker-fiscal-staging}/settings
+  -> listas secret_text sin valores; wrangler secret list --env staging -> mismos 3 nombres
+  en worker-fiscal-staging; consumidores verificados por lectura (select-transport.ts,
+  fiscal-rc-routes.ts, fiscal-service.ts); CI no gestiona secrets de workers
+  (deploy-staging.yml solo GitHub secrets CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID);
+  prettier GREEN docs/runbooks/; scripts/verify.sh RESULT SUITE GREEN.
+ancestry_verified: true
+aprobaciones: ["A: pendiente firma Staff Principal", "V: gate documental SUITE GREEN"]
+estado_gov: GOV-PENDIENTE
+```
+
+```text
+id: 0029
+timestamp_utc: 2026-08-25T02:05:00Z
+schema_version: 2
+sprint_fase: Automatización fiscal — alta de negocio emisor parametrizada
+agente_responsable: Staff Backend ACID (kipus-acid)
+tipo: Entregable nuevo
+subtipo: comando staff de provisioning atómico + runbook
+relacion: amplia
+referencias_entradas: [0028]
+referencias_documentales: ["docs/runbooks/fiscal-onboarding-tenant.md"]
+prev_id: 0028
+prev_hash: bed0de52c9efb625bbab0edff888d02139c19ebb30f95d71168d4be640f0d41c
+entry_hash: 6491c0e79e1de8f8f415f1e1c7c026d45653340e457eecd0dbb10239691e003e
+ticket_or_adr: SEC-03; gap 2 de LEDGER 0472 (alta de tenant copy-paste); automatización LEDGER 0473
+test_ids: [scripts/staff/onboard-tenant.test.mjs]
+entregable_afectado: scripts/staff/onboard-tenant.mjs (nuevo); scripts/staff/onboard-tenant.test.mjs (nuevo); package.json (script test:staff); docs/runbooks/fiscal-onboarding-tenant.md (§2.1)
+descripcion: >
+  Cierra el gap de alta copy-paste: scripts/staff/onboard-tenant.mjs genera y
+  aplica el skeleton del emisor (tenants + branches + cash_registers +
+  branch_document_series + payment_methods + snapshot TENANT_KV) de forma
+  atómica y parametrizada. Fail-closed en entrada: tenant_id formato
+  tenant_<snake_case>, RUC 11 dígitos CON dígito verificador módulo 11 SUNAT
+  (validado contra los RUC reales Rosa Negra/receptor), nombre no vacío,
+  catálogo documentos camino A (01/03/07/08 → F001/B001/FC01/FD01), régimen
+  dentro del CHECK DDL, solo env staging (canal productivo WAIT). Default
+  DRY-RUN (imprime plan+SQL+KV, exit 0 sin tocar nada); --apply exige
+  namespace KV explícito. Idempotencia limpia: preflight SELECT por id y RUC
+  devuelve contadores + contexto en la fila; colisión → TENANT_EXISTS /
+  RUC_ALREADY_REGISTERED tipados SIN escribir nada; SQL generado usa INSERT
+  simple (sin INSERT OR IGNORE ni cláusulas de conflicto, guardado por test).
+  Atomicidad verificada empíricamente antes de diseñar: probe local wrangler
+  d1 execute --file con INSERT válido + CHECK violation + INSERT válido →
+  exit 1 y CERO filas persistidas (batch D1 all-or-nothing); camino feliz
+  persiste completo. --apply orquesta preflight → batch (--file) → KV put →
+  post-verificación de conteos por tabla (desvío → PARTIAL_APPLY visible);
+  deps inyectables para tests. Sin secretos: el comando no maneja PINs/certs/
+  SOL (owner user queda para flujo de auth). Runbook fiscal-onboarding-tenant
+  §2.1 deja de mandar a copiar el seed (queda como fixture histórico) y
+  referencia el comando con sus garantías. package.json gana test:staff
+  (vitest --dir scripts/staff) para descubribilidad CI. Seed rosa-negra y
+  apply script intactos; docs/LEDGER.md intacto (guardrail); sin --apply
+  contra staging (solo dry-run).
+evidencia: >
+  TDD RED→GREEN: test primero (import falla, módulo inexistente) → GREEN
+  47/47 en scripts/staff/onboard-tenant.test.mjs (validaciones fail-closed
+  incl. checksum RUC e intento de inyección en tenant_id, generación SQL con
+  escape de apóstrofes, preflight/idempotencia con abort antes de escritura,
+  orden de orquestación apply, PARTIAL_APPLY, snapshot KV patrón Rosa Negra,
+  CLI dry-run default/conflictos/flags desconocidas, ausencia de material de
+  secretos en toda salida). Smoke CLI: dry-run exit 0 con plan+SQL; errores
+  tipados exit 2 (ERR_TENANT_ID_FORMAT, ERR_RUC_CHECKSUM, ERR_UNKNOWN_FLAG).
+  Probe atomicidad: wrangler 4.x d1 execute --file local, fallo a mitad →
+  rollback total verificado por SELECT. prettier GREEN en los 4 archivos
+  tocados; scripts/verify.sh RESULT SUITE GREEN (V-00..V-31) tras los
+  cambios; pnpm test:staff 47/47.
+ancestry_verified: true
+aprobaciones: ["A: Staff Backend ACID", "V: gate documental SUITE GREEN + pnpm test:staff 47/47"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+```

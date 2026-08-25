@@ -49,26 +49,62 @@ Convenciones: workdir raíz del repo; los PEM viven en `tmp-staff/`
 sesión). Staging usa `--env staging`; producción replicará el patrón cuando
 exista entorno fiscal productivo (hoy el canal productivo está WAIT, S14).
 
-### 2.1 Alta del tenant y series
+### 2.1 Alta del tenant y series (comando staff)
 
-Plantilla real: `scripts/staff/seed-rosa-negra-staging.sql`. Para un negocio
-nuevo, copiar el patrón (IDs/nombres propios del tenant) y aplicar:
+**Canónico:** `scripts/staff/onboard-tenant.mjs` genera y aplica el skeleton del
+emisor de forma atómica y parametrizada (cierra el gap de alta por copy-paste,
+LEDGER 0472/0473). El seed del piloto
+(`scripts/staff/seed-rosa-negra-staging.sql`) queda como fixture histórico de
+referencia, no como plantilla.
 
 ```bash
-pnpm --filter @kipuspay/worker-api exec wrangler d1 execute DB \
-  --env staging --remote --file scripts/staff/seed-<negocio>-staging.sql
+# 1) SIEMPRE dry-run primero: imprime plan + SQL + snapshot KV, no toca nada.
+node scripts/staff/onboard-tenant.mjs \
+  --tenant-id tenant_stg_<negocio>_001 --ruc <11 dígitos> \
+  --nombre "RAZON SOCIAL SAC" [--trade-name X] [--direccion Y] \
+  [--tax-regime RG] [--doc-types 01,03,07,08]
+
+# 2) Aplicar: preflight SELECT → batch D1 atómico (--file) → TENANT_KV →
+#    post-verificación de conteos. Exige namespace explícito.
+TENANT_KV_NAMESPACE_ID=<NS_TENANT_KV_STAGING> \
+node scripts/staff/onboard-tenant.mjs ... --apply --kv-namespace-id "$TENANT_KV_NAMESPACE_ID"
 ```
 
-Campos obligatorios del `INSERT INTO tenants` para emisor directo:
+Garantías del comando (tests en `scripts/staff/onboard-tenant.test.mjs`,
+`pnpm test:staff`):
+
+- **Fail-closed en entrada:** `--tenant-id` con formato `tenant_<snake_case>`,
+  RUC de 11 dígitos con dígito verificador módulo 11 de SUNAT (un typo de RUC
+  en `tenants.ruc` envenena la emisión fiscal), nombre no vacío, catálogo de
+  documentos camino A, régimen dentro del CHECK de DDL, solo `--env staging`
+  (canal productivo fiscal WAIT).
+- **Idempotencia limpia:** preflight SELECT por id y por RUC; colisión → error
+  tipado (`TENANT_EXISTS`, `RUC_ALREADY_REGISTERED`) sin escribir nada. El SQL
+  generado usa INSERT simple: sin `INSERT OR IGNORE` ni cláusulas de conflicto.
+- **Atomicidad:** un solo archivo SQL aplicado con una llamada
+  (`wrangler d1 execute DB --env staging --remote --file`) = batch D1
+  transaccional all-or-nothing; si una sentencia falla, no persiste ninguna.
+  Post-verificación de conteos por tabla; desvío → `PARTIAL_APPLY` visible.
+- **Sin secretos:** el comando no maneja PINs, certificados ni credenciales
+  SOL; el usuario owner se crea por flujo de auth, no por seed.
+
+Campos que el comando fija para emisor directo (equivalen al INSERT canónico):
 
 | Columna | Valor camino A |
 | --- | --- |
-| `formalization_mode` | `'ELECTRONIC_ISSUER'` (o `'FORMALIZING'` mientras activa) |
-| `sunat_certificate_status` | `'PENDING_UPLOAD'` (pasa a `'ACTIVE'` solo tras carga del cert) |
+| `formalization_mode` | `'ELECTRONIC_ISSUER'` |
+| `sunat_certificate_status` | `'PENDING_UPLOAD'` (pasa a `'ACTIVE'` solo tras carga del cert, §2.5) |
 | `pse_mode` | `'TENANT_CERT'` |
-| `enabled_document_types` | JSON con lo autorizado por régimen, p.ej. `'["01","03","07","08"]'` |
+| `enabled_document_types` | JSON con lo autorizado por régimen, default `'["01","03","07","08"]'` |
 
-Verificación del schema antes de cualquier INSERT manual (columnas reales):
+Skeleton creado: fila en `tenants`, branch `0001` "Local principal", caja
+principal, series AUTHORIZED con correlativo 0 (`01→F001`, `03→B001`, `07→FC01`,
+`08→FD01`) y método de pago efectivo. IDs derivados deterministas
+(`<tenant_id>_branch_0001`, `<tenant_id>_series_<doc>`): re-ejecutar tras un
+abort limpio es seguro porque el preflight rechaza todo alta parcial.
+
+Verificación del schema antes de cualquier INSERT manual fuera del comando
+(columnas reales):
 
 ```bash
 pnpm --filter @kipuspay/worker-api exec wrangler d1 execute DB \
@@ -76,14 +112,6 @@ pnpm --filter @kipuspay/worker-api exec wrangler d1 execute DB \
   --command "SELECT sql FROM sqlite_master WHERE name='tenant_certificates'"
 pnpm --filter @kipuspay/worker-api exec wrangler d1 execute DB \
   --env staging --remote --command "PRAGMA table_info(tenant_certificates)"
-```
-
-Snapshot TENANT_KV (mismo patrón de `scripts/staff/apply-rosa-negra-staging.sh`):
-
-```bash
-pnpm --filter @kipuspay/worker-api exec wrangler kv key put \
-  tenant:<TENANT_ID> --namespace-id=<NS_TENANT_KV_STAGING> \
-  --path scripts/staff/<negocio>-tenant-kv.json --remote
 ```
 
 ### 2.2 Validar el `.p12` (antes de cargarlo)
@@ -201,10 +229,21 @@ pnpm --filter @kipuspay/worker-api exec wrangler d1 execute DB \
 
 ### 2.6 Configurar credenciales SOL del tenant
 
-Hoy las credenciales SOL son **secretos del worker**, no filas por tenant:
-`selectFiscalTransport` (apps/worker-fiscal) toma `SUNAT_SOL_USER` /
-`SUNAT_SOL_PASSWORD` del entorno y, si existen, selecciona el transporte SOAP
-billService (ADR-FISCAL-007). Procedimiento vigente (runbook de secretos):
+Resolución de credenciales SOL (`selectFiscalTransport`, apps/worker-fiscal),
+por precedencia: fila del tenant en `tenant_sol_credentials` (envelope KMS,
+migración 0061; LEDGER 0473) > par `SUNAT_SOL_USER` / `SUNAT_SOL_PASSWORD`
+del entorno del worker (fallback histórico del piloto Rosa Negra) >
+fail-closed (`MISCONFIGURED` en staging, `SUNAT_PRODUCTION_SOL_MISSING` en
+production; nunca mock con flags on). Este onboarding usa el par del worker
+mientras la escritura de filas SOL por tenant siga manual (gap registrado
+en §8).
+
+Ubicación autoritativa CONFIRMADA (2026-08-24, GET settings de la API CF +
+`wrangler secret list --env staging`): ambos son bindings `secret_text` del
+Worker `kipuspay-worker-fiscal-staging`; `kipuspay-worker-api-staging` NO los
+tiene (su ruta RC delega al servicio `FISCAL`). Mecanismo de actualización,
+procedimiento completo de rotación y verificación: sección «Credenciales
+SUNAT SOL» de docs/runbooks/secrets-ops-material.md. Aplicar así:
 
 ```bash
 pnpm --filter @kipuspay/worker-fiscal exec wrangler secret put SUNAT_SOL_USER --env staging
@@ -213,12 +252,14 @@ pnpm --filter @kipuspay/worker-fiscal exec wrangler secret put SUNAT_SOL_PASSWOR
 
 Notas obligatorias:
 
-- Los nombres/mechanismo exactos deben confirmarse en el dashboard CF antes de
-  rotar (el binding no es visible en `wrangler.jsonc`; así lo registra
-  docs/runbooks/secrets-ops-material.md). Persistir primero ops-local
-  (chmod 600), aplicar después, y hacer smoke (regla de rotación ciega).
-- worker-api declara los mismos campos para rutas RC: mantener ambos workers
-  consistentes cuando el onboarding incluya Resumen Diario desde el API.
+- Persistir primero ops-local (chmod 600), aplicar después, y verificar con
+  1 envío e-beta con CDR código 0 (regla de rotación ciega del runbook de
+  secretos). Nombres y mecanismo ya confirmados: no requiere inspección de
+  dashboard previa.
+- worker-api declara los mismos campos para rutas RC pero hoy NO tiene los
+  bindings: su `buildRcCdrPort` delega al binding de servicio `FISCAL`
+  (worker-fiscal). Solo replicar los secrets ahí si se habilita envío directo
+  desde el API (canal production FL-2), siempre ANTES de encender ese camino.
 - **Limitación conocida:** un par SOL por ambiente de worker ⇒ un solo emisor
   directo por ambiente mientras no exista routing SOL por tenant. No mezclar
   dos negocios en el mismo ambiente con este esquema (gap registrado en §8).
