@@ -14048,3 +14048,37 @@ aprobaciones: [Staff Content Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0490
+timestamp_utc: 2026-08-25T22:06:00Z
+schema_version: 2
+sprint_fase: Fase A — Sprints de Refinamiento Visual V1, V2 y V3 (Tokens, Acordeones, Sliders, Glow)
+agente_responsable: Staff Visual Design Implementer / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Sistema de Tokens de Sombras/Radios, Micro-interacciones y Pulido Estético
+relacion: amplia
+referencias_entradas: [0489]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/lib/components/SavingsCalculator.svelte, apps/marketing-web/src/lib/components/OwnerModeMock.svelte, apps/marketing-web/src/routes/precios/+page.svelte, apps/marketing-web/src/routes/ayuda/+page.svelte]
+prev_id: 0489
+prev_hash: b7b25df428d6bd858c9c2f26f1249195aa05318ac6b048969bc4da35878c149c
+entry_hash: 6684ae944ba48aaaae42e21803430f2fd513e3514b59ba3aac1b45f2102819b5
+ticket_or_adr: GTM-01; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/visual-sprints.test.ts, apps/marketing-web/src/lib/components/savings.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/lib/components/SavingsCalculator.svelte; apps/marketing-web/src/lib/components/OwnerModeMock.svelte; apps/marketing-web/src/routes/precios/+page.svelte; apps/marketing-web/src/routes/ayuda/+page.svelte; apps/marketing-web/src/routes/comparar/+page.svelte
+descripcion: >
+  Elevación de calidad y pulido estético de clase mundial en todo el frontend de marketing:
+  (1) Tokens canónicos de sombras, elevaciones y resplandores (--shadow-sm/md/lg, --shadow-glow, --shadow-sello, --border-glow) y escala formal de curvaturas (--radius-xs/sm/md/lg/full).
+  (2) Acordeones FAQ con apertura animada ultra-fluida mediante CSS Grid (grid-template-rows: 0fr -> 1fr) sin layout shift en Home, Precios, Comparar, Ayuda y Verticales.
+  (3) Sliders interactivos de calculadora con estética de regla contable y tirador thumb en forma de nudo diamante a 45° con borde ámbar y micro-resplandor.
+  (4) Micro-elevación (translateY -2px) y borde luminoso en tarjetas interactivas de precios, simulaciones y comparativas.
+  (5) Header con desenfoque de cristal (backdrop-filter: blur), resplandor en sticky CTA móvil y crossfade suave en OwnerModeMock.
+evidencia: >
+  Marketing Web Vitest: 42 test files, 256 tests pasando al 100% (97.6% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 286.4 kB (< 300 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Visual Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

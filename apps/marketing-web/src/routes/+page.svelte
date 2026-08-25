@@ -434,7 +434,11 @@
               <span class="num">{String(i + 1).padStart(2, '0')}</span>
               <span class="q">{f.q}</span>
             </summary>
-            <p class="a">{f.a}</p>
+            <div class="faq-content-wrap">
+              <div class="faq-content-inner">
+                <p class="a">{f.a}</p>
+              </div>
+            </div>
           </details>
         {/each}
       </div>

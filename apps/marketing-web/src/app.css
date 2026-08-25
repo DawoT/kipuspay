@@ -68,7 +68,20 @@
   --muted-ink: rgba(26, 29, 35, 0.62);
   --line: rgba(243, 239, 230, 0.14);
   --line-ink: rgba(26, 29, 35, 0.16);
-  --radius: 0;
+  --radius-none: 0;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  --radius: var(--radius-none);
+
+  --shadow-sm: 0 1px 3px rgba(10, 12, 16, 0.25), 0 1px 2px rgba(10, 12, 16, 0.15);
+  --shadow-md: 0 4px 14px rgba(10, 12, 16, 0.35), 0 2px 6px rgba(10, 12, 16, 0.2);
+  --shadow-lg: 0 16px 40px rgba(10, 12, 16, 0.5), 0 4px 12px rgba(10, 12, 16, 0.25);
+  --shadow-glow: 0 0 24px rgba(217, 154, 61, 0.28);
+  --shadow-sello: 0 0 24px rgba(46, 158, 116, 0.28);
+  --border-glow: rgba(217, 154, 61, 0.45);
   --font-display: 'Fraunces', 'Fraunces Fallback', Georgia, serif;
   --font-body: 'Schibsted Grotesk', 'Schibsted Fallback', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Spline Sans Mono', 'Spline Fallback', ui-monospace, SFMono-Regular, monospace;
@@ -279,13 +292,17 @@ li {
   border-bottom: 1px solid transparent;
   transition:
     background 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    backdrop-filter 0.2s ease,
+    -webkit-backdrop-filter 0.2s ease;
 }
 
-/* Despegado del hero el header se apoya en tinta sólida (sin blur). */
+/* Despegado del hero el header se apoya en tinta con desenfoque de cristal. */
 .site-header.scrolled {
-  background: rgba(20, 22, 28, 0.96);
-  border-bottom-color: var(--line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(20, 22, 28, 0.88);
+  border-bottom: 1px solid rgba(243, 239, 230, 0.08);
 }
 
 .brand {
@@ -636,7 +653,7 @@ li {
     width: min(100vw - 2rem, 26rem);
     margin: 0;
     transform: translateX(-50%);
-    box-shadow: 0 12px 32px rgba(10, 12, 16, 0.45);
+    box-shadow: var(--shadow-glow);
     animation: riseIn 0.5s var(--ease-out) both;
   }
 
@@ -1249,6 +1266,45 @@ li {
   color: var(--alerta-bright);
 }
 
+/* ── Sistema Canónico de Badges KipusPay (.k-badge) ──────── */
+.k-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: var(--radius-xs);
+  line-height: 1.2;
+}
+
+.k-badge--status-ok {
+  background: rgba(46, 158, 116, 0.12);
+  color: var(--sello-bright);
+  border: 1px solid rgba(46, 158, 116, 0.35);
+}
+
+.k-badge--status-prep {
+  background: rgba(217, 154, 61, 0.12);
+  color: var(--amber-bright);
+  border: 1px solid rgba(217, 154, 61, 0.35);
+}
+
+.k-badge--tag {
+  background: rgba(243, 239, 230, 0.06);
+  color: var(--paper-dim);
+  border: 1px solid var(--line);
+}
+
+.k-badge--accent {
+  background: rgba(217, 154, 61, 0.18);
+  color: var(--amber-bright);
+  border: 1px solid var(--border-glow);
+}
+
 .ledger-table-wrap {
   margin-top: 2rem;
   border: 1px solid var(--line);
@@ -1464,6 +1520,26 @@ li {
 
 .faq-item[open] summary::after {
   transform: rotate(-135deg) translateY(-2px);
+}
+
+.faq-item .faq-content-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-item[open] .faq-content-wrap {
+  grid-template-rows: 1fr;
+}
+
+.faq-item .faq-content-inner {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item .faq-content-wrap {
+    transition: none;
+  }
 }
 
 .faq-item .a {
@@ -2134,6 +2210,37 @@ li {
   border-radius: 0;
 }
 
+/* ── Micro-Elevación y Borde Luminoso en Cards ───────────── */
+.pricing-card,
+.simulation-card,
+.compare-table-wrap,
+.feature-card {
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out);
+}
+
+@media (hover: hover) {
+  .pricing-card:hover,
+  .simulation-card:hover,
+  .compare-table-wrap:hover,
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(217, 154, 61, 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pricing-card:hover,
+  .simulation-card:hover,
+  .compare-table-wrap:hover,
+  .feature-card:hover {
+    transform: none;
+  }
+}
+
 .pricing-card.highlight {
   border-left-color: var(--amber);
   background: rgba(217, 154, 61, 0.03);
@@ -2166,6 +2273,36 @@ li {
   font-weight: 700;
   margin: 0;
   color: var(--ink);
+}
+
+.pricing-price-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-family: var(--font-display);
+  color: var(--ink);
+  margin: 0.5rem 0 0.85rem;
+}
+
+.pricing-price-display .curr {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #8c5a14;
+}
+
+.pricing-price-display .amount {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.pricing-price-display .period {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--muted-ink);
+  font-weight: 500;
 }
 
 .pricing-annual,

@@ -170,7 +170,7 @@
   .simulation-card {
     background: var(--ink-2);
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     padding: var(--inset-card);
     color: var(--paper);
   }
@@ -198,7 +198,7 @@
     background: rgba(229, 169, 59, 0.15);
     color: var(--amber-bright);
     padding: 0.25rem 0.6rem;
-    border-radius: 2px;
+    border-radius: var(--radius-xs);
     font-weight: 600;
   }
 

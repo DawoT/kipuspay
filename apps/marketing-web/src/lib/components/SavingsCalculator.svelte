@@ -172,20 +172,114 @@
     }
   }
 
-  /* ── Controls ────────────────────────────────────────────── */
+  /* ── Controls & Diamond Knot Sliders ─────────────────────── */
+  .calc-control {
+    margin-bottom: 1.5rem;
+  }
   .calc-control label {
     display: block;
     font-size: 1.05rem;
-    margin-bottom: 0.85rem;
+    margin-bottom: 0.5rem;
   }
   .calc-control label strong {
     color: var(--amber-bright);
     font-family: var(--font-mono);
   }
   .calc-control input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
     width: 100%;
-    accent-color: var(--amber);
+    height: 44px;
+    background: transparent;
     cursor: pointer;
+    margin: 0;
+  }
+  .calc-control input[type='range']:focus-visible {
+    outline: 2px solid var(--amber-bright);
+    outline-offset: 4px;
+  }
+
+  /* Pista estilo regla contable */
+  .calc-control input[type='range']::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    background: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  .calc-control input[type='range']::-moz-range-track {
+    width: 100%;
+    height: 6px;
+    background: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xs);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Tirador (thumb) en forma de nudo diamante a 45° con borde ámbar y micro-resplandor */
+  .calc-control input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--amber);
+    border: 2px solid var(--amber-bright);
+    border-radius: 0;
+    transform: rotate(45deg);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    margin-top: -6px;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      background 0.15s ease;
+  }
+  .calc-control input[type='range']:hover::-webkit-slider-thumb,
+  .calc-control input[type='range']:active::-webkit-slider-thumb {
+    box-shadow: var(--shadow-glow);
+    background: var(--amber-bright);
+    transform: rotate(45deg) scale(1.15);
+  }
+
+  .calc-control input[type='range']::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--amber);
+    border: 2px solid var(--amber-bright);
+    border-radius: 0;
+    transform: rotate(45deg);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      background 0.15s ease;
+  }
+  .calc-control input[type='range']:hover::-moz-range-thumb,
+  .calc-control input[type='range']:active::-moz-range-thumb {
+    box-shadow: var(--shadow-glow);
+    background: var(--amber-bright);
+    transform: rotate(45deg) scale(1.15);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .calc-control input[type='range']::-webkit-slider-thumb {
+      transition: none;
+      transform: rotate(45deg);
+    }
+    .calc-control input[type='range']:hover::-webkit-slider-thumb,
+    .calc-control input[type='range']:active::-webkit-slider-thumb {
+      transform: rotate(45deg);
+    }
+    .calc-control input[type='range']::-moz-range-thumb {
+      transition: none;
+      transform: rotate(45deg);
+    }
+    .calc-control input[type='range']:hover::-moz-range-thumb,
+    .calc-control input[type='range']:active::-moz-range-thumb {
+      transform: rotate(45deg);
+    }
   }
   .calc-results {
     display: grid;

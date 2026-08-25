@@ -421,10 +421,10 @@
     color: var(--paper);
     font-size: 0.72rem;
     font-weight: 700;
+    border-radius: var(--radius-xs);
   }
   .pricing-card.highlight {
     border-left-color: var(--amber);
-    box-shadow: none;
   }
   .pricing-badge {
     display: inline-block;
@@ -438,6 +438,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     vertical-align: middle;
+    border-radius: var(--radius-xs);
   }
   .pricing-annual-sub {
     font-family: var(--font-mono);

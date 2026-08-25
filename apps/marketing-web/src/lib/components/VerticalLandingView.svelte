@@ -205,7 +205,11 @@
                 <span class="num">{String(i + 1).padStart(2, '0')}</span>
                 <span class="q">{item.q}</span>
               </summary>
-              <p class="a">{item.a}</p>
+              <div class="faq-content-wrap">
+                <div class="faq-content-inner">
+                  <p class="a">{item.a}</p>
+                </div>
+              </div>
             </details>
           {/each}
         </div>

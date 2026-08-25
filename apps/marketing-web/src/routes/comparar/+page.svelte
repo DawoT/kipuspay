@@ -197,7 +197,7 @@
           {/each}
         </div>
 
-        <div class="ledger-table-wrap comparison-table-wrap" use:reveal>
+        <div class="ledger-table-wrap comparison-table-wrap compare-table-wrap" use:reveal>
           {#if filteredRows.length > 0}
             <table class="ledger-table comparison-table" aria-label={selected.title}>
               <thead>
@@ -244,7 +244,11 @@
               <span class="num">{String(i + 1).padStart(2, '0')}</span>
               <span class="q">{item.q}</span>
             </summary>
-            <p class="a">{item.a}</p>
+            <div class="faq-content-wrap">
+              <div class="faq-content-inner">
+                <p class="a">{item.a}</p>
+              </div>
+            </div>
           </details>
         {/each}
       </div>

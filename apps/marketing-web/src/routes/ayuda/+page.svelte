@@ -123,7 +123,11 @@
                     <span class="preparing-badge">En preparación</span>
                   {/if}
                 </summary>
-                <p class="a">{item.answer}</p>
+                <div class="faq-content-wrap">
+                  <div class="faq-content-inner">
+                    <p class="a">{item.answer}</p>
+                  </div>
+                </div>
               </details>
             {/each}
           </div>
@@ -148,7 +152,11 @@
                       <span class="preparing-badge">En preparación</span>
                     {/if}
                   </summary>
-                  <p class="a">{item.answer}</p>
+                  <div class="faq-content-wrap">
+                    <div class="faq-content-inner">
+                      <p class="a">{item.answer}</p>
+                    </div>
+                  </div>
                 </details>
               {/each}
             </div>

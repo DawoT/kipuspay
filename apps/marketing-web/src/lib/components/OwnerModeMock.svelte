@@ -543,4 +543,28 @@
     margin-top: 0.75rem;
     line-height: 1.4;
   }
+
+  /* ── Crossfade suave entre simulación y foto ──────────────── */
+  .smartphone-frame,
+  .photo-mockup-wrap {
+    animation: mockCrossfade 250ms ease both;
+  }
+
+  @keyframes mockCrossfade {
+    from {
+      opacity: 0;
+      transform: scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .smartphone-frame,
+    .photo-mockup-wrap {
+      animation: none;
+    }
+  }
 </style>
