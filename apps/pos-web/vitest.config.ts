@@ -22,6 +22,9 @@ export default defineConfig({
         'src/**/*.test.ts',
         // Worker entry — exercised via offload-compile / sync fallback in unit tests
         'src/lib/print/offload.worker.ts',
+        // Vendored libs — not part of coverage, Rolldown fails on .d.ts with TS syntax
+        'src/lib/vendor/**',
+        'src/**/*.d.ts',
       ],
       thresholds: {
         lines: 70,

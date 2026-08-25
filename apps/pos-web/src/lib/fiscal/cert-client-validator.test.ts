@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   classifyCertTrafficLight,
   computeDaysUntilExpiry,
@@ -207,13 +207,12 @@ describe('validateClientCertificate', { timeout: 30_000 }, () => {
   });
 
   it('rechaza certificados vencidos (expiresAt <= now)', async () => {
-    const p12Bytes = createP12Fixture(cdtSubject(RUC_BUSINESS), {
-      notBefore: '20250101000000Z',
-      notAfter: '20260101000000Z',
-    });
+    const p12Bytes = createP12Fixture(cdtSubject(RUC_BUSINESS));
     const file = new File([p12Bytes as unknown as BlobPart], 'expired.p12');
-
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(Date.now() + 400 * 24 * 60 * 60 * 1000));
     const result = await validateClientCertificate(file, 'correct-pass', RUC_BUSINESS);
+    vi.useRealTimers();
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.code).toBe('CERT_EXPIRED');
