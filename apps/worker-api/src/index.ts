@@ -16,6 +16,7 @@ import { runOfflineSaleHttp } from './pos/offline-sale-route.js';
 import { runDaySalesHttp } from './pos/pos-day-sales-route.js';
 import { runSyncSalesHttp } from './pos/sync-sales-route.js';
 import {
+  runCpeLinkHttp,
   runCpePortalHttp,
   runFiscalCronHttp,
   runOwnerAlertsHttp,
@@ -2389,6 +2390,15 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     }
     return c.json(result.body, result.status as 503);
   });
+  // H4 (auditoría 0031): enlace distribuible del portal CPE. El POS lo pide
+  // tras ver sunat_status=ACCEPTED y lo comparte al adquirente (WhatsApp o
+  // representación impresa). Derivación determinista; sirve 1 año (§5.2).
+  app.get('/api/sales/:saleId/cpe-link', async (c) => {
+    const jwt = c.get('jwt');
+    const origin = new URL(c.req.url).origin;
+    const result = await runCpeLinkHttp(c.env, jwt?.tenantId ?? '', c.req.param('saleId'), origin);
+    return c.json(result.body, result.status as 200 | 404 | 409 | 503);
+  });
   app.get('/api/reports/advanced/:reportId', async (c) => {
     const jwt = c.get('jwt');
     const reportId = c.req.param('reportId');
@@ -2772,20 +2782,29 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // Portal CPE: auth por token (adquirente), fuera del JWT tenant.
+  // H4 (auditoría 0031): además del HTML sirve los archivos (?file=xml|cdr)
+  // con content-type y content-disposition correctos; fail-closed por token.
   app.get('/v1/cpe/portal/:tenantId/:saleId', async (c) => {
     const token = c.req.query('token') ?? '';
+    const file = c.req.query('file');
     const result = await runCpePortalHttp(
       c.env,
       c.req.param('tenantId'),
       c.req.param('saleId'),
       token,
+      Date.now(),
+      file || undefined,
     );
     if (typeof result.body === 'string') {
-      return c.body(result.body, result.status as 200, {
+      const headers: Record<string, string> = {
         'content-type': result.contentType ?? 'text/html; charset=utf-8',
-      });
+      };
+      if (result.filename) {
+        headers['content-disposition'] = `attachment; filename="${result.filename}"`;
+      }
+      return c.body(result.body, result.status as 200, headers);
     }
-    return c.json(result.body, result.status as 401 | 404 | 410 | 503);
+    return c.json(result.body, result.status as 400 | 401 | 404 | 409 | 410 | 503);
   });
 
   // Onboarding Sprint 11: bootstrap publico (soft-launch) + stage tras auth.

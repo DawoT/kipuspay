@@ -4,6 +4,7 @@ import {
   assertFifoOrder,
   drainFiscalOutbox,
   putFiscalXml,
+  unitaryCdrReceiptKey,
   xmlReadyForLiveSubmit,
   type FiscalDrainDb,
   type FiscalXmlR2,
@@ -48,7 +49,12 @@ function claimRows(state: MockRow[], limit: number): number {
 }
 
 /** Aplica la transición terminal que corresponda al UPDATE recibido. */
-function applyTerminalTransition(state: MockRow[], sql: string, params: unknown[]): void {
+function applyTerminalTransition(
+  state: MockRow[],
+  sentCdrKeys: Map<string, string | null>,
+  sql: string,
+  params: unknown[],
+): void {
   if (sql.includes("status = 'QUARANTINED'")) {
     const id =
       typeof params[2] === 'string'
@@ -59,8 +65,13 @@ function applyTerminalTransition(state: MockRow[], sql: string, params: unknown[
     const row = state.find((r) => r.id === id || r.id === 'poison');
     if (row) row.status = 'QUARANTINED';
   } else if (sql.includes("status = 'SENT'")) {
-    const row = state.find((r) => r.id === String(params[0]));
-    if (row) row.status = 'SENT';
+    // H3-c: bind(cdrKey|null, id, tenantId) — la referencia viaja con el SENT.
+    const id = String(params[1]);
+    const row = state.find((r) => r.id === id);
+    if (row) {
+      row.status = 'SENT';
+      sentCdrKeys.set(id, params[0] === null ? null : String(params[0]));
+    }
   } else if (sql.includes("SET status = 'PENDING'")) {
     const row = state.find((r) => r.id === String(params[0]));
     if (row) row.status = 'PENDING';
@@ -70,11 +81,14 @@ function applyTerminalTransition(state: MockRow[], sql: string, params: unknown[
   }
 }
 
-function memoryDb(
-  rows: OutboxRow[],
-): FiscalDrainDb & { state: MockRow[]; sales: Map<string, string> } {
+function memoryDb(rows: OutboxRow[]): FiscalDrainDb & {
+  state: MockRow[];
+  sales: Map<string, string>;
+  sentCdrKeys: Map<string, string | null>;
+} {
   const state = rows.map((r) => ({ ...r, next_attempt_at: new Date().toISOString() }));
   const sales = new Map<string, string>();
+  const sentCdrKeys = new Map<string, string | null>();
   const impl = (sql: string, params: unknown[]) => ({
     all<T>() {
       if (sql.includes("f.status = 'PROCESSING'")) {
@@ -107,7 +121,7 @@ function memoryDb(
           meta: { changes: row?.status === 'PROCESSING' ? 1 : 0 },
         });
       }
-      applyTerminalTransition(state, sql, params);
+      applyTerminalTransition(state, sentCdrKeys, sql, params);
       return Promise.resolve({ success: true, meta: { changes: 1 } });
     },
   });
@@ -125,6 +139,7 @@ function memoryDb(
   return {
     state,
     sales,
+    sentCdrKeys,
     prepare(sql: string) {
       return chainable(sql);
     },
@@ -679,5 +694,107 @@ describe('routing SOL por tenant — aislamiento de error de canal en el drain',
     // …y la fila sana del otro tenant se emitió normalmente.
     expect(db.state.find((r) => r.id === 'okrow')?.status).toBe('SENT');
     expect(result.accepted).toBe(1);
+  });
+});
+
+/**
+ * H3 (auditoría 0031) — conservación SUNAT del CDR del XML unitario.
+ * El drain es el único punto donde el envelope del CDR unitario está en mano;
+ * hoy se pierde. Contrato: receipt JSON en `fiscal-cdr/<tenant>/<saleId>.json`
+ * + referencia `fiscal_outbox.r2_cdr_key` en el MISMO UPDATE que marca SENT.
+ * Best-effort: fallo de R2 NO revierte el ACCEPTED (warn + clave NULL).
+ */
+describe('H3-c — archivo del CDR unitario (receipt JSON + r2_cdr_key)', () => {
+  function acceptedTransport(): FiscalTransport {
+    return {
+      mode: 'MOCK_STAGING',
+      submit: () =>
+        Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+        }),
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+    };
+  }
+
+  async function seedAcceptedRow(db: ReturnType<typeof memoryDb>, r2: ReturnType<typeof memoryR2>) {
+    const xml = '<Invoice><ds:Signature/><cbc:ID>F001-9</cbc:ID></Invoice>';
+    r2.map.set('xml-key-h3c', xml);
+    db.state.push({
+      id: 'h3c',
+      tenant_id: 't-h3c',
+      sale_id: 's-h3c',
+      status: 'PENDING',
+      attempt_count: 0,
+      must_submit_by: '2026-08-20T00:00:00.000Z',
+      document_type: '01',
+      r2_xml_key: 'xml-key-h3c',
+      created_at: new Date().toISOString(),
+    } as unknown as MockRow);
+  }
+
+  it('accepted → receipt JSON en fiscal-cdr/<tenant>/<sale>.json + r2_cdr_key en el SENT', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    await seedAcceptedRow(db, r2);
+
+    const result = await drainFiscalOutbox({
+      db,
+      r2,
+      transport: acceptedTransport(),
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+
+    expect(result.accepted).toBe(1);
+    const key = unitaryCdrReceiptKey('t-h3c', 's-h3c');
+    expect(key).toBe('fiscal-cdr/t-h3c/s-h3c.json');
+    expect(r2.map.has(key)).toBe(true);
+    const receipt = JSON.parse(r2.map.get(key) as string) as {
+      kind: string;
+      saleId: string;
+      tenantId: string;
+      cdrCode: string;
+      accepted: boolean;
+    };
+    expect(receipt.kind).toBe('UNITARY_CDR_RECEIPT');
+    expect(receipt.saleId).toBe('s-h3c');
+    expect(receipt.tenantId).toBe('t-h3c');
+    expect(receipt.cdrCode).toBe('0');
+    expect(receipt.accepted).toBe(true);
+    // Referencia D1 en la misma transición SENT.
+    expect(db.state.find((r) => r.id === 'h3c')?.status).toBe('SENT');
+    expect(db.sentCdrKeys.get('h3c')).toBe(key);
+  });
+
+  it('chaos: fallo de R2 al archivar → SENT igual, r2_cdr_key NULL, warn', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    await seedAcceptedRow(db, r2);
+    const innerPut = r2.put.bind(r2);
+    r2.put = (k, v) =>
+      k.startsWith('fiscal-cdr/') ? Promise.reject(new Error('R2_DOWN')) : innerPut(k, v);
+
+    let warned = '';
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warned = args.map(String).join(' ');
+    };
+    try {
+      const result = await drainFiscalOutbox({
+        db,
+        r2,
+        transport: acceptedTransport(),
+        isBreakerOpen: () => Promise.resolve(false),
+        onInfraFailure: () => Promise.resolve(),
+      });
+      // El CDR ya es válido ante SUNAT: el ACCEPTED permanece intacto.
+      expect(result.accepted).toBe(1);
+      expect(db.state.find((r) => r.id === 'h3c')?.status).toBe('SENT');
+      expect(db.sentCdrKeys.get('h3c')).toBeNull(); // referencia honesta
+      expect(warned).toContain('UNITARY_CDR_ARCHIVE_FAILED');
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 });

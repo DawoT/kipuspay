@@ -169,6 +169,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/catalog/sellable' },
   { method: 'GET', path: '/api/catalog/export' },
   { method: 'GET', path: '/api/sales/export' },
+  { method: 'GET', path: '/api/sales/sale-1/cpe-link' },
   { method: 'PATCH', path: '/api/catalog/variants/v1' },
   { method: 'POST', path: '/api/catalog/uoms' },
   { method: 'POST', path: '/api/inventory/counts' },

@@ -13,6 +13,7 @@ import {
   planNrusDailyConsolidation,
   canOmitUnitaryNrus,
   rcSummaryId,
+  FISCAL_ARCHIVE_RETENTION_YEARS,
   type BoletaForRc,
   type RcCdrPort,
 } from '@kipuspay/domain-fiscal-pe';
@@ -22,12 +23,108 @@ import type { FiscalXmlSigner } from './fiscal-xml-producer.js';
 export type { RcCdrPort } from '@kipuspay/domain-fiscal-pe';
 export { createMockRcCdrPort } from '@kipuspay/domain-fiscal-pe';
 
+/**
+ * H3 (auditoría 0031) — política de retención del archivo fiscal (fuente de
+ * verdad en domain-fiscal-pe): mínimo legal 5 años (Código de Comercio art.
+ * 190 / Reglamento SUNAT). Un job futuro la aplica; aquí se expone para ese
+ * consumidor. NO hay borrador automático en este módulo.
+ */
+export {
+  FISCAL_ARCHIVE_RETENTION_MS,
+  FISCAL_ARCHIVE_RETENTION_YEARS,
+} from '@kipuspay/domain-fiscal-pe';
+
+/** Puerto R2 del archivo fiscal (patrón FiscalXmlR2Like de fiscal-xml-producer). */
+export interface FiscalArchiveR2 {
+  put(key: string, value: string | Uint8Array): Promise<void>;
+}
+
+/** Clave R2 del sobre RC firmado — patrón consistente con fiscal-xml/<t>/<id>.xml. */
+export function rcXmlArchiveKey(tenantId: string, summaryId: string): string {
+  return `rc/${tenantId}/${summaryId}.xml`;
+}
+
+/** Clave R2 del CDR completo (zip) del RC. */
+export function rcCdrArchiveKey(tenantId: string, summaryId: string): string {
+  return `rc/${tenantId}/${summaryId}-cdr.zip`;
+}
+
+/** Clave R2 del receipt JSON del CDR cuando el PSE aún no entrega zip. */
+export function rcCdrReceiptArchiveKey(tenantId: string, summaryId: string): string {
+  return `rc/${tenantId}/${summaryId}-cdr.json`;
+}
+
+function cdrZipBytes(cdrZipB64: string): Uint8Array {
+  const bin = atob(cdrZipB64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/**
+ * H3 (auditoría 0031) — archivo post-commit del sobre firmado + CDR.
+ * BEST-EFFORT: el SUCCESS del CDR ya es válido ante SUNAT; un fallo de R2
+ * jamás revierte la tx ni el estado ACCEPTED (warn + claves NULL). Referencia
+ * honesta: clave en D1 ⇒ objeto en R2 — la referencia se escribe en UNA sola
+ * sentencia UPDATE DESPUÉS de que ambos objetos existen; si cualquier put
+ * falla, no se escribe ninguna clave (sin referencias colgantes).
+ */
+async function archiveRcEnvelope(input: {
+  readonly db: D1DatabaseLike;
+  readonly archive: FiscalArchiveR2;
+  readonly tenantId: string;
+  readonly summaryId: string;
+  readonly xml: string;
+  readonly cdr: Awaited<ReturnType<RcCdrPort['submit']>>;
+}): Promise<void> {
+  const { db, archive, tenantId, summaryId, xml, cdr } = input;
+  try {
+    await archive.put(rcXmlArchiveKey(tenantId, summaryId), xml);
+    if (cdr.cdrZipB64 !== undefined) {
+      await archive.put(rcCdrArchiveKey(tenantId, summaryId), cdrZipBytes(cdr.cdrZipB64));
+    } else {
+      const receipt = JSON.stringify({
+        kind: 'RC_CDR_RECEIPT',
+        summaryId,
+        tenantId,
+        accepted: cdr.accepted,
+        cdrCode: cdr.cdrCode,
+        cdrMessage: cdr.cdrMessage,
+        archivedAt: new Date().toISOString(),
+        retentionYears: FISCAL_ARCHIVE_RETENTION_YEARS,
+      });
+      await archive.put(rcCdrReceiptArchiveKey(tenantId, summaryId), receipt);
+    }
+    await db
+      .prepare(
+        `UPDATE sunat_daily_summaries SET r2_rc_xml_key = ?, r2_cdr_key = ?
+         WHERE id = ? AND tenant_id = ?`,
+      )
+      .bind(
+        rcXmlArchiveKey(tenantId, summaryId),
+        cdr.cdrZipB64 !== undefined
+          ? rcCdrArchiveKey(tenantId, summaryId)
+          : rcCdrReceiptArchiveKey(tenantId, summaryId),
+        summaryId,
+        tenantId,
+      )
+      .run();
+  } catch (err) {
+    console.warn('RC_ARCHIVE_FAILED', tenantId, summaryId, String(err));
+  }
+}
+
 export interface BuildDailySummaryInput {
   readonly tenantId: string;
   readonly summaryDate: string;
   readonly nowMs: number;
   readonly cdr?: RcCdrPort;
   readonly signer?: FiscalXmlSigner;
+  /**
+   * H3 (auditoría 0031): archivo R2 del sobre RC firmado + CDR (conservación
+   * SUNAT). Best-effort post-commit — ver archiveRcEnvelope.
+   */
+  readonly archive?: FiscalArchiveR2;
 }
 
 export interface BuildDailySummaryResult {
@@ -343,6 +440,19 @@ export async function buildDailySummary(
       }
     }
   });
+
+  // H3 (auditoría 0031): conservación SUNAT — sobre firmado + CDR a R2,
+  // DESPUÉS del commit de la tx (best-effort; nunca revierte el SUCCESS).
+  if (input.archive) {
+    await archiveRcEnvelope({
+      db,
+      archive: input.archive,
+      tenantId: input.tenantId,
+      summaryId,
+      xml,
+      cdr,
+    });
+  }
 
   return {
     status: 'SUCCESS',

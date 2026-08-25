@@ -42,6 +42,47 @@ El dueño del RUC consigue, antes de tocar KipusPay:
 Si el negocio aún no tiene RUC activo, NO aplica este runbook: queda en
 `INTERNAL_CONTROL` con Notas de Venta (matriz §5.1) hasta formalizarse.
 
+### 1.1 Elegibilidad CDT (certificado gratuito)
+
+Antes de que el dueño compre un certificado con una CA privada, verificar si el
+RUC califica al **Certificado Digital Tributario (CDT) gratuito de SUNAT**
+(fuente: cpe.sunat.gob.pe/certificado-digital). El CDT sirve exactamente para
+lo que este runbook necesita: firma digital de CPE con uso tributario, y su
+vigencia es de **3 años** (registrarla en `tenant_certificates.expires_at`
+igual que cualquier cert, §5).
+
+Requisitos del contribuyente **a la fecha de la solicitud** (todos obligatorios):
+
+| # | Requisito |
+| --- | --- |
+| 1 | RUC con condición **ACTIVO y HABIDO** (sin domicilio fiscal no habido) |
+| 2 | Afecto a renta de **3ra categoría** (RG, RER, RMYPE, Agrario) |
+| 3 | Ingresos netos anuales **≤ 300 UIT** (referencia S/ 1 260 000, año 2019) |
+| 4 | **No inscrito** en el Registro de PSE ni en el Registro de OSE |
+| 5 | **No poseer un CDT vigente** emitido |
+| 6 | No haber obtenido **más de 2 CDTs** en virtud de la norma |
+| 7 | Aceptar los términos y condiciones del contrato de uso del CDT |
+
+Trámite (lo hace el dueño del RUC, ~15 min, online): SOL → **Empresas →
+Comprobantes de Pago → Certificado Digital Tributario – CDT → Solicitar**;
+aceptar T&C y recoger el `.p12` desde el **Buzón electrónico**, creando la
+clave privada (alfanumérica, mínimo 8 caracteres). Desde ahí continúa §2.2 de
+este runbook (validación del paquete). La clave del CDT es one-shot como
+cualquier `.p12`: nunca por correo ni en disco de staff.
+
+**Ventana de autorización:** SUNAT está autorizada a emitir el CDT gratuito
+hasta el **31 de diciembre de 2027** (Ley 32543, prórroga de la Ley 27269);
+desde el 01-01-2028 continuará solo si acredita ante INDECOPI como EREP. Al
+planificar rotaciones cerca de esa fecha, confirmar el canal vigente antes de
+prometer renovación al dueño.
+
+**Cuándo se exige certificado pagado (CA autorizada):** si el perfil NO
+califica — inscrito en PSE/OSE, ingresos > 300 UIT, no afecto a 3ra categoría,
+o ya usó sus 2 CDTs — el dueño compra el cert de uso tributario a una CA
+autorizada por SUNAT (vigencia típica 1–2 años, §1.1 requisitos generales del
+certificado). KipusPay no cambia su flujo: mismo `.p12`, misma carga §2.5,
+misma rotación §5; solo cambia quién lo emitió y cuánto costó.
+
 ## 2. Provisioning técnico (lado KipusPay)
 
 Convenciones: workdir raíz del repo; los PEM viven en `tmp-staff/`

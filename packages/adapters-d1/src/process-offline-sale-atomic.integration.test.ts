@@ -709,6 +709,10 @@ describe('processOfflineSaleAtomic NV (Sprint 4)', () => {
         items: [{ productId: fixture.productId, quantity: 1, isUncatalogued: true }],
       },
       'FC01',
+      // H5 (auditoría 0031): reloj fijado dentro del tope E-A (origen emitido
+      // 2026-08-04 → tope 10° hábil de sep-2026). Sin pin, la suite rompería
+      // por calendario real desde el 15-sep-2026.
+      { nowMs: Date.parse('2026-08-05T15:00:00.000Z') },
     );
     expect(nc.requiresNoCdrAudit).toBe(true);
 

@@ -1502,3 +1502,142 @@ aprobaciones: ["A: pendiente revisión Staff Fiscal (remediación H1)", "V: gate
 estado_gov: GOV-PENDIENTE
 estado: Vigente
 ```
+id: 0034
+timestamp_utc: 2026-08-25T04:29:46Z
+schema_version: 2
+sprint_fase: Transversal — Remediación H4+H6 (auditoría 0031)
+agente_responsable: Kipus POS/Security (Staff Frontend + Security)
+tipo: Implementación
+subtipo: Portal CPE end-to-end (enlace distribuible + serving XML/constancia) + elegibilidad CDT en runbook (TDD)
+relacion: remedia
+referencias_entradas: [0031]
+referencias_documentales: ["packages/domain-fiscal-pe/src/cpe-portal.ts", "apps/worker-api/src/fiscal/fiscal-rc-routes.ts", "apps/worker-api/src/index.ts", "apps/worker-api/wrangler.jsonc", "docs/runbooks/fiscal-onboarding-tenant.md"]
+prev_id: 0033
+prev_hash: 463c579e9a49b298ab3230ad5338d22c31dba5d8a08478384dea409947f1d5b1
+entry_hash: 5c82427b48c5509dd57493613d2d8493954e1130eb1060ed05ea76603a9924ed
+test_ids: [packages/domain-fiscal-pe/src/cpe-portal.test.ts, apps/worker-api/src/fiscal/fiscal-rc-routes.test.ts, apps/worker-api/src/auth/protected-routes.test.ts]
+entregable_afectado: fiscal.cpe_portal (enlace distribuible + archivos xml/cdr); runbook onboarding fiscal (sección 1.1); sin cambios DDL ni en fiscal core
+descripcion: >
+  H4: el portal CPE existente (token SHA-256 determinista, vigencia 1 año,
+  fail-closed por CPE_PORTAL_SECRET) servía solo HTML, estaba default OFF y
+  nadie generaba el enlace al adquirente. Remediación en 3 frentes:
+  (1) enlace distribuible por DERIVACIÓN DETERMINISTA — buildCpePortalUrl en
+  domain-fiscal-pe compone {baseUrl}/v1/cpe/portal/{tenant}/{sale}?token=...
+  sin escritura en D1; nuevo endpoint JWT GET /api/sales/:saleId/cpe-link en
+  worker-api que lo entrega al POS solo con sunat_status=ACCEPTED (409
+  CPE_NOT_ACCEPTED antes del CDR — invariante 8); consumo pos-web documentado
+  (backend listo para representación impresa/WhatsApp).
+  (2) el portal sirve ARCHIVOS además del HTML: ?file=xml descarga el XML
+  firmado desde FISCAL_XML_R2 (fiscal-xml/{tenant}/{sale}.xml, application/xml
+  + content-disposition F001-00000001.xml) y ?file=cdr sirve constancia de
+  recepción generada desde estado autoritativo D1 (sales.sunat_status + CDR
+  del resumen diario vía LEFT JOIN para boletas; renderCpeReceiptXml con
+  escape XML). Archivos SOLO de CPE ACCEPTED, retención 1 año también para
+  archivos (assertWithinRetention), aislamiento cross-tenant por token
+  (SHA-256 liga tenant+sale), file desconocido → 400. La constancia está
+  etiquetada como constancia KipusPay: NO reemplaza el CDR zip original
+  (retenerlo exige cambios en worker-fiscal/drain — fuera de mi guardrail;
+  el agente paralelo ya añade cdrZipB64 en RcCdrPort para H3).
+  (3) default ON: isCpePortalEnabled pasa a opt-out (FEATURE_CPE_PORTAL !==
+  '0'); se eliminan las dos líneas "FEATURE_CPE_PORTAL": "0" de wrangler.jsonc
+  (respetando lección S12: jamás FEATURE_*=1 commiteado; opt-out sigue
+  posible con var runtime). El fail-closed real permanece: sin
+  CPE_PORTAL_SECRET → 503 PORTAL_UNAVAILABLE.
+  H6: docs/runbooks/fiscal-onboarding-tenant.md §1.1 "Elegibilidad CDT
+  (certificado gratuito)": requisitos (RUC activo/habido, 3ra categoría,
+  ingresos ≤300 UIT ref S/ 1 260 000 año 2019, no inscrito PSE/OSE, sin CDT
+  vigente, máx 2 CDTs, aceptar T&C), trámite SOL Empresas → Comprobantes de
+  Pago → CDT con descarga por Buzón electrónico, autorización SUNAT hasta
+  31-dic-2027 (Ley 32543; desde 2028 exige acreditación INDECOPI EREP),
+  vigencia CDT 3 años, y cuándo se exige certificado pagado de CA (perfil no
+  elegible). Fuente cpe.sunat.gob.pe/certificado-digital.
+evidencia: >
+  TDD RED→GREEN: RED dominio 7/8 (buildCpePortalUrl/renderCpeReceiptXml/
+  fileUrls inexistentes), RED worker-api 13 (default OFF, sin files, sin
+  cpe-link). GREEN: domain-fiscal-pe 198 unit (incl. 8 nuevos de portal);
+  worker-api 1407 unit (32 en fiscal-rc-routes.test.ts: files xml/cdr,
+  PENDING→409, R2 miss→404 FILE_NOT_FOUND, sin binding→503, cross-tenant
+  token→401, traversal→400 BAD_FILE_REQUEST, retención+1h→410
+  CPE_PORTAL_EXPIRED, HTML con descargas; paridad de rutas protegidas 446);
+  tsc OK; eslint OK (complejidad 20→refactor serveCpePortalFile); prettier
+  OK; scripts/verify.sh RESULT SUITE GREEN. Timeout flaky pre-existente en
+  tenant-cert-upload bajo carga full-suite (pasa aislado y en clean
+  checkout). Sin commits; guardrails respetados: cero toques a adapters-d1/
+  worker-fiscal fiscal core ni a ledgers normativos.
+ancestry_verified: true
+aprobaciones: ["A: pendiente revisión Staff Fiscal (remediación H4)", "V: gate documental SUITE GREEN + suites locales GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+```
+id: 0035
+timestamp_utc: 2026-08-25T05:20:00Z
+schema_version: 2
+sprint_fase: Transversal — Remediación H3+H5 (auditoría 0031)
+agente_responsable: Kipus Fiscal/ACID (Staff Backend Motor Transaccional)
+tipo: Implementación
+subtipo: Conservación SUNAT del sobre RC firmado + CDR en R2 (H3) y tope 10° día hábil E-A (H5) — TDD
+relacion: remedia
+referencias_entradas: [0031]
+referencias_documentales: ["packages/adapters-d1/src/build-daily-summary.ts", "packages/adapters-d1/src/process-credit-note-atomic.ts", "packages/domain-fiscal-pe/src/business-days.ts", "packages/domain-fiscal-pe/src/archive-retention.ts", "apps/worker-fiscal/src/fiscal-drain.ts", "packages/adapters-sunat/src/http-rc-cdr-port.ts", "packages/adapters-d1/migrations/0062_fiscal_rc_archive.sql"]
+prev_id: 0034
+prev_hash: 5c82427b48c5509dd57493613d2d8493954e1130eb1060ed05ea76603a9924ed
+entry_hash: 656f10277fac52cd2ad896cf96652a5c59f8a99ee82b206a1e6ae2decc71fec9
+test_ids: [packages/domain-fiscal-pe/src/business-days.test.ts, packages/adapters-d1/src/fiscal-rc-archive.integration.test.ts, packages/adapters-d1/src/process-credit-note-ea-deadline.integration.test.ts, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts, apps/worker-fiscal/src/fiscal-drain.test.ts]
+entregable_afectado: fiscal.rc_archive (r2_rc_xml_key/r2_cdr_key en sunat_daily_summaries; r2_cdr_key en fiscal_outbox; mig 0062 up/down); fiscal.ea_deadline (guard dominio + preflight NC); puerto RcCdrPort gana cdrZipB64 opcional
+descripcion: >
+  H3: el sobre RC firmado y el CDR no se persistían — solo cdr_code/message en
+  D1, violando la conservación SUNAT del emisor (CPEs/CDRs/resúmenes; Código
+  de Comercio art. 190 / Reglamento SUNAT) mientras el XML unitario sí seguía
+  el patrón R2 (fiscal_outbox.r2_xml_key, mig 0019). Remediación en 4 frentes:
+  (1) mig 0062 (up/down espejados V-25): r2_rc_xml_key + r2_cdr_key en
+  sunat_daily_summaries, r2_cdr_key en fiscal_outbox; registry de backup
+  actualizado con las columnas nuevas. (2) buildDailySummary archiva
+  post-commit BEST-EFFORT el sobre FIRMADO en rc/<tenant>/<id>.xml y el CDR
+  en rc/<tenant>/<id>-cdr.zip (bytes exactos vía cdrZipB64 nuevo y opcional
+  en RcCdrPort; http-rc-cdr-port lo propaga del body del PSE) o, si el PSE
+  aún no entrega zip, receipt JSON rc/<tenant>/<id>-cdr.json; referencia D1
+  en UNA sentencia UPDATE posterior — clave en D1 ⇒ objeto en R2 (sin
+  referencias colgantes); fallo de R2 NO revierte el SUCCESS del CDR (warn
+  RC_ARCHIVE_FAILED + claves NULL), porque el CDR ya es válido ante SUNAT.
+  (3) drain unitario: receipt JSON fiscal-cdr/<tenant>/<sale>.json +
+  r2_cdr_key en el MISMO UPDATE que marca SENT (best-effort, warn
+  UNITARY_CDR_ARCHIVE_FAILED); refactor submitWithChannelIsolation para
+  complejidad ≤15. (4) política de retención declarada UNA vez en
+  domain-fiscal-pe (FISCAL_ARCHIVE_RETENTION_YEARS=5 / _MS, fuente citada en
+  comentario) y expuesta para un job futuro de purga — SIN borrador
+  automático. H5: la excepción E-A (NC de anulación sin CDR) carecía del
+  tope SUNAT de los primeros 10 días hábiles del mes siguiente a la emisión
+  del CPE. Nueva función pura business-days.ts (calendario Lima UTC-5,
+  excluye sáb/dom; LIMITACIÓN documentada: sin feriados Perú v1 — error
+  conservador contra el emisor, jamás a favor) + guard tipado
+  assertEaAnulacionDeadline → CREDIT_NOTE_EA_DEADLINE_EXCEEDED, cableado en
+  processCreditNoteAtomic como PREFLIGHT (antes del plan atómico → cero
+  escrituras parciales: sin fila NC, correlativo intacto, sin auditoría ni
+  outbox huérfanos — rollback verificado en test). Reloj inyectable
+  options.nowMs; fixture E-A preexistente fijado (origin 2026-08-04 rompía
+  por calendario real desde el 15-sep-2026). Guardrails: print-templates/
+  pos-web intactos, ledgers normativos intactos, db.batch/sin UPSERT.
+evidencia: >
+  TDD RED→GREEN con causas exactas. H5 RED: módulo business-days inexistente
+  (9 tests); integración: NC E-A fuera de tope resolvía SUCCESS (guard
+  ausente). H5 GREEN: domain-fiscal-pe 198 unit (29 archivos, incl.
+  business-days 9); adapters-d1 integration 55/55 en los 2 archivos del
+  guard (tope vencido rechaza tipado + rollback verificado: 0 filas sales
+  '07', current_number=3 intacto, 0 audit_events, 0 outbox; camino feliz E-A
+  dentro de tope; NC sobre ACCEPTED vieja NO pasa por el guard).
+  H3 RED: 4 tests nuevos (sobre firmado, zip exacto, receipt fallback,
+  chaos R2) fallaban por claves/funciones inexistentes. H3 GREEN:
+  adapters-d1 integration 326/326 (44 archivos, incl. fiscal-rc-archive
+  10/10: XML con ds:Signature en rc/<t>/<id>.xml + r2_rc_xml_key; zip bytes
+  exactos + r2_cdr_key; receipt JSON parseable; chaos → SUCCESS/ACCEPTED
+  intacto, claves NULL, warn presente); adapters-d1 unit 449/449;
+  worker-fiscal 76/76 (incl. H3-c receipt+r2_cdr_key en SENT y chaos R2);
+  adapters-sunat 55/55; worker-api 1407/1407 (regresión); domain-fiscal-pe
+  198/198. lint/typecheck/prettier OK en los 5 paquetes tocados (complejidad
+  submit 20→refactor resultFromPse2xx; processClaimedRow 17→13 con
+  submitWithChannelIsolation). scripts/verify.sh RESULT SUITE GREEN;
+  pnpm quality Quality Gate OK (bundle POS 277.85 kB < 300 kB). Sin commits.
+ancestry_verified: true
+aprobaciones: ["A: pendiente revisión Staff Fiscal (remediación H3+H5)", "V: gate documental SUITE GREEN + suites locales GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente

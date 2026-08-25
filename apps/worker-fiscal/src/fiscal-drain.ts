@@ -13,7 +13,11 @@ import {
   type FiscalTransport,
   type FiscalTransportMode,
 } from '@kipuspay/adapters-sunat';
-import { classifyUnitaryXmlTarget, type FiscalDeliveryChannel } from '@kipuspay/domain-fiscal-pe';
+import {
+  classifyUnitaryXmlTarget,
+  type CdrEnvelope,
+  type FiscalDeliveryChannel,
+} from '@kipuspay/domain-fiscal-pe';
 import { TenantSolChannelError } from './select-transport.js';
 
 export const POISON_RETRY_THRESHOLD = 5;
@@ -78,6 +82,18 @@ export async function putFiscalXml(
   const key = `fiscal-xml/${tenantId}/${saleId}.xml`;
   await r2.put(key, xml);
   return key;
+}
+
+/**
+ * H3 (auditoría 0031) — clave R2 del receipt JSON del CDR unitario.
+ * Patrón consistente con fiscal-xml/<tenant>/<sale>.xml; el receipt conserva
+ * el envelope del CDR (código/descripción/accepted) que hoy es lo único que
+ * el PSE HTTP entrega. Retención mínima legal: 5 años (Código de Comercio
+ * art. 190 / Reglamento SUNAT — fuente de verdad en domain-fiscal-pe,
+ * FISCAL_ARCHIVE_RETENTION_*); un job futuro aplica la purga.
+ */
+export function unitaryCdrReceiptKey(tenantId: string, saleId: string): string {
+  return `fiscal-cdr/${tenantId}/${saleId}.json`;
 }
 
 /**
@@ -255,6 +271,76 @@ async function ensureR2XmlKey(
   return null;
 }
 
+/**
+ * H3 (auditoría 0031) — archiva el receipt JSON del CDR unitario ANTES del
+ * UPDATE que marca SENT, para que la referencia sea honesta (clave en D1 ⇒
+ * objeto en R2). BEST-EFFORT: el CDR ya es válido ante SUNAT; un fallo de R2
+ * jamás revierte el ACCEPTED — warn + null (r2_cdr_key NULL).
+ */
+async function archiveUnitaryCdrReceipt(
+  r2: FiscalXmlR2,
+  row: OutboxRow,
+  cdr: CdrEnvelope,
+): Promise<string | null> {
+  const key = unitaryCdrReceiptKey(row.tenant_id, row.sale_id);
+  try {
+    await r2.put(
+      key,
+      JSON.stringify({
+        kind: 'UNITARY_CDR_RECEIPT',
+        saleId: row.sale_id,
+        tenantId: row.tenant_id,
+        accepted: cdr.accepted,
+        cdrCode: cdr.cdrCode,
+        cdrDescription: cdr.cdrDescription,
+        archivedAt: new Date().toISOString(),
+      }),
+    );
+    return key;
+  } catch (err) {
+    console.warn('UNITARY_CDR_ARCHIVE_FAILED', row.tenant_id, row.sale_id, String(err));
+    return null;
+  }
+}
+
+type TransportOutcome = Awaited<ReturnType<FiscalTransport['submit']>>;
+
+type SubmitResult =
+  | { readonly quarantined: true }
+  | { readonly quarantined: false; readonly outcome: TransportOutcome };
+
+/**
+ * Envío al transporte con aislamiento de error de canal (SOL de tenant
+ * ausente/corrupta, allowlist): la fila queda cuarentenada con motivo visible
+ * — no INFRA silenciosa que inflara el breaker, ni un throw que abortara el
+ * drain de los demás tenants.
+ */
+async function submitWithChannelIsolation(
+  db: FiscalDrainDb,
+  row: OutboxRow,
+  transport: FiscalTransport,
+  xml: string,
+  xmlHash: string,
+): Promise<SubmitResult> {
+  try {
+    const outcome = await transport.submit({
+      tenantId: row.tenant_id,
+      saleId: row.sale_id,
+      xml,
+      xmlHash,
+      documentType: (row.document_type as '01' | '03' | '07' | '08' | '31' | '02' | '20') || '01',
+    });
+    return { quarantined: false, outcome };
+  } catch (err) {
+    if (err instanceof SunatChannelError || err instanceof TenantSolChannelError) {
+      await markSaleStatus(db, row, 'QUARANTINED');
+      await markRowQuarantined(db, row, 'CHANNEL_ERROR', err.code);
+      return { quarantined: true };
+    }
+    throw err;
+  }
+}
+
 /** Procesa una fila reclamada; devuelve el desenlace para contabilidad. */
 async function processClaimedRow(
   input: {
@@ -304,27 +390,9 @@ async function processClaimedRow(
   // F5-3: el hash que viaja al transporte es el SHA-256 REAL del XML
   // (antes literal 'drain'); integridad verificable por el PSE/OSE.
   const xmlHash = await hashFiscalXml(xml);
-  let outcome: Awaited<ReturnType<FiscalTransport['submit']>>;
-  try {
-    outcome = await transport.submit({
-      tenantId: row.tenant_id,
-      saleId: row.sale_id,
-      xml,
-      xmlHash,
-      documentType: (row.document_type as '01' | '03' | '07' | '08' | '31' | '02' | '20') || '01',
-    });
-  } catch (err) {
-    // Error de canal tipado (SOL de tenant ausente/corrupta, allowlist): la fila
-    // queda cuarentenada con motivo visible — no INFRA silenciosa que inflara
-    // el breaker, ni un throw que abortara el drain de los demás tenants.
-    if (err instanceof SunatChannelError || err instanceof TenantSolChannelError) {
-      const code = err.code;
-      await markSaleStatus(db, row, 'QUARANTINED');
-      await markRowQuarantined(db, row, 'CHANNEL_ERROR', code);
-      return 'QUARANTINED';
-    }
-    throw err;
-  }
+  const submitted = await submitWithChannelIsolation(db, row, transport, xml, xmlHash);
+  if (submitted.quarantined) return 'QUARANTINED';
+  const outcome = submitted.outcome;
 
   const errorClass = classifySubmitOutcome(outcome);
 
@@ -344,13 +412,18 @@ async function processClaimedRow(
     return 'REJECTED';
   }
 
+  // H3 (auditoría 0031): conservación SUNAT del CDR unitario — receipt JSON
+  // a R2 y referencia r2_cdr_key en el MISMO UPDATE que marca SENT.
+  const cdrArchiveKey =
+    outcome.kind === 'accepted' ? await archiveUnitaryCdrReceipt(r2, row, outcome.cdr) : null;
+
   await markSaleStatus(db, row, 'ACCEPTED');
   await db
     .prepare(
-      `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1
+      `UPDATE fiscal_outbox SET status = 'SENT', attempt_count = attempt_count + 1, r2_cdr_key = ?
        WHERE id = ? AND tenant_id = ? AND status = 'PROCESSING'`,
     )
-    .bind(row.id, row.tenant_id)
+    .bind(cdrArchiveKey, row.id, row.tenant_id)
     .run();
   return 'SENT';
 }

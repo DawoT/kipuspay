@@ -5,6 +5,7 @@
  */
 import {
   assertCreditNoteAllowed,
+  assertEaAnulacionDeadline,
   classifyUnitaryXmlTarget,
   computeMustSubmitByIso,
   stockRestoreMicrounits,
@@ -37,6 +38,11 @@ export interface ProcessCreditNoteOptions {
   /** Sprint 37 — FEATURE_SALES_COMMISSIONS: reverse accruals on origin (COM-07). */
   readonly salesCommissionsEnabled?: boolean;
   readonly serialIdsByProduct?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * H5 (auditoría 0031): reloj inyectable para el tope E-A (10° día hábil del
+   * mes siguiente). Default Date.now(); tests lo fijan para determinismo.
+   */
+  readonly nowMs?: number;
 }
 
 // eslint-disable-next-line complexity -- NC atomic: origin/series/ledger/serial branches
@@ -55,7 +61,8 @@ export async function processCreditNoteAtomic(
   const origin = await db
     .prepare(
       `SELECT id, document_type, sunat_status, total_amount_cents, branch_id,
-              cash_register_session_id, client_document_type, client_document_number, client_name
+              cash_register_session_id, client_document_type, client_document_number, client_name,
+              issued_at_lima
        FROM sales WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`,
     )
     .bind(originSaleId, tenantId)
@@ -69,6 +76,7 @@ export async function processCreditNoteAtomic(
       client_document_type: string;
       client_document_number: string;
       client_name: string;
+      issued_at_lima: string;
     }>();
   if (!origin) throw new Error('ORIGIN_NOT_FOUND');
 
@@ -100,6 +108,16 @@ export async function processCreditNoteAtomic(
     },
     request,
   );
+
+  // H5 (auditoría 0031): el tope SUNAT de anulación (10° día hábil del mes
+  // siguiente a la emisión del CPE) aplica SOLO al camino E-A (sin CDR).
+  // Preflight: lanza ANTES del plan atómico → cero escrituras parciales.
+  if (gate.requiresNoCdrAudit) {
+    assertEaAnulacionDeadline({
+      originIssuedAtMs: Date.parse(origin.issued_at_lima),
+      nowMs: options.nowMs ?? Date.now(),
+    });
+  }
 
   const seriesRow = await db
     .prepare(

@@ -102,6 +102,18 @@ export {
 } from './credit-note.js';
 
 export {
+  assertEaAnulacionDeadline,
+  EA_DEADLINE_BUSINESS_DAYS,
+  isWithinEaAnulacionDeadline,
+  tenthBusinessDayEndOfNextMonthLima,
+} from './business-days.js';
+
+export {
+  FISCAL_ARCHIVE_RETENTION_MS,
+  FISCAL_ARCHIVE_RETENTION_YEARS,
+} from './archive-retention.js';
+
+export {
   assertDebitNoteAllowed,
   debitNoteStockImpact,
   DEBIT_NOTE_MOTIVE_CODES,
@@ -202,6 +214,12 @@ export interface RcCdrPort {
     readonly accepted: boolean;
     readonly cdrCode: string;
     readonly cdrMessage: string;
+    /**
+     * H3 (auditoría 0031): CDR completo (zip) en base64 cuando el transporte
+     * lo entrega. Opcional: el PSE HTTP actual responde solo envelope JSON;
+     * sin zip, el caller archiva un receipt JSON con el envelope.
+     */
+    readonly cdrZipB64?: string;
   }>;
 }
 
@@ -400,11 +418,15 @@ export { buildOwnerAlert, requiresOwnerAlert, type OwnerAlertPayload } from './o
 
 export {
   assertWithinRetention,
+  buildCpePortalUrl,
   mintPortalToken,
   renderCpePortalHtml,
+  renderCpeReceiptXml,
   verifyPortalToken,
+  type CpePortalFileUrls,
   type CpePortalLookup,
   type CpePortalView,
+  type CpeReceiptInput,
 } from './cpe-portal.js';
 
 export {
