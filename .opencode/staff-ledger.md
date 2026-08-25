@@ -1729,3 +1729,38 @@ aprobaciones: [Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0038
+timestamp_utc: 2026-08-25T20:30:00Z
+schema_version: 2
+sprint_fase: Fase 1 — Hardening riesgos 1-3 auditoría pre-piloto
+agente_responsable: Staff Principal (ejecución: kipus-qa + kipus-sre; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Flaky cert + TTL 360s + correlative chaos N=10
+relacion: corrige
+referencias_entradas: [0037]
+referencias_documentales: [packages/adapters-d1/src/process-mobile-push-atomic.ts, packages/adapters-d1/src/build-daily-summary.ts, apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts]
+prev_id: 0037
+prev_hash: 03af9f6e4c85396341208c0d9879b9af680fbd1b339a14c9391f19f48c3ef041
+entry_hash: 77b30621dd0c1570b4aeff16e27401316630c9953732343405f4046ad3311097
+ticket_or_adr: Riesgos 1-3 auditoría pre-piloto
+test_ids: [apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts, packages/adapters-d1/src/mobile-push-atomic.test.ts, packages/adapters-d1/src/fiscal-rc-f05.integration.test.ts, packages/adapters-d1/src/fiscal-rc-chaos-concurrent.integration.test.ts, V-13, SUITE]
+entregable_afectado: packages/adapters-d1/src/process-mobile-push-atomic.ts §TTL; packages/adapters-d1/src/build-daily-summary.ts §correlative; apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts §timeout
+descripcion: >
+  Cierre de los 3 riesgos residuales del auditor pre-piloto. (1) Flaky
+  cert-client-validator: genrsa 2048 >5s bajo turbo → 3 timeouts. Fix: timeout
+  5s→10s + sharedKeyPem reuse con certCache por subj|password|days (key no
+  depende de days, solo notAfter). (2) Push TTL vs cron: default 300s marginal
+  (=cron 300s) → bump a 360s (+60s margen) con comentario F-02; conserva TTLs
+  explícitos. (3) Correlative: MAX+1 con retry 3 → bump a 10 + handler rc_type
+  idempotente + chaos N=10 concurrent-writers sin 500.
+evidencia: >
+  RED: 3 timeouts 5000ms; TTL 60 expiraba antes del cron; MAX+1 con 10 writers
+  daba 500 UNIQUE. GREEN: pos-web 467/467, adapters-d1 454/454 + chaos 2/2,
+  F-05 4/4, SUITE GREEN (31/31), V-13 dual GREEN; prettier limpio.
+ancestry_verified: true
+aprobaciones: [Staff QA, Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -13861,3 +13861,43 @@ aprobaciones: [Staff UX/UI Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0485
+timestamp_utc: 2026-08-25T20:00:00Z
+schema_version: 2
+sprint_fase: Fase 1 — Hardening riesgos residuales auditoría pre-piloto
+agente_responsable: Staff Principal (ejecución: kipus-qa + kipus-sre; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Flaky cert + TTL push + correlative chaos
+relacion: corrige
+referencias_entradas: [0483]
+referencias_documentales: [packages/adapters-d1/src/process-mobile-push-atomic.ts, packages/adapters-d1/src/build-daily-summary.ts, apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts]
+prev_id: 0484
+prev_hash: 711cba1d28483feafa3462fd2e977f9cd3ac964de78fa9cce3c947f0d92583fa
+entry_hash: ceb1e9c1371dd214c7e1b662e76ddeba809cb1ef78674bc5b9a2d4c0f501ba6f
+ticket_or_adr: Riesgos 1-3 auditoría pre-piloto; V-31
+test_ids: [apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts, packages/adapters-d1/src/mobile-push-atomic.test.ts, packages/adapters-d1/src/fiscal-rc-f05.integration.test.ts, packages/adapters-d1/src/fiscal-rc-chaos-concurrent.integration.test.ts, V-13, V-31, SUITE]
+entregable_afectado: packages/adapters-d1/src/process-mobile-push-atomic.ts §TTL; packages/adapters-d1/src/build-daily-summary.ts §correlative; apps/pos-web/src/lib/fiscal/cert-client-validator.test.ts §timeout
+descripcion: >
+  Cierre de los 3 riesgos residuales del auditor pre-piloto. (1) Flaky
+  cert-client-validator: genrsa 2048 >5s bajo turbo paralelo → 3 timeouts.
+  Fix: describe timeout 5s→10s + reutilización sharedKeyPem con certCache por
+  subj|password|days (key no depende de days, solo notAfter). (2) Push TTL vs
+  cron: default 300s era marginal (=cron */5 300s) y 60s histórico expiraba
+  siempre antes del materialize → bump a 360s (+60s margen) con comentario
+  F-02; conserva TTLs explícitos (600 test, 604800 billing). (3) Correlative
+  crash-safe: MAX+1 con retry 3 no serializable bajo 10 writers → bump a 10
+  intentos + handler rc_type idempotente + chaos N=10 concurrent-writers sin
+  500 (correlatives 1..10 únicos).
+evidencia: >
+  RED: 3 timeouts 5000ms en cert-client-validator (sharedKeyPem frío);
+  push_events TTL 60 expiraba antes del cron; MAX+1 con 10 writers daba 500
+  UNIQUE. GREEN: pos-web 467/467 (2 runs), adapters-d1 454/454 + chaos 2/2,
+  F-05 4/4, worker-api 1416, SUITE GREEN (31/31), V-13 dual GREEN; prettier
+  limpio; sharedKeyPem reuse verificado.
+ancestry_verified: true
+aprobaciones: [Staff QA, Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

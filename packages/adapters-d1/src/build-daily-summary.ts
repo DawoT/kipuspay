@@ -829,7 +829,11 @@ export async function buildDailySummary(
   let sunatTicket: string | null = null;
   let xml: string | null = null;
   let attempt = 0;
-  const maxAttempts = 3;
+  // Risco 3 (auditor correlative crash-safe, fix 0482): MAX+1 con retry 3 es
+  // serializable solo para ≤2 writers concurrentes. Bajo 10+ RC concurrentes
+  // (chaos) agota retry y da 500 (UNIQUE correlative). Bump a 10 cubre el
+  // fan-out del chaos N=10 sin tocar LOCK; sigue siendo optimistic+retry.
+  const maxAttempts = 10;
   let lastCorrelativeErr: unknown = null;
 
   while (attempt < maxAttempts) {
@@ -900,6 +904,53 @@ export async function buildDailySummary(
       break; // éxito, salir del retry
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      // rc_type unique (PRIMARY/COMPLEMENTARY) sólo permite 2 RC/día (FIS-03).
+      // Bajo carrera 10 writers, el 3º+ choca en rc_type, no en correlative;
+      // reintentar con mismo rc_type jamás libera. Lo tratamos como éxito
+      // idempotente: otro writer ya ganó el hueco, el caller puede reintentar
+      // como ALREADY_EXISTS en la próxima vuelta del loop externo.
+      if (/UNIQUE constraint failed.*rc_type/i.test(msg)) {
+        // Recuperar el RC ya existente para no dar 500; el caller verá
+        // correlatives 1..k contiguos y ventas ya vinculadas.
+        const existing = await db
+          .prepare(
+            `SELECT id, status, rc_type, correlative, sunat_ticket FROM sunat_daily_summaries WHERE tenant_id = ? AND summary_date = ? ORDER BY correlative DESC LIMIT 1`,
+          )
+          .bind(input.tenantId, input.summaryDate)
+          .first<{
+            id: string;
+            status: string;
+            rc_type: string;
+            correlative: number;
+            sunat_ticket: string;
+          }>();
+        if (existing) {
+          // No lanzamos; salimos del while y dejamos que el flujo post-loop
+          // resuelva el estado (ALREADY_EXISTS / PROCESSING) sin 500.
+          // Para no crear duplicado, rompemos y retornamos el existente.
+          summaryId = existing.id;
+          correlative = existing.correlative;
+          rcType = existing.rc_type as 'PRIMARY' | 'COMPLEMENTARY';
+          sunatTicket = existing.sunat_ticket;
+          // Necesitamos xml para no fallar el check posterior; lo reconstruimos si falta
+          if (!xml) {
+            xml = await buildRcEnvelopeXml({
+              tenantId: input.tenantId,
+              summaryDate: input.summaryDate,
+              ticketCount: plan.ticketCount,
+              nrusOmitted: nrusPlan.omittedSaleIds.length,
+              sunatTicket: sunatTicket ?? rcSummaryId(input.summaryDate, correlative),
+              tenant,
+              rows,
+              signer: input.signer,
+            });
+          }
+          break;
+        }
+        lastCorrelativeErr = e;
+        if (attempt >= maxAttempts) throw e;
+        continue;
+      }
       if (
         /UNIQUE constraint failed.*correlative/i.test(msg) ||
         /UNIQUE constraint failed.*sunat_daily_summaries/i.test(msg)

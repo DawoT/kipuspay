@@ -88,7 +88,12 @@ export async function appendPushEventAtomic(
     throw new Error('PUSH_OPERATIONAL_TARGET_REQUIRED');
   }
   const now = input.now ?? new Date().toISOString();
-  const ttlSeconds = Math.min(86_400, Math.max(1, input.ttlSeconds ?? 300));
+  // Risco 2 (auditor F-02): dispatcher cron */5 = 300s, TTL 60 expiraba siempre
+  // antes del materialize (e.expires_at > now). Default 300 era marginal (=cron);
+  // bump a 360s da 60s de margen sin tocar cron, SLO cumplible incluso con
+  // jitter/drift. Ver apps/worker-api/wrangler.jsonc crons y
+  // apps/worker-api/src/push/mobile-push-dispatcher.ts materializeDeliveries.
+  const ttlSeconds = Math.min(86_400, Math.max(1, input.ttlSeconds ?? 360));
   const expiresAt = new Date(Date.parse(now) + ttlSeconds * 1000).toISOString();
   const guardId = crypto.randomUUID();
   await atomicBatch(db, [

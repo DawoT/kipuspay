@@ -53,7 +53,9 @@ export async function runSendOwnerPushHttp(
       payloadRedactedJson: JSON.stringify({ title: body.title ?? '', body: body.body ?? '' }),
       deepLinkKind: 'cash_close',
       deepLinkEntityId: sourceEntityId,
-      ttlSeconds: 300,
+      // Risco 2 (F-02): cron */5 =300s; TTL 300 expira en el borde (e.expires_at > now
+      // falla si cron despierta a los 300s). 360s da 60s de margen sin tocar cron.
+      ttlSeconds: 360,
       collapseKey: `loyalty:${tenantId}`,
     });
     return { status: 202, body: { queued: true } };
