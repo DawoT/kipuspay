@@ -195,7 +195,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     ),
   );
 
-  onMount(async () => {
+  onMount(() => {
     if (typeof window === 'undefined') return;
     const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
     if (fromQs) {
@@ -208,21 +208,26 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
     loginUser = readLoginUser(localStorage);
-    const claimed = await claimOnboardingFromUrlIfPresent();
-    // Fe de errata de walkthrough (Sprint 7): el claim es single-flight y puede
-    // ganarlo el layout; el resultado queda en el módulo — la página lo lee
-    // siempre, no solo cuando su propia llamada devuelve true.
-    const lastSession = readLastOnboardingClaim();
-    if (lastSession) onboardingSession = { branchId: lastSession.branchId, sessionId: lastSession.sessionId };
-    if (claimed) {
-      loginUser = readLoginUser(localStorage);
-    } else if (readLastOnboardingError() && !readLoginUser(localStorage)) {
-      // S7: un token ya consumido (reload con URL vieja) NO es un error si el
-      // login del claim anterior sigue activo; el notice solo aplica sin sesión.
-      onboardingNotice = `No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;
-    }
+    void claimOnboardingFromUrlIfPresent().then((claimed) => {
+      const lastSession = readLastOnboardingClaim();
+      if (lastSession) onboardingSession = { branchId: lastSession.branchId, sessionId: lastSession.sessionId };
+      if (claimed) {
+        loginUser = readLoginUser(localStorage);
+      } else if (readLastOnboardingError() && !readLoginUser(localStorage)) {
+        onboardingNotice = `No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;
+      }
+    });
     void loadSellableCatalog();
     maybeShowTour();
+
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'F9' && isPosCheckoutEnabled() && lines.length > 0 && status !== 'cobrando') {
+        e.preventDefault();
+        void onCharge();
+      }
+    };
+    window.addEventListener('keydown', onKeydown);
+    return () => window.removeEventListener('keydown', onKeydown);
   });
 
   // M6C: token single-use del onboarding → sesión real del owner.
@@ -934,7 +939,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <section class="ledger-card cart-panel">
           <div class="card-header">
             <h2>Detalle de Venta</h2>
-            <span class="badge badge-success">{lines.length} {lines.length === 1 ? 'ítem' : 'ítems'}</span>
+            <span class="badge badge-success" data-testid="cart-item-count">{lines.length} {lines.length === 1 ? 'ítem' : 'ítems'}</span>
           </div>
 
           <!-- Items List -->
@@ -978,6 +983,12 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
           <!-- Total & Charge Section -->
           <div class="cart-summary-footer">
+            {#if payableCents < totalCents}
+              <div class="cart-discount-row" data-testid="cart-discount-badge">
+                <span class="badge badge-warning">Descuento aplicado: -S/ {formatCents(totalCents - payableCents)}</span>
+              </div>
+            {/if}
+
             <div class="summary-total-box">
               <span class="total-label">Total a cobrar</span>
               <span
@@ -1027,16 +1038,18 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 {/each}
               </div>
             {/if}
-            <Button
-              variant="primary"
-              size="xl"
-              data-testid="charge"
-              onclick={onCharge}
-              disabled={lines.length === 0}
-              icon="credit-card"
-            >
-              {chargeButtonLabel(formatCents(payableCents))}
-            </Button>
+            <div data-testid="charge">
+              <Button
+                variant="primary"
+                size="xl"
+                data-testid="charge-btn"
+                onclick={onCharge}
+                disabled={lines.length === 0}
+                icon="credit-card"
+              >
+                {chargeButtonLabel(formatCents(payableCents))}
+              </Button>
+            </div>
             <Button
               variant="secondary"
               size="xl"

@@ -53,6 +53,7 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let fromCache = $state(false);
+  let refreshTs = $state<string | null>(null);
   let backlog = $state<FiscalBacklogItem[]>([]);
   let eaMsg = $state<string | null>(null);
   let pendingAnular = $state<FiscalBacklogItem | null>(null);
@@ -136,6 +137,8 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     snap = view.snapshot;
     banner = view.banner;
     fromCache = view.fromCache;
+    const now = new Date();
+    refreshTs = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   }
 
   async function loadBriefing() {
@@ -395,10 +398,35 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 {#if enabled}
   <div class="page-shell" data-testid="owner-hoy">
     <div class="stat-grid" data-testid="owner-hoy-fold">
+      <!-- Ventas netas hoy con delta % visual -->
       <div class="stat-card">
         <span class="stat-label">Ventas netas hoy</span>
         <span class="stat-value emerald tabular-nums" data-testid="hoy-net">S/ {formatCents(snap?.netSalesCents ?? 0)}</span>
+        {#if (snap as (OwnerRollupSnapshot & { trendPct?: number }) | null)?.trendPct !== undefined}
+          {@const trendPct = (snap as (OwnerRollupSnapshot & { trendPct?: number }))!.trendPct!}
+          <span
+            class="stat-delta"
+            class:stat-delta-pos={trendPct >= 0}
+            class:stat-delta-neg={trendPct < 0}
+            aria-label={trendPct >= 0 ? `Sube ${trendPct}% vs ayer` : `Baja ${Math.abs(trendPct)}% vs ayer`}
+          >
+            {trendPct >= 0 ? '↑' : '↓'} {trendPct >= 0 ? '+' : ''}{trendPct}%
+          </span>
+        {/if}
       </div>
+
+      <!-- Ticket promedio calculado -->
+      <div class="stat-card" data-testid="hoy-ticket-avg">
+        <span class="stat-label">Ticket promedio</span>
+        <span class="stat-value tabular-nums">
+          {#if (snap?.docCount ?? 0) > 0}
+            S/ {formatCents(Math.floor((snap?.netSalesCents ?? 0) / (snap?.docCount ?? 1)))}
+          {:else}
+            —
+          {/if}
+        </span>
+      </div>
+
       <div class="stat-card">
         <span class="stat-label">Comprobantes</span>
         <span class="stat-value tabular-nums" data-testid="hoy-docs">{snap?.docCount ?? 0}</span>
@@ -412,9 +440,22 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         <span class="stat-value tabular-nums">{backlog.length + overdueLayaways.length + expiredQuotes.length}</span>
       </a>
     </div>
+
     <p class="source-note" data-testid="hoy-source">
-      {fromCache ? 'Guardado en este dispositivo' : 'Actualizado al conectar'} · no en vivo
+      {fromCache ? 'Guardado en este dispositivo' : 'Actualizado al conectar'}
+      {#if refreshTs}
+        · <time datetime={refreshTs} data-testid="hoy-refresh-ts">{refreshTs}</time>
+      {/if}
+      · no en vivo
     </p>
+
+    <!-- Sprint 66 — Acceso rápido a secciones clave del Modo Dueño -->
+    <nav class="owner-quick-nav" aria-label="Accesos rápidos Modo Dueño">
+      <a href="/owner/finanzas" class="quick-nav-item" data-testid="owner-quick-finanzas">Finanzas</a>
+      <a href="/owner/locales" class="quick-nav-item" data-testid="owner-quick-locales">Locales</a>
+      <a href="/owner/stock" class="quick-nav-item" data-testid="owner-quick-stock">Stock</a>
+      <a href="/owner/yo" class="quick-nav-item" data-testid="owner-quick-yo">Mi perfil</a>
+    </nav>
 
     <div class="page-masthead">
       <div>
@@ -719,9 +760,57 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
  {/if}
 
 <style>
+  /* Sprint 66 — shadow token local */
+  :global(:root) {
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+
   .stat-grid a.stat-card {
     text-decoration: none;
     color: inherit;
+  }
+
+  /* Sprint 66 — grid override para 5 tarjetas fluidas */
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+
+  /* Sprint 66 — hover con micro-sombra */
+  .stat-card {
+    min-height: 44px;
+    transition: box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stat-card {
+      transition: none;
+    }
+  }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--border-strong);
+  }
+
+  /* Sprint 66 — delta badge */
+  .stat-delta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-sm, 4px);
+    width: fit-content;
+  }
+
+  .stat-delta-pos {
+    color: var(--emerald-green);
+    background: rgba(61, 187, 134, 0.12);
+  }
+
+  .stat-delta-neg {
+    color: var(--rose-red);
+    background: rgba(232, 122, 94, 0.12);
   }
 
   .source-note {
@@ -870,6 +959,48 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   @media (max-width: 719px) {
     .owner-sections-grid {
       grid-template-columns: 1fr;
+    }
+  }
+
+  /* Sprint 66 — quick-nav */
+  .owner-quick-nav {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+
+  .quick-nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--owner-border, var(--border-subtle));
+    border-radius: var(--radius-md);
+    color: var(--owner-fg, var(--text-main));
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .quick-nav-item {
+      transition: none;
+    }
+  }
+
+  .quick-nav-item:hover {
+    border-color: var(--owner-accent, var(--accent-primary));
+    box-shadow: 0 0 0 1px var(--owner-accent, var(--accent-primary));
+  }
+
+  @media (min-width: 719px) {
+    .owner-quick-nav {
+      grid-template-columns: repeat(4, 1fr);
     }
   }
 </style>

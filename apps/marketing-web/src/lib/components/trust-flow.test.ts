@@ -15,16 +15,18 @@ const FORBIDDEN_TECH_WORDS = /\b(CDR|PSE|UBL|SOAP|Workers|D1|Edge|ACID|sharding|
 
 describe('Sprint 11C — Superficies de Confianza & Micro-interacciones', () => {
   describe('Diagrama interactivo trust-flow en /seguridad', () => {
-    it('tiene 5 pasos con data-testid="flow-step-N"', () => {
-      for (let i = 1; i <= 5; i++) {
-        expect(seguridad).toContain(`data-testid="flow-step-${i}"`);
-      }
+    it('tiene patron de data-testid="flow-step-{i + 1}" en el template (5 pasos en FLOW_STEPS)', () => {
+      // Svelte template: data-testid="flow-step-{i + 1}" — produce flow-step-1..5 en runtime
+      expect(seguridad).toContain('data-testid="flow-step-{i + 1}"');
+      // El array FLOW_STEPS tiene 5 elementos
+      const flowSteps = seguridad.match(/label:\s*'/g);
+      expect(flowSteps).not.toBeNull();
+      expect(flowSteps!.length).toBeGreaterThanOrEqual(5);
     });
 
-    it('cada paso tiene role="listitem"', () => {
-      const matches = seguridad.match(/role="listitem"/g);
-      expect(matches).not.toBeNull();
-      expect(matches!.length).toBeGreaterThanOrEqual(5);
+    it('el template declara role="listitem" en el item del bucle', () => {
+      // role="listitem" aparece en el template Svelte (renderiza 5 veces en runtime)
+      expect(seguridad).toContain('role="listitem"');
     });
 
     it('el diagrama visual tiene role="list"', () => {
@@ -60,17 +62,19 @@ describe('Sprint 11C — Superficies de Confianza & Micro-interacciones', () => 
   });
 
   describe('Selector de categoria en /comparar (compare tabs)', () => {
-    it('existen al menos 3 botones con role="tab"', () => {
-      const matches = comparar.match(/role="tab"/g);
-      expect(matches).not.toBeNull();
-      expect(matches!.length).toBeGreaterThanOrEqual(3);
+    it('el template declara role="tab" en el bucle de botones (renderiza 4 tabs)', () => {
+      // role="tab" aparece en el template (el {#each} genera 4 instancias en runtime)
+      expect(comparar).toContain('role="tab"');
+      // Verificamos que hay 4 categorias definidas en CATEGORY_TABS
+      expect(comparar).toMatch(/CATEGORY_TABS[\s\S]*?servicios/);
     });
 
-    it('cada tab tiene data-testid que empieza con "compare-tab-"', () => {
-      expect(comparar).toContain('data-testid="compare-tab-todos"');
-      expect(comparar).toContain('data-testid="compare-tab-restaurante"');
-      expect(comparar).toContain('data-testid="compare-tab-tienda"');
-      expect(comparar).toContain('data-testid="compare-tab-servicios"');
+    it('cada tab tiene data-testid con patron "compare-tab-{tab.id}" (Svelte template)', () => {
+      expect(comparar).toContain('data-testid="compare-tab-{tab.id}"');
+      expect(comparar).toContain("id: 'todos'");
+      expect(comparar).toContain("id: 'restaurante'");
+      expect(comparar).toContain("id: 'tienda'");
+      expect(comparar).toContain("id: 'servicios'");
     });
 
     it('los tabs tienen aria-selected dinamico', () => {

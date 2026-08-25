@@ -13830,3 +13830,34 @@ aprobaciones: [Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0484
+timestamp_utc: 2026-08-25T19:15:00Z
+schema_version: 2
+sprint_fase: Fase A (Sprints 11A-11C) Marketing Web + Fase B (Sprints 66-67) POS Enterprise
+agente_responsable: Staff Principal (ejecución: marketing-ux + pos-ux; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: Auditoría y Refinamiento UX/UI Enterprise (Marketing + POS)
+relacion: amplia
+referencias_entradas: [0483]
+referencias_documentales: [apps/marketing-web/src/routes/seguridad/+page.svelte, apps/marketing-web/src/routes/comparar/+page.svelte, apps/marketing-web/src/routes/ayuda/+page.svelte, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/caja/+page.svelte, apps/pos-web/src/routes/owner/+page.svelte]
+prev_id: 0483
+prev_hash: 87bba628c0796673bf441f61269d760122f1968144a98900340dab62ea9d2c97
+entry_hash: 711cba1d28483feafa3462fd2e977f9cd3ac964de78fa9cce3c947f0d92583fa
+ticket_or_adr: V-26, V-27, V-30, CAL-01, CAL-05, CAL-06
+test_ids: [apps/marketing-web/src/lib/components/trust-flow.test.ts, apps/marketing-web/src/lib/components/compare-tabs.test.ts, apps/marketing-web/src/lib/components/help-search.test.ts, apps/pos-web/src/lib/owner/owner-dashboard-sprint66.test.ts, apps/pos-web/src/lib/pos/caja-ergonomia-sprint67.test.ts, V-00, V-26, V-27, V-30, SUITE]
+entregable_afectado: apps/marketing-web (grilla 4 cols, drawer accesible, onboarding, presets, trust-flow, compare tabs, help search); apps/pos-web (owner hero KPI, delta %, ticket avg, quick-nav, cart-item-count, cart discount badge, F9 charge shortcut, caja counted total, diff status)
+descripcion: >
+  Entrega integral del plan de refinamiento y auditoría UX/UI Enterprise para KipusPay.
+  Fase A (Marketing Web): Sprint 11A implementó grilla de 4 columnas desktop uniforme y drawer móvil accesible con backdrop oscuro semitransparente, cierre con Escape y targets >=44px; Sprint 11B añadió botón de copiado de credenciales en onboarding con feedback 2s, validación inline de RUC 10/20 y presets en SavingsCalculator; Sprint 11C añadió diagrama interactivo trust-flow SVG/HTML sin jerga técnica (V-26), selector por categoría de negocio en /comparar y buscador reactivo con botón limpiar y empty-state en /ayuda.
+  Fase B (POS Web Enterprise): Sprint 66 dotó al Modo Dueño de KPI Hero con badge stat-delta porcentual, 5ta tarjeta hoy-ticket-avg, timestamp hoy-refresh-ts y bloque owner-quick-nav (Finanzas, Locales, Stock, Mi Perfil); Sprint 67 añadió indicadores de cart-item-count, cart-discount-badge, botón charge-btn, atajo F9 para cobro rápido y ergonomía de cierre Z (caja-counted-total, caja-confirm-close con disabled en envío, caja-diff-ok / caja-diff-warning).
+evidencia: >
+  Marketing Web: 37 test files, 224 tests pasando al 100%, svelte-check 0 errors / 0 warnings.
+  POS Web: 90 test files, 467 tests pasando al 100%, svelte-check 0 errors / 0 warnings.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 286.06 kB (< 300 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff UX/UI Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

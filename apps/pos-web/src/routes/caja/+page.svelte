@@ -336,6 +336,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           <span class="total-title">TOTAL ARQUEO LOCAL</span>
           <span class="tenant-tag">Tienda: {session.tradeName}</span>
         </div>
+        <p class="count-summary" data-testid="caja-counted-total">
+          Total contado: S/ {formatCents(countedLocal)}
+        </p>
         <span class="counted-amount tabular-nums">
           S/ {formatCents(countedLocal)}
         </span>
@@ -350,15 +353,18 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         />
       </Field>
 
-      <Button
-        variant="primary"
-        size="full"
-        data-testid="caja-confirm-z"
-        onclick={onConfirmClose}
-        icon="lock"
-      >
-        Confirmar Cierre Z
-      </Button>
+      <div data-testid="caja-confirm-close">
+        <Button
+          variant="primary"
+          size="full"
+          data-testid="caja-confirm-z"
+          disabled={status === 'enviando'}
+          onclick={onConfirmClose}
+          icon="lock"
+        >
+          Confirmar Cierre Z
+        </Button>
+      </div>
 
       <!-- Status & Revelation Area -->
       {#if status || resultMsg || revealedExpected !== null || revealedDiff !== null}
@@ -386,9 +392,15 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           {#if revealedDiff !== null}
             <div class="revelation-row diff-row" data-testid="caja-z-diff">
               <span>Diferencia Registrada:</span>
-              <strong class="tabular-nums" class:diff-negative={revealedDiff < 0} class:diff-zero={revealedDiff === 0}>
-                S/ {formatCents(revealedDiff)}
-              </strong>
+              {#if revealedDiff === 0}
+                <strong class="tabular-nums diff-zero" data-testid="caja-diff-ok">
+                  S/ {formatCents(revealedDiff)}
+                </strong>
+              {:else}
+                <strong class="tabular-nums diff-negative" data-testid="caja-diff-warning">
+                  S/ {formatCents(revealedDiff)}
+                </strong>
+              {/if}
             </div>
           {/if}
         </div>

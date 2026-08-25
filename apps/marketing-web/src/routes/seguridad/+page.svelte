@@ -122,11 +122,8 @@
               class:is-active={activeStep === i}
               data-testid="flow-step-{i + 1}"
               role="listitem"
-              tabindex="0"
               onmouseenter={() => (activeStep = i)}
               onmouseleave={() => (activeStep = null)}
-              onfocus={() => (activeStep = i)}
-              onblur={() => (activeStep = null)}
               aria-label="{step.label}: {step.description}"
             >
               <div class="trust-flow__node" aria-hidden="true">

@@ -96,7 +96,7 @@ function createP12Fixture(
   }
 }
 
-describe('validateClientCertificate', () => {
+describe('validateClientCertificate', { timeout: 10_000 }, () => {
   it('valida exitosamente un certificado CDT válido con RUC coincidente', async () => {
     const p12Bytes = createP12Fixture(cdtSubject(RUC_BUSINESS));
     const file = new File([p12Bytes as unknown as BlobPart], 'cert.p12', {

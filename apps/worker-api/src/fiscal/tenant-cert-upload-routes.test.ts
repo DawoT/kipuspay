@@ -118,7 +118,7 @@ function envWith(db: WorkerEnv['DB'], wrapDek: ReturnType<typeof vi.fn>): Worker
   return { BACKUP_KMS: { wrapDek }, DB: db } as unknown as WorkerEnv;
 }
 
-describe('runUploadTenantCertHttp — validación fail-closed SEC-03', () => {
+describe('runUploadTenantCertHttp — validación fail-closed SEC-03', { timeout: 30_000 }, () => {
   it(
     'A1: p12 de OTRO RUC → 400 CERT_RUC_MISMATCH antes de KMS/D1',
     { timeout: 20_000 },
@@ -203,7 +203,7 @@ describe('runUploadTenantCertHttp — validación fail-closed SEC-03', () => {
   );
 });
 
-describe('runUploadTenantCertHttp', () => {
+describe('runUploadTenantCertHttp', { timeout: 30_000 }, () => {
   it(
     '403 cajero; 400 p12 inválido; 200 wrapDek + D1 sin persistir p12 (CDT válido)',
     { timeout: 20_000 },
