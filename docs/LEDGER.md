@@ -13488,3 +13488,54 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0476
+timestamp_utc: 2026-08-25T04:30:00Z
+schema_version: 2
+sprint_fase: Remediación H1+H2 del gap analysis 0031
+agente_responsable: Staff Principal (ejecución: kipus-acid + kipus-hardware; auditoría: Staff Principal)
+tipo: Corrección de conformidad SUNAT
+subtipo: NC/ND sobre boleta vía RC + QR fiscal + representación impresa
+relacion: corrige
+referencias_entradas: [0475]
+referencias_documentales: [docs/runbooks/fiscal-onboarding-tenant.md]
+prev_id: 0475
+prev_hash: 5534f50d4901b36e5803bf0a62f75b2db074d2c9e5b8aa6abdf4036f3749a94c
+entry_hash: e2a050c88342421597f85bdfdd8beac52250b37e41171ee740d36a2e9e50dd17
+ticket_or_adr: H1/H2 de auditoría 0031; RS 402-2019; RS 097-2012 anexo 2
+test_ids: [packages/adapters-d1/src/fiscal-rc.integration.test.ts, packages/print-templates/src/fiscal-qr.test.ts, packages/print-templates/src/qr-svg.test.ts]
+entregable_afectado: packages/adapters-d1/src/build-daily-summary.ts; packages/adapters-d1/src/process-credit-note-atomic.ts; packages/adapters-d1/src/process-debit-note-atomic.ts; packages/print-templates/src/fiscal-qr.ts; packages/print-templates/src/qr-svg.ts
+descripcion: >
+  Remediación de H1 y H2. (H1) NC/ND sobre boleta viajan por RC: hueco
+  simétrico productor/consumidor de 6 puntos (outbox solo UNIT_XML, query RC
+  solo 03/12, mapeo colapsaba a 03, planDailySummary filtraba 07/08, sweep
+  ciego) — fix con patrón espejo de boletas: outbox canal RC como marcador de
+  plazo, RC incluye líneas 07/08 vinculadas a boletas con condición catálogo
+  19 (NC anulación='3', resto='1'), planDailySummary las acepta, sweep las
+  descubre. Invariantes: un db.batch, sin UPSERT, guard E-A intacto, NC/ND
+  sobre factura siguen UNIT_XML (regresión test-fijada). (H2) QR fiscal RS
+  402-2019: cadena pipe de 10 campos (RUC|TIPO|SERIE|NUMERO|IGV|TOTAL|FECHA|
+  TIPO DOC ADQ|NUM DOC ADQ|HASH-DigestValue) — el brief decía URL y el agente
+  corrigió con múltiples fuentes del anexo; builder fail-closed (rechaza RUC
+  inválido, tipos fuera de catálogo, montos no-enteros, pipes inyectados);
+  generador QR ya vendorizado en el repo (qrcode-generator MIT, cero deps
+  npm nuevas) + conversor matriz→SVG zero-dep (~1KB); plantillas HTML y
+  ESC/POS completadas con denominación oficial, fecha emisión, IGV
+  desglosado, adquirente y QR; NV jamás imprime bloques fiscales; CPE
+  pendiente no lleva QR (invariante 8). Evidencia con 2 modelos de impresora
+  simulados (térmica 58/80mm decodificada + HTML con finder pattern ISO
+  18004).
+evidencia: >
+  RED: NC/ND sobre boleta sin fila outbox (expected undefined PENDING); RC
+  sin líneas 07/08 (RC_NO_BOLETAS); fiscal-qr/qr-svg módulos inexistentes;
+  6 tests de plantilla fallando. GREEN: domain-fiscal-pe 181/181;
+  adapters-d1 449/449 + 319/319 integración; worker-fiscal 74/74;
+  print-templates 67/67 + 4/4 integración; pos-web 424/424; bundle 276.91
+  kB < 300 kB (CAL-06); pnpm quality OK; V-13 dual GREEN (staff 0032/0033);
+  RESULT SUITE GREEN; commit 6262910.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
