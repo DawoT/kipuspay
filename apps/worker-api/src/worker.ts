@@ -15,6 +15,7 @@ import { runExpireOrdersScheduled } from './orders/expire-orders-scheduled.js';
 import { runForecastScheduled } from './analytics/forecast-scheduled.js';
 import { runBriefingScheduled } from './analytics/briefing-scheduled.js';
 import { runFiscalCronHttp } from './fiscal/fiscal-rc-routes.js';
+import { runCertExpiryScheduled } from './fiscal/cert-expiry-scheduled.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
@@ -121,6 +122,13 @@ export default {
         summaryDate: limaPrev,
         nowMs: event.scheduledTime,
       });
+      // SEC-03: barrido diario T-30d de vencimiento de certificados SUNAT
+      // (dedup por certificado dentro del job). Best-effort: no tumbará el RC.
+      try {
+        await runCertExpiryScheduled(env, { nowMs: event.scheduledTime });
+      } catch {
+        // Best-effort: sin alerta de vencimiento el RC diario sigue igual.
+      }
       return;
     }
     console.warn(

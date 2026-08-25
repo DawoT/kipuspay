@@ -7,9 +7,11 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import {
   createTenantCertSigner,
+  loadTenantSolCredentials,
   produceFiscalXmlForNonSale,
   produceFiscalXmlForSale,
   type D1DatabaseLike,
+  type TenantSolCredentials,
 } from '@kipuspay/adapters-d1';
 import {
   createSunatRcCdrPort,
@@ -66,6 +68,26 @@ function isBreakerEnabled(env: FiscalServiceEnv): boolean {
 
 function selectTransport(env: FiscalServiceEnv): FiscalTransport {
   return selectFiscalTransport(env);
+}
+
+/**
+ * SOL del tenant (tenant_sol_credentials, envelope KMS). Sin bindings o sin
+ * fila → null (fallback legítimo al env); material corrupto → broken=true:
+ * NUNCA se degrada al env de otro emisor.
+ */
+async function resolveTenantSol(
+  env: FiscalServiceEnv,
+  tenantId: string,
+): Promise<{ readonly creds: TenantSolCredentials | null; readonly broken: boolean }> {
+  const { DB, BACKUP_KMS } = env;
+  if (!DB || !BACKUP_KMS?.unwrapDek) return { creds: null, broken: false };
+  try {
+    const creds = await loadTenantSolCredentials(DB, BACKUP_KMS, tenantId);
+    return { creds, broken: false };
+  } catch (err) {
+    console.error(`TENANT_SOL_LOAD_FAILED tenant=${tenantId}`, err);
+    return { creds: null, broken: true };
+  }
 }
 
 function xmlSigner(env: FiscalServiceEnv) {
@@ -224,10 +246,11 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
   }
 
   /**
-   * Envía el Resumen Diario por SOAP sendSummary (ADR-FISCAL-007). Sin flag +
-   * SOL → SOL_UNAVAILABLE (nunca mock, nunca ACCEPTED). El endpoint se resuelve
-   * por canal (sunat-channel): staging default e-beta; producción solo URL
-   * oficial — si no, 503 con el código del error tipado.
+   * Envía el Resumen Diario por SOAP sendSummary (ADR-FISCAL-007). SOL del
+   * TENANT primero (emisión directa por negocio); env del worker solo como
+   * fallback si el tenant no tiene credenciales propias. Sin flag + SOL →
+   * SOL_UNAVAILABLE; producción sin ninguna → SUNAT_PRODUCTION_SOL_MISSING;
+   * material corrupto → TENANT_SOL_UNAVAILABLE (nunca el SOL de otro emisor).
    */
   async submitRc(input: {
     readonly tenantId: string;
@@ -239,44 +262,81 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
     readonly cdrMessage: string;
   }> {
     const env = this.env;
-    if (parseSunatBillChannel(env.SUNAT_BILL_CHANNEL) === 'production') {
-      // Producción: emisión directa exige plugins + SOL propia; sin ellos,
-      // rechazo tipado (nunca mock, nunca beta).
-      if (!isFiscalTransportPluginsEnabled(env)) {
-        return { accepted: false, cdrCode: '503', cdrMessage: 'SUNAT_PRODUCTION_PLUGINS_OFF' };
-      }
-      const prodSolUser = env.SUNAT_SOL_USER?.trim();
-      if (!prodSolUser || !env.SUNAT_SOL_PASSWORD) {
-        return { accepted: false, cdrCode: '503', cdrMessage: 'SUNAT_PRODUCTION_SOL_MISSING' };
-      }
+    const { creds: tenantSol, broken } = await resolveTenantSol(env, input.tenantId);
+    if (broken) {
+      return { accepted: false, cdrCode: '503', cdrMessage: 'TENANT_SOL_UNAVAILABLE' };
     }
-    const solUser = env.SUNAT_SOL_USER?.trim();
-    if (!isFiscalTransportPluginsEnabled(env) || !solUser || !env.SUNAT_SOL_PASSWORD) {
-      return { accepted: false, cdrCode: '503', cdrMessage: 'SOL_UNAVAILABLE' };
-    }
-    let endpointUrl: string;
-    try {
-      ({ endpointUrl } = resolveSunatBillEndpoint({
-        channel: env.SUNAT_BILL_CHANNEL,
-        endpointUrl: env.SUNAT_BILL_ENDPOINT_URL,
-      }));
-    } catch (err) {
-      if (err instanceof SunatChannelError) {
-        return { accepted: false, cdrCode: '503', cdrMessage: err.code };
-      }
-      throw err;
-    }
-    const port = createSunatRcCdrPort({
-      solUser,
-      solPassword: env.SUNAT_SOL_PASSWORD,
-      endpointUrl,
-      channel: env.SUNAT_BILL_CHANNEL,
-      ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
-    });
-    return port.submit({
-      tenantId: input.tenantId,
-      summaryId: input.summaryId,
-      xml: input.xml,
-    });
+    const solUser = tenantSol?.user ?? env.SUNAT_SOL_USER?.trim() ?? '';
+    const solPassword = tenantSol?.password ?? env.SUNAT_SOL_PASSWORD ?? '';
+    const rejection = rcCredentialRejection(env, Boolean(solUser && solPassword));
+    if (rejection) return { accepted: false, ...rejection };
+    return submitRcInner(env, input, solUser, solPassword);
   }
+}
+
+/**
+ * Matriz de decisión de credenciales para submitRc (ADR-FISCAL-007/FL-2).
+ * Devuelve el rechazo tipado que corresponde, o null si se puede emitir.
+ */
+function rcCredentialRejection(
+  env: FiscalServiceEnv,
+  hasSol: boolean,
+): { readonly cdrCode: string; readonly cdrMessage: string } | null {
+  const plugins = isFiscalTransportPluginsEnabled(env);
+  const production = parseSunatBillChannel(env.SUNAT_BILL_CHANNEL) === 'production';
+  if (production && !plugins) {
+    return { cdrCode: '503', cdrMessage: 'SUNAT_PRODUCTION_PLUGINS_OFF' };
+  }
+  if (production && !hasSol) {
+    return { cdrCode: '503', cdrMessage: 'SUNAT_PRODUCTION_SOL_MISSING' };
+  }
+  if (!plugins || !hasSol) {
+    return { cdrCode: '503', cdrMessage: 'SOL_UNAVAILABLE' };
+  }
+  return null;
+}
+
+/** Envía el Resumen Diario por SOAP sendSummary (ADR-FISCAL-007). Sin flag +
+ * SOL → SOL_UNAVAILABLE (nunca mock, nunca ACCEPTED). El endpoint se resuelve
+ * por canal (sunat-channel): staging default e-beta; producción solo URL
+ * oficial — si no, 503 con el código del error tipado.
+ */
+async function submitRcInner(
+  env: FiscalServiceEnv,
+  input: {
+    readonly tenantId: string;
+    readonly summaryId: string;
+    readonly xml: string;
+  },
+  solUser: string,
+  solPassword: string,
+): Promise<{
+  readonly accepted: boolean;
+  readonly cdrCode: string;
+  readonly cdrMessage: string;
+}> {
+  let endpointUrl: string;
+  try {
+    ({ endpointUrl } = resolveSunatBillEndpoint({
+      channel: env.SUNAT_BILL_CHANNEL,
+      endpointUrl: env.SUNAT_BILL_ENDPOINT_URL,
+    }));
+  } catch (err) {
+    if (err instanceof SunatChannelError) {
+      return { accepted: false, cdrCode: '503', cdrMessage: err.code };
+    }
+    throw err;
+  }
+  const port = createSunatRcCdrPort({
+    solUser,
+    solPassword,
+    endpointUrl,
+    channel: env.SUNAT_BILL_CHANNEL,
+    ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
+  });
+  return port.submit({
+    tenantId: input.tenantId,
+    summaryId: input.summaryId,
+    xml: input.xml,
+  });
 }

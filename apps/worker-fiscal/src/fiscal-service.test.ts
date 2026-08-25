@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SUNAT_PRODUCTION_BILL_SERVICE_URL } from '@kipuspay/adapters-sunat';
 import {
   bytesToBase64,
   issueSelfSignedX509,
@@ -495,6 +496,138 @@ describe('FiscalService (C6 entrypoint)', () => {
     });
     await expect(
       noSol.submitRc({ tenantId: 't1', summaryId: 'RC-1', xml: '<SummaryDocuments/>' }),
+    ).resolves.toEqual({
+      accepted: false,
+      cdrCode: '503',
+      cdrMessage: 'SUNAT_PRODUCTION_SOL_MISSING',
+    });
+  });
+});
+
+describe('submitRc — routing SOL por tenant', () => {
+  const TENANT_SOL_USER = '20512345678MODDATOS';
+  const TENANT_SOL_PASSWORD = 'sol-pass-tenant';
+
+  /** D1 mínima: fila tenant_sol_credentials opcional para el tenant consultado. */
+  function solDb(rowValue: string | null) {
+    return {
+      prepare(sql: string) {
+        return {
+          bind(...params: unknown[]) {
+            return {
+              first: async <T>(): Promise<T | null> => {
+                if (!sql.includes('FROM tenant_sol_credentials')) return null;
+                if (!rowValue) return null;
+                return { alias: params[1], sol_credentials_envelope: rowValue } as T;
+              },
+            };
+          },
+        };
+      },
+    } as never;
+  }
+
+  async function sealedSolRow(): Promise<string> {
+    const dek = randomDek();
+    const plaintext = new TextEncoder().encode(
+      JSON.stringify({ solUser: TENANT_SOL_USER, solPassword: TENANT_SOL_PASSWORD }),
+    );
+    const sealed = await sealPkcs8WithDek(dek, plaintext);
+    return (
+      'envelope-v1:' +
+      serializeTenantCertEnvelope({
+        kekVersion: 'v1',
+        backupId: 'tenant-sol:SUNAT',
+        wrappedDekB64: bytesToBase64(new Uint8Array(dek)),
+        nonceB64: bytesToBase64(sealed.nonce),
+        ciphertextB64: bytesToBase64(sealed.ciphertext),
+      })
+    );
+  }
+
+  it('producción sin SOL en env + credenciales por tenant → sendSummary oficial con SOL del tenant', async () => {
+    const urls: string[] = [];
+    const bodies: string[] = [];
+    const svc = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_BILL_CHANNEL: 'production',
+      DB: solDb(await sealedSolRow()),
+      BACKUP_KMS: {
+        unwrapDek: ({ wrappedDek }) => Promise.resolve(wrappedDek),
+      },
+      FISCAL_PSE_FETCH: (url, init) => {
+        urls.push(typeof url === 'string' ? url : 'bill');
+        bodies.push(typeof init?.body === 'string' ? init.body : '');
+        return Promise.resolve(new Response('', { status: 503 }));
+      },
+    });
+    const out = await svc.submitRc({
+      tenantId: 'tenant_prod',
+      summaryId: 'RC-20260824-001',
+      xml: '<SummaryDocuments/>',
+    });
+    expect(urls).toEqual([SUNAT_PRODUCTION_BILL_SERVICE_URL]);
+    expect(bodies[0]).toContain(TENANT_SOL_USER);
+    expect(out.accepted).toBe(false); // 503 del fetch fake; lo que importa es el canal+SOL
+  });
+
+  it('staging sin fila → fallback al env (comportamiento actual intacto)', async () => {
+    const urls: string[] = [];
+    const svc = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      SUNAT_BILL_ENDPOINT_URL: 'https://e-beta.example.test/billService',
+      DB: solDb(null),
+      BACKUP_KMS: { unwrapDek: () => Promise.resolve(new Uint8Array(32)) },
+      FISCAL_PSE_FETCH: (url) => {
+        urls.push(typeof url === 'string' ? url : 'bill');
+        return Promise.resolve(new Response('', { status: 503 }));
+      },
+    });
+    const out = await svc.submitRc({
+      tenantId: 'tenant_sin_sol',
+      summaryId: 'RC-1',
+      xml: '<SummaryDocuments/>',
+    });
+    expect(out.accepted).toBe(false);
+    expect(urls).toEqual(['https://e-beta.example.test/billService']);
+  });
+
+  it('credencial corrupta → 503 TENANT_SOL_UNAVAILABLE (nunca env de otro emisor)', async () => {
+    const parsed = JSON.parse((await sealedSolRow()).slice('envelope-v1:'.length)) as {
+      ciphertextB64: string;
+    };
+    const corrupted =
+      'envelope-v1:' +
+      JSON.stringify({
+        ...parsed,
+        ciphertextB64:
+          parsed.ciphertextB64.slice(0, -2) +
+          (parsed.ciphertextB64.endsWith('A') ? 'B' : 'A') +
+          parsed.ciphertextB64.slice(-1),
+      });
+    const svc = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      DB: solDb(corrupted),
+      BACKUP_KMS: { unwrapDek: () => Promise.resolve(randomDek()) },
+    });
+    await expect(
+      svc.submitRc({ tenantId: 'tenant_bad', summaryId: 'RC-1', xml: '<SummaryDocuments/>' }),
+    ).resolves.toEqual({ accepted: false, cdrCode: '503', cdrMessage: 'TENANT_SOL_UNAVAILABLE' });
+  });
+
+  it('producción sin fila ni env → 503 SUNAT_PRODUCTION_SOL_MISSING (contrato existente)', async () => {
+    const svc = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_BILL_CHANNEL: 'production',
+      DB: solDb(null),
+      BACKUP_KMS: { unwrapDek: () => Promise.resolve(new Uint8Array(32)) },
+    });
+    await expect(
+      svc.submitRc({ tenantId: 't1', summaryId: 'RC-1', xml: '<SummaryDocuments/>' }),
     ).resolves.toEqual({
       accepted: false,
       cdrCode: '503',

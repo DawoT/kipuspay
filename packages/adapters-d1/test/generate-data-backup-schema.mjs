@@ -115,6 +115,7 @@ const secret = new Set([
   'api_keys',
   'authorization_tokens',
   'tenant_certificates',
+  'tenant_sol_credentials',
   'users',
   'webhook_endpoints',
 ]);
@@ -254,6 +255,7 @@ const introducedAfterSprint42 = new Set([
   'recurring_plans',
   'recurring_proration_adjustments',
   'tenant_certificates',
+  'tenant_sol_credentials',
   'inventory_ops_idempotency',
   'fiscal_non_sale_outbox',
 ]);

@@ -9,10 +9,12 @@ import {
   classifyFiscalError,
   type FiscalErrorClass,
   createMockPseTransport,
+  SunatChannelError,
   type FiscalTransport,
   type FiscalTransportMode,
 } from '@kipuspay/adapters-sunat';
 import { classifyUnitaryXmlTarget, type FiscalDeliveryChannel } from '@kipuspay/domain-fiscal-pe';
+import { TenantSolChannelError } from './select-transport.js';
 
 export const POISON_RETRY_THRESHOLD = 5;
 export const CLAIM_STALE_AFTER_MINUTES = 10;
@@ -259,12 +261,15 @@ async function processClaimedRow(
     readonly db: FiscalDrainDb;
     readonly r2: FiscalXmlR2;
     readonly transport: FiscalTransport;
+    /** Routing SOL por tenant: resuelve transporte por fila (el caller cachea). */
+    readonly transportFor?: (row: OutboxRow) => Promise<FiscalTransport>;
     readonly onInfraFailure: () => Promise<void>;
     readonly produceMissingXml?: ProduceMissingXml;
   },
   row: OutboxRow,
 ): Promise<RowOutcome> {
-  const { db, r2, transport } = input;
+  const { db, r2 } = input;
+  const transport = input.transportFor ? await input.transportFor(row) : input.transport;
   const channel = outboxDeliveryChannel(row);
   // C6: boletas/RC nunca viajan como XML unitario (spec §5.2).
   // Liberar a PENDING para que el cron RC las reclame; no dejar PROCESSING.
@@ -299,13 +304,27 @@ async function processClaimedRow(
   // F5-3: el hash que viaja al transporte es el SHA-256 REAL del XML
   // (antes literal 'drain'); integridad verificable por el PSE/OSE.
   const xmlHash = await hashFiscalXml(xml);
-  const outcome = await transport.submit({
-    tenantId: row.tenant_id,
-    saleId: row.sale_id,
-    xml,
-    xmlHash,
-    documentType: (row.document_type as '01' | '03' | '07' | '08' | '31' | '02' | '20') || '01',
-  });
+  let outcome: Awaited<ReturnType<FiscalTransport['submit']>>;
+  try {
+    outcome = await transport.submit({
+      tenantId: row.tenant_id,
+      saleId: row.sale_id,
+      xml,
+      xmlHash,
+      documentType: (row.document_type as '01' | '03' | '07' | '08' | '31' | '02' | '20') || '01',
+    });
+  } catch (err) {
+    // Error de canal tipado (SOL de tenant ausente/corrupta, allowlist): la fila
+    // queda cuarentenada con motivo visible — no INFRA silenciosa que inflara
+    // el breaker, ni un throw que abortara el drain de los demás tenants.
+    if (err instanceof SunatChannelError || err instanceof TenantSolChannelError) {
+      const code = err.code;
+      await markSaleStatus(db, row, 'QUARANTINED');
+      await markRowQuarantined(db, row, 'CHANNEL_ERROR', code);
+      return 'QUARANTINED';
+    }
+    throw err;
+  }
 
   const errorClass = classifySubmitOutcome(outcome);
 
@@ -340,6 +359,8 @@ export async function drainFiscalOutbox(input: {
   readonly db: FiscalDrainDb;
   readonly r2: FiscalXmlR2;
   readonly transport?: FiscalTransport;
+  /** Routing SOL por tenant: transporte resuelto POR FILA (caché en el caller). */
+  readonly transportFor?: (row: OutboxRow) => Promise<FiscalTransport>;
   readonly isBreakerOpen: () => Promise<boolean>;
   readonly onInfraFailure: () => Promise<void>;
   readonly limit?: number;
@@ -366,6 +387,7 @@ export async function drainFiscalOutbox(input: {
         db: input.db,
         r2: input.r2,
         transport,
+        ...(input.transportFor ? { transportFor: input.transportFor } : {}),
         onInfraFailure: input.onInfraFailure,
         ...(input.produceMissingXml ? { produceMissingXml: input.produceMissingXml } : {}),
       },

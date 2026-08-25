@@ -230,6 +230,43 @@ export function parseX509IssuerSerial(certDer: Uint8Array): X509IssuerSerial {
   return { issuerName: parseName(issuer), serialDecimal: integerToDecimal(serial.bytes) };
 }
 
+export interface X509SubjectAttr {
+  readonly key: string;
+  readonly value: string;
+}
+
+export interface X509Subject {
+  /** RFC 2253 (orden invertido, escapes). */
+  readonly rfc2253: string;
+  /** Atributos en orden DER (multi-OU incluido). */
+  readonly attrs: readonly X509SubjectAttr[];
+}
+
+/** Subject del certificado (TBSCertificate.subject). Complementa
+ * parseX509IssuerSerial para validación de identidad SEC-03. */
+export function parseX509Subject(certDer: Uint8Array): X509Subject {
+  const tbs = tbsCertificate(certDer);
+  let i = 0;
+  if (tbs[0]?.tag === TAG_CTX0) i = 1;
+  const subject = tbs[i + 4];
+  if (!subject || subject.tag !== TAG_SEQUENCE) fail('subject');
+  const attrs: X509SubjectAttr[] = [];
+  for (const rdn of childrenOf(subject.bytes)) {
+    if (rdn.tag !== TAG_SET) fail('rdn');
+    for (const ava of childrenOf(rdn.bytes)) {
+      const seq = unwrapSequence(ava);
+      if (seq.length < 2 || seq[0]!.tag !== TAG_OID) fail('ava');
+      const oid = decodeOid(seq[0]!.bytes);
+      attrs.push({ key: OID_MAP[oid] ?? `OID.${oid}`, value: decodeDirectoryString(seq[1]!) });
+    }
+  }
+  const rfc2253 = attrs
+    .map((attr) => `${attr.key}=${escapeRfc2253(attr.value)}`)
+    .reverse()
+    .join(',');
+  return { rfc2253, attrs };
+}
+
 export function extractSpkiFromX509(certDer: Uint8Array): Uint8Array {
   const tbs = tbsCertificate(certDer);
   let i = 0;
@@ -250,15 +287,18 @@ function encodeRdn(oid: string, value: string): Uint8Array {
   );
 }
 
-function encodeName(cn: string, org: string, country: string): Uint8Array {
-  return encodeTag(
-    TAG_SEQUENCE,
-    concatBytes([
-      encodeRdn('2.5.4.6', country),
-      encodeRdn('2.5.4.10', org),
-      encodeRdn('2.5.4.3', cn),
-    ]),
-  );
+function encodeName(
+  cn: string,
+  org: string,
+  country: string,
+  organizationalUnits?: readonly string[],
+  organizationIdentifier?: string,
+): Uint8Array {
+  const rdns = [encodeRdn('2.5.4.6', country), encodeRdn('2.5.4.10', org)];
+  if (organizationIdentifier) rdns.push(encodeRdn('2.5.4.97', organizationIdentifier));
+  for (const ou of organizationalUnits ?? []) rdns.push(encodeRdn('2.5.4.11', ou));
+  rdns.push(encodeRdn('2.5.4.3', cn));
+  return encodeTag(TAG_SEQUENCE, concatBytes(rdns));
 }
 
 function utcTime(isoDate: string): Uint8Array {
@@ -295,11 +335,19 @@ export async function issueSelfSignedX509(input: {
   readonly commonName: string;
   readonly organization: string;
   readonly country: string;
+  readonly organizationalUnits?: readonly string[];
+  readonly organizationIdentifier?: string;
   readonly serial?: number;
   readonly notBefore?: string;
   readonly notAfter?: string;
 }): Promise<Uint8Array> {
-  const name = encodeName(input.commonName, input.organization, input.country);
+  const name = encodeName(
+    input.commonName,
+    input.organization,
+    input.country,
+    input.organizationalUnits,
+    input.organizationIdentifier,
+  );
   const version = encodeTag(TAG_CTX0, encodeInteger(2));
   const serial = encodeInteger(input.serial ?? 1);
   const alg = sha256RsaAlg();

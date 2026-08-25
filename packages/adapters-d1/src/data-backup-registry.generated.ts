@@ -2846,6 +2846,17 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
     tenantVia: [],
   },
   {
+    name: 'tenant_sol_credentials',
+    classification: 'SECRET',
+    primaryKey: ['tenant_id', 'alias'],
+    columns: ['tenant_id', 'alias', 'sol_credentials_envelope', 'created_at'],
+    r2References: [],
+    tenantFrom: '"tenant_sol_credentials" AS t0',
+    tenantPredicate: 't0."tenant_id" = ?',
+    tenantVia: [],
+    reason: 'contains credential or authentication material',
+  },
+  {
     name: 'tenant_weight_policies',
     classification: 'BUSINESS',
     primaryKey: ['id'],

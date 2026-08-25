@@ -24,11 +24,13 @@ const {
   runRecurringSalesScheduled,
   runForecastScheduled,
   runFiscalCronHttp,
+  runCertExpiryScheduled,
 } = vi.hoisted(() => ({
   runDailyRollupsCronHttp: vi.fn(),
   runRecurringSalesScheduled: vi.fn(),
   runForecastScheduled: vi.fn(),
   runFiscalCronHttp: vi.fn(),
+  runCertExpiryScheduled: vi.fn(),
 }));
 
 vi.mock('./reports/report-routes.js', () => ({
@@ -46,6 +48,9 @@ vi.mock('./analytics/forecast-scheduled.js', () => ({
 }));
 vi.mock('./fiscal/fiscal-rc-routes.js', () => ({
   runFiscalCronHttp,
+}));
+vi.mock('./fiscal/cert-expiry-scheduled.js', () => ({
+  runCertExpiryScheduled,
 }));
 
 import type { WorkerEnv } from './auth/control-plane.js';
@@ -122,6 +127,23 @@ describe('Worker scheduled dispatch', () => {
     // 13:00 UTC − 5h (Lima) − 24h = 2026-08-08 (día Lima previo).
     expect(call.summaryDate).toBe('2026-08-08');
     expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
+  });
+
+  it('SEC-03: el cron fiscal diario barre vencimiento de certificados T-30d una vez', async () => {
+    vi.clearAllMocks();
+    const rcTime = Date.parse('2026-08-09T13:00:00.000Z');
+    const evt = { cron: FISCAL_RC_CRON, scheduledTime: rcTime } as ScheduledEvent;
+    await worker.scheduled(evt, env(), {} as ExecutionContext);
+    expect(runCertExpiryScheduled).toHaveBeenCalledOnce();
+    expect(runCertExpiryScheduled).toHaveBeenCalledWith(expect.anything(), { nowMs: rcTime });
+  });
+
+  it('SEC-03: ningún otro cron dispara el barrido de certificados', async () => {
+    vi.clearAllMocks();
+    await worker.scheduled(event(DAILY_ROLLUP_CRON), env(), {} as ExecutionContext);
+    await worker.scheduled(event(FISCAL_DEADLINES_CRON), env(), {} as ExecutionContext);
+    await worker.scheduled(event(RECURRING_CRON), env(), {} as ExecutionContext);
+    expect(runCertExpiryScheduled).not.toHaveBeenCalled();
   });
 
   it('routes the daily cron exactly once with existing reporting semantics', async () => {

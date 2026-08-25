@@ -7,6 +7,7 @@ export const PUSH_EVENT_TYPES = [
   'CUSTOMER_ORDER_EXPIRY',
   'RECURRING_GRACE',
   'BILLING_REMINDER',
+  'CERT_EXPIRY_WARNING',
 ] as const;
 
 export type PushEventType = (typeof PUSH_EVENT_TYPES)[number];
@@ -32,6 +33,7 @@ const DEEP_LINK_KINDS = new Set([
   'customer_order',
   'recurring_sale',
   'billing',
+  'cert_expiry',
 ]);
 
 const COPY: Readonly<Record<PushEventType, { readonly title: string; readonly body: string }>> = {
@@ -50,6 +52,10 @@ const COPY: Readonly<Record<PushEventType, { readonly title: string; readonly bo
   },
   BILLING_REMINDER: {
     title: 'Recordatorio de KipusPay',
+    body: 'Abre KipusPay para ver el detalle',
+  },
+  CERT_EXPIRY_WARNING: {
+    title: 'Tu certificado SUNAT está por vencer',
     body: 'Abre KipusPay para ver el detalle',
   },
 };

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SunatChannelError } from '@kipuspay/adapters-sunat';
 import {
   assertFifoOrder,
   drainFiscalOutbox,
@@ -563,5 +564,70 @@ describe('F8 Bloque C — chaos SUNAT caído (fail-closed)', () => {
     expect(second.accepted).toBe(1);
     expect(db.state.find((r) => r.id === 'c1')?.status).toBe('SENT');
     expect(submitted.length).toBeGreaterThanOrEqual(2); // reenvío real
+  });
+});
+
+describe('routing SOL por tenant — aislamiento de error de canal en el drain', () => {
+  it('SunatChannelError de un tenant → QUARANTINED CHANNEL_ERROR; el resto del drain continúa', async () => {
+    const db = memoryDb([]);
+    const r2 = memoryR2();
+    // Con firma XAdES simulada: el modo live exige firma para llegar al submit
+    // (lo que se ejercita aquí es el aislamiento del error de canal, no XAdES).
+    const xml = '<Invoice><ds:Signature/><cbc:ID>F001-1</cbc:ID></Invoice>';
+    r2.map.set('xml-key-chan', xml);
+    db.state.push(
+      {
+        id: 'chan',
+        tenant_id: 't-sin-sol-prod',
+        sale_id: 's-chan',
+        status: 'PENDING',
+        attempt_count: 0,
+        must_submit_by: '2026-08-20T00:00:00.000Z',
+        document_type: '01',
+        r2_xml_key: 'xml-key-chan',
+        created_at: new Date().toISOString(),
+      } as unknown as MockRow,
+      {
+        id: 'okrow',
+        tenant_id: 't-ok',
+        sale_id: 's-ok',
+        status: 'PENDING',
+        attempt_count: 0,
+        must_submit_by: '2026-08-21T00:00:00.000Z',
+        document_type: '01',
+        r2_xml_key: 'xml-key-chan',
+        created_at: new Date().toISOString(),
+      } as unknown as MockRow,
+    );
+
+    const transport: FiscalTransport = {
+      mode: 'sunat_bill_production',
+      submit: (input) => {
+        if (input.tenantId === 't-sin-sol-prod') {
+          return Promise.reject(new SunatChannelError('SUNAT_PRODUCTION_SOL_MISSING'));
+        }
+        return Promise.resolve({
+          kind: 'accepted',
+          cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+        });
+      },
+      queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+    };
+
+    const result = await drainFiscalOutbox({
+      db,
+      r2,
+      transport,
+      isBreakerOpen: () => Promise.resolve(false),
+      onInfraFailure: () => Promise.resolve(),
+    });
+
+    // La fila del tenant sin SOL queda cuarentenada (visible, no INFRA silenciosa)…
+    expect(db.state.find((r) => r.id === 'chan')?.status).toBe('QUARANTINED');
+    expect(result.quarantined).toBe(1);
+    expect(db.sales.get('s-chan:t-sin-sol-prod')).toBe('QUARANTINED');
+    // …y la fila sana del otro tenant se emitió normalmente.
+    expect(db.state.find((r) => r.id === 'okrow')?.status).toBe('SENT');
+    expect(result.accepted).toBe(1);
   });
 });

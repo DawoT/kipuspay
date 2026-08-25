@@ -9,7 +9,8 @@ type PushEventType =
   | 'ACCOUNTS_RECEIVABLE_OVERDUE'
   | 'CUSTOMER_ORDER_EXPIRY'
   | 'RECURRING_GRACE'
-  | 'BILLING_REMINDER';
+  | 'BILLING_REMINDER'
+  | 'CERT_EXPIRY_WARNING';
 
 interface LooseD1Database {
   prepare(sql: string): D1Prepared | undefined;

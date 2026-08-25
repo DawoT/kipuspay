@@ -1090,3 +1090,100 @@ aprobaciones: ["A: Staff Fiscal", "V: gate documental V-00..V-31 GREEN + tests p
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0026
+timestamp_utc: 2026-08-24T20:05:00Z
+agente: Kipus Security/Fiscal
+tarea: Validación fail-closed de identidad/vigencia en upload de cert SUNAT + alerta T-30d de vencimiento
+estado: Vigente
+prev_id: 0025
+prev_hash: 63acc1d2aa8a5ff11dc10bdbe3dd7e9ae9532c16a1ccfe461341d2a297096d5e
+entry_hash: 6b71099ea27b6cc2fece7546101a85435f17ccbe60b1779a79ee846bdd454730
+ticket_or_adr: SEC-03; Arquitectura §5.4; ADR-FISCAL-006; invariante 5 (fail-closed)
+test_ids: [apps/worker-api/src/fiscal/tenant-cert-upload-routes.test.ts, apps/worker-api/src/fiscal/cert-expiry-scheduled.test.ts, apps/worker-api/src/worker-scheduled.test.ts, packages/domain-fiscal-pe/src/sunat-cert-subject.test.ts, packages/domain-integrations/src/mobile-push.red.test.ts]
+entregable_afectado: apps/worker-api/src/fiscal/tenant-cert-upload-routes.ts; apps/worker-api/src/fiscal/cert-expiry-scheduled.ts (nuevo); packages/domain-fiscal-pe/src/sunat-cert-subject.ts (nuevo); packages/domain-integrations/src/mobile-push.ts
+descripcion: >
+  Cierre de dos gaps de SEC-03. (1) POST /api/fiscal/tenant-cert ahora valida
+  fail-closed ANTES de KMS/D1: RUC del subject (solo marcadores estructurados
+  organizationIdentifier «NTRPE-<RUC>» / OU, jamás el CN libre) contra
+  tenants.ruc registrado → CERT_RUC_MISMATCH; notAfter vencido → CERT_EXPIRED;
+  sin marcador USO TRIBUTARIO → CERT_USO_INVALIDO; tenant sin ruc →
+  CERT_TENANT_NO_RUC. Un cert rechazado no consume wrapDek ni muta estado.
+  (2) Job diario runCertExpiryScheduled enganchado al cron fiscal RC existente
+  (FISCAL_RC_CRON 13:00 UTC, best-effort): barre tenant_certificates con
+  expires_at en [hoy, hoy+30d] (idx_tenant_certificates_expires), re-valida
+  límites en código (defensa en profundidad) y emite push OWNER_ALERTS
+  CERT_EXPIRY_WARNING con dedup histórica por idempotency_key_hash estable
+  «cert-expiry:<tenant>:<fingerprint>» → UNA alerta por certificado (patrón
+  F5b-4); rotación (huella nueva) dispara alerta nueva; push_events no tiene
+  pruning → dedup duradera. Registro del evento en los tres catálogos
+  (adapters-d1 PushEventType, dispatcher, domain-integrations
+  PUSH_EVENT_TYPES/COPY/DEEP_LINK_KINDS) — sin ello buildLockscreenPayload
+  lanzaba PUSH_EVENT_TYPE_INVALID en runtime.
+evidencia: >
+  RED→GREEN documentado por test: domain sunat-cert-subject 8 RED (exports
+  inexistentes) → GREEN; route 5 RED (A1/A2/A3/TENANT_NO_RUC/CN-libre
+  devolvían 200 o PKCS12_INVALID) → GREEN; wiring cron 1 RED → GREEN;
+  mobile-push.red 2 RED (catálogo sin CERT_EXPIRY_WARNING) → GREEN. Suites:
+  domain-fiscal-pe 180/180, domain-integrations 128/128, adapters-d1 449/449,
+  worker-api 1392/1392; tsc --noEmit OK ×4; eslint --max-warnings 0 OK ×4;
+  prettier --check limpio; scripts/verify.sh RESULT SUITE GREEN. Nota:
+  pnpm quality falla SOLO en worker-fiscal#lint por cambios preexistentes de
+  otro flujo en el árbol (669 insertions; string F001-CHAN ausente en HEAD) —
+  verificado con git show HEAD; paquetes tocados lint/tsc/tests limpios.
+ancestry_verified: true
+aprobaciones: ["A: Staff Security", "V: gate documental V-00..V-31 GREEN + suites 4 paquetes"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0027
+timestamp_utc: 2026-08-24T21:20:00Z
+agente: Kipus ACID/Backend
+tarea: Routing SOL SUNAT por tenant (emisión directa por negocio) con fallback backward-compatible al env del worker
+estado: Vigente
+prev_id: 0026
+prev_hash: 6b71099ea27b6cc2fece7546101a85435f17ccbe60b1779a79ee846bdd454730
+entry_hash: f581186340bfc7ae5ab87c74b286a2340848276cbfaf4bafa00c826de178eb2f
+ticket_or_adr: SEC-03; Arquitectura §5.4; ADR-FISCAL-007/FL-2; patrón tenant_certificates (0056)
+test_ids: [packages/adapters-d1/src/tenant-sol-credentials.test.ts, packages/adapters-d1/src/schema-full-down.integration.test.ts, apps/worker-fiscal/src/select-transport.test.ts, apps/worker-fiscal/src/fiscal-drain.test.ts, apps/worker-fiscal/src/fiscal-service.test.ts]
+entregable_afectado: packages/adapters-d1/migrations/0061_tenant_sol_credentials.sql (nuevo); packages/adapters-d1/migrations-down/0061_tenant_sol_credentials.sql (nuevo); packages/adapters-d1/src/tenant-sol-credentials.ts (nuevo); apps/worker-fiscal/src/select-transport.ts; apps/worker-fiscal/src/fiscal-drain.ts; apps/worker-fiscal/src/fiscal-service.ts; apps/worker-fiscal/src/index.ts; packages/adapters-d1/test/generate-data-backup-schema.mjs; packages/adapters-d1/src/data-backup-registry.generated.ts
+descripcion: >
+  Emisión directa por negocio: cada tenant emite con SU credencial SOL, no con
+  la del worker. (1) Tabla tenant_sol_credentials (migración 0061 up + down
+  espejo protegido vía atomic_guards, patrón 0056): PK (tenant_id, alias) con
+  alias='SUNAT', sol_credentials_envelope 'envelope-v1:{json}' AES-GCM cuyo
+  plaintext es {solUser,solPassword} y cuya DEK se envuelve en KMS con
+  backupId 'tenant-sol:SUNAT'; triggers de epoch + registro SECRET en
+  D1_BACKUP_TABLES (V-29). (2) Puerto loadTenantSolCredentials(db,kms,tenantId)
+  → {user,password}|null: sin fila → null (fallback legítimo al env);
+  ciphertext corrupto → TENANT_CERT_UNWRAP_FAILED; payload inválido →
+  TENANT_SOL_PAYLOAD_INVALID — jamás credenciales parciales. (3)
+  selectFiscalTransport(env,{loadTenantSol}): wrapper de routing con caché por
+  tenant resuelve el transporte REAL por emisor — staging: SOL del tenant →
+  billService beta con sus credenciales; sin fila → env (PSE/beta/MISCONFIGURED
+  intactos); producción: validación SOL pasa a lazy por tenant, sin fila ni env
+  → SunatChannelError SUNAT_PRODUCTION_SOL_MISSING; plugins off sigue siendo
+  MOCK puro (kill-switch global). Credencial corrupta → TenantSolChannelError,
+  NUNCA fallback al env de otro emisor. (4) drain: transportFor por fila +
+  catch tipado de errores de canal → QUARANTINED CHANNEL_ERROR visible (no INFRA
+  que infla el breaker, no throw que aborte el drain multi-tenant). (5) submitRc:
+  SOL del tenant primero, env como fallback, corrupta → 503 TENANT_SOL_UNAVAILABLE.
+evidencia: >
+  TDD RED→GREEN: adapters-d1 7 RED (módulo inexistente) → GREEN 7/7;
+  worker-fiscal select-transport 7 RED (routing inexistente, producción eager)
+  → GREEN 27/27; fiscal-drain 1 RED (SunatChannelError mata el drain completo,
+  reproducido) → GREEN cuarentena CHANNEL_ERROR por fila; fiscal-service 4 RED →
+  GREEN. Suites finales: adapters-d1 unit 449/449, integración 313/313 (chain
+  down completo 0061→0000 deja schema limpio), worker-fiscal 72/72,
+  worker-api backup 23/23; tsc --noEmit OK ×2; eslint --max-warnings 0 OK;
+  prettier limpio; scripts/verify.sh RESULT SUITE GREEN (V-25 espejo, V-29
+  paridad triggers); pnpm quality Quality Gate OK. Migración NO aplicada a
+  staging D1 (queda para el supervisor).
+ancestry_verified: true
+aprobaciones: ["A: Staff Backend ACID", "V: gate documental V-00..V-31 GREEN + quality gate CAL"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

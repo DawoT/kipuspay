@@ -17,10 +17,25 @@ describe('Sprint 45 mobile push domain contract (RED)', () => {
       'CUSTOMER_ORDER_EXPIRY',
       'RECURRING_GRACE',
       'BILLING_REMINDER',
+      'CERT_EXPIRY_WARNING',
     ]);
     expect(PUSH_EVENT_TYPES.indexOf('BILLING_REMINDER')).toBeGreaterThan(
       PUSH_EVENT_TYPES.indexOf('RECURRING_GRACE'),
     );
+  });
+
+  it('SEC-03: CERT_EXPIRY_WARNING tiene copy owner y deep link registrado, sin montos', () => {
+    // El productor (cert-expiry-scheduled) jamás pasa amount_cents.
+    const payload = buildLockscreenPayload({
+      eventType: 'CERT_EXPIRY_WARNING',
+      privacyMode: 'AMOUNTS',
+      deepLinkKind: 'cert_expiry',
+      deepLinkEntityId: 'opaque-tenant-id',
+    });
+    expect(payload.title).toMatch(/certificado/i);
+    expect(payload.deepLink).toEqual({ kind: 'cert_expiry', entityId: 'opaque-tenant-id' });
+    const serialized = JSON.stringify(payload);
+    expect(serialized).not.toContain('amount_cents');
   });
 
   it('defaults to REDACTED and requires tenant policy plus Owner opt-in for amounts', () => {

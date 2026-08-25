@@ -47,7 +47,8 @@ interface DeliveryContext {
     | 'ACCOUNTS_RECEIVABLE_OVERDUE'
     | 'CUSTOMER_ORDER_EXPIRY'
     | 'RECURRING_GRACE'
-    | 'BILLING_REMINDER';
+    | 'BILLING_REMINDER'
+    | 'CERT_EXPIRY_WARNING';
   readonly amount_cents: number | null;
   readonly deep_link_kind: string;
   readonly deep_link_entity_id: string;

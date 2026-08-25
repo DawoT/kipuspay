@@ -5,9 +5,12 @@
 import {
   bytesToBase64,
   parsePkcs12,
+  parseX509Subject,
   randomDek,
   sealPkcs8WithDek,
   serializeTenantCertEnvelope,
+  subjectHasUsoTributario,
+  sunatCertRuc,
 } from '@kipuspay/domain-fiscal-pe';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
@@ -16,6 +19,44 @@ const MAX_P12_BYTES = 48 * 1024;
 
 function ownerOrAdmin(role: string): boolean {
   return role === 'owner' || role === 'admin';
+}
+
+interface CertRejection {
+  readonly status: 400;
+  readonly body: { error: string; code: string };
+}
+
+/**
+ * SEC-03 fail-closed (A1..A3): identidad y vigencia del p12 contra el RUC
+ * registrado del tenant. El RUC sale SOLO de marcadores estructurados del
+ * subject (organizationIdentifier «NTRPE-<RUC>» / OU), nunca del CN libre.
+ * Orden determinista: identidad → vigencia → uso tributario.
+ */
+function validateCertIdentity(
+  parsed: { readonly certDer: Uint8Array; readonly expiresAt: string },
+  registeredRuc: string,
+): CertRejection | null {
+  const subject = parseX509Subject(parsed.certDer);
+  const certRuc = sunatCertRuc(subject);
+  if (!certRuc || certRuc !== registeredRuc) {
+    return {
+      status: 400,
+      body: {
+        error: 'Certificate RUC does not match this business',
+        code: 'CERT_RUC_MISMATCH',
+      },
+    };
+  }
+  if (Date.parse(parsed.expiresAt) <= Date.now()) {
+    return { status: 400, body: { error: 'Certificate expired', code: 'CERT_EXPIRED' } };
+  }
+  if (!subjectHasUsoTributario(subject)) {
+    return {
+      status: 400,
+      body: { error: 'Certificate is not USO TRIBUTARIO', code: 'CERT_USO_INVALIDO' },
+    };
+  }
+  return null;
 }
 
 export async function runGetTenantCertHttp(
@@ -58,6 +99,7 @@ export async function runGetTenantCertHttp(
   };
 }
 
+// eslint-disable-next-line complexity -- cadena lineal de guardas fail-closed (auth, límites, parseo, identidad SEC-03); partiría la secuencia de rechazo
 export async function runUploadTenantCertHttp(
   env: WorkerEnv,
   tenantId: string,
@@ -96,6 +138,20 @@ export async function runUploadTenantCertHttp(
   } catch {
     return { status: 400, body: { error: 'Could not open certificate', code: 'PKCS12_INVALID' } };
   }
+  // SEC-03 fail-closed: identidad y vigencia ANTES de KMS/D1 — un
+  // certificado rechazado no consume wrapDek ni muta estado.
+  const tenantRow = await env.DB.prepare(`SELECT ruc FROM tenants WHERE id = ?`)
+    .bind(tenantId)
+    .first<{ ruc: string | null }>();
+  const registeredRuc = tenantRow?.ruc?.trim() ?? '';
+  if (!registeredRuc) {
+    return {
+      status: 400,
+      body: { error: 'Tenant has no registered RUC', code: 'CERT_TENANT_NO_RUC' },
+    };
+  }
+  const rejection = validateCertIdentity(parsed, registeredRuc);
+  if (rejection) return rejection;
   const dek = randomDek();
   const sealed = await sealPkcs8WithDek(dek, parsed.pkcs8Der);
   const wrapped = await env.BACKUP_KMS.wrapDek({

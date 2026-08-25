@@ -7,6 +7,11 @@ import {
   type SunatOutcome,
 } from '@kipuspay/adapters-sunat';
 import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
+import {
+  loadTenantSolCredentials,
+  type TenantSolDb,
+  type TenantSolKms,
+} from '@kipuspay/adapters-d1';
 import { FiscalCircuitBreaker } from './fiscal-circuit-breaker.js';
 import { readBreakerOpen, type BreakerKvLike } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
@@ -15,8 +20,10 @@ import { drainFiscalNonSaleOutbox } from './fiscal-non-sale-drain.js';
 import {
   hasSunatSolCredentials,
   isAccreditedPseEndpoint,
+  isTenantSolRoutingTransport,
   selectFiscalTransport,
   type FiscalTransportSelectEnv,
+  type TenantSolCredentialsLoader,
 } from './select-transport.js';
 
 export { FiscalCircuitBreaker };
@@ -87,6 +94,24 @@ export function isFiscalTransportPluginsEnabled(env: FiscalWorkerEnv): boolean {
   return (
     env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' || env.FEATURE_FISCAL_TRANSPORT_PLUGINS === 'true'
   );
+}
+
+/**
+ * Routing SOL por tenant: loader desde bindings (D1 + KMS). Sin ambos →
+ * undefined y selectFiscalTransport conserva el comportamiento histórico.
+ */
+function tenantSolLoader(env: FiscalWorkerEnv): TenantSolCredentialsLoader | undefined {
+  const db = env.DB as unknown as TenantSolDb | undefined;
+  const kms = env.BACKUP_KMS as TenantSolKms | undefined;
+  if (!db || !kms?.unwrapDek) return undefined;
+  return (tenantId) => loadTenantSolCredentials(db, kms, tenantId);
+}
+
+function tenantSolOptions(
+  env: FiscalWorkerEnv,
+): { readonly loadTenantSol: TenantSolCredentialsLoader } | undefined {
+  const loader = tenantSolLoader(env);
+  return loader ? { loadTenantSol: loader } : undefined;
 }
 
 /**
@@ -190,7 +215,7 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
   const body: FiscalSubmitRequest = await request.json();
   let transport: FiscalTransport;
   try {
-    transport = selectFiscalTransport(env);
+    transport = selectFiscalTransport(env, tenantSolOptions(env));
   } catch (err) {
     // Canal producción mal configurado → fail-closed visible (503 tipado),
     // nunca un submit que finja éxito.
@@ -202,7 +227,12 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
     }
     throw err;
   }
-  if (transport.mode === 'MISCONFIGURED') {
+  // Routing por tenant: la validez del canal se evalúa sobre el transporte
+  // resuelto para EL emisor de este submit (no sobre el default del worker).
+  const effective = isTenantSolRoutingTransport(transport)
+    ? await transport.resolveForTenant(body.tenantId)
+    : transport;
+  if (effective.mode === 'MISCONFIGURED') {
     return new Response(
       JSON.stringify({ error: 'TRANSPORT_MISCONFIGURED', code: 'TRANSPORT_MISCONFIGURED' }),
       {
@@ -211,7 +241,7 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
       },
     );
   }
-  const outcome = await transport.submit(body);
+  const outcome = await effective.submit(body);
   const result = responseOf(outcome, await applyCdrToSaleStatus(outcome));
   return new Response(JSON.stringify(result), {
     status: 200,
@@ -231,11 +261,17 @@ async function handleDrain(env: FiscalWorkerEnv): Promise<Response> {
   }
   let result: Awaited<ReturnType<typeof drainFiscalOutbox>>;
   try {
-    const transport = selectFiscalTransport(env);
+    const transport = selectFiscalTransport(env, tenantSolOptions(env));
+    // Routing SOL por tenant: transporte resuelto POR FILA (el wrapper cachea
+    // el desenvelope KMS por tenant dentro de esta invocación del drain).
+    const transportFor = isTenantSolRoutingTransport(transport)
+      ? (row: { readonly tenant_id: string }) => transport.resolveForTenant(row.tenant_id)
+      : undefined;
     const drainOpts = {
       db: env.DB,
       r2: env.FISCAL_XML_R2,
       transport,
+      ...(transportFor ? { transportFor } : {}),
       isBreakerOpen: async () => {
         const open = await readBreakerOpen(
           env.FISCAL_BREAKER_KV ?? null,

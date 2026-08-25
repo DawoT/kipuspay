@@ -44,8 +44,13 @@ export {
   extractSpkiFromX509,
   issueSelfSignedX509,
   parseX509IssuerSerial,
+  parseX509Subject,
   type X509IssuerSerial,
+  type X509Subject,
+  type X509SubjectAttr,
 } from './x509-der.js';
+
+export { subjectHasUsoTributario, sunatCertRuc } from './sunat-cert-subject.js';
 
 export {
   bytesFromBase64,

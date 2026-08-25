@@ -59,6 +59,7 @@ import {
   DOWN_0057_INVENTORY_OPS_IDEMPOTENCY,
   DOWN_0058_FISCAL_NON_SALE_OUTBOX,
   DOWN_0060_AUDIT_CHAIN_HEADS,
+  DOWN_0061_TENANT_SOL_CREDENTIALS,
 } from './migrations-down.js';
 
 async function paymentMethodsPkColumns(): Promise<string[]> {
@@ -80,6 +81,7 @@ describe('D1 full down chain (isolate limpio post-migrate)', () => {
     ).first<{ value: string }>();
     expect(markerBefore?.value).toBe('1');
 
+    await env.DB.exec(DOWN_0061_TENANT_SOL_CREDENTIALS);
     await env.DB.exec(DOWN_0060_AUDIT_CHAIN_HEADS);
     await env.DB.exec(DOWN_0058_FISCAL_NON_SALE_OUTBOX);
     await env.DB.exec(DOWN_0057_INVENTORY_OPS_IDEMPOTENCY);
