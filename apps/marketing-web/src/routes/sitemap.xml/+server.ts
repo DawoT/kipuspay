@@ -1,5 +1,6 @@
-import { VERTICAL_SLUGS } from '$lib/content/verticals';
-import { publishedPosts } from '$lib/content/blog';
+import { VERTICAL_SLUGS } from '$lib/content/verticals.js';
+import { publishedPosts } from '$lib/content/blog.js';
+import { COMPETITOR_SLUGS } from '$lib/content/compare.js';
 
 export const prerender = true;
 
@@ -19,10 +20,11 @@ export function GET(): Response {
     ...blogSlugs,
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),
     '/comparar',
+    ...COMPETITOR_SLUGS.map((c) => `/comparar/${c}`),
   ];
   const header = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
   ].join('\n');
   const body = urls
     .map((path) => {

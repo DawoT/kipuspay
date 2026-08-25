@@ -73,14 +73,12 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
       {
         id: 'sin-internet',
         question: '¿Qué pasa si se corta el internet en mi local?',
-        availability: 'preparing',
         answer:
           'Sigues cobrando normalmente. Tus ventas se guardan en el equipo y, apenas vuelve la señal, se sincronizan con tu panel sin perder información.',
       },
       {
         id: 'limite-offline',
         question: '¿Cuántas ventas puedo hacer sin internet?',
-        availability: 'preparing',
         answer:
           'Puedes continuar operando durante toda tu jornada. Al reconectarse el equipo, el sistema procesa los comprobantes pendientes automáticamente.',
       },

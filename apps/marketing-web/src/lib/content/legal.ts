@@ -98,6 +98,12 @@ export const PRIVACY_PAGE = {
   ],
 } as const;
 
+export const PROVIDER_INFO = {
+  razonSocial: 'KipusPay S.A.C.',
+  ruc: '20612913251',
+  domicilioFiscal: 'Av. Faustino Sánchez Carrión 615, Jesús María, Lima, Perú',
+} as const;
+
 export const RECLAMATIONS_PAGE = {
   title: 'Libro de Reclamaciones',
   headline: 'Tu reclamo tiene canal y tiene plazo.',
@@ -112,8 +118,8 @@ export const RECLAMATIONS_PAGE = {
       body: 'El número de caso en pantalla es tu acuse. Conserva ese número. La constancia por correo está en preparación.',
     },
     {
-      title: 'Respuesta en 30 días calendario',
-      body: 'Atendemos tu reclamo dentro del plazo que fija la ley: 30 días calendario desde la recepción, con una respuesta por escrito.',
+      title: 'Respuesta en 15 días hábiles',
+      body: 'Atendemos tu reclamo dentro del plazo que fija la ley: 15 días hábiles improrrogables desde la recepción, con una respuesta por escrito (Ley N° 31435).',
     },
   ],
 } as const;

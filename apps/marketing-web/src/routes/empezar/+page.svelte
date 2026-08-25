@@ -48,7 +48,7 @@
     {
       id: 'INTERNAL_CONTROL',
       label: 'Solo control interno',
-      body: 'Nota de venta con leyenda legal. No es comprobante SUNAT. No es “contingencia”.',
+      body: 'Nota de venta para tu control interno de caja e inventario, lista para activar facturación electrónica cuando tu negocio lo decida.',
     },
     {
       id: 'FORMALIZING',
@@ -197,7 +197,19 @@
     name="description"
     content="Onboarding en cuatro pantallas: negocio, rubro, etapa y primera venta."
   />
+  <meta property="og:title" content="Empezar · KipusPay" />
+  <meta
+    property="og:description"
+    content="Onboarding en cuatro pantallas: negocio, rubro, etapa y primera venta."
+  />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Empezar · KipusPay" />
+  <meta
+    name="twitter:description"
+    content="Onboarding en cuatro pantallas: negocio, rubro, etapa y primera venta."
+  />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/empezar" />
 </svelte:head>
 
@@ -220,18 +232,21 @@
     {#if step === 0}
       <h2>Tu negocio</h2>
       <p class="section-lead">Con RUC autocompletamos después; sin RUC entras en control interno.</p>
-      <label class="onb-field">
+      <label class="onb-field" for="trade-name-input">
         Nombre comercial
         <input
+          id="trade-name-input"
           bind:value={tradeName}
           autocomplete="organization"
           aria-invalid={Boolean(error)}
           aria-describedby={error ? 'onb-error-msg' : undefined}
+          data-testid="trade-name-input"
         />
       </label>
-      <label class="onb-field">
+      <label class="onb-field" for="ruc-input">
         RUC (opcional)
         <input
+          id="ruc-input"
           bind:value={ruc}
           inputmode="numeric"
           maxlength="11"
@@ -300,8 +315,9 @@
         <p class="section-lead">Guárdalos (captura o apunta). Te llevamos a la caja para tu primera venta.</p>
       {:else}
         <p class="section-lead">
-          Te llevamos a la caja. Según tu etapa emitirás nota de venta o boleta/factura electrónica.
-          KipusPay se encarga del envío a SUNAT. No usamos la palabra “contingencia”.
+          Te llevamos a la caja. Nota de venta para tu control interno de caja e inventario, lista
+          para activar facturación electrónica cuando tu negocio lo decida. KipusPay se encarga del
+          envío a SUNAT.
         </p>
       {/if}
     {/if}

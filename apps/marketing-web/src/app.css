@@ -696,11 +696,11 @@ li {
 }
 
 .section-paper .eyebrow {
-  color: var(--amber);
+  color: #8c5a14;
 }
 
 .section-paper .knot-dot {
-  background: var(--amber);
+  background: #8c5a14;
 }
 
 .section-paper .section-lead {
@@ -1270,7 +1270,7 @@ li {
 .trust-idx {
   font-family: var(--font-mono);
   font-size: 0.82rem;
-  color: var(--amber);
+  color: #8c5a14;
   letter-spacing: 0.05em;
 }
 
@@ -2571,7 +2571,7 @@ li {
 .pillar-num {
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  color: var(--amber);
+  color: #8c5a14;
   letter-spacing: 0.06em;
   padding-top: 0.15rem;
 }

@@ -177,23 +177,23 @@ export const COMPARE_ROWS: readonly CompareRow[] = [
     kipus: 'Sigues vendiendo normal',
   },
   {
-    label: 'Implementacion',
+    label: 'Implementación',
     reported: 'Semanas, con instalador',
-    kipus: 'Minutos, tu solo',
+    kipus: 'Minutos, tú solo',
   },
   {
     label: 'Costo mensual',
-    reported: 'Cuotas altas + instalacion + soporte aparte',
+    reported: 'Cuotas altas + instalación + soporte aparte',
     kipus: 'Desde un plan claro, todo incluido',
   },
   {
     label: 'Soporte',
     reported: 'Ticket y espera',
-    kipus: 'Chat segun plan; prioritario Enterprise cuando el gate lo habilite',
+    kipus: 'Chat según plan; prioritario 24/7 en Enterprise',
   },
 ];
 
 /** Lo comparado es lo reportado por comercios, no una afirmacion sobre el producto ajeno. */
 export function compareDisclaimer(name: string): string {
-  return `Comparativa basada en lo que nos reportan comercios que migran y en informacion publica de ${name}. No representamos a ${name} ni usamos su marca para sugerir vinculo alguno.`;
+  return `Comparativa basada en lo que nos reportan comercios que migran y en información pública de ${name}. No representamos a ${name} ni usamos su marca para sugerir vínculo alguno.`;
 }

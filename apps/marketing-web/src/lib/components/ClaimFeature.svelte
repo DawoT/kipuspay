@@ -24,8 +24,8 @@
     <p>Lista para tu negocio hoy: cobra y ve tu día sin promesas de tiempo real.</p>
   {:else}
     <p>
-      Lo vemos en tu demo para que lo pruebes; se activa cuando esté lista para producción.
-      Hoy vendemos el dolor y lo que ya cobra en tu mostrador.
+      Disponible en tu demostración guiada. Próximamente activo para tu cuenta; hoy ya cuentas con
+      cobro continuo y control total de caja.
     </p>
   {/if}
 </div>

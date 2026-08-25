@@ -42,6 +42,10 @@
   <meta property="og:title" content="{SECURITY_PAGE.title} · KipusPay" />
   <meta property="og:description" content={SECURITY_PAGE.lede} />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{SECURITY_PAGE.title} · KipusPay" />
+  <meta name="twitter:description" content={SECURITY_PAGE.lede} />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/seguridad" />
 </svelte:head>
 

@@ -45,6 +45,10 @@
   <meta property="og:image" content={ogImageFor(data.landing.slug)} />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={pageTitle(data.landing.title)} />
+  <meta name="twitter:description" content={data.landing.metaDescription} />
+  <meta name="twitter:image" content={ogImageFor(data.landing.slug)} />
   <link rel="canonical" href={url} />
   <script type="application/ld+json">{@html breadcrumbLd}</script>
   <script type="application/ld+json">{@html faqLd}</script>

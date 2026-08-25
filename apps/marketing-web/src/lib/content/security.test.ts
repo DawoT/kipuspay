@@ -31,12 +31,13 @@ describe('security page content', () => {
     expect(SECURITY_PAGE.sla.body).toMatch(/Enterprise/);
   });
 
-  it('F-12: SLA detalla severidades SEV-1/SEV-2/SEV-3', () => {
+  it('F-12: SLA detalla niveles de soporte por prioridad de negocio sin jerga técnica (AUD-07)', () => {
     expect(SECURITY_PAGE.sla.severities).toHaveLength(3);
     const titles = SECURITY_PAGE.sla.severities.map((s) => s.title).join(' ');
-    expect(titles).toMatch(/SEV-1/);
-    expect(titles).toMatch(/SEV-2/);
-    expect(titles).toMatch(/SEV-3/);
+    expect(titles).toMatch(/Prioridad Crítica/);
+    expect(titles).toMatch(/Prioridad Alta/);
+    expect(titles).toMatch(/Prioridad Normal/);
+    expect(titles).not.toMatch(/SEV-\d/);
     const blob = SECURITY_PAGE.sla.severities.map((s) => `${s.title} ${s.body}`).join(' ');
     expect(blob).toMatch(/1 hora/);
     expect(blob).toMatch(/4 horas/);

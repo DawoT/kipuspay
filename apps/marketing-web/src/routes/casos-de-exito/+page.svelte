@@ -16,6 +16,13 @@
   />
   <meta property="og:title" content="Casos de éxito · KipusPay" />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Casos de éxito · KipusPay" />
+  <meta
+    name="twitter:description"
+    content="Historias reales de comercios que cobran con KipusPay, con permiso del dueño."
+  />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/casos-de-exito" />
   {#if cases.length === 0}
     <meta name="robots" content="noindex, follow" />

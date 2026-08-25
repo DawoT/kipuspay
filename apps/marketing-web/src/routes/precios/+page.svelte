@@ -82,6 +82,13 @@
   <meta property="og:title" content="Precios · KipusPay" />
   <meta property="og:description" content="Cuatro planes. Cupo transparente. Sin apagar la caja." />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Precios · KipusPay" />
+  <meta
+    name="twitter:description"
+    content="Cuatro planes. Cupo transparente. Sin apagar la caja."
+  />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/precios" />
   <script type="application/ld+json">{@html productLd}</script>
 </svelte:head>

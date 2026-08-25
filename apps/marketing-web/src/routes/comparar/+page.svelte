@@ -60,6 +60,10 @@
   <meta property="og:title" content="KipusPay vs {selected.name} · KipusPay" />
   <meta property="og:description" content={selected.metaDescription} />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="KipusPay vs {selected.name} · KipusPay" />
+  <meta name="twitter:description" content={selected.metaDescription} />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/comparar" />
 </svelte:head>
 

@@ -13901,3 +13901,40 @@ aprobaciones: [Staff QA, Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0486
+timestamp_utc: 2026-08-25T20:15:00Z
+schema_version: 2
+sprint_fase: Fase A (Remediación Integral AUD-01 a AUD-15) Marketing Web
+agente_responsable: Staff Principal (ejecución: marketing-copy; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: Remediación de Contenido, Copywriting B2B, SEO, Accesibilidad y Cumplimiento Legal INDECOPI
+relacion: amplia
+referencias_entradas: [0485]
+referencias_documentales: [apps/marketing-web/src/lib/content/legal.ts, apps/marketing-web/src/routes/reclamaciones/+page.svelte, apps/marketing-web/src/routes/comparar/[competidor]/+page.ts, apps/marketing-web/src/app.css, apps/marketing-web/src/lib/content/compare.ts, apps/marketing-web/src/lib/content/security.ts, apps/marketing-web/src/lib/content/help.ts, apps/marketing-web/src/routes/sitemap.xml/+server.ts]
+prev_id: 0485
+prev_hash: ceb1e9c1371dd214c7e1b662e76ddeba809cb1ef78674bc5b9a2d4c0f501ba6f
+entry_hash: 2e1024d03b17b641cf8865bbd6f9154e4510a385557a95d97820b61b283488cc
+ticket_or_adr: V-26, CAL-05, CAL-06
+test_ids: [apps/marketing-web/src/routes/reclamaciones/reclamaciones.test.ts, apps/marketing-web/src/routes/comparar/[competidor]/comparar-redirect.test.ts, apps/marketing-web/src/routes/sitemap.xml/sitemap.test.ts, apps/marketing-web/src/lib/seo.test.ts, apps/marketing-web/src/lib/claims/public-drift.test.ts, V-00, V-26, SUITE]
+entregable_afectado: apps/marketing-web (Libro de reclamaciones Ley 31435/DS 011-2011-PCM, routing comparar, contraste WCAG 2.1 AA, Twitter cards globales, sitemap XML estándar, limpieza de jerga gate/SEV, claims offline/FEFO/merma sincronizados, localización a español peruano y tildes ortográficas)
+descripcion: >
+  Remediación integral de los 15 hallazgos de auditoría (AUD-01 a AUD-15) en apps/marketing-web:
+  (1) AUD-01 y AUD-02 (Legal INDECOPI): plazo de Libro de Reclamaciones ajustado a 15 días hábiles improrrogables (Ley N° 31435) y campos obligatorios del D.S. 011-2011-PCM implementados (domicilio consumidor, selector producto/servicio, monto reclamado, pedido concreto y datos fiscales del proveedor KipusPay S.A.C. RUC 20612913251).
+  (2) AUD-03 y AUD-12 (SEO/Routing): corrección de params.competidor en comparar/[competidor]/+page.ts (redirección 301 funcional a bsale/alegra/siigo) e inclusión en sitemap.xml con namespace XML estándar.
+  (3) AUD-04 (a11y): ratio de contraste en .eyebrow/.trust-idx sobre fondo --paper elevado a #8c5a14 (> 4.5:1 WCAG 2.1 AA).
+  (4) AUD-06 (SEO): inyección global de Twitter Cards en app.html, layout y páginas clave.
+  (5) AUD-07 (Copy V-26): eliminación de jerga técnica interna ('gate', 'SEV-1/2/3' reemplazados por niveles de prioridad en lenguaje de negocio).
+  (6) AUD-08 y AUD-11 (GTM): cobro offline desbloqueado como 100% disponible en help.ts y claims de farmacias/cadenas (FEFO/merma) sincronizados como disponibles.
+  (7) AUD-05 y AUD-15 (a11y): árbol accesible restaurado en VerticalLandingView y vinculación for/id en labels/inputs.
+  (8) AUD-09, AUD-10, AUD-13 y AUD-14 (UX Writing & Localización): eliminación de frases de estrategia interna en ClaimFeature y Onboarding, corrección de voseo en FAQ 11 a español peruano y corrección ortográfica de tildes en todo el diccionario de contenido.
+evidencia: >
+  Marketing Web Vitest: 40 test files, 232 tests pasando al 100% (97.47% cobertura).
+  Typecheck y Linter: 0 errores, 0 advertencias.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 286.06 kB (< 300 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Copy Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

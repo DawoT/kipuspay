@@ -40,13 +40,13 @@ describe('documento maestro legal (M4A — versión final)', () => {
     });
   });
 
-  it('libro de reclamaciones con procedimiento y respuesta en 30 días calendario', () => {
+  it('libro de reclamaciones con procedimiento y respuesta en 15 días hábiles (Ley N° 31435)', () => {
     expect(RECLAMATIONS_PAGE.title).toContain('Reclamaciones');
     const blob = [
       RECLAMATIONS_PAGE.lede,
       ...RECLAMATIONS_PAGE.steps.map((s) => `${s.title} ${s.body}`),
     ].join(' ');
-    expect(blob).toMatch(/30 días calendario/);
+    expect(blob).toMatch(/15 días hábiles/);
     expect(blob).toMatch(/contacto@kipuspay\.com/);
     expect(blob).toMatch(/libro de reclamaciones/i);
     expect(RECLAMATIONS_PAGE.steps.length).toBeGreaterThanOrEqual(3);

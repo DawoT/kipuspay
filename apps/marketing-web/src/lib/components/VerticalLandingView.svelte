@@ -54,7 +54,7 @@
         <option value={v.slug}>{v.navLabel}</option>
       {/each}
     </select>
-    <ul class="rubro-links" aria-hidden="true">
+    <ul class="rubro-links">
       {#each allV as v (v.slug)}
         <li>
           <a href="/para/{v.slug}" class:active={v.slug === landing.slug}>

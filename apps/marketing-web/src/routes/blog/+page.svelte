@@ -13,6 +13,10 @@
   <meta property="og:title" content="Blog · KipusPay" />
   <meta property="og:description" content="Guías prácticas para el dueño del comercio." />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Blog · KipusPay" />
+  <meta name="twitter:description" content="Guías prácticas para el dueño del comercio." />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/blog" />
 </svelte:head>
 

@@ -30,7 +30,7 @@ test('empezar: 4 pasos → credenciales → redirect con token al POS', async ({
   await page.getByRole('button', { name: 'Continuar' }).click();
 
   await expect(page.getByText('Primera venta guiada')).toBeVisible();
-  await expect(page.getByText(/contingencia/)).toBeVisible();
+  await expect(page.getByText(/control interno/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click();
   await expect(page.getByTestId('onboarding-credentials')).toBeVisible();

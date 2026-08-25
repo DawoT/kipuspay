@@ -27,14 +27,21 @@
   <title>Centro de Ayuda · KipusPay</title>
   <meta
     name="description"
-    content="Respuestas claras sobre facturacion SUNAT, impresoras, modo offline y cierre de caja."
+    content="Respuestas claras sobre facturación SUNAT, impresoras, modo offline y cierre de caja."
   />
   <meta property="og:title" content="Centro de Ayuda · KipusPay" />
   <meta
     property="og:description"
-    content="Guias y respuestas sobre tu punto de venta y comprobantes."
+    content="Guías y respuestas sobre tu punto de venta y comprobantes."
   />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Centro de Ayuda · KipusPay" />
+  <meta
+    name="twitter:description"
+    content="Guías y respuestas sobre tu punto de venta y comprobantes."
+  />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/ayuda" />
   <script type="application/ld+json">{@html faqLd}</script>
 </svelte:head>

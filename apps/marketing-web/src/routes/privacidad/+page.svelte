@@ -11,6 +11,10 @@
   <meta property="og:title" content="{PRIVACY_PAGE.title} · KipusPay" />
   <meta property="og:description" content={PRIVACY_PAGE.lede} />
   <meta property="og:image" content={ogImageFor()} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{PRIVACY_PAGE.title} · KipusPay" />
+  <meta name="twitter:description" content={PRIVACY_PAGE.lede} />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/privacidad" />
 </svelte:head>
 

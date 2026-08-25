@@ -86,7 +86,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       { text: 'Venta por peso con balanza y comisiones de vendedor' },
     ],
     limits: ['Hasta 3 sucursales, cajas ilimitadas', 'Comprobantes con holgura de plan'],
-    upgradeGates: ['Cuarta sucursal', 'API de integraciones', 'Fidelizacion'],
+    upgradeGates: ['Cuarta sucursal', 'API de integraciones', 'Fidelización'],
     badge: 'Más elegido',
   },
   {
@@ -123,7 +123,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    monthlyLabel: 'Cotizacion personalizada',
+    monthlyLabel: 'Cotización personalizada',
     annualLabel: '—',
     monthlyCents: null,
     audience: 'Cadenas de 30+ locales, franquicias',

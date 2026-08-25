@@ -55,21 +55,20 @@ describe('help.ts content module', () => {
 
   it('F-11: claims congelados llevan availability preparing (guía Q1/Q7/§6)', () => {
     const items = allHelpCategories().flatMap((c) => c.items);
-    const frozenIds = [
-      'activar-facturacion',
-      'sin-internet',
-      'limite-offline',
-      'insights-diario',
-      'pedidos-whatsapp',
-      'membresias',
-    ];
+    const frozenIds = ['activar-facturacion', 'insights-diario', 'pedidos-whatsapp', 'membresias'];
     for (const id of frozenIds) {
       const item = items.find((i) => i.id === id);
       expect(item, `item ${id} debería existir`).toBeTruthy();
       expect(item?.availability).toBe('preparing');
     }
-    // Live claims no se marcan en preparación.
-    for (const id of ['nota-de-venta-vs-boleta', 'impresora-compatible', 'equipos-soporte']) {
+    // Live claims no se marcan en preparación (offline 100% disponible desde Arranque).
+    for (const id of [
+      'sin-internet',
+      'limite-offline',
+      'nota-de-venta-vs-boleta',
+      'impresora-compatible',
+      'equipos-soporte',
+    ]) {
       expect(items.find((i) => i.id === id)?.availability).toBeUndefined();
     }
   });

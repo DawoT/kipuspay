@@ -75,7 +75,7 @@ describe('home — arco narrativo GTM §5', () => {
       .toLowerCase();
     expect(faq).toMatch(/exporta/);
     expect(faq).toMatch(/csv/);
-    expect(faq).toMatch(/credito/);
+    expect(faq).toMatch(/cr[eé]dito/);
   });
 
   it('CTA final (5.10)', () => {

@@ -6,7 +6,7 @@ import { redirect } from '@sveltejs/kit';
  */
 export const prerender = false;
 
-export function load({ params }: { params: { competitor?: string } }) {
-  const vs = encodeURIComponent(params.competitor ?? 'bsale');
+export function load({ params }: { params: { competidor?: string } }) {
+  const vs = encodeURIComponent(params.competidor ?? 'bsale');
   redirect(301, `/comparar?vs=${vs}`);
 }

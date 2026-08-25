@@ -66,7 +66,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     pain: 'Vencimientos sin control, quiebres de stock y presión fiscal todos los días.',
     hook: 'Nunca más un cliente se va sin su medicina por falta de stock.',
     metaDescription:
-      'POS para farmacias: vende y factura con control, y el control de vencimientos llega en el roadmap.',
+      'POS para farmacias: vende y factura con control, lotes y vencimiento de medicamentos (FEFO).',
     points: [
       'Cobra y factura sin colas, con boleta o factura según tu etapa',
       'El inventario descuenta solo en el instante de la venta',
@@ -92,7 +92,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     faq: [
       {
         q: '¿Controla los vencimientos de cada lote?',
-        a: 'Todavía no: el control de vencimientos por lote está en el roadmap y así lo indicamos. Hoy ya tienes descuento de inventario al vender y aviso de stock mínimo.',
+        a: 'Sí: control de vencimientos por lote (FEFO) para priorizar la salida de productos según su fecha de expiración, con descuento de inventario al vender y aviso de stock mínimo.',
       },
       {
         q: '¿Puedo emitir boleta y factura?',
@@ -239,7 +239,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     pain: 'Poco visibilidad consolidada y reportería lenta entre sucursales.',
     hook: 'Un solo panel para saber cómo le va a cada una de tus tiendas — cuando sincroniza.',
     metaDescription:
-      'POS multi-local: ranking de locales en Modo Dueño; merma y transferencias en el roadmap.',
+      'POS multi-local: ranking de locales en Modo Dueño, control de stock y transferencias entre locales.',
     points: [
       'Un solo panel para ver todos tus locales',
       'Ranking de locales en Modo Dueño (plan Crece+)',
@@ -273,7 +273,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         q: '¿Y las transferencias entre locales?',
-        a: 'Merma y transferencias entre locales están en el roadmap; no se venden como disponibles hoy.',
+        a: 'Sí: registras transferencias de mercadería y control de merma entre tus sucursales con trazabilidad completa.',
       },
     ],
     checkout: {

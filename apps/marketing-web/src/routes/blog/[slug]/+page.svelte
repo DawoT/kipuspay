@@ -39,6 +39,10 @@
     <meta property="og:type" content="article" />
     <meta property="og:url" content={url} />
     <meta property="og:image" content={ogImageFor()} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={post.title} />
+    <meta name="twitter:description" content={post.excerpt} />
+    <meta name="twitter:image" content={ogImageFor()} />
     <link rel="canonical" href={url} />
     {#if articleLd}
       <script type="application/ld+json">{@html articleLd}</script>

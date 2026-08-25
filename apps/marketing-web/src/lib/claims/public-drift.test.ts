@@ -43,12 +43,12 @@ describe('visibilidad pública de claims (M1 — control interno vs público)', 
     }
   });
 
-  it('una vertical cuyos claims son todos disponibles nunca dice roadmap', () => {
-    const servicios = allVerticals().find((v) => v.slug === 'servicios');
-    expect(servicios).toBeDefined();
-    const copy = [...(servicios?.faq.map((f) => f.a) ?? []), servicios?.metaDescription ?? ''].join(
-      ' ',
-    );
-    expect(copy.toLowerCase()).not.toContain('roadmap');
+  it('las verticales cuyos claims son todos disponibles nunca dicen roadmap', () => {
+    for (const slug of ['servicios', 'farmacias', 'cadenas'] as const) {
+      const v = allVerticals().find((item) => item.slug === slug);
+      expect(v, `vertical ${slug} encontrada`).toBeDefined();
+      const copy = [...(v?.faq.map((f) => f.a) ?? []), v?.metaDescription ?? ''].join(' ');
+      expect(copy.toLowerCase(), `${slug} no debe decir roadmap`).not.toContain('roadmap');
+    }
   });
 });

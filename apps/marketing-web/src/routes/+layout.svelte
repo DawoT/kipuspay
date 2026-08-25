@@ -84,6 +84,13 @@
 
 <svelte:head>
   <meta name="theme-color" content="#14161c" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="KipusPay" />
+  <meta
+    name="twitter:description"
+    content="POS y facturación electrónica para comercios del Perú"
+  />
+  <meta name="twitter:image" content="https://kipuspay.com/media/og-kipuspay.png" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
@@ -108,7 +115,7 @@
 {#if !data.siteEnabled}
   <main class="soft-off" data-testid="marketing-soft-off">
     <p class="brand">KipusPay</p>
-    <h1>Sitio en preparacion</h1>
+    <h1>Sitio en preparación</h1>
     <p>Activa PUBLIC_FEATURE_MARKETING_SITE=1 para previsualizar el sitio de marketing.</p>
   </main>
 {:else}
@@ -284,14 +291,14 @@
     </p>
 
     <ul class="footer-seals">
-      <li>Tu informacion va cifrada</li>
+      <li>Tu información va cifrada</li>
       <li>Tus datos son tuyos</li>
-      <li>Soporte en espanol</li>
+      <li>Soporte en español</li>
       <li>Sin contratos largos</li>
     </ul>
 
     <p class="footer-legal">
-      KipusPay — POS y facturacion electronica para comercios del Peru. La aceptacion de cada
+      KipusPay — POS y facturación electrónica para comercios del Perú. La aceptación de cada
       comprobante siempre depende de SUNAT.
     </p>
   </footer>

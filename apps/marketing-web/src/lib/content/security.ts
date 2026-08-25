@@ -19,76 +19,76 @@ export interface SecurityPillar {
 export const SECURITY_PAGE = {
   title: 'Seguridad y confianza',
   headline: 'Tan seguro como tu banco. Tan simple como tu celular.',
-  lede: 'Tu caja es tu dinero. Aqui solo afirmamos lo que ya esta construido y probado — nada de sellos inventados.',
+  lede: 'Tu caja es tu dinero. Aquí solo afirmamos lo que ya está construido y probado — nada de sellos inventados.',
   pillars: [
     {
       id: 'encryption',
-      title: 'Tu informacion va cifrada, siempre.',
-      body: 'El trafico hacia KipusPay usa HTTPS. No guardamos secretos de pago ni claves privadas en texto plano en el dispositivo de caja.',
+      title: 'Tu información va cifrada, siempre.',
+      body: 'El tráfico hacia KipusPay usa HTTPS. No guardamos secretos de pago ni claves privadas en texto plano en el dispositivo de caja.',
     },
     {
       id: 'ownership',
       title: 'Tus datos son tuyos.',
-      body: 'Puedes exportar tu catalogo y tus ventas cuando quieras, incluso al momento de cancelar. El borrado de datos personales respeta la retencion fiscal que exige SUNAT: anonimizamos y conservamos el comprobante sin tu nombre.',
+      body: 'Puedes exportar tu catálogo y tus ventas cuando quieras, incluso al momento de cancelar. El borrado de datos personales respeta la retención fiscal que exige SUNAT: anonimizamos y conservamos el comprobante sin tu nombre.',
     },
     {
       id: 'sunat',
-      title: 'Acompanamiento para SUNAT.',
-      body: 'Cuando activas facturacion, KipusPay guia el envio y los plazos. La aceptacion final la decide SUNAT; nunca afirmamos "aceptado" antes de la respuesta oficial.',
+      title: 'Acompañamiento para SUNAT.',
+      body: 'Cuando activas facturación, KipusPay guía el envío y los plazos. La aceptación final la decide SUNAT; nunca afirmamos "aceptado" antes de la respuesta oficial.',
     },
     {
       id: 'support',
-      title: 'Soporte real, en espanol.',
-      body: 'Personas reales segun tu plan. El soporte prioritario Enterprise queda definido en el contrato de servicio de tu plan.',
+      title: 'Soporte real, en español.',
+      body: 'Personas reales según tu plan. El soporte prioritario Enterprise queda definido en el contrato de servicio de tu plan.',
     },
   ] as const satisfies readonly SecurityPillar[],
   disclaimers: [
-    'No publicamos badges de "cumple normativa" ni logos de terceros sin autorizacion y evidencia vigente.',
+    'No publicamos badges de "cumple normativa" ni logos de terceros sin autorización y evidencia vigente.',
     'La nota de venta de control interno no es comprobante autorizado por SUNAT.',
-    'Nunca apagamos la caja por un ticket de soporte o un pago de suscripcion en periodo de gracia.',
+    'Nunca apagamos la caja por un ticket de soporte o un pago de suscripción en periodo de gracia.',
   ] as const,
   /** Proceso real de envío — los pasos sí son una secuencia (numeración válida). */
   sunatFlow: {
-    eyebrow: 'Asi funciona el envio',
+    eyebrow: 'Así funciona el envío',
     heading: 'De tu caja a SUNAT, paso a paso.',
     steps: [
       {
         title: 'Vendes y el documento se genera',
-        body: 'La venta queda registrada al instante, con o sin internet. El comprobante nace en el momento del cobro, no despues.',
+        body: 'La venta queda registrada al instante, con o sin internet. El comprobante nace en el momento del cobro, no después.',
       },
       {
-        title: 'KipusPay lo envia por ti',
-        body: 'Al activar la facturacion, el envio a SUNAT ocurre solo: las facturas se envian de inmediato y las boletas se agrupan en el resumen del dia.',
+        title: 'KipusPay lo envía por ti',
+        body: 'Al activar la facturación, el envío a SUNAT ocurre solo: las facturas se envían de inmediato y las boletas se agrupan en el resumen del día.',
       },
       {
         title: 'Se acerca un plazo y te avisamos',
-        body: 'Si algo esta por vencer (envios pendientes o bajas), la caja y el Modo Dueno te avisan antes de que el plazo te gane.',
+        body: 'Si algo está por vencer (envíos pendientes o bajas), la caja y el Modo Dueño te avisan antes de que el plazo te gane.',
       },
       {
         title: 'SUNAT responde y eso es lo que cuenta',
-        body: 'La aceptacion la decide SUNAT. KipusPay muestra el estado real de cada comprobante: pendiente, aceptado o rechazado. Nada de "aceptado" anticipado.',
+        body: 'La aceptación la decide SUNAT. KipusPay muestra el estado real de cada comprobante: pendiente, aceptado o rechazado. Nada de "aceptado" anticipado.',
       },
     ],
   },
   retention: {
-    heading: 'Cuanto guardamos y por que',
-    body: 'Los comprobantes fiscales se conservan alrededor de 5 anos, como exige SUNAT. Si un cliente pide borrar sus datos, anonimizamos su nombre, correo, telefono y direccion; los comprobantes se conservan sin su nombre. El borrado no es "cuando quieras": la retencion fiscal va primero y siempre lo decimos.',
+    heading: 'Cuánto guardamos y por qué',
+    body: 'Los comprobantes fiscales se conservan alrededor de 5 años, como exige SUNAT. Si un cliente pide borrar sus datos, anonimizamos su nombre, correo, teléfono y dirección; los comprobantes se conservan sin su nombre. El borrado no es "cuando quieras": la retención fiscal va primero y siempre lo decimos.',
   },
   sla: {
-    heading: 'Soporte segun tu plan',
-    body: 'Arranque y Crece incluyen soporte por chat, en espanol, con personas reales. Cadena incluye account manager dedicado. Enterprise firma un contrato de servicio con soporte prioritario y tiempos definidos; Crece no lo promete.',
+    heading: 'Soporte según tu plan',
+    body: 'Arranque y Crece incluyen soporte por chat, en español, con personas reales. Cadena incluye account manager dedicado. Enterprise firma un contrato de servicio con soporte prioritario y tiempos definidos; Crece no lo promete.',
     severities: [
       {
-        title: 'SEV-1 · La caja no cobra',
-        body: 'Respuesta en 1 hora calendario en Enterprise (atencion continua) y 4 horas habiles en el resto de planes.',
+        title: 'Prioridad Crítica: Interrupción del cobro',
+        body: 'Respuesta en 1 hora calendario en Enterprise (atención continua) y 4 horas hábiles en el resto de planes.',
       },
       {
-        title: 'SEV-2 · Degradacion fiscal',
-        body: 'Respuesta en 4 horas habiles en Enterprise y 1 dia habil en el resto de planes (envios o bajas ante SUNAT por vencer).',
+        title: 'Prioridad Alta: Trámites tributarios',
+        body: 'Respuesta en 4 horas hábiles en Enterprise y 1 día hábil en el resto de planes (envíos o bajas ante SUNAT por vencer).',
       },
       {
-        title: 'SEV-3 · Consultas y configuracion',
-        body: 'Respuesta en 1 dia habil en Enterprise y 2 dias habiles en el resto de planes. El canal oficial es soporte@kipuspay.com.',
+        title: 'Prioridad Normal: Consultas y configuración',
+        body: 'Respuesta en 1 día hábil en Enterprise y 2 días hábiles en el resto de planes. El canal oficial es soporte@kipuspay.com.',
       },
     ],
   },

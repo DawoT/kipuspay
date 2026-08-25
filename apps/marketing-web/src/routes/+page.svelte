@@ -38,10 +38,10 @@
 </script>
 
 <svelte:head>
-  <title>KipusPay — El unico POS que no se cae contigo</title>
+  <title>KipusPay — El único POS que no se cae contigo</title>
   <meta
     name="description"
-    content="Vende, cobra y factura aunque se corte el internet. POS y facturacion para comercios en Peru."
+    content="Vende, cobra y factura aunque se corte el internet. POS y facturación para comercios en el Perú."
   />
   <meta property="og:title" content="KipusPay" />
   <meta property="og:description" content={HOME.subheadline} />
@@ -50,6 +50,10 @@
   <meta property="og:image" content={ogImageFor()} />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="KipusPay — El único POS que no se cae contigo" />
+  <meta name="twitter:description" content={HOME.subheadline} />
+  <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/" />
   <script type="application/ld+json">{@html faqLd}</script>
   <script type="application/ld+json">{@html itemsLd}</script>
