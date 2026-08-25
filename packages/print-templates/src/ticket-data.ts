@@ -12,6 +12,14 @@ export interface TicketItem {
   readonly totalCents: number;
 }
 
+/** Adquirente o usuario (RS 097-2012 anexo 2): denominación + documento. */
+export interface TicketBuyer {
+  readonly name?: string | undefined;
+  /** Catálogo 06: '1' DNI, '4' RUC, '6' pasaporte, '7' carné de extranjería. */
+  readonly docType?: string | undefined;
+  readonly docNumber?: string | undefined;
+}
+
 export interface TicketData {
   readonly enterprise: string;
   /** RUC del tenant; ausente en NV/control interno donde aún no aplica RUC fiscal. */
@@ -25,6 +33,12 @@ export interface TicketData {
   readonly digestValue?: string | undefined;
   /** Payload QR fiscal (texto); vacío en NV. */
   readonly qrPayload?: string | undefined;
+  /** H2 (auditoría 0031): fecha de emisión ISO yyyy-mm-dd (CPE). */
+  readonly issueDateIso?: string | undefined;
+  /** H2: sumatoria IGV en cents (desglose obligatorio en representación CPE). */
+  readonly igvCents?: number | undefined;
+  /** H2: adquirente o usuario (denominación + documento). */
+  readonly buyer?: TicketBuyer | undefined;
   readonly lineWidth: number;
   /** Backlog v10 P2: propina del cobro (línea informativa, sin IGV). */
   readonly tipCents?: number | undefined;

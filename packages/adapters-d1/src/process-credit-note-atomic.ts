@@ -532,7 +532,11 @@ export async function processCreditNoteAtomic(
     });
 
     // E-A (§8): la NC sin CDR del origen no se encola — jamás viaja a SUNAT.
-    if (!eaNoCdr && xmlChannel === 'UNIT_XML' && mustSubmitByIso) {
+    // Canal UNIT_XML (NC de factura): la envía el drain unitario. Canal RC
+    // (NC de boleta, spec §5.2): fila PENDING que el drain libera (SKIP_RC)
+    // y el cron del Resumen Diario entrega vía buildDailySummary → CDR.
+    // Canal NONE: fail-closed — sin canal resuelto no hay cola.
+    if (!eaNoCdr && xmlChannel !== 'NONE' && mustSubmitByIso) {
       plan.add(
         db
           .prepare(

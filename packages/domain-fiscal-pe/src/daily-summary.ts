@@ -1,5 +1,7 @@
 /**
  * Resumen Diario (RC) — FIS-03: un RC por emisor/día (tenant_id + summary_date).
+ * H1 (auditoría 0031): además de boletas (03/12), el RC lleva las NC/ND
+ * (07/08) vinculadas a boletas — regla SUNAT §5.2 (nunca XML unitario).
  */
 
 export interface BoletaForRc {
@@ -24,7 +26,10 @@ export function assertRcKeyIsEmisorDay(tenantId: string, summaryDate: string): v
   if (!/^\d{4}-\d{2}-\d{2}$/.test(summaryDate)) throw new Error('RC_DATE_INVALID');
 }
 
-/** Agrupa boletas del día; branch_id NO es clave del RC. */
+/** Documentos que viajan dentro del sobre RC (spec §5.2). */
+const RC_LINE_DOCUMENT_TYPES: ReadonlySet<string> = new Set(['03', '12', '07', '08']);
+
+/** Agrupa boletas y notas sobre boletas del día; branch_id NO es clave del RC. */
 export function planDailySummary(
   tenantId: string,
   summaryDate: string,
@@ -34,7 +39,7 @@ export function planDailySummary(
   const saleIds: string[] = [];
   const voidSaleIds: string[] = [];
   for (const b of boletas) {
-    if (b.documentType !== '03' && b.documentType !== '12') continue;
+    if (!RC_LINE_DOCUMENT_TYPES.has(b.documentType)) continue;
     saleIds.push(b.saleId);
     if (b.voidStatus === 'VOID_PENDING_RC' || b.voidStatus === 'VOIDED') {
       voidSaleIds.push(b.saleId);

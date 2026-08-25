@@ -25,6 +25,16 @@ export interface PrintTicketSnapshot {
   readonly lineWidth: number;
   readonly digestValue?: string;
   readonly qrPayload?: string;
+  /** H2 (auditoría 0031): fecha de emisión ISO yyyy-mm-dd (CPE). */
+  readonly issueDateIso?: string;
+  /** H2: sumatoria IGV en cents. */
+  readonly igvCents?: number;
+  /** H2: adquirente o usuario (denominación + documento). */
+  readonly buyer?: {
+    readonly name?: string;
+    readonly docType?: string;
+    readonly docNumber?: string;
+  };
   /** S12-H2: pie de marca "Emitido con KipusPay" (opcional, opt-out tenant). */
   readonly brandFooter?: TicketBrandFooter;
 }

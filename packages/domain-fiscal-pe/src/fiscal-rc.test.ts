@@ -54,6 +54,38 @@ describe('daily-summary FIS-03', () => {
     expect(() => planDailySummary('t', '2026-08-01', [])).toThrow('RC_NO_BOLETAS');
   });
 
+  it('H1: NC/ND (07/08) sobre boleta entran al plan del RC; factura (01) jamás', () => {
+    const plan = planDailySummary('t1', '2026-08-01', [
+      {
+        saleId: 'nc',
+        branchId: 'b1',
+        documentType: '07',
+        totalAmountCents: 500,
+        voidStatus: 'NONE',
+        issuedAtMs: 1,
+      },
+      {
+        saleId: 'nd',
+        branchId: 'b1',
+        documentType: '08',
+        totalAmountCents: 300,
+        voidStatus: 'NONE',
+        issuedAtMs: 1,
+      },
+      {
+        saleId: 'factura',
+        branchId: 'b1',
+        documentType: '01',
+        totalAmountCents: 100,
+        voidStatus: 'NONE',
+        issuedAtMs: 1,
+      },
+    ]);
+    expect(plan.saleIds).toEqual(['nc', 'nd']);
+    expect(plan.ticketCount).toBe(2);
+    expect(plan.voidSaleIds).toEqual([]);
+  });
+
   it('Z no dispara RC', () => {
     expect(cashCloseMustNotTriggerRc()).toBe(false);
   });

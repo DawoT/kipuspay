@@ -367,6 +367,56 @@ describe('fiscal drain FIFO', () => {
     expect(db.state.find((r) => r.id === 'b1')?.status).toBe('PENDING');
   });
 
+  // H1 (auditoría 0031): NC/ND sobre boleta viajan por el RC, no como XML
+  // unitario. El drain las reclama, clasifica canal RC vía referenced doc y
+  // las libera a PENDING para que el cron del Resumen Diario las entregue.
+  it.each([
+    ['07', 'NC'],
+    ['08', 'ND'],
+  ] as const)(
+    'H1: %s sobre boleta (ref 03) → SKIP_RC liberada a PENDING para el cron RC',
+    async (docType) => {
+      const db = memoryDb([]);
+      const r2 = memoryR2();
+      db.state.push({
+        id: `note-${docType}`,
+        tenant_id: 't',
+        sale_id: `s-note-${docType}`,
+        status: 'PENDING',
+        attempt_count: 0,
+        must_submit_by: '2026-08-20T00:00:00.000Z',
+        document_type: docType,
+        referenced_document_type: '03',
+        created_at: new Date().toISOString(),
+      } as unknown as MockRow);
+
+      let submitCalls = 0;
+      const transport: FiscalTransport = {
+        mode: 'MOCK_STAGING',
+        submit: () => {
+          submitCalls += 1;
+          return Promise.resolve({
+            kind: 'accepted',
+            cdr: { cdrCode: '0', cdrDescription: 'OK', accepted: true },
+          });
+        },
+        queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'OK', accepted: true }),
+      };
+
+      const result = await drainFiscalOutbox({
+        db,
+        r2,
+        transport,
+        isBreakerOpen: () => Promise.resolve(false),
+        onInfraFailure: () => Promise.resolve(),
+      });
+      expect(result.skippedRc).toBe(1);
+      expect(result.accepted).toBe(0);
+      expect(submitCalls).toBe(0);
+      expect(db.state.find((r) => r.id === `note-${docType}`)?.status).toBe('PENDING');
+    },
+  );
+
   it('canal live + XML sin ds:Signature → QUARANTINED, 0 ACCEPTED', async () => {
     const r2 = memoryR2();
     const key = await putFiscalXml(r2, 't', 's1', '<Invoice><cbc:ID>F001-1</cbc:ID></Invoice>');

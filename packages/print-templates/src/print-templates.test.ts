@@ -166,3 +166,67 @@ describe('Backlog v10 P2 — propina y cajón', () => {
     expect(Array.from(bytes)).toEqual([0x1b, 0x70, 0x00, 0x19, 0xfa]);
   });
 });
+
+// HALLAZGO H2 (auditoría 0031): la representación impresa carecía de fecha de
+// emisión, IGV desglosado, adquirente y denominación oficial — requisitos del
+// anexo 2 de RS 097-2012 y RS 402-2019 (QR obligatorio).
+describe('representación impresa CPE (RS 097-2012 anexo 2 / RS 402-2019)', () => {
+  const cpe = ticket({
+    documentType: '01',
+    digestValue: 'd1',
+    qrPayload: '20512345678|01|F001|00000001|18.00|118.00|2026-08-24|1|44443333|d1',
+    issueDateIso: '2026-08-24',
+    igvCents: 1800,
+    buyer: { name: 'Comercial Andina SAC', docType: '1', docNumber: '44443333' },
+    lineWidth: 48,
+  });
+
+  it('HTML imprime denominación oficial ("FACTURA ELECTRÓNICA")', () => {
+    expect(buildTicketHtml(cpe)).toContain('FACTURA ELECTRÓNICA');
+  });
+
+  it('HTML imprime fecha de emisión', () => {
+    expect(buildTicketHtml(cpe)).toContain('Fecha de emisión: 2026-08-24');
+  });
+
+  it('HTML imprime IGV desglosado', () => {
+    expect(buildTicketHtml(cpe)).toContain('IGV: S/ 18.00');
+  });
+
+  it('HTML imprime adquirente (denominación + tipo/número de documento)', () => {
+    const html = buildTicketHtml(cpe);
+    expect(html).toContain('Comercial Andina SAC');
+    expect(html).toContain('DNI: 44443333');
+  });
+
+  it('HTML renderiza el QR como SVG cuando el transport inyecta el renderer', () => {
+    const html = buildTicketHtml(cpe, {
+      qrSvg: (payload) => `<svg data-payload="${payload}"></svg>`,
+    });
+    expect(html).toContain('<svg data-payload="20512345678|01|F001');
+    expect(html).not.toContain('>QR: 20512345678');
+  });
+
+  it('sin renderer mantiene el fallback textual (compatibilidad system_print legacy)', () => {
+    expect(buildTicketHtml(cpe)).toContain('QR: 20512345678');
+  });
+
+  it('ESC/POS imprime denominación oficial, fecha, IGV y adquirente', () => {
+    const text = new TextDecoder().decode(buildEscPosPayload(cpe));
+    expect(text).toContain('FACTURA ELECTRÓNICA');
+    expect(text).toContain('Fecha de emisión: 2026-08-24');
+    expect(text).toContain('IGV: S/ 18.00');
+    expect(text).toContain('Adquirente: Comercial Andina SAC');
+    expect(text).toContain('DNI: 44443333');
+  });
+
+  it('NV no imprime bloques fiscales aunque lleguen campos residuales', () => {
+    const nv = ticket({ issueDateIso: '2026-08-24', igvCents: 1800 });
+    const html = buildTicketHtml(nv);
+    expect(html).not.toContain('IGV:');
+    expect(html).not.toContain('Fecha de emisión');
+    const esc = new TextDecoder().decode(buildEscPosPayload(nv));
+    expect(esc).not.toContain('IGV:');
+    expect(esc).not.toContain('Fecha de emisión');
+  });
+});

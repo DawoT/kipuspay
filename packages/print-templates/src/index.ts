@@ -1,5 +1,13 @@
 export { resolveLineWidth, maxItemNameLen } from './line-width.js';
 export {
+  buildFiscalQrPayload,
+  officialDocumentNameFor,
+  buyerDocLabel,
+  type FiscalCpeType,
+  type FiscalQrInput,
+} from './fiscal-qr.js';
+export { qrMatrixToSvg, type QrMatrixLike, type QrSvgOptions } from './qr-svg.js';
+export {
   NV_TICKET_LEGEND,
   CPE_TICKET_LEGEND,
   CPE_PENDING_TICKET_LEGEND,
@@ -9,7 +17,7 @@ export { formatTicketCents } from './format-cents.js';
 export { sanitizePrinterText } from './sanitize.js';
 export { buildEscPosPayload, openDrawerBytes } from './build-escpos.js';
 export { buildGsKQrCommands } from './escpos-qr.js';
-export { buildTicketHtml } from './build-html.js';
+export { buildTicketHtml, type TicketHtmlRenderers } from './build-html.js';
 export {
   printTicket,
   createBrowserPrintPort,
@@ -46,4 +54,4 @@ export {
   type PriceLabelSnapshot,
   type PriceLabelTemplateV1,
 } from './price-labels.js';
-export type { TicketData, TicketItem, TicketBrandFooter } from './ticket-data.js';
+export type { TicketData, TicketItem, TicketBuyer, TicketBrandFooter } from './ticket-data.js';

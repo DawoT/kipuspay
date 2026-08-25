@@ -241,7 +241,11 @@ export async function processDebitNoteAtomic(
       documentType: '08',
     });
 
-    if (xmlChannel === 'UNIT_XML') {
+    // Canal UNIT_XML (ND de factura): la envía el drain unitario. Canal RC
+    // (ND de boleta, spec §5.2): fila PENDING que el drain libera (SKIP_RC)
+    // y el cron del Resumen Diario entrega vía buildDailySummary → CDR.
+    // Canal NONE: fail-closed — sin canal resuelto no hay cola.
+    if (xmlChannel !== 'NONE') {
       plan.add(
         db
           .prepare(

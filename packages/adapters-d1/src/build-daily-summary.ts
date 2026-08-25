@@ -1,6 +1,8 @@
 /**
  * buildDailySummaryCron — RC PRIMARY por (tenant_id, summary_date) FIS-03.
  * CDR vía puerto inyectable (mock PSE en worker). No se dispara desde arqueo Z.
+ * H1 (auditoría 0031): el sobre lleva boletas/tickets (03/12) y las NC/ND
+ * (07/08) vinculadas a boletas — regla SUNAT §5.2 (nunca XML unitario).
  */
 import {
   buildUblSummaryDocumentsXml,
@@ -58,6 +60,20 @@ interface RcXmlRow {
   readonly total_taxable_cents: number;
   readonly total_igv_cents: number;
   readonly total_amount_cents: number;
+  /** H1: motivo cat. 09/10 de la nota (07/08) — define la condición cat. 19. */
+  readonly credit_note_motive_code: string | null;
+}
+
+/**
+ * H1 (auditoría 0031): condición de línea del RC (catálogo 19 — 1=adición,
+ * 3=baja). Boletas: baja solo con anulación pendiente de RC. Notas (07/08)
+ * sobre boleta: primera inclusión → adición; la NC de anulación (motivo '01'
+ * cat. 09, "Anulacion de la operacion") reporta la baja de la operación.
+ */
+function rcLineConditionCode(r: RcXmlRow): '1' | '3' {
+  if (r.document_type === '07') return r.credit_note_motive_code === '01' ? '3' : '1';
+  if (r.document_type === '08') return '1';
+  return r.void_status === 'VOID_PENDING_RC' ? '3' : '1';
 }
 
 interface RcXmlTenant {
@@ -93,11 +109,20 @@ async function buildRcEnvelopeXml(input: {
     issuerName: tenant.business_name,
     lines: input.rows.map((r, i) => ({
       lineId: i + 1,
-      documentType: r.document_type === '12' ? '12' : '03',
+      // H1: tipo real por línea — boleta (03), ticket (12) y notas sobre
+      // boleta (07/08). Jamás se colapsan: SUNAT valida el tipo del CPE.
+      documentType:
+        r.document_type === '12'
+          ? '12'
+          : r.document_type === '07'
+            ? '07'
+            : r.document_type === '08'
+              ? '08'
+              : '03',
       documentId: `${r.series}-${String(r.number).padStart(8, '0')}`,
       customerDocType: r.client_document_type || '1',
       customerDocNumber: r.client_document_number || '00000000',
-      conditionCode: r.void_status === 'VOID_PENDING_RC' ? '3' : '1',
+      conditionCode: rcLineConditionCode(r),
       totalTaxableCents: r.total_taxable_cents,
       totalIgvCents: r.total_igv_cents,
       totalAmountCents: r.total_amount_cents,
@@ -143,15 +168,30 @@ export async function buildDailySummary(
       pse_mode: string | null;
     }>();
 
+  // H1 (auditoría 0031): el RC lleva boletas/tickets (03/12) Y las notas
+  // (07/08) cuyo documento afectado es boleta/ticket — regla SUNAT §5.2.
+  // Las notas sobre facturas viajan UNIT_XML y jamás entran aquí.
   const boletas = await db
     .prepare(
       `SELECT id, branch_id, document_type, series, number, client_document_type,
               client_document_number, total_amount_cents, total_taxable_cents,
-              total_igv_cents, void_status, issued_at_lima, sunat_status
+              total_igv_cents, void_status, issued_at_lima, sunat_status,
+              credit_note_motive_code
        FROM sales
        WHERE tenant_id = ?
          AND deleted_at IS NULL
-         AND document_type IN ('03','12')
+         AND (
+           document_type IN ('03','12')
+           OR (
+             document_type IN ('07','08')
+             AND EXISTS (
+               SELECT 1 FROM sales orig
+               WHERE orig.tenant_id = sales.tenant_id
+                 AND orig.id = sales.referenced_sale_id
+                 AND orig.document_type IN ('03','12')
+             )
+           )
+         )
          AND sunat_status IN ('PENDING','PROCESSING','ACCEPTED','DEADLINE_EXCEEDED')
          AND daily_summary_id IS NULL
          AND date(issued_at_lima) = ?`,
@@ -171,6 +211,7 @@ export async function buildDailySummary(
       void_status: string;
       issued_at_lima: string;
       sunat_status: string;
+      credit_note_motive_code: string | null;
     }>();
 
   const rcType = existing ? 'COMPLEMENTARY' : 'PRIMARY';
@@ -350,12 +391,26 @@ export async function runDailySummarySweep(
   },
 ): Promise<DailySummarySweepResult> {
   const limit = input.limit ?? 500;
+  // H1: mismo criterio de elegibilidad que buildDailySummary — boletas/tickets
+  // y notas (07/08) sobre boleta. Sin esto, un tenant cuya única deuda fiscal
+  // del día es una nota jamás sería descubierto por el barrido.
   const pending = await db
     .prepare(
       `SELECT DISTINCT tenant_id
        FROM sales
        WHERE deleted_at IS NULL
-         AND document_type IN ('03','12')
+         AND (
+           document_type IN ('03','12')
+           OR (
+             document_type IN ('07','08')
+             AND EXISTS (
+               SELECT 1 FROM sales orig
+               WHERE orig.tenant_id = sales.tenant_id
+                 AND orig.id = sales.referenced_sale_id
+                 AND orig.document_type IN ('03','12')
+             )
+           )
+         )
          AND sunat_status IN ('PENDING','PROCESSING','ACCEPTED','DEADLINE_EXCEEDED')
          AND daily_summary_id IS NULL
          AND date(issued_at_lima) = ?

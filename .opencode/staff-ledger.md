@@ -1397,3 +1397,108 @@ aprobaciones: ["A: pendiente Staff Fiscal (hallazgos para backlog)", "V: gate do
 estado_gov: GOV-PENDIENTE
 estado: Vigente
 ```
+
+```
+id: 0032
+timestamp_utc: 2026-08-25T03:08:45Z
+schema_version: 2
+sprint_fase: Transversal — Remediación H2 (auditoría 0031, GAP-PRODUCTO)
+agente_responsable: Kipus Hardware/Print
+tipo: Implementación
+subtipo: Payload QR fiscal RS 402-2019 + representación impresa CPE completa (TDD)
+relacion: remedia
+referencias_entradas: [0031]
+referencias_documentales: ["packages/print-templates/src/fiscal-qr.ts", "packages/print-templates/src/qr-svg.ts", "packages/print-templates/src/build-html.ts", "packages/print-templates/src/build-escpos.ts", "apps/pos-web/src/lib/print/offload-compile.ts", "apps/pos-web/src/lib/print/printer-transport.ts", "apps/pos-web/src/lib/vendor/qrcode.mjs"]
+prev_id: 0031
+prev_hash: f4a3952e4b5eb865b14f629c67ed7e857875c2fc55515248328912e60a7d853c
+test_ids: [packages/print-templates/src/fiscal-qr.test.ts, packages/print-templates/src/qr-svg.test.ts, packages/print-templates/src/fiscal-qr.integration.test.ts, packages/print-templates/src/print-templates.test.ts, apps/pos-web/src/lib/print/offload-compile.fiscal.test.ts]
+entregable_afectado: hardware.print_templates (tickets CPE/NV 58/80); sin cambios de contrato DDL ni API
+descripcion: >
+  Cierra H2 de la auditoría 0031. (1) Builder buildFiscalQrPayload en
+  print-templates: cadena pipe de 10 campos en orden normativo RUC|TIPO|
+  SERIE|NUMERO(8d)|MTO IGV|MTO TOTAL|FECHA(yyyy-mm-dd)|TIPO DOC ADQ|NUM DOC
+  ADQ|CODIGO HASH según anexo de representación impresa RS 402-2019/SUNAT
+  (verificado con websearch contra manuales de integración que citan el anexo
+  textualmente; el QR normativo NO es URL de consulta sino la cadena pipe;
+  montos n(12,2) desde INTEGER cents, adquirente "-" si no aplica; validación
+  fail-closed rechaza QR parciales). Punto único de construcción en flujo POS:
+  buildSaleTicketSnapshot arma el payload solo con datos CPE completos (tipo
+  fiscal + RUC + hash + fecha); CPE pendiente o NV no llevan QR. (2) QR
+  renderizado zero-dep: qrMatrixToSvg (matriz→SVG, Web Platform APIs puro)
+  consumiendo el generador vendorizado MIT ya existente en pos-web (cero npm
+  nuevo, invariante 10); system_print inyecta el renderer, ESC/POS mantiene GS
+  ( k nativo. (3) Plantillas HTML+ESC/POS completan campos faltantes del anexo
+  2 RS 097-2012: denominación oficial (FACTURA ELECTRÓNICA/BOLETA DE VENTA
+  ELECTRÓNICA/NC/ND), fecha de emisión, IGV desglosado y adquirente
+  (denominación + tipo/número doc catálogo 06). TicketData/PrintTicketSnapshot
+  extienden issueDateIso/igvCents/buyer opcionales; NV jamás imprime bloques
+  fiscales. Alcance respetado: sin tocar worker-fiscal/adapters-d1 (agente
+  paralelo) ni docs/LEDGER.md.
+evidencia: >
+  TDD RED→GREEN: 6 tests de plantilla + builder/matriz inexistentes RED,
+  luego GREEN. Suites: print-templates 67 unit + 4 integration GREEN
+  (lint/typecheck/prettier OK); pos-web print 38 GREEN (svelte-check 0).
+  Evidencia 2 modelos simulados (fiscal-qr.integration.test.ts): térmica
+  ESC/POS 58mm/32col y 80mm/48col decodificando bytes (layout completo +
+  payload íntegro dentro de GS ( k) y SystemPrint HTML con matriz real del
+  generador vendorizado (finder pattern ISO 18004 verificado, módulos SVG =
+  módulos oscuros). scripts/verify.sh RESULT SUITE GREEN; bundle pos-web
+  276.91 kB < 300 kB (CAL-06/V-24); cero dependencias npm nuevas. Sin commits.
+ancestry_verified: true
+aprobaciones: ["A: pendiente Staff Hardware (remediación H2 para revisión)", "V: gate documental SUITE GREEN + suites locales GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+entry_hash: 03cc27df1a23453ee7939ab409d49352284e3d1fb94a7ad1c89d6074a6d3e8c6
+```
+
+```
+id: 0033
+timestamp_utc: 2026-08-25T03:20:00Z
+schema_version: 2
+sprint_fase: Transversal — Remediación H1 (auditoría 0031, BLOQUEANTE-CONDICIONAL)
+agente_responsable: Kipus ACID (Motor Transaccional)
+tipo: Implementación
+subtipo: NC/ND sobre boletas viajan por RC — canal fiscal completo (TDD)
+relacion: remedia
+referencias_entradas: [0031]
+referencias_documentales: ["packages/adapters-d1/src/process-credit-note-atomic.ts", "packages/adapters-d1/src/process-debit-note-atomic.ts", "packages/adapters-d1/src/build-daily-summary.ts", "packages/domain-fiscal-pe/src/daily-summary.ts", "apps/worker-fiscal/src/fiscal-drain.ts"]
+prev_id: 0032
+prev_hash: 03cc27df1a23453ee7939ab409d49352284e3d1fb94a7ad1c89d6074a6d3e8c6
+entry_hash: 463c579e9a49b298ab3230ad5338d22c31dba5d8a08478384dea409947f1d5b1
+test_ids: [packages/domain-fiscal-pe/src/fiscal-rc.test.ts, apps/worker-fiscal/src/fiscal-drain.test.ts, packages/adapters-d1/src/fiscal-rc-notes.integration.test.ts, packages/adapters-d1/src/process-debit-note-atomic.integration.test.ts, packages/adapters-d1/src/process-offline-sale-atomic.integration.test.ts]
+entregable_afectado: fiscal.rc_channel (NC/ND over boleta); sin cambios de contrato DDL ni API
+descripcion: >
+  Cierra H1 de la auditoría 0031: las NC (07)/ND (08) vinculadas a boletas
+  ('03') clasificaban canal RC pero nadie las enviaba — el outbox solo
+  insertaba UNIT_XML (process-credit-note-atomic.ts:535 /
+  process-debit-note-atomic.ts:244) y el RC solo armaba '03'/'12'
+  (build-daily-summary.ts:154 + planDailySummary daily-summary.ts:37 +
+  sweep :358); quedaban PENDING hasta DEADLINE_EXCEEDED. Fix en 4 puntos:
+  (1) procesos atómicos insertan fila outbox PENDING cuando el canal es RC
+  (condición xmlChannel !== 'NONE'; E-A intacta — NC sin CDR del origen jamás
+  se encola; UNIT_XML de factura sin cambios); (2) query del RC y del sweep
+  incluyen 07/08 con EXISTS sobre origen 03/12 vía referenced_sale_id;
+  (3) líneas UBL con tipo real 07/08 + condición catálogo 19 por motivo
+  (NC motivo 01 → baja '3'; resto adición '1') y credit_note_motive_code en
+  RcXmlRow; (4) planDailySummary acepta 07/08 para marcar daily_summary_id +
+  sunat_status (sin re-listado infinito). Entrega verificada end-to-end:
+  drain reclama → outboxDeliveryChannel('07'|'08', ref '03') = RC → SKIP_RC
+  libera a PENDING → cron buildDailySummary arma SummaryDocuments → CDR.
+  Guardrails respetados: sunat-channel, nd-motive-catalog y camino UNIT_XML
+  de notas sobre factura intactos; db.batch único, cero UPSERT.
+evidencia: >
+  TDD RED→GREEN con causas exactas: RED dominio (RC_NO_BOLETAS al incluir
+  07/08), RED integración H1-a/b (fila outbox undefined), H1-c/e
+  (ALREADY_EXISTS en vez de SUCCESS — la query no veía notas), sweep ([]).
+  GREEN: domain-fiscal-pe 181 unit; worker-fiscal 74 unit (incluye SKIP_RC
+  de 07/08 ref '03'); adapters-d1 449 unit + 319 integration (42 archivos),
+  incl. regresión ND/NC-over-factura UNIT_XML, caos de duplicado
+  (NC_EXCEEDS_RESIDUAL, 1 sola fila outbox, serie intacta) y validación
+  assertValidSummaryDocumentsXml sobre sobre mixto 07+08 con serie/número.
+  lint/typecheck/prettier OK; scripts/verify.sh RESULT SUITE GREEN (32
+  checks); pnpm quality OK (bundle POS 277.82 kB < 300 kB). Sin commits.
+ancestry_verified: true
+aprobaciones: ["A: pendiente revisión Staff Fiscal (remediación H1)", "V: gate documental SUITE GREEN + suites locales GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+```

@@ -6,11 +6,13 @@ import {
   buildTicketHtml,
   bytesToBase64,
   openDrawerBytes,
+  qrMatrixToSvg,
   type PrinterStrategy,
   type PrintTicketSnapshot,
   type SystemPrintPort,
 } from '@kipuspay/print-templates';
 import { snapshotToTicketData } from './offload-compile.js';
+import { qrMatrix } from './qr-canvas.js';
 import {
   createPriceLabelWebUsbTransport,
   createPriceLabelWssTransport,
@@ -158,7 +160,13 @@ async function executeSingleAdapter(
       if (!bytes) throw new Error('ESCPOS_REQUIRED');
       return tryBluetooth(bytes);
     case 'system_print':
-      return system.printHtml(buildTicketHtml(snapshotToTicketData(job.ticket)));
+      // H2 (auditoría 0031): system_print renderiza el QR fiscal como SVG
+      // (matriz del generador vendorizado MIT + conversor zero-dep del package).
+      return system.printHtml(
+        buildTicketHtml(snapshotToTicketData(job.ticket), {
+          qrSvg: (payload) => qrMatrixToSvg(qrMatrix(payload)),
+        }),
+      );
     case 'whatsapp':
       if (env.whatsappFallback && (await env.whatsappFallback(job.ticket))) return;
       throw new Error('WHATSAPP_FALLBACK_FAILED');
