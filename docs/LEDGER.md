@@ -13539,3 +13539,53 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0477
+timestamp_utc: 2026-08-25T06:00:00Z
+schema_version: 2
+sprint_fase: Remediación H3+H4+H5+H6 — gap analysis 0031 completado
+agente_responsable: Staff Principal (ejecución: kipus-acid + kipus-pos; auditoría: Staff Principal)
+tipo: Corrección de conformidad SUNAT
+subtipo: conservación fiscal + portal adquirente + tope E-A + elegibilidad CDT
+relacion: corrige
+referencias_entradas: [0476]
+referencias_documentales: [docs/runbooks/fiscal-onboarding-tenant.md]
+prev_id: 0476
+prev_hash: e2a050c88342421597f85bdfdd8beac52250b37e41171ee740d36a2e9e50dd17
+entry_hash: 3c1058cb8b1696d4ec9e683fabdaeb53c2fdf2f1afcd306e721e8e746b74c9da
+ticket_or_adr: H3/H4/H5/H6 de auditoría 0031; Código de Comercio art. 190; RS 097-2012
+test_ids: [packages/domain-fiscal-pe/src/business-days.test.ts, packages/adapters-d1/src/fiscal-rc-archive.integration.test.ts, apps/worker-api/src/fiscal/cpe-portal.test.ts]
+entregable_afectado: packages/adapters-d1/src/build-daily-summary.ts; packages/domain-fiscal-pe/src/business-days.ts; packages/domain-fiscal-pe/src/archive-retention.ts; apps/worker-api/src/fiscal/fiscal-rc-routes.ts; docs/runbooks/fiscal-onboarding-tenant.md
+descripcion: >
+  Cierre del gap analysis 0031 (6/6). (H3) Conservación fiscal: sobre RC
+  firmado + CDR persistidos en R2 (rc/<tenant>/<id>.xml, -cdr.zip, -cdr.json
+  para PSE) y CDR unitario (fiscal-cdr/<tenant>/<saleId>.json) con invariante
+  de referencia honesta (clave D1 escrita solo tras existir el objeto — cero
+  referencias colgantes); fallo R2 NO revierte SUCCESS (best-effort + warn,
+  chaos test); migración 0062 con espejo down; retención declarada 5 años
+  (Código de Comercio art. 190 / RCP SUNAT) sin borrador automático aún.
+  (H5) Tope E-A: tenthBusinessDayEndOfNextMonthLima (calendario Lima UTC-5,
+  excluye sáb/dom; limitación documentada: sin feriados Perú v1 — error
+  conservador) + guard CREDIT_NOTE_EA_DEADLINE_EXCEEDED como preflight del
+  camino E-A con reloj inyectable. (H4) Portal CPE operativo: enlace
+  determinista sin escritura D1 (buildCpePortalUrl), GET
+  /api/sales/:saleId/cpe-link (200 solo ACCEPTED; 409 antes del CDR —
+  invariante 8), serving de archivos ?file=xml|cdr (XML desde R2; constancia
+  CDR generada desde estado D1 — documentado que no reemplaza el zip
+  original), default ON opt-out (sin FEATURE_*=1 commiteado — S12),
+  adversariales cross-tenant/traversal/retención. (H6) Elegibilidad CDT
+  documentada en runbook (7 requisitos, trámite SOL, autorización hasta
+  dic-2027, certificado pagado solo para perfil no elegible).
+evidencia: >
+  RED: RC sin archivo R2; NC E-A fuera de tope resolvía SUCCESS; portal sin
+  enlace ni archivos; flag default OFF. GREEN: domain-fiscal-pe 198/198;
+  adapters-d1 449/449 + 326/326; worker-fiscal 76/76; adapters-sunat 55/55;
+  worker-api 1407/1407 (1 flaky tenant-cert-upload bajo carga, GREEN en
+  re-run — preexistente); bundle 277.85 kB < 300 kB; pnpm quality OK; V-13
+  dual GREEN (staff 0034/0035); RESULT SUITE GREEN; commits 5af9114 + este.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
