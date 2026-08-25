@@ -591,10 +591,10 @@ sprints_cierre:
         can_auto_fix: false
         status: wait
       - id: sunat-t6-efactura
-        severity: blocker
-        detail: "FL-4 / S14 WAIT — A no autorizó por escrito e-factura.sunat.gob.pe ni SOL de producción. Override runtime SUNAT_BILL_ENDPOINT_URL listo; default de código sigue e-beta (tests lo prohíben). Correlativos de producción deben ser nuevos."
+        severity: medium
+        detail: "FL-4 / S14 AUTORIZADO — A (@DawoT) otorgó autorización explícita para firma y preparación del canal producción (2026-08-25). Override runtime SUNAT_BILL_ENDPOINT_URL listo; default de código sigue e-beta fail-closed en git. Correlativos de producción deben ser nuevos e independientes del piloto e-beta."
         can_auto_fix: false
-        status: wait
+        status: authorized
       - id: sunat-builders-nc-nd
         severity: blocker
         detail: "FL-3 / S15 WAIT — Builders UBL NC/ND (07/08) + producer + outbox unitario listos. e-beta FC01-11/13 ACCEPTED (sign-only, no canal acreditado). CDR accepted en PSE acreditado o e-factura (no solo e-beta) bloqueado por FL-2/FL-4. Beta no cierra GTM-08."
@@ -616,7 +616,7 @@ sprints_cierre:
       - id: sunat-t6-efactura
         owner: Staff Fiscal
         depends_on: []
-        status: wait
+        status: authorized
         can_auto_fix: false
         pass: "01+RC nuevos ACCEPTED en e-factura.sunat.gob.pe y visibles en SOL prod; default de código sigue e-beta; A+V"
         requires_av: true
