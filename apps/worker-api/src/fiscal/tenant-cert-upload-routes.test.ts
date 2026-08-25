@@ -140,13 +140,14 @@ describe('runUploadTenantCertHttp — validación fail-closed SEC-03', { timeout
   it('A2: p12 vencido → 400 CERT_EXPIRED', { timeout: 20_000 }, async () => {
     const wrapDek = vi.fn();
     const { db, batches } = fakeDb({ ruc: RUC_TENANT });
+    const p12B64 = makeP12B64(cdtSubject(RUC_TENANT));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(Date.now() + 400 * 24 * 60 * 60 * 1000));
     const res = await runUploadTenantCertHttp(envWith(db, wrapDek), 't1', 'owner', {
-      p12B64: makeP12B64(cdtSubject(RUC_TENANT), {
-        notBefore: '20260101000000Z',
-        notAfter: '20260201000000Z',
-      }),
+      p12B64,
       password: 'owner-pass',
     });
+    vi.useRealTimers();
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('CERT_EXPIRED');
     expect(wrapDek).not.toHaveBeenCalled();
