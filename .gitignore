@@ -64,3 +64,4 @@ scripts/tmp/
 
 # Artefactos staff (PEM, envelope, XML firmado). No mezclar con doctrina.
 tmp-staff/
+playwright-cli
