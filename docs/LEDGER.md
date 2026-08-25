@@ -13445,3 +13445,46 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0475
+timestamp_utc: 2026-08-25T03:00:00Z
+schema_version: 2
+sprint_fase: ADR-0037 aceptado — arquitectura de credenciales SOL
+agente_responsable: Staff Principal (borrador: kipus-security; aceptación: Staff Principal)
+tipo: Decisión de arquitectura
+subtipo: corrección de deriva documental ADR-FISCAL-007
+relacion: corrige
+referencias_entradas: [0474]
+referencias_documentales: [docs/adr/ADR-0037-sol-credentials-architecture.md, docs/adr/ADR-FISCAL-007]
+prev_id: 0474
+prev_hash: 46f7690646d74c28c71ccb746db8a866d1dd0442990601b19873a48d08506aa1
+entry_hash: 5534f50d4901b36e5803bf0a62f75b2db074d2c9e5b8aa6abdf4036f3749a94c
+ticket_or_adr: ADR-0037; ADR-FISCAL-007 (deriva)
+test_ids: [packages/adapters-d1/src/tenant-sol-credentials.test.ts]
+entregable_afectado: docs/adr/ADR-0037-sol-credentials-architecture.md
+descripcion: >
+  ADR-0037 ACEPTADO (borrador kipus-security, revisión y aceptación Staff
+  Principal): arquitectura autoritativa de credenciales SOL. (i) Canónico por
+  tenant: tenant_sol_credentials (0061, envelope AES-GCM con DEK KMS) — todo
+  negocio emisor nuevo provisiona ahí; (ii) worker secret_text: fallback del
+  piloto Rosa Negra, DEPRECATED para nuevos tenants, retiro cuando el piloto
+  migre a fila; (iii) Secrets Store de Cloudflare: explícitamente NO para SOL
+  (reservado a material de plataforma worker-kms). La precedencia
+  fila > env > fail-closed (corrupto → TENANT_SOL_UNAVAILABLE, jamás emitir
+  con el SOL de otro emisor) queda elevada a doctrina. Corrige 3 cláusulas de
+  ubicación del ADR-FISCAL-007 (que enunciaba "SOL solo Secrets Store");
+  preserva intacta su mecánica SOAP/breaker/cuarentena/opt-in T6/allowlist.
+  Rotación por ubicación documentada (env: wrangler secret put ×2 +
+  verificación e-beta CDR 0; fila: re-wrap con DEK nueva).
+evidencia: >
+  RED: deriva documental — el 007 enunciaba una ubicación que la realidad
+  (test-fijada en 0473) no sigue; sin ADR la deriva persiste. GREEN: ADR-0037
+  Propuesto→Aceptado; V-18 front-matter GREEN; V-12 refs GREEN; V-13 dual
+  GREEN (staff 0030); RESULT SUITE GREEN; 13 referencias a los 3 componentes
+  de la decisión verificadas por lectura del supervisor.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

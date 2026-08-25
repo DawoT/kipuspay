@@ -1291,3 +1291,57 @@ aprobaciones: ["A: Staff Backend ACID", "V: gate documental SUITE GREEN + pnpm t
 estado_gov: GOV-PENDIENTE
 estado: Vigente
 ```
+
+```
+id: 0030
+timestamp_utc: 2026-08-25T01:42:27Z
+schema_version: 2
+sprint_fase: Transversal — Seguridad de credenciales SOL SUNAT
+agente_responsable: Staff Security (kipus-security)
+tipo: Decisión documental
+subtipo: ADR corrector de arquitectura de credenciales SOL (deriva del FISCAL-007)
+relacion: corrige
+referencias_entradas: [0029]
+referencias_documentales: ["docs/adr/ADR-0037-sol-credentials-architecture.md", "docs/adr/ADR-FISCAL-007-sunat-bill-beta.md", "docs/runbooks/secrets-ops-material.md", "docs/runbooks/fiscal-onboarding-tenant.md"]
+prev_id: 0029
+prev_hash: 6491c0e79e1de8f8f415f1e1c7c026d45653340e457eecd0dbb10239691e003e
+entry_hash: 6d458488c61672bf8f86ebc714cc475f7eb541ddd139fed61867d20132afca6a
+ticket_or_adr: ADR-0037 (Propuesto); corrige cláusulas de ubicación de ADR-FISCAL-007; LEDGER 0473/0474; SEC-03
+test_ids: [SUITE, V-12, V-18]
+entregable_afectado: docs/adr/ADR-0037-sol-credentials-architecture.md (nuevo)
+descripcion: >
+  Cierra el hallazgo documental de LEDGER 0474: ADR-FISCAL-007 enuncia SOL
+  «solo Secrets Store» pero la realidad operativa es (a) secret_text bindings
+  en kipuspay-worker-fiscal-staging (fallback backward-compatible del piloto
+  Rosa Negra) y (b) filas tenant_sol_credentials (migración 0061, envelope
+  AES-GCM con DEK KMS) como camino canónico multi-emisor; Secrets Store NO se
+  usa para SOL. ADR-0037 (estado Propuesto, NO aceptado — decisión de Staff
+  Principal) codifica la precedencia ya implementada y test-fijada en
+  select-transport.ts + tenant-sol-credentials.ts: fila por tenant > env del
+  worker > fail-closed (MISCONFIGURED staging / SUNAT_PRODUCTION_SOL_MISSING
+  production; material corrupto → TenantSolChannelError TENANT_SOL_UNAVAILABLE,
+  jamás fallback silencioso al SOL de otro emisor). Decisión propuesta:
+  (i) fila por tenant canónica para todo negocio nuevo; (ii) env del worker
+  DEPRECATED para nuevos tenants, retiro condicionado a migración del piloto a
+  fila; (iii) Secrets Store explícitamente excluido para SOL (queda para
+  material de plataforma worker-kms). Rotación por ubicación documentada
+  (wrangler secret put ×2 + verificación CDR 0 vs re-wrap de fila). Corrección
+  SEC-03 precisada: plaintext jamás en D1/git; el envelope cifrado ES la
+  «envoltura KMS» que la regla admite (patrón tenant_certificates 0056).
+  Sin cambios de código: el ADR documenta lo existente. Sin commits.
+evidencia: >
+  scripts/verify.sh RESULT SUITE GREEN tras crear el ADR (V-18 front-matter
+  GREEN, V-12 refs GREEN — §5.2/§5.4/§0.4/§2.6 resuelven; V-19 presupuesto
+  GREEN); git status limpio salvo el archivo nuevo (sin commits, sin tocar
+  docs/LEDGER.md ni entradas previas de este ledger). Estado del ADR:
+  Propuesto, firmas RACI A pendiente Staff Principal. Nota de integridad:
+  el append inicial de esta entrada salió malformado (fence pegado por
+  falta de \\n final → hash inválido, V-13 RED); reparado en la misma
+  sesión ANTES de cualquier commit reescribiendo solo esta entrada nunca
+  válida (fence + hash recalculado con lógica canónica de
+  ledger_chain.py); cero entradas previas tocadas.
+ancestry_verified: true
+aprobaciones: ["A: pendiente Staff Principal (ADR Propuesto)", "V: gate documental SUITE GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+```
