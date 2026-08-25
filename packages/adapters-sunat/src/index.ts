@@ -40,5 +40,14 @@ export {
   createSunatBillTransport,
   createSunatRcCdrPort,
   SUNAT_BETA_BILL_SERVICE_URL,
+  SUNAT_PRODUCTION_BILL_SERVICE_URL,
   type SunatBillTransportOptions,
 } from './sunat-bill-transport.js';
+
+export {
+  parseSunatBillChannel,
+  resolveSunatBillEndpoint,
+  SunatChannelError,
+  type SunatBillChannel,
+  type SunatChannelErrorCode,
+} from './sunat-channel.js';

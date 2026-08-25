@@ -1,7 +1,9 @@
 import {
   applyCdrToSaleStatus,
   createMockPseTransport,
+  SunatChannelError,
   type FiscalSubmitRequest,
+  type FiscalTransport,
   type SunatOutcome,
 } from '@kipuspay/adapters-sunat';
 import { cdrIsAccepted, breakerDoName, type FiscalEndpoint } from '@kipuspay/domain-fiscal-pe';
@@ -186,7 +188,20 @@ async function handleSubmit(request: Request, env: FiscalWorkerEnv): Promise<Res
     }
   }
   const body: FiscalSubmitRequest = await request.json();
-  const transport = selectFiscalTransport(env);
+  let transport: FiscalTransport;
+  try {
+    transport = selectFiscalTransport(env);
+  } catch (err) {
+    // Canal producción mal configurado → fail-closed visible (503 tipado),
+    // nunca un submit que finja éxito.
+    if (err instanceof SunatChannelError) {
+      return new Response(JSON.stringify({ error: err.code, code: err.code }), {
+        status: 503,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    throw err;
+  }
   if (transport.mode === 'MISCONFIGURED') {
     return new Response(
       JSON.stringify({ error: 'TRANSPORT_MISCONFIGURED', code: 'TRANSPORT_MISCONFIGURED' }),

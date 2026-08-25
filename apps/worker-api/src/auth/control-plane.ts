@@ -68,6 +68,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly SUNAT_SOL_USER?: string;
   readonly SUNAT_SOL_PASSWORD?: string;
   readonly SUNAT_BILL_ENDPOINT_URL?: string;
+  /** Canal billService: staging (default, e-beta) | production (URL oficial allowlist). */
+  readonly SUNAT_BILL_CHANNEL?: string;
   readonly FISCAL_PSE_FETCH?: typeof fetch;
   /** Envelope cifrado del certificado de tenant (secreto o binding con get()). */
   readonly TENANT_CERT_ENVELOPE?: string | { get(): Promise<string> };

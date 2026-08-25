@@ -1050,3 +1050,43 @@ aprobaciones: ["A: Staff Principal", "V: D1 + observability + navegador (evidenc
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0025
+timestamp_utc: 2026-08-24T23:49:08Z
+agente: Kipus Fiscal/PM
+tarea: Runbook operativo de onboarding fiscal de negocio nuevo (camino A, emisión directa)
+estado: Vigente
+prev_id: 0024
+prev_hash: 337eda6fb61cc593300793d365871d8479cd0f3b382def9533cc944992dbb21f
+entry_hash: 63acc1d2aa8a5ff11dc10bdbe3dd7e9ae9532c16a1ccfe461341d2a297096d5e
+ticket_or_adr: ADR-FISCAL-001/006/007/008; Arquitectura §5.1 §5.2 §5.4; DECISIÓN OWNER camino A
+test_ids: [SUITE, V-15, domain-fiscal-pe vitest, adapters-sunat vitest 44/44]
+entregable_afectado: docs/runbooks/fiscal-onboarding-tenant.md (nuevo)
+descripcion: >
+  Runbook de onboarding fiscal por negocio (camino A del owner: cada RUC con
+  certificado digital propio + SOL propio; PSE homologado a futuro). Cinco
+  secciones: prerrequisitos humanos (.p12 uso tributario a nombre del RUC,
+  SOL secundario con facturación, RUC emisor electrónico), provisioning
+  técnico (validación openssl del .p12 con fallback -legacy, extracción
+  PKCS#8 + cert-chain vía scripts/staff/extract-cdt-p12.sh, envelope
+  AES-GCM v1 con DEK wrappeada en KMS vía wrap-tenant-cert.mjs y
+  /v1/internal/tenant-cert/wrap-dek, registro D1 en tenant_certificates con
+  schema de migración 0056 verificado, secretos SOL por worker), verificación
+  e-beta pre-producción (firma ds:Signature en R2, send-beta-cpe.mjs, CDR
+  código 0 como única aceptación), cutover a producción (T6: override
+  SUNAT_BILL_ENDPOINT_URL, SOL prod, series nuevas) con rollback a e-beta,
+  seguridad (clave privada jamás git/logs, rotación por vigencia, revocación)
+  y futuro PSE (alias PSE_PLATFORM ya previsto en el CHECK de la tabla).
+  Comandos tomados del código real; lo no automatizado quedó marcado como
+  patrón o gap (SOL un par por ambiente, insert break-glass manual).
+evidencia: >
+  SUITE GREEN (scripts/verify.sh) tras crear el doc + regenerar INDEX.md;
+  prettier --check limpio; domain-fiscal-pe vitest verde (cobertura 99%+
+  líneas); adapters-sunat vitest 44/44; entry_hash calculado sobre este
+  bloque con el algoritmo validado reproduciendo el hash de la entrada 0024.
+ancestry_verified: true
+aprobaciones: ["A: Staff Fiscal", "V: gate documental V-00..V-31 GREEN + tests packages fiscales"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

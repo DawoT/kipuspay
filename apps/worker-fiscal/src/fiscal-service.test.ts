@@ -472,4 +472,33 @@ describe('FiscalService (C6 entrypoint)', () => {
     expect(out.accepted).toBe(false);
     expect(urls).toEqual(['https://e-beta.example.test/billService']);
   });
+
+  it('submitRc canal producción: URL no oficial → 503 tipado; sin SOL → SOL_MISSING', async () => {
+    const badUrl = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      SUNAT_BILL_CHANNEL: 'production',
+      SUNAT_BILL_ENDPOINT_URL: 'https://pse.kipuspay.staging.invalid/billService',
+    });
+    await expect(
+      badUrl.submitRc({ tenantId: 't1', summaryId: 'RC-1', xml: '<SummaryDocuments/>' }),
+    ).resolves.toEqual({
+      accepted: false,
+      cdrCode: '503',
+      cdrMessage: 'SUNAT_PRODUCTION_ENDPOINT_FORBIDDEN',
+    });
+
+    const noSol = makeService({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_BILL_CHANNEL: 'production',
+    });
+    await expect(
+      noSol.submitRc({ tenantId: 't1', summaryId: 'RC-1', xml: '<SummaryDocuments/>' }),
+    ).resolves.toEqual({
+      accepted: false,
+      cdrCode: '503',
+      cdrMessage: 'SUNAT_PRODUCTION_SOL_MISSING',
+    });
+  });
 });

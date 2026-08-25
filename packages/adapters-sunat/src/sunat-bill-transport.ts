@@ -1,6 +1,8 @@
 /**
- * FiscalTransport SOAP billService (SUNAT beta) — ADR-FISCAL-007 / §5.2.
- * 01/07/08 → sendBill; boleta 03 / RC → sendSummary. Nunca POST JSON al PSE.
+ * FiscalTransport SOAP billService SUNAT (canal dual staging/producción) —
+ * ADR-FISCAL-007 / §5.2. 01/07/08 → sendBill; boleta 03 / RC → sendSummary.
+ * Nunca POST JSON al PSE. El endpoint se resuelve por canal con allowlist
+ * (sunat-channel.ts): producción solo acepta la URL oficial exacta.
  */
 import type { CPEInvoiceDTO, CPESummaryDTO, RcCdrPort } from '@kipuspay/domain-fiscal-pe';
 import { assertCpeInvoiceDto, assertCpeSummaryDto } from '@kipuspay/domain-fiscal-pe';
@@ -11,6 +13,7 @@ import type {
   FiscalSubmitRequest,
   FiscalSubmitResult,
   FiscalTransport,
+  FiscalTransportMode,
 } from './fiscal-transport.js';
 import {
   buildSunatSoapEnvelope,
@@ -25,13 +28,17 @@ import {
   zipUblXml,
   type SunatSoapOperation,
 } from './sunat-bill-soap.js';
+import { resolveSunatBillEndpoint } from './sunat-channel.js';
 
 export { SUNAT_BETA_BILL_SERVICE_URL };
+export { SUNAT_PRODUCTION_BILL_SERVICE_URL } from './sunat-channel.js';
 
 export interface SunatBillTransportOptions {
   readonly solUser: string;
   readonly solPassword: string;
   readonly endpointUrl?: string;
+  /** Canal del billService: 'staging' (default) | 'production'. Se valida con allowlist. */
+  readonly channel?: string | undefined;
   readonly fetchImpl?: FetchLike;
 }
 
@@ -106,7 +113,14 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
   if (!solUser || !solPassword) {
     throw new Error('SUNAT_SOL_CREDENTIALS_MISSING');
   }
-  const endpointUrl = (opts.endpointUrl ?? SUNAT_BETA_BILL_SERVICE_URL).trim();
+  // Allowlist del canal: en producción solo pasa la URL oficial exacta
+  // (resolveSunatBillEndpoint lanza SunatChannelError si no).
+  const { channel, endpointUrl } = resolveSunatBillEndpoint({
+    channel: opts.channel,
+    endpointUrl: opts.endpointUrl,
+  });
+  const mode: FiscalTransportMode =
+    channel === 'production' ? 'sunat_bill_production' : 'sunat_bill_beta';
   const fetchImpl = opts.fetchImpl ?? fetch;
 
   const postSoap = async (
@@ -195,7 +209,7 @@ export function createSunatBillTransport(opts: SunatBillTransportOptions): Fisca
   };
 
   return {
-    mode: 'sunat_bill_beta',
+    mode,
     submit(request) {
       return submitXml(request.xml, request.documentType, request.saleId);
     },

@@ -12,7 +12,8 @@ export type FiscalTransportMode =
   | 'MISCONFIGURED'
   | 'ose_generic'
   | 'pse_third_party'
-  | 'sunat_bill_beta';
+  | 'sunat_bill_beta'
+  | 'sunat_bill_production';
 
 export type FiscalEndpoint = 'submit' | 'cdr_query' | 'rc_submit';
 

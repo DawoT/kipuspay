@@ -265,3 +265,66 @@ describe('F5b-5: banner boletas del día sin RC (Dueño)', () => {
     expect(noDb.status).toBe(503);
   });
 });
+
+describe('buildRcCdrPort canal producción (FL-2)', () => {
+  it('producción sin SOL → puerto fail-closed tipado, nunca PSE/mock/RPC', async () => {
+    const submitRc = vi.fn().mockResolvedValue({ accepted: true, cdrCode: '0', cdrMessage: 'rpc' });
+    const port = buildRcCdrPort({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_BILL_CHANNEL: 'production',
+      FISCAL_PSE_ENDPOINT_URL: 'https://pse.kipuspay.staging.invalid/fiscal',
+      FISCAL: {
+        drain: () => Promise.resolve({}),
+        produceMissing: () => Promise.resolve({}),
+        submitRc,
+      },
+    } as unknown as WorkerEnv);
+    const cdr = await port.submit({
+      tenantId: 't1',
+      summaryId: 'RC-20260824-001',
+      xml: '<SummaryDocuments/>',
+    });
+    expect(cdr.accepted).toBe(false);
+    expect(cdr.cdrCode).toBe('503');
+    expect(cdr.cdrMessage).toBe('SUNAT_PRODUCTION_SOL_MISSING');
+    expect(submitRc).not.toHaveBeenCalled();
+  });
+
+  it('producción con SOL y URL no oficial → FORBIDDEN', async () => {
+    const port = buildRcCdrPort({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_BILL_CHANNEL: 'production',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      SUNAT_BILL_ENDPOINT_URL: 'https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService',
+    } as WorkerEnv);
+    const cdr = await port.submit({
+      tenantId: 't1',
+      summaryId: 'RC-20260824-002',
+      xml: '<SummaryDocuments/>',
+    });
+    expect(cdr.accepted).toBe(false);
+    expect(cdr.cdrMessage).toBe('SUNAT_PRODUCTION_ENDPOINT_FORBIDDEN');
+  });
+
+  it('producción con SOL y URL oficial → SOAP directo a producción', async () => {
+    const urls: string[] = [];
+    const port = buildRcCdrPort({
+      FEATURE_FISCAL_TRANSPORT_PLUGINS: '1',
+      SUNAT_BILL_CHANNEL: 'production',
+      SUNAT_SOL_USER: '20612913251TESTUSER',
+      SUNAT_SOL_PASSWORD: 'sol-pass-fixture',
+      FISCAL_PSE_FETCH: (url) => {
+        urls.push(typeof url === 'string' ? url : 'bill');
+        return Promise.resolve(new Response('gateway', { status: 503 }));
+      },
+    } as WorkerEnv);
+    const cdr = await port.submit({
+      tenantId: 't1',
+      summaryId: 'RC-20260824-003',
+      xml: '<DailySummary date="2026-08-24" tickets="1"/>',
+    });
+    expect(cdr.accepted).toBe(false);
+    expect(urls).toEqual(['https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService']);
+  });
+});

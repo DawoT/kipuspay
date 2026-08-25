@@ -1,7 +1,13 @@
 /**
  * Rutas fiscal RC: void boleta, alertas Dueño, portal CPE, cron RC/plazos.
  */
-import { createHttpRcCdrPort, createSunatRcCdrPort } from '@kipuspay/adapters-sunat';
+import {
+  createHttpRcCdrPort,
+  createSunatRcCdrPort,
+  parseSunatBillChannel,
+  resolveSunatBillEndpoint,
+  SunatChannelError,
+} from '@kipuspay/adapters-sunat';
 import {
   buildDailySummary,
   createTenantCertSigner,
@@ -27,11 +33,55 @@ export function isCpePortalEnabled(env: WorkerEnv): boolean {
   return env.FEATURE_CPE_PORTAL === '1';
 }
 
+/** Puerto RC fail-closed: rechazo 503 tipado, nunca ACCEPTED sin CDR real. */
+function failClosedRcPort(cdrMessage: string): RcCdrPort {
+  return {
+    submit: () => Promise.resolve({ accepted: false, cdrCode: '503', cdrMessage }),
+  };
+}
+
+/**
+ * Rama producción (FL-2): emisión directa exige plugins + SOL propia + URL
+ * oficial exacta; sin ellos, puerto fail-closed 503 tipado (nunca mock).
+ */
+function buildProductionRcCdrPort(env: WorkerEnv): RcCdrPort {
+  if (env.FEATURE_FISCAL_TRANSPORT_PLUGINS !== '1') {
+    return failClosedRcPort('SUNAT_PRODUCTION_PLUGINS_OFF');
+  }
+  const solUser = env.SUNAT_SOL_USER?.trim();
+  if (!solUser || !env.SUNAT_SOL_PASSWORD) {
+    return failClosedRcPort('SUNAT_PRODUCTION_SOL_MISSING');
+  }
+  try {
+    const { endpointUrl } = resolveSunatBillEndpoint({
+      channel: 'production',
+      endpointUrl: env.SUNAT_BILL_ENDPOINT_URL,
+    });
+    return createSunatRcCdrPort({
+      solUser,
+      solPassword: env.SUNAT_SOL_PASSWORD,
+      endpointUrl,
+      channel: 'production',
+      ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
+    });
+  } catch (err) {
+    if (err instanceof SunatChannelError) return failClosedRcPort(err.code);
+    throw err;
+  }
+}
+
 /**
  * C6 / ADR-FISCAL-007: SOL + flag → sendSummary SOAP; si no, PSE HTTP JSON;
  * si no, mock staging. `.invalid` del PSE no se usa cuando hay SOL.
+ *
+ * Canal dual (FL-2): el canal production exige emisión directa (SOL propia +
+ * URL oficial exacta). Sin SOL o con URL no oficial → puerto fail-closed 503
+ * tipado; jamás fallback a PSE/mock/RPC en producción.
  */
 export function buildRcCdrPort(env: WorkerEnv): RcCdrPort {
+  if (parseSunatBillChannel(env.SUNAT_BILL_CHANNEL) === 'production') {
+    return buildProductionRcCdrPort(env);
+  }
   if (
     env.FEATURE_FISCAL_TRANSPORT_PLUGINS === '1' &&
     env.SUNAT_SOL_USER?.trim() &&

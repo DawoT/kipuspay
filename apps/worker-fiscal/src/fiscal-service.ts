@@ -11,7 +11,13 @@ import {
   produceFiscalXmlForSale,
   type D1DatabaseLike,
 } from '@kipuspay/adapters-d1';
-import { createSunatRcCdrPort, type FiscalTransport } from '@kipuspay/adapters-sunat';
+import {
+  createSunatRcCdrPort,
+  parseSunatBillChannel,
+  resolveSunatBillEndpoint,
+  SunatChannelError,
+  type FiscalTransport,
+} from '@kipuspay/adapters-sunat';
 import { breakerDoName, bytesToBase64 } from '@kipuspay/domain-fiscal-pe';
 import { readBreakerOpen } from './breaker-read-cache.js';
 import { coalesceInfraFailure } from './breaker-coalesce.js';
@@ -219,7 +225,9 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
 
   /**
    * Envía el Resumen Diario por SOAP sendSummary (ADR-FISCAL-007). Sin flag +
-   * SOL + endpoint explícito → SOL_UNAVAILABLE (nunca mock, nunca ACCEPTED).
+   * SOL → SOL_UNAVAILABLE (nunca mock, nunca ACCEPTED). El endpoint se resuelve
+   * por canal (sunat-channel): staging default e-beta; producción solo URL
+   * oficial — si no, 503 con el código del error tipado.
    */
   async submitRc(input: {
     readonly tenantId: string;
@@ -231,15 +239,38 @@ export default class FiscalService extends WorkerEntrypoint<FiscalServiceEnv> {
     readonly cdrMessage: string;
   }> {
     const env = this.env;
+    if (parseSunatBillChannel(env.SUNAT_BILL_CHANNEL) === 'production') {
+      // Producción: emisión directa exige plugins + SOL propia; sin ellos,
+      // rechazo tipado (nunca mock, nunca beta).
+      if (!isFiscalTransportPluginsEnabled(env)) {
+        return { accepted: false, cdrCode: '503', cdrMessage: 'SUNAT_PRODUCTION_PLUGINS_OFF' };
+      }
+      const prodSolUser = env.SUNAT_SOL_USER?.trim();
+      if (!prodSolUser || !env.SUNAT_SOL_PASSWORD) {
+        return { accepted: false, cdrCode: '503', cdrMessage: 'SUNAT_PRODUCTION_SOL_MISSING' };
+      }
+    }
     const solUser = env.SUNAT_SOL_USER?.trim();
-    const billUrl = env.SUNAT_BILL_ENDPOINT_URL?.trim();
-    if (!isFiscalTransportPluginsEnabled(env) || !solUser || !env.SUNAT_SOL_PASSWORD || !billUrl) {
+    if (!isFiscalTransportPluginsEnabled(env) || !solUser || !env.SUNAT_SOL_PASSWORD) {
       return { accepted: false, cdrCode: '503', cdrMessage: 'SOL_UNAVAILABLE' };
+    }
+    let endpointUrl: string;
+    try {
+      ({ endpointUrl } = resolveSunatBillEndpoint({
+        channel: env.SUNAT_BILL_CHANNEL,
+        endpointUrl: env.SUNAT_BILL_ENDPOINT_URL,
+      }));
+    } catch (err) {
+      if (err instanceof SunatChannelError) {
+        return { accepted: false, cdrCode: '503', cdrMessage: err.code };
+      }
+      throw err;
     }
     const port = createSunatRcCdrPort({
       solUser,
       solPassword: env.SUNAT_SOL_PASSWORD,
-      endpointUrl: billUrl,
+      endpointUrl,
+      channel: env.SUNAT_BILL_CHANNEL,
       ...(env.FISCAL_PSE_FETCH ? { fetchImpl: env.FISCAL_PSE_FETCH } : {}),
     });
     return port.submit({
