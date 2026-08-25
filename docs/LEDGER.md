@@ -14082,3 +14082,43 @@ aprobaciones: [Staff Visual Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0491
+timestamp_utc: 2026-08-25T22:30:00Z
+schema_version: 2
+sprint_fase: S11 — Fix PKCS12 RC2-40 legacy (certificado SOL)
+agente_responsable: Staff Security (ejecución: kipus-security; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Parser PKCS12 vendorizado RC2-40-CBC
+relacion: corrige
+referencias_entradas: [0487]
+referencias_documentales: [packages/domain-fiscal-pe/src/pkcs12.ts, packages/domain-fiscal-pe/src/vendor/rc2.ts]
+prev_id: 0490
+prev_hash: 6684ae944ba48aaaae42e21803430f2fd513e3514b59ba3aac1b45f2102819b5
+entry_hash: 8575b2ef623d02877d2f511cac057fb0bf6f03d85dec7b9321f342b216b626ff
+ticket_or_adr: S11; OID 1.2.840.113549.1.12.1.6
+test_ids: [packages/domain-fiscal-pe/src/pkcs12-rc2-legacy.test.ts, apps/worker-api/src/fiscal/tenant-cert-rc2-legacy.test.ts]
+entregable_afectado: packages/domain-fiscal-pe/src/pkcs12.ts §decryptRc2Cbc; packages/domain-fiscal-pe/src/vendor/rc2.ts; apps/worker-api/src/fiscal/tenant-cert-upload-routes.ts §validate
+descripcion: >
+  El CDT de SOL (certificado.p12, 9.5KB) usa pbeWithSHA1And40BitRC2-CBC
+  (RC2-40, OID 1.2.840.113549.1.12.1.6) para el SafeContents del certificado —
+  OpenSSL 3 lo marca unsupported sin -legacy, y WebCrypto no lo implementa.
+  El parser vendorizado tenía bug en tm para bits=40 (255>>((8-40%8)%8))
+  → PKCS12_MISSING_BAGS con el certificado real. Fix: vendor RC2-40-CBC
+  compacto 2406 bytes (<3KB, RFC 2268, PI dominio público) con expandKey +
+  decryptBlock + CBC + PKCS#7 corregido, sin dependencias npm (invariante 10,
+  CAL-06). El upload por UI y por API del .p12 original ahora da 200 con el
+  mismo fingerprint 4dc9... sin necesidad de re-exportar a AES.
+evidencia: >
+  RED: certificado.p12 original RC2-40 → 400 PKCS12_INVALID (probed en vivo
+  por UI y por API con el CDT real, mismo fingerprint); RC2 doble bag no
+  parseaba. GREEN: vendor rc2.ts 2406B; pkcs12-rc2-legacy 3/3 (PBE-SHA1-3DES
+  + RC2-40 mixto y doble RC2); tenant-cert-rc2-legacy 3/3 (200 con RC2,
+  400 con pass errónea sin filtrar secreto); domain-fiscal-pe 206/206;
+  worker-api 1419/1419; SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
