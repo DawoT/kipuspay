@@ -16,7 +16,7 @@ describe('tenant_certificates schema (FIS-T1)', () => {
   });
 
   it('registra SECRET y posee triggers de epoch insert/update/delete', () => {
-    expect(D1_BACKUP_REGISTRY_VERSION).toBe('registry-2');
+    expect(D1_BACKUP_REGISTRY_VERSION).toBe('registry-3');
     const registry = new Map(D1_BACKUP_TABLES.map((entry) => [entry.name, entry]));
     expect(registry.get('tenant_certificates')?.classification).toBe('SECRET');
     expect(migration0056).toContain('backup_epoch_tenant_certificates_insert');

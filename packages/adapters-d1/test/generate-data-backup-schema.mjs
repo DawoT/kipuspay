@@ -218,7 +218,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-2'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL) + 0060 audit_chain_heads (DERIVED)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-3'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL) + 0060 audit_chain_heads (DERIVED) + 0062 fiscal_rc_archive (H3: r2_rc_xml_key/r2_cdr_key en sunat_daily_summaries, r2_cdr_key en fiscal_outbox) + 0063 fiscal_rc_ticket_correlative (sunat_reception_ticket/correlative en sunat_daily_summaries)
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = ${JSON.stringify(registry, null, 2)};
 `;
 writeFileSync(

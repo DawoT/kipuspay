@@ -337,7 +337,7 @@ export async function runBackupExportAttempt(input: {
       plaintext_size_bytes: object.plaintextSize,
       hash: object.plaintextHash,
     })),
-    registry_version: input.registryVersion ?? 'registry-2',
+    registry_version: input.registryVersion ?? 'registry-3',
     schema_version: input.schemaVersion ?? '0035',
     tables: tables.map((table) => ({
       name: table.name,

@@ -160,7 +160,7 @@ describe('platform.dr simulation route (Sprint 48)', () => {
     expect(res.body.code).toBe('BACKUP_R2_OBJECT_MISSING');
   });
 
-  it('backup registry-1 vs código registry-2 → 422 BACKUP_REGISTRY_STALE (sin apply)', async () => {
+  it('backup registry-1 vs código actual (registry-3) → 422 BACKUP_REGISTRY_STALE (sin apply)', async () => {
     const env = mockEnv();
     const db = env.DB as unknown as { prepare(sql: string): { bind(): unknown } };
     const original = db.prepare.bind(db);

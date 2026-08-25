@@ -13791,3 +13791,42 @@ aprobaciones: [Staff QA, Staff ACID, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0483
+timestamp_utc: 2026-08-25T19:00:00Z
+schema_version: 2
+sprint_fase: Fase 1 — Fix F-02 registry-3 + worktree + CI alerts
+agente_responsable: Staff SRE (ejecución: kipus-sre; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Bump D1_BACKUP_REGISTRY_VERSION registry-2 → registry-3
+relacion: corrige
+referencias_entradas: [0482]
+referencias_documentales: [packages/adapters-d1/src/data-backup-registry.generated.ts, packages/adapters-d1/test/generate-data-backup-schema.mjs, .github/workflows/deploy-staging.yml, .github/workflows/quality.yml]
+prev_id: 0482
+prev_hash: b5843d4f65c1a5a712c9c37296467926d13c1995a406910c63714c8a7fb4a9ea
+entry_hash: 87bba628c0796673bf441f61269d760122f1968144a98900340dab62ea9d2c97
+ticket_or_adr: F-02; V-13; V-31
+test_ids: [packages/adapters-d1/src/fiscal-rc-ticket-correlative-schema.test.ts, V-13, V-31, SUITE]
+entregable_afectado: packages/adapters-d1/src/data-backup-registry.generated.ts §registry; packages/adapters-d1/test/generate-data-backup-schema.mjs §generator
+descripcion: >
+  Cierre de GAP F-02: 0063 añade columnas sunat_reception_ticket/correlative a
+  sunat_daily_summaries (tabla BUSINESS backuppeada) → breaking change según
+  05-9-data-backup.md / ADR-0026. Comentario generado estaba stale (0056+0057+
+  0058+0060) y parchado manual a +0062 sin regenerar. Bump a registry-3 con
+  0062 (r2_rc_xml_key/r2_cdr_key) + 0063 (correlative) + fallback registry-2→3
+  en backup-export.ts. Limpieza worktree stale tmp-staff/wt-US-05-parser
+  (idempotente, ya ausente) y revert de owner/+page.svelte huérfano. Alertas
+  CI success añadidas (if: always(), status success) en deploy-staging y
+  quality sin romper gate failure().
+evidencia: >
+  RED: registry-2 stale omitía 0062/0063; worktree stale contaminaba vitest;
+  sin alerta success. GREEN: registry-3 en 5 hits (generated.ts, generator,
+  backup-export fallback, tenant-certificates-schema.test, dr-routes.test);
+  adapters-d1 452/452 + 334/334 integration; ledger_chain V-13 GREEN;
+  SUITE GREEN (31/31); prettier --check limpio; worktree list limpio.
+ancestry_verified: true
+aprobaciones: [Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

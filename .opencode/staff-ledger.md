@@ -1696,3 +1696,36 @@ aprobaciones: ["A: pendiente revisión Staff Fiscal", "V: gate documental SUITE 
 estado_gov: GOV-PENDIENTE
 estado: Vigente
 ```
+
+```text
+id: 0037
+timestamp_utc: 2026-08-25T19:30:00Z
+schema_version: 2
+sprint_fase: Fase 1 — Fix F-02 registry-3 + worktree + CI alerts
+agente_responsable: Staff SRE (ejecución: kipus-sre; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Bump D1_BACKUP_REGISTRY_VERSION registry-2 → registry-3
+relacion: corrige
+referencias_entradas: [0036]
+referencias_documentales: [packages/adapters-d1/src/data-backup-registry.generated.ts, .github/workflows/deploy-staging.yml]
+prev_id: 0036
+prev_hash: 1efcaedf3b2a4ea55b9f03c44636c69b596e87bb3fe6f85e4e33a0bad4bc3297
+entry_hash: 03af9f6e4c85396341208c0d9879b9af680fbd1b339a14c9391f19f48c3ef041
+ticket_or_adr: F-02; V-13; V-31
+test_ids: [packages/adapters-d1/src/fiscal-rc-ticket-correlative-schema.test.ts, V-13, V-31, SUITE]
+entregable_afectado: packages/adapters-d1/src/data-backup-registry.generated.ts §registry; packages/adapters-d1/test/generate-data-backup-schema.mjs §generator
+descripcion: >
+  Cierre de GAP F-02: 0063 añade columnas sunat_reception_ticket/correlative a
+  sunat_daily_summaries (tabla BUSINESS backuppeada) → breaking change según
+  05-9-data-backup.md. Comentario generado estaba stale (0056+0057+0058+0060)
+  y parchado manual a +0062 sin regenerar. Bump a registry-3 con 0062+0063 y
+  fallback registry-2→3. Limpieza worktree stale y alertas CI success añadidas.
+evidencia: >
+  RED: registry-2 stale omitía 0062/0063; worktree stale; sin alerta success.
+  GREEN: registry-3 en 5 hits; adapters-d1 452/452 + 334/334 integration;
+  V-13 dual GREEN; SUITE GREEN (31/31); prettier limpio.
+ancestry_verified: true
+aprobaciones: [Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

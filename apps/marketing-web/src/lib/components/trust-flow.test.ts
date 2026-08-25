@@ -9,10 +9,7 @@ const comparar = readFileSync(
   new URL('../../routes/comparar/+page.svelte', import.meta.url),
   'utf8',
 );
-const ayuda = readFileSync(
-  new URL('../../routes/ayuda/+page.svelte', import.meta.url),
-  'utf8',
-);
+const ayuda = readFileSync(new URL('../../routes/ayuda/+page.svelte', import.meta.url), 'utf8');
 
 const FORBIDDEN_TECH_WORDS = /\b(CDR|PSE|UBL|SOAP|Workers|D1|Edge|ACID|sharding|endpoint)\b/;
 

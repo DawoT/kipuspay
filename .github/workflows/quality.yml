@@ -84,6 +84,42 @@ jobs:
           )
           curl -s -S -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$CI_FAILURE_WEBHOOK_URL" || true
 
+      - name: Notificar éxito de CI (Quality)
+        if: always()
+        env:
+          CI_FAILURE_WEBHOOK_URL: ${{ secrets.CI_FAILURE_WEBHOOK_URL }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          JOB_NAME: ${{ github.job }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -z "$CI_FAILURE_WEBHOOK_URL" ]; then
+            echo "CI_FAILURE_WEBHOOK_URL no configurado, omitiendo notificación de éxito."
+            exit 0
+          fi
+          PAYLOAD=$(cat <<EOF
+          {
+            "workflow": "${WORKFLOW_NAME}",
+            "job": "${JOB_NAME}",
+            "run_id": "${RUN_ID}",
+            "run_attempt": "${RUN_ATTEMPT}",
+            "ref": "${REF_NAME}",
+            "sha": "${SHA}",
+            "actor": "${ACTOR}",
+            "repository": "${REPOSITORY}",
+            "event": "${EVENT_NAME}",
+            "status": "success",
+            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          }
+          EOF
+          )
+          curl -s -S -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$CI_FAILURE_WEBHOOK_URL" || true
+
   e2e-pos:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -150,6 +186,42 @@ jobs:
             "repository": "${REPOSITORY}",
             "event": "${EVENT_NAME}",
             "status": "failure",
+            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          }
+          EOF
+          )
+          curl -s -S -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$CI_FAILURE_WEBHOOK_URL" || true
+
+      - name: Notificar éxito de CI (E2E POS)
+        if: always()
+        env:
+          CI_FAILURE_WEBHOOK_URL: ${{ secrets.CI_FAILURE_WEBHOOK_URL }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          JOB_NAME: ${{ github.job }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -z "$CI_FAILURE_WEBHOOK_URL" ]; then
+            echo "CI_FAILURE_WEBHOOK_URL no configurado, omitiendo notificación de éxito."
+            exit 0
+          fi
+          PAYLOAD=$(cat <<EOF
+          {
+            "workflow": "${WORKFLOW_NAME}",
+            "job": "${JOB_NAME}",
+            "run_id": "${RUN_ID}",
+            "run_attempt": "${RUN_ATTEMPT}",
+            "ref": "${REF_NAME}",
+            "sha": "${SHA}",
+            "actor": "${ACTOR}",
+            "repository": "${REPOSITORY}",
+            "event": "${EVENT_NAME}",
+            "status": "success",
             "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           }
           EOF
