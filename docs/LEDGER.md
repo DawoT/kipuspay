@@ -13589,3 +13589,49 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0478
+timestamp_utc: 2026-08-25T07:00:00Z
+schema_version: 2
+sprint_fase: Test E2E owner — boleta + ND por RC (parcial: bloqueo 401 SOL)
+agente_responsable: Staff Principal (ejecución: kipus-fiscal + Staff Principal)
+tipo: Test de conformidad externa
+subtipo: boleta 0.01 a DNI 10715001701 + ND por RC
+relacion: amplia
+referencias_entradas: [0476]
+referencias_documentales: [tmp-staff/boleta-nd-e2e-resultados.json]
+prev_id: 0477
+prev_hash: 3c1058cb8b1696d4ec9e683fabdaeb53c2fdf2f1afcd306e721e8e746b74c9da
+entry_hash: ee04bcc2dd993b21fb2c284a3b1b7ed17d906e844e4340d93454071c12495e9a
+ticket_or_adr: H1 (verificación runtime); RS 402-2019
+test_ids: [packages/domain-fiscal-pe/src/ubl-summary.test.ts]
+entregable_afectado: packages/domain-fiscal-pe/src/ubl-summary.ts; scripts/staff/sign-only-cpe.mjs; scripts/staff/send-beta-cpe.mjs
+descripcion: >
+  Test E2E solicitado por el owner (boleta S/ 0.01 a DNI 10715001701 + ND de
+  anulación por RC — 0.001 no representable en cents, se usó 0.01). El ciclo
+  destapó DOS reglas nuevas de e-beta y UNA deuda de transporte: (1) CDR 2278
+  — los RESÚMENES exigen nodo IGV informado (distinto del 3111 unitario; EXO
+  puro no basta); (2) CDR 0306 — el XSD restringido de e-beta RECHAZA
+  cac:BillingReference donde el XSD oficial lo exige (mismo patrón FINDING-4);
+  (3) statusCode 98 se clasifica unreachable sin consultar ticket
+  (sunat-bill-transport.ts — deuda de transporte, fix pendiente). Fixes
+  aplicados al builder: afectación 10/20/30 → tributos 1000/9997/9998 en
+  resúmenes; BillingReference opt-in (default OFF = shape e-beta validado,
+  flag para XSD oficial). La ND viajó estructuralmente correcta como línea 08
+  del RC complementario (camino H1) firmada, pero su CDR quedó sin verificar
+  por bloqueo 401 del usuario SOL (nginx, persistente tras 3 intentos con
+  espera creciente — probable lock por volumen del día: ~10 envíos). El
+  re-test completo (RC boleta gravada IGV 0.00 + RC complementario con ND sin
+  BillingReference) queda listo para ejecutar cuando el SOL se recupere.
+evidencia: >
+  RED: RC exonerado → 2278; RC complementario con BillingReference → 0306;
+  reenvíos → 401 nginx ×3. GREEN: domain-fiscal-pe 203/203 (5 tests nuevos
+  del builder); adapters-sunat 55/55; adapters-d1 449/449 (regresión H1);
+  RESULT SUITE GREEN; evidencia completa en
+  tmp-staff/boleta-nd-e2e-resultados.json; credenciales jamás impresas.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
