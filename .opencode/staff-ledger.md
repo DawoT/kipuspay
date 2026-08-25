@@ -1345,3 +1345,55 @@ aprobaciones: ["A: pendiente Staff Principal (ADR Propuesto)", "V: gate document
 estado_gov: GOV-PENDIENTE
 estado: Vigente
 ```
+
+```
+id: 0031
+timestamp_utc: 2026-08-24T21:05:00Z
+schema_version: 2
+sprint_fase: Transversal — Auditoría de conformidad SUNAT SEE Del Contribuyente
+agente_responsable: Kipus Fiscal (kipus-fiscal-auditor)
+tipo: Auditoría
+subtipo: Gap analysis emisor electrónico vs implementación (8 dimensiones)
+relacion: registra
+referencias_entradas: [0030]
+referencias_documentales: ["docs/runbooks/fiscal-onboarding-tenant.md", "docs/runbooks/sunat-cdt-rosa-negra-staff.md", "packages/domain-fiscal-pe/src/index.ts", "packages/adapters-d1/src/process-credit-note-atomic.ts", "apps/worker-fiscal/src/fiscal-drain.ts", "packages/adapters-sunat/src/sunat-channel.ts"]
+prev_id: 0030
+prev_hash: 6d458488c61672bf8f86ebc714cc475f7eb541ddd139fed61867d20132afca6a
+entry_hash: f4a3952e4b5eb865b14f629c67ed7e857875c2fc55515248328912e60a7d853c
+ticket_or_adr: sin ADR (auditoría; hallazgos para backlog)
+test_ids: [SUITE]
+entregable_afectado: ninguno (solo lectura; reporte al owner)
+descripcion: >
+  GAP ANALYSIS SUNAT SEE Del Contribuyente sobre código (sin tocar nada).
+  OK: plazos +3d factura / +7d RC con T-24h/T-6h/DEADLINE cubren facturas
+  (computeMustSubmitByIso + processFiscalDeadlines + cron 6h); boletas jamás
+  XML unitario (SKIP_RC fail-closed) y RC PRIMARY/COMPLEMENTARY con condición
+  3 de baja; guard NC exige CDR salvo E-A full-cancel auditada
+  CREDIT_NOTE_NO_CDR; canal producción allowlist exacta e-factura.sunat.gob.pe
+  intacta con errores tipados; XML unitario firmado persiste en R2 con hash en
+  D1. HALLAZGOS: (H1 BLOQUEANTE-CONDICIONAL) NC/ND sobre boleta clasifican
+  canal RC pero nadie las envía — outbox solo inserta UNIT_XML
+  (process-credit-note-atomic.ts:535, process-debit-note-atomic.ts:244) y el
+  RC solo arma ('03','12') (build-daily-summary.ts:154): quedan PENDING hasta
+  DEADLINE_EXCEEDED; hoy mitigado porque la única ruta NC es credit-note-ea
+  full-cancel, pero ND (/api/sales/debit-notes) expone el hueco al activar su
+  flag. (H2 GAP-PRODUCTO) payload QR fiscal no se construye en ningún punto
+  del repo y representación impresa carece de fecha emisión/IGV/adquirente/
+  denominación oficial (RS 097-2012 anexo 2 + RS 402-2019). (H3
+  GAP-PRODUCTO) sobre RC firmado y CDR completo no se persisten (solo
+  cdr_code/message en D1); retención R2 sin política declarada. (H4
+  GAP-PRODUCTO) portal CPE existe (1 año, token, fail-closed) pero default
+  OFF, nadie genera el enlace al adquirente y sirve HTML sin XML/CDR.
+  (H5 MENOR) excepción E-A sin tope de 10° día hábil (cero lógica de días
+  hábiles en domain-fiscal-pe). (H6 MENOR doc) runbooks no documentan
+  elegibilidad CDT (gratuito, 3ra categoría, <=300 UIT, no PSE/OSE, máx 2).
+evidencia: >
+  scripts/verify.sh RESULT SUITE GREEN tras la auditoría; git status limpio
+  (ningún archivo de código o doctrina modificado); cadena staff-ledger
+  verificada con scripts/checks/ledger_chain.py tras este append. Sin
+  commits, sin envíos a SUNAT.
+ancestry_verified: true
+aprobaciones: ["A: pendiente Staff Fiscal (hallazgos para backlog)", "V: gate documental SUITE GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+```
