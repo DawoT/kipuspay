@@ -140,20 +140,39 @@ function unsignedXml() {
   }
   if (kind === 'RC') {
     const date = process.env.ISSUE_DATE ?? '2026-08-21';
-    // RC multi-documento: RC_LINES_N boletas (B001 correlativos desde RC_FIRST_B).
+    // RC multi-documento: RC_LINES_N líneas (boletas B001 correlativos desde
+    // RC_FIRST_B, o notas vía RC_LINE_KINDS). CUSTOMER_DOC_TYPE soporta DNI '1'.
     const n = Number.parseInt(process.env.RC_LINES_N ?? '1', 10) || 1;
     const firstB = Number.parseInt(process.env.RC_FIRST_B ?? '1', 10) || 1;
-    const rcLines = Array.from({ length: n }, (_, i) => ({
-      lineId: i + 1,
-      documentType: '03',
-      documentId: `B001-${String(firstB + i).padStart(8, '0')}`,
-      customerDocType: '6',
-      customerDocNumber,
-      conditionCode: '1',
-      totalTaxableCents: taxableCents,
-      totalIgvCents: igvCents,
-      totalAmountCents: totalCents,
-    }));
+    const kinds = (process.env.RC_LINE_KINDS ?? '')
+      .split(',')
+      .map((k) => k.trim())
+      .filter(Boolean);
+    const customerDocType = process.env.CUSTOMER_DOC_TYPE ?? '6';
+    const rcLines = Array.from({ length: n }, (_, i) => {
+      const docType = kinds[i] ?? '03';
+      const isNote = docType === '07' || docType === '08';
+      return {
+        lineId: i + 1,
+        documentType: docType,
+        documentId: isNote
+          ? (process.env.RC_NOTE_ID ?? 'B001-00000001')
+          : `B001-${String(firstB + i).padStart(8, '0')}`,
+        customerDocType,
+        customerDocNumber,
+        conditionCode: '1',
+        totalTaxableCents: taxableCents,
+        totalIgvCents: igvCents,
+        totalAmountCents: totalCents,
+        igvAffectationCode: affectationCode,
+        ...(isNote && process.env.REF_DOC_ID
+          ? {
+              referencedDocId: process.env.REF_DOC_ID,
+              referencedDocTypeCode: (process.env.REF_DOC_TYPE ?? '03'),
+            }
+          : {}),
+      };
+    });
     return buildUblSummaryDocumentsXml({
       id: rcSummaryId(date, Number.parseInt(process.env.RC_CORR ?? '1', 10) || 1),
       referenceDate: date,

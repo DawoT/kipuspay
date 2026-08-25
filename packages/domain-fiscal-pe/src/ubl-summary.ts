@@ -16,6 +16,27 @@ export interface UblSummaryLine {
   readonly totalTaxableCents: number;
   readonly totalIgvCents: number;
   readonly totalAmountCents: number;
+  /** Catálogo 07 (afectación IGV): 10=gravado (default), 20=exonerado, 30=inafecto. */
+  readonly igvAffectationCode?: '10' | '20' | '30';
+  /** H1 E2E: notas (07/08) referencian el CPE afectado. */
+  readonly referencedDocId?: string;
+  readonly referencedDocTypeCode?: '01' | '03' | '12';
+  /**
+   * Emite cac:BillingReference tras cbc:ID (posición del XSD oficial SUNAT).
+   * Default OFF: el schema restringido de e-beta lo rechaza (CDR 0306,
+   * cvc-particle) — la referencia queda implícita por tipo+serie+número.
+   */
+  readonly billingReference?: boolean;
+}
+
+/** Tributo del subtotal por afectación (catálogo 05): gravado/exonerado/inafecto. */
+function taxSchemeFor(affectation: UblSummaryLine['igvAffectationCode']): {
+  id: string;
+  name: string;
+} {
+  if (affectation === '20') return { id: '9997', name: 'EXO' };
+  if (affectation === '30') return { id: '9998', name: 'INA' };
+  return { id: '1000', name: 'IGV' };
 }
 
 export interface UblSummaryDocumentsInput {
@@ -61,11 +82,23 @@ export function buildUblSummaryDocumentsXml(input: UblSummaryDocumentsInput): st
   const linesXml = input.lines
     .map((line) => {
       const taxable = Math.max(0, line.totalTaxableCents);
+      const scheme = taxSchemeFor(line.igvAffectationCode);
+      // Nota (07/08) sobre CPE: referencia al documento afectado. Opt-in:
+      // e-beta (schema restringido) rechaza el nodo tras cbc:ID (0306).
+      const billingReference =
+        line.referencedDocId && line.billingReference
+          ? `
+    <cac:BillingReference>
+      <cac:InvoiceDocumentReference><cbc:ID>${escapeXml(line.referencedDocId)}</cbc:ID><cbc:DocumentTypeCode>${escapeXml(
+          line.referencedDocTypeCode ?? '03',
+        )}</cbc:DocumentTypeCode></cac:InvoiceDocumentReference>
+    </cac:BillingReference>`
+          : '';
       return `
   <sac:SummaryDocumentsLine>
     <cbc:LineID>${line.lineId}</cbc:LineID>
     <cbc:DocumentTypeCode>${line.documentType}</cbc:DocumentTypeCode>
-    <cbc:ID>${escapeXml(line.documentId)}</cbc:ID>
+    <cbc:ID>${escapeXml(line.documentId)}</cbc:ID>${billingReference}
     <cac:AccountingCustomerParty>
       <cbc:CustomerAssignedAccountID>${escapeXml(line.customerDocNumber)}</cbc:CustomerAssignedAccountID>
       <cbc:AdditionalAccountID>${escapeXml(line.customerDocType)}</cbc:AdditionalAccountID>
@@ -89,8 +122,8 @@ export function buildUblSummaryDocumentsXml(input: UblSummaryDocumentsInput): st
         <cbc:TaxAmount currencyID="PEN">${centsToAmount(line.totalIgvCents)}</cbc:TaxAmount>
         <cac:TaxCategory>
           <cac:TaxScheme>
-            <cbc:ID>1000</cbc:ID>
-            <cbc:Name>IGV</cbc:Name>
+            <cbc:ID>${scheme.id}</cbc:ID>
+            <cbc:Name>${scheme.name}</cbc:Name>
             <cbc:TaxTypeCode>VAT</cbc:TaxTypeCode>
           </cac:TaxScheme>
         </cac:TaxCategory>

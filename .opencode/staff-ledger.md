@@ -1641,3 +1641,58 @@ ancestry_verified: true
 aprobaciones: ["A: pendiente revisión Staff Fiscal (remediación H3+H5)", "V: gate documental SUITE GREEN + suites locales GREEN"]
 estado_gov: GOV-PENDIENTE
 estado: Vigente
+
+```
+id: 0036
+timestamp_utc: 2026-08-25T00:55:00Z
+schema_version: 2
+sprint_fase: Transversal — E2E e-beta: boleta S/0.01 a DNI + ND por RC (camino H1)
+agente_responsable: Kipus Fiscal (Staff Fiscal SUNAT)
+tipo: Auditoría
+subtipo: Homologación runtime sendSummary — 3 envíos, hallazgos 2278/0306 + fixes builder test-first
+relacion: registra
+referencias_entradas: [0031, 0035]
+referencias_documentales: ["packages/domain-fiscal-pe/src/ubl-summary.ts", "packages/domain-fiscal-pe/src/ubl-summary.test.ts", "scripts/staff/sign-only-cpe.mjs", "scripts/staff/send-beta-cpe.mjs", "tmp-staff/boleta-nd-e2e-resultados.json", "docs/architecture/05-2-fiscal-pipeline.md"]
+prev_hash: 656f10277fac52cd2ad896cf96652a5c59f8a99ee82b206a1e6ae2decc71fec9
+entry_hash: 1efcaedf3b2a4ea55b9f03c44636c69b596e87bb3fe6f85e4e33a0bad4bc3297
+test_ids: [packages/domain-fiscal-pe/src/ubl-summary.test.ts]
+entregable_afectado: fiscal.rc_ubl (SummaryDocuments: afectación 10/20/30 → tributos 1000/9997/9998; BillingReference opt-in); scripts staff RC (DNI tipo doc 1, líneas 03+08, DOC_KIND=RC → sendSummary)
+descripcion: >
+  Test E2E solicitado por owner en canal e-beta (CDT ROSA NEGRA): boleta
+  B001-00000006 a DNI 10715001701 (tipo doc 1) por S/ 0.01 y su ND
+  B001-00000001 viajando como línea 08 del RC complementario (camino H1,
+  §5.2). Presupuesto 3/3 envíos SOAP sendSummary reales (sin mock ni
+  contingencia, invariante 8). Resultados: RC-20260825-001 (boleta exonerada,
+  tributo 9997 EXO) → intento 1 unreachable opaco (sondeo getStatus posterior:
+  HTTP 200 sin fault ⇒ red+SOL OK; causa probable statusCode 98 clasificado
+  unreachable antes de consultar ticket) + intento 2 CDR 2278 "Debe indicar
+  Información acerca del importe total de IGV/IVAP" (el validador de resúmenes
+  exige el nodo IGV; el EXO puro no basta — difiere del 3111 de facturas).
+  RC-20260825-002 (complementario H1: boleta corregida gravada-cero según
+  instrucción owner + ND con BillingReference→B001-00000006/03) → CDR 0306
+  cvc-particle: el XSD restringido de e-beta rechaza cac:BillingReference tras
+  cbc:ID en SummaryDocumentsLine (mismo patrón que FINDING-4 FL-1: e-beta es
+  más restrictivo que el XSD oficial). Fixes test-first aplicados (RED→GREEN):
+  builder ubl-summary.ts gana igvAffectationCode (10/20/30 → 1000 IGV / 9997
+  EXO / 9998 INA) y BillingReference opt-in (default OFF = shape e-beta
+  validado por RC-20260824-001 CDR 0; flag para canal producción/XSD oficial);
+  sign-only-cpe.mjs soporta CUSTOMER_DOC_TYPE (DNI '1'), RC_LINE_KINDS '03,08',
+  RC_NOTE_ID, REF_DOC_ID/REF_DOC_TYPE; send-beta-cpe.mjs enruta DOC_KIND=RC →
+  documentType '03' (sendSummary). La ND quedó sin verificación runtime por
+  agotamiento de presupuesto: pendiente ventana nueva con línea ND sin BR.
+evidencia: >
+  TDD RED→GREEN: 3 tests nuevos fallaban (BillingReference ausente, EXO 9997
+  no emitido, INA 9998 no emitido); GREEN 9/9 en ubl-summary.test.ts. Suites:
+  domain-fiscal-pe 203/203 (cobertura 99.06% statements ≥ umbral 95%),
+  adapters-sunat 55/55, adapters-d1 449/449 (regresión del consumidor del
+  builder). scripts/verify.sh RESULT SUITE GREEN. Evidencia runtime completa
+  en tmp-staff/boleta-nd-e2e-resultados.json (3 envíos con wire-log de
+  respuestas SUNAT, sin secretos) + XML firmados tmp-staff/e2e-rc1-*.xml y
+  e2e-rc2-*.xml (hashes 0976c412… y bab954ef…, fingerprint cert
+  4dc90110…). Sondeo getStatus con ticket dummy usado solo como diagnóstico
+  (consulta, no consume envío). Sin commits.
+ancestry_verified: true
+aprobaciones: ["A: pendiente revisión Staff Fiscal", "V: gate documental SUITE GREEN + suites locales GREEN"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente
+```

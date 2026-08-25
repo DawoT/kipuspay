@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 import { sendBetaCpeXml } from '../../packages/adapters-sunat/src/staff-cdr-report.ts';
 
 function asCpeKind(value) {
+  // RC → '03': el transporte enruta boleta/RC a sendSummary (§5.2).
+  if (value === 'RC') return '03';
   if (value === '01' || value === '03' || value === '07' || value === '08') return value;
   throw new Error(`UNSUPPORTED_DOC_KIND:${value}`);
 }

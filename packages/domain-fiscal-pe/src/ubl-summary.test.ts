@@ -105,6 +105,109 @@ describe('UBL SummaryDocuments RC', () => {
     expect(xml).toContain('<cbc:PaidAmount currencyID="PEN">0.00</cbc:PaidAmount>');
   });
 
+  it('H1 E2E: boleta a DNI tipo doc 1 con schemeID=1', () => {
+    const xml = buildUblSummaryDocumentsXml({
+      ...summary(),
+      lines: [{ ...summary().lines[0]!, customerDocType: '1' }],
+    });
+    expect(xml).toContain('<cbc:AdditionalAccountID>1</cbc:AdditionalAccountID>');
+    expect(xml).toContain('<cbc:ID schemeID="1">10715001701</cbc:ID>');
+  });
+
+  it('H1 E2E: línea ND (08) — BillingReference opt-in (e-beta 0306: schema restringido lo rechaza tras cbc:ID)', () => {
+    // Default OFF: forma validada por e-beta (RC-20260824-001 CDR 0 sin BR;
+    // RC-20260825-002 con BR tras ID → CDR 0306 cvc-particle). El XSD oficial
+    // SUNAT sí lo ubica tras cbc:ID — canal producción usa billingReference:true.
+    const xmlDefault = buildUblSummaryDocumentsXml({
+      ...summary(),
+      lines: [
+        {
+          lineId: 1,
+          documentType: '08' as const,
+          documentId: 'B001-00000001',
+          customerDocType: '1',
+          customerDocNumber: '10715001701',
+          conditionCode: '1' as const,
+          totalTaxableCents: 10,
+          totalIgvCents: 0,
+          totalAmountCents: 10,
+          referencedDocId: 'B001-00000006',
+          referencedDocTypeCode: '03' as const,
+        },
+      ],
+    });
+    expect(xmlDefault).not.toContain('<cac:BillingReference>');
+    const xmlOn = buildUblSummaryDocumentsXml({
+      ...summary(),
+      lines: [
+        {
+          lineId: 1,
+          documentType: '08' as const,
+          documentId: 'B001-00000001',
+          customerDocType: '1',
+          customerDocNumber: '10715001701',
+          conditionCode: '1' as const,
+          totalTaxableCents: 10,
+          totalIgvCents: 0,
+          totalAmountCents: 10,
+          referencedDocId: 'B001-00000006',
+          referencedDocTypeCode: '03' as const,
+          billingReference: true,
+        },
+      ],
+    });
+    const refIdx = xmlOn.indexOf('<cac:BillingReference>');
+    const idIdx = xmlOn.indexOf('<cbc:ID>B001-00000001</cbc:ID>');
+    const partyIdx = xmlOn.indexOf('<cac:AccountingCustomerParty>');
+    expect(refIdx).toBeGreaterThan(idIdx);
+    expect(partyIdx).toBeGreaterThan(refIdx);
+    expect(xmlOn).toContain(
+      '<cac:InvoiceDocumentReference><cbc:ID>B001-00000006</cbc:ID>' +
+        '<cbc:DocumentTypeCode>03</cbc:DocumentTypeCode></cac:InvoiceDocumentReference>',
+    );
+  });
+
+  it('boleta sin referencia no emite BillingReference', () => {
+    const xml = buildUblSummaryDocumentsXml(summary());
+    expect(xml).not.toContain('<cac:BillingReference>');
+  });
+
+  it('exonerada (afectación 20) emite tributo 9997 EXO, jamás IGV 1000 en 0.00', () => {
+    // Capacidad del builder (catálogo 05/07). Límite de canal: e-beta RC exige
+    // tributo IGV informado (CDR 2278 con EXO puro) — ver hallazgo H1-E2E.
+    const xml = buildUblSummaryDocumentsXml({
+      ...summary(),
+      lines: [
+        {
+          ...summary().lines[0]!,
+          totalTaxableCents: 1,
+          totalIgvCents: 0,
+          totalAmountCents: 1,
+          igvAffectationCode: '20' as const,
+        },
+      ],
+    });
+    expect(xml).toContain('<cbc:ID>9997</cbc:ID>');
+    expect(xml).toContain('<cbc:Name>EXO</cbc:Name>');
+    expect(xml).not.toContain('<cbc:ID>1000</cbc:ID>');
+    expect(xml).toContain('<cbc:TaxAmount currencyID="PEN">0.00</cbc:TaxAmount>');
+  });
+
+  it('inafecta (afectación 30) emite tributo 9998 INA', () => {
+    const xml = buildUblSummaryDocumentsXml({
+      ...summary(),
+      lines: [
+        {
+          ...summary().lines[0]!,
+          igvAffectationCode: '30' as const,
+          totalIgvCents: 0,
+        },
+      ],
+    });
+    expect(xml).toContain('<cbc:ID>9998</cbc:ID>');
+    expect(xml).toContain('<cbc:Name>INA</cbc:Name>');
+  });
+
   it('XAdES-BES verificable sobre el RC', async () => {
     const pair = await crypto.subtle.generateKey(RSA_GEN, true, ['sign', 'verify']);
     const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey));
