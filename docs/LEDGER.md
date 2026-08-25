@@ -13635,3 +13635,45 @@ aprobaciones: [Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0479
+timestamp_utc: 2026-08-25T07:45:00Z
+schema_version: 2
+sprint_fase: Test E2E owner COMPLETO — boleta + ND aceptadas por e-beta
+agente_responsable: Staff Principal
+tipo: Milestone de validación fiscal externa
+subtipo: ND sobre boleta vía RC ACEPTADA (CDR 0)
+relacion: corrige
+referencias_entradas: [0478]
+referencias_documentales: [tmp-staff/boleta-nd-e2e-resultados.json]
+prev_id: 0478
+prev_hash: ee04bcc2dd993b21fb2c284a3b1b7ed17d906e844e4340d93454071c12495e9a
+entry_hash: fb4e621290ebfd120817273d3cba7dc36fe8497ac5dd426178209930dc902e03
+ticket_or_adr: H1 verificación runtime; RS 402-2019
+test_ids: [packages/domain-fiscal-pe/src/ubl-summary.test.ts]
+entregable_afectado: packages/domain-fiscal-pe/src/ubl-summary.ts
+descripcion: >
+  Re-test tras expirar el lock SOL (401): RC-20260825-001 con la boleta
+  B001-00000006 gravada (DNI 10715001701, base 0.01, IGV 0.00, nodo IGV
+  informado) → CDR 0 ACEPTADO. RC complementario con la ND B001-00000001
+  (línea 08 referenciando la boleta — camino H1) → iteración de schema:
+  (a) sin BillingReference → CDR 2583 "si tipo de comprobante es nota, debe
+  existir informacion del tipo de documento que modifica" (OBLIGATORIO);
+  (b) forma directa cbc:InvoiceTypeCode+cbc:ID → CDR 0306 (no es hijo válido
+  del BillingReferenceType restringido); (c) forma canónica wrapper
+  cac:InvoiceDocumentReference (cbc:ID + cbc:DocumentTypeCode) posicionada
+  TRAS cac:AccountingCustomerParty → CDR 0 ACEPTADO. El 0306 original era
+  POSICIONAL (antes del party), no del wrapper. Nota: ambos resúmenes del día
+  comparten ID RC-20260825-001 (rcSummaryId deriva de fecha) — el reenvío
+  reemplaza el anterior; para producción el correlativo diario debe
+  incrementar (detalle menor registrado).
+evidencia: >
+  RED: 2583 sin BR; 0306 con forma directa; 1 test con assert multilinea
+  stale. GREEN: RC-20260825-001 (boleta) CDR 0; RC-20260825-001 (ND) CDR 0;
+  domain-fiscal-pe 203/203; RESULT SUITE GREEN; commit 4804036.
+ancestry_verified: true
+aprobaciones: [Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
