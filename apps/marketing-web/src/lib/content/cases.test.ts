@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { casesForRubro, publishedCases, type SuccessCase } from './cases.js';
+import {
+  allSimulations,
+  casesForRubro,
+  publishedCases,
+  SUCCESS_CASES,
+  type SuccessCase,
+} from './cases.js';
 
-describe('success cases', () => {
+describe('success cases and simulations', () => {
   it('no publica testimonios sin permiso (GTM-12)', () => {
     const raw: SuccessCase[] = [
       {
@@ -24,5 +30,43 @@ describe('success cases', () => {
     expect(publishedCases(raw)).toHaveLength(1);
     expect(casesForRubro('farmacias', raw)[0]?.id).toBe('c2');
     expect(publishedCases()).toHaveLength(0);
+    expect(SUCCESS_CASES).toHaveLength(0);
+  });
+
+  it('expone 3 simulaciones operativas de mostrador con métricas Antes vs Con KipusPay', () => {
+    const sims = allSimulations();
+    expect(sims).toHaveLength(3);
+
+    const ids = sims.map((s) => s.id);
+    expect(ids).toEqual(['cafeteria-especialidad', 'minimarket-barrio', 'botica-independiente']);
+
+    for (const sim of sims) {
+      expect(sim.archetype.length).toBeGreaterThan(5);
+      expect(sim.location.length).toBeGreaterThan(5);
+      expect(sim.dailyTransactions).toMatch(/\d+\s*tickets\/d[íi]a/);
+      expect(sim.headline.length).toBeGreaterThan(15);
+      expect(sim.operationalChallenge.length).toBeGreaterThan(30);
+      expect(sim.kipusSolution.length).toBeGreaterThan(30);
+      expect(sim.ownerTakeaway.length).toBeGreaterThan(20);
+      expect(sim.metrics.length).toBeGreaterThanOrEqual(3);
+
+      for (const m of sim.metrics) {
+        expect(m.label.length).toBeGreaterThan(5);
+        expect(m.before.length).toBeGreaterThan(1);
+        expect(m.withKipus.length).toBeGreaterThan(1);
+        expect(m.improvement.length).toBeGreaterThan(2);
+      }
+    }
+  });
+
+  it('las simulaciones operativas no contienen jerga técnica prohibida', () => {
+    const blob = allSimulations()
+      .map(
+        (s) =>
+          `${s.archetype} ${s.headline} ${s.operationalChallenge} ${s.kipusSolution} ${s.ownerTakeaway} ${s.metrics.map((m) => `${m.label} ${m.before} ${m.withKipus} ${m.improvement}`).join(' ')}`,
+      )
+      .join(' ');
+    expect(blob).not.toMatch(/\b(PSE|CDR|UBL|ACID|D1|Edge|Workers)\b/i);
+    expect(blob).not.toMatch(/GTM-\d+/);
   });
 });

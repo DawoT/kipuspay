@@ -7,6 +7,7 @@
   import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
+  import OwnerModeMock from '$lib/components/OwnerModeMock.svelte';
   import { ogImageFor } from '$lib/seo';
 
   const verticals = allVerticals();
@@ -312,27 +313,8 @@
         <p class="section-lead">{HOME.owner.body}</p>
         <p class="owner-note">{HOME.owner.note}</p>
       </div>
-      <div class="phone-mock" use:reveal aria-hidden="true">
-        <div class="phone-screen">
-          <p class="pm-title">Modo Dueño</p>
-          <div class="pm-row">
-            <span class="pm-label">Ventas de hoy</span>
-            <span class="pm-dot ok"></span>
-          </div>
-          <div class="pm-row">
-            <span class="pm-label">Local Centro</span>
-            <span class="pm-dot ok"></span>
-          </div>
-          <div class="pm-row">
-            <span class="pm-label">Local Norte</span>
-            <span class="pm-dot wait"></span>
-          </div>
-          <div class="pm-row">
-            <span class="pm-label">Ranking de locales</span>
-            <span class="pm-dot ok"></span>
-          </div>
-          <p class="pm-note">Actualizado cuando tus cajas sincronizan.</p>
-        </div>
+      <div class="owner-mock-wrap" use:reveal>
+        <OwnerModeMock />
       </div>
     </div>
   </div>
@@ -397,19 +379,36 @@
         </p>
         <h2>{HOME.trust.headline}</h2>
       </div>
-      <div class="trust-ledger">
-        {#each HOME.trust.items.slice(0, 3) as item, i (item.title)}
-          <article class="trust-row" use:reveal data-reveal-delay={i % 3}>
-            <span class="trust-idx">{String(i + 1).padStart(2, '0')}</span>
-            <div>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-            </div>
-          </article>
-        {/each}
-        <p class="trust-more">
-          <a class="btn btn-ghost" href="/seguridad">Ver confianza y seguridad</a>
-        </p>
+      <div class="trust-grid">
+        <div class="trust-ledger">
+          {#each HOME.trust.items.slice(0, 3) as item, i (item.title)}
+            <article class="trust-row" use:reveal data-reveal-delay={i % 3}>
+              <span class="trust-idx">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </div>
+            </article>
+          {/each}
+          <p class="trust-more">
+            <a class="btn btn-ghost" href="/seguridad">Ver confianza y seguridad</a>
+          </p>
+        </div>
+        <div class="trust-ticket-wrap" use:reveal>
+          <figure class="trust-ticket-figure">
+            <img
+              src="/media/mockup-ticket-sunat.jpg"
+              alt="Comprobante de pago electrónico emitido en ticket térmico con código QR y formato estándar SUNAT"
+              class="trust-ticket-img"
+              width="640"
+              height="800"
+              loading="lazy"
+            />
+            <figcaption class="trust-ticket-caption">
+              Comprobantes electrónicos y notas de venta con formato térmico estándar de 80mm y 58mm.
+            </figcaption>
+          </figure>
+        </div>
       </div>
     </div>
   </div>

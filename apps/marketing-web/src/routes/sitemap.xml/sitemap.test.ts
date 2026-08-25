@@ -13,6 +13,14 @@ describe('sitemap.xml (AUD-03)', () => {
 
     // Rutas canónicas y comparativas
     expect(xml).toContain('<loc>https://kipuspay.com/</loc>');
+    expect(xml).toContain('<loc>https://kipuspay.com/blog</loc>');
+    expect(xml).toContain('<loc>https://kipuspay.com/blog/primera-venta-el-mismo-dia</loc>');
+    expect(xml).toContain('<loc>https://kipuspay.com/blog/ruc-10-vs-ruc-20-emitir-boletas</loc>');
+    expect(xml).toContain('<loc>https://kipuspay.com/blog/como-cuadrar-caja-minimarket</loc>');
+    expect(xml).toContain('<loc>https://kipuspay.com/blog/cobrar-yape-plin-evitar-estafas</loc>');
+    expect(xml).toContain(
+      '<loc>https://kipuspay.com/blog/checklist-abrir-restaurante-cafeteria-peru</loc>',
+    );
     expect(xml).toContain('<loc>https://kipuspay.com/comparar</loc>');
     expect(xml).toContain('<loc>https://kipuspay.com/comparar/bsale</loc>');
     expect(xml).toContain('<loc>https://kipuspay.com/comparar/alegra</loc>');

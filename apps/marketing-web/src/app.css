@@ -1331,11 +1331,50 @@ li {
 }
 
 .trust-grid {
-  display: none;
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+@media (min-width: 899px) {
+  .trust-grid {
+    grid-template-columns: 1fr minmax(18rem, 22rem);
+  }
+}
+
+.trust-ticket-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.trust-ticket-figure {
+  margin: 0;
+  max-width: 22rem;
+  background: #ffffff;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--line-ink);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.trust-ticket-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.trust-ticket-caption {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-ink);
+  margin-top: 0.6rem;
+  text-align: center;
+  line-height: 1.35;
 }
 
 .trust-ledger {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   border-top: 1px solid var(--line-ink);
 }
 

@@ -13980,3 +13980,38 @@ aprobaciones: [Staff Pos, Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0488
+timestamp_utc: 2026-08-25T21:18:00Z
+schema_version: 2
+sprint_fase: Fase A — Expansión Editorial, Riqueza Visual & SEO (Blog, Mockups, Casos de Éxito)
+agente_responsable: Staff Editorial & Visual Auditor / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Expansión de Contenidos, Assets Visuales 3D y Simulaciones de Negocio
+relacion: amplia
+referencias_entradas: [0486, 0487]
+referencias_documentales: [apps/marketing-web/src/lib/content/blog.ts, apps/marketing-web/src/lib/content/cases.ts, apps/marketing-web/src/lib/components/OwnerModeMock.svelte, apps/marketing-web/src/routes/blog/+page.svelte, apps/marketing-web/src/routes/casos-de-exito/+page.svelte]
+prev_id: 0487
+prev_hash: d302cfb051a8f420fa4c05b8a2ee8ddfae87678fef3591c74aef441f346387e3
+entry_hash: 46c7ff88827ca7be56e0b584179206532e66111982ec7c12ae8561aeab599102
+ticket_or_adr: GTM-01; GTM-12; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/content/blog.test.ts, apps/marketing-web/src/lib/content/cases.test.ts, apps/marketing-web/src/lib/components/owner-mode-mock.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/content/blog.ts; apps/marketing-web/src/lib/content/cases.ts; apps/marketing-web/src/lib/components/OwnerModeMock.svelte; apps/marketing-web/src/routes/blog/+page.svelte; apps/marketing-web/src/routes/blog/[slug]/+page.svelte; apps/marketing-web/src/routes/casos-de-exito/+page.svelte; apps/marketing-web/static/media/blog/
+descripcion: >
+  Expansión integral de contenido editorial, activos visuales y adquisición orgánico-comercial para el ecosistema de marketing:
+  (1) Modelo BlogPost extendido con portada, tiempo de lectura, tags, categoría, secciones multi-párrafo y CTAs contextuales.
+  (2) Publicación de 4 nuevos artículos de alto CTR: 'RUC 10 vs RUC 20 para emitir boletas', 'Guía para cuadrar caja en minimarket', 'Cómo cobrar con Yape/Plin seguro' y 'Checklist para abrir restaurante/cafetería'.
+  (3) Integración de 9 activos visuales generados con estética Ledger Minimalism (portadas de blog, mockup 3D smartphone Modo Dueño en Soles y macro ticket térmico SUNAT con QR).
+  (4) Fichas de simulación operativa de mostrador en Casos de Éxito con comparativas antes vs con KipusPay (Cafetería, Minimarket, Botica) cumpliendo GTM-12.
+  (5) Componente interactivo OwnerModeMock con desglose por medios de pago y selector de tiendas en tiempo real.
+  (6) OpenGraph dinámico por artículo, Schema.org BlogPosting con imagen y actualización automática del sitemap.xml canónico.
+evidencia: >
+  Marketing Web Vitest: 41 test files, 239 tests pasando al 100% (97.5% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 286.4 kB (< 300 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Editorial Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
