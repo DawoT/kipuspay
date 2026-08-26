@@ -14734,3 +14734,37 @@ aprobaciones: [Staff Security, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0509
+timestamp_utc: 2026-08-26T17:26:00Z
+schema_version: 2
+sprint_fase: Fase A — Sticky Scroll Robusto y sin Sobreposición en Columnas de Mockups
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Corrección de Sticky Scoped en Contenedores de Texto en Home
+relacion: AMPLIA
+referencias_entradas: [0507, 0508]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/lib/components/po-remediation-refinements.test.ts]
+prev_id: 0508
+prev_hash: 67839c541c4694df7fe7efa0b17b3b1ea40232e54fb25fa36e7be7f43113d09a
+entry_hash: ec739e75c31dfec549587261cb84da21dea42436ed1a303e10ea19fc056c4424
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/po-remediation-refinements.test.ts, apps/marketing-web/src/lib/components/home-device-mocks.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/lib/components/po-remediation-refinements.test.ts
+descripcion: >
+  Corrección y estabilización del comportamiento sticky en scroll en las 4 secciones con smartphones:
+  (1) Solución a la sobreposición de texto (overlap):
+      - En lugar de aplicar sticky a elementos aislados (.sec-head) que se desacoplaban de sus listas de viñetas, se aplica sticky al contenedor maestro de la columna (.product-grid > .sec-head, .offline-grid > .offline-content, .ledger-grid > .ledger-content, .owner-grid > .sec-head).
+      - El bloque completo (título, descripción, viñetas/tabla comparativa) viaja como una sola unidad sólida fijada a top: calc(var(--header-h) + 2rem) durante todo el recorrido del smartphone de 690px.
+  (2) Acompañamiento sin espacios vacíos:
+      - La columna de texto se mantiene fija y visible mientras el usuario recorre los detalles y acciones del dispositivo interactivo, eliminando huecos vacíos y respetando estrictamente los límites de cada sección sin desbordarse hacia la siguiente.
+evidencia: >
+  Playwright MCP: verificación de scroll fluido y anclaje continuo sin sobreposición en / y screenshots guardados.
+  Marketing Web Vitest: 48 test files, 334 tests pasando al 100% (98.02% cobertura).
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

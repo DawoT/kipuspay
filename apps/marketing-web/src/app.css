@@ -2308,7 +2308,7 @@ li {
     align-items: start;
   }
 
-  .product-grid .sec-head {
+  .product-grid > .sec-head {
     position: sticky;
     top: calc(var(--header-h) + 2rem);
     align-self: start;
@@ -2370,7 +2370,7 @@ li {
     align-items: start;
   }
 
-  .owner-grid .sec-head {
+  .owner-grid > .sec-head {
     position: sticky;
     top: calc(var(--header-h) + 2rem);
     align-self: start;
@@ -2389,6 +2389,13 @@ li {
     grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
     align-items: start;
   }
+
+  .offline-grid > .offline-content {
+    position: sticky;
+    top: calc(var(--header-h) + 2rem);
+    align-self: start;
+    margin-bottom: 0;
+  }
 }
 
 .ledger-grid {
@@ -2403,7 +2410,7 @@ li {
     align-items: start;
   }
 
-  .ledger-grid .sec-head {
+  .ledger-grid > .ledger-content {
     position: sticky;
     top: calc(var(--header-h) + 2rem);
     align-self: start;

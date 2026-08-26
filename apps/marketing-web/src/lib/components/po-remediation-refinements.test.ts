@@ -113,12 +113,18 @@ describe('Remediaciones y Refinamientos Clave PO — Marketing Web', () => {
       expect(OWNER_MOCK).toMatch(/font-size:\s*1\.5rem;/);
     });
 
-    it('app.css aplica sticky text en desktop (min-width: 899px) en .product-grid y .owner-grid', () => {
+    it('app.css aplica sticky en la columna de texto completa en desktop (min-width: 899px) en .product-grid, .owner-grid, .offline-grid y .ledger-grid', () => {
       expect(APP_CSS).toMatch(
-        /@media\s*\(min-width:\s*899px\)[\s\S]*?\.product-grid\s+\.sec-head\s*\{[^}]*position:\s*sticky;[^}]*top:\s*calc\(var\(--header-h\)\s*\+\s*2rem\);[^}]*align-self:\s*start;/s,
+        /@media\s*\(min-width:\s*899px\)[\s\S]*?\.product-grid\s*>\s*\.sec-head\s*\{[^}]*position:\s*sticky;/s,
       );
       expect(APP_CSS).toMatch(
-        /@media\s*\(min-width:\s*899px\)[\s\S]*?\.owner-grid\s+\.sec-head\s*\{[^}]*position:\s*sticky;[^}]*top:\s*calc\(var\(--header-h\)\s*\+\s*2rem\);[^}]*align-self:\s*start;/s,
+        /@media\s*\(min-width:\s*899px\)[\s\S]*?\.owner-grid\s*>\s*\.sec-head\s*\{[^}]*position:\s*sticky;/s,
+      );
+      expect(APP_CSS).toMatch(
+        /@media\s*\(min-width:\s*899px\)[\s\S]*?\.offline-grid\s*>\s*\.offline-content\s*\{[^}]*position:\s*sticky;/s,
+      );
+      expect(APP_CSS).toMatch(
+        /@media\s*\(min-width:\s*899px\)[\s\S]*?\.ledger-grid\s*>\s*\.ledger-content\s*\{[^}]*position:\s*sticky;/s,
       );
     });
   });
