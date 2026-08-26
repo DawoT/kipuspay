@@ -1,67 +1,52 @@
-# KipusPay — repo de especificación + monorepo de implementación (Arquitectura §1.1)
-# Ignorar artefactos locales; los docs maestros y el código fuente siempre se versionan.
 
-.DS_Store
-Thumbs.db
-
-# Node / build tooling
-node_modules/
-dist/
-build/
-*.log
-*.tsbuildinfo
-.pnpm-store/
-.turbo/
-
-# Frameworks y compilación de apps
 apps/*/build/
+apps/*/functions/
 apps/*/.svelte-kit/
 apps/*/.wrangler/
-packages/*/.wrangler/
-.wrangler/
-apps/*/functions/
+# Artefactos de E2E / screenshots locales
+# Artefactos staff (PEM, envelope, XML firmado). No mezclar con doctrina.
+build/
+.claude/
+# Config y skills de agentes locales (tooling; no doctrina)
 coverage/
-*coverage/
-**/test-results/
-**/playwright-report/
-
-# Secretos / entorno
+/current-*.png
+.cursor/
+.dev.vars
+dist/
+.DS_Store
+# Editor / SO
 .env
-.env.*
 !.env.example
+# Estado local wrangler / Miniflare (nunca versionar)
+# Frameworks y compilación de apps
+/home-*.png
+.idea/
+# Ignorar artefactos locales; los docs maestros y el código fuente siempre se versionan.
+# KipusPay — repo de especificación + monorepo de implementación (Arquitectura §1.1)
+*.log
+# Node / build tooling
+node_modules/
+*.p12
+packages/*/.wrangler/
 *.pem
 *.pfx
-*.p12
-
-# Editor / SO
-.idea/
-.vscode/
-*.swp
-
-# Python de los checks (scripts/checks/*.py se importan entre sí y generan caché)
-__pycache__/
-*.pyc
-
-# Artefactos de E2E / screenshots locales
+playwright-cli
 .playwright-mcp/
-/home-*.png
+**/playwright-report/
+.pnpm-store/
+*.pyc
+__pycache__/
+# Python de los checks (scripts/checks/*.py se importan entre sí y generan caché)
 /quipu-premium-*.png
-/current-*.png
-
-# Wrangler dev secrets (nunca versionar)
-.dev.vars
-tmp-staff/
-
-# Config y skills de agentes locales (tooling; no doctrina)
-.claude/
-.cursor/
-
 # Scripts TEMP de auditoría de diseño (wave 4-5; no versionar)
 scripts/tmp/
-
-# Estado local wrangler / Miniflare (nunca versionar)
-.wrangler/
-
-# Artefactos staff (PEM, envelope, XML firmado). No mezclar con doctrina.
+# Secretos / entorno
+*.swp
+**/test-results/
+Thumbs.db
 tmp-staff/
-playwright-cli
+*.tsbuildinfo
+.turbo/
+.vscode/
+.wrangler/
+# Wrangler dev secrets (nunca versionar)
