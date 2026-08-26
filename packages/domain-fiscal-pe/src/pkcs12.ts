@@ -84,10 +84,7 @@ async function decryptPbe(
     const { salt, iterations } = pbeParams(alg);
     const key = await pkcs12Kdf(passwordBmp, salt, 1, 5, iterations);
     const iv = await pkcs12Kdf(passwordBmp, salt, 2, 8, iterations);
-    const plain = await decryptRc2Cbc(key, 40, iv, cipher);
-    // Debug for SOL real p12 with 2 certs
-    // console.log('RC2 plain len', plain.length, 'first', plain[0]?.toString(16), plain.slice(0,10).join(' '));
-    return plain;
+    return decryptRc2Cbc(key, 40, iv, cipher);
   }
   if (oid === OID_PBES2) return decryptPbes2(alg, passwordBmp, cipher);
   fail(`UNSUPPORTED_PBE:${oid}`);
@@ -157,10 +154,10 @@ function walkBags(safe: Uint8Array, bags: { pkcs8?: Uint8Array; certs: Uint8Arra
   // SafeContents puede venir como SEQUENCE (0x30) o como OCTET STRING
   // context-specific (0x9e) que envuelve la SEQUENCE — el tercer walk del
   // .p12 SOL real viene como 0x9e con 7789 bytes, no como 0x30.
-  let items: import('./pkcs12-ber.js').BerNode[];
-  if (safe[0] === 0x30) {
+  let items: BerNode[];
+  if (safe.length > 0 && safe[0] === 0x30) {
     items = unwrapSequence(readBer(safe, 0).node);
-  } else if (safe[0] === 0x9e) {
+  } else if (safe.length > 0 && safe[0] === 0x9e) {
     // SafeContents con 2 certs del SOL viene como 0x9e (OCTET STRING
     // context-specific, BER long form con longitud >127) que envuelve la
     // SEQUENCE. El parser BER falla con long form >2 bytes, así que buscamos
@@ -175,7 +172,7 @@ function walkBags(safe: Uint8Array, bags: { pkcs8?: Uint8Array; certs: Uint8Arra
     } else {
       items = childrenOf(safe);
     }
-  } else if ((safe[0] & 0xc0) === 0x80) {
+  } else if (safe.length > 0 && (safe[0]! & 0xc0) === 0x80) {
     try {
       const outer = readBer(safe, 0).node;
       const inner = outer.bytes.length > 0 ? readBer(outer.bytes, 0).node : null;
