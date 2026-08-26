@@ -78,4 +78,31 @@ describe('Sprint 66 — Owner Dashboard KPI Enterprise', () => {
     expect(ownerPage).toContain("from '$lib/ui/Button.svelte'");
     expect(ownerPage).toMatch(/min-height:\s*44px/);
   });
+
+  it('GAP #4 — briefingBullets está blindado con try/catch (no crashea si Analytics devuelve JSON inválido)', () => {
+    // Guard: el Dueño nunca ve crash silencioso si briefing.briefing es malformado
+    expect(ownerPage).toContain('try');
+    expect(ownerPage).toContain('JSON.parse');
+    expect(ownerPage).toContain('catch');
+    // Debe retornar array vacío en el catch y mantener empty-day renderizable
+    expect(ownerPage).toContain('data-testid="owner-empty-day"');
+    // El guard debe estar en briefingBullets, no el acceso directo sin try
+    expect(ownerPage).toMatch(/briefingBullets[\s\S]*?try[\s\S]*?JSON\.parse/);
+    // No debe quedar el patrón inseguro directo sin try/catch
+    expect(ownerPage).not.toMatch(/let briefingBullets: string\[\] = \$derived\(\s+briefing\s+\? \(\(JSON\.parse/);
+  });
+
+  it('GAP #4 — muestra Skeleton durante snap===null (carga inicial rollup offline)', () => {
+    expect(ownerPage).toContain("from '$lib/ui/Skeleton.svelte'");
+    expect(ownerPage).toContain('snap === null');
+    expect(ownerPage).toContain('data-testid="owner-hoy-skeleton"');
+    expect(ownerPage).toContain('<Skeleton');
+  });
+
+  it('GAP #4 — muestra StatusMessage de error si briefing es null (Dueño sabe que el resumen falló)', () => {
+    expect(ownerPage).toContain('StatusMessage');
+    // Debe existir manejo para briefing null / error — StatusMessage visible al Dueño
+    expect(ownerPage).toMatch(/briefing.*null|briefing-error|StatusMessage[\s\S]*?briefing/);
+    expect(ownerPage).toContain('data-testid="briefing-error"');
+  });
 });

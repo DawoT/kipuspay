@@ -2009,3 +2009,30 @@ ancestry_verified: true
 aprobaciones: ["A: Staff Frontend/SEO", "V: gate documental SUITE GREEN + suites runtime"]
 estado_gov: GOV-PENDIENTE
 estado: Vigente
+
+```text
+id: 0046
+timestamp_utc: 2026-08-26T07:05:00Z
+schema_version: 2
+sprint_fase: Fix GAP #4/#5 — Dueño guard + tip MoneyInput
+agente_responsable: Staff Frontend (ejecución: kipus-owner + kipus-pos; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Fail-closed + cents
+relacion: corrige
+referencias_entradas: [0045]
+referencias_documentales: [apps/pos-web/src/routes/owner/+page.svelte, apps/pos-web/src/lib/pos/CartPanel.svelte]
+prev_id: 0045
+prev_hash: 1cbe7800883f91e526909341de91620da1e75e3d5a357ca1646ae5c8687680b7
+entry_hash: 639e6520be5318e6aedf1b762752cc97fc9ad9cf1d92c12987df23daab5b8c67
+ticket_or_adr: GAP #4/#5
+test_ids: [owner-dashboard-sprint66.test.ts, tip-cents, SUITE]
+entregable_afectado: owner/+page.svelte §guard; CartPanel §MoneyInput
+descripcion: >
+  GAP #4 Dueño crash guard + Skeleton + GAP #5 tip MoneyInput fail-closed.
+evidencia: >
+  GREEN: 543/543, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Frontend, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

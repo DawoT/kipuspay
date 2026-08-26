@@ -10,12 +10,13 @@
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import MoneyInput from '$lib/ui/MoneyInput.svelte';
 
   let {
     lines = $bindable([]),
     status = 'listo',
     message = '',
-    tipCents = $bindable(0),
+    tipCents = $bindable<number | null>(0),
     tipOn = false,
     clientDocNumber = '',
     clientName = '',
@@ -28,7 +29,7 @@
     lines: CartLine[];
     status: string;
     message: string;
-    tipCents?: number;
+    tipCents?: number | null;
     tipOn?: boolean;
     clientDocNumber?: string;
     clientName?: string;
@@ -192,13 +193,13 @@
     {#if tipOn}
       <div class="tip-input-row">
         <label for="tip-cents">Propina</label>
-        <input id="tip-cents" type="number" min="0" bind:value={tipCents} data-testid="tip-cents" placeholder="0" />
+        <MoneyInput id="tip-cents" bind:value={tipCents} min={0} data-testid="tip-cents" placeholder="0" />
         {#each [0.05, 0.1, 0.15] as frac}
           <button
             type="button"
             class="secondary tip-quick"
             data-testid={`tip-quick-${frac}`}
-            onclick={() => (tipCents = Math.round(totalCents * frac))}
+            onclick={() => (tipCents = Math.round(payableCents * frac))}
           >
             {Math.round(frac * 100)}%
           </button>

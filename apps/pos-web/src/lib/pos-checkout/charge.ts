@@ -97,12 +97,28 @@ function buildPaymentLine(
   captureStatus?: 'API' | 'MANUAL';
   tipCents?: number;
 } {
-  const tip = ctx.tipCents ?? 0;
+  const rawTip = ctx.tipCents ?? 0;
+  if (!Number.isFinite(rawTip)) {
+    return {
+      paymentMethodId: ctx.paymentMethodId,
+      amountCents: totalCents,
+      ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
+    };
+  }
+  const tip = Math.round(rawTip);
+  if (!Number.isInteger(tip) || tip <= 0) {
+    return {
+      paymentMethodId: ctx.paymentMethodId,
+      amountCents: totalCents,
+      ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
+    };
+  }
+  // Validación Integer>0: solo enteros positivos viajan; Math.round normaliza float a entero
   return {
     paymentMethodId: ctx.paymentMethodId,
     amountCents: totalCents + tip,
     ...(ctx.captureStatus ? { captureStatus: ctx.captureStatus } : {}),
-    ...(tip > 0 ? { tipCents: tip } : {}),
+    tipCents: tip,
   };
 }
 

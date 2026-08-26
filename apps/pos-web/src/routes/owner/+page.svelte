@@ -35,15 +35,19 @@
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
+  import Skeleton from '$lib/ui/Skeleton.svelte';
  import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
-  let briefingBullets: string[] = $derived(
-    briefing
-      ? ((JSON.parse(briefing.briefing) as { bullets?: string[] }).bullets ?? [])
-      : [],
-  );
+  let briefingBullets: string[] = $derived.by(() => {
+    if (!briefing) return [];
+    try {
+      return ((JSON.parse(briefing.briefing) as { bullets?: string[] }).bullets ?? []);
+    } catch {
+      return [];
+    }
+  });
   const fiscalEa = isFiscalCircuitBreakerEnabled();
   const layawayOn = isSalesLayawayEnabled();
   const quotesOn = isSalesQuotesEnabled();
@@ -397,9 +401,12 @@
   const hasAlertsData = $derived(
     backlog.length + overdueLayaways.length + expiredQuotes.length + overdueInstallments.length > 0,
   );
-  const hasReports = $derived(!!storeCreditReport || !!commissionsReport || !!briefing);
+  const hasReports = $derived(
+    !!storeCreditReport || !!commissionsReport || briefingBullets.length > 0,
+  );
   const showEmptyDay = $derived(
-    (snap?.docCount ?? 0) === 0 &&
+    snap !== null &&
+      (snap?.docCount ?? 0) === 0 &&
       (snap?.grossSalesCents ?? 0) === 0 &&
       !hasAlertsData &&
       !hasReports,
@@ -410,7 +417,10 @@
 
 {#if enabled}
   <div class="page-shell" data-testid="owner-hoy">
-    <div class="stat-grid" data-testid="owner-hoy-fold">
+    {#if snap === null}
+      <Skeleton lines={4} data-testid="owner-hoy-skeleton" />
+    {:else}
+      <div class="stat-grid" data-testid="owner-hoy-fold">
       <!-- Ventas netas hoy con delta % visual -->
       <div class="stat-card">
         <span class="stat-label">Ventas netas hoy</span>
@@ -461,6 +471,7 @@
       {/if}
       · no en vivo
     </p>
+    {/if}
 
     <!-- Sprint 66 — Acceso rápido a secciones clave del Modo Dueño -->
     <nav class="owner-quick-nav" aria-label="Accesos rápidos Modo Dueño">
@@ -531,6 +542,9 @@
           {/each}
         </ul>
       </section>
+    {/if}
+    {#if isAgenticInsightsEnabled() && briefing === null}
+      <StatusMessage tone="danger" data-testid="briefing-error">No se pudo cargar el resumen del negocio.</StatusMessage>
     {/if}
 
     <div class="owner-sections-grid">

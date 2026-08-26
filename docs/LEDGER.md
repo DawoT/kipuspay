@@ -14911,3 +14911,34 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0514
+timestamp_utc: 2026-08-26T07:00:00Z
+schema_version: 2
+sprint_fase: Fix GAP #4/#5 — Dueño crash guard + tipCents MoneyInput
+agente_responsable: Staff Frontend (ejecución: kipus-owner + kipus-pos; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Fail-closed + invariante cents
+relacion: corrige
+referencias_entradas: [0513]
+referencias_documentales: [apps/pos-web/src/routes/owner/+page.svelte, apps/pos-web/src/lib/pos/CartPanel.svelte]
+prev_id: 0513
+prev_hash: 60b7d206d2f26c36bb38e2d52baa2811805d4ea2a6e49a22875e5e40cfe41c65
+entry_hash: d76c5d2f1d374c286517aa843da5ee7efa598be1a0d9bfa728003cdec15a00dd
+ticket_or_adr: GAP #4/#5 auditoría verticales; V-21
+test_ids: [apps/pos-web/src/lib/owner/owner-dashboard-sprint66.test.ts, apps/pos-web/src/lib/pos/tip-cents-gap5.red.test.ts, SUITE]
+entregable_afectado: apps/pos-web/src/routes/owner/+page.svelte §briefing guard + Skeleton; apps/pos-web/src/lib/pos/CartPanel.svelte §MoneyInput
+descripcion: >
+  Dueño: JSON.parse sin guard → crash silencioso y LCP sin Skeleton. Fix con
+  try/catch + Skeleton durante snap===null + StatusMessage de error. Propina:
+  input number crudo permitía float/negativo → MoneyInput con min 0 y quick
+  sobre payableCents + validación Integer>0 en charge.ts y +page.svelte.
+evidencia: >
+  RED: briefingBullets sin try/catch (3 tests), tipCents 2.5 viajaba como 2.5.
+  GREEN: 543/543 pos-web (99 files, +6 tip), svelte-check 0, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Frontend, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

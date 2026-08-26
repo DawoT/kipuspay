@@ -39,9 +39,10 @@ test('P2: propina en el cobro — total con propina y tope visible', async ({ pa
   await expect(page.getByTestId('tip-cents')).toBeVisible();
   await page.getByTestId('add-line-p1').click();
   await page.getByTestId('add-line-p1').click();
-  // 2 × 11800 = 23600; 5% = 1180 de propina
+  // 2 × 11800 = 23600 net; IGV 18% => payable 27848; 5% sobre payable = 1392 (no sobre total sin IGV)
+  const payableCents = 23600 + Math.round((23600 * 18) / 100);
   await page.getByTestId('tip-quick-0.05').click();
-  await expect(page.getByTestId('tip-cents')).toHaveValue(String(Math.round(23600 * 0.05)));
+  await expect(page.getByTestId('tip-cents')).toHaveValue(String(Math.round(payableCents * 0.05)));
 });
 
 test('P2: política de caja en configuración — tope y cajón, guardado', async ({ page }) => {
