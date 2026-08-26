@@ -54,7 +54,6 @@
 >
   <PhoneMockFrame
     {theme}
-    time="09:41"
     title="Modo Mostrador · KipusPay"
     statusBadge={activeSyncState === 'synced' ? 'Comprobante emitido · EN VIVO' : 'Turno Abierto · EN VIVO'}
     statusTone="live"
@@ -159,14 +158,16 @@
 
 <style>
   .pos-container {
-    margin: 0;
-    width: 100%;
-    max-width: 380px;
+    margin: 0 auto;
+    width: 380px;
+    max-width: 100%;
   }
 
   .pos-screen {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
     gap: 0.55rem;
     padding: 0.2rem 0.1rem;
     font-family: var(--font-sans);

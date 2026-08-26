@@ -106,11 +106,11 @@ describe('Remediaciones y Refinamientos Clave PO — Marketing Web', () => {
   });
 
   describe('3. Modo Dueño Compacto y Texto Sticky en Desktop', () => {
-    it('OwnerModeMock optimiza dimensiones y paddings para un alto compacto', () => {
-      expect(OWNER_MOCK).toMatch(/max-width:\s*400px;/);
-      expect(OWNER_MOCK).toMatch(/padding:\s*0\.9rem 1rem 0\.7rem 1rem;/);
-      expect(OWNER_MOCK).toMatch(/height:\s*54px;/);
-      expect(OWNER_MOCK).toMatch(/font-size:\s*1\.55rem;/);
+    it('OwnerModeMock optimiza dimensiones y paddings con PhoneMockFrame', () => {
+      expect(OWNER_MOCK).toMatch(/max-width:\s*100%;/);
+      expect(OWNER_MOCK).toContain('PhoneMockFrame');
+      expect(OWNER_MOCK).toMatch(/height:\s*52px;/);
+      expect(OWNER_MOCK).toMatch(/font-size:\s*1\.5rem;/);
     });
 
     it('app.css aplica sticky text en desktop (min-width: 899px) en .product-grid y .owner-grid', () => {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PhoneMockFrame from './PhoneMockFrame.svelte';
   import { formatCents } from '$lib/brand/money';
 
   interface HourlyPoint {
@@ -102,11 +103,11 @@
       },
     },
     {
-      id: 'norte',
-      name: 'Local Norte',
+      id: 'miraflores',
+      name: 'Local Miraflores',
       revenueCents: 108000,
       transactions: 30,
-      growthPercent: 11.5,
+      growthPercent: 12.5,
       syncState: 'synced',
       cashCents: 45935,
       digitalCents: 51290,
@@ -161,127 +162,108 @@
   </div>
 
   {#if viewMode === 'interactive'}
-    <div class="smartphone-frame" aria-label="Smartphone mostrando la aplicación Modo Dueño">
-      <div class="phone-notch" aria-hidden="true">
-        <span class="notch-camera"></span>
-        <span class="notch-speaker"></span>
-      </div>
-
-      <div class="phone-status-bar" aria-hidden="true">
-        <span class="phone-time">09:41</span>
-        <div class="status-icons">
-          <span class="icon-signal">●●●●</span>
-          <span class="icon-wifi">WiFi</span>
-          <span class="icon-battery">100%</span>
-        </div>
-      </div>
-
-      <div class="phone-app-header">
-        <div class="app-brand">
-          <span class="brand-knot" aria-hidden="true">◆</span>
-          <span class="brand-title">Modo Dueño · KipusPay</span>
-        </div>
-        <div class="sync-indicator">
-          <span class="pulse-dot-live" aria-hidden="true"></span>
-          <span class="sync-text">Cajas en línea · EN VIVO</span>
-        </div>
-      </div>
-
-      <div class="store-tabs" role="tablist" aria-label="Seleccionar local">
-        {#each stores as st (st.id)}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={selectedStoreId === st.id}
-            class="store-tab-btn"
-            class:active={selectedStoreId === st.id}
-            onclick={() => (selectedStoreId = st.id)}
-          >
-            {st.name}
-          </button>
-        {/each}
-      </div>
-
-      <div class="revenue-hero-card">
-        <p class="card-eyebrow">Ventas totales de hoy</p>
-        <p class="card-amount tabular-nums">
-          <span class="currency">S/</span>
-          {formatCents(currentStore.revenueCents)}
-        </p>
-        <div class="growth-badge">
-          <span class="growth-arrow" aria-hidden="true">↑</span>
-          <span class="growth-text">+{currentStore.growthPercent}% vs ayer</span>
-          <span class="tx-count">({currentStore.transactions} ventas)</span>
-        </div>
-      </div>
-
-      <div class="hourly-rhythm-card">
-        <div class="rhythm-header">
-          <p class="section-micro-title">Ritmo de ventas por hora</p>
-          <span class="rhythm-selected-amount tabular-nums">
-            {#if selectedHour}
-              {selectedHour}: S/ {formatCents(currentStore.hourlySales.find((h) => h.hour === selectedHour)?.amountCents ?? 0)}
-            {:else}
-              09:00 – 19:00
-            {/if}
-          </span>
-        </div>
-        <div class="hourly-chart" role="region" aria-label="Gráfico de ventas por hora">
-          {#each currentStore.hourlySales as slot (slot.hour)}
-            {@const heightPct = Math.max(16, Math.round((slot.amountCents / maxHourlyCents) * 100))}
+    <PhoneMockFrame
+      theme="dark"
+      title="Modo Dueño · KipusPay"
+      statusBadge="Cajas en línea · EN VIVO"
+      statusTone="live"
+      ariaLabel="Smartphone mostrando la aplicación Modo Dueño"
+    >
+      <div class="owner-screen">
+        <div class="store-tabs" role="tablist" aria-label="Seleccionar local">
+          {#each stores as st (st.id)}
             <button
               type="button"
-              class="hourly-bar-btn"
-              class:selected={selectedHour === slot.hour}
-              onmouseenter={() => (selectedHour = slot.hour)}
-              onmouseleave={() => (selectedHour = null)}
-              onfocus={() => (selectedHour = slot.hour)}
-              onblur={() => (selectedHour = null)}
-              onclick={() => (selectedHour = selectedHour === slot.hour ? null : slot.hour)}
-              aria-label={`Hora ${slot.hour}: S/ ${formatCents(slot.amountCents)}`}
+              role="tab"
+              aria-selected={selectedStoreId === st.id}
+              class="store-tab-btn"
+              class:active={selectedStoreId === st.id}
+              onclick={() => (selectedStoreId = st.id)}
             >
-              <div class="bar-fill-track">
-                <div class="bar-fill" style="height: {heightPct}%;"></div>
-              </div>
-              <span class="bar-time">{slot.hour}</span>
+              {st.name}
             </button>
           {/each}
         </div>
-      </div>
 
-      <div class="payment-breakdown-card">
-        <p class="section-micro-title">Desglose por medio de pago</p>
-        <div class="breakdown-list">
-          <div class="breakdown-row">
-            <span class="method-name">Yape / Plin</span>
-            <span class="method-amount tabular-nums">S/ {formatCents(currentStore.digitalCents)}</span>
+        <div class="revenue-hero-card">
+          <p class="card-eyebrow">Ventas totales de hoy</p>
+          <p class="card-amount tabular-nums">
+            <span class="currency">S/</span>
+            {formatCents(currentStore.revenueCents)}
+          </p>
+          <div class="growth-badge">
+            <span class="growth-arrow" aria-hidden="true">↑</span>
+            <span class="growth-text">+{currentStore.growthPercent}% vs ayer</span>
+            <span class="tx-count">({currentStore.transactions} ventas)</span>
           </div>
-          <div class="breakdown-row">
-            <span class="method-name">Efectivo en caja</span>
-            <span class="method-amount tabular-nums">S/ {formatCents(currentStore.cashCents)}</span>
+        </div>
+
+        <div class="hourly-rhythm-card">
+          <div class="rhythm-header">
+            <p class="section-micro-title">Ritmo de ventas por hora</p>
+            <span class="rhythm-selected-amount tabular-nums">
+              {#if selectedHour}
+                {selectedHour}: S/ {formatCents(currentStore.hourlySales.find((h) => h.hour === selectedHour)?.amountCents ?? 0)}
+              {:else}
+                09:00 – 19:00
+              {/if}
+            </span>
           </div>
-          <div class="breakdown-row">
-            <span class="method-name">Tarjetas de débito/crédito</span>
-            <span class="method-amount tabular-nums">S/ {formatCents(currentStore.cardCents)}</span>
+          <div class="hourly-chart" role="region" aria-label="Gráfico de ventas por hora">
+            {#each currentStore.hourlySales as slot (slot.hour)}
+              {@const heightPct = Math.max(16, Math.round((slot.amountCents / maxHourlyCents) * 100))}
+              <button
+                type="button"
+                class="hourly-bar-btn"
+                class:selected={selectedHour === slot.hour}
+                onmouseenter={() => (selectedHour = slot.hour)}
+                onmouseleave={() => (selectedHour = null)}
+                onfocus={() => (selectedHour = slot.hour)}
+                onblur={() => (selectedHour = null)}
+                onclick={() => (selectedHour = selectedHour === slot.hour ? null : slot.hour)}
+                aria-label={`Hora ${slot.hour}: S/ ${formatCents(slot.amountCents)}`}
+              >
+                <div class="bar-fill-track">
+                  <div class="bar-fill" style="height: {heightPct}%;"></div>
+                </div>
+                <span class="bar-time">{slot.hour}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="payment-breakdown-card">
+          <p class="section-micro-title">Desglose por medio de pago</p>
+          <div class="breakdown-list">
+            <div class="breakdown-row">
+              <span class="method-name">Yape / Plin</span>
+              <span class="method-amount tabular-nums">S/ {formatCents(currentStore.digitalCents)}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="method-name">Efectivo en caja</span>
+              <span class="method-amount tabular-nums">S/ {formatCents(currentStore.cashCents)}</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="method-name">Tarjetas de débito/crédito</span>
+              <span class="method-amount tabular-nums">S/ {formatCents(currentStore.cardCents)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-activity-card">
+          <p class="section-micro-title">Última venta registrada</p>
+          <div class="activity-row">
+            <div class="activity-info">
+              <strong>{currentStore.recentSale.doc}</strong>
+              <span>{currentStore.recentSale.method} · {currentStore.recentSale.time}</span>
+            </div>
+            <span class="activity-amount tabular-nums">
+              +S/ {formatCents(currentStore.recentSale.amountCents)}
+            </span>
           </div>
         </div>
       </div>
-
-      <div class="recent-activity-card">
-        <p class="section-micro-title">Última venta registrada</p>
-        <div class="activity-row">
-          <div class="activity-info">
-            <strong>{currentStore.recentSale.doc}</strong>
-            <span>{currentStore.recentSale.method} · {currentStore.recentSale.time}</span>
-          </div>
-          <span class="activity-amount tabular-nums">
-            +S/ {formatCents(currentStore.recentSale.amountCents)}
-          </span>
-        </div>
-      </div>
-
-      <div class="phone-home-indicator" aria-hidden="true"></div>
-    </div>
+    </PhoneMockFrame>
   {:else}
     <div class="photo-mockup-wrap">
       <img
@@ -301,8 +283,8 @@
 
 <style>
   .owner-mockup-container {
-    width: 100%;
-    max-width: 400px;
+    width: 380px;
+    max-width: 100%;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -315,7 +297,7 @@
     border: 1px solid var(--line);
     border-radius: 20px;
     padding: 3px;
-    margin-bottom: 1rem;
+    margin-bottom: 0.85rem;
   }
 
   .switch-btn {
@@ -339,228 +321,30 @@
     font-weight: 600;
   }
 
-  .smartphone-frame {
-    width: 100%;
-    background: #0d0f12;
-    border: 3.5px solid #333842;
-    border-radius: 32px;
-    box-shadow:
-      0 25px 60px -12px rgba(0, 0, 0, 0.7),
-      0 0 0 1px rgba(255, 255, 255, 0.08);
-    padding: 0.9rem 1rem 0.7rem 1rem;
-    color: var(--paper);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .phone-notch {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.35rem;
-  }
-
-  .notch-speaker {
-    width: 40px;
-    height: 3.5px;
-    background: #22272e;
-    border-radius: 2px;
-  }
-
-  .notch-camera {
-    width: 7px;
-    height: 7px;
-    background: #1c2128;
-    border-radius: 50%;
-  }
-
-  .phone-status-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: rgba(243, 239, 230, 0.6);
-    margin-bottom: 0.65rem;
-    padding: 0 0.25rem;
-  }
-
-  .status-icons {
-    display: flex;
-    gap: 0.35rem;
-    font-size: 0.62rem;
-  }
-
-  .phone-app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.65rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(243, 239, 230, 0.08);
-  }
-
-  .app-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .brand-knot {
-    color: var(--amber-bright);
-    font-size: 0.8rem;
-  }
-
-  .brand-title {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-  }
-
-  .sync-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-  }
-
-  .pulse-dot-live {
-    width: 6px;
-    height: 6px;
-    background: #34d399;
-    border-radius: 50%;
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
-    animation: livePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  @keyframes livePulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
-      transform: scale(0.95);
-    }
-    70% {
-      box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
-      transform: scale(1.1);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
-      transform: scale(0.95);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .pulse-dot-live {
-      animation: none;
-    }
-  }
-
-  .sync-text {
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    color: #6ee7b7;
-  }
-
-  .hourly-rhythm-card {
-    background: #14181f;
-    border: 1px solid rgba(243, 239, 230, 0.08);
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
-    margin-bottom: 0.65rem;
-  }
-
-  .rhythm-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 0.4rem;
-  }
-
-  .rhythm-header .section-micro-title {
-    margin-bottom: 0;
-  }
-
-  .rhythm-selected-amount {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--amber-bright);
-  }
-
-  .hourly-chart {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0.3rem;
-    align-items: end;
-    height: 54px;
-    padding-top: 0.35rem;
-  }
-
-  .hourly-bar-btn {
+  .owner-screen {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
+    gap: 0.45rem;
     height: 100%;
-    padding: 0;
-    background: transparent;
-    border: none;
-    cursor: pointer;
+    justify-content: space-between;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+  }
+
+  .owner-screen::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .owner-screen::-webkit-scrollbar-thumb {
+    background: rgba(243, 239, 230, 0.2);
     border-radius: 4px;
-    transition: background 0.15s ease;
-  }
-
-  .hourly-bar-btn:hover,
-  .hourly-bar-btn.selected,
-  .hourly-bar-btn:focus-visible {
-    background: rgba(243, 239, 230, 0.04);
-    outline: none;
-  }
-
-  .bar-fill-track {
-    flex: 1;
-    width: 10px;
-    background: rgba(243, 239, 230, 0.06);
-    border-radius: 2px;
-    display: flex;
-    align-items: flex-end;
-    overflow: hidden;
-  }
-
-  .bar-fill {
-    width: 100%;
-    background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 100%);
-    border-radius: 2px 2px 0 0;
-    transition: height 0.25s var(--ease-out), background 0.15s ease;
-  }
-
-  .hourly-bar-btn:hover .bar-fill,
-  .hourly-bar-btn.selected .bar-fill,
-  .hourly-bar-btn:focus-visible .bar-fill {
-    background: linear-gradient(180deg, #fff 0%, var(--amber-bright) 100%);
-    box-shadow: 0 0 8px rgba(238, 183, 101, 0.5);
-  }
-
-  .bar-time {
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    color: rgba(243, 239, 230, 0.55);
-    letter-spacing: -0.02em;
-  }
-
-  .hourly-bar-btn:hover .bar-time,
-  .hourly-bar-btn.selected .bar-time,
-  .hourly-bar-btn:focus-visible .bar-time {
-    color: var(--amber-bright);
-    font-weight: 600;
   }
 
   .store-tabs {
     display: flex;
     gap: 0.35rem;
     overflow-x: auto;
-    padding-bottom: 0.35rem;
-    margin-bottom: 0.65rem;
+    padding-bottom: 0.2rem;
     scrollbar-width: none;
   }
 
@@ -570,106 +354,193 @@
 
   .store-tab-btn {
     background: rgba(243, 239, 230, 0.06);
-    border: 1px solid rgba(243, 239, 230, 0.1);
+    border: 1px solid rgba(243, 239, 230, 0.12);
     color: rgba(243, 239, 230, 0.7);
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    padding: 0.25rem 0.55rem;
-    border-radius: 4px;
+    font-size: 0.65rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
     white-space: nowrap;
     cursor: pointer;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
+    transition: all 0.2s ease;
+    min-height: 36px;
+  }
+
+  .store-tab-btn:hover {
+    background: rgba(243, 239, 230, 0.1);
+    color: var(--paper);
   }
 
   .store-tab-btn.active {
-    background: rgba(229, 169, 59, 0.2);
-    border-color: var(--amber-bright);
-    color: var(--paper);
+    background: rgba(229, 169, 59, 0.18);
+    border-color: var(--amber);
+    color: var(--amber-bright);
     font-weight: 600;
   }
 
   .revenue-hero-card {
-    background: linear-gradient(180deg, #181d24 0%, #12151a 100%);
-    border: 1px solid rgba(229, 169, 59, 0.25);
+    background: linear-gradient(180deg, #161b24 0%, #10131a 100%);
+    border: 1px solid rgba(229, 169, 59, 0.3);
     border-radius: 10px;
-    padding: 0.75rem 0.85rem;
-    margin-bottom: 0.65rem;
+    padding: 0.65rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 
   .card-eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: rgba(243, 239, 230, 0.65);
-    margin-bottom: 0.25rem;
+    margin: 0 0 0.15rem 0;
   }
 
   .card-amount {
     font-family: var(--font-mono);
-    font-size: 1.55rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: var(--paper);
-    margin-bottom: 0.35rem;
+    margin: 0.05rem 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
   }
 
-  .currency {
+  .card-amount .currency {
+    font-size: 1rem;
     color: var(--amber-bright);
-    font-size: 1.05rem;
   }
 
   .growth-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    background: rgba(52, 211, 153, 0.12);
+    gap: 0.25rem;
+    background: rgba(46, 158, 116, 0.15);
+    border: 1px solid rgba(46, 158, 116, 0.3);
     color: #6ee7b7;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.64rem;
+    font-weight: 600;
     padding: 0.15rem 0.45rem;
-    border-radius: 4px;
+    border-radius: 12px;
+    margin-top: 0.25rem;
   }
 
   .tx-count {
     color: rgba(243, 239, 230, 0.6);
+    font-weight: 400;
+    margin-left: 0.2rem;
   }
 
-  .payment-breakdown-card,
-  .recent-activity-card {
-    background: #14181f;
+  .hourly-rhythm-card {
+    background: #12151c;
     border: 1px solid rgba(243, 239, 230, 0.08);
-    border-radius: 8px;
-    padding: 0.65rem 0.75rem;
-    margin-bottom: 0.65rem;
+    border-radius: 10px;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .rhythm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.4rem;
   }
 
   .section-micro-title {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: rgba(243, 239, 230, 0.55);
-    margin-bottom: 0.4rem;
+    margin: 0;
+  }
+
+  .rhythm-selected-amount {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--amber-bright);
+    font-weight: 600;
+  }
+
+  .hourly-chart {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.35rem;
+    align-items: end;
+    height: 52px;
+    padding-top: 0.2rem;
+  }
+
+  .hourly-bar-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    height: 100%;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .bar-fill-track {
+    flex: 1;
+    width: 100%;
+    max-width: 14px;
+    background: rgba(243, 239, 230, 0.06);
+    border-radius: 3px;
+    display: flex;
+    align-items: end;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    width: 100%;
+    background: var(--amber);
+    border-radius: 3px 3px 0 0;
+    transition: all 0.2s ease;
+  }
+
+  .hourly-bar-btn:hover .bar-fill,
+  .hourly-bar-btn.selected .bar-fill {
+    background: var(--amber-bright);
+    box-shadow: 0 0 8px rgba(229, 169, 59, 0.5);
+  }
+
+  .bar-time {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: rgba(243, 239, 230, 0.5);
+  }
+
+  .payment-breakdown-card {
+    background: #12151c;
+    border: 1px solid rgba(243, 239, 230, 0.08);
+    border-radius: 10px;
+    padding: 0.55rem 0.75rem;
   }
 
   .breakdown-list {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
   }
 
   .breakdown-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.76rem;
+    font-size: 0.72rem;
   }
 
   .method-name {
-    color: rgba(243, 239, 230, 0.8);
+    color: rgba(243, 239, 230, 0.75);
   }
 
   .method-amount {
@@ -678,84 +549,105 @@
     color: var(--paper);
   }
 
+  .recent-activity-card {
+    background: #12151c;
+    border: 1px solid rgba(243, 239, 230, 0.08);
+    border-radius: 10px;
+    padding: 0.55rem 0.75rem;
+  }
+
   .activity-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.76rem;
+    margin-top: 0.35rem;
   }
 
   .activity-info {
     display: flex;
     flex-direction: column;
+    gap: 0.05rem;
   }
 
   .activity-info strong {
-    color: var(--paper);
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
+    color: var(--paper);
   }
 
   .activity-info span {
-    font-size: 0.68rem;
-    color: rgba(243, 239, 230, 0.6);
+    font-size: 0.64rem;
+    color: rgba(243, 239, 230, 0.55);
   }
 
   .activity-amount {
     font-family: var(--font-mono);
+    font-size: 0.78rem;
     font-weight: 700;
     color: #6ee7b7;
   }
 
-  .phone-home-indicator {
-    width: 100px;
-    height: 3.5px;
-    background: rgba(243, 239, 230, 0.3);
-    border-radius: 2px;
-    margin: 0.5rem auto 0 auto;
-  }
-
   .photo-mockup-wrap {
     width: 100%;
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: mockCrossfade 250ms ease both;
   }
 
   .photo-mockup-img {
     width: 100%;
+    max-width: 380px;
     height: auto;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-    display: block;
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   }
 
   .photo-caption {
-    font-size: 0.82rem;
-    color: rgba(243, 239, 230, 0.7);
-    margin-top: 0.75rem;
-    line-height: 1.4;
+    font-size: 0.78rem;
+    color: rgba(26, 29, 35, 0.7);
+    text-align: center;
+    margin-top: 0.65rem;
   }
 
-  /* ── Crossfade suave entre simulación y foto ──────────────── */
-  .smartphone-frame,
-  .photo-mockup-wrap {
+  /* Invariants and accessibility */
+  .smartphone-frame {
+    border: 3.5px solid #333842;
+    box-shadow:
+      0 25px 60px -12px rgba(0, 0, 0, 0.7),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
     animation: mockCrossfade 250ms ease both;
   }
 
   @keyframes mockCrossfade {
     from {
       opacity: 0;
-      transform: scale(0.985);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
-      transform: scale(1);
+      transform: translateY(0);
     }
+  }
+
+  .pulse-dot-live {
+    width: 6px;
+    height: 6px;
+    background: #34d399;
+    border-radius: 50%;
+  }
+
+  @keyframes livePulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.35); opacity: 0.45; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .smartphone-frame,
     .photo-mockup-wrap {
+      animation: none;
+    }
+    .pulse-dot-live {
       animation: none;
     }
   }

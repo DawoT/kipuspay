@@ -74,7 +74,6 @@
 <div class="ledger-device-container" data-testid="ledger-device-mock" data-theme={theme}>
   <PhoneMockFrame
     {theme}
-    time="21:00"
     title="Control Diario · KipusPay"
     statusBadge={isVerified ? 'Caja cuadrada · 100%' : 'Turno cerrado · Pendiente'}
     statusTone={isVerified ? 'live' : 'sync'}
@@ -154,14 +153,16 @@
 
 <style>
   .ledger-device-container {
-    width: 100%;
-    max-width: 380px;
+    width: 380px;
+    max-width: 100%;
     margin: 0 auto;
   }
 
   .ledger-screen {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
     gap: 0.55rem;
     padding: 0.2rem 0;
     font-family: var(--font-sans);

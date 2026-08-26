@@ -2304,7 +2304,7 @@ li {
 
 @media (min-width: 899px) {
   .product-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
     align-items: start;
   }
 
@@ -2366,7 +2366,7 @@ li {
 
 @media (min-width: 899px) {
   .owner-grid {
-    grid-template-columns: 1fr minmax(16rem, 20rem);
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
     align-items: start;
   }
 
@@ -2386,7 +2386,7 @@ li {
 
 @media (min-width: 899px) {
   .offline-grid {
-    grid-template-columns: 1fr minmax(16rem, 22rem);
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
     align-items: start;
   }
 }
@@ -2399,7 +2399,7 @@ li {
 
 @media (min-width: 899px) {
   .ledger-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
     align-items: start;
   }
 

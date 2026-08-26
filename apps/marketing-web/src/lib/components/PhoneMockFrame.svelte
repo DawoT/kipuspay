@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { Snippet } from 'svelte';
 
   interface Props {
@@ -13,13 +14,30 @@
 
   let {
     theme = 'dark',
-    time = '11:45',
+    time: explicitTime,
     title = 'KipusPay',
     statusBadge = 'EN VIVO',
     statusTone = 'live',
     ariaLabel = 'Smartphone mostrando interfaz interactiva de KipusPay',
     children,
   }: Props = $props();
+
+  function formatRealTime(): string {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+  let liveTime = $state<string>(explicitTime ?? formatRealTime());
+
+  onMount(() => {
+    liveTime = explicitTime ?? formatRealTime();
+    const interval = setInterval(() => {
+      liveTime = explicitTime ?? formatRealTime();
+    }, 1000);
+    return () => clearInterval(interval);
+  });
 </script>
 
 <div
@@ -37,7 +55,7 @@
 
   <!-- Status Bar -->
   <div class="phone-status-bar" aria-hidden="true">
-    <span class="phone-time">{time}</span>
+    <span class="phone-time" data-testid="live-phone-clock">{liveTime}</span>
     <div class="status-indicators">
       <span class="status-signal">5G</span>
       <span class="status-wifi">
@@ -87,14 +105,18 @@
 <style>
   .smartphone-frame {
     position: relative;
-    width: 100%;
-    max-width: 380px;
+    width: 380px;
+    max-width: 100%;
+    height: 690px;
+    min-height: 690px;
+    max-height: 690px;
     margin: 0 auto;
     border-radius: 32px;
     padding: 0.75rem 1rem 0.85rem;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     font-family: var(--font-sans);
     transition: all 0.3s ease;
   }
@@ -128,6 +150,7 @@
     align-items: center;
     height: 18px;
     margin-bottom: 0.15rem;
+    flex-shrink: 0;
   }
 
   .notch-island {
@@ -166,6 +189,7 @@
     font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 600;
+    flex-shrink: 0;
   }
 
   .theme-dark .phone-status-bar {
@@ -230,6 +254,7 @@
     padding: 0.35rem 0.2rem 0.6rem;
     border-bottom: 1px solid rgba(243, 239, 230, 0.08);
     margin-bottom: 0.55rem;
+    flex-shrink: 0;
   }
 
   .theme-light .phone-app-header {
@@ -336,15 +361,18 @@
   /* Content area */
   .phone-screen-content {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   /* Home Bar */
   .phone-home-bar {
     display: flex;
     justify-content: center;
-    padding-top: 0.65rem;
+    padding-top: 0.55rem;
+    flex-shrink: 0;
   }
 
   .home-indicator {

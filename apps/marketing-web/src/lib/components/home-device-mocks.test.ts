@@ -1,12 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+const PHONE_FRAME = readFileSync(
+  new URL('./PhoneMockFrame.svelte', import.meta.url),
+  'utf8',
+);
 const CHECKOUT_MOCK = readFileSync(
   new URL('../brand/CheckoutMock.svelte', import.meta.url),
   'utf8',
 );
 const OFFLINE_MOCK = readFileSync(new URL('./OfflineDeviceMock.svelte', import.meta.url), 'utf8');
 const LEDGER_MOCK = readFileSync(new URL('./LedgerDeviceMock.svelte', import.meta.url), 'utf8');
+const OWNER_MOCK = readFileSync(new URL('./OwnerModeMock.svelte', import.meta.url), 'utf8');
 const HOME_PAGE = readFileSync(new URL('../../routes/+page.svelte', import.meta.url), 'utf8');
 const APP_CSS = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
 
@@ -26,27 +31,49 @@ const FORBIDDEN_JARGON = [
 ];
 
 describe('Arquitectura de Mockups de Dispositivos Interactivos (Home KipusPay)', () => {
-  describe('1. Regla de Contraste Alternado (Oscuro ↔ Claro)', () => {
-    it('CheckoutMock soporta prop theme con default light (Modo Claro sobre sección oscura #producto)', () => {
+  describe('1. Regla de Contraste Alternado y Chasis Universal PhoneMockFrame', () => {
+    it('PhoneMockFrame fija dimensiones universales idénticas (380px ancho, 690px alto)', () => {
+      expect(PHONE_FRAME).toMatch(/width:\s*380px;/);
+      expect(PHONE_FRAME).toMatch(/height:\s*690px;/);
+      expect(PHONE_FRAME).toMatch(/min-height:\s*690px;/);
+      expect(PHONE_FRAME).toMatch(/max-height:\s*690px;/);
+      expect(PHONE_FRAME).toContain('border-radius: 32px');
+      expect(PHONE_FRAME).toContain('border: 3.5px solid');
+    });
+
+    it('PhoneMockFrame sincroniza el reloj con la hora real local en tiempo real', () => {
+      expect(PHONE_FRAME).toContain('formatRealTime');
+      expect(PHONE_FRAME).toContain('liveTime');
+      expect(PHONE_FRAME).toContain('onMount');
+      expect(PHONE_FRAME).toContain('setInterval');
+      expect(PHONE_FRAME).toContain('data-testid="live-phone-clock"');
+    });
+
+    it('CheckoutMock usa PhoneMockFrame en Modo Claro (theme="light") sobre sección oscura #producto', () => {
       expect(CHECKOUT_MOCK).toContain("theme = 'light'");
       expect(CHECKOUT_MOCK).toContain('data-theme={theme}');
-      expect(CHECKOUT_MOCK).toContain("class:theme-dark={theme === 'dark'}");
-      expect(CHECKOUT_MOCK).toContain("class:theme-light={theme === 'light'}");
+      expect(CHECKOUT_MOCK).toContain('PhoneMockFrame');
       expect(HOME_PAGE).toMatch(/<CheckoutMock[\s\S]*?theme="light"/);
     });
 
-    it('OfflineDeviceMock usa Modo Oscuro (data-theme="dark") en la sección clara #offline (.section-paper)', () => {
+    it('OfflineDeviceMock usa PhoneMockFrame en Modo Oscuro (theme="dark") en sección clara #offline', () => {
       expect(OFFLINE_MOCK).toContain('data-theme={theme}');
       expect(OFFLINE_MOCK).toContain('PhoneMockFrame');
       expect(OFFLINE_MOCK).toContain('#141820');
       expect(HOME_PAGE).toMatch(/id="offline"[\s\S]*?<OfflineDeviceMock\s*\/>/);
     });
 
-    it('LedgerDeviceMock usa Modo Claro (data-theme="light") en la sección oscura #ledger (.section)', () => {
+    it('LedgerDeviceMock usa PhoneMockFrame en Modo Claro (theme="light") en sección oscura #ledger', () => {
       expect(LEDGER_MOCK).toContain('data-theme={theme}');
       expect(LEDGER_MOCK).toContain('PhoneMockFrame');
-      expect(LEDGER_MOCK).toContain('#ffffff'); // White/paper background
+      expect(LEDGER_MOCK).toContain('#ffffff');
       expect(HOME_PAGE).toMatch(/id="ledger"[\s\S]*?<LedgerDeviceMock\s*\/>/);
+    });
+
+    it('OwnerModeMock usa PhoneMockFrame en Modo Oscuro (theme="dark") en sección clara #owner', () => {
+      expect(OWNER_MOCK).toContain('PhoneMockFrame');
+      expect(OWNER_MOCK).toContain('theme="dark"');
+      expect(HOME_PAGE).toMatch(/id="owner"[\s\S]*?<OwnerModeMock\s*\/>/);
     });
   });
 
@@ -118,6 +145,7 @@ describe('Arquitectura de Mockups de Dispositivos Interactivos (Home KipusPay)',
         expect(CHECKOUT_MOCK).not.toMatch(pattern);
         expect(OFFLINE_MOCK).not.toMatch(pattern);
         expect(LEDGER_MOCK).not.toMatch(pattern);
+        expect(OWNER_MOCK).not.toMatch(pattern);
       }
     });
 
@@ -131,6 +159,7 @@ describe('Arquitectura de Mockups de Dispositivos Interactivos (Home KipusPay)',
       expect(CHECKOUT_MOCK).toContain('@media (prefers-reduced-motion: reduce)');
       expect(OFFLINE_MOCK).toContain('@media (prefers-reduced-motion: reduce)');
       expect(LEDGER_MOCK).toContain('@media (prefers-reduced-motion: reduce)');
+      expect(OWNER_MOCK).toContain('@media (prefers-reduced-motion: reduce)');
     });
   });
 
