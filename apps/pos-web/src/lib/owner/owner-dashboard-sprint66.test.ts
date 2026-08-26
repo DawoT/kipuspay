@@ -89,7 +89,9 @@ describe('Sprint 66 — Owner Dashboard KPI Enterprise', () => {
     // El guard debe estar en briefingBullets, no el acceso directo sin try
     expect(ownerPage).toMatch(/briefingBullets[\s\S]*?try[\s\S]*?JSON\.parse/);
     // No debe quedar el patrón inseguro directo sin try/catch
-    expect(ownerPage).not.toMatch(/let briefingBullets: string\[\] = \$derived\(\s+briefing\s+\? \(\(JSON\.parse/);
+    expect(ownerPage).not.toMatch(
+      /let briefingBullets: string\[\] = \$derived\(\s+briefing\s+\? \(\(JSON\.parse/,
+    );
   });
 
   it('GAP #4 — muestra Skeleton durante snap===null (carga inicial rollup offline)', () => {

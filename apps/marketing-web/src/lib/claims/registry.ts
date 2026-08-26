@@ -8,7 +8,13 @@ export type ClaimStatus =
   | { readonly kind: 'roadmap'; readonly unlockSprint: number; readonly label: string };
 
 export type FeaturedClaimId =
-  'kds_split' | 'fefo_lots' | 'blind_z_audit' | 'services_core' | 'owner_ranking' | 'merma_xfer' | 'fuel_fleet';
+  | 'kds_split'
+  | 'fefo_lots'
+  | 'blind_z_audit'
+  | 'services_core'
+  | 'owner_ranking'
+  | 'merma_xfer'
+  | 'fuel_fleet';
 
 /** Estado canónico post–QG de cada feature destacada de vertical (GTM §2). */
 export const FEATURED_CLAIMS: Readonly<Record<FeaturedClaimId, ClaimStatus>> = {

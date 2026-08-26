@@ -678,17 +678,20 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'reloj',
         pain: 'En hora punta la cola de la isleta crece cuando el sistema tarda en registrar el cobro.',
-        relief: 'Registras el despacho y cobras en segundos, sin que la cola espere por el comprobante.',
+        relief:
+          'Registras el despacho y cobras en segundos, sin que la cola espere por el comprobante.',
       },
       {
         icon: 'documento',
         pain: 'Calcular la detracción del diésel a mano en cada factura a empresa genera errores con SUNAT.',
-        relief: 'El sistema calcula y separa el porcentaje de detracción al seleccionar diésel en la factura.',
+        relief:
+          'El sistema calcula y separa el porcentaje de detracción al seleccionar diésel en la factura.',
       },
       {
         icon: 'caja',
         pain: 'Cuadrar la caja al cierre del turno con varios surtidores activos toma media hora.',
-        relief: 'El reporte de turno por isleta está listo en segundos con despachos, montos y medios de pago.',
+        relief:
+          'El reporte de turno por isleta está listo en segundos con despachos, montos y medios de pago.',
       },
     ],
     faq: [
@@ -744,7 +747,8 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'sync',
         title: 'Caja continua sin internet',
-        description: 'Cobra sin pausas aunque la conexión falle; sincronización automática al volver',
+        description:
+          'Cobra sin pausas aunque la conexión falle; sincronización automática al volver',
       },
     ],
     modules: [

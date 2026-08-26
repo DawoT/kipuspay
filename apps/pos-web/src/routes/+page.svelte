@@ -77,7 +77,7 @@
   let clientDocType = $state('1');
   let clientDocNumber = $state('');
   let clientName = $state('');
-  let tipCents = $state<number | null>(0);
+  let tipCents = $state<number>(0);
   let onboardingSession = $state<{ branchId: string; sessionId: string } | null>(null);
   let onboardingNotice = $state('');
   let tourOpen = $state(false);

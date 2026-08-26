@@ -14942,3 +14942,36 @@ aprobaciones: [Staff Frontend, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0515
+timestamp_utc: 2026-08-26T08:00:00Z
+schema_version: 2
+sprint_fase: CORRIGE 0514 — tipCents nullability + prettier drift
+agente_responsable: Staff Principal (auditoría: kipus-qa; remediación: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Quality Gate — lint + typecheck
+relacion: corrige
+referencias_entradas: [0514]
+referencias_documentales: [apps/pos-web/src/routes/+page.svelte, apps/marketing-web/src/lib/claims/registry.ts]
+prev_id: 0514
+prev_hash: d76c5d2f1d374c286517aa843da5ee7efa598be1a0d9bfa728003cdec15a00dd
+entry_hash: c224bb561db64b7904213fa63bb89a7476fb573f4c7c44b50d2b6af25d775580
+ticket_or_adr: GAP #5 tipCents; prettier drift 6 files
+test_ids: [apps/pos-web/src/lib/pos/tip-cents-gap5.red.test.ts, pos-web typecheck, SUITE]
+entregable_afectado: apps/pos-web/src/routes/+page.svelte §tipCents number (nunca null)
+descripcion: >
+  Corrige ledger 0514 que firmó GREEN con 2 errores latentes: prettier drift
+  en 6 archivos y tipCents:number|null con Math.round(null) (TS2532).
+  Fix: let tipCents = $state<number>(0) (nunca null) y prettier --write en
+  los 6 archivos. Quality Gate 8/8 ahora OK.
+evidencia: >
+  RED: pnpm quality 1/8 Lint (prettier 6 files) + 2/8 Typecheck (TS2532 2
+  errors) → Quality Gate FAIL, svelte-check 2 errors. GREEN: prettier
+  --write, tipCents number, pos-web typecheck 0, pos-web 543/543, Quality
+  Gate OK (8/8, bundle 293.34kB), SUITE GREEN (31/31), V-13 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff QA, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

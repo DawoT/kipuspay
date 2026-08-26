@@ -22,10 +22,7 @@ const CHAIN_MOCK = readFileSync(
   new URL('./vertical-mocks/ChainMock.svelte', import.meta.url),
   'utf8',
 );
-const GAS_MOCK = readFileSync(
-  new URL('./vertical-mocks/GasMock.svelte', import.meta.url),
-  'utf8',
-);
+const GAS_MOCK = readFileSync(new URL('./vertical-mocks/GasMock.svelte', import.meta.url), 'utf8');
 const VERTICAL_LANDING_VIEW = readFileSync(
   new URL('./VerticalLandingView.svelte', import.meta.url),
   'utf8',
