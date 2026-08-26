@@ -10,8 +10,16 @@
   import OwnerModeMock from '$lib/components/OwnerModeMock.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { ogImageFor } from '$lib/seo';
+  import { page } from '$app/stores';
+  import { browser } from '$app/environment';
 
   const verticals = allVerticals();
+
+  const empezarHref = $derived(
+    browser && $page.url.searchParams.get('autotest')
+      ? `/empezar?autotest=${encodeURIComponent($page.url.searchParams.get('autotest') ?? '')}`
+      : '/empezar',
+  );
 
   const [offlineBefore, offlineAfter] = HOME.offline.body.split('sincroniza');
 
@@ -79,7 +87,7 @@
         <h1>{HOME.headline}</h1>
         <p class="hero-sub">{HOME.subheadline}</p>
         <div class="hero-actions">
-          <a class="btn" href="/empezar">{HOME.ctaPrimary}</a>
+          <a class="btn" href={empezarHref}>{HOME.ctaPrimary}</a>
           <a class="btn btn-ghost" href="#como">{HOME.ctaSecondary}</a>
         </div>
         <p class="trust">{HOME.activation} · {HOME.trustLine}</p>
@@ -466,11 +474,11 @@
     <p class="brand-mark">{HOME.finalCta.headline}</p>
     <p>{HOME.subheadline}</p>
     <div class="cta-row">
-      <a class="btn" href="/empezar">{HOME.finalCta.cta}</a>
+      <a class="btn" href={empezarHref}>{HOME.finalCta.cta}</a>
       <a class="btn btn-ghost" href="#como">{HOME.ctaSecondary}</a>
     </div>
     <p class="microcopy">{HOME.finalCta.microcopy}</p>
   </div>
 </section>
 
-<a class="btn btn-sticky" href="/empezar">{HOME.ctaPrimary}</a>
+<a class="btn btn-sticky" href={empezarHref}>{HOME.ctaPrimary}</a>

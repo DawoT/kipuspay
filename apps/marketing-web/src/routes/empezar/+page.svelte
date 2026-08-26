@@ -178,16 +178,17 @@
   function goToPos() {
     if (!credentials) return;
     const posOrigin = resolvePosOrigin();
-    window.location.assign(
-      buildOnboardingRedirect({
-        posOrigin,
-        tenantId: credentials.tenantId,
-        token: credentials.token,
-        mode: formalizationMode,
-        vertical: verticalType,
-        name: tradeName,
-      }),
-    );
+    const autotest = $page.url.searchParams.get('autotest');
+    const baseRedirect = buildOnboardingRedirect({
+      posOrigin,
+      tenantId: credentials.tenantId,
+      token: credentials.token,
+      mode: formalizationMode,
+      vertical: verticalType,
+      name: tradeName,
+    });
+    const redirect = autotest ? `${baseRedirect}&autotest=${encodeURIComponent(autotest)}` : baseRedirect;
+    window.location.assign(redirect);
   }
 </script>
 

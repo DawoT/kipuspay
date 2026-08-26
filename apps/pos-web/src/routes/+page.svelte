@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { maybeRunMarketingAutotest } from '$lib/autotest-bridge';
   import { formatCents } from '$lib/cents';  import {
     isCatalogQuickAddEnabled,
     isCatalogVariantsEnabled,
@@ -235,6 +236,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   });
 
   onMount(() => {
+    void maybeRunMarketingAutotest();
     if (typeof window === 'undefined') return;
     const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
     if (fromQs) {
