@@ -1823,3 +1823,61 @@ aprobaciones: [Staff Owner, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0041
+timestamp_utc: 2026-08-26T03:05:00Z
+schema_version: 2
+sprint_fase: Auditoría H3/H4 — Conservación y portal CPE
+agente_responsable: Staff Principal (verificación: kipus-fiscal; auditoría: Staff Principal)
+tipo: Verificación
+subtipo: H3/H4 ya materializados — sin cambios
+relacion: amplia
+referencias_entradas: [0040]
+referencias_documentales: [packages/adapters-d1/src/build-daily-summary.ts, apps/worker-api/src/fiscal/fiscal-rc-routes.ts]
+prev_id: 0040
+prev_hash: 06c5ed1aaad7cce507079b9ac050fcdd143ee5a6b5a355c96ed5e0cd77ac4882
+entry_hash: d4387b62d16406ac8760c3c78f8e7e7822d7b5205788316390a48265de9f271b
+ticket_or_adr: H3/H4
+test_ids: [SUITE]
+entregable_afectado: packages/adapters-d1/src/build-daily-summary.ts §conservación; apps/worker-api/src/fiscal/fiscal-rc-routes.ts §portal
+descripcion: >
+  Verificación Staff de H3/H4 sin nuevos cambios: H3 conservación RC/CDR en
+  R2 con retención 5 años y H4 portal CPE con enlace determinista y default
+  ON ya están en HEAD y verificados (adapters-d1 454+326, worker-api 1419,
+  SUITE GREEN).
+evidencia: >
+  GREEN: H3/H4 verificados sin código nuevo, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Fiscal, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0042
+timestamp_utc: 2026-08-26T03:06:00Z
+schema_version: 2
+sprint_fase: Diseño — EmptyState + Sidebar premium
+agente_responsable: Staff Design (ejecución: kipus-design; auditoría: Staff Principal)
+tipo: Refinamiento de diseño
+subtipo: Ledger Minimalism
+relacion: amplia
+referencias_entradas: [0041]
+referencias_documentales: [apps/pos-web/src/lib/ui/EmptyState.svelte, apps/pos-web/src/routes/+layout.svelte]
+prev_id: 0041
+prev_hash: d4387b62d16406ac8760c3c78f8e7e7822d7b5205788316390a48265de9f271b
+entry_hash: 285da1fad6e33865a3024ef0842f74c0c3e4b017e4e462c00a109c264ffa9d8e
+ticket_or_adr: V-24; V-27
+test_ids: [SUITE]
+entregable_afectado: apps/pos-web/src/lib/ui/EmptyState.svelte; apps/pos-web/src/routes/+layout.svelte
+descripcion: >
+  Dos refinamientos premium: EmptyState ledger con ilustración y CTA 44px;
+  sidebar hover con amber + border-glow + shadow y top-bar frosted.
+evidencia: >
+  GREEN: pos-web 498/498, bundle 290.06kB, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Design, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -14159,3 +14159,39 @@ aprobaciones: [Staff Owner, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0493
+timestamp_utc: 2026-08-26T03:00:00Z
+schema_version: 2
+sprint_fase: Diseño — Refinamiento premium EmptyState + Sidebar
+agente_responsable: Staff Design (ejecución: kipus-design; auditoría: Staff Principal)
+tipo: Refinamiento de diseño
+subtipo: Ledger Minimalism — EmptyState + micro-interacciones
+relacion: amplia
+referencias_entradas: [0492]
+referencias_documentales: [apps/pos-web/src/lib/ui/EmptyState.svelte, apps/pos-web/src/routes/+layout.svelte, apps/pos-web/src/routes/owner/+layout.svelte]
+prev_id: 0492
+prev_hash: e19cbbfc34d8c01679244ac855464ede42d17983caa3e0287a3aef44d902fffe
+entry_hash: 9780ffac77b62ad1d9bd3dfe5770e0b51ac39347b280bd7cae10eda99e53f6fd
+ticket_or_adr: V-24; V-27
+test_ids: [apps/pos-web/src/lib/ui/EmptyState.test.ts, SUITE]
+entregable_afectado: apps/pos-web/src/lib/ui/EmptyState.svelte §ilustración ledger; apps/pos-web/src/routes/+layout.svelte §sidebar hover; apps/pos-web/src/routes/owner/+layout.svelte §top-bar frosted
+descripcion: >
+  Auditoría de tokens verificó coherencia 100% (ink/paper, sello/amber,
+  superficies glass, bordes radius 0, tipografía tabular, spacing, sombras,
+  transiciones). Dos refinamientos premium de alto impacto: (A) EmptyState
+  ledger premium — ilustración con nudo ámbar, jerarquía font-heading,
+  CTA 44px, animación 0.32s ease-out, contraste AA 15.76. (B) Sidebar
+  colapsable + hover con amber 6% + border-glow + shadow + translateX 1px,
+  top-bar frosted blur 16px saturate 1.15, focus-visible 3px. Bundle +0.09kB
+  (290.06 <300).
+evidencia: >
+  RED: EmptyState sin ilustración ni CTA 44px; sidebar seco sin hover premium.
+  GREEN: pos-web 498/498, svelte-check 0, SUITE GREEN, V-24/V-27 GREEN,
+  bundle 290.06kB, WCAG AA verificado, zero-deps.
+ancestry_verified: true
+aprobaciones: [Staff Design, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
