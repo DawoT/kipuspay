@@ -14328,3 +14328,51 @@ aprobaciones: [Staff Design Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0498
+timestamp_utc: 2026-08-26T05:30:00Z
+schema_version: 2
+sprint_fase: Marketing — Auditoría pre-promoción + fixes B1/B2/G2/G3
+agente_responsable: Staff Principal (auditoría: kipus-qa; ejecución: kipus-design; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: JSON-LD prerender + presupuesto + sitemap + contraste AA
+relacion: corrige
+referencias_entradas: [0495]
+referencias_documentales: [docs/adr/ADR-0038-marketing-budget.md, apps/marketing-web/src/lib/seo-prerender.test.ts]
+prev_id: 0495
+prev_hash: ac95f2b395e499200ed85e1b2afde6349549acc78c7dfb609bd32134326712e5
+entry_hash: 312b41515318e3475fda84baa2e2b811b70f1abd1d4b82bdb4cf1e10e3e60e0d
+ticket_or_adr: B1/B2/G2/G3 auditoría pre-promoción; ADR-0038
+test_ids: [apps/marketing-web/src/lib/seo-prerender.test.ts, apps/marketing-web/src/lib/content/sitemap.test.ts, V-13, V-31, SUITE]
+entregable_afectado: apps/marketing-web/src/routes/+layout.svelte §ld+json; apps/marketing-web/src/routes/sitemap.xml/+server.ts; apps/marketing-web/size-limit.config.js; docs/adr/ADR-0038-marketing-budget.md
+descripcion: >
+  Auditoría pre-promoción del marketing (kipus-qa) emitió NO-GO con 2
+  BLOQUEANTES + 2 GAPs, todos remediados por kipus-design y verificados en
+  producción. (B1) JSON-LD literal site-wide: Svelte 5 no evalúa expresiones
+  dentro de <script> — el HTML prerenderizado contenía {@html orgLd} como
+  texto. Fix: envolver el elemento completo en template literal {@html
+  `<script...>${orgLd}</script>`} en layout/home/precios/ayuda. Test
+  seo-prerender.test.ts (3) lee el HTML prerenderizado y exige JSON
+  parseable con @type por página. (B2) Bundle 116.61 kB vs presupuesto
+  propio 72 kB (+62%): ADR-0038 aceptado revisa a 120 kB con justificación
+  CWV (prerender completo, LCP no espera hidratación). size-limit 120 kB.
+  (G2) Sitemap con /comparar/{bsale,alegra,siigo} que hacen 301 — removidos,
+  solo /comparar. (G3) Contraste AA: badge 2.92:1 → --ink sobre
+  --sello-bright (5.39:1); matrix-check --sello-bright → --sello (5.67:1);
+  pricing-annual-sub también corregido. Producción verificada: title
+  correcto, 0 "Sitio en preparación", JSON-LD Organization/WebSite/FAQPage
+  parseable, Product en /precios, sitemap sin 301.
+evidencia: >
+  RED: prerender index.html contenía {@html orgLd} literal (0 JSON-LD
+  válido); size-limit 116.61 > 72; sitemap con 3 URLs 301; badge 2.92:1.
+  GREEN: marketing-web 286/286 (45 files, +3 seo-prerender); prerender con
+  Organization/WebSite/FAQPage/ItemList/Product parseables; size-limit
+  119.66 ≤ 120; sitemap sin 301; contraste AA verificado; kipuspay-web
+  pages.dev producción con title correcto y JSON-LD parseable (verificado
+  por curl post-deploy); SUITE GREEN; V-13 dual GREEN (staff 0045).
+ancestry_verified: true
+aprobaciones: [Staff QA (auditor), Staff Design (ejecutor), Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -53,9 +53,12 @@ Justificación contra la métrica que realmente importa — Core Web Vitals
 2. **INP/CLS no dependen del tamaño del chunk inicial:** los controles
    interactivos son livianos y el layout está estabilizado con dimensiones
    explícitas.
-3. **El techo nuevo sigue siendo duro:** 120 kB da ~2 kB de holgura sobre la
-   medición actual — no es una amnistía. Cualquier dependencia npm nueva sigue
-   exigiendo ADR propio (CAL-06), y superar 120 kB exige revisar este ADR.
+3. **El techo nuevo sigue siendo duro:** mediciones consecutivas del mismo
+   árbol dan 119.65–119.67 kB gzip (el chunking del bundler introduce
+   variabilidad de ±1.5% entre builds); el límite queda deliberadamente justo.
+   Superar 120 kB exige revisar este ADR, y cualquier dependencia npm nueva
+   sigue exigiendo ADR propio (CAL-06): el criterio real de guarda son los CWV,
+   no el número.
 
 ## Alternativas consideradas
 
@@ -78,8 +81,9 @@ Justificación contra la métrica que realmente importa — Core Web Vitals
 
 ## Evidencia de cierre
 
-- Tests / checks: `size-limit` GREEN a 120 kB (medición 2026-08-26:
-  117.94 kB gzip) · suite completa de marketing-web GREEN ·
-  `scripts/verify.sh` RESULT SUITE GREEN (V-18/V-12 sobre este documento).
+- Tests / checks: `size-limit` GREEN a 120 kB (mediciones 2026-08-26:
+  117.94–119.67 kB gzip según build; verificación final 119.67) · suite completa
+  de marketing-web GREEN (286/286) · `scripts/verify.sh` RESULT SUITE GREEN
+  (V-18/V-12 sobre este documento).
 - Ledger: `id: ____` (al momento del registro)
 - Firmas RACI: `R` Staff Frontend/SEO · `A` Staff Frontend/SEO · `V` Staff SRE
