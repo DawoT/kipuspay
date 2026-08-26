@@ -281,6 +281,8 @@ import { runListSellableCatalogHttp } from './catalog/sellable-catalog-routes.js
 import { runExportCatalogCsvHttp, runExportSalesCsvHttp } from './catalog/catalog-export-routes.js';
 import { runIssueShiftPinHttp, runShiftTransferHttp } from './cash/shift-routes.js';
 import { runResolveSellerHttp, runTeamInviteHttp } from './team/team-routes.js';
+import { runListBranchSeriesHttp } from './branch-series/branch-series-route.js';
+import { runGetTenantContextHttp } from './tenant/tenant-context-route.js';
 import { runDebitNoteHttp } from './sales/debit-note-routes.js';
 import { runRemissionGuideHttp } from './inventory/remission-guide-routes.js';
 import { runPerceptionHttp, runRetentionHttp } from './fiscal/withholding-routes.js';
@@ -650,6 +652,20 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       c.req.header('x-terminal-id') ?? '',
     );
     return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+
+  // §5.5 branch_document_series por sucursal — usado por POS para resolver serie correcta (multi-local)
+  app.get('/api/branches/:id/series', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runListBranchSeriesHttp(c.env, jwt?.tenantId ?? '', c.req.param('id'));
+    return c.json(result.body, result.status);
+  });
+
+  // Tenant context para POS (formalizationMode + taxRegime) — hidrata PosTenantSession sin hardcode
+  app.get('/api/tenant/context', async (c) => {
+    const jwt = c.get('jwt');
+    const result = await runGetTenantContextHttp(c.env, jwt?.tenantId ?? '');
+    return c.json(result.body, result.status);
   });
 
   // Fiscal RC — void boleta / alertas / portal / cron RC+plazos

@@ -15,6 +15,7 @@
   import { apiFetch } from '$lib/auth/api-client';
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { readTenantSession } from '$lib/tenant/session';
+  import { fetchBranchSeries, resolveSeriesForBranch, fallbackSeriesForDocumentType } from '$lib/branch-series/client.js';
   import { OfflineCorrelativeStore } from '$lib/offline-correlative/reserve';
   import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox-store';
   import { createPrinterTransport } from '$lib/print/printer-transport';
@@ -81,14 +82,23 @@
       return;
     }
     status = 'confirming';
+    const tenant = readTenantSession(sessionStorage);
+    let series = fallbackSeriesForDocumentType('NV');
+    try {
+      const branchSeries = await fetchBranchSeries(session.branchId);
+      const resolved = resolveSeriesForBranch(branchSeries, 'NV');
+      if (resolved) series = resolved;
+    } catch {
+      // offline: fallback
+    }
     const outcome = await chargeCartOffline(
       [{ productId: product.id, name: product.name, unitPriceCents: product.priceCents, quantity: 1 }],
       {
-        formalizationMode: 'INTERNAL_CONTROL',
-        taxRegime: 'RG',
+        formalizationMode: tenant.formalizationMode,
+        taxRegime: tenant.taxRegime,
         branchId: session.branchId,
         cashRegisterSessionId: session.sessionId,
-        series: 'NV01',
+        series,
         clientDocumentType: '1',
         clientDocumentNumber: '00000000',
         clientName: 'Cliente',
@@ -99,13 +109,13 @@
     status = outcome.ok ? 'charged' : 'blocked';
     message = outcome.ok ? `Pagado · ${documentKindLabel(outcome.documentType)}` : outcome.message;
     if (!outcome.ok || !isPrintTemplatesEnabled()) return;
-    const tenant = readTenantSession(sessionStorage);
-    const reserve = correlatives.reserve(outcome.offlineSaleId, 'NV01');
+    const tenantAfter = readTenantSession(sessionStorage);
+    const reserve = correlatives.reserve(outcome.offlineSaleId, series);
     const snapshot = buildSaleTicketSnapshot({
-      enterprise: tenant.tradeName,
+      enterprise: tenantAfter.tradeName,
       ruc: '',
       documentType: 'NV',
-      series: 'NV01',
+      series,
       number: reserve.tentativeNumber,
       totalCents: product.priceCents,
       items: [{ name: product.name, qty: 1, totalCents: product.priceCents }],

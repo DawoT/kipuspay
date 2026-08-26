@@ -28,7 +28,7 @@ import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox
 import { enqueueAndPrintTicket } from '$lib/print/enqueue-print';
 import { buildSaleTicketSnapshot, snapshotToTicketData } from '$lib/print/offload-compile';
 import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
-import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
   import { readLoginUser, writeLoginTenantId, writeLoginToken, writeLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
   import {
@@ -50,6 +50,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import SellableCatalog from '$lib/pos/SellableCatalog.svelte';
   import { chargeCartOffline, requiresCustomerIdentity, resolveChargeDocument } from '$lib/pos-checkout/charge';
+  import { fetchBranchSeries } from '$lib/branch-series/client.js';
   import {
     leaseScannedSerialLine,
     SerialCheckoutError,
@@ -246,6 +247,32 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     } else {
       session = readTenantSession(sessionStorage);
     }
+    // Hidratación autoritativa régimen/modo desde D1 (tenant.tax_regime × formalization_mode)
+    // Solo si sesión aún es UNKNOWN/INTERNAL_CONTROL por defecto y hay tenantId + token
+    if (session.tenantId && session.taxRegime === 'UNKNOWN') {
+      void (async () => {
+        try {
+          const res = await apiFetch('/api/tenant/context', { storage: localStorage });
+          if (!res.ok) return;
+          const data = (await res.json()) as { formalizationMode?: string; taxRegime?: string; tradeName?: string };
+          const modeOk = data.formalizationMode === 'INTERNAL_CONTROL' || data.formalizationMode === 'FORMALIZING' || data.formalizationMode === 'ELECTRONIC_ISSUER';
+          const regimeOk = data.taxRegime === 'NRUS' || data.taxRegime === 'RER' || data.taxRegime === 'RMT' || data.taxRegime === 'RG' || data.taxRegime === 'UNKNOWN';
+          if (!modeOk && !regimeOk && !data.tradeName) return;
+          const next: PosTenantSession = {
+            ...session,
+            ...(modeOk ? { formalizationMode: data.formalizationMode as PosTenantSession['formalizationMode'] } : {}),
+            ...(regimeOk ? { taxRegime: data.taxRegime as PosTenantSession['taxRegime'] } : {}),
+            ...(data.tradeName ? { tradeName: data.tradeName } : {}),
+          };
+          if (next.taxRegime !== session.taxRegime || next.formalizationMode !== session.formalizationMode || next.tradeName !== session.tradeName) {
+            writeTenantSession(sessionStorage, next);
+            session = next;
+          }
+        } catch {
+          // offline: mantiene UNKNOWN hasta próximo online
+        }
+      })();
+    }
     terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
     terminalRegistered = terminalId.length > 0;
     loginUser = readLoginUser(localStorage);
@@ -350,11 +377,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       message = 'No hay una sesión de caja abierta. Inicia sesión o abre la caja.';
       return;
     }
+    const branchId = onboardingSession.branchId;
+    let branchSeries: readonly { id: string; series: string; documentTypeCode: string; currentNumber: number; isActive: boolean; authorizationStatus: string }[] = [];
+    try {
+      branchSeries = await fetchBranchSeries(branchId);
+    } catch {
+      // offline: cache dentro de fetchBranchSeries ya hizo fallback
+      branchSeries = [];
+    }
     const chargeDoc = resolveChargeDocument({
       formalizationMode: session.formalizationMode,
-      taxRegime: 'RG',
+      taxRegime: session.taxRegime,
       clientDocumentType: clientDocType,
       clientDocumentNumber: clientDocNumber.trim(),
+      branchSeries,
     });
     if (isVitrinaEnabled()) {
       publishVitrina({
@@ -372,8 +408,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       lines,
       {
         formalizationMode: session.formalizationMode,
-        taxRegime: 'RG',
-        branchId: onboardingSession?.branchId ?? '',
+        taxRegime: session.taxRegime,
+        branchId,
         cashRegisterSessionId: onboardingSession?.sessionId ?? '',
         series: chargeDoc.series,
         clientDocumentType: clientDocType,

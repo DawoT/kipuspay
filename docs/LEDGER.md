@@ -14699,3 +14699,38 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0508
+timestamp_utc: 2026-08-26T06:30:00Z
+schema_version: 2
+sprint_fase: Fix PKCS12 RC2-40 — SafeContents 0x9e wrapper
+agente_responsable: Staff Principal (ejecución: kipus-security; auditoría: Staff Principal)
+tipo: Corrección de especificación
+subtipo: Vendor RC2-40 + walkBags 0x9e
+relacion: corrige
+referencias_entradas: [0507]
+referencias_documentales: [packages/domain-fiscal-pe/src/pkcs12.ts, packages/domain-fiscal-pe/src/vendor/rc2.ts]
+prev_id: 0507
+prev_hash: 69963c99f9fae0d7428611a585e08542c2513e5b7fedacc9571a8a9eba843701
+entry_hash: 67839c541c4694df7fe7efa0b17b3b1ea40232e54fb25fa36e7be7f43113d09a
+ticket_or_adr: S11; OID 1.2.840.113549.1.12.1.6
+test_ids: [packages/domain-fiscal-pe/src/pkcs12-rc2-legacy.test.ts, apps/worker-api/src/fiscal/tenant-cert-rc2-legacy.test.ts]
+entregable_afectado: packages/domain-fiscal-pe/src/pkcs12.ts §walkBags 0x9e; packages/domain-fiscal-pe/src/vendor/rc2.ts
+descripcion: >
+  Fix vendorizado RC2-40-CBC para el .p12 SOL con SafeContents 0x9e (7789 bytes,
+  2 certs). El SafeContents venía como OCTET STRING context-specific 0x9e que
+  envuelve la SEQUENCE; el parser BER fallaba con long form >2 bytes. Fix:
+  walkBags detecta 0x9e y busca el primer 0x30 para desenrollar. Vendor 2406B
+  con tm fix para bits=40 ya cubría el caso sintético (1 cert); este extiende
+  al caso real SOL con 2 certs.
+evidencia: >
+  RED: certificado.p12 original RC2-40 con 2 certs → PKCS12_MISSING_BAGS
+  (SafeContents 0x9e). GREEN: vendor 2406B + 0x9e walk, pkcs12-rc2-legacy 3/3
+  sintético + 1/1 real (fingerprint 4dc9...), SUITE GREEN. Workaround previo
+  (re-export a AES) sigue válido pero ya no necesario.
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -13,6 +13,11 @@ import { buildSaleTotals } from '@kipuspay/domain-sales';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 import type { OfflineQueueStore } from '../offline-sync/offline-queue.js';
 import { cartTotalCents, type CartLine } from './cart.js';
+import type { BranchSeries } from '../branch-series/client.js';
+import {
+  fallbackSeriesForDocumentType,
+  resolveSeriesForBranch,
+} from '../branch-series/client.js';
 
 export interface ChargeContext {
   readonly formalizationMode: FormalizationMode;
@@ -104,11 +109,16 @@ function buildPaymentLine(
   };
 }
 
-/** Serie AUTHORIZED del tenant Rosa Negra / default PE: 01→F001, 03→B001, NV→NV01. */
-export function seriesForDocumentType(documentType: SuggestDocCode | 'NV_RETURN'): string {
-  if (documentType === '01') return 'F001';
-  if (documentType === '03') return 'B001';
-  return 'NV01';
+/** Serie por sucursal desde branch_document_series (§5.5); fallback solo dev sin DB. */
+export function seriesForDocumentType(
+  documentType: SuggestDocCode | 'NV_RETURN',
+  branchSeries?: readonly BranchSeries[] | null,
+): string {
+  if (branchSeries && branchSeries.length > 0) {
+    const resolved = resolveSeriesForBranch(branchSeries, documentType);
+    if (resolved) return resolved;
+  }
+  return fallbackSeriesForDocumentType(documentType);
 }
 
 export function resolveChargeDocument(input: {
@@ -117,6 +127,7 @@ export function resolveChargeDocument(input: {
   readonly clientDocumentType: string;
   readonly clientDocumentNumber: string;
   readonly documentTypeOverride?: 'NV' | 'NV_RETURN' | '01' | '03';
+  readonly branchSeries?: readonly BranchSeries[] | null;
 }): { readonly documentType: SuggestDocCode | 'NV_RETURN' | '01' | '03'; readonly series: string } {
   const documentType =
     input.documentTypeOverride ??
@@ -126,7 +137,7 @@ export function resolveChargeDocument(input: {
       clientDocumentType: input.clientDocumentType,
       clientDocumentNumber: input.clientDocumentNumber,
     });
-  return { documentType, series: seriesForDocumentType(documentType) };
+  return { documentType, series: seriesForDocumentType(documentType, input.branchSeries ?? null) };
 }
 
 export async function chargeCartOffline(

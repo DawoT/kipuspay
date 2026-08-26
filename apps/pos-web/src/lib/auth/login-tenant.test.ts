@@ -26,6 +26,7 @@ function sessionWithTenant(tenantId: string): Storage {
     tenantId,
     tradeName: 'Tienda Test',
     formalizationMode: 'INTERNAL_CONTROL',
+    taxRegime: 'RG',
     verticalType: 'retail',
     onboardingStartedAtIso: null,
     firstSaleAtIso: null,

@@ -23,10 +23,12 @@ async function waitForTenantId(timeoutMs = 6000): Promise<string> {
     try {
       const raw = sessionStorage.getItem('kipuspay.pos.tenant.v1');
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.tenantId) return parsed.tenantId;
+        const parsed = JSON.parse(raw) as { tenantId?: unknown };
+        if (typeof parsed.tenantId === 'string' && parsed.tenantId) return parsed.tenantId;
       }
-    } catch {}
+    } catch {
+      // storage corrupto: ignora y reintenta
+    }
     await new Promise((r) => setTimeout(r, 200));
   }
   return '';

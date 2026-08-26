@@ -10,6 +10,8 @@ export type OfflineQueueStatus = 'PENDING' | 'RETRY';
 export interface OfflineQueueRecord {
   readonly offlineSaleId: string;
   readonly payload: OfflineSalePayload;
+  /** Denormalized branchId para índice por sucursal (§5.5 branch_document_series). Opcional para compatibilidad con registros pre-migración. */
+  readonly branchId?: string;
   readonly status: OfflineQueueStatus;
   readonly enqueuedAtMs: number;
 }
@@ -45,6 +47,7 @@ export class OfflineQueueStore {
       await this.idb.set(key, {
         offlineSaleId: payload.offlineSaleId,
         payload,
+        branchId: payload.branchId,
         status: 'PENDING',
         enqueuedAtMs: Date.now(),
       });
@@ -68,6 +71,11 @@ export class OfflineQueueStore {
       if (row && (row.status === 'PENDING' || row.status === 'RETRY')) out.push(row);
     }
     return out.sort((a, b) => a.enqueuedAtMs - b.enqueuedAtMs);
+  }
+
+  async listPendingByBranch(branchId: string): Promise<readonly OfflineQueueRecord[]> {
+    const all = await this.listPending();
+    return all.filter((r) => r.branchId === branchId || r.payload.branchId === branchId);
   }
 
   async del(offlineSaleId: string): Promise<void> {
@@ -94,12 +102,16 @@ function isQuotaExceeded(error: unknown): boolean {
 function isOfflineQueueRecord(value: unknown): value is OfflineQueueRecord {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
+  const payload = v.payload as Record<string, unknown> | null;
+  const branchId = v.branchId;
+  const payloadBranch = payload?.branchId;
   return (
     typeof v.offlineSaleId === 'string' &&
     typeof v.payload === 'object' &&
     v.payload !== null &&
     (v.status === 'PENDING' || v.status === 'RETRY') &&
-    typeof v.enqueuedAtMs === 'number'
+    typeof v.enqueuedAtMs === 'number' &&
+    (typeof branchId === 'string' || typeof payloadBranch === 'string')
   );
 }
 
@@ -115,11 +127,19 @@ export function createBrowserOfflineIdb(dbName = 'kipus_offline_sales'): Offline
   const storeName = 'offline_sales';
   const openDb = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(dbName, 1);
+      const req = indexedDB.open(dbName, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
+        let store: IDBObjectStore;
         if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName);
+          store = db.createObjectStore(storeName);
+        } else {
+          const tx = req.transaction!;
+          store = tx.objectStore(storeName);
+        }
+        // §5.5: índice por sucursal para drenaje/observabilidad por branch
+        if (!store.indexNames.contains('by_branch')) {
+          store.createIndex('by_branch', 'branchId', { unique: false });
         }
       };
       req.onsuccess = () => resolve(req.result);
