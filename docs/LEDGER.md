@@ -15114,3 +15114,38 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0520
+timestamp_utc: 2026-08-26T22:33:00Z
+schema_version: 2
+sprint_fase: Fase A — Mobile Sticky CTA Centering, Visibility & Brand Contrast Fix
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Fix
+subtipo: Mobile Sticky CTA Centering + Amber Pop & Contrast
+relacion: CORRIGE
+referencias_entradas: [0519]
+referencias_documentales: [apps/marketing-web/src/app.css]
+prev_id: 0519
+prev_hash: 48af3cd740490f76ffee7fcd33e90bf01689154038958d9611c50db03508fa33
+entry_hash: ba968dcfdb9e1caadd0d6dcd298c1a0d249a6de01f4ad0b8d29e2720f6c3bdbb
+ticket_or_adr: V-26; CAL-06; ADR-ARCH-002
+test_ids: [apps/marketing-web/src/lib/components/navigation-pricing.test.ts, apps/marketing-web/src/lib/visual-sprints.test.ts, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css
+descripcion: >
+  Corrección del botón flotante móvil (.btn-sticky):
+  (1) Centrado horizontal: la animación previa `@keyframes riseIn` sobreescribía `transform: translateX(-50%)`
+      con `translateY(0)`, empujando el botón hacia la derecha fuera de pantalla.
+      Se implementó centrado canónico con `left: 0; right: 0; margin: 0 auto; width: min(calc(100vw - 2rem), 26rem);`
+      y animación aislada `@keyframes stickyRiseIn`.
+  (2) Visibilidad y contraste: botón estilizado con fondo ámbar KipusPay (`--amber-bright`), tipografía oscura (`--ink`),
+      sombra de elevación y resplandor cálido (`--shadow-glow`), garantizando alta notoriedad y ergonomía de pulgar (48px).
+evidencia: >
+  Playwright MCP: verificación visual y medición de centrado (isCentered: true, rect.left: 16, width: 358 en 390px).
+  Cloudflare Pages: desplegado en producción (https://kipuspay-web.pages.dev).
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

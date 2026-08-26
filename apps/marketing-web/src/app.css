@@ -525,15 +525,18 @@ li {
   gap: 0.25rem;
 }
 
-.drawer-nav a:not(.btn) {
+.drawer-nav a {
   display: flex;
   align-items: center;
   gap: 0.65rem;
   min-height: 44px;
   padding: 0.6rem 0.75rem;
-  color: rgba(243, 239, 230, 0.9);
   font-size: 0.95rem;
   transition: all 0.15s ease;
+}
+
+.drawer-nav a:not(.btn) {
+  color: rgba(243, 239, 230, 0.9);
 }
 
 .drawer-nav a:not(.btn):hover,
@@ -671,25 +674,55 @@ li {
  */
 .btn-sticky {
   display: none;
+  box-shadow: var(--shadow-glow);
 }
 
 @media (max-width: 899px) {
   .site-header.past-hero ~ #contenido .btn-sticky {
     position: fixed;
-    left: 50%;
+    left: 0;
+    right: 0;
     bottom: 1rem;
     bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     z-index: 30;
     display: flex;
-    width: min(100vw - 2rem, 26rem);
-    margin: 0;
-    transform: translateX(-50%);
-    box-shadow: var(--shadow-glow);
-    animation: riseIn 0.5s var(--ease-out) both;
+    align-items: center;
+    justify-content: center;
+    width: min(calc(100vw - 2rem), 26rem);
+    min-height: 48px;
+    margin: 0 auto;
+    background: var(--amber-bright);
+    color: var(--ink);
+    border: 1px solid var(--amber-bright);
+    border-radius: var(--radius-sm, 0.5rem);
+    font-weight: 700;
+    font-size: 1rem;
+    box-shadow:
+      0 6px 24px rgba(0, 0, 0, 0.45),
+      var(--shadow-glow);
+    animation: stickyRiseIn 0.4s var(--ease-out) both;
+  }
+
+  .site-header.past-hero ~ #contenido .btn-sticky:hover,
+  .site-header.past-hero ~ #contenido .btn-sticky:focus-visible {
+    background: var(--paper);
+    color: var(--ink);
+    border-color: var(--paper);
   }
 
   .site-header.past-hero ~ #contenido {
     padding-bottom: var(--sticky-cta-clearance);
+  }
+}
+
+@keyframes stickyRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
