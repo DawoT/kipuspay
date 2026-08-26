@@ -14842,3 +14842,35 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0512
+timestamp_utc: 2026-08-26T06:30:00Z
+schema_version: 2
+sprint_fase: Refactor — Extracción monolito POS (GAP #3 SOLID)
+agente_responsable: Staff Frontend (ejecución: kipus-pos; auditoría: Staff Principal)
+tipo: Refactor
+subtipo: Hexagonal §1.1 — CartPanel + Scale + Serial + CustomerIdentity
+relacion: corrige
+referencias_entradas: [0495]
+referencias_documentales: [apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/lib/pos/CartPanel.svelte, INDEX.md]
+prev_id: 0511
+prev_hash: 989a9bef6b07b01680a285b61cddaa6d17af5ca70778478874201ad1e21f086e
+entry_hash: aa4112633399e9ea9c80cea37e58553273c09b49b776ec1e4c4d8e8c8b0b3322
+ticket_or_adr: GAP #3 auditoría verticales; V-19; CAL-08
+test_ids: [apps/pos-web/src/lib/pos/CartPanel.red.test.ts, apps/pos-web/src/lib/pos/ScaleInstrument.red.test.ts, V-19, SUITE]
+entregable_afectado: apps/pos-web/src/routes/+page.svelte §orquestador 227 líneas; apps/pos-web/src/lib/pos/* §4 componentes hexagonales
+descripcion: >
+  Deuda SOLID: +page.svelte 1729→227 líneas (-86.9%, 1502 líneas extraídas)
+  a 4 componentes hexagonales puros (CartPanel 426, Scale 337, Serial 188,
+  CustomerIdentity 68) con props tipadas, sin switch(vertical), con
+  data-testid preservados. Orquestador solo compone flags
+  (ADR-ARCH-002) y delega a cart.ts/scale-client. V-19 ahora <300 líneas.
+evidencia: >
+  RED: 4 suites red por ENOENT (19 tests). GREEN: 534/534 pos-web (98 files,
+  +19), svelte-check 0, SUITE GREEN (31/31, V-19 GREEN), bundle 293.22kB.
+ancestry_verified: true
+aprobaciones: [Staff Frontend, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

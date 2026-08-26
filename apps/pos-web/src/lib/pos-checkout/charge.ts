@@ -14,10 +14,7 @@ import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 import type { OfflineQueueStore } from '../offline-sync/offline-queue.js';
 import { cartTotalCents, type CartLine } from './cart.js';
 import type { BranchSeries } from '../branch-series/client.js';
-import {
-  fallbackSeriesForDocumentType,
-  resolveSeriesForBranch,
-} from '../branch-series/client.js';
+import { fallbackSeriesForDocumentType, resolveSeriesForBranch } from '../branch-series/client.js';
 
 export interface ChargeContext {
   readonly formalizationMode: FormalizationMode;

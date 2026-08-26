@@ -2301,7 +2301,10 @@ li {
   padding: 1.6rem 1.5rem;
   display: flex;
   flex-direction: column;
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
   position: relative;
 }
 

@@ -1,86 +1,37 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { maybeRunMarketingAutotest } from '$lib/autotest-bridge';
-  import { formatCents } from '$lib/cents';  import {
-    isCatalogQuickAddEnabled,
-    isCatalogVariantsEnabled,
-    isInventoryOpsEnabled,
-    isInventoryScaleEnabled,
-    isInventorySerialsEnabled,
-    isOnboardingTourEnabled,
-    isOrdersKdsEnabled,
-    isPosCheckoutEnabled,
-    isPricingPromotionsEnabled,
-    isPrintTemplatesEnabled,
-    isCashDrawerEnabled,
-    isCatalogSellableEnabled,
-    isSalesCommissionsEnabled,
-    isSaleTipEnabled,
-    isSaleFeedbackEnabled,
-    isShiftHandoffEnabled,
-    isTeamInviteEnabled,
-    isHardwareDiagnosticsEnabled,
-    isVitrinaEnabled,
-  } from '$lib/features';
+  import { formatCents } from '$lib/cents';
+  import { isCatalogQuickAddEnabled, isCatalogVariantsEnabled, isInventoryOpsEnabled, isInventoryScaleEnabled, isInventorySerialsEnabled, isOnboardingTourEnabled, isOrdersKdsEnabled, isPosCheckoutEnabled, isPricingPromotionsEnabled, isPrintTemplatesEnabled, isCashDrawerEnabled, isCatalogSellableEnabled, isSalesCommissionsEnabled, isSaleTipEnabled, isSaleFeedbackEnabled, isShiftHandoffEnabled, isTeamInviteEnabled, isHardwareDiagnosticsEnabled, isVitrinaEnabled } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
-import { createPrinterTransport } from '$lib/print/printer-transport';
-import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox-store';
-import { enqueueAndPrintTicket } from '$lib/print/enqueue-print';
-import { buildSaleTicketSnapshot, snapshotToTicketData } from '$lib/print/offload-compile';
-import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
-import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import { createPrinterTransport } from '$lib/print/printer-transport';
+  import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox-store';
+  import { enqueueAndPrintTicket } from '$lib/print/enqueue-print';
+  import { buildSaleTicketSnapshot, snapshotToTicketData } from '$lib/print/offload-compile';
+  import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
+  import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
-  import { readLoginUser, writeLoginTenantId, writeLoginToken, writeLoginUser, type LoginUserIdentity } from '$lib/auth/token-store';
-  import {
-    claimOnboardingFromUrlIfPresent,
-    readLastOnboardingClaim,
-    readLastOnboardingError,
-  } from '$lib/auth/onboarding-claim';
-  import {
-    capabilitiesFromFlags,
-  } from '$lib/onboarding/capabilities';
-  import {
-    isTourEligible,
-    readTourState,
-    recordGrowthEvent,
-    writeTourState,
-  } from '$lib/onboarding/tour-client';
+  import { readLoginUser, writeLoginTenantId, type LoginUserIdentity } from '$lib/auth/token-store';
+  import { claimOnboardingFromUrlIfPresent, readLastOnboardingClaim, readLastOnboardingError } from '$lib/auth/onboarding-claim';
+  import { capabilitiesFromFlags } from '$lib/onboarding/capabilities';
+  import { isTourEligible, readTourState, recordGrowthEvent, writeTourState } from '$lib/onboarding/tour-client';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
   import { addOrBumpLine, cartPayableCents, cartTotalCents, genericLine, type CartLine } from '$lib/pos-checkout/cart';
   import SellableCatalog from '$lib/pos/SellableCatalog.svelte';
-  import { chargeCartOffline, requiresCustomerIdentity, resolveChargeDocument } from '$lib/pos-checkout/charge';
+  import CartPanel from '$lib/pos/CartPanel.svelte';
+  import SerialInstrument from '$lib/pos/SerialInstrument.svelte';
+  import ScaleInstrument from '$lib/pos/ScaleInstrument.svelte';
+  import CustomerIdentity from '$lib/pos/CustomerIdentity.svelte';
+  import { chargeCartOffline, resolveChargeDocument } from '$lib/pos-checkout/charge';
   import { fetchBranchSeries } from '$lib/branch-series/client.js';
-  import {
-    leaseScannedSerialLine,
-    SerialCheckoutError,
-  } from '$lib/pos-checkout/serial-client';
-  import {
-    createBrowserOfflineIdb,
-    createHttpSyncTransport,
-    dispatchPendingSalesChunked,
-    OfflineQueueStore,
-  } from '$lib/offline-sync';
+  import { createBrowserOfflineIdb, createHttpSyncTransport, dispatchPendingSalesChunked, OfflineQueueStore } from '$lib/offline-sync';
   import { OfflineCorrelativeStore } from '$lib/offline-correlative/reserve';
   import { publishVitrina } from '$lib/vitrina/channel';
   import { formalizationBannerMessage } from '@kipuspay/domain-fiscal-pe';
-  import { createWebHidScale } from '$lib/scale/webhid';
-  import { evaluateScaleHeartbeat } from '$lib/pos-checkout/scale-client';
-  import type { ScaleReading } from '$lib/scale/types';
-  import {
-    buildTicketHtml,
-    resolveLineWidth,
-  } from '@kipuspay/print-templates';
-  import {
-    defaultTenantSession,
-    markTenantFirstSale,
-    readTenantSession,
-    tenantFromSearchParams,
-    writeTenantSession,
-    type PosTenantSession,
-  } from '$lib/tenant/session';
+  import { buildTicketHtml } from '@kipuspay/print-templates';
+  import { defaultTenantSession, markTenantFirstSale, readTenantSession, tenantFromSearchParams, writeTenantSession, type PosTenantSession } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
-  import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Modal from '$lib/ui/Modal.svelte';
   import { formalizationModeLabel } from '$lib/ui/ops-copy';
@@ -88,42 +39,20 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Input from '$lib/ui/Input.svelte';
   import MoneyInput from '$lib/ui/MoneyInput.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-  import Skeleton from '$lib/ui/Skeleton.svelte';
-  import EmptyState from '$lib/ui/EmptyState.svelte';
-  import {
-    cashierFacingMessage,
-    chargeButtonLabel,
-    scaleStateLabel,
-  } from '$lib/ui/cashier-copy';
-  import { stitchClass, stitchStateFromFlags } from '$lib/ui/sync-stitch';
-  import {
-    fetchSellableCatalog,
-    type SellableCatalogItem,
-  } from '$lib/catalog/sellable-catalog-client';
-
+  import { fetchSellableCatalog, type SellableCatalogItem } from '$lib/catalog/sellable-catalog-client';
   import { renderQrToCanvas } from '$lib/print/qr-canvas';
 
   const checkoutOn = isPosCheckoutEnabled();
-
   const commissionsOn = isSalesCommissionsEnabled();
   const serialsOn = isInventorySerialsEnabled();
   const scaleOn = isInventoryScaleEnabled();
+  const catalogOn = isCatalogSellableEnabled();
+  const tipOn = isSaleTipEnabled();
+  const drawerOn = isCashDrawerEnabled();
+  const saleFeedbackOn = isSaleFeedbackEnabled();
+  const teamOn = isTeamInviteEnabled();
+  const tourOn = isOnboardingTourEnabled();
 
-  interface WebHidInputReportEvent extends Event {
-    readonly reportId: number;
-    readonly data: DataView;
-  }
-  interface PosHidDevice {
-    vendorId: number;
-    productId: number;
-    productName?: string;
-    open(): Promise<void>;
-    close(): Promise<void>;
-    addEventListener(type: 'inputreport', listener: (event: WebHidInputReportEvent) => void): void;
-  }
-  interface PosNavigator extends Navigator {
-    hid: { requestDevice(options: { filters: readonly unknown[] }): Promise<PosHidDevice[]> };
-  }
   let session = $state<PosTenantSession>(defaultTenantSession());
   let loginUser = $state<LoginUserIdentity | null>(null);
   let lines = $state<CartLine[]>([]);
@@ -132,7 +61,6 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let catalogError = $state('');
   let catalogQuery = $state('');
   let quickSaleOpen = $state(false);
-  const teamOn = isTeamInviteEnabled();
   let sellerResolveOpen = $state(false);
   let sellerIdentifier = $state('');
   let sellerResolveMsg = $state('');
@@ -146,715 +74,87 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   let message = $state('');
   let printPreview = $state('');
   let previewContainer = $state<HTMLDivElement>();
-  // S7-H1: identidad del cliente en el cobro — nunca inventar dummy truthy.
-  // El servidor exige doc+nombre para boleta ≥ S/ 700 (BOLETA_ID_REQUIRED).
   let clientDocType = $state('1');
   let clientDocNumber = $state('');
   let clientName = $state('');
-  let terminalId = $state('');
-  let terminalRegistered = $state(false);
-  let serialScan = $state('');
-  let serialStatus = $state('');
-  let serialBusy = $state(false);
-  let serialInput = $state<HTMLInputElement>();
-  type ScaleState =
-    | 'CONNECTING'
-    | 'STABLE'
-    | 'UNSTABLE'
-    | 'STALE'
-    | 'DISCONNECTED'
-    | 'MANUAL_REQUIRED';
-  let scaleState = $state<ScaleState>('DISCONNECTED');
-  let scaleWeightMicrounits = $state<number | null>(null);
-  let scaleError = $state('');
-  let scaleReading: ScaleReading | null = $state(null);
-  let connectedScale: { scale: ReturnType<typeof createWebHidScale>; close(): Promise<void> } | null =
-    $state(null);
-  let manualWeightGrams = $state('');
-  let weightAuthorizationToken = $state('');
-  const manualThresholdMicrounits = 250_000;
-
-  // S7-H2: cola offline durable (IndexedDB real, persistente entre recargas);
-  // fallback a memoria si no hay browser IDB (SSR/tests).
-  const queue = new OfflineQueueStore(createBrowserOfflineIdb());
-  const correlatives = new OfflineCorrelativeStore(1);
-
-  // C7: outbox de impresión IDB durable + transport real (§7.5); best-effort,
-  // nunca bloquea la venta (solo enruta por adaptadores disponibles).
-  const printIdb = createBrowserPrintIdb();
-  const printOutbox = new PrintOutboxStore(printIdb);
-
-  const totalCents = $derived(cartTotalCents(lines));
-  const payableCents = $derived(cartPayableCents(lines));
-  const banner = $derived(formalizationBannerMessage(session.formalizationMode));
-  const chargeSettled = $derived(status === 'completado');
-  // Micro-interacción carrito: scale 0.98→1 120ms (GTM §6.4) — bump por addOrBumpLine
-  let bumpedId = $state<string | null>(null);
-  let bumpTimer: ReturnType<typeof setTimeout> | null = null;
-  function lineKey(line: CartLine): string {
-    return `${line.productId}|${line.uomId ?? ''}|${line.serialId ?? ''}|${line.weightMeasurement?.measurementId ?? ''}|${line.saleItemId ?? ''}`;
-  }
-  function triggerCartBump(next: CartLine): void {
-    const key = lineKey(next);
-    bumpedId = key;
-    if (bumpTimer) clearTimeout(bumpTimer);
-    bumpTimer = setTimeout(() => {
-      bumpedId = null;
-    }, 160);
-  }
-  const cobroStitch = $derived(
-    stitchClass(
-      stitchStateFromFlags({
-        online: typeof navigator === 'undefined' ? true : navigator.onLine,
-        pendingCount: 0,
-        charging: status === 'cobrando',
-      }),
-    ),
-  );
-
-  // Feedback optimista <100ms: Skeleton shimmer 1.4s en total al mutar carrito (usa Skeleton.svelte)
-  let optimisticTotal = $state(false);
-  let optimisticTimer: ReturnType<typeof setTimeout> | null = null;
-  $effect(() => {
-    void lines.length;
-    void payableCents;
-    if (lines.length === 0) {
-      optimisticTotal = false;
-      if (optimisticTimer) {
-        clearTimeout(optimisticTimer);
-        optimisticTimer = null;
-      }
-      return;
-    }
-    optimisticTotal = true;
-    if (optimisticTimer) clearTimeout(optimisticTimer);
-    optimisticTimer = setTimeout(() => {
-      optimisticTotal = false;
-    }, 80);
-    return () => {
-      if (optimisticTimer) clearTimeout(optimisticTimer);
-    };
-  });
-
-  onMount(() => {
-    void maybeRunMarketingAutotest();
-    if (typeof window === 'undefined') return;
-    const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
-    if (fromQs) {
-      writeTenantSession(sessionStorage, fromQs);
-      session = fromQs;
-      writeLoginTenantId(localStorage, fromQs.tenantId);
-    } else {
-      session = readTenantSession(sessionStorage);
-    }
-    // Hidratación autoritativa régimen/modo desde D1 (tenant.tax_regime × formalization_mode)
-    // Solo si sesión aún es UNKNOWN/INTERNAL_CONTROL por defecto y hay tenantId + token
-    if (session.tenantId && session.taxRegime === 'UNKNOWN') {
-      void (async () => {
-        try {
-          const res = await apiFetch('/api/tenant/context', { storage: localStorage });
-          if (!res.ok) return;
-          const data = (await res.json()) as { formalizationMode?: string; taxRegime?: string; tradeName?: string };
-          const modeOk = data.formalizationMode === 'INTERNAL_CONTROL' || data.formalizationMode === 'FORMALIZING' || data.formalizationMode === 'ELECTRONIC_ISSUER';
-          const regimeOk = data.taxRegime === 'NRUS' || data.taxRegime === 'RER' || data.taxRegime === 'RMT' || data.taxRegime === 'RG' || data.taxRegime === 'UNKNOWN';
-          if (!modeOk && !regimeOk && !data.tradeName) return;
-          const next: PosTenantSession = {
-            ...session,
-            ...(modeOk ? { formalizationMode: data.formalizationMode as PosTenantSession['formalizationMode'] } : {}),
-            ...(regimeOk ? { taxRegime: data.taxRegime as PosTenantSession['taxRegime'] } : {}),
-            ...(data.tradeName ? { tradeName: data.tradeName } : {}),
-          };
-          if (next.taxRegime !== session.taxRegime || next.formalizationMode !== session.formalizationMode || next.tradeName !== session.tradeName) {
-            writeTenantSession(sessionStorage, next);
-            session = next;
-          }
-        } catch {
-          // offline: mantiene UNKNOWN hasta próximo online
-        }
-      })();
-    }
-    terminalId = localStorage.getItem('kipuspay:pos-terminal-id') ?? '';
-    terminalRegistered = terminalId.length > 0;
-    loginUser = readLoginUser(localStorage);
-    void claimOnboardingFromUrlIfPresent().then((claimed) => {
-      const lastSession = readLastOnboardingClaim();
-      if (lastSession) onboardingSession = { branchId: lastSession.branchId, sessionId: lastSession.sessionId };
-      if (claimed) {
-        loginUser = readLoginUser(localStorage);
-      } else if (readLastOnboardingError() && !readLoginUser(localStorage)) {
-        onboardingNotice = `No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;
-      }
-    });
-    void loadSellableCatalog();
-    maybeShowTour();
-
-    const onKeydown = (e: KeyboardEvent) => {
-      if (e.key === 'F9' && isPosCheckoutEnabled() && lines.length > 0 && status !== 'cobrando') {
-        e.preventDefault();
-        void onCharge();
-      }
-    };
-    window.addEventListener('keydown', onKeydown);
-    return () => window.removeEventListener('keydown', onKeydown);
-  });
-
-  // M6C: token single-use del onboarding → sesión real del owner.
+  let tipCents = $state(0);
   let onboardingSession = $state<{ branchId: string; sessionId: string } | null>(null);
   let onboardingNotice = $state('');
-
-  const tourOn = isOnboardingTourEnabled();
-  const tipOn = isSaleTipEnabled();
-  const drawerOn = isCashDrawerEnabled();
-  const saleFeedbackOn = isSaleFeedbackEnabled();
-  let tipCents = $state(0);
-  const capabilities = capabilitiesFromFlags({
-    kds: isOrdersKdsEnabled(),
-    fefo: isInventoryOpsEnabled(),
-    scale: isInventoryScaleEnabled(),
-    promotions: isPricingPromotionsEnabled(),
-    variants: isCatalogVariantsEnabled(),
-    quickAdd: isCatalogQuickAddEnabled(),
-    shiftHandoff: isShiftHandoffEnabled(),
-    teamInvite: isTeamInviteEnabled(),
-    hardwareDiagnostics: isHardwareDiagnosticsEnabled(),
-  });
   let tourOpen = $state(false);
   let tourSteps = $state<readonly TourStep[]>([]);
 
-  function maybeShowTour() {
-    if (!tourOn) return;
-    if (!isTourEligible({ hasSold: session.firstSaleAtIso !== null, localState: readTourState(localStorage, session.verticalType) })) {
-      return;
-    }
-    const steps = tourStepsFor({
-      vertical: session.verticalType,
-      // La demo de la caja es el rol Cajero; el Modo Dueño tiene su propia versión.
-      role: 'cashier',
-      capabilities,
-      hasSold: false,
-    });
-    if (steps.length === 0) return;
-    tourSteps = steps;
-    tourOpen = true;
-    void recordGrowthEvent('tour_started', { vertical: session.verticalType });
-  }
+  const queue = new OfflineQueueStore(createBrowserOfflineIdb());
+  const correlatives = new OfflineCorrelativeStore(1);
+  const printIdb = createBrowserPrintIdb();
+  const printOutbox = new PrintOutboxStore(printIdb);
+  const banner = $derived(formalizationBannerMessage(session.formalizationMode));
+  const chargeSettled = $derived(status === 'completado');
+  const capabilities = capabilitiesFromFlags({ kds: isOrdersKdsEnabled(), fefo: isInventoryOpsEnabled(), scale: isInventoryScaleEnabled(), promotions: isPricingPromotionsEnabled(), variants: isCatalogVariantsEnabled(), quickAdd: isCatalogQuickAddEnabled(), shiftHandoff: isShiftHandoffEnabled(), teamInvite: isTeamInviteEnabled(), hardwareDiagnostics: isHardwareDiagnosticsEnabled() });
 
-  function onTourComplete() {
-    tourOpen = false;
-    writeTourState(localStorage, session.verticalType, 'completed');
-    void recordGrowthEvent('tour_completed', { steps: tourSteps.length });
-  }
-
-  function onTourDismiss() {
-    tourOpen = false;
-    writeTourState(localStorage, session.verticalType, 'dismissed');
-    void recordGrowthEvent('tour_dismissed', { step: 0 });
-  }
-
-  /** S7-H2: drena la cola offline hacia POST /api/v1/sync/sales en background. */
-  async function flushPendingSales(): Promise<void> {
-    try {
-      const apiBase = resolveApiBase(localStorage);
-      await dispatchPendingSalesChunked(
-        queue,
-        createHttpSyncTransport({
-          endpointUrl: `${apiBase}/api/v1/sync/sales`,
-          bearerToken: localStorage.getItem('kipuspay_token') ?? undefined,
-          tenantId: localStorage.getItem('kipuspay_tenant_id') ?? undefined,
-        }),
-      );
-    } catch {
-      // Red caída: la cola (IDB durable) conserva las ventas para el próximo flush.
-    }
-  }
-
-  async function onCharge() {
-    status = 'cobrando';
-    if (!onboardingSession) {
-      // Fe de errata de walkthrough (Sprint 7): sin sesión de caja (branch +
-      // sesión OPEN) el server rechaza la venta; nunca encolar con valores demo.
-      status = 'bloqueado';
-      message = 'No hay una sesión de caja abierta. Inicia sesión o abre la caja.';
-      return;
-    }
-    const branchId = onboardingSession.branchId;
-    let branchSeries: readonly { id: string; series: string; documentTypeCode: string; currentNumber: number; isActive: boolean; authorizationStatus: string }[] = [];
-    try {
-      branchSeries = await fetchBranchSeries(branchId);
-    } catch {
-      // offline: cache dentro de fetchBranchSeries ya hizo fallback
-      branchSeries = [];
-    }
-    const chargeDoc = resolveChargeDocument({
-      formalizationMode: session.formalizationMode,
-      taxRegime: session.taxRegime,
-      clientDocumentType: clientDocType,
-      clientDocumentNumber: clientDocNumber.trim(),
-      branchSeries,
-    });
-    if (isVitrinaEnabled()) {
-      publishVitrina({
-        totalCents,
-        itemCount: lines.length,
-        documentType: chargeDoc.documentType,
-        phase: 'confirming',
-        message: 'Confirma el pago',
-        // S12-H2: marca KipusPay visible en la vitrina (opt-out por tenant).
-        ...(session.brandQrEnabled ? { brandLabel: 'Emitido con KipusPay' } : {}),
-      });
-    }
-
-    const outcome = await chargeCartOffline(
-      lines,
-      {
-        formalizationMode: session.formalizationMode,
-        taxRegime: session.taxRegime,
-        branchId,
-        cashRegisterSessionId: onboardingSession?.sessionId ?? '',
-        series: chargeDoc.series,
-        clientDocumentType: clientDocType,
-        clientDocumentNumber: clientDocNumber.trim(),
-        clientName: clientName.trim(),
-        paymentMethodId: 'pm-cash',
-        documentTypeOverride: chargeDoc.documentType,
-        ...(commissionsOn && sellerId.trim() ? { sellerId: sellerId.trim() } : {}),
-        ...(tipOn && tipCents > 0 ? { tipCents } : {}),
-      },
-      queue,
-    );
-    if (!outcome.ok) {
-      status = 'bloqueado';
-      message = outcome.message;
-      return;
-    }
-
-    status = 'completado';
-    message = `Venta ${outcome.offlineSaleId} cobrada.`;
-
-    // GTM §6.5: beep + vibración breve al confirmar (opt-in, nunca bloquea).
-    if (saleFeedbackOn) {
-      playSaleSuccessFeedback();
-    }
-
-    // P2: abre el cajón tras el cobro (efectivo/wallets — uso común en Perú).
-    if (drawerOn) {
-      void createPrinterTransport().openDrawer();
-    }
-
-    // S7-H2: sync en background — nunca bloquea el cobro (cero spinner).
-    void flushPendingSales();
-
-    if (session.firstSaleAtIso === null) {
-      const nextSession = markTenantFirstSale(session, new Date().toISOString());
-      writeTenantSession(sessionStorage, nextSession);
-      session = nextSession;
-      // M6D: TTFS — primera venta real (growth_events, catálogo cerrado).
-      void recordGrowthEvent('first_sale', { vertical: session.verticalType });
-    }
-
-    if (isPrintTemplatesEnabled()) {
-      const series = chargeDoc.series;
-      const reserve = correlatives.reserve(outcome.offlineSaleId, series);
-      // C7: snapshot post-cobro recompilable (§7.5); el RUC del tenant aún no se
-      // expone en la sesión POS, así que va vacío (nunca se inventa un RUC demo).
-      const snapshot = buildSaleTicketSnapshot({
-        enterprise: session.tradeName,
-        ruc: '',
-        documentType: chargeDoc.documentType,
-        series,
-        number: reserve.tentativeNumber,
-        totalCents: cartPayableCents(lines),
-        items: lines.map((l) => ({
-          name: l.name,
-          qty: l.quantity,
-          totalCents: l.unitPriceCents * l.quantity,
-        })),
-        // S12-H2: pie de marca KipusPay en comprobantes (opt-out por tenant).
-        ...(session.brandQrEnabled
-          ? {
-              brandFooter: {
-                enabled: true,
-                label: 'Emitido con KipusPay',
-                shortUrl: 'kipuspay.com',
-                qrPayload: 'https://kipuspay.com',
-              },
-            }
-          : {}),
-      });
-      printPreview = buildTicketHtml(snapshotToTicketData(snapshot));
-      // C7: imprime por la ladder real (WebUSB/WSS si hay hardware, si no
-      // system_print/whatsapp). Best-effort: nunca bloquea ni falla la venta.
-      void enqueueAndPrintTicket({
-        outbox: printOutbox,
-        transport: createPrinterTransport(buildPosPrinterEnv()),
-        saleId: outcome.offlineSaleId,
-        ticket: snapshot,
-      });
-    }
-  }
-
-  function addProduct(item: SellableCatalogItem) {
-    const next: CartLine = {
-      productId: item.productId,
-      name: item.name,
-      unitPriceCents: item.unitPriceCents,
-      quantity: 1,
-    };
+  function handleAddLine(next: CartLine) {
     lines = addOrBumpLine(lines, next);
-    triggerCartBump(next);
   }
 
-  $effect(() => {
-    const previewHtml = printPreview;
-    const container = previewContainer;
-    if (!previewHtml || !container) return;
-    container.querySelectorAll<HTMLElement>('[data-qr], [data-brand-qr]').forEach((el) => {
-      const payload = el.dataset.qr ?? el.dataset.brandQr ?? '';
-      if (!payload || el.dataset.qrRendered === '1') return;
-      el.dataset.qrRendered = '1';
-      const canvas = document.createElement('canvas');
-      renderQrToCanvas(canvas, payload, 120);
-      canvas.setAttribute('data-testid', 'ticket-qr');
-      canvas.setAttribute('title', payload);
-      canvas.setAttribute('aria-label', 'Código QR del comprobante');
-      el.replaceChildren(canvas);
-    });
+  onMount(() => {
+    void maybeRunMarketingAutotest(); if (typeof window === 'undefined') return;
+    const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
+    if (fromQs) { writeTenantSession(sessionStorage, fromQs); session = fromQs; writeLoginTenantId(localStorage, fromQs.tenantId); } else session = readTenantSession(sessionStorage);
+    if (session.tenantId && session.taxRegime === 'UNKNOWN') void (async () => { try { const res = await apiFetch('/api/tenant/context', { storage: localStorage }); if (!res.ok) return; const d = (await res.json()) as any; const mOk = d.formalizationMode==='INTERNAL_CONTROL'||d.formalizationMode==='FORMALIZING'||d.formalizationMode==='ELECTRONIC_ISSUER'; const rOk = d.taxRegime==='NRUS'||d.taxRegime==='RER'||d.taxRegime==='RMT'||d.taxRegime==='RG'||d.taxRegime==='UNKNOWN'; if(!mOk&&!rOk&&!d.tradeName) return; const n={...session,...(mOk?{formalizationMode:d.formalizationMode}:{}),...(rOk?{taxRegime:d.taxRegime}:{}),...(d.tradeName?{tradeName:d.tradeName}:{})} as PosTenantSession; if(n.taxRegime!==session.taxRegime||n.formalizationMode!==session.formalizationMode||n.tradeName!==session.tradeName){ writeTenantSession(sessionStorage,n); session=n; }} catch{}})();
+    loginUser=readLoginUser(localStorage);
+    void claimOnboardingFromUrlIfPresent().then((c)=>{ const s=readLastOnboardingClaim(); if(s) onboardingSession={branchId:s.branchId,sessionId:s.sessionId}; if(c) loginUser=readLoginUser(localStorage); else if(readLastOnboardingError()&&!readLoginUser(localStorage)) onboardingNotice=`No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;});
+    void loadSellableCatalog(); maybeShowTour();
+    const kd=(e:KeyboardEvent)=>{ if(e.key==='F9'&&isPosCheckoutEnabled()&&lines.length>0&&status!=='cobrando'){ e.preventDefault(); void onCharge(); }};
+    window.addEventListener('keydown',kd); return()=>window.removeEventListener('keydown',kd);
   });
 
-  const catalogOn = isCatalogSellableEnabled();
-
-  async function loadSellableCatalog() {
-    if (!catalogOn) {
-      catalogLoading = false;
-      return;
-    }
-    catalogLoading = true;
-    catalogError = '';
-    try {
-      catalogItems = await fetchSellableCatalog({
-        apiBase: resolveApiBase(localStorage),
-        authorization: resolveApiAuth(localStorage).authorization ?? '',
-        tenantId: resolveApiAuth(localStorage)['x-tenant-id'],
-      });
-    } catch {
-      catalogError = 'No se pudo cargar el catálogo. La venta rápida sigue disponible.';
-    } finally {
-      catalogLoading = false;
-    }
+  function maybeShowTour(){ if(!tourOn) return; if(!isTourEligible({hasSold:session.firstSaleAtIso!==null,localState:readTourState(localStorage,session.verticalType)})) return; const s=tourStepsFor({vertical:session.verticalType,role:'cashier',capabilities,hasSold:false}); if(s.length===0) return; tourSteps=s; tourOpen=true; void recordGrowthEvent('tour_started',{vertical:session.verticalType});}
+  function onTourComplete(){ tourOpen=false; writeTourState(localStorage,session.verticalType,'completed'); void recordGrowthEvent('tour_completed',{steps:tourSteps.length});}
+  function onTourDismiss(){ tourOpen=false; writeTourState(localStorage,session.verticalType,'dismissed'); void recordGrowthEvent('tour_dismissed',{step:0});}
+  async function flushPendingSales(){ try{ const b=resolveApiBase(localStorage); await dispatchPendingSalesChunked(queue, createHttpSyncTransport({ endpointUrl: `${b}/api/v1/sync/sales`, bearerToken: localStorage.getItem('kipuspay_token')??undefined, tenantId: localStorage.getItem('kipuspay_tenant_id')??undefined})); }catch{}}
+  async function onCharge(){ status='cobrando'; if(!onboardingSession){ status='bloqueado'; message='No hay una sesión de caja abierta. Inicia sesión o abre la caja.'; return; } const branchId=onboardingSession.branchId; let branchSeries: readonly any[] = []; try{ branchSeries=await fetchBranchSeries(branchId);}catch{ branchSeries=[]; } const chargeDoc=resolveChargeDocument({ formalizationMode: session.formalizationMode, taxRegime: session.taxRegime, clientDocumentType: clientDocType, clientDocumentNumber: clientDocNumber.trim(), branchSeries }); if(isVitrinaEnabled()) publishVitrina({ totalCents: cartTotalCents(lines), itemCount: lines.length, documentType: chargeDoc.documentType, phase:'confirming', message:'Confirma el pago', ...(session.brandQrEnabled?{brandLabel:'Emitido con KipusPay'}:{})}); const outcome=await chargeCartOffline(lines,{ formalizationMode: session.formalizationMode, taxRegime: session.taxRegime, branchId, cashRegisterSessionId: onboardingSession?.sessionId??'', series: chargeDoc.series, clientDocumentType: clientDocType, clientDocumentNumber: clientDocNumber.trim(), clientName: clientName.trim(), paymentMethodId:'pm-cash', documentTypeOverride: chargeDoc.documentType, ...(commissionsOn&&sellerId.trim()?{sellerId:sellerId.trim()}:{}), ...(tipOn&&tipCents>0?{tipCents}:{})}, queue); if(!outcome.ok){ status='bloqueado'; message=outcome.message; return;} status='completado'; message=`Venta ${outcome.offlineSaleId} cobrada.`; if(saleFeedbackOn) playSaleSuccessFeedback(); if(drawerOn) void createPrinterTransport().openDrawer(); void flushPendingSales(); if(session.firstSaleAtIso===null){ const n=markTenantFirstSale(session,new Date().toISOString()); writeTenantSession(sessionStorage,n); session=n; void recordGrowthEvent('first_sale',{vertical:session.verticalType}); } if(isPrintTemplatesEnabled()){ const s=chargeDoc.series; const r=correlatives.reserve(outcome.offlineSaleId,s); const snap=buildSaleTicketSnapshot({ enterprise: session.tradeName, ruc:'', documentType: chargeDoc.documentType, series:s, number:r.tentativeNumber, totalCents: cartPayableCents(lines), items: lines.map(l=>({name:l.name, qty:l.quantity, totalCents:l.unitPriceCents*l.quantity})), ...(session.brandQrEnabled?{brandFooter:{enabled:true,label:'Emitido con KipusPay',shortUrl:'kipuspay.com',qrPayload:'https://kipuspay.com'}}:{})}); printPreview=buildTicketHtml(snapshotToTicketData(snap)); void enqueueAndPrintTicket({ outbox: printOutbox, transport: createPrinterTransport(buildPosPrinterEnv()), saleId: outcome.offlineSaleId, ticket: snap});}}
+  function addProduct(item: SellableCatalogItem) {
+    handleAddLine({ productId: item.productId, name: item.name, unitPriceCents: item.unitPriceCents, quantity: 1 });
   }
-
-
-  function addQuickSale() {
-    const name = quickName.trim();
-    if (
-      !name ||
-      quickPriceCents === null ||
-      !Number.isInteger(quickPriceCents) ||
-      quickPriceCents <= 0
-    ) {
-      quickError = 'Ingresa un nombre y un precio válido.';
-      return;
-    }
-    if (quickPriceCents > QUICK_SALE_MAX_CENTS) {
-      quickError = `El precio máximo sin autorización es S/ ${formatCents(QUICK_SALE_MAX_CENTS)}.`;
-      return;
-    }
-    const next = genericLine(name, quickPriceCents);
-    lines = addOrBumpLine(lines, genericLine(name, quickPriceCents));
-    triggerCartBump(next);
-    quickSaleOpen = false;
-    quickName = '';
-    quickError = '';
-  }
-
-  async function onResolveSeller() {
-    sellerResolveMsg = '';
-    const res = await resolveSeller(sellerIdentifier);
-    if (!res.ok) {
-      sellerResolveMsg = res.message;
-      return;
-    }
-    sellerId = res.userId;
-    sellerResolvedName = res.email;
-    sellerResolveOpen = false;
-    sellerIdentifier = '';
-  }
-
-  function removeLine(productId: string) {
-    lines = lines.filter((l) => l.productId !== productId);
-  }
-
-  function updateQuantity(productId: string, delta: number) {
-    lines = lines
-      .map((l) => {
-        if (l.productId !== productId) return l;
-        const newQty = l.quantity + delta;
-        return newQty > 0 ? { ...l, quantity: newQty } : null;
-      })
-      .filter((l): l is CartLine => l !== null);
-  }
-
-  function registerTerminal() {
-    const trimmed = terminalId.trim();
-    if (!trimmed) return;
-    localStorage.setItem('kipuspay:pos-terminal-id', trimmed);
-    terminalId = trimmed;
-    terminalRegistered = true;
-  }
-
-  function terminalChanged() {
-    terminalRegistered = false;
-  }
-
-  function connectScale() {
-    scaleState = 'CONNECTING';
-    scaleWeightMicrounits = null;
-    if (typeof navigator === 'undefined' || !('hid' in navigator)) {
-      scaleState = 'MANUAL_REQUIRED';
-      scaleError = 'WebHID no está disponible en este navegador.';
-      return;
-    }
-    void connectHidScale();
-  }
-
-  async function connectHidScale() {
-    try {
-      const nav = navigator as PosNavigator;
-      const [device] = await nav.hid.requestDevice({ filters: [] });
-      if (!device) {
-        scaleState = 'MANUAL_REQUIRED';
-        scaleError = 'No se seleccionó ninguna balanza.';
-        return;
-      }
-      await device.open();
-      const scale = createWebHidScale({
-        profile: {
-          deviceId: device.productName || device.vendorId.toString(16),
-          vendorId: device.vendorId,
-          productId: device.productId,
-          reportId: 0,
-          maxFrameBytes: 64,
-        },
-        transport: {
-          vendorId: device.vendorId,
-          productId: device.productId,
-          close: () => device.close(),
-        },
-      });
-      connectedScale = { scale, close: () => device.close() };
-      device.addEventListener('inputreport', (event: WebHidInputReportEvent) => {
-        try {
-          const frame = new Uint8Array(
-            event.data.buffer,
-            event.data.byteOffset,
-            event.data.byteLength,
-          );
-          scaleReading = scale.parseReport(event.reportId, frame, Date.now());
-          scaleWeightMicrounits = scaleReading.weightMicrounits;
-          scaleState = 'STABLE';
-          scaleError = '';
-        } catch {
-          scaleState = 'UNSTABLE';
-        }
-      });
-    } catch {
-      scaleState = 'MANUAL_REQUIRED';
-      scaleError = 'No se pudo conectar la balanza WebHID.';
-    }
-  }
-
-  async function disconnectScale() {
-    await connectedScale?.close();
-    connectedScale = null;
-    scaleReading = null;
-    scaleWeightMicrounits = null;
-    scaleState = 'MANUAL_REQUIRED';
-  }
-
-  function captureDeviceWeight() {
-    if (!scaleReading) return;
-    const heartbeat = evaluateScaleHeartbeat({
-      connected: connectedScale !== null,
-      reading: scaleReading,
-      nowEpochMs: Date.now(),
-    });
-    if (heartbeat.status !== 'READY' || heartbeat.reading.weightMicrounits <= 0) {
-      scaleState = 'MANUAL_REQUIRED';
-      scaleError =
-        heartbeat.status === 'READY'
-          ? 'La lectura del dispositivo no es cobrable.'
-          : 'El dispositivo se desconectó o dejó de reportar.';
-      return;
-    }
-    const measurementId = crypto.randomUUID();
-    const saleItemId = crypto.randomUUID();
-    const { weightMicrounits, protocol, deviceId, sequence, observedAtEpochMs } =
-      heartbeat.reading;
-    const nextWeigh: CartLine = {
-      productId: 'weigh',
-      name: 'Manzana por peso',
-      unitPriceCents: 100,
-      quantity: 1,
-      saleItemId,
-      weightMeasurement: {
-        measurementId,
-        weightMicrounits,
-        measurementSource: 'DEVICE',
-        scaleProtocol: protocol,
-        scaleDeviceId: deviceId,
-        heartbeatSequence: sequence,
-        observedAt: new Date(observedAtEpochMs).toISOString(),
-      },
-    };
-    lines = addOrBumpLine(lines, nextWeigh);
-    triggerCartBump(nextWeigh);
-    scaleWeightMicrounits = null;
-    scaleReading = null;
-    scaleState = 'UNSTABLE';
-  }
-
-  function captureManualWeight() {
-    const parsedGrams = parseInt(manualWeightGrams.trim(), 10);
-    if (isNaN(parsedGrams) || parsedGrams <= 0) {
-      scaleState = 'MANUAL_REQUIRED';
-      return;
-    }
-    const weightMicrounits = parsedGrams * 1_000;
-    if (weightMicrounits <= 0) {
-      scaleState = 'MANUAL_REQUIRED';
-      return;
-    }
-    if (weightMicrounits > manualThresholdMicrounits && !weightAuthorizationToken.trim()) {
-      scaleState = 'MANUAL_REQUIRED';
-      return;
-    }
-    const nextManual: CartLine = {
-      productId: 'weigh',
-      name: 'Manzana por peso',
-      unitPriceCents: 100,
-      quantity: 1,
-      saleItemId: crypto.randomUUID(),
-      weightMeasurement: {
-        measurementId: crypto.randomUUID(),
-        weightMicrounits,
-        measurementSource: 'MANUAL',
-        observedAt: new Date().toISOString(),
-        ...(weightAuthorizationToken.trim()
-          ? { authorizationToken: weightAuthorizationToken.trim() }
-          : {}),
-      },
-    };
-    lines = addOrBumpLine(lines, nextManual);
-    triggerCartBump(nextManual);
-    manualWeightGrams = '';
-    weightAuthorizationToken = '';
-  }
-
-  async function addScannedSerial(event?: KeyboardEvent) {
-    if (event && event.key !== 'Enter') return;
-    event?.preventDefault();
-    if (serialBusy) return;
-    serialBusy = true;
-    serialStatus = 'Buscando serie disponible…';
-    try {
-      const line = await leaseScannedSerialLine({
-        rawSerial: serialScan,
-        terminalId: terminalRegistered ? terminalId : '',
-        apiBase: resolveApiBase(localStorage),
-        authorization: resolveApiAuth(localStorage).authorization ?? '',
-        resolveProduct: (productId) =>
-          catalogItems.find((item) => item.productId === productId),
-      });
-      lines = addOrBumpLine(lines, line);
-      triggerCartBump(line);
-      serialStatus = `Serie ${serialScan.trim()} agregada como una unidad.`;
-      serialScan = '';
-    } catch (error) {
-      serialStatus =
-        error instanceof SerialCheckoutError
-          ? error.message
-          : 'No se pudo reservar la serie. Verifica la conexión e inténtalo de nuevo.';
-    } finally {
-      serialBusy = false;
-      serialInput?.focus();
-    }
-  }
+  $effect(()=>{ const h=printPreview; const c=previewContainer; if(!h||!c) return; c.querySelectorAll<HTMLElement>('[data-qr], [data-brand-qr]').forEach((el)=>{ const p=el.dataset.qr??el.dataset.brandQr??''; if(!p||el.dataset.qrRendered==='1') return; el.dataset.qrRendered='1'; const canvas=document.createElement('canvas'); renderQrToCanvas(canvas,p,120); canvas.setAttribute('data-testid','ticket-qr'); canvas.setAttribute('title',p); canvas.setAttribute('aria-label','Código QR del comprobante'); el.replaceChildren(canvas);});});
+  async function loadSellableCatalog(){ if(!catalogOn){ catalogLoading=false; return;} catalogLoading=true; catalogError=''; try{ catalogItems=await fetchSellableCatalog({ apiBase: resolveApiBase(localStorage), authorization: resolveApiAuth(localStorage).authorization??'', tenantId: resolveApiAuth(localStorage)['x-tenant-id']});}catch{ catalogError='No se pudo cargar el catálogo. La venta rápida sigue disponible.'; } finally{ catalogLoading=false;}}
+  function addQuickSale(){ const name=quickName.trim(); if(!name||quickPriceCents===null||!Number.isInteger(quickPriceCents)||quickPriceCents<=0){ quickError='Ingresa un nombre y un precio válido.'; return;} if(quickPriceCents>QUICK_SALE_MAX_CENTS){ quickError=`El precio máximo sin autorización es S/ ${formatCents(QUICK_SALE_MAX_CENTS)}.`; return;} const next=genericLine(name, quickPriceCents); lines=addOrBumpLine(lines, genericLine(name, quickPriceCents)); quickSaleOpen=false; quickName=''; quickError='';}
+  async function onResolveSeller(){ sellerResolveMsg=''; const r=await resolveSeller(sellerIdentifier); if(!r.ok){ sellerResolveMsg=r.message; return;} sellerId=r.userId; sellerResolvedName=r.email; sellerResolveOpen=false; sellerIdentifier='';}
+  function removeLine(id:string){ lines=lines.filter(l=>l.productId!==id);}
+  function updateQuantity(id:string,delta:number){ lines=lines.map(l=>l.productId!==id?l:l.quantity+delta>0?{...l,quantity:l.quantity+delta}:null).filter((l):l is CartLine=>l!==null);}
 </script>
 
 <svelte:head><title>POS · KipusPay</title></svelte:head>
 
 <div class="pos-layout">
-  <!-- Top Bar Meta / Banner -->
   {#if onboardingNotice}
-    <div class="ledger-card onboarding-notice" role="status" data-testid="onboarding-notice">
-      <span>{onboardingNotice}</span>
-    </div>
+    <div class="ledger-card onboarding-notice" role="status" data-testid="onboarding-notice"><span>{onboardingNotice}</span></div>
   {/if}
-
   <header class="pos-banner-card ledger-card">
     <div class="banner-row">
       <div class="banner-left">
         <h1 data-testid="tenant-name" class="pos-title">{session.tradeName}</h1>
         {#if checkoutOn}
           <div class="banner-pills">
-            <span data-testid="pos-session-bar" class="badge badge-success" role="status">
-              Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}
-            </span>
-            <span data-testid="formalization-mode" class="badge badge-warning">
-              {formalizationModeLabel(session.formalizationMode)}
-            </span>
+            <span data-testid="pos-session-bar" class="badge badge-success" role="status">Sesión de caja: Abierta{loginUser ? ` · Cajero ${loginUser.userId.slice(0, 8)}` : ''}</span>
+            <span data-testid="formalization-mode" class="badge badge-warning">{formalizationModeLabel(session.formalizationMode)}</span>
           </div>
         {/if}
       </div>
       {#if checkoutOn && commissionsOn}
         <div class="seller-input-group">
           <label for="seller-id-input">Vendedor</label>
-          <input
-            id="seller-id-input"
-            bind:value={sellerId}
-            placeholder="ID Vendedor (opcional)"
-            data-testid="seller-id"
-          />
+          <input id="seller-id-input" bind:value={sellerId} placeholder="ID Vendedor (opcional)" data-testid="seller-id" />
           {#if teamOn}
-            <button
-              type="button"
-              class="secondary seller-resolve-btn"
-              data-testid="seller-resolve"
-              onclick={() => (sellerResolveOpen = true)}
-            >
-              {sellerResolvedName || 'Vincular por badge / PIN'}
-            </button>
+            <button type="button" class="secondary seller-resolve-btn" data-testid="seller-resolve" onclick={() => (sellerResolveOpen = true)}>{sellerResolvedName || 'Vincular por badge / PIN'}</button>
           {/if}
         </div>
       {/if}
       {#if checkoutOn}
-        <div class="customer-input-group">
-          <label for="customer-doc-type">Cliente</label>
-          <select id="customer-doc-type" bind:value={clientDocType} data-testid="customer-doc-type">
-            <option value="1">DNI</option>
-            <option value="6">RUC</option>
-            <option value="4">CE</option>
-          </select>
-          <input
-            id="customer-doc-number"
-            bind:value={clientDocNumber}
-            placeholder="N.º documento"
-            data-testid="customer-doc-number"
-          />
-          <input
-            id="customer-name"
-            bind:value={clientName}
-            placeholder="Nombre / razón social"
-            data-testid="customer-name"
-          />
-        </div>
+        <CustomerIdentity bind:docType={clientDocType} bind:docNumber={clientDocNumber} bind:customerName={clientName} />
       {/if}
     </div>
     {#if checkoutOn && banner}
-      <StatusMessage tone="warning" role="status" data-testid="formalization-banner" class="formalization-callout">
-        <Icon name="info" size={16} />
-        <span>{banner}</span>
-      </StatusMessage>
+      <StatusMessage tone="warning" role="status" data-testid="formalization-banner" class="formalization-callout"><Icon name="info" size={16} /><span>{banner}</span></StatusMessage>
     {/if}
   </header>
 
@@ -865,319 +165,21 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     </div>
   {:else}
     <div class="pos-main-grid">
-      <!-- Left Column: Catalog & Instruments -->
       <div class="pos-instruments-col">
-        <SellableCatalog
-          items={catalogItems}
-          loading={catalogLoading}
-          error={catalogError}
-          catalogOn={catalogOn}
-          bind:query={catalogQuery}
-          onAdd={addProduct}
-          onQuickSale={() => (quickSaleOpen = true)}
-        />
-
-        <!-- Serial Scanner Instrument Panel -->
+        <SellableCatalog items={catalogItems} loading={catalogLoading} error={catalogError} catalogOn={catalogOn} bind:query={catalogQuery} onAdd={addProduct} onQuickSale={() => (quickSaleOpen = true)} />
         {#if serialsOn}
-          <section class="ledger-card serial-panel" aria-labelledby="serial-title" data-testid="main-serial-checkout">
-            <div class="card-header">
-              <div>
-                <span class="instrument-eyebrow">Identidad por unidad</span>
-                <h2 id="serial-title">Escanear Número de Serie</h2>
-              </div>
-              <span class="badge badge-indigo">Stock reservado</span>
-            </div>
-
-            <div class="terminal-row">
-              <label for="main-terminal-id">Terminal Registrado</label>
-              <div class="input-with-button">
-                <input
-                  id="main-terminal-id"
-                  bind:value={terminalId}
-                  oninput={terminalChanged}
-                  autocomplete="off"
-                  placeholder="ID Terminal"
-                  data-testid="main-serial-terminal"
-                />
-                <button type="button" class="secondary" onclick={registerTerminal}>Registrar</button>
-              </div>
-            </div>
-
-            <div class="scanner-row">
-              <label for="main-serial-scan">Escanear Serie</label>
-              <div class="input-with-button">
-                <input
-                  id="main-serial-scan"
-                  bind:this={serialInput}
-                  bind:value={serialScan}
-                  onkeydown={addScannedSerial}
-                  disabled={!terminalRegistered || serialBusy}
-                  autocomplete="off"
-                  autocapitalize="characters"
-                  placeholder="Escanea y presiona Enter"
-                  data-testid="main-serial-scan"
-                />
-                <button
-                  type="button"
-                  class="primary"
-                  disabled={!terminalRegistered || !serialScan.trim() || serialBusy}
-                  onclick={() => addScannedSerial()}
-                >
-                  {serialBusy ? 'Reservando…' : 'Agregar Serie'}
-                </button>
-              </div>
-            </div>
-
-            {#if serialStatus}
-              <p
-                class="status-feedback"
-                class:error={serialStatus.includes('SERIAL_') || serialStatus.startsWith('No se pudo')}
-                role="status"
-                aria-live="polite"
-                data-testid="main-serial-status"
-              >
-                {cashierFacingMessage(serialStatus)}
-              </p>
-            {/if}
-          </section>
+          <SerialInstrument {catalogItems} onAddLine={handleAddLine} />
         {/if}
-
-        <!-- Scale Instrument Panel -->
         {#if scaleOn}
-          <section
-            class="ledger-card scale-panel"
-            class:manual={scaleState === 'MANUAL_REQUIRED'}
-            aria-labelledby="scale-title"
-            data-testid="scale-checkout"
-          >
-            <div class="card-header">
-              <div>
-                <span class="instrument-eyebrow">Instrumento Balanza</span>
-                <h2 id="scale-title">Balanza por peso</h2>
-              </div>
-              <div class="scale-state-badge" data-testid="scale-state">
-                <span class="pulse-dot"></span>
-                <span>{scaleStateLabel(scaleState)}</span>
-              </div>
-            </div>
-
-            <div class="weight-display-box">
-              <span class="display-label">PESO NETO</span>
-              <div class="display-value tabular-nums">
-                <strong>{scaleWeightMicrounits ? Math.round(scaleWeightMicrounits / 1_000) : '—'}</strong>
-                <span class="unit">g</span>
-              </div>
-            </div>
-
-            <div class="scale-actions-row">
-              <button type="button" class="secondary" onclick={connectScale}>
-                <Icon name="wifi" size={16} />
-                {scaleState === 'CONNECTING' ? 'Conectando…' : 'Conectar balanza'}
-              </button>
-              <button type="button" class="primary" onclick={captureDeviceWeight} disabled={scaleState !== 'STABLE'}>
-                <Icon name="scale" size={16} />
-                Capturar pesada
-              </button>
-              <button type="button" class="secondary" onclick={disconnectScale}>
-                <Icon name="edit" size={16} />
-                Peso manual
-              </button>
-            </div>
-
-            {#if scaleState === 'MANUAL_REQUIRED'}
-              <div class="manual-entry-box">
-                <p role="alert" class="manual-alert">
-                  {scaleError || 'La lectura del dispositivo no es cobrable. Ingresa un peso manual válido.'}
-                </p>
-                <div class="manual-fields">
-                  <div>
-                    <label for="manual-weight">Peso manual (gramos)</label>
-                    <input
-                      id="manual-weight"
-                      inputmode="numeric"
-                      pattern="[0-9]*"
-                      bind:value={manualWeightGrams}
-                      placeholder="Ej. 350"
-                    />
-                  </div>
-                  <div>
-                    <label for="weight-auth">PIN Autorización (>250g)</label>
-                    <input
-                      id="weight-auth"
-                      type="password"
-                      autocomplete="off"
-                      bind:value={weightAuthorizationToken}
-                      placeholder="PIN Supervisor"
-                    />
-                  </div>
-                </div>
-                <button type="button" class="primary" onclick={captureManualWeight}>
-                  Confirmar peso manual
-                </button>
-              </div>
-            {/if}
-          </section>
+          <ScaleInstrument onAddLine={handleAddLine} />
         {/if}
       </div>
-
-      <!-- Right Column: Cart & Checkout Summary Panel -->
       <div class="pos-cart-col">
-        <section class="ledger-card cart-panel">
-          <div class="card-header">
-            <h2>Detalle de Venta</h2>
-            <span class="badge badge-success" data-testid="cart-item-count">{lines.length} {lines.length === 1 ? 'ítem' : 'ítems'}</span>
-          </div>
-
-          <!-- Items List -->
-          <div class="cart-items-scroll">
-            {#if lines.length === 0}
-              <EmptyState
-                icon="cart"
-                title="El carrito está vacío"
-                description="Agrega un producto del catálogo o cobra una venta rápida."
-              >
-                <Button
-                  variant="secondary"
-                  data-testid="empty-cart-quick"
-                  onclick={() => (quickSaleOpen = true)}
-                >
-                  Venta rápida
-                </Button>
-              </EmptyState>
-            {:else}
-              {#each lines as line (line.productId + (line.saleItemId ?? '') + (line.weightMeasurement?.measurementId ?? '') + (line.serialId ?? '') + (line.uomId ?? ''))}
-                <div class="cart-item-row" class:bump={bumpedId === lineKey(line)} data-testid="cart-item-row">
-                  <div class="item-details">
-                    <span class="item-name">{line.name}</span>
-                    <span class="item-unit-price tabular-nums">S/ {formatCents(line.unitPriceCents)} c/u</span>
-                  </div>
-                  <div class="item-actions">
-                    <div class="quantity-controls">
-                      <button type="button" class="qty-btn" aria-label="Quitar uno" onclick={() => updateQuantity(line.productId, -1)}>-</button>
-                      <span class="qty-value tabular-nums">{line.quantity}</span>
-                      <button type="button" class="qty-btn" aria-label="Agregar uno" onclick={() => updateQuantity(line.productId, 1)}>+</button>
-                    </div>
-                    <span class="item-line-total tabular-nums">
-                      S/ {formatCents(line.unitPriceCents * line.quantity)}
-                    </span>
-                    <button type="button" class="remove-item-btn" aria-label="Quitar del carrito" onclick={() => removeLine(line.productId)}>×</button>
-                  </div>
-                </div>
-              {/each}
-            {/if}
-          </div>
-
-          <!-- Total & Charge Section -->
-          <div class="cart-summary-footer">
-            {#if payableCents < totalCents}
-              <div class="cart-discount-row" data-testid="cart-discount-badge">
-                <span class="badge badge-warning">Descuento aplicado: -S/ {formatCents(totalCents - payableCents)}</span>
-              </div>
-            {/if}
-
-            <div class="summary-total-box">
-              <span class="total-label">Total a cobrar</span>
-              {#if optimisticTotal}
-                <Skeleton lines={1} width="8rem" data-testid="total-skeleton" />
-              {:else}
-                <span
-                  data-testid="total"
-                  class={['total-amount', 'tabular-nums', cobroStitch, chargeSettled && 'settled']}
-                >
-                  S/ {formatCents(payableCents)}
-                </span>
-              {/if}
-            </div>
-
-            {#if chargeSettled}
-              <div
-                class="settled-seal"
-                data-testid="settled-seal"
-                role="status"
-                aria-live="polite"
-              >
-                <span class="settled-seal-check" aria-hidden="true">
-                  <Icon name="check" size={16} />
-                </span>
-                <BrandKnot size={10} />
-                <span class="settled-label">Venta cobrada</span>
-              </div>
-            {/if}
-
-            <!-- Status Alerts -->
-            {#if status}
-              <StatusMessage tone="warning">
-                <span data-testid="status" class="status-tag">{status}</span>
-                {#if message}
-                  <span data-testid="message" class="status-msg">{message}</span>
-                {/if}
-              </StatusMessage>
-            {/if}
-
-            <!-- Primary Action Button -->
-            {#if requiresCustomerIdentity(totalCents, clientDocNumber, clientName)}
-              <StatusMessage tone="warning" role="alert" data-testid="id-required">
-                Boleta ≥ S/ 700 requiere documento y nombre del cliente (SUNAT).
-              </StatusMessage>
-            {/if}
-            {#if tipOn}
-              <div class="tip-input-row">
-                <label for="tip-cents">Propina</label>
-                <input
-                  id="tip-cents"
-                  type="number"
-                  min="0"
-                  bind:value={tipCents}
-                  data-testid="tip-cents"
-                  placeholder="0"
-                />
-                {#each [0.05, 0.1, 0.15] as frac}
-                  <button
-                    type="button"
-                    class="secondary tip-quick"
-                    data-testid={`tip-quick-${frac}`}
-                    onclick={() => (tipCents = Math.round(totalCents * frac))}
-                  >
-                    {Math.round(frac * 100)}%
-                  </button>
-                {/each}
-              </div>
-            {/if}
-            <div data-testid="charge">
-              <Button
-                variant="primary"
-                size="xl"
-                data-testid="charge-btn"
-                onclick={onCharge}
-                disabled={lines.length === 0}
-                icon="credit-card"
-              >
-                {chargeButtonLabel(formatCents(payableCents))}
-              </Button>
-            </div>
-            <Button
-              variant="secondary"
-              size="xl"
-              data-testid="quick-sale"
-              style="margin-top: 0.5rem"
-              onclick={() => (quickSaleOpen = true)}
-              icon="plus"
-            >
-              Venta rápida (sin catálogo)
-            </Button>
-          </div>
-        </section>
-
-        <!-- Print Preview Card -->
+        <CartPanel bind:lines {status} {message} bind:tipCents {tipOn} {clientDocNumber} {clientName} {chargeSettled} onCharge={onCharge} onQuickSale={() => (quickSaleOpen = true)} onRemoveLine={removeLine} onUpdateQuantity={updateQuantity} />
         {#if printPreview}
           <div class="ledger-card print-preview-card" data-testid="print-preview">
-            <div class="card-header">
-              <h3>Vista Previa Ticket Térmico 80mm</h3>
-              <span class="badge badge-indigo">Listo para imprimir</span>
-            </div>
-            <div class="ticket-render-body" bind:this={previewContainer}>
-              {@html printPreview}
-            </div>
+            <div class="card-header"><h3>Vista Previa Ticket Térmico 80mm</h3><span class="badge badge-indigo">Listo para imprimir</span></div>
+            <div class="ticket-render-body" bind:this={previewContainer}>{@html printPreview}</div>
           </div>
         {/if}
       </div>
@@ -1186,544 +188,40 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   {#if tourOpen && tourSteps.length > 0}
     <Tour steps={tourSteps} onComplete={onTourComplete} onDismiss={onTourDismiss} />
   {/if}
-  <Modal
-    open={sellerResolveOpen}
-    title="Vincular vendedor"
-    confirmText="Vincular"
-    confirmTestid="seller-resolve-confirm"
-    onConfirm={onResolveSeller}
-    onCancel={() => (sellerResolveOpen = false)}
-  >
-    <p class="quick-hint">
-      Escanea el badge <code>EMP-…</code> o teclea el PIN de caja de 4 dígitos. La venta queda atribuida en menos de un segundo.
-    </p>
-    <Field label="Badge o PIN">
-      <Input
-        data-testid="seller-resolve-input"
-        bind:value={sellerIdentifier}
-        autocomplete="off"
-        placeholder="EMP-12345 o 1234"
-      />
-    </Field>
-    {#if sellerResolveMsg}
-      <p class="quick-error" role="alert">{sellerResolveMsg}</p>
-    {/if}
+  <Modal open={sellerResolveOpen} title="Vincular vendedor" confirmText="Vincular" confirmTestid="seller-resolve-confirm" onConfirm={onResolveSeller} onCancel={() => (sellerResolveOpen = false)}>
+    <p class="quick-hint">Escanea el badge <code>EMP-…</code> o teclea el PIN de caja de 4 dígitos. La venta queda atribuida en menos de un segundo.</p>
+    <Field label="Badge o PIN"><Input data-testid="seller-resolve-input" bind:value={sellerIdentifier} autocomplete="off" placeholder="EMP-12345 o 1234" /></Field>
+    {#if sellerResolveMsg}<p class="quick-error" role="alert">{sellerResolveMsg}</p>{/if}
   </Modal>
-
-  <Modal
-    open={quickSaleOpen}
-    title="Venta rápida sin catálogo"
-    confirmText="Agregar al carrito"
-    confirmTestid="quick-sale-add"
-    onConfirm={addQuickSale}
-    onCancel={() => (quickSaleOpen = false)}
-  >
-    <p class="quick-hint">
-      Cobras algo que aún no está en tu catálogo. El servidor calcula impuestos; esta línea no descuenta stock y queda marcada para catalogar.
-    </p>
-    <Field label="Nombre del artículo">
-      <Input
-        data-testid="quick-sale-name"
-        bind:value={quickName}
-        placeholder="Ej.: empanada de queso"
-      />
-    </Field>
-    <Field label="Precio (máx. S/ {formatCents(QUICK_SALE_MAX_CENTS)})">
-      <MoneyInput
-        data-testid="quick-sale-price"
-        bind:value={quickPriceCents}
-        min={1}
-      />
-    </Field>
-    {#if quickError}
-      <p class="quick-error" role="alert">{quickError}</p>
-    {/if}
+  <Modal open={quickSaleOpen} title="Venta rápida sin catálogo" confirmText="Agregar al carrito" confirmTestid="quick-sale-add" onConfirm={addQuickSale} onCancel={() => (quickSaleOpen = false)}>
+    <p class="quick-hint">Cobras algo que aún no está en tu catálogo. El servidor calcula impuestos; esta línea no descuenta stock y queda marcada para catalogar.</p>
+    <Field label="Nombre del artículo"><Input data-testid="quick-sale-name" bind:value={quickName} placeholder="Ej.: empanada de queso" /></Field>
+    <Field label="Precio (máx. S/ {formatCents(QUICK_SALE_MAX_CENTS)})"><MoneyInput data-testid="quick-sale-price" bind:value={quickPriceCents} min={1} /></Field>
+    {#if quickError}<p class="quick-error" role="alert">{quickError}</p>{/if}
   </Modal>
 </div>
 
 <style>
-  .pos-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .onboarding-notice {
-    padding: 0.875rem 1.25rem;
-    border: 1px solid var(--amber-gold);
-    background: color-mix(in srgb, var(--amber-gold) 12%, transparent);
-    color: var(--text-main);
-    font-size: 0.9375rem;
-  }
-
-  .pos-banner-card {
-    padding: 1rem 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .banner-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .banner-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .pos-title {
-    font-size: 1.375rem;
-    font-weight: 800;
-  }
-
-  .banner-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .seller-input-group,
-  .customer-input-group {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    min-width: 0;
-  }
-
-  .seller-input-group label,
-  .customer-input-group label {
-    margin-bottom: 0;
-    white-space: nowrap;
-  }
-
-  .seller-input-group input {
-    width: 180px;
-    max-width: 100%;
-    min-width: 0;
-    padding: var(--inset-field);
-  }
-
-  .customer-input-group select,
-  .customer-input-group input {
-    min-width: 0;
-    max-width: 100%;
-    padding: var(--inset-field);
-  }
-
-  :global(.formalization-callout) {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .checkout-disabled-panel {
-    padding: 2rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  /* Main Grid */
-  .pos-main-grid {
-    display: grid;
-    grid-template-columns: 1fr 420px;
-    gap: 1.25rem;
-    align-items: start;
-  }
-
-  .pos-instruments-col {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .pos-cart-col {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-  .card-header h2, .card-header h3 {
-    font-size: 1.125rem;
-    font-weight: 700;
-  }
-
-  .instrument-eyebrow {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--accent-primary);
-  }
-
-  /* Serial Scanner Panel — pad from .ledger-card */
-  .terminal-row, .scanner-row {
-    margin-bottom: 0.875rem;
-  }
-  .input-with-button {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    min-width: 0;
-  }
-  .input-with-button :global(input),
-  .input-with-button :global(.ui-input) {
-    min-width: 0;
-    flex: 1 1 12rem;
-  }
-  .status-feedback {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--accent-primary);
-  }
-  .status-feedback.error {
-    color: var(--rose-red);
-  }
-
-  /* Scale Panel — pad from .ledger-card */
-  .scale-state-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--emerald-green);
-    text-transform: uppercase;
-  }
-  .weight-display-box {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    margin: 0.75rem 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .display-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-muted);
-  }
-  .display-value {
-    font-family: var(--font-mono);
-    font-size: 2.5rem;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    color: var(--emerald-green);
-    display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-  }
-  .display-value .unit {
-    font-size: 1rem;
-    color: var(--text-muted);
-  }
-  .scale-actions-row {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  .manual-entry-box {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-subtle);
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  .manual-alert {
-    font-size: 0.8125rem;
-    color: var(--rose-red);
-    font-weight: 600;
-  }
-  .manual-fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
-
-  /* Cart & Checkout Column — pad from .ledger-card */
-  .cart-panel {
-    display: flex;
-    flex-direction: column;
-    min-height: 520px;
-  }
-  .cart-items-scroll {
-    flex: 1;
-    overflow-y: auto;
-    max-height: 320px;
-    margin-bottom: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .empty-cart {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 1rem;
-    color: var(--text-dim);
-    gap: 0.5rem;
-  }
-  .cart-item-row {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 0.75rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  @keyframes cart-bump {
-    from {
-      transform: scale(0.98);
-    }
-    to {
-      transform: scale(1);
-    }
-  }
-
-  .cart-item-row.bump {
-    animation: cart-bump 120ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .item-details {
-    display: flex;
-    flex-direction: column;
-  }
-  .item-name {
-    font-weight: 600;
-    font-size: 0.9375rem;
-  }
-  .item-unit-price {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-  }
-  .item-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  .quantity-controls {
-    display: flex;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-subtle);
-  }
-  .qty-btn {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    color: var(--text-main);
-    font-weight: 700;
-    transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .qty-btn:active {
-    transform: scale(0.96);
-  }
-  .qty-value {
-    padding: 0 0.5rem;
-    font-weight: 700;
-    font-size: 0.875rem;
-  }
-  .item-line-total {
-    font-weight: 700;
-    color: var(--emerald-green);
-  }
-  .remove-item-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    font-size: 1.25rem;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-  }
-  .remove-item-btn:hover {
-    color: var(--rose-red);
-  }
-
-  .cart-summary-footer {
-    border-top: 1px solid var(--border-subtle);
-    padding-top: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.875rem;
-  }
-  .summary-total-box {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-  .total-label {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    letter-spacing: 0.05em;
-  }
-  .total-amount {
-    font-family: var(--font-mono);
-    font-size: 2.25rem;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    color: var(--text-main);
-    border-top: 1px solid var(--border-subtle);
-    padding-top: 0.625rem;
-  }
-  .total-amount.settled {
-    color: var(--emerald-green);
-    animation: pulse-emerald 2s infinite;
-    box-shadow: var(--shadow-emerald);
-    border-radius: var(--radius-sm);
-    padding: 0.625rem 0.5rem 0.5rem;
-  }
-
-  .settled-seal {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 0.875rem;
-    border: 1px solid color-mix(in srgb, var(--emerald-green) 30%, transparent);
-    background: color-mix(in srgb, var(--emerald-green) 12%, transparent);
-    color: var(--emerald-green);
-    font-weight: 700;
-    font-size: 0.875rem;
-    box-shadow: var(--shadow-emerald);
-    border-radius: var(--radius-sm);
-  }
-
-  .settled-seal-check {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: var(--radius-full);
-    background: var(--emerald-green);
-    color: #ffffff;
-  }
-
-  .settled-label {
-    letter-spacing: 0.01em;
-  }
-
-  .status-tag {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--accent-primary);
-  }
-  .status-msg {
-    font-size: 0.8125rem;
-    color: var(--text-main);
-  }
-
-  /* print-preview-card pad from .ledger-card */
-  .ticket-render-body {
-    background: #ffffff;
-    color: #000000;
-    padding: 1rem;
-    border-radius: var(--radius-sm);
-    overflow-x: auto;
-  }
-
-  .ticket-render-body :global(canvas) {
-    width: 120px;
-    height: 120px;
-    image-rendering: pixelated;
-  }
-
-  .ticket-render-body :global([data-qr]) {
-    display: inline-block;
-  }
-
-  .quick-hint {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin: 0;
-  }
-  .quick-error {
-    color: var(--rose-red);
-    font-size: 0.85rem;
-    margin: 0;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .cart-item-row.bump,
-    .total-amount.settled,
-    .qty-btn,
-    .qty-btn:active {
-      animation: none !important;
-      transition: none !important;
-      transform: none !important;
-    }
-  }
-
-  @media (max-width: 899px) {
-    .pos-main-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .banner-row {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .banner-left {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .seller-input-group,
-    .customer-input-group {
-      width: 100%;
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .seller-input-group label,
-    .customer-input-group label {
-      white-space: normal;
-    }
-
-    .seller-input-group input,
-    .customer-input-group select,
-    .customer-input-group input {
-      width: 100%;
-    }
-
-    .input-with-button {
-      flex-direction: column;
-      align-items: stretch;
-    }
-  }
+  .pos-layout{display:flex;flex-direction:column;gap:1.25rem}
+  .onboarding-notice{padding:.875rem 1.25rem;border:1px solid var(--amber-gold);background:color-mix(in srgb,var(--amber-gold) 12%,transparent);color:var(--text-main);font-size:.9375rem}
+  .pos-banner-card{padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.75rem}
+  .banner-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+  .banner-left{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;min-width:0;flex:1 1 auto}
+  .pos-title{font-size:1.375rem;font-weight:800}
+  .banner-pills{display:flex;flex-wrap:wrap;gap:.5rem}
+  .seller-input-group{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-3);min-width:0}
+  .seller-input-group label{margin-bottom:0;white-space:nowrap}
+  .seller-input-group input{width:180px;max-width:100%;min-width:0;padding:var(--inset-field)}
+  :global(.formalization-callout){width:100%;max-width:100%}
+  .checkout-disabled-panel{padding:2rem;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1rem}
+  .pos-main-grid{display:grid;grid-template-columns:1fr 420px;gap:1.25rem;align-items:start}
+  .pos-instruments-col,.pos-cart-col{display:flex;flex-direction:column;gap:1.25rem}
+  .card-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}
+  .card-header h3{font-size:1.125rem;font-weight:700}
+  .ticket-render-body{background:#fff;color:#000;padding:1rem;border-radius:var(--radius-sm);overflow-x:auto}
+  .ticket-render-body :global(canvas){width:120px;height:120px;image-rendering:pixelated}
+  .ticket-render-body :global([data-qr]){display:inline-block}
+  .quick-hint{font-size:.85rem;color:var(--text-muted);margin:0}
+  .quick-error{color:var(--rose-red);font-size:.85rem;margin:0}
+  @media (max-width:899px){.pos-main-grid{grid-template-columns:1fr}.banner-row{flex-direction:column;align-items:stretch}.banner-left{flex-direction:column;align-items:flex-start}.seller-input-group{width:100%;flex-direction:column;align-items:stretch}.seller-input-group label{white-space:normal}.seller-input-group input{width:100%}}
 </style>

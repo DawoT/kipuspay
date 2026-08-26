@@ -27,7 +27,10 @@ function cacheKey(branchId: string): string {
   return `${CACHE_PREFIX}${branchId}`;
 }
 
-export function readCachedBranchSeries(branchId: string, storage: Pick<Storage, 'getItem'> | null = storageFor()): BranchSeries[] | null {
+export function readCachedBranchSeries(
+  branchId: string,
+  storage: Pick<Storage, 'getItem'> | null = storageFor(),
+): BranchSeries[] | null {
   try {
     const raw = storage?.getItem(cacheKey(branchId));
     if (!raw) return null;
@@ -75,10 +78,15 @@ function parseSeriesPayload(data: unknown): BranchSeries[] {
 }
 
 function normalizeSeries(list: BranchSeries[]): BranchSeries[] {
-  return list.filter((s) => typeof s?.series === 'string' && typeof s?.documentTypeCode === 'string');
+  return list.filter(
+    (s) => typeof s?.series === 'string' && typeof s?.documentTypeCode === 'string',
+  );
 }
 
-export async function fetchBranchSeries(branchId: string, opts: FetchBranchSeriesOpts = {}): Promise<readonly BranchSeries[]> {
+export async function fetchBranchSeries(
+  branchId: string,
+  opts: FetchBranchSeriesOpts = {},
+): Promise<readonly BranchSeries[]> {
   if (!branchId?.trim()) return [];
   const apiBase = opts.apiBase ?? resolveApiBase(opts.storage ?? storageFor());
   const doFetch = opts.fetcher ?? fetch;
@@ -93,7 +101,10 @@ export async function fetchBranchSeries(branchId: string, opts: FetchBranchSerie
     writeCachedBranchSeries(branchId, normalized, opts.cacheStorage ?? storageFor());
     return normalized;
   } catch {
-    const cached = readCachedBranchSeries(branchId, opts.cacheStorage ?? storageFor() ?? opts.storage ?? null);
+    const cached = readCachedBranchSeries(
+      branchId,
+      opts.cacheStorage ?? storageFor() ?? opts.storage ?? null,
+    );
     if (cached) return cached;
     return [];
   }

@@ -2,20 +2,28 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const mainPage = readFileSync(new URL('../../routes/+page.svelte', import.meta.url), 'utf8');
+const cartPanel = (() => {
+  try {
+    return readFileSync(new URL('./CartPanel.svelte', import.meta.url), 'utf8');
+  } catch {
+    return '';
+  }
+})();
+const combinedMain = mainPage + '\n' + cartPanel;
 const cajaPage = readFileSync(new URL('../../routes/caja/+page.svelte', import.meta.url), 'utf8');
 
 describe('Sprint 67 — Ergonomia Caja & POS', () => {
   describe('Indicadores visuales del carrito', () => {
     it('tiene data-testid="cart-item-count" en el markup del carrito', () => {
-      expect(mainPage).toContain('data-testid="cart-item-count"');
+      expect(combinedMain).toContain('data-testid="cart-item-count"');
     });
 
     it('tiene data-testid="cart-discount-badge" para descuentos activos', () => {
-      expect(mainPage).toContain('data-testid="cart-discount-badge"');
+      expect(combinedMain).toContain('data-testid="cart-discount-badge"');
     });
 
     it('tiene data-testid="charge-btn" en el boton de cobro', () => {
-      expect(mainPage).toContain('data-testid="charge-btn"');
+      expect(combinedMain).toContain('data-testid="charge-btn"');
     });
 
     it('el handler de teclado F9 esta registrado en el codigo', () => {

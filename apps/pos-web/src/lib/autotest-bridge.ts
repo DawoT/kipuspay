@@ -59,7 +59,9 @@ export async function maybeRunMarketingAutotest(): Promise<void> {
       headers: { ...headers, 'content-type': 'application/json' },
       body: JSON.stringify({
         customer: { documentType: '1', documentNumber: '10715001701', name: 'RECEPTOR PRUEBA' },
-        items: [{ productId: 'test-boleta-item', quantity: 1, unitPriceCents: 1, affectationCode: '20' }],
+        items: [
+          { productId: 'test-boleta-item', quantity: 1, unitPriceCents: 1, affectationCode: '20' },
+        ],
         documentType: '03',
       }),
     });

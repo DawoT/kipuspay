@@ -20,7 +20,11 @@ function setupWindow(search: string, store: Map<string, string>) {
   } as unknown as Storage);
   vi.stubGlobal('location', { search } as unknown as Location);
   vi.stubGlobal('window', {
-    location: { search, href: `https://app.kipuspay.com/?${search}`, toString: () => `https://app.kipuspay.com/?${search}` },
+    location: {
+      search,
+      href: `https://app.kipuspay.com/?${search}`,
+      toString: () => `https://app.kipuspay.com/?${search}`,
+    },
     history: { replaceState: () => {} },
   } as unknown as Window);
   vi.stubGlobal('crypto', { randomUUID: () => 'test-uuid-1' } as unknown as Crypto);
@@ -42,7 +46,9 @@ describe('autotest-bridge (H1)', () => {
     const store = new Map<string, string>([['kipuspay_tenant_id', 't1']]);
     setupWindow('', store);
     const { maybeRunMarketingAutotest } = await import('./autotest-bridge.js');
-    const fetchSpy = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ saleId: 's1' }) } as Response));
+    const fetchSpy = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve({ saleId: 's1' }) } as Response),
+    );
     vi.stubGlobal('fetch', fetchSpy);
     await maybeRunMarketingAutotest();
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -58,7 +64,10 @@ describe('autotest-bridge (H1)', () => {
       if (url.includes('/api/pos/offline-sale')) {
         expect(body.documentType).toBe('03');
         expect(body.customer.documentNumber).toBe('10715001701');
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ saleId: 'sale-1' }) } as Response);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ saleId: 'sale-1' }),
+        } as Response);
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });

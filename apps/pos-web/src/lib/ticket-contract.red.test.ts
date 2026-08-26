@@ -10,8 +10,9 @@ const pos = readFileSync(new URL('../../src/routes/+page.svelte', import.meta.ur
  */
 describe('F-7/F-8 contrato: ticket con total IGV y RUC del tenant', () => {
   it('el ticket usa el total pagadero (IGV incluido), no la base', () => {
-    const ticketSection = pos.slice(pos.indexOf('const snapshot = buildSaleTicketSnapshot'));
-    expect(ticketSection.length, 'buildSaleTicketSnapshot presente').toBeGreaterThan(0);
+    const snapshotIdx = pos.indexOf('buildSaleTicketSnapshot');
+    expect(snapshotIdx, 'buildSaleTicketSnapshot presente').toBeGreaterThan(-1);
+    const ticketSection = pos.slice(snapshotIdx);
     expect(ticketSection).toContain('cartPayableCents');
   });
 

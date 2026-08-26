@@ -59,11 +59,14 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(code).toMatch(/statusTone="live"/);
     });
 
-    it.each(ALL_MOCKS)('$name incluye selector de vistas con role="tablist" y role="tab"', ({ code }) => {
-      expect(code).toContain('role="tablist"');
-      expect(code).toContain('role="tab"');
-      expect(code).toContain('aria-selected');
-    });
+    it.each(ALL_MOCKS)(
+      '$name incluye selector de vistas con role="tablist" y role="tab"',
+      ({ code }) => {
+        expect(code).toContain('role="tablist"');
+        expect(code).toContain('role="tab"');
+        expect(code).toContain('aria-selected');
+      },
+    );
 
     it('RestaurantMock configura título y badge reactivo de restaurante', () => {
       expect(RESTAURANT_MOCK).toContain('Restaurante · KipusPay');
@@ -306,15 +309,27 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
 
   describe('3. Integración en VerticalLandingView.svelte y Módulos de Dominio', () => {
     it('importa los 5 mockups especializados', () => {
-      expect(VERTICAL_LANDING_VIEW).toContain("import RestaurantMock from '$lib/components/vertical-mocks/RestaurantMock.svelte';");
-      expect(VERTICAL_LANDING_VIEW).toContain("import PharmacyMock from '$lib/components/vertical-mocks/PharmacyMock.svelte';");
-      expect(VERTICAL_LANDING_VIEW).toContain("import RetailMock from '$lib/components/vertical-mocks/RetailMock.svelte';");
-      expect(VERTICAL_LANDING_VIEW).toContain("import ServicesMock from '$lib/components/vertical-mocks/ServicesMock.svelte';");
-      expect(VERTICAL_LANDING_VIEW).toContain("import ChainMock from '$lib/components/vertical-mocks/ChainMock.svelte';");
+      expect(VERTICAL_LANDING_VIEW).toContain(
+        "import RestaurantMock from '$lib/components/vertical-mocks/RestaurantMock.svelte';",
+      );
+      expect(VERTICAL_LANDING_VIEW).toContain(
+        "import PharmacyMock from '$lib/components/vertical-mocks/PharmacyMock.svelte';",
+      );
+      expect(VERTICAL_LANDING_VIEW).toContain(
+        "import RetailMock from '$lib/components/vertical-mocks/RetailMock.svelte';",
+      );
+      expect(VERTICAL_LANDING_VIEW).toContain(
+        "import ServicesMock from '$lib/components/vertical-mocks/ServicesMock.svelte';",
+      );
+      expect(VERTICAL_LANDING_VIEW).toContain(
+        "import ChainMock from '$lib/components/vertical-mocks/ChainMock.svelte';",
+      );
     });
 
     it('renderiza el mockup correspondiente según landing.slug con fallback a CheckoutMock', () => {
-      expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'restaurantes'[\s\S]*?<RestaurantMock/);
+      expect(VERTICAL_LANDING_VIEW).toMatch(
+        /landing\.slug === 'restaurantes'[\s\S]*?<RestaurantMock/,
+      );
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'farmacias'[\s\S]*?<PharmacyMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'retail'[\s\S]*?<RetailMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'servicios'[\s\S]*?<ServicesMock/);
@@ -368,10 +383,13 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(code).toContain('@media (prefers-reduced-motion: reduce)');
     });
 
-    it.each(ALL_MOCKS)('$name tiene scroll interno estilizado con max-height y overflow-y: auto', ({ code }) => {
-      expect(code).toMatch(/max-height:\s*\d+px;/);
-      expect(code).toMatch(/overflow-y:\s*auto;/);
-      expect(code).toContain('::-webkit-scrollbar');
-    });
+    it.each(ALL_MOCKS)(
+      '$name tiene scroll interno estilizado con max-height y overflow-y: auto',
+      ({ code }) => {
+        expect(code).toMatch(/max-height:\s*\d+px;/);
+        expect(code).toMatch(/overflow-y:\s*auto;/);
+        expect(code).toContain('::-webkit-scrollbar');
+      },
+    );
   });
 });

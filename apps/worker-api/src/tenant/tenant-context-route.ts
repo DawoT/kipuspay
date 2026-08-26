@@ -5,7 +5,10 @@ export interface TenantContextHttpResult {
   readonly body: Record<string, unknown>;
 }
 
-export async function runGetTenantContextHttp(env: WorkerEnv, tenantId: string): Promise<TenantContextHttpResult> {
+export async function runGetTenantContextHttp(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<TenantContextHttpResult> {
   if (!tenantId) return { status: 404, body: { code: 'TENANT_NOT_FOUND' } };
   if (!env.DB) return { status: 503, body: { code: 'DB_UNAVAILABLE' } };
   try {

@@ -19,10 +19,38 @@ import { resolveChargeDocument, seriesForDocumentType } from './charge.js';
 
 function branchSeriesFixture(): BranchSeries[] {
   return [
-    { id: 's-f001', series: 'F002', documentTypeCode: '01', currentNumber: 10, isActive: true, authorizationStatus: 'AUTHORIZED' },
-    { id: 's-b001', series: 'B002', documentTypeCode: '03', currentNumber: 20, isActive: true, authorizationStatus: 'AUTHORIZED' },
-    { id: 's-nv', series: 'NV02', documentTypeCode: 'NV', currentNumber: 5, isActive: true, authorizationStatus: 'INTERNAL' },
-    { id: 's-nv-ret', series: 'NV02', documentTypeCode: 'NV_RETURN', currentNumber: 5, isActive: true, authorizationStatus: 'INTERNAL' },
+    {
+      id: 's-f001',
+      series: 'F002',
+      documentTypeCode: '01',
+      currentNumber: 10,
+      isActive: true,
+      authorizationStatus: 'AUTHORIZED',
+    },
+    {
+      id: 's-b001',
+      series: 'B002',
+      documentTypeCode: '03',
+      currentNumber: 20,
+      isActive: true,
+      authorizationStatus: 'AUTHORIZED',
+    },
+    {
+      id: 's-nv',
+      series: 'NV02',
+      documentTypeCode: 'NV',
+      currentNumber: 5,
+      isActive: true,
+      authorizationStatus: 'INTERNAL',
+    },
+    {
+      id: 's-nv-ret',
+      series: 'NV02',
+      documentTypeCode: 'NV_RETURN',
+      currentNumber: 5,
+      isActive: true,
+      authorizationStatus: 'INTERNAL',
+    },
   ];
 }
 
@@ -79,8 +107,22 @@ describe('BLOQUEANTE #2 — taxRegime y serie por sucursal', () => {
 
   it('resolveSeriesForBranch prioriza AUTHORIZED sobre INTERNAL/PENDING', () => {
     const mixed: BranchSeries[] = [
-      { id: 's1', series: 'F001', documentTypeCode: '01', currentNumber: 1, isActive: true, authorizationStatus: 'PENDING_SUNAT' },
-      { id: 's2', series: 'F002', documentTypeCode: '01', currentNumber: 10, isActive: true, authorizationStatus: 'AUTHORIZED' },
+      {
+        id: 's1',
+        series: 'F001',
+        documentTypeCode: '01',
+        currentNumber: 1,
+        isActive: true,
+        authorizationStatus: 'PENDING_SUNAT',
+      },
+      {
+        id: 's2',
+        series: 'F002',
+        documentTypeCode: '01',
+        currentNumber: 10,
+        isActive: true,
+        authorizationStatus: 'AUTHORIZED',
+      },
     ];
     expect(resolveSeriesForBranch(mixed, '01')).toBe('F002');
   });
@@ -151,7 +193,7 @@ describe('BLOQUEANTE #2 — taxRegime y serie por sucursal', () => {
   it('fetchBranchSeries contrato: GET /api/branches/:id/series debe existir en worker-api', () => {
     const indexPath = path.resolve(__dirname, '../../../../worker-api/src/index.ts');
     const idx = fs.readFileSync(indexPath, 'utf8');
-    expect(idx).toContain("/api/branches/:id/series");
+    expect(idx).toContain('/api/branches/:id/series');
     expect(idx).toContain('runListBranchSeriesHttp');
   });
 });

@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const PHONE_FRAME = readFileSync(
-  new URL('./PhoneMockFrame.svelte', import.meta.url),
-  'utf8',
-);
+const PHONE_FRAME = readFileSync(new URL('./PhoneMockFrame.svelte', import.meta.url), 'utf8');
 const CHECKOUT_MOCK = readFileSync(
   new URL('../brand/CheckoutMock.svelte', import.meta.url),
   'utf8',

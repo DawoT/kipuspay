@@ -23,7 +23,10 @@ export async function runListBranchSeriesHttp(
       .bind(branchId, tenantId)
       .first<{ id: string }>();
     if (!branch) {
-      return { status: 404, body: { code: 'BRANCH_NOT_FOUND', error: 'Branch not found for tenant' } };
+      return {
+        status: 404,
+        body: { code: 'BRANCH_NOT_FOUND', error: 'Branch not found for tenant' },
+      };
     }
     const { results } = await env.DB.prepare(
       `SELECT id, series, document_type_code, current_number, is_active, authorization_status
@@ -50,6 +53,9 @@ export async function runListBranchSeriesHttp(
     }));
     return { status: 200, body: { branchId, series } };
   } catch {
-    return { status: 503, body: { code: 'BRANCH_SERIES_UNAVAILABLE', error: 'Failed to load branch series' } };
+    return {
+      status: 503,
+      body: { code: 'BRANCH_SERIES_UNAVAILABLE', error: 'Failed to load branch series' },
+    };
   }
 }
