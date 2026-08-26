@@ -1795,3 +1795,31 @@ aprobaciones: [Staff Pos, Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0040
+timestamp_utc: 2026-08-26T02:05:00Z
+schema_version: 2
+sprint_fase: Owner — Modo Dueño premium
+agente_responsable: Staff Principal (ejecución: kipus-owner; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: Sidebar + KPIs + placeholder
+relacion: corrige
+referencias_entradas: [0039]
+referencias_documentales: [apps/pos-web/src/routes/owner/+layout.svelte, apps/pos-web/src/lib/ui/owner-nav.ts]
+prev_id: 0039
+prev_hash: 8c414eeaa715dac6cbba830d2f76656437cdccc904bc52ca7ba698dd253392d9
+entry_hash: 06c5ed1aaad7cce507079b9ac050fcdd143ee5a6b5a355c96ed5e0cd77ac4882
+ticket_or_adr: S11; V-27
+test_ids: [apps/pos-web/src/lib/ui/owner-shell.test.ts, SUITE]
+entregable_afectado: apps/pos-web/src/routes/owner/+layout.svelte; apps/pos-web/src/lib/ui/owner-nav.ts
+descripcion: >
+  Auditoría del ciclo Owner premium: 7 grupos sidebar, drawer móvil 719px,
+  placeholder Resumen vacío con 2 CTAs, KPIs intactos, 15 tests nuevos.
+evidencia: >
+  RED: /owner sin sidebar. GREEN: 498/498 pos-web, SUITE GREEN, V-13 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Owner, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

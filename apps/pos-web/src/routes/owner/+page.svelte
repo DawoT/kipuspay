@@ -34,7 +34,8 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
-import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
+  import EmptyState from '$lib/ui/EmptyState.svelte';
+ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
   const enabled = isOwnerModeEnabled();
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
@@ -391,6 +392,18 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     dnIssued = true;
     dnMsg = `ND ${res.series}-${String(res.number).padStart(3, '0')} por S/ ${formatCents(res.amountCents)} (motivo ${res.motiveCode}).`;
   }
+
+  // Resumen vacío premium — estado útil cuando no hay ventas ni alertas
+  const hasAlertsData = $derived(
+    backlog.length + overdueLayaways.length + expiredQuotes.length + overdueInstallments.length > 0,
+  );
+  const hasReports = $derived(!!storeCreditReport || !!commissionsReport || !!briefing);
+  const showEmptyDay = $derived(
+    (snap?.docCount ?? 0) === 0 &&
+      (snap?.grossSalesCents ?? 0) === 0 &&
+      !hasAlertsData &&
+      !hasReports,
+  );
 </script>
 
 <svelte:head><title>Modo Dueño · Hoy · KipusPay</title></svelte:head>
@@ -460,8 +473,24 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     <div class="page-masthead">
       <div>
         <h1 class="page-title">Resumen del día</h1>
+        <p class="page-lede">Lo que importa hoy, a una mano del dueño.</p>
       </div>
     </div>
+
+    {#if showEmptyDay}
+      <section class="ledger-card empty-day section-pad" data-testid="owner-empty-day">
+        <div class="empty-day-hero" aria-hidden="true">
+          <Icon name="store" size={36} />
+        </div>
+        <h2 class="empty-day-title">Aún sin movimiento hoy</h2>
+        <p class="empty-day-desc">Cuando haya ventas, aquí verás el resumen por sucursal, alertas y el cierre. Mientras tanto, revisa tus finanzas o abre la caja para comenzar.</p>
+        <div class="btn-row empty-day-actions">
+          <Button variant="secondary" href="/owner/finanzas" data-testid="empty-cta-finanzas">Ver Finanzas</Button>
+          <Button variant="primary" href="/" data-testid="empty-cta-caja">Ir a la caja</Button>
+        </div>
+        <p class="empty-day-note">Datos del servidor · se actualizan al conectar · no en vivo</p>
+      </section>
+    {/if}
 
     <!-- F5b-5: boletas del día sin RC ≠ cierre Z (banner Dueño) -->
     <RcPendingBanner />
@@ -1002,5 +1031,55 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     .owner-quick-nav {
       grid-template-columns: repeat(4, 1fr);
     }
+  }
+
+  /* Empty-day premium placeholder — ilustrado + CTA accionable (WCAG AA, 44px) */
+  .empty-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 2rem 1.5rem;
+  }
+
+  .empty-day-hero {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(217, 154, 61, 0.1);
+    border: 1px solid rgba(217, 154, 61, 0.22);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+  }
+
+  .empty-day-title {
+    font-family: var(--font-heading);
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .empty-day-desc {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    max-width: 42ch;
+    margin: 0;
+  }
+
+  .empty-day-actions {
+    margin-top: 0.5rem;
+    justify-content: center;
+  }
+
+  .empty-day-note {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--text-dim);
+    margin-top: 0.25rem;
   }
 </style>

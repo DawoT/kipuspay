@@ -14122,3 +14122,40 @@ aprobaciones: [Staff Security, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0492
+timestamp_utc: 2026-08-26T02:00:00Z
+schema_version: 2
+sprint_fase: Owner — Modo Dueño premium con navegación completa
+agente_responsable: Staff Principal (ejecución: kipus-owner; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: Sidebar premium + KPIs + Resumen vacío
+relacion: corrige
+referencias_entradas: [0491]
+referencias_documentales: [apps/pos-web/src/routes/owner/+layout.svelte, apps/pos-web/src/routes/owner/+page.svelte, apps/pos-web/src/lib/ui/owner-nav.ts]
+prev_id: 0491
+prev_hash: 8575b2ef623d02877d2f511cac057fb0bf6f03d85dec7b9321f342b216b626ff
+entry_hash: e19cbbfc34d8c01679244ac855464ede42d17983caa3e0287a3aef44d902fffe
+ticket_or_adr: S11; CAL-05; V-24; V-27
+test_ids: [apps/pos-web/src/lib/ui/owner-nav.test.ts, apps/pos-web/src/lib/ui/owner-shell.test.ts, apps/pos-web/src/lib/owner/owner-dashboard-sprint66.test.ts, V-27, V-30, SUITE]
+entregable_afectado: apps/pos-web/src/routes/owner/+layout.svelte §sidebar; apps/pos-web/src/routes/owner/+page.svelte §resumen vacío; apps/pos-web/src/lib/ui/owner-nav.ts §grupos
+descripcion: >
+  Modo Dueño elevado de básico a premium. Layout owner/+layout.svelte
+  reemplazado con sidebar colapsable 240→56px + drawer móvil ≤719px,
+  reutilizando patrón exacto del POS (+layout.svelte) con 7 grupos
+  (Hoy/Ventas/Finanzas/Locales/Operaciones/Alertas/Cuenta), tokens y blur
+  premium, WCAG 2.1 AA (44/48px targets, focus-visible). Contenido
+  owner/+page.svelte con placeholder ilustrado para Resumen del día vacío
+  (showEmptyDay derivado, 2 CTAs 44px) en vez de vacío. Navegación
+  owner-nav.ts extendida con ownerSidebarGroups() y flatHrefs. Tests +15
+  (483→498).
+evidencia: >
+  RED: /owner sin sidebar, Resumen vacío sin placeholder. GREEN: pos-web
+  498/498 (91 files), svelte-check 0, eslint 0, prettier limpio, bundle
+  286.4 kB <300kB (V-24), V-27/V-30 GREEN, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Owner, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
