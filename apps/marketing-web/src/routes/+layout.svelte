@@ -258,52 +258,56 @@
   </main>
 
   <footer class="site-footer">
-    <div class="footer-grid">
-      <div>
-        <h3>Para tu negocio</h3>
-        {#each verticals as v (v.slug)}
-          <a href={`/para/${v.slug}`}>{v.navLabel}</a>
-        {/each}
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div>
+          <h3>Para tu negocio</h3>
+          {#each verticals as v (v.slug)}
+            <a href={`/para/${v.slug}`}>{v.navLabel}</a>
+          {/each}
+        </div>
+        <div>
+          <h3>Comparativas</h3>
+          {#each compares as c (c.slug)}
+            <a href={`/comparar?vs=${c.slug}`}>KipusPay vs {c.name}</a>
+          {/each}
+        </div>
+        <div>
+          <h3>Recursos</h3>
+          <a href="/precios">Precios</a>
+          <a href="/blog">Blog</a>
+          <a href="/ayuda">Ayuda</a>
+          <a href="/casos-de-exito">Casos de éxito</a>
+          <a href="/empezar">Empezar gratis</a>
+        </div>
+        <div>
+          <h3>Legal y Acceso</h3>
+          <a href="/terminos">Términos del servicio</a>
+          <a href="/privacidad">Privacidad y datos</a>
+          <a href="/reclamaciones">Libro de Reclamaciones</a>
+          <a href="/seguridad">Cumplimiento SUNAT</a>
+          <a href="{posOrigin}/login">Ingresar al sistema</a>
+        </div>
       </div>
-      <div>
-        <h3>Comparativas</h3>
-        {#each compares as c (c.slug)}
-          <a href={`/comparar?vs=${c.slug}`}>KipusPay vs {c.name}</a>
-        {/each}
-      </div>
-      <div>
-        <h3>Recursos</h3>
-        <a href="/precios">Precios</a>
-        <a href="/blog">Blog</a>
-        <a href="/ayuda">Ayuda</a>
-        <a href="/casos-de-exito">Casos de éxito</a>
-      </div>
-      <div>
-        <h3>Legal</h3>
-        <a href="/terminos">Términos del servicio</a>
-        <a href="/privacidad">Privacidad y datos</a>
-        <a href="/reclamaciones">Libro de Reclamaciones</a>
-        <a href="/seguridad">Cumplimiento SUNAT</a>
-      </div>
+
+      <p class="footer-channels">
+        <a href="mailto:{OFFICIAL_CHANNELS.contacto}">{OFFICIAL_CHANNELS.contacto}</a> ·{' '}
+        <a href="mailto:{OFFICIAL_CHANNELS.soporte}">{OFFICIAL_CHANNELS.soporte}</a> ·{' '}
+        <a href="mailto:{OFFICIAL_CHANNELS.facturacion}">{OFFICIAL_CHANNELS.facturacion}</a> ·{' '}
+        <a href="mailto:{OFFICIAL_CHANNELS.privacidad}">{OFFICIAL_CHANNELS.privacidad}</a>
+      </p>
+
+      <ul class="footer-seals">
+        <li>Tu información va cifrada</li>
+        <li>Tus datos son tuyos</li>
+        <li>Soporte en español</li>
+        <li>Sin contratos largos</li>
+      </ul>
+
+      <p class="footer-legal">
+        KipusPay — POS y facturación electrónica para comercios del Perú. La aceptación de cada
+        comprobante siempre depende de SUNAT.
+      </p>
     </div>
-
-    <p class="footer-channels">
-      <a href="mailto:{OFFICIAL_CHANNELS.contacto}">{OFFICIAL_CHANNELS.contacto}</a> ·{' '}
-      <a href="mailto:{OFFICIAL_CHANNELS.soporte}">{OFFICIAL_CHANNELS.soporte}</a> ·{' '}
-      <a href="mailto:{OFFICIAL_CHANNELS.facturacion}">{OFFICIAL_CHANNELS.facturacion}</a> ·{' '}
-      <a href="mailto:{OFFICIAL_CHANNELS.privacidad}">{OFFICIAL_CHANNELS.privacidad}</a>
-    </p>
-
-    <ul class="footer-seals">
-      <li>Tu información va cifrada</li>
-      <li>Tus datos son tuyos</li>
-      <li>Soporte en español</li>
-      <li>Sin contratos largos</li>
-    </ul>
-
-    <p class="footer-legal">
-      KipusPay — POS y facturación electrónica para comercios del Perú. La aceptación de cada
-      comprobante siempre depende de SUNAT.
-    </p>
   </footer>
 {/if}

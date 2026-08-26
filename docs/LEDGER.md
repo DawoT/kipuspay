@@ -14376,3 +14376,36 @@ aprobaciones: [Staff QA (auditor), Staff Design (ejecutor), Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0499
+timestamp_utc: 2026-08-26T14:06:00Z
+schema_version: 2
+sprint_fase: Fase A — Remediación UI/UX (Leads Equilibrados, Alternancia Ink/Paper, Modo Dueño Sticky y Footer Centrado)
+agente_responsable: Staff Homepage & Footer Refiner / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Tipografía de Sección, Alternancia Rítmica de Colores, Ergonomía de Smartphone Mockup y Centrado de Footer
+relacion: amplia
+referencias_entradas: [0498]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/routes/+page.svelte, apps/marketing-web/src/routes/+layout.svelte, apps/marketing-web/src/lib/components/OwnerModeMock.svelte]
+prev_id: 0498
+prev_hash: 312b41515318e3475fda84baa2e2b811b70f1abd1d4b82bdb4cf1e10e3e60e0d
+entry_hash: 498078b69b4779ffb3d364f4c07aa9e07411c484d0b134a4d7f46e8bffb2a791
+ticket_or_adr: GTM-01; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/po-remediation-refinements.test.ts, apps/marketing-web/src/lib/design-sprints-d1-d2-d3.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/routes/+page.svelte; apps/marketing-web/src/routes/+layout.svelte; apps/marketing-web/src/lib/components/OwnerModeMock.svelte
+descripcion: >
+  Remediación exhaustiva de observaciones clave en la web de marketing:
+  (1) Tipografía de leads (.section-lead): tamaño equilibrado y controlado a 1.0625rem, max-width 38rem, line-height 1.55 y text-wrap pretty para evitar sensación de pesadez visual.
+  (2) Alternancia estricta de colores: secuencia continua Oscuro (Ink) / Claro (Paper) en las 12 secciones del home sin repeticiones consecutivas, con adaptación de colores y bordes para cada superficie.
+  (3) Modo Dueño compacto y sticky en desktop: reducción de altura vertical de OwnerModeMock.svelte (~520px - 580px) y posicionamiento sticky (top: calc(var(--header-h) + 2rem)) en las columnas de texto de .owner-grid y .product-grid.
+  (4) Footer 100% centrado y balanceado: contenedor .footer-inner con max-width 72rem y margin auto, grilla de 4 columnas iguales (repeat(4, 1fr)) con enlaces enriquecidos a rubros, comparativas, recursos y marco legal, y centrado de canales, sellos y notas legales.
+evidencia: >
+  Marketing Web Vitest: 46 test files, 297 tests pasando al 100% (97.9% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 119.65 kB (< 120 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Homepage Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

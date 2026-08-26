@@ -302,7 +302,7 @@
 <style>
   .owner-mockup-container {
     width: 100%;
-    max-width: 420px;
+    max-width: 400px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -315,7 +315,7 @@
     border: 1px solid var(--line);
     border-radius: 20px;
     padding: 3px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
 
   .switch-btn {
@@ -324,7 +324,7 @@
     color: rgba(243, 239, 230, 0.7);
     font-family: var(--font-mono);
     font-size: 0.75rem;
-    padding: 0.4rem 0.9rem;
+    padding: 0.35rem 0.85rem;
     border-radius: 16px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -343,11 +343,11 @@
     width: 100%;
     background: #0d0f12;
     border: 3.5px solid #333842;
-    border-radius: 36px;
+    border-radius: 32px;
     box-shadow:
       0 25px 60px -12px rgba(0, 0, 0, 0.7),
       0 0 0 1px rgba(255, 255, 255, 0.08);
-    padding: 1.25rem 1.25rem 1rem 1.25rem;
+    padding: 0.9rem 1rem 0.7rem 1rem;
     color: var(--paper);
     position: relative;
     overflow: hidden;
@@ -358,19 +358,19 @@
     justify-content: center;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
   }
 
   .notch-speaker {
-    width: 44px;
-    height: 4px;
+    width: 40px;
+    height: 3.5px;
     background: #22272e;
     border-radius: 2px;
   }
 
   .notch-camera {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     background: #1c2128;
     border-radius: 50%;
   }
@@ -380,41 +380,41 @@
     justify-content: space-between;
     align-items: center;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: rgba(243, 239, 230, 0.6);
-    margin-bottom: 1rem;
+    margin-bottom: 0.65rem;
     padding: 0 0.25rem;
   }
 
   .status-icons {
     display: flex;
-    gap: 0.4rem;
-    font-size: 0.65rem;
+    gap: 0.35rem;
+    font-size: 0.62rem;
   }
 
   .phone-app-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(243, 239, 230, 0.08);
   }
 
   .app-brand {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .brand-knot {
     color: var(--amber-bright);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   .brand-title {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.05em;
   }
@@ -422,12 +422,12 @@
   .sync-indicator {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
 
   .pulse-dot-live {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     background: #34d399;
     border-radius: 50%;
     box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
@@ -457,23 +457,23 @@
 
   .sync-text {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     color: #6ee7b7;
   }
 
   .hourly-rhythm-card {
     background: #14181f;
     border: 1px solid rgba(243, 239, 230, 0.08);
-    border-radius: 10px;
-    padding: 0.85rem;
-    margin-bottom: 1rem;
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.65rem;
   }
 
   .rhythm-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
   }
 
   .rhythm-header .section-micro-title {
@@ -482,7 +482,7 @@
 
   .rhythm-selected-amount {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 600;
     color: var(--amber-bright);
   }
@@ -490,17 +490,17 @@
   .hourly-chart {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 0.35rem;
+    gap: 0.3rem;
     align-items: end;
-    height: 75px;
-    padding-top: 0.5rem;
+    height: 54px;
+    padding-top: 0.35rem;
   }
 
   .hourly-bar-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.25rem;
     height: 100%;
     padding: 0;
     background: transparent;
@@ -519,9 +519,9 @@
 
   .bar-fill-track {
     flex: 1;
-    width: 12px;
+    width: 10px;
     background: rgba(243, 239, 230, 0.06);
-    border-radius: 3px;
+    border-radius: 2px;
     display: flex;
     align-items: flex-end;
     overflow: hidden;
@@ -530,7 +530,7 @@
   .bar-fill {
     width: 100%;
     background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 100%);
-    border-radius: 3px 3px 0 0;
+    border-radius: 2px 2px 0 0;
     transition: height 0.25s var(--ease-out), background 0.15s ease;
   }
 
@@ -543,7 +543,7 @@
 
   .bar-time {
     font-family: var(--font-mono);
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     color: rgba(243, 239, 230, 0.55);
     letter-spacing: -0.02em;
   }
@@ -557,10 +557,10 @@
 
   .store-tabs {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.35rem;
     overflow-x: auto;
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.65rem;
     scrollbar-width: none;
   }
 
@@ -573,8 +573,8 @@
     border: 1px solid rgba(243, 239, 230, 0.1);
     color: rgba(243, 239, 230, 0.7);
     font-family: var(--font-mono);
-    font-size: 0.72rem;
-    padding: 0.35rem 0.65rem;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.55rem;
     border-radius: 4px;
     white-space: nowrap;
     cursor: pointer;
@@ -593,43 +593,43 @@
   .revenue-hero-card {
     background: linear-gradient(180deg, #181d24 0%, #12151a 100%);
     border: 1px solid rgba(229, 169, 59, 0.25);
-    border-radius: 12px;
-    padding: 1.1rem;
-    margin-bottom: 1rem;
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    margin-bottom: 0.65rem;
     text-align: center;
   }
 
   .card-eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: rgba(243, 239, 230, 0.65);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.25rem;
   }
 
   .card-amount {
     font-family: var(--font-mono);
-    font-size: 1.8rem;
+    font-size: 1.55rem;
     font-weight: 700;
     color: var(--paper);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
   }
 
   .currency {
     color: var(--amber-bright);
-    font-size: 1.2rem;
+    font-size: 1.05rem;
   }
 
   .growth-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
     background: rgba(52, 211, 153, 0.12);
     color: #6ee7b7;
     font-family: var(--font-mono);
-    font-size: 0.72rem;
-    padding: 0.2rem 0.55rem;
+    font-size: 0.68rem;
+    padding: 0.15rem 0.45rem;
     border-radius: 4px;
   }
 
@@ -642,30 +642,30 @@
     background: #14181f;
     border: 1px solid rgba(243, 239, 230, 0.08);
     border-radius: 8px;
-    padding: 0.85rem;
-    margin-bottom: 0.85rem;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.65rem;
   }
 
   .section-micro-title {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: rgba(243, 239, 230, 0.55);
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
   }
 
   .breakdown-list {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.35rem;
   }
 
   .breakdown-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
   }
 
   .method-name {
@@ -682,7 +682,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
   }
 
   .activity-info {
@@ -693,11 +693,11 @@
   .activity-info strong {
     color: var(--paper);
     font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
   }
 
   .activity-info span {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: rgba(243, 239, 230, 0.6);
   }
 
@@ -708,11 +708,11 @@
   }
 
   .phone-home-indicator {
-    width: 120px;
-    height: 4px;
+    width: 100px;
+    height: 3.5px;
     background: rgba(243, 239, 230, 0.3);
     border-radius: 2px;
-    margin: 0.75rem auto 0 auto;
+    margin: 0.5rem auto 0 auto;
   }
 
   .photo-mockup-wrap {

@@ -130,10 +130,10 @@
   </div>
 </section>
 
-<section class="section section-paper" data-testid="pillars-section">
+<section class="section" id="pillars" data-testid="pillars-section">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
-      <QuipuSectionMark state="entry" tone="paper" />
+      <QuipuSectionMark state="entry" tone="ink" />
     </div>
     <div class="section-body">
       <div class="sec-head" use:reveal>
@@ -159,10 +159,10 @@
   </div>
 </section>
 
-<section class="section" id="como">
+<section class="section section-paper" id="como">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
-      <QuipuSectionMark state="entry" tone="ink" />
+      <QuipuSectionMark state="entry" tone="paper" />
     </div>
     <div class="section-body">
       <div class="sec-head" use:reveal>
@@ -217,7 +217,7 @@
   </div>
 </section>
 
-<section class="section section-paper" data-testid="offline-section">
+<section class="section section-paper" id="offline" data-testid="offline-section">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="synced" tone="paper" />
@@ -252,7 +252,7 @@
   </div>
 </section>
 
-<section class="section" data-testid="ledger-section">
+<section class="section" id="ledger" data-testid="ledger-section">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="reconciled" tone="ink" />
@@ -303,7 +303,7 @@
   </div>
 </section>
 
-<section class="section section-paper" data-testid="owner-section">
+<section class="section section-paper" id="owner" data-testid="owner-section">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="reconciled" tone="paper" />
@@ -325,7 +325,7 @@
   </div>
 </section>
 
-<section class="section" data-testid="compare-section">
+<section class="section" id="comparar" data-testid="compare-section">
   <div class="section-frame">
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="entry" tone="ink" />
@@ -454,7 +454,7 @@
   </div>
 </section>
 
-<section class="section section-paper final-cta" data-testid="final-cta" use:reveal>
+<section class="section section-paper final-cta" id="final-cta" data-testid="final-cta" use:reveal>
   <div class="section-inner">
     <p class="eyebrow">
       <span class="knot-dot" aria-hidden="true"></span>
