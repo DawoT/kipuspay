@@ -314,3 +314,8 @@ export function isCatalogSellableEnabled(): boolean {
 export function isDataBackupEnabled(): boolean {
   return flagOn(pub(PF + 'DATA_BACKUP'));
 }
+
+/** Grifos — Surtidores e isla de despacho (precio del día + detracción diésel); default-off. */
+export function isFuelStationEnabled(): boolean {
+  return flagOn(pub(PF + 'FUEL_STATION'));
+}

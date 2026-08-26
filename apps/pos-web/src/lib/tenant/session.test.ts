@@ -21,6 +21,31 @@ describe('pos tenant session', () => {
     expect(s?.tradeName).toBe('Botica');
   });
 
+  it('grifos es vertical válida y normaliza desde query y storage', () => {
+    const s = tenantFromSearchParams(
+      new URLSearchParams({
+        onboarding: '1',
+        tenant: 't1',
+        mode: 'ELECTRONIC_ISSUER',
+        vertical: 'grifos',
+        name: 'Grifo Central',
+      }),
+    );
+    expect(s?.verticalType).toBe('grifos');
+    expect(s?.formalizationMode).toBe('ELECTRONIC_ISSUER');
+
+    const fallback = tenantFromSearchParams(
+      new URLSearchParams({
+        onboarding: '1',
+        tenant: 't1',
+        mode: 'FORMALIZING',
+        vertical: 'desconocido',
+        name: 'X',
+      }),
+    );
+    expect(fallback?.verticalType).toBe('retail');
+  });
+
   it('mide TTFS tras primera venta', () => {
     const base = {
       ...defaultTenantSession(),

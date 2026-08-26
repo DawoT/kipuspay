@@ -7,6 +7,26 @@ export type FormalizationMode = 'INTERNAL_CONTROL' | 'FORMALIZING' | 'ELECTRONIC
 
 export type TaxRegime = 'UNKNOWN' | 'NRUS' | 'RER' | 'RMT' | 'RG';
 
+/**
+ * Vertical del tenant (GTM). Fuente canónica: apps/marketing-web/src/lib/content/types.ts VerticalSlug
+ * DRY: esta unión replica el catálogo canónico; VERTICAL_ALIAS_ES_TO_EN en domain-onboarding/tour.ts
+ * mantiene el mapeo ES→EN mediante diccionario declarativo (ADR-ARCH-002).
+ */
+export type PosVertical = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas' | 'grifos';
+
+export const POS_VERTICALS: readonly PosVertical[] = [
+  'restaurantes',
+  'farmacias',
+  'retail',
+  'servicios',
+  'cadenas',
+  'grifos',
+] as const;
+
+export function isPosVertical(value: string): value is PosVertical {
+  return (POS_VERTICALS as readonly string[]).includes(value);
+}
+
 export const TENANT_SESSION_KEY = 'kipuspay.pos.tenant.v1';
 
 export interface PosTenantSession {
@@ -15,7 +35,7 @@ export interface PosTenantSession {
   readonly formalizationMode: FormalizationMode;
   /** Régimen tributario SUNAT del tenant (NRUS/RER/RMT/RG). Fuente de verdad para selector fiscal. */
   readonly taxRegime: TaxRegime;
-  readonly verticalType: string;
+  readonly verticalType: PosVertical;
   readonly onboardingStartedAtIso: string | null;
   readonly firstSaleAtIso: string | null;
   /** ADR-0009: default on; opt-out en Admin. */
@@ -62,12 +82,13 @@ export function tenantFromSearchParams(params: URLSearchParams): PosTenantSessio
   const mode = params.get('mode');
   if (!isMode(mode)) return null;
   const rawRegime = params.get('taxRegime') ?? params.get('regime') ?? params.get('r');
+  const rawVertical = params.get('vertical') ?? 'retail';
   return {
     tenantId: params.get('tenant') ?? '',
     tradeName: params.get('name') || 'Mi negocio',
     formalizationMode: mode,
     taxRegime: isTaxRegime(rawRegime) ? rawRegime : 'UNKNOWN',
-    verticalType: params.get('vertical') || 'retail',
+    verticalType: isPosVertical(rawVertical) ? rawVertical : 'retail',
     onboardingStartedAtIso: new Date().toISOString(),
     firstSaleAtIso: null,
     brandQrEnabled: true,
@@ -80,9 +101,12 @@ export function readTenantSession(storage: Storage): PosTenantSession {
   if (!raw) return defaultTenantSession();
   try {
     const parsed = JSON.parse(raw) as Partial<PosTenantSession>;
+    const rawVertical = (parsed as Record<string, unknown>).verticalType;
     return {
       ...defaultTenantSession(),
       ...parsed,
+      verticalType:
+        typeof rawVertical === 'string' && isPosVertical(rawVertical) ? rawVertical : 'retail',
       taxRegime: normalizeTaxRegime((parsed as Record<string, unknown>).taxRegime),
     };
   } catch {

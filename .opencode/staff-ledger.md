@@ -2064,3 +2064,30 @@ aprobaciones: [Staff Pos, Staff Design, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0048
+timestamp_utc: 2026-08-26T09:05:00Z
+schema_version: 2
+sprint_fase: Vertical Grifos — integración + bundle
+agente_responsable: Staff POS (ejecución: kipus-pos; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: PosVertical grifos + fuel_station
+relacion: amplia
+referencias_entradas: [0047]
+referencias_documentales: [apps/pos-web/src/lib/fuel/dispatch.ts, apps/pos-web/src/lib/tenant/session.ts]
+prev_id: 0047
+prev_hash: 3b24bedeeef9d3a7bb4eeec46313cf19d44316a2d3dfc71c6a1f3d94c256b3c6
+entry_hash: efb8307798dbf129ce293f2c5e1110efd673988ed793da35f8e937009ddce4ae
+ticket_or_adr: ADR-ARCH-002
+test_ids: [pos-web 586, SUITE]
+entregable_afectado: Vertical grifos — surtidores e isletas
+descripcion: >
+  Integración grifos a nivel staff con bundle y despacho por galones.
+evidencia: >
+  GREEN: 586/586 pos-web, 23/23 tour, SUITE GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Pos, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

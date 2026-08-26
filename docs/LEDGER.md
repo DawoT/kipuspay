@@ -15149,3 +15149,36 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0521
+timestamp_utc: 2026-08-26T09:00:00Z
+schema_version: 2
+sprint_fase: Vertical — Grifos premium (6ta vertical integral)
+agente_responsable: Staff POS (ejecución: kipus-pos grifos; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: Surtidores + detracción Diésel 10% + turnos por isleta
+relacion: amplia
+referencias_entradas: [0520]
+referencias_documentales: [apps/pos-web/src/lib/fuel/dispatch.ts, apps/pos-web/src/lib/fuel/FuelDispatchCard.svelte]
+prev_id: 0520
+prev_hash: ba968dcfdb9e1caadd0d6dcd298c1a0d249a6de01f4ad0b8d29e2720f6c3bdbb
+entry_hash: 39b10640e26bbc4d896db894f4138c5bd3304439638f5acac192ff547a2f6ffc
+ticket_or_adr: GTM §2-§3; ADR-ARCH-002; Sprints grifos
+test_ids: [apps/pos-web/src/lib/fuel/dispatch.test.ts, SUITE]
+entregable_afectado: Vertical grifos — surtidores, detracción, turnos por isleta
+descripcion: >
+  6ta vertical grifos integrada a nivel staff: PosVertical con grifos,
+  VERTICAL_ALIAS grifos→fuel, Tour fuel-island, bundle GRIFOS_BUNDLE
+  (pos.checkout + cash.blind_z + shift_handoff + fiscal.withholdings +
+  catalog.price_labels + qr_wallets + card_acquirer + ledger.ar). Dos
+  mejoras premium: despacho por galones/monto con detracción 10% Diésel B5
+  (<100ms, offline-first) y reporte de turno por isleta.
+evidencia: >
+  RED: grifos no mapeaba a fuel-island. GREEN: pos-web 586/586 (106 files,
+  +43), domain-onboarding 23/23, SUITE GREEN, V-07/V-23 sin forks.
+ancestry_verified: true
+aprobaciones: [Staff Pos Grifos, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

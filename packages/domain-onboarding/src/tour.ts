@@ -17,7 +17,8 @@ export type TourCapability =
   | 'variants'
   | 'quick_add'
   | 'shift_handoff'
-  | 'team_invite';
+  | 'team_invite'
+  | 'fuel_station';
 
 export type TourRole = 'owner' | 'cashier';
 
@@ -73,6 +74,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     capability: 'variants',
   },
   {
+    target: 'fuel-island',
+    title: 'Surtidores e isletas',
+    body: 'Como grifo, gestiona tus isletas y despachos por galón: la caja registra volumen, precio del día y placa en segundos.',
+    capability: 'fuel_station',
+    verticals: ['fuel'],
+  },
+  {
     target: 'shift',
     title: 'Cambio de turno sin cerrar caja',
     body: 'El turno cambia con un PIN de un solo uso: la caja sigue abierta y cada venta queda atribuida a su operador.',
@@ -111,7 +119,9 @@ export const JARGON_TERMS = [
  * Normaliza el slug de rubro al catálogo interno del tour (ADR-ARCH-002, GTM §3.3).
  * Fuente canónica ES del POS/marketing → EN interno del tour.
  * Diccionario único (DRY): es a en: restaurantes a restaurant, farmacias a pharmacy,
- * retail a retail, servicios a services, cadenas a chain. Pura, sin bifurcacion por rubro.
+ * retail a retail, servicios a services, cadenas a chain, grifos a fuel.
+ * Fuente canónica de VerticalSlug: apps/marketing-web/src/lib/content/types.ts
+ * Pura, sin bifurcacion por rubro.
  */
 const VERTICAL_ALIAS_ES_TO_EN: Readonly<Record<string, string>> = {
   restaurantes: 'restaurant',
@@ -119,6 +129,7 @@ const VERTICAL_ALIAS_ES_TO_EN: Readonly<Record<string, string>> = {
   retail: 'retail',
   servicios: 'services',
   cadenas: 'chain',
+  grifos: 'fuel',
 };
 
 export function normalizeVertical(vertical: string): string {

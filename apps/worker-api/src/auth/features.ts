@@ -155,3 +155,10 @@ export function isAgenticInsightsEnabled(
 export function isLpdpEnabled(env: WorkerEnv | undefined): boolean {
   return flagOn(env?.FEATURE_LPDP);
 }
+
+/** Grifos — surtidores e isla (FEATURE_FUEL_STATION, default off). */
+export function isFuelStationEnabled(
+  env: { readonly FEATURE_FUEL_STATION?: string } | undefined,
+): boolean {
+  return flagOn(env?.FEATURE_FUEL_STATION);
+}

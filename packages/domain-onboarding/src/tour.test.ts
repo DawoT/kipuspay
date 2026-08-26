@@ -19,6 +19,7 @@ const ALL = new Set([
   'quick_add',
   'shift_handoff',
   'team_invite',
+  'fuel_station',
 ]);
 
 describe('Product Tour (regla 37a)', () => {
@@ -133,6 +134,7 @@ describe('Product Tour (regla 37a)', () => {
       'quick_add',
       'shift_handoff',
       'team_invite',
+      'fuel_station',
     ]);
     expect(TOUR_STEPS.every((s) => known.has(s.capability))).toBe(true);
     expect(new Set(TOUR_STEPS.map((s) => s.target)).size).toBe(TOUR_STEPS.length);
@@ -173,5 +175,27 @@ describe('Product Tour (regla 37a)', () => {
       hasSold: false,
     });
     expect(farmaciasKds.map((s) => s.target)).not.toContain('kds');
+  });
+
+  it('grifos mapea a fuel y muestra surtidores con capability fuel_station', () => {
+    const fuelCaps = new Set(['fuel_station', 'quick_add']);
+    const grifosSteps = tourStepsFor({
+      vertical: 'grifos',
+      role: 'cashier',
+      capabilities: fuelCaps,
+      hasSold: false,
+    });
+    expect(grifosSteps.map((s) => s.target)).toContain('fuel-island');
+    expect(grifosSteps.find((s) => s.target === 'fuel-island')?.body).toMatch(/grifo/);
+
+    const otherFuel = tourStepsFor({
+      vertical: 'retail',
+      role: 'cashier',
+      capabilities: fuelCaps,
+      hasSold: false,
+    });
+    expect(otherFuel.map((s) => s.target)).not.toContain('fuel-island');
+
+    expect(tourStorageKey('grifos')).toBe('kipus:tour:fuel:state');
   });
 });

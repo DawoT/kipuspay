@@ -46,6 +46,7 @@ describe('features flags default off', () => {
     vi.stubEnv('PUBLIC_FEATURE_' + 'LPDP', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'ANALYTICS_AGENTIC_INSIGHTS', '');
     vi.stubEnv('PUBLIC_FEATURE_' + 'CATALOG_QUICK_ADD', '');
+    vi.stubEnv('PUBLIC_FEATURE_FUEL_STATION', '');
 
     const mod = await import('./features.js');
     expect(mod.isPosCheckoutEnabled()).toBe(false);
@@ -95,6 +96,7 @@ describe('features flags default off', () => {
     expect(mod.isTeamInviteEnabled()).toBe(false);
     expect(mod.isOnboardingTourEnabled()).toBe(false);
     expect(mod.isHardwareDiagnosticsEnabled()).toBe(false);
+    expect(mod.isFuelStationEnabled()).toBe(false);
     vi.unstubAllEnvs();
   });
 });
