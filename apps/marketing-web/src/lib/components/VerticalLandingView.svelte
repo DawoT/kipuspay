@@ -14,6 +14,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { allVerticals, otherVerticals } from '$lib/content/verticals';
   import { casesForRubro, simulationForRubro } from '$lib/content/cases';
+  import { goto } from '$app/navigation';
 
   let { landing }: { landing: VerticalLanding } = $props();
 
@@ -77,7 +78,7 @@
         value={landing.slug}
         onchange={(e) => {
           const el = e.currentTarget;
-          if (el.value) window.location.assign(`/para/${el.value}`);
+          if (el.value) goto(`/para/${el.value}`);
         }}
       >
         {#each allV as v (v.slug)}

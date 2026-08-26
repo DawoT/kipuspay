@@ -15080,3 +15080,37 @@ aprobaciones: [Staff Pos, Staff Design, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0519
+timestamp_utc: 2026-08-26T22:21:00Z
+schema_version: 2
+sprint_fase: Fase A — Mobile Navigation Fix & Production Cloudflare Pages Deploy
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Fix
+subtipo: Mobile Drawer Backdrop Trap + SvelteKit Client Goto Navigation
+relacion: CORRIGE
+referencias_entradas: [0513, 0518]
+referencias_documentales: [apps/marketing-web/src/routes/+layout.svelte, apps/marketing-web/src/app.css, apps/marketing-web/src/lib/components/VerticalLandingView.svelte]
+prev_id: 0518
+prev_hash: c899f6edc0cd6132b50dd348289b3f9cb684e8b8fc64c9dd0f0fa626a8bad6b9
+entry_hash: 48af3cd740490f76ffee7fcd33e90bf01689154038958d9611c50db03508fa33
+ticket_or_adr: V-26; CAL-06; ADR-ARCH-002
+test_ids: [apps/marketing-web/src/lib/components/navigation-pricing.test.ts, apps/marketing-web/src/lib/components/responsive-ui.test.ts, SUITE]
+entregable_afectado: apps/marketing-web/src/routes/+layout.svelte; apps/marketing-web/src/app.css; apps/marketing-web/src/lib/components/VerticalLandingView.svelte
+descripcion: >
+  Corrección crítica de la navegación móvil en el sitio de marketing:
+  (1) Resuelto el atrapamiento de containing block CSS en .site-header: la propiedad backdrop-filter: blur()
+      confinaba fixed descendants (.mobile-drawer y .mobile-backdrop) a los 68px de alto del header.
+      Se extrajo el drawer y backdrop al nivel raíz del layout fuera del header y se elevó z-index a 200/201.
+  (2) Integrado SvelteKit goto() para el selector de rubros móvil en VerticalLandingView.svelte.
+  (3) Despliegue en producción a Cloudflare Pages (kipuspay-web.pages.dev).
+evidencia: >
+  Playwright MCP: verificación visual y navegación completa con drawer abierto en viewport 390x844.
+  Cloudflare Pages: deploy exitoso a kipuspay-web (https://kipuspay-web.pages.dev).
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
