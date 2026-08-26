@@ -286,8 +286,10 @@
     </div>
 
     <p class="footer-channels">
-      {OFFICIAL_CHANNELS.contacto} · {OFFICIAL_CHANNELS.soporte} · {OFFICIAL_CHANNELS.facturacion} ·{' '}
-      {OFFICIAL_CHANNELS.privacidad}
+      <a href="mailto:{OFFICIAL_CHANNELS.contacto}">{OFFICIAL_CHANNELS.contacto}</a> ·{' '}
+      <a href="mailto:{OFFICIAL_CHANNELS.soporte}">{OFFICIAL_CHANNELS.soporte}</a> ·{' '}
+      <a href="mailto:{OFFICIAL_CHANNELS.facturacion}">{OFFICIAL_CHANNELS.facturacion}</a> ·{' '}
+      <a href="mailto:{OFFICIAL_CHANNELS.privacidad}">{OFFICIAL_CHANNELS.privacidad}</a>
     </p>
 
     <ul class="footer-seals">

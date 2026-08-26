@@ -10,22 +10,22 @@ export const HOME = {
   activation: 'Tu primera venta en 5 minutos',
   heroBadges: [
     {
-      icon: '⚡',
+      icon: 'lightning',
       title: 'Cobro en segundos',
       description: 'Efectivo, tarjetas y Yape / Plin sin demoras',
     },
     {
-      icon: '📱',
+      icon: 'smartphone',
       title: 'Modo Dueño en vivo',
       description: 'Ventas, caja y stock en tiempo real desde tu celular',
     },
     {
-      icon: '🇵🇪',
+      icon: 'shield-check',
       title: '100% legal ante SUNAT',
       description: 'Boletas y facturas emitidas en automático',
     },
     {
-      icon: '🔄',
+      icon: 'sync',
       title: 'Operación fluida continua',
       description: 'Tu mostrador nunca se detiene',
     },

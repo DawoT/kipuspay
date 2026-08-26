@@ -14259,3 +14259,36 @@ aprobaciones: [Staff Design, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0496
+timestamp_utc: 2026-08-26T05:48:00Z
+schema_version: 2
+sprint_fase: Fase A — Corrección y Auditoría UI/UX (Video Hero, Íconos Vectoriales, Sticky Header y Footer)
+agente_responsable: Staff UI/UX Bugfix Auditor / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Autoplay de Video, Vectorización de Íconos SVG, Visibilidad de Header y Alineación Footer
+relacion: amplia
+referencias_entradas: [0495]
+referencias_documentales: [apps/marketing-web/src/lib/brand/QuipuHero.svelte, apps/marketing-web/src/lib/components/Icon.svelte, apps/marketing-web/src/app.css, apps/marketing-web/src/routes/+layout.svelte, apps/marketing-web/src/routes/+page.svelte, apps/marketing-web/src/routes/seguridad/+page.svelte]
+prev_id: 0495
+prev_hash: f218678dd86b42bcd70a3a52dab66b50903ce3502c0e3b1f9bda6d5765bb42dc
+entry_hash: 665ce38172cf252c07434833e213ed1c0fe111872d438bfdbe291b6ffa0f059f
+ticket_or_adr: GTM-01; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/ui-ux-enhancements.test.ts, apps/marketing-web/src/lib/visual-sprints.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/brand/QuipuHero.svelte; apps/marketing-web/src/lib/components/Icon.svelte; apps/marketing-web/src/app.css; apps/marketing-web/src/routes/+layout.svelte; apps/marketing-web/src/routes/+page.svelte; apps/marketing-web/src/routes/seguridad/+page.svelte
+descripcion: >
+  Corrección exhaustiva de bugs de renderizado, accesibilidad e interacción en la web de marketing:
+  (1) Video Hero (QuipuHero.svelte): garantía de reproducción automática con atributos HTML5 (autoplay, muted, loop, playsinline, preload="auto"), el.muted programático y observador IntersectionObserver.
+  (2) Vectorización de Íconos (Icon.svelte): reemplazo de emojis por geometrías SVG limpias en Hero badges (lightning, smartphone, shield-check, sync) y TrustFlow (cart, shield-check, cloud-upload, institution, document).
+  (3) Visibilidad Continua de Header Sticky (app.css / +layout.svelte): elevación con z-index 100, fondo protector oscuro (rgba(20,22,28,0.94)), backdrop-filter blur, borde sutil y sombra difusa para legibilidad total al desplazarse sobre cualquier sección.
+  (4) Alineación y Enlaces en Footer (app.css / +layout.svelte): corrección de .footer-channels con max-width 72rem y centrado automático con la grilla, y conversión de correos en enlaces interactivos mailto:.
+evidencia: >
+  Marketing Web Vitest: 43 test files, 269 tests pasando al 100% (97.7% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 290.96 kB (< 300 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Bugfix Auditor, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -125,9 +125,12 @@ describe('Sprints V1, V2 y V3 — Refinamiento Visual y Elevaciones Canónicas',
   });
 
   describe('Header Scrolled con Desenfoque de Cristal, Sticky Glow y OwnerModeMock Crossfade', () => {
-    it('el header scrolled usa desenfoque de cristal (backdrop-filter blur 12px)', () => {
+    it('el header usa fondo protector oscuro consistente con desenfoque y sombra (z-index 100)', () => {
       expect(APP_CSS).toMatch(
-        /\.site-header\.scrolled\s*\{[^}]*backdrop-filter:\s*blur\(12px\);[^}]*-webkit-backdrop-filter:\s*blur\(12px\);[^}]*background:\s*rgba\(20,\s*22,\s*28,\s*0\.88\);[^}]*border-bottom:\s*1px solid rgba\(243,\s*239,\s*230,\s*0\.08\);/,
+        /\.site-header\s*\{[^}]*z-index:\s*100;[\s\S]*?background:\s*rgba\(20,\s*22,\s*28,\s*0\.94\);[\s\S]*?backdrop-filter:\s*blur\(12px\);[\s\S]*?border-bottom:\s*1px solid rgba\(243,\s*239,\s*230,\s*0\.1\);[\s\S]*?box-shadow:\s*0 4px 20px rgba\(0,\s*0,\s*0,\s*0\.35\);/,
+      );
+      expect(APP_CSS).toMatch(
+        /\.site-header\.scrolled\s*\{[^}]*backdrop-filter:\s*blur\(12px\);[^}]*-webkit-backdrop-filter:\s*blur\(12px\);[^}]*background:\s*rgba\(20,\s*22,\s*28,\s*0\.94\);[^}]*border-bottom:\s*1px solid rgba\(243,\s*239,\s*230,\s*0\.1\);[^}]*box-shadow:\s*0 4px 20px rgba\(0,\s*0,\s*0,\s*0\.35\);/,
       );
     });
 

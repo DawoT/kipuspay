@@ -281,28 +281,33 @@ li {
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   min-height: var(--header-h);
   padding: 0.75rem var(--inset-section-x);
-  background: transparent;
-  border-bottom: 1px solid transparent;
+  background: rgba(20, 22, 28, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(243, 239, 230, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
+    box-shadow 0.2s ease,
     backdrop-filter 0.2s ease,
     -webkit-backdrop-filter 0.2s ease;
 }
 
-/* Despegado del hero el header se apoya en tinta con desenfoque de cristal. */
+/* Despegado del hero el header mantiene la protección de tinta con desenfoque de cristal. */
 .site-header.scrolled {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background: rgba(20, 22, 28, 0.88);
-  border-bottom: 1px solid rgba(243, 239, 230, 0.08);
+  background: rgba(20, 22, 28, 0.94);
+  border-bottom: 1px solid rgba(243, 239, 230, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .brand {
@@ -1674,11 +1679,30 @@ li {
 }
 
 .footer-channels {
-  margin: 1.4rem 0 0;
+  max-width: 72rem;
+  margin: 1.4rem auto 0;
+  padding: 0.8rem 0 0;
+  border-top: 1px dashed rgba(243, 239, 230, 0.1);
   font-family: var(--font-mono);
   font-size: 0.78rem;
   color: var(--muted);
   letter-spacing: 0.02em;
+}
+
+.footer-channels a {
+  display: inline;
+  margin: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition:
+    color 0.18s ease,
+    text-decoration-color 0.18s ease;
+}
+
+.footer-channels a:hover {
+  color: var(--amber-bright);
+  text-decoration-color: var(--amber-bright);
 }
 
 .footer-legal {

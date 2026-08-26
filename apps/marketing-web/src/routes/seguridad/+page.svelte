@@ -2,6 +2,7 @@
   import { SECURITY_PAGE } from '$lib/content/security';
   import { reveal } from '$lib/components/reveal';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import { ogImageFor } from '$lib/seo';
 
   /** Los 5 pasos del flujo visual — sin jerga técnica (V-26). */
@@ -9,27 +10,27 @@
     {
       label: 'Tu venta',
       description: 'Registras la venta en tu caja, con o sin internet. El comprobante se genera al instante.',
-      icon: '🛒',
+      icon: 'cart',
     },
     {
       label: 'KipusPay lo recibe',
       description: 'Revisamos que los datos del comprobante sean correctos antes de enviarlo.',
-      icon: '✅',
+      icon: 'shield-check',
     },
     {
       label: 'Envío automático',
       description: 'Enviamos tu comprobante de forma automática. No necesitas hacer nada extra.',
-      icon: '📤',
+      icon: 'cloud-upload',
     },
     {
       label: 'Confirmación oficial',
       description: 'La autoridad tributaria recibe el comprobante y emite su respuesta. Mostramos el estado real: pendiente, aceptado o rechazado.',
-      icon: '🏛️',
+      icon: 'institution',
     },
     {
       label: 'Tu comprobante válido',
       description: 'El comprobante queda disponible en tu panel y puedes enviárselo a tu cliente cuando quieras.',
-      icon: '📄',
+      icon: 'document',
     },
   ] as const;
 
@@ -131,7 +132,9 @@
               aria-label="{step.label}: {step.description}"
             >
               <div class="trust-flow__node" aria-hidden="true">
-                <span class="trust-flow__icon">{step.icon}</span>
+                <span class="trust-flow__icon">
+                  <Icon name={step.icon} size={20} />
+                </span>
                 <span class="trust-flow__num">{String(i + 1).padStart(2, '0')}</span>
               </div>
               <p class="trust-flow__label">{step.label}</p>
@@ -265,8 +268,12 @@
   }
 
   .trust-flow__icon {
-    font-size: 1.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
+    color: var(--ink);
+    transition: color 0.2s ease;
   }
 
   .trust-flow__num {

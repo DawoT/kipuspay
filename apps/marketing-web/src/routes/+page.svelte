@@ -8,6 +8,7 @@
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
   import OwnerModeMock from '$lib/components/OwnerModeMock.svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import { ogImageFor } from '$lib/seo';
 
   const verticals = allVerticals();
@@ -83,7 +84,9 @@
       <div class="hero-badges" aria-label="Beneficios principales">
         {#each HOME.heroBadges as badge}
           <div class="hero-badge-item">
-            <span class="hero-badge-icon" aria-hidden="true">{badge.icon}</span>
+            <span class="hero-badge-icon" aria-hidden="true">
+              <Icon name={badge.icon} size={20} tone="amber" />
+            </span>
             <div class="hero-badge-text">
               <strong>{badge.title}</strong>
               <span>{badge.description}</span>
