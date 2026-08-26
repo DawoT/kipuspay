@@ -15216,3 +15216,39 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0523
+timestamp_utc: 2026-08-26T23:30:00Z
+schema_version: 2
+sprint_fase: Fase A — Cashier Login Capability & Staging CORS Resolution
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Fix
+subtipo: Cashier PIN login capability + CORS allow-list for staging POS
+relacion: CORRIGE
+referencias_entradas: [0522]
+referencias_documentales: [apps/worker-api/src/auth/public-cors.ts, apps/worker-api/wrangler.jsonc, apps/worker-api/src/auth/protected-routes.test.ts, apps/worker-api/src/auth/public-cors.test.ts]
+prev_id: 0522
+prev_hash: 29fd01b8fd9c80906d05f7794ab2ea085199cf919f75102b93b55cac4da68d17
+entry_hash: d25b4f9c5a6202b702485990229d3bf8cbd37c3d244a69760c2b872a4a82e9d2
+ticket_or_adr: V-28; CAL-06; ADR-0034; ADR-ARCH-002
+test_ids: [apps/worker-api/src/auth/public-cors.test.ts, apps/worker-api/src/auth/protected-routes.test.ts, apps/worker-api/src/auth/cashier-login-route.test.ts, SUITE]
+entregable_afectado: apps/worker-api/src/auth/public-cors.ts; apps/worker-api/wrangler.jsonc; apps/worker-api/src/auth/protected-routes.test.ts; apps/worker-api/src/auth/public-cors.test.ts
+descripcion: >
+  Resolución integral del acceso al POS y validación de credenciales (badge + PIN):
+  (1) CORS wildcard para dominios Pages: `public-cors.ts` ahora soporta matching de patrones `https://*.pages.dev`,
+      permitiendo que `kipuspay-pos-web-staging.pages.dev` se comunique sin bloqueos de preflight con `worker-api`.
+  (2) Capability de login con PIN habilitada: `wrangler.jsonc` activó `FEATURE_AUTH_CASHIER_LOGIN: "1"`, eliminando
+      el error `FEATURE_OFF` en `/api/auth/cashier-login`.
+  (3) Matriz de rutas: cobertura añadida para `GET /api/sales/history` en `protected-routes.test.ts`.
+  (4) Verificación en vivo: tanto el acceso directo vía handshake de onboarding como el login manual con Badge (EMP-...) y PIN
+      fueron validados exitosamente en producción/staging abriendo la sesión de caja del POS.
+evidencia: >
+  Playwright MCP: login exitoso con credenciales reales en https://kipuspay-pos-web-staging.pages.dev/login y carga de caja abierta.
+  Cloudflare Workers: deploy exitoso de kipuspay-worker-api-staging.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -13,6 +13,19 @@ export const CORS_ALLOW_METHODS = 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
 export const CORS_ALLOW_HEADERS =
   'content-type, authorization, x-tenant-id, x-terminal-id, x-terminal-session-id, x-step-up-token, x-platform-staff-token';
 
+function originMatchesPattern(pattern: string, origin: string): boolean {
+  if (pattern === origin) return true;
+  if (pattern.startsWith('https://*.') && origin.startsWith('https://')) {
+    const domain = pattern.slice(10);
+    const hostname = origin.slice(8);
+    return hostname === domain || hostname.endsWith(`.${domain}`);
+  }
+  if (pattern.startsWith('http://localhost:') && origin.startsWith('http://localhost:')) {
+    return true;
+  }
+  return false;
+}
+
 export function corsHeadersFor(
   env: PublicCorsEnv | undefined,
   requestOrigin: string | null,
@@ -31,7 +44,8 @@ export function corsHeadersFor(
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
-  if (!origins.includes(requestOrigin)) return {};
+  const isAllowed = origins.some((pattern) => originMatchesPattern(pattern, requestOrigin));
+  if (!isAllowed) return {};
   return {
     'Access-Control-Allow-Origin': requestOrigin,
     'Access-Control-Allow-Methods': CORS_ALLOW_METHODS,

@@ -31,6 +31,15 @@ describe('CORS público del worker (M6B — desacoplado por ALLOWED_ORIGINS)', (
     expect(headers['Access-Control-Allow-Origin']).toBeUndefined();
   });
 
+  it('soporta wildcard de subdominios https://*.pages.dev', () => {
+    const headers = corsHeadersFor(
+      { ALLOWED_ORIGINS: 'https://*.pages.dev,https://kipuspay.com' },
+      'https://kipuspay-pos-web-staging.pages.dev',
+    );
+    expect(headers['Access-Control-Allow-Origin']).toBe('https://kipuspay-pos-web-staging.pages.dev');
+    expect(headers['Access-Control-Allow-Credentials']).toBe('true');
+  });
+
   it('wildcard explícito permite cualquier origen sin credenciales', () => {
     const headers = corsHeadersFor({ ALLOWED_ORIGINS: '*' }, 'https://cualquiera.example');
     expect(headers['Access-Control-Allow-Origin']).toBe('*');
