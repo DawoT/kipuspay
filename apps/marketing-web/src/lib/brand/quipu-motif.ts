@@ -25,6 +25,7 @@ export const CORD_VALUES: Readonly<Record<string, number>> = {
   retail: 312,
   servicios: 213,
   cadenas: 132,
+  grifos: 321,
 };
 
 export function cordValue(slug: string): number {

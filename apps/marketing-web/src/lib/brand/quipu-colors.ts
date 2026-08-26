@@ -7,6 +7,7 @@ export const CORD_COLORS: Readonly<Record<string, string>> = {
   retail: '#d96a3c',
   servicios: '#e2c39d',
   cadenas: '#c98195',
+  grifos: '#38bdf8',
 };
 
 export const CORD_DEFAULT = '#f3efe6';

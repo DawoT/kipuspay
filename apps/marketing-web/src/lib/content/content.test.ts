@@ -11,8 +11,8 @@ import { HOME } from './home.js';
 import { allVerticals, getVertical, otherVerticals, VERTICAL_SLUGS } from './verticals.js';
 
 describe('content model', () => {
-  it('cinco verticales con dolor, gancho y claim-gate', () => {
-    expect(VERTICAL_SLUGS).toHaveLength(5);
+  it('seis verticales con dolor, gancho y claim-gate', () => {
+    expect(VERTICAL_SLUGS).toHaveLength(6);
     for (const v of allVerticals()) {
       expect(v.pain.length).toBeGreaterThan(10);
       expect(v.hook.length).toBeGreaterThan(10);
@@ -141,7 +141,7 @@ describe('landings verticales — contenido de rubro', () => {
     }
   });
 
-  it('FAQ de rubro: exactamente 5 preguntas operativas por cada vertical (total 25)', () => {
+  it('FAQ de rubro: exactamente 5 preguntas operativas por cada vertical (total 30)', () => {
     for (const v of allVerticals()) {
       expect(v.faq).toHaveLength(5);
       for (const f of v.faq) {
@@ -163,10 +163,10 @@ describe('landings verticales — contenido de rubro', () => {
     }
   });
 
-  it('el cruce entre rubros ofrece los otros cuatro', () => {
+  it('el cruce entre rubros ofrece los otros cinco', () => {
     for (const v of allVerticals()) {
       const others = otherVerticals(v.slug);
-      expect(others).toHaveLength(4);
+      expect(others).toHaveLength(5);
       expect(others.map((o) => o.slug)).not.toContain(v.slug);
     }
   });

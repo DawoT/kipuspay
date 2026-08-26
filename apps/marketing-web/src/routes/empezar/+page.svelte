@@ -42,6 +42,7 @@
     { id: 'retail', label: 'Retail y minimarkets' },
     { id: 'servicios', label: 'Servicios y talleres' },
     { id: 'cadenas', label: 'Cadenas y multi-local' },
+    { id: 'grifos', label: 'Grifos y estaciones de servicio' },
   ];
 
   const stages: { id: FormalizationMode; label: string; body: string }[] = [

@@ -34,9 +34,9 @@ describe('success cases and simulations', () => {
     expect(SUCCESS_CASES).toHaveLength(0);
   });
 
-  it('expone 5 simulaciones operativas de mostrador con métricas Antes vs Con KipusPay', () => {
+  it('expone 6 simulaciones operativas de mostrador con métricas Antes vs Con KipusPay', () => {
     const sims = allSimulations();
-    expect(sims).toHaveLength(5);
+    expect(sims).toHaveLength(6);
 
     const ids = sims.map((s) => s.id);
     expect(ids).toEqual([
@@ -45,16 +45,18 @@ describe('success cases and simulations', () => {
       'botica-independiente',
       'taller-automotriz',
       'cadena-panaderias',
+      'grifo-estacion-servicio',
     ]);
 
     expect(simulationForRubro('restaurantes')?.id).toBe('cafeteria-especialidad');
     expect(simulationForRubro('servicios')?.id).toBe('taller-automotriz');
     expect(simulationForRubro('cadenas')?.id).toBe('cadena-panaderias');
+    expect(simulationForRubro('grifos')?.id).toBe('grifo-estacion-servicio');
 
     for (const sim of sims) {
       expect(sim.archetype.length).toBeGreaterThan(5);
       expect(sim.location.length).toBeGreaterThan(5);
-      expect(sim.dailyTransactions).toMatch(/\d+\s*tickets\/d[íi]a/);
+      expect(sim.dailyTransactions).toMatch(/\d+\s*(tickets|despachos)\/d[íi]a/);
       expect(sim.headline.length).toBeGreaterThan(15);
       expect(sim.operationalChallenge.length).toBeGreaterThan(30);
       expect(sim.kipusSolution.length).toBeGreaterThan(30);

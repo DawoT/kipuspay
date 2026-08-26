@@ -14874,3 +14874,40 @@ aprobaciones: [Staff Frontend, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0513
+timestamp_utc: 2026-08-26T19:15:00Z
+schema_version: 2
+sprint_fase: Fase A — 6ª Vertical Grifos y Estaciones de Servicio
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Mockup Smartphone GasMock + Módulos de Dominio + 6ª Vertical Grifos (/para/grifos)
+relacion: AMPLIA
+referencias_entradas: [0511, 0512]
+referencias_documentales: [apps/marketing-web/src/lib/components/vertical-mocks/GasMock.svelte, apps/marketing-web/src/lib/components/VerticalLandingView.svelte, apps/marketing-web/src/lib/content/types.ts, apps/marketing-web/src/lib/content/verticals.ts, apps/marketing-web/src/lib/content/cases.ts, apps/marketing-web/src/lib/claims/registry.ts, apps/marketing-web/src/lib/claims/public.ts, apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts, docs/GTM.md]
+prev_id: 0512
+prev_hash: aa4112633399e9ea9c80cea37e58553273c09b49b776ec1e4c4d8e8c8b0b3322
+entry_hash: 60b7d206d2f26c36bb38e2d52baa2811805d4ea2a6e49a22875e5e40cfe41c65
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06; ADR-ARCH-002
+test_ids: [apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts, apps/marketing-web/src/lib/content/cases.test.ts, apps/marketing-web/src/lib/content/content.test.ts, apps/marketing-web/src/lib/claims/gtm-drift.test.ts, apps/marketing-web/src/lib/claims/public-drift.test.ts, V-07, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/components/vertical-mocks/GasMock.svelte; apps/marketing-web/src/lib/components/VerticalLandingView.svelte; apps/marketing-web/src/lib/content/types.ts; apps/marketing-web/src/lib/content/verticals.ts; apps/marketing-web/src/lib/content/cases.ts; apps/marketing-web/src/lib/claims/registry.ts; apps/marketing-web/src/lib/claims/public.ts; apps/marketing-web/src/lib/brand/quipu-colors.ts; apps/marketing-web/src/lib/brand/quipu-motif.ts; apps/marketing-web/src/app.css; apps/marketing-web/src/routes/empezar/+page.svelte; apps/marketing-web/src/lib/onboarding/draft.ts; docs/GTM.md
+descripcion: >
+  Implementación completa de la 6ª vertical comercial "Grifos y Estaciones de Servicio" (/para/grifos):
+  (1) GasMock.svelte: mockup interactivo de smartphone (380x690px) con 3 vistas operativas:
+      - [Surtidor]: selector de 3 isletas con semáforo de estado, placa ABC-456, Gasohol 95, contador animado en milésimas de galón, precio en centavos y botón de cobro.
+      - [Precios]: catálogo de 6 combustibles (Gasohol 90, 95 más vendido, 97, 98, Diésel B5 con badge de detracción, GLP) y simulación de actualización en vivo.
+      - [Flota]: gestión de 3 empresas corporativas (RUCs, saldos, combustible), cálculo automático de detracción SUNAT (10%) para diésel y despacho B2B.
+  (2) Dominio y Contenido: verticals.ts con 3 módulos de dominio (Control de Surtidores, Tablero de Precios, Flota y Clientes Empresa), 5 preguntas FAQ, puntos de valor y checkout demo.
+  (3) Casos y Simulaciones: cases.ts con simulación operativa de estación de servicio (580 despachos/día, -80% tiempo en pista, -95% tiempo en factura con detracción).
+  (4) Sistema de Diseño Quipu: cordel 'grifos' (#38bdf8 / #0369a1), valor 321, estilos en app.css y onboarding.
+  (5) Claim-gate & GTM: registro de claim 'fuel_fleet' (Sprint 21, QG cerrado) en registry.ts, public.ts y GTM.md §2.
+evidencia: >
+  Playwright MCP: navegación y captura de screenshots 1080p en /para/grifos (vistas [Surtidor], [Precios], [Flota] y sección de módulos de dominio).
+  Marketing Web Vitest: 49 test files, 410 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

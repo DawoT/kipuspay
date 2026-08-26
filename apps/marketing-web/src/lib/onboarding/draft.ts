@@ -6,7 +6,7 @@ export type FormalizationMode = 'INTERNAL_CONTROL' | 'FORMALIZING' | 'ELECTRONIC
 
 export const ONBOARDING_STORAGE_KEY = 'kipuspay.onboarding.v1';
 
-export type OnboardingVertical = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas';
+export type OnboardingVertical = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas' | 'grifos';
 
 export interface OnboardingDraft {
   readonly tradeName: string;

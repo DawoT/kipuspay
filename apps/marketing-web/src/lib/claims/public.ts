@@ -24,6 +24,7 @@ export const PUBLIC_CLAIMS: Readonly<Record<FeaturedClaimId, PublicClaimStatus>>
   // Núcleo ya vendido (servicios) y ranking descongelado (GTM-03).
   services_core: { kind: 'available' },
   owner_ranking: { kind: 'available' },
+  fuel_fleet: { kind: 'available' },
 };
 
 export function publicStatus(id: FeaturedClaimId): PublicClaimStatus {

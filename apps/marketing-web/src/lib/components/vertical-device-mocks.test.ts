@@ -22,6 +22,10 @@ const CHAIN_MOCK = readFileSync(
   new URL('./vertical-mocks/ChainMock.svelte', import.meta.url),
   'utf8',
 );
+const GAS_MOCK = readFileSync(
+  new URL('./vertical-mocks/GasMock.svelte', import.meta.url),
+  'utf8',
+);
 const VERTICAL_LANDING_VIEW = readFileSync(
   new URL('./VerticalLandingView.svelte', import.meta.url),
   'utf8',
@@ -33,6 +37,7 @@ const ALL_MOCKS = [
   { name: 'RetailMock', code: RETAIL_MOCK },
   { name: 'ServicesMock', code: SERVICES_MOCK },
   { name: 'ChainMock', code: CHAIN_MOCK },
+  { name: 'GasMock', code: GAS_MOCK },
 ];
 
 // Lista canónica de jerga técnica prohibida en copy de cara al cliente (V-26 / GTM §1)
@@ -92,6 +97,11 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
     it('ChainMock configura título y badge reactivo multi-local de cadenas', () => {
       expect(CHAIN_MOCK).toContain('Modo Dueño Cadenas · KipusPay');
       expect(CHAIN_MOCK).toContain('3 Locales en vivo');
+    });
+
+    it('GasMock configura título y badge reactivo de grifo y estación de servicio', () => {
+      expect(GAS_MOCK).toContain('Grifo · KipusPay');
+      expect(GAS_MOCK).toContain('Isleta 2 · Despachando');
     });
   });
 
@@ -305,10 +315,55 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
         expect(CHAIN_MOCK).toContain('98% meta global');
       });
     });
+
+    describe('F. GasMock (/para/grifos)', () => {
+      it('contiene los tabs de las 3 vistas: [Surtidor], [Precios], [Flota]', () => {
+        expect(GAS_MOCK).toContain('[Surtidor]');
+        expect(GAS_MOCK).toContain('[Precios]');
+        expect(GAS_MOCK).toContain('[Flota]');
+      });
+
+      it('Vista 1 [Surtidor]: incluye selector de isletas, contador de galones y placa', () => {
+        expect(GAS_MOCK).toContain('data-testid="gas-view-surtidor"');
+        expect(GAS_MOCK).toContain('Isleta 1');
+        expect(GAS_MOCK).toContain('Isleta 2');
+        expect(GAS_MOCK).toContain('Isleta 3');
+        expect(GAS_MOCK).toContain('ABC-456');
+        expect(GAS_MOCK).toContain('Gasohol 95');
+        expect(GAS_MOCK).toContain('gal');
+        expect(GAS_MOCK).toContain('TOTAL DESPACHO');
+      });
+
+      it('Vista 2 [Precios]: incluye lista de combustibles y simulación de actualización', () => {
+        expect(GAS_MOCK).toContain('data-testid="gas-view-precios"');
+        expect(GAS_MOCK).toContain('Gasohol 90');
+        expect(GAS_MOCK).toContain('Gasohol 95');
+        expect(GAS_MOCK).toContain('Gasohol 97');
+        expect(GAS_MOCK).toContain('Gasohol 98');
+        expect(GAS_MOCK).toContain('Diésel B5');
+        expect(GAS_MOCK).toContain('GLP');
+        expect(GAS_MOCK).toContain('MÁS VENDIDO');
+        expect(GAS_MOCK).toContain('DETRACCIÓN 10%');
+        expect(GAS_MOCK).toContain('Simular actualización');
+      });
+
+      it('Vista 3 [Flota]: incluye clientes corporativos y cálculo de detracción SUNAT', () => {
+        expect(GAS_MOCK).toContain('data-testid="gas-view-flota"');
+        expect(GAS_MOCK).toContain('Transportes Lima S.A.C.');
+        expect(GAS_MOCK).toContain('20112233441');
+        expect(GAS_MOCK).toContain('Constructora Andina E.I.R.L.');
+        expect(GAS_MOCK).toContain('20445566778');
+        expect(GAS_MOCK).toContain('Almacenes Peru S.A.');
+        expect(GAS_MOCK).toContain('20887766551');
+        expect(GAS_MOCK).toContain('Detracción 10%');
+        expect(GAS_MOCK).toContain('SUNAT SPOT');
+        expect(GAS_MOCK).toContain('Neto a pagar');
+      });
+    });
   });
 
   describe('3. Integración en VerticalLandingView.svelte y Módulos de Dominio', () => {
-    it('importa los 5 mockups especializados', () => {
+    it('importa los 6 mockups especializados', () => {
       expect(VERTICAL_LANDING_VIEW).toContain(
         "import RestaurantMock from '$lib/components/vertical-mocks/RestaurantMock.svelte';",
       );
@@ -324,6 +379,9 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(VERTICAL_LANDING_VIEW).toContain(
         "import ChainMock from '$lib/components/vertical-mocks/ChainMock.svelte';",
       );
+      expect(VERTICAL_LANDING_VIEW).toContain(
+        "import GasMock from '$lib/components/vertical-mocks/GasMock.svelte';",
+      );
     });
 
     it('renderiza el mockup correspondiente según landing.slug con fallback a CheckoutMock', () => {
@@ -334,6 +392,7 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'retail'[\s\S]*?<RetailMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'servicios'[\s\S]*?<ServicesMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'cadenas'[\s\S]*?<ChainMock/);
+      expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'grifos'[\s\S]*?<GasMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/<CheckoutMock/);
     });
 
@@ -343,9 +402,9 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(VERTICAL_LANDING_VIEW).toContain('domain-module-card');
     });
 
-    it('las 5 verticales definen 3 módulos especializados de dominio en verticals.ts', () => {
+    it('las 6 verticales definen 3 módulos especializados de dominio en verticals.ts', () => {
       const verticals = allVerticals();
-      expect(verticals).toHaveLength(5);
+      expect(verticals).toHaveLength(6);
       for (const v of verticals) {
         expect(v.modules).toBeDefined();
         expect(v.modules).toHaveLength(3);

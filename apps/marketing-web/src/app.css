@@ -2067,6 +2067,11 @@ li {
   --cord-ink: #7d3a4b;
 }
 
+[data-cord='grifos'] {
+  --cord: #38bdf8;
+  --cord-ink: #0369a1;
+}
+
 /* Rombo / Knot dot, Eyebrows e Iconos por rubro vertical */
 [data-cord] .hero .eyebrow {
   color: var(--cord);

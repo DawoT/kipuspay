@@ -17,6 +17,7 @@ const GTM_MARKER: Record<FeaturedClaimId, string> = {
   services_core: 'Núcleo',
   owner_ranking: 'Crece+',
   merma_xfer: 'Sprint 20',
+  fuel_fleet: 'Sprint 21',
 };
 
 function gtmTableRows(): string[] {

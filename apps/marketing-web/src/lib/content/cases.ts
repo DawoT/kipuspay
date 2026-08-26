@@ -216,6 +216,41 @@ export const CASE_STUDY_SIMULATIONS: readonly CaseStudySimulation[] = [
     ownerTakeaway:
       'Desde mi celular veo las ventas de los cuatro locales en vivo como si estuviera parado en cada mostrador.',
   },
+  {
+    id: 'grifo-estacion-servicio',
+    rubro: 'grifos',
+    archetype: 'Estación de Servicio y Grifo de Combustibles',
+    location: 'Carretera Central, Lima',
+    dailyTransactions: '580 despachos/día',
+    headline:
+      'Cero colas en pista, facturación de diésel con detracción automática y cuadre de turno en 3 minutos',
+    operationalChallenge:
+      'En hora punta la cola de vehículos bloqueaba la pista. El cálculo manual de detracción del 10% en despachos de diésel a flotas generaba errores con SUNAT, y cuadrar las ventas de 6 surtidores tomaba casi una hora al cambio de guardia.',
+    kipusSolution:
+      'Registro de despacho en pista por monto o volumen, cálculo automático de detracción para facturas a empresas y reporte de turno por isleta en tiempo real desde el celular.',
+    metrics: [
+      {
+        label: 'Tiempo de despacho y cobro en pista',
+        before: '90 s',
+        withKipus: '18 s',
+        improvement: '-80% tiempo por vehículo',
+      },
+      {
+        label: 'Emisión de factura a flotas con detracción',
+        before: '8 min',
+        withKipus: '25 s',
+        improvement: '-95% tiempo administrativo',
+      },
+      {
+        label: 'Cuadre de turno multi-isleta',
+        before: '45 min',
+        withKipus: '3 min',
+        improvement: '-93% tiempo de cierre',
+      },
+    ],
+    ownerTakeaway:
+      'Los choferes de empresas salen con su factura y detracción listas en segundos y la pista nunca se embotella.',
+  },
 ];
 
 export function publishedCases(cases: readonly SuccessCase[] = SUCCESS_CASES): SuccessCase[] {

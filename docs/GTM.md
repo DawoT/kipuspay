@@ -49,6 +49,7 @@ KipusPay se posiciona como agnóstico de vertical, pero se **vende** vertical po
 | **Retail / Ferreterías / Minimarkets** | Robo hormiga, descuadres de caja, control de múltiples locales | *"Sabe exactamente qué pasó en cada una de tus tiendas, hoy, ahora."* | Arqueo Z ciego + authz descuentos + audit trail | **Sprint 17** (QG cerrado) |
 | **Servicios (spas, talleres, consultorios)** | Citas y cobros desconectados, no hay "producto físico" que descontar | *"Cobra sin inventario, sin fricción, sin complicarte."* | Bypass de inventario + facturación/NV rápida | Núcleo (Fases 1–5) |
 | **Cadenas / Multi-local (4+ sucursales, ≥30 → Enterprise)** | Visibilidad consolidada, control de merma entre locales, reportería | *"Un solo panel para saber cómo le va a cada una de tus tiendas — actualizado cuando sincroniza."* | Transferencias + merma documentada; Modo Dueño ranking | Ranking Dueño: **Crece+ tras su gate**; **merma/xfer: Sprint 20** (QG cerrado, claim live) |
+| **Grifos / Estaciones de servicio** | Colas en pista, cálculo manual de detracción diésel a flotas, descuadres por surtidor | *"Surtidor activo, caja cuadrada y flota atendida sin papel."* | Control de surtidores + detracción 10% B2B | **Sprint 21** (QG cerrado) |
 
 Cada vertical necesita su propia landing (misma plantilla de diseño, copy y casos de éxito distintos) — no una landing genérica con un selector de industria que diluye el mensaje. Detalle técnico: Arquitectura §5.3.
 
@@ -68,6 +69,7 @@ kipuspay.pe (Home / Landing Principal)
 ├── /para/retail                → Landing vertical: Retail y Minimarkets
 ├── /para/servicios             → Landing vertical: Spas, talleres, consultorios
 ├── /para/cadenas                → Landing vertical: Multi-local / Franquicias
+├── /para/grifos                 → Landing vertical: Grifos y Estaciones de servicio
 │
 ├── /precios                    → Página de pricing standalone (los 4 planes, sección 4)
 ├── /seguridad                  → Página ampliada de confianza y cumplimiento (sección 5.7.1)

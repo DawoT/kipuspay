@@ -661,6 +661,137 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
     ],
   },
+  grifos: {
+    slug: 'grifos',
+    navLabel: 'Grifos y estaciones de servicio',
+    title: 'KipusPay para grifos',
+    pain: 'Controla cada surtidor, cobra en segundos y emite facturas a flotas sin papel ni esperas. Tu estación siempre operativa y tu caja siempre cuadrada.',
+    hook: 'Surtidor activo, caja cuadrada y flota atendida sin papel.',
+    metaDescription:
+      'POS para grifos y estaciones de servicio: control de surtidores, precios del día y facturación a flotas con cálculo automático de detracción.',
+    points: [
+      'Cobro por monto o volumen en segundos: efectivo, tarjeta y saldo de flota en un solo toque',
+      'Facturación electrónica con cálculo automático de detracción al despachar diésel a flotas',
+      'Control de precios por combustible y reporte de despachos por turno e isleta',
+    ],
+    pains: [
+      {
+        icon: 'reloj',
+        pain: 'En hora punta la cola de la isleta crece cuando el sistema tarda en registrar el cobro.',
+        relief: 'Registras el despacho y cobras en segundos, sin que la cola espere por el comprobante.',
+      },
+      {
+        icon: 'documento',
+        pain: 'Calcular la detracción del diésel a mano en cada factura a empresa genera errores con SUNAT.',
+        relief: 'El sistema calcula y separa el porcentaje de detracción al seleccionar diésel en la factura.',
+      },
+      {
+        icon: 'caja',
+        pain: 'Cuadrar la caja al cierre del turno con varios surtidores activos toma media hora.',
+        relief: 'El reporte de turno por isleta está listo en segundos con despachos, montos y medios de pago.',
+      },
+    ],
+    faq: [
+      {
+        q: '¿Puede la caja ver varios surtidores al mismo tiempo?',
+        a: 'Sí. Desde la misma pantalla gestionas todas las isletas activas y cobras cada despacho sin cambiar de vista.',
+      },
+      {
+        q: '¿Calcula solo la detracción para el diésel?',
+        a: 'Sí. Al registrar un despacho de diésel con factura a empresa, el sistema aplica la tasa y la muestra antes de cobrar.',
+      },
+      {
+        q: '¿Puedo facturar despachos a empresas de flota con RUC y placa?',
+        a: 'Sí. Registras el RUC, la placa y el tipo de combustible; el comprobante sale listo sin digitado extra.',
+      },
+      {
+        q: '¿Qué pasa si se va el internet en pleno turno?',
+        a: 'Sigues registrando y cobrando sin pausas. Cuando la conexión vuelve, los comprobantes se envían solos.',
+      },
+      {
+        q: '¿Cómo controlo el stock y las mermas de combustible en los tanques?',
+        a: 'El sistema registra cada despacho en tiempo real y te permite cotejar el volumen despachado contra el aforo de tus tanques para detectar mermas o diferencias al instante.',
+      },
+    ],
+    checkout: {
+      documentLabel: 'Factura electrónica',
+      register: 'Caja central',
+      syncState: 'synced',
+      caption: 'Ejemplo de despacho de Gasohol 95 en isleta 2.',
+      lines: [
+        { qty: 1, name: 'Gasohol 95 · 20.50 gal', amount_cents: 36490 },
+        { qty: 1, name: 'Aceite motor 4T 1L', amount_cents: 3200 },
+      ],
+    },
+    featuredClaimId: 'fuel_fleet',
+    heroPoster: '/media/og-grifos.png',
+    heroBadges: [
+      {
+        icon: 'lightning',
+        title: 'Despacho por monto o volumen',
+        description: 'El cobro registra litros, galones o monto fijo sin errores manuales',
+      },
+      {
+        icon: 'document',
+        title: 'Detracción automática',
+        description: 'Incluida en cada factura de diésel a empresa, sin cálculo manual',
+      },
+      {
+        icon: 'shield-check',
+        title: 'Facturación a flotas',
+        description: 'RUC, placa y tipo de combustible en cada comprobante B2B',
+      },
+      {
+        icon: 'sync',
+        title: 'Caja continua sin internet',
+        description: 'Cobra sin pausas aunque la conexión falle; sincronización automática al volver',
+      },
+    ],
+    modules: [
+      {
+        id: 'surtidor-despacho',
+        title: 'Control de Surtidores e Isletas',
+        subtitle: 'Cobro en pista por monto o volumen',
+        icon: 'lightning',
+        tag: 'OPERACIÓN EN PISTA',
+        description:
+          'Visualiza el estado de cada isleta en tiempo real: libre, despachando o en espera de pago. Cobra en segundos sin interrumpir el flujo de la pista.',
+        highlights: [
+          'Estado en vivo de cada isleta con semáforo de color',
+          'Cobro por monto fijo o por volumen de galones',
+          'Registro de placa y tipo de combustible por despacho',
+        ],
+      },
+      {
+        id: 'precios-dia',
+        title: 'Tablero de Precios del Día',
+        subtitle: 'Gestión rápida de la lista de precios',
+        icon: 'panel',
+        tag: 'GESTIÓN COMERCIAL',
+        description:
+          'Actualiza y publica en segundos los precios de cada combustible. El personal en pista ve siempre el precio vigente sin depender de pizarras ni papeles.',
+        highlights: [
+          'Precios por combustible actualizables al instante',
+          'Indicador de vigencia y última actualización',
+          'Badge automático de detracción en combustibles afectos',
+        ],
+      },
+      {
+        id: 'flota-b2b',
+        title: 'Flota y Clientes Empresa',
+        subtitle: 'Despacho y facturación a cuentas corporativas',
+        icon: 'document',
+        tag: 'FACTURACIÓN FLOTA',
+        description:
+          'Gestiona las cuentas de tus clientes empresa: controla el saldo de cada tarjeta fleet, registra placa y odómetro por despacho y emite la factura con detracción incluida.',
+        highlights: [
+          'Saldo de cuenta y límite de crédito por empresa',
+          'Registro de placa, odómetro y chofer en cada despacho',
+          'Cálculo automático de detracción para diésel en facturas B2B',
+        ],
+      },
+    ],
+  },
 };
 
 export const VERTICAL_SLUGS: readonly VerticalSlug[] = [
@@ -669,6 +800,7 @@ export const VERTICAL_SLUGS: readonly VerticalSlug[] = [
   'retail',
   'servicios',
   'cadenas',
+  'grifos',
 ];
 
 export function getVertical(slug: string): VerticalLanding | null {

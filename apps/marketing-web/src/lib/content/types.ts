@@ -1,7 +1,7 @@
 import type { FeaturedClaimId } from '../claims/registry.js';
 import type { IconName } from '../brand/icons.js';
 
-export type VerticalSlug = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas';
+export type VerticalSlug = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas' | 'grifos';
 
 export interface VerticalLanding {
   readonly slug: VerticalSlug;

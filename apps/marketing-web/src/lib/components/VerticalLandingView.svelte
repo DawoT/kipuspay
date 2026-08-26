@@ -10,6 +10,7 @@
   import RetailMock from '$lib/components/vertical-mocks/RetailMock.svelte';
   import ServicesMock from '$lib/components/vertical-mocks/ServicesMock.svelte';
   import ChainMock from '$lib/components/vertical-mocks/ChainMock.svelte';
+  import GasMock from '$lib/components/vertical-mocks/GasMock.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { allVerticals, otherVerticals } from '$lib/content/verticals';
   import { casesForRubro, simulationForRubro } from '$lib/content/cases';
@@ -179,6 +180,8 @@
             <ServicesMock theme="dark" />
           {:else if landing.slug === 'cadenas'}
             <ChainMock theme="dark" />
+          {:else if landing.slug === 'grifos'}
+            <GasMock theme="dark" />
           {:else}
             <CheckoutMock
               lines={landing.checkout.lines}
