@@ -138,4 +138,40 @@ describe('Product Tour (regla 37a)', () => {
     expect(new Set(TOUR_STEPS.map((s) => s.target)).size).toBe(TOUR_STEPS.length);
     expect(JARGON_TERMS.length).toBeGreaterThan(0);
   });
+
+  it('BLOQUEANTE GTM §3.3: slugs españoles restaurantes/farmacias mapean a KDS/FEFO', () => {
+    const kdsEnabled = new Set(['kds', 'quick_add']);
+    const fefoEnabled = new Set(['fefo', 'quick_add']);
+    const restaurantesKds = tourStepsFor({
+      vertical: 'restaurantes',
+      role: 'cashier',
+      capabilities: kdsEnabled,
+      hasSold: false,
+    });
+    expect(restaurantesKds.map((s) => s.target)).toContain('kds');
+
+    const farmaciasFefo = tourStepsFor({
+      vertical: 'farmacias',
+      role: 'cashier',
+      capabilities: fefoEnabled,
+      hasSold: false,
+    });
+    expect(farmaciasFefo.map((s) => s.target)).toContain('fefo');
+
+    // Negativo: restaurantes no debe mostrar FEFO y farmacias no debe mostrar KDS
+    const restaurantesFefo = tourStepsFor({
+      vertical: 'restaurantes',
+      role: 'cashier',
+      capabilities: fefoEnabled,
+      hasSold: false,
+    });
+    expect(restaurantesFefo.map((s) => s.target)).not.toContain('fefo');
+    const farmaciasKds = tourStepsFor({
+      vertical: 'farmacias',
+      role: 'cashier',
+      capabilities: kdsEnabled,
+      hasSold: false,
+    });
+    expect(farmaciasKds.map((s) => s.target)).not.toContain('kds');
+  });
 });

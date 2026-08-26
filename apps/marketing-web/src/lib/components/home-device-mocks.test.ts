@@ -5,18 +5,9 @@ const CHECKOUT_MOCK = readFileSync(
   new URL('../brand/CheckoutMock.svelte', import.meta.url),
   'utf8',
 );
-const OFFLINE_MOCK = readFileSync(
-  new URL('./OfflineDeviceMock.svelte', import.meta.url),
-  'utf8',
-);
-const LEDGER_MOCK = readFileSync(
-  new URL('./LedgerDeviceMock.svelte', import.meta.url),
-  'utf8',
-);
-const HOME_PAGE = readFileSync(
-  new URL('../../routes/+page.svelte', import.meta.url),
-  'utf8',
-);
+const OFFLINE_MOCK = readFileSync(new URL('./OfflineDeviceMock.svelte', import.meta.url), 'utf8');
+const LEDGER_MOCK = readFileSync(new URL('./LedgerDeviceMock.svelte', import.meta.url), 'utf8');
+const HOME_PAGE = readFileSync(new URL('../../routes/+page.svelte', import.meta.url), 'utf8');
 const APP_CSS = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
 
 // Lista canónica de jerga técnica prohibida (V-26 / GTM §1)
@@ -39,21 +30,21 @@ describe('Arquitectura de Mockups de Dispositivos Interactivos (Home KipusPay)',
     it('CheckoutMock soporta prop theme con default light (Modo Claro sobre sección oscura #producto)', () => {
       expect(CHECKOUT_MOCK).toContain("theme = 'light'");
       expect(CHECKOUT_MOCK).toContain('data-theme={theme}');
-      expect(CHECKOUT_MOCK).toContain('class:theme-dark={theme === \'dark\'}');
-      expect(CHECKOUT_MOCK).toContain('class:theme-light={theme === \'light\'}');
+      expect(CHECKOUT_MOCK).toContain("class:theme-dark={theme === 'dark'}");
+      expect(CHECKOUT_MOCK).toContain("class:theme-light={theme === 'light'}");
       expect(HOME_PAGE).toMatch(/<CheckoutMock[\s\S]*?theme="light"/);
     });
 
     it('OfflineDeviceMock usa Modo Oscuro (data-theme="dark") en la sección clara #offline (.section-paper)', () => {
-      expect(OFFLINE_MOCK).toContain('data-theme="dark"');
-      expect(OFFLINE_MOCK).toContain('smartphone-frame');
-      expect(OFFLINE_MOCK).toContain('#0b0e14'); // OLED dark background
+      expect(OFFLINE_MOCK).toContain('data-theme={theme}');
+      expect(OFFLINE_MOCK).toContain('PhoneMockFrame');
+      expect(OFFLINE_MOCK).toContain('#141820');
       expect(HOME_PAGE).toMatch(/id="offline"[\s\S]*?<OfflineDeviceMock\s*\/>/);
     });
 
     it('LedgerDeviceMock usa Modo Claro (data-theme="light") en la sección oscura #ledger (.section)', () => {
-      expect(LEDGER_MOCK).toContain('data-theme="light"');
-      expect(LEDGER_MOCK).toContain('tablet-frame');
+      expect(LEDGER_MOCK).toContain('data-theme={theme}');
+      expect(LEDGER_MOCK).toContain('PhoneMockFrame');
       expect(LEDGER_MOCK).toContain('#ffffff'); // White/paper background
       expect(HOME_PAGE).toMatch(/id="ledger"[\s\S]*?<LedgerDeviceMock\s*\/>/);
     });

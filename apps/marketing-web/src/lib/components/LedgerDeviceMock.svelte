@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PhoneMockFrame from './PhoneMockFrame.svelte';
   import { formatCents } from '$lib/brand/money';
 
   interface AccountingEntry {
@@ -8,6 +9,12 @@
     readonly amount_cents: number;
     readonly status: string;
   }
+
+  interface Props {
+    theme?: 'light' | 'dark';
+  }
+
+  let { theme = 'light' }: Props = $props();
 
   const totals = {
     cash_cents: 145000,
@@ -64,260 +71,195 @@
   }
 </script>
 
-<div class="ledger-mock-container" data-testid="ledger-device-mock" data-theme="light">
-  <div class="tablet-frame" aria-label="Panel digital de arqueo de caja y cierre diario">
-    <div class="quipu-cord-strip" aria-hidden="true">
-      <span class="cord-knot"></span>
-      <span class="cord-fiber"></span>
-      <span class="cord-knot"></span>
-    </div>
+<div class="ledger-device-container" data-testid="ledger-device-mock" data-theme={theme}>
+  <PhoneMockFrame
+    {theme}
+    time="21:00"
+    title="Control Diario · KipusPay"
+    statusBadge={isVerified ? 'Caja cuadrada · 100%' : 'Turno cerrado · Pendiente'}
+    statusTone={isVerified ? 'live' : 'sync'}
+    ariaLabel="Smartphone mostrando conciliación y arqueo de caja"
+  >
+    <div class="ledger-screen">
+      <div class="total-balance-card">
+        <span class="balance-label">Total conciliado del día</span>
+        <span class="balance-amount">S/ {formatCents(totals.total_cents)}</span>
+        <span class="balance-sub">Sin diferencias registradas sol a sol</span>
+      </div>
 
-    <header class="tablet-header">
-      <div class="header-main">
-        <span class="header-badge">Libro Diario Digital</span>
-        <h3 class="header-title">Cierre y Arqueo Diario · Local Principal · Turno Completo</h3>
-      </div>
-      <div class="live-status">
-        <span class="status-dot" class:verified={isVerified} aria-hidden="true">●</span>
-        <span class="status-label">{isVerified ? 'Conciliado' : 'Auditado'}</span>
-      </div>
-    </header>
-
-    <div class="totals-grid" role="region" aria-label="Totales por medio de pago">
-      <div class="total-card cash">
-        <span class="card-label">Efectivo</span>
-        <span class="card-amount tabular-nums">S/ {formatCents(totals.cash_cents)}</span>
-      </div>
-      <div class="total-card digital">
-        <span class="card-label">Billeteras digitales</span>
-        <span class="card-amount tabular-nums">S/ {formatCents(totals.digital_cents)}</span>
-      </div>
-      <div class="total-card card">
-        <span class="card-label">Tarjetas</span>
-        <span class="card-amount tabular-nums">S/ {formatCents(totals.card_cents)}</span>
-      </div>
-      <div class="total-card sum">
-        <span class="card-label">Total consolidado</span>
-        <span class="card-amount sum-amount tabular-nums">S/ {formatCents(totals.total_cents)}</span>
-      </div>
-    </div>
-
-    <div class="records-section">
-      <div class="records-header">
-        <span class="records-title">Registros contables del día</span>
-        <span class="records-count">4 movimientos</span>
-      </div>
-      <ul class="records-list" aria-label="Lista de registros contables">
-        {#each entries as entry (entry.id)}
-          <li class="record-item" class:verified={isVerified}>
-            <div class="record-info">
-              <span class="record-time">{entry.time}</span>
-              <strong class="record-name">{entry.title}</strong>
-            </div>
-            <div class="record-meta">
-              <span class="record-amount tabular-nums">S/ {formatCents(entry.amount_cents)}</span>
-              <span class="record-badge" class:reconciled={entry.id === 'e4'}>
-                {entry.status}
-              </span>
-            </div>
-          </li>
-        {/each}
-      </ul>
-    </div>
-
-    {#if isVerified}
-      <div class="verification-banner" role="status">
-        <span class="banner-icon" aria-hidden="true">✓</span>
-        <div class="banner-text">
-          <strong>Caja 100% cuadrada sin diferencias</strong>
-          <span>Todos los cobros coinciden exactamente con los comprobantes y medios de pago.</span>
+      <div class="breakdown-grid">
+        <div class="breakdown-cell">
+          <span class="cell-label">Efectivo</span>
+          <span class="cell-val">S/ {formatCents(totals.cash_cents)}</span>
+        </div>
+        <div class="breakdown-cell">
+          <span class="cell-label">Yape / Plin</span>
+          <span class="cell-val">S/ {formatCents(totals.digital_cents)}</span>
+        </div>
+        <div class="breakdown-cell">
+          <span class="cell-label">Tarjetas</span>
+          <span class="cell-val">S/ {formatCents(totals.card_cents)}</span>
         </div>
       </div>
-    {/if}
 
-    <div class="action-footer">
-      <button
-        type="button"
-        class="verify-btn"
-        class:verified={isVerified}
-        onclick={verifyBalance}
-        disabled={isVerifying}
-        aria-label="Verificar balance y cuadre de caja"
-      >
-        {#if isVerifying}
-          <span class="btn-spinner" aria-hidden="true"></span> Verificando balance…
-        {:else if isVerified}
-          Caja 100% cuadrada sin diferencias (Reiniciar)
-        {:else}
-          Verificar balance
+      <div class="records-scroll-area">
+        <p class="scroll-micro-title">Historial cronológico de caja</p>
+        <ul class="records-list">
+          {#each entries as entry (entry.id)}
+            <li class="record-item">
+              <div class="record-header">
+                <span class="record-time">{entry.time}</span>
+                <span class="record-status">{entry.status}</span>
+              </div>
+              <div class="record-body">
+                <span class="record-title">{entry.title}</span>
+                <span class="record-amount">S/ {formatCents(entry.amount_cents)}</span>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      </div>
+
+      <div class="verify-action-wrap">
+        {#if isVerified}
+          <div class="verification-banner">
+            <span class="verify-icon" aria-hidden="true">✓</span>
+            <div class="verify-text">
+              <strong>Caja 100% cuadrada sin diferencias</strong>
+              <span>Arqueo físico concilia exactamente con el total digital.</span>
+            </div>
+          </div>
         {/if}
-      </button>
+
+        <button
+          type="button"
+          class="verify-btn"
+          class:active={isVerified}
+          onclick={verifyBalance}
+          disabled={isVerifying}
+        >
+          {#if isVerifying}
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span>Verificando conciliación…</span>
+          {:else if isVerified}
+            <span>✓ Balance verificado (clic para reiniciar)</span>
+          {:else}
+            <span>Verificar balance de caja</span>
+          {/if}
+        </button>
+      </div>
     </div>
-  </div>
+  </PhoneMockFrame>
 </div>
 
 <style>
-  .ledger-mock-container {
+  .ledger-device-container {
     width: 100%;
-    max-width: 440px;
+    max-width: 380px;
     margin: 0 auto;
   }
 
-  .tablet-frame {
-    background: #ffffff;
-    border: 1px solid rgba(26, 29, 35, 0.12);
-    border-radius: 16px;
-    box-shadow:
-      0 24px 50px -12px rgba(0, 0, 0, 0.5),
-      0 4px 16px rgba(0, 0, 0, 0.15),
-      0 0 0 1px rgba(255, 255, 255, 0.1);
-    padding: 1rem 1.15rem 1.1rem 1.15rem;
-    color: var(--ink);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .quipu-cord-strip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 0.75rem;
-  }
-
-  .cord-knot {
-    width: 7px;
-    height: 7px;
-    background: var(--amber, #d99a3d);
-    border-radius: 50%;
-  }
-
-  .cord-fiber {
-    flex: 1;
-    height: 2px;
-    background: linear-gradient(90deg, var(--amber) 0%, rgba(217, 154, 61, 0.2) 100%);
-  }
-
-  .tablet-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(26, 29, 35, 0.08);
-    margin-bottom: 0.85rem;
-  }
-
-  .header-badge {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--muted-ink);
-    margin-bottom: 0.2rem;
-  }
-
-  .header-title {
-    margin: 0;
-    font-family: var(--font-body);
-    font-size: 0.88rem;
-    font-weight: 700;
-    line-height: 1.35;
-    color: var(--ink);
-  }
-
-  .live-status {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    background: #f1f5f9;
-    padding: 0.2rem 0.55rem;
-    border-radius: 12px;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    white-space: nowrap;
-  }
-
-  .status-dot {
-    color: var(--amber);
-    font-size: 0.7rem;
-  }
-
-  .status-dot.verified {
-    color: var(--sello);
-  }
-
-  .status-label {
-    color: var(--ink);
-    font-weight: 600;
-  }
-
-  .totals-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.55rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .total-card {
-    background: #f8fafc;
-    border: 1px solid rgba(26, 29, 35, 0.08);
-    border-radius: 8px;
-    padding: 0.55rem 0.7rem;
+  .ledger-screen {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.55rem;
+    padding: 0.2rem 0;
+    font-family: var(--font-sans);
   }
 
-  .total-card.sum {
-    grid-column: span 2;
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-    border-color: rgba(26, 29, 35, 0.15);
+  .total-balance-card {
+    background: #14161c;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
   }
 
-  .card-label {
+  .theme-dark .total-balance-card {
+    background: rgba(243, 239, 230, 0.06);
+    border: 1px solid rgba(243, 239, 230, 0.12);
+  }
+
+  .balance-label {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted-ink);
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.7);
   }
 
-  .card-amount {
+  .balance-amount {
     font-family: var(--font-mono);
-    font-size: 0.96rem;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--amber-bright);
+  }
+
+  .balance-sub {
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+  }
+
+  .breakdown-cell {
+    background: #f8fafc;
+    border: 1px solid rgba(20, 22, 28, 0.08);
+    border-radius: 6px;
+    padding: 0.35rem 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .theme-dark .breakdown-cell {
+    background: rgba(243, 239, 230, 0.04);
+    border-color: rgba(243, 239, 230, 0.08);
+  }
+
+  .cell-label {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: rgba(20, 22, 28, 0.6);
+    text-transform: uppercase;
+  }
+
+  .theme-dark .cell-label {
+    color: rgba(243, 239, 230, 0.6);
+  }
+
+  .cell-val {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--ink);
   }
 
-  .sum-amount {
-    font-size: 1.18rem;
-    color: var(--ink);
+  .theme-dark .cell-val {
+    color: var(--paper);
   }
 
-  .records-section {
-    margin-bottom: 0.85rem;
+  .records-scroll-area {
+    margin-bottom: 0.15rem;
   }
 
-  .records-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 0.45rem;
-  }
-
-  .records-title {
+  .scroll-micro-title {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--muted-ink);
+    color: rgba(20, 22, 28, 0.5);
+    margin: 0 0 0.35rem 0;
   }
 
-  .records-count {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    color: var(--muted-ink);
+  .theme-dark .scroll-micro-title {
+    color: rgba(243, 239, 230, 0.5);
   }
 
   .records-list {
@@ -328,191 +270,179 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(26, 29, 35, 0.2) transparent;
+    gap: 0.35rem;
+    padding-right: 0.2rem;
   }
 
   .records-list::-webkit-scrollbar {
     width: 4px;
   }
 
-  .records-list::-webkit-scrollbar-track {
-    background: transparent;
+  .records-list::-webkit-scrollbar-thumb {
+    background: rgba(20, 22, 28, 0.2);
+    border-radius: 4px;
   }
 
-  .records-list::-webkit-scrollbar-thumb {
-    background: rgba(26, 29, 35, 0.2);
-    border-radius: 4px;
+  .theme-dark .records-list::-webkit-scrollbar-thumb {
+    background: rgba(243, 239, 230, 0.2);
   }
 
   .record-item {
     background: #ffffff;
-    border: 1px solid rgba(26, 29, 35, 0.08);
+    border: 1px solid rgba(20, 22, 28, 0.08);
     border-radius: 6px;
-    padding: 0.45rem 0.65rem;
+    padding: 0.4rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .theme-dark .record-item {
+    background: #141820;
+    border-color: rgba(243, 239, 230, 0.08);
+  }
+
+  .record-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
-    transition: background 0.2s ease, border-color 0.2s ease;
-  }
-
-  .record-item.verified {
-    border-color: rgba(15, 107, 76, 0.2);
-    background: #fbfdfc;
-  }
-
-  .record-info {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    min-width: 0;
   }
 
   .record-time {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--muted-ink);
+    font-size: 0.62rem;
+    color: rgba(20, 22, 28, 0.55);
   }
 
-  .record-name {
-    font-size: 0.78rem;
-    color: var(--ink);
+  .theme-dark .record-time {
+    color: rgba(243, 239, 230, 0.55);
+  }
+
+  .record-status {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: #059669;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
-  .record-meta {
+  .theme-dark .record-status {
+    color: #34d399;
+  }
+
+  .record-body {
     display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    flex-shrink: 0;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .record-title {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .theme-dark .record-title {
+    color: var(--paper);
   }
 
   .record-amount {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--ink);
   }
 
-  .record-badge {
-    font-family: var(--font-mono);
-    font-size: 0.64rem;
-    color: var(--sello);
-    background: rgba(15, 107, 76, 0.08);
-    padding: 0.12rem 0.4rem;
-    border-radius: 4px;
-    font-weight: 600;
+  .theme-dark .record-amount {
+    color: var(--paper);
   }
 
-  .record-badge.reconciled {
-    background: rgba(15, 107, 76, 0.15);
-    color: var(--sello);
-    font-weight: 700;
+  .verify-action-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.2rem;
   }
 
   .verification-banner {
     display: flex;
-    align-items: flex-start;
-    gap: 0.55rem;
-    background: #eef8f3;
-    border: 1px solid rgba(15, 107, 76, 0.25);
-    border-radius: 8px;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 0.85rem;
-    animation: bannerFadeIn 0.3s ease-out;
-  }
-
-  @keyframes bannerFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .banner-icon {
-    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    background: var(--sello);
-    color: #ffffff;
-    border-radius: 50%;
-    font-size: 0.68rem;
-    font-weight: 700;
-    flex-shrink: 0;
-    margin-top: 1px;
+    gap: 0.45rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
   }
 
-  .banner-text {
+  .theme-dark .verification-banner {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .verify-icon {
+    font-size: 0.85rem;
+    color: #059669;
+    font-weight: bold;
+  }
+
+  .verify-text {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
   }
 
-  .banner-text strong {
-    font-size: 0.78rem;
-    color: var(--sello);
+  .verify-text strong {
+    font-size: 0.72rem;
+    color: #065f46;
   }
 
-  .banner-text span {
-    font-size: 0.7rem;
-    color: rgba(26, 29, 35, 0.78);
-    line-height: 1.35;
+  .theme-dark .verify-text strong {
+    color: #34d399;
   }
 
-  .action-footer {
-    display: flex;
-    flex-direction: column;
+  .verify-text span {
+    font-size: 0.62rem;
+    color: #047857;
+  }
+
+  .theme-dark .verify-text span {
+    color: #a7f3d0;
   }
 
   .verify-btn {
     width: 100%;
     min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    background: var(--ink);
+    background: #14161c;
     color: #ffffff;
-    border: 1px solid var(--ink);
-    border-radius: 6px;
-    font-family: var(--font-body);
-    font-size: 0.88rem;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .theme-dark .verify-btn {
+    background: var(--amber);
+    color: var(--ink);
   }
 
   .verify-btn:hover:not(:disabled) {
-    background: #000000;
-    color: var(--amber-bright);
+    background: #262a36;
     transform: translateY(-1px);
   }
 
-  .verify-btn.verified {
-    background: var(--sello);
-    border-color: var(--sello);
-    color: #ffffff;
+  .theme-dark .verify-btn:hover:not(:disabled) {
+    background: var(--amber-bright);
+    box-shadow: 0 4px 16px rgba(217, 154, 61, 0.4);
   }
 
-  .verify-btn.verified:hover:not(:disabled) {
-    background: #15805d;
+  .verify-btn.active {
+    background: #059669;
     color: #ffffff;
-  }
-
-  .verify-btn:disabled {
-    opacity: 0.85;
-    cursor: wait;
   }
 
   .btn-spinner {
@@ -529,9 +459,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .verification-banner {
-      animation: none;
-    }
     .btn-spinner {
       animation: none;
     }

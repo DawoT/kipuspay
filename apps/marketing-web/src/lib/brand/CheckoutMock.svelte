@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PhoneMockFrame from '$lib/components/PhoneMockFrame.svelte';
   import { formatCents, sumCents } from './money';
 
   interface CheckoutLine {
@@ -9,10 +10,8 @@
 
   interface Props {
     lines: readonly CheckoutLine[];
-    /** Documento que emite esta caja segun la etapa del negocio. */
     documentLabel: string;
     register?: string;
-    /** 'pending' cose; 'synced' remata en verde. */
     syncState?: 'pending' | 'synced';
     caption?: string;
     theme?: 'light' | 'dark';
@@ -27,14 +26,13 @@
     theme = 'light',
   }: Props = $props();
 
-  // Captura inicial intencional: el prop solo fija la pose de arranque del demo;
-  // triggerCheckout() reasigna el estado localmente, por eso $derived no aplica.
-  // Los padres pasan literales estaticos del contenido: el prop nunca muta.
-  // svelte-ignore state_referenced_locally
   let activeSyncState = $state<'pending' | 'synced'>(initialSyncState);
   let isCharging = $state(false);
+  let selectedMethod = $state<'efectivo' | 'yape' | 'tarjeta'>('yape');
 
   const total_cents = $derived(sumCents(lines.map((line) => line.amount_cents)));
+  const gravada_cents = $derived(Math.round(total_cents / 1.18));
+  const igv_cents = $derived(total_cents - gravada_cents);
 
   function triggerCheckout() {
     if (isCharging) return;
@@ -48,31 +46,40 @@
 </script>
 
 <figure
-  class="pos"
+  class="pos-container"
   class:theme-dark={theme === 'dark'}
   class:theme-light={theme === 'light'}
   data-testid="checkout-mock"
   data-theme={theme}
 >
-  <div class="pos-frame">
-    <div class="screen">
-      <header class="bar">
-        <div class="bar-title">
-          <span class="live-dot" aria-hidden="true"></span>
-          <span class="doc">{documentLabel}</span>
+  <PhoneMockFrame
+    {theme}
+    time="09:41"
+    title="Modo Mostrador · KipusPay"
+    statusBadge={activeSyncState === 'synced' ? 'Comprobante emitido · EN VIVO' : 'Turno Abierto · EN VIVO'}
+    statusTone="live"
+    ariaLabel={`Smartphone mostrando la pantalla de cobro de ${documentLabel}`}
+  >
+    <div class="pos-screen">
+      <div class="doc-header">
+        <div class="doc-meta">
+          <span class="doc-badge">{documentLabel}</span>
+          <span class="reg-tag">{register}</span>
         </div>
-        <span class="reg">{register}</span>
-      </header>
+        <span class="doc-number">KP-00342</span>
+      </div>
 
-      <ul class="lines" aria-label="Lista de productos en venta">
-        {#each lines as line (line.name)}
-          <li>
-            <span class="qty">{line.qty}</span>
-            <span class="name">{line.name}</span>
-            <span class="amount">S/ {formatCents(line.amount_cents)}</span>
-          </li>
-        {/each}
-      </ul>
+      <div class="cart-scroll-area">
+        <ul class="lines">
+          {#each lines as line (line.name)}
+            <li>
+              <span class="qty">{line.qty}x</span>
+              <span class="name">{line.name}</span>
+              <span class="amount">S/ {formatCents(line.amount_cents)}</span>
+            </li>
+          {/each}
+        </ul>
+      </div>
 
       <div class="fiscal-breakdown">
         <div class="fiscal-row">
@@ -85,9 +92,53 @@
         </div>
       </div>
 
-      <div class="total">
-        <span class="total-label">Total</span>
+      <div class="total-row">
+        <span class="total-label">TOTAL A COBRAR</span>
         <span class="total-amount">S/ {formatCents(total_cents)}</span>
+      </div>
+
+      <div class="payment-methods" role="group" aria-label="Medios de pago">
+        <button
+          type="button"
+          class="method-btn"
+          class:active={selectedMethod === 'efectivo'}
+          onclick={() => (selectedMethod = 'efectivo')}
+        >
+          Efectivo
+        </button>
+        <button
+          type="button"
+          class="method-btn"
+          class:active={selectedMethod === 'yape'}
+          onclick={() => (selectedMethod = 'yape')}
+        >
+          Yape / Plin
+        </button>
+        <button
+          type="button"
+          class="method-btn"
+          class:active={selectedMethod === 'tarjeta'}
+          onclick={() => (selectedMethod = 'tarjeta')}
+        >
+          Tarjeta
+        </button>
+      </div>
+
+      <div class="action-footer">
+        <button
+          type="button"
+          class="pay-btn"
+          onclick={triggerCheckout}
+          disabled={isCharging}
+        >
+          {#if isCharging}
+            Procesando…
+          {:else if activeSyncState === 'synced'}
+            Comprobante emitido ✓
+          {:else}
+            Cobrar venta S/ {formatCents(total_cents)}
+          {/if}
+        </button>
       </div>
 
       <div class="ticket-perforation" aria-hidden="true"></div>
@@ -97,298 +148,298 @@
         <span class="validation-badge">COMPROBANTE AUTORIZADO</span>
       </div>
 
-      <div class="foot">
-        <button
-          type="button"
-          class="pay-btn"
-          onclick={triggerCheckout}
-          disabled={isCharging}
-          aria-label="Cobrar venta en demo"
-        >
-          {isCharging ? 'Procesando…' : activeSyncState === 'synced' ? 'Comprobante emitido ✓' : 'Cobrar venta'}
-        </button>
-        <span class="sync" class:synced={activeSyncState === 'synced'}>
-          <span class="stitch" class:in={activeSyncState === 'synced'}>
-            {activeSyncState === 'synced' ? 'Sincronizado' : 'Sincronizando'}
-          </span>
-        </span>
-      </div>
-
       <div class="ticket-bottom-tear" aria-hidden="true"></div>
     </div>
-  </div>
+  </PhoneMockFrame>
 
   {#if caption}
-    <figcaption>{caption}</figcaption>
+    <figcaption class="caption">{caption}</figcaption>
   {/if}
 </figure>
 
 <style>
-  .pos {
+  .pos-container {
     margin: 0;
-    max-width: 24rem;
     width: 100%;
+    max-width: 380px;
   }
 
-  .pos-frame {
-    border-radius: 12px;
-    padding: 3px;
-    background: linear-gradient(145deg, #e4e7ec 0%, #cbd5e1 50%, #94a3b8 100%);
-    box-shadow:
-      0 20px 45px -10px rgba(0, 0, 0, 0.45),
-      0 4px 12px rgba(0, 0, 0, 0.2),
-      0 0 0 1px rgba(255, 255, 255, 0.15);
-  }
-
-  .theme-dark .pos-frame {
-    background: linear-gradient(145deg, #2a2f38 0%, #1e2229 50%, #14171d 100%);
-    box-shadow:
-      0 20px 45px -10px rgba(0, 0, 0, 0.7),
-      0 0 0 1px rgba(255, 255, 255, 0.08);
-  }
-
-  .screen {
-    border-radius: 9px;
-    background: #ffffff;
-    color: var(--ink);
-    border: 1px solid rgba(26, 29, 35, 0.1);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
-    overflow: hidden;
-  }
-
-  .theme-dark .screen {
-    background: var(--ink-2);
-    color: var(--paper);
-    border: 1px solid rgba(243, 239, 230, 0.18);
-  }
-
-  .bar {
+  .pos-screen {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.2rem 0.1rem;
+    font-family: var(--font-sans);
+  }
+
+  .doc-header {
+    display: flex;
     justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid rgba(26, 29, 35, 0.09);
-    font-family: var(--font-mono);
-    font-size: var(--step--1);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: #f8fafc;
+    align-items: center;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px dashed rgba(20, 22, 28, 0.12);
   }
 
-  .theme-dark .bar {
+  .theme-dark .doc-header {
     border-bottom-color: rgba(243, 239, 230, 0.12);
-    background: rgba(0, 0, 0, 0.18);
   }
 
-  .bar-title {
+  .doc-meta {
     display: flex;
     align-items: center;
     gap: 0.4rem;
   }
 
-  .live-dot {
-    width: 7px;
-    height: 7px;
-    background: var(--sello-bright, #2e9e74);
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  .doc {
-    color: var(--ink);
+  .doc-badge {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: #14161c;
+    color: #ffffff;
   }
 
-  .theme-dark .doc {
-    color: var(--cord, var(--amber-bright));
+  .theme-dark .doc-badge {
+    background: var(--amber);
+    color: var(--ink);
   }
 
-  .reg {
-    color: var(--muted-ink);
-    font-size: 0.74rem;
+  .reg-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: rgba(20, 22, 28, 0.6);
   }
 
-  .theme-dark .reg {
-    color: var(--muted);
+  .theme-dark .reg-tag {
+    color: rgba(243, 239, 230, 0.6);
+  }
+
+  .doc-number {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: rgba(20, 22, 28, 0.5);
+  }
+
+  .theme-dark .doc-number {
+    color: rgba(243, 239, 230, 0.5);
   }
 
   .lines {
     list-style: none;
     margin: 0;
-    padding: 0.4rem 0;
+    padding: 0;
     max-height: 180px;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(26, 29, 35, 0.22) transparent;
-  }
-
-  .theme-dark .lines {
-    scrollbar-color: rgba(243, 239, 230, 0.22) transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-right: 0.25rem;
   }
 
   .lines::-webkit-scrollbar {
     width: 4px;
   }
-
-  .lines::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
   .lines::-webkit-scrollbar-thumb {
-    background: rgba(26, 29, 35, 0.22);
+    background: rgba(20, 22, 28, 0.2);
     border-radius: 4px;
   }
-
   .theme-dark .lines::-webkit-scrollbar-thumb {
-    background: rgba(243, 239, 230, 0.22);
+    background: rgba(243, 239, 230, 0.2);
   }
 
   .lines li {
-    display: grid;
-    grid-template-columns: 1.6rem 1fr auto;
+    display: flex;
     align-items: baseline;
-    gap: 0.7rem;
-    padding: 0.45rem 1rem;
-    font-size: 0.92rem;
-    line-height: 1.35;
-    border-bottom: 1px solid rgba(26, 29, 35, 0.04);
-  }
-
-  .theme-dark .lines li {
-    border-bottom-color: rgba(243, 239, 230, 0.04);
+    font-size: 0.8rem;
+    padding: 0.2rem 0;
   }
 
   .qty {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--muted-ink);
-    text-align: right;
+    font-weight: 700;
+    width: 1.8rem;
+    color: #8c5a14;
+    flex-shrink: 0;
   }
 
   .theme-dark .qty {
-    color: var(--muted);
+    color: var(--amber-bright);
   }
 
   .name {
-    color: var(--ink);
+    flex: 1;
     font-weight: 500;
+    color: var(--ink);
   }
 
   .theme-dark .name {
-    color: rgba(243, 239, 230, 0.92);
+    color: var(--paper);
   }
 
   .amount {
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.82rem;
     color: var(--ink);
-    font-weight: 600;
   }
 
   .theme-dark .amount {
-    color: rgba(243, 239, 230, 0.82);
+    color: var(--paper);
   }
 
   .fiscal-breakdown {
-    padding: 0.5rem 1rem;
-    border-top: 1px dashed rgba(26, 29, 35, 0.15);
-    font-family: var(--font-mono);
-    font-size: 0.76rem;
-    background: #fbfbfb;
+    background: #f8fafc;
+    border: 1px solid rgba(20, 22, 28, 0.06);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
   }
 
   .theme-dark .fiscal-breakdown {
-    border-top-color: rgba(243, 239, 230, 0.14);
-    background: transparent;
+    background: rgba(243, 239, 230, 0.04);
+    border-color: rgba(243, 239, 230, 0.08);
   }
 
   .fiscal-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    padding: 0.15rem 0;
-    color: var(--muted-ink);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: rgba(20, 22, 28, 0.6);
   }
 
   .theme-dark .fiscal-row {
-    color: var(--muted);
+    color: rgba(243, 239, 230, 0.6);
   }
 
-  .fiscal-label {
-    letter-spacing: 0.08em;
-    font-size: 0.72rem;
-  }
-
-  .fiscal-amount {
-    font-variant-numeric: tabular-nums;
-    color: var(--ink);
-  }
-
-  .theme-dark .fiscal-amount {
-    color: rgba(243, 239, 230, 0.88);
-  }
-
-  .total {
+  .total-row {
     display: flex;
-    align-items: baseline;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 1rem;
-    border-top: 1px solid rgba(26, 29, 35, 0.16);
-    background: #ffffff;
+    align-items: baseline;
+    padding: 0.4rem 0.2rem 0.2rem;
+    border-top: 2px solid var(--ink);
   }
 
-  .theme-dark .total {
-    border-top-color: rgba(243, 239, 230, 0.18);
-    background: transparent;
+  .theme-dark .total-row {
+    border-top-color: var(--amber);
   }
 
   .total-label {
     font-family: var(--font-mono);
-    font-size: var(--step--1);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted-ink);
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--ink);
   }
 
   .theme-dark .total-label {
-    color: var(--muted);
+    color: var(--paper);
   }
 
   .total-amount {
-    font-family: var(--font-display);
-    font-size: var(--step-3);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 800;
     color: var(--ink);
   }
 
   .theme-dark .total-amount {
+    color: var(--amber-bright);
+  }
+
+  .payment-methods {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+    margin-top: 0.2rem;
+  }
+
+  .method-btn {
+    min-height: 36px;
+    background: #f1f5f9;
+    border: 1px solid rgba(20, 22, 28, 0.1);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .theme-dark .method-btn {
+    background: rgba(243, 239, 230, 0.06);
+    border-color: rgba(243, 239, 230, 0.12);
     color: var(--paper);
   }
 
+  .method-btn.active {
+    background: var(--amber);
+    color: var(--ink);
+    border-color: #8c5a14;
+    font-weight: 700;
+  }
+
+  .action-footer {
+    margin-top: 0.2rem;
+  }
+
+  .pay-btn {
+    width: 100%;
+    min-height: 44px;
+    background: #14161c;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .theme-dark .pay-btn {
+    background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 100%);
+    color: var(--ink);
+  }
+
+  .pay-btn:hover:not(:disabled) {
+    background: #262a36;
+    transform: translateY(-1px);
+  }
+
+  .theme-dark .pay-btn:hover:not(:disabled) {
+    background: var(--amber-bright);
+    box-shadow: 0 4px 16px rgba(217, 154, 61, 0.4);
+  }
+
   .ticket-perforation {
-    position: relative;
     height: 1px;
-    margin: 0.25rem 0;
     background: repeating-linear-gradient(
       90deg,
-      rgba(26, 29, 35, 0.25) 0,
-      rgba(26, 29, 35, 0.25) 5px,
-      transparent 5px,
-      transparent 10px
+      rgba(20, 22, 28, 0.25) 0,
+      rgba(20, 22, 28, 0.25) 4px,
+      transparent 4px,
+      transparent 8px
     );
+    margin: 0.35rem 0;
   }
 
   .theme-dark .ticket-perforation {
     background: repeating-linear-gradient(
       90deg,
-      rgba(243, 239, 230, 0.3) 0,
-      rgba(243, 239, 230, 0.3) 5px,
-      transparent 5px,
-      transparent 10px
+      rgba(243, 239, 230, 0.25) 0,
+      rgba(243, 239, 230, 0.25) 4px,
+      transparent 4px,
+      transparent 8px
     );
   }
 
@@ -396,144 +447,53 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 1rem;
     font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.05em;
-    background: #f1f5f9;
-    border-top: 1px solid rgba(26, 29, 35, 0.08);
-    border-bottom: 1px solid rgba(26, 29, 35, 0.08);
-  }
-
-  .theme-dark .ticket-validation {
-    background: rgba(0, 0, 0, 0.2);
-    border-top-color: rgba(243, 239, 230, 0.06);
-    border-bottom-color: rgba(243, 239, 230, 0.06);
+    font-size: 0.6rem;
+    padding: 0.2rem 0;
   }
 
   .validation-code {
-    color: var(--muted-ink);
+    color: rgba(20, 22, 28, 0.5);
   }
 
   .theme-dark .validation-code {
-    color: var(--muted);
+    color: rgba(243, 239, 230, 0.5);
   }
 
   .validation-badge {
-    color: var(--sello);
+    color: #059669;
     font-weight: 700;
   }
 
   .theme-dark .validation-badge {
-    color: var(--sello-bright);
-    font-weight: 600;
-  }
-
-  .foot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.9rem 1rem;
-    background: #ffffff;
-  }
-
-  .theme-dark .foot {
-    background: transparent;
-  }
-
-  .pay-btn {
-    padding: 0.55rem 1.25rem;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--ink);
-    color: #ffffff;
-    border: 1px solid var(--ink);
-    border-radius: 4px;
-    font-weight: 700;
-    font-size: 0.88rem;
-    cursor: pointer;
-    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
-  }
-
-  .pay-btn:hover:not(:disabled) {
-    background: #000000;
-    color: var(--amber-bright);
-    transform: translateY(-1px);
-  }
-
-  .theme-dark .pay-btn {
-    background: var(--paper);
-    color: var(--ink);
-    border-color: var(--amber);
-  }
-
-  .theme-dark .pay-btn:hover:not(:disabled) {
-    background: var(--amber);
-    color: var(--ink);
-  }
-
-  .pay-btn:disabled {
-    opacity: 0.85;
-    cursor: wait;
-  }
-
-  .sync {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
-    color: var(--alerta);
-    font-weight: 600;
-  }
-
-  .sync.synced {
-    color: var(--sello);
-  }
-
-  .theme-dark .sync {
-    color: var(--alerta-bright);
-  }
-
-  .theme-dark .sync.synced {
-    color: var(--sello-bright);
+    color: #34d399;
   }
 
   .ticket-bottom-tear {
-    height: 7px;
-    width: 100%;
-    background-color: #ffffff;
+    height: 6px;
+    background: rgba(20, 22, 28, 0.08);
     clip-path: polygon(
-      0% 0%, 100% 0%,
-      100% 100%, 97.5% 35%, 95% 100%, 92.5% 35%, 90% 100%, 87.5% 35%, 85% 100%, 82.5% 35%,
-      80% 100%, 77.5% 35%, 75% 100%, 72.5% 35%, 70% 100%, 67.5% 35%, 65% 100%, 62.5% 35%,
-      60% 100%, 57.5% 35%, 55% 100%, 52.5% 35%, 50% 100%, 47.5% 35%, 45% 100%, 42.5% 35%,
-      40% 100%, 37.5% 35%, 35% 100%, 32.5% 35%, 30% 100%, 27.5% 35%, 25% 100%, 22.5% 35%,
-      20% 100%, 17.5% 35%, 15% 100%, 12.5% 35%, 10% 100%, 7.5% 35%, 5% 100%, 2.5% 35%, 0% 100%
+      0% 0%, 5% 100%, 10% 0%, 15% 100%, 20% 0%, 25% 100%, 30% 0%, 35% 100%, 40% 0%, 45% 100%,
+      50% 0%, 55% 100%, 60% 0%, 65% 100%, 70% 0%, 75% 100%, 80% 0%, 85% 100%, 90% 0%, 95% 100%, 100% 0%
     );
   }
 
   .theme-dark .ticket-bottom-tear {
-    background-color: var(--ink-2);
+    background: rgba(243, 239, 230, 0.08);
   }
 
-  figcaption {
-    margin-top: 0.85rem;
+  .caption {
     font-family: var(--font-mono);
-    font-size: var(--step--1);
-    line-height: 1.5;
-    letter-spacing: 0.06em;
-    color: inherit;
-    opacity: 0.72;
+    font-size: 0.75rem;
+    color: rgba(243, 239, 230, 0.6);
+    margin-top: 0.8rem;
+    text-align: center;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .pay-btn {
-      transition: none;
-    }
+    .pay-btn,
     .pay-btn:hover:not(:disabled) {
+      transition: none;
       transform: none;
     }
   }

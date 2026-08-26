@@ -41,9 +41,15 @@ test('empezar → POS propaga &autotest=boleta al redirect', async ({ page }) =>
   await page.getByTestId('trade-name-input').fill('Tienda E2E');
   await page.getByTestId('ruc-input').fill('20612913251');
   await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByRole('button', { name: /Restaurantes|Retail/ }).first().click();
+  await page
+    .getByRole('button', { name: /Restaurantes|Retail/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByRole('button', { name: /Solo control interno|Estoy activando/ }).first().click();
+  await page
+    .getByRole('button', { name: /Solo control interno|Estoy activando/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click();
   await page.getByTestId('onboarding-go-pos').click();

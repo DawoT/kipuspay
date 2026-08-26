@@ -14658,3 +14658,44 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0507
+timestamp_utc: 2026-08-26T17:00:00Z
+schema_version: 2
+sprint_fase: Fase A — Arquitectura Unificada de Mockups de Smartphone (PhoneMockFrame)
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Chasis Universal de Smartphone PhoneMockFrame con Alternancia de Temas
+relacion: AMPLIA
+referencias_entradas: [0506]
+referencias_documentales: [apps/marketing-web/src/lib/components/PhoneMockFrame.svelte, apps/marketing-web/src/lib/brand/CheckoutMock.svelte, apps/marketing-web/src/lib/components/OfflineDeviceMock.svelte, apps/marketing-web/src/lib/components/LedgerDeviceMock.svelte, apps/marketing-web/src/routes/+page.svelte, apps/marketing-web/src/lib/components/home-device-mocks.test.ts]
+prev_id: 0506
+prev_hash: 6013e3107d83921251e3a868ff091b6b877631da8080817ce18feb9f399f4a95
+entry_hash: 69963c99f9fae0d7428611a585e08542c2513e5b7fedacc9571a8a9eba843701
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/home-device-mocks.test.ts, apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/components/PhoneMockFrame.svelte; apps/marketing-web/src/lib/brand/CheckoutMock.svelte; apps/marketing-web/src/lib/components/OfflineDeviceMock.svelte; apps/marketing-web/src/lib/components/LedgerDeviceMock.svelte; apps/marketing-web/src/routes/+page.svelte; apps/marketing-web/src/lib/components/home-device-mocks.test.ts
+descripcion: >
+  Unificación arquitectural completa de todos los mockups de demostración interactiva en el Home:
+  (1) Componente universal PhoneMockFrame (apps/marketing-web/src/lib/components/PhoneMockFrame.svelte):
+      - Chasis premium de smartphone idéntico al de Modo Dueño (border-radius: 32px, bisel 3.5px, isla dinámica con cámara y micrófono, barra de estado con reloj mono, 5G, WiFi y batería, cabecera de app con rombo quipu ◆ y badge de estado palpitante, e indicador home bar).
+      - Soporte para variantes de contraste theme="light" (cerámica plata #cbd5e1 con fondo blanco) y theme="dark" (titanio OLED #333842 con fondo #0b0e14).
+  (2) Refactorización de todos los mockups al chasis unificado:
+      - CheckoutMock (#producto, fondo oscuro): PhoneMockFrame en Modo Claro (theme="light").
+      - OfflineDeviceMock (#offline, fondo claro): PhoneMockFrame en Modo Oscuro (theme="dark").
+      - LedgerDeviceMock (#ledger, fondo oscuro): PhoneMockFrame en Modo Claro (theme="light").
+      - OwnerModeMock (#owner, fondo claro): PhoneMockFrame en Modo Oscuro (theme="dark").
+  (3) Homogeneidad visual y ergonomía:
+      - Uniformidad en geometrías, sombras y proporciones a lo largo de toda la landing.
+      - Scrollbars estilizados de 4px, touch targets >= 44px y soporte prefers-reduced-motion.
+evidencia: >
+  Marketing Web Vitest: 48 test files, 331 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+  Verificación visual con Playwright MCP en http://localhost:5173/ confirmando los 4 mockups unificados.
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

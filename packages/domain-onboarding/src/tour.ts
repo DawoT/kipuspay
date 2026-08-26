@@ -107,6 +107,24 @@ export const JARGON_TERMS = [
   'FEFO',
 ];
 
+/**
+ * Normaliza el slug de rubro al catálogo interno del tour (ADR-ARCH-002, GTM §3.3).
+ * Fuente canónica ES del POS/marketing → EN interno del tour.
+ * Diccionario único (DRY): es a en: restaurantes a restaurant, farmacias a pharmacy,
+ * retail a retail, servicios a services, cadenas a chain. Pura, sin bifurcacion por rubro.
+ */
+const VERTICAL_ALIAS_ES_TO_EN: Readonly<Record<string, string>> = {
+  restaurantes: 'restaurant',
+  farmacias: 'pharmacy',
+  retail: 'retail',
+  servicios: 'services',
+  cadenas: 'chain',
+};
+
+export function normalizeVertical(vertical: string): string {
+  return VERTICAL_ALIAS_ES_TO_EN[vertical] ?? vertical;
+}
+
 export interface TourInput {
   readonly vertical: string;
   readonly role: TourRole;
@@ -117,9 +135,10 @@ export interface TourInput {
 
 export function tourStepsFor(input: TourInput): readonly TourStep[] {
   if (input.hasSold) return [];
+  const normalizedVertical = normalizeVertical(input.vertical);
   return TOUR_STEPS.filter((step) => {
     if (!input.capabilities.has(step.capability)) return false;
-    if (step.verticals && !step.verticals.includes(input.vertical)) return false;
+    if (step.verticals && !step.verticals.includes(normalizedVertical)) return false;
     if (step.roles && !step.roles.includes(input.role)) return false;
     return true;
   });
@@ -127,7 +146,7 @@ export function tourStepsFor(input: TourInput): readonly TourStep[] {
 
 /** Clave de persistencia local del tour por rubro (no re-aparece si se cierra). */
 export function tourStorageKey(vertical: string): string {
-  return `kipus:tour:${vertical}:state`;
+  return `kipus:tour:${normalizeVertical(vertical)}:state`;
 }
 
 export const TOUR_DISMISSED = 'dismissed';
