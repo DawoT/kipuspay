@@ -351,6 +351,25 @@
     color: var(--amber);
     line-height: 1;
     margin-top: -1px;
+    transition: transform 0.2s ease, color 0.2s ease, text-shadow 0.2s ease;
+  }
+
+  .trust-flow__step:hover .trust-flow__line,
+  .trust-flow__step:focus-visible .trust-flow__line,
+  .trust-flow__step:focus-within .trust-flow__line,
+  .trust-flow__step.is-active .trust-flow__line {
+    background: linear-gradient(90deg, var(--amber) 0%, var(--amber-bright) 100%);
+    box-shadow: 0 0 10px rgba(217, 154, 61, 0.7);
+    animation: flowPulse 0.8s ease-in-out infinite alternate;
+  }
+
+  .trust-flow__step:hover .trust-flow__arrow,
+  .trust-flow__step:focus-visible .trust-flow__arrow,
+  .trust-flow__step:focus-within .trust-flow__arrow,
+  .trust-flow__step.is-active .trust-flow__arrow {
+    color: var(--amber-bright);
+    text-shadow: 0 0 8px rgba(238, 183, 101, 0.8);
+    transform: translateX(2px);
   }
 
   @keyframes flowLine {
@@ -358,12 +377,38 @@
     to   { background-position: 0% 0;   }
   }
 
+  @keyframes flowPulse {
+    0% {
+      opacity: 0.8;
+      transform: scaleY(1);
+      box-shadow: 0 0 4px rgba(217, 154, 61, 0.4);
+    }
+    100% {
+      opacity: 1;
+      transform: scaleY(1.8);
+      box-shadow: 0 0 12px rgba(238, 183, 101, 0.85);
+    }
+  }
+
   /* Respect prefers-reduced-motion */
   @media (prefers-reduced-motion: reduce) {
-    .trust-flow__line {
+    .trust-flow__line,
+    .trust-flow__step:hover .trust-flow__line,
+    .trust-flow__step:focus-visible .trust-flow__line,
+    .trust-flow__step:focus-within .trust-flow__line,
+    .trust-flow__step.is-active .trust-flow__line {
       animation: none;
       background: var(--amber);
       background-position: 0% 0;
+      box-shadow: none;
+      transform: none;
+    }
+    .trust-flow__step:hover .trust-flow__arrow,
+    .trust-flow__step:focus-visible .trust-flow__arrow,
+    .trust-flow__step:focus-within .trust-flow__arrow,
+    .trust-flow__step.is-active .trust-flow__arrow {
+      transform: none;
+      text-shadow: none;
     }
     .trust-flow__node,
     .trust-flow__tooltip {

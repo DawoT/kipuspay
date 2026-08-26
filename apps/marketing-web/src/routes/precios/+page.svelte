@@ -90,7 +90,9 @@
   />
   <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/precios" />
-  <script type="application/ld+json">{@html productLd}</script>
+  <!-- Svelte 5 no evalúa expresiones dentro de <script>: el JSON-LD se inyecta
+       envolviendo el elemento completo ({@html}); productLd ya es JSON string. -->
+  {@html `<script type="application/ld+json">${productLd}</script>`}
 </svelte:head>
 
 <section class="hero hero-compact">
@@ -162,7 +164,7 @@
               <p class="pricing-name">
                 {plan.name}
                 {#if plan.badge}
-                  <span class="pricing-badge">{plan.badge}</span>
+                  <span class="pricing-badge"><span class="badge-knot" aria-hidden="true">◆</span> {plan.badge}</span>
                 {/if}
               </p>
               <p class="pricing-price">
@@ -418,7 +420,8 @@
   .discount-badge {
     padding: 0.2rem 0.45rem;
     background: var(--sello-bright);
-    color: var(--paper);
+    /* WCAG 2.1 AA: --ink sobre --sello-bright = 5.39:1 (--paper daba 2.92:1). */
+    color: var(--ink);
     font-size: 0.72rem;
     font-weight: 700;
     border-radius: var(--radius-xs);
@@ -427,10 +430,12 @@
     border-left-color: var(--amber);
   }
   .pricing-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     margin-left: 0.5rem;
-    padding: 0.2rem 0.5rem;
-    background: var(--amber);
+    padding: 0.22rem 0.55rem;
+    background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 100%);
     color: var(--ink);
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -439,11 +444,19 @@
     letter-spacing: 0.05em;
     vertical-align: middle;
     border-radius: var(--radius-xs);
+    box-shadow: 0 2px 5px rgba(10, 12, 16, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .badge-knot {
+    font-size: 0.55rem;
+    color: var(--ink);
+    line-height: 1;
   }
   .pricing-annual-sub {
     font-family: var(--font-mono);
     font-size: 0.75rem;
-    color: var(--sello-bright);
+    /* WCAG 2.1 AA: --sello sobre --paper = 5.67:1 (--sello-bright daba 2.92:1). */
+    color: var(--sello);
     margin: -0.5rem 0 1rem;
   }
 
@@ -566,7 +579,10 @@
     line-height: 1.4;
   }
   .matrix-check {
-    color: var(--sello-bright);
+    /* WCAG 2.1 AA: --sello sobre --paper (sección clara) = 5.67:1
+       (--sello-bright daba 2.92:1). La lista móvil re-declara --sello-bright
+       porque ahí el fondo es --ink-2 (5.03:1); invertir el token la rompería. */
+    color: var(--sello);
     font-weight: 700;
   }
   .matrix-preparing,

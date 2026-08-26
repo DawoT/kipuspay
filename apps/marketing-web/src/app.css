@@ -173,6 +173,7 @@ li {
 :focus-visible {
   outline: 2px solid var(--amber-bright);
   outline-offset: 3px;
+  box-shadow: 0 0 0 1px var(--ink);
 }
 
 ::selection {
@@ -623,6 +624,12 @@ li {
   color: var(--ink);
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--amber-bright);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--paper);
@@ -633,6 +640,12 @@ li {
   background: var(--amber);
   border-color: var(--amber-bright);
   color: var(--ink);
+}
+
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--amber-bright);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--ink);
 }
 
 .btn:active {
@@ -668,7 +681,16 @@ li {
 }
 
 .section {
-  padding: 4.5rem var(--inset-section-x);
+  padding: clamp(5rem, 8vw, 7.5rem) var(--inset-section-x);
+  position: relative;
+}
+
+.section:not(.section-paper) {
+  background-image: radial-gradient(
+    circle at 50% 0%,
+    rgba(217, 154, 61, 0.035) 0%,
+    transparent 70%
+  );
 }
 
 .section-inner {
@@ -742,6 +764,12 @@ li {
   color: var(--ink);
 }
 
+.section-paper .btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
 .section-paper .btn-ghost {
   background: transparent;
   color: var(--ink);
@@ -753,6 +781,12 @@ li {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
+}
+
+.section-paper .btn-ghost:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--paper);
 }
 
 .hero {
@@ -1767,10 +1801,6 @@ li {
   .ledger-table td {
     padding: 0.7rem 0.6rem;
   }
-
-  .section {
-    padding: 3.2rem var(--inset-section-x);
-  }
 }
 
 /*
@@ -2269,6 +2299,24 @@ li {
   border-left-color: var(--amber);
   background: rgba(217, 154, 61, 0.03);
   box-shadow: none;
+}
+
+@media (min-width: 899px) {
+  .pricing-card.highlight {
+    transform: scale(1.02);
+    z-index: 2;
+    box-shadow: var(--shadow-glow);
+    border: 1px solid var(--border-glow);
+    background: rgba(217, 154, 61, 0.04);
+  }
+}
+
+@media (min-width: 899px) and (hover: hover) {
+  .pricing-card.highlight:hover {
+    transform: scale(1.03) translateY(-2px);
+    box-shadow: var(--shadow-glow), var(--shadow-lg);
+    border-color: var(--amber-bright);
+  }
 }
 
 .pricing-card[data-plan='arranque'] {

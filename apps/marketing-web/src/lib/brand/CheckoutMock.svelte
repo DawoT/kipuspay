@@ -62,9 +62,27 @@
       {/each}
     </ul>
 
+    <div class="fiscal-breakdown">
+      <div class="fiscal-row">
+        <span class="fiscal-label">OP. GRAVADA</span>
+        <span class="fiscal-amount">S/ {formatCents(Math.round(total_cents / 1.18))}</span>
+      </div>
+      <div class="fiscal-row">
+        <span class="fiscal-label">I.G.V. (18%)</span>
+        <span class="fiscal-amount">S/ {formatCents(total_cents - Math.round(total_cents / 1.18))}</span>
+      </div>
+    </div>
+
     <div class="total">
       <span class="total-label">Total</span>
       <span class="total-amount">S/ {formatCents(total_cents)}</span>
+    </div>
+
+    <div class="ticket-perforation" aria-hidden="true"></div>
+
+    <div class="ticket-validation">
+      <span class="validation-code">RESUMEN: KP-{formatCents(total_cents).replace(/[.,]/g, '')}-F89A</span>
+      <span class="validation-badge">COMPROBANTE AUTORIZADO</span>
     </div>
 
     <div class="foot">
@@ -77,6 +95,8 @@
         </span>
       </span>
     </div>
+
+    <div class="ticket-bottom-tear" aria-hidden="true"></div>
   </div>
 
   {#if caption}
@@ -151,13 +171,38 @@
     color: rgba(243, 239, 230, 0.82);
   }
 
+  .fiscal-breakdown {
+    padding: 0.5rem 1rem;
+    border-top: 1px dashed rgba(243, 239, 230, 0.14);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+  }
+
+  .fiscal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.15rem 0;
+    color: var(--muted);
+  }
+
+  .fiscal-label {
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+  }
+
+  .fiscal-amount {
+    font-variant-numeric: tabular-nums;
+    color: rgba(243, 239, 230, 0.88);
+  }
+
   .total {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0.9rem 1rem;
-    border-top: 1px solid rgba(243, 239, 230, 0.12);
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgba(243, 239, 230, 0.18);
   }
 
   .total-label {
@@ -176,13 +221,48 @@
     letter-spacing: -0.01em;
   }
 
+  .ticket-perforation {
+    position: relative;
+    height: 1px;
+    margin: 0.25rem 0;
+    background: repeating-linear-gradient(
+      90deg,
+      rgba(243, 239, 230, 0.3) 0,
+      rgba(243, 239, 230, 0.3) 5px,
+      transparent 5px,
+      transparent 10px
+    );
+  }
+
+  .ticket-validation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(243, 239, 230, 0.06);
+    border-bottom: 1px solid rgba(243, 239, 230, 0.06);
+  }
+
+  .validation-code {
+    color: var(--muted);
+  }
+
+  .validation-badge {
+    color: var(--sello-bright);
+    font-weight: 600;
+  }
+
   .foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0.9rem 1rem 1rem;
-    border-top: 1px solid rgba(243, 239, 230, 0.12);
+    padding: 0.9rem 1rem;
   }
 
   .pay-btn {
@@ -211,6 +291,20 @@
 
   .sync.synced {
     color: var(--sello-bright);
+  }
+
+  .ticket-bottom-tear {
+    height: 7px;
+    width: 100%;
+    background-color: var(--ink-2);
+    clip-path: polygon(
+      0% 0%, 100% 0%,
+      100% 100%, 97.5% 35%, 95% 100%, 92.5% 35%, 90% 100%, 87.5% 35%, 85% 100%, 82.5% 35%,
+      80% 100%, 77.5% 35%, 75% 100%, 72.5% 35%, 70% 100%, 67.5% 35%, 65% 100%, 62.5% 35%,
+      60% 100%, 57.5% 35%, 55% 100%, 52.5% 35%, 50% 100%, 47.5% 35%, 45% 100%, 42.5% 35%,
+      40% 100%, 37.5% 35%, 35% 100%, 32.5% 35%, 30% 100%, 27.5% 35%, 25% 100%, 22.5% 35%,
+      20% 100%, 17.5% 35%, 15% 100%, 12.5% 35%, 10% 100%, 7.5% 35%, 5% 100%, 2.5% 35%, 0% 100%
+    );
   }
 
   figcaption {

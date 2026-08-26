@@ -60,8 +60,10 @@
   <meta name="twitter:description" content={HOME.subheadline} />
   <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/" />
-  <script type="application/ld+json">{@html faqLd}</script>
-  <script type="application/ld+json">{@html itemsLd}</script>
+  <!-- Svelte 5 no evalúa expresiones dentro de <script>: el JSON-LD se inyecta
+       envolviendo el elemento completo ({@html}); faqLd/itemsLd ya son JSON string. -->
+  {@html `<script type="application/ld+json">${faqLd}</script>`}
+  {@html `<script type="application/ld+json">${itemsLd}</script>`}
 </svelte:head>
 
 <section class="hero" data-testid="home-hero">

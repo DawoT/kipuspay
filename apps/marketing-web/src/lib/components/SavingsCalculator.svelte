@@ -66,9 +66,10 @@
       <input
         id="ticket-slider"
         type="range"
-        min="10"
+        min="5"
         max="300"
-        step="10"
+        step="1"
+        style="--track-fill: {Math.round(((ticketsPerDay - 5) / (300 - 5)) * 100)}%;"
         bind:value={ticketsPerDay}
         oninput={clearPreset}
       />
@@ -85,6 +86,7 @@
         min="0.5"
         max="5"
         step="0.5"
+        style="--track-fill: {Math.round(((minutesPerTicket - 0.5) / (5 - 0.5)) * 100)}%;"
         bind:value={minutesPerTicket}
         oninput={clearPreset}
       />
@@ -101,6 +103,7 @@
         min="10"
         max="50"
         step="5"
+        style="--track-fill: {Math.round(((hourlyRateSoles - 10) / (50 - 10)) * 100)}%;"
         bind:value={hourlyRateSoles}
         oninput={clearPreset}
       />
@@ -114,6 +117,14 @@
       <div class="result-metric highlight">
         <span class="metric-number">S/ {result.monthlySavingsSoles}</span>
         <span class="metric-label">Valor estimado en tiempo de trabajo recuperado</span>
+      </div>
+    </div>
+
+    <div class="audit-seal" data-testid="savings-audit-seal">
+      <span class="audit-knot" aria-hidden="true">◆</span>
+      <div class="audit-info">
+        <strong class="audit-title">AHORRO AUDITADO</strong>
+        <span class="audit-desc">Cálculo transparente basado en tiempos reales de mostrador</span>
       </div>
     </div>
 
@@ -199,11 +210,17 @@
     outline-offset: 4px;
   }
 
-  /* Pista estilo regla contable */
+  /* Pista estilo regla contable con relleno dinámico --track-fill */
   .calc-control input[type='range']::-webkit-slider-runnable-track {
     width: 100%;
     height: 6px;
-    background: var(--ink-3);
+    background: linear-gradient(
+      to right,
+      var(--amber) 0%,
+      var(--amber) var(--track-fill, 0%),
+      var(--ink-3) var(--track-fill, 0%),
+      var(--ink-3) 100%
+    );
     border: 1px solid var(--line);
     border-radius: var(--radius-xs);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -211,7 +228,13 @@
   .calc-control input[type='range']::-moz-range-track {
     width: 100%;
     height: 6px;
-    background: var(--ink-3);
+    background: linear-gradient(
+      to right,
+      var(--amber) 0%,
+      var(--amber) var(--track-fill, 0%),
+      var(--ink-3) var(--track-fill, 0%),
+      var(--ink-3) 100%
+    );
     border: 1px solid var(--line);
     border-radius: var(--radius-xs);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -310,6 +333,39 @@
   .metric-label {
     font-size: 0.9rem;
     color: rgba(243, 239, 230, 0.78);
+  }
+  /* ── Sello Contable Ahorro Auditado ───────────────────────── */
+  .audit-seal {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(15, 107, 76, 0.12);
+    border: 1px solid var(--sello-bright);
+    border-radius: var(--radius-xs);
+  }
+  .audit-knot {
+    color: var(--sello-bright);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  .audit-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .audit-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--sello-bright);
+    font-weight: 700;
+  }
+  .audit-desc {
+    font-size: 0.78rem;
+    color: rgba(243, 239, 230, 0.75);
+    line-height: 1.3;
   }
   .calc-assumptions {
     margin-top: 1.5rem;

@@ -1,11 +1,12 @@
 import { VERTICAL_SLUGS } from '$lib/content/verticals.js';
 import { publishedPosts } from '$lib/content/blog.js';
-import { COMPETITOR_SLUGS } from '$lib/content/compare.js';
 
 export const prerender = true;
 
 export function GET(): Response {
   const blogSlugs = publishedPosts().map((p) => `/blog/${p.slug}`);
+  // Solo URLs canónicas 200: /comparar/bsale|alegra|siigo hacen 301 a
+  // /comparar?vs=X y un sitemap no debe listar redirecciones (AUD-03).
   const urls = [
     '/',
     '/precios',
@@ -20,7 +21,6 @@ export function GET(): Response {
     ...blogSlugs,
     ...VERTICAL_SLUGS.map((s) => `/para/${s}`),
     '/comparar',
-    ...COMPETITOR_SLUGS.map((c) => `/comparar/${c}`),
   ];
   const header = [
     '<?xml version="1.0" encoding="UTF-8"?>',

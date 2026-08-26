@@ -22,9 +22,11 @@ describe('sitemap.xml (AUD-03)', () => {
       '<loc>https://kipuspay.com/blog/checklist-abrir-restaurante-cafeteria-peru</loc>',
     );
     expect(xml).toContain('<loc>https://kipuspay.com/comparar</loc>');
-    expect(xml).toContain('<loc>https://kipuspay.com/comparar/bsale</loc>');
-    expect(xml).toContain('<loc>https://kipuspay.com/comparar/alegra</loc>');
-    expect(xml).toContain('<loc>https://kipuspay.com/comparar/siigo</loc>');
+    // Las comparativas por competidor hacen 301 a /comparar?vs=X: un sitemap
+    // no lista redirecciones, solo la URL canónica (G2, AUD-03).
+    expect(xml).not.toContain('<loc>https://kipuspay.com/comparar/bsale</loc>');
+    expect(xml).not.toContain('<loc>https://kipuspay.com/comparar/alegra</loc>');
+    expect(xml).not.toContain('<loc>https://kipuspay.com/comparar/siigo</loc>');
     expect(xml).toContain('<loc>https://kipuspay.com/reclamaciones</loc>');
   });
 });

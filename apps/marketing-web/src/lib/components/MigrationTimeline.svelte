@@ -12,15 +12,17 @@
   let { competitorName }: Props = $props();
 
   const REPORTED = [
-    { label: 'Coordinar instalación', note: 'con visita técnica' },
-    { label: 'Capacitación del equipo', note: 'antes de cobrar' },
-    { label: 'Recién la primera venta', note: 'semanas después' },
+    { label: 'Solicitar cotización previa', note: 'esperar respuesta y coordinar fechas' },
+    { label: 'Instalación técnica obligatoria', note: 'visita en sitio o software complejo' },
+    { label: 'Capacitación del personal', note: 'horas de entrenamiento antes de usar' },
+    { label: 'Recién la primera venta', note: 'semanas después de iniciar el trámite' },
   ];
 
   const KIPUS = [
-    { label: 'Te registras', note: 'sin tarjeta' },
-    { label: 'Importas tu catálogo', note: 'CSV de tu sistema actual' },
-    { label: 'Cobras el mismo día', note: 'en minutos' },
+    { label: 'Te registras en 1 minuto', note: 'sin tarjeta de crédito ni contratos' },
+    { label: 'Importas tu catálogo', note: 'archivo CSV de tu sistema anterior' },
+    { label: 'Configuras tus puntos de venta', note: 'en cualquier celular, tablet o PC' },
+    { label: 'Cobras el mismo día', note: 'en minutos con comprobantes válidos' },
   ];
 </script>
 
@@ -72,6 +74,7 @@
 
   .lane-kipus {
     border-color: var(--amber);
+    box-shadow: 0 0 20px rgba(217, 154, 61, 0.08);
   }
 
   .lane-title {
@@ -85,20 +88,43 @@
 
   .lane-kipus .lane-title {
     color: var(--amber-bright);
+    font-weight: 700;
   }
 
   .lane-steps {
+    position: relative;
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 1rem;
+    gap: 1.25rem;
+  }
+
+  /* Cordel vertical continuo de fibra quipu */
+  .lane-steps::before {
+    content: '';
+    position: absolute;
+    top: 0.95rem;
+    bottom: 0.95rem;
+    left: 0.95rem;
+    width: var(--fiber-w);
+    background: var(--fiber);
+    transform: translateX(-50%);
+    z-index: 0;
+  }
+
+  .lane-kipus .lane-steps::before {
+    background: linear-gradient(180deg, var(--amber) 0%, var(--amber-bright) 100%);
+    box-shadow: 0 0 10px rgba(217, 154, 61, 0.45);
   }
 
   .lane-steps li {
+    position: relative;
+    z-index: 1;
     display: flex;
-    gap: 0.9rem;
+    gap: 1rem;
     align-items: flex-start;
+    transition: transform 0.2s ease;
   }
 
   .lane-dot {
@@ -108,22 +134,33 @@
     border: 1px solid var(--line);
     min-width: 1.9rem;
     height: 1.9rem;
+    background: var(--ink-2);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     margin-top: 0.1rem;
+    border-radius: var(--radius-xs);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
   }
 
   .lane-kipus .lane-dot {
     color: var(--ink);
     background: var(--amber);
-    border-color: var(--amber);
+    border-color: var(--amber-bright);
     font-weight: 700;
+    box-shadow: 0 0 8px rgba(217, 154, 61, 0.4);
+  }
+
+  .lane-kipus li:hover .lane-dot {
+    transform: scale(1.12);
+    background: var(--amber-bright);
+    box-shadow: 0 0 16px rgba(238, 183, 101, 0.7);
   }
 
   .lane-steps strong {
     display: block;
-    font-size: 1rem;
+    font-size: 0.98rem;
     margin-bottom: 0.15rem;
   }
 
@@ -131,5 +168,14 @@
     color: rgba(243, 239, 230, 0.72);
     font-size: 0.85rem;
     margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lane-steps li,
+    .lane-dot,
+    .lane-kipus li:hover .lane-dot {
+      transition: none;
+      transform: none;
+    }
   }
 </style>

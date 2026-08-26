@@ -14292,3 +14292,39 @@ aprobaciones: [Staff Bugfix Auditor, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0497
+timestamp_utc: 2026-08-26T06:06:00Z
+schema_version: 2
+sprint_fase: Fase A — Sprints D1, D2 y D3 de Diseño Premium UI/UX (Mocks Térmicos, Modo Dueño 3D, Tarjeta Crece Radiante, Cordel Quipu y Macro-Ritmo)
+agente_responsable: Staff Premium Design Implementer / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Mocks de Producto Térmicos, Telemetría Modo Dueño, Tarjeta Crece Radiante, Conectores Quipu y Ritmo Editorial
+relacion: amplia
+referencias_entradas: [0496]
+referencias_documentales: [apps/marketing-web/src/lib/brand/CheckoutMock.svelte, apps/marketing-web/src/lib/components/OwnerModeMock.svelte, apps/marketing-web/src/lib/components/SavingsCalculator.svelte, apps/marketing-web/src/lib/components/MigrationTimeline.svelte, apps/marketing-web/src/routes/precios/+page.svelte, apps/marketing-web/src/routes/seguridad/+page.svelte, apps/marketing-web/src/app.css, docs/adr/ADR-0038-marketing-budget.md]
+prev_id: 0496
+prev_hash: 665ce38172cf252c07434833e213ed1c0fe111872d438bfdbe291b6ffa0f059f
+entry_hash: ac95f2b395e499200ed85e1b2afde6349549acc78c7dfb609bd32134326712e5
+ticket_or_adr: GTM-01; V-26; CAL-01; CAL-06; ADR-0038
+test_ids: [apps/marketing-web/src/lib/design-sprints-d1-d2-d3.test.ts, apps/marketing-web/src/lib/components/savings.test.ts, apps/marketing-web/src/lib/components/ui-ux-enhancements.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/brand/CheckoutMock.svelte; apps/marketing-web/src/lib/components/OwnerModeMock.svelte; apps/marketing-web/src/lib/components/SavingsCalculator.svelte; apps/marketing-web/src/lib/components/MigrationTimeline.svelte; apps/marketing-web/src/routes/precios/+page.svelte; apps/marketing-web/src/routes/seguridad/+page.svelte; apps/marketing-web/src/app.css; docs/adr/ADR-0038-marketing-budget.md
+descripcion: >
+  Elevación de máxima calidad staff en el frontend de marketing (Sprints D1, D2 y D3):
+  (1) CheckoutMock.svelte: desglose fiscal de OP. GRAVADA e I.G.V. (18%) con formatCents (CAL-01 INTEGER cents), línea de corte punteada, dentado térmico de zigzag y micro-código tributario.
+  (2) OwnerModeMock.svelte: bisel de smartphone de titanio pulido, indicador palpitante livePulse en cajas activas y minigráfico interactivo de barras horarias de ritmo de ventas en Soles (09:00 a 19:00).
+  (3) SavingsCalculator.svelte: rango mínimo a 5 tickets/día, relleno dinámico reactivo --track-fill y sello de balance contable "AHORRO AUDITADO".
+  (4) precios/+page.svelte y app.css: resplandor perimetral ámbar --shadow-glow, micro-elevación scale(1.02) en desktop e insignia en relieve con micro-nudo diamante en el plan Crece.
+  (5) MigrationTimeline.svelte y seguridad/+page.svelte: cordel vertical continuo de fibra quipu (--fiber) conectando los hitos y micro-animación de pulso flowPulse en conectores TrustFlow.
+  (6) app.css: macro-ritmo vertical fluido clamp(5rem, 8vw, 7.5rem) (80px - 120px), micro-gradientes radiales sutiles y doble anillo de foco accesible.
+  (7) ADR-0038: formalización del presupuesto de bundle editorial de marketing.
+evidencia: >
+  Marketing Web Vitest: 45 test files, 286 tests pasando al 100% (97.8% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/quality.sh OK, size-limit bundle 119.65 kB (< 120 kB), scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Design Implementer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

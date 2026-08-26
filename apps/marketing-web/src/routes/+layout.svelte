@@ -108,8 +108,10 @@
     type="font/woff2"
     crossorigin="anonymous"
   />
-  <script type="application/ld+json">{@html orgLd}</script>
-  <script type="application/ld+json">{@html siteLd}</script>
+  <!-- Svelte 5 no evalúa expresiones dentro de <script>: el JSON-LD se inyecta
+       envolviendo el elemento completo ({@html}); orgLd/siteLd ya son JSON string. -->
+  {@html `<script type="application/ld+json">${orgLd}</script>`}
+  {@html `<script type="application/ld+json">${siteLd}</script>`}
 </svelte:head>
 
 {#if !data.siteEnabled}

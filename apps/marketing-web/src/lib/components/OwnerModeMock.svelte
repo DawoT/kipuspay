@@ -1,6 +1,11 @@
 <script lang="ts">
   import { formatCents } from '$lib/brand/money';
 
+  interface HourlyPoint {
+    readonly hour: string;
+    readonly amountCents: number;
+  }
+
   interface StoreData {
     readonly id: string;
     readonly name: string;
@@ -11,6 +16,7 @@
     readonly cashCents: number;
     readonly digitalCents: number;
     readonly cardCents: number;
+    readonly hourlySales: readonly HourlyPoint[];
     readonly recentSale: {
       readonly time: string;
       readonly doc: string;
@@ -30,6 +36,14 @@
       cashCents: 169750,
       digitalCents: 252250,
       cardCents: 63050,
+      hourlySales: [
+        { hour: '09:00', amountCents: 24500 },
+        { hour: '11:00', amountCents: 58000 },
+        { hour: '13:00', amountCents: 125000 },
+        { hour: '15:00', amountCents: 72000 },
+        { hour: '17:00', amountCents: 89550 },
+        { hour: '19:00', amountCents: 116000 },
+      ],
       recentSale: {
         time: 'Hace 1 min',
         doc: 'B001-00342',
@@ -47,6 +61,14 @@
       cashCents: 74900,
       digitalCents: 111280,
       cardCents: 27820,
+      hourlySales: [
+        { hour: '09:00', amountCents: 11000 },
+        { hour: '11:00', amountCents: 26000 },
+        { hour: '13:00', amountCents: 59000 },
+        { hour: '15:00', amountCents: 31000 },
+        { hour: '17:00', amountCents: 39000 },
+        { hour: '19:00', amountCents: 48000 },
+      ],
       recentSale: {
         time: 'Hace 1 min',
         doc: 'B001-00342',
@@ -64,6 +86,14 @@
       cashCents: 48915,
       digitalCents: 89680,
       cardCents: 24455,
+      hourlySales: [
+        { hour: '09:00', amountCents: 8500 },
+        { hour: '11:00', amountCents: 19500 },
+        { hour: '13:00', amountCents: 42050 },
+        { hour: '15:00', amountCents: 24500 },
+        { hour: '17:00', amountCents: 31500 },
+        { hour: '19:00', amountCents: 37000 },
+      ],
       recentSale: {
         time: 'Hace 3 min',
         doc: 'B002-00189',
@@ -81,6 +111,14 @@
       cashCents: 45935,
       digitalCents: 51290,
       cardCents: 10775,
+      hourlySales: [
+        { hour: '09:00', amountCents: 5000 },
+        { hour: '11:00', amountCents: 12500 },
+        { hour: '13:00', amountCents: 23950 },
+        { hour: '15:00', amountCents: 16500 },
+        { hour: '17:00', amountCents: 19050 },
+        { hour: '19:00', amountCents: 31000 },
+      ],
       recentSale: {
         time: 'Hace 8 min',
         doc: 'B003-00094',
@@ -91,8 +129,12 @@
   ];
 
   let selectedStoreId = $state<string>('all');
+  let selectedHour = $state<string | null>(null);
   const currentStore = $derived(
     stores.find((s) => s.id === selectedStoreId) ?? stores[0],
+  );
+  const maxHourlyCents = $derived(
+    Math.max(...currentStore.hourlySales.map((h) => h.amountCents), 1),
   );
 
   let viewMode = $state<'interactive' | 'photo'>('interactive');
@@ -140,8 +182,8 @@
           <span class="brand-title">Modo Dueño · KipusPay</span>
         </div>
         <div class="sync-indicator">
-          <span class="pulse-dot" aria-hidden="true"></span>
-          <span class="sync-text">Cajas en línea</span>
+          <span class="pulse-dot-live" aria-hidden="true"></span>
+          <span class="sync-text">Cajas en línea · EN VIVO</span>
         </div>
       </div>
 
@@ -170,6 +212,40 @@
           <span class="growth-arrow" aria-hidden="true">↑</span>
           <span class="growth-text">+{currentStore.growthPercent}% vs ayer</span>
           <span class="tx-count">({currentStore.transactions} ventas)</span>
+        </div>
+      </div>
+
+      <div class="hourly-rhythm-card">
+        <div class="rhythm-header">
+          <p class="section-micro-title">Ritmo de ventas por hora</p>
+          <span class="rhythm-selected-amount tabular-nums">
+            {#if selectedHour}
+              {selectedHour}: S/ {formatCents(currentStore.hourlySales.find((h) => h.hour === selectedHour)?.amountCents ?? 0)}
+            {:else}
+              09:00 – 19:00
+            {/if}
+          </span>
+        </div>
+        <div class="hourly-chart" role="region" aria-label="Gráfico de ventas por hora">
+          {#each currentStore.hourlySales as slot (slot.hour)}
+            {@const heightPct = Math.max(16, Math.round((slot.amountCents / maxHourlyCents) * 100))}
+            <button
+              type="button"
+              class="hourly-bar-btn"
+              class:selected={selectedHour === slot.hour}
+              onmouseenter={() => (selectedHour = slot.hour)}
+              onmouseleave={() => (selectedHour = null)}
+              onfocus={() => (selectedHour = slot.hour)}
+              onblur={() => (selectedHour = null)}
+              onclick={() => (selectedHour = selectedHour === slot.hour ? null : slot.hour)}
+              aria-label={`Hora ${slot.hour}: S/ ${formatCents(slot.amountCents)}`}
+            >
+              <div class="bar-fill-track">
+                <div class="bar-fill" style="height: {heightPct}%;"></div>
+              </div>
+              <span class="bar-time">{slot.hour}</span>
+            </button>
+          {/each}
         </div>
       </div>
 
@@ -266,11 +342,11 @@
   .smartphone-frame {
     width: 100%;
     background: #0d0f12;
-    border: 3px solid #2d333b;
+    border: 3.5px solid #333842;
     border-radius: 36px;
     box-shadow:
-      0 20px 40px rgba(0, 0, 0, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.05);
+      0 25px 60px -12px rgba(0, 0, 0, 0.7),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
     padding: 1.25rem 1.25rem 1rem 1.25rem;
     color: var(--paper);
     position: relative;
@@ -349,18 +425,134 @@
     gap: 0.35rem;
   }
 
-  .pulse-dot {
-    width: 6px;
-    height: 6px;
+  .pulse-dot-live {
+    width: 7px;
+    height: 7px;
     background: #34d399;
     border-radius: 50%;
-    box-shadow: 0 0 6px #34d399;
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+    animation: livePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes livePulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+      transform: scale(0.95);
+    }
+    70% {
+      box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+      transform: scale(1.1);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+      transform: scale(0.95);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-dot-live {
+      animation: none;
+    }
   }
 
   .sync-text {
     font-family: var(--font-mono);
     font-size: 0.65rem;
     color: #6ee7b7;
+  }
+
+  .hourly-rhythm-card {
+    background: #14181f;
+    border: 1px solid rgba(243, 239, 230, 0.08);
+    border-radius: 10px;
+    padding: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  .rhythm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.6rem;
+  }
+
+  .rhythm-header .section-micro-title {
+    margin-bottom: 0;
+  }
+
+  .rhythm-selected-amount {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--amber-bright);
+  }
+
+  .hourly-chart {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.35rem;
+    align-items: end;
+    height: 75px;
+    padding-top: 0.5rem;
+  }
+
+  .hourly-bar-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    height: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+  }
+
+  .hourly-bar-btn:hover,
+  .hourly-bar-btn.selected,
+  .hourly-bar-btn:focus-visible {
+    background: rgba(243, 239, 230, 0.04);
+    outline: none;
+  }
+
+  .bar-fill-track {
+    flex: 1;
+    width: 12px;
+    background: rgba(243, 239, 230, 0.06);
+    border-radius: 3px;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    width: 100%;
+    background: linear-gradient(180deg, var(--amber-bright) 0%, var(--amber) 100%);
+    border-radius: 3px 3px 0 0;
+    transition: height 0.25s var(--ease-out), background 0.15s ease;
+  }
+
+  .hourly-bar-btn:hover .bar-fill,
+  .hourly-bar-btn.selected .bar-fill,
+  .hourly-bar-btn:focus-visible .bar-fill {
+    background: linear-gradient(180deg, #fff 0%, var(--amber-bright) 100%);
+    box-shadow: 0 0 8px rgba(238, 183, 101, 0.5);
+  }
+
+  .bar-time {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: rgba(243, 239, 230, 0.55);
+    letter-spacing: -0.02em;
+  }
+
+  .hourly-bar-btn:hover .bar-time,
+  .hourly-bar-btn.selected .bar-time,
+  .hourly-bar-btn:focus-visible .bar-time {
+    color: var(--amber-bright);
+    font-weight: 600;
   }
 
   .store-tabs {

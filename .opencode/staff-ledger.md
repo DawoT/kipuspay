@@ -1950,3 +1950,62 @@ estado_gov: GOV-APROBADO
 estado: Vigente
 entry_hash: 9cbe5b5a691b6d3687c3d384a3e67db9ba72d3db4514f6b1c835fa46de100dcc
 ```
+
+```text
+id: 0045
+timestamp_utc: 2026-08-26T05:45:00Z
+schema_version: 2
+sprint_fase: Auditoría pre-promoción marketing-web — bloqueantes B1/B2 + gaps G2/G3
+agente_responsable: Staff Frontend/SEO (ejecución directa)
+tipo: Corrección
+subtipo: JSON-LD prerender + presupuesto bundle + sitemap 301 + contraste AA
+relacion: corrige
+referencias_entradas: [0044]
+referencias_documentales: ["docs/adr/ADR-0038-marketing-budget.md", "apps/marketing-web/size-limit.config.js", "apps/marketing-web/src/lib/seo-prerender.test.ts"]
+prev_id: 0044
+prev_hash: 9cbe5b5a691b6d3687c3d384a3e67db9ba72d3db4514f6b1c835fa46de100dcc
+entry_hash: 1cbe7800883f91e526909341de91620da1e75e3d5a357ca1646ae5c8687680b7
+ticket_or_adr: ADR-0038; AUD-03; GTM §1
+test_ids: [apps/marketing-web/src/lib/seo-prerender.test.ts, apps/marketing-web/src/routes/sitemap.xml/sitemap.test.ts, SUITE]
+entregable_afectado: apps/marketing-web/src/routes/+layout.svelte · +page.svelte · precios/+page.svelte · ayuda/+page.svelte · sitemap.xml/+server.ts (+test) · size-limit.config.js · docs/adr/ADR-0038-marketing-budget.md (nuevo)
+descripcion: >
+  Cuatro hallazgos de la auditoría pre-promoción de marketing-web, todos
+  corregidos con TDD donde aplicaba. B1 (BLOQUEANTE): Svelte 5 no evalúa
+  expresiones dentro de <script> del markup — el prerrender emitía el texto
+  literal "{@html orgLd}" como contenido del ld+json del layout Y descartaba
+  por completo los bloques de página (faqLd/itemsLd/productLd ausentes del
+  HTML). Fix contractual en los 4 archivos: envolver el elemento completo vía
+  template literal ({@html `<script ...>${json}</script>`}); las constantes ya
+  son JSON string (un segundo JSON.stringify las double-encodearía). Test nuevo
+  seo-prerender.test.ts lee el HTML prerenderizado y exige todo ld+json
+  parseable con @type (Organization/WebSite/FAQPage/ItemList en index; Product
+  con ofertas PEN en precios; FAQPage en ayuda) y cero "{@html" residual.
+  B2 (BLOQUEANTE): bundle 117.94 kB gzip vs presupuesto 72 kB (+62%) — el
+  presupuesto era heredado de la landing delgada (~59.7 kB) y el crecimiento es
+  contenido editorial legítimo prerrenderizado; ADR-0038 (Aceptado) revisa el
+  límite a 120 kB con justificación CWV (LCP<2.5s alcanzable: HTML estático,
+  fuentes preload, JS como mejora progresiva; margen real ~2 kB, dependencia
+  nueva sigue exigiendo ADR por CAL-06). Alternativa code-splitting de
+  compare.ts/verticals.ts descartada: son datos de rutas de prerrender, trocear
+  añade waterfalls sin mejora de LCP. G2: el sitemap listaba
+  /comparar/{bsale,alegra,siigo} que hacen 301 a /comparar?vs=X — removidas
+  (solo queda la canónica) y test actualizado de toContain a not.toContain.
+  G3: badge "2 meses gratis" (--paper sobre --sello-bright) y matrix-check
+  desktop medían 2.92:1 (falla AA texto) — badge pasa a --ink (5.39:1), checks
+  desktop a --sello (5.67:1 sobre paper) y pricing-annual-sub (misma clase de
+  violación detectada en la pasada) a --sello; la lista móvil NO se toca porque
+  --sello-bright sobre --ink-2 ya da 5.03:1 y cambiarla la rompería (2.59:1).
+evidencia: >
+  RED: seo-prerender 3/3 fallando por "{@html" literal en index/precios/ayuda;
+  size-limit exit 1 (excedido 45.94 kB); sitemap.test consagraba URLs-301.
+  Ratios WCAG calculados con fórmula WS: paper/sello-bright 2.92,
+  ink/sello-bright 5.39, sello/paper 5.67, sello-bright/ink-2 5.03.
+  GREEN: build regenerado — index.html trae 4 bloques ld+json parseables,
+  precios Product+Offers PEN, ayuda FAQPage; suite completa marketing-web
+  272/272 (44 archivos, cobertura OK); size-limit 118.25 kB <= 120 kB GREEN;
+  prettier limpio en tocados; scripts/verify.sh RESULT SUITE GREEN (V-18/V-12
+  sobre el ADR nuevo incluido). Sin commits (árbol queda para revisión).
+ancestry_verified: true
+aprobaciones: ["A: Staff Frontend/SEO", "V: gate documental SUITE GREEN + suites runtime"]
+estado_gov: GOV-PENDIENTE
+estado: Vigente

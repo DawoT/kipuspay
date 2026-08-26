@@ -43,7 +43,9 @@
   />
   <meta name="twitter:image" content={ogImageFor()} />
   <link rel="canonical" href="https://kipuspay.com/ayuda" />
-  <script type="application/ld+json">{@html faqLd}</script>
+  <!-- Svelte 5 no evalúa expresiones dentro de <script>: el JSON-LD se inyecta
+       envolviendo el elemento completo ({@html}); faqLd ya es JSON string. -->
+  {@html `<script type="application/ld+json">${faqLd}</script>`}
 </svelte:head>
 
 <section class="hero hero-compact">
