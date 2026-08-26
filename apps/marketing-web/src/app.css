@@ -2766,15 +2766,32 @@ li {
   max-width: 48rem;
 }
 
-/* Nav mono de rubro / comparar (sin pills). */
+/* Sub-menú de navegación por rubro en landings verticales */
 .rubro-switch {
-  background: var(--ink-2);
-  border-bottom: 1px solid var(--line);
-  padding: 0.85rem 1.5rem;
+  background: rgba(20, 22, 28, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(243, 239, 230, 0.08);
+  border-bottom: 1px solid rgba(243, 239, 230, 0.08);
+  position: sticky;
+  top: var(--header-h, 4rem);
+  z-index: 20;
+  width: 100%;
+}
+
+.rubro-switch-inner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0.65rem 1.5rem;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.rubro-switch-head {
+  display: flex;
   align-items: center;
-  gap: 0.75rem 1.25rem;
+  gap: 0.5rem;
 }
 
 .rubro-switch-label {
@@ -2782,17 +2799,20 @@ li {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: rgba(243, 239, 230, 0.6);
+  cursor: pointer;
 }
 
 .rubro-select {
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   background: var(--ink);
   color: var(--paper);
-  border: 1px solid var(--line);
-  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(243, 239, 230, 0.2);
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 0.65rem 1rem;
   min-height: 44px;
+  width: 100%;
 }
 
 .rubro-links {
@@ -2800,39 +2820,79 @@ li {
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 0.35rem 1.1rem;
+  gap: 0.35rem;
+  align-items: center;
   flex-wrap: wrap;
 }
 
 @media (min-width: 719px) {
+  .rubro-switch-inner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 1.5rem;
+  }
+
   .rubro-select {
     display: none;
   }
 
-  .rubro-switch-label {
-    width: 100%;
-  }
-
   .rubro-links {
-    display: flex;
+    display: inline-flex;
+    background: rgba(243, 239, 230, 0.04);
+    padding: 0.25rem 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(243, 239, 230, 0.08);
   }
+}
+
+.rubro-links li {
+  margin: 0;
+  padding: 0;
 }
 
 .rubro-links a {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  color: rgba(243, 239, 230, 0.78);
+  gap: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(243, 239, 230, 0.7);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  transition: all 0.18s ease;
+  white-space: nowrap;
 }
 
-.rubro-links a:hover,
+.rubro-links a .knot-dot {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  opacity: 0.5;
+  transition: opacity 0.18s ease;
+}
+
+.rubro-links a:hover {
+  color: var(--paper);
+  background: rgba(243, 239, 230, 0.08);
+}
+
+.rubro-links a:hover .knot-dot {
+  opacity: 1;
+}
+
 .rubro-links a.active {
-  color: var(--amber-bright);
-  border-bottom-color: var(--amber);
+  color: var(--ink);
+  background: var(--cord, var(--amber-bright));
+  font-weight: 600;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--cord, var(--amber-bright)) 35%, transparent);
+}
+
+.rubro-links a.active .knot-dot {
+  background: var(--ink);
+  opacity: 1;
 }
 
 .onboarding {

@@ -14551,3 +14551,36 @@ aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0504
+timestamp_utc: 2026-08-26T15:35:00Z
+schema_version: 2
+sprint_fase: Fase A — Sub-Menú Segmentado y Centrado por Rubro
+agente_responsable: Staff Visual Designer & UX Lead / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Rediseño Ergonómico y Centrado del Sub-Menú de Navegación por Vertical
+relacion: amplia
+referencias_entradas: [0503]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/lib/components/VerticalLandingView.svelte]
+prev_id: 0503
+prev_hash: 145b0cd9931bfaa462f49eceb1e908e554f44e6d9b7461ed44abf15ea48a7311
+entry_hash: 4385919263a665e212c22f2e31c3d80c34d8bbb17138c46d26bb2f3a0d708b4c
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/lib/components/VerticalLandingView.svelte
+descripcion: >
+  Rediseño, centrado y alineación visual del sub-menú de selección de rubros (.rubro-switch) en todas las páginas verticales (/para/*):
+  (1) Envoltorio centrado (rubro-switch-inner): contenedor simétrico acotado a 72rem con márgenes automáticos, eliminando desbordes hacia los márgenes de la pantalla.
+  (2) Barra fija docks (sticky navbar): navegación fija con fondo translúcido dark glass (rgba(20,22,28,0.95)) y backdrop blur de 12px con sutil borde perimetral.
+  (3) Segmented Control & Pill Tabs: grupo de pestañas redondeadas con etiqueta descriptiva "Ver por rubro:" a la izquierda y conmutador visual con botón activo en el color temático de la vertical.
+  (4) Adaptabilidad responsive: conmutador select accesible de 44px en móviles y segmented pill bar completo en tablets y desktop.
+evidencia: >
+  Marketing Web Vitest: 47 test files, 316 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -60,30 +60,35 @@
   </section>
 
   <nav class="rubro-switch" aria-label="Seleccionar rubro">
-    <label class="rubro-switch-label" for="rubro-select">Cambiar rubro</label>
-    <select
-      id="rubro-select"
-      class="rubro-select"
-      value={landing.slug}
-      onchange={(e) => {
-        const el = e.currentTarget;
-        if (el.value) window.location.assign(`/para/${el.value}`);
-      }}
-    >
-      {#each allV as v (v.slug)}
-        <option value={v.slug}>{v.navLabel}</option>
-      {/each}
-    </select>
-    <ul class="rubro-links">
-      {#each allV as v (v.slug)}
-        <li>
-          <a href="/para/{v.slug}" class:active={v.slug === landing.slug}>
-            <span class="knot-dot" aria-hidden="true"></span>
-            {v.navLabel}
-          </a>
-        </li>
-      {/each}
-    </ul>
+    <div class="rubro-switch-inner">
+      <div class="rubro-switch-head">
+        <span class="knot-dot" aria-hidden="true"></span>
+        <label class="rubro-switch-label" for="rubro-select">Ver por rubro:</label>
+      </div>
+      <select
+        id="rubro-select"
+        class="rubro-select"
+        value={landing.slug}
+        onchange={(e) => {
+          const el = e.currentTarget;
+          if (el.value) window.location.assign(`/para/${el.value}`);
+        }}
+      >
+        {#each allV as v (v.slug)}
+          <option value={v.slug}>{v.navLabel}</option>
+        {/each}
+      </select>
+      <ul class="rubro-links">
+        {#each allV as v (v.slug)}
+          <li>
+            <a href="/para/{v.slug}" class:active={v.slug === landing.slug}>
+              <span class="knot-dot" aria-hidden="true"></span>
+              {v.navLabel}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </div>
   </nav>
 
   <section class="section section-paper">
