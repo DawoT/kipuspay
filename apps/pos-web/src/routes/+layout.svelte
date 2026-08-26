@@ -218,6 +218,7 @@
 
   let currentTheme = $state<'dark' | 'light'>('dark');
   let online = $state(true);
+  let scrolled = $state(false);
 
   const chromeMode = $derived(
     resolveChromeMode({
@@ -232,6 +233,23 @@
   const connectionStitch = $derived(
     stitchClass(stitchStateFromFlags({ online, pendingCount: 0, charging: false })),
   );
+
+  // Top-bar blur contextual: transparent → glass al scrollY>8px
+  $effect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const el = document.querySelector('.page-content') as HTMLElement | null;
+    const handler = () => {
+      const y = el ? el.scrollTop : window.scrollY;
+      scrolled = y > 8;
+    };
+    el?.addEventListener('scroll', handler, { passive: true });
+    window.addEventListener('scroll', handler, { passive: true });
+    handler();
+    return () => {
+      el?.removeEventListener('scroll', handler);
+      window.removeEventListener('scroll', handler);
+    };
+  });
 
   function syncOnlineStatus() {
     online = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -405,7 +423,7 @@
   <!-- Main content area -->
   <div class="main-area">
     {#if showTopBar}
-    <header class="top-bar">
+    <header class="top-bar" class:scrolled>
       <div class="top-bar-left">
         {#if showSidebar}
           <button
@@ -423,7 +441,16 @@
           <BrandKnot size={10} />
           <span class="breadcrumb-app">KipusPay</span>
           <Icon name="chevron-right" size={12} />
-          <span class="breadcrumb-page">{pageCrumb}</span>
+          <span class="breadcrumb-knot" aria-hidden="true"></span>
+          {#key page.url.pathname}
+            <span
+              class="breadcrumb-page"
+              in:fade={{ duration: prefersReducedMotion.current ? 0 : 120 }}
+              out:fade={{ duration: 0 }}
+              style="transition: opacity 120ms ease"
+              >{pageCrumb}</span
+            >
+          {/key}
         </div>
       </div>
       <div class="top-bar-right">
@@ -890,16 +917,28 @@
     padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
     height: 64px;
     min-height: 64px;
-    background: var(--bg-glass);
-    border-bottom: 1px solid var(--border-subtle);
-    backdrop-filter: blur(16px) saturate(1.15);
-    -webkit-backdrop-filter: blur(16px) saturate(1.15);
-    box-shadow: var(--shadow-sm);
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
     position: sticky;
     top: 0;
     z-index: 40;
     flex-shrink: 0;
-    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      backdrop-filter var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .top-bar.scrolled {
+    background: var(--bg-glass);
+    border-bottom-color: var(--border-subtle);
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    box-shadow: var(--shadow-sm);
   }
 
   .top-bar-left {
@@ -939,6 +978,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: opacity 120ms ease;
+  }
+
+  .breadcrumb-knot {
+    width: 6px;
+    height: 6px;
+    background: var(--amber-gold);
+    transform: rotate(45deg);
+    border: 1px solid var(--bg-glass);
+    flex-shrink: 0;
+    display: inline-block;
+    margin: 0 1px;
   }
 
   .status-pill {

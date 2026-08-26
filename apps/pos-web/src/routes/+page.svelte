@@ -195,6 +195,30 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     ),
   );
 
+  // Feedback optimista <100ms: Skeleton shimmer 1.4s en total al mutar carrito (usa Skeleton.svelte)
+  let optimisticTotal = $state(false);
+  let optimisticTimer: ReturnType<typeof setTimeout> | null = null;
+  $effect(() => {
+    void lines.length;
+    void payableCents;
+    if (lines.length === 0) {
+      optimisticTotal = false;
+      if (optimisticTimer) {
+        clearTimeout(optimisticTimer);
+        optimisticTimer = null;
+      }
+      return;
+    }
+    optimisticTotal = true;
+    if (optimisticTimer) clearTimeout(optimisticTimer);
+    optimisticTimer = setTimeout(() => {
+      optimisticTotal = false;
+    }, 80);
+    return () => {
+      if (optimisticTimer) clearTimeout(optimisticTimer);
+    };
+  });
+
   onMount(() => {
     if (typeof window === 'undefined') return;
     const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
@@ -991,12 +1015,16 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
             <div class="summary-total-box">
               <span class="total-label">Total a cobrar</span>
-              <span
-                data-testid="total"
-                class={['total-amount', 'tabular-nums', cobroStitch, chargeSettled && 'settled']}
-              >
-                S/ {formatCents(payableCents)}
-              </span>
+              {#if optimisticTotal}
+                <Skeleton lines={1} width="8rem" data-testid="total-skeleton" />
+              {:else}
+                <span
+                  data-testid="total"
+                  class={['total-amount', 'tabular-nums', cobroStitch, chargeSettled && 'settled']}
+                >
+                  S/ {formatCents(payableCents)}
+                </span>
+              {/if}
             </div>
 
             <!-- Status Alerts -->
@@ -1321,8 +1349,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--text-muted);
   }
   .display-value {
+    font-family: var(--font-mono);
     font-size: 2.5rem;
     font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
     color: var(--emerald-green);
     display: flex;
     align-items: baseline;
@@ -1467,7 +1498,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     font-family: var(--font-mono);
     font-size: 2.25rem;
     font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
     color: var(--text-main);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 0.625rem;
   }
   .total-amount.settled {
     color: var(--emerald-green);

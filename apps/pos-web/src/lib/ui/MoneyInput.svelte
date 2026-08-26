@@ -69,7 +69,9 @@
     color: var(--text-main);
     font-family: var(--font-mono);
     font-size: 0.9375rem;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
     transition:
       border-color var(--transition-fast),
       box-shadow var(--transition-fast);

@@ -14195,3 +14195,36 @@ aprobaciones: [Staff Design, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0494
+timestamp_utc: 2026-08-26T04:00:00Z
+schema_version: 2
+sprint_fase: Diseño — Sistema tabular + Top-bar vivo
+agente_responsable: Staff Design (ejecución: kipus-design; auditoría: Staff Principal)
+tipo: Refinamiento de diseño
+subtipo: Tipografía dinero + breadcrumb + glass + skeleton
+relacion: amplia
+referencias_entradas: [0493]
+referencias_documentales: [apps/pos-web/src/lib/ui/Table.svelte, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/+layout.svelte]
+prev_id: 0493
+prev_hash: 9780ffac77b62ad1d9bd3dfe5770e0b51ac39347b280bd7cae10eda99e53f6fd
+entry_hash: 2424724448cff2b5bce0297bcf0288d9780439afb31852af2f74f57cbcdaa509
+ticket_or_adr: V-24
+test_ids: [SUITE]
+entregable_afectado: apps/pos-web/src/lib/ui/Table.svelte §tabular; apps/pos-web/src/routes/+page.svelte §total-amount + skeleton; apps/pos-web/src/routes/+layout.svelte §breadcrumb + glass
+descripcion: >
+  Segundo refinamiento premium: sistema tabular extendido (Table right → mono
+  tabular, MoneyInput 600 -0.01em, display-value/balanza y total-amount con
+  tabular + -0.02em + rule ledger) + top-bar vivo (knot-dot ámbar 6×6, fade
+  120ms con key pathname, glass transparente→blur 16px saturate 1.15 al
+  scroll >8px, cart total con Skeleton shimmer 1.4s a 80ms sin spinner).
+evidencia: >
+  RED: totales sin jerarquía ledger; top-bar flat sin knot. GREEN: pos-web
+  498/498, svelte-check 0, SUITE GREEN, bundle 290.75kB <300kB (V-24),
+  tabular-nums verificado, V-27/V-30 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Design, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

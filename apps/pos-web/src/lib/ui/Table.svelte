@@ -89,6 +89,8 @@
   .ui-table th.right,
   .ui-table td.right {
     text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   .ui-table td {

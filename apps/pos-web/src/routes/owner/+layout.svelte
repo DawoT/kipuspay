@@ -1,6 +1,8 @@
 <script lang="ts">
   import { isOwnerModeEnabled, isAgenticInsightsEnabled } from '$lib/features';
   import { page } from '$app/state';
+  import { fade } from 'svelte/transition';
+  import { prefersReducedMotion } from 'svelte/motion';
   import { onMount } from 'svelte';
   import { ownerSidebarGroups } from '$lib/ui/owner-nav';
   import { breadcrumbLabel } from '$lib/ui/breadcrumb';
@@ -49,9 +51,27 @@
   const pageCrumb = $derived(breadcrumbLabel(page.url.pathname));
 
   let online = $state(true);
+  let scrolled = $state(false);
   function syncOnline() {
     online = typeof navigator !== 'undefined' ? navigator.onLine : true;
   }
+
+  // Top-bar blur contextual: transparent → glass al scrollY>8px
+  $effect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const el = document.querySelector('.owner-content') as HTMLElement | null;
+    const handler = () => {
+      const y = el ? el.scrollTop : window.scrollY;
+      scrolled = y > 8;
+    };
+    el?.addEventListener('scroll', handler, { passive: true });
+    window.addEventListener('scroll', handler, { passive: true });
+    handler();
+    return () => {
+      el?.removeEventListener('scroll', handler);
+      window.removeEventListener('scroll', handler);
+    };
+  });
 
   onMount(() => {
     syncOnline();
@@ -191,7 +211,7 @@
 
     <!-- Main -->
     <div class="owner-main">
-      <header class="owner-top-bar">
+      <header class="owner-top-bar" class:scrolled>
         <div class="owner-top-left">
           <button
             type="button"
@@ -207,7 +227,16 @@
             <BrandKnot size={10} />
             <span class="owner-breadcrumb-app">KipusPay</span>
             <Icon name="chevron-right" size={12} />
-            <span class="owner-breadcrumb-page">{pageCrumb}</span>
+            <span class="owner-breadcrumb-knot" aria-hidden="true"></span>
+            {#key page.url.pathname}
+              <span
+                class="owner-breadcrumb-page"
+                in:fade={{ duration: prefersReducedMotion.current ? 0 : 120 }}
+                out:fade={{ duration: 0 }}
+                style="transition: opacity 120ms ease"
+                >{pageCrumb}</span
+              >
+            {/key}
           </div>
         </div>
         <div class="owner-top-right">
@@ -601,16 +630,28 @@
     padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
     height: 64px;
     min-height: 64px;
-    background: var(--bg-glass);
-    border-bottom: 1px solid var(--border-subtle);
-    backdrop-filter: blur(16px) saturate(1.15);
-    -webkit-backdrop-filter: blur(16px) saturate(1.15);
-    box-shadow: var(--shadow-sm);
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
     position: sticky;
     top: 0;
     z-index: 40;
     flex-shrink: 0;
-    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      backdrop-filter var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .owner-top-bar.scrolled {
+    background: var(--bg-glass);
+    border-bottom-color: var(--border-subtle);
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    box-shadow: var(--shadow-sm);
   }
 
   .owner-top-left {
@@ -670,6 +711,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: opacity 120ms ease;
+  }
+
+  .owner-breadcrumb-knot {
+    width: 6px;
+    height: 6px;
+    background: var(--amber-gold);
+    transform: rotate(45deg);
+    border: 1px solid var(--bg-glass);
+    flex-shrink: 0;
+    display: inline-block;
+    margin: 0 1px;
   }
 
   .owner-status-pill {
