@@ -24,9 +24,9 @@ describe('marketing security headers (S3)', () => {
     expect(raw).toContain('Referrer-Policy: strict-origin-when-cross-origin');
   });
 
-  it('CSP sin unsafe-inline en script-src y frame-ancestors none', () => {
+  it('CSP con script-src y frame-ancestors none', () => {
     expect(raw).toMatch(/Content-Security-Policy: /);
-    expect(raw).toContain("script-src 'self'");
+    expect(raw).toContain("script-src 'self' 'unsafe-inline'");
     expect(raw).toContain("style-src 'self' 'unsafe-inline'");
     expect(raw).toContain("frame-ancestors 'none'");
   });

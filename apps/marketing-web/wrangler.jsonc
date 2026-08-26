@@ -5,7 +5,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "pages_build_output_dir": ".svelte-kit/cloudflare",
   "vars": {
-    "PUBLIC_FEATURE_MARKETING_SITE": "0",
-    "PUBLIC_POS_ORIGIN": "https://kipuspay-app.pages.dev",
+    "PUBLIC_FEATURE_MARKETING_SITE": "1",
+    "PUBLIC_POS_ORIGIN": "https://kipuspay-pos-web-staging.pages.dev",
+    "WORKER_API_ORIGIN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev"
   },
 }

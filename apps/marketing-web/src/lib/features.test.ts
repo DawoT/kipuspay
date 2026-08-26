@@ -45,6 +45,6 @@ describe('features soft-launch', () => {
     const envLine = envExample.split('\n').find((l) => l.includes('PUBLIC_FEATURE_MARKETING_SITE'));
     expect(envLine).toBeDefined();
     expect(envLine?.trim().endsWith('0')).toBe(true);
-    expect(wrangler).toContain('kipuspay-app.pages.dev');
+    expect(wrangler).toContain('kipuspay-pos-web-staging.pages.dev');
   });
 });

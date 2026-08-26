@@ -15182,3 +15182,37 @@ aprobaciones: [Staff Pos Grifos, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0522
+timestamp_utc: 2026-08-26T23:20:00Z
+schema_version: 2
+sprint_fase: Fase A — Client Hydration CSP Fix & Production Handshake Audit
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Fix
+subtipo: CSP script-src unsafe-inline + wrangler vars live siteEnabled
+relacion: CORRIGE
+referencias_entradas: [0520, 0521]
+referencias_documentales: [apps/marketing-web/_headers, apps/marketing-web/wrangler.jsonc, apps/marketing-web/src/lib/security-headers.test.ts, apps/marketing-web/src/lib/features.test.ts]
+prev_id: 0521
+prev_hash: 39b10640e26bbc4d896db894f4138c5bd3304439638f5acac192ff547a2f6ffc
+entry_hash: 29fd01b8fd9c80906d05f7794ab2ea085199cf919f75102b93b55cac4da68d17
+ticket_or_adr: V-26; CAL-06; ADR-ARCH-002
+test_ids: [apps/marketing-web/src/lib/security-headers.test.ts, apps/marketing-web/src/lib/features.test.ts, SUITE]
+entregable_afectado: apps/marketing-web/_headers; apps/marketing-web/wrangler.jsonc; apps/marketing-web/src/lib/security-headers.test.ts; apps/marketing-web/src/lib/features.test.ts
+descripcion: >
+  Auditoría e implementación de la integración real marketing→POS y corrección de interactividad en producción:
+  (1) CSP fix: `_headers` bloqueaba la hidratación de SvelteKit con `script-src 'self'`. Se habilitó `script-src 'self' 'unsafe-inline'`
+      y `connect-src` ampliado para APIs staging y producción.
+  (2) Wrangler vars: `wrangler.jsonc` desplegaba `PUBLIC_FEATURE_MARKETING_SITE: "0"`, lo que provocaba que la hidratación cliente
+      reemplazara el sitio con la pantalla de soft-off. Se configuró `PUBLIC_FEATURE_MARKETING_SITE: "1"` y `PUBLIC_POS_ORIGIN` hacia staging.
+  (3) Verificación en vivo: interactividad completa de los mocks y flujo de 4 pasos de `/empezar` verificado en producción (https://kipuspay-web.pages.dev).
+evidencia: >
+  Playwright MCP: navegación y validación funcional en vivo de /empezar (4 pasos) y tabs de mocks interactivos en producción.
+  Cloudflare Pages: deploy exitoso a kipuspay-web (https://kipuspay-web.pages.dev).
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
