@@ -365,7 +365,7 @@
         </table>
       </div>
       <p class="compare-more">
-        <a class="btn btn-ghost" href="/comparar/bsale">Ver la comparativa completa</a>
+        <a class="btn btn-ghost" href="/comparar">Ver la comparativa completa</a>
       </p>
     </div>
   </div>

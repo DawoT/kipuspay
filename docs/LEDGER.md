@@ -14409,3 +14409,38 @@ aprobaciones: [Staff Homepage Implementer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0500
+timestamp_utc: 2026-08-26T14:13:00Z
+schema_version: 2
+sprint_fase: Fase A — Auditoría y Verificación de Interactividad y Botones
+agente_responsable: Staff QA & UX Auditor / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Auditoría de Handlers, Botones, Enlaces Canónicos y Contratos de Eventos
+relacion: amplia
+referencias_entradas: [0499]
+referencias_documentales: [apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, apps/marketing-web/src/routes/+page.svelte]
+prev_id: 0499
+prev_hash: 498078b69b4779ffb3d364f4c07aa9e07411c484d0b134a4d7f46e8bffb2a791
+entry_hash: 13d8a8ed4f1bc27a2576529de8a7a58d7dd9be7a40931650696f3816fa331d25
+ticket_or_adr: GTM-01; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, apps/marketing-web/src/lib/components/po-remediation-refinements.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts; apps/marketing-web/src/routes/+page.svelte
+descripcion: >
+  Auditoría y verificación exhaustiva de todos los botones y controles interactivos en apps/marketing-web:
+  (1) Navegación y Drawer: apertura/cierre reactivo del menú móvil (openMobileMenu / closeMobileMenu), backdrop interactivo y rutas de navegación válidas.
+  (2) Mocks Interactivos: triggerCheckout en CheckoutMock con bloqueo de estado durante el cobro, conmutadores de vista y pestañas de local en OwnerModeMock, sliders y presets de un toque en SavingsCalculator.
+  (3) Precios y Planes: conmutador mensual/anual reactivo (isAnnual), selector interactivo de capacidades (toggleCap), navegación a secciones de plan y CTAs de autoservicio/ventas.
+  (4) Filtros y Búsqueda: filtrado de categorías en Comparar, botón de limpieza rápida de búsqueda en Ayuda y pasos interactivos de TrustFlow en Seguridad.
+  (5) Onboarding: controles del asistente de 4 pasos (next, back, finish), copiado seguro al portapapeles con confirmación visual (copyCredentials) y acceso directo al POS.
+  (6) Enlaces canónicos: actualización del enlace de comparativa en la portada a /comparar evitando redirecciones 301.
+evidencia: >
+  Marketing Web Vitest: 47 test files, 315 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff QA Auditor, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
