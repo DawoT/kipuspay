@@ -14513,3 +14513,41 @@ aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0503
+timestamp_utc: 2026-08-26T15:03:00Z
+schema_version: 2
+sprint_fase: Fase A — Branding por Rubro e Impacto Operativo en Landings Verticales
+agente_responsable: Staff Visual Designer & UX Lead / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Paleta de Cordeles por Rubro y Simulaciones de Impacto Operativo en Mostrador
+relacion: amplia
+referencias_entradas: [0502]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/lib/content/cases.ts, apps/marketing-web/src/lib/components/VerticalLandingView.svelte, apps/marketing-web/src/lib/content/cases.test.ts]
+prev_id: 0502
+prev_hash: 398c328eecd3f9d47c44a57b7616d06ab69746acc5bb093393adb598a0c63fb7
+entry_hash: 145b0cd9931bfaa462f49eceb1e908e554f44e6d9b7461ed44abf15ea48a7311
+ticket_or_adr: GTM-01; GTM-12; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/content/cases.test.ts, apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/lib/content/cases.ts; apps/marketing-web/src/lib/components/VerticalLandingView.svelte; apps/marketing-web/src/lib/content/cases.test.ts
+descripcion: >
+  Mejoras de branding exclusivo e impacto operativo por rubro en apps/marketing-web:
+  (1) Adaptación de identidad y color de rombos/eyebrows/iconos por vertical:
+      - Restaurantes: Ocre Dorado / Amber (#d99a3d / #8c5a14)
+      - Farmacias: Verde Botica / Emerald (#2e9e74 / #1c6d4f)
+      - Retail: Terracota / Coral (#d96a3c / #8f3e1b)
+      - Servicios: Sand Warm / Lino (#c89658 / #7a5423)
+      - Cadenas: Rose Slate / Magenta (#c98195 / #7d3a4b)
+  (2) Integración de simulaciones de impacto operativo en VerticalLandingView.svelte:
+      - Expansión de cases.ts con las 5 verticales completas (incluyendo Taller Mecánico en Servicios y Cadena de Panaderías en Cadenas).
+      - Reemplazo del estado vacío por tarjetas de impacto operativo con comparativas Antes vs Con KipusPay, desglose de reto vs solución y cita de balance de mostrador.
+evidencia: >
+  Marketing Web Vitest: 47 test files, 316 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

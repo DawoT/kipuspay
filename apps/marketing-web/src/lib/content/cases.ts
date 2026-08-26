@@ -146,6 +146,76 @@ export const CASE_STUDY_SIMULATIONS: readonly CaseStudySimulation[] = [
     ownerTakeaway:
       'El mostrador no se traba ni cuando atendemos recetas largas en horas pico de la tarde.',
   },
+  {
+    id: 'taller-automotriz',
+    rubro: 'servicios',
+    archetype: 'Taller Mecánico y Centro de Diagnóstico',
+    location: 'Surquillo, Lima',
+    dailyTransactions: '35 tickets/día',
+    headline:
+      'De presupuestos en papel a facturación electrónica y control de anticipos en segundos',
+    operationalChallenge:
+      'El taller emitía cotizaciones en papel y al finalizar el servicio se demoraban 15 minutos digitando la factura electrónica a empresas con RUC. Los cobros de anticipos se registraban en una libreta con frecuentes confusiones de saldo.',
+    kipusSolution:
+      'Presupuesto digital convertido a factura en un solo toque, registro ordenado de anticipos y cobro ágil con Yape, tarjetas o efectivo.',
+    metrics: [
+      {
+        label: 'Tiempo de emisión de factura con RUC',
+        before: '15 min',
+        withKipus: '20 s',
+        improvement: '-97% tiempo administrativo',
+      },
+      {
+        label: 'Control de anticipos y saldos',
+        before: 'Libreta manual',
+        withKipus: 'Historial digital en vivo',
+        improvement: '100% trazabilidad de cobros',
+      },
+      {
+        label: 'Errores en datos de clientes',
+        before: '4 a 6 rechazos al mes',
+        withKipus: '0 rechazos',
+        improvement: 'Validación SUNAT inmediata',
+      },
+    ],
+    ownerTakeaway:
+      'Facturo a empresas en segundos y los clientes particulares pagan felices con Yape desde el celular sin demoras.',
+  },
+  {
+    id: 'cadena-panaderias',
+    rubro: 'cadenas',
+    archetype: 'Cadena de Panaderías y Cafés (4 Locales)',
+    location: 'Arequipa y Cusco',
+    dailyTransactions: '650 tickets/día',
+    headline:
+      'Supervisión en vivo de 4 locales desde el celular y transferencias de mercadería sin descuadres',
+    operationalChallenge:
+      'Monitorear las ventas requería llamar a los 4 locales al cierre de turno. Las transferencias de pan y pasteles entre sucursales generaban constantes mermas sin rastreo.',
+    kipusSolution:
+      'Panel centralizado en Modo Dueño para comparar ventas en tiempo real, permisos por sede y control estricto de transferencias entre locales.',
+    metrics: [
+      {
+        label: 'Tiempo de consolidación de reportes',
+        before: '2 horas cada noche',
+        withKipus: 'Tiempo real en celular',
+        improvement: '-100% demora en reportes',
+      },
+      {
+        label: 'Trazabilidad de transferencias',
+        before: 'Notas en papel',
+        withKipus: 'Registro digital por local',
+        improvement: 'Cero mercadería perdida',
+      },
+      {
+        label: 'Cierres de caja estandarizados',
+        before: 'Formatos dispersos',
+        withKipus: 'Mismo proceso automático',
+        improvement: 'Cierres 100% alineados',
+      },
+    ],
+    ownerTakeaway:
+      'Desde mi celular veo las ventas de los cuatro locales en vivo como si estuviera parado en cada mostrador.',
+  },
 ];
 
 export function publishedCases(cases: readonly SuccessCase[] = SUCCESS_CASES): SuccessCase[] {
@@ -157,6 +227,13 @@ export function casesForRubro(
   cases: readonly SuccessCase[] = SUCCESS_CASES,
 ): SuccessCase[] {
   return publishedCases(cases).filter((c) => c.rubro === rubro);
+}
+
+export function simulationForRubro(
+  rubro: VerticalSlug,
+  simulations: readonly CaseStudySimulation[] = CASE_STUDY_SIMULATIONS,
+): CaseStudySimulation | null {
+  return simulations.find((s) => s.rubro === rubro) ?? null;
 }
 
 export function allSimulations(): CaseStudySimulation[] {

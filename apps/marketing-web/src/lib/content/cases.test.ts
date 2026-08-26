@@ -3,6 +3,7 @@ import {
   allSimulations,
   casesForRubro,
   publishedCases,
+  simulationForRubro,
   SUCCESS_CASES,
   type SuccessCase,
 } from './cases.js';
@@ -33,12 +34,22 @@ describe('success cases and simulations', () => {
     expect(SUCCESS_CASES).toHaveLength(0);
   });
 
-  it('expone 3 simulaciones operativas de mostrador con métricas Antes vs Con KipusPay', () => {
+  it('expone 5 simulaciones operativas de mostrador con métricas Antes vs Con KipusPay', () => {
     const sims = allSimulations();
-    expect(sims).toHaveLength(3);
+    expect(sims).toHaveLength(5);
 
     const ids = sims.map((s) => s.id);
-    expect(ids).toEqual(['cafeteria-especialidad', 'minimarket-barrio', 'botica-independiente']);
+    expect(ids).toEqual([
+      'cafeteria-especialidad',
+      'minimarket-barrio',
+      'botica-independiente',
+      'taller-automotriz',
+      'cadena-panaderias',
+    ]);
+
+    expect(simulationForRubro('restaurantes')?.id).toBe('cafeteria-especialidad');
+    expect(simulationForRubro('servicios')?.id).toBe('taller-automotriz');
+    expect(simulationForRubro('cadenas')?.id).toBe('cadena-panaderias');
 
     for (const sim of sims) {
       expect(sim.archetype.length).toBeGreaterThan(5);

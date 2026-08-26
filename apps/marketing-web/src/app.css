@@ -2067,6 +2067,226 @@ li {
   --cord-ink: #7d3a4b;
 }
 
+/* Rombo / Knot dot, Eyebrows e Iconos por rubro vertical */
+[data-cord] .hero .eyebrow {
+  color: var(--cord);
+}
+
+[data-cord] .hero .eyebrow .knot-dot {
+  background: var(--cord);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cord) 60%, transparent);
+}
+
+[data-cord] .hero-badge-item .hero-badge-icon {
+  color: var(--cord);
+  background: color-mix(in srgb, var(--cord) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cord) 30%, transparent);
+}
+
+[data-cord] .hero-badge-item:hover {
+  border-color: color-mix(in srgb, var(--cord) 50%, transparent);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--cord) 20%, transparent);
+}
+
+[data-cord] .section-paper .eyebrow {
+  color: var(--cord-ink);
+}
+
+[data-cord] .section-paper .eyebrow .knot-dot {
+  background: var(--cord-ink);
+}
+
+/* Simulación destacada de impacto operativo por rubro */
+.sim-card-featured {
+  background: var(--paper);
+  border: 1px solid rgba(20, 22, 28, 0.12);
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 2rem;
+  margin-top: 1.5rem;
+  box-shadow: 0 4px 20px rgba(20, 22, 28, 0.05);
+}
+
+.sim-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sim-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 0.75rem;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 999px;
+  margin-right: 0.75rem;
+}
+
+.sim-location {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: rgba(20, 22, 28, 0.7);
+}
+
+.sim-headline {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.3;
+  margin: 0.5rem 0 1.5rem;
+  color: var(--ink);
+}
+
+.sim-flow-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+@media (min-width: 719px) {
+  .sim-flow-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sim-flow-col {
+  padding: 1.25rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  border: 1px solid rgba(20, 22, 28, 0.08);
+}
+
+.sim-flow-col.sim-before {
+  background: rgba(20, 22, 28, 0.03);
+}
+
+.sim-flow-col.sim-after {
+  background: color-mix(in srgb, var(--cord, var(--amber)) 8%, transparent);
+  border-color: color-mix(in srgb, var(--cord, var(--amber)) 25%, transparent);
+}
+
+.sim-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(20, 22, 28, 0.6);
+  margin-bottom: 0.5rem;
+}
+
+.sim-tag-kipus {
+  color: var(--cord-ink, #8c5a14);
+}
+
+.sim-flow-col p {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: rgba(20, 22, 28, 0.85);
+}
+
+.sim-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+@media (min-width: 719px) {
+  .sim-metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.sim-metric-box {
+  background: #ffffff;
+  border: 1px solid rgba(20, 22, 28, 0.08);
+  border-radius: var(--radius-sm, 0.5rem);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sim-metric-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(20, 22, 28, 0.7);
+  margin-bottom: 0.5rem;
+}
+
+.sim-metric-vals {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.sim-val-before {
+  color: rgba(20, 22, 28, 0.5);
+  text-decoration: line-through;
+}
+
+.sim-val-arrow {
+  color: var(--cord-ink, #8c5a14);
+  font-weight: bold;
+}
+
+.sim-val-after {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.sim-metric-gain {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1b6d4c;
+  background: rgba(46, 158, 116, 0.12);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  align-self: flex-start;
+}
+
+.sim-quote {
+  margin: 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(20, 22, 28, 0.03);
+  border-left: 3px solid var(--cord-ink, #8c5a14);
+  border-radius: 0 var(--radius-sm, 0.5rem) var(--radius-sm, 0.5rem) 0;
+}
+
+.sim-quote p {
+  font-style: italic;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 0.5rem;
+}
+
+.sim-quote cite {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: rgba(20, 22, 28, 0.6);
+  font-style: normal;
+}
+
+.vertical-cases-extra {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(20, 22, 28, 0.12);
+}
+
 .sec-head {
   margin-bottom: 2.4rem;
 }
