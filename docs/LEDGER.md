@@ -14584,3 +14584,40 @@ aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0505
+timestamp_utc: 2026-08-26T16:14:00Z
+schema_version: 2
+sprint_fase: Fase A — Sub-Menú Comparar Centrado y Rombos Quipu en MigrationTimeline
+agente_responsable: Staff Visual Designer & UX Lead / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Rediseño de Sub-Menú en /comparar, Viñetas Quipu y Tarjetas de Migración
+relacion: amplia
+referencias_entradas: [0504]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/routes/comparar/+page.svelte, apps/marketing-web/src/lib/components/MigrationTimeline.svelte]
+prev_id: 0504
+prev_hash: 4385919263a665e212c22f2e31c3d80c34d8bbb17138c46d26bb2f3a0d708b4c
+entry_hash: a775352cc71599b264d8ac5f8a9e29ceb3e671bd59d0bcaba324639e1a1f1e40
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/design-sprints-d1-d2-d3.test.ts, apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/routes/comparar/+page.svelte; apps/marketing-web/src/lib/components/MigrationTimeline.svelte
+descripcion: >
+  Mejoras de alineación y diseño quipu en la página de comparativas (/comparar):
+  (1) Sub-menú de selección de competidor (.rubro-switch en /comparar):
+      - Envoltorio centrado (rubro-switch-inner): alineado al marco maestro de 72rem con etiqueta 'Compara con:' y rombo de cordel.
+      - Segmented pill bar: pastillas flotantes en cápsula translúcida con estado activo en ámbar.
+  (2) Rediseño de MigrationTimeline (comparativa de migración honesta):
+      - Reemplazo de viñetas cuadradas por rombos quipu rotados a 45deg con numeración mono upright (-45deg) y cordel vertical continuo de fibra.
+      - Tarjeta KipusPay con gradiente cálido, resplandor ámbar iluminado y micro-elevación hover.
+  (3) Tarjetas de razones 'Por qué migran' (why-grid):
+      - Elevación a tarjetas individuales con fondo blanco, micro-sombras y viñetas de rombo quipu doradas en cada titular.
+evidencia: >
+  Marketing Web Vitest: 47 test files, 316 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

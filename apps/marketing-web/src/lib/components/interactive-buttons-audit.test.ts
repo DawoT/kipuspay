@@ -140,7 +140,10 @@ describe('Auditoría Integral de Funcionalidad de Botones e Interacciones', () =
 
   describe('6. Botones del Home (+page.svelte)', () => {
     it('Hero y Final CTA tienen enlaces primarios a /empezar y secundarios a #como', () => {
-      expect(HOME_PAGE).toContain('href="/empezar"');
+      // H1: CTA propaga ?autotest=boleta → href dinámico empezarHref (fallback /empezar)
+      expect(HOME_PAGE).toMatch(/empezarHref/);
+      expect(HOME_PAGE).toContain("'/empezar'");
+      expect(HOME_PAGE).toContain('autotest');
       expect(HOME_PAGE).toContain('href="#como"');
       expect(HOME_PAGE).toContain('class="btn btn-sticky"');
     });

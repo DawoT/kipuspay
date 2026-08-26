@@ -105,34 +105,39 @@
   </section>
 
   <nav class="rubro-switch" aria-label="Elegir comparativa">
-    <label class="rubro-switch-label" for="compare-select">Compara con</label>
-    <select
-      id="compare-select"
-      class="rubro-select"
-      value={selected.slug}
-      onchange={(e) => {
-        const el = e.currentTarget;
-        if (el.value) window.location.assign(`/comparar?vs=${el.value}`);
-      }}
-    >
-      {#each compares as c (c.slug)}
-        <option value={c.slug}>{c.name}</option>
-      {/each}
-    </select>
-    <ul class="rubro-links">
-      {#each compares as c (c.slug)}
-        <li>
-          <a
-            href={`/comparar?vs=${c.slug}`}
-            class:active={c.slug === selected.slug}
-            aria-current={c.slug === selected.slug ? 'page' : undefined}
-          >
-            <span class="knot-dot" aria-hidden="true"></span>
-            {c.name}
-          </a>
-        </li>
-      {/each}
-    </ul>
+    <div class="rubro-switch-inner">
+      <div class="rubro-switch-head">
+        <span class="knot-dot" aria-hidden="true"></span>
+        <label class="rubro-switch-label" for="compare-select">Compara con:</label>
+      </div>
+      <select
+        id="compare-select"
+        class="rubro-select"
+        value={selected.slug}
+        onchange={(e) => {
+          const el = e.currentTarget;
+          if (el.value) window.location.assign(`/comparar?vs=${el.value}`);
+        }}
+      >
+        {#each compares as c (c.slug)}
+          <option value={c.slug}>{c.name}</option>
+        {/each}
+      </select>
+      <ul class="rubro-links">
+        {#each compares as c (c.slug)}
+          <li>
+            <a
+              href={`/comparar?vs=${c.slug}`}
+              class:active={c.slug === selected.slug}
+              aria-current={c.slug === selected.slug ? 'page' : undefined}
+            >
+              <span class="knot-dot" aria-hidden="true"></span>
+              {c.name}
+            </a>
+          </li>
+        {/each}
+      </ul>
+    </div>
   </nav>
 
   <section class="section section-paper">
