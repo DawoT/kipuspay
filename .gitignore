@@ -30,7 +30,7 @@ node_modules/
 packages/*/.wrangler/
 *.pem
 *.pfx
-playwright-cli
+.playwright-cli/
 .playwright-mcp/
 **/playwright-report/
 .pnpm-store/
