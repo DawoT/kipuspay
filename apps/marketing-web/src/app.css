@@ -1183,6 +1183,25 @@ li {
   }
 }
 
+.pain-grid.editorial-pains .pain-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: rgba(229, 169, 59, 0.12);
+  border: 1px solid rgba(229, 169, 59, 0.25);
+  margin-bottom: 0.85rem;
+  color: var(--amber-bright);
+}
+
+.section-paper .pain-grid.editorial-pains .pain-icon-badge {
+  background: rgba(20, 22, 28, 0.06);
+  border-color: rgba(20, 22, 28, 0.15);
+  color: var(--sello);
+}
+
 .pain-grid .quote {
   font-family: var(--font-display);
   font-size: clamp(1.2rem, 1.05rem + 0.55vw, 1.45rem);
@@ -3007,9 +3026,9 @@ li {
 }
 
 .rubro-switch-inner {
-  max-width: 72rem;
+  max-width: 76rem;
   margin: 0 auto;
-  padding: 0.65rem 1.5rem;
+  padding: 0.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -3019,6 +3038,7 @@ li {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .rubro-switch-label {
@@ -3028,6 +3048,7 @@ li {
   letter-spacing: 0.08em;
   color: rgba(243, 239, 230, 0.6);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .rubro-select {
@@ -3047,9 +3068,9 @@ li {
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 0.35rem;
+  gap: 0.25rem;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 @media (min-width: 719px) {
@@ -3057,7 +3078,8 @@ li {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 0.55rem 1.5rem;
+    padding: 0.45rem 1.5rem;
+    gap: 1rem;
   }
 
   .rubro-select {
@@ -3067,27 +3089,36 @@ li {
   .rubro-links {
     display: inline-flex;
     background: rgba(243, 239, 230, 0.04);
-    padding: 0.25rem 0.35rem;
+    padding: 0.2rem 0.25rem;
     border-radius: 999px;
     border: 1px solid rgba(243, 239, 230, 0.08);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .rubro-links::-webkit-scrollbar {
+    display: none;
   }
 }
 
 .rubro-links li {
   margin: 0;
   padding: 0;
+  flex-shrink: 0;
 }
 
 .rubro-links a {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   font-family: var(--font-sans);
   font-size: 0.8125rem;
   font-weight: 500;
   color: rgba(243, 239, 230, 0.7);
   text-decoration: none;
-  padding: 0.4rem 0.85rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 999px;
   transition: all 0.18s ease;
   white-space: nowrap;

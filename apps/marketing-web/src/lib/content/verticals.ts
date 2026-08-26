@@ -4,6 +4,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
   restaurantes: {
     slug: 'restaurantes',
     navLabel: 'Restaurantes y cafeterías',
+    shortLabel: 'Restaurantes',
     title: 'KipusPay para restaurantes',
     pain: 'El sistema de punto de venta pensado para el ritmo de la gastronomía peruana: atiende rápido, divide cuentas con facilidad y mantén tu salón y tu caja en perfecta sintonía.',
     hook: 'Mesas llenas, salón fluido y cuentas al instante.',
@@ -136,6 +137,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
   farmacias: {
     slug: 'farmacias',
     navLabel: 'Farmacias y boticas',
+    shortLabel: 'Farmacias',
     title: 'KipusPay para farmacias',
     pain: 'Despacha medicamentos en segundos, encuentra precios y presentaciones al instante y mantén el control estricto de tu inventario con total tranquilidad tributaria.',
     hook: 'Atención ágil en mostrador, stock protegido y SUNAT al día.',
@@ -268,6 +270,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
   retail: {
     slug: 'retail',
     navLabel: 'Retail y minimarkets',
+    shortLabel: 'Retail',
     title: 'KipusPay para retail y minimarkets',
     pain: 'Todo lo que tu minimarket, ferretería o tienda necesita para despachar sin colas, registrar cada producto por código de barras y ver tus ganancias diarias en tiempo real.',
     hook: 'Ventas rápidas, stock al día y control total de tus tiendas.',
@@ -400,6 +403,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
   servicios: {
     slug: 'servicios',
     navLabel: 'Servicios y talleres',
+    shortLabel: 'Servicios',
     title: 'KipusPay para servicios',
     pain: 'El sistema ágil y directo para consultorios, talleres, salones de belleza y profesionales. Factura a empresas o emite boletas a tus clientes en segundos desde cualquier equipo.',
     hook: 'Cobra tus servicios en un clic, sin complicaciones de inventario.',
@@ -531,6 +535,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
   cadenas: {
     slug: 'cadenas',
     navLabel: 'Cadenas y multi-local',
+    shortLabel: 'Cadenas',
     title: 'KipusPay para cadenas y multi-local',
     pain: 'Supervisa el rendimiento de cada local, compara ventas y consolida tus reportes desde tu celular con Modo Dueño. La solución robusta y escalable para negocios en expansión.',
     hook: 'Todas tus sucursales bajo control en una sola pantalla.',
@@ -664,6 +669,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
   grifos: {
     slug: 'grifos',
     navLabel: 'Grifos y estaciones de servicio',
+    shortLabel: 'Grifos',
     title: 'KipusPay para grifos',
     pain: 'Controla cada surtidor, cobra en segundos y emite facturas a flotas sin papel ni esperas. Tu estación siempre operativa y tu caja siempre cuadrada.',
     hook: 'Surtidor activo, caja cuadrada y flota atendida sin papel.',

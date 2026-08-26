@@ -8,6 +8,8 @@ export interface VerticalLanding {
   readonly slug: VerticalSlug;
   /** Nombre legible en navegacion y migas; el slug nunca se muestra crudo. */
   readonly navLabel: string;
+  /** Nombre corto para pastillas/tabs de navegacion compacta. */
+  readonly shortLabel?: string;
   readonly title: string;
   readonly pain: string;
   readonly hook: string;

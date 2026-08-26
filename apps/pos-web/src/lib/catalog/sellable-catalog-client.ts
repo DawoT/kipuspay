@@ -10,6 +10,10 @@ export interface SellableCatalogItem {
   readonly uomCode: string | null;
   readonly parentProductId: string | null;
   readonly chargesIcbper: boolean;
+  /** Farmacia premium: principio activo (DCI) y laboratorio opcionales. */
+  readonly activeIngredient?: string | null;
+  /** Próximo vencimiento FEFO (YYYY-MM-DD) cuando inventory.batches está activo. */
+  readonly nextExpiryAt?: string | null;
 }
 
 export class SellableCatalogError extends Error {
@@ -54,7 +58,13 @@ function hasOptionalStrings(row: Record<string, unknown>): boolean {
   return (
     (row.barcode === null || typeof row.barcode === 'string') &&
     (row.uomCode === null || typeof row.uomCode === 'string') &&
-    (row.parentProductId === null || typeof row.parentProductId === 'string')
+    (row.parentProductId === null || typeof row.parentProductId === 'string') &&
+    (row.activeIngredient === undefined ||
+      row.activeIngredient === null ||
+      typeof row.activeIngredient === 'string') &&
+    (row.nextExpiryAt === undefined ||
+      row.nextExpiryAt === null ||
+      typeof row.nextExpiryAt === 'string')
   );
 }
 

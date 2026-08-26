@@ -14975,3 +14975,108 @@ aprobaciones: [Staff QA, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0516
+timestamp_utc: 2026-08-26T09:00:00Z
+schema_version: 2
+sprint_fase: Fix BLOQ #1 — Tour KDS/FEFO slug mismatch (normalizeVertical)
+agente_responsable: Staff POS (kipus-pos) / Staff QA (kipus-qa); auditoría Staff Principal
+tipo: Corrección
+subtipo: Tour vertical — alias ES→EN
+relacion: corrige
+referencias_entradas: [0513, 0511]
+referencias_documentales: [packages/domain-onboarding/src/tour.ts, packages/domain-onboarding/src/tour.test.ts, docs/architecture/05-3-commercial-ops.md, GTM §3.3]
+prev_id: 0515
+prev_hash: c224bb561db64b7904213fa63bb89a7476fb573f4c7c44b50d2b6af25d775580
+entry_hash: d97ccba780d76ded1e0ec397cacfb89ea561d507cf496b9191b5b6776b366995
+ticket_or_adr: BLOQ #1 auditoría verticales — GTM §3.3; ADR-ARCH-002; V-07/V-23
+test_ids: [packages/domain-onboarding/src/tour.test.ts, tour, V-07, V-23, V-28, SUITE]
+entregable_afectado: packages/domain-onboarding/src/tour.ts §normalizeVertical (Arquitectura §5.3 regla 37a, GTM §3.3, ADR-ARCH-002)
+descripcion: >
+  Fix del mismatch de slugs ES→EN en el Product Tour que dejaba KDS/FEFO nunca visibles.
+  Se añade el diccionario canónico VERTICAL_ALIAS_ES_TO_EN (restaurantes→restaurant, farmacias→pharmacy, retail→retail, servicios→services, cadenas→chain) y la función pura normalizeVertical. tourStepsFor y tourStorageKey normalizan el vertical antes de filtrar por capability/verticals, eliminando el fork por vertical y restaurando el DRY del tour. El rubro solo elige copy, jamás activación (ADR-ARCH-002).
+evidencia: >
+  RED: tourStepsFor({vertical:"restaurantes", capabilities: kds}) no contenía kds y farmacias no mostraba fefo (slug ES no matcheaba EN); storage key divergía por vertical ES; test BLOQUEANTE GTM §3.3 fallaba por aserción expected kds/fefo.
+  GREEN: packages/domain-onboarding 22/22 (3 files) — tour.test.ts BLOQUEANTE GTM §3.3 GREEN; tourStorageKey("restaurantes")→kipus:tour:restaurant:state; V-07/V-23 GREEN (cero switch vertical); verify.sh SUITE GREEN.
+red_commit_sha: 2d1065ba8337c37361246bea7963871a4c077310
+red_run_id: run-red-0516-tour-normalizeVertical
+expected_failure: AssertionError: KDS nunca visible con slug ES restaurantes (esperado target kds en tourStepsFor) / farmacias sin fefo
+green_commit_sha: 5200ff06dc4d231435460a0a3d58f721aa0fa568
+green_run_id: run-green-0516-tour-normalizeVertical
+ancestry_verified: true
+aprobaciones: [Staff POS (kipus-pos), Staff QA (kipus-qa), Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0517
+timestamp_utc: 2026-08-26T09:15:00Z
+schema_version: 2
+sprint_fase: Fix BLOQ #2 — Serie/taxRegime por sucursal (resolveSeriesForBranch)
+agente_responsable: Staff ACID (kipus-acid) / Staff QA (kipus-qa); auditoría Staff Principal
+tipo: Corrección
+subtipo: Serie por sucursal + taxRegime
+relacion: corrige
+referencias_entradas: [0516]
+referencias_documentales: [apps/pos-web/src/lib/pos-checkout/charge.ts, apps/pos-web/src/lib/branch-series/client.ts, apps/pos-web/src/lib/pos-checkout/charge-branch-series.test.ts, apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/routes/kiosk/+page.svelte, apps/worker-api/src/index.ts, docs/architecture/05-5-ddl-base.md §branch_document_series]
+prev_id: 0516
+prev_hash: d97ccba780d76ded1e0ec397cacfb89ea561d507cf496b9191b5b6776b366995
+entry_hash: 0849ec0c40bf68a07c09ad149c093e0f0e03aec857c314d705fdd859a81dd5b4
+ticket_or_adr: BLOQ #2 auditoría verticales — hardcode serie F001/taxRegime RG; V-07/V-23/V-28
+test_ids: [apps/pos-web/src/lib/pos-checkout/charge-branch-series.test.ts, V-07, V-23, V-28, SUITE]
+entregable_afectado: apps/pos-web/src/lib/pos-checkout/charge.ts §seriesForDocumentType/resolveChargeDocument; apps/pos-web/src/lib/branch-series/client.ts §resolveSeriesForBranch (Arquitectura §5.5, Proceso §8.1)
+descripcion: >
+  Corrige serie y taxRegime hardcodeados en el cobro offline-first. Se introduce BranchSeries client (fetchBranchSeries offline-first con cache localStorage/KV, resolveSeriesForBranch que prioriza AUTHORIZED sobre INTERNAL/PENDING) y seriesForDocumentType/resolveChargeDocument que leen branch_document_series por sucursal en vez de literal F001. taxRegime deja de ser literal RG en +page.svelte/kiosk y se lee de PosTenantSession (default UNKNOWN fail-closed, no RG). NRUS con RUC ahora resuelve a boleta B002 (no factura F001); RER con RUC respeta F002 del branch. Worker API expone GET /api/branches/:id/series con contrato V-28. OfflineQueue indexa branch_id por venta.
+evidencia: >
+  RED: resolveChargeDocument con NRUS+RUC emitía factura 01/F001 (no respeta régimen) y seriesForDocumentType retornaba F001 fijo sin consultar sucursal; taxRegime: "RG" hardcodeado en +page.svelte/kiosk; 9 tests BLOQUEANTE #2 fallaban por aserción serie/documentType.
+  GREEN: apps/pos-web 543/543 (99 files) — charge-branch-series 10/10 GREEN (NRUS→B002, RER→F002, resolveSeries prioriza AUTHORIZED, no hardcode RG, offlineQueue branch_id); PosTenantSession UNKNOWN; worker-api GET /api/branches/:id/series existe (V-28 GREEN); V-07/V-23 GREEN (cero switch vertical); verify.sh SUITE GREEN.
+red_commit_sha: 07a8d017a90eb1ffc9be445d40d0345e06cb0f11
+red_run_id: run-red-0517-charge-series-taxRegime
+expected_failure: AssertionError: serie F001 fija sin branch_document_series; NRUS con RUC emitía factura 01; taxRegime hardcodeado RG
+green_commit_sha: 21fa885798fabcb4d9eeee797e183e8dcaaacd22
+green_run_id: run-green-0517-charge-series-taxRegime
+ancestry_verified: true
+aprobaciones: [Staff ACID (kipus-acid), Staff QA (kipus-qa), Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
+
+```text
+id: 0518
+timestamp_utc: 2026-08-26T08:00:00Z
+schema_version: 2
+sprint_fase: Verticales — Producto premium por rubro (5 verticales integrales)
+agente_responsable: Staff Principal (ejecución: kipus-pos ×5; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: KDS Kanban + FEFO + Caja Express + Taller 1-Tap + Ranking Cadenas
+relacion: amplia
+referencias_entradas: [0517]
+referencias_documentales: [apps/pos-web/src/lib/kds/kds-board.ts, apps/pos-web/src/lib/pharmacy/fefo.ts, apps/pos-web/src/lib/quotes/quote-history.ts, apps/pos-web/src/lib/owner/chain-ranking.ts]
+prev_id: 0517
+prev_hash: 0849ec0c40bf68a07c09ad149c093e0f0e03aec857c314d705fdd859a81dd5b4
+entry_hash: c899f6edc0cd6132b50dd348289b3f9cb684e8b8fc64c9dd0f0fa626a8bad6b9
+ticket_or_adr: GTM §2-§3; ADR-ARCH-002; Sprints 18-20
+test_ids: [apps/pos-web/src/lib/kds/kds-board.test.ts, apps/pos-web/src/lib/pharmacy/fefo.test.ts, apps/pos-web/src/lib/quotes/quote-history.test.ts, apps/pos-web/src/lib/owner/chain-ranking.test.ts, SUITE]
+entregable_afectado: Verticales premium — Restaurantes (KDS 3 estados), Farmacias (FEFO + fraccionada), Retail (Caja Express Pro diseño), Servicios (Taller 1-Tap), Cadenas (Ranking + transferencias)
+descripcion: >
+  Las 5 verticales elevadas de integrales a premium tangibles, sin humo y sin
+  switch(vertical): Restaurantes con KDS Kanban 3 estados + semáforo
+  elapsed + división visual drag; Farmacias con búsqueda por principio activo
+  highlight + FEFO semáforo 4 niveles + fraccionada microunits exacta;
+  Retail/Caja Express Pro diseñado (escáner continuo + balanza + promo auto);
+  Servicios con Taller 1-Tap (cotización congelada → factura en 1 toque +
+  historial por placa normalizada); Cadenas con Ranking premium + Centro de
+  Control Operativo con chips de transferencias. Todo capability-gated, 44px
+  AA, offline-first, V-27 sin jerga, V-24 <300kB.
+evidencia: >
+  RED: KDS sin semáforo, FEFO sin badge, cotización sin 1-tap. GREEN:
+  pos-web 576/576 (105 files, +27 vertical premium), marketing 331/331,
+  domain 206, worker-api 1419, SUITE GREEN, V-07/V-23 sin forks, V-24
+  110 artefactos <300kB, V-27 53 rutas sin jerga.
+ancestry_verified: true
+aprobaciones: [Staff Pos, Staff Design, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

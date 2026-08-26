@@ -1139,6 +1139,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
   });
+  // Premium taller — historial por placa (stub offline-first): el POS mantiene cache local
+  // `taller_history/*` en IndexedDB/localStorage y no depende de red para cobrar.
+  app.get('/api/sales/history', (c) => {
+    return c.json({ items: [] });
+  });
   app.get('/api/owner/quotes/expired', async (c) => {
     const jwt = c.get('jwt');
     const user = c.get('user');

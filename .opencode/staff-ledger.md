@@ -2036,3 +2036,31 @@ aprobaciones: [Staff Frontend, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0047
+timestamp_utc: 2026-08-26T08:05:00Z
+schema_version: 2
+sprint_fase: Verticales — 5 premium integrales
+agente_responsable: Staff Principal (ejecución: kipus-pos ×5; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: KDS + FEFO + Retail + Servicios + Cadenas
+relacion: amplia
+referencias_entradas: [0046]
+referencias_documentales: [apps/marketing-web/src/lib/content/verticals.ts, apps/pos-web/src/lib/kds/kds-board.ts]
+prev_id: 0046
+prev_hash: 639e6520be5318e6aedf1b762752cc97fc9ad9cf1d92c12987df23daab5b8c67
+entry_hash: 3b24bedeeef9d3a7bb4eeec46313cf19d44316a2d3dfc71c6a1f3d94c256b3c6
+ticket_or_adr: GTM §2-§3; ADR-ARCH-002
+test_ids: [pos-web 576, marketing 331, SUITE]
+entregable_afectado: 5 verticales premium + marketing integral
+descripcion: >
+  5 verticales de integrales a premium: KDS Kanban 3 estados, FEFO semáforo,
+  Caja Express Pro, Taller 1-Tap, Ranking Cadenas. Todo capability-gated.
+evidencia: >
+  GREEN: 576/576 pos-web, 331/331 marketing, SUITE GREEN, V-13 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Pos, Staff Design, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

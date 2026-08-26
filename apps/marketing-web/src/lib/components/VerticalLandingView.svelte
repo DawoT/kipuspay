@@ -89,7 +89,7 @@
           <li>
             <a href="/para/{v.slug}" class:active={v.slug === landing.slug}>
               <span class="knot-dot" aria-hidden="true"></span>
-              {v.navLabel}
+              {v.shortLabel ?? v.navLabel}
             </a>
           </li>
         {/each}
@@ -113,6 +113,9 @@
         <div class="pain-grid editorial-pains">
           {#each landing.pains as item, i (item.pain)}
             <article use:reveal data-reveal-delay={i % 3}>
+              <div class="pain-icon-badge" aria-hidden="true">
+                <Icon name={item.icon} size={20} tone="amber" />
+              </div>
               <p class="quote">“{item.pain}”</p>
               <p class="relief">
                 <span class="knot-dot" aria-hidden="true"></span>
