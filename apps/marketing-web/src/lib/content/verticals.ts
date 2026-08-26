@@ -66,6 +66,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     },
     featuredClaimId: 'kds_split',
     heroPoster: '/media/og-restaurantes.png',
+    heroBadges: [
+      {
+        icon: 'lightning',
+        title: 'División de cuentas',
+        description: 'Separa consumos o partes iguales en segundos',
+      },
+      {
+        icon: 'document',
+        title: 'Control de insumos',
+        description: 'Descuento automático de recetas y porciones',
+      },
+      {
+        icon: 'shield-check',
+        title: 'Boleta y factura en mesa',
+        description: 'Emisión directa ante SUNAT para cada comensal',
+      },
+      {
+        icon: 'sync',
+        title: 'Caja continua en salón',
+        description: 'Cobra sin pausas aunque se corte la conexión',
+      },
+    ],
   },
   farmacias: {
     slug: 'farmacias',
@@ -132,6 +154,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     },
     featuredClaimId: 'fefo_lots',
     heroPoster: '/media/og-farmacias.png',
+    heroBadges: [
+      {
+        icon: 'lightning',
+        title: 'Búsqueda instantánea',
+        description: 'Por principio activo, laboratorio o marca comercial',
+      },
+      {
+        icon: 'document',
+        title: 'Control FEFO por lote',
+        description: 'Prioriza vencimientos y previene pérdidas de stock',
+      },
+      {
+        icon: 'cart',
+        title: 'Venta fraccionada',
+        description: 'Por caja, blíster o pastilla sin descuadres',
+      },
+      {
+        icon: 'shield-check',
+        title: 'SUNAT con DNI o RUC',
+        description: 'Emisión electrónica inmediata en un solo toque',
+      },
+    ],
   },
   retail: {
     slug: 'retail',
@@ -198,6 +242,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     },
     featuredClaimId: 'blind_z_audit',
     heroPoster: '/media/og-retail.png',
+    heroBadges: [
+      {
+        icon: 'lightning',
+        title: 'Lector de código de barras',
+        description: 'Escaneo ágil de productos para cobrar sin colas',
+      },
+      {
+        icon: 'cart',
+        title: 'Control de variantes',
+        description: 'Tallas, colores, marcas y categorías en orden',
+      },
+      {
+        icon: 'smartphone',
+        title: 'Modo Dueño en el celular',
+        description: 'Ventas, arqueos y ganancias en tiempo real',
+      },
+      {
+        icon: 'shield-check',
+        title: '100% legal ante SUNAT',
+        description: 'Boletas y facturas emitidas en automático',
+      },
+    ],
   },
   servicios: {
     slug: 'servicios',
@@ -263,6 +329,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     },
     featuredClaimId: 'services_core',
     heroPoster: '/media/og-servicios.png',
+    heroBadges: [
+      {
+        icon: 'document',
+        title: 'Cotizaciones a factura',
+        description: 'Convierte presupuestos en facturas en un solo clic',
+      },
+      {
+        icon: 'lightning',
+        title: 'Cobro con Yape y tarjetas',
+        description: 'Acepta pagos presenciales o transferencias',
+      },
+      {
+        icon: 'shield-check',
+        title: '100% legal ante SUNAT',
+        description: 'Facturación electrónica sin trámites lentos',
+      },
+      {
+        icon: 'smartphone',
+        title: 'Control de clientes',
+        description: 'Historial de trabajos y cuentas por cobrar',
+      },
+    ],
   },
   cadenas: {
     slug: 'cadenas',
@@ -330,6 +418,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     featuredClaimId: 'owner_ranking',
     secondaryClaimId: 'merma_xfer',
     heroPoster: '/media/og-cadenas.png',
+    heroBadges: [
+      {
+        icon: 'institution',
+        title: 'Control multi-local',
+        description: 'Métricas y stock de todas las sedes en vivo',
+      },
+      {
+        icon: 'sync',
+        title: 'Transferencias entre tiendas',
+        description: 'Mueve mercadería y coteja recepciones',
+      },
+      {
+        icon: 'shield-check',
+        title: 'Permisos por cajero y sede',
+        description: 'Control de accesos y arqueos independientes',
+      },
+      {
+        icon: 'lightning',
+        title: 'Sincronización robusta',
+        description: 'Cada sucursal opera con total autonomía',
+      },
+    ],
   },
 };
 

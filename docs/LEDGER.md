@@ -14476,3 +14476,40 @@ aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0502
+timestamp_utc: 2026-08-26T14:40:00Z
+schema_version: 2
+sprint_fase: Fase A — Beneficios Exclusivos por Vertical en Hero
+agente_responsable: Staff Visual & Copy Designer / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Cinta de 4 Beneficios Exclusivos con Iconografía por Rubro en Landings Verticales
+relacion: amplia
+referencias_entradas: [0501]
+referencias_documentales: [apps/marketing-web/src/lib/content/types.ts, apps/marketing-web/src/lib/content/verticals.ts, apps/marketing-web/src/lib/components/VerticalLandingView.svelte]
+prev_id: 0501
+prev_hash: 245a3eeceae9b42df848ab1db0b8835b40031fc452631abae267749ba46234c7
+entry_hash: 398c328eecd3f9d47c44a57b7616d06ab69746acc5bb093393adb598a0c63fb7
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/content/verticals.test.ts, apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/content/types.ts; apps/marketing-web/src/lib/content/verticals.ts; apps/marketing-web/src/lib/components/VerticalLandingView.svelte
+descripcion: >
+  Implementación de barras de beneficios horizontales exclusivas y a todo el ancho (4 columnas) para cada una de las 5 páginas de rubro (/para/restaurantes, /para/farmacias, /para/retail, /para/servicios, /para/cadenas):
+  (1) Modelado en types.ts: incorporación de heroBadges en VerticalLanding con icono SVG dedicado, título de alto impacto y micro-descripción de valor.
+  (2) Especialización en verticals.ts:
+      - Restaurantes: División de cuentas, Control de insumos, Boleta y factura en mesa, Caja continua en salón.
+      - Farmacias: Búsqueda instantánea, Control FEFO por lote, Venta fraccionada, SUNAT con DNI o RUC.
+      - Retail: Lector de código de barras, Control de variantes, Modo Dueño en el celular, 100% legal ante SUNAT.
+      - Servicios: Cotizaciones a factura, Cobro con Yape y tarjetas, 100% legal ante SUNAT, Control de clientes.
+      - Cadenas: Consolidación multi-local, Transferencias entre tiendas, Permisos por cajero y sede, Sincronización robusta.
+  (3) Renderizado en VerticalLandingView.svelte: cinta inferior de 4 columnas en dark glass con animación reveal escalonada y proporciones consistentes en todas las resoluciones.
+evidencia: >
+  Marketing Web Vitest: 47 test files, 316 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

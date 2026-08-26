@@ -5,6 +5,7 @@
   import QuipuHero from '$lib/brand/QuipuHero.svelte';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import { allVerticals, otherVerticals } from '$lib/content/verticals';
   import { casesForRubro } from '$lib/content/cases';
 
@@ -23,19 +24,37 @@
   <section class="hero">
     <QuipuHero videoSrc="/media/hero-quipu.mp4" poster={landing.heroPoster} />
     <div class="hero-inner">
-      <div class="hero-copy">
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          {landing.navLabel}
-        </p>
-        <p class="brand-mark">KipusPay</p>
-        <h1>{landing.hook}</h1>
-        <p class="hero-sub">{landing.pain}</p>
-        <div class="hero-actions">
-          <a class="btn" href="/empezar">Probar gratis ahora</a>
-          <a class="btn btn-ghost" href="#destacado">Ver detalle</a>
+      <div class="hero-main">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            {landing.navLabel}
+          </p>
+          <p class="brand-mark">KipusPay</p>
+          <h1>{landing.hook}</h1>
+          <p class="hero-sub">{landing.pain}</p>
+          <div class="hero-actions">
+            <a class="btn" href="/empezar">Probar gratis ahora</a>
+            <a class="btn btn-ghost" href="#destacado">Ver detalle</a>
+          </div>
         </div>
       </div>
+
+      {#if landing.heroBadges && landing.heroBadges.length > 0}
+        <div class="hero-badges" aria-label={`Beneficios para ${landing.navLabel}`} use:reveal>
+          {#each landing.heroBadges as badge, i}
+            <div class="hero-badge-item" data-reveal-delay={i % 4}>
+              <span class="hero-badge-icon" aria-hidden="true">
+                <Icon name={badge.icon} size={22} tone="amber" />
+              </span>
+              <div class="hero-badge-text">
+                <strong>{badge.title}</strong>
+                <span>{badge.description}</span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   </section>
 

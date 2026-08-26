@@ -25,6 +25,11 @@ export interface VerticalLanding {
     readonly pain: string;
     readonly relief: string;
   }[];
+  readonly heroBadges?: readonly {
+    readonly icon: string;
+    readonly title: string;
+    readonly description: string;
+  }[];
   readonly faq: readonly { readonly q: string; readonly a: string }[];
 }
 
