@@ -14621,3 +14621,40 @@ aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0506
+timestamp_utc: 2026-08-26T16:38:00Z
+schema_version: 2
+sprint_fase: Fase A — Arquitectura de Mockups de Dispositivos con Contraste Alternado
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Mockups de Dispositivos Interactivos en Home con Contraste Alternado y Scroll
+relacion: amplia
+referencias_entradas: [0505]
+referencias_documentales: [apps/marketing-web/src/lib/brand/CheckoutMock.svelte, apps/marketing-web/src/lib/components/OfflineDeviceMock.svelte, apps/marketing-web/src/lib/components/LedgerDeviceMock.svelte, apps/marketing-web/src/routes/+page.svelte, apps/marketing-web/src/app.css, apps/marketing-web/src/lib/components/home-device-mocks.test.ts]
+prev_id: 0505
+prev_hash: a775352cc71599b264d8ac5f8a9e29ceb3e671bd59d0bcaba324639e1a1f1e40
+entry_hash: 6013e3107d83921251e3a868ff091b6b877631da8080817ce18feb9f399f4a95
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/home-device-mocks.test.ts, apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/brand/CheckoutMock.svelte; apps/marketing-web/src/lib/components/OfflineDeviceMock.svelte; apps/marketing-web/src/lib/components/LedgerDeviceMock.svelte; apps/marketing-web/src/routes/+page.svelte; apps/marketing-web/src/app.css; apps/marketing-web/src/lib/components/home-device-mocks.test.ts
+descripcion: >
+  Arquitectura e implementación de mockups de dispositivos interactivos en el Home (apps/marketing-web):
+  (1) Regla de contraste alternado:
+      - Sección #producto (.section fondo oscuro): CheckoutMock en Modo Claro (Light Mode) con marco de tablet, desglose fiscal transparente y lista scrolleable.
+      - Sección #offline (.section-paper fondo claro): OfflineDeviceMock en Modo Oscuro (Dark Mode) con smartphone OLED, cola de comprobantes en memoria local y simulación interactiva de reconexión.
+      - Sección #ledger (.section fondo oscuro): LedgerDeviceMock en Modo Claro (Light Mode) con tablet de arqueo contable, desglose por medio de pago y verificación de balance.
+      - Sección #owner (.section-paper fondo claro): OwnerModeMock en Modo Oscuro (Dark Mode) con KPIs en tiempo real y selector de sucursales.
+  (2) Ergonomía interactiva y scroll interno:
+      - Scrollbars minimalistas de 4px con max-height en listas de comprobantes y movimientos.
+      - Botones con touch targets >= 44px, estados activos y feedback visual interactivo.
+evidencia: >
+  Marketing Web Vitest: 48 test files, 331 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

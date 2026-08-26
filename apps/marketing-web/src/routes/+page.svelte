@@ -7,6 +7,8 @@
   import QuipuMotif from '$lib/brand/QuipuMotif.svelte';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
+  import OfflineDeviceMock from '$lib/components/OfflineDeviceMock.svelte';
+  import LedgerDeviceMock from '$lib/components/LedgerDeviceMock.svelte';
   import OwnerModeMock from '$lib/components/OwnerModeMock.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { ogImageFor } from '$lib/seo';
@@ -222,6 +224,7 @@
           register={HOME.product.demo.register}
           syncState={HOME.product.demo.syncState}
           caption={HOME.product.demo.caption}
+          theme="light"
         />
       </div>
     </div>
@@ -233,31 +236,36 @@
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="synced" tone="paper" />
     </div>
-    <div class="section-body">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          {HOME.offline.eyebrow}
-        </p>
-        <h2>{HOME.offline.headline}</h2>
-        <p class="section-lead">
-          {offlineBefore}<span class="stitch" use:reveal>sincroniza</span>{offlineAfter}
-        </p>
+    <div class="section-body offline-grid">
+      <div class="offline-content">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            {HOME.offline.eyebrow}
+          </p>
+          <h2>{HOME.offline.headline}</h2>
+          <p class="section-lead">
+            {offlineBefore}<span class="stitch" use:reveal>sincroniza</span>{offlineAfter}
+          </p>
+        </div>
+        <div class="reconnect-wrap" use:reveal>
+          <div class="reconnect-motif" aria-hidden="true">
+            <QuipuMotif id="home-offline" />
+          </div>
+          <div class="split-grid offline-compare" role="list">
+            <div class="offline-row muted" role="listitem">
+              <h3>Con tu sistema actual</h3>
+              <p>{HOME.offline.withOthers}</p>
+            </div>
+            <div class="offline-row kipus" role="listitem">
+              <h3>Con KipusPay</h3>
+              <p>{HOME.offline.withKipus}</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="reconnect-wrap" use:reveal>
-        <div class="reconnect-motif" aria-hidden="true">
-          <QuipuMotif id="home-offline" />
-        </div>
-        <div class="split-grid offline-compare" role="list">
-          <div class="offline-row muted" role="listitem">
-            <h3>Con tu sistema actual</h3>
-            <p>{HOME.offline.withOthers}</p>
-          </div>
-          <div class="offline-row kipus" role="listitem">
-            <h3>Con KipusPay</h3>
-            <p>{HOME.offline.withKipus}</p>
-          </div>
-        </div>
+      <div class="offline-mock-wrap" use:reveal>
+        <OfflineDeviceMock />
       </div>
     </div>
   </div>
@@ -268,47 +276,24 @@
     <div class="section-gutter" aria-hidden="true" use:reveal>
       <QuipuSectionMark state="reconciled" tone="ink" />
     </div>
-    <div class="section-body">
-      <div class="sec-head" use:reveal>
-        <p class="eyebrow">
-          <span class="knot-dot" aria-hidden="true"></span>
-          {HOME.ledger.eyebrow}
-        </p>
-        <h2>{HOME.ledger.headline}</h2>
-        <p class="section-lead">{HOME.ledger.body}</p>
+    <div class="section-body ledger-grid">
+      <div class="ledger-content">
+        <div class="sec-head" use:reveal>
+          <p class="eyebrow">
+            <span class="knot-dot" aria-hidden="true"></span>
+            {HOME.ledger.eyebrow}
+          </p>
+          <h2>{HOME.ledger.headline}</h2>
+          <p class="section-lead">{HOME.ledger.body}</p>
+        </div>
+        <ul class="knot-list">
+          {#each HOME.ledger.points as point, i (point)}
+            <li use:reveal data-reveal-delay={i % 3}>{point}</li>
+          {/each}
+        </ul>
       </div>
-      <ul class="knot-list">
-        {#each HOME.ledger.points as point, i (point)}
-          <li use:reveal data-reveal-delay={i % 3}>{point}</li>
-        {/each}
-      </ul>
-      <div class="ledger-table-wrap" use:reveal>
-        <table class="ledger-table" aria-label="Registros de cierre de caja">
-          <thead>
-            <tr>
-              <th scope="col">Entrada</th>
-              <th scope="col">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Apertura de caja</th>
-              <td class="kipus"><span class="kipus-mark">REGISTRADO</span></td>
-            </tr>
-            <tr>
-              <th scope="row">Ventas del día</th>
-              <td class="kipus"><span class="kipus-mark">REGISTRADO</span></td>
-            </tr>
-            <tr>
-              <th scope="row">Pagos recibidos</th>
-              <td class="kipus"><span class="kipus-mark">REGISTRADO</span></td>
-            </tr>
-            <tr>
-              <th scope="row">Cierre de caja</th>
-              <td class="kipus"><span class="kipus-mark">CONCILIADO</span></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="ledger-mock-wrap" use:reveal>
+        <LedgerDeviceMock />
       </div>
     </div>
   </div>

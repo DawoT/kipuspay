@@ -2378,6 +2378,39 @@ li {
   }
 }
 
+.offline-grid {
+  display: grid;
+  gap: 2.4rem;
+  align-items: center;
+}
+
+@media (min-width: 899px) {
+  .offline-grid {
+    grid-template-columns: 1fr minmax(16rem, 22rem);
+    align-items: start;
+  }
+}
+
+.ledger-grid {
+  display: grid;
+  gap: 2.6rem;
+  align-items: center;
+}
+
+@media (min-width: 899px) {
+  .ledger-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+    align-items: start;
+  }
+
+  .ledger-grid .sec-head {
+    position: sticky;
+    top: calc(var(--header-h) + 2rem);
+    align-self: start;
+    margin-bottom: 0;
+  }
+}
+
 .owner-note {
   font-family: var(--font-mono);
   font-size: 0.78rem;
