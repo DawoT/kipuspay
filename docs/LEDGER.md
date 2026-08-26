@@ -14768,3 +14768,39 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0510
+timestamp_utc: 2026-08-26T18:00:00Z
+schema_version: 2
+sprint_fase: Fase A — Mockups de Smartphone Especializados por Vertical
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: 5 Mockups de Smartphone de Dominio (Restaurante, Farmacia, Retail, Servicios, Cadenas)
+relacion: AMPLIA
+referencias_entradas: [0509]
+referencias_documentales: [apps/marketing-web/src/lib/components/vertical-mocks/RestaurantMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/PharmacyMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/RetailMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/ServicesMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/ChainMock.svelte, apps/marketing-web/src/lib/components/VerticalLandingView.svelte, apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts]
+prev_id: 0509
+prev_hash: ec739e75c31dfec549587261cb84da21dea42436ed1a303e10ea19fc056c4424
+entry_hash: d81ca6ef7ebab4548cb564f2617701b2c12362c888aa0835639a1c2e9a6ce71f
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts, apps/marketing-web/src/lib/components/home-device-mocks.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/components/vertical-mocks/RestaurantMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/PharmacyMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/RetailMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/ServicesMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/ChainMock.svelte; apps/marketing-web/src/lib/components/VerticalLandingView.svelte; apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts
+descripcion: >
+  Diseño, implementación y verificación de los 5 mockups interactivos de smartphone adaptados para cada vertical de negocio:
+  (1) Componentes de dominio especializados (encapsulados en PhoneMockFrame con theme="dark", 380x690px y reloj sincronizado):
+      - RestaurantMock (/para/restaurantes): comanda de salón (Mesa 04), estado KDS en cocina en vivo, platos típicos y división de cuenta interactiva.
+      - PharmacyMock (/para/farmacias): buscador de principio activo, control de lotes y vencimiento FEFO, paciente con receta y despacho seguro.
+      - RetailMock (/para/retail): lector de código de barras 0.1s, productos de alta rotación, calculadora de vuelto interactiva en tiempo real.
+      - ServicesMock (/para/servicios): orden de trabajo por placa de vehículo, mano de obra y repuestos, emisión de factura B2B con RUC corporativo y desglose de IGV.
+      - ChainMock (/para/cadenas): modo dueño multi-sede consolidado (Miraflores, San Isidro, Surco), métricas consolidadas y despacho/autorización de transferencias de inventario.
+  (2) Integración dinámica en VerticalLandingView.svelte según el slug del rubro.
+evidencia: >
+  Playwright MCP: verificación en navegador en las 5 rutas /para/* con screenshots guardados.
+  Marketing Web Vitest: 49 test files, 391 tests pasando al 100% (57 nuevos tests unitarios).
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

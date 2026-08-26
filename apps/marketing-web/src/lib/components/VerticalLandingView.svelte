@@ -5,6 +5,11 @@
   import QuipuHero from '$lib/brand/QuipuHero.svelte';
   import QuipuSectionMark from '$lib/brand/QuipuSectionMark.svelte';
   import CheckoutMock from '$lib/brand/CheckoutMock.svelte';
+  import RestaurantMock from '$lib/components/vertical-mocks/RestaurantMock.svelte';
+  import PharmacyMock from '$lib/components/vertical-mocks/PharmacyMock.svelte';
+  import RetailMock from '$lib/components/vertical-mocks/RetailMock.svelte';
+  import ServicesMock from '$lib/components/vertical-mocks/ServicesMock.svelte';
+  import ChainMock from '$lib/components/vertical-mocks/ChainMock.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { allVerticals, otherVerticals } from '$lib/content/verticals';
   import { casesForRubro, simulationForRubro } from '$lib/content/cases';
@@ -164,13 +169,26 @@
           </p>
         </div>
         <div class="product-screen" use:reveal>
-          <CheckoutMock
-            lines={landing.checkout.lines}
-            documentLabel={landing.checkout.documentLabel}
-            register={landing.checkout.register}
-            syncState={landing.checkout.syncState}
-            caption={landing.checkout.caption}
-          />
+          {#if landing.slug === 'restaurantes'}
+            <RestaurantMock theme="dark" />
+          {:else if landing.slug === 'farmacias'}
+            <PharmacyMock theme="dark" />
+          {:else if landing.slug === 'retail'}
+            <RetailMock theme="dark" />
+          {:else if landing.slug === 'servicios'}
+            <ServicesMock theme="dark" />
+          {:else if landing.slug === 'cadenas'}
+            <ChainMock theme="dark" />
+          {:else}
+            <CheckoutMock
+              lines={landing.checkout.lines}
+              documentLabel={landing.checkout.documentLabel}
+              register={landing.checkout.register}
+              syncState={landing.checkout.syncState}
+              caption={landing.checkout.caption}
+              theme="dark"
+            />
+          {/if}
         </div>
       </div>
     </div>
