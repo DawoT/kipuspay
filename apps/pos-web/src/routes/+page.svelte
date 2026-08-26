@@ -78,6 +78,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     type PosTenantSession,
   } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
+  import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Modal from '$lib/ui/Modal.svelte';
   import { formalizationModeLabel } from '$lib/ui/ops-copy';
@@ -185,6 +186,20 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const payableCents = $derived(cartPayableCents(lines));
   const banner = $derived(formalizationBannerMessage(session.formalizationMode));
   const chargeSettled = $derived(status === 'completado');
+  // Micro-interacción carrito: scale 0.98→1 120ms (GTM §6.4) — bump por addOrBumpLine
+  let bumpedId = $state<string | null>(null);
+  let bumpTimer: ReturnType<typeof setTimeout> | null = null;
+  function lineKey(line: CartLine): string {
+    return `${line.productId}|${line.uomId ?? ''}|${line.serialId ?? ''}|${line.weightMeasurement?.measurementId ?? ''}|${line.saleItemId ?? ''}`;
+  }
+  function triggerCartBump(next: CartLine): void {
+    const key = lineKey(next);
+    bumpedId = key;
+    if (bumpTimer) clearTimeout(bumpTimer);
+    bumpTimer = setTimeout(() => {
+      bumpedId = null;
+    }, 160);
+  }
   const cobroStitch = $derived(
     stitchClass(
       stitchStateFromFlags({
@@ -441,12 +456,14 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
 
   function addProduct(item: SellableCatalogItem) {
-    lines = addOrBumpLine(lines, {
+    const next: CartLine = {
       productId: item.productId,
       name: item.name,
       unitPriceCents: item.unitPriceCents,
       quantity: 1,
-    });
+    };
+    lines = addOrBumpLine(lines, next);
+    triggerCartBump(next);
   }
 
   $effect(() => {
@@ -504,7 +521,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       quickError = `El precio máximo sin autorización es S/ ${formatCents(QUICK_SALE_MAX_CENTS)}.`;
       return;
     }
+    const next = genericLine(name, quickPriceCents);
     lines = addOrBumpLine(lines, genericLine(name, quickPriceCents));
+    triggerCartBump(next);
     quickSaleOpen = false;
     quickName = '';
     quickError = '';
@@ -633,7 +652,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     const saleItemId = crypto.randomUUID();
     const { weightMicrounits, protocol, deviceId, sequence, observedAtEpochMs } =
       heartbeat.reading;
-    lines = addOrBumpLine(lines, {
+    const nextWeigh: CartLine = {
       productId: 'weigh',
       name: 'Manzana por peso',
       unitPriceCents: 100,
@@ -648,7 +667,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
         heartbeatSequence: sequence,
         observedAt: new Date(observedAtEpochMs).toISOString(),
       },
-    });
+    };
+    lines = addOrBumpLine(lines, nextWeigh);
+    triggerCartBump(nextWeigh);
     scaleWeightMicrounits = null;
     scaleReading = null;
     scaleState = 'UNSTABLE';
@@ -669,7 +690,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
       scaleState = 'MANUAL_REQUIRED';
       return;
     }
-    lines = addOrBumpLine(lines, {
+    const nextManual: CartLine = {
       productId: 'weigh',
       name: 'Manzana por peso',
       unitPriceCents: 100,
@@ -684,7 +705,9 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           ? { authorizationToken: weightAuthorizationToken.trim() }
           : {}),
       },
-    });
+    };
+    lines = addOrBumpLine(lines, nextManual);
+    triggerCartBump(nextManual);
     manualWeightGrams = '';
     weightAuthorizationToken = '';
   }
@@ -705,6 +728,7 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
           catalogItems.find((item) => item.productId === productId),
       });
       lines = addOrBumpLine(lines, line);
+      triggerCartBump(line);
       serialStatus = `Serie ${serialScan.trim()} agregada como una unidad.`;
       serialScan = '';
     } catch (error) {
@@ -983,8 +1007,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 </Button>
               </EmptyState>
             {:else}
-              {#each lines as line (line.productId)}
-                <div class="cart-item-row">
+              {#each lines as line (line.productId + (line.saleItemId ?? '') + (line.weightMeasurement?.measurementId ?? '') + (line.serialId ?? '') + (line.uomId ?? ''))}
+                <div class="cart-item-row" class:bump={bumpedId === lineKey(line)} data-testid="cart-item-row">
                   <div class="item-details">
                     <span class="item-name">{line.name}</span>
                     <span class="item-unit-price tabular-nums">S/ {formatCents(line.unitPriceCents)} c/u</span>
@@ -1026,6 +1050,21 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
                 </span>
               {/if}
             </div>
+
+            {#if chargeSettled}
+              <div
+                class="settled-seal"
+                data-testid="settled-seal"
+                role="status"
+                aria-live="polite"
+              >
+                <span class="settled-seal-check" aria-hidden="true">
+                  <Icon name="check" size={16} />
+                </span>
+                <BrandKnot size={10} />
+                <span class="settled-label">Venta cobrada</span>
+              </div>
+            {/if}
 
             <!-- Status Alerts -->
             {#if status}
@@ -1421,6 +1460,19 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     align-items: center;
     gap: 0.75rem;
   }
+
+  @keyframes cart-bump {
+    from {
+      transform: scale(0.98);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
+  .cart-item-row.bump {
+    animation: cart-bump 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
   .item-details {
     display: flex;
     flex-direction: column;
@@ -1453,6 +1505,11 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     border: none;
     color: var(--text-main);
     font-weight: 700;
+    transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .qty-btn:active {
+    transform: scale(0.96);
   }
   .qty-value {
     padding: 0 0.5rem;
@@ -1506,6 +1563,39 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   }
   .total-amount.settled {
     color: var(--emerald-green);
+    animation: pulse-emerald 2s infinite;
+    box-shadow: var(--shadow-emerald);
+    border-radius: var(--radius-sm);
+    padding: 0.625rem 0.5rem 0.5rem;
+  }
+
+  .settled-seal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid color-mix(in srgb, var(--emerald-green) 30%, transparent);
+    background: color-mix(in srgb, var(--emerald-green) 12%, transparent);
+    color: var(--emerald-green);
+    font-weight: 700;
+    font-size: 0.875rem;
+    box-shadow: var(--shadow-emerald);
+    border-radius: var(--radius-sm);
+  }
+
+  .settled-seal-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-full);
+    background: var(--emerald-green);
+    color: #ffffff;
+  }
+
+  .settled-label {
+    letter-spacing: 0.01em;
   }
 
   .status-tag {
@@ -1547,6 +1637,17 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
     color: var(--rose-red);
     font-size: 0.85rem;
     margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cart-item-row.bump,
+    .total-amount.settled,
+    .qty-btn,
+    .qty-btn:active {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
   }
 
   @media (max-width: 899px) {

@@ -83,6 +83,18 @@
     transform: scale(0.98);
   }
 
+  :global(.qty-btn:active) {
+    transform: scale(0.96);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.qty-btn:active),
+    .ui-btn:active {
+      transform: none !important;
+      animation: none !important;
+    }
+  }
+
   .ui-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;

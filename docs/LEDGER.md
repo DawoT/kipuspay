@@ -14228,3 +14228,34 @@ aprobaciones: [Staff Design, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0495
+timestamp_utc: 2026-08-26T05:00:00Z
+schema_version: 2
+sprint_fase: Diseño — Micro-interacción carrito + sello
+agente_responsable: Staff Design (ejecución: kipus-design; auditoría: Staff Principal)
+tipo: Refinamiento de diseño
+subtipo: Feedback premium en punto de pago
+relacion: amplia
+referencias_entradas: [0494]
+referencias_documentales: [apps/pos-web/src/routes/+page.svelte, apps/pos-web/src/lib/ui/Button.svelte]
+prev_id: 0494
+prev_hash: 2424724448cff2b5bce0297bcf0288d9780439afb31852af2f74f57cbcdaa509
+entry_hash: f218678dd86b42bcd70a3a52dab66b50903ce3502c0e3b1f9bda6d5765bb42dc
+ticket_or_adr: GTM §6.4
+test_ids: [apps/pos-web/src/lib/ui/cart-micro.test.ts, SUITE]
+entregable_afectado: apps/pos-web/src/routes/+page.svelte §bump + settled-seal; apps/pos-web/src/lib/ui/Button.svelte §active scale
+descripcion: >
+  Micro-interacción premium en el carrito: bump scale 0.98→1 120ms en
+  add/bump, total settled con pulse-emerald + shadow + sello con check +
+  BrandKnot, qty-btn active 0.96, vibrate [40,60,40] y beep ya vendor. Todo
+  con prefers-reduced-motion y tokens ledger.
+evidencia: >
+  RED: carrito sin feedback premium. GREEN: 503/503 pos-web (91 files, +5),
+  svelte-check 0, SUITE GREEN, bundle 291.01kB <300kB (V-24), V-27/V-30 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff Design, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
