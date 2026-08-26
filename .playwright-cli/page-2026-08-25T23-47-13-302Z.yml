@@ -1,0 +1,17 @@
+- main [ref=e5]:
+  - generic [ref=e8]:
+    - paragraph [ref=e11]: Acceso Seguro
+    - heading "Inicia sesión para continuar" [level=1] [ref=e12]
+    - paragraph [ref=e13]:
+      - text: Usa tu badge
+      - code [ref=e14]: EMP-…
+      - text: o tu usuario y el PIN de caja. La pantalla bloqueada no contiene montos, identidad de clientes ni información fiscal.
+    - generic [ref=e15]:
+      - generic [ref=e16]: Badge o usuario
+      - textbox "Badge o usuario" [ref=e17]:
+        - /placeholder: EMP-12345 o usuario
+    - generic [ref=e18]:
+      - generic [ref=e19]: PIN de caja
+      - textbox "PIN de caja" [ref=e20]:
+        - /placeholder: ••••
+    - button "Iniciar sesión" [ref=e21] [cursor=pointer]

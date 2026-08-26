@@ -1,0 +1,61 @@
+- generic [ref=f3e2]:
+  - link "Saltar a contenido" [ref=f3e3] [cursor=pointer]:
+    - /url: "#contenido"
+  - generic [ref=f3e5]:
+    - banner [ref=f3e6]:
+      - generic [ref=f3e8]:
+        - generic [ref=f3e10]: KipusPay
+        - generic [ref=f3e13]: Terminal POS
+      - generic [ref=f3e14]:
+        - status "En línea" [ref=f3e15]
+        - link "Iniciar sesión" [ref=f3e18] [cursor=pointer]:
+          - /url: /login
+        - button "Cambiar modo claro y oscuro" [ref=f3e22] [cursor=pointer]
+    - main [ref=f3e26]:
+      - generic [ref=f3e28]:
+        - generic [ref=f3e29]:
+          - generic [ref=f3e30]:
+            - generic [ref=f3e31]:
+              - heading "Rosa Negra" [level=1] [ref=f3e32]
+              - generic [ref=f3e33]:
+                - status [ref=f3e34]: "Sesión de caja: Abierta · Cajero user_stg"
+                - generic [ref=f3e35]: Emisión electrónica
+            - generic [ref=f3e36]:
+              - generic [ref=f3e37]: Cliente
+              - combobox "Cliente" [ref=f3e38]:
+                - option "DNI" [selected]
+                - option "RUC"
+                - option "CE"
+              - textbox "N.º documento" [ref=f3e39]
+              - textbox "Nombre / razón social" [ref=f3e40]
+          - status [ref=f3e41]:
+            - generic [ref=f3e45]: Emisor electrónico — CPE según régimen SUNAT.
+        - generic [ref=f3e46]:
+          - generic [ref=f3e48]:
+            - heading "Catálogo" [level=2] [ref=f3e50]
+            - searchbox "Buscar productos" [ref=f3e52]
+          - generic [ref=f3e60]:
+            - generic [ref=f3e61]:
+              - heading "Detalle de Venta" [level=2] [ref=f3e62]
+              - generic [ref=f3e63]: 0 ítems
+            - generic [ref=f3e65]:
+              - paragraph [ref=f3e70]: El carrito está vacío
+              - paragraph [ref=f3e71]: Agrega un producto del catálogo o cobra una venta rápida.
+              - button "Venta rápida" [ref=f3e73] [cursor=pointer]
+            - generic [ref=f3e74]:
+              - generic [ref=f3e75]:
+                - generic [ref=f3e76]: Total a cobrar
+                - generic [ref=f3e77]: S/ 0.00
+              - status [ref=f3e78]:
+                - generic [ref=f3e79]: listo
+              - button "Cobrar (S/ 0.00)" [disabled] [ref=f3e81]
+              - button "Venta rápida (sin catálogo)" [ref=f3e84] [cursor=pointer]
+    - navigation "Navegación de caja" [ref=f3e87]:
+      - link "Cobrar" [ref=f3e88] [cursor=pointer]:
+        - /url: /
+      - link "Historial del día" [ref=f3e92] [cursor=pointer]:
+        - /url: /caja/historial
+      - link "Caja" [ref=f3e97] [cursor=pointer]:
+        - /url: /caja
+      - link "Ayuda" [ref=f3e102] [cursor=pointer]:
+        - /url: /ayuda

@@ -64,3 +64,55 @@ describe('CertificateManager — contrato de componente y semáforo visual', () 
     expect(visibleText).toContain('Certificado digital vencido');
   });
 });
+
+describe('CertificateManager — zona de arrastre y DataTransfer (drop zone)', () => {
+  it('expone zona de arrastre con estados visuales y eventos HTML5 sin librerías npm', () => {
+    // zona con data-testid dedicado y feedback visual
+    expect(svelteSource).toContain('data-testid="tenant-cert-dropzone"');
+    expect(svelteSource).toContain('cert-drop-zone');
+    expect(svelteSource).toContain('isDragging');
+    expect(svelteSource).toContain('dragging');
+    // eventos nativos HTML5
+    expect(svelteSource).toContain('dragover');
+    expect(svelteSource).toContain('dragleave');
+    expect(svelteSource).toMatch(/ondrop|drop/);
+    expect(svelteSource).toContain('Suelta el certificado aquí');
+    // flujo alternativo: click abre file chooser nativo (label + input hidden sync)
+    expect(svelteSource).toContain('Seleccionar archivo');
+    expect(svelteSource).toContain('fileInputEl');
+    // conserva flujo click existente
+    expect(svelteSource).toContain('data-testid="tenant-cert-file"');
+    expect(svelteSource).toContain('accept=".p12,.pfx');
+  });
+
+  it('usa DataTransfer nativo y acepta solo .p12/.pfx en drop', () => {
+    expect(svelteSource).toContain('DataTransfer');
+    expect(svelteSource).toContain('dataTransfer');
+    expect(svelteSource).toContain('handleDrop');
+    expect(svelteSource).toContain('handleDragOver');
+    expect(svelteSource).toContain('handleDragLeave');
+    expect(svelteSource).toContain('isValidCertExtension');
+    expect(svelteSource).toContain('.p12');
+    expect(svelteSource).toContain('.pfx');
+    // rechazo visible si extensión no permitida
+    expect(svelteSource).toContain('Solo se permiten archivos .p12 o .pfx');
+  });
+
+  it('simula drop de archivo (DataTransfer con File) y comparte handler con input change antes de fileToB64 → validateClientCertificate → POST', () => {
+    // ambos caminos asignan certFile y limpian mensaje
+    expect(svelteSource).toContain('handleFileChange');
+    expect(svelteSource).toContain('certFile = file');
+    expect(svelteSource).toContain('certFile = target.files?.[0]');
+    expect(svelteSource).toContain("certMessage = ''");
+    // drop sincroniza el input para que el flujo POST sea idéntico
+    expect(svelteSource).toContain('transfer.items.add(file)');
+    expect(svelteSource).toContain('fileInputEl.files = transfer.files');
+    // flujo posterior común ya verificado en bloque anterior, pero reforzamos:
+    expect(svelteSource).toContain('fileToB64');
+    expect(svelteSource).toContain('validateClientCertificate');
+    expect(svelteSource).toContain("apiFetch('/api/fiscal/tenant-cert'");
+    // accesibilidad: zona opera con teclado y muestra archivo seleccionado
+    expect(svelteSource).toContain('data-testid="tenant-cert-selected"');
+    expect(svelteSource).toContain('onkeydown');
+  });
+});

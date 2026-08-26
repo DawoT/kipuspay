@@ -27,6 +27,8 @@
   let certBusy = $state(false);
   let certMessage = $state('');
   let certMessageType = $state<'info' | 'danger' | 'success'>('info');
+  let isDragging = $state(false);
+  let fileInputEl = $state<HTMLInputElement | null>(null);
 
   let daysRemaining = $derived(
     certExpiresAt ? computeDaysUntilExpiry(certExpiresAt) : 0,
@@ -49,6 +51,51 @@
       }
       return btoa(binary);
     });
+  }
+
+  function handleFileChange(event: Event): void {
+    const target = event.currentTarget as HTMLInputElement;
+    certFile = target.files?.[0] ?? null;
+    certMessage = '';
+  }
+
+  function isValidCertExtension(fileName: string): boolean {
+    const lower = fileName.toLowerCase();
+    return lower.endsWith('.p12') || lower.endsWith('.pfx');
+  }
+
+  function handleDragOver(event: DragEvent): void {
+    event.preventDefault();
+    // DataTransfer API — HTML5 drag and drop sin librerías
+    const dt: DataTransfer | null = event.dataTransfer;
+    if (dt) dt.dropEffect = 'copy';
+    isDragging = true;
+  }
+
+  function handleDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    isDragging = false;
+  }
+
+  function handleDrop(event: DragEvent): void {
+    event.preventDefault();
+    isDragging = false;
+    const dt: DataTransfer | null = event.dataTransfer;
+    const file = dt?.files?.[0] ?? null;
+    if (!file) return;
+    if (!isValidCertExtension(file.name)) {
+      certMessage = 'Solo se permiten archivos .p12 o .pfx.';
+      certMessageType = 'danger';
+      return;
+    }
+    certFile = file;
+    certMessage = '';
+    // Sincroniza el input nativo para que el flujo click + drop compartan estado
+    if (fileInputEl) {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      fileInputEl.files = transfer.files;
+    }
   }
 
   export async function loadTenantCert(): Promise<void> {
@@ -199,17 +246,54 @@
 
     <div class="form-group">
       <label for="tenant-cert-file">Archivo .p12 / .pfx</label>
-      <input
-        id="tenant-cert-file"
-        data-testid="tenant-cert-file"
-        type="file"
-        accept=".p12,.pfx,application/x-pkcs12"
-        onchange={(e) => {
-          const files = e.currentTarget.files;
-          certFile = files?.[0] ?? null;
-          certMessage = '';
+      <div
+        class="cert-drop-zone"
+        class:dragging={isDragging}
+        data-testid="tenant-cert-dropzone"
+        role="button"
+        aria-label="Zona para arrastrar certificado — arrastra un archivo .p12 o .pfx o presiona para seleccionar"
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
+        onclick={(e: MouseEvent) => {
+          const t = e.target as HTMLElement | null;
+          if (t?.closest('input[type="file"]')) return;
+          fileInputEl?.click();
         }}
-      />
+        onkeydown={(e: KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputEl?.click();
+          }
+        }}
+        tabindex="0"
+      >
+        <div class="drop-content">
+          <Icon name="upload" size={20} />
+          {#if isDragging}
+            <p class="drop-text drop-active" data-testid="tenant-cert-drop-hint">
+              Suelta el certificado aquí
+            </p>
+          {:else}
+            <p class="drop-text">Arrastra tu certificado .p12 o .pfx aquí</p>
+            <p class="drop-or">o</p>
+            <span class="drop-browse" role="button" tabindex="-1">Seleccionar archivo</span>
+          {/if}
+          {#if certFile}
+            <p class="drop-file" data-testid="tenant-cert-selected">
+              Archivo seleccionado: {certFile.name}
+            </p>
+          {/if}
+        </div>
+        <input
+          bind:this={fileInputEl}
+          id="tenant-cert-file"
+          data-testid="tenant-cert-file"
+          type="file"
+          accept=".p12,.pfx,application/x-pkcs12"
+          onchange={handleFileChange}
+        />
+      </div>
     </div>
 
     <div class="form-group">
@@ -388,5 +472,111 @@
 
   .cert-feedback-msg.msg-success {
     color: var(--emerald-green);
+  }
+
+  .cert-drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.25rem 1rem;
+    border: 2px dashed var(--border-subtle);
+    border-radius: var(--radius-sm, 0);
+    background: var(--bg-surface);
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      box-shadow 0.15s ease;
+    text-align: center;
+    outline: none;
+    min-height: 44px;
+  }
+
+  .cert-drop-zone:focus-visible {
+    outline: 3px solid rgba(217, 154, 61, 0.55);
+    outline-offset: 2px;
+    border-color: var(--amber-gold);
+  }
+
+  .cert-drop-zone.dragging {
+    border-color: var(--indigo-blue);
+    background: rgba(112, 120, 232, 0.08);
+    box-shadow: 0 0 0 3px rgba(112, 120, 232, 0.2);
+  }
+
+  .cert-drop-zone input[type='file'] {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+  }
+
+  .drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 100%;
+    pointer-events: none;
+  }
+
+  .drop-content :global(svg) {
+    color: var(--text-muted);
+  }
+
+  .cert-drop-zone.dragging .drop-content :global(svg) {
+    color: var(--indigo-blue);
+  }
+
+  .drop-text {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    line-height: 1.4;
+  }
+
+  .drop-text.drop-active {
+    color: var(--indigo-blue);
+    font-weight: 700;
+    font-size: 0.92rem;
+  }
+
+  .drop-or {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .drop-browse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm, 0);
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-input);
+    color: var(--text-main);
+    font-size: 0.84rem;
+    font-weight: 600;
+    pointer-events: auto;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .drop-browse:hover {
+    background: var(--bg-glass-hover, rgba(0, 0, 0, 0.04));
+    border-color: var(--border-strong);
+  }
+
+  .drop-file {
+    margin: 0.25rem 0 0;
+    font-size: 0.8rem;
+    color: var(--emerald-green);
+    word-break: break-all;
   }
 </style>

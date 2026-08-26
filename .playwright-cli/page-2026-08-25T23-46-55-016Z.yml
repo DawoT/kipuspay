@@ -1,0 +1,134 @@
+- generic [ref=f4e2]:
+  - link "Saltar a contenido" [ref=f4e3] [cursor=pointer]:
+    - /url: "#contenido"
+  - generic [ref=f4e4]:
+    - complementary "Navegación principal" [ref=f4e5]:
+      - generic [ref=f4e6]:
+        - generic [ref=f4e9]:
+          - generic [ref=f4e10]: KipusPay
+          - generic [ref=f4e11]: POS & Facturación
+        - button "Colapsar navegación" [ref=f4e12] [cursor=pointer]
+      - navigation [ref=f4e15]:
+        - button "Inicio" [ref=f4e17] [cursor=pointer]
+        - generic [ref=f4e26]:
+          - button "Catálogo" [expanded] [ref=f4e27] [cursor=pointer]
+          - list [ref=f4e37]:
+            - listitem [ref=f4e38]:
+              - link "Catálogo" [ref=f4e39] [cursor=pointer]:
+                - /url: /admin/catalogo
+            - listitem [ref=f4e45]:
+              - link "Etiquetas" [ref=f4e46] [cursor=pointer]:
+                - /url: /admin/etiquetas
+            - listitem [ref=f4e50]:
+              - link "Series" [ref=f4e51] [cursor=pointer]:
+                - /url: /admin/series
+            - listitem [ref=f4e55]:
+              - link "Comisiones" [ref=f4e56] [cursor=pointer]:
+                - /url: /admin/comisiones
+            - listitem [ref=f4e62]:
+              - link "Promociones" [ref=f4e63] [cursor=pointer]:
+                - /url: /admin/promociones
+            - listitem [ref=f4e69]:
+              - link "Crédito tienda" [ref=f4e70] [cursor=pointer]:
+                - /url: /admin/credito-tienda
+        - button "Inventario" [ref=f4e75] [cursor=pointer]
+        - button "Proveedores" [ref=f4e85] [cursor=pointer]
+        - button "Modo Dueño" [ref=f4e95] [cursor=pointer]
+        - button "Reportes" [ref=f4e104] [cursor=pointer]
+        - generic [ref=f4e111]:
+          - button "Configuración" [expanded] [ref=f4e112] [cursor=pointer]
+          - list [ref=f4e121]:
+            - listitem [ref=f4e122]:
+              - link "Configuración" [ref=f4e123] [cursor=pointer]:
+                - /url: /admin/configuracion
+            - listitem [ref=f4e128]:
+              - link "Integraciones" [ref=f4e129] [cursor=pointer]:
+                - /url: /admin/integraciones
+        - button "Modos especiales" [ref=f4e135] [cursor=pointer]
+    - generic [ref=f4e146]:
+      - banner [ref=f4e147]:
+        - generic [ref=f4e149]:
+          - generic [ref=f4e151]: KipusPay
+          - generic [ref=f4e154]: Configuración
+        - generic [ref=f4e155]:
+          - status "En línea" [ref=f4e156]
+          - button "Cambiar modo claro y oscuro" [ref=f4e159] [cursor=pointer]
+      - main [ref=f4e163]:
+        - main [ref=f4e165]:
+          - generic [ref=f4e166]:
+            - generic [ref=f4e167]: Admin · Gobernanza & Parámetros
+            - heading "Configuración del negocio" [level=1] [ref=f4e172]
+            - paragraph [ref=f4e173]: Configuración del negocio. El cobro de ventas nunca se bloquea desde aquí.
+          - generic [ref=f4e174]:
+            - generic [ref=f4e175]:
+              - heading "Datos del negocio" [level=2] [ref=f4e181]
+              - generic [ref=f4e182]:
+                - generic [ref=f4e183]:
+                  - generic [ref=f4e184]: Nombre Comercial
+                  - strong [ref=f4e185]: Rosa Negra
+                - generic [ref=f4e186]:
+                  - generic [ref=f4e187]: Identificador del negocio
+                  - code [ref=f4e188]: tenant_stg_rosa_negra_001
+            - generic [ref=f4e189]:
+              - heading "Etapa de formalización" [level=2] [ref=f4e195]
+              - paragraph [ref=f4e196]:
+                - generic [ref=f4e199]: "Actual: Emisión electrónica"
+              - paragraph [ref=f4e200]: Avance confirmado, sin convertir notas de venta históricas. Emisión electrónica vía KipusPay por defecto.
+              - generic [ref=f4e201]:
+                - button "Activar facturación" [disabled] [ref=f4e202]
+                - button "Pasar a emisión electrónica" [disabled] [ref=f4e205]
+            - generic [ref=f4e208]:
+              - heading "Suscripción y plan" [level=2] [ref=f4e212]
+              - paragraph [ref=f4e213]: Cambia de plan cuando tu negocio pida más. La caja nunca se detiene por cupo ni por atraso de pago.
+              - generic [ref=f4e214]:
+                - combobox "Plan de suscripción" [ref=f4e215]:
+                  - option "Arranque — S/ 49/mes" [selected]
+                  - option "Crece — S/ 129/mes"
+                  - option "Cadena — S/ 349/mes + S/ 39 por sucursal"
+                - button "Guardar plan" [disabled] [ref=f4e216]
+                - button "Gestionar facturación" [ref=f4e217] [cursor=pointer]
+                - button "Pagar plan" [ref=f4e218] [cursor=pointer]
+              - generic [ref=f4e219]:
+                - button "Cancelar cuenta" [ref=f4e220] [cursor=pointer]
+                - generic [ref=f4e224]:
+                  - text: Sin penalidad. Exporta tu catálogo en CSV (
+                  - button "descargar" [ref=f4e225] [cursor=pointer]
+                  - text: ) y tus ventas (
+                  - button "descargar ventas" [ref=f4e226] [cursor=pointer]
+                  - text: ) antes de cancelar.
+            - generic [ref=f4e227]:
+              - heading "Marca en el punto de venta" [level=2] [ref=f4e231]
+              - paragraph [ref=f4e232]: Pie “Emitido con KipusPay” + QR en boletas, notas de venta y vitrina. Activado por defecto; puedes desactivarlo.
+              - generic [ref=f4e233]:
+                - paragraph [ref=f4e234]:
+                  - generic [ref=f4e237]: Activado
+                - button "Desactivar marca" [ref=f4e238] [cursor=pointer]
+            - generic [ref=f4e239]:
+              - heading "Estado fiscal y SUNAT" [level=2] [ref=f4e243]
+              - paragraph [ref=f4e244]: El Resumen Diario (RC) se genera cada día a las 08:00 Lima para las boletas del día anterior. El cierre de caja (Z) no reemplaza el RC.
+              - generic [ref=f4e245]:
+                - heading "Certificado digital y firma de comprobantes" [level=3] [ref=f4e247]
+                - generic [ref=f4e251]:
+                  - strong [ref=f4e289]: Certificado digital propio activo
+                  - paragraph [ref=f4e290]: Vigente hasta el 2029-06-09 (quedan 1018 días). Tus comprobantes se firman con tu certificado.
+                - paragraph [ref=f4e257]: Puedes renovar o reemplazar tu certificado subiendo un nuevo archivo .p12 o .pfx. La contraseña se usa una sola vez para verificar y no se guarda.
+                - generic [ref=f4e258]:
+                  - generic [ref=f4e259]: Archivo .p12 / .pfx
+                  - button "Archivo .p12 / .pfx" [ref=f4e260]
+                - generic [ref=f4e261]:
+                  - generic [ref=f4e262]: Contraseña del certificado
+                  - textbox "Contraseña del certificado" [ref=f4e263]:
+                    - /placeholder: Contraseña del archivo
+                    - text: 1l4sp3l0t4S123
+                - button "Verificar y guardar" [ref=f4e265] [cursor=pointer]
+                - paragraph [ref=f4e291]: No se pudo abrir el archivo. Revisa la contraseña y que sea .p12 o .pfx.
+            - generic [ref=f4e266]:
+              - heading "Respaldo y recuperación" [level=2] [ref=f4e271]
+              - paragraph [ref=f4e272]: Exportaciones cifradas del servidor, cobertura verificable y simulación de recuperación.
+              - link "Abrir centro de respaldos" [ref=f4e273] [cursor=pointer]:
+                - /url: /admin/backups
+            - generic [ref=f4e276]:
+              - heading "Identidad serial" [level=2] [ref=f4e280]
+              - paragraph [ref=f4e281]: Configura productos en Catálogo y administra leases/disposiciones por serie.
+              - link "Abrir búsqueda y gestión de series" [ref=f4e282] [cursor=pointer]:
+                - /url: /admin/series

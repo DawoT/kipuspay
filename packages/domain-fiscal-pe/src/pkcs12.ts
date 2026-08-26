@@ -151,7 +151,23 @@ function bagValue(node: BerNode): Uint8Array {
 
 // eslint-disable-next-line complexity -- PKCS#12 SafeBag / shroudedKeyBag walk
 function walkBags(safe: Uint8Array, bags: { pkcs8?: Uint8Array; certs: Uint8Array[] }): void {
-  const items = safe[0] === 0x30 ? unwrapSequence(readBer(safe, 0).node) : childrenOf(safe);
+  // SafeContents puede venir como SEQUENCE (0x30) o como OCTET STRING
+  // context-specific (0x9e) que envuelve la SEQUENCE — el tercer walk del
+  // .p12 SOL real viene como 0x9e con 7789 bytes, no como 0x30.
+  let items: import('./pkcs12-ber.js').BerNode[];
+  if (safe[0] === 0x30) {
+    items = unwrapSequence(readBer(safe, 0).node);
+  } else if ((safe[0] & 0xc0) === 0x80) {
+    try {
+      const outer = readBer(safe, 0).node;
+      const inner = outer.bytes.length > 0 ? readBer(outer.bytes, 0).node : null;
+      items = inner && inner.tag === 0x30 ? unwrapSequence(inner) : childrenOf(safe);
+    } catch {
+      items = childrenOf(safe);
+    }
+  } else {
+    items = childrenOf(safe);
+  }
   for (const item of items) {
     if ((item.tag & 0x1f) !== 0x10) continue;
     const kids = unwrapSequence(item);
