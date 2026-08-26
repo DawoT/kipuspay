@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { allVerticals } from '$lib/content/verticals';
 
 const RESTAURANT_MOCK = readFileSync(
   new URL('./vertical-mocks/RestaurantMock.svelte', import.meta.url),
@@ -58,176 +59,252 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(code).toMatch(/statusTone="live"/);
     });
 
-    it('RestaurantMock configura título y badge de mesa de restaurante', () => {
+    it.each(ALL_MOCKS)('$name incluye selector de vistas con role="tablist" y role="tab"', ({ code }) => {
+      expect(code).toContain('role="tablist"');
+      expect(code).toContain('role="tab"');
+      expect(code).toContain('aria-selected');
+    });
+
+    it('RestaurantMock configura título y badge reactivo de restaurante', () => {
       expect(RESTAURANT_MOCK).toContain('Restaurante · KipusPay');
       expect(RESTAURANT_MOCK).toContain('Salón');
       expect(RESTAURANT_MOCK).toContain('Mesa 04');
     });
 
-    it('PharmacyMock configura título y badge de botica / farmacia', () => {
+    it('PharmacyMock configura título y badge reactivo de botica / farmacia', () => {
       expect(PHARMACY_MOCK).toContain('Botica & Farmacia · KipusPay');
       expect(PHARMACY_MOCK).toContain('Caja 1 · En línea');
     });
 
-    it('RetailMock configura título y badge de minimarket y escáner', () => {
+    it('RetailMock configura título y badge reactivo de minimarket y escáner', () => {
       expect(RETAIL_MOCK).toContain('Minimarket Express · KipusPay');
       expect(RETAIL_MOCK).toContain('Escáner activo');
     });
 
-    it('ServicesMock configura título y badge de orden de servicio', () => {
+    it('ServicesMock configura título y badge reactivo de orden de servicio', () => {
       expect(SERVICES_MOCK).toContain('Servicios & Taller · KipusPay');
       expect(SERVICES_MOCK).toContain('Orden #OT-402');
     });
 
-    it('ChainMock configura título y badge multi-local de cadenas', () => {
+    it('ChainMock configura título y badge reactivo multi-local de cadenas', () => {
       expect(CHAIN_MOCK).toContain('Modo Dueño Cadenas · KipusPay');
       expect(CHAIN_MOCK).toContain('3 Locales en vivo');
     });
   });
 
-  describe('2. Contenido Especializado de Cada Vertical', () => {
+  describe('2. Contenido Especializado y 3 Vistas Interactivas por Mockup', () => {
     describe('A. RestaurantMock (/para/restaurantes)', () => {
-      it('incluye selector de mesas y comanda rápida (Mesa 04, Mesa 08, Mesa 12, Para Llevar)', () => {
+      it('contiene los tabs de las 3 vistas: [Comanda], [KDS Cocina], [Mapa Salón]', () => {
+        expect(RESTAURANT_MOCK).toContain('[Comanda]');
+        expect(RESTAURANT_MOCK).toContain('[KDS Cocina]');
+        expect(RESTAURANT_MOCK).toContain('[Mapa Salón]');
+      });
+
+      it('Vista 1 [Comanda]: incluye mesas, platos en céntimos y división de cuenta', () => {
         expect(RESTAURANT_MOCK).toContain('Mesa 04');
-        expect(RESTAURANT_MOCK).toContain('Mesa 08');
-        expect(RESTAURANT_MOCK).toContain('Mesa 12');
-        expect(RESTAURANT_MOCK).toContain('Para Llevar');
-      });
-
-      it('incluye estado KDS de cocina en preparación', () => {
-        expect(RESTAURANT_MOCK).toContain('Cocina: En preparación ✓');
-      });
-
-      it('incluye platos emblemáticos con sus montos en céntimos enteros (CAL-01)', () => {
         expect(RESTAURANT_MOCK).toContain('Ceviche clásico de pescado');
         expect(RESTAURANT_MOCK).toContain('3800');
         expect(RESTAURANT_MOCK).toContain('Lomo saltado criollo');
         expect(RESTAURANT_MOCK).toContain('4200');
-        expect(RESTAURANT_MOCK).toContain('Jarra chicha morada 1L');
-        expect(RESTAURANT_MOCK).toContain('1600');
-      });
-
-      it('soporta selector interactivo de división de cuenta (Cuenta completa vs Dividir entre 2)', () => {
         expect(RESTAURANT_MOCK).toContain('Cuenta completa');
         expect(RESTAURANT_MOCK).toContain('Dividir entre 2');
-      });
-
-      it('cuenta con botón de cobro interactivo con feedback "Mesa cobrada y liberada ✓"', () => {
         expect(RESTAURANT_MOCK).toContain('data-testid="restaurant-charge-btn"');
         expect(RESTAURANT_MOCK).toContain('Mesa cobrada y liberada ✓');
+      });
+
+      it('Vista 2 [KDS Cocina]: incluye comandas en tiempo real y botón marcar listo', () => {
+        expect(RESTAURANT_MOCK).toContain('#CMD-084 · Mesa 04');
+        expect(RESTAURANT_MOCK).toContain('1x Ceviche clásico');
+        expect(RESTAURANT_MOCK).toContain('1x Lomo saltado');
+        expect(RESTAURANT_MOCK).toContain('En preparación');
+        expect(RESTAURANT_MOCK).toContain('8 min');
+        expect(RESTAURANT_MOCK).toContain('Marcar: Listo para servir ✓');
+
+        expect(RESTAURANT_MOCK).toContain('#CMD-085 · Mesa 08');
+        expect(RESTAURANT_MOCK).toContain('2x Menú criollo');
+        expect(RESTAURANT_MOCK).toContain('En cola');
+        expect(RESTAURANT_MOCK).toContain('2 min');
+
+        expect(RESTAURANT_MOCK).toContain('#CMD-082 · Mesa 12');
+        expect(RESTAURANT_MOCK).toContain('1x Tiradito');
+        expect(RESTAURANT_MOCK).toContain('Servido ✓');
+      });
+
+      it('Vista 3 [Mapa Salón]: incluye plano visual de mesas y mozo asignado', () => {
+        expect(RESTAURANT_MOCK).toContain('M-01 (Libre)');
+        expect(RESTAURANT_MOCK).toContain('M-02 (Ocupada · S/ 65.00)');
+        expect(RESTAURANT_MOCK).toContain('M-03 (Libre)');
+        expect(RESTAURANT_MOCK).toContain('M-04 (Por cobrar · S/ 96.00)');
+        expect(RESTAURANT_MOCK).toContain('M-05 (Reservada)');
+        expect(RESTAURANT_MOCK).toContain('Mozo: Carlos M.');
       });
     });
 
     describe('B. PharmacyMock (/para/farmacias)', () => {
-      it('incluye barra de búsqueda por principio activo o marca', () => {
+      it('contiene los tabs de las 3 vistas: [Despacho], [Control FEFO], [Fraccionamiento]', () => {
+        expect(PHARMACY_MOCK).toContain('[Despacho]');
+        expect(PHARMACY_MOCK).toContain('[Control FEFO]');
+        expect(PHARMACY_MOCK).toContain('[Fraccionamiento]');
+      });
+
+      it('Vista 1 [Despacho]: incluye búsqueda por principio activo, receta y lotes FEFO', () => {
         expect(PHARMACY_MOCK).toContain('Buscar principio activo o marca...');
         expect(PHARMACY_MOCK).toContain('Amoxicilina');
-      });
-
-      it('incluye identificación de paciente y receta médica', () => {
         expect(PHARMACY_MOCK).toContain('Paciente: DNI 44892134 · Receta Dr. Mendoza');
-      });
-
-      it('incluye medicamentos con trazabilidad de lotes y vencimiento FEFO', () => {
         expect(PHARMACY_MOCK).toContain('Paracetamol 500mg x 20 tab');
         expect(PHARMACY_MOCK).toContain('850');
         expect(PHARMACY_MOCK).toContain('A24');
-        expect(PHARMACY_MOCK).toContain('12/27');
-
-        expect(PHARMACY_MOCK).toContain('Amoxicilina 500mg x 12 cap');
-        expect(PHARMACY_MOCK).toContain('1400');
-        expect(PHARMACY_MOCK).toContain('P18');
-        expect(PHARMACY_MOCK).toContain('09/28');
-
-        expect(PHARMACY_MOCK).toContain('Alcohol medicinal 70° 1L');
-        expect(PHARMACY_MOCK).toContain('900');
-        expect(PHARMACY_MOCK).toContain('L02');
-      });
-
-      it('cuenta con botón de cobro interactivo con feedback "Comprobante farmacia emitido ✓"', () => {
         expect(PHARMACY_MOCK).toContain('data-testid="pharmacy-charge-btn"');
         expect(PHARMACY_MOCK).toContain('Comprobante farmacia emitido ✓');
+      });
+
+      it('Vista 2 [Control FEFO]: incluye semáforo de lotes y descuento FEFO', () => {
+        expect(PHARMACY_MOCK).toContain('48 Lotes vigentes');
+        expect(PHARMACY_MOCK).toContain('3 Lotes próximos');
+        expect(PHARMACY_MOCK).toContain('Ibuprofeno Lote X02');
+        expect(PHARMACY_MOCK).toContain('1 Lote crítico');
+        expect(PHARMACY_MOCK).toContain('Vence en 15 días · Alerta de rotación prioritaria');
+        expect(PHARMACY_MOCK).toContain('Aplicar descuento FEFO automático');
+      });
+
+      it('Vista 3 [Fraccionamiento]: incluye venta por caja, blíster y pastillas sueltas', () => {
+        expect(PHARMACY_MOCK).toContain('Paracetamol 500mg');
+        expect(PHARMACY_MOCK).toContain('Caja x 100 tab');
+        expect(PHARMACY_MOCK).toContain('3500');
+        expect(PHARMACY_MOCK).toContain('Blíster x 10 tab');
+        expect(PHARMACY_MOCK).toContain('400');
+        expect(PHARMACY_MOCK).toContain('4 tabletas sueltas');
+        expect(PHARMACY_MOCK).toContain('180');
+        expect(PHARMACY_MOCK).toContain('Agregar fraccionado al ticket');
       });
     });
 
     describe('C. RetailMock (/para/retail)', () => {
-      it('incluye indicador de escáner de código de barras a alta velocidad', () => {
-        expect(RETAIL_MOCK).toContain('EAN-13: 7751234567890 · Lectura 0.1s');
+      it('contiene los tabs de las 3 vistas: [Caja Express], [Balanza Digital], [Promociones]', () => {
+        expect(RETAIL_MOCK).toContain('[Caja Express]');
+        expect(RETAIL_MOCK).toContain('[Balanza Digital]');
+        expect(RETAIL_MOCK).toContain('[Promociones]');
       });
 
-      it('incluye productos de mostrador y abarrotes con montos en céntimos', () => {
+      it('Vista 1 [Caja Express]: incluye escáner EAN-13, abarrotes y calculadora de vuelto', () => {
+        expect(RETAIL_MOCK).toContain('EAN-13: 7751234567890 · Lectura 0.1s');
         expect(RETAIL_MOCK).toContain('Arroz Costeño Extra 5kg');
         expect(RETAIL_MOCK).toContain('2150');
-        expect(RETAIL_MOCK).toContain('Aceite Vegetal Primor 1L');
-        expect(RETAIL_MOCK).toContain('920');
-        expect(RETAIL_MOCK).toContain('Detergente Bolívar 1kg');
-        expect(RETAIL_MOCK).toContain('650');
-      });
-
-      it('incluye calculadora interactiva de vuelto en tiempo real', () => {
         expect(RETAIL_MOCK).toContain('Paga con: S/');
         expect(RETAIL_MOCK).toContain('Vuelto a entregar:');
-        expect(RETAIL_MOCK).toContain('5000');
-      });
-
-      it('cuenta con botón de cobro interactivo con feedback "Venta cerrada · Caja abierta ✓"', () => {
         expect(RETAIL_MOCK).toContain('data-testid="retail-charge-btn"');
         expect(RETAIL_MOCK).toContain('Venta cerrada · Caja abierta ✓');
+      });
+
+      it('Vista 2 [Balanza Digital]: incluye pesaje en tiempo real y cálculo exacto', () => {
+        expect(RETAIL_MOCK).toContain('Balanza USB / Bluetooth · Peso estable: 1.450 kg');
+        expect(RETAIL_MOCK).toContain('Pollo fresco eviscerado · Precio: S/ 9.80 / kg');
+        expect(RETAIL_MOCK).toContain('1.450 kg × S/ 9.80 = S/ 14.21');
+        expect(RETAIL_MOCK).toContain('1421');
+        expect(RETAIL_MOCK).toContain('Tara / Pesar');
+        expect(RETAIL_MOCK).toContain('Agregar pesado a caja');
+      });
+
+      it('Vista 3 [Promociones]: incluye combos 2x1 y packs automáticos', () => {
+        expect(RETAIL_MOCK).toContain('Promo 2x1 Detergente Bolívar 1kg');
+        expect(RETAIL_MOCK).toContain('Segunda unidad gratis · Ahorro S/ 6.50');
+        expect(RETAIL_MOCK).toContain('Pack Abarrotes del Día');
+        expect(RETAIL_MOCK).toContain('Arroz 5kg + Aceite 1L con 10% dto · Total: S/ 27.63');
+        expect(RETAIL_MOCK).toContain('Aplicar promoción en caja');
       });
     });
 
     describe('D. ServicesMock (/para/servicios)', () => {
-      it('incluye orden de trabajo con datos de vehículo y cliente RUC B2B', () => {
+      it('contiene los tabs de las 3 vistas: [Orden #OT-402], [Historial Placa], [Detracción SUNAT]', () => {
+        expect(SERVICES_MOCK).toContain('[Orden #OT-402]');
+        expect(SERVICES_MOCK).toContain('[Historial Placa]');
+        expect(SERVICES_MOCK).toContain('[Detracción SUNAT]');
+      });
+
+      it('Vista 1 [Orden #OT-402]: incluye orden B2B, mano de obra, repuestos y Factura SUNAT', () => {
         expect(SERVICES_MOCK).toContain('Vehículo: Toyota Hilux · Placa ABC-123');
         expect(SERVICES_MOCK).toContain('Transportes del Sur SAC (RUC 20601234567)');
-      });
-
-      it('incluye desglose de mano de obra y repuestos en céntimos', () => {
         expect(SERVICES_MOCK).toContain('Mantenimiento preventivo 10k km');
         expect(SERVICES_MOCK).toContain('12000');
-        expect(SERVICES_MOCK).toContain('Aceite sintético 5W-30');
-        expect(SERVICES_MOCK).toContain('14000');
-        expect(SERVICES_MOCK).toContain('Filtro de aire motor');
-        expect(SERVICES_MOCK).toContain('4500');
-      });
-
-      it('incluye desglose contable de Factura electrónica (OP. GRAVADA, IGV 18%, TOTAL)', () => {
         expect(SERVICES_MOCK).toContain('OP. GRAVADA');
         expect(SERVICES_MOCK).toContain('I.G.V. (18%)');
-        expect(SERVICES_MOCK).toContain('TOTAL FACTURA');
-      });
-
-      it('cuenta con botón de cobro interactivo con feedback "Factura electrónica emitida ✓"', () => {
         expect(SERVICES_MOCK).toContain('data-testid="services-charge-btn"');
         expect(SERVICES_MOCK).toContain('Factura electrónica emitida ✓');
+      });
+
+      it('Vista 2 [Historial Placa]: incluye consulta de placa, kilometraje y servicios previos', () => {
+        expect(SERVICES_MOCK).toContain('Placa ABC-123 · Toyota Hilux 2022');
+        expect(SERVICES_MOCK).toContain('15/04/2026');
+        expect(SERVICES_MOCK).toContain('Cambio de pastillas de freno');
+        expect(SERVICES_MOCK).toContain('18000');
+        expect(SERVICES_MOCK).toContain('10/01/2026');
+        expect(SERVICES_MOCK).toContain('Mantenimiento 5,000 km');
+        expect(SERVICES_MOCK).toContain('9500');
+        expect(SERVICES_MOCK).toContain('Transportes del Sur SAC · 8 servicios realizados');
+        expect(SERVICES_MOCK).toContain('Cargar datos para nueva orden');
+      });
+
+      it('Vista 3 [Detracción SUNAT]: incluye cálculo de régimen SPOT del 12%', () => {
+        expect(SERVICES_MOCK).toContain('Mantenimiento de flota · S/ 850.00');
+        expect(SERVICES_MOCK).toContain('85000');
+        expect(SERVICES_MOCK).toContain('Monto detracción SUNAT: S/ 102.00');
+        expect(SERVICES_MOCK).toContain('10200');
+        expect(SERVICES_MOCK).toContain('Neto a pagar: S/ 748.00');
+        expect(SERVICES_MOCK).toContain('74800');
+        expect(SERVICES_MOCK).toContain('Generar comprobante con código de detracción');
       });
     });
 
     describe('E. ChainMock (/para/cadenas)', () => {
-      it('incluye selector multi-sede con montos consolidados de ventas', () => {
+      it('contiene los tabs de las 3 vistas: [Ventas Sedes], [Transferencias], [Ranking Locales]', () => {
+        expect(CHAIN_MOCK).toContain('[Ventas Sedes]');
+        expect(CHAIN_MOCK).toContain('[Transferencias]');
+        expect(CHAIN_MOCK).toContain('[Ranking Locales]');
+      });
+
+      it('Vista 1 [Ventas Sedes]: incluye consolidado multi-sede y autorización', () => {
         expect(CHAIN_MOCK).toContain('Todas las sedes');
         expect(CHAIN_MOCK).toContain('1245000');
         expect(CHAIN_MOCK).toContain('Sede Miraflores');
         expect(CHAIN_MOCK).toContain('512000');
-        expect(CHAIN_MOCK).toContain('Sede San Isidro');
-        expect(CHAIN_MOCK).toContain('428000');
-        expect(CHAIN_MOCK).toContain('Sede Surco');
-        expect(CHAIN_MOCK).toContain('305000');
-      });
-
-      it('incluye módulo interactivo de transferencia de stock entre locales', () => {
-        expect(CHAIN_MOCK).toContain('Transferencia #TR-882: Central → Miraflores');
-        expect(CHAIN_MOCK).toContain('25 unidades de Bebidas 500ml transferidas');
-      });
-
-      it('cuenta con botón de aprobación interactivo con feedback "Transferencia autorizada y sincronizada ✓"', () => {
         expect(CHAIN_MOCK).toContain('data-testid="chain-transfer-btn"');
         expect(CHAIN_MOCK).toContain('Transferencia autorizada y sincronizada ✓');
+      });
+
+      it('Vista 2 [Transferencias]: incluye solicitudes de despacho y recepción entre locales', () => {
+        expect(CHAIN_MOCK).toContain('Solicitud #TR-882');
+        expect(CHAIN_MOCK).toContain('Sede Central');
+        expect(CHAIN_MOCK).toContain('Miraflores');
+        expect(CHAIN_MOCK).toContain('25 unid. Bebidas');
+
+        expect(CHAIN_MOCK).toContain('Solicitud #TR-883');
+        expect(CHAIN_MOCK).toContain('Sede San Isidro');
+        expect(CHAIN_MOCK).toContain('Surco');
+        expect(CHAIN_MOCK).toContain('10 unid. Insumos');
+
+        expect(CHAIN_MOCK).toContain('Aprobar y despachar mercadería');
+      });
+
+      it('Vista 3 [Ranking Locales]: incluye ranking, metas diarias y consolidado', () => {
+        expect(CHAIN_MOCK).toContain('1° Miraflores');
+        expect(CHAIN_MOCK).toContain('512000');
+        expect(CHAIN_MOCK).toContain('108% de la meta diaria 🏆');
+
+        expect(CHAIN_MOCK).toContain('2° San Isidro');
+        expect(CHAIN_MOCK).toContain('428000');
+        expect(CHAIN_MOCK).toContain('95% de la meta diaria');
+
+        expect(CHAIN_MOCK).toContain('3° Surco');
+        expect(CHAIN_MOCK).toContain('305000');
+        expect(CHAIN_MOCK).toContain('88% de la meta diaria');
+
+        expect(CHAIN_MOCK).toContain('Total consolidado: S/ 12,450.00');
+        expect(CHAIN_MOCK).toContain('98% meta global');
       });
     });
   });
 
-  describe('3. Integración en VerticalLandingView.svelte', () => {
+  describe('3. Integración en VerticalLandingView.svelte y Módulos de Dominio', () => {
     it('importa los 5 mockups especializados', () => {
       expect(VERTICAL_LANDING_VIEW).toContain("import RestaurantMock from '$lib/components/vertical-mocks/RestaurantMock.svelte';");
       expect(VERTICAL_LANDING_VIEW).toContain("import PharmacyMock from '$lib/components/vertical-mocks/PharmacyMock.svelte';");
@@ -243,6 +320,29 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'servicios'[\s\S]*?<ServicesMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/landing\.slug === 'cadenas'[\s\S]*?<ChainMock/);
       expect(VERTICAL_LANDING_VIEW).toMatch(/<CheckoutMock/);
+    });
+
+    it('incluye la sección dedicada data-testid="vertical-domain-modules"', () => {
+      expect(VERTICAL_LANDING_VIEW).toContain('data-testid="vertical-domain-modules"');
+      expect(VERTICAL_LANDING_VIEW).toContain('domain-modules-grid');
+      expect(VERTICAL_LANDING_VIEW).toContain('domain-module-card');
+    });
+
+    it('las 5 verticales definen 3 módulos especializados de dominio en verticals.ts', () => {
+      const verticals = allVerticals();
+      expect(verticals).toHaveLength(5);
+      for (const v of verticals) {
+        expect(v.modules).toBeDefined();
+        expect(v.modules).toHaveLength(3);
+        for (const mod of v.modules!) {
+          expect(mod.id).toBeTruthy();
+          expect(mod.title).toBeTruthy();
+          expect(mod.subtitle).toBeTruthy();
+          expect(mod.tag).toBeTruthy();
+          expect(mod.description).toBeTruthy();
+          expect(mod.highlights.length).toBeGreaterThanOrEqual(3);
+        }
+      }
     });
   });
 

@@ -130,9 +130,12 @@ check_db_transaction() {
 # --- V-07: capability model, no forks por vertical (ADR-ARCH-002) ------------
 check_no_vertical_fork() {
   local hits
+  # Excluir *.red.test.ts: son archivos de fase RED que mencionan switch(vertical)
+  # en el texto de las descripciones de test, no como fork real de producción.
   hits=$(grep -rInE 'switch\s*\(\s*[A-Za-z_.]*vertical|vertical(_type)?\s*===' --include='*.ts' --include='*.js' \
         --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build \
-        --exclude-dir=.svelte-kit --exclude-dir=coverage . 2>/dev/null)
+        --exclude-dir=.svelte-kit --exclude-dir=coverage . 2>/dev/null \
+        | grep -v '\.red\.test\.ts:')
   if [ -n "$hits" ]; then
     fail V-07 "fork por vertical en código"
     printf '%s\n' "$hits" | head -5 | sed 's/^/     /'

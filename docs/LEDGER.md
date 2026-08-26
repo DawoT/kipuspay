@@ -14804,3 +14804,41 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0511
+timestamp_utc: 2026-08-26T18:32:00Z
+schema_version: 2
+sprint_fase: Fase A — Módulos de Dominio y Vistas Multi-Tab por Vertical
+agente_responsable: Staff Device & UI Mockup Architect / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: 3 Vistas Interactivas (Comanda/KDS/Salón; Despacho/FEFO/Fraccionamiento; Caja/Balanza/Promo; Orden/Historial/Detracción; Ventas/Transferencias/Ranking) + Módulos de Dominio en landing
+relacion: AMPLIA
+referencias_entradas: [0510]
+referencias_documentales: [apps/marketing-web/src/lib/components/vertical-mocks/RestaurantMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/PharmacyMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/RetailMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/ServicesMock.svelte, apps/marketing-web/src/lib/components/vertical-mocks/ChainMock.svelte, apps/marketing-web/src/lib/components/VerticalLandingView.svelte, apps/marketing-web/src/lib/content/types.ts, apps/marketing-web/src/lib/content/verticals.ts, apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts, scripts/verify.sh]
+prev_id: 0510
+prev_hash: d81ca6ef7ebab4548cb564f2617701b2c12362c888aa0835639a1c2e9a6ce71f
+entry_hash: 989a9bef6b07b01680a285b61cddaa6d17af5ca70778478874201ad1e21f086e
+ticket_or_adr: GTM-01; GTM-02; V-26; CAL-01; CAL-06; ADR-ARCH-002
+test_ids: [apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts, apps/marketing-web/src/lib/components/home-device-mocks.test.ts, V-07, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/components/vertical-mocks/RestaurantMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/PharmacyMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/RetailMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/ServicesMock.svelte; apps/marketing-web/src/lib/components/vertical-mocks/ChainMock.svelte; apps/marketing-web/src/lib/components/VerticalLandingView.svelte; apps/marketing-web/src/lib/content/types.ts; apps/marketing-web/src/lib/content/verticals.ts; apps/marketing-web/src/lib/components/vertical-device-mocks.test.ts; scripts/verify.sh
+descripcion: >
+  Enriquecimiento de los 5 mockups de smartphone con 3 vistas operativas interactivas cada uno (role="tablist"/role="tab"), integración de módulos de dominio en la landing y corrección de V-07:
+  (1) Restaurantes: [Comanda] ticket+cobro, [KDS Cocina] comandas de cocina #CMD en vivo con Marcar Listo, [Mapa Salón] plano interactivo de mesas con mozo y consumo.
+  (2) Farmacias: [Despacho] receta+FEFO, [Control FEFO] semáforo de lotes vencidos/próximos/críticos, [Fraccionamiento] caja/blíster/tabletas sueltas de medicamentos.
+  (3) Retail: [Caja Express] escaneo+vuelto, [Balanza Digital] pesaje a granel en tiempo real con tara, [Promociones] combos 2x1 y packs automáticos.
+  (4) Servicios: [Orden #OT] historial de mano de obra y repuestos, [Historial Placa] búsqueda de historial por patente, [Detracción SUNAT] cálculo automático tasa 12% SPOT.
+  (5) Cadenas: [Ventas Sedes] consolidado multi-sede, [Transferencias] despacho/recepción entre sucursales, [Ranking Locales] tablero de metas y % de cumplimiento.
+  (6) types.ts: interfaz VerticalModule + propiedad modules en VerticalLanding.
+  (7) verticals.ts: 3 módulos especializados por cada una de las 5 verticales (15 módulos totales).
+  (8) VerticalLandingView.svelte: sección data-testid="vertical-domain-modules" con tarjetas de módulos de dominio.
+  (9) scripts/verify.sh V-07: exclusión correcta de archivos .red.test.ts que contienen switch(vertical) solo en descripciones de tests TDD, no en código de producción.
+evidencia: >
+  Playwright MCP: verificación de las 3 vistas interactivas de Restaurantes en navegador (screenshots: Comanda, KDS Cocina, Mapa Salón).
+  Marketing Web Vitest: 49 test files, 398 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

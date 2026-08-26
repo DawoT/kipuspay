@@ -88,6 +88,50 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         description: 'Cobra sin pausas aunque se corte la conexión',
       },
     ],
+    modules: [
+      {
+        id: 'kds-cocina',
+        title: 'KDS y Comandas de Cocina',
+        subtitle: 'Sincronización en tiempo real',
+        icon: 'lightning',
+        tag: 'OPERACIÓN SALÓN',
+        description:
+          'Los pedidos tomados en mesa o mostrador se reflejan de inmediato en la pantalla de cocina con tiempos de preparación, notas y estados claros.',
+        highlights: [
+          'Control de tiempos por plato en preparación',
+          'Alertas visuales de comandas listas para servir',
+          'Cero comandas de papel extraviadas en servicio',
+        ],
+      },
+      {
+        id: 'division-cuentas',
+        title: 'División Flexible de Cuentas',
+        subtitle: 'Cobro rápido por comensal',
+        icon: 'document',
+        tag: 'EXPERIENCIA COMENSAL',
+        description:
+          'Divide consumos individuales o partes iguales en segundos. Cada comensal puede pagar con su medio favorito emitiendo comprobante independiente.',
+        highlights: [
+          'División en partes iguales o por ítem consumido',
+          'Múltiples medios de pago en la misma mesa',
+          'Emisión de boletas y facturas separadas al instante',
+        ],
+      },
+      {
+        id: 'mapa-salon',
+        title: 'Plano y Mapa de Mesas',
+        subtitle: 'Monitoreo visual del salón',
+        icon: 'panel',
+        tag: 'GESTIÓN SALÓN',
+        description:
+          'Visualiza el estado de cada mesa en tiempo real: libres, ocupadas, por cobrar o reservadas. Asigna mozos y rota mesas a máxima velocidad.',
+        highlights: [
+          'Estados de mesa con código de color intuitivo',
+          'Asignación de mozo y comensales por mesa',
+          'Consumo acumulado y tiempo de ocupación en vivo',
+        ],
+      },
+    ],
   },
   farmacias: {
     slug: 'farmacias',
@@ -174,6 +218,50 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'shield-check',
         title: 'SUNAT con DNI o RUC',
         description: 'Emisión electrónica inmediata en un solo toque',
+      },
+    ],
+    modules: [
+      {
+        id: 'control-fefo',
+        title: 'Control FEFO y Lotes',
+        subtitle: 'Vencimientos bajo control',
+        icon: 'shield-check',
+        tag: 'CUMPLIMIENTO & CALIDAD',
+        description:
+          'Prioriza automáticamente la salida de los lotes con fecha de vencimiento más próxima. Evita pérdidas por mermas y asegura trazabilidad total.',
+        highlights: [
+          'Rotación First Expired, First Out automática',
+          'Alertas preventivas de caducidad por semáforo',
+          'Trazabilidad estricta por lote y laboratorio',
+        ],
+      },
+      {
+        id: 'fraccionamiento-med',
+        title: 'Venta Fraccionada Exacta',
+        subtitle: 'Por caja, blíster o pastilla',
+        icon: 'cart',
+        tag: 'MOSTRADOR ÁGIL',
+        description:
+          'Configura factores de conversión exactos. Despacha medicamentos en unidades sueltas sin descuadres en el inventario general ni cálculos manuales.',
+        highlights: [
+          'Descuento automático de inventario por unidad',
+          'Cálculo instantáneo del precio fraccionado',
+          'Control por blíster y unidad suelta en caja',
+        ],
+      },
+      {
+        id: 'receta-dni',
+        title: 'Receta Médica y DNI/RUC',
+        subtitle: 'Atención segura y formal',
+        icon: 'document',
+        tag: 'SUNAT & DIGEMID',
+        description:
+          'Vincula recetas médicas y médicos tratantes a cada despacho. Emite boletas y facturas con validación inmediata de DNI o RUC en un solo toque.',
+        highlights: [
+          'Búsqueda instantánea por principio activo',
+          'Registro y verificación de receta médica',
+          'Emisión electrónica 100% legal en segundos',
+        ],
       },
     ],
   },
@@ -264,6 +352,50 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         description: 'Boletas y facturas emitidas en automático',
       },
     ],
+    modules: [
+      {
+        id: 'caja-express-barcode',
+        title: 'Caja Express con Código de Barras',
+        subtitle: 'Escaneo a máxima velocidad',
+        icon: 'lightning',
+        tag: 'COBRO RÁPIDO',
+        description:
+          'Lectura continua con pistolas de código de barras USB y Bluetooth. Despacha sin colas en horas punta con cálculo instantáneo de vuelto.',
+        highlights: [
+          'Lectura EAN-13 en 0.1 segundos por producto',
+          'Calculadora interactiva de vuelto en tiempo real',
+          'Apertura automática de gaveta y ticket limpio',
+        ],
+      },
+      {
+        id: 'balanza-pesables',
+        title: 'Integración con Balanza Digital',
+        subtitle: 'Venta fluida por peso',
+        icon: 'balanza',
+        tag: 'PRODUCTOS A GRANEL',
+        description:
+          'Conecta balanzas digitales para pesar carnes, frutas, verduras y embutidos. Captura el peso neto con tara y calcula el precio exacto al instante.',
+        highlights: [
+          'Lectura USB y Bluetooth de peso estable en vivo',
+          'Tara automática y manual en mostrador',
+          'Cálculo exacto sol a sol por gramo pesado',
+        ],
+      },
+      {
+        id: 'promociones-combos',
+        title: 'Combos y Promociones 2x1',
+        subtitle: 'Motor de ofertas automáticas',
+        icon: 'etiqueta',
+        tag: 'FIDELIZACIÓN',
+        description:
+          'Aplica descuentos automáticos por volumen, combos del día y ofertas 2x1 en caja sin que el cajero deba memorizar o calcular descuentos.',
+        highlights: [
+          'Promociones 2x1 y 3x2 automáticas en ticket',
+          'Packs y combos con descuento porcentual',
+          'Ahorro del cliente visible en pantalla y boleta',
+        ],
+      },
+    ],
   },
   servicios: {
     slug: 'servicios',
@@ -349,6 +481,50 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'smartphone',
         title: 'Control de clientes',
         description: 'Historial de trabajos y cuentas por cobrar',
+      },
+    ],
+    modules: [
+      {
+        id: 'ordenes-taller-b2b',
+        title: 'Órdenes de Trabajo y Factura B2B',
+        subtitle: 'Gestión de servicios y repuestos',
+        icon: 'document',
+        tag: 'OPERACIONES B2B',
+        description:
+          'Organiza mano de obra y repuestos en órdenes de trabajo estructuradas. Emite facturas electrónicas con validación directa de RUC ante SUNAT.',
+        highlights: [
+          'Desglose detallado de mano de obra y repuestos',
+          'Validación automática de estado y condición de RUC',
+          'Emisión inmediata de Factura electrónica B2B',
+        ],
+      },
+      {
+        id: 'historial-placa-cliente',
+        title: 'Historial por Placa y Cliente',
+        subtitle: 'Trazabilidad y recurrencia',
+        icon: 'smartphone',
+        tag: 'FIDELIZACIÓN',
+        description:
+          'Consulta los mantenimientos anteriores, repuestos utilizados y kilometraje con solo ingresar la placa del vehículo o el nombre del cliente.',
+        highlights: [
+          'Búsqueda instantánea por placa o RUC/DNI',
+          'Línea de tiempo con fechas y comprobantes emitidos',
+          'Carga de datos en nueva orden en un solo toque',
+        ],
+      },
+      {
+        id: 'detracciones-sunat',
+        title: 'Detracciones SUNAT Automáticas',
+        subtitle: 'Cálculo SPOT sin errores',
+        icon: 'shield-check',
+        tag: 'TRIBUTARIO SUNAT',
+        description:
+          'Aplica el porcentaje de detracción SPOT correspondiente para servicios corporativos. Genera comprobantes con el monto neto y monto de detracción.',
+        highlights: [
+          'Cálculo automático de tasa SPOT (12%)',
+          'Desglose transparente: Monto detracción y Neto',
+          'Leyenda legal tributaria obligatoria incluida',
+        ],
       },
     ],
   },
@@ -438,6 +614,50 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'lightning',
         title: 'Sincronización robusta',
         description: 'Cada sucursal opera con total autonomía',
+      },
+    ],
+    modules: [
+      {
+        id: 'modo-dueno-multisede',
+        title: 'Modo Dueño Consolidado',
+        subtitle: 'Control total en tu celular',
+        icon: 'smartphone',
+        tag: 'MULTI-LOCAL',
+        description:
+          'Supervisa las ventas, transacciones y arqueos de todas tus sucursales en vivo. Compara el rendimiento de tus locales desde cualquier lugar.',
+        highlights: [
+          'Ventas en vivo y métricas de todas las sedes',
+          'Arqueos y cierres de turno transparentes',
+          'Acceso móvil para supervisión remota en tiempo real',
+        ],
+      },
+      {
+        id: 'transferencias-interlocales',
+        title: 'Transferencias de Mercadería',
+        subtitle: 'Trazabilidad entre sucursales',
+        icon: 'sync',
+        tag: 'LOGÍSTICA & STOCK',
+        description:
+          'Despacha y recibe productos entre almacén central y sucursales. Controla guías de remisión internas y coteja cantidades sin descuadres.',
+        highlights: [
+          'Solicitudes de despacho y recepción en vivo',
+          'Descuento e ingreso automático en inventario',
+          'Trazabilidad total de envíos sin diferencias',
+        ],
+      },
+      {
+        id: 'ranking-metas-locales',
+        title: 'Ranking de Locales y Metas',
+        subtitle: 'Cumplimiento y rendimiento',
+        icon: 'institution',
+        tag: 'GESTIÓN COMERCIAL',
+        description:
+          'Monitorea el cumplimiento porcentual de metas diarias por sucursal. Identifica tiendas con mejor desempeño y optimiza inventario por local.',
+        highlights: [
+          'Porcentaje de cumplimiento de meta diaria',
+          'Comparativa sol a sol de recaudación por sede',
+          'Ticket promedio y volumen por punto de venta',
+        ],
       },
     ],
   },

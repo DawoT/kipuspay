@@ -194,6 +194,51 @@
     </div>
   </section>
 
+  {#if landing.modules && landing.modules.length > 0}
+    <section class="section" data-testid="vertical-domain-modules">
+      <div class="section-frame">
+        <div class="section-gutter" aria-hidden="true" use:reveal>
+          <QuipuSectionMark state="synced" tone="ink" />
+        </div>
+        <div class="section-body">
+          <div class="sec-head" use:reveal>
+            <p class="eyebrow">
+              <span class="knot-dot" aria-hidden="true"></span>
+              Módulos especializados
+            </p>
+            <h2>Herramientas diseñadas para {landing.navLabel.toLowerCase()}</h2>
+            <p class="section-lead">
+              Flujos operativos optimizados que resuelven las exigencias reales de tu día a día.
+            </p>
+          </div>
+          <div class="domain-modules-grid">
+            {#each landing.modules as mod, i (mod.id)}
+              <article class="domain-module-card" use:reveal data-reveal-delay={i % 3}>
+                <div class="mod-card-header">
+                  <span class="mod-tag">{mod.tag}</span>
+                  <span class="mod-icon-wrap" aria-hidden="true">
+                    <Icon name={mod.icon} size={22} tone="amber" />
+                  </span>
+                </div>
+                <h3 class="mod-title">{mod.title}</h3>
+                <p class="mod-subtitle">{mod.subtitle}</p>
+                <p class="mod-desc">{mod.description}</p>
+                <ul class="mod-highlights">
+                  {#each mod.highlights as hl}
+                    <li>
+                      <span class="hl-dot" aria-hidden="true">✓</span>
+                      <span>{hl}</span>
+                    </li>
+                  {/each}
+                </ul>
+              </article>
+            {/each}
+          </div>
+        </div>
+      </div>
+    </section>
+  {/if}
+
   <section class="section section-paper" data-testid="vertical-cases">
     <div class="section-frame">
       <div class="section-gutter" aria-hidden="true" use:reveal>

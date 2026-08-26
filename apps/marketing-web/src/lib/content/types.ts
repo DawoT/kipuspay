@@ -30,7 +30,18 @@ export interface VerticalLanding {
     readonly title: string;
     readonly description: string;
   }[];
+  readonly modules?: readonly VerticalModule[];
   readonly faq: readonly { readonly q: string; readonly a: string }[];
+}
+
+export interface VerticalModule {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly icon: string;
+  readonly tag: string;
+  readonly description: string;
+  readonly highlights: readonly string[];
 }
 
 /** Linea de la pantalla de cobro de ejemplo. Dinero en centimos enteros. */
