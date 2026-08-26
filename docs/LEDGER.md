@@ -14444,3 +14444,35 @@ aprobaciones: [Staff QA Auditor, Staff Principal, @DawoT A (humano)]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0501
+timestamp_utc: 2026-08-26T14:17:00Z
+schema_version: 2
+sprint_fase: Fase A — Barra de Beneficios Full-Width en Hero
+agente_responsable: Staff Visual & Layout Designer / Staff Principal (aprobador: @DawoT)
+tipo: Entregable nuevo
+subtipo: Distribución de 4 Tarjetas de Beneficio a Todo el Ancho del Hero (72rem Ribbon)
+relacion: amplia
+referencias_entradas: [0500]
+referencias_documentales: [apps/marketing-web/src/app.css, apps/marketing-web/src/routes/+page.svelte, apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts]
+prev_id: 0500
+prev_hash: 13d8a8ed4f1bc27a2576529de8a7a58d7dd9be7a40931650696f3816fa331d25
+entry_hash: 245a3eeceae9b42df848ab1db0b8835b40031fc452631abae267749ba46234c7
+ticket_or_adr: GTM-01; V-26; CAL-01; CAL-06
+test_ids: [apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts, apps/marketing-web/src/lib/components/ui-ux-enhancements.test.ts, V-21, V-26, SUITE]
+entregable_afectado: apps/marketing-web/src/app.css; apps/marketing-web/src/routes/+page.svelte; apps/marketing-web/src/lib/components/interactive-buttons-audit.test.ts
+descripcion: >
+  Rediseño y distribución de la barra de beneficios principales a todo el ancho (72rem) en el Hero:
+  (1) Estructura semántica desacoplada: hero-inner pasa a layout vertical flex de alto impacto con hero-main (grid editorial + Quipu) y hero-badges como cinta inferior horizontal.
+  (2) Grilla de 4 columnas en desktop (repeat(4, 1fr)): distribución equilibrada de los 4 beneficios clave (Cobro en segundos, Modo Dueño en vivo, 100% legal ante SUNAT, Operación fluida continua).
+  (3) Tarjetas de cristal oscuro (dark glass): fondo rgba(20,22,28,0.7) con backdrop blur de 10px, borde sutil, ícono ámbar en caja de acento (2.35rem) y micro-interacción hover con elevación suave.
+evidencia: >
+  Marketing Web Vitest: 47 test files, 316 tests pasando al 100% (98.0% cobertura).
+  POS Web Vitest: 91 test files, 480 tests pasando al 100%.
+  Monorepo Quality Gate: scripts/verify.sh SUITE GREEN (31/31 checks).
+ancestry_verified: true
+aprobaciones: [Staff Visual Designer, Staff Principal, @DawoT A (humano)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

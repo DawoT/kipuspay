@@ -29,6 +29,7 @@ const CHECKOUT_MOCK = readFileSync(
 );
 const OWNER_MOCK = readFileSync(new URL('./OwnerModeMock.svelte', import.meta.url), 'utf8');
 const SAVINGS_CALC = readFileSync(new URL('./SavingsCalculator.svelte', import.meta.url), 'utf8');
+const APP_CSS = readFileSync(new URL('../../app.css', import.meta.url), 'utf8');
 
 describe('Auditoría Integral de Funcionalidad de Botones e Interacciones', () => {
   describe('1. Navegación Global y Header (+layout.svelte)', () => {
@@ -142,6 +143,16 @@ describe('Auditoría Integral de Funcionalidad de Botones e Interacciones', () =
       expect(HOME_PAGE).toContain('href="/empezar"');
       expect(HOME_PAGE).toContain('href="#como"');
       expect(HOME_PAGE).toContain('class="btn btn-sticky"');
+    });
+  });
+
+  describe('7. Barra Horizontal de Beneficios en el Hero (Hero Badges)', () => {
+    it('.hero-badges se ubica a todo el ancho dentro de .hero-inner con 4 columnas en desktop', () => {
+      expect(HOME_PAGE).toMatch(/class="hero-badges"\s+aria-label="Beneficios principales"/);
+      expect(APP_CSS).toMatch(
+        /@media \(min-width: 899px\) \{\s*\.hero-badges \{\s*grid-template-columns: repeat\(4, 1fr\);/,
+      );
+      expect(APP_CSS).toMatch(/\.hero-badge-item:hover/);
     });
   });
 });

@@ -69,33 +69,36 @@
 <section class="hero" data-testid="home-hero">
   <QuipuHero videoSrc="/media/hero-quipu.mp4" poster="/media/hero-quipu-poster.jpg" />
   <div class="hero-inner">
-    <div class="hero-copy">
-      <p class="eyebrow">
-        <span class="knot-dot" aria-hidden="true"></span>
-        {HOME.eyebrow}
-      </p>
-      <p class="brand-mark">{HOME.brand}</p>
-      <h1>{HOME.headline}</h1>
-      <p class="hero-sub">{HOME.subheadline}</p>
-      <div class="hero-actions">
-        <a class="btn" href="/empezar">{HOME.ctaPrimary}</a>
-        <a class="btn btn-ghost" href="#como">{HOME.ctaSecondary}</a>
+    <div class="hero-main">
+      <div class="hero-copy">
+        <p class="eyebrow">
+          <span class="knot-dot" aria-hidden="true"></span>
+          {HOME.eyebrow}
+        </p>
+        <p class="brand-mark">{HOME.brand}</p>
+        <h1>{HOME.headline}</h1>
+        <p class="hero-sub">{HOME.subheadline}</p>
+        <div class="hero-actions">
+          <a class="btn" href="/empezar">{HOME.ctaPrimary}</a>
+          <a class="btn btn-ghost" href="#como">{HOME.ctaSecondary}</a>
+        </div>
+        <p class="trust">{HOME.activation} · {HOME.trustLine}</p>
       </div>
-      <p class="trust">{HOME.activation} · {HOME.trustLine}</p>
+    </div>
 
-      <div class="hero-badges" aria-label="Beneficios principales">
-        {#each HOME.heroBadges as badge}
-          <div class="hero-badge-item">
-            <span class="hero-badge-icon" aria-hidden="true">
-              <Icon name={badge.icon} size={20} tone="amber" />
-            </span>
-            <div class="hero-badge-text">
-              <strong>{badge.title}</strong>
-              <span>{badge.description}</span>
-            </div>
+    <!-- Barra horizontal de 4 beneficios a todo el ancho del hero -->
+    <div class="hero-badges" aria-label="Beneficios principales" use:reveal>
+      {#each HOME.heroBadges as badge, i}
+        <div class="hero-badge-item" data-reveal-delay={i % 4}>
+          <span class="hero-badge-icon" aria-hidden="true">
+            <Icon name={badge.icon} size={22} tone="amber" />
+          </span>
+          <div class="hero-badge-text">
+            <strong>{badge.title}</strong>
+            <span>{badge.description}</span>
           </div>
-        {/each}
-      </div>
+        </div>
+      {/each}
     </div>
   </div>
 </section>
