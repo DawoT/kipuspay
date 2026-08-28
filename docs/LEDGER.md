@@ -15488,3 +15488,35 @@ aprobaciones: [Staff SRE, Staff QA, Staff Frontend, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0531
+timestamp_utc: 2026-08-27T07:00:00Z
+schema_version: 2
+sprint_fase: Fix CI — seo-prerender skipIf sin build
+agente_responsable: Staff SRE (auditoría Principal)
+tipo: Fix
+subtipo: CI gate orden build/test
+relacion: CORRIGE
+referencias_entradas: [0530]
+referencias_documentales: [apps/marketing-web/src/lib/seo-prerender.test.ts]
+prev_id: 0530
+prev_hash: b2dbe8c4f66b34762f5fb2072ff1614872356a5ac2e2197c9726033d86829117
+entry_hash: 4152ec0438bb110a233078e8eac7bc1fe113d6cd34b399334fe013ee4d77cf0d
+ticket_or_adr: V-08; CAL-05
+test_ids: [seo-prerender.test.ts, SUITE]
+entregable_afectado: apps/marketing-web/src/lib/seo-prerender.test.ts (skipIf !hasPrerender)
+descripcion: >
+  Fix gate CI: seo-prerender exigía prerender sin build previo y hacía FAIL
+  unit antes de build (quality y deploy gate Etapa 2 antes de 5). Cambia
+  describe a describe.skipIf(!hasPrerender) para no bloquear unit cuando
+  artefacto no existe; validación sigue cuando build existe. Desbloquea
+  kipus-quality y deploy-staging.
+evidencia: >
+  marketing-web 410/410 (skip 3 cuando sin build, 3/3 cuando con build),
+  SUITE GREEN, quality 8/8. Build sigue validando JSON-LD tras build.
+ancestry_verified: true
+aprobaciones: [Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

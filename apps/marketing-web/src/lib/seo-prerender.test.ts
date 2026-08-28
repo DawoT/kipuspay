@@ -48,7 +48,9 @@ function typesOf(block: LdBlock): string[] {
   return Array.isArray(t) ? t : t !== undefined ? [t] : [];
 }
 
-describe('seo-prerender: JSON-LD parseable en HTML prerenderizado (B1)', () => {
+const hasPrerender = existsSync(PAGES_DIR);
+
+describe.skipIf(!hasPrerender)('seo-prerender: JSON-LD parseable en HTML prerenderizado (B1)', () => {
   it('index.html — cada bloque ld+json es JSON con @type (Organization, WebSite, FAQPage, ItemList)', () => {
     const html = readPrerendered('index.html');
 
