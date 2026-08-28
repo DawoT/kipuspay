@@ -15559,3 +15559,56 @@ aprobaciones: [Staff Principal, Staff QA, Staff Frontend]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0533
+timestamp_utc: 2026-08-28T22:45:00Z
+schema_version: 2
+sprint_fase: Remediacion Iteracion 1 — Zero-Trust HIGH (veto Ola3 canario)
+agente_responsable: Staff Security (HIGH-01 JWK) + Staff SRE (HIGH-02 CORS) + Staff Backend ACID (retry CAS) — auditoria Staff Principal
+tipo: Correccion
+subtipo: seguridad Zero-Trust + robustez transaccional
+relacion: CORRIGE
+referencias_entradas: [0528, 0532, 0049]
+referencias_documentales: [apps/worker-api/src/platform/platform-auth.ts, apps/worker-api/src/platform/platform-auth.test.ts, apps/worker-api/src/auth/public-cors.ts, apps/worker-api/src/index.ts, apps/worker-api/src/tenant/plan-reconcile.ts, apps/worker-api/wrangler.jsonc, .gitleaks.toml, docs/adr/ADR-0036-push-dispatch-inline.md]
+prev_id: 0532
+prev_hash: b18b62fa753c3e2cb4853b31d525ea5c3fe0e7419d67171ca0aaeb189d2af198
+entry_hash: b32ac0c77cc74407e3c37d246141c208969c0b150c9b7c74427f47ef0b56911d
+ticket_or_adr: Auditoria por ola 2026-08-28 — Iteracion 1/3 (HIGH-01 CF Access JWK + HIGH-02 CORS wildcard; Anexo B)
+test_ids: [platform-auth.test.ts (3 tests: forjado→401, valido mocked JWK→200, timingSafeEqual), platform-cors.test.ts (9 tests: evil.pages.dev sin ACAO), plan-reconcile-retry.test.ts (retry CAS 3x), control-plane.test.ts, SUITE, V-13, V-16]
+entregable_afectado: apps/worker-api/src/platform/platform-auth.ts (JWK RS256 verify cache 10m + iss/aud/kid/teamDomain fail-closed 503, solo header Cf-Access-Jwt-Assertion + timingSafeEqual Uint8Array) · apps/worker-api/src/auth/public-cors.ts (platformCorsMiddleware aislado ALLOWED_PLATFORM_ORIGINS=https://admin.kipuspay.com) · apps/worker-api/src/tenant/plan-reconcile.ts (retry CAS 3x backoff 50*2^attempt + 409 CONFLICT) · apps/pos-web/src/lib/tenant/capabilitiesStore.ts (getStaleBanner deduplicado) · docs/adr/ADR-0036 nota DAT-10
+descripcion: >
+  Iteracion 1 del tie-breaker Anexo B (max 3, nunca relaja Zero-Trust/ACID/SUNAT).
+  Auditorias por ola (kipus-data/pos/security/acid/qa/hardware) 2026-08-28T21:30Z:
+  Ola0 PASS 9/9 BAJO, Ola1 PASS 12/12, Ola2 PASS condicional 5 WARN, Ola3 CONDITIONAL
+  PASS 2 HIGH NO-GO canario prod, Ola4 PASS condicional (batch 85/100 sin span,
+  complexity 49 sin retry), Ola5 PASS 3 obs, HW PENDING. Iter1 remedia vetos:
+  HIGH-01 platform-auth.ts 211L: RS256 con jwks_uri de discovery
+  https://<team>.cloudflareaccess.com/cdn-cgi/access/certs, kid match, iss
+  https://<team>.cloudflareaccess.com, aud CF_ACCESS_AUD, cache RAM 10m, header
+  exclusivo Cf-Access-Jwt-Assertion, timingSafeEqual sin early return (dep crypto
+  ya es const-time pero wrapper valida tipos/longitudes), fail-closed 503 si JWK
+  no verificado — TDD 3 tests. HIGH-02 public-cors.ts 19L + index.ts 31L:
+  platformCorsMiddleware aislado con ALLOWED_PLATFORM_ORIGINS
+  https://admin.kipuspay.com (sin *.pages.dev), branch isPlatform integra
+  public-cors sin wildcard — TDD 9 tests. MEDIUM: R-001 ADR 0036→0064 con NOTA
+  IMPORTANTE DAT-10 reemplazo total DDL, O2 banner getStaleBanner/STALE_THRESHOLD_MS,
+  O4 retry CAS para epoch+capabilities en misma tx. Gitleaks allowlist para tokens
+  de test sintéticos en platform-auth/tenant test (no secretos prod). Calidad
+  máxima: reproduce + gates + deploy antes de cierre (Principio 2).
+evidencia: >
+  RED: auditoria Ola3 HIGH-01 solo atob+exp/aud sin firma (jwt forjado pasaba
+  200) + HIGH-02 ACAO wildcard Access-Control-Allow-Origin:* en /platform/*
+  (pages.dev evil pasaba); quality 33216483384 failure 3m42s + security gitleaks
+  generic-api-key en staff-secret-12345 sintético; deploy vetado prod.
+  GREEN: HIGH-01/02 TDD RED→GREEN (platform-auth 3/3 token forjado 401, valido
+  200 mocked JWK, timingSafe; platform-cors 9/9 evil 403 sin header, permitido
+  200 con ACAO admin.kipuspay.com); quality 33216732586 success 7m56s + security
+  35s + CodeQL 2m58s + verify SUITE GREEN 31/31 (V-13 dual validado); deploy
+  staging 33217303480 success 8m05s; worker-api 1473 tests GREEN, batch 85,
+  bundle 309.23kB/310kB.
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff SRE, Staff Backend ACID, Staff Principal (A)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

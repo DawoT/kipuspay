@@ -2169,3 +2169,38 @@ aprobaciones: ["A: Staff Principal (harness)", "V: kipus-qa audit + kipus-pos fi
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0051
+timestamp_utc: 2026-08-28T22:45:00Z
+schema_version: 2
+sprint_fase: Remediacion Iteracion 1 — Zero-Trust HIGH (auditoria por ola) — espejo staff
+agente_responsable: Staff Security + Staff SRE + Staff Backend ACID — auditoria Staff Principal (A)
+tipo: Correccion
+subtipo: seguridad Zero-Trust + espejo ledger
+relacion: CORRIGE
+referencias_entradas: [0050, 0049]
+referencias_documentales: ["apps/worker-api/src/platform/platform-auth.ts", "apps/worker-api/src/auth/public-cors.ts", "apps/worker-api/src/tenant/plan-reconcile.ts", "docs/LEDGER.md:0533"]
+prev_id: 0050
+prev_hash: ee24710b42e48eec9976e76e471a07c86c7c1e03b9a453a83b9841809d8ecb95
+entry_hash: 312b5dbadc6c8e94bed4989e9e58505c6f04b9d75af036de9f1a800618f367af
+ticket_or_adr: Auditoria por ola 2026-08-28 — HIGH-01 JWK + HIGH-02 CORS (Anexo B 1/3); LEDGER 0533
+test_ids: [platform-auth.test.ts (3), platform-cors.test.ts (9), plan-reconcile-retry.test.ts, worker-api 1473, SUITE, V-13 dual]
+entregable_afectado: staff ledger espejo de LEDGER 0533 — HIGH-01 JWK RS256 verified (CF Access) + HIGH-02 CORS allowlist admin.kipuspay.com + retry CAS + gitleaks allowlist
+descripcion: >
+  Espejo staff de LEDGER 0533. Staff Security implementa platform-auth JWK RS256
+  (kid/iss/aud/teamDomain, cache 10m, fail-closed 503, solo Cf-Access-Jwt-Assertion)
+  con TDD forjado/valido/timingSafe; Staff SRE aisla CORS platform (ALLOWED_
+  PLATFORM_ORIGINS sin wildcards); Backend ACID añade retry CAS 3x epoch.
+  Auditorias por ola 0-3 revisadas: veto HIGH resuelto, calidad maxima antes de cierre.
+evidencia: >
+  RED: auditoria Ola3 HIGH-01/02 NO-GO canario + gitleaks synthetic token
+  (quality 33216483384 failure, security generic-api-key).
+  GREEN: quality 33216732586 success 7m56s, security 35s, CodeQL 2m58s,
+  verify 31/31, deploy 33217303480 8m05s, platform-auth 3/3 + platform-cors 9/9
+  GREEN, ledger dual V-13 GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (lente aprobador)", "V: suites + gate dual re-ejecutados", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
