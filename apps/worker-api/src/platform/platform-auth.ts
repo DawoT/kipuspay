@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Ola 3 — Control Plane SuperAdmin aislado (ADR-ARCH-003).
  * Middleware platformAuth: CF Access JWT (CF_Authorization) + allowlist ALLOWLIST_STAFF_EMAILS

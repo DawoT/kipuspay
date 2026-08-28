@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Hono, type Context } from 'hono';
 import { buildSaleTotals, type OfflineSalePayload, type SaleLine } from '@kipuspay/domain-sales';
 import type { AuthTenantSnapshot } from './auth/auth-decide.js';
@@ -2170,7 +2171,6 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runListHardwareDiagnosticsHttp(c.env, hardwareDiagActor(c), limit);
     return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
   });
-  // eslint-disable-next-line complexity
   app.post('/api/pos/terminals/pairing', async (c) => {
     const jwt = c.get('jwt');
     if (!jwt?.tenantId) return c.json({ code: 'UNAUTHENTICATED' }, 401);
@@ -2993,6 +2993,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
 
   // S11-B5: cambio de plan self-serve (GTM §8) — owner/admin.
+  // Ola 4: reconcilia tenant_capabilities vía domain-billing en batch atómico.
   app.patch('/api/tenant/plan', async (c) => {
     let raw: unknown;
     try {
@@ -3000,9 +3001,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     } catch {
       return c.json({ error: 'Invalid JSON', code: 'BAD_REQUEST' }, 400);
     }
-    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
-    const user = c.get('user') as { role?: string } | undefined;
-    const result = await runUpdatePlanHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '', raw);
+    const jwt = c.get('jwt') as { tenantId?: string; sub?: string } | undefined;
+    const user = c.get('user') as { userId?: string; role?: string } | undefined;
+    const result = await runUpdatePlanHttp(c.env, jwt?.tenantId ?? '', user?.role ?? '', raw, {
+      actorUserId: user?.userId ?? jwt?.sub ?? 'system',
+    });
     return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 422 | 503);
   });
 

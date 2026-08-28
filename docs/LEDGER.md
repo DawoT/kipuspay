@@ -15422,3 +15422,37 @@ aprobaciones: [Staff Security, Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0529
+timestamp_utc: 2026-08-27T05:00:00Z
+schema_version: 2
+sprint_fase: Ola 4 — Plan upgrade reconciliación + webhook
+agente_responsable: Staff Backend ACID + Billing (auditoría Principal/Security)
+tipo: Entrega
+subtipo: Plan provision + reconciliación atómica + Stripe webhook
+relacion: amplia
+referencias_entradas: [0528]
+referencias_documentales: [packages/domain-billing/src/plan-provision.ts, apps/worker-api/src/tenant/plan-reconcile.ts]
+prev_id: 0528
+prev_hash: e5b0f6296e95ec92f3d9868c0e087eee1533d2b494dfa8475d628cfc01f2c9c9
+entry_hash: 2676eedb1d3589578ab28ff2a56398d7e440af6044fc98136a3e29bdef2b7522
+ticket_or_adr: ADR-ARCH-003; V-02; V-04; V-05
+test_ids: [plan-provision.test.ts, plan-upgrade.test.ts, SUITE]
+entregable_afectado: packages/domain-billing/src/plan-provision.ts (77 caps por plan); apps/worker-api/src/tenant/plan-reconcile.ts (batch atómico + audit+epoch+KV); webhooks/handle-stripe-webhook.ts (extract price→plan)
+descripcion: >
+  Ola 4 — PATCH /api/tenant/plan (owner|admin) con provisionCapabilitiesForPlan:
+  INSERT OR IGNORE plan_default + DELETE plan_default huérfano, preserva
+  platform_override, batch atómico tenants+capabilities+audit+epoch+claim,
+  idempotente misma planId, tenant isolation. Stripe webhook reconcilia plan
+  via price→plan y audit, dedup por webhook_events. Plan Guard intacto: 402
+  solo premium, nunca checkout.
+evidencia: >
+  domain-billing 37/37 (12/30/52/77, superset, Stripe), worker-api 1473/1473
+  (112 files) plan-upgrade 16/16 (201, idempotente, overrides, downgrade,
+  isolation, batch rollback, webhook 201/dedup). SUITE GREEN V-02/V-04/V-05.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Billing, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

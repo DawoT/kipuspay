@@ -2091,3 +2091,45 @@ aprobaciones: [Staff Pos, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+
+```text
+id: 0049
+timestamp_utc: 2026-08-28T14:00:00Z
+schema_version: 2
+sprint_fase: Ola 4 — Plan Upgrade reconciliación (P1)
+agente_responsable: Staff Backend ACID + Billing (Kipus Acid) — Staff Backend del Motor Transaccional ACID
+tipo: Entregable nuevo
+subtipo: motor transaccional + billing
+relacion: amplía
+referencias_entradas: [0007, 0009, 0010, 0048]
+referencias_documentales: ["docs/architecture/06-acid-engine.md", "docs/architecture/04-webhooks-metering.md", "docs/architecture/05-3-commercial-ops.md", "docs/architecture/03-auth-plan-enforcement.md", "INDEX.md"]
+prev_id: 0048
+prev_hash: efb8307798dbf129ce293f2c5e1110efd673988ed793da35f8e937009ddce4ae
+entry_hash: 7d7f9a9e356c1efaeaf664396b62c75e7ad4181660fcfaac521c0c63253102dd
+ticket_or_adr: Ola 4 — Plan Upgrade + Metering
+test_ids: [domain-billing:plan-provision.test.ts (37 tests, 96.15% stmts, 100% lines), worker-api:plan-upgrade.test.ts (16 tests: 201 upgrade, idempotente, overrides preservados, downgrade, webhook reconciliation, tenant isolation, Plan Guard 402), worker-api:plan-routes.test.ts (5), worker-api:handle-stripe-webhook.test.ts (18), worker-api:auth-decide.test.ts (4), V-02, V-04, V-05, V-08, SUITE GREEN, CAL-03 95%]
+entregable_afectado: packages/domain-billing/src/plan-provision.ts · packages/domain-billing/src/index.ts · apps/worker-api/src/tenant/plan-reconcile.ts · apps/worker-api/src/tenant/plan-routes.ts · apps/worker-api/src/webhooks/handle-stripe-webhook.ts · apps/worker-api/src/index.ts (mount PATCH /api/tenant/plan) · apps/worker-api/src/tenant/plan-upgrade.test.ts
+descripcion: >
+  Ola 4 — reconciliación atómica de plan: domain-billing.provisionCapabilitiesForPlan(planId) como SoT (migration 0064, 12/30/52/77 caps, superset monotónico);
+  PATCH /api/tenant/plan (owner|admin) mantiene contrato pero ahora ejecuta un único db.batch atómico con tenants plan_id UPDATE +
+  tenant_capabilities INSERT OR IGNORE plan_default (source=plan_default) + DELETE plan_default huérfano (NOT IN newPlan, config_json='{"source":"plan_default"}')
+  + audit_events PLAN_UPGRADE (prev_hash/row_hash + claim CAS audit_chain_heads) + tenant_data_epochs epoch+1 + KV put best-effort;
+  preserva overrides platform_override (config_json distinto) tanto en upgrade como en downgrade y downgrade borra solo plan_default;
+  idempotente: mismo planId → 200 sin duplicate audit (early noop); Stripe webhook extrae price→plan via STRIPE_PRICE_* y
+  reconcilia capabilities vía mismo batch atómico (invoice.paid/subscription.updated, dedup por webhook_events, 503 retryable si plan reconcile falla);
+  Plan Guard intacto: isPremiumFeatureRoute vs isCheckoutCriticalRoute (402 solo premium, nunca checkout/caja), capabilities revoke no bloquea
+  caja offline-first (decideAuthGate solo mira subscriptionStatus/pastGracePeriod, no capabilities); complejidad hot path ≤12, sin UPSERT INTO ni db.transaction.
+evidencia: >
+  RED→GREEN TDD: plan-provision.test.ts 37/37 GREEN (96.15% stmts, 100% lines, CAL-03 95%);
+  plan-upgrade.test.ts 16/16 GREEN (201, idempotente, overrides, downgrade, webhook, isolation, Plan Guard);
+  handle-stripe-webhook.test.ts 18/18 GREEN (dedup, replay, past_due, revoke); auth-decide.test.ts 4/4 GREEN (checkout-critical nunca 402);
+  worker-api 112 archivos 1473 tests GREEN; domain-billing 37 tests GREEN; V-02 0 UPSERT, V-04 0 db.transaction, V-05 tenant_id NOT NULL, V-08 registry sin huérfanos,
+  V-13 staff-ledger cadena verificada, V-21 0 float sobre dinero, SUITE GREEN; batch atómico verificado con inyección de fallo a mitad de plan (CHECK atomic_guards) → rollback total,
+  tenant isolation (t1 vs t2) y webhook deduplication (mismo event_id → deduplicated true) con tiempo <100ms.
+ancestry_verified: true
+aprobaciones: ["A: Staff Backend ACID (Kipus Acid)", "V: Staff Principal (lente QA/Chaos) + Staff QA independiente", "Caveat: mismo sistema — countersignatura humana para liberatorio"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

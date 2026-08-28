@@ -1,9 +1,11 @@
+import { extractStripePriceId, resolvePlanFromExtracted } from '@kipuspay/domain-billing';
 import {
   MAX_WEBHOOK_BODY_BYTES,
   type StripeSignatureFailureCode,
   verifyStripeSignature,
   webhookBodyBytes,
 } from './verify-stripe-signature.js';
+import { reconcilePlanAtomic } from '../tenant/plan-reconcile.js';
 
 const SUBSCRIPTION_TYPES = new Set([
   'customer.subscription.deleted',
@@ -22,6 +24,9 @@ export interface StripeWebhookEnv {
   readonly DB?: D1Database;
   readonly STRIPE_WEBHOOK_SECRET?: string;
   readonly FQDN?: string;
+  readonly STRIPE_PRICE_ARRANQUE?: string;
+  readonly STRIPE_PRICE_CRECE?: string;
+  readonly STRIPE_PRICE_CADENA?: string;
   readonly TENANT_KV: {
     get(key: string): Promise<string | null>;
     put?(key: string, value: string): Promise<void>;
@@ -209,6 +214,42 @@ async function applySubscriptionEffects(
   }
 }
 
+function extractPlanFromRawBody(rawBody: string, env: StripeWebhookEnv): string | null {
+  try {
+    const parsed = JSON.parse(rawBody) as { data?: { object?: unknown } };
+    const obj = parsed.data?.object;
+    if (!obj) return null;
+    const extracted = extractStripePriceId(obj);
+    const plan = resolvePlanFromExtracted(extracted, env);
+    return plan;
+  } catch {
+    return null;
+  }
+}
+
+async function maybeReconcilePlanFromStripe(
+  env: StripeWebhookEnv,
+  tenantId: string,
+  rawBody: string,
+): Promise<void> {
+  const plan = extractPlanFromRawBody(rawBody, env);
+  if (!plan) return;
+  const db = webhookDb(env);
+  if (!db) return;
+  // reconcilePlanAtomic es idempotente: noop si ya está en plan
+  const res = await reconcilePlanAtomic(
+    env,
+    tenantId,
+    plan,
+    { actorUserId: 'stripe-webhook', source: 'stripe_webhook' },
+  );
+  if (res.status === 'error') {
+    // No silenciamos: el webhook debe reintentar (503)
+    throw new Error(`PLAN_RECONCILE_FAILED:${plan}`);
+  }
+  // noop / updated / not_found son no-error para el webhook (tenant missing es edge de provisioning)
+}
+
 function validateWebhookRequest(
   env: StripeWebhookEnv | undefined,
   signatureHeader: string | undefined,
@@ -245,6 +286,7 @@ async function runWebhookEffects(
   env: StripeWebhookEnv,
   db: D1Database,
   event: ParsedStripeEvent,
+  rawBody: string,
 ): Promise<WebhookHttpResult> {
   const eventId = event.id!;
   const claim = await claimEvent(db, eventId, event.tenantId ?? EXTERNAL_TENANT_ID);
@@ -256,6 +298,12 @@ async function runWebhookEffects(
   try {
     if (isSubscriptionEvent && event.tenantId && event.type) {
       await applySubscriptionEffects(env, event.tenantId, event.type, event.objectStatus);
+      // Ola 4: si el evento trae price → plan, reconcilia capabilities (idempotente)
+      await maybeReconcilePlanFromStripe(env, event.tenantId, rawBody);
+    }
+    // Incluso eventos non-subscription pueden traer plan (invoice lines), reconcilia si hay tenant
+    if (!isSubscriptionEvent && event.tenantId) {
+      await maybeReconcilePlanFromStripe(env, event.tenantId, rawBody);
     }
     await markProcessed(db, eventId);
   } catch (error) {
@@ -328,5 +376,5 @@ export async function handleStripeWebhook(
     return { status: 503, body: { error: 'Webhook store unavailable', code: 'WEBHOOK_RETRYABLE' } };
   }
 
-  return runWebhookEffects(gate.env, db, event);
+  return runWebhookEffects(gate.env, db, event, rawBody);
 }

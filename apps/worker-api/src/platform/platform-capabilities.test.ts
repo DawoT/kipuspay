@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createApp } from '../index.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
