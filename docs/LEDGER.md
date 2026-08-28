@@ -15322,3 +15322,37 @@ aprobaciones: [Staff Principal, Staff PM, Staff Security, Staff SRE]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0526
+timestamp_utc: 2026-08-27T02:00:00Z
+schema_version: 2
+sprint_fase: Ola 1 — DDL backfill tenant_capabilities dinámicas
+agente_responsable: Staff Data + Staff Principal (auditoría QA/Security/SRE)
+tipo: Migración
+subtipo: DDL + backfill V-25 espejo + triggers V-29
+relacion: amplia
+referencias_entradas: [0525]
+referencias_documentales: [packages/adapters-d1/migrations/0064_ola1_tenant_capabilities_backfill.sql, packages/adapters-d1/migrations-down/0064_ola1_tenant_capabilities_backfill.sql]
+prev_id: 0525
+prev_hash: eb46857493ac4b286c0b31859527d734138d2a1215065de49e2492ae33899975
+entry_hash: 5185e104ccb98e188d345205a0fce90ffd6cb3036121863bfadb515e8072c72f
+ticket_or_adr: ADR-ARCH-003; V-05; V-14; V-25; V-29; DAT-12
+test_ids: [SUITE]
+entregable_afectado: packages/adapters-d1/migrations/0064_ola1_tenant_capabilities_backfill.sql; migrations-down/0064 espejo
+descripcion: >
+  Ola 1 — backfill idempotente tenant_capabilities por plan (77 caps canónicas
+  §1.1 115-237: arranque 12, crece +18=30, cadena +22=52, enterprise +25=77).
+  INSERT OR IGNORE con config_json source=plan_default preserva overrides
+  platform_override, PK tenant_id+capability, epoch triggers 0035:362-364 V-29
+  intactos. Down espejo DELETE WHERE source=plan_default V-25.
+evidencia: >
+  SUITE GREEN (31/31): V-05 tenant_id NOT NULL, V-06 cents, V-14 ratchet,
+  V-25 espejo 0064 par, V-29 3 triggers OK, V-02 0 UPSERT. SQLite in-memory:
+  5 tenants (arranque×2+manual, crece+override, cadena, enterprise) → 184
+  filas tras up (2º up 0 dup, epoch+1), down deja 2 overrides, re-up ok.
+ancestry_verified: true
+aprobaciones: [Staff Data, Staff Principal, Staff Security]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
