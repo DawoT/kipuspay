@@ -55,7 +55,13 @@ export async function reconcilePlanAtomic(
 ): Promise<ReconcileResult> {
   const db = env.DB as unknown as D1Database & {
     batch(statements: unknown[]): Promise<unknown>;
-    prepare(sql: string): { bind(...a: unknown[]): { run(): Promise<unknown>; first<T>(): Promise<T | null>; all<T>(): Promise<{ results: T[] }> } };
+    prepare(sql: string): {
+      bind(...a: unknown[]): {
+        run(): Promise<unknown>;
+        first<T>(): Promise<T | null>;
+        all<T>(): Promise<{ results: T[] }>;
+      };
+    };
   };
   if (!db) return { status: 'error', planId: newPlanId };
 
@@ -71,7 +77,10 @@ export async function reconcilePlanAtomic(
   let prevPlanId: string | null = opts.prevPlanId ?? null;
   if (prevPlanId === null) {
     try {
-      const row = await db.prepare('SELECT plan_id FROM tenants WHERE id = ? AND deleted_at IS NULL').bind(tenantId).first<{ plan_id: string | null }>();
+      const row = await db
+        .prepare('SELECT plan_id FROM tenants WHERE id = ? AND deleted_at IS NULL')
+        .bind(tenantId)
+        .first<{ plan_id: string | null }>();
       if (!row) return { status: 'not_found', planId: newPlanId };
       prevPlanId = row.plan_id ?? 'arranque';
     } catch {
@@ -92,8 +101,7 @@ export async function reconcilePlanAtomic(
   // Audit chain head
   let prevHash: string | null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    prevHash = await readAuditChainHead(db as unknown as Parameters<typeof readAuditChainHead>[0], tenantId);
+    prevHash = await readAuditChainHead(db, tenantId);
   } catch {
     return { status: 'error', planId: newPlanId };
   }
@@ -155,13 +163,31 @@ export async function reconcilePlanAtomic(
       .prepare(
         'INSERT INTO audit_events (id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id, payload_json, prev_hash, row_hash) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)',
       )
-      .bind(auditId, tenantId, opts.actorUserId, 'PLAN_UPGRADE', 'tenants', tenantId, payloadJson, prevHash, rowHash),
+      .bind(
+        auditId,
+        tenantId,
+        opts.actorUserId,
+        'PLAN_UPGRADE',
+        'tenants',
+        tenantId,
+        payloadJson,
+        prevHash,
+        rowHash,
+      ),
   );
 
   // Epoch: ensure row exists then increment
-  stmts.push(db.prepare('INSERT OR IGNORE INTO tenant_data_epochs (tenant_id, epoch) VALUES (?, 0)').bind(tenantId));
   stmts.push(
-    db.prepare('UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = ?').bind(tenantId),
+    db
+      .prepare('INSERT OR IGNORE INTO tenant_data_epochs (tenant_id, epoch) VALUES (?, 0)')
+      .bind(tenantId),
+  );
+  stmts.push(
+    db
+      .prepare(
+        'UPDATE tenant_data_epochs SET epoch = epoch + 1, updated_at = CURRENT_TIMESTAMP WHERE tenant_id = ?',
+      )
+      .bind(tenantId),
   );
 
   // Claim CAS

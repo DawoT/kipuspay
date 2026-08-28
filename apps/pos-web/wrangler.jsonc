@@ -8,6 +8,8 @@
     // Overridden at build time by deploy:staging (PUBLIC_API_BASE=...).
     "PUBLIC_API_BASE": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
     // Pilot Pages runtime flags (git-declared for staging project only; Workers FEATURE_* stay 0).
+    // Ola 5 kill-switch: staging 0 (fallback a PUBLIC_FEATURE_*), canario prod 1 tras 1 release (ver ADR-ARCH-003 y features.ts).
+    "PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC": "0",
     "PUBLIC_FEATURE_POS_CHECKOUT": "1",
     "PUBLIC_FEATURE_CATALOG_SELLABLE": "1",
     "PUBLIC_FEATURE_MOBILE_PUSH": "1",

@@ -534,7 +534,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   app.use('/platform/*', createPlatformAuthMiddlewareHono());
 
   app.get('/platform/tenants', async (c) => {
-    const result = await runListTenantsHttp(c.env as unknown as Parameters<typeof runListTenantsHttp>[0]);
+    const result = await runListTenantsHttp(
+      c.env as unknown as Parameters<typeof runListTenantsHttp>[0],
+    );
     return c.json(result.body, result.status as 200 | 503);
   });
   app.get('/platform/tenants/:id/capabilities', async (c) => {

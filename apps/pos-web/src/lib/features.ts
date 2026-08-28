@@ -1,4 +1,17 @@
-/** Feature flags cliente (PUBLIC_*). Default off. SvelteKit: $env/dynamic/public. Ola 2: migración progresiva a capabilitiesStore. */
+/**
+ * Feature flags cliente (PUBLIC_*) — Ola 5: kill-switch + deprecación progresiva.
+ * Default off. SvelteKit: $env/dynamic/public. Ola 2: migración progresiva a capabilitiesStore.
+ *
+ * Kill-switch: FEATURE_TENANT_CAPABILITIES_DYNAMIC (y PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC)
+ * - Default 0 en staging y local (ver apps/pos-web/wrangler.jsonc y apps/worker-api/wrangler.jsonc: vars + staging.vars).
+ * - Canario a 1 en prod tras 1 release sin incidentes (ADR-ARCH-003 § Activación Ola 5).
+ * - Rollback instantáneo sin deploy: setear var a "0" en Cloudflare dashboard / wrangler vars y
+ *   el branch POS vuelve a gating por PUBLIC_FEATURE_* flags (fallback), sin re-deploy de código.
+ *   Server: GET /api/auth/session deja de poblar capabilities y responde []/0; UI usa flags.
+ * - Deprecación: todos los PUBLIC_FEATURE_* quedan @deprecated desde Ola 2-5, se mantienen 1 release
+ *   tras canario 1 para rollback seguro; borrar solo tras ledger 0531+ y V-24 verificado.
+ * Zero-dep: solo Svelte store + Web Platform APIs; bundle V-24 <310kB (actual 309.25).
+ */
 import { env } from '$env/dynamic/public';
 import { has as hasCap } from './tenant/capabilitiesStore.js';
 
@@ -10,6 +23,7 @@ function pub(name: string): string | undefined {
   return (env as Record<string, string | undefined>)[name];
 }
 
+/** @deprecated Ola 5 — PUBLIC_FEATURE_* se deprecará 1 release después de canario dynamic=1 (no borrar aún para rollback). */
 const PF = 'PUBLIC_FEATURE_';
 
 function isDynamic(): boolean {
@@ -151,22 +165,22 @@ export function isLoyaltyPointsEnabled(): boolean {
   return capOrFlag('loyalty.points', 'LOYALTY_POINTS');
 }
 
-/** Sprint 25 — client offloading (Web Worker ESC/POS). */
+/** Sprint 25 — client offloading (Web Worker ESC/POS). @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1 (ver header). */
 export function isClientOffloadingEnabled(): boolean {
   return flagOn(pub(PF + 'CLIENT_OFFLOADING'));
 }
 
-/** Sprint 25 — print fallback ladder. */
+/** Sprint 25 — print fallback ladder. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1 (ver header). */
 export function isHardwarePrintFallbackEnabled(): boolean {
   return flagOn(pub(PF + 'HARDWARE_PRINT_FALLBACK'));
 }
 
-/** Sprint 26 — circuit breaker / backlog Dueño E-A. */
+/** Sprint 26 — circuit breaker / backlog Dueño E-A. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1 (ver header). */
 export function isFiscalCircuitBreakerEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_CIRCUIT_BREAKER'));
 }
 
-/** Sprint 26 — transport plugins OSE/PSE tercero. */
+/** Sprint 26 — transport plugins OSE/PSE tercero. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1 (ver header). */
 export function isFiscalTransportPluginsEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_TRANSPORT_PLUGINS'));
 }
@@ -291,32 +305,32 @@ export function isOnboardingTourEnabled(): boolean {
   return capOrFlag('onboarding.tour', 'ONBOARDING_TOUR');
 }
 
-/** Backlog v10 P1a — Nota de Débito; siempre default-off. */
+/** Backlog v10 P1a — Nota de Débito; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isDebitNoteEnabled(): boolean {
   return flagOn(pub(PF + 'SALES_DEBIT_NOTE'));
 }
 
-/** Backlog v10 P2 — propinas en el cobro; siempre default-off. */
+/** Backlog v10 P2 — propinas en el cobro; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isSaleTipEnabled(): boolean {
   return flagOn(pub(PF + 'SALE_TIP'));
 }
 
-/** Backlog v10 P2 — cajón de efectivo; siempre default-off. */
+/** Backlog v10 P2 — cajón de efectivo; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isCashDrawerEnabled(): boolean {
   return flagOn(pub(PF + 'CASH_DRAWER'));
 }
 
-/** GTM §6.5 — feedback sonoro/háptico al completar venta; default-off. */
+/** GTM §6.5 — feedback sonoro/háptico al completar venta; default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isSaleFeedbackEnabled(): boolean {
   return flagOn(pub(PF + 'SALE_FEEDBACK'));
 }
 
-/** Backlog v10 P1c — Percepciones/Retenciones; siempre default-off. */
+/** Backlog v10 P1c — Percepciones/Retenciones; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isWithholdingsEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_WITHHOLDINGS'));
 }
 
-/** Backlog v10 P1b — Guía de Remisión Electrónica; siempre default-off. */
+/** Backlog v10 P1b — Guía de Remisión Electrónica; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isGreEnabled(): boolean {
   return flagOn(pub(PF + 'GRE'));
 }
@@ -341,7 +355,7 @@ export function isDataBackupEnabled(): boolean {
   return capOrFlag('data.backup', 'DATA_BACKUP');
 }
 
-/** Grifos — Surtidores e isla de despacho (precio del día + detracción diésel); default-off. */
+/** Grifos — Surtidores e isla de despacho (precio del día + detracción diésel); default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isFuelStationEnabled(): boolean {
   return flagOn(pub(PF + 'FUEL_STATION'));
 }

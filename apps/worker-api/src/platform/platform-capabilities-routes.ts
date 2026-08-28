@@ -135,8 +135,13 @@ function platformActorId(headers: Headers): string {
         const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
         const json = atob(padded + pad);
         const payload = JSON.parse(json) as Record<string, unknown>;
-        const email = (payload.email as string) ?? (payload.upn as string) ?? (payload.preferred_username as string) ?? '';
-        if (typeof email === 'string' && email.trim()) return `platform:${email.trim().toLowerCase()}`;
+        const email =
+          (payload.email as string) ??
+          (payload.upn as string) ??
+          (payload.preferred_username as string) ??
+          '';
+        if (typeof email === 'string' && email.trim())
+          return `platform:${email.trim().toLowerCase()}`;
       } catch {
         // ignore
       }
@@ -175,7 +180,10 @@ function normalizeConfigJson(
     } catch {
       return {
         ok: false,
-        error: { status: 400, body: { error: 'config_json must be valid JSON', code: 'INVALID_CONFIG_JSON' } },
+        error: {
+          status: 400,
+          body: { error: 'config_json must be valid JSON', code: 'INVALID_CONFIG_JSON' },
+        },
       };
     }
   }
@@ -185,13 +193,19 @@ function normalizeConfigJson(
     } catch {
       return {
         ok: false,
-        error: { status: 400, body: { error: 'config_json must be valid JSON', code: 'INVALID_CONFIG_JSON' } },
+        error: {
+          status: 400,
+          body: { error: 'config_json must be valid JSON', code: 'INVALID_CONFIG_JSON' },
+        },
       };
     }
   }
   return {
     ok: false,
-    error: { status: 400, body: { error: 'config_json must be valid JSON', code: 'INVALID_CONFIG_JSON' } },
+    error: {
+      status: 400,
+      body: { error: 'config_json must be valid JSON', code: 'INVALID_CONFIG_JSON' },
+    },
   };
 }
 
@@ -222,7 +236,9 @@ export async function runPatchTenantCapabilitiesHttp(
 
   // Validate tenant exists
   try {
-    const tenant = await env.DB.prepare('SELECT id FROM tenants WHERE id = ?').bind(tid).first<{ id: string }>();
+    const tenant = await env.DB.prepare('SELECT id FROM tenants WHERE id = ?')
+      .bind(tid)
+      .first<{ id: string }>();
     if (!tenant) return tenantNotFound();
   } catch {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
@@ -240,7 +256,12 @@ export async function runPatchTenantCapabilitiesHttp(
     return { status: 503, body: { error: 'Audit chain unavailable', code: 'AUDIT_UNAVAILABLE' } };
   }
 
-  const payloadJson = JSON.stringify({ capability, enabled: enabledInt, config_json: JSON.parse(configJsonStr), source: 'platform' });
+  const payloadJson = JSON.stringify({
+    capability,
+    enabled: enabledInt,
+    config_json: JSON.parse(configJsonStr),
+    source: 'platform',
+  });
   const rowHash = await sha256Hex(
     JSON.stringify({
       action: 'CAPABILITY_UPDATE',
@@ -287,7 +308,7 @@ export async function runPatchTenantCapabilitiesHttp(
     const batchInputs: unknown[] = [capStmt, auditStmt, epochStmt, ...claimStmts];
     // D1 batch is atomic; triggers on tenant_capabilities will also bump epoch (0035)
     // so epoch increments twice (explicit + trigger). Acceptable per spec's explicit UPDATE.
-    await (env.DB).batch(batchInputs as D1PreparedStatement[]);
+    await env.DB.batch(batchInputs as D1PreparedStatement[]);
   } catch {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -315,7 +336,9 @@ export async function runGetTenantCapabilitiesHttp(
   if (!tid) return { status: 400, body: { error: 'tenant id required', code: 'BAD_REQUEST' } };
 
   try {
-    const tenant = await env.DB.prepare('SELECT id FROM tenants WHERE id = ?').bind(tid).first<{ id: string }>();
+    const tenant = await env.DB.prepare('SELECT id FROM tenants WHERE id = ?')
+      .bind(tid)
+      .first<{ id: string }>();
     if (!tenant) return tenantNotFound();
   } catch {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
@@ -343,7 +366,9 @@ export async function runGetTenantCapabilitiesHttp(
     // Also return epoch for sync (consistent with GET /api/auth/session)
     let epoch: number | null = null;
     try {
-      const row = await env.DB.prepare('SELECT epoch FROM tenant_data_epochs WHERE tenant_id = ?').bind(tid).first<{ epoch: number }>();
+      const row = await env.DB.prepare('SELECT epoch FROM tenant_data_epochs WHERE tenant_id = ?')
+        .bind(tid)
+        .first<{ epoch: number }>();
       epoch = typeof row?.epoch === 'number' ? row.epoch : 0;
     } catch {
       epoch = null;
@@ -382,8 +407,8 @@ export async function runListTenantsHttp(env: PlatformAuthEnv): Promise<HttpResu
     }>();
 
     const tenants = (result.results ?? []).map((r) => {
-      const planId = (r.plan_id ?? 'arranque');
-      const subscriptionStatus = (r.subscription_status ?? r.subscriptionStatus ?? 'active');
+      const planId = r.plan_id ?? 'arranque';
+      const subscriptionStatus = r.subscription_status ?? r.subscriptionStatus ?? 'active';
       const statusRaw = r.status ?? (r.is_active ? 'active' : 'suspended');
       const status = statusRaw === 'active' ? 'active' : 'suspended';
       return {

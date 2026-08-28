@@ -126,8 +126,16 @@ function platformEnv(opts: {
 }
 
 function cfJwt(email: string, expSec?: number): string {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  const payload = btoa(JSON.stringify({ email, exp: expSec ?? Math.floor(Date.now() / 1000) + 3600 })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+  const payload = btoa(
+    JSON.stringify({ email, exp: expSec ?? Math.floor(Date.now() / 1000) + 3600 }),
+  )
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
   const sig = 'fake-signature';
   return `${header}.${payload}.${sig}`;
 }
@@ -143,7 +151,9 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     const env = platformEnv({});
     const app = createApp();
     // @ts-ignore
-    const res = await app.request('/platform/tenants', { headers: { 'x-platform-staff-token': 'staff-secret' } });
+    const res = await app.request('/platform/tenants', {
+      headers: { 'x-platform-staff-token': 'staff-secret' },
+    });
     // Without env DB, should be 503 but route exists (not 404)
     expect(res.status).not.toBe(404);
   });
@@ -165,33 +175,47 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
   it('GET /platform/tenants con token válido → 200 lista tenants', async () => {
     const env = platformEnv({});
     const app = createApp();
-    const res = await app.request('/platform/tenants', { headers: { 'x-platform-staff-token': 'staff-secret' } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { 'x-platform-staff-token': 'staff-secret' } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { tenants: unknown[] };
     expect(Array.isArray(body.tenants)).toBe(true);
   });
 
   it('PATCH /platform/tenants/:id/capabilities validación tenant existe', async () => {
-    const env = platformEnv({ tenants: { 't-1': { plan_id: 'arranque', subscription_status: 'active' } } });
+    const env = platformEnv({
+      tenants: { 't-1': { plan_id: 'arranque', subscription_status: 'active' } },
+    });
     const app = createApp();
-    const res = await app.request('/platform/tenants/t-unknown/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'pos.checkout', enabled: 1 }),
-    }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants/t-unknown/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({ capability: 'pos.checkout', enabled: 1 }),
+      },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(404);
   });
 
   it('PATCH validación capability en lista canónica 77', async () => {
     const env = platformEnv({});
     const app = createApp();
-    const bad = await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'invalid.fake', enabled: 1 }),
-    }, env as unknown as Env);
+    const bad = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({ capability: 'invalid.fake', enabled: 1 }),
+      },
+      env as unknown as Env,
+    );
     expect(bad.status).toBe(400);
-    const body = await bad.json() as { code: string };
+    const body = (await bad.json()) as { code: string };
     expect(body.code).toBe('INVALID_CAPABILITY');
   });
 
@@ -199,61 +223,104 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     const env = platformEnv({});
     const app = createApp();
     for (const badEnabled of [2, 'yes', null, {}, 1.5]) {
-      const res = await app.request('/platform/tenants/t-1/capabilities', {
-        method: 'PATCH',
-        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-        body: JSON.stringify({ capability: 'pos.checkout', enabled: badEnabled }),
-      }, env as unknown as Env);
+      const res = await app.request(
+        '/platform/tenants/t-1/capabilities',
+        {
+          method: 'PATCH',
+          headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+          body: JSON.stringify({ capability: 'pos.checkout', enabled: badEnabled }),
+        },
+        env as unknown as Env,
+      );
       expect(res.status).toBe(400);
     }
     // valid 0 and 1 should pass (200)
-    const ok0 = await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'pos.checkout', enabled: 0 }),
-    }, env as unknown as Env);
+    const ok0 = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({ capability: 'pos.checkout', enabled: 0 }),
+      },
+      env as unknown as Env,
+    );
     expect(ok0.status).toBe(200);
-    const ok1 = await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'pos.checkout', enabled: 1 }),
-    }, env as unknown as Env);
+    const ok1 = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({ capability: 'pos.checkout', enabled: 1 }),
+      },
+      env as unknown as Env,
+    );
     expect(ok1.status).toBe(200);
   });
 
   it('PATCH tenant_id del path param, nunca del body (IDOR prevention)', async () => {
-    const env = platformEnv({ tenants: { 't-1': { plan_id: 'arranque', subscription_status: 'active' }, 't-2': { plan_id: 'crece', subscription_status: 'active' } } });
+    const env = platformEnv({
+      tenants: {
+        't-1': { plan_id: 'arranque', subscription_status: 'active' },
+        't-2': { plan_id: 'crece', subscription_status: 'active' },
+      },
+    });
     const app = createApp();
     // Body tries to claim t-2 but path is t-1; should modify t-1 only
-    const res = await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'owner.mode', enabled: 1, tenant_id: 't-2', tenantId: 't-2' }),
-    }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          capability: 'owner.mode',
+          enabled: 1,
+          tenant_id: 't-2',
+          tenantId: 't-2',
+        }),
+      },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(200);
-    const body = await res.json() as { tenant_id: string };
+    const body = (await res.json()) as { tenant_id: string };
     expect(body.tenant_id).toBe('t-1');
   });
 
   it('PATCH config_json inválido → 400', async () => {
     const env = platformEnv({});
     const app = createApp();
-    const res = await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'pos.checkout', enabled: 1, config_json: '{invalid json' }),
-    }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          capability: 'pos.checkout',
+          enabled: 1,
+          config_json: '{invalid json',
+        }),
+      },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(400);
   });
 
   it('GET /platform/tenants/:id/capabilities lista completa', async () => {
     const env = platformEnv({
-      caps: { 't-1': [{ capability: 'pos.checkout', enabled: 1, config_json: '{}' }, { capability: 'owner.mode', enabled: 0, config_json: '{}' }] },
+      caps: {
+        't-1': [
+          { capability: 'pos.checkout', enabled: 1, config_json: '{}' },
+          { capability: 'owner.mode', enabled: 0, config_json: '{}' },
+        ],
+      },
     });
     const app = createApp();
-    const res = await app.request('/platform/tenants/t-1/capabilities', { headers: { 'x-platform-staff-token': 'staff-secret' } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      { headers: { 'x-platform-staff-token': 'staff-secret' } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(200);
-    const body = await res.json() as { capabilities: { capability: string }[] };
+    const body = (await res.json()) as { capabilities: { capability: string }[] };
     expect(body.capabilities.length).toBeGreaterThanOrEqual(1);
     expect(body.capabilities.some((c) => c.capability === 'pos.checkout')).toBe(true);
   });
@@ -262,7 +329,11 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     const env = platformEnv({});
     const app = createApp();
     // Try with tenant Authorization Bearer (owner) but no staff token
-    const res = await app.request('/platform/tenants', { headers: { authorization: 'Bearer tenant-owner-jwt' } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { authorization: 'Bearer tenant-owner-jwt' } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(401);
   });
 
@@ -270,7 +341,11 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     const env = platformEnv({ allowlist: 'staff@kipuspay.com', token: 'staff-secret' });
     const app = createApp();
     const jwt = cfJwt('staff@kipuspay.com');
-    const res = await app.request('/platform/tenants', { headers: { 'CF-Authorization': jwt } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { 'CF-Authorization': jwt } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(200);
   });
 
@@ -278,29 +353,50 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     const env = platformEnv({ allowlist: 'staff@kipuspay.com' });
     const app = createApp();
     const jwt = cfJwt('attacker@evil.com');
-    const res = await app.request('/platform/tenants', { headers: { 'CF-Authorization': jwt } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { 'CF-Authorization': jwt } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(401);
   });
 
   it('x-platform-staff-token constant-time: token incorrecto → 401', async () => {
     const env = platformEnv({ token: 'staff-secret' });
     const app = createApp();
-    const res = await app.request('/platform/tenants', { headers: { 'x-platform-staff-token': 'wrong-secret' } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { 'x-platform-staff-token': 'wrong-secret' } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(401);
   });
 
   it('fail-closed 503 si DB caído', async () => {
     const env = platformEnv({ throwPrepare: true });
     const app = createApp();
-    const res = await app.request('/platform/tenants', { headers: { 'x-platform-staff-token': 'staff-secret' } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { 'x-platform-staff-token': 'staff-secret' } },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(503);
   });
 
   it('fail-closed 503 si KV/DO caído (rate limit KV down)', async () => {
-    const kv = { get: vi.fn(async () => { throw new Error('KV_DOWN'); }), put: vi.fn(async () => {}) } as unknown as KVNamespace;
+    const kv = {
+      get: vi.fn(async () => {
+        throw new Error('KV_DOWN');
+      }),
+      put: vi.fn(async () => {}),
+    } as unknown as KVNamespace;
     const env = platformEnv({ kv });
     const app = createApp();
-    const res = await app.request('/platform/tenants', { headers: { 'x-platform-staff-token': 'staff-secret' } }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants',
+      { headers: { 'x-platform-staff-token': 'staff-secret' } },
+      env as unknown as Env,
+    );
     // Rate limit kvFailed → 503
     expect(res.status).toBe(503);
   });
@@ -311,25 +407,41 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     const app = createApp();
     // 100 allowed
     for (let i = 0; i < 100; i += 1) {
-      const res = await app.request('/platform/tenants', {
-        headers: { 'x-platform-staff-token': 'staff-secret', 'cf-connecting-ip': '1.2.3.4' },
-      }, env as unknown as Env);
+      const res = await app.request(
+        '/platform/tenants',
+        {
+          headers: { 'x-platform-staff-token': 'staff-secret', 'cf-connecting-ip': '1.2.3.4' },
+        },
+        env as unknown as Env,
+      );
       expect(res.status).toBe(200);
     }
-    const blocked = await app.request('/platform/tenants', {
-      headers: { 'x-platform-staff-token': 'staff-secret', 'cf-connecting-ip': '1.2.3.4' },
-    }, env as unknown as Env);
+    const blocked = await app.request(
+      '/platform/tenants',
+      {
+        headers: { 'x-platform-staff-token': 'staff-secret', 'cf-connecting-ip': '1.2.3.4' },
+      },
+      env as unknown as Env,
+    );
     expect(blocked.status).toBe(429);
   });
 
   it('PATCH batch atómico: REPLACE + INSERT audit + UPDATE epoch', async () => {
     const env = platformEnv({});
     const app = createApp();
-    const res = await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'inventory.batches', enabled: 1, config_json: { foo: 'bar' } }),
-    }, env as unknown as Env);
+    const res = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          capability: 'inventory.batches',
+          enabled: 1,
+          config_json: { foo: 'bar' },
+        }),
+      },
+      env as unknown as Env,
+    );
     expect(res.status).toBe(200);
     const batchCalls = (env as unknown as { __batchCalls: () => unknown[][] }).__batchCalls();
     expect(batchCalls.length).toBeGreaterThan(0);
@@ -347,14 +459,20 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     // Verify our route never issues UPDATE/DELETE for audit
     const env = platformEnv({});
     const app = createApp();
-    await app.request('/platform/tenants/t-1/capabilities', {
-      method: 'PATCH',
-      headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
-      body: JSON.stringify({ capability: 'pos.checkout', enabled: 1 }),
-    }, env as unknown as Env);
+    await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({ capability: 'pos.checkout', enabled: 1 }),
+      },
+      env as unknown as Env,
+    );
     const batchCalls = (env as unknown as { __batchCalls: () => unknown[][] }).__batchCalls();
     const lastBatch = batchCalls[batchCalls.length - 1] as { sql: string }[];
-    const hasUpdateAudit = lastBatch.some((s) => s.sql?.includes('UPDATE audit_events') || s.sql?.includes('DELETE FROM audit_events'));
+    const hasUpdateAudit = lastBatch.some(
+      (s) => s.sql?.includes('UPDATE audit_events') || s.sql?.includes('DELETE FROM audit_events'),
+    );
     expect(hasUpdateAudit).toBe(false);
   });
 });

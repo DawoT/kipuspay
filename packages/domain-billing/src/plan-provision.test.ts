@@ -74,7 +74,12 @@ describe('plan-provision — mapping canónico (migration 0064)', () => {
   });
 
   it('PLAN_CAPABILITIES contiene 4 planes con copia estable', () => {
-    expect(Object.keys(PLAN_CAPABILITIES).sort()).toEqual(['arranque', 'cadena', 'crece', 'enterprise']);
+    expect(Object.keys(PLAN_CAPABILITIES).sort()).toEqual([
+      'arranque',
+      'cadena',
+      'crece',
+      'enterprise',
+    ]);
     // inmutabilidad superficial: el array no debe ser mutable por el caller (readonly)
     // pero JS no congela; verificamos contenido ordenado estable
     expect(PLAN_CAPABILITIES.arranque[0]).toBe('pos.checkout');

@@ -237,12 +237,10 @@ async function maybeReconcilePlanFromStripe(
   const db = webhookDb(env);
   if (!db) return;
   // reconcilePlanAtomic es idempotente: noop si ya está en plan
-  const res = await reconcilePlanAtomic(
-    env,
-    tenantId,
-    plan,
-    { actorUserId: 'stripe-webhook', source: 'stripe_webhook' },
-  );
+  const res = await reconcilePlanAtomic(env, tenantId, plan, {
+    actorUserId: 'stripe-webhook',
+    source: 'stripe_webhook',
+  });
   if (res.status === 'error') {
     // No silenciamos: el webhook debe reintentar (503)
     throw new Error(`PLAN_RECONCILE_FAILED:${plan}`);

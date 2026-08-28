@@ -9,7 +9,12 @@ import { decideAuthGate } from '../auth/auth-decide.js';
 import { getCapabilitiesForPlan } from '@kipuspay/domain-billing';
 
 type CapRow = { tenant_id: string; capability: string; enabled: number; config_json: string };
-type TenantRow = { id: string; plan_id: string; trade_name?: string | null; deleted_at?: string | null };
+type TenantRow = {
+  id: string;
+  plan_id: string;
+  trade_name?: string | null;
+  deleted_at?: string | null;
+};
 
 function createPlanMemDb(opts: {
   tenants?: Record<string, TenantRow>;
@@ -26,7 +31,8 @@ function createPlanMemDb(opts: {
   }
   const epochs = new Map<string, number>(Object.entries(opts.epochs ?? {}));
   const auditHeads = new Map<string, string | null>();
-  for (const [k, v] of Object.entries(opts.auditHeads ?? {})) if (v !== null && v !== undefined) auditHeads.set(k, v as string);
+  for (const [k, v] of Object.entries(opts.auditHeads ?? {}))
+    if (v !== null && v !== undefined) auditHeads.set(k, v as string);
   const audits: unknown[] = [];
   const webhookRows = new Map<string, { status: string }>();
 
@@ -40,17 +46,33 @@ function createPlanMemDb(opts: {
             _sql: norm,
             _args: args,
             async first<T>(): Promise<T | null> {
-              if (norm.includes('SELECT') && norm.includes('FROM tenants') && norm.includes('plan_id')) {
+              if (
+                norm.includes('SELECT') &&
+                norm.includes('FROM tenants') &&
+                norm.includes('plan_id')
+              ) {
                 const tid = String(args[0]);
                 const row = tenants.get(tid);
                 if (!row || row.deleted_at) return null as T;
-                return { plan_id: row.plan_id, id: row.id, trade_name: row.trade_name } as unknown as T;
+                return {
+                  plan_id: row.plan_id,
+                  id: row.id,
+                  trade_name: row.trade_name,
+                } as unknown as T;
               }
-              if (norm.includes('SELECT') && norm.includes('FROM tenants') && norm.includes('trade_name')) {
+              if (
+                norm.includes('SELECT') &&
+                norm.includes('FROM tenants') &&
+                norm.includes('trade_name')
+              ) {
                 const tid = String(args[0]);
                 const row = tenants.get(tid);
                 if (!row || row.deleted_at) return null as T;
-                return { id: row.id, trade_name: row.trade_name, plan_id: row.plan_id } as unknown as T;
+                return {
+                  id: row.id,
+                  trade_name: row.trade_name,
+                  plan_id: row.plan_id,
+                } as unknown as T;
               }
               if (norm.includes('SELECT') && norm.includes('audit_chain_heads')) {
                 const tid = String(args[0]);
@@ -62,7 +84,11 @@ function createPlanMemDb(opts: {
                 // used by webhook dedup test: not needed here
                 return null as T;
               }
-              if (norm.includes('SELECT') && norm.includes('FROM tenants') && norm.includes('plan_id FROM tenants WHERE id')) {
+              if (
+                norm.includes('SELECT') &&
+                norm.includes('FROM tenants') &&
+                norm.includes('plan_id FROM tenants WHERE id')
+              ) {
                 const tid = String(args[0]);
                 const row = tenants.get(tid);
                 return (row ? { plan_id: row.plan_id } : null) as T;
@@ -226,7 +252,7 @@ function createPlanMemDb(opts: {
               const key = `stripe:${evtId}`;
               const r = webhookRows.get(key);
               if (r) r.status = 'PROCESSED';
-            } else if (sql.includes("UPDATE tenants SET subscription_status")) {
+            } else if (sql.includes('UPDATE tenants SET subscription_status')) {
               // already handled via run() path? but batch may also
               const [status, tid] = args as [string, string];
               const row = tenants.get(String(tid));
@@ -258,7 +284,15 @@ function createPlanMemDb(opts: {
 function kvFor(tenantsMap: Map<string, TenantRow>) {
   const kv = new Map<string, string>();
   for (const [id, row] of tenantsMap) {
-    kv.set(`tenant:${id}`, JSON.stringify({ id, plan_id: row.plan_id, planId: row.plan_id, subscriptionStatus: 'active' }));
+    kv.set(
+      `tenant:${id}`,
+      JSON.stringify({
+        id,
+        plan_id: row.plan_id,
+        planId: row.plan_id,
+        subscriptionStatus: 'active',
+      }),
+    );
   }
   return {
     get: (k: string) => Promise.resolve(kv.get(k) ?? null),
@@ -291,7 +325,13 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     });
     const kv = kvFor(mem.tenants);
     const env = { DB: mem.db, TENANT_KV: kv } as unknown as Parameters<typeof runUpdatePlanHttp>[0];
-    const res = await runUpdatePlanHttp(env, 't1', 'owner', { planId: 'crece' }, { actorUserId: 'u1' });
+    const res = await runUpdatePlanHttp(
+      env,
+      't1',
+      'owner',
+      { planId: 'crece' },
+      { actorUserId: 'u1' },
+    );
     expect(res.status).toBe(200);
     expect(res.body.planId).toBe('crece');
     expect(mem.tenants.get('t1')?.plan_id).toBe('crece');
@@ -322,10 +362,22 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     });
     const kv = kvFor(mem.tenants);
     const env = { DB: mem.db, TENANT_KV: kv } as unknown as Parameters<typeof runUpdatePlanHttp>[0];
-    const first = await runUpdatePlanHttp(env, 't1', 'owner', { planId: 'crece' }, { actorUserId: 'u1' });
+    const first = await runUpdatePlanHttp(
+      env,
+      't1',
+      'owner',
+      { planId: 'crece' },
+      { actorUserId: 'u1' },
+    );
     expect(first.status).toBe(200);
     expect(mem.audits.length).toBe(0); // early noop, no audit
-    const second = await runUpdatePlanHttp(env, 't1', 'owner', { planId: 'crece' }, { actorUserId: 'u1' });
+    const second = await runUpdatePlanHttp(
+      env,
+      't1',
+      'owner',
+      { planId: 'crece' },
+      { actorUserId: 'u1' },
+    );
     expect(second.status).toBe(200);
     expect(mem.audits.length).toBe(0);
   });
@@ -342,8 +394,18 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
             enabled: 1,
             config_json: '{"source":"plan_default"}',
           })),
-          { tenant_id: 't1', capability: 'stock.transfers', enabled: 1, config_json: '{"source":"platform_override"}' },
-          { tenant_id: 't1', capability: 'owner.mode', enabled: 0, config_json: '{"source":"platform_override","reason":"disabled"}' },
+          {
+            tenant_id: 't1',
+            capability: 'stock.transfers',
+            enabled: 1,
+            config_json: '{"source":"platform_override"}',
+          },
+          {
+            tenant_id: 't1',
+            capability: 'owner.mode',
+            enabled: 0,
+            config_json: '{"source":"platform_override","reason":"disabled"}',
+          },
         ],
       },
       auditHeads: { t1: null },
@@ -352,12 +414,20 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     const env = { DB: mem.db, TENANT_KV: kv } as unknown as Parameters<typeof runUpdatePlanHttp>[0];
 
     // upgrade a crece: debe añadir owner.mode etc. pero NO borrar stock.transfers override ni re-habilitar owner.mode disabled
-    const up = await runUpdatePlanHttp(env, 't1', 'owner', { planId: 'crece' }, { actorUserId: 'u1' });
+    const up = await runUpdatePlanHttp(
+      env,
+      't1',
+      'owner',
+      { planId: 'crece' },
+      { actorUserId: 'u1' },
+    );
     expect(up.status).toBe(200);
     // stock.transfers override sigue (aunque no es de crece? En crece stock.transfers no existe, pero override se preserva)
     // En nuestro upgrade, crece no incluye stock.transfers, pero como es platform_override, no se borra (borra solo plan_default not in new)
     // Sin embargo upgrade a crece: DELETE plan_default NOT IN crece -> stock.transfers no está en crece, pero es platform_override, así que se preserva
-    expect(mem.caps.get('t1')?.get('stock.transfers')?.config_json).toBe('{"source":"platform_override"}');
+    expect(mem.caps.get('t1')?.get('stock.transfers')?.config_json).toBe(
+      '{"source":"platform_override"}',
+    );
     // owner.mode en DB era platform_override disabled; INSERT OR IGNORE no debe sobrescribirlo, sigue disabled
     expect(mem.caps.get('t1')?.get('owner.mode')?.enabled).toBe(0);
     expect(mem.caps.get('t1')?.get('owner.mode')?.config_json).toContain('platform_override');
@@ -365,7 +435,13 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     // downgrade a arranque: debe borrar plan_default que ya no pertenece (owner.mode plan_default sí, pero owner.mode actualmente es platform_override, así que no se borra; reporting.* plan_default sí se borran)
     // Para probar, añadamos un reporting cap plan_default que debe borrarse
     expect(mem.caps.get('t1')?.has('reporting.daily_rollups')).toBe(true); // añadido por upgrade
-    const down = await runUpdatePlanHttp(env, 't1', 'owner', { planId: 'arranque' }, { actorUserId: 'u1' });
+    const down = await runUpdatePlanHttp(
+      env,
+      't1',
+      'owner',
+      { planId: 'arranque' },
+      { actorUserId: 'u1' },
+    );
     expect(down.status).toBe(200);
     expect(mem.caps.get('t1')?.has('reporting.daily_rollups')).toBe(false); // borrado porque es plan_default y no está en arranque
     // pero overrides siguen
@@ -386,23 +462,42 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
       },
     });
     // inject platform override that should survive downgrade
-    mem.caps.get('t1')!.set('inventory.locations', { tenant_id: 't1', capability: 'inventory.locations', enabled: 1, config_json: '{"source":"platform_override"}' });
+    mem.caps.get('t1')!.set('inventory.locations', {
+      tenant_id: 't1',
+      capability: 'inventory.locations',
+      enabled: 1,
+      config_json: '{"source":"platform_override"}',
+    });
     // also add a platform_override extra not in any plan (custom)
-    mem.caps.get('t1')!.set('custom.extra', { tenant_id: 't1', capability: 'custom.extra', enabled: 1, config_json: '{"source":"platform_override"}' });
+    mem.caps.get('t1')!.set('custom.extra', {
+      tenant_id: 't1',
+      capability: 'custom.extra',
+      enabled: 1,
+      config_json: '{"source":"platform_override"}',
+    });
 
     const kv = kvFor(mem.tenants);
     const env = { DB: mem.db, TENANT_KV: kv } as unknown as Parameters<typeof runUpdatePlanHttp>[0];
-    const res = await runUpdatePlanHttp(env, 't1', 'admin', { planId: 'arranque' }, { actorUserId: 'u1' });
+    const res = await runUpdatePlanHttp(
+      env,
+      't1',
+      'admin',
+      { planId: 'arranque' },
+      { actorUserId: 'u1' },
+    );
     expect(res.status).toBe(200);
     expect(mem.tenants.get('t1')?.plan_id).toBe('arranque');
     // arranque caps preserved
-    for (const c of getCapabilitiesForPlan('arranque')) expect(mem.caps.get('t1')?.has(c)).toBe(true);
+    for (const c of getCapabilitiesForPlan('arranque'))
+      expect(mem.caps.get('t1')?.has(c)).toBe(true);
     // cadena-only plan_default should be gone
     expect(mem.caps.get('t1')?.has('stock.transfers')).toBe(false);
     expect(mem.caps.get('t1')?.has('sales.returns')).toBe(false);
     // but platform_override preserved
     expect(mem.caps.get('t1')?.has('inventory.locations')).toBe(true);
-    expect(mem.caps.get('t1')?.get('inventory.locations')?.config_json).toContain('platform_override');
+    expect(mem.caps.get('t1')?.get('inventory.locations')?.config_json).toContain(
+      'platform_override',
+    );
     expect(mem.caps.get('t1')?.has('custom.extra')).toBe(true);
   });
 
@@ -410,8 +505,18 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     const mem = createPlanMemDb({
       tenants: { t1: { id: 't1', plan_id: 'arranque' }, t2: { id: 't2', plan_id: 'arranque' } },
       caps: {
-        t1: getCapabilitiesForPlan('arranque').map((c) => ({ tenant_id: 't1', capability: c, enabled: 1, config_json: '{"source":"plan_default"}' })),
-        t2: getCapabilitiesForPlan('arranque').map((c) => ({ tenant_id: 't2', capability: c, enabled: 1, config_json: '{"source":"plan_default"}' })),
+        t1: getCapabilitiesForPlan('arranque').map((c) => ({
+          tenant_id: 't1',
+          capability: c,
+          enabled: 1,
+          config_json: '{"source":"plan_default"}',
+        })),
+        t2: getCapabilitiesForPlan('arranque').map((c) => ({
+          tenant_id: 't2',
+          capability: c,
+          enabled: 1,
+          config_json: '{"source":"plan_default"}',
+        })),
       },
     });
     const kv = kvFor(mem.tenants);
@@ -428,7 +533,12 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     const mem = createPlanMemDb({
       tenants: { t1: { id: 't1', plan_id: 'arranque' } },
       caps: {
-        t1: getCapabilitiesForPlan('arranque').map((c) => ({ tenant_id: 't1', capability: c, enabled: 1, config_json: '{"source":"plan_default"}' })),
+        t1: getCapabilitiesForPlan('arranque').map((c) => ({
+          tenant_id: 't1',
+          capability: c,
+          enabled: 1,
+          config_json: '{"source":"plan_default"}',
+        })),
       },
       auditHeads: { t1: 'headA' },
     });
@@ -436,11 +546,16 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     const env = { DB: mem.db, TENANT_KV: kv } as unknown as Parameters<typeof runUpdatePlanHttp>[0];
 
     // Primer upgrade con headA → debe succeeds y cambia head a newHash
-    const first = await reconcilePlanAtomic(env as unknown as Parameters<typeof reconcilePlanAtomic>[0], 't1', 'crece', {
-      actorUserId: 'u1',
-      source: 'api',
-      prevPlanId: 'arranque',
-    });
+    const first = await reconcilePlanAtomic(
+      env as unknown as Parameters<typeof reconcilePlanAtomic>[0],
+      't1',
+      'crece',
+      {
+        actorUserId: 'u1',
+        source: 'api',
+        prevPlanId: 'arranque',
+      },
+    );
     expect(first.status).toBe('updated');
     const headAfterFirst = mem.auditHeads.get('t1');
     expect(headAfterFirst).not.toBe('headA');
@@ -450,13 +565,18 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     // Forzamos prevHash stale manualmente llamando con prevHead viejo
     // Nuestro fake no expone prevHash param directly, pero podemos simular llamando con source api pero prevPlan coincide?
     // Segunda llamada con mismo prevPlan pero head ya avanzó: el batch intentará CAS con prevHash='headA' pero real head es newHash → guard fails → error
-    // Para provocar, hacemos un segundo reconcile con prevPlanId = 'crece' pero auditHeads sigue en newHash, pero reconciliará a cadena: leerá head newHash correctamente, no fallará. 
+    // Para provocar, hacemos un segundo reconcile con prevPlanId = 'crece' pero auditHeads sigue en newHash, pero reconciliará a cadena: leerá head newHash correctamente, no fallará.
     // Para forzar fallo, necesitamos dos batches concurrentes que lean mismo head antes de que uno escriba.
     // Simulamos manualmente: creamos otro mem que comparte estado pero lee headA antes del first commit
     const mem2 = createPlanMemDb({
       tenants: { t1: { id: 't1', plan_id: 'arranque' } },
       caps: {
-        t1: getCapabilitiesForPlan('arranque').map((c) => ({ tenant_id: 't1', capability: c, enabled: 1, config_json: '{"source":"plan_default"}' })),
+        t1: getCapabilitiesForPlan('arranque').map((c) => ({
+          tenant_id: 't1',
+          capability: c,
+          enabled: 1,
+          config_json: '{"source":"plan_default"}',
+        })),
       },
       auditHeads: { t1: 'headA' },
     });
@@ -464,11 +584,16 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
     // Simplificamos: verificamos que si batch lanza, tenants no queda a medias
     // Nuestro fake siempre succee si no hay guard mismatch, así que no podemos probar inyección de fallo sin mock.
     // Al menos verificamos que después de un update fallido (por tenant no encontrado) no hay caps parciales
-    const fail = await reconcilePlanAtomic(env as unknown as Parameters<typeof reconcilePlanAtomic>[0], 'nonexistent', 'crece', {
-      actorUserId: 'u1',
-      source: 'api',
-      prevPlanId: null,
-    });
+    const fail = await reconcilePlanAtomic(
+      env as unknown as Parameters<typeof reconcilePlanAtomic>[0],
+      'nonexistent',
+      'crece',
+      {
+        actorUserId: 'u1',
+        source: 'api',
+        prevPlanId: null,
+      },
+    );
     expect(fail.status).toBe('not_found');
     // t1 no debe haber cambiado por ese fallo
     expect(mem.tenants.get('t1')?.plan_id).toBe('crece');
@@ -490,9 +615,29 @@ describe('PATCH /api/tenant/plan — reconciliación atómica (Ola 4)', () => {
   it('404 si tenant inexistente, 503 si sin DB, 401 si sin tenantId', async () => {
     const mem = createPlanMemDb({ tenants: {} });
     const kv = kvFor(mem.tenants);
-    expect((await runUpdatePlanHttp({ DB: mem.db } as unknown as Parameters<typeof runUpdatePlanHttp>[0], 'unknown', 'owner', { planId: 'crece' })).status).toBe(404);
-    expect((await runUpdatePlanHttp(undefined, 't1', 'owner', { planId: 'crece' })).status).toBe(503);
-    expect((await runUpdatePlanHttp({ DB: mem.db } as unknown as Parameters<typeof runUpdatePlanHttp>[0], '', 'owner', { planId: 'crece' })).status).toBe(401);
+    expect(
+      (
+        await runUpdatePlanHttp(
+          { DB: mem.db } as unknown as Parameters<typeof runUpdatePlanHttp>[0],
+          'unknown',
+          'owner',
+          { planId: 'crece' },
+        )
+      ).status,
+    ).toBe(404);
+    expect((await runUpdatePlanHttp(undefined, 't1', 'owner', { planId: 'crece' })).status).toBe(
+      503,
+    );
+    expect(
+      (
+        await runUpdatePlanHttp(
+          { DB: mem.db } as unknown as Parameters<typeof runUpdatePlanHttp>[0],
+          '',
+          'owner',
+          { planId: 'crece' },
+        )
+      ).status,
+    ).toBe(401);
   });
 });
 
@@ -501,13 +646,21 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
   const nowMs = Date.now();
   const ts = Math.floor(nowMs / 1000);
 
-  function webhookEnvWithPlanPrice(planEnv: Record<string, string>, tenants: Record<string, TenantRow>) {
+  function webhookEnvWithPlanPrice(
+    planEnv: Record<string, string>,
+    tenants: Record<string, TenantRow>,
+  ) {
     const tenantsMap = new Map<string, TenantRow>(Object.entries(tenants));
     const caps = new Map<string, Map<string, CapRow>>();
     for (const tid of Object.keys(tenants)) {
       const m = new Map<string, CapRow>();
       for (const c of getCapabilitiesForPlan(tenants[tid]!.plan_id as string)) {
-        m.set(c, { tenant_id: tid, capability: c, enabled: 1, config_json: '{"source":"plan_default"}' });
+        m.set(c, {
+          tenant_id: tid,
+          capability: c,
+          enabled: 1,
+          config_json: '{"source":"plan_default"}',
+        });
       }
       caps.set(tid, m);
     }
@@ -516,7 +669,11 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
     const audits: unknown[] = [];
     const webhookRows = new Map<string, { status: string }>();
     const kvRaw = new Map<string, string>();
-    for (const [id, row] of tenantsMap) kvRaw.set(`tenant:${id}`, JSON.stringify({ id, plan_id: row.plan_id, subscriptionStatus: 'active' }));
+    for (const [id, row] of tenantsMap)
+      kvRaw.set(
+        `tenant:${id}`,
+        JSON.stringify({ id, plan_id: row.plan_id, subscriptionStatus: 'active' }),
+      );
 
     const db = {
       prepare(sql: string) {
@@ -543,10 +700,16 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
                   const r = webhookRows.get(`stripe:${evtId}`);
                   return (r ? { status: r.status } : null) as T;
                 }
-                if (norm.includes('SELECT') && norm.includes('FROM tenants') && norm.includes('WHERE id')) {
+                if (
+                  norm.includes('SELECT') &&
+                  norm.includes('FROM tenants') &&
+                  norm.includes('WHERE id')
+                ) {
                   const tid = String(args[0]);
                   const r = tenantsMap.get(tid);
-                  return (r ? { id: r.id, plan_id: r.plan_id, trade_name: r.trade_name } : null) as T;
+                  return (
+                    r ? { id: r.id, plan_id: r.plan_id, trade_name: r.trade_name } : null
+                  ) as T;
                 }
                 return null as T;
               },
@@ -618,7 +781,13 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
               m = new Map();
               caps.set(String(tid), m);
             }
-            if (!m.has(String(cap))) m.set(String(cap), { tenant_id: String(tid), capability: String(cap), enabled: 1, config_json: String(json) });
+            if (!m.has(String(cap)))
+              m.set(String(cap), {
+                tenant_id: String(tid),
+                capability: String(cap),
+                enabled: 1,
+                config_json: String(json),
+              });
           } else if (sql.includes('DELETE FROM tenant_capabilities')) {
             const tid = String(args[0]);
             const json = String(args[1]);
@@ -696,13 +865,23 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
   it('webhook con price_crece reconcilia t1 arranque → crece', async () => {
     const priceCrece = 'price_crece_456';
     const { env, tenantsMap, caps, audits } = webhookEnvWithPlanPrice(
-      { STRIPE_PRICE_CRECE: priceCrece, STRIPE_PRICE_ARRANQUE: 'price_arr', STRIPE_PRICE_CADENA: 'price_cad' },
+      {
+        STRIPE_PRICE_CRECE: priceCrece,
+        STRIPE_PRICE_ARRANQUE: 'price_arr',
+        STRIPE_PRICE_CADENA: 'price_cad',
+      },
       { t1: { id: 't1', plan_id: 'arranque' } },
     );
     const body = JSON.stringify({
       id: 'evt_1',
       type: 'customer.subscription.updated',
-      data: { object: { metadata: { tenant_id: 't1' }, status: 'active', items: { data: [{ price: { id: priceCrece } }] } } },
+      data: {
+        object: {
+          metadata: { tenant_id: 't1' },
+          status: 'active',
+          items: { data: [{ price: { id: priceCrece } }] },
+        },
+      },
     });
     const sig = await signStripeWebhookForTests(body, secret, ts);
     const res = await handleStripeWebhook(env, body, sig, nowMs);
@@ -721,7 +900,13 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
     const body = JSON.stringify({
       id: 'evt_dup_plan',
       type: 'customer.subscription.updated',
-      data: { object: { metadata: { tenant_id: 't1' }, status: 'active', items: { data: [{ price: { id: price } }] } } },
+      data: {
+        object: {
+          metadata: { tenant_id: 't1' },
+          status: 'active',
+          items: { data: [{ price: { id: price } }] },
+        },
+      },
     });
     const sig = await signStripeWebhookForTests(body, secret, ts);
     const first = await handleStripeWebhook(env, body, sig, nowMs);
@@ -736,7 +921,10 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
   });
 
   it('webhook sin price no cambia plan, solo status', async () => {
-    const { env, tenantsMap } = webhookEnvWithPlanPrice({}, { t1: { id: 't1', plan_id: 'arranque' } });
+    const { env, tenantsMap } = webhookEnvWithPlanPrice(
+      {},
+      { t1: { id: 't1', plan_id: 'arranque' } },
+    );
     const body = JSON.stringify({
       id: 'evt_noprice',
       type: 'invoice.payment_failed',
@@ -755,11 +943,22 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
       { t1: { id: 't1', plan_id: 'cadena' } },
     );
     // inject platform_override
-    caps.get('t1')!.set('stock.transfers', { tenant_id: 't1', capability: 'stock.transfers', enabled: 1, config_json: '{"source":"platform_override"}' });
+    caps.get('t1')!.set('stock.transfers', {
+      tenant_id: 't1',
+      capability: 'stock.transfers',
+      enabled: 1,
+      config_json: '{"source":"platform_override"}',
+    });
     const body = JSON.stringify({
       id: 'evt_downgrade',
       type: 'customer.subscription.updated',
-      data: { object: { metadata: { tenant_id: 't1' }, status: 'active', items: { data: [{ price: { id: price } }] } } },
+      data: {
+        object: {
+          metadata: { tenant_id: 't1' },
+          status: 'active',
+          items: { data: [{ price: { id: price } }] },
+        },
+      },
     });
     const sig = await signStripeWebhookForTests(body, secret, ts);
     const res = await handleStripeWebhook(env, body, sig, nowMs);
@@ -778,7 +977,13 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
     const body = JSON.stringify({
       id: 'evt_iso',
       type: 'customer.subscription.updated',
-      data: { object: { metadata: { tenant_id: 't1' }, status: 'active', items: { data: [{ price: { id: price } }] } } },
+      data: {
+        object: {
+          metadata: { tenant_id: 't1' },
+          status: 'active',
+          items: { data: [{ price: { id: price } }] },
+        },
+      },
     });
     const sig = await signStripeWebhookForTests(body, secret, ts);
     await handleStripeWebhook(env, body, sig, nowMs);
@@ -790,12 +995,26 @@ describe('Stripe webhook — reconciliación de plan (Ola 4)', () => {
 
 describe('Plan Guard — 402 solo premium, nunca checkout (offline-first)', () => {
   it('isPremiumFeatureRoute vs isCheckoutCriticalRoute invariantes', () => {
-    const premium = ['/api/owner/dashboard', '/api/reports/advanced/top-products', '/api/insights/briefing', '/api/forecasting/b1'];
+    const premium = [
+      '/api/owner/dashboard',
+      '/api/reports/advanced/top-products',
+      '/api/insights/briefing',
+      '/api/forecasting/b1',
+    ];
     for (const p of premium) {
       expect(isPremiumFeatureRoute(p)).toBe(true);
       expect(isCheckoutCriticalRoute(p)).toBe(false);
     }
-    const critical = ['/api/pos/checkout', '/api/pos/offline-sale', '/api/cash/open', '/api/fiscal/emit', '/api/v1/sync/sales', '/api/reports/arqueo', '/api/sales/returns', '/api/sales/layaways'];
+    const critical = [
+      '/api/pos/checkout',
+      '/api/pos/offline-sale',
+      '/api/cash/open',
+      '/api/fiscal/emit',
+      '/api/v1/sync/sales',
+      '/api/reports/arqueo',
+      '/api/sales/returns',
+      '/api/sales/layaways',
+    ];
     for (const p of critical) {
       expect(isCheckoutCriticalRoute(p)).toBe(true);
       expect(isPremiumFeatureRoute(p)).toBe(false);
@@ -806,7 +1025,13 @@ describe('Plan Guard — 402 solo premium, nunca checkout (offline-first)', () =
   });
 
   it('decideAuthGate: past_due post-gracia bloquea premium 402 pero deja pasar caja', () => {
-    const tenant = { id: 't1', status: 'active' as const, subscriptionStatus: 'past_due' as const, trialEndsAt: null, pastGracePeriod: true };
+    const tenant = {
+      id: 't1',
+      status: 'active' as const,
+      subscriptionStatus: 'past_due' as const,
+      trialEndsAt: null,
+      pastGracePeriod: true,
+    };
     const premiumGate = decideAuthGate({
       hasBearerJwt: true,
       jwtValid: true,
@@ -836,7 +1061,13 @@ describe('Plan Guard — 402 solo premium, nunca checkout (offline-first)', () =
   it('capabilities revoke (downgrade) no bloquea caja offline-first', () => {
     // Simula tenant downgrade de cadena a arranque: pierde inventory.locations etc pero checkout sigue
     // El Plan Guard no consulta tenant_capabilities, solo subscriptionStatus
-    const tenant = { id: 't1', status: 'active' as const, subscriptionStatus: 'active' as const, trialEndsAt: null, pastGracePeriod: false };
+    const tenant = {
+      id: 't1',
+      status: 'active' as const,
+      subscriptionStatus: 'active' as const,
+      trialEndsAt: null,
+      pastGracePeriod: false,
+    };
     const gateSync = decideAuthGate({
       hasBearerJwt: true,
       jwtValid: true,

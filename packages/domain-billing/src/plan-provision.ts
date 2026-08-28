@@ -126,11 +126,7 @@ export const ALLOWED_PLANS: ReadonlySet<string> = new Set([
   'enterprise',
 ]);
 
-export const SELF_SERVE_PLANS: ReadonlySet<string> = new Set([
-  'arranque',
-  'crece',
-  'cadena',
-]);
+export const SELF_SERVE_PLANS: ReadonlySet<string> = new Set(['arranque', 'crece', 'cadena']);
 
 export function isAllowedPlan(planId: string): planId is PlanId {
   return (ALLOWED_PLANS as Set<string>).has(planId);
@@ -182,7 +178,11 @@ export function diffCapabilities(
  */
 export function planForStripePrice(
   priceId: string | null | undefined,
-  env: { STRIPE_PRICE_ARRANQUE?: string; STRIPE_PRICE_CRECE?: string; STRIPE_PRICE_CADENA?: string },
+  env: {
+    STRIPE_PRICE_ARRANQUE?: string;
+    STRIPE_PRICE_CRECE?: string;
+    STRIPE_PRICE_CADENA?: string;
+  },
 ): PlanId | null {
   const p = (priceId ?? '').trim();
   if (!p) return null;
@@ -225,7 +225,8 @@ function fromPlan(obj: Record<string, unknown>): string | null {
 
 function fromItems(obj: Record<string, unknown>): string | null {
   const itemsVal = obj.items;
-  if (!isRecord(itemsVal) || !Array.isArray(itemsVal.data) || itemsVal.data.length === 0) return null;
+  if (!isRecord(itemsVal) || !Array.isArray(itemsVal.data) || itemsVal.data.length === 0)
+    return null;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const first = itemsVal.data[0];
   if (!isRecord(first)) return null;
@@ -239,7 +240,8 @@ function fromItems(obj: Record<string, unknown>): string | null {
 
 function fromLines(obj: Record<string, unknown>): string | null {
   const linesVal = obj.lines;
-  if (!isRecord(linesVal) || !Array.isArray(linesVal.data) || linesVal.data.length === 0) return null;
+  if (!isRecord(linesVal) || !Array.isArray(linesVal.data) || linesVal.data.length === 0)
+    return null;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const first = linesVal.data[0];
   if (!isRecord(first)) return null;
@@ -261,7 +263,12 @@ function fromMetadata(obj: Record<string, unknown>): string | null {
  */
 export function extractStripePriceId(eventDataObject: unknown): string | null {
   if (!isRecord(eventDataObject)) return null;
-  return fromPlan(eventDataObject) ?? fromItems(eventDataObject) ?? fromLines(eventDataObject) ?? fromMetadata(eventDataObject);
+  return (
+    fromPlan(eventDataObject) ??
+    fromItems(eventDataObject) ??
+    fromLines(eventDataObject) ??
+    fromMetadata(eventDataObject)
+  );
 }
 
 /**
@@ -270,7 +277,11 @@ export function extractStripePriceId(eventDataObject: unknown): string | null {
  */
 export function resolvePlanFromExtracted(
   extracted: string | null,
-  env: { STRIPE_PRICE_ARRANQUE?: string; STRIPE_PRICE_CRECE?: string; STRIPE_PRICE_CADENA?: string },
+  env: {
+    STRIPE_PRICE_ARRANQUE?: string;
+    STRIPE_PRICE_CRECE?: string;
+    STRIPE_PRICE_CADENA?: string;
+  },
 ): PlanId | null {
   if (!extracted) return null;
   if (extracted.startsWith('__plan:')) {

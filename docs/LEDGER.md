@@ -15456,3 +15456,35 @@ aprobaciones: [Staff Backend ACID, Staff Billing, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0530
+timestamp_utc: 2026-08-27T06:00:00Z
+schema_version: 2
+sprint_fase: Ola 5 — Kill-switch cleanup + Observabilidad
+agente_responsable: Staff SRE + QA + Frontend (auditoría Principal/Security)
+tipo: Entrega
+subtipo: Kill-switch + bundle + chaos + runbook
+relacion: amplia
+referencias_entradas: [0529]
+referencias_documentales: [apps/pos-web/src/lib/features.ts, docs/runbooks/capabilities-dynamic-kill-switch.md]
+prev_id: 0529
+prev_hash: 2676eedb1d3589578ab28ff2a56398d7e440af6044fc98136a3e29bdef2b7522
+entry_hash: b2dbe8c4f66b34762f5fb2072ff1614872356a5ac2e2197c9726033d86829117
+ticket_or_adr: ADR-ARCH-003; V-24; SYN-06
+test_ids: [capabilitiesStore.test.ts, capabilities-revoked-offline.test.ts, session-route.test.ts, SUITE]
+entregable_afectado: apps/pos-web/src/lib/features.ts (@deprecated + canario); docs/runbooks/capabilities-dynamic-kill-switch.md (dashboard+alertas); 0064 fix compound SELECT
+descripcion: >
+  Ola 5 — kill-switch FEATURE_TENANT_CAPABILITIES_DYNAMIC 0 staging, canario 1
+  prod tras 1 release, rollback <30s sin deploy, PUBLIC_FEATURE @deprecated 1
+  release. Bundle 309.34/310kB zero-dep, observabilidad runbook
+  epoch_lag>10s/P95>100ms, chaos 500 ventas capabilities revoked 0 pérdida.
+evidencia: >
+  pos-web 627/627 (112 files) 3 revoked offline, worker 1473/1473, SUITE GREEN
+  31/31 V-07/V-23/V-24/V-28/V-29, quality 8/8, 0064 re-escrito per-capability
+  INSERT evita SQLITE_MAX_COMPOUND_SELECT. Hardware 58/80 físico PENDING.
+ancestry_verified: true
+aprobaciones: [Staff SRE, Staff QA, Staff Frontend, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

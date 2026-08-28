@@ -136,7 +136,10 @@ export async function enforcePlatformRateLimit(
   request: Request,
 ): Promise<{ allowed: boolean; retryAfter: number; kvFailed: boolean }> {
   const kv = (env as { TENANT_KV?: unknown }).TENANT_KV as
-    | { get(k: string): Promise<string | null>; put?(k: string, v: string, opts?: { expirationTtl?: number }): Promise<void> }
+    | {
+        get(k: string): Promise<string | null>;
+        put?(k: string, v: string, opts?: { expirationTtl?: number }): Promise<void>;
+      }
     | null
     | undefined;
   // Fail-closed if KV is expected but missing? The control plane requires KV; if undefined → 503.
@@ -170,16 +173,26 @@ export async function enforcePlatformRateLimit(
 
 export function createPlatformAuthMiddleware() {
   return async (
-    c: { req: { raw: Request; header(name: string): string | undefined }; env: PlatformAuthEnv; json(body: unknown, status: number): Response },
+    c: {
+      req: { raw: Request; header(name: string): string | undefined };
+      env: PlatformAuthEnv;
+      json(body: unknown, status: number): Response;
+    },
     next: () => Promise<void>,
   ): Promise<Response | void> => {
     // Rate limit first (100/min/IP)
     const rate = await enforcePlatformRateLimit(c.env, c.req.raw);
     if (rate.kvFailed) {
-      return c.json({ error: 'Platform control plane unavailable', code: 'PLATFORM_UNAVAILABLE' }, 503);
+      return c.json(
+        { error: 'Platform control plane unavailable', code: 'PLATFORM_UNAVAILABLE' },
+        503,
+      );
     }
     if (!rate.allowed) {
-      return c.json({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfterSeconds: rate.retryAfter }, 429);
+      return c.json(
+        { error: 'Too many requests', code: 'RATE_LIMITED', retryAfterSeconds: rate.retryAfter },
+        429,
+      );
     }
 
     if (platformAuthUnavailable(c.env)) {
@@ -198,10 +211,16 @@ export function createPlatformAuthMiddlewareHono() {
     const env = c.env as PlatformAuthEnv;
     const rate = await enforcePlatformRateLimit(env, c.req.raw);
     if (rate.kvFailed) {
-      return c.json({ error: 'Platform control plane unavailable', code: 'PLATFORM_UNAVAILABLE' }, 503);
+      return c.json(
+        { error: 'Platform control plane unavailable', code: 'PLATFORM_UNAVAILABLE' },
+        503,
+      );
     }
     if (!rate.allowed) {
-      return c.json({ error: 'Too many requests', code: 'RATE_LIMITED', retryAfterSeconds: rate.retryAfter }, 429);
+      return c.json(
+        { error: 'Too many requests', code: 'RATE_LIMITED', retryAfterSeconds: rate.retryAfter },
+        429,
+      );
     }
     if (platformAuthUnavailable(env)) {
       return c.json({ error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' }, 503);
