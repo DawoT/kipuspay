@@ -15520,3 +15520,42 @@ aprobaciones: [Staff SRE, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0532
+timestamp_utc: 2026-08-28T21:15:00Z
+schema_version: 2
+sprint_fase: Fix — E2E owner harness 3 fails post-capabilities (Ola 5)
+agente_responsable: Staff Principal (harness) + Staff Frontend (ejecucion: kipus-pos; auditoria: kipus-qa)
+tipo: Fix
+subtipo: E2E harness + kill-switch deterministico
+relacion: CORRIGE
+referencias_entradas: [0531, 0528, 0529, 0530]
+referencias_documentales: [apps/pos-web/tests/e2e/forecasting.spec.ts, apps/pos-web/tests/e2e/owner-locales.spec.ts, apps/pos-web/tests/e2e/owner-transferencias.spec.ts, apps/pos-web/playwright.config.ts]
+prev_id: 0531
+prev_hash: 4152ec0438bb110a233078e8eac7bc1fe113d6cd34b399334fe013ee4d77cf0d
+entry_hash: b18b62fa753c3e2cb4853b31d525ea5c3fe0e7419d67171ca0aaeb189d2af198
+ticket_or_adr: ADR-ARCH-003; V-07; V-23; V-24
+test_ids: [forecasting.spec.ts, owner-locales.spec.ts, owner-transferencias.spec.ts, SUITE]
+entregable_afectado: apps/pos-web/tests/e2e/forecasting.spec.ts (goto /owner/previsiones directo); owner-locales (b-1|b-2); owner-transferencias (scoped); playwright.config kill-switch 0
+descripcion: >
+  Fix harness E2E tras capacidades dinamicas: (1) forecasting.spec tab-yo
+  no existe en chrome owner (sidebar premium owner-nav-previsiones) → goto
+  /owner/previsiones directo; (2) owner-locales expect /Local 1|Local 2/
+  vs raw b-1/b-2 sin GET /branches → ajusta a /b-1|b-2/ (Opcion B menor
+  riesgo, sin inventar displayName); (3) owner-transferencias locator main
+  strict violation 2 mains id=contenido duplicado → scoped getByTestId
+  owner-transferencias; (4) playwright.config add
+  PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC='0' explicito Ola 5 kill-switch
+  deterministico (ADR-ARCH-003). Sin cambio de gating ni bundle.
+evidencia: >
+  RED: CI 33206436234 120/123 (3 fails: forecasting timeout 30s tab-yo,
+  locales branch-ranking b-1 vs Local, transferencias strict 2 mains).
+  GREEN: local 5/5 (forecasting 2, locales 1, transferencias 2) 12.2s,
+  verify SUITE GREEN 31/31, quality 27/27 bundle 309.31/310kB,
+  CI 33210032779 success 8m51s 123/123, deploy staging 33210791972 success 8m40s.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff QA, Staff Frontend]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

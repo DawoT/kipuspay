@@ -2133,3 +2133,39 @@ aprobaciones: ["A: Staff Backend ACID (Kipus Acid)", "V: Staff Principal (lente 
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0050
+timestamp_utc: 2026-08-28T21:15:00Z
+schema_version: 2
+sprint_fase: Fix — E2E owner harness 3 fails post-capabilities (Ola 5) — staff
+agente_responsable: Staff Principal (harness) — ejecucion kipus-pos + auditoria kipus-qa
+tipo: Fix
+subtipo: E2E harness + kill-switch deterministico
+relacion: CORRIGE
+referencias_entradas: [0049, 0046, 0047, 0048]
+referencias_documentales: ["apps/pos-web/tests/e2e/forecasting.spec.ts", "apps/pos-web/tests/e2e/owner-locales.spec.ts", "apps/pos-web/tests/e2e/owner-transferencias.spec.ts", "apps/pos-web/playwright.config.ts", "docs/LEDGER.md:0532"]
+prev_id: 0049
+prev_hash: 7d7f9a9e356c1efaeaf664396b62c75e7ad4181660fcfaac521c0c63253102dd
+entry_hash: ee24710b42e48eec9976e76e471a07c86c7c1e03b9a453a83b9841809d8ecb95
+ticket_or_adr: ADR-ARCH-003; LEDGER 0532
+test_ids: [forecasting.spec.ts, owner-locales.spec.ts, owner-transferencias.spec.ts, SUITE, V-13]
+entregable_afectado: harness e2e owner (forecasting/locales/transferencias) + playwright kill-switch
+descripcion: >
+  Harness principal delega auditoría kipus-qa → fix kipus-pos con evidencia.
+  QA audita 3 fails CI 33206436234 (forecasting tab-yo drift, locales b-1 vs Local,
+  transferencias strict 2 mains) y halla gating OK (isDynamic false → flag 1).
+  Pos aplica 4 diffs mínimos: forecasting goto directo, locales regex b-1|b-2,
+  transferencias scoped, playwright env PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC=0
+  explícito. Sin tocar features.ts ni bundle. Tiempo no importa, calidad máxima:
+  reproduce local 5/5, verify 31/31, quality 27/27.
+evidencia: >
+  RED: 33206436234 3/123 fails (timeout tab-yo, branch-ranking, strict).
+  GREEN: local 5/5 12.2s, SUITE GREEN, quality 27/27 309.31/310kB,
+  CI 33210032779 success 8m51s 123/123, deploy 33210791972 8m40s,
+  LEDGER 0532 b18b62fa.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (harness)", "V: kipus-qa audit + kipus-pos fix re-ejecutados", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
