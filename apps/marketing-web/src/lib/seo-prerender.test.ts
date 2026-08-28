@@ -50,48 +50,51 @@ function typesOf(block: LdBlock): string[] {
 
 const hasPrerender = existsSync(PAGES_DIR);
 
-describe.skipIf(!hasPrerender)('seo-prerender: JSON-LD parseable en HTML prerenderizado (B1)', () => {
-  it('index.html — cada bloque ld+json es JSON con @type (Organization, WebSite, FAQPage, ItemList)', () => {
-    const html = readPrerendered('index.html');
+describe.skipIf(!hasPrerender)(
+  'seo-prerender: JSON-LD parseable en HTML prerenderizado (B1)',
+  () => {
+    it('index.html — cada bloque ld+json es JSON con @type (Organization, WebSite, FAQPage, ItemList)', () => {
+      const html = readPrerendered('index.html');
 
-    expect(html).not.toContain('{@html');
+      expect(html).not.toContain('{@html');
 
-    const blocks = extractLdBlocks(html);
-    expect(blocks.length).toBeGreaterThanOrEqual(4);
+      const blocks = extractLdBlocks(html);
+      expect(blocks.length).toBeGreaterThanOrEqual(4);
 
-    for (const block of blocks) {
-      expect(typesOf(block).length).toBeGreaterThan(0);
-    }
+      for (const block of blocks) {
+        expect(typesOf(block).length).toBeGreaterThan(0);
+      }
 
-    const found = new Set(blocks.flatMap(typesOf));
-    for (const expected of ['Organization', 'WebSite', 'FAQPage', 'ItemList']) {
-      expect(found, `index.html debe declarar @type ${expected}`).toContain(expected);
-    }
-  });
+      const found = new Set(blocks.flatMap(typesOf));
+      for (const expected of ['Organization', 'WebSite', 'FAQPage', 'ItemList']) {
+        expect(found, `index.html debe declarar @type ${expected}`).toContain(expected);
+      }
+    });
 
-  it('precios.html — Product con ofertas PEN parseables', () => {
-    const html = readPrerendered('precios.html');
+    it('precios.html — Product con ofertas PEN parseables', () => {
+      const html = readPrerendered('precios.html');
 
-    expect(html).not.toContain('{@html');
+      expect(html).not.toContain('{@html');
 
-    const products = extractLdBlocks(html).filter((b) => typesOf(b).includes('Product'));
-    expect(products.length).toBe(1);
+      const products = extractLdBlocks(html).filter((b) => typesOf(b).includes('Product'));
+      expect(products.length).toBe(1);
 
-    const offers = products[0].json['offers'];
-    expect(Array.isArray(offers)).toBe(true);
-    for (const offer of offers as Array<Record<string, unknown>>) {
-      expect(offer['@type']).toBe('Offer');
-      expect(offer['priceCurrency']).toBe('PEN');
-    }
-  });
+      const offers = products[0].json['offers'];
+      expect(Array.isArray(offers)).toBe(true);
+      for (const offer of offers as Array<Record<string, unknown>>) {
+        expect(offer['@type']).toBe('Offer');
+        expect(offer['priceCurrency']).toBe('PEN');
+      }
+    });
 
-  it('ayuda.html — FAQPage parseable', () => {
-    const html = readPrerendered('ayuda.html');
+    it('ayuda.html — FAQPage parseable', () => {
+      const html = readPrerendered('ayuda.html');
 
-    expect(html).not.toContain('{@html');
+      expect(html).not.toContain('{@html');
 
-    const faqs = extractLdBlocks(html).filter((b) => typesOf(b).includes('FAQPage'));
-    expect(faqs.length).toBe(1);
-    expect(Array.isArray(faqs[0].json['mainEntity'])).toBe(true);
-  });
-});
+      const faqs = extractLdBlocks(html).filter((b) => typesOf(b).includes('FAQPage'));
+      expect(faqs.length).toBe(1);
+      expect(Array.isArray(faqs[0].json['mainEntity'])).toBe(true);
+    });
+  },
+);
