@@ -85,7 +85,7 @@ function platformEnv(opts: {
   return {
     DB: db,
     TENANT_KV: kv as unknown as KVNamespace,
-    PLATFORM_STAFF_TOKEN: opts.token ?? 'staff-secret-12345',
+    PLATFORM_STAFF_TOKEN: opts.token ?? 'staff-secret-12345', // gitleaks:allow
     ALLOWLIST_STAFF_EMAILS: opts.allowlist ?? 'staff@kipuspay.com',
     CF_ACCESS_TEAM_DOMAIN: opts.teamDomain,
     CF_ACCESS_AUD: opts.aud,
@@ -281,7 +281,7 @@ describe('HIGH-01 — Zero-Trust CF Access JWT verification (fix bloqueante prod
     expect(content).toContain('TextEncoder');
     expect(content).toContain('Uint8Array');
     // Funcionalmente: longitud distinta → 401, pero sin leak (no early return, constant-time)
-    const env = platformEnv({ token: 'staff-secret-12345' });
+    const env = platformEnv({ token: 'staff-secret-12345' }); // gitleaks:allow
     const app = createApp();
     const resShort = await app.request(
       '/platform/tenants',
@@ -291,13 +291,13 @@ describe('HIGH-01 — Zero-Trust CF Access JWT verification (fix bloqueante prod
     expect(resShort.status).toBe(401);
     const resLong = await app.request(
       '/platform/tenants',
-      { headers: { 'x-platform-staff-token': 'staff-secret-12345-extra-long-value' } },
+      { headers: { 'x-platform-staff-token': 'staff-secret-12345-extra-long-value' } }, // gitleaks:allow
       env as unknown as Env,
     );
     expect(resLong.status).toBe(401);
     const resValid = await app.request(
       '/platform/tenants',
-      { headers: { 'x-platform-staff-token': 'staff-secret-12345' } },
+      { headers: { 'x-platform-staff-token': 'staff-secret-12345' } }, // gitleaks:allow
       env as unknown as Env,
     );
     expect(resValid.status).toBe(200);

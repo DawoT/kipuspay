@@ -10,6 +10,8 @@ useDefault = true
 paths = [
   '''docs/LEDGER\.md''',
   '''docs/architecture/.*\.md''',
+  '''apps/worker-api/src/platform/.*\.test\.ts''',
+  '''apps/worker-api/src/tenant/.*\.test\.ts''',
 ]
 regexes = [
   '''CRC32\([0-9a-f]+\)''',
