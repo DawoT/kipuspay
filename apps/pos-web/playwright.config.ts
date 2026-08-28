@@ -77,6 +77,7 @@ export default defineConfig({
       PUBLIC_FEATURE_PAYMENTS_CARD_ACQUIRER: '1',
       PUBLIC_FEATURE_REPORTING_CATALOG: '1',
       PUBLIC_FEATURE_CASH_EXPENSES: '1',
+      PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC: '0', // Ola 5 kill-switch default off (ADR-ARCH-003)
     },
   },
 });

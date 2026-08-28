@@ -41,5 +41,7 @@ test('locales dueño: ranking por sucursal server-side', async ({ page }) => {
   await expect(page.getByText(/Ranking por sucursal calculado por el servidor/)).toBeVisible();
   await expect(page.getByText(/Sin red se muestra el último resumen guardado/)).toBeVisible();
 
-  await expect(page.getByTestId('branch-ranking')).toContainText(/Local 1|Local 2/);
+  // Opción B (auditoría, menor riesgo): contrato entrega branch_id técnico sin GET /api/branches;
+  // fallback a id — expect valida b-1|b-2. No inventar displayName sin spec.
+  await expect(page.getByTestId('branch-ranking')).toContainText(/b-1|b-2/);
 });

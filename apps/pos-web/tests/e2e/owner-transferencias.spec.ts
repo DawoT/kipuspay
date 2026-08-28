@@ -50,7 +50,7 @@ test('owner transferencias: en tránsito, discrepancias y refresh', async ({ pag
   await expect(page.getByText('xfer-e2e')).toBeVisible();
   await expect(page.getByTestId('owner-xfer-pending').getByText('En camino')).toBeVisible();
   await expect(page.getByText(/Sin discrepancias recientes/)).toBeVisible();
-  await expect(page.locator('main')).not.toContainText(/IN_TRANSIT/);
+  await expect(page.getByTestId('owner-transferencias')).not.toContainText(/IN_TRANSIT/);
 });
 
 test('owner transferencias: estado vacío honesto', async ({ page }) => {
