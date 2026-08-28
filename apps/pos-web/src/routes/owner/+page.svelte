@@ -12,13 +12,14 @@
   import {
     isAgenticInsightsEnabled,
     isFiscalCircuitBreakerEnabled,
+    isOwnerModeEnabled,
     isLedgerStoreCreditEnabled,
     isSalesCommissionsEnabled,
     isSalesInstallmentsEnabled,
     isSalesLayawayEnabled,
     isSalesQuotesEnabled,
   } from '$lib/features';
-  import { capabilities, capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
+  import { capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
   import {
     canOfferAnularEa,
     type AnularEaResult,
@@ -38,7 +39,7 @@
   import Skeleton from '$lib/ui/Skeleton.svelte';
  import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  let enabled = $derived($capabilities.has('owner.mode'));
+  let enabled = $derived(isOwnerModeEnabled());
   let capabilitiesStaleBanner = $derived.by(() => {
     const fetchedAt = $capabilitiesFetchedAt;
     if (fetchedAt === null) return null;

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { isAgenticInsightsEnabled } from '$lib/features';
-  import { capabilities, capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
+  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
+  import { capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
   import { page } from '$app/state';
   import { fade } from 'svelte/transition';
   import { prefersReducedMotion } from 'svelte/motion';
@@ -13,7 +13,7 @@
 
   let { children } = $props();
 
-  let enabled = $derived($capabilities.has('owner.mode'));
+  let enabled = $derived(isOwnerModeEnabled());
   let capabilitiesStaleBanner = $derived.by(() => {
     const fetchedAt = $capabilitiesFetchedAt;
     if (fetchedAt === null) return null;
