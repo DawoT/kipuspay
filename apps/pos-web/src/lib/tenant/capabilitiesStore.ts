@@ -63,6 +63,7 @@ export const capabilitiesEpoch: Writable<number> = writable<number>(0);
 export const capabilitiesFetchedAt: Writable<number | null> = writable<number | null>(null);
 export const capabilitiesTenantId: Writable<string | null> = writable<string | null>(null);
 
+// called inside $derived, re-run on store change
 export function has(cap: string): boolean {
   return get(capabilities).has(cap);
 }
@@ -473,12 +474,19 @@ export async function loadCapabilities(input: {
         capabilitiesTenantId.set(tenantId);
       }
     }
+    const caps = [...get(capabilities)];
+    const epoch = get(capabilitiesEpoch);
     return {
       fromCache: true,
       stale: true,
-      banner: tenantId ? fmtBanner(nowMs - STALE_THRESHOLD_MS - 1000, nowMs) : null,
-      caps: [...get(capabilities)],
-      epoch: get(capabilitiesEpoch),
+      banner:
+        caps.length === 0
+          ? null
+          : tenantId
+            ? fmtBanner(nowMs - STALE_THRESHOLD_MS - 1000, nowMs)
+            : null,
+      caps,
+      epoch,
     };
   }
 }

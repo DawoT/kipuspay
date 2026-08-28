@@ -101,6 +101,7 @@
   "vars": {
     "FQDN": "https://api.kipuspay.local",
     "ALLOWED_ORIGINS": "http://localhost:4173,http://localhost:5173,http://localhost:5174,https://*.pages.dev",
+    "ALLOWED_PLATFORM_ORIGINS": "https://admin.kipuspay.com",
     "FEATURE_AUTH_CASHIER_LOGIN": "1",
     "FEATURE_CATALOG_SELLABLE": "1",
     "FEATURE_ACID_OFFLINE_SALE": "0",
@@ -278,6 +279,7 @@
         "FQDN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
         "POS_APP_ORIGIN": "https://kipuspay-pos-web-staging.pages.dev",
         "ALLOWED_ORIGINS": "https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-web.pages.dev,https://kipuspay-app.pages.dev,https://kipuspay-marketing-web-staging.pages.dev,https://*.pages.dev,https://kipuspay.com,https://app.kipuspay.com",
+        "ALLOWED_PLATFORM_ORIGINS": "https://admin.kipuspay.com",
         "FEATURE_AUTH_CASHIER_LOGIN": "1",
         "FEATURE_CATALOG_SELLABLE": "1",
         "FEATURE_ACID_OFFLINE_SALE": "0",

@@ -1,8 +1,9 @@
 /* eslint-disable */
 /**
  * Ola 3 — Control Plane SuperAdmin aislado (ADR-ARCH-003).
- * Middleware platformAuth: CF Access JWT (CF_Authorization) + allowlist ALLOWLIST_STAFF_EMAILS
- * + x-platform-staff-token (constant-time, patrón index.ts:739). Nunca role=owner.
+ * Middleware platformAuth: CF Access JWT (Cf-Access-Jwt-Assertion) + allowlist ALLOWLIST_STAFF_EMAILS
+ * + x-platform-staff-token (constant-time, timingSafeEqual). Nunca role=owner.
+ * Zero-Trust: JWT verificado con JWK, iss/aud/kid, teamDomain. Fail-closed 503 si verificación no disponible.
  * Rate limit 100/min/IP (KV) + fail-closed 503 si KV/DO/DB caído.
  */
 import { createMiddleware } from 'hono/factory';
@@ -15,14 +16,27 @@ export interface PlatformAuthEnv extends WorkerEnv {
   readonly CF_ACCESS_AUD?: string;
 }
 
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  if (a.length === 0 && b.length === 0) return true;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+// Zero-Trust: timingSafeEqual constant-time sobre Uint8Array sin early return por longitud
+function timingSafeEqual(a: string, b: string): boolean {
+  const aBuf = new TextEncoder().encode(a);
+  const bBuf = new TextEncoder().encode(b);
+  const maxLen = Math.max(aBuf.length, bBuf.length);
+  const aPadded = new Uint8Array(maxLen);
+  const bPadded = new Uint8Array(maxLen);
+  aPadded.set(aBuf);
+  bPadded.set(bBuf);
+  // Incorpora diferencia de longitud sin early return — compara todo el buffer
+  let diff = aBuf.length ^ bBuf.length;
+  for (let i = 0; i < maxLen; i += 1) {
+    diff |= aPadded[i]! ^ bPadded[i]!;
   }
   return diff === 0;
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  // Mantener nombre para compat, pero delega a timingSafeEqual sin early return
+  if (a.length === 0 && b.length === 0) return true;
+  return timingSafeEqual(a, b);
 }
 
 function parseAllowlist(raw: string | undefined): Set<string> {
@@ -48,10 +62,18 @@ function b64UrlDecodeToJson(tokenPart: string): Record<string, unknown> | null {
   }
 }
 
+function b64UrlToBytes(input: string): Uint8Array {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+  const bin = atob(padded + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 function extractEmailFromJwtPayload(payload: Record<string, unknown>): string {
   const email = payload.email;
   if (typeof email === 'string') return email.trim().toLowerCase();
-  // Cloudflare Access may use `upn` or `preferred_username`
   const upn = payload.upn;
   if (typeof upn === 'string') return upn.trim().toLowerCase();
   const pref = payload.preferred_username;
@@ -69,59 +91,151 @@ function extractAudFromPayload(payload: Record<string, unknown>): string {
 function isStaffTokenValid(env: PlatformAuthEnv, header: string | undefined): boolean {
   const expected = env.PLATFORM_STAFF_TOKEN?.trim() ?? '';
   const provided = (header ?? '').trim();
-  if (!expected || !provided || expected.length !== provided.length) return false;
-  return constantTimeEqual(expected, provided);
+  if (!expected || !provided) return false;
+  // Zero-Trust: sin early return por longitud — timingSafeEqual sobre Uint8Array longitud fija
+  return timingSafeEqual(expected, provided);
 }
 
-function isCfAccessAuthorized(env: PlatformAuthEnv, headerValue: string | undefined): boolean {
+// JWK cache for CF Access certs (10m TTL)
+type CfJwksCache = { keys: Map<string, JsonWebKey>; fetchedAt: number; teamDomain: string };
+let cfJwksCache: CfJwksCache | null = null;
+const CF_JWKS_TTL_MS = 10 * 60 * 1000;
+
+async function fetchCfCerts(teamDomain: string): Promise<Map<string, JsonWebKey> | null> {
+  const now = Date.now();
+  if (
+    cfJwksCache &&
+    cfJwksCache.teamDomain === teamDomain &&
+    now - cfJwksCache.fetchedAt < CF_JWKS_TTL_MS
+  ) {
+    return cfJwksCache.keys;
+  }
+  const url = `https://${teamDomain}.cloudflareaccess.com/cdn-cgi/access/certs`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const body = (await res.json()) as { keys?: JsonWebKey[] };
+    if (!Array.isArray(body.keys) || body.keys.length === 0) return null;
+    const map = new Map<string, JsonWebKey>();
+    for (const k of body.keys) {
+      const kid = (k as unknown as { kid?: unknown }).kid;
+      if (typeof kid === 'string' && kid) map.set(kid, k);
+    }
+    if (map.size === 0) return null;
+    cfJwksCache = { keys: map, fetchedAt: now, teamDomain };
+    return map;
+  } catch {
+    return null;
+  }
+}
+
+export function _clearCfCacheForTests(): void {
+  cfJwksCache = null;
+}
+
+async function isCfAccessAuthorized(
+  env: PlatformAuthEnv,
+  headerValue: string | undefined,
+): Promise<{ authorized: boolean; unavailable?: boolean }> {
+  // Zero-Trust: JWT verificado con JWK, iss/aud/kid, teamDomain
   const raw = (headerValue ?? '').trim();
-  if (!raw) return false;
-  // Accept `Bearer <jwt>` or raw jwt
+  if (!raw) return { authorized: false };
   const token = raw.startsWith('Bearer ') ? raw.slice(7).trim() : raw;
-  if (!token || token.split('.').length !== 3) return false;
+  if (!token || token.split('.').length !== 3) return { authorized: false };
 
   const parts = token.split('.');
+  const headerB64 = parts[0] ?? '';
   const payloadB64 = parts[1] ?? '';
-  const payload = b64UrlDecodeToJson(payloadB64);
-  if (!payload) return false;
+  const sigB64 = parts[2] ?? '';
+  if (!headerB64 || !payloadB64 || !sigB64) return { authorized: false };
 
-  // exp check fail-closed (expired → reject)
+  const header = b64UrlDecodeToJson(headerB64);
+  if (!header) return { authorized: false };
+
+  const alg = typeof header.alg === 'string' ? header.alg : '';
+  if (alg !== 'RS256') return { authorized: false };
+
+  const kid = typeof header.kid === 'string' ? header.kid : '';
+  if (!kid) return { authorized: false };
+
+  const teamDomain = env.CF_ACCESS_TEAM_DOMAIN?.trim() ?? '';
+  if (!teamDomain) {
+    // fail-closed 503 STAFF_UNAVAILABLE (no 401) — verificación no disponible
+    return { authorized: false, unavailable: true };
+  }
+
+  const certs = await fetchCfCerts(teamDomain);
+  if (!certs) {
+    return { authorized: false, unavailable: true };
+  }
+  const jwk = certs.get(kid);
+  if (!jwk) return { authorized: false };
+
+  const payload = b64UrlDecodeToJson(payloadB64);
+  if (!payload) return { authorized: false };
+
   const exp = payload.exp;
   if (typeof exp === 'number' && Number.isFinite(exp)) {
     const nowSec = Math.floor(Date.now() / 1000);
-    if (nowSec > exp) return false;
+    if (nowSec > exp) return { authorized: false };
   }
 
-  // aud check if configured (fail-closed if mismatch when expected aud set)
   const expectedAud = env.CF_ACCESS_AUD?.trim() ?? '';
   if (expectedAud) {
     const aud = extractAudFromPayload(payload);
-    if (aud !== expectedAud) return false;
+    if (aud !== expectedAud) return { authorized: false };
+  }
+
+  const iss = typeof payload.iss === 'string' ? payload.iss : '';
+  const expectedIss = `https://${teamDomain}.cloudflareaccess.com`;
+  if (iss !== expectedIss) return { authorized: false };
+
+  // Verifica firma RS256 con JWK
+  try {
+    const message = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+    const signature = b64UrlToBytes(sigB64);
+    // valida que jwk sea RSA RS256 si declara alg
+    const jwkAlg = (jwk as unknown as { alg?: unknown }).alg;
+    if (typeof jwkAlg === 'string' && jwkAlg !== 'RS256') return { authorized: false };
+    const algorithm = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' } as const;
+    const imported = await crypto.subtle.importKey('jwk', jwk, algorithm, false, ['verify']);
+    const valid = await crypto.subtle.verify(algorithm, imported, signature, message);
+    if (!valid) return { authorized: false };
+  } catch {
+    return { authorized: false };
   }
 
   const email = extractEmailFromJwtPayload(payload);
-  if (!email) return false;
+  if (!email) return { authorized: false };
   const allowlist = parseAllowlist(env.ALLOWLIST_STAFF_EMAILS);
-  if (allowlist.size === 0) return false;
-  // constant-time via set lookup (email normalized)
-  return allowlist.has(email);
+  if (allowlist.size === 0) return { authorized: false };
+  return { authorized: allowlist.has(email) };
 }
 
-export function isPlatformAuthorized(env: PlatformAuthEnv, headers: Headers): boolean {
+export async function isPlatformAuthorized(
+  env: PlatformAuthEnv,
+  headers: Headers,
+): Promise<{ authorized: boolean; unavailable?: boolean }> {
+  const staffHeader = headers.get('x-platform-staff-token') ?? undefined;
+  if (isStaffTokenValid(env, staffHeader)) return { authorized: true };
+
+  // Solo Cf-Access-Jwt-Assertion es insobornable (Cloudflare Access lo inyecta y el cliente no puede forjar)
+  const cfAuth = headers.get('cf-access-jwt-assertion') ?? undefined;
+  if (cfAuth) {
+    const cf = await isCfAccessAuthorized(env, cfAuth);
+    if (cf.unavailable) return { authorized: false, unavailable: true };
+    if (cf.authorized) return { authorized: true };
+  }
+
+  return { authorized: false };
+}
+
+// Compat sync wrapper para tests legacy que esperan boolean (opcional)
+export function isPlatformAuthorizedSync(env: PlatformAuthEnv, headers: Headers): boolean {
+  // No usado en producción — solo para compat de tests que no await
+  // Retorna false siempre si hay CF JWT (requiere async verify) — usar isPlatformAuthorized async
   const staffHeader = headers.get('x-platform-staff-token') ?? undefined;
   if (isStaffTokenValid(env, staffHeader)) return true;
-
-  // CF Access headers: CF_Authorization (task) + Cf-Access-Jwt-Assertion (real)
-  const cfAuth =
-    headers.get('cf-authorization') ??
-    headers.get('cf_authorization') ??
-    headers.get('cf-access-jwt-assertion') ??
-    headers.get('x-cf-authorization') ??
-    undefined;
-  if (cfAuth && isCfAccessAuthorized(env, cfAuth)) return true;
-
-  // Also allow Authorization: Bearer <CF JWT> if email in allowlist (fallback)
-  // But nunca role=owner: we do NOT accept tenant JWT. So we only check cf headers.
   return false;
 }
 
@@ -142,14 +256,6 @@ export async function enforcePlatformRateLimit(
       }
     | null
     | undefined;
-  // Fail-closed if KV is expected but missing? The control plane requires KV; if undefined → 503.
-  // But for tests we allow missing KV to still pass (fail-open for cost protection).
-  // Ola 3 says fail-closed 503 si KV/DO caído — for platform we treat KV missing as 503.
-  // However legacy rate-limit.ts fails open without KV. We diverge: platform is security, fail-closed.
-  // If KV is undefined, we treat as unavailable → 503 if we cannot enforce limit.
-  // To keep backward compat with tests that provide KV, we check if KV is null/undefined → allow but mark kvFailed true ?
-  // Task says rate limit 100/min/IP and 503 if KV/DO caído. So we must 503 when KV unavailable.
-  // We implement: if KV missing → kvFailed true → caller returns 503.
   if (!kv) {
     return { allowed: true, retryAfter: 0, kvFailed: true };
   }
@@ -180,7 +286,6 @@ export function createPlatformAuthMiddleware() {
     },
     next: () => Promise<void>,
   ): Promise<Response | void> => {
-    // Rate limit first (100/min/IP)
     const rate = await enforcePlatformRateLimit(c.env, c.req.raw);
     if (rate.kvFailed) {
       return c.json(
@@ -198,8 +303,11 @@ export function createPlatformAuthMiddleware() {
     if (platformAuthUnavailable(c.env)) {
       return c.json({ error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' }, 503);
     }
-    const ok = isPlatformAuthorized(c.env, c.req.raw.headers);
-    if (!ok) {
+    const auth = await isPlatformAuthorized(c.env, c.req.raw.headers);
+    if (auth.unavailable) {
+      return c.json({ error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' }, 503);
+    }
+    if (!auth.authorized) {
       return c.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     }
     await next();
@@ -225,8 +333,11 @@ export function createPlatformAuthMiddlewareHono() {
     if (platformAuthUnavailable(env)) {
       return c.json({ error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' }, 503);
     }
-    const ok = isPlatformAuthorized(env, c.req.raw.headers);
-    if (!ok) {
+    const auth = await isPlatformAuthorized(env, c.req.raw.headers);
+    if (auth.unavailable) {
+      return c.json({ error: 'Staff auth unavailable', code: 'STAFF_UNAVAILABLE' }, 503);
+    }
+    if (!auth.authorized) {
       return c.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     }
     await next();

@@ -472,7 +472,33 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   ) => {
     const origin = c.req.header('origin') ?? null;
     for (const [name, value] of Object.entries(
-      corsHeadersFor(c.env as { ALLOWED_ORIGINS?: string }, origin),
+      corsHeadersFor(
+        c.env as { ALLOWED_ORIGINS?: string; ALLOWED_PLATFORM_ORIGINS?: string },
+        origin,
+        c.req.path,
+      ),
+    )) {
+      c.header(name, value);
+    }
+    if (c.req.method === 'OPTIONS') {
+      return c.body(null, 204);
+    }
+    await next();
+  };
+
+  // HIGH-02 — CORS Zero-Trust plataforma: solo admin.kipuspay.com (y *.kipuspay.com si se configura),
+  // nunca *.pages.dev. ALLOWED_PLATFORM_ORIGINS separado, fail-closed si vacío.
+  const platformCorsMiddleware = async (
+    c: Context<{ Bindings: WorkerEnv }>,
+    next: () => Promise<void>,
+  ) => {
+    const origin = c.req.header('origin') ?? null;
+    for (const [name, value] of Object.entries(
+      corsHeadersFor(
+        c.env as { ALLOWED_ORIGINS?: string; ALLOWED_PLATFORM_ORIGINS?: string },
+        origin,
+        c.req.path,
+      ),
     )) {
       c.header(name, value);
     }
@@ -530,7 +556,8 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // /platform/* en worker-api con middleware platformAuth aislado (nunca role=owner).
   // Diseñado para migrar a worker-admin (Opción A) cuando exista apps/worker-admin.
   // Evidencia: `ls apps/worker-admin` → no existe (fallback B con separación clara).
-  app.use('/platform/*', publicCorsMiddleware);
+  // HIGH-02: platform usa CORS aislado (ALLOWED_PLATFORM_ORIGINS = admin.kipuspay.com only, nunca *.pages.dev)
+  app.use('/platform/*', platformCorsMiddleware);
   app.use('/platform/*', createPlatformAuthMiddlewareHono());
 
   app.get('/platform/tenants', async (c) => {

@@ -19,7 +19,7 @@
     isSalesLayawayEnabled,
     isSalesQuotesEnabled,
   } from '$lib/features';
-  import { capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
+  import { capabilitiesFetchedAt, getStaleBanner, STALE_THRESHOLD_MS } from '$lib/tenant/capabilitiesStore';
   import {
     canOfferAnularEa,
     type AnularEaResult,
@@ -44,13 +44,8 @@
     const fetchedAt = $capabilitiesFetchedAt;
     if (fetchedAt === null) return null;
     const age = Date.now() - fetchedAt;
-    if (age <= 60 * 60 * 1000) return null;
-    const hours = Math.max(0, Math.floor(age / 3_600_000));
-    if (hours < 1) {
-      const mins = Math.max(0, Math.floor(age / 60_000));
-      return `Datos de hace ${mins} min (no en vivo)`;
-    }
-    return `Datos de hace ${hours} horas (no en vivo)`;
+    if (age <= STALE_THRESHOLD_MS) return null;
+    return getStaleBanner();
   });
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
   let briefingBullets: string[] = $derived.by(() => {

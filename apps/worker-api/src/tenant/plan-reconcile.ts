@@ -35,104 +35,57 @@ export interface PlanReconcileEnv {
   };
 }
 
+export const PLAN_RECONCILE_CONFLICT = 'PLAN_RECONCILE_CONFLICT';
+
+export function isCasConflict(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
+  return msg.includes('CHECK') || msg.includes('atomic_guards');
+}
+
 export interface ReconcileResult {
-  status: 'updated' | 'noop' | 'not_found' | 'error';
+  status: 'updated' | 'noop' | 'not_found' | 'error' | 'conflict';
   planId: string;
   auditId?: string;
 }
 
-/**
- * Ejecuta la reconciliación atómica si el plan cambia.
- * Retorna noop si ya está en planId (no inserta audit).
- * El llamador decide el actor y source para payload.
- */
-// eslint-disable-next-line complexity
-export async function reconcilePlanAtomic(
-  env: PlanReconcileEnv,
-  tenantId: string,
-  newPlanId: string,
-  opts: { actorUserId: string; source: 'api' | 'stripe_webhook'; prevPlanId?: string | null },
-): Promise<ReconcileResult> {
-  const db = env.DB as unknown as D1Database & {
-    batch(statements: unknown[]): Promise<unknown>;
-    prepare(sql: string): {
-      bind(...a: unknown[]): {
-        run(): Promise<unknown>;
-        first<T>(): Promise<T | null>;
-        all<T>(): Promise<{ results: T[] }>;
-      };
+type DbLike = D1Database & {
+  batch(statements: unknown[]): Promise<unknown>;
+  prepare(sql: string): {
+    bind(...a: unknown[]): {
+      run(): Promise<unknown>;
+      first<T>(): Promise<T | null>;
+      all<T>(): Promise<{ results: T[] }>;
     };
   };
-  if (!db) return { status: 'error', planId: newPlanId };
+};
 
-  // SoT: domain-billing
-  let newCaps: readonly string[];
-  try {
-    newCaps = provisionCapabilitiesForPlan(newPlanId);
-  } catch {
-    return { status: 'error', planId: newPlanId };
-  }
+async function loadPrevPlanId(
+  db: DbLike,
+  tenantId: string,
+  provided: string | null | undefined,
+): Promise<string | null> {
+  if (typeof provided === 'string') return provided;
+  const row = await db
+    .prepare('SELECT plan_id FROM tenants WHERE id = ? AND deleted_at IS NULL')
+    .bind(tenantId)
+    .first<{ plan_id: string | null }>();
+  if (!row) throw Object.assign(new Error('NOT_FOUND'), { code: 'NOT_FOUND' });
+  return row.plan_id ?? 'arranque';
+}
 
-  // Preflight: plan actual
-  let prevPlanId: string | null = opts.prevPlanId ?? null;
-  if (prevPlanId === null) {
-    try {
-      const row = await db
-        .prepare('SELECT plan_id FROM tenants WHERE id = ? AND deleted_at IS NULL')
-        .bind(tenantId)
-        .first<{ plan_id: string | null }>();
-      if (!row) return { status: 'not_found', planId: newPlanId };
-      prevPlanId = row.plan_id ?? 'arranque';
-    } catch {
-      return { status: 'error', planId: newPlanId };
-    }
-  } else if (prevPlanId === undefined) {
-    prevPlanId = null;
-  }
-
-  if (prevPlanId === newPlanId) {
-    // Idempotente: no audit, pero asegura caps presentes vía INSERT OR IGNORE si se desea.
-    // Para preservar "no duplicate audit", no hacemos batch. El caller puede optar por
-    // hacer INSERT OR IGNORE sin audit en otro batch si quiere reparar caps huérfanas;
-    // la misión acepta early noop.
-    return { status: 'noop', planId: newPlanId };
-  }
-
-  // Audit chain head
-  let prevHash: string | null;
-  try {
-    prevHash = await readAuditChainHead(db, tenantId);
-  } catch {
-    return { status: 'error', planId: newPlanId };
-  }
-
-  const auditId = crypto.randomUUID();
-  const nowIso = new Date().toISOString();
-  const payloadJson = JSON.stringify({
-    prev_plan_id: prevPlanId,
-    new_plan_id: newPlanId,
-    source: opts.source,
-    actor: opts.actorUserId,
-    at: nowIso,
-  });
-  const rowHash = await sha256Hex(
-    JSON.stringify({
-      action: 'PLAN_UPGRADE',
-      entity_id: tenantId,
-      tenant_id: tenantId,
-      new_plan_id: newPlanId,
-      prev_plan_id: prevPlanId,
-      prev: prevHash,
-    }),
-  );
-
-  // Statements
+function buildStmts(
+  db: DbLike,
+  tenantId: string,
+  newPlanId: string,
+  newCaps: readonly string[],
+  auditId: string,
+  payloadJson: string,
+  prevHash: string | null,
+  rowHash: string,
+  actorUserId: string,
+): unknown[] {
   const stmts: unknown[] = [];
-
-  // 0: tenants plan_id
   stmts.push(db.prepare('UPDATE tenants SET plan_id = ? WHERE id = ?').bind(newPlanId, tenantId));
-
-  // 1..N: INSERT OR IGNORE tenant_capabilities defaults
   for (const cap of newCaps) {
     stmts.push(
       db
@@ -142,22 +95,17 @@ export async function reconcilePlanAtomic(
         .bind(tenantId, cap, PLAN_DEFAULT_JSON),
     );
   }
-
-  // Delete plan_default not in new plan
   if (newCaps.length > 0) {
     const placeholders = newCaps.map(() => '?').join(',');
     const sql = `DELETE FROM tenant_capabilities WHERE tenant_id = ? AND config_json = ? AND capability NOT IN (${placeholders})`;
     stmts.push(db.prepare(sql).bind(tenantId, PLAN_DEFAULT_JSON, ...newCaps));
   } else {
-    // No caps? borrar todo plan_default (no debería pasar, pero fail-safe)
     stmts.push(
       db
         .prepare('DELETE FROM tenant_capabilities WHERE tenant_id = ? AND config_json = ?')
         .bind(tenantId, PLAN_DEFAULT_JSON),
     );
   }
-
-  // Audit
   stmts.push(
     db
       .prepare(
@@ -166,7 +114,7 @@ export async function reconcilePlanAtomic(
       .bind(
         auditId,
         tenantId,
-        opts.actorUserId,
+        actorUserId,
         'PLAN_UPGRADE',
         'tenants',
         tenantId,
@@ -175,8 +123,6 @@ export async function reconcilePlanAtomic(
         rowHash,
       ),
   );
-
-  // Epoch: ensure row exists then increment
   stmts.push(
     db
       .prepare('INSERT OR IGNORE INTO tenant_data_epochs (tenant_id, epoch) VALUES (?, 0)')
@@ -189,43 +135,119 @@ export async function reconcilePlanAtomic(
       )
       .bind(tenantId),
   );
-
-  // Claim CAS
-  let claimStmts: ReturnType<typeof auditChainClaimStatements>;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    claimStmts = auditChainClaimStatements(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      db as any,
-      tenantId,
-      prevHash,
-      [rowHash],
-    );
-  } catch {
-    return { status: 'error', planId: newPlanId };
-  }
+  const claimStmts = auditChainClaimStatements(
+    db as unknown as Parameters<typeof auditChainClaimStatements>[0],
+    tenantId,
+    prevHash,
+    [rowHash],
+  );
   stmts.push(...claimStmts);
+  return stmts;
+}
 
-  try {
-    await (env.DB as unknown as { batch(s: unknown[]): Promise<unknown> }).batch(stmts);
-  } catch {
-    return { status: 'error', planId: newPlanId };
-  }
-
-  // Best-effort KV: actualizar tenant:${tenantId} plan_id
-  if (env.TENANT_KV?.get && env.TENANT_KV?.put) {
+async function executeWithCasRetry(db: DbLike, stmts: unknown[]): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const raw = await env.TENANT_KV.get(`tenant:${tenantId}`);
-      if (raw) {
-        const tenant = JSON.parse(raw) as Record<string, unknown>;
-        tenant.plan_id = newPlanId;
-        tenant.planId = newPlanId;
-        await env.TENANT_KV.put(`tenant:${tenantId}`, JSON.stringify(tenant));
+      await (db as unknown as { batch(s: unknown[]): Promise<unknown> }).batch(stmts);
+      return;
+    } catch (e) {
+      if (isCasConflict(e)) {
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 50 * Math.pow(2, attempt)));
+          continue;
+        }
+        const conflictErr = Object.assign(new Error(PLAN_RECONCILE_CONFLICT), {
+          code: PLAN_RECONCILE_CONFLICT,
+          cause: e,
+        });
+        throw conflictErr;
       }
-    } catch {
-      // best-effort
+      throw e;
     }
   }
+}
 
-  return { status: 'updated', planId: newPlanId, auditId };
+async function updateKvBestEffort(
+  env: PlanReconcileEnv,
+  tenantId: string,
+  newPlanId: string,
+): Promise<void> {
+  if (!env.TENANT_KV?.get || !env.TENANT_KV?.put) return;
+  try {
+    const raw = await env.TENANT_KV.get(`tenant:${tenantId}`);
+    if (!raw) return;
+    const tenant = JSON.parse(raw) as Record<string, unknown>;
+    tenant.plan_id = newPlanId;
+    tenant.planId = newPlanId;
+    await env.TENANT_KV.put(`tenant:${tenantId}`, JSON.stringify(tenant));
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Ejecuta la reconciliación atómica si el plan cambia.
+ * Retorna noop si ya está en planId (no inserta audit).
+ * El llamador decide el actor y source para payload.
+ */
+export async function reconcilePlanAtomic(
+  env: PlanReconcileEnv,
+  tenantId: string,
+  newPlanId: string,
+  opts: { actorUserId: string; source: 'api' | 'stripe_webhook'; prevPlanId?: string | null },
+): Promise<ReconcileResult> {
+  const db = env.DB as unknown as DbLike;
+  if (!db) return { status: 'error', planId: newPlanId };
+
+  let newCaps: readonly string[];
+  try {
+    newCaps = provisionCapabilitiesForPlan(newPlanId);
+  } catch {
+    return { status: 'error', planId: newPlanId };
+  }
+
+  try {
+    const prevPlanId = await loadPrevPlanId(db, tenantId, opts.prevPlanId ?? null);
+    if (prevPlanId === newPlanId) return { status: 'noop', planId: newPlanId };
+
+    const prevHash = await readAuditChainHead(db, tenantId);
+    const auditId = crypto.randomUUID();
+    const nowIso = new Date().toISOString();
+    const payloadJson = JSON.stringify({
+      prev_plan_id: prevPlanId,
+      new_plan_id: newPlanId,
+      source: opts.source,
+      actor: opts.actorUserId,
+      at: nowIso,
+    });
+    const rowHash = await sha256Hex(
+      JSON.stringify({
+        action: 'PLAN_UPGRADE',
+        entity_id: tenantId,
+        tenant_id: tenantId,
+        new_plan_id: newPlanId,
+        prev_plan_id: prevPlanId,
+        prev: prevHash,
+      }),
+    );
+    const stmts = buildStmts(
+      db,
+      tenantId,
+      newPlanId,
+      newCaps,
+      auditId,
+      payloadJson,
+      prevHash,
+      rowHash,
+      opts.actorUserId,
+    );
+    await executeWithCasRetry(db, stmts);
+    await updateKvBestEffort(env, tenantId, newPlanId);
+    return { status: 'updated', planId: newPlanId, auditId };
+  } catch (e) {
+    const code = (e as { code?: string })?.code;
+    if (code === 'NOT_FOUND') return { status: 'not_found', planId: newPlanId };
+    if (isCasConflict(e) || code === PLAN_RECONCILE_CONFLICT) throw e;
+    return { status: 'error', planId: newPlanId };
+  }
 }

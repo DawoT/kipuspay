@@ -11,31 +11,39 @@
 import { isSelfServePlan, provisionCapabilitiesForPlan } from '@kipuspay/domain-billing';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { persistStripeCustomerBestEffort } from './stripe-billing.js';
-import { reconcilePlanAtomic } from './plan-reconcile.js';
+import { isCasConflict, PLAN_RECONCILE_CONFLICT, reconcilePlanAtomic } from './plan-reconcile.js';
 
 const ALLOWED_SELF_SERVE = new Set(['arranque', 'crece', 'cadena']);
 
-// eslint-disable-next-line complexity
-export async function runUpdatePlanHttp(
+function isPlanConflictError(e: unknown): boolean {
+  if (e instanceof Error && (e as unknown as { code?: string }).code === PLAN_RECONCILE_CONFLICT)
+    return true;
+  if (e instanceof Error && e.message === PLAN_RECONCILE_CONFLICT) return true;
+  return isCasConflict(e);
+}
+
+function checkAuthGate(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string,
-  body: unknown,
-  opts?: { actorUserId?: string },
-): Promise<{ status: number; body: Record<string, unknown> }> {
+): { status: number; body: Record<string, unknown> } | null {
   if (!env?.DB)
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const normalizedRole = role.toLowerCase();
-  if (normalizedRole !== 'owner' && normalizedRole !== 'admin') {
+  if (normalizedRole !== 'owner' && normalizedRole !== 'admin')
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
-  }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+  return null;
+}
+
+function parsePlanId(
+  body: unknown,
+): { planId: string } | { status: number; body: Record<string, unknown> } {
+  if (!body || typeof body !== 'object' || Array.isArray(body))
     return { status: 400, body: { error: 'Invalid JSON', code: 'BAD_REQUEST' } };
-  }
   const planIdRaw = (body as Record<string, unknown>).planId;
   const planId = typeof planIdRaw === 'string' ? planIdRaw.trim() : '';
-  if (planId === 'enterprise') {
+  if (planId === 'enterprise')
     return {
       status: 422,
       body: {
@@ -43,43 +51,73 @@ export async function runUpdatePlanHttp(
         code: 'ENTERPRISE_SALES_ASSISTED',
       },
     };
-  }
-  if (!ALLOWED_SELF_SERVE.has(planId) || !isSelfServePlan(planId)) {
+  if (!ALLOWED_SELF_SERVE.has(planId) || !isSelfServePlan(planId))
     return { status: 422, body: { error: 'Invalid planId', code: 'INVALID_PLAN' } };
-  }
-  // Validar que domain-billing reconoce el plan (lanza si no)
   try {
     provisionCapabilitiesForPlan(planId);
   } catch {
     return { status: 422, body: { error: 'Invalid planId', code: 'INVALID_PLAN' } };
   }
+  return { planId };
+}
+
+async function runReconcileAndPersist(
+  env: WorkerEnv,
+  tenantId: string,
+  planId: string,
+  prevPlanId: string,
+  tradeName: string | null | undefined,
+  actorUserId: string,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const result = await reconcilePlanAtomic(env, tenantId, planId, {
+    actorUserId,
+    source: 'api',
+    prevPlanId,
+  });
+  if (result.status === 'conflict')
+    return { status: 409, body: { error: 'Concurrent plan update, retry', code: 'CONFLICT' } };
+  if (result.status === 'error')
+    return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+  if (result.status === 'not_found')
+    return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
+  await persistStripeCustomerBestEffort(env, tenantId, tradeName ?? tenantId);
+  return { status: 200, body: { planId } };
+}
+
+export async function runUpdatePlanHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+  role: string,
+  body: unknown,
+  opts?: { actorUserId?: string },
+): Promise<{ status: number; body: Record<string, unknown> }> {
+  const gate = checkAuthGate(env, tenantId, role);
+  if (gate) return gate;
+  const parsed = parsePlanId(body);
+  if ('status' in parsed) return parsed;
+  const planId = parsed.planId;
   try {
-    const row = await env.DB.prepare(
-      'SELECT id, trade_name, plan_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
-    )
+    const row = await env!
+      .DB!.prepare(
+        'SELECT id, trade_name, plan_id FROM tenants WHERE id = ? AND deleted_at IS NULL',
+      )
       .bind(tenantId)
       .first<{ id: string; trade_name?: string | null; plan_id?: string | null }>();
     if (!row) return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
     const prevPlanId = row.plan_id ?? 'arranque';
-    if (prevPlanId === planId) {
-      // Idempotente: mismo plan no duplica audit (misión Ola 4)
-      return { status: 200, body: { planId } };
-    }
+    if (prevPlanId === planId) return { status: 200, body: { planId } };
     const actorUserId = opts?.actorUserId ?? tenantId;
-    const result = await reconcilePlanAtomic(env, tenantId, planId, {
-      actorUserId,
-      source: 'api',
+    return await runReconcileAndPersist(
+      env!,
+      tenantId,
+      planId,
       prevPlanId,
-    });
-    if (result.status === 'error') {
-      return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
-    }
-    if (result.status === 'not_found') {
-      return { status: 404, body: { error: 'Not found', code: 'TENANT_NOT_FOUND' } };
-    }
-    await persistStripeCustomerBestEffort(env, tenantId, row.trade_name ?? tenantId);
-    return { status: 200, body: { planId } };
-  } catch {
+      row.trade_name,
+      actorUserId,
+    );
+  } catch (e) {
+    if (isPlanConflictError(e))
+      return { status: 409, body: { error: 'Concurrent plan update, retry', code: 'CONFLICT' } };
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
 }

@@ -93,6 +93,7 @@ export async function runAuthenticatedSessionHttp(
   let capabilitiesEpoch: number;
   if (isCapDynamicEnabled(env)) {
     try {
+      // tenant_id from JWT verified, never from x-tenant-id — SEC-01
       const tenantId = user.tenantId;
       capabilities = await getCapabilitiesCached(env, tenantId);
       capabilitiesEpoch = await getEpochCached(env, tenantId);

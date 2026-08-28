@@ -5,7 +5,11 @@ import {
   verifyStripeSignature,
   webhookBodyBytes,
 } from './verify-stripe-signature.js';
-import { reconcilePlanAtomic } from '../tenant/plan-reconcile.js';
+import {
+  isCasConflict,
+  PLAN_RECONCILE_CONFLICT,
+  reconcilePlanAtomic,
+} from '../tenant/plan-reconcile.js';
 
 const SUBSCRIPTION_TYPES = new Set([
   'customer.subscription.deleted',
@@ -237,11 +241,24 @@ async function maybeReconcilePlanFromStripe(
   const db = webhookDb(env);
   if (!db) return;
   // reconcilePlanAtomic es idempotente: noop si ya está en plan
-  const res = await reconcilePlanAtomic(env, tenantId, plan, {
-    actorUserId: 'stripe-webhook',
-    source: 'stripe_webhook',
-  });
-  if (res.status === 'error') {
+  let res: Awaited<ReturnType<typeof reconcilePlanAtomic>>;
+  try {
+    res = await reconcilePlanAtomic(env, tenantId, plan, {
+      actorUserId: 'stripe-webhook',
+      source: 'stripe_webhook',
+    });
+  } catch (e) {
+    if (
+      (e instanceof Error && (e as { code?: string }).code === PLAN_RECONCILE_CONFLICT) ||
+      (e instanceof Error && e.message === PLAN_RECONCILE_CONFLICT) ||
+      isCasConflict(e)
+    ) {
+      // eslint-disable-next-line preserve-caught-error
+      throw new Error(`PLAN_RECONCILE_FAILED:${plan}`, { cause: e as Error });
+    }
+    throw e;
+  }
+  if (res.status === 'error' || res.status === 'conflict') {
     // No silenciamos: el webhook debe reintentar (503)
     throw new Error(`PLAN_RECONCILE_FAILED:${plan}`);
   }

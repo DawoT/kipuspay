@@ -105,6 +105,8 @@ function platformEnv(opts: {
   throwPrepare?: boolean;
   throwBatch?: boolean;
   kv?: KVNamespace | null;
+  teamDomain?: string;
+  aud?: string;
 }): WorkerEnv & Record<string, unknown> {
   const { db, getBatchCalls } = fakeD1({
     tenants: opts.tenants,
@@ -118,6 +120,8 @@ function platformEnv(opts: {
     TENANT_KV: kv as unknown as KVNamespace,
     PLATFORM_STAFF_TOKEN: opts.token ?? 'staff-secret',
     ALLOWLIST_STAFF_EMAILS: opts.allowlist ?? 'staff@kipuspay.com,admin@kipuspay.com',
+    CF_ACCESS_TEAM_DOMAIN: opts.teamDomain,
+    CF_ACCESS_AUD: opts.aud,
     ALLOWED_ORIGINS: '*',
     AUTH_JWT_HS_SECRET: 'test-secret-32-chars-long!!',
     // expose batchCalls for inspection via env
@@ -140,9 +144,58 @@ function cfJwt(email: string, expSec?: number): string {
   return `${header}.${payload}.${sig}`;
 }
 
+// Helpers for RS256 CF Access (Zero-Trust, mock JWK)
+function b64urlEncodeRs(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+function b64urlEncodeJsonRs(obj: unknown): string {
+  return b64urlEncodeRs(new TextEncoder().encode(JSON.stringify(obj)));
+}
+async function generateRsaPairRs(kid: string) {
+  const pair = (await crypto.subtle.generateKey(
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256',
+    },
+    true,
+    ['sign', 'verify'],
+  )) as CryptoKeyPair;
+  const pubJwk = (await crypto.subtle.exportKey('jwk', pair.publicKey)) as JsonWebKey & {
+    kid?: string;
+    alg?: string;
+  };
+  pubJwk.kid = kid;
+  pubJwk.alg = 'RS256';
+  return { privateKey: pair.privateKey, publicJwk: pubJwk, kid };
+}
+async function signRs256Rs(
+  privateKey: CryptoKey,
+  header: Record<string, unknown>,
+  payload: Record<string, unknown>,
+): Promise<string> {
+  const headerB64 = b64urlEncodeJsonRs(header);
+  const payloadB64 = b64urlEncodeJsonRs(payload);
+  const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+  const sig = await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, privateKey, data);
+  const sigB64 = b64urlEncodeRs(new Uint8Array(sig));
+  return `${headerB64}.${payloadB64}.${sigB64}`;
+}
+
 describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    try {
+      const mod = await import('./platform-auth.js');
+      (mod as unknown as { _clearCfCacheForTests?: () => void })._clearCfCacheForTests?.();
+    } catch {}
+    // @ts-ignore restore fetch if mocked
+    if (globalThis.fetch && (globalThis.fetch as unknown as { mock?: unknown })?.mock) {
+      // will be restored per test
+    }
   });
 
   it('decisión evidencia: apps/worker-admin no existe → usa fallback B /platform/* en worker-api', async () => {
@@ -338,15 +391,49 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
   });
 
   it('CF Access JWT + allowlist ALLOWLIST_STAFF_EMAILS autoriza', async () => {
-    const env = platformEnv({ allowlist: 'staff@kipuspay.com', token: 'staff-secret' });
+    // Zero-Trust: solo Cf-Access-Jwt-Assertion con RS256 + JWK + iss/aud/kid
+    const teamDomain = 'test-team';
+    const aud = 'test-aud';
+    const kid = 'test-kid-allowlist';
+    const { privateKey, publicJwk } = await generateRsaPairRs(kid);
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes(`${teamDomain}.cloudflareaccess.com/cdn-cgi/access/certs`)) {
+        return new Response(JSON.stringify({ keys: [publicJwk] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response('not found', { status: 404 });
+    });
+    // @ts-ignore
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const payload = {
+      email: 'staff@kipuspay.com',
+      aud,
+      iss: `https://${teamDomain}.cloudflareaccess.com`,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+    const header = { alg: 'RS256', kid, typ: 'JWT' };
+    const jwt = await signRs256Rs(privateKey, header, payload);
+    const env = platformEnv({
+      allowlist: 'staff@kipuspay.com',
+      token: 'staff-secret',
+      teamDomain,
+      aud,
+    });
     const app = createApp();
-    const jwt = cfJwt('staff@kipuspay.com');
     const res = await app.request(
       '/platform/tenants',
-      { headers: { 'CF-Authorization': jwt } },
+      { headers: { 'Cf-Access-Jwt-Assertion': jwt } },
       env as unknown as Env,
     );
     expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+    globalThis.fetch = originalFetch;
+    const mod = await import('./platform-auth.js');
+    (mod as unknown as { _clearCfCacheForTests?: () => void })._clearCfCacheForTests?.();
   });
 
   it('CF Access JWT con email no allowlist → 401', async () => {
