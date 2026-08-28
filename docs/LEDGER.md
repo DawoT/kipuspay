@@ -15286,3 +15286,39 @@ aprobaciones: [Staff Hardware, Staff QA, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0525
+timestamp_utc: 2026-08-27T01:00:00Z
+schema_version: 2
+sprint_fase: Ola 0 — ADR-ARCH-003 capabilities dinámicas (SaaS real)
+agente_responsable: Staff Principal + PM (auditoría QA/Security/SRE; aprobación @DawoT)
+tipo: Decisión
+subtipo: ADR Aceptado + contrato SaaS 3 niveles
+relacion: amplia
+referencias_entradas: [0524]
+referencias_documentales: [docs/adr/ADR-ARCH-003-tenant-capabilities-dynamic.md]
+prev_id: 0524
+prev_hash: b1dd94651ed024901668a9b66c63403ece233b530f8d1f8f9ddaad6d22be03bf
+entry_hash: eb46857493ac4b286c0b31859527d734138d2a1215065de49e2492ae33899975
+ticket_or_adr: ADR-ARCH-003; ADR-ARCH-002; S45; V-07; V-23; V-24
+test_ids: [SUITE]
+entregable_afectado: docs/adr/ADR-ARCH-003-tenant-capabilities-dynamic.md; ARCH-002 §1.1; 05-3 §5.3
+descripcion: >
+  Ola 0 — contrato SaaS real: SoT tenant_capabilities (no tenant_plans, no JWT),
+  session.capabilities + capabilitiesEpoch via GET /api/auth/session hacia
+  capabilitiesStore reactivo (Set) con IDB+epoch y tenant_data_epochs triggers
+  0035:362-364 V-29. 3 niveles aislados: admin.kipuspay.com (CF Access
+  platform_admin), app.kipuspay.com/owner (read-only + PATCH /api/tenant/plan
+  derivado), POS PWA offline-first server-authoritative. Descarta JWT bloat,
+  PUBLIC_FEATURE como SoT y if(plan) forks. Activa 5 olas con kill-switch
+  FEATURE_TENANT_CAPABILITIES_DYNAMIC.
+evidencia: >
+  ADR-ARCH-003 Aceptado con 6 alternativas descartadas + consecuencias y
+  activación 5 olas. SUITE GREEN base 0524, V-07/V-23/V-24 310kB, V-05/V-25/V-29
+  pendientes ola 1. Sin código — solo contrato antes de DDL 0036.
+ancestry_verified: true
+aprobaciones: [Staff Principal, Staff PM, Staff Security, Staff SRE]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -120,6 +120,7 @@ El **único** lugar donde cada regla se define es la sección indicada en esta t
 | SYN-12 | §6 | Contrato de atomicidad D1 |
 | SYN-13 | §5.7 | Peso entero, heartbeat fail-closed y reconciliación autoritativa |
 | ADR-ARCH-002 | §1.1 | Capability model vs `vertical_type` |
+| ADR-ARCH-003 | §1.1 | Capabilities dinámicas por tenant (SaaS real) |
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas |
 | ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker |

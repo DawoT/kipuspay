@@ -366,6 +366,7 @@ Abre solo los archivos que esta tabla te señale.
 | SYN-12 | §6 | Contrato de atomicidad D1 | [`docs/architecture/06-acid-engine.md`](docs/architecture/06-acid-engine.md) |
 | SYN-13 | §5.7 | Peso entero, heartbeat fail-closed y reconciliación autoritativa | [`docs/architecture/05-7-inventory-scale.md`](docs/architecture/05-7-inventory-scale.md) |
 | ADR-ARCH-002 | §1.1 | Capability model vs `vertical_type` | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) |
+| ADR-ARCH-003 | §1.1 | Capabilities dinámicas por tenant (SaaS real) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) |
 | DAT-12 | §5.0.1 | Aislamiento tenant: `tenant_id NOT NULL` + FK compuesta `(tenant_id, parent_id)` | [`docs/architecture/05-ddl-conventions.md`](docs/architecture/05-ddl-conventions.md) |
 | ADR-FISCAL-001 | §5.1 | Decisiones fiscales cerradas | [`docs/architecture/05-1-formalization-matrix.md`](docs/architecture/05-1-formalization-matrix.md) |
 | ADR-FISCAL-002 | §8.1 | Canal FiscalTransport + circuit breaker | [`docs/architecture/08-credit-notes-dlq.md`](docs/architecture/08-credit-notes-dlq.md) |
