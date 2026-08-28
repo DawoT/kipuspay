@@ -25,7 +25,10 @@ export interface ChainBranchView {
   readonly lowStockAlerts: number;
 }
 
-function badgeFor(rank: number, total: number): { label: string; tone: ChainBranchView['badgeTone'] } {
+function badgeFor(
+  rank: number,
+  total: number,
+): { label: string; tone: ChainBranchView['badgeTone'] } {
   if (rank === 1) return { label: 'Líder', tone: 'lider' };
   if (total > 3 && rank <= 3) return { label: 'En alza', tone: 'alza' };
   if (total === 3 && rank === 2) return { label: 'En alza', tone: 'alza' };
@@ -41,9 +44,13 @@ export function buildChainRanking(branches: readonly ChainBranchInput[]): ChainB
     netSalesCents: Number.isInteger(b.netSalesCents) && b.netSalesCents >= 0 ? b.netSalesCents : 0,
     docCount: Number.isInteger(b.docCount) && b.docCount >= 0 ? b.docCount : 0,
     pendingTransfers:
-      Number.isInteger(b.pendingTransfers) && (b.pendingTransfers ?? 0) >= 0 ? (b.pendingTransfers ?? 0) : 0,
+      Number.isInteger(b.pendingTransfers) && (b.pendingTransfers ?? 0) >= 0
+        ? (b.pendingTransfers ?? 0)
+        : 0,
     lowStockAlerts:
-      Number.isInteger(b.lowStockAlerts) && (b.lowStockAlerts ?? 0) >= 0 ? (b.lowStockAlerts ?? 0) : 0,
+      Number.isInteger(b.lowStockAlerts) && (b.lowStockAlerts ?? 0) >= 0
+        ? (b.lowStockAlerts ?? 0)
+        : 0,
   }));
 
   const sorted = [...safe].sort((a, b) => {

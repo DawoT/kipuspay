@@ -40,16 +40,40 @@ describe('taller plate history (premium servicios, TDD RED)', () => {
 
   it('sortHistoryByDate: más reciente primero', () => {
     const entries = [
-      { id: '1', plate: 'ABC123', dateIso: '2026-08-10T10:00:00.000Z', concept: 'Frenos', totalCents: 15000 },
-      { id: '2', plate: 'ABC123', dateIso: '2026-08-12T10:00:00.000Z', concept: 'Aceite', totalCents: 8000 },
+      {
+        id: '1',
+        plate: 'ABC123',
+        dateIso: '2026-08-10T10:00:00.000Z',
+        concept: 'Frenos',
+        totalCents: 15000,
+      },
+      {
+        id: '2',
+        plate: 'ABC123',
+        dateIso: '2026-08-12T10:00:00.000Z',
+        concept: 'Aceite',
+        totalCents: 8000,
+      },
     ];
     expect(sortHistoryByDate(entries)[0]?.id).toBe('2');
   });
 
   it('filterHistoryByPlate: filtra y normaliza', () => {
     const entries = [
-      { id: '1', plate: 'ABC123', dateIso: '2026-08-12T10:00:00.000Z', concept: 'A', totalCents: 1000 },
-      { id: '2', plate: 'XYZ999', dateIso: '2026-08-12T10:00:00.000Z', concept: 'B', totalCents: 2000 },
+      {
+        id: '1',
+        plate: 'ABC123',
+        dateIso: '2026-08-12T10:00:00.000Z',
+        concept: 'A',
+        totalCents: 1000,
+      },
+      {
+        id: '2',
+        plate: 'XYZ999',
+        dateIso: '2026-08-12T10:00:00.000Z',
+        concept: 'B',
+        totalCents: 2000,
+      },
     ];
     expect(filterHistoryByPlate(entries, 'abc-123')).toHaveLength(1);
     expect(filterHistoryByPlate(entries, 'ABC123')[0]?.id).toBe('1');
@@ -57,8 +81,20 @@ describe('taller plate history (premium servicios, TDD RED)', () => {
 
   it('summarizeHistory: cuenta, suma y última fecha', () => {
     const entries = [
-      { id: '1', plate: 'ABC123', dateIso: '2026-08-10T10:00:00.000Z', concept: 'A', totalCents: 1000 },
-      { id: '2', plate: 'ABC123', dateIso: '2026-08-12T10:00:00.000Z', concept: 'B', totalCents: 2000 },
+      {
+        id: '1',
+        plate: 'ABC123',
+        dateIso: '2026-08-10T10:00:00.000Z',
+        concept: 'A',
+        totalCents: 1000,
+      },
+      {
+        id: '2',
+        plate: 'ABC123',
+        dateIso: '2026-08-12T10:00:00.000Z',
+        concept: 'B',
+        totalCents: 2000,
+      },
     ];
     const s = summarizeHistory(entries);
     expect(s.count).toBe(2);
@@ -69,9 +105,21 @@ describe('taller plate history (premium servicios, TDD RED)', () => {
   it('parseHistoryPayload: valida cents enteros y descarta basura', () => {
     const raw = {
       items: [
-        { id: '1', plate: 'ABC123', dateIso: '2026-08-12T10:00:00.000Z', concept: 'Aceite', totalCents: 8000 },
+        {
+          id: '1',
+          plate: 'ABC123',
+          dateIso: '2026-08-12T10:00:00.000Z',
+          concept: 'Aceite',
+          totalCents: 8000,
+        },
         { id: 'bad', plate: 'ABC123', dateIso: 'bad', concept: 'X', totalCents: 1.5 },
-        { id: '', plate: 'ABC123', dateIso: '2026-08-12T10:00:00.000Z', concept: 'X', totalCents: 1000 },
+        {
+          id: '',
+          plate: 'ABC123',
+          dateIso: '2026-08-12T10:00:00.000Z',
+          concept: 'X',
+          totalCents: 1000,
+        },
       ],
     };
     const parsed = parseHistoryPayload(raw);

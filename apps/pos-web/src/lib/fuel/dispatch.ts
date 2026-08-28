@@ -20,12 +20,54 @@ export interface FuelProduct {
 }
 
 export const FUEL_CATALOG: readonly FuelProduct[] = [
-  { code: 'GASOHOL_84', name: 'Gasohol 84', priceCentsPerGallon: 1650, unit: 'gal', subjectToDetraction: false, detractionRateBps: null },
-  { code: 'GASOHOL_90', name: 'Gasohol 90', priceCentsPerGallon: 1720, unit: 'gal', subjectToDetraction: false, detractionRateBps: null },
-  { code: 'GASOHOL_95', name: 'Gasohol 95', priceCentsPerGallon: 1780, unit: 'gal', subjectToDetraction: false, detractionRateBps: null },
-  { code: 'GASOHOL_97', name: 'Gasohol 97', priceCentsPerGallon: 1850, unit: 'gal', subjectToDetraction: false, detractionRateBps: null },
-  { code: 'DIESEL_B5', name: 'Diésel B5', priceCentsPerGallon: 1620, unit: 'gal', subjectToDetraction: true, detractionRateBps: FUEL_DETRACTION_RATE_BPS },
-  { code: 'GLP', name: 'GLP', priceCentsPerGallon: 680, unit: 'gal', subjectToDetraction: false, detractionRateBps: null },
+  {
+    code: 'GASOHOL_84',
+    name: 'Gasohol 84',
+    priceCentsPerGallon: 1650,
+    unit: 'gal',
+    subjectToDetraction: false,
+    detractionRateBps: null,
+  },
+  {
+    code: 'GASOHOL_90',
+    name: 'Gasohol 90',
+    priceCentsPerGallon: 1720,
+    unit: 'gal',
+    subjectToDetraction: false,
+    detractionRateBps: null,
+  },
+  {
+    code: 'GASOHOL_95',
+    name: 'Gasohol 95',
+    priceCentsPerGallon: 1780,
+    unit: 'gal',
+    subjectToDetraction: false,
+    detractionRateBps: null,
+  },
+  {
+    code: 'GASOHOL_97',
+    name: 'Gasohol 97',
+    priceCentsPerGallon: 1850,
+    unit: 'gal',
+    subjectToDetraction: false,
+    detractionRateBps: null,
+  },
+  {
+    code: 'DIESEL_B5',
+    name: 'Diésel B5',
+    priceCentsPerGallon: 1620,
+    unit: 'gal',
+    subjectToDetraction: true,
+    detractionRateBps: FUEL_DETRACTION_RATE_BPS,
+  },
+  {
+    code: 'GLP',
+    name: 'GLP',
+    priceCentsPerGallon: 680,
+    unit: 'gal',
+    subjectToDetraction: false,
+    detractionRateBps: null,
+  },
 ] as const;
 
 const FUEL_BY_CODE = new Map(FUEL_CATALOG.map((f) => [f.code, f]));
@@ -62,7 +104,8 @@ function computeSubtotalCents(gallonsMicro: number, priceCentsPerGallon: number)
 }
 
 function computeIgvCents(subtotalCents: number): number {
-  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) throw new Error('INVALID_SUBTOTAL');
+  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0)
+    throw new Error('INVALID_SUBTOTAL');
   return Math.round((subtotalCents * 18) / 100);
 }
 
@@ -111,14 +154,21 @@ export interface FuelDispatchResult {
   readonly netPayableCents: number;
 }
 
-export function computeFuelDispatchByGallons(input: FuelDispatchInputByGallons): FuelDispatchResult {
+export function computeFuelDispatchByGallons(
+  input: FuelDispatchInputByGallons,
+): FuelDispatchResult {
   const fuel = assertFuelCode(input.fuelCode);
   const gallonsMicro = gallonsToMicrounits(input.gallons);
   const price = assertPriceCents(input.priceCentsPerGallon ?? fuel.priceCentsPerGallon);
   const subtotal = computeSubtotalCents(gallonsMicro, price);
   const igv = computeIgvCents(subtotal);
   const total = subtotal + igv;
-  const detra = computeDetractionForFuel(total, fuel.code, input.isBusinessInvoice, input.documentType);
+  const detra = computeDetractionForFuel(
+    total,
+    fuel.code,
+    input.isBusinessInvoice,
+    input.documentType,
+  );
   return {
     fuelCode: fuel.code,
     fuelName: fuel.name,
@@ -136,7 +186,8 @@ export function computeFuelDispatchByGallons(input: FuelDispatchInputByGallons):
 export function computeFuelDispatchByAmount(input: FuelDispatchInputByAmount): FuelDispatchResult {
   const fuel = assertFuelCode(input.fuelCode);
   const price = assertPriceCents(input.priceCentsPerGallon ?? fuel.priceCentsPerGallon);
-  if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) throw new Error('INVALID_AMOUNT_CENTS');
+  if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0)
+    throw new Error('INVALID_AMOUNT_CENTS');
   // amount = gallons * price -> gallonsMicro = round(amount * 1_000_000 / price)
   const gallonsMicro = Math.round((input.amountCents * GALLON_MICROUNITS_PER_GALLON) / price);
   if (gallonsMicro <= 0) throw new Error('INVALID_GALLONS');
@@ -146,7 +197,12 @@ export function computeFuelDispatchByAmount(input: FuelDispatchInputByAmount): F
   // y exponemos ese subtotal como verdad. La diferencia es <2 cents y el servidor reconcilia.
   const igv = computeIgvCents(subtotal);
   const total = subtotal + igv;
-  const detra = computeDetractionForFuel(total, fuel.code, input.isBusinessInvoice, input.documentType);
+  const detra = computeDetractionForFuel(
+    total,
+    fuel.code,
+    input.isBusinessInvoice,
+    input.documentType,
+  );
   return {
     fuelCode: fuel.code,
     fuelName: fuel.name,

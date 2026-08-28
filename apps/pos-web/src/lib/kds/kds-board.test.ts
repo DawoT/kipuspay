@@ -74,9 +74,24 @@ describe('KDS premium board — capability orders.kds', () => {
   it('ordena comandas por antigüedad (más urgentes primero)', () => {
     const now = Date.now();
     const orders = [
-      { id: 'a', tableLabel: '1', firedAtMs: now - 1 * 60 * 1000, items: [{ id: 'i1', productName: 'X', quantity: 1, status: 'FIRED' }] },
-      { id: 'b', tableLabel: '2', firedAtMs: now - 12 * 60 * 1000, items: [{ id: 'i2', productName: 'Y', quantity: 1, status: 'FIRED' }] },
-      { id: 'c', tableLabel: '3', firedAtMs: now - 5 * 60 * 1000, items: [{ id: 'i3', productName: 'Z', quantity: 1, status: 'FIRED' }] },
+      {
+        id: 'a',
+        tableLabel: '1',
+        firedAtMs: now - 1 * 60 * 1000,
+        items: [{ id: 'i1', productName: 'X', quantity: 1, status: 'FIRED' }],
+      },
+      {
+        id: 'b',
+        tableLabel: '2',
+        firedAtMs: now - 12 * 60 * 1000,
+        items: [{ id: 'i2', productName: 'Y', quantity: 1, status: 'FIRED' }],
+      },
+      {
+        id: 'c',
+        tableLabel: '3',
+        firedAtMs: now - 5 * 60 * 1000,
+        items: [{ id: 'i3', productName: 'Z', quantity: 1, status: 'FIRED' }],
+      },
     ];
     const sorted = sortKdsOrdersByUrgency(orders, now);
     expect(sorted.map((o) => o.id)).toEqual(['b', 'c', 'a']);
@@ -84,7 +99,11 @@ describe('KDS premium board — capability orders.kds', () => {
 
   it('no expone estados técnicos en copy visible (V-27)', () => {
     const grouped = groupKdsOrders([
-      { id: 'o1', tableLabel: '1', items: [{ id: 'i1', productName: 'P', quantity: 1, status: 'FIRED' }] },
+      {
+        id: 'o1',
+        tableLabel: '1',
+        items: [{ id: 'i1', productName: 'P', quantity: 1, status: 'FIRED' }],
+      },
     ]);
     // El agrupado solo usa copy premium, no IDs técnicos.
     expect(kdsColumnLabel('pending')).not.toMatch(/FIRED/);

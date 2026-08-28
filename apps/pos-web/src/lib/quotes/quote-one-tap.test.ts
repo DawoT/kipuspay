@@ -64,8 +64,12 @@ describe('taller one-tap (cotización → factura 1 clic, TDD RED)', () => {
   });
 
   it('humanQuoteError: mensaje sin jerga técnica', () => {
-    expect(humanQuoteError('QUOTE_EXPIRED')).toBe('La cotización venció. Crea una nueva para cobrar.');
-    expect(humanQuoteError('QUOTE_NOT_FOUND')).toBe('No encontramos esa cotización. Verifica el código.');
+    expect(humanQuoteError('QUOTE_EXPIRED')).toBe(
+      'La cotización venció. Crea una nueva para cobrar.',
+    );
+    expect(humanQuoteError('QUOTE_NOT_FOUND')).toBe(
+      'No encontramos esa cotización. Verifica el código.',
+    );
     expect(humanQuoteError('UNKNOWN_CODE')).not.toMatch(/Error 500|Exception|stack/i);
   });
 
@@ -88,7 +92,8 @@ describe('taller one-tap (cotización → factura 1 clic, TDD RED)', () => {
       });
       samples.push(performance.now() - t0);
     }
-    const p95 = [...samples].sort((a, b) => a - b)[Math.ceil(samples.length * 0.95) - 1] ?? Infinity;
+    const p95 =
+      [...samples].sort((a, b) => a - b)[Math.ceil(samples.length * 0.95) - 1] ?? Infinity;
     expect(p95).toBeLessThan(100);
   });
 

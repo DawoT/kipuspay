@@ -20,7 +20,9 @@ export interface IslandTurnReport {
   readonly byPayment: Readonly<Record<string, number>>;
 }
 
-export function buildIslandReport(dispatches: readonly IslandDispatch[]): readonly IslandTurnReport[] {
+export function buildIslandReport(
+  dispatches: readonly IslandDispatch[],
+): readonly IslandTurnReport[] {
   const byIsland = new Map<string, IslandDispatch[]>();
   for (const d of dispatches) {
     const list = byIsland.get(d.islandId) ?? [];

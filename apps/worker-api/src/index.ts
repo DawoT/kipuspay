@@ -2135,6 +2135,35 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runListHardwareDiagnosticsHttp(c.env, hardwareDiagActor(c), limit);
     return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
   });
+  app.post('/api/pos/terminals/pairing', async (c) => {
+    const jwt = c.get('jwt');
+    if (!jwt?.tenantId) return c.json({ code: 'UNAUTHENTICATED' }, 401);
+    const body: unknown = await c.req.json().catch(() => null);
+    try {
+      if (c.env?.DB && body && typeof body === 'object') {
+        const b = body as Record<string, unknown>;
+        const terminalId = typeof b.terminalId === 'string' ? b.terminalId : '';
+        const paper = b.paperWidthMm === 80 ? 80 : b.paperWidthMm === 58 ? 58 : null;
+        const strat = typeof b.printerStrategy === 'string' ? b.printerStrategy : null;
+        if (
+          terminalId &&
+          paper !== null &&
+          strat &&
+          ['webusb', 'wss_lan', 'bluetooth', 'system_print'].includes(strat)
+        ) {
+          const lineWidth = paper === 80 ? 48 : 32;
+          await c.env.DB.prepare(
+            'UPDATE pos_terminals SET paper_width_mm = ?, line_width = ?, printer_strategy = ? WHERE tenant_id = ? AND id = ?',
+          )
+            .bind(paper, lineWidth, strat, jwt.tenantId, terminalId)
+            .run();
+        }
+      }
+    } catch {
+      // persist best-effort; POS already persisted locally, never blocks sale
+    }
+    return c.json({ ok: true });
+  });
   app.put('/api/inventory/scale/policy', async (c) => {
     const body: unknown = await c.req.json();
     const result = await runConfigureWeightPolicyHttp(

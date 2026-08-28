@@ -7,6 +7,6 @@
   "vars": {
     "PUBLIC_FEATURE_MARKETING_SITE": "1",
     "PUBLIC_POS_ORIGIN": "https://kipuspay-pos-web-staging.pages.dev",
-    "WORKER_API_ORIGIN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev"
+    "WORKER_API_ORIGIN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
   },
 }

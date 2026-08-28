@@ -107,7 +107,9 @@ describe('fuel dispatch premium — surtidor por galones + detracción automáti
     expect(dieselFacturaB2B.detractionCents).toBe(1912);
     expect(dieselFacturaB2B.netPayableCents).toBe(19116);
     // detracción se muestra aparte, no se descuenta del total a cobrar (es depósito)
-    expect(computeDetractionForFuel(dieselFacturaB2B.totalCents, 'DIESEL_B5', true, '01')).toBe(1912);
+    expect(computeDetractionForFuel(dieselFacturaB2B.totalCents, 'DIESEL_B5', true, '01')).toBe(
+      1912,
+    );
   });
 
   it('rechaza galones inválidos y códigos no enteros', () => {

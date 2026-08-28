@@ -36,7 +36,9 @@ describe('farmacia premium — FEFO semáforo + fraccionada exacta', () => {
     expect(packToMicrounits('UNIDAD', 5, spec)).toBe(5_000_000);
     expect(packToMicrounits('BLISTER', 2, spec)).toBe(20_000_000);
     expect(packToMicrounits('CAJA', 1, spec)).toBe(100_000_000);
-    expect(packToMicrounits('CAJA', 2, spec) + packToMicrounits('BLISTER', 1, spec)).toBe(210_000_000);
+    expect(packToMicrounits('CAJA', 2, spec) + packToMicrounits('BLISTER', 1, spec)).toBe(
+      210_000_000,
+    );
 
     // precio proporcional exacto en cents (sin float)
     expect(priceForPresentation(150, 'UNIDAD', 1, spec)).toBe(150);

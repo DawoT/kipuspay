@@ -44,9 +44,18 @@ export function kdsColumnLabel(column: KdsColumnId): string {
 // eslint-disable-next-line complexity
 export function normalizeKdsItemStatus(raw: string): KdsColumnId | 'other' {
   const s = raw.trim().toUpperCase();
-  if (s === 'FIRED' || s === 'PENDING' || s === 'OPEN' || s === 'ITEM_FIRED' || s === 'FIRED_AT') return 'pending';
-  if (s === 'PREPARING' || s === 'COOKING' || s === 'IN_PROGRESS' || s === 'PREPARACION' || s === 'EN_PREPARACION') return 'preparing';
-  if (s === 'READY' || s === 'LISTO' || s === 'DONE' || s === 'ORDER_READY' || s === 'ITEM_READY') return 'ready';
+  if (s === 'FIRED' || s === 'PENDING' || s === 'OPEN' || s === 'ITEM_FIRED' || s === 'FIRED_AT')
+    return 'pending';
+  if (
+    s === 'PREPARING' ||
+    s === 'COOKING' ||
+    s === 'IN_PROGRESS' ||
+    s === 'PREPARACION' ||
+    s === 'EN_PREPARACION'
+  )
+    return 'preparing';
+  if (s === 'READY' || s === 'LISTO' || s === 'DONE' || s === 'ORDER_READY' || s === 'ITEM_READY')
+    return 'ready';
   return 'other';
 }
 

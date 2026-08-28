@@ -24,7 +24,8 @@ function parseExpiryMidnightUtc(expiresAt: string | null | undefined): number | 
     const y = Number(m[1]);
     const mo = Number(m[2]);
     const d = Number(m[3]);
-    if (!Number.isSafeInteger(y) || !Number.isSafeInteger(mo) || !Number.isSafeInteger(d)) return null;
+    if (!Number.isSafeInteger(y) || !Number.isSafeInteger(mo) || !Number.isSafeInteger(d))
+      return null;
     return Date.UTC(y, mo - 1, d);
   }
   const t = Date.parse(s);
@@ -53,10 +54,7 @@ export function daysUntilExpiry(
 }
 
 /** Semáforo FEFO humano — cero jerga técnica visible. */
-export function expiryBadge(
-  expiresAt: string | null | undefined,
-  nowIso: string,
-): FefoBadge {
+export function expiryBadge(expiresAt: string | null | undefined, nowIso: string): FefoBadge {
   const days = daysUntilExpiry(expiresAt, nowIso);
   if (days === null) return { tone: 'neutral', label: 'Sin fecha', days: null };
   if (days <= 0) return { tone: 'danger', label: 'Vencido', days };
@@ -88,8 +86,10 @@ export interface PackSpec {
 }
 
 function assertPackSpec(spec: PackSpec): void {
-  if (!Number.isSafeInteger(spec.unitsPerBlister) || spec.unitsPerBlister <= 0) throw new Error('PACK_SPEC_INVALID');
-  if (!Number.isSafeInteger(spec.blistersPerBox) || spec.blistersPerBox <= 0) throw new Error('PACK_SPEC_INVALID');
+  if (!Number.isSafeInteger(spec.unitsPerBlister) || spec.unitsPerBlister <= 0)
+    throw new Error('PACK_SPEC_INVALID');
+  if (!Number.isSafeInteger(spec.blistersPerBox) || spec.blistersPerBox <= 0)
+    throw new Error('PACK_SPEC_INVALID');
 }
 
 function factorFor(presentation: 'CAJA' | 'BLISTER' | 'UNIDAD', spec: PackSpec): number {

@@ -40,7 +40,8 @@ export function validateOneTapRequest(input: {
   readonly totalCents?: number;
 }): OneTapValidation {
   const qid = typeof input.quoteId === 'string' ? input.quoteId.trim() : '';
-  if (!qid) return { ok: false, code: 'QUOTE_ID_REQUIRED', message: humanForCode('QUOTE_ID_REQUIRED') };
+  if (!qid)
+    return { ok: false, code: 'QUOTE_ID_REQUIRED', message: humanForCode('QUOTE_ID_REQUIRED') };
 
   if (input.totalCents !== undefined) {
     const v = input.totalCents;
@@ -49,7 +50,11 @@ export function validateOneTapRequest(input: {
     }
   }
 
-  if (input.validUntilIso !== undefined && input.validUntilIso !== null && String(input.validUntilIso).trim() !== '') {
+  if (
+    input.validUntilIso !== undefined &&
+    input.validUntilIso !== null &&
+    String(input.validUntilIso).trim() !== ''
+  ) {
     const raw = String(input.validUntilIso).trim();
     const ms = Date.parse(raw);
     if (!Number.isFinite(ms)) {
@@ -106,7 +111,11 @@ export function buildOneTapConvertPayload(input: {
   if (typeof input.customerName === 'string' && input.customerName.trim()) {
     out.customerName = input.customerName.trim();
   }
-  if (typeof input.totalCents === 'number' && Number.isSafeInteger(input.totalCents) && input.totalCents >= 0) {
+  if (
+    typeof input.totalCents === 'number' &&
+    Number.isSafeInteger(input.totalCents) &&
+    input.totalCents >= 0
+  ) {
     out.totalCents = input.totalCents;
   }
   return out as unknown as OneTapPayload;
@@ -117,10 +126,13 @@ export function humanQuoteError(code: string): string {
   if (c === 'QUOTE_EXPIRED') return 'La cotización venció. Crea una nueva para cobrar.';
   if (c === 'QUOTE_NOT_FOUND') return 'No encontramos esa cotización. Verifica el código.';
   if (c === 'QUOTE_ID_REQUIRED') return 'Falta el código de cotización.';
-  if (c === 'INVALID_TOTAL' || c === 'INVALID_TOTAL_CENTS') return 'El total no es válido. Revisa el monto.';
-  if (c === 'EXPIRED' || c === 'VALID_UNTIL_EXPIRED') return 'La cotización venció. Crea una nueva para cobrar.';
+  if (c === 'INVALID_TOTAL' || c === 'INVALID_TOTAL_CENTS')
+    return 'El total no es válido. Revisa el monto.';
+  if (c === 'EXPIRED' || c === 'VALID_UNTIL_EXPIRED')
+    return 'La cotización venció. Crea una nueva para cobrar.';
   if (c === 'NOT_FOUND') return 'No encontramos esa cotización. Verifica el código.';
-  if (c === 'FORBIDDEN' || c === 'UNAUTHORIZED') return 'No tienes permiso para cobrar esta cotización.';
+  if (c === 'FORBIDDEN' || c === 'UNAUTHORIZED')
+    return 'No tienes permiso para cobrar esta cotización.';
   return 'No se pudo completar. Verifica los datos e intenta de nuevo.';
 }
 

@@ -30,24 +30,43 @@ describe('adversarial – cuota IndexedDB (taller historial)', () => {
 
   it('QuotaExceeded al guardar historial no corrompe entradas existentes', async () => {
     const key = historyCacheKey('t1', 'ABC123');
-    const initial = [{ id: 'h1', plate: 'ABC123', dateIso: '2026-08-10T10:00:00.000Z', concept: 'Aceite', totalCents: 8000 }];
+    const initial = [
+      {
+        id: 'h1',
+        plate: 'ABC123',
+        dateIso: '2026-08-10T10:00:00.000Z',
+        concept: 'Aceite',
+        totalCents: 8000,
+      },
+    ];
     localStorage.setItem(key, JSON.stringify(initial));
 
     // Simular cuota llena en guardado del historial (localStorage quota) — mock directo de la instancia
     const orig = localStorage.setItem.bind(localStorage);
     let threw = false;
-    const spy = vi.spyOn(localStorage as unknown as { setItem: typeof orig }, 'setItem').mockImplementation(((k: string, v: string) => {
-      if (k === key && v.length > 50) {
-        const err = new DOMException('Quota exceeded', 'QuotaExceededError');
-        threw = true;
-        throw err;
-      }
-      return orig(k, v);
-    }) as unknown as typeof orig);
+    const spy = vi
+      .spyOn(localStorage as unknown as { setItem: typeof orig }, 'setItem')
+      .mockImplementation(((k: string, v: string) => {
+        if (k === key && v.length > 50) {
+          const err = new DOMException('Quota exceeded', 'QuotaExceededError');
+          threw = true;
+          throw err;
+        }
+        return orig(k, v);
+      }) as unknown as typeof orig);
 
     // Intentar guardar nuevo historial debe capturar QuotaExceeded sin borrar el anterior
     try {
-      const large = JSON.stringify([...initial, { id: 'h2', plate: 'ABC123', dateIso: '2026-08-11T10:00:00.000Z', concept: 'X'.repeat(5000), totalCents: 1000 }]);
+      const large = JSON.stringify([
+        ...initial,
+        {
+          id: 'h2',
+          plate: 'ABC123',
+          dateIso: '2026-08-11T10:00:00.000Z',
+          concept: 'X'.repeat(5000),
+          totalCents: 1000,
+        },
+      ]);
       localStorage.setItem(key, large);
     } catch (e) {
       expect((e as DOMException).name).toBe('QuotaExceededError');
@@ -65,7 +84,23 @@ describe('adversarial – cuota IndexedDB (taller historial)', () => {
   it('OfflineQueueStore: enqueue bloqueado por cuota ≥100% no encola y deja mensaje humano', async () => {
     const mem = createMemoryOfflineIdb({ quota: 100 });
     // llenar uso > quota
-    mem.store.set('offline/a', { offlineSaleId: 'a', payload: { offlineSaleId: 'a', branchId: 'b1', cashRegisterSessionId: 's1', documentType: 'NV', series: 'NV01', clientDocumentType: '1', clientDocumentNumber: '00000000', clientName: 'Cliente', items: [{ productId: 'p1', quantity: 1 }], payments: [{ paymentMethodId: 'pm1', amountCents: 1000 }] } as unknown as never, status: 'PENDING', enqueuedAtMs: Date.now() });
+    mem.store.set('offline/a', {
+      offlineSaleId: 'a',
+      payload: {
+        offlineSaleId: 'a',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '00000000',
+        clientName: 'Cliente',
+        items: [{ productId: 'p1', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm1', amountCents: 1000 }],
+      } as unknown as never,
+      status: 'PENDING',
+      enqueuedAtMs: Date.now(),
+    });
     // forzar estimate uso = quota (100%) via stub de estimate que retorna usage 100
     const store = new OfflineQueueStore({
       ...mem,
@@ -76,7 +111,18 @@ describe('adversarial – cuota IndexedDB (taller historial)', () => {
     expect(verdict.canEnqueue).toBe(false);
     expect(verdict.message).toMatch(/Almacenamiento local lleno/);
     await expect(
-      store.enqueue({ offlineSaleId: 'b', branchId: 'b1', cashRegisterSessionId: 's1', documentType: 'NV', series: 'NV01', clientDocumentType: '1', clientDocumentNumber: '00000000', clientName: 'Cliente', items: [{ productId: 'p1', quantity: 1 }], payments: [{ paymentMethodId: 'pm1', amountCents: 1000 }] } as unknown as never),
+      store.enqueue({
+        offlineSaleId: 'b',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '00000000',
+        clientName: 'Cliente',
+        items: [{ productId: 'p1', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm1', amountCents: 1000 }],
+      } as unknown as never),
     ).rejects.toThrow(/Almacenamiento local lleno/);
     // cola original no perdida
     expect((await store.listPending()).some((r) => r.offlineSaleId === 'a')).toBe(true);
@@ -86,7 +132,18 @@ describe('adversarial – cuota IndexedDB (taller historial)', () => {
     const mem = createMemoryOfflineIdb({ quota: 10_000_000, failOnSet: true });
     const store = new OfflineQueueStore(mem);
     await expect(
-      store.enqueue({ offlineSaleId: 'q', branchId: 'b1', cashRegisterSessionId: 's1', documentType: 'NV', series: 'NV01', clientDocumentType: '1', clientDocumentNumber: '00000000', clientName: 'Cliente', items: [{ productId: 'p1', quantity: 1 }], payments: [{ paymentMethodId: 'pm1', amountCents: 1000 }] } as unknown as never),
+      store.enqueue({
+        offlineSaleId: 'q',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '00000000',
+        clientName: 'Cliente',
+        items: [{ productId: 'p1', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm1', amountCents: 1000 }],
+      } as unknown as never),
     ).rejects.toThrow();
     expect(await store.listPending()).toHaveLength(0);
   });
@@ -100,8 +157,26 @@ describe('adversarial – red hostil (one-tap taller)', () => {
   });
 
   it('buildOneTapConvertPayload normaliza placa aun con input hostil (inyectado)', () => {
-    expect(buildOneTapConvertPayload({ quoteId: 'q1', branchId: 'b1', cashRegisterSessionId: 's1', series: 'B001', documentType: '03', plate: '  abc-123  ' }).plate).toBe('ABC123');
-    expect(buildOneTapConvertPayload({ quoteId: 'q1', branchId: 'b1', cashRegisterSessionId: 's1', series: 'B001', documentType: '03', plate: '<script>alert(1)</script>' }).plate).toBe('<SCRIPT>ALERT(1)</SCRIPT>'.replace(/[\s-]/g, ''));
+    expect(
+      buildOneTapConvertPayload({
+        quoteId: 'q1',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        series: 'B001',
+        documentType: '03',
+        plate: '  abc-123  ',
+      }).plate,
+    ).toBe('ABC123');
+    expect(
+      buildOneTapConvertPayload({
+        quoteId: 'q1',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        series: 'B001',
+        documentType: '03',
+        plate: '<script>alert(1)</script>',
+      }).plate,
+    ).toBe('<SCRIPT>ALERT(1)</SCRIPT>'.replace(/[\s-]/g, ''));
     // placa inyectada no rompe payload
   });
 

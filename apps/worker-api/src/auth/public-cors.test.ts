@@ -36,7 +36,9 @@ describe('CORS público del worker (M6B — desacoplado por ALLOWED_ORIGINS)', (
       { ALLOWED_ORIGINS: 'https://*.pages.dev,https://kipuspay.com' },
       'https://kipuspay-pos-web-staging.pages.dev',
     );
-    expect(headers['Access-Control-Allow-Origin']).toBe('https://kipuspay-pos-web-staging.pages.dev');
+    expect(headers['Access-Control-Allow-Origin']).toBe(
+      'https://kipuspay-pos-web-staging.pages.dev',
+    );
     expect(headers['Access-Control-Allow-Credentials']).toBe('true');
   });
 

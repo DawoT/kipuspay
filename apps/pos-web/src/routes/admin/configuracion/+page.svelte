@@ -27,6 +27,7 @@
   import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
   import CertificateManager from '$lib/fiscal/CertificateManager.svelte';
   import { createPrinterTransport } from '$lib/print/printer-transport';
+  import PrinterPairing from '$lib/hardware/PrinterPairing.svelte';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
   import Icon from '$lib/ui/Icon.svelte';
   import { formalizationModeLabel } from '$lib/ui/ops-copy';
@@ -772,6 +773,8 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
       {/if}
     </section>
   {/if}
+
+  <PrinterPairing />
 
   {#if hardwareOn}
     <section id="hardware" class="ledger-card" aria-labelledby="hardware-config-title">

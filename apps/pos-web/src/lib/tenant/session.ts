@@ -12,7 +12,8 @@ export type TaxRegime = 'UNKNOWN' | 'NRUS' | 'RER' | 'RMT' | 'RG';
  * DRY: esta unión replica el catálogo canónico; VERTICAL_ALIAS_ES_TO_EN en domain-onboarding/tour.ts
  * mantiene el mapeo ES→EN mediante diccionario declarativo (ADR-ARCH-002).
  */
-export type PosVertical = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas' | 'grifos';
+export type PosVertical =
+  'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas' | 'grifos';
 
 export const POS_VERTICALS: readonly PosVertical[] = [
   'restaurantes',

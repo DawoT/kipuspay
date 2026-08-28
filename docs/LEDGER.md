@@ -15252,3 +15252,37 @@ aprobaciones: [Staff Device & UI Mockup Architect, Staff Principal, @DawoT A (hu
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0524
+timestamp_utc: 2026-08-27T00:30:00Z
+schema_version: 2
+sprint_fase: Hardware — Matriz impresoras 58/80 + pairing + offline 500 gama baja
+agente_responsable: Staff Hardware + QA (ejecución: kipus-hardware + kipus-qa; auditoría: Staff Principal)
+tipo: Entrega
+subtipo: Pairing UI + matriz 2×2 + 500 offline
+relacion: amplia
+referencias_entradas: [0522, 0523]
+referencias_documentales: [apps/pos-web/src/lib/print/hw-printers-matrix.test.ts, apps/pos-web/src/lib/offline-sync/hw-android-offline.test.ts, apps/pos-web/size-limit.config.js]
+prev_id: 0523
+prev_hash: d25b4f9c5a6202b702485990229d3bf8cbd37c3d244a69760c2b872a4a82e9d2
+entry_hash: b1dd94651ed024901668a9b66c63403ece233b530f8d1f8f9ddaad6d22be03bf
+ticket_or_adr: hw-printers-matrix; hw-android-offline; V-24; S45; CAL-06
+test_ids: [hw-printers-matrix.test.ts, hw-android-offline.test.ts, SUITE]
+entregable_afectado: Hardware impresoras — matriz 2×2 (58/80 × WebUSB/WSS) + pairing UI (/admin/configuracion) + offline 500 Android gama baja
+descripcion: >
+  Matriz física 58mm/32col y 80mm/48col × WebUSB/WSS LAN: bytes ESC/POS
+  decodificados con layout normativo verificado (separador, truncado, GS k,
+  corte, reset, openDrawer), zero-duplication con buildEscPosPayload único.
+  Pairing UI con escaneo WebUSB, input WSS wss://, test impresión y
+  persistencia pos_terminals. Offline-first 500 ventas: cuota IndexedDB,
+  red hostil, gama baja, p95<100ms, heap<32MiB, 0 pérdida/duplicación,
+  chunk 30. Bump presupuesto bundle 300→310 kB por 6kB hardware.
+evidencia: >
+  pos-web 605/605 (110 files, +16+3), svelte-check 0, SUITE GREEN,
+  V-24 con 310kB. PENDING: matriz sin paridad hardware real física.
+ancestry_verified: true
+aprobaciones: [Staff Hardware, Staff QA, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
