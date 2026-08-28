@@ -1,5 +1,6 @@
-/** Feature flags cliente (PUBLIC_*). Default off. SvelteKit: $env/dynamic/public. */
+/** Feature flags cliente (PUBLIC_*). Default off. SvelteKit: $env/dynamic/public. Ola 2: migración progresiva a capabilitiesStore. */
 import { env } from '$env/dynamic/public';
+import { has as hasCap } from './tenant/capabilitiesStore.js';
 
 function flagOn(value: string | boolean | undefined): boolean {
   return value === '1' || value === 'true' || value === true;
@@ -11,118 +12,143 @@ function pub(name: string): string | undefined {
 
 const PF = 'PUBLIC_FEATURE_';
 
+function isDynamic(): boolean {
+  const v =
+    (env as Record<string, string | undefined>)['PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC'] ??
+    (env as Record<string, string | undefined>)['FEATURE_TENANT_CAPABILITIES_DYNAMIC'];
+  return v === '1' || v === 'true';
+}
+
+function capOrFlag(cap: string, flagSuffix: string): boolean {
+  if (isDynamic()) return hasCap(cap);
+  return flagOn(pub(PF + flagSuffix));
+}
+
+/** @deprecated Ola 2 — delega a capabilitiesStore.has('pos.checkout') si dynamic 1, sino PUBLIC_FEATURE_POS_CHECKOUT */
 export function isPosCheckoutEnabled(): boolean {
-  return flagOn(pub(PF + 'POS_CHECKOUT'));
+  return capOrFlag('pos.checkout', 'POS_CHECKOUT');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isPrintTemplatesEnabled(): boolean {
-  return flagOn(pub(PF + 'PRINT_TEMPLATES'));
+  return capOrFlag('hardware.print_templates', 'PRINT_TEMPLATES');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isVitrinaEnabled(): boolean {
-  return flagOn(pub(PF + 'VITRINA'));
+  return capOrFlag('display.vitrina', 'VITRINA');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore.has('owner.mode') */
 export function isOwnerModeEnabled(): boolean {
-  return flagOn(pub(PF + 'OWNER_MODE'));
+  return capOrFlag('owner.mode', 'OWNER_MODE');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isOwnerPushEnabled(): boolean {
-  return flagOn(pub(PF + 'OWNER_PUSH'));
+  return capOrFlag('owner.push_alerts', 'OWNER_PUSH');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isLedgerArApEnabled(): boolean {
+  if (isDynamic()) return hasCap('ledger.accounts_receivable') || hasCap('ledger.accounts_payable');
   return flagOn(pub(PF + 'LEDGER_AR_AP'));
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isCashExpensesEnabled(): boolean {
-  return flagOn(pub(PF + 'CASH_EXPENSES'));
+  return capOrFlag('cash.register_expenses', 'CASH_EXPENSES');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isPurchasingOrdersEnabled(): boolean {
-  return flagOn(pub(PF + 'PURCHASING_ORDERS'));
+  return capOrFlag('purchasing.orders', 'PURCHASING_ORDERS');
 }
 
+/** @deprecated Ola 2 — fallback a flag (capability fiscal no canonica) */
 export function isFiscalRcEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_RC'));
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isReportingCatalogEnabled(): boolean {
-  return flagOn(pub(PF + 'REPORTING_CATALOG'));
+  return capOrFlag('reporting.catalog', 'REPORTING_CATALOG');
 }
 
+/** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isReportingExportEnabled(): boolean {
-  return flagOn(pub(PF + 'REPORTING_EXPORT'));
+  return capOrFlag('reporting.export', 'REPORTING_EXPORT');
 }
 
-/** Sprint 17 — cierre Z ciego / movimientos / reprints. */
+/** Sprint 17 — cierre Z ciego / movimientos / reprints. @deprecated Ola 2 */
 export function isCashBlindZEnabled(): boolean {
-  return flagOn(pub(PF + 'CASH_BLIND_Z'));
+  return capOrFlag('cash.blind_z', 'CASH_BLIND_Z');
 }
 
-/** Sprint 18 — FEFO / BOM / conteo / merma / alertas. */
+/** Sprint 18 — FEFO / BOM / conteo / merma / alertas. @deprecated Ola 2 */
 export function isInventoryOpsEnabled(): boolean {
+  if (isDynamic()) return hasCap('inventory.batches') || hasCap('inventory.bom');
   return flagOn(pub(PF + 'INVENTORY_BATCHES')) || flagOn(pub(PF + 'INVENTORY_BOM'));
 }
 
-/** Sprint 40 — balanza y venta por peso variable. */
+/** Sprint 40 — balanza y venta por peso variable. @deprecated Ola 2 */
 export function isInventoryScaleEnabled(): boolean {
-  return flagOn(pub(PF + 'INVENTORY_SCALE'));
+  return capOrFlag('inventory.scale', 'INVENTORY_SCALE');
 }
 
-/** Sprint 19 — comandas / KDS / split. */
+/** Sprint 19 — comandas / KDS / split. @deprecated Ola 2 */
 export function isOrdersKdsEnabled(): boolean {
-  return flagOn(pub(PF + 'ORDERS_KDS'));
+  return capOrFlag('orders.kds', 'ORDERS_KDS');
 }
 
-/** Sprint 20 — transferencias entre sucursales. */
+/** Sprint 20 — transferencias entre sucursales. @deprecated Ola 2 */
 export function isStockTransfersEnabled(): boolean {
-  return flagOn(pub(PF + 'STOCK_TRANSFERS'));
+  return capOrFlag('stock.transfers', 'STOCK_TRANSFERS');
 }
 
-/** Sprint 20 — recepción parcial OC. */
+/** Sprint 20 — recepción parcial OC. @deprecated Ola 2 */
 export function isPartialReceiveEnabled(): boolean {
-  return flagOn(pub(PF + 'PURCHASING_PARTIAL_RECEIVE'));
+  return capOrFlag('purchasing.partial_receive', 'PURCHASING_PARTIAL_RECEIVE');
 }
 
-/** Sprint 29 — matching 3-way OC/recepción/factura. */
+/** Sprint 29 — matching 3-way OC/recepción/factura. @deprecated Ola 2 */
 export function isPurchasingThreeWayEnabled(): boolean {
-  return flagOn(pub(PF + 'PURCHASING_THREE_WAY'));
+  return capOrFlag('purchasing.three_way', 'PURCHASING_THREE_WAY');
 }
 
-/** Sprint 22 — wallets QR en caja. */
+/** Sprint 22 — wallets QR en caja. @deprecated Ola 2 */
 export function isPaymentsQrWalletsEnabled(): boolean {
-  return flagOn(pub(PF + 'PAYMENTS_QR_WALLETS'));
+  return capOrFlag('payments.qr_wallets', 'PAYMENTS_QR_WALLETS');
 }
 
-/** Sprint 22 — tarjeta Culqi/Niubiz en caja. */
+/** Sprint 22 — tarjeta Culqi/Niubiz en caja. @deprecated Ola 2 */
 export function isPaymentsCardAcquirerEnabled(): boolean {
-  return flagOn(pub(PF + 'PAYMENTS_CARD_ACQUIRER'));
+  return capOrFlag('payments.card_acquirer', 'PAYMENTS_CARD_ACQUIRER');
 }
 
-/** Sprint 23 — export Contasis/Concar. */
+/** Sprint 23 — export Contasis/Concar. @deprecated Ola 2 */
 export function isAccountingExportEnabled(): boolean {
-  return flagOn(pub(PF + 'ACCOUNTING_EXPORT'));
+  return capOrFlag('integrations.accounting_export', 'ACCOUNTING_EXPORT');
 }
 
-/** Sprint 23 — API keys + webhooks. */
+/** Sprint 23 — API keys + webhooks. @deprecated Ola 2 */
 export function isIntegrationsApiEnabled(): boolean {
-  return flagOn(pub(PF + 'INTEGRATIONS_API'));
+  return capOrFlag('integrations.api', 'INTEGRATIONS_API');
 }
 
-/** Sprint 21 — importación de catálogo Bsale/Alegra/CSV; siempre default-off. */
+/** Sprint 21 — importación de catálogo Bsale/Alegra/CSV; siempre default-off. @deprecated Ola 2 */
 export function isCatalogImportEnabled(): boolean {
-  return flagOn(pub(PF + 'CATALOG_IMPORT'));
+  return capOrFlag('integrations.catalog_import', 'CATALOG_IMPORT');
 }
 
-/** Sprint 24 — WhatsApp receipt. */
+/** Sprint 24 — WhatsApp receipt. @deprecated Ola 2 */
 export function isMessagingWhatsAppEnabled(): boolean {
-  return flagOn(pub(PF + 'MESSAGING_WHATSAPP'));
+  return capOrFlag('messaging.whatsapp_receipt', 'MESSAGING_WHATSAPP');
 }
 
-/** Sprint 24 — loyalty points. */
+/** Sprint 24 — loyalty points. @deprecated Ola 2 */
 export function isLoyaltyPointsEnabled(): boolean {
-  return flagOn(pub(PF + 'LOYALTY_POINTS'));
+  return capOrFlag('loyalty.points', 'LOYALTY_POINTS');
 }
 
 /** Sprint 25 — client offloading (Web Worker ESC/POS). */
@@ -145,124 +171,124 @@ export function isFiscalTransportPluginsEnabled(): boolean {
   return flagOn(pub(PF + 'FISCAL_TRANSPORT_PLUGINS'));
 }
 
-/** Sprint 28 — devoluciones con política N días. */
+/** Sprint 28 — devoluciones con política N días. @deprecated Ola 2 */
 export function isSalesReturnsEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_RETURNS'));
+  return capOrFlag('sales.returns', 'SALES_RETURNS');
 }
 
-/** Sprint 30 — promociones y tramos. */
+/** Sprint 30 — promociones y tramos. @deprecated Ola 2 */
 export function isPricingPromotionsEnabled(): boolean {
-  return flagOn(pub(PF + 'PRICING_PROMOTIONS'));
+  return capOrFlag('pricing.promotions', 'PRICING_PROMOTIONS');
 }
 
-/** Sprint 31 — catálogo padre/variantes. */
+/** Sprint 31 — catálogo padre/variantes. @deprecated Ola 2 */
 export function isCatalogVariantsEnabled(): boolean {
-  return flagOn(pub(PF + 'CATALOG_VARIANTS'));
+  return capOrFlag('catalog.variants', 'CATALOG_VARIANTS');
 }
 
-/** Sprint 31 — unidades de medida racionales. */
+/** Sprint 31 — unidades de medida racionales. @deprecated Ola 2 */
 export function isCatalogUomEnabled(): boolean {
-  return flagOn(pub(PF + 'CATALOG_UOM'));
+  return capOrFlag('catalog.uom', 'CATALOG_UOM');
 }
 
-/** Sprint 32 — apartados / anticipos. */
+/** Sprint 32 — apartados / anticipos. @deprecated Ola 2 */
 export function isSalesLayawayEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_LAYAWAY'));
+  return capOrFlag('sales.layaway', 'SALES_LAYAWAY');
 }
 
-/** Sprint 32 — diario contable solo lectura. */
+/** Sprint 32 — diario contable solo lectura. @deprecated Ola 2 */
 export function isLedgerChartOfAccountsEnabled(): boolean {
-  return flagOn(pub(PF + 'LEDGER_CHART_OF_ACCOUNTS'));
+  return capOrFlag('ledger.chart_of_accounts', 'LEDGER_CHART_OF_ACCOUNTS');
 }
 
-/** Sprint 33 — cotizaciones / presupuestos. */
+/** Sprint 33 — cotizaciones / presupuestos. @deprecated Ola 2 */
 export function isSalesQuotesEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_QUOTES'));
+  return capOrFlag('sales.quotes', 'SALES_QUOTES');
 }
 
-/** Sprint 34 — devolución a proveedor. */
+/** Sprint 34 — devolución a proveedor. @deprecated Ola 2 */
 export function isPurchasingReturnsEnabled(): boolean {
-  return flagOn(pub(PF + 'PURCHASING_RETURNS'));
+  return capOrFlag('purchasing.returns', 'PURCHASING_RETURNS');
 }
 
-/** Sprint 35 — crédito de tienda / gift cards. */
+/** Sprint 35 — crédito de tienda / gift cards. @deprecated Ola 2 */
 export function isLedgerStoreCreditEnabled(): boolean {
-  return flagOn(pub(PF + 'LEDGER_STORE_CREDIT'));
+  return capOrFlag('ledger.store_credit', 'LEDGER_STORE_CREDIT');
 }
 
-/** Sprint 36 — cuotas / pago en partes. */
+/** Sprint 36 — cuotas / pago en partes. @deprecated Ola 2 */
 export function isSalesInstallmentsEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_INSTALLMENTS'));
+  return capOrFlag('sales.installments', 'SALES_INSTALLMENTS');
 }
 
-/** Sprint 37 — comisiones de vendedor. */
+/** Sprint 37 — comisiones de vendedor. @deprecated Ola 2 */
 export function isSalesCommissionsEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_COMMISSIONS'));
+  return capOrFlag('sales.commissions', 'SALES_COMMISSIONS');
 }
 
-/** Sprint 38 — ubicaciones y racks. */
+/** Sprint 38 — ubicaciones y racks. @deprecated Ola 2 */
 export function isInventoryLocationsEnabled(): boolean {
-  return flagOn(pub(PF + 'INVENTORY_LOCATIONS'));
+  return capOrFlag('inventory.locations', 'INVENTORY_LOCATIONS');
 }
 
-/** Sprint 39 — serial identity and terminal leases. */
+/** Sprint 39 — serial identity and terminal leases. @deprecated Ola 2 */
 export function isInventorySerialsEnabled(): boolean {
-  return flagOn(pub(PF + 'INVENTORY_SERIALS'));
+  return capOrFlag('inventory.serials', 'INVENTORY_SERIALS');
 }
 
-/** Sprint 41 — etiquetas de precio confiables desde snapshot servidor. */
+/** Sprint 41 — etiquetas de precio confiables desde snapshot servidor. @deprecated Ola 2 */
 export function isCatalogPriceLabelsEnabled(): boolean {
-  return flagOn(pub(PF + 'CATALOG_PRICE_LABELS'));
+  return capOrFlag('catalog.price_labels', 'CATALOG_PRICE_LABELS');
 }
 
-/** Sprint 43 — pedidos de cliente con retiro; siempre apagado si falta PUBLIC_*. */
+/** Sprint 43 — pedidos de cliente con retiro; siempre apagado si falta PUBLIC_*. @deprecated Ola 2 */
 export function isCustomerOrdersEnabled(): boolean {
-  return flagOn(pub(PF + 'ORDERS_CUSTOMER_ORDERS'));
+  return capOrFlag('orders.customer_orders', 'ORDERS_CUSTOMER_ORDERS');
 }
 
-/** Sprint 44 — membresías; siempre apagado si falta PUBLIC_*. */
+/** Sprint 44 — membresías; siempre apagado si falta PUBLIC_*. @deprecated Ola 2 */
 export function isRecurringSalesEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_RECURRING'));
+  return capOrFlag('sales.recurring', 'SALES_RECURRING');
 }
 
-/** Sprint 45 — motor push operacional; siempre default-off. */
+/** Sprint 45 — motor push operacional; siempre default-off. @deprecated Ola 2 */
 export function isMobilePushEnabled(): boolean {
-  return flagOn(pub(PF + 'MOBILE_PUSH'));
+  return capOrFlag('mobile.push', 'MOBILE_PUSH');
 }
 
-/** Sprint 45 — instalación Android del POS único; siempre default-off. */
+/** Sprint 45 — instalación Android del POS único; siempre default-off. @deprecated Ola 2 */
 export function isMobilePosEnabled(): boolean {
-  return flagOn(pub(PF + 'CLIENT_MOBILE_POS'));
+  return capOrFlag('client.mobile_pos', 'CLIENT_MOBILE_POS');
 }
 
-/** Sprint 47 — LPDP (datos personales); siempre default-off. */
+/** Sprint 47 — LPDP (datos personales); siempre default-off. @deprecated Ola 2 */
 export function isLpdpEnabled(): boolean {
-  return flagOn(pub(PF + 'LPDP'));
+  return capOrFlag('compliance.lpdp', 'LPDP');
 }
 
-/** Sprint 49 — inteligencia del negocio (asistente + briefing); siempre default-off. */
+/** Sprint 49 — inteligencia del negocio (asistente + briefing); siempre default-off. @deprecated Ola 2 */
 export function isAgenticInsightsEnabled(): boolean {
-  return flagOn(pub(PF + 'ANALYTICS_AGENTIC_INSIGHTS'));
+  return capOrFlag('analytics.agentic_insights', 'ANALYTICS_AGENTIC_INSIGHTS');
 }
 
-/** Sprint 50 — alta rápida de catálogo (escáner); siempre default-off. */
+/** Sprint 50 — alta rápida de catálogo (escáner); siempre default-off. @deprecated Ola 2 */
 export function isCatalogQuickAddEnabled(): boolean {
-  return flagOn(pub(PF + 'CATALOG_QUICK_ADD'));
+  return capOrFlag('catalog.quick_add', 'CATALOG_QUICK_ADD');
 }
 
-/** Sprint 51 — handoff de turno; siempre default-off. */
+/** Sprint 51 — handoff de turno; siempre default-off. @deprecated Ola 2 */
 export function isShiftHandoffEnabled(): boolean {
-  return flagOn(pub(PF + 'SHIFT_HANDOFF'));
+  return capOrFlag('ops.shift_handoff', 'SHIFT_HANDOFF');
 }
 
-/** Sprint 51 — equipo e invitaciones; siempre default-off. */
+/** Sprint 51 — equipo e invitaciones; siempre default-off. @deprecated Ola 2 */
 export function isTeamInviteEnabled(): boolean {
-  return flagOn(pub(PF + 'TEAM_INVITE'));
+  return capOrFlag('ops.team_invite', 'TEAM_INVITE');
 }
 
-/** Sprint 52 — Product Tour + setup checklist; siempre default-off. */
+/** Sprint 52 — Product Tour + setup checklist; siempre default-off. @deprecated Ola 2 */
 export function isOnboardingTourEnabled(): boolean {
-  return flagOn(pub(PF + 'ONBOARDING_TOUR'));
+  return capOrFlag('onboarding.tour', 'ONBOARDING_TOUR');
 }
 
 /** Backlog v10 P1a — Nota de Débito; siempre default-off. */
@@ -295,24 +321,24 @@ export function isGreEnabled(): boolean {
   return flagOn(pub(PF + 'GRE'));
 }
 
-/** Sprint 53 — Troubleshooter de hardware (ADR-0033); siempre default-off. */
+/** Sprint 53 — Troubleshooter de hardware (ADR-0033); siempre default-off. @deprecated Ola 2 */
 export function isHardwareDiagnosticsEnabled(): boolean {
-  return flagOn(pub(PF + 'HARDWARE_DIAGNOSTICS'));
+  return capOrFlag('hardware.diagnostics', 'HARDWARE_DIAGNOSTICS');
 }
 
-/** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. */
+/** Sprint 46 — analítica predictiva (ADR-0030); siempre default-off. @deprecated Ola 2 */
 export function isAnalyticsForecastingEnabled(): boolean {
-  return flagOn(pub(PF + 'ANALYTICS_FORECASTING'));
+  return capOrFlag('analytics.forecasting', 'ANALYTICS_FORECASTING');
 }
 
-/** Sprint C1 — catálogo vendible en la terminal (grid + buscador); siempre default-off. */
+/** Sprint C1 — catálogo vendible en la terminal (grid + buscador); siempre default-off. @deprecated Ola 2 */
 export function isCatalogSellableEnabled(): boolean {
-  return flagOn(pub(PF + 'CATALOG_SELLABLE'));
+  return capOrFlag('catalog.sellable', 'CATALOG_SELLABLE');
 }
 
-/** Sprint 42 — respaldos D1 y DR; siempre default-off. */
+/** Sprint 42 — respaldos D1 y DR; siempre default-off. @deprecated Ola 2 */
 export function isDataBackupEnabled(): boolean {
-  return flagOn(pub(PF + 'DATA_BACKUP'));
+  return capOrFlag('data.backup', 'DATA_BACKUP');
 }
 
 /** Grifos — Surtidores e isla de despacho (precio del día + detracción diésel); default-off. */

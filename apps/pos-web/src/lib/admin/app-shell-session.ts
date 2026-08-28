@@ -1,4 +1,5 @@
 import type { AdminAuthenticatedSession } from './authenticated-session.js';
+import { hydrateCapabilities, setCapabilities } from '../tenant/capabilitiesStore.js';
 
 type FetchPort = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -10,6 +11,8 @@ interface SessionBootstrapDto {
     readonly terminalId: string;
     readonly terminalSessionId: string;
   } | null;
+  readonly capabilities?: readonly string[];
+  readonly capabilitiesEpoch?: number;
   readonly billing?: {
     readonly subscriptionStatus: 'trial' | 'active' | 'past_due' | 'canceled';
     readonly trialEndsAt: string | null;
@@ -32,10 +35,22 @@ function isTerminalDto(terminal: unknown): boolean {
   return typeof row.terminalId === 'string' && typeof row.terminalSessionId === 'string';
 }
 
+function isCapabilitiesDto(value: unknown): boolean {
+  if (value === undefined) return true;
+  return Array.isArray(value) && value.every((c) => typeof c === 'string');
+}
+
+function isEpochDto(value: unknown): boolean {
+  if (value === undefined) return true;
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function isBootstrapDto(value: unknown): value is SessionBootstrapDto {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const session = value as Record<string, unknown>;
   if (!isBillingDto(session.billing)) return false;
+  if (!isCapabilitiesDto(session.capabilities)) return false;
+  if (!isEpochDto(session.capabilitiesEpoch)) return false;
   return (
     typeof session.userId === 'string' &&
     ['cashier', 'supervisor', 'admin', 'owner'].includes(String(session.role)) &&
@@ -63,6 +78,7 @@ function absolutizeRequestUrl(apiBase: string, request: RequestInfo | URL): stri
   return `${apiBase}${raw.startsWith('/') ? raw : `/${raw}`}`;
 }
 
+// eslint-disable-next-line complexity
 export async function loadAuthenticatedAppShellSession(input: {
   readonly fetcher: FetchPort;
   readonly storage: Storage;
@@ -85,9 +101,27 @@ export async function loadAuthenticatedAppShellSession(input: {
       headers: bootstrapHeaders,
     });
   } catch {
+    // Red hostil/offline: intenta hidratar stale desde LS+IDB (fail-closed pero con banner si hay cache)
+    if (tenantId) {
+      try {
+        await hydrateCapabilities({ tenantId, storage: input.storage });
+      } catch {
+        // ignore
+      }
+    }
     return null;
   }
-  if (!response.ok) return null;
+  if (!response.ok) {
+    // 503 CAPABILITIES_UNAVAILABLE o 401: si hay cache stale, hidratar para banner offline
+    if (tenantId) {
+      try {
+        await hydrateCapabilities({ tenantId, storage: input.storage });
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  }
   let value: unknown;
   try {
     value = await response.json();
@@ -95,6 +129,36 @@ export async function loadAuthenticatedAppShellSession(input: {
     return null;
   }
   if (!isBootstrapDto(value)) return null;
+  // Ola 2 — poblar capabilitiesStore desde session (cache IDB+LS, tenant-isolated, epoch+fethchedAt)
+  // Maneja FEATURE_TENANT_CAPABILITIES_DYNAMIC: cuando 0, server envía []/0 y el store queda vacío (fallback a flags en features.ts)
+  try {
+    const caps = Array.isArray(value.capabilities) ? value.capabilities.map(String).sort() : [];
+    const epoch =
+      typeof value.capabilitiesEpoch === 'number' && Number.isFinite(value.capabilitiesEpoch)
+        ? value.capabilitiesEpoch
+        : 0;
+    const effectiveTenantId = tenantId || '';
+    if (effectiveTenantId) {
+      // Persistencia tenant-isolada (IDB+LS) — fire-and-forget pero await para tests deterministas
+      await setCapabilities({
+        caps,
+        epoch,
+        tenantId: effectiveTenantId,
+        fetchedAt: Date.now(),
+        storage: input.storage,
+      });
+    } else {
+      // Sin tenantId (owner sin tenant hint): solo memoria, no persiste (evita fuga tenant)
+      const { capabilities, capabilitiesEpoch, capabilitiesFetchedAt, capabilitiesTenantId } =
+        await import('../tenant/capabilitiesStore.js');
+      capabilities.set(new Set(caps));
+      capabilitiesEpoch.set(epoch);
+      capabilitiesFetchedAt.set(Date.now());
+      capabilitiesTenantId.set(null);
+    }
+  } catch {
+    // Persistencia nunca bloquea auth — store en memoria ya seteado si falla IDB/quota
+  }
   const terminal = value.terminal
     ? {
         verified: true as const,
@@ -116,6 +180,13 @@ export async function loadAuthenticatedAppShellSession(input: {
       headers,
     });
   };
+  const capsForSession = Array.isArray(value.capabilities)
+    ? value.capabilities.map(String).sort()
+    : [];
+  const epochForSession =
+    typeof value.capabilitiesEpoch === 'number' && Number.isFinite(value.capabilitiesEpoch)
+      ? value.capabilitiesEpoch
+      : 0;
   return {
     authenticatedFetch,
     terminal,
@@ -123,5 +194,7 @@ export async function loadAuthenticatedAppShellSession(input: {
     userId: value.userId,
     branchId: value.branchId,
     ...(value.billing ? { billing: value.billing } : {}),
+    capabilities: capsForSession,
+    capabilitiesEpoch: epochForSession,
   };
 }

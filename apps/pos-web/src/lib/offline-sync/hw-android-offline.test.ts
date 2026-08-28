@@ -20,10 +20,7 @@ import {
   OfflineQueueStore,
 } from './offline-queue.js';
 import { evaluateQuota, QUOTA_ALERT_RATIO, QUOTA_BLOCK_RATIO } from './quota-guardian.js';
-import {
-  CHUNK_SIZE,
-  dispatchPendingSalesChunked,
-} from './chunked-sync-dispatcher.js';
+import { CHUNK_SIZE, dispatchPendingSalesChunked } from './chunked-sync-dispatcher.js';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 
 // ── jueces del chaos-harness (lógica verbatim de packages/chaos-harness §13.5) ──
@@ -237,8 +234,15 @@ describe('hw-android-offline — 500 ventas offline Android gama baja (G2, §13.
           if (rng() < 0.2) return Promise.reject(new Error('NETWORK_DOWN'));
           return Promise.resolve({
             results: sales.map((salePayload) => {
-              if (rng() < 0.05) return { offlineSaleId: salePayload.offlineSaleId, status: 'ALREADY_SYNCED' as const };
-              delivered.set(salePayload.offlineSaleId, (delivered.get(salePayload.offlineSaleId) ?? 0) + 1);
+              if (rng() < 0.05)
+                return {
+                  offlineSaleId: salePayload.offlineSaleId,
+                  status: 'ALREADY_SYNCED' as const,
+                };
+              delivered.set(
+                salePayload.offlineSaleId,
+                (delivered.get(salePayload.offlineSaleId) ?? 0) + 1,
+              );
               return { offlineSaleId: salePayload.offlineSaleId, status: 'SUCCESS' as const };
             }),
           });
@@ -265,7 +269,10 @@ describe('hw-android-offline — 500 ventas offline Android gama baja (G2, §13.
       postSales: (sales: readonly OfflineSalePayload[]) => {
         chunksSeen.push(sales.length);
         return Promise.resolve({
-          results: sales.map((s) => ({ offlineSaleId: s.offlineSaleId, status: 'SUCCESS' as const })),
+          results: sales.map((s) => ({
+            offlineSaleId: s.offlineSaleId,
+            status: 'SUCCESS' as const,
+          })),
         });
       },
     };

@@ -2135,6 +2135,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const result = await runListHardwareDiagnosticsHttp(c.env, hardwareDiagActor(c), limit);
     return c.json(result.body, result.status as 200 | 403 | 404 | 500 | 503);
   });
+  // eslint-disable-next-line complexity
   app.post('/api/pos/terminals/pairing', async (c) => {
     const jwt = c.get('jwt');
     if (!jwt?.tenantId) return c.json({ code: 'UNAUTHENTICATED' }, 401);

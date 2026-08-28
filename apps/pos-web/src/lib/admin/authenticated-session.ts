@@ -13,6 +13,9 @@ export interface AdminAuthenticatedSession {
     readonly trialEndsAt: string | null;
     readonly pastGracePeriod: boolean;
   };
+  /** Ola 2 — capabilities dinámicas SaaS (ADR-ARCH-003): snapshot desde GET /api/auth/session */
+  readonly capabilities?: readonly string[];
+  readonly capabilitiesEpoch?: number;
 }
 
 const ADMIN_SESSION_CONTEXT = Symbol.for('kipuspay.admin.authenticated-session');

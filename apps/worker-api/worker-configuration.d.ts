@@ -79,6 +79,7 @@ interface __BaseEnv_Env {
   FEATURE_PAYMENTS_QR_WALLETS: '0';
   PUSH_VAPID_PUBLIC_KEY: '';
   FEATURE_LPDP: '0';
+  FEATURE_TENANT_CAPABILITIES_DYNAMIC: '0';
   AUTH_JWT_HS_SECRET: string;
   TENANT_STATE_DO: DurableObjectNamespace<import('./src/worker').TenantState>;
   BRANCH_KDS_HUB_DO: DurableObjectNamespace<import('./src/worker').BranchKdsHub>;
@@ -172,6 +173,7 @@ declare namespace NodeJS {
       | 'FEATURE_PAYMENTS_QR_WALLETS'
       | 'PUSH_VAPID_PUBLIC_KEY'
       | 'FEATURE_LPDP'
+      | 'FEATURE_TENANT_CAPABILITIES_DYNAMIC'
       | 'AUTH_JWT_HS_SECRET'
     >
   > {}

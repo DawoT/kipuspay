@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { isOwnerModeEnabled, isAgenticInsightsEnabled } from '$lib/features';
+  import { isAgenticInsightsEnabled } from '$lib/features';
+  import { capabilities, capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
   import { page } from '$app/state';
   import { fade } from 'svelte/transition';
   import { prefersReducedMotion } from 'svelte/motion';
@@ -8,10 +9,23 @@
   import { breadcrumbLabel } from '$lib/ui/breadcrumb';
   import BrandKnot from '$lib/ui/BrandKnot.svelte';
   import Icon from '$lib/ui/Icon.svelte';
+  import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
   let { children } = $props();
 
-  const enabled = isOwnerModeEnabled();
+  let enabled = $derived($capabilities.has('owner.mode'));
+  let capabilitiesStaleBanner = $derived.by(() => {
+    const fetchedAt = $capabilitiesFetchedAt;
+    if (fetchedAt === null) return null;
+    const age = Date.now() - fetchedAt;
+    if (age <= 60 * 60 * 1000) return null;
+    const hours = Math.max(0, Math.floor(age / 3_600_000));
+    if (hours < 1) {
+      const mins = Math.max(0, Math.floor(age / 60_000));
+      return `Datos de hace ${mins} min (no en vivo)`;
+    }
+    return `Datos de hace ${hours} horas (no en vivo)`;
+  });
 
   // Sidebar premium — patrón POS (colapsable desktop + drawer móvil 719px)
   const COMPACT_MQ = '(max-width: 719px)';
@@ -246,6 +260,15 @@
           </span>
         </div>
       </header>
+
+      {#if capabilitiesStaleBanner}
+        <div class="owner-body" style="padding-bottom:0">
+          <StatusMessage tone="warning" data-testid="capabilities-stale-banner">
+            <Icon name="clock" size={16} />
+            <span>{capabilitiesStaleBanner}</span>
+          </StatusMessage>
+        </div>
+      {/if}
 
       <main class="owner-content" id="contenido">
         <div class="owner-body">

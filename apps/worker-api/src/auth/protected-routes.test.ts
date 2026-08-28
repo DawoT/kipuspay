@@ -238,6 +238,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/tenant/checkout-session' },
   { method: 'GET', path: '/api/branches/b1/series' },
   { method: 'GET', path: '/api/tenant/context' },
+  { method: 'POST', path: '/api/pos/terminals/pairing' },
 ];
 
 const tenant: AuthTenantSnapshot = {

@@ -42,6 +42,10 @@ export interface PosTenantSession {
   /** ADR-0009: default on; opt-out en Admin. */
   readonly brandQrEnabled: boolean;
   readonly referralCode: string | null;
+  /** Ola 2 — capabilities dinámicas SaaS (ADR-ARCH-003): snapshot desde GET /api/auth/session */
+  readonly capabilities: readonly string[];
+  readonly capabilitiesEpoch: number;
+  readonly capabilitiesFetchedAt: number | null;
 }
 
 const MODES: readonly FormalizationMode[] = [
@@ -75,6 +79,9 @@ export function defaultTenantSession(): PosTenantSession {
     firstSaleAtIso: null,
     brandQrEnabled: true,
     referralCode: null,
+    capabilities: [],
+    capabilitiesEpoch: 0,
+    capabilitiesFetchedAt: null,
   };
 }
 
@@ -94,6 +101,9 @@ export function tenantFromSearchParams(params: URLSearchParams): PosTenantSessio
     firstSaleAtIso: null,
     brandQrEnabled: true,
     referralCode: null,
+    capabilities: [],
+    capabilitiesEpoch: 0,
+    capabilitiesFetchedAt: null,
   };
 }
 
@@ -103,12 +113,19 @@ export function readTenantSession(storage: Storage): PosTenantSession {
   try {
     const parsed = JSON.parse(raw) as Partial<PosTenantSession>;
     const rawVertical = (parsed as Record<string, unknown>).verticalType;
+    const rawCaps = (parsed as Record<string, unknown>).capabilities;
+    const rawEpoch = (parsed as Record<string, unknown>).capabilitiesEpoch;
+    const rawFetchedAt = (parsed as Record<string, unknown>).capabilitiesFetchedAt;
     return {
       ...defaultTenantSession(),
       ...parsed,
       verticalType:
         typeof rawVertical === 'string' && isPosVertical(rawVertical) ? rawVertical : 'retail',
       taxRegime: normalizeTaxRegime((parsed as Record<string, unknown>).taxRegime),
+      capabilities: Array.isArray(rawCaps) ? rawCaps.map(String).sort() : [],
+      capabilitiesEpoch: typeof rawEpoch === 'number' && Number.isFinite(rawEpoch) ? rawEpoch : 0,
+      capabilitiesFetchedAt:
+        typeof rawFetchedAt === 'number' && Number.isFinite(rawFetchedAt) ? rawFetchedAt : null,
     };
   } catch {
     return defaultTenantSession();

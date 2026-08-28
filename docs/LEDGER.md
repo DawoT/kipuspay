@@ -15356,3 +15356,36 @@ aprobaciones: [Staff Data, Staff Principal, Staff Security]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0527
+timestamp_utc: 2026-08-27T03:00:00Z
+schema_version: 2
+sprint_fase: Ola 2 — Session capabilities + capabilitiesStore
+agente_responsable: Staff Backend ACID + Staff Frontend POS (auditoría Principal/Security/QA)
+tipo: Entrega
+subtipo: Session + store reactivo + migración UI progresiva
+relacion: amplia
+referencias_entradas: [0526]
+referencias_documentales: [apps/worker-api/src/auth/session-route.ts, apps/pos-web/src/lib/tenant/capabilitiesStore.ts]
+prev_id: 0526
+prev_hash: 5185e104ccb98e188d345205a0fce90ffd6cb3036121863bfadb515e8072c72f
+entry_hash: 12ae1deff0bc45ce3e4721ac13647880c625243de2ee939062ac8d29201adace
+ticket_or_adr: ADR-ARCH-003; V-07; V-23; V-24; V-28
+test_ids: [session-route.test.ts, capabilitiesStore.test.ts, SUITE]
+entregable_afectado: apps/worker-api/src/auth/session-route.ts (capabilities+epoch + cache 10s + 503); apps/pos-web/src/lib/tenant/capabilitiesStore.ts (Set+LS/IDB+epoch+stale 1h)
+descripcion: >
+  Ola 2 — GET /api/auth/session extiende capabilities sorted + epoch con cache
+  isolate 10s y kill-switch FEATURE_TENANT_CAPABILITIES_DYNAMIC (503 fail-closed).
+  POS capabilitiesStore Set reactivo, tenant-isolado LS+IDB, revalidación epoch,
+  banner stale 1h y QuotaExceeded guard. features.ts delega a store.has(cap) si
+  dynamic 1 else PUBLIC_FEATURE flag, owner layout/page usan store.
+evidencia: >
+  worker-api 1439/1439 (110 files) session 16 tests (sorted, epoch, cache, 503,
+  flag, isolation); pos-web 624/624 (111 files) store 19 tests (has/load/cache/
+  stale/QuotaExceeded). SUITE GREEN 31/31 V-07/V-23/V-24 309.25/310kB V-28.
+ancestry_verified: true
+aprobaciones: [Staff Backend ACID, Staff Frontend POS, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

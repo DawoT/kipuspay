@@ -13,12 +13,12 @@
     isAgenticInsightsEnabled,
     isFiscalCircuitBreakerEnabled,
     isLedgerStoreCreditEnabled,
-    isOwnerModeEnabled,
     isSalesCommissionsEnabled,
     isSalesInstallmentsEnabled,
     isSalesLayawayEnabled,
     isSalesQuotesEnabled,
   } from '$lib/features';
+  import { capabilities, capabilitiesFetchedAt } from '$lib/tenant/capabilitiesStore';
   import {
     canOfferAnularEa,
     type AnularEaResult,
@@ -38,7 +38,19 @@
   import Skeleton from '$lib/ui/Skeleton.svelte';
  import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  const enabled = isOwnerModeEnabled();
+  let enabled = $derived($capabilities.has('owner.mode'));
+  let capabilitiesStaleBanner = $derived.by(() => {
+    const fetchedAt = $capabilitiesFetchedAt;
+    if (fetchedAt === null) return null;
+    const age = Date.now() - fetchedAt;
+    if (age <= 60 * 60 * 1000) return null;
+    const hours = Math.max(0, Math.floor(age / 3_600_000));
+    if (hours < 1) {
+      const mins = Math.max(0, Math.floor(age / 60_000));
+      return `Datos de hace ${mins} min (no en vivo)`;
+    }
+    return `Datos de hace ${hours} horas (no en vivo)`;
+  });
   let briefing = $state<{ reportDate: string; briefing: string } | null>(null);
   let briefingBullets: string[] = $derived.by(() => {
     if (!briefing) return [];
@@ -527,6 +539,13 @@
       <StatusMessage tone="warning" data-testid="stale-banner">
         <Icon name="clock" size={16} />
         <span>{banner}</span>
+      </StatusMessage>
+    {/if}
+
+    {#if capabilitiesStaleBanner}
+      <StatusMessage tone="warning" data-testid="capabilities-stale-banner">
+        <Icon name="clock" size={16} />
+        <span>{capabilitiesStaleBanner}</span>
       </StatusMessage>
     {/if}
 

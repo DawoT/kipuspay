@@ -32,6 +32,9 @@ function sessionWithTenant(tenantId: string): Storage {
     firstSaleAtIso: null,
     brandQrEnabled: true,
     referralCode: null,
+    capabilities: [],
+    capabilitiesEpoch: 0,
+    capabilitiesFetchedAt: null,
   };
   return memoryStorage({ [TENANT_SESSION_KEY]: JSON.stringify(session) });
 }
