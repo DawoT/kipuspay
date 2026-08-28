@@ -15389,3 +15389,36 @@ aprobaciones: [Staff Backend ACID, Staff Frontend POS, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0528
+timestamp_utc: 2026-08-27T04:00:00Z
+schema_version: 2
+sprint_fase: Ola 3 — Control Plane SuperAdmin aislado
+agente_responsable: Staff Security + SRE (auditoría Principal/QA)
+tipo: Entrega
+subtipo: Platform /platform/* con audit + rate-limit
+relacion: amplia
+referencias_entradas: [0527]
+referencias_documentales: [apps/worker-api/src/platform/platform-capabilities-routes.ts, apps/worker-api/src/platform/platform-auth.ts]
+prev_id: 0527
+prev_hash: 12ae1deff0bc45ce3e4721ac13647880c625243de2ee939062ac8d29201adace
+entry_hash: e5b0f6296e95ec92f3d9868c0e087eee1533d2b494dfa8475d628cfc01f2c9c9
+ticket_or_adr: ADR-ARCH-003; V-03; V-04; V-05; SEC-01
+test_ids: [platform-capabilities.test.ts, SUITE]
+entregable_afectado: apps/worker-api/src/platform/platform-capabilities-routes.ts (PATCH/GET caps, GET tenants, batch atómico+epoch); platform-auth.ts (CF Access + allowlist + rate-limit 100/min)
+descripcion: >
+  Ola 3 — fallback B /platform/* en worker-api (worker-admin no existe):
+  PATCH /platform/tenants/:id/capabilities validado (77 caps, tenant path-only
+  anti-IDOR, batch REPLACE+audit+epoch), GET caps y GET tenants, auth
+  platform_admin (x-platform-staff-token constant-time + CF Access JWT +
+  allowlist), rate-limit 100/min 429, fail-closed 503 DB/KV/audit.
+evidencia: >
+  worker-api 1457/1457 (111 files) platform 18/18 (IDOR, SQLi, 401, 429, 503,
+  batch atómico), protected-routes 456/456. SUITE GREEN V-03/V-04/V-05/V-08
+  V-28/V-29, typecheck 0.
+ancestry_verified: true
+aprobaciones: [Staff Security, Staff SRE, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

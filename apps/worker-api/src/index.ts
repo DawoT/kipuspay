@@ -11,6 +11,12 @@ import type { UserSession } from './auth/idp-user.js';
 import type { WorkerEnv } from './auth/control-plane.js';
 import { runAuthenticatedSessionHttp } from './auth/session-route.js';
 import { runCashierLoginHttp } from './auth/cashier-login-route.js';
+import { createPlatformAuthMiddlewareHono } from './platform/platform-auth.js';
+import {
+  runGetTenantCapabilitiesHttp,
+  runListTenantsHttp,
+  runPatchTenantCapabilitiesHttp,
+} from './platform/platform-capabilities-routes.js';
 import { handleStripeWebhook } from './webhooks/handle-stripe-webhook.js';
 import { runOfflineSaleHttp } from './pos/offline-sale-route.js';
 import { runDaySalesHttp } from './pos/pos-day-sales-route.js';
@@ -518,6 +524,35 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // Público /v1/* (API key, CPE portal, onboarding) — ANTES de los handlers
   // para que GET /v1/sales|documents|cpe lleven ACAO, no solo el OPTIONS.
   app.use('/v1/*', publicCorsMiddleware);
+
+  // Ola 3 — Control Plane SuperAdmin aislado (ADR-ARCH-003) — Opción B fallback
+  // /platform/* en worker-api con middleware platformAuth aislado (nunca role=owner).
+  // Diseñado para migrar a worker-admin (Opción A) cuando exista apps/worker-admin.
+  // Evidencia: `ls apps/worker-admin` → no existe (fallback B con separación clara).
+  app.use('/platform/*', publicCorsMiddleware);
+  app.use('/platform/*', createPlatformAuthMiddlewareHono());
+
+  app.get('/platform/tenants', async (c) => {
+    const result = await runListTenantsHttp(c.env as unknown as Parameters<typeof runListTenantsHttp>[0]);
+    return c.json(result.body, result.status as 200 | 503);
+  });
+  app.get('/platform/tenants/:id/capabilities', async (c) => {
+    const result = await runGetTenantCapabilitiesHttp(
+      c.env as unknown as Parameters<typeof runGetTenantCapabilitiesHttp>[0],
+      c.req.param('id'),
+    );
+    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+  });
+  app.patch('/platform/tenants/:id/capabilities', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const result = await runPatchTenantCapabilitiesHttp(
+      c.env as unknown as Parameters<typeof runPatchTenantCapabilitiesHttp>[0],
+      c.req.param('id'),
+      body,
+      c.req.raw.headers,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 503);
+  });
 
   // KDS WS: el browser no puede mandar Authorization en el handshake.
   // Ticket one-shot (POST /api/kds/ws-ticket, JWT) ANTES del middleware JWT.
