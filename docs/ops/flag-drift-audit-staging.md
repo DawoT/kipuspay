@@ -56,7 +56,8 @@ auditoría).
 
 ## worker-api — env.staging (75 vars)
 
-Resumen: 5 ALIGNED + 3 FIXED + 1 DRIFT-RISK (mitigado) + 66 INTENTIONAL-OFF.
+Resumen: 5 ALIGNED + 4 FIXED + 66 INTENTIONAL-OFF = 75 vars. DRIFT-RISK: 0.
+Addendum 2026-08-23 (d83b5aa): PUSH_VAPID_PUBLIC_KEY migra de DRIFT-RISK→FIXED (v4).
 
 ### Filas con estado no trivial
 
@@ -65,7 +66,7 @@ Resumen: 5 ALIGNED + 3 FIXED + 1 DRIFT-RISK (mitigado) + 66 INTENTIONAL-OFF.
 | `FEATURE_DATA_BACKUP` | `"0"` | `"1"` | FIXED | Runtime `=1` documentado en bootstrap (auditorías 2026-08-17 y 2026-08-20; gap `stg-flags-s42-s48`). Corregido hoy en commit `13c7e0b`. Top-level permanece `"0"` (dev local). |
 | `FEATURE_PLATFORM_DR` | `"0"` | `"1"` | FIXED | Ídem: gap `stg-flags-s42-s48` + bootstrap. Corregido hoy en commit `13c7e0b`. |
 | `FEATURE_REPORTING_ROLLUPS` | `"0"` | `"1"` | FIXED | Intención documentada en el tracker (`stg-s48-dr-sim`: rollups necesarios para el RPO de rollups en DR) + staff trigger break-glass (ledger 0460). Corregido hoy en commit `13c7e0b`. |
-| `PUSH_VAPID_PUBLIC_KEY` | `""` | `""` | DRIFT-RISK (mitigado) | Runtime tiene key real (bootstrap: gap `stg-vapid-public-var` done; VAPID Real). No se fija en git por decisión registrada («secret put conflictuaba con wrangler vars vacío»); mitigación: `--keep-vars` + re-pasar `--var` en deploy manual. Sin cambio en esta auditoría. |
+| `PUSH_VAPID_PUBLIC_KEY` | `""` | `"BKIPWeAjjzcKM9C_dl2-EqC-5vVPt93xyB06pkn7GfbLcDzfpZNsj6sLakEyDl8bGaVjC_kZdC8a2BUnNd4uabs"` (87c, B*) | FIXED (2026-08-23) | VAPID v4 rotación ciega (d83b5aa). Config staging ahora porta la pública idéntica al binding push-vapid-public-v4 (Secrets Store 6c5d2aff…). Supera invariante 9 (una sola fuente criptográfica, panel Firebase vacío Flujo B §5.12.3). Deploys ya no la pisan; --keep-vars queda como defensa secundaria. Rollback: v3 intacta en store. |
 | `FQDN` | URL dev local | URL workers.dev staging | ALIGNED | Bootstrap sección URLs (canónico temporal D0). |
 | `POS_APP_ORIGIN` | (no existe) | POS pages.dev | ALIGNED | Bootstrap sección URLs + nogate test D0 (exige pages.dev; prohíbe app.kipuspay.com sin dominio comprado). |
 | `ALLOWED_ORIGINS` | localhost dev (puertos 4173/5173/5174) | pages.dev POS + marketing | ALIGNED | Bootstrap sección CORS. |
@@ -101,8 +102,13 @@ LPDP. Más `RECURRING_MANUAL_RUN_ENABLED="0"` y `FISCAL_PSE_ENDPOINT_URL`
 Ninguno adicional. Los tres únicos DRIFT-RISK corregibles ya habían sido
 corregidos hoy dentro del propio ciclo `stg-s48-dr-sim` (commit `13c7e0b`,
 antes de esta auditoría): esta matriz los valida como FIXED con su
-justificación. `PUSH_VAPID_PUBLIC_KEY` queda en DRIFT-RISK mitigado por
-decisión ya registrada (no corregible en config).
+justificación.
+
+## Addendum 2026-08-23 — post-d83b5aa VAPID v4 (Flujo B §5.12.3)
+
+**Autor:** Kipus SRE (supervisado Staff Principal) — **Ref:** `d83b5aa` `ops(push): VAPID v4 rotación ciega + Flujo B` + `staff-ledger 0012` + `Secrets Store 6c5d2aff` `5ea02dc3/c7d5ef90` v4 + `apps/worker-api/wrangler.jsonc` L360 + `apps/worker-kms/wrangler.jsonc` L112-121.
+
+Verificado: `PUSH_VAPID_PUBLIC_KEY` staging `BKIPWeAjjzcKM9C_dl2-EqC-5vVPt93xyB06pkn7GfbLcDzfpZNsj6sLakEyDl8bGaVjC_kZdC8a2BUnNd4uabs` (87c, B*) idéntica a `push-vapid-public-v4` store + material `tmp-staff/vapid-v4.json` JWK (triple-string 0012). `FEATURE_OWNER_PUSH/MOBILE_PUSH` staging `1` (Flujo B) coherentes. `--keep-vars` (V-31) ya no es única defensa para VAPID; es defensa en profundidad anti-deriva genérica (OLA C4). Rollback: v3 intacta en store; para revertir, `secret_name` → `v3` + `PUSH_VAPID_PUBLIC_KEY=""` + redeploy kms→api. Resumen actualizado: `5 ALIGNED +4 FIXED +66 INTENTIONAL-OFF =75` (DRIFT-RISK 0). Observación ①: `OWNER_PUSH/MOBILE_PUSH=1` en staging no rompe conteo 66 (top-level sigue `0`, staging coherente por Flujo B).
 
 ## marketing-web (Pages) — 2 vars
 

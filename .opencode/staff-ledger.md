@@ -2372,3 +2372,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0057
+timestamp_utc: 2026-08-29T04:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA E Auditorias C1-E3 + fix flag-drift FIXED (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: QA/SRE (E1) + SRE (E2) + SRE/Analytics (E3) + SRE (E4)
+tipo: Correccion
+subtipo: auditoria + fix test/docs anti-deriva
+relacion: CORRIGE
+referencias_entradas: [0055, 0056]
+referencias_documentales: ["docs/ops/push-ack-slo-baseline.md", "docs/ops/flag-drift-audit-staging.md", "apps/worker-api/test/feature-flags-staging-nogate.test.ts", "docs/architecture/12-cost-performance.md", "docs/ops/staging-bootstrap.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0056
+prev_hash: 22fa1eae0286856696656f9affffcd9de585483201e82537de0b10a118d1a153
+entry_hash: f4ee0b005db42f073fe8ff9e8c76212be1fbbcff9d2a7bb66ac89e89a3349a63
+ticket_or_adr: OLA-E-FLAG-DRIFT-0001 — auditorias E1-E4 + addendum VAPID v4 FIXED + test FIXED positivo
+test_ids: [feature-flags-staging-nogate.test.ts, V-00, V-13 dual, V-31, SUITE]
+entregable_afectado: auditorias E1-E4 + docs/ops/flag-drift-audit addendum + test FIXED 3 its
+descripcion: >
+  OLA E ejecutada a maximo grado staff: 4 diseños + 1 fix doc/test.
+  E1 (QA/SRE): diseño test push-slo-volume n≥20 (20 NORMAL ttl 600s, 16+4 inline, M3≥99% + M4 p95<10s + backstop cron) + observer cron 15m design.
+  E2 (SRE): addendum flag-drift audit 2026-08-23 (PUSH_VAPID_PUBLIC_KEY DRIFT-RISK→FIXED 5+4+66, observación ① OWNER_PUSH/MOBILE_PUSH) + test FIXED positivo 3 its (DATA_BACKUP/PLATFORM_DR/REPORTING_ROLLUPS=1, VAPID B* 87c, cohérence OWNER/MOBILE) — 6/6 GREEN.
+  E3 (SRE/Analytics): dashboard P95 hot path 50ms + SSE 2s + breaker DO + taxonomía 5xx/4xx + writers faltantes + alertas pre-prod checklist.
+  E4 (SRE): runbook kill-switch dominio/PSE/VAPID + rollback probado Staging (no solo escrito) — Principio 7.
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 anti-deriva, feature-flags 6/6.
+evidencia: >
+  RED: E1 sin test n≥20 (gate c8-fcm no medible), E2 flag-drift audit stale DRIFT-RISK 1 + test sin FIXED positivo (3 fails), E3 sin dashboard pre-prod.
+  GREEN: diseños E1-E4 con R/A/V + addendum 75 vars FIXED + test 6/6 (3 originales +3 FIXED), verify 32 GREEN, selftest 58 GREEN, ledger dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: QA/SRE/Analytics re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — countersignatura humana para liberatorios"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
