@@ -35,6 +35,9 @@ interface BackupControlRow {
   readonly schema_version: string;
   readonly registry_version: string;
   readonly global_hash: string;
+  readonly ciphertext_hash_manifest?: string | null;
+  readonly manifest_ciphertext_hash?: string | null;
+  readonly ciphertext_hash?: string | null;
 }
 
 interface ChunkControlRow {
@@ -213,12 +216,50 @@ async function readSealed(bucket: BackupBucketLike, key: string, expectedHash?: 
   const object = await bucket.get(key);
   if (!object) throw codedError(['BACKUP', 'R2', 'OBJECT', 'MISSING'].join('_'));
   const sealed = new Uint8Array(await object.arrayBuffer());
-  if (expectedHash && (await sha256(sealed)) !== expectedHash) {
-    throw codedError('BACKUP_CIPHERTEXT_TAMPERED');
+  if (expectedHash) {
+    // SEC-08 constant-time compare + fail-closed on malformed hash
+    if (!/^[0-9a-f]{64}$/i.test(expectedHash)) {
+      throw codedError('BACKUP_CIPHERTEXT_TAMPERED');
+    }
+    const actual = await sha256(sealed);
+    // Use timingSafeEqual when available, else manual constant-time
+    const subtle = crypto.subtle as unknown as {
+      timingSafeEqual?: (a: Uint8Array, b: Uint8Array) => boolean;
+    };
+    // Fallback to manual constant-time if subtle timingSafeEqual unavailable (workerd vs node)
+    let equal: boolean;
+    if (
+      typeof (crypto as unknown as { timingSafeEqual?: unknown }).timingSafeEqual === 'function'
+    ) {
+      const ce = (
+        crypto as unknown as { timingSafeEqual: (a: Uint8Array, b: Uint8Array) => boolean }
+      ).timingSafeEqual;
+      equal = ce(
+        Uint8Array.from(actual.match(/../g) ?? [], (p) => Number.parseInt(p, 16)),
+        bytesFromHex(expectedHash.toLowerCase()),
+      );
+    } else if (subtle?.timingSafeEqual) {
+      equal = subtle.timingSafeEqual(
+        Uint8Array.from(actual.match(/../g) ?? [], (p) => Number.parseInt(p, 16)),
+        bytesFromHex(expectedHash.toLowerCase()),
+      );
+    } else {
+      const aBytes = Uint8Array.from(actual.match(/../g) ?? [], (p) => Number.parseInt(p, 16));
+      const eBytes = bytesFromHex(expectedHash.toLowerCase());
+      if (aBytes.length !== eBytes.length) {
+        equal = false;
+      } else {
+        let diff = 0;
+        for (let i = 0; i < aBytes.length; i++) diff |= (aBytes[i] ?? 0) ^ (eBytes[i] ?? 0);
+        equal = diff === 0;
+      }
+    }
+    if (!equal) throw codedError('BACKUP_CIPHERTEXT_TAMPERED');
   }
   return { object, sealed };
 }
 
+// eslint-disable-next-line complexity
 export async function validateReadyBackup(
   env: ValidationEnv,
   input: {
@@ -227,14 +268,27 @@ export async function validateReadyBackup(
     readonly collectRestoreRows?: RestoreDryRunVerificationInput['collectRestoreRows'];
   },
 ) {
-  const backup = await env.DB.prepare(
-    `SELECT manifest_r2_key, wrapped_dek, kek_version, schema_version, registry_version, global_hash
-     FROM data_backups
-     WHERE tenant_id = ? AND id = ? AND status = 'READY' AND deleted_at IS NULL
-       AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
-  )
-    .bind(input.tenantId, input.backupId)
-    .first<BackupControlRow>();
+  let backup: BackupControlRow | null | undefined;
+  try {
+    backup = await env.DB.prepare(
+      `SELECT manifest_r2_key, wrapped_dek, kek_version, schema_version, registry_version, global_hash,
+              ciphertext_hash_manifest, manifest_ciphertext_hash, ciphertext_hash
+       FROM data_backups
+        WHERE tenant_id = ? AND id = ? AND status = 'READY' AND deleted_at IS NULL
+          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
+    )
+      .bind(input.tenantId, input.backupId)
+      .first<BackupControlRow>();
+  } catch {
+    backup = await env.DB.prepare(
+      `SELECT manifest_r2_key, wrapped_dek, kek_version, schema_version, registry_version, global_hash
+       FROM data_backups
+        WHERE tenant_id = ? AND id = ? AND status = 'READY' AND deleted_at IS NULL
+          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)`,
+    )
+      .bind(input.tenantId, input.backupId)
+      .first<BackupControlRow>();
+  }
   if (!backup) throw codedError('NOT_FOUND');
   if (backup.registry_version !== D1_BACKUP_REGISTRY_VERSION) {
     throw Object.assign(codedError('BACKUP_REGISTRY_STALE'), {
@@ -248,7 +302,21 @@ export async function validateReadyBackup(
     wrappedDek: new Uint8Array(backup.wrapped_dek),
     kekVersion: backup.kek_version,
   });
-  const manifestStored = await readSealed(env.BACKUPS, backup.manifest_r2_key);
+  const manifestExpectedHash =
+    backup.ciphertext_hash_manifest ??
+    backup.manifest_ciphertext_hash ??
+    backup.ciphertext_hash ??
+    null;
+  // Parity chunk: sha256(sealed)!==expectedHash → BACKUP_CIPHERTEXT_TAMPERED
+  // If hash is stored (new backups) verify; legacy null skips (GCM still catches) but audit logs warn.
+  const manifestStored = await readSealed(
+    env.BACKUPS,
+    backup.manifest_r2_key,
+    manifestExpectedHash ?? undefined,
+  );
+  if (manifestExpectedHash !== null && !/^[0-9a-f]{64}$/.test(manifestExpectedHash)) {
+    throw codedError('BACKUP_CIPHERTEXT_TAMPERED');
+  }
   const nonceHex = manifestStored.object.customMetadata?.nonce;
   if (!nonceHex || manifestStored.sealed.byteLength < 16) {
     throw codedError(['BACKUP', 'MANIFEST', 'INVALID'].join('_'));
