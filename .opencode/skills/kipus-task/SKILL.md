@@ -24,26 +24,30 @@ Los hooks no viajan en un `git clone`: sin esto, los commits no pasan por la bat
 
 El roster ejecutable vive en `.opencode/agents/` (registro: `.opencode/staff-ledger.md`). Antes de ejecutar, identifica el rubro y delega vía Task (o `@mención`):
 
-| Rubro | Agente |
-|---|---|
-| Decisiones arquitectónicas, ADRs, desempates, firma RACI A | `kipus-principal` |
-| DDL, migraciones up/down, sharding, índices | `kipus-data` |
-| Motor transaccional, `db.batch`, idempotencia, reconciliación | `kipus-acid` |
-| Auth/tenant, HMAC webhooks, anti-replay, PIN/lockout | `kipus-security` |
-| Pipeline fiscal SUNAT, UBL/XAdES, CDR, NC/ND, DLQ | `kipus-fiscal` |
-| POS offline-first (`apps/pos-web`), sync chunked, bundle | `kipus-pos` |
-| Impresión/periféricos, ESC/POS, balanzas, kioskos | `kipus-hardware` |
-| Modo Dueño, push accionable, PWA móvil | `kipus-owner` |
-| SLO/observabilidad, runbooks, deploy staging | `kipus-sre` |
-| Suites chaos, escenarios adversariales, RED→GREEN | `kipus-qa` |
-| Sistema de diseño, WCAG AA, UX premium | `kipus-design` |
-| Landings/SEO/CWV, claim gate, métricas de crecimiento | `kipus-growth` |
-| Copy ×3 audiencias, anti-jerga, documentación narrada | `kipus-content` |
-| Rollups/reporting, TTFS/NRR/K-factor, atribución | `kipus-analytics` |
-| Backlog por impacto, criterios de negocio por sprint | `kipus-pm` |
-| User stories de funcionamiento real (Gherkin trazable) | `kipus-stories` |
+| Rubro | Agente (R) | Verifica (V) |
+|---|---|---|
+| Decisiones arquitectónicas, ADRs, desempates, firma RACI A | `kipus-principal` | `kipus-qa` (rotativo, V≠R; Board no es A y V) |
+| DDL, migraciones up/down, sharding, índices | `kipus-data` | `kipus-qa` + `kipus-principal` (Matriz §4: Data+Principal; V≠R/A) |
+| Motor transaccional, `db.batch`, idempotencia, reconciliación | `kipus-acid` | `kipus-qa` + `kipus-principal` (Matriz §4: QA+Principal) |
+| Auth/tenant, HMAC webhooks, anti-replay, PIN/lockout | `kipus-security` | `kipus-qa` + `kipus-principal` (Matriz §4: Security+SRE; V≠R) |
+| Pipeline fiscal SUNAT, UBL/XAdES, CDR, NC/ND, DLQ | `kipus-fiscal` | `kipus-security` + `kipus-principal` (Matriz §4: Fiscal+Security) |
+| POS offline-first (`apps/pos-web`), sync chunked, bundle | `kipus-pos` | `kipus-qa` (Matriz §4: Frontend+Design+QA) |
+| Impresión/periféricos, ESC/POS, balanzas, kioskos | `kipus-hardware` | `kipus-qa` |
+| Modo Dueño, push accionable, PWA móvil | `kipus-owner` | `kipus-design` + `kipus-qa` |
+| SLO/observabilidad, runbooks, deploy staging | `kipus-sre` | `kipus-qa` + `kipus-principal` |
+| Suites chaos, escenarios adversariales, RED→GREEN | `kipus-qa` | `kipus-principal` (rotativo, V≠R) |
+| Sistema de diseño, WCAG AA, UX premium | `kipus-design` | `kipus-qa` + `kipus-security` |
+| Landings/SEO/CWV, claim gate, métricas de crecimiento | `kipus-growth` | `kipus-content` + `kipus-design` |
+| Copy ×3 audiencias, anti-jerga, documentación narrada | `kipus-content` | `kipus-growth` |
+| Rollups/reporting, TTFS/NRR/K-factor, atribución | `kipus-analytics` | `kipus-qa` |
+| Backlog por impacto, criterios de negocio por sprint | `kipus-pm` | `kipus-principal` + `kipus-qa` (Fase 4: PM A, Design+Security V) |
+| User stories de funcionamiento real (Gherkin trazable) | `kipus-stories` | `kipus-qa` + `kipus-pm` |
 
-Reglas de delegación: un rubro = un agente responsable (R); las firmas de la Matriz de Calidad (`Proceso §4`) exigen los DOS agentes indicados; nunca un agente aprueba su propio entregable crítico (`Proceso §0.6`). Las historias de flujo real se producen SIEMPRE con `kipus-stories` antes de implementar el sprint.
+Reglas de delegación: un rubro = un agente responsable (R); `R≠A≠V` — el verificador (V) es siempre distinto de R y de A a nivel de persona; el Staff Review Board no puede ser `A` y `V` a la vez (`Proceso §8.1`). Las firmas de la Matriz de Calidad (`Proceso §4`) exigen los DOS agentes indicados; nunca un agente aprueba su propio entregable crítico (`Proceso §0.6`). El gate `Proceso §8.1` registra `gate_id, raci_ref, R, A, V, evidencia, decisión, fecha`; sin `A`+`V` independiente el resultado es `NO-GO`. Las historias de flujo real se producen SIEMPRE con `kipus-stories` antes de implementar el sprint.
+
+**Contrato Entrada/Salida (Proceso §8.1, §8.3):**
+- **Entrada:** `capability` + `sprint` (vía `INDEX.md` → `docs/roadmap/fase-*.md`) + criterios DoD (`Proceso §3`).
+- **Salida:** entrada ledger schema v2 + PR con plantilla (`.github/pull_request_template.md`) + `RESULT V-13 GREEN` (cadena `prev_hash`/`entry_hash`) y `RESULT V-20 GREEN` (TDD `red/green_run_id` + `test_ids` resueltos) — sin V-13/V-20 GREEN no hay cierre.
 
 ## 2. Localizar el trabajo
 

@@ -2238,3 +2238,36 @@ aprobaciones: ["A: Staff Principal (lente aprobador)", "V: suites + gate dual re
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0053
+timestamp_utc: 2026-08-29T00:30:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA A Toolchain & Router (maximo grado staff) — P0s cerrados
+agente_responsable: Staff Principal (orquestacion) — R: Kipus QA (A1) + SRE (A2) + Data (A3) + PM (A4)
+tipo: Correccion
+subtipo: toolchain staff + router de capacidades
+relacion: CORRIGE
+referencias_entradas: [0052, 0001, 0002]
+referencias_documentales: ["scripts/checks/marketing_copy.py", "scripts/verify.sh", ".opencode/skills/kipus-verify/SKILL.md", ".opencode/skills/kipus-changelog/SKILL.md", "scripts/checks/gen_index.py", "INDEX.md", "docs/PROCESS.md Anexo A", ".opencode/skills/kipus-task/SKILL.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0052
+prev_hash: f59d5b568f3bd672eb0c14f6c30605113412dc8fe72efa3216d41621231de829
+entry_hash: 96169a8ba2783ba6bb6e3373c3bd01aece8ee097fbc716feab1aec77b3fcfb42
+ticket_or_adr: OLA-A-TOOLCHAIN-0001 — auditorias por olas 0-4 (P0s toolchain/router/RACI)
+test_ids: [V-00, V-13 dual, V-15, V-20, V-26, SUITE]
+entregable_afectado: harness staff toolchain (verify V-26 label, verify skill V-31, changelog CAL-07, gen_index 3 caps, RACI V, task V)
+descripcion: >
+  OLA A ejecutada a maximo grado staff: 4 frentes paralelos con evidencia RED→GREEN.
+  A1 (QA): marketing_copy.py MARKETING_COPY→V-26 + verify.sh header V-00..V-31 + kipus-verify skill V-31 tabla (V-25..V-31).
+  A2 (SRE): kipus-changelog template ampliado a CAL-07 (red/green_sha/run_id, expected_failure, ancestry_verified con git merge-base, N/A para milestones) + referencia LEDGER 0534.
+  A3 (Data): gen_index.py fix multi-cap findall (split |[1]) → INDEX.md 74→77 caps (catalog.uom, platform.dr, sales.quick_line) + --check GREEN.
+  A4 (PM): PROCESS.md Anexo A header R|A|V|C|I + V por fase (F1 QA, F2 Security, F3 QA+Principal, F4 Design+Security, F5 Principal rotativo, 6-8 QA, 6F Security, 6H QA+Security; V≠R/A) + kipus-task §1b tabla V + contrato Entrada/Salida §7.2.1/§8.1.
+  Gate preservado: SUITE GREEN 32/32, V-00 58 aserciones, V-13 dual y V-20 OK. Cero toque docs/LEDGER principal en esta ola.
+evidencia: >
+  RED: skill verify V-16 desfasado, changelog sin CAL-07 (V-20 hueco), INDEX 74 caps perdía 3 (V-15 GREEN falso), RACI sin V = NO-GO §8.1, marketing_copy label MARKETING_COPY vs V-26 esperado.
+  GREEN: verify 32 GREEN (V-00..V-31, V-26 74 archivos marketing-web, V-15 INDEX 77 caps, V-13 dual ledgers, V-20 389 entradas/165 código), selftest 58 GREEN, gen_index --check GREEN, PROCESS.md anexo A con V y task V.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Kipus QA (A1) + SRE (A2) + Data (A3) + PM (A4) re-ejecutados", "Caveat: mismo sistema — countersignatura humana para liberatorios"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -377,22 +377,25 @@ transacciones canario consecutivas correctas.
 
 ## Anexo A — RACI Resumido por Fase
 
-| Fase | Responsable (R) | Aprueba (A) | Consultado (C) | Informado (I) |
-|---|---|---|---|---|
-| Fase 1 — Núcleo Transaccional | Staff Backend Datos/ACID, Staff Security, Staff Fiscal | Staff Principal | Staff QA/Chaos, Staff SRE | Staff PM |
-| Fase 2 — Cumplimiento y Resiliencia | Staff Fiscal, Staff Frontend | Staff Principal, Staff Security | Staff QA/Chaos | Staff PM, Staff Growth |
-| Fase 3 — Producto Premium | Staff Frontend, Staff Hardware, Staff Mobile, Staff SRE | Staff Design | Staff QA/Chaos | Staff PM |
-| Fase 4 — Salida al Mercado | Staff Growth, Staff Content | Staff PM | Staff Design, Staff Security | Staff Principal |
-| Fase 5 — Hardening y Lanzamiento | Staff QA/Chaos, Staff Security, Staff Design | **Staff Review Board (quórum completo)** | Todos los roles | Toda la organización |
-| Fase 6 — Operación Comercial v8.1 | Staff Backend ACID/Datos, Staff Frontend, Staff Mobile | Staff Principal | Staff QA/Chaos, Staff Security, Staff Design | Staff PM, Staff Growth |
-| Fase 7 — Ecosistema Perú v9 | Staff Backend ACID/Datos, Staff Security, Staff SRE | Staff Principal | Staff QA/Chaos, Staff Fiscal, Staff Frontend | Staff PM, Staff Growth, Staff Content |
-| Fase 8 — Blindaje v8.2 | Staff Frontend, Staff Fiscal, Staff SRE, Staff Backend ACID | Staff Principal | Staff Hardware, Staff Security, Staff QA/Chaos | Staff PM, Staff Growth |
-| Fase 6B — Profundidad Retail v8.1 (28–32) | Staff Backend ACID/Datos, Staff Frontend | Staff Principal | Staff Fiscal, Staff QA/Chaos, Staff Security, Staff Data | Staff PM, Staff Growth |
-| Fase 6C — Cierre Comercial v8.1 (33–37) | Staff Backend ACID/Datos, Staff Frontend | Staff Principal | Staff QA/Chaos, Staff Security, Staff Data | Staff PM, Staff Growth |
-| Fase 6D — Inventario Avanzado v8.1 (38–42) | Staff Frontend, Staff Backend Datos, Staff Hardware | Staff Principal | Staff QA/Chaos, Staff Security, Staff SRE | Staff PM, Staff Growth |
-| Fase 6E — Servicios y Fuerza de Venta v8.1 (43–45) | Staff Mobile, Staff Frontend, Staff Backend ACID | Staff Principal | Staff QA/Chaos, Staff Security, Staff SRE | Staff PM, Staff Growth |
-| Fase 6F — Predictiva + Compliance v8.1 (46–49) | Staff Data, Staff Security, Staff SRE | Staff Principal | Staff QA/Chaos, Staff Backend ACID | Staff PM, Staff Growth |
-| Fase 6G — Flujo del Cliente v8.1 (50–53) | Staff Mobile/Producto, Staff Frontend, Staff Backend ACID, Staff Hardware | Staff Principal | Staff QA/Chaos, Staff Security, Staff Design | Staff PM, Staff Growth |
+| Fase | Responsable (R) | Aprueba (A) | Verifica (V) | Consultado (C) | Informado (I) |
+|---|---|---|---|---|---|
+| Fase 1 — Núcleo Transaccional | Staff Backend Datos/ACID, Staff Security, Staff Fiscal | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff SRE | Staff PM |
+| Fase 2 — Cumplimiento y Resiliencia | Staff Fiscal, Staff Frontend | Staff Principal, Staff Security | Staff Security | Staff QA/Chaos | Staff PM, Staff Growth |
+| Fase 3 — Producto Premium | Staff Frontend, Staff Hardware, Staff Mobile, Staff SRE | Staff Design | Staff QA/Chaos + Staff Principal | Staff QA/Chaos | Staff PM |
+| Fase 4 — Salida al Mercado | Staff Growth, Staff Content | Staff PM | Staff Design + Staff Security | Staff Design, Staff Security | Staff Principal |
+| Fase 5 — Hardening y Lanzamiento | Staff QA/Chaos, Staff Security, Staff Design | **Staff Review Board (quórum completo)** | Staff Principal (rotativo) | Todos los roles | Toda la organización |
+| Fase 6 — Operación Comercial v8.1 | Staff Backend ACID/Datos, Staff Frontend, Staff Mobile | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff Security, Staff Design | Staff PM, Staff Growth |
+| Fase 7 — Ecosistema Perú v9 | Staff Backend ACID/Datos, Staff Security, Staff SRE | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff Fiscal, Staff Frontend | Staff PM, Staff Growth, Staff Content |
+| Fase 8 — Blindaje v8.2 | Staff Frontend, Staff Fiscal, Staff SRE, Staff Backend ACID | Staff Principal | Staff QA/Chaos | Staff Hardware, Staff Security, Staff QA/Chaos | Staff PM, Staff Growth |
+| Fase 6B — Profundidad Retail v8.1 (28–32) | Staff Backend ACID/Datos, Staff Frontend | Staff Principal | Staff QA/Chaos | Staff Fiscal, Staff QA/Chaos, Staff Security, Staff Data | Staff PM, Staff Growth |
+| Fase 6C — Cierre Comercial v8.1 (33–37) | Staff Backend ACID/Datos, Staff Frontend | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff Security, Staff Data | Staff PM, Staff Growth |
+| Fase 6D — Inventario Avanzado v8.1 (38–42) | Staff Frontend, Staff Backend Datos, Staff Hardware | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff Security, Staff SRE | Staff PM, Staff Growth |
+| Fase 6E — Servicios y Fuerza de Venta v8.1 (43–45) | Staff Mobile, Staff Frontend, Staff Backend ACID | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff Security, Staff SRE | Staff PM, Staff Growth |
+| Fase 6F — Predictiva + Compliance v8.1 (46–49) | Staff Data, Staff Security, Staff SRE | Staff Principal | Staff Security | Staff QA/Chaos, Staff Backend ACID | Staff PM, Staff Growth |
+| Fase 6G — Flujo del Cliente v8.1 (50–53) | Staff Mobile/Producto, Staff Frontend, Staff Backend ACID, Staff Hardware | Staff Principal | Staff QA/Chaos | Staff QA/Chaos, Staff Security, Staff Design | Staff PM, Staff Growth |
+| Fase 6H — Remediación y Sello QA (54–59) | Staff Frontend, Staff QA/Chaos, Staff SRE | Staff Principal | Staff QA/Chaos + Staff Security | Staff Security, Staff Design | Staff PM, Staff Growth |
+
+> **Independencia de V (Proceso §8.1, Matriz §4):** `V ≠ R` y `V ≠ A` a nivel de persona — el verificador es siempre un agente distinto del responsable y del aprobador. El Staff Review Board no puede ser `A` y `V` simultáneamente; cuando `A = Board` (Fase 5), `V` es Staff Principal rotativo u otro Staff independiente, nunca un miembro del Board actuando como verificador. Espejo Matriz §4: Fases 6–8 y 6B–6G verifican Staff QA/Chaos; Fase 6F (LPDP) verifica Staff Security por sensibilidad normativa; Fase 6H verifica Staff QA/Chaos + Staff Security (sello dual).
 
 ---
 

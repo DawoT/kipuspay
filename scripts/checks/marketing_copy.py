@@ -2,7 +2,7 @@
 """KipusPay — auditoría de copy marketing: 0 jerga técnica (GTM §1 / Sprint 10).
 
 Escanea apps/marketing-web (svelte/ts/md) por términos prohibidos.
-Emite RESULT MARKETING_COPY GREEN|RED.
+Emite RESULT V-26 GREEN|RED.
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def iter_files() -> list[str]:
 
 def main() -> int:
     if not os.path.isdir(TARGET):
-        print("RESULT MARKETING_COPY GREEN")
+        print("RESULT V-26 GREEN")
         print("     apps/marketing-web aún no existe")
         return 0
     problems: list[str] = []
@@ -102,11 +102,11 @@ def main() -> int:
                     problems.append(f"{rel}:{i}: {tag} '{m.group(0)}'")
                     break
     if problems:
-        print(f"RESULT MARKETING_COPY RED  {len(problems)} hallazgo(s)")
+        print(f"RESULT V-26 RED  {len(problems)} hallazgo(s)")
         for p in problems[:12]:
             print(f"     {p}")
         return 1
-    print("RESULT MARKETING_COPY GREEN")
+    print("RESULT V-26 GREEN")
     print(f"     {len(iter_files())} archivo(s) sin jerga técnica GTM §1")
     return 0
 

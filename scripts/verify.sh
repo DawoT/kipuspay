@@ -7,14 +7,14 @@
 # Parseo desde un agente:  scripts/verify.sh | awk '$1=="RESULT" && $3=="RED"'
 #
 # V-00 autotest de los detectores  V-08 registry §0.4 sin huérfanos/duplicados
-# V-01 fences pares
-# V-02 0 UPSERT INTO               V-09 sin placeholders de imagen
-# V-03 sin literales http/ws       V-10 sin escapes de exportación (\_ \= \-)
-# V-04 db.transaction prohibido    V-11 DDL fenceado + fences etiquetados
-# V-05 tenant_id NOT NULL         V-12 referencias § resolubles
-# V-06 dinero en INTEGER cents     V-13 cadena de hashes del ledger
-# V-07 sin switch(vertical)        V-14 ratchet de FKs compuestas (DAT-12)
-#                                  V-15 INDEX.md sincronizado
+# V-01 fences pares                V-09 sin placeholders de imagen
+# V-02 0 UPSERT INTO               V-10 sin escapes de exportación (\_ \= \-)
+# V-03 sin literales http/ws       V-11 DDL fenceado + fences etiquetados
+# V-04 db.transaction prohibido    V-12 referencias § resolubles
+# V-05 tenant_id NOT NULL         V-13 cadena de hashes del ledger
+# V-06 dinero en INTEGER cents     V-14 ratchet de FKs compuestas (DAT-12)
+# V-07 sin switch(vertical)        V-15 INDEX.md sincronizado
+#                                  V-16 ledger append-only (hook pre-commit — scripts/git-hooks/)
 #                                  V-17 higiene de rutas versionadas
 #                                  V-18 front-matter, alias y rutas citadas
 #                                  V-19 presupuesto de tamaño por archivo
@@ -24,7 +24,14 @@
 #                                  V-22 0 UPSERT INTO / db.transaction en *.sql
 #                                  V-23 0 fork vertical en *.svelte (CAL-01)
 #                                  V-24 presupuesto de bundle (CAL-06)
-# (V-16 vive en el hook pre-commit: LEDGER append-only — scripts/git-hooks/)
+# Integración y deploy (Sprints 1,10,F):
+#                                  V-25 espejo up↔down de migraciones D1 (Sprint 1)
+#                                  V-26 copy marketing sin jerga técnica (GTM §1 / Sprint 10)
+#                                  V-27 copy POS sin jerga técnica visible (Sprint F)
+#                                  V-28 contrato POS↔API (/api registrado en worker-api — 0396)
+#                                  V-29 paridad triggers epoch tenant_data_epochs (0396, 0052/0053)
+#                                  V-30 cero literales demo en POS (F-6; refuerza V-27)
+#                                  V-31 contrato CI/CD deploy staging (Proceso §5.2 Etapa 6, §13.7)
 #
 # Nota: se usa `set -uo pipefail` sin `-e` a propósito — la batería debe correr
 # TODOS los checks y reportar el conjunto, no abortar en el primer RED.

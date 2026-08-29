@@ -1,6 +1,6 @@
 ---
 name: kipus-verify
-description: Gate documental de KipusPay (scripts/verify.sh). Corre los checks V-01..V-16 (fences, UPSERT, http/ws, db.transaction, forks por vertical, tenant_id NOT NULL, dinero en cents, registry, placeholders, escapes, DDL fenceado, refs §, ratchet de FKs, cadena del ledger, INDEX sincronizado) y devuelve GREEN/RED por check. Úsalo antes de cerrar cualquier cambio normativo o de código.
+description: Gate documental de KipusPay (scripts/verify.sh). Corre los checks V-00..V-31 (fences, UPSERT, http/ws, db.transaction, forks por vertical, tenant_id NOT NULL, dinero en cents, registry, placeholders, escapes, DDL fenceado, refs §, ratchet de FKs, cadena del ledger, INDEX sincronizado, higiene, front-matter, tamaño, TDD ledger, dinero en código, monorepo UPSERT, Svelte forks, bundle, migraciones mirror V-25, marketing copy V-26, POS copy V-27, POS demo V-30, POS↔API V-28, epoch V-29, CI/CD V-31) y devuelve GREEN/RED por check. Úsalo antes de cerrar cualquier cambio normativo o de código.
 allowed-tools: Bash(*)
 ---
 
@@ -53,6 +53,13 @@ scripts/verify.sh | awk '$1=="RESULT" && $3=="RED"'
 | V-22 | Cero `UPSERT INTO` / `db.transaction(` en `*.sql`/`*.ts`/`*.svelte` del monorepo | AGENTS §2.2 |
 | V-23 | Cero fork por vertical en componentes Svelte | ADR-ARCH-002 |
 | V-24 | Presupuesto de bundle del POS + zero-dependencia runtime vs `bundle_deps_baseline.json` | CAL-06 / §13.8 |
+| V-25 | Espejo up↔down de migraciones D1: cada `migrations/*.sql` tiene su par en `migrations-down/` y viceversa | Sprint 1 |
+| V-26 | Copy marketing sin jerga técnica (Edge/D1/ACID/sharding/CDR/UBL/PSE) en `apps/marketing-web` | GTM §1 / Sprint 10 |
+| V-27 | Copy del POS sin jerga técnica visible en `apps/pos-web` | Sprint F |
+| V-28 | Contrato POS↔API: todo path `/api/...` que los clientes del POS invocan debe estar registrado en `apps/worker-api/src/index.ts` | 0396 |
+| V-29 | Paridad de triggers de epoch: toda tabla del registry `D1_BACKUP_TABLES` con sus 3 triggers de `tenant_data_epochs` | 0396, 0052/0053 |
+| V-30 | Cero literales demo en el código fuente del POS: `apps/pos-web/src` (.ts/.svelte, sin tests ni `routes/dev/`) no asigna valores `demo` | F-6; refuerza V-27 |
+| V-31 | Contrato CI/CD del deploy a staging: existe `.github/workflows/deploy-staging.yml` disparado por `workflow_dispatch` manual, corre el gate documental como precondición y despliega los 5 targets en el orden §13.7 (workers → Pages) con artifact de evidencia | Proceso §5.2 Etapa 6, Arquitectura §13.7 |
 
 ## Notas de alcance
 

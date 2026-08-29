@@ -72,9 +72,13 @@ def build() -> str:
     caps, seen = [], set()
     for rel, ln, _, line in spec:
         m = CAPABILITY_ROW.match(line)
-        if m and m.group(1) not in seen and "." in m.group(1):
-            seen.add(m.group(1))
-            caps.append((m.group(1), m.group(2).strip(), m.group(3).strip(), rel, ln))
+        if m:
+            # Soporta celdas multi-cap con coma (ej. `catalog.variants, catalog.uom`)
+            caps_in_cell = re.findall(r"`([^`]+)`", line.split("|")[1] if "|" in line else line)
+            for cap in caps_in_cell:
+                if cap not in seen and "." in cap:
+                    seen.add(cap)
+                    caps.append((cap, m.group(2).strip(), m.group(3).strip(), rel, ln))
 
     rules = []
     for rel, _, _, line in spec:

@@ -67,6 +67,7 @@ Abre solo los archivos que esta tabla te señale.
 | `purchasing.three_way` | 28–32 | Control de proveedor / OC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 184 |
 | `pricing.promotions` | 28–32 | Promos y tramos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 185 |
 | `catalog.variants` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 186 |
+| `catalog.uom` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 186 |
 | `sales.layaway` | 28–32 | Apartados | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 187 |
 | `ledger.chart_of_accounts` | 28–32 | Diario contable (retail) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 188 |
 | `sales.quotes` | 33–37 | Cotizaciones/presupuestos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 194 |
@@ -85,8 +86,10 @@ Abre solo los archivos que esta tabla te señale.
 | `client.mobile_pos` | 43–45 | Caja móvil PWA sobre el POS único | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 217 |
 | `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 223 |
 | `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
+| `platform.dr` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
 | `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 225 |
 | `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
+| `sales.quick_line` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
 | `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 232 |
 | `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 233 |
 | `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 234 |
