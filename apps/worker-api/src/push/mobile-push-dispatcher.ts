@@ -156,6 +156,18 @@ export function pushDeliveryObservation(input: {
   if (input.normalSamples > 0 && input.p95Ms !== null && input.p95Ms >= 10_000) {
     reasons.push('P95_AT_OR_ABOVE_10S');
   }
+  // Baseline §3 guard anti-ruido: no alertar con menos de n=20 muestras NORMAL (ventana 24h)
+  // Sin volumen no hay SLO medible; el sistema permanece silencioso aunque el p95 o la tasa puntuales fallen.
+  if (input.normalSamples < 20) {
+    return {
+      alert: false,
+      reasons: [],
+      displayedRate,
+      p50Ms: input.p50Ms,
+      p95Ms: input.p95Ms,
+      excluded: { OFFLINE: input.offline, DOZE: input.doze },
+    };
+  }
   return {
     alert: reasons.length > 0,
     reasons,

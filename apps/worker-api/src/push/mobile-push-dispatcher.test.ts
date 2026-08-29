@@ -189,6 +189,17 @@ describe('Sprint 45 push dispatcher policy', () => {
     ).toMatchObject({ alert: false, reasons: [], displayedRate: 1 });
     expect(
       pushDeliveryObservation({
+        normalSamples: 20,
+        displayed: 20,
+        p50Ms: 500,
+        p95Ms: 10_000,
+        offline: 0,
+        doze: 0,
+      }),
+    ).toMatchObject({ alert: true, reasons: ['P95_AT_OR_ABOVE_10S'] });
+    // Guard n≥20 (§3 baseline): n=1 no alerta aunque el p95 supere 10s
+    expect(
+      pushDeliveryObservation({
         normalSamples: 1,
         displayed: 1,
         p50Ms: 500,
@@ -196,7 +207,7 @@ describe('Sprint 45 push dispatcher policy', () => {
         offline: 0,
         doze: 0,
       }),
-    ).toMatchObject({ alert: true, reasons: ['P95_AT_OR_ABOVE_10S'] });
+    ).toMatchObject({ alert: false, reasons: [] });
   });
 
   it('fans operational events only to the exact target user and branch', () => {
