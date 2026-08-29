@@ -2504,3 +2504,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0061
+timestamp_utc: 2026-08-29T08:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA I Deploy dry_run + S42/S41 + smoke (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: SRE (I1/I4) + Data/SRE (I2) + Hardware/POS/QA (I3)
+tipo: Correccion
+subtipo: deploy dry_run + auditoria S42/S41 + smoke
+relacion: CORRIGE
+referencias_entradas: [0059, 0060]
+referencias_documentales: [".github/workflows/deploy-staging.yml", "apps/worker-api/wrangler.jsonc", "docs/ops/staging-bootstrap.md", "docs/ops/pending-batches.yaml", "docs/ops/s42-data-backup-qg.md", "docs/ops/s41-price-labels-qg.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0060
+prev_hash: 735db2c90aa8c4cc4d4c0f43a496baf5d68d2463beb6b3f653f1b0a21c5bece2
+entry_hash: f2eff8ad777b6a3f86da8c85abc14044cf0a934b855e38b8d8d15fa6a4fecb9b
+ticket_or_adr: OLA-I-DRY-RUN-0001 — dry_run true gate 0-5 + S42/S41 audits + smoke (I1-I4)
+test_ids: [V-00, V-13 dual, V-31, SUITE, deploy-staging 33234175053]
+entregable_afectado: deploy staging dry_run gate 0-5 + S42 external + hardware lab + smoke + go-live-staging EN_CURSO
+descripcion: >
+  OLA I ejecutada a maximo grado staff: dry_run real + auditorias, sin deploy real con PSE/dominio.
+  I1 (SRE): gh workflow run deploy-staging dry_run true 33234175053 — gate success (Etapa 0 V-00..V-31 + 1 lint/typecheck 2 unit CAL-05 3 integration D1 4 audit 5 build/bundle POS 310) — deploy skipped (if !dry_run) — V-31 GREEN 7 crons 5 targets.
+  I2 (Data/SRE): S42 KPBK1 5 backups staging f23d7b8b (5 rows) verificados; gap P0 chaos Workflow R2 multipart + dry-run total_changes()=0 en D1 staging PENDIENTE A+V (requiere owner JWT step-up, AUTH_JWT_HS_SECRET solo en workers secrets).
+  I3 (Hardware): 58/80 + printOutbox + pairing UI codeados; gap P0 matriz física + P1 500 gama baja PENDIENTE lab (2 impresoras + 2 Android Go).
+  I4 (SRE/QA): smoke workers.dev/pages.dev 200 + CORS + D1 56/56 + VAPID v4 GREEN; artifact dry_run sin deploy real; S42 external + S41 matriz física bloquean go-live-staging CLOSED (Fase1 EN_CURSO, Fase2-4 BLOQUEADO).
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, dry_run 06:06 success (gate 6m07s).
+evidencia: >
+  RED: S42 chaos/dry-run externo PENDIENTE (5 backups staging, no chaos), S41 matriz física PENDIENTE, go-live-staging EN_CURSO, CLOUDFLARE_API_TOKEN OAuth previo expirado para deploy real (dry_run no lo requiere).
+  GREEN: V-31 GREEN + 7 crons + 5 targets orden + keep-vars + dry_run 33234175053 success (gate 6m07s, deploy skipped) + smoke 200/CORS/D1/VAPID + S42 code 111 tablas + hardware code 58/80 + flag-drift 5+4+66 + ledger dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: SRE/Data/Hardware/QA re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — dry_run sin secrets, S42/HW requieren A+V humano + token largo + lab físico"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
