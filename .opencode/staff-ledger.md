@@ -2339,3 +2339,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0056
+timestamp_utc: 2026-08-29T03:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA D Go-live (maximo grado staff) — auditorias + NO-GO honesto
+agente_responsable: Staff Principal (orquestacion) — R: Fiscal/Security (D1) + SRE/Security (D2) + Hardware/POS/QA (D3) + Owner/POS (D4)
+tipo: Correccion
+subtipo: auditoria go-live + preparacion sin compras externas
+relacion: CORRIGE
+referencias_entradas: [0055, 0012, 0017]
+referencias_documentales: ["docs/architecture/05-2-fiscal-pipeline.md", "docs/architecture/08-credit-notes-dlq.md", "docs/GTM.md §3", "docs/architecture/03-auth-plan-enforcement.md §3", "docs/architecture/10-printing-display.md", "apps/worker-api/wrangler.jsonc", "docs/ops/pending-batches.yaml", "docs/ops/go-live-staging-checklist.md", "AGENTS.md §2", "docs/PROCESS.md §8.1"]
+prev_id: 0055
+prev_hash: d531355f611d4856ae784d7830dd7195a9cbffbbbb824501bbf2eb91ebbf6665
+entry_hash: 22fa1eae0286856696656f9affffcd9de585483201e82537de0b10a118d1a153
+ticket_or_adr: OLA-D-GO-LIVE-0001 — auditorias D1-D4 + preparacion go-live (P0s externos pendientes)
+test_ids: [V-00, V-13 dual, V-18, V-31, SUITE]
+entregable_afectado: auditorias go-live SUNAT/PSE + dominio prod + hardware matriz + FCM nativo (preparacion, NO-GO honesto)
+descripcion: >
+  OLA D ejecutada a maximo grado staff: 4 auditorias solo-lectura + checklists R/A/V, sin compras externas ni PSE acreditado.
+  D1 (Fiscal/Security): PSE KipusPay default + TENANT_CERT XAdES Edge + FiscalTransport KIPUSPAY_PSE_DIRECT + breaker DO + MISCONFIGURED≠ACCEPTED 503 fail-closed verificados code + tests; gap P0 FISCAL_PSE_ENDPOINT_URL https acreditado (no .invalid) + cert plataforma PSE≠CDT Rosa Negra + migration TENANT_CERT_ENVELOPE→tenant_sol_credentials 0061 + NC/ND 07/08 CDR + T6 e-factura autorizado 2026-08-25.
+  D2 (SRE/Security): staging pages.dev 4 hosts sin wildcard Zero-Trust OK (0534), gap P0 compra kipuspay.com + zona CF + custom domains api/app + ALLOWED_* prod sin wildcard + 301 + Fase 4 stg-close-tracker.
+  D3 (Hardware/POS/QA): PrinterTransport cascade WebUSB→WSS→BT + pos_terminals 58/80 + printOutbox + templates 58/80 + pairing UI codeados; gap P0 matriz física 58/80 WebUSB+WSS con nonce/ACK + P1 500 ventas gama baja 1GB doze/storage.
+  D4 (Owner/POS): push Web Push SoT verificado 4.85s Zebra + inline tope 16 + kill-switch, FCM_HTTP_V1 nativo aplazado honesto (Web Push cubre OWNER_ALERTS).
+  Gate: SUITE GREEN 32/32, V-13 dual, V-18 195 docs, V-31 GREEN.
+evidencia: >
+  RED: go-live-sunat AGENDADO (PSE .invalid), go-live FCM/dominio/hardware AGENDADO, dominio kipuspay.com no comprado, hardware sin matriz física.
+  GREEN: informes D1-D3 con checklists R/A/V detallados (FL-0..FL-5, dm-domain-migrate 15 pasos, hardware 2×2 matriz + 500), code verificado, V-31 anti-deriva, ledger dual GREEN, NO-GO honesto hasta compras/A+V.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Fiscal/SRE/Hardware re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — countersignatura humana + compras externas para GO"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
