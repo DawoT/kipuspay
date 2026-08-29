@@ -273,10 +273,17 @@ y el navegador bloquea. La allowlist se lee de la variable `ALLOWED_ORIGINS`
 (comas; `*` explícito solo sin credenciales; con origen concreto se habilita
 `Access-Control-Allow-Credentials: true`).
 
-Orígenes de producción (override por env en el despliegue del worker):
-
+Orígenes de producción canónica `kipuspay.com` (override por env; **staging canónico `pages.dev` hasta compra de `kipuspay.com`** — ver `wrangler.jsonc` staging `ALLOWED_ORIGINS`):
+ 
 ```env
+# staging (actual pages.dev)
+ALLOWED_ORIGINS=https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-web.pages.dev,https://kipuspay-app.pages.dev,https://kipuspay-marketing-web-staging.pages.dev,https://*.pages.dev
+# prod (tras compra kipuspay.com) — quitar wildcard pages.dev, dejar solo canónicos
 ALLOWED_ORIGINS=https://kipuspay.com,https://app.kipuspay.com
+# platform (prod canónico admin.kipuspay.com; staging incluye pages.dev explícitos sin wildcard)
+ALLOWED_PLATFORM_ORIGINS=https://admin.kipuspay.com
+# staging platform (hasta compra dominio):
+ALLOWED_PLATFORM_ORIGINS=https://admin.kipuspay.com,https://kipuspay-app.pages.dev,https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-web.pages.dev
 ```
 
 Los preflight OPTIONS responden 204. Allow-Methods cubre `GET, POST, PUT,

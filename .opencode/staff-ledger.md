@@ -2204,3 +2204,37 @@ aprobaciones: ["A: Staff Principal (lente aprobador)", "V: suites + gate dual re
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0052
+timestamp_utc: 2026-08-28T23:55:00Z
+schema_version: 2
+sprint_fase: Correccion dominio staging pages.dev — espejo staff
+agente_responsable: Staff SRE + Staff Security — auditoria Staff Principal (A)
+tipo: Correccion
+subtipo: dominio y CORS staging
+relacion: CORRIGE
+referencias_entradas: [0051, 0049]
+referencias_documentales: ["apps/worker-api/wrangler.jsonc", "apps/worker-api/src/platform/platform-cors.test.ts", "docs/LEDGER.md:0534"]
+prev_id: 0051
+prev_hash: 312b5dbadc6c8e94bed4989e9e58505c6f04b9d75af036de9f1a800618f367af
+entry_hash: f59d5b568f3bd672eb0c14f6c30605113412dc8fe72efa3216d41621231de829
+ticket_or_adr: ADR-ARCH-003 dominio pages.dev staging — LEDGER 0534
+test_ids: [platform-cors.test.ts (10), SUITE, V-03, V-13 dual]
+entregable_afectado: staff ledger espejo de LEDGER 0534 — ALLOWED_PLATFORM_ORIGINS staging pages.dev explicitos sin wildcard
+descripcion: >
+  Espejo staff de LEDGER 0534. Dominio kipuspay.com pendiente: staging canonico
+  pages.dev (kipuspay-app/pages.dev, pos-web-staging, web). Ajusta
+  ALLOWED_PLATFORM_ORIGINS staging a 4 hosts explicitos, prod solo
+  admin.kipuspay.com tras compra. Test nuevo staging pages.dev SÍ + evil NO.
+  Auditoria calidad por ola re-ejecutada con dominio real (pages.dev) — sin relajar
+  Zero-Trust (nunca *.pages.dev wildcard) y preservando fail-closed.
+evidencia: >
+  RED: staging platform sin ACAO desde pages.dev (fail-closed bloqueaba).
+  GREEN: wrangler staging 4 hosts explicitos, platform-cors 10/10,
+  verify 31/31 SUITE GREEN, V-13 dual GREEN, ADR/runbook/architecture actualizados.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (lente aprobador)", "V: suites + gate dual re-ejecutados", "Caveat: mismo sistema"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

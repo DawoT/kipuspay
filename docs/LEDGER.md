@@ -15612,3 +15612,44 @@ aprobaciones: [Staff Security, Staff SRE, Staff Backend ACID, Staff Principal (A
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0534
+timestamp_utc: 2026-08-28T23:55:00Z
+schema_version: 2
+sprint_fase: Correccion — dominio kipuspay.com pendiente (pages.dev canonico staging)
+agente_responsable: Staff SRE + Staff Security + Staff Principal
+tipo: Correccion de especificacion
+subtipo: dominio y CORS staging
+relacion: CORRIGE
+referencias_entradas: [0533, 0525]
+referencias_documentales: [apps/worker-api/wrangler.jsonc, apps/worker-api/src/auth/public-cors.ts, apps/worker-api/src/index.ts, apps/worker-api/src/platform/platform-cors.test.ts, docs/adr/ADR-ARCH-003-tenant-capabilities-dynamic.md, docs/architecture/03-auth-plan-enforcement.md, docs/runbooks/capabilities-dynamic-kill-switch.md]
+prev_id: 0533
+prev_hash: b32ac0c77cc74407e3c37d246141c208969c0b150c9b7c74427f47ef0b56911d
+entry_hash: 982beb455d742a29f5a470887835387616ac4435ac7a7bbe33b1988c3d569086
+ticket_or_adr: ADR-ARCH-003 — dominio kipuspay.com no comprado, staging pages.dev explicito sin wildcard
+test_ids: [platform-cors.test.ts (10 tests: evil.pages.dev sin ACAO, admin.kipuspay.com con ACAO, staging pages.dev explicito con ACAO + wildcard bloqueado), SUITE, V-03, V-13]
+entregable_afectado: wrangler.jsonc ALLOWED_PLATFORM_ORIGINS staging (hosts pages.dev explicitos) + public-cors allowlist explicita + docs ADR/runbook/architecture dominio
+descripcion: >
+  Clarifica deuda de dominio: kipuspay.com aun no comprado, staging canonico es
+  pages.dev (kipuspay-app.pages.dev, kipuspay-pos-web-staging.pages.dev,
+  kipuspay-web.pages.dev). Ajusta ALLOWED_PLATFORM_ORIGINS staging a lista
+  explicita "admin.kipuspay.com,kipuspay-app.pages.dev,kipuspay-pos-web-staging.pages.dev,
+  kipuspay-web.pages.dev" sin wildcard https://*.pages.dev (Zero-Trust: wildcard
+  pages.dev permitiria a cualquier atacante con pages.dev). Prod canonico
+  https://admin.kipuspay.com solo tras compra; runbook y ADR documentan
+  migracion (remover pages.dev). Sin relajar ACID/SUNAT/Zero-Trust: fail-closed
+  si vacio, timingSafeEqual intacto, JWK intacto. Actualiza arquitectura
+  03-auth-plan-enforcement CORS y runbook kill-switch con tabla dominio.
+evidencia: >
+  RED: wrangler staging ALLOWED_PLATFORM_ORIGINS solo admin.kipuspay.com → plataforma
+  desde pages.dev staging sin ACAO (bloqueo deterministico), docs decian
+  admin.kipuspay.com sin nota staging. GREEN: wrangler staging con 4 hosts
+  explicitos pages.dev + admin.kipuspay.com sin wildcard, platform-cors
+  10/10 (nuevo test staging pages.dev explicito SÍ + evil wildcard NO),
+  verify SUITE GREEN 31/31, quality platform-cors 10/10, V-03/V-13 GREEN.
+ancestry_verified: true
+aprobaciones: [Staff SRE, Staff Security, Staff Principal]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

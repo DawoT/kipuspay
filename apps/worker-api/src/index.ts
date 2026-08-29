@@ -486,8 +486,10 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     await next();
   };
 
-  // HIGH-02 — CORS Zero-Trust plataforma: solo admin.kipuspay.com (y *.kipuspay.com si se configura),
-  // nunca *.pages.dev. ALLOWED_PLATFORM_ORIGINS separado, fail-closed si vacío.
+  // HIGH-02 — CORS Zero-Trust plataforma: prod canónico https://admin.kipuspay.com (sin wildcard).
+  // Staging aún en pages.dev (kipuspay.com pendiente) — ALLOWED_PLATFORM_ORIGINS incluye
+  // https://kipuspay-app.pages.dev + staging hosts explícitos (sin https://*.pages.dev wildcard).
+  // Al comprar dominio, remover pages.dev y dejar solo admin.kipuspay.com. Fail-closed si vacío.
   const platformCorsMiddleware = async (
     c: Context<{ Bindings: WorkerEnv }>,
     next: () => Promise<void>,
@@ -556,7 +558,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   // /platform/* en worker-api con middleware platformAuth aislado (nunca role=owner).
   // Diseñado para migrar a worker-admin (Opción A) cuando exista apps/worker-admin.
   // Evidencia: `ls apps/worker-admin` → no existe (fallback B con separación clara).
-  // HIGH-02: platform usa CORS aislado (ALLOWED_PLATFORM_ORIGINS = admin.kipuspay.com only, nunca *.pages.dev)
+  // HIGH-02: platform usa CORS aislado (prod admin.kipuspay.com + staging pages.dev explícitos, nunca *.pages.dev wildcard)
   app.use('/platform/*', platformCorsMiddleware);
   app.use('/platform/*', createPlatformAuthMiddlewareHono());
 

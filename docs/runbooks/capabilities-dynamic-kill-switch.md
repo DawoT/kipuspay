@@ -13,6 +13,7 @@ owner: "@DawoT"
 | Owner on-call | Staff SRE + Staff Security |
 | Ultima ensayada | 2026-08-28 (staging) |
 | Relaciona | Arquitectura §1.1 (ADR-ARCH-002/003) · Arquitectura §12 · Proceso §9.1 (SLO) · ADR-ARCH-003 · Ledger 0525-0530 |
+| Dominio | Staging `pages.dev` (`kipuspay-app.pages.dev`); prod `kipuspay.com` pendiente de compra — `ALLOWED_PLATFORM_ORIGINS` staging incluye `pages.dev` explícitos sin wildcard `*.pages.dev`, prod solo `admin.kipuspay.com` tras compra |
 
 ## Sintomas
 

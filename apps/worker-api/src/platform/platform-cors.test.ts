@@ -273,4 +273,35 @@ describe('HIGH-02 — CORS Zero-Trust plataforma (admin.kipuspay.com only, sin *
     // Fail-closed: aunque ALLOWED_ORIGINS tenga admin, platform sin config no debe dar ACAO
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
+
+  it('staging pages.dev explícito SÍ recibe ACAO en /platform/* cuando está en ALLOWED_PLATFORM_ORIGINS (kipuspay.com pendiente)', () => {
+    // Staging aún usa pages.dev (kipuspay.com no comprado) — hosts explícitos sin wildcard *.pages.dev
+    const env = {
+      ALLOWED_ORIGINS: 'https://*.pages.dev',
+      ALLOWED_PLATFORM_ORIGINS:
+        'https://admin.kipuspay.com,https://kipuspay-app.pages.dev,https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-web.pages.dev',
+    };
+    // Host staging explícito debe pasar
+    const staging = corsHeadersFor(
+      env as unknown as { ALLOWED_ORIGINS?: string },
+      'https://kipuspay-app.pages.dev',
+      '/platform/tenants',
+    );
+    expect(staging['Access-Control-Allow-Origin']).toBe('https://kipuspay-app.pages.dev');
+    expect(staging['Access-Control-Allow-Headers']).toContain('x-platform-staff-token');
+    // Wildcard pages.dev atacante NO debe pasar aunque sea pages.dev
+    const evil = corsHeadersFor(
+      env as unknown as { ALLOWED_ORIGINS?: string },
+      'https://evil.pages.dev',
+      '/platform/tenants',
+    );
+    expect(evil['Access-Control-Allow-Origin']).toBeUndefined();
+    // Prod canónico sigue pasando
+    const prod = corsHeadersFor(
+      env as unknown as { ALLOWED_ORIGINS?: string },
+      'https://admin.kipuspay.com',
+      '/platform/tenants',
+    );
+    expect(prod['Access-Control-Allow-Origin']).toBe('https://admin.kipuspay.com');
+  });
 });
