@@ -2734,3 +2734,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0068
+timestamp_utc: 2026-08-29T15:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA P S42 chaos/KMS + hardware lab (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: Data/SRE (P1) + Security (P2) + Hardware (P3) + SRE/QA (P4)
+tipo: Correccion
+subtipo: auditoria S42 chaos/KMS + hardware lab
+relacion: CORRIGE
+referencias_entradas: [0066, 0067]
+referencias_documentales: ["docs/architecture/05-9-data-backup.md", "packages/adapters-d1/src/data-backup.ts", "apps/worker-kms/src/kms-core.ts", "docs/architecture/10-printing-display.md", "docs/ops/go-live-hardware-M4-lab-report.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0067
+prev_hash: be6579e12a6c233874dd214a62cf4ce6f7cdc49386569abcdf5e7254727760ff
+entry_hash: f59f39d9d77d1b57c3a3c93a7081ad0cb4cf855777f8812c7a2a2dd6b97dfc76
+ticket_or_adr: OLA-P-S42-HW-0001 — S42 chaos R2/Workflow + KMS + hardware 58/80 + 500 gama baja
+test_ids: [V-00, V-11, V-13 dual, V-25, SUITE]
+entregable_afectado: auditorias S42 chaos R2/Workflow + KMS + hardware lab 58/80 + Android 500
+descripcion: >
+  OLA P ejecutada a maximo grado staff: 4 auditorias solo-lectura, S42/HW NO-GO honesto.
+  P1 (Data/SRE): R2 4MiB + nonce/tag/AAD + hash/ETag + Workflow 4 steps codeados; gap P0 R2 timeout/partial/resume/quota/ETag + Workflow crash external sin evidencia R2/Workflow real.
+  P2 (Security): KMS v1→v2 wrap/unwrap + kek_version + tamper AEAD codeados; gap P0 BACKUP_KEK_ACTIVE_VERSION v1→v2 flip PENDIENTE (v2 en store, v1 en repo) + rewrap v1→v2 ya verificado v2 + manifest hash parity.
+  P3 (Hardware): 58/80 + printOutbox + pairing UI + cascade WebUSB→WSS→BT codeados; gap P0 matriz física 58/80 + pairing UI lab + P1 500 gama baja doze/storage.
+  P4 (Hardware/QA): Android 500 emulado 500/0 pérdida, gap P1 device real 1GB Go + FCM G1 dependiente.
+  Gate: SUITE GREEN 32/32, V-00 58, V-11, V-13 dual, V-25, S42/HW code GREEN, external NO-GO.
+evidencia: >
+  RED: S42 external PENDIENTE (R2/Workflow/KMS chaos sin evidencia staging real, KEK v1→v2 flip pendiente), S41/HW matriz física PENDIENTE (4 tickets sin fotos), go-live-staging EN_CURSO, hardware NO-GO.
+  GREEN: informes P1/P2 con 2 P0 bloqueantes + checklists R/A/V (Data/SRE → Principal → Security/QA) + S42 code 111 tablas/kek v2 flip + hardware code 58/80 + dry_run PASSED ae5ed28d + ledger dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Data/SRE/Security/Hardware/QA re-ejecutados + V-00/V-11/V-13/V-25 GREEN", "Caveat: mismo sistema — S42 chaos/HW lab físico aún PENDIENTE A+V + BACKUP_KEK_ACTIVE_VERSION v2 flip + 2 impresoras + 2 Android Go"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
