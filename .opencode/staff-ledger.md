@@ -2602,3 +2602,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0064
+timestamp_utc: 2026-08-29T11:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA L S42 chaos + KMS + hardware lab (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: Data/SRE (L1) + Security (L2) + Hardware/POS/QA (L3/L4)
+tipo: Correccion
+subtipo: auditoria S42 chaos/KMS + hardware lab
+relacion: CORRIGE
+referencias_entradas: [0062, 0063]
+referencias_documentales: ["docs/architecture/05-9-data-backup.md", "packages/adapters-d1/src/data-backup.ts", "packages/domain-integrations/src/data-backup-contract.ts", "apps/worker-kms/src/kms-core.ts", "docs/architecture/10-printing-display.md", "apps/pos-web/src/lib/print/printer-transport.ts", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0063
+prev_hash: 6609b0dd52c60adb523f54bed7b832d52bc3c16489fcb5fbd693ccf5cef8ac40
+entry_hash: c7d7dcf435adb810ce13105d3f71287de95e61a7c5cab6a88a2284974498b318
+ticket_or_adr: OLA-L-S42-HW-0001 — S42 chaos R2/Workflow + KMS + hardware 58/80 + 500 gama baja
+test_ids: [V-00, V-13 dual, V-31, SUITE]
+entregable_afectado: auditorias S42 chaos R2/Workflow + KMS + hardware lab 58/80 + Android 500
+descripcion: >
+  OLA L ejecutada a maximo grado staff: 4 auditorias solo-lectura, S42/HW NO-GO honesto.
+  L1 (Data/SRE): R2 multipart 4MiB + nonce 12B/tag 16B/AAD + ciphertext_hash/global_hash + ETag resume + Workflow 4 steps reserve/export/manifest/ready crash/replay idempotente codeados; gap P0 R2 timeout/partial/resume/quota/ETag race + Workflow crash reserve/export/manifest/ready external sin evidencia R2/Workflow real.
+  L2 (Security): KMS v1/v2 wrap/unwrap versionado + kek_version + tamper chunk/manifest AEAD codeados; gap P0 rewrap v1→v2 sin endpoint/persistencia + fail-closed 422 vs 503 degradado en dry-run + manifest ciphertext_hash no verificado.
+  L3 (Hardware): 58/80 + printOutbox + pairing UI + cascade WebUSB→WSS→BT codeados; gap P0 matriz física 58/80 WebUSB/WSS + pairing UI lab + P1 500 gama baja doze/storage.
+  L4 (Hardware/QA): Android 500 emulado chaos 500/0 pérdida, gap P1 device real 1GB Go + FCM G1 dependiente.
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, S42/HW code GREEN, external NO-GO.
+evidencia: >
+  RED: S42 external PENDIENTE (R2/Workflow/KMS chaos sin evidencia staging real), S41/HW matriz física PENDIENTE (4 tickets sin fotos), go-live-staging EN_CURSO, hardware NO-GO.
+  GREEN: informes L1/L2 con 2 P0 bloqueantes + checklists R/A/V (Data/SRE → Principal → Security/QA) + S42 code 111 tablas/kek v1 + hardware code 58/80 + flag-drift 5+4+66 + dry_run PASSED ae5ed28d + ledger dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Data/SRE/Security/Hardware/QA re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — S42 chaos/HW lab físico aún PENDIENTE A+V + 2 impresoras + 2 Android Go"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
