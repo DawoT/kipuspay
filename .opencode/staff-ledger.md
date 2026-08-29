@@ -2701,3 +2701,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0067
+timestamp_utc: 2026-08-29T14:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA O S42 rewrap flip v2 + 503 + manifest + hardware (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: Security/Data (O1) + Security (O2/O3) + Hardware (O4)
+tipo: Correccion
+subtipo: S42 rewrap flip + fail-closed + manifest + hardware lab
+relacion: CORRIGE
+referencias_entradas: [0065, 0066]
+referencias_documentales: ["apps/worker-kms/wrangler.jsonc", "apps/worker-api/src/backup/backup-routes.ts", "apps/worker-api/src/backup/backup-workflow-phases.ts", "packages/adapters-d1/migrations/0065_backup_manifest_ciphertext_hash.sql", "docs/ops/go-live-hardware-M4-lab-report.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0066
+prev_hash: d91c06264dc606ef819f352fff8955ed48000ce6eef0189332021c14ba573d71
+entry_hash: be6579e12a6c233874dd214a62cf4ce6f7cdc49386569abcdf5e7254727760ff
+ticket_or_adr: OLA-O-FLIP-V2-0001 — BACKUP_KEK_ACTIVE_VERSION v2 + rewrap + 503 + manifest (staging f23d7b8b)
+test_ids: [V-00, V-13 dual, V-25, SUITE, rewrap ae5ed28d v1→v2]
+entregable_afectado: S42 rewrap flip v2 + 503 fail-closed + manifest hash + hardware lab 58/80 + 500 gama baja
+descripcion: >
+  OLA O ejecutada a maximo grado staff: S42 rewrap flip + fail-closed + hardware lab.
+  O1 (Security/Data): flip BACKUP_KEK_ACTIVE_VERSION v1→v2 en worker-kms staging (wrangler deploy 29.95 KiB, Version a35cadfa) + mint phase0 JWT + POST /api/backups ae5ed28d rewrap v1→v2 → {rewrapped:true kekVersion:v2 prevKekVersion:v1} + D1 SELECT kek_version=v2 (1 row) + ciphertext_hash idénticos (no re-cifrado).
+  O2 (Security): 503 fail-closed KMS down externo codeado (runRestoreDryRunHttp 503 vs 422, errorRef UUID opaco) — unit tests 2/2 (503 vs 422, no leak) — external 503 con KMS down PENDIENTE chaos real (binding caído).
+  O3 (Security): manifest ciphertext_hash parity DDL 0065 + trigger length 64 + R2 customMetadata + validator readSealed constant-time + Workflow persist — 2 tests GREEN.
+  O4 (Hardware): lab report fence text V-11 + V-08/V-12 GREEN — hardware NO-GO honesto (2 impresoras + 2 Android Go PENDIENTE).
+  Gate: SUITE GREEN 32/32 (V-00 58, V-11, V-13 dual, V-25), quality 27/27, deploy worker-kms v2 + worker-api v2.
+evidencia: >
+  RED: BACKUP_KEK_ACTIVE_VERSION v1 en repo/staging, rewrap no-op (alreadyActive), S42 rewrap PENDIENTE, dry-run 422 vs 503, manifest sin hash, hardware NO-GO.
+  GREEN: flip v1→v2 deploy + rewrap v1→v2 success (1 row v2, audit BACKUP_REWRAPPED, hash idénticos) + DDL 0065 + 503 code 2 tests + manifest 2 tests + lab report 227 líneas + verify 32 GREEN + V-00 58 + ledger dual GREEN + V-25 mirror.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Security/Data/Hardware re-ejecutados + V-00/V-11/V-13/V-25 GREEN", "Caveat: mismo sistema — S42 chaos/HW lab físico aún PENDIENTE A+V + 2 impresoras + 2 Android Go"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

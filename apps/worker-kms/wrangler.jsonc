@@ -74,7 +74,7 @@
     "staging": {
       "name": "kipuspay-worker-kms-staging",
       "vars": {
-        "BACKUP_KEK_ACTIVE_VERSION": "v1",
+        "BACKUP_KEK_ACTIVE_VERSION": "v2",
         "PUSH_KEK_ACTIVE_VERSION": "push-kms-v3",
         "PUSH_REVOKED_KEY_VERSIONS": "",
         "PUSH_VAPID_PRIVATE_KEY_REF": "secret-ref-vapid-v3",
