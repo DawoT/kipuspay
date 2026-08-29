@@ -2635,3 +2635,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0065
+timestamp_utc: 2026-08-29T12:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA M S42 rewrap + 503 + manifest hash + M4 lab report (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: Security/Data (M1) + Security (M2/M3) + Hardware (M4)
+tipo: Correccion
+subtipo: S42 rewrap + fail-closed + manifest + lab report
+relacion: CORRIGE
+referencias_entradas: [0064, 0063]
+referencias_documentales: ["apps/worker-api/src/backup/backup-routes.ts", "apps/worker-api/src/backup/backup-workflow-phases.ts", "apps/worker-api/src/backup/backup-restore-validator.test.ts", "packages/adapters-d1/migrations/0065_backup_manifest_ciphertext_hash.sql", "docs/ops/go-live-hardware-M4-lab-report.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0064
+prev_hash: c7d7dcf435adb810ce13105d3f71287de95e61a7c5cab6a88a2284974498b318
+entry_hash: 125c17041b6494cd9c3fbc2b632a02944c5325c5cffaefa84388298ef110e373
+ticket_or_adr: OLA-M-S42-0001 — rewrap v1→v2 + 503 + manifest hash + M4 fence fix
+test_ids: [backup-rewrap.test.ts, backup-restore.test.ts, backup-restore-validator.test.ts, V-00, V-11, V-13 dual, V-25, SUITE]
+entregable_afectado: S42 rewrap endpoint + fail-closed 503 + manifest hash DDL 0065 + M4 lab report fence
+descripcion: >
+  OLA M ejecutada a maximo grado staff: 3 fixes P0 S42 + lab report.
+  M1 (Security/Data): POST /api/backups/:id/rewrap v1→v2 sin re-cifrar (unwrap old→wrap active, UPDATE batched + audit BACKUP_REWRAPPED, step-up BACKUP_REWRAP 90s, DDL 0065 mirror, 2 tests RED→GREEN).
+  M2 (Security): fix 422 vs 503 BACKUP_KMS_UNAVAILABLE fail-closed en dry-run (bypass safeRestoreValidationError, 503 opaco UUID, alineado con download, 2 tests).
+  M3 (Security): manifest ciphertext_hash parity — DDL 0065 + trigger length 64 + workflow persist R2 customMetadata + validator readSealed + Workflow (2 tests).
+  M4 (Hardware): lab report fence text (V-11) + V-08/V-12 GREEN (alias —, 198 docs, 127 headings).
+  Gate: SUITE GREEN 32/32 (V-00 58, V-08, V-11, V-13 dual, V-25 mirror, V-15), quality 27/27, bundle 309.28/310.
+evidencia: >
+  RED: M4 fence sin lenguaje V-11 RED, M1-3 sin endpoint/wireing (P0 L2), S42 rewrap no operable, dry-run 422 vs 503.
+  GREEN: 3 fixes P0 2+2+2 tests GREEN + DDL 0065 + R2 manifest hash + workflow + lab report 227 líneas + verify 32 GREEN + V-00 58 + ledger dual GREEN + V-25 mirror + V-08/V-11/V-12 GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Security/Data/Hardware re-ejecutados + V-00/V-08/V-11/V-13/V-25 GREEN", "Caveat: mismo sistema — S42 external + HW lab físico aún PENDIENTE A+V + 2 impresoras + 2 Android Go"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
