@@ -25,12 +25,14 @@ const {
   runForecastScheduled,
   runFiscalCronHttp,
   runCertExpiryScheduled,
+  runPushSloObserver,
 } = vi.hoisted(() => ({
   runDailyRollupsCronHttp: vi.fn(),
   runRecurringSalesScheduled: vi.fn(),
   runForecastScheduled: vi.fn(),
   runFiscalCronHttp: vi.fn(),
   runCertExpiryScheduled: vi.fn(),
+  runPushSloObserver: vi.fn(async () => ({ alert: false, reasons: [] })),
 }));
 
 vi.mock('./reports/report-routes.js', () => ({
@@ -52,6 +54,9 @@ vi.mock('./fiscal/fiscal-rc-routes.js', () => ({
 vi.mock('./fiscal/cert-expiry-scheduled.js', () => ({
   runCertExpiryScheduled,
 }));
+vi.mock('./push/push-slo-observer.js', () => ({
+  runPushSloObserver,
+}));
 
 import type { WorkerEnv } from './auth/control-plane.js';
 import worker from './worker.js';
@@ -61,6 +66,7 @@ const RECURRING_CRON = '*/5 * * * *';
 const FORECAST_CRON = '30 8 * * *';
 const FISCAL_DEADLINES_CRON = '0 */6 * * *';
 const FISCAL_RC_CRON = '0 13 * * *';
+const PUSH_SLO_CRON = '*/15 * * * *';
 const scheduledTime = Date.parse('2026-08-09T08:00:00.000Z');
 
 function event(cron: string): ScheduledEvent {
@@ -96,9 +102,9 @@ describe('Worker scheduled dispatch', () => {
     });
   });
 
-  it('preserves all six configured cron triggers', () => {
+  it('preserves all seven configured cron triggers', () => {
     expect(wranglerConfig).toMatch(
-      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*,\s*"0 \*\/6 \* \* \*"\s*,\s*"0 13 \* \* \*"\s*\]/,
+      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*,\s*"0 \*\/6 \* \* \*"\s*,\s*"0 13 \* \* \*"\s*,\s*"\*\/15 \* \* \* \*"\s*\]/,
     );
   });
 
@@ -225,6 +231,27 @@ describe('Worker scheduled dispatch', () => {
         cron: '1 2 3 4 5',
         scheduledTime,
       }),
+    );
+    warning.mockRestore();
+  });
+
+  it('routes the push SLO observer cron every 15m best-effort', async () => {
+    await worker.scheduled(event(PUSH_SLO_CRON), env(), {} as ExecutionContext);
+    expect(runPushSloObserver).toHaveBeenCalledOnce();
+    expect(runPushSloObserver).toHaveBeenCalledWith(expect.anything(), {
+      nowMs: scheduledTime,
+      windowHours: 24,
+    });
+    expect(runDailyRollupsCronHttp).not.toHaveBeenCalled();
+    expect(runRecurringSalesScheduled).not.toHaveBeenCalled();
+  });
+
+  it('push SLO observer cron is best-effort (no throw on failure)', async () => {
+    runPushSloObserver.mockRejectedValueOnce(new Error('D1_DOWN'));
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(worker.scheduled(event(PUSH_SLO_CRON), env(), {} as ExecutionContext)).resolves.toBeUndefined();
+    expect(warning).toHaveBeenCalledWith(
+      JSON.stringify({ event: 'push_slo_observer_failed', reason: 'OBSERVER_UNAVAILABLE' }),
     );
     warning.mockRestore();
   });

@@ -2405,3 +2405,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0058
+timestamp_utc: 2026-08-29T05:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA F Volumen + Observer + Dashboard (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: QA (F1) + SRE (F2/F3) + Analytics (F2) + SRE (F4)
+tipo: Correccion
+subtipo: implementacion TDD + observabilidad pre-prod
+relacion: CORRIGE
+referencias_entradas: [0056, 0057]
+referencias_documentales: ["apps/worker-api/src/push/push-slo-volume.test.ts", "apps/worker-api/src/push/mobile-push-dispatcher.ts", "apps/worker-api/src/push/push-slo-observer.ts", "apps/worker-api/src/worker.ts", "apps/worker-api/wrangler.jsonc", "docs/ops/dashboards/p95-breaker-dashboard.md", "docs/runbooks/push-kill-switch.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0057
+prev_hash: f4ee0b005db42f073fe8ff9e8c76212be1fbbcff9d2a7bb66ac89e89a3349a63
+entry_hash: c872794f058537f7b511334dc49df29d2add1585ce46322fd68e5eb0ba385fbf
+ticket_or_adr: OLA-F-VOLUMEN-OBSERVER-0001 — TDD n≥20 + observer 15m + dashboard P95 (E1-E4)
+test_ids: [push-slo-volume.test.ts, push-slo-observer.test.ts, V-00, V-13 dual, V-31, SUITE]
+entregable_afectado: volumen SLO n≥20 inline 16+4 + observer cron 15m + dashboard P95/breaker + runbook kill-switch
+descripcion: >
+  OLA F ejecutada a maximo grado staff: TDD RED→GREEN real + observabilidad pre-prod.
+  F1 (QA): push-slo-volume.test.ts RED 30ea13f (guard n=1 debe fallar) → GREEN b04bcf4/fa47d53 (20 NORMAL ttl 600s, 16+4 inline, M3 20/20 ≥99% + M4/M5 p95<10s, cron toma resto 4, D1 workerd real, tenant_push_volume).
+  F2 (SRE/Analytics): writers ANALYTICS_ENGINE hot path P95 50ms + SSE 2s + breaker DO taxonomía 5xx/4xx diseñados (best-effort try/catch, no bloquea venta) — code en rama, pendiente merge main (documentado).
+  F3 (SRE): push-slo-observer.ts pura evaluatePushSloSnapshot + runPushSloObserver 24h idx_push_deliveries_slo + guard n≥20 + worker.ts PUSH_SLO_CRON */15 + wrangler 7 crons + worker-scheduled.test 7/7.
+  F4 (SRE): dashboards 6 panels AE SQL (hot path 50ms, volumen, SSE 2s, breaker state, taxonomía, burn) + 4 alertas WO + runbook push-kill-switch 228 líneas (inline→0 + VAPID v4→v3).
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, feature-flags 6/6, volume 2/2 + observer 7/7.
+evidencia: >
+  RED: n≥20 sin test (gate c8-fcm no medible), observer sin wiring, dashboard pre-prod inexistente.
+  GREEN: volume 2/2 workerd D1 real + observer 7/7 + worker 7 crons + dashboard 464 líneas + runbook 228 + verify 32 GREEN + V-00 58 + ledger dual GREEN; writers F2 diseñados y testeados en rama (hot path/SSE/breaker 3+3+2 tests) pendiente commit main.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: QA/SRE/Analytics re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — writers F2 en rama, countersignatura humana para prod"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

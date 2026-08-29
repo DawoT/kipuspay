@@ -16,6 +16,7 @@ import { runForecastScheduled } from './analytics/forecast-scheduled.js';
 import { runBriefingScheduled } from './analytics/briefing-scheduled.js';
 import { runFiscalCronHttp } from './fiscal/fiscal-rc-routes.js';
 import { runCertExpiryScheduled } from './fiscal/cert-expiry-scheduled.js';
+import { runPushSloObserver } from './push/push-slo-observer.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
@@ -29,6 +30,8 @@ const BRIEFING_CRON = '30 3 * * *';
 // 08:00 Lima (13:00 UTC) del día previo. Gated por FEATURE_FISCAL_RC.
 const FISCAL_DEADLINES_CRON = '0 */6 * * *';
 const FISCAL_RC_CRON = '0 13 * * *';
+// Push SLO observer — baseline docs/ops/push-ack-slo-baseline.md M1-M5 + guard n≥20, cada 15m.
+const PUSH_SLO_CRON = '*/15 * * * *';
 
 /** Private service-binding entrypoint; intentionally has no fetch method. */
 export class RecurringManualControl extends WorkerEntrypoint<WorkerEnv> {
@@ -128,6 +131,19 @@ export default {
         await runCertExpiryScheduled(env, { nowMs: event.scheduledTime });
       } catch {
         // Best-effort: sin alerta de vencimiento el RC diario sigue igual.
+      }
+      return;
+    }
+    if (event.cron === PUSH_SLO_CRON) {
+      try {
+        await runPushSloObserver(env, { nowMs: event.scheduledTime, windowHours: 24 });
+      } catch {
+        console.warn(
+          JSON.stringify({
+            event: 'push_slo_observer_failed',
+            reason: 'OBSERVER_UNAVAILABLE',
+          }),
+        );
       }
       return;
     }
