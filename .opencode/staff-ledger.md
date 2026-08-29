@@ -2471,3 +2471,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0060
+timestamp_utc: 2026-08-29T07:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA H Deploy staging + S42/S41 + go-live-staging (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: SRE (H1/H4) + Data/SRE (H2) + Hardware/POS/QA (H3)
+tipo: Correccion
+subtipo: auditoria deploy staging + S42/S41 + smoke
+relacion: CORRIGE
+referencias_entradas: [0058, 0059]
+referencias_documentales: [".github/workflows/deploy-staging.yml", "apps/worker-api/wrangler.jsonc", "docs/ops/staging-bootstrap.md", "docs/ops/flag-drift-audit-staging.md", "docs/ops/pending-batches.yaml", "docs/ops/go-live-staging-checklist.md", "docs/ops/s42-data-backup-qg.md", "docs/ops/s41-price-labels-qg.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0059
+prev_hash: b916a276491d9ae5f7b10a5d01564a64b3b118394d68205fedbf5efeff67cfa8
+entry_hash: 735db2c90aa8c4cc4d4c0f43a496baf5d68d2463beb6b3f653f1b0a21c5bece2
+ticket_or_adr: OLA-H-DEPLOY-STAGING-0001 — V-31 7 crons 5 targets dry_run + S42/S41 + smoke (H1-H4)
+test_ids: [V-00, V-13 dual, V-31, SUITE]
+entregable_afectado: deploy staging V-31 7 crons 5 targets dry_run + S42 chaos/dry-run + hardware lab + smoke + go-live-staging checklist
+descripcion: >
+  OLA H ejecutada a maximo grado staff: 4 auditorias solo-lectura, deploy listo para dry_run, go-live-staging EN_CURSO honesto.
+  H1 (SRE): V-31 GREEN — workflow_dispatch manual + gate V-00..V-31 precondición + 5 targets orden §13.7 kms→api→fiscal→pos-web→marketing-web + --keep-vars anti-deriva + artifact deploy-staging-evidence + 7 crons 0 8/30 8/*/5/30 3/0 */6/0 13/*/15 + datasets kipuspay_analytics(_staging).
+  H2 (Data/SRE): S42 KPBK1 111 tablas kek v1 codeado, gap P0 chaos Workflow R2 multipart + dry-run total_changes()=0 en D1 staging f23d7b8b PENDIENTE A+V (software GREEN, external NO-GO).
+  H3 (Hardware/POS/QA): PrinterTransport 58/80 + printOutbox + pairing UI codeados, gap P0 matriz física 58/80 WebUSB/WSS + P1 500 gama baja 1GB doze/storage PENDIENTE lab físico.
+  H4 (SRE/QA): smoke workers.dev/pages.dev 200 + CORS + D1 56/56 + VAPID v4 + bindings GREEN; artifact listo para dry_run; S42 external + S41 matriz física bloquean go-live-staging CLOSED (Fase 1 EN_CURSO, Fase 2-4 BLOQUEADO).
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, flag-drift 5+4+66, CLOUDFLARE_API_TOKEN OAuth expirado → dry_run true sin secrets, deploy real requiere API Token largo.
+evidencia: >
+  RED: S42 chaos/dry-run externo PENDIENTE, S41 matriz física PENDIENTE, go-live-staging EN_CURSO, CLOUDFLARE_API_TOKEN OAuth expirado para deploy real.
+  GREEN: V-31 GREEN + 7 crons + 5 targets orden + keep-vars + artifact + smoke 200/CORS/D1/VAPID + flag-drift 5+4+66 + dry_run listo (gate 0-5 sin secrets) + checklists R/A/V para CLOSED (SRE/Data/Hardware → Principal → Security/QA).
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: SRE/Data/Hardware/QA re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — dry_run sin secrets, deploy real + lab físico requieren A+V humano + token largo"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
