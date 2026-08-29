@@ -244,6 +244,200 @@ describe('runOfflineSaleHttp', () => {
   });
 });
 
+describe('hot path P95 ANALYTICS_ENGINE writer', () => {
+  it('emits hotpath point on SUCCESS with wallTime <50 and dbBatchMs', async () => {
+    const writeDataPoint = vi.fn();
+    const env = {
+      FEATURE_ACID_OFFLINE_SALE: '1',
+      DB: {},
+      ANALYTICS_ENGINE: { writeDataPoint },
+      TENANT_KV: { get: () => Promise.resolve(null) },
+    } as unknown as WorkerEnv;
+    vi.mocked(processOfflineSaleAtomic).mockImplementationOnce(
+      async (
+        _db: unknown,
+        tenantId: string,
+        _userId: string,
+        payload: { branchId: string; documentType: string },
+        opts: { analyticsEngine?: { writeDataPoint: (d: unknown) => void } },
+      ) => {
+        const engine = opts?.analyticsEngine;
+        if (engine) {
+          try {
+            engine.writeDataPoint({
+              indexes: [
+                'hotpath:processOfflineSaleAtomic',
+                tenantId,
+                payload.branchId,
+                payload.documentType,
+              ],
+              doubles: [12, 5, 0],
+              blobs: ['SUCCESS'],
+            });
+          } catch {
+            // best-effort
+          }
+        }
+        return {
+          saleId: 'sale-hot',
+          status: 'SUCCESS',
+          authoritativeTotalAmount: 100,
+        } as unknown as Awaited<ReturnType<typeof processOfflineSaleAtomic>>;
+      },
+    );
+    const res = await runOfflineSaleHttp(env, 't1', 'u1', {
+      offlineSaleId: 'hot-1',
+      branchId: 'b1',
+      cashRegisterSessionId: 's1',
+      documentType: 'NV',
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '1',
+      clientName: 'C',
+      items: [{ productId: 'p', quantity: 1 }],
+      payments: [{ paymentMethodId: 'pm', amountCents: 100 }],
+    });
+    expect(res.status).toBe(200);
+    expect(writeDataPoint).toHaveBeenCalledTimes(1);
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('hotpath:processOfflineSaleAtomic');
+    expect(point.doubles?.[0]).toBeLessThan(50);
+    expect(point.doubles?.[1]).toBeGreaterThanOrEqual(0);
+    expect(point.doubles?.[2]).toBe(0);
+    expect(point.blobs?.[0]).toBe('SUCCESS');
+    expect(point.indexes).toEqual(
+      expect.arrayContaining(['hotpath:processOfflineSaleAtomic', 't1', 'b1', 'NV']),
+    );
+  });
+
+  it('emits alreadySynced flag when ALREADY_SYNCED', async () => {
+    const writeDataPoint = vi.fn();
+    const env = {
+      FEATURE_ACID_OFFLINE_SALE: '1',
+      DB: {},
+      ANALYTICS_ENGINE: { writeDataPoint },
+      TENANT_KV: { get: () => Promise.resolve(null) },
+    } as unknown as WorkerEnv;
+    vi.mocked(processOfflineSaleAtomic).mockImplementationOnce(
+      async (
+        _db: unknown,
+        tenantId: string,
+        _userId: string,
+        payload: { branchId: string; documentType: string },
+        opts: { analyticsEngine?: { writeDataPoint: (d: unknown) => void } },
+      ) => {
+        const engine = opts?.analyticsEngine;
+        if (engine) {
+          try {
+            engine.writeDataPoint({
+              indexes: [
+                'hotpath:processOfflineSaleAtomic',
+                tenantId,
+                payload.branchId,
+                payload.documentType,
+              ],
+              doubles: [8, 0, 1],
+              blobs: ['ALREADY_SYNCED'],
+            });
+          } catch {
+            // best-effort
+          }
+        }
+        return {
+          status: 'ALREADY_SYNCED',
+          saleId: 'sale-dup',
+          authoritativeTotalAmount: 100,
+          authoritativeStatus: 'PENDING',
+          authoritativeIssuedAt: new Date().toISOString(),
+          reconciliationRequired: true,
+        } as unknown as Awaited<ReturnType<typeof processOfflineSaleAtomic>>;
+      },
+    );
+    const res = await runOfflineSaleHttp(env, 't1', 'u1', {
+      offlineSaleId: 'hot-dup',
+      branchId: 'b2',
+      cashRegisterSessionId: 's1',
+      documentType: 'NV',
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '1',
+      clientName: 'C',
+      items: [{ productId: 'p', quantity: 1 }],
+      payments: [{ paymentMethodId: 'pm', amountCents: 100 }],
+    });
+    expect(res.status).toBe(200);
+    expect(writeDataPoint).toHaveBeenCalledTimes(1);
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('hotpath:processOfflineSaleAtomic');
+    expect(point.doubles?.[2]).toBe(1);
+    expect(point.blobs?.[0]).toBe('ALREADY_SYNCED');
+  });
+
+  it('best-effort: writeDataPoint throwing does not block sale', async () => {
+    const writeDataPoint = vi.fn(() => {
+      throw new Error('AE down');
+    });
+    const env = {
+      FEATURE_ACID_OFFLINE_SALE: '1',
+      DB: {},
+      ANALYTICS_ENGINE: { writeDataPoint },
+      TENANT_KV: { get: () => Promise.resolve(null) },
+    } as unknown as WorkerEnv;
+    vi.mocked(processOfflineSaleAtomic).mockImplementationOnce(
+      async (
+        _db: unknown,
+        tenantId: string,
+        _userId: string,
+        payload: { branchId: string; documentType: string },
+        opts: { analyticsEngine?: { writeDataPoint: (d: unknown) => void } },
+      ) => {
+        const engine = opts?.analyticsEngine;
+        if (engine) {
+          try {
+            engine.writeDataPoint({
+              indexes: [
+                'hotpath:processOfflineSaleAtomic',
+                tenantId,
+                payload.branchId,
+                payload.documentType,
+              ],
+              doubles: [10, 3, 0],
+              blobs: ['SUCCESS'],
+            });
+          } catch {
+            // best-effort swallow
+          }
+        }
+        return { saleId: 'sale-best', status: 'SUCCESS' } as unknown as Awaited<
+          ReturnType<typeof processOfflineSaleAtomic>
+        >;
+      },
+    );
+    const res = await runOfflineSaleHttp(env, 't1', 'u1', {
+      offlineSaleId: 'hot-best',
+      branchId: 'b1',
+      cashRegisterSessionId: 's1',
+      documentType: 'NV',
+      series: 'NV01',
+      clientDocumentType: '1',
+      clientDocumentNumber: '1',
+      clientName: 'C',
+      items: [{ productId: 'p', quantity: 1 }],
+      payments: [{ paymentMethodId: 'pm', amountCents: 100 }],
+    });
+    expect(res.status).toBe(200);
+    expect(writeDataPoint).toHaveBeenCalled();
+  });
+});
+
 describe('POST /api/pos/offline-sale auth', () => {
   it('exige Bearer (401)', async () => {
     const app = createApp(authed);

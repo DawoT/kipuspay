@@ -184,3 +184,97 @@ describe('S49-H1: briefing fail-closed y PII-free', () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe('SSE P95 2s ANALYTICS_ENGINE writer (SLO 2s)', () => {
+  it('CACHE_HIT emite sse:insightsChat con double1=sseDurationMs', async () => {
+    const writeDataPoint = vi.fn();
+    const env = envWith({
+      ANALYTICS_ENGINE: { writeDataPoint } as unknown as InsightsEnv['ANALYTICS_ENGINE'],
+    });
+    env.kv.map.set('insights:t1:k-cache-hit-analyt', 'respuesta cacheada');
+    const res = await runInsightChatHttp(env, actor, {
+      question: 'pregunta repetida',
+      idempotencyKey: 'k-cache-hit-analyt',
+    });
+    expect(res).toBeInstanceOf(Response);
+    expect(writeDataPoint).toHaveBeenCalledTimes(1);
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('sse:insightsChat');
+    expect(typeof point.doubles?.[0]).toBe('number');
+    expect(point.doubles?.[0]).toBeGreaterThanOrEqual(0);
+    expect(point.blobs).toEqual(expect.arrayContaining(['t1', 'CACHE_HIT']));
+  });
+
+  it('OK emite sse:insightsChat con double1=sseDurationMs y status OK', async () => {
+    const writeDataPoint = vi.fn();
+    const env = envWith({
+      ANALYTICS_ENGINE: { writeDataPoint } as unknown as InsightsEnv['ANALYTICS_ENGINE'],
+    });
+    const res = await runInsightChatHttp(env, actor, {
+      question: '¿cómo van las ventas de ayer?',
+      idempotencyKey: 'k-ok-analyt',
+    });
+    expect(res).toBeInstanceOf(Response);
+    expect(writeDataPoint).toHaveBeenCalledTimes(1);
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('sse:insightsChat');
+    expect(point.doubles?.[0]).toBeGreaterThanOrEqual(0);
+    expect(point.blobs).toEqual(expect.arrayContaining(['t1', 'OK']));
+  });
+
+  it('FAILED/TOO_WIDE emite sse:insightsChat best-effort sin bloquear respuesta', async () => {
+    const writeDataPoint = vi.fn(() => {
+      throw new Error('AE down');
+    });
+    const env = envWith({
+      ANALYTICS_ENGINE: { writeDataPoint } as unknown as InsightsEnv['ANALYTICS_ENGINE'],
+    });
+    // Forzar TOO_WIDE via intent que mapee a rango amplio: mockeamos buildInsightSelect indirecto
+    // Más simple: provocar error en generateText para ir a FAILED y verificar que writeDataPoint se intentó
+    const ai = env.AI as { run: ReturnType<typeof vi.fn> };
+    ai.run.mockReset();
+    ai.run
+      .mockResolvedValueOnce({ response: 'SALES_SUMMARY' })
+      .mockResolvedValueOnce({ response: 'texto cualquiera' });
+    // Forzar FAILED simulando que runInsightSelect lanza
+    const db = env.DB as unknown as {
+      withSession: () => { prepare: () => { bind: () => { all: () => Promise<never> } } };
+    };
+    const originalWithSession = (env.DB as ReturnType<typeof mockDb>).withSession;
+    (env.DB as unknown as Record<string, unknown>).withSession = () =>
+      ({
+        prepare: () => ({
+          bind: () => ({
+            all: () => Promise.reject(new Error('D1 boom')),
+            first: () => Promise.resolve(null),
+            run: () => Promise.resolve({ meta: { changes: 1 } }),
+          }),
+        }),
+      }) as unknown as ReturnType<ReturnType<typeof mockDb>['withSession']>;
+    const res = await runInsightChatHttp(env, actor, {
+      question: '¿cómo van las ventas?',
+      idempotencyKey: 'k-failed-analyt',
+    });
+    expect((res as { status: number }).status).toBe(422);
+    expect(writeDataPoint).toHaveBeenCalled();
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('sse:insightsChat');
+    expect(typeof point.doubles?.[0]).toBe('number');
+    expect(point.blobs).toEqual(expect.arrayContaining(['t1', 'FAILED']));
+    // restaurar
+    (env.DB as unknown as Record<string, unknown>).withSession = originalWithSession;
+    void db;
+  });
+});

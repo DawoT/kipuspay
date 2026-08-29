@@ -229,6 +229,32 @@ async function markRowQuarantined(
     .run();
 }
 
+export interface AnalyticsEngineLike {
+  writeDataPoint(data: {
+    readonly blobs?: string[];
+    readonly doubles?: number[];
+    readonly indexes?: string[];
+  }): void;
+}
+
+function emitDrainTaxonomy(
+  engine: AnalyticsEngineLike | undefined,
+  row: OutboxRow,
+  transport: FiscalTransport,
+  errorClass: FiscalErrorClass,
+): void {
+  if (!engine) return;
+  try {
+    engine.writeDataPoint({
+      indexes: ['breaker:fiscal'],
+      doubles: [errorClass === 'INFRA' ? row.attempt_count + 1 : row.attempt_count],
+      blobs: [transport.mode, 'submit', errorClass],
+    });
+  } catch {
+    // best-effort AE
+  }
+}
+
 /** Marca sunat_status de la venta como QUARANTINED/REJECTED/ACCEPTED. */
 async function markSaleStatus(
   db: FiscalDrainDb,
@@ -351,6 +377,7 @@ async function processClaimedRow(
     readonly transportFor?: (row: OutboxRow) => Promise<FiscalTransport>;
     readonly onInfraFailure: () => Promise<void>;
     readonly produceMissingXml?: ProduceMissingXml;
+    readonly analyticsEngine?: AnalyticsEngineLike;
   },
   row: OutboxRow,
 ): Promise<RowOutcome> {
@@ -395,6 +422,7 @@ async function processClaimedRow(
   const outcome = submitted.outcome;
 
   const errorClass = classifySubmitOutcome(outcome);
+  emitDrainTaxonomy(input.analyticsEngine, row, transport, errorClass);
 
   if (errorClass === 'INFRA') {
     await input.onInfraFailure();
@@ -439,6 +467,7 @@ export async function drainFiscalOutbox(input: {
   readonly limit?: number;
   /** C6: produce el XML unitario que falta (best-effort, nunca lanza). */
   readonly produceMissingXml?: ProduceMissingXml;
+  readonly analyticsEngine?: AnalyticsEngineLike;
 }): Promise<DrainResult> {
   const transport = input.transport ?? createMockPseTransport();
   const claimed = await claimFiscalRows(input.db, input.limit ?? 20);
@@ -463,6 +492,7 @@ export async function drainFiscalOutbox(input: {
         ...(input.transportFor ? { transportFor: input.transportFor } : {}),
         onInfraFailure: input.onInfraFailure,
         ...(input.produceMissingXml ? { produceMissingXml: input.produceMissingXml } : {}),
+        ...(input.analyticsEngine ? { analyticsEngine: input.analyticsEngine } : {}),
       },
       row,
     );

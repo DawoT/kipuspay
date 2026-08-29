@@ -23,6 +23,11 @@ import {
   BREAKER_OPEN_MS,
 } from './memory-breaker.js';
 import { initialBreakerSnapshot } from '@kipuspay/domain-fiscal-pe';
+import {
+  emitBreakerAnalytics,
+  handleBreakerTaxonomy,
+  type FiscalBreakerEnv,
+} from './fiscal-circuit-breaker.js';
 
 function memoryKv(): BreakerKvLike & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -145,5 +150,73 @@ describe('breaker read cache + coalesce + memory DO', () => {
       const open = await readBreakerOpen(kv, 'KIPUSPAY_PSE_DIRECT', 'submit');
       expect(open, `raw=${raw}`).toBe(expected);
     }
+  });
+});
+
+describe('breaker ANALYTICS_ENGINE writer taxonomía 5xx INFRA vs 4xx BUSINESS', () => {
+  it('INFRA 5xx → applyInfraFailures + emit breaker:fiscal con failureCount y errorClass INFRA', () => {
+    const writeDataPoint = vi.fn();
+    const env = {
+      ANALYTICS_ENGINE: { writeDataPoint },
+    } as unknown as FiscalBreakerEnv;
+    const snap = initialBreakerSnapshot();
+    const next = handleBreakerTaxonomy(
+      snap,
+      env,
+      'INFRA',
+      'KIPUSPAY_PSE_DIRECT',
+      'submit',
+      3,
+      Date.now(),
+    );
+    expect(next.failureCount).toBe(3);
+    expect(writeDataPoint).toHaveBeenCalledTimes(1);
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('breaker:fiscal');
+    expect(point.doubles?.[0]).toBe(3);
+    expect(point.blobs).toEqual(expect.arrayContaining(['KIPUSPAY_PSE_DIRECT', 'submit', 'INFRA']));
+  });
+
+  it('BUSINESS 4xx → emit sin abrir breaker, failureCount intacto y errorClass BUSINESS', () => {
+    const writeDataPoint = vi.fn();
+    const env = {
+      ANALYTICS_ENGINE: { writeDataPoint },
+    } as unknown as FiscalBreakerEnv;
+    const snap = { ...initialBreakerSnapshot(), failureCount: 2 };
+    const next = handleBreakerTaxonomy(
+      snap,
+      env,
+      'BUSINESS',
+      'KIPUSPAY_PSE_DIRECT',
+      'submit',
+      1,
+      Date.now(),
+    );
+    expect(next.failureCount).toBe(2);
+    expect(next.state).toBe('closed');
+    expect(writeDataPoint).toHaveBeenCalledTimes(1);
+    const point = writeDataPoint.mock.calls[0]?.[0] as {
+      indexes?: string[];
+      doubles?: number[];
+      blobs?: string[];
+    };
+    expect(point.indexes?.[0]).toBe('breaker:fiscal');
+    expect(point.doubles?.[0]).toBe(2);
+    expect(point.blobs?.[2]).toBe('BUSINESS');
+    // best-effort: AE down no lanza
+    const throwingEnv = {
+      ANALYTICS_ENGINE: {
+        writeDataPoint: () => {
+          throw new Error('AE down');
+        },
+      },
+    } as unknown as FiscalBreakerEnv;
+    expect(() =>
+      emitBreakerAnalytics(throwingEnv, 5, 'BUSINESS', 'KIPUSPAY_PSE_DIRECT', 'submit'),
+    ).not.toThrow();
   });
 });

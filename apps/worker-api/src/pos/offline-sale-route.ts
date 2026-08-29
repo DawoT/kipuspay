@@ -284,6 +284,7 @@ export async function runOfflineSaleHttp(
         terminalId: terminalId.trim(),
       }));
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
+      analyticsEngine: env.ANALYTICS_ENGINE,
       activeShards: await loadActiveShards(env),
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),

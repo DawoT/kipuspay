@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SunatChannelError } from '@kipuspay/adapters-sunat';
 import {
   assertFifoOrder,
@@ -795,6 +795,107 @@ describe('H3-c — archivo del CDR unitario (receipt JSON + r2_cdr_key)', () => 
       expect(warned).toContain('UNITARY_CDR_ARCHIVE_FAILED');
     } finally {
       console.warn = originalWarn;
+    }
+  });
+});
+
+describe('drain taxonomía 5xx INFRA vs 4xx BUSINESS (AE breaker:fiscal)', () => {
+  it('5xx INFRA → onInfraFailure + emit breaker:fiscal INFRA; 4xx BUSINESS → QUARANTINE sin breaker + emit BUSINESS', async () => {
+    // INFRA path: transporte unreachable (5xx simulado)
+    {
+      const db = memoryDb([]);
+      const r2 = memoryR2();
+      r2.map.set('k-infra', '<Invoice><ds:Signature/></Invoice>');
+      db.state.push({
+        id: 'infra1',
+        tenant_id: 't1',
+        sale_id: 's-infra',
+        status: 'PENDING',
+        attempt_count: 2,
+        must_submit_by: '2026-08-20T00:00:00.000Z',
+        document_type: '01',
+        r2_xml_key: 'k-infra',
+        created_at: new Date().toISOString(),
+      } as unknown as MockRow);
+      const writeDataPoint = vi.fn();
+      const analyticsEngine = { writeDataPoint } as unknown as {
+        writeDataPoint: (d: unknown) => void;
+      };
+      const onInfraFailure = vi.fn(() => Promise.resolve());
+      const transport: FiscalTransport = {
+        mode: 'KIPUSPAY_PSE_DIRECT',
+        submit: () => Promise.resolve({ kind: 'unreachable' }),
+        queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'ok', accepted: true }),
+      };
+      const res = await drainFiscalOutbox({
+        db,
+        r2,
+        transport,
+        isBreakerOpen: () => Promise.resolve(false),
+        onInfraFailure,
+        analyticsEngine,
+      });
+      expect(onInfraFailure).toHaveBeenCalledTimes(1);
+      expect(res.processed).toBe(1);
+      expect(writeDataPoint).toHaveBeenCalledTimes(1);
+      const point = writeDataPoint.mock.calls[0]?.[0] as {
+        indexes?: string[];
+        doubles?: number[];
+        blobs?: string[];
+      };
+      expect(point.indexes?.[0]).toBe('breaker:fiscal');
+      expect(point.blobs?.[2]).toBe('INFRA');
+      expect(point.doubles?.[0]).toBe(3);
+    }
+    // BUSINESS path: transporte rejected (4xx)
+    {
+      const db = memoryDb([]);
+      const r2 = memoryR2();
+      r2.map.set('k-biz', '<Invoice><ds:Signature/></Invoice>');
+      db.state.push({
+        id: 'biz1',
+        tenant_id: 't1',
+        sale_id: 's-biz',
+        status: 'PENDING',
+        attempt_count: 1,
+        must_submit_by: '2026-08-20T00:00:00.000Z',
+        document_type: '01',
+        r2_xml_key: 'k-biz',
+        created_at: new Date().toISOString(),
+      } as unknown as MockRow);
+      const writeDataPoint = vi.fn();
+      const analyticsEngine = { writeDataPoint } as unknown as {
+        writeDataPoint: (d: unknown) => void;
+      };
+      const onInfraFailure = vi.fn(() => Promise.resolve());
+      const transport: FiscalTransport = {
+        mode: 'KIPUSPAY_PSE_DIRECT',
+        submit: () =>
+          Promise.resolve({
+            kind: 'rejected',
+            cdr: { cdrCode: '0101', cdrDescription: 'RUC inválido', accepted: false },
+          }),
+        queryCdr: () => Promise.resolve({ cdrCode: '0', cdrDescription: 'ok', accepted: true }),
+      };
+      const res = await drainFiscalOutbox({
+        db,
+        r2,
+        transport,
+        isBreakerOpen: () => Promise.resolve(false),
+        onInfraFailure,
+        analyticsEngine,
+      });
+      expect(onInfraFailure).not.toHaveBeenCalled();
+      expect(res.quarantined).toBe(1);
+      expect(writeDataPoint).toHaveBeenCalledTimes(1);
+      const point = writeDataPoint.mock.calls[0]?.[0] as {
+        indexes?: string[];
+        doubles?: number[];
+        blobs?: string[];
+      };
+      expect(point.indexes?.[0]).toBe('breaker:fiscal');
+      expect(point.blobs?.[2]).toBe('BUSINESS');
+      expect(point.doubles?.[0]).toBe(1);
     }
   });
 });

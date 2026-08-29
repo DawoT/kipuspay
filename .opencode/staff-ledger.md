@@ -2438,3 +2438,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0059
+timestamp_utc: 2026-08-29T06:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA G Writers P95 a main (maximo grado staff) — observabilidad cerrada
+agente_responsable: Staff Principal (orquestacion) — R: SRE/Data (G1) + SRE/Analytics (G2) + QA (G3) + SRE (G4)
+tipo: Correccion
+subtipo: implementacion writers ANALYTICS_ENGINE + observabilidad
+relacion: CORRIGE
+referencias_entradas: [0058, 0057]
+referencias_documentales: ["packages/adapters-d1/src/process-offline-sale-atomic.ts", "apps/worker-api/src/pos/offline-sale-route.ts", "apps/worker-api/src/analytics/insights-routes.ts", "apps/worker-fiscal/src/fiscal-circuit-breaker.ts", "apps/worker-fiscal/src/fiscal-drain.ts", "apps/worker-fiscal/wrangler.jsonc", "docs/ops/dashboards/p95-breaker-dashboard.md", "docs/runbooks/push-kill-switch.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0058
+prev_hash: c872794f058537f7b511334dc49df29d2add1585ce46322fd68e5eb0ba385fbf
+entry_hash: b916a276491d9ae5f7b10a5d01564a64b3b118394d68205fedbf5efeff67cfa8
+ticket_or_adr: OLA-G-WRITERS-0001 — hot path P95 50ms + SSE 2s + breaker DO writers a main
+test_ids: [offline-sale-route.test.ts, insights-routes.test.ts, breaker.test.ts, fiscal-drain.test.ts, V-00, V-13 dual, V-31, SUITE]
+entregable_afectado: writers ANALYTICS_ENGINE hot path P95 50ms + SSE 2s + breaker DO taxonomía a main
+descripcion: >
+  OLA G ejecutada a maximo grado staff: writers a main con TDD + observabilidad cerrada.
+  G1 (SRE/Data): processOfflineSaleAtomic ANALYTICS_ENGINE hot path P95 50ms — AnalyticsEngineLike + emitHotPathAnalyticsInternal best-effort + wallTimeMs/dbBatchMs/isAlreadySynced/SUCCESS/ALREADY_SYNCED + propagación sync-sales-batch/route.
+  G2 (SRE/Analytics): SSE P95 2s — InsightsEnv + emitSseAnalytics + sseStart en executeInsightChat (CACHE_HIT/OK/TOO_WIDE/FAILED) + breaker DO FiscalBreakerEnv + emitBreakerAnalytics taxonomía INFRA 5xx vs BUSINESS 4xx (4xx no abre) + drainFiscalOutbox analyticsEngine + wrangler datasets kipuspay_analytics.
+  G3 (QA): tests RED→GREEN 3+3+2 (offline-sale-route 3 hot path, insights 3 SSE, breaker 2 + drain 1 taxonomía) + typecheck/lint 0.
+  G4 (SRE): quality.sh 27/27 GREEN (lint/typecheck/test:unit 70%/95% + integration + build + bundle 309.28/310) + wrangler datasets staging + verify 32 GREEN.
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, V-24 bundle, quality OK.
+evidencia: >
+  RED: hot path sin writer (P95 ciego), SSE sin writer (2s no medible), breaker sin taxonomía AE (5xx/4xx indistinto).
+  GREEN: writers 3+3+2 tests GREEN + typecheck/lint 0 + quality 27/27 + bundle 309.28/310 + verify 32 GREEN + V-13 dual + dashboards 6 panels + runbook kill-switch; observabilidad pre-prod cerrada.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: SRE/Data/Analytics/QA re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — countersignatura humana para prod"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

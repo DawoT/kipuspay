@@ -54,18 +54,8 @@ export async function processSyncSalesBatch(
         });
         continue;
       }
-      const opts: {
-        nowMs: number;
-        storeCreditEnabled: boolean;
-        storeCreditOnline: false;
-        serialAssignments: {
-          productId: string;
-          serialId: string;
-          terminalId: string;
-          leaseToken: string;
-        }[];
-        insightsKv?: InsightsKv;
-      } = {
+      // P95 hot path: analyticsEngine propagated via baseOptions spread (AE best-effort)
+      const opts: ProcessOfflineSaleOptions = {
         ...baseOptions,
         nowMs,
         storeCreditEnabled,
@@ -78,8 +68,8 @@ export async function processSyncSalesBatch(
             terminalId,
             leaseToken: item.serialLeaseToken!,
           })),
+        ...(insightsKv ? { insightsKv } : {}),
       };
-      if (insightsKv) opts.insightsKv = insightsKv;
       const outcome: OfflineSaleResult = await processOfflineSaleAtomic(
         db,
         tenantId,

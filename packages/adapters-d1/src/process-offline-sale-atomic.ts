@@ -94,6 +94,32 @@ import { loadPromotionsByIds } from './load-promotions.js';
 import { resolveActiveTerminalSession } from './process-inventory-scale-atomic.js';
 import { sha256Hex } from './crypto.js';
 
+export interface AnalyticsEngineLike {
+  writeDataPoint(data: { indexes?: string[]; doubles?: number[]; blobs?: string[] }): void;
+}
+
+export function emitHotPathAnalyticsInternal(
+  engine: AnalyticsEngineLike | undefined,
+  tenantId: string,
+  branchId: string,
+  documentType: string,
+  wallTimeMs: number,
+  dbBatchMs: number,
+  isAlreadySynced: boolean,
+  status: string,
+): void {
+  if (!engine) return;
+  try {
+    engine.writeDataPoint({
+      indexes: ['hotpath:processOfflineSaleAtomic', tenantId, branchId, documentType],
+      doubles: [wallTimeMs, dbBatchMs, isAlreadySynced ? 1 : 0],
+      blobs: [status],
+    });
+  } catch {
+    // best-effort: never block sale
+  }
+}
+
 async function requireLiveAuthToken(
   db: D1DatabaseLike,
   tenantId: string,
@@ -649,6 +675,9 @@ export interface ProcessOfflineSaleOptions {
     readonly terminalId?: string;
     readonly leaseToken?: string;
   }[];
+  /** P95 hot path — AE best-effort, never blocks sale. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly analyticsEngine?: { writeDataPoint: (d: any) => void } | undefined;
   /** Extra statements en el mismo batch (p.ej. marcar sale_deposits CONVERTED). */
   readonly afterSaleStatements?: (
     plan: { add(statement: D1Bound): unknown },
@@ -684,6 +713,8 @@ export async function processOfflineSaleAtomic(
 
   const nowMs = opts.nowMs ?? Date.now();
   const kv = opts.insightsKv ?? insightsKv;
+  const wallStart = Date.now();
+  let dbBatchMs = 0;
   const ledgerOn = opts.ledgerArApEnabled === true;
   const s18: S18SaleCaps = opts.s18 ?? {
     inventoryBatches: false,
@@ -713,7 +744,19 @@ export async function processOfflineSaleAtomic(
   }
 
   const already = await loadAlreadySynced(db, tenantId, payload.offlineSaleId);
-  if (already) return already;
+  if (already) {
+    emitHotPathAnalyticsInternal(
+      opts.analyticsEngine,
+      tenantId,
+      payload.branchId,
+      payload.documentType,
+      Date.now() - wallStart,
+      0,
+      true,
+      'ALREADY_SYNCED',
+    );
+    return already;
+  }
 
   const tenant = await db
     .prepare(
@@ -1509,24 +1552,26 @@ export async function processOfflineSaleAtomic(
   const journalPrevHash = auditTail;
 
   try {
-    await runD1AtomicPlan(db, async (plan) => {
-      const stockGuardIds: string[] = [];
-      // Stock guard SQL (anti-carrera): ok=0 → CHECK aborta el batch entero.
-      // NV_RETURN no exige stock previo (restaura). Convertir apartado ya reservó.
-      if (skipStock) {
-        /* reserva previa: no re-descontar */
-      } else
-        for (const [productId, qty] of qtyByProduct) {
-          if (!isPhysicalStockType(catalog.get(productId)!.type)) continue;
-          const st = stockByProduct.get(productId)!;
-          const allow = isReturn || st.allowNegative ? 1 : 0;
-          const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
-          const guardId = crypto.randomUUID();
-          stockGuardIds.push(guardId);
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO atomic_guards (id, ok)
+    const batchStart = Date.now();
+    try {
+      await runD1AtomicPlan(db, async (plan) => {
+        const stockGuardIds: string[] = [];
+        // Stock guard SQL (anti-carrera): ok=0 → CHECK aborta el batch entero.
+        // NV_RETURN no exige stock previo (restaura). Convertir apartado ya reservó.
+        if (skipStock) {
+          /* reserva previa: no re-descontar */
+        } else
+          for (const [productId, qty] of qtyByProduct) {
+            if (!isPhysicalStockType(catalog.get(productId)!.type)) continue;
+            const st = stockByProduct.get(productId)!;
+            const allow = isReturn || st.allowNegative ? 1 : 0;
+            const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
+            const guardId = crypto.randomUUID();
+            stockGuardIds.push(guardId);
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO atomic_guards (id, ok)
                VALUES (
                  ?,
                  COALESCE(
@@ -1549,41 +1594,41 @@ export async function processOfflineSaleAtomic(
                    CASE WHEN ? = 1 THEN 1 ELSE 0 END
                  )
                )`,
-              )
-              .bind(
-                guardId,
-                qtyMicrounits,
-                allow,
-                allow,
-                tenantId,
-                payload.branchId,
-                `loc-default:${tenantId}:${payload.branchId}`,
-                productId,
-                tenantId,
-                payload.branchId,
-                `loc-default:${tenantId}:${payload.branchId}`,
-                productId,
-                qtyMicrounits,
-                tenantId,
-                payload.branchId,
-                productId,
-                allow,
-              ),
-          );
-        }
+                )
+                .bind(
+                  guardId,
+                  qtyMicrounits,
+                  allow,
+                  allow,
+                  tenantId,
+                  payload.branchId,
+                  `loc-default:${tenantId}:${payload.branchId}`,
+                  productId,
+                  tenantId,
+                  payload.branchId,
+                  `loc-default:${tenantId}:${payload.branchId}`,
+                  productId,
+                  qtyMicrounits,
+                  tenantId,
+                  payload.branchId,
+                  productId,
+                  allow,
+                ),
+            );
+          }
 
-      // B1 (47b): guard anti-carrera del cupo de crédito. El preflight es el
-      // primer filtro (y valida el token de override); este guard recomputa el
-      // límite contra la CxC COMMITTED en tiempo de batch: si dos POS aprueban
-      // el mismo preflight en paralelo, el segundo batch ve la CxC del primero
-      // (ok=0 → CHECK aborta todo el batch, sin efectos parciales).
-      if (ledgerOn && creditGuardCents > 0 && customerId) {
-        const creditGuardId = crypto.randomUUID();
-        stockGuardIds.push(creditGuardId);
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO atomic_guards (id, ok)
+        // B1 (47b): guard anti-carrera del cupo de crédito. El preflight es el
+        // primer filtro (y valida el token de override); este guard recomputa el
+        // límite contra la CxC COMMITTED en tiempo de batch: si dos POS aprueban
+        // el mismo preflight en paralelo, el segundo batch ve la CxC del primero
+        // (ok=0 → CHECK aborta todo el batch, sin efectos parciales).
+        if (ledgerOn && creditGuardCents > 0 && customerId) {
+          const creditGuardId = crypto.randomUUID();
+          stockGuardIds.push(creditGuardId);
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO atomic_guards (id, ok)
                VALUES (
                  ?,
                  (SELECT CASE WHEN ? = 1 OR
@@ -1598,105 +1643,105 @@ export async function processOfflineSaleAtomic(
                    ) + ?
                  THEN 1 ELSE 0 END)
                )`,
-            )
-            .bind(
-              creditGuardId,
-              creditOverrideVerified ? 1 : 0,
-              tenantId,
-              customerId,
-              tenantId,
-              customerId,
-              creditGuardCents,
-            ),
-        );
-      }
+              )
+              .bind(
+                creditGuardId,
+                creditOverrideVerified ? 1 : 0,
+                tenantId,
+                customerId,
+                tenantId,
+                customerId,
+                creditGuardCents,
+              ),
+          );
+        }
 
-      for (const audit of oversellAudits) {
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO audit_events (
+        for (const audit of oversellAudits) {
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO audit_events (
                    id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
                    payload_json, prev_hash, row_hash
                  ) VALUES (?, ?, ?, ?, 'OFFLINE_OVERSELL', 'sale_item', ?, ?, ?, ?)`,
-            )
-            .bind(
-              audit.id,
-              tenantId,
-              payload.branchId,
-              userId,
-              saleId,
-              JSON.stringify({
-                productId: audit.productId,
-                requested: audit.requested,
-                available: audit.available,
-              }),
-              audit.prevHash,
-              audit.rowHash,
-            ),
-        );
-      }
+              )
+              .bind(
+                audit.id,
+                tenantId,
+                payload.branchId,
+                userId,
+                saleId,
+                JSON.stringify({
+                  productId: audit.productId,
+                  requested: audit.requested,
+                  available: audit.available,
+                }),
+                audit.prevHash,
+                audit.rowHash,
+              ),
+          );
+        }
 
-      // Correlativo atómico en el batch (evita carrera en current_number).
-      plan.add(
-        db
-          .prepare(
-            `UPDATE branch_document_series
-             SET current_number = current_number + 1
-             WHERE id = ? AND tenant_id = ?`,
-          )
-          .bind(seriesRow.id, tenantId),
-      );
-
-      if (crmPlan.kind === 'INSERT') {
+        // Correlativo atómico en el batch (evita carrera en current_number).
         plan.add(
           db
             .prepare(
-              `INSERT INTO customers (
+              `UPDATE branch_document_series
+             SET current_number = current_number + 1
+             WHERE id = ? AND tenant_id = ?`,
+            )
+            .bind(seriesRow.id, tenantId),
+        );
+
+        if (crmPlan.kind === 'INSERT') {
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO customers (
                  id, tenant_id, document_type_code, document_number, name, email, phone, address,
                  profile_updated_at, is_active
                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-            )
-            .bind(
-              crmPlan.customerId,
-              tenantId,
-              payload.clientDocumentType,
-              payload.clientDocumentNumber,
-              payload.clientName,
-              payload.clientEmail ?? null,
-              payload.clientPhone ?? null,
-              payload.clientAddress ?? null,
-              crmPlan.profileUpdatedAtIso,
-            ),
-        );
-      } else if (crmPlan.kind === 'UPDATE') {
-        plan.add(
-          db
-            .prepare(
-              `UPDATE customers
+              )
+              .bind(
+                crmPlan.customerId,
+                tenantId,
+                payload.clientDocumentType,
+                payload.clientDocumentNumber,
+                payload.clientName,
+                payload.clientEmail ?? null,
+                payload.clientPhone ?? null,
+                payload.clientAddress ?? null,
+                crmPlan.profileUpdatedAtIso,
+              ),
+          );
+        } else if (crmPlan.kind === 'UPDATE') {
+          plan.add(
+            db
+              .prepare(
+                `UPDATE customers
                SET name = ?, email = ?, phone = ?, address = ?,
                    profile_updated_at = ?, is_active = 1
                WHERE id = ? AND tenant_id = ?
                  AND profile_updated_at <= ?
                  AND pii_erased = 0 AND deleted_at IS NULL`,
-            )
-            .bind(
-              payload.clientName,
-              payload.clientEmail ?? null,
-              payload.clientPhone ?? null,
-              payload.clientAddress ?? null,
-              crmPlan.profileUpdatedAtIso,
-              crmPlan.customerId,
-              tenantId,
-              crmPlan.profileUpdatedAtIso,
-            ),
-        );
-      }
+              )
+              .bind(
+                payload.clientName,
+                payload.clientEmail ?? null,
+                payload.clientPhone ?? null,
+                payload.clientAddress ?? null,
+                crmPlan.profileUpdatedAtIso,
+                crmPlan.customerId,
+                tenantId,
+                crmPlan.profileUpdatedAtIso,
+              ),
+          );
+        }
 
-      plan.add(
-        db
-          .prepare(
-            `INSERT INTO sales (
+        plan.add(
+          db
+            .prepare(
+              `INSERT INTO sales (
                  id, tenant_id, branch_id, cash_register_session_id, user_id, customer_id,
                  offline_client_sale_id, client_document_type, client_document_number, client_name,
                  document_type, series, number, currency, exchange_rate,
@@ -1708,64 +1753,64 @@ export async function processOfflineSaleAtomic(
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  (SELECT current_number FROM branch_document_series WHERE id = ?),
                  'PEN', 1.0, ?, 0, ?, 0, ?, ?, ?, ?, ?, ?`,
-          )
-          .bind(
-            saleId,
-            tenantId,
-            payload.branchId,
-            payload.cashRegisterSessionId,
-            userId,
-            customerId,
-            payload.offlineSaleId,
-            payload.clientDocumentType,
-            payload.clientDocumentNumber,
-            payload.clientName,
-            docType,
-            payload.series,
-            seriesRow.id,
-            totals.totalTaxableCents,
-            totals.totalIgvCents,
-            totals.totalDiscountCents,
-            totals.totalCogsCents,
-            totals.totalAmountCents,
-            limaTs,
-            sunatStatus,
-            mustSubmitBy,
-          ),
-      );
-
-      const saleItemIdsByProduct = new Map<string, string[]>();
-      const saleItemBySerialId = new Map<string, string>();
-      for (const line of saleLines) {
-        const isGenericLine = line.productId === '';
-        const product = isGenericLine ? undefined : catalog.get(line.productId)!;
-        const source =
-          (line.sourceLineId
-            ? payload.items.find((item) => item.saleItemId === line.sourceLineId)
-            : undefined) ?? payload.items.find((item) => item.productId === line.productId)!;
-        const baseQuantityMicrounits = Math.round(line.quantity * QUANTITY_SCALE);
-        const sourceBaseMicrounits = source.baseQuantityMicrounits ?? baseQuantityMicrounits;
-        const enteredQuantityMicrounits = Math.round(
-          ((source.enteredQuantityMicrounits ?? sourceBaseMicrounits) * baseQuantityMicrounits) /
-            sourceBaseMicrounits,
+            )
+            .bind(
+              saleId,
+              tenantId,
+              payload.branchId,
+              payload.cashRegisterSessionId,
+              userId,
+              customerId,
+              payload.offlineSaleId,
+              payload.clientDocumentType,
+              payload.clientDocumentNumber,
+              payload.clientName,
+              docType,
+              payload.series,
+              seriesRow.id,
+              totals.totalTaxableCents,
+              totals.totalIgvCents,
+              totals.totalDiscountCents,
+              totals.totalCogsCents,
+              totals.totalAmountCents,
+              limaTs,
+              sunatStatus,
+              mustSubmitBy,
+            ),
         );
-        const saleItemId = line.sourceLineId ?? crypto.randomUUID();
-        const productLineIds = saleItemIdsByProduct.get(line.productId) ?? [];
-        productLineIds.push(saleItemId);
-        saleItemIdsByProduct.set(line.productId, productLineIds);
-        if (source.serialId) saleItemBySerialId.set(source.serialId, saleItemId);
-        const weighted = weightedByLineId.get(saleItemId);
-        const weightedAllocations = weighted ? (fefoByLine.get(saleItemId) ?? []) : [];
-        const effectiveBatchId =
-          line.batchId ??
-          (weightedAllocations.length === 1 ? weightedAllocations[0]!.batchId : null);
-        if (isGenericLine) {
-          // Sprint 50 (regla 34b): línea genérica — product_id NULL, sin stock,
-          // sin PMP; audit GENERIC_LINE con la cadena de hashes.
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO sale_items (
+
+        const saleItemIdsByProduct = new Map<string, string[]>();
+        const saleItemBySerialId = new Map<string, string>();
+        for (const line of saleLines) {
+          const isGenericLine = line.productId === '';
+          const product = isGenericLine ? undefined : catalog.get(line.productId)!;
+          const source =
+            (line.sourceLineId
+              ? payload.items.find((item) => item.saleItemId === line.sourceLineId)
+              : undefined) ?? payload.items.find((item) => item.productId === line.productId)!;
+          const baseQuantityMicrounits = Math.round(line.quantity * QUANTITY_SCALE);
+          const sourceBaseMicrounits = source.baseQuantityMicrounits ?? baseQuantityMicrounits;
+          const enteredQuantityMicrounits = Math.round(
+            ((source.enteredQuantityMicrounits ?? sourceBaseMicrounits) * baseQuantityMicrounits) /
+              sourceBaseMicrounits,
+          );
+          const saleItemId = line.sourceLineId ?? crypto.randomUUID();
+          const productLineIds = saleItemIdsByProduct.get(line.productId) ?? [];
+          productLineIds.push(saleItemId);
+          saleItemIdsByProduct.set(line.productId, productLineIds);
+          if (source.serialId) saleItemBySerialId.set(source.serialId, saleItemId);
+          const weighted = weightedByLineId.get(saleItemId);
+          const weightedAllocations = weighted ? (fefoByLine.get(saleItemId) ?? []) : [];
+          const effectiveBatchId =
+            line.batchId ??
+            (weightedAllocations.length === 1 ? weightedAllocations[0]!.batchId : null);
+          if (isGenericLine) {
+            // Sprint 50 (regla 34b): línea genérica — product_id NULL, sin stock,
+            // sin PMP; audit GENERIC_LINE con la cadena de hashes.
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO sale_items (
                      id, tenant_id, sale_id, product_id, product_name, product_type,
                      quantity, unit_price_cents, unit_cost_cents, discount_amount_cents,
                      subtotal_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
@@ -1773,62 +1818,62 @@ export async function processOfflineSaleAtomic(
                      entered_quantity_microunits, factor_numerator, factor_denominator,
                      base_quantity_microunits, seller_id
                    ) VALUES (?, ?, ?, NULL, 'Venta rápida', 'service', ?, ?, 0, ?, ?, '10', ?, 0, ?, 1, ?, ?, 'UND', ?, 1, 1, ?, ?)`,
-              )
-              .bind(
-                saleItemId,
-                tenantId,
-                saleId,
-                line.quantity,
-                line.unitPriceCents,
-                line.discountCents,
-                line.subtotalCents,
-                line.igvCents,
-                line.totalCents,
-                effectiveBatchId,
-                source.uomId ?? null,
-                enteredQuantityMicrounits,
-                baseQuantityMicrounits,
-                source.sellerId?.trim() || payload.sellerId?.trim() || null,
-              ),
-          );
-          const genericAuditId = crypto.randomUUID();
-          const genericRowHash = await computeAuditHash({
-            action: 'GENERIC_LINE',
-            entity_id: saleItemId,
-            sale_id: saleId,
-            sale_item_id: saleItemId,
-            prev_hash: auditTail,
-          });
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO audit_events (
+                )
+                .bind(
+                  saleItemId,
+                  tenantId,
+                  saleId,
+                  line.quantity,
+                  line.unitPriceCents,
+                  line.discountCents,
+                  line.subtotalCents,
+                  line.igvCents,
+                  line.totalCents,
+                  effectiveBatchId,
+                  source.uomId ?? null,
+                  enteredQuantityMicrounits,
+                  baseQuantityMicrounits,
+                  source.sellerId?.trim() || payload.sellerId?.trim() || null,
+                ),
+            );
+            const genericAuditId = crypto.randomUUID();
+            const genericRowHash = await computeAuditHash({
+              action: 'GENERIC_LINE',
+              entity_id: saleItemId,
+              sale_id: saleId,
+              sale_item_id: saleItemId,
+              prev_hash: auditTail,
+            });
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO audit_events (
                      id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
                      payload_json, prev_hash, row_hash
                    ) VALUES (?, ?, ?, ?, 'GENERIC_LINE', 'sale_item', ?, ?, ?, ?)`,
-              )
-              .bind(
-                genericAuditId,
-                tenantId,
-                payload.branchId,
-                userId,
-                saleItemId,
-                JSON.stringify({
-                  manualPriceCents: line.unitPriceCents,
-                  quantity: line.quantity,
-                  isUncatalogued: true,
-                }),
-                auditTail,
-                genericRowHash,
-              ),
-          );
-          auditTail = genericRowHash;
-          continue;
-        }
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO sale_items (
+                )
+                .bind(
+                  genericAuditId,
+                  tenantId,
+                  payload.branchId,
+                  userId,
+                  saleItemId,
+                  JSON.stringify({
+                    manualPriceCents: line.unitPriceCents,
+                    quantity: line.quantity,
+                    isUncatalogued: true,
+                  }),
+                  auditTail,
+                  genericRowHash,
+                ),
+            );
+            auditTail = genericRowHash;
+            continue;
+          }
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO sale_items (
                    id, tenant_id, sale_id, product_id, product_name, product_type,
                    quantity, unit_price_cents, unit_cost_cents, discount_amount_cents,
                    subtotal_cents, igv_affectation_code, igv_amount_cents, icbper_amount_cents,
@@ -1836,42 +1881,42 @@ export async function processOfflineSaleAtomic(
                    entered_quantity_microunits, factor_numerator, factor_denominator,
                    base_quantity_microunits, seller_id
                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '10', ?, 0, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .bind(
-              saleItemId,
-              tenantId,
-              saleId,
-              line.productId,
-              product!.name,
-              product!.type,
-              line.quantity,
-              line.unitPriceCents,
-              line.unitCostCents,
-              line.discountCents,
-              line.subtotalCents,
-              line.igvCents,
-              line.totalCents,
-              effectiveBatchId,
-              source.uomId ?? null,
-              source.resolvedUomCode ?? 'UND',
-              enteredQuantityMicrounits,
-              source.resolvedFactorNumerator ?? 1,
-              source.resolvedFactorDenominator ?? 1,
-              baseQuantityMicrounits,
-              source.sellerId?.trim() || payload.sellerId?.trim() || null,
-            ),
-        );
-      }
+              )
+              .bind(
+                saleItemId,
+                tenantId,
+                saleId,
+                line.productId,
+                product!.name,
+                product!.type,
+                line.quantity,
+                line.unitPriceCents,
+                line.unitCostCents,
+                line.discountCents,
+                line.subtotalCents,
+                line.igvCents,
+                line.totalCents,
+                effectiveBatchId,
+                source.uomId ?? null,
+                source.resolvedUomCode ?? 'UND',
+                enteredQuantityMicrounits,
+                source.resolvedFactorNumerator ?? 1,
+                source.resolvedFactorDenominator ?? 1,
+                baseQuantityMicrounits,
+                source.sellerId?.trim() || payload.sellerId?.trim() || null,
+              ),
+          );
+        }
 
-      for (const weightAudit of weightAuditPlans) {
-        const measurement = weightAudit.measurement;
-        if (measurement.authorizationTokenId) {
-          const tokenGuardId = crypto.randomUUID();
-          stockGuardIds.push(tokenGuardId);
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO atomic_guards (id, ok)
+        for (const weightAudit of weightAuditPlans) {
+          const measurement = weightAudit.measurement;
+          if (measurement.authorizationTokenId) {
+            const tokenGuardId = crypto.randomUUID();
+            stockGuardIds.push(tokenGuardId);
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO atomic_guards (id, ok)
                  SELECT ?, CASE WHEN EXISTS (
                    SELECT 1 FROM authorization_tokens
                    WHERE id = ? AND tenant_id = ? AND action = 'WEIGHT_OVERRIDE'
@@ -1880,115 +1925,115 @@ export async function processOfflineSaleAtomic(
                      AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
                      AND datetime(expires_at) <= datetime(created_at, '+90 seconds')
                  ) THEN 1 ELSE 0 END`,
-              )
-              .bind(
-                tokenGuardId,
-                measurement.authorizationTokenId,
-                tenantId,
-                userId,
-                opts.terminalId,
-                payload.offlineSaleId,
-                measurement.saleItemId,
-                measurement.measurementId,
-              ),
-          );
+                )
+                .bind(
+                  tokenGuardId,
+                  measurement.authorizationTokenId,
+                  tenantId,
+                  userId,
+                  opts.terminalId,
+                  payload.offlineSaleId,
+                  measurement.saleItemId,
+                  measurement.measurementId,
+                ),
+            );
+            plan.add(
+              db
+                .prepare(
+                  `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP, sale_id = ?
+                 WHERE id = ? AND tenant_id = ? AND used_at IS NULL`,
+                )
+                .bind(saleId, measurement.authorizationTokenId, tenantId),
+            );
+          }
           plan.add(
             db
               .prepare(
-                `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP, sale_id = ?
-                 WHERE id = ? AND tenant_id = ? AND used_at IS NULL`,
-              )
-              .bind(saleId, measurement.authorizationTokenId, tenantId),
-          );
-        }
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO weight_measurements (
+                `INSERT INTO weight_measurements (
                  id, tenant_id, sale_item_id, product_id, terminal_id, scale_device_id,
                  operation_type, operation_id, idempotency_key, weight_microunits,
                  unit_price_per_base_cents, subtotal_cents, measurement_source,
                  scale_protocol, heartbeat_sequence, observed_at, authorization_token_id
                ) VALUES (?, ?, ?, ?, ?, ?, 'SALE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .bind(
-              measurement.measurementId,
-              tenantId,
-              measurement.saleItemId,
-              measurement.productId,
-              opts.terminalId,
-              measurement.scaleDeviceId,
-              saleId,
-              `${payload.offlineSaleId}:${measurement.measurementId}`,
-              measurement.weightMicrounits,
-              measurement.unitPricePerBaseCents,
-              measurement.subtotalCents,
-              measurement.measurementSource,
-              measurement.scaleProtocol,
-              measurement.heartbeatSequence,
-              measurement.observedAt,
-              measurement.authorizationTokenId,
-            ),
-        );
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO audit_events (
-                 id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
-                 payload_json, prev_hash, row_hash
-               ) VALUES (?, ?, ?, ?, ?, 'weight_measurement', ?, ?, ?, ?)`,
-            )
-            .bind(
-              crypto.randomUUID(),
-              tenantId,
-              payload.branchId,
-              userId,
-              measurement.authorizationTokenId ? 'WEIGHT_OVERRIDE' : 'WEIGHT_MEASUREMENT',
-              measurement.measurementId,
-              JSON.stringify({
+              )
+              .bind(
+                measurement.measurementId,
+                tenantId,
+                measurement.saleItemId,
+                measurement.productId,
+                opts.terminalId,
+                measurement.scaleDeviceId,
                 saleId,
-                saleItemId: measurement.saleItemId,
-                productId: measurement.productId,
-                weightMicrounits: measurement.weightMicrounits,
-                authorizationTokenId: measurement.authorizationTokenId,
-              }),
-              weightAudit.prevHash,
-              weightAudit.rowHash,
-            ),
-        );
-      }
-
-      for (const serial of preparedSerials) {
-        const productLineIds = saleItemIdsByProduct.get(serial.productId) ?? [];
-        const saleItemId =
-          saleItemBySerialId.get(serial.serialId) ??
-          (productLineIds.length === 1 ? productLineIds[0] : undefined);
-        if (!saleItemId) throw new Error('SERIAL_SALE_ITEM_REQUIRED');
-        await appendSerialTransitionToPlan(plan, db, {
-          tenantId,
-          serialId: serial.serialId,
-          branchId: serial.branchId,
-          locationId: serial.locationId,
-          productId: serial.productId,
-          expectedStatus: serial.status,
-          nextStatus: isReturn ? 'RETURNED_INSPECTION' : 'SOLD',
-          expectedVersion: serial.version,
-          eventType: isReturn ? 'RETURNED' : 'SALE',
-          operationType: isReturn ? 'SALE_RETURN' : 'SALE_ITEM',
-          operationId: saleId,
-          operationLineId: saleItemId,
-          idempotencyKey: `${payload.offlineSaleId}:${serial.serialId}`,
-          actorUserId: userId,
-          currentSaleItemId: isReturn ? null : saleItemId,
-        });
-        if (!isReturn && !skipStock) {
-          const assignment = serialAssignments.find(
-            (candidate) => candidate.serialId === serial.serialId,
-          )!;
+                `${payload.offlineSaleId}:${measurement.measurementId}`,
+                measurement.weightMicrounits,
+                measurement.unitPricePerBaseCents,
+                measurement.subtotalCents,
+                measurement.measurementSource,
+                measurement.scaleProtocol,
+                measurement.heartbeatSequence,
+                measurement.observedAt,
+                measurement.authorizationTokenId,
+              ),
+          );
           plan.add(
             db
               .prepare(
-                `UPDATE serial_terminal_leases
+                `INSERT INTO audit_events (
+                 id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
+                 payload_json, prev_hash, row_hash
+               ) VALUES (?, ?, ?, ?, ?, 'weight_measurement', ?, ?, ?, ?)`,
+              )
+              .bind(
+                crypto.randomUUID(),
+                tenantId,
+                payload.branchId,
+                userId,
+                measurement.authorizationTokenId ? 'WEIGHT_OVERRIDE' : 'WEIGHT_MEASUREMENT',
+                measurement.measurementId,
+                JSON.stringify({
+                  saleId,
+                  saleItemId: measurement.saleItemId,
+                  productId: measurement.productId,
+                  weightMicrounits: measurement.weightMicrounits,
+                  authorizationTokenId: measurement.authorizationTokenId,
+                }),
+                weightAudit.prevHash,
+                weightAudit.rowHash,
+              ),
+          );
+        }
+
+        for (const serial of preparedSerials) {
+          const productLineIds = saleItemIdsByProduct.get(serial.productId) ?? [];
+          const saleItemId =
+            saleItemBySerialId.get(serial.serialId) ??
+            (productLineIds.length === 1 ? productLineIds[0] : undefined);
+          if (!saleItemId) throw new Error('SERIAL_SALE_ITEM_REQUIRED');
+          await appendSerialTransitionToPlan(plan, db, {
+            tenantId,
+            serialId: serial.serialId,
+            branchId: serial.branchId,
+            locationId: serial.locationId,
+            productId: serial.productId,
+            expectedStatus: serial.status,
+            nextStatus: isReturn ? 'RETURNED_INSPECTION' : 'SOLD',
+            expectedVersion: serial.version,
+            eventType: isReturn ? 'RETURNED' : 'SALE',
+            operationType: isReturn ? 'SALE_RETURN' : 'SALE_ITEM',
+            operationId: saleId,
+            operationLineId: saleItemId,
+            idempotencyKey: `${payload.offlineSaleId}:${serial.serialId}`,
+            actorUserId: userId,
+            currentSaleItemId: isReturn ? null : saleItemId,
+          });
+          if (!isReturn && !skipStock) {
+            const assignment = serialAssignments.find(
+              (candidate) => candidate.serialId === serial.serialId,
+            )!;
+            plan.add(
+              db
+                .prepare(
+                  `UPDATE serial_terminal_leases
                  SET status = 'CONSUMED', consumed_at = CURRENT_TIMESTAMP, version = version + 1
                  WHERE tenant_id = ? AND serial_id = ? AND terminal_id = ?
                    AND token_hash = ? AND status = 'ACTIVE'
@@ -2001,117 +2046,117 @@ export async function processOfflineSaleAtomic(
                      WHERE sn.tenant_id = serial_terminal_leases.tenant_id
                        AND sn.id = serial_terminal_leases.serial_id
                    )`,
-              )
-              .bind(
-                tenantId,
-                serial.serialId,
-                assignment.terminalId!,
-                leaseHashBySerial.get(serial.serialId),
-                assignment.terminalId!,
-              ),
-          );
+                )
+                .bind(
+                  tenantId,
+                  serial.serialId,
+                  assignment.terminalId!,
+                  leaseHashBySerial.get(serial.serialId),
+                  assignment.terminalId!,
+                ),
+            );
+          }
         }
-      }
 
-      // Stock: físicos (y FEFO lotes) + componentes BOM. Kits no debitan stock propio.
-      const stockDebits = new Map<string, number>();
-      for (const [productId, qty] of qtyByProduct) {
-        const typ = catalog.get(productId)!.type;
-        if (typ === 'kit' && s18.inventoryBom) continue;
-        if (!isPhysicalStockType(typ) && typ !== 'kit') continue;
-        if (isPhysicalStockType(typ) || !s18.inventoryBom) {
-          stockDebits.set(productId, (stockDebits.get(productId) ?? 0) + qty);
+        // Stock: físicos (y FEFO lotes) + componentes BOM. Kits no debitan stock propio.
+        const stockDebits = new Map<string, number>();
+        for (const [productId, qty] of qtyByProduct) {
+          const typ = catalog.get(productId)!.type;
+          if (typ === 'kit' && s18.inventoryBom) continue;
+          if (!isPhysicalStockType(typ) && typ !== 'kit') continue;
+          if (isPhysicalStockType(typ) || !s18.inventoryBom) {
+            stockDebits.set(productId, (stockDebits.get(productId) ?? 0) + qty);
+          }
         }
-      }
-      for (const [compId, qty] of bomDebits) {
-        stockDebits.set(compId, (stockDebits.get(compId) ?? 0) + qty);
-      }
+        for (const [compId, qty] of bomDebits) {
+          stockDebits.set(compId, (stockDebits.get(compId) ?? 0) + qty);
+        }
 
-      for (const [productId, qty] of skipStock ? [] : stockDebits) {
-        const before = stockByProduct.get(productId)!;
-        const allow = isReturn || before.allowNegative ? 1 : 0;
-        const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
-        const signedQtyMicrounits = isReturn ? -qtyMicrounits : qtyMicrounits;
-        const delta = isReturn ? qty : -qty;
-        const isBomComp = bomDebits.has(productId);
-        const movementType = isReturn ? 'DEVOLUCION_NC' : isBomComp ? 'VENTA_BOM' : 'VENTA';
-        if (before.hasBranchRow) {
-          plan.add(
-            db
-              .prepare(
-                `UPDATE branch_product_stock
+        for (const [productId, qty] of skipStock ? [] : stockDebits) {
+          const before = stockByProduct.get(productId)!;
+          const allow = isReturn || before.allowNegative ? 1 : 0;
+          const qtyMicrounits = Math.round(qty * QUANTITY_SCALE);
+          const signedQtyMicrounits = isReturn ? -qtyMicrounits : qtyMicrounits;
+          const delta = isReturn ? qty : -qty;
+          const isBomComp = bomDebits.has(productId);
+          const movementType = isReturn ? 'DEVOLUCION_NC' : isBomComp ? 'VENTA_BOM' : 'VENTA';
+          if (before.hasBranchRow) {
+            plan.add(
+              db
+                .prepare(
+                  `UPDATE branch_product_stock
                    SET stock_microunits = stock_microunits - ?,
                        stock = (stock_microunits - ?) * 0.000001,
                        updated_at = CURRENT_TIMESTAMP, version = version + 1
                    WHERE tenant_id = ? AND branch_id = ? AND product_id = ?
                      AND (stock_microunits >= ? OR ? = 1)`,
-              )
-              .bind(
-                signedQtyMicrounits,
-                signedQtyMicrounits,
-                tenantId,
-                payload.branchId,
-                productId,
-                isReturn ? 0 : qtyMicrounits,
-                allow,
-              ),
-          );
-        } else {
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO branch_product_stock (
+                )
+                .bind(
+                  signedQtyMicrounits,
+                  signedQtyMicrounits,
+                  tenantId,
+                  payload.branchId,
+                  productId,
+                  isReturn ? 0 : qtyMicrounits,
+                  allow,
+                ),
+            );
+          } else {
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO branch_product_stock (
                      tenant_id, branch_id, product_id, stock, stock_microunits,
                      pmp_unit_cost_cents, version
                    ) VALUES (?, ?, ?, ?, ?, ?, 1)`,
-              )
-              .bind(
+                )
+                .bind(
+                  tenantId,
+                  payload.branchId,
+                  productId,
+                  (before.stockMicrounits - signedQtyMicrounits) * 0.000001,
+                  before.stockMicrounits - signedQtyMicrounits,
+                  catalog.get(productId)!.pmpUnitCostCents,
+                ),
+            );
+          }
+          appendLocationStockDeltaToPlan(plan, db, {
+            tenantId,
+            branchId: payload.branchId,
+            productId,
+            deltaMicrounits: isReturn ? qtyMicrounits : -qtyMicrounits,
+            initialQuantityMicrounits: before.stockMicrounits,
+          });
+          const fefoAllocs = [
+            ...(fefoByProduct.get(productId) ?? []),
+            ...payload.items
+              .filter((item) => item.productId === productId && item.saleItemId)
+              .flatMap((item) => fefoByLine.get(item.saleItemId!) ?? []),
+          ];
+          if (fefoAllocs.length > 0 && !isReturn) {
+            for (const alloc of fefoAllocs) {
+              const allocMicrounits = Math.round(alloc.qty * QUANTITY_SCALE);
+              appendLocationBatchStockDeltaToPlan(plan, db, {
                 tenantId,
-                payload.branchId,
+                branchId: payload.branchId,
                 productId,
-                (before.stockMicrounits - signedQtyMicrounits) * 0.000001,
-                before.stockMicrounits - signedQtyMicrounits,
-                catalog.get(productId)!.pmpUnitCostCents,
-              ),
-          );
-        }
-        appendLocationStockDeltaToPlan(plan, db, {
-          tenantId,
-          branchId: payload.branchId,
-          productId,
-          deltaMicrounits: isReturn ? qtyMicrounits : -qtyMicrounits,
-          initialQuantityMicrounits: before.stockMicrounits,
-        });
-        const fefoAllocs = [
-          ...(fefoByProduct.get(productId) ?? []),
-          ...payload.items
-            .filter((item) => item.productId === productId && item.saleItemId)
-            .flatMap((item) => fefoByLine.get(item.saleItemId!) ?? []),
-        ];
-        if (fefoAllocs.length > 0 && !isReturn) {
-          for (const alloc of fefoAllocs) {
-            const allocMicrounits = Math.round(alloc.qty * QUANTITY_SCALE);
-            appendLocationBatchStockDeltaToPlan(plan, db, {
-              tenantId,
-              branchId: payload.branchId,
-              productId,
-              batchId: alloc.batchId,
-              deltaMicrounits: -allocMicrounits,
-            });
-            plan.add(
-              db
-                .prepare(
-                  `UPDATE inventory_batches
+                batchId: alloc.batchId,
+                deltaMicrounits: -allocMicrounits,
+              });
+              plan.add(
+                db
+                  .prepare(
+                    `UPDATE inventory_batches
                    SET stock_microunits = stock_microunits - ?,
                        stock = (stock_microunits - ?) * 0.000001
                    WHERE id = ? AND tenant_id = ? AND stock_microunits >= ?`,
-                )
-                .bind(allocMicrounits, allocMicrounits, alloc.batchId, tenantId, allocMicrounits),
-            );
-            plan.add(
-              db
-                .prepare(
-                  `INSERT INTO inventory_movements (
+                  )
+                  .bind(allocMicrounits, allocMicrounits, alloc.batchId, tenantId, allocMicrounits),
+              );
+              plan.add(
+                db
+                  .prepare(
+                    `INSERT INTO inventory_movements (
                        id, tenant_id, branch_id, product_id, batch_id, movement_type, quantity_delta,
                        quantity_delta_microunits, unit_cost_cents, stock_after,
                        stock_after_microunits, user_id, reference_id
@@ -2121,16 +2166,51 @@ export async function processOfflineSaleAtomic(
                        (SELECT stock_microunits FROM branch_product_stock
                         WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
                        ?, ?)`,
+                  )
+                  .bind(
+                    crypto.randomUUID(),
+                    tenantId,
+                    payload.branchId,
+                    productId,
+                    alloc.batchId,
+                    movementType,
+                    -alloc.qty,
+                    -Math.round(alloc.qty * QUANTITY_SCALE),
+                    catalog.get(productId)!.pmpUnitCostCents,
+                    tenantId,
+                    payload.branchId,
+                    productId,
+                    tenantId,
+                    payload.branchId,
+                    productId,
+                    userId,
+                    saleId,
+                  ),
+              );
+            }
+          } else {
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO inventory_movements (
+                     id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
+                     quantity_delta_microunits, unit_cost_cents, stock_after,
+                     stock_after_microunits, user_id, reference_id
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+                     (SELECT stock FROM branch_product_stock
+                      WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                     (SELECT stock_microunits FROM branch_product_stock
+                      WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
+                     ?, ?)`,
                 )
                 .bind(
                   crypto.randomUUID(),
                   tenantId,
                   payload.branchId,
                   productId,
-                  alloc.batchId,
                   movementType,
-                  -alloc.qty,
-                  -Math.round(alloc.qty * QUANTITY_SCALE),
+                  delta,
+                  isReturn ? qtyMicrounits : -qtyMicrounits,
                   catalog.get(productId)!.pmpUnitCostCents,
                   tenantId,
                   payload.branchId,
@@ -2143,428 +2223,408 @@ export async function processOfflineSaleAtomic(
                 ),
             );
           }
-        } else {
+        }
+
+        for (let paymentIndex = 0; paymentIndex < payload.payments.length; paymentIndex++) {
+          const pay = payload.payments[paymentIndex]!;
+          const salePaymentId = crypto.randomUUID();
           plan.add(
             db
               .prepare(
-                `INSERT INTO inventory_movements (
-                     id, tenant_id, branch_id, product_id, movement_type, quantity_delta,
-                     quantity_delta_microunits, unit_cost_cents, stock_after,
-                     stock_after_microunits, user_id, reference_id
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?,
-                     (SELECT stock FROM branch_product_stock
-                      WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
-                     (SELECT stock_microunits FROM branch_product_stock
-                      WHERE tenant_id = ? AND branch_id = ? AND product_id = ?),
-                     ?, ?)`,
-              )
-              .bind(
-                crypto.randomUUID(),
-                tenantId,
-                payload.branchId,
-                productId,
-                movementType,
-                delta,
-                isReturn ? qtyMicrounits : -qtyMicrounits,
-                catalog.get(productId)!.pmpUnitCostCents,
-                tenantId,
-                payload.branchId,
-                productId,
-                tenantId,
-                payload.branchId,
-                productId,
-                userId,
-                saleId,
-              ),
-          );
-        }
-      }
-
-      for (let paymentIndex = 0; paymentIndex < payload.payments.length; paymentIndex++) {
-        const pay = payload.payments[paymentIndex]!;
-        const salePaymentId = crypto.randomUUID();
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO sale_payments (
+                `INSERT INTO sale_payments (
                    id, tenant_id, sale_id, payment_method_id, amount_cents, reference_number, tip_cents
                  ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            )
-            .bind(
-              salePaymentId,
-              tenantId,
-              saleId,
-              pay.paymentMethodId,
-              pay.amountCents,
-              pay.referenceNumber ?? null,
-              pay.tipCents ?? 0,
-            ),
-        );
-        // §5.4 edge 2B: MANUAL_ELECTRONIC_CAPTURE en la misma batch (nunca inventa CAPTURED).
-        if (pay.captureStatus === 'MANUAL') {
-          const code = methodCodeById.get(pay.paymentMethodId);
-          const acquirer = code ? methodCodeToAcquirer(code) : null;
-          if (!acquirer) throw new Error('MANUAL_CAPTURE_REQUIRES_ACQUIRER');
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO payment_captures (
+              )
+              .bind(
+                salePaymentId,
+                tenantId,
+                saleId,
+                pay.paymentMethodId,
+                pay.amountCents,
+                pay.referenceNumber ?? null,
+                pay.tipCents ?? 0,
+              ),
+          );
+          // §5.4 edge 2B: MANUAL_ELECTRONIC_CAPTURE en la misma batch (nunca inventa CAPTURED).
+          if (pay.captureStatus === 'MANUAL') {
+            const code = methodCodeById.get(pay.paymentMethodId);
+            const acquirer = code ? methodCodeToAcquirer(code) : null;
+            if (!acquirer) throw new Error('MANUAL_CAPTURE_REQUIRES_ACQUIRER');
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO payment_captures (
                      id, tenant_id, sale_id, sale_payment_id, acquirer, acquirer_ref,
                      status, amount_cents, idempotency_key
                    ) VALUES (?, ?, ?, ?, ?, ?, 'MANUAL_ELECTRONIC_CAPTURE', ?, ?)`,
-              )
-              .bind(
-                crypto.randomUUID(),
-                tenantId,
-                saleId,
-                salePaymentId,
-                acquirer,
-                pay.referenceNumber ?? null,
-                pay.amountCents,
-                buildCaptureIdempotencyKey(payload.offlineSaleId, paymentIndex, code!),
-              ),
-          );
-        }
-        // DAT-05: crédito → CxC en la MISMA tx (mismo db.batch).
-        if (ledgerOn && pay.isCredit === true && customerId) {
-          const ar = planCreateAr({
-            id: crypto.randomUUID(),
-            tenantId,
-            customerId,
-            saleId,
-            amountCents: pay.amountCents,
-            dueDateIso: defaultCreditDueDateIso(limaTs, 30),
-            createdAtIso: limaTs,
-          });
-          plan.add(
-            db
-              .prepare(
-                `INSERT INTO accounts_receivable (
+                )
+                .bind(
+                  crypto.randomUUID(),
+                  tenantId,
+                  saleId,
+                  salePaymentId,
+                  acquirer,
+                  pay.referenceNumber ?? null,
+                  pay.amountCents,
+                  buildCaptureIdempotencyKey(payload.offlineSaleId, paymentIndex, code!),
+                ),
+            );
+          }
+          // DAT-05: crédito → CxC en la MISMA tx (mismo db.batch).
+          if (ledgerOn && pay.isCredit === true && customerId) {
+            const ar = planCreateAr({
+              id: crypto.randomUUID(),
+              tenantId,
+              customerId,
+              saleId,
+              amountCents: pay.amountCents,
+              dueDateIso: defaultCreditDueDateIso(limaTs, 30),
+              createdAtIso: limaTs,
+            });
+            plan.add(
+              db
+                .prepare(
+                  `INSERT INTO accounts_receivable (
                      id, tenant_id, customer_id, sale_id, original_amount_cents,
                      balance_due_cents, due_date, status, created_at
                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)`,
-              )
-              .bind(
-                ar.arId,
-                ar.tenantId,
-                ar.customerId,
-                ar.originSaleId,
-                ar.originalAmountCents,
-                ar.balanceDueCents,
-                ar.dueDateIso,
-                ar.createdAtIso,
-              ),
-          );
+                )
+                .bind(
+                  ar.arId,
+                  ar.tenantId,
+                  ar.customerId,
+                  ar.originSaleId,
+                  ar.originalAmountCents,
+                  ar.balanceDueCents,
+                  ar.dueDateIso,
+                  ar.createdAtIso,
+                ),
+            );
+          }
         }
-      }
 
-      if (arCompensate) {
-        const c = arCompensate.plan;
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO accounts_receivable_payments (
+        if (arCompensate) {
+          const c = arCompensate.plan;
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO accounts_receivable_payments (
                    id, accounts_receivable_id, amount_cents, payment_method,
                    cash_register_session_id, collected_by_user_id
                  ) VALUES (?, ?, ?, ?, ?, ?)`,
-            )
-            .bind(
-              c.paymentId,
-              c.accountsReceivableId,
-              c.appliedCents,
-              c.paymentMethod,
-              payload.cashRegisterSessionId,
-              c.collectedByUserId,
-            ),
-        );
-        plan.add(
-          db
-            .prepare(
-              `UPDATE accounts_receivable
+              )
+              .bind(
+                c.paymentId,
+                c.accountsReceivableId,
+                c.appliedCents,
+                c.paymentMethod,
+                payload.cashRegisterSessionId,
+                c.collectedByUserId,
+              ),
+          );
+          plan.add(
+            db
+              .prepare(
+                `UPDATE accounts_receivable
                  SET balance_due_cents = ?, status = ?
                WHERE id = ? AND tenant_id = ? AND balance_due_cents > 0`,
-            )
-            .bind(c.nextBalanceCents, c.nextStatus, c.accountsReceivableId, tenantId),
-        );
-      }
+              )
+              .bind(c.nextBalanceCents, c.nextStatus, c.accountsReceivableId, tenantId),
+          );
+        }
 
-      // Sprint 24: loyalty redeem / edge A en la misma batch.
-      if (
-        loyaltyPlan?.outcome === 'REDEEM' &&
-        loyaltyPlan.reservationId &&
-        loyaltyPlan.points > 0
-      ) {
-        const guardId = crypto.randomUUID();
-        stockGuardIds.push(guardId);
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO atomic_guards (id, ok)
+        // Sprint 24: loyalty redeem / edge A en la misma batch.
+        if (
+          loyaltyPlan?.outcome === 'REDEEM' &&
+          loyaltyPlan.reservationId &&
+          loyaltyPlan.points > 0
+        ) {
+          const guardId = crypto.randomUUID();
+          stockGuardIds.push(guardId);
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO atomic_guards (id, ok)
                SELECT ?, CASE WHEN points_balance >= ? THEN 1 ELSE 0 END
                FROM loyalty_accounts
                WHERE tenant_id = ? AND customer_id = ?`,
-            )
-            .bind(guardId, loyaltyPlan.points, tenantId, loyaltyPlan.customerId),
-        );
-        plan.add(
-          db
-            .prepare(
-              `UPDATE loyalty_accounts
+              )
+              .bind(guardId, loyaltyPlan.points, tenantId, loyaltyPlan.customerId),
+          );
+          plan.add(
+            db
+              .prepare(
+                `UPDATE loyalty_accounts
                SET points_balance = points_balance - ?
                WHERE tenant_id = ? AND customer_id = ? AND points_balance >= ?`,
-            )
-            .bind(loyaltyPlan.points, tenantId, loyaltyPlan.customerId, loyaltyPlan.points),
-        );
-        plan.add(
-          db
-            .prepare(
-              `UPDATE loyalty_reservations
+              )
+              .bind(loyaltyPlan.points, tenantId, loyaltyPlan.customerId, loyaltyPlan.points),
+          );
+          plan.add(
+            db
+              .prepare(
+                `UPDATE loyalty_reservations
                SET status = 'REDEEMED'
                WHERE id = ? AND tenant_id = ? AND status = 'RESERVED'`,
-            )
-            .bind(loyaltyPlan.reservationId, tenantId),
-        );
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO audit_events (
+              )
+              .bind(loyaltyPlan.reservationId, tenantId),
+          );
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO audit_events (
                    id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
                    payload_json, prev_hash, row_hash
                  ) VALUES (?, ?, ?, ?, 'LOYALTY_REDEEMED', 'loyalty_reservation', ?, ?, ?, ?)`,
-            )
-            .bind(
-              loyaltyPlan.auditId!,
-              tenantId,
-              payload.branchId,
-              userId,
-              loyaltyPlan.reservationId,
-              JSON.stringify({
-                sale_id: saleId,
-                points: loyaltyPlan.points,
-                customer_id: loyaltyPlan.customerId,
-              }),
-              loyaltyPlan.prevHash ?? null,
-              loyaltyPlan.rowHash!,
-            ),
-        );
-      } else if (
-        loyaltyPlan?.outcome === 'EXPIRED_ON_RETRY' &&
-        loyaltyPlan.reservationId &&
-        loyaltyPlan.auditId &&
-        loyaltyPlan.rowHash
-      ) {
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO audit_events (
+              )
+              .bind(
+                loyaltyPlan.auditId!,
+                tenantId,
+                payload.branchId,
+                userId,
+                loyaltyPlan.reservationId,
+                JSON.stringify({
+                  sale_id: saleId,
+                  points: loyaltyPlan.points,
+                  customer_id: loyaltyPlan.customerId,
+                }),
+                loyaltyPlan.prevHash ?? null,
+                loyaltyPlan.rowHash!,
+              ),
+          );
+        } else if (
+          loyaltyPlan?.outcome === 'EXPIRED_ON_RETRY' &&
+          loyaltyPlan.reservationId &&
+          loyaltyPlan.auditId &&
+          loyaltyPlan.rowHash
+        ) {
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO audit_events (
                    id, tenant_id, branch_id, actor_user_id, action, entity_type, entity_id,
                    payload_json, prev_hash, row_hash
                  ) VALUES (?, ?, ?, ?, ?, 'loyalty_reservation', ?, ?, ?, ?)`,
-            )
-            .bind(
-              loyaltyPlan.auditId,
-              tenantId,
-              payload.branchId,
-              userId,
-              LOYALTY_RESERVATION_EXPIRED,
-              loyaltyPlan.reservationId,
-              JSON.stringify({
-                sale_id: saleId,
-                loyalty_reservation_id: loyaltyPlan.reservationId,
-                reason: 'EXPIRED_ON_RETRY',
-              }),
-              loyaltyPlan.prevHash ?? null,
-              loyaltyPlan.rowHash,
-            ),
-        );
-      }
+              )
+              .bind(
+                loyaltyPlan.auditId,
+                tenantId,
+                payload.branchId,
+                userId,
+                LOYALTY_RESERVATION_EXPIRED,
+                loyaltyPlan.reservationId,
+                JSON.stringify({
+                  sale_id: saleId,
+                  loyalty_reservation_id: loyaltyPlan.reservationId,
+                  reason: 'EXPIRED_ON_RETRY',
+                }),
+                loyaltyPlan.prevHash ?? null,
+                loyaltyPlan.rowHash,
+              ),
+          );
+        }
 
-      if (
-        chartOn &&
-        (docType === 'NV' || docType === '01' || docType === '03' || docType === '12')
-      ) {
-        const journalPayments = payload.payments.map((pay) => {
-          const raw = rawMethodCodeById.get(pay.paymentMethodId) ?? '';
-          const code = methodCodeById.get(pay.paymentMethodId);
-          const methodCode =
-            pay.isCredit === true || code === 'credit'
-              ? 'credit'
-              : code === 'store_credit' || raw === 'store_credit'
-                ? 'store_credit'
-                : raw === 'anticipo' ||
-                    raw === 'layaway_deposit' ||
-                    (pay.referenceNumber?.startsWith('anticipo:') ?? false)
-                  ? 'anticipo'
-                  : (code ?? 'cash');
-          return { methodCode, amountCents: pay.amountCents };
-        });
-        const journalResult = await appendJournalToPlan(plan, db, {
-          tenantId,
-          branchId: payload.branchId,
-          userId,
-          accountsByCode: chartAccounts,
-          prevAuditHash: journalPrevHash,
-          entry: planSaleJournal({
-            sourceId: saleId,
+        if (
+          chartOn &&
+          (docType === 'NV' || docType === '01' || docType === '03' || docType === '12')
+        ) {
+          const journalPayments = payload.payments.map((pay) => {
+            const raw = rawMethodCodeById.get(pay.paymentMethodId) ?? '';
+            const code = methodCodeById.get(pay.paymentMethodId);
+            const methodCode =
+              pay.isCredit === true || code === 'credit'
+                ? 'credit'
+                : code === 'store_credit' || raw === 'store_credit'
+                  ? 'store_credit'
+                  : raw === 'anticipo' ||
+                      raw === 'layaway_deposit' ||
+                      (pay.referenceNumber?.startsWith('anticipo:') ?? false)
+                    ? 'anticipo'
+                    : (code ?? 'cash');
+            return { methodCode, amountCents: pay.amountCents };
+          });
+          const journalResult = await appendJournalToPlan(plan, db, {
+            tenantId,
+            branchId: payload.branchId,
+            userId,
+            accountsByCode: chartAccounts,
+            prevAuditHash: journalPrevHash,
+            entry: planSaleJournal({
+              sourceId: saleId,
+              postDate: limaTs.slice(0, 10),
+              totalCents: totals.totalAmountCents,
+              taxCents: totals.totalIgvCents,
+              payments: journalPayments,
+              ...(storeCreditIssuePlan
+                ? { storeCreditIssueCents: storeCreditIssuePlan.amountCents }
+                : {}),
+            }),
+          });
+          auditTail = journalResult.rowHash;
+        }
+
+        if (storeCreditRedeemPlan && customerId) {
+          const storeCreditRedeemResult = await appendStoreCreditRedeemToPlan(plan, db, {
+            tenantId,
+            userId,
+            branchId: payload.branchId,
+            accountId: storeCreditRedeemPlan.accountId,
+            customerId,
+            appliedCents: storeCreditRedeemPlan.appliedCents,
+            prevBalanceCents: storeCreditRedeemPlan.prevBalanceCents,
+            nextBalanceCents: storeCreditRedeemPlan.nextBalanceCents,
+            saleId,
+            prevAuditHash: auditTail,
+          });
+          auditTail = storeCreditRedeemResult.rowHash;
+        }
+        if (wantsStoreCreditIssue && !storeCreditIssuePlan) {
+          if (!customerId) throw new Error('STORE_CREDIT_CUSTOMER_REQUIRED');
+          const acc = await planEnsureStoreCreditAccount(plan, db, tenantId, customerId);
+          const issue = planStoreCreditIssue({
+            customerId,
+            currentBalanceCents: acc.balance_cents,
+            amountCents: totals.totalAmountCents,
+            sourceRef: giftCardSaleSourceRef(saleId),
+          });
+          storeCreditIssuePlan = {
+            amountCents: issue.amountCents,
+            accountId: acc.id,
+            prevBalanceCents: acc.balance_cents,
+            nextBalanceCents: issue.nextBalanceCents,
+          };
+        }
+        if (storeCreditIssuePlan && customerId) {
+          const storeCreditIssueResult = await appendStoreCreditIssueToPlan(plan, db, {
+            tenantId,
+            userId,
+            branchId: payload.branchId,
+            accountId: storeCreditIssuePlan.accountId,
+            customerId,
+            amountCents: storeCreditIssuePlan.amountCents,
+            sourceRef: giftCardSaleSourceRef(saleId),
+            saleId,
+            prevBalanceCents: storeCreditIssuePlan.prevBalanceCents,
+            nextBalanceCents: storeCreditIssuePlan.nextBalanceCents,
+            prevAuditHash: auditTail,
+            chartOn,
+            accountsByCode: chartAccounts,
             postDate: limaTs.slice(0, 10),
-            totalCents: totals.totalAmountCents,
-            taxCents: totals.totalIgvCents,
-            payments: journalPayments,
-            ...(storeCreditIssuePlan
-              ? { storeCreditIssueCents: storeCreditIssuePlan.amountCents }
-              : {}),
-          }),
-        });
-        auditTail = journalResult.rowHash;
-      }
+          });
+          auditTail = storeCreditIssueResult.rowHash;
+        }
 
-      if (storeCreditRedeemPlan && customerId) {
-        const storeCreditRedeemResult = await appendStoreCreditRedeemToPlan(plan, db, {
-          tenantId,
-          userId,
-          branchId: payload.branchId,
-          accountId: storeCreditRedeemPlan.accountId,
-          customerId,
-          appliedCents: storeCreditRedeemPlan.appliedCents,
-          prevBalanceCents: storeCreditRedeemPlan.prevBalanceCents,
-          nextBalanceCents: storeCreditRedeemPlan.nextBalanceCents,
-          saleId,
-          prevAuditHash: auditTail,
-        });
-        auditTail = storeCreditRedeemResult.rowHash;
-      }
-      if (wantsStoreCreditIssue && !storeCreditIssuePlan) {
-        if (!customerId) throw new Error('STORE_CREDIT_CUSTOMER_REQUIRED');
-        const acc = await planEnsureStoreCreditAccount(plan, db, tenantId, customerId);
-        const issue = planStoreCreditIssue({
-          customerId,
-          currentBalanceCents: acc.balance_cents,
-          amountCents: totals.totalAmountCents,
-          sourceRef: giftCardSaleSourceRef(saleId),
-        });
-        storeCreditIssuePlan = {
-          amountCents: issue.amountCents,
-          accountId: acc.id,
-          prevBalanceCents: acc.balance_cents,
-          nextBalanceCents: issue.nextBalanceCents,
-        };
-      }
-      if (storeCreditIssuePlan && customerId) {
-        const storeCreditIssueResult = await appendStoreCreditIssueToPlan(plan, db, {
-          tenantId,
-          userId,
-          branchId: payload.branchId,
-          accountId: storeCreditIssuePlan.accountId,
-          customerId,
-          amountCents: storeCreditIssuePlan.amountCents,
-          sourceRef: giftCardSaleSourceRef(saleId),
-          saleId,
-          prevBalanceCents: storeCreditIssuePlan.prevBalanceCents,
-          nextBalanceCents: storeCreditIssuePlan.nextBalanceCents,
-          prevAuditHash: auditTail,
-          chartOn,
-          accountsByCode: chartAccounts,
-          postDate: limaTs.slice(0, 10),
-        });
-        auditTail = storeCreditIssueResult.rowHash;
-      }
+        if (installmentsOn && payload.installmentPlan && creditPayments.length > 0) {
+          const creditSaleCents = creditPayments.reduce((s, p) => s + p.amountCents, 0);
+          const down =
+            payload.installmentPlan.downPaymentCents ??
+            Math.max(0, totals.totalAmountCents - creditSaleCents);
+          const installmentResult = await appendInstallmentPlanToBatch(plan, db, {
+            tenantId,
+            userId,
+            branchId: payload.branchId,
+            saleId,
+            saleTotalCents: totals.totalAmountCents,
+            downPaymentCents: down,
+            items: payload.installmentPlan.items,
+            prevAuditHash: auditTail,
+          });
+          auditTail = installmentResult.rowHash;
+        }
 
-      if (installmentsOn && payload.installmentPlan && creditPayments.length > 0) {
-        const creditSaleCents = creditPayments.reduce((s, p) => s + p.amountCents, 0);
-        const down =
-          payload.installmentPlan.downPaymentCents ??
-          Math.max(0, totals.totalAmountCents - creditSaleCents);
-        const installmentResult = await appendInstallmentPlanToBatch(plan, db, {
-          tenantId,
-          userId,
-          branchId: payload.branchId,
-          saleId,
-          saleTotalCents: totals.totalAmountCents,
-          downPaymentCents: down,
-          items: payload.installmentPlan.items,
-          prevAuditHash: auditTail,
-        });
-        auditTail = installmentResult.rowHash;
-      }
+        // S37-H2: el vendedor se resuelve por ítem (item.sellerId) o carrito
+        // (payload.sellerId) — regla 22: la venta con vendedor SIEMPRE devenga.
+        const resolvedSellerId =
+          payload.sellerId?.trim() ||
+          payload.items.find((i) => i.sellerId?.trim())?.sellerId?.trim() ||
+          '';
+        if (commissionsOn && resolvedSellerId && !isReturn) {
+          const commissionLines = saleLines.map((line) => ({
+            productId: line.productId,
+            categoryId: null as string | null,
+            lineTotalCents: line.totalCents,
+          }));
+          const commissionResult = await appendCommissionAccrualToBatch(plan, db, {
+            tenantId,
+            userId,
+            branchId: payload.branchId,
+            saleId,
+            sellerId: resolvedSellerId,
+            lines: commissionLines,
+            prevAuditHash: auditTail,
+            chartOn,
+            accountsByCode: chartAccounts,
+            postDate: limaTs.slice(0, 10),
+          });
+          if (commissionResult.rowHash) auditTail = commissionResult.rowHash;
+        }
 
-      // S37-H2: el vendedor se resuelve por ítem (item.sellerId) o carrito
-      // (payload.sellerId) — regla 22: la venta con vendedor SIEMPRE devenga.
-      const resolvedSellerId =
-        payload.sellerId?.trim() ||
-        payload.items.find((i) => i.sellerId?.trim())?.sellerId?.trim() ||
-        '';
-      if (commissionsOn && resolvedSellerId && !isReturn) {
-        const commissionLines = saleLines.map((line) => ({
-          productId: line.productId,
-          categoryId: null as string | null,
-          lineTotalCents: line.totalCents,
-        }));
-        const commissionResult = await appendCommissionAccrualToBatch(plan, db, {
-          tenantId,
-          userId,
-          branchId: payload.branchId,
-          saleId,
-          sellerId: resolvedSellerId,
-          lines: commissionLines,
-          prevAuditHash: auditTail,
-          chartOn,
-          accountsByCode: chartAccounts,
-          postDate: limaTs.slice(0, 10),
-        });
-        if (commissionResult.rowHash) auditTail = commissionResult.rowHash;
-      }
-
-      // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).
-      if (sunatStatus === 'PENDING') {
-        plan.add(
-          db
-            .prepare(
-              `INSERT INTO fiscal_outbox (
+        // CPE → fiscal_outbox (NV nunca). Sprint 5: PENDING sin RC (5b).
+        if (sunatStatus === 'PENDING') {
+          plan.add(
+            db
+              .prepare(
+                `INSERT INTO fiscal_outbox (
                    id, tenant_id, sale_id, status, must_submit_by
                  ) VALUES (?, ?, ?, 'PENDING', ?)`,
-            )
-            .bind(crypto.randomUUID(), tenantId, saleId, mustSubmitBy),
-        );
-      }
+              )
+              .bind(crypto.randomUUID(), tenantId, saleId, mustSubmitBy),
+          );
+        }
 
-      // Sprint 27 §4.1: cupo en la misma tx (nunca Stripe aquí).
-      appendUsageMeterToPlan(plan, db, {
-        tenantId,
-        documentId: saleId,
-        documentType: docType,
-      });
+        // Sprint 27 §4.1: cupo en la misma tx (nunca Stripe aquí).
+        appendUsageMeterToPlan(plan, db, {
+          tenantId,
+          documentId: saleId,
+          documentType: docType,
+        });
 
-      for (const gid of stockGuardIds) {
-        plan.add(db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(gid));
-      }
+        for (const gid of stockGuardIds) {
+          plan.add(db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(gid));
+        }
 
-      for (const tokenId of authTokensToConsume) {
-        plan.add(
-          db
-            .prepare(
-              `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP
+        for (const tokenId of authTokensToConsume) {
+          plan.add(
+            db
+              .prepare(
+                `UPDATE authorization_tokens SET used_at = CURRENT_TIMESTAMP
                WHERE id = ? AND tenant_id = ? AND used_at IS NULL`,
-            )
-            .bind(tokenId, tenantId),
+              )
+              .bind(tokenId, tenantId),
+          );
+        }
+
+        // M1 anti-fork: claim CAS de audit_chain_heads por TODO el tramo
+        // encadenado en memoria (head leída → punta final), en este mismo batch.
+        plan.claimAuditChain(
+          tenantId,
+          chainHeadAtRead,
+          auditTail !== null && auditTail !== chainHeadAtRead ? [auditTail] : [],
         );
-      }
 
-      // M1 anti-fork: claim CAS de audit_chain_heads por TODO el tramo
-      // encadenado en memoria (head leída → punta final), en este mismo batch.
-      plan.claimAuditChain(
-        tenantId,
-        chainHeadAtRead,
-        auditTail !== null && auditTail !== chainHeadAtRead ? [auditTail] : [],
-      );
-
-      if (opts.afterSaleStatements) {
-        await opts.afterSaleStatements(plan, saleId, auditTail);
-      }
-    });
+        if (opts.afterSaleStatements) {
+          await opts.afterSaleStatements(plan, saleId, auditTail);
+        }
+      });
+    } finally {
+      dbBatchMs = Date.now() - batchStart;
+    }
   } catch (error) {
     if (isUniqueConstraint(error)) {
       const synced = await loadAlreadySynced(db, tenantId, payload.offlineSaleId);
-      if (synced) return synced;
+      if (synced) {
+        emitHotPathAnalyticsInternal(
+          opts.analyticsEngine,
+          tenantId,
+          payload.branchId,
+          payload.documentType,
+          Date.now() - wallStart,
+          dbBatchMs,
+          true,
+          'ALREADY_SYNCED',
+        );
+        return synced;
+      }
     }
     throw error;
   }
@@ -2576,6 +2636,17 @@ export async function processOfflineSaleAtomic(
 
   // Edge D: sync tardío de día cerrado → rematerialize rollup + invalidate insights KV.
   await rematerializeDailyRollupIfClosedDay(db, tenantId, payload.branchId, limaTs, nowMs, kv);
+
+  emitHotPathAnalyticsInternal(
+    opts.analyticsEngine,
+    tenantId,
+    payload.branchId,
+    payload.documentType,
+    Date.now() - wallStart,
+    dbBatchMs,
+    false,
+    'SUCCESS',
+  );
 
   return {
     status: 'SUCCESS',

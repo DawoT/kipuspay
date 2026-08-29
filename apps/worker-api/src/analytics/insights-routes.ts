@@ -36,6 +36,30 @@ export interface InsightsEnv {
   readonly AI?: unknown;
   readonly AI_MODEL?: string;
   readonly TENANT_KV?: InsightsKvLike;
+  readonly ANALYTICS_ENGINE?: {
+    writeDataPoint(data: {
+      readonly blobs?: string[];
+      readonly doubles?: number[];
+      readonly indexes?: string[];
+    }): void;
+  };
+}
+
+export function emitSseAnalytics(
+  env: InsightsEnv,
+  tenantId: string,
+  durationMs: number,
+  status: string,
+): void {
+  try {
+    env.ANALYTICS_ENGINE?.writeDataPoint({
+      indexes: ['sse:insightsChat'],
+      doubles: [durationMs],
+      blobs: [tenantId, status],
+    });
+  } catch {
+    // best-effort: AE muestreado nunca bloquea la respuesta
+  }
 }
 
 export interface InsightsActor {
@@ -95,11 +119,15 @@ async function executeInsightChat(
   question: string,
   idempotencyKey: string,
 ): Promise<Response | HttpResult> {
+  const sseStart = Date.now();
   const { kv, gateway, db } = insightEnv(env);
   const cacheKey = `insights:${actor.tenantId}:${idempotencyKey}`;
   if (kv) {
     const cached = await kv.get(cacheKey);
-    if (cached) return sse({ cached: true, text: cached });
+    if (cached) {
+      emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'CACHE_HIT');
+      return sse({ cached: true, text: cached });
+    }
   }
 
   const modelVersion = env.AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct';
@@ -108,7 +136,10 @@ async function executeInsightChat(
     // un solo token (el consumo post-hoc permitía gasto ilimitado por tenant).
     const { consumeAiUsage } = await import('@kipuspay/adapters-d1');
     const quota = await assertAiQuota(env, actor.tenantId);
-    if (quota) return quota;
+    if (quota) {
+      emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'QUOTA_EXCEEDED');
+      return quota;
+    }
     // S49-H4: el metering atómico (queries < quota_queries) limita el gasto
     // real del LLM por tenant/día; el UNIQUE (tenant, idem) del insight_log
     // dedupea el registro final. La carrera de reenvío simultáneo con la
@@ -130,6 +161,7 @@ async function executeInsightChat(
         tokensIn: 0,
         tokensOut: 0,
       });
+      emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'UNSUPPORTED');
       return sse({ text });
     }
 
@@ -146,6 +178,7 @@ async function executeInsightChat(
         tokensIn: 0,
         tokensOut: 0,
       });
+      emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'TOO_WIDE');
       return sse({ text: plan.message });
     }
 
@@ -182,11 +215,14 @@ async function executeInsightChat(
       tokensIn: 32,
       tokensOut: estimateTokens(text),
     });
+    emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'OK');
     return sse({ text });
   } catch (err) {
     if (err instanceof Error && err.message === 'AI_QUOTA_EXCEEDED') {
+      emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'QUOTA_EXCEEDED');
       return result(402, { code: 'AI_QUOTA_EXCEEDED' });
     }
+    emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'FAILED');
     return result(422, { code: 'INSIGHTS_FAILED', errorRef: crypto.randomUUID() });
   }
 }

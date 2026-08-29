@@ -105,6 +105,7 @@ export async function runSyncSalesHttp(
     isLedgerStoreCreditEnabled(env),
     terminalId.trim(),
     {
+      analyticsEngine: env.ANALYTICS_ENGINE,
       activeShards: await loadActiveShards(env),
       ledgerArApEnabled: isLedgerArApEnabled(env),
       pricingPromotionsEnabled: isPricingPromotionsEnabled(env),

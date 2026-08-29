@@ -18,6 +18,53 @@ import { writeBreakerOpenToKv, type BreakerKvLike } from './breaker-read-cache.j
 
 export interface FiscalBreakerEnv {
   readonly FISCAL_BREAKER_KV?: BreakerKvLike;
+  readonly ANALYTICS_ENGINE?: {
+    writeDataPoint(data: {
+      readonly blobs?: string[];
+      readonly doubles?: number[];
+      readonly indexes?: string[];
+    }): void;
+  };
+}
+
+export function emitBreakerAnalytics(
+  env: FiscalBreakerEnv,
+  failureCount: number,
+  errorClass: 'INFRA' | 'BUSINESS',
+  transport: string,
+  endpoint: FiscalEndpoint,
+): void {
+  try {
+    env.ANALYTICS_ENGINE?.writeDataPoint({
+      indexes: ['breaker:fiscal'],
+      doubles: [failureCount],
+      blobs: [transport, endpoint, errorClass],
+    });
+  } catch {
+    // best-effort: AE muestreado nunca bloquea breaker
+  }
+}
+
+/**
+ * Taxonomía estricta §8.1 — INFRA abre breaker, BUSINESS solo emite sin mutar.
+ */
+export function handleBreakerTaxonomy(
+  snap: BreakerSnapshot,
+  env: FiscalBreakerEnv,
+  errorClass: 'INFRA' | 'BUSINESS',
+  transport: string,
+  endpoint: FiscalEndpoint,
+  count: number,
+  nowMs: number,
+): BreakerSnapshot {
+  if (errorClass === 'INFRA') {
+    const next = applyInfraFailures(snap, count, nowMs);
+    emitBreakerAnalytics(env, next.failureCount, 'INFRA', transport, endpoint);
+    return next;
+  }
+  // BUSINESS 4xx — jamás abre breaker
+  emitBreakerAnalytics(env, snap.failureCount, 'BUSINESS', transport, endpoint);
+  return snap;
 }
 
 const STORAGE_KEY = 'snap';
@@ -53,11 +100,21 @@ export class FiscalCircuitBreaker extends DurableObject<FiscalBreakerEnv> {
     }
 
     if (request.method === 'POST' && url.pathname === '/increment') {
-      const body = (await request.json().catch(() => ({}))) as { count?: number };
+      const body = (await request.json().catch(() => ({}))) as {
+        count?: number;
+        errorClass?: string;
+      };
       const count = Math.max(1, Math.floor(body.count ?? 1));
+      const rawClass =
+        typeof body.errorClass === 'string' ? body.errorClass.toUpperCase() : 'INFRA';
+      const errorClass: 'INFRA' | 'BUSINESS' = rawClass === 'BUSINESS' ? 'BUSINESS' : 'INFRA';
       const now = Date.now();
       let snap = await this.load();
-      snap = applyInfraFailures(snap, count, now);
+      if (errorClass === 'BUSINESS') {
+        emitBreakerAnalytics(this.env, snap.failureCount, 'BUSINESS', transport, endpoint);
+        return Response.json(snap);
+      }
+      snap = handleBreakerTaxonomy(snap, this.env, 'INFRA', transport, endpoint, count, now);
       await this.save(snap);
       await this.ctx.storage.put('meta', { transport, endpoint });
       if (snap.state === 'open' && snap.openedAtMs !== null) {
