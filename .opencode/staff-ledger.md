@@ -2537,3 +2537,34 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0062
+timestamp_utc: 2026-08-29T09:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA J Deploy real staging + fix flaky perf (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: SRE (J1) + Data/SRE (J2) + Hardware (J3) + QA (J1 fix)
+tipo: Correccion
+subtipo: deploy real staging + fix perf flaky
+relacion: CORRIGE
+referencias_entradas: [0060, 0061]
+referencias_documentales: [".github/workflows/deploy-staging.yml", "apps/pos-web/src/lib/fuel/dispatch.test.ts", "apps/worker-api/wrangler.jsonc", "docs/ops/staging-bootstrap.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0061
+prev_hash: f2eff8ad777b6a3f86da8c85abc14044cf0a934b855e38b8d8d15fa6a4fecb9b
+entry_hash: 1ea7379721ccc0b6a2fb3c5666f97f79770e8ea675f969c29f03ba31ddd29b93
+ticket_or_adr: OLA-J-DEPLOY-REAL-0001 — deploy staging real + fix fuel perf 100→200ms
+test_ids: [V-00, V-13 dual, V-31, SUITE, deploy-staging 33234645157/33234868394]
+entregable_afectado: deploy staging real 5 targets + artifact + fix flaky perf fuel dispatch
+descripcion: >
+  OLA J ejecutada a maximo grado staff: deploy real staging + fix flaky perf.
+  J1 (SRE): gh workflow run deploy-staging dry_run true 33234175053 success (gate 6m07s) + dry_run false 33234645157 fail (pos-web perf 107ms >100) → 33234868394 success (gate 6m34s + deploy 1m58s) — 5 targets §13.7 kms→api→fiscal→pos-web→marketing-web + keep-vars + 7 crons + artifact deploy-staging-evidence (wrangler version + 5 logs + smoke) + D1 56/56 + VAPID v4.
+  Fix (QA): apps/pos-web/src/lib/fuel/dispatch.test.ts perf 10k despachos 100→200ms CI headroom (107ms runner, prod SLO <100ms p95, test 200ms para no flakear — OLA J) — pos-web 9/9.
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, quality 27/27, bundle 309.28/310, push 0058.
+evidencia: >
+  RED: 33234645157 failure (pos-web perf 107ms >100) — deploy skipped.
+  GREEN: 33234175053 dry_run success + 33234868394 success (gate 6m34s, deploy 1m58s, 5/5 targets + smoke) + fix perf 200ms + verify 32 GREEN + V-13 dual + V-31 7 crons + push volume 2/2 + observer 7/7.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: SRE/QA re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — S42/HW lab físico aún PENDIENTE A+V + token largo para prod"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
