@@ -69,7 +69,7 @@ pnpm --filter @kipuspay/pos-web run deploy:staging
 pnpm --filter @kipuspay/marketing-web run deploy:staging
 ```
 
-Workers: `wrangler deploy --env staging`. Fronts: `wrangler pages deploy` a
+Workers: `wrangler deploy --env staging --keep-vars` (anti-deriva, OLA C4). Fronts: `wrangler pages deploy` a
 proyectos `*-staging` (Pages no admite `env.staging`; solo preview/production).
 
 `env.staging` declara `triggers.crons` explícitos (mismas 6 expresiones que el
@@ -102,8 +102,8 @@ necesita.
 duración con Workers/Pages/D1/R2/Secrets Store. El token cargado el 2026-08-20
 via OAuth caducaba ~23:47Z — **reemplazar antes** del próximo `deploy` real.
 
-**VAPID / flags runtime:** `apps/worker-api` `deploy:staging` usa `--keep-vars`
-para no pisar `PUSH_VAPID_PUBLIC_KEY` ni `FEATURE_*` runtime con los `""`/`"0"`
+**VAPID / flags runtime:** `apps/worker-*` `deploy:staging` usan `--keep-vars` (todos, incluido `worker-kms` — OLA C4 anti-deriva)
+para no pisar `PUSH_VAPID_PUBLIC_KEY`/`KEK` ni `FEATURE_*` runtime con los `""`/`"0"`
 del repo. Si se despliega a mano sin `--keep-vars`, re-pasar
 `--var PUSH_VAPID_PUBLIC_KEY:…` (y los FEATURE de evidencia).
 

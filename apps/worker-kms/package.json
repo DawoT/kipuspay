@@ -10,7 +10,7 @@
     "test:unit": "vitest run --coverage=false",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:staging": "wrangler deploy --env staging --keep-vars",
     "build": "tsc -p tsconfig.json --noEmit && wrangler deploy --dry-run --outdir=dist"
   },
   "devDependencies": {

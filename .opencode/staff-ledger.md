@@ -2306,3 +2306,36 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0055
+timestamp_utc: 2026-08-29T02:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA C Staging Hardening (maximo grado staff) — auditorias + anti-deriva
+agente_responsable: Staff Principal (orquestacion) — R: Analytics (C1) + Data/SRE (C2) + SRE/QA (C3) + SRE (C4)
+tipo: Correccion
+subtipo: auditoria staging + fix anti-deriva keep-vars
+relacion: CORRIGE
+referencias_entradas: [0054, 0006, 0012]
+referencias_documentales: ["docs/architecture/09-reporting.md", "docs/architecture/05-9-data-backup.md", "docs/ops/push-ack-slo-baseline.md", "apps/worker-kms/package.json", "scripts/checks/ci_cd.py", "docs/ops/staging-bootstrap.md", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0054
+prev_hash: 5f26e7a01c00f6abc1e2a96aae893f3c36106836deea2779effe474aaaa7e5a6
+entry_hash: d531355f611d4856ae784d7830dd7195a9cbffbbbb824501bbf2eb91ebbf6665
+ticket_or_adr: OLA-C-STAGING-0001 — auditorias C1-C4 + fix P0 keep-vars (OLA C4)
+test_ids: [V-00, V-13 dual, V-15, V-31, SUITE]
+entregable_afectado: auditorias staging S43-49/S42/S41/push + fix anti-deriva keep-vars (worker-kms + V-31)
+descripcion: >
+  OLA C ejecutada a maximo grado staff: 4 auditorias solo-lectura + 1 fix P0.
+  C1 (Analytics): rollups §9 idempotente + forecasting/insights gating Cadena + cron 3:00/30 8 + re-materializacion edge D + gap n≥20 para ADR-0036 inline.
+  C2 (Data/SRE): S42 KPBK1 111 tablas chunk 4MiB SHA + dry-run zero writes + rebuild DERIVED + gaps chaos crash/replay externo + price-label snapshot S41 API vs física.
+  C3 (SRE/QA): push E2E pending→DISPLAYED 4.85s Zebra OK, SLO created→displayed p95<10s imposible con cron */5 sin inline tope 16 (n=1 vs n≥20), baseline 279s.
+  C4 (SRE): anti-deriva auditado 75 vars (5 ALIGNED +3 FIXED +1 VAPID v4 FIXED +66 INTENTIONAL-OFF) + Fix P0 keep-vars en worker-kms/package.json + V-31 endurecido con check package.json keep-vars + staging-bootstrap doc --keep-vars.
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-15, V-31 GREEN (incluye keep-vars).
+evidencia: >
+  RED: S43-49 flags OFF staging (0), S42 chaos/dry-run externo PENDIENTE, push n=1 <20 no medible, worker-kms sin --keep-vars (V-31 falso verde).
+  GREEN: informes C1-C4 con gaps P0/P1 + checklists R/A/V, fix keep-vars worker-kms + V-31 anti-deriva + bootstrap doc, verify 32 GREEN, selftest 58 GREEN, ledger dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Analytics/Data/SRE/QA re-ejecutados + V-00/V-13/V-15/V-31 GREEN", "Caveat: mismo sistema — countersignatura humana para liberatorios"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

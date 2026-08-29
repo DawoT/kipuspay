@@ -80,6 +80,24 @@ def violations(root: str) -> list[str]:
         if miss:
             out.append(miss)
     out.extend(order_violations(body))
+    # Anti-deriva: todo deploy Workers debe preservar runtime vars (--keep-vars)
+    # Pages usa build-time PUBLIC_* y no aplica keep-vars (ver OLA C4).
+    # Solo valida si los package.json existen (selftest usa tmp sin monorepo).
+    workers_keep_vars = ["@kipuspay/worker-kms", "@kipuspay/worker-api", "@kipuspay/worker-fiscal"]
+    import json, pathlib
+    for target in workers_keep_vars:
+        pkg = pathlib.Path(root) / "apps" / target.split("/")[-1] / "package.json"
+        if not pkg.exists():
+            pkg = pathlib.Path(root) / "apps" / target.replace("@kipuspay/", "") / "package.json"
+        if not pkg.exists():
+            continue
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+            script = data.get("scripts", {}).get("deploy:staging", "")
+            if "--keep-vars" not in script:
+                out.append(f"{target} deploy:staging sin --keep-vars (anti-deriva)")
+        except Exception as e:
+            out.append(f"{target} package.json ilegible: {e}")
     return out
 
 
