@@ -36,7 +36,9 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
     const wranglerPath = join(dirname(fileURLToPath(import.meta.url)), '../wrangler.jsonc');
     const raw = readFileSync(wranglerPath, 'utf8');
     const stagingSection = raw.split('"env"')[1] ?? '';
-    expect(stagingSection, 'FEATURE_DATA_BACKUP staging FIXED debe ser "1"').toContain('"FEATURE_DATA_BACKUP": "1"');
+    expect(stagingSection, 'FEATURE_DATA_BACKUP staging FIXED debe ser "1"').toContain(
+      '"FEATURE_DATA_BACKUP": "1"',
+    );
     expect(stagingSection).toContain('"FEATURE_PLATFORM_DR": "1"');
     expect(stagingSection).toContain('"FEATURE_REPORTING_ROLLUPS": "1"');
     const topSection = raw.split('"env"')[0];
@@ -49,12 +51,16 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
     const wranglerPath = join(dirname(fileURLToPath(import.meta.url)), '../wrangler.jsonc');
     const wrangler = readFileSync(wranglerPath, 'utf8');
     // staging debe contener VAPID v4 real 87c B* — top-level debe ser "" (fail-closed)
-    const stagingMatch = wrangler.match(/"env"\s*:\s*\{[^}]*"staging"[\s\S]*?"PUSH_VAPID_PUBLIC_KEY"\s*:\s*"([^"]+)"/);
+    const stagingMatch = wrangler.match(
+      /"env"\s*:\s*\{[^}]*"staging"[\s\S]*?"PUSH_VAPID_PUBLIC_KEY"\s*:\s*"([^"]+)"/,
+    );
     expect(stagingMatch, 'PUSH_VAPID_PUBLIC_KEY staging FIXED v4 debe existir').not.toBeNull();
     const staging = stagingMatch![1];
     expect(staging).toMatch(/^B[A-Za-z0-9_-]{86}$/);
     expect(staging.length).toBe(87);
-    const topMatch = wrangler.match(/"vars"\s*:\s*\{[\s\S]*?"PUSH_VAPID_PUBLIC_KEY"\s*:\s*"([^"]*)"/);
+    const topMatch = wrangler.match(
+      /"vars"\s*:\s*\{[\s\S]*?"PUSH_VAPID_PUBLIC_KEY"\s*:\s*"([^"]*)"/,
+    );
     // top-level es el primer vars antes de env
     const topSection = wrangler.split('"env"')[0];
     expect(topSection).toContain('"PUSH_VAPID_PUBLIC_KEY": ""');

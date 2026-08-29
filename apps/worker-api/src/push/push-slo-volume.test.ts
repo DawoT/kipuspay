@@ -144,15 +144,12 @@ describe('push SLO volume n≥20 (diseño E1, baseline M1-M5 + guard)', () => {
 
     // Seed mínimo multitenant: tenant + user + capabilities + privacy + consent + 20 subscriptions + 1 event
     await env.DB.batch([
-      env.DB.prepare(`INSERT INTO tenants(id, business_name, vertical_type) VALUES (?, ?, 'retail')`).bind(
-        tenantId,
-        `Tenant volume ${tenantId.slice(0, 8)}`,
-      ),
-      env.DB.prepare(`INSERT INTO users(id, tenant_id, email, role) VALUES (?, ?, ?, 'owner')`).bind(
-        userId,
-        tenantId,
-        `${userId}@example.invalid`,
-      ),
+      env.DB.prepare(
+        `INSERT INTO tenants(id, business_name, vertical_type) VALUES (?, ?, 'retail')`,
+      ).bind(tenantId, `Tenant volume ${tenantId.slice(0, 8)}`),
+      env.DB.prepare(
+        `INSERT INTO users(id, tenant_id, email, role) VALUES (?, ?, ?, 'owner')`,
+      ).bind(userId, tenantId, `${userId}@example.invalid`),
     ]);
 
     await env.DB.batch([
@@ -273,7 +270,7 @@ describe('push SLO volume n≥20 (diseño E1, baseline M1-M5 + guard)', () => {
         .first<{ device_fingerprint: string; user_id: string }>();
       // Latencias escalonadas pero todas <10s para garantizar p95 <10s (M4 y M5)
       // Ack 2s después de created (E2E ~2s)
-      const displayedAt = new Date(nowMs + 2_000 + (Math.random() * 100 | 0)).toISOString();
+      const displayedAt = new Date(nowMs + 2_000 + ((Math.random() * 100) | 0)).toISOString();
       const ackDelay = 50 + (parseInt(row.id.slice(-2), 16) % 200); // determinista <300ms jitter
       const ackAt = new Date(Date.parse(displayedAt) + ackDelay).toISOString();
       // Usamos acknowledgePushDeliveryAtomic directamente (misma atomicidad que el ACK real)
@@ -315,7 +312,9 @@ describe('push SLO volume n≥20 (diseño E1, baseline M1-M5 + guard)', () => {
     expect(p95Ack!).toBeLessThan(10_000);
 
     // M5: p95 E2E created→displayed <10s con inline (sin inline sería ~300s por cron */5)
-    const e2eDeltas = normalRows.map((r) => Date.parse(r.displayed_at!) - Date.parse(r.event_created_at!));
+    const e2eDeltas = normalRows.map(
+      (r) => Date.parse(r.displayed_at!) - Date.parse(r.event_created_at!),
+    );
     const p95E2e = p95Ms(e2eDeltas);
     expect(p95E2e).not.toBeNull();
     expect(p95E2e!).toBeLessThan(10_000);
@@ -324,7 +323,13 @@ describe('push SLO volume n≥20 (diseño E1, baseline M1-M5 + guard)', () => {
     const finalObs = pushDeliveryObservation({
       normalSamples: 20,
       displayed: 20,
-      p50Ms: p95Ms(e2eDeltas.slice().sort((a, b) => a - b).slice(0, 10)) ?? 1_000,
+      p50Ms:
+        p95Ms(
+          e2eDeltas
+            .slice()
+            .sort((a, b) => a - b)
+            .slice(0, 10),
+        ) ?? 1_000,
       p95Ms: p95E2e,
       offline: 0,
       doze: 0,

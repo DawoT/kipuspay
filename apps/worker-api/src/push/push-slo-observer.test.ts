@@ -10,7 +10,13 @@ describe('push-slo-observer pure evaluatePushSloSnapshot guard', () => {
 
   it('n=1 no alerta aunque p95≥10s o rate<99% (guard)', () => {
     const snap = evaluatePushSloSnapshot([
-      { display_context: 'NORMAL', accepted_at: accepted, displayed_at: displayedSlow, event_created_at: base, status: 'DISPLAYED' },
+      {
+        display_context: 'NORMAL',
+        accepted_at: accepted,
+        displayed_at: displayedSlow,
+        event_created_at: base,
+        status: 'DISPLAYED',
+      },
     ]);
     expect(snap.alert).toBe(false);
     expect(snap.reasons).toEqual([]);
@@ -18,7 +24,13 @@ describe('push-slo-observer pure evaluatePushSloSnapshot guard', () => {
     expect(snap.p95Ms).toBe(12000);
 
     const snap2 = evaluatePushSloSnapshot([
-      { display_context: 'NORMAL', accepted_at: accepted, displayed_at: null, event_created_at: base, status: 'ACCEPTED' },
+      {
+        display_context: 'NORMAL',
+        accepted_at: accepted,
+        displayed_at: null,
+        event_created_at: base,
+        status: 'ACCEPTED',
+      },
     ]);
     expect(snap2.alert).toBe(false);
     expect(snap2.reasons).toEqual([]);
@@ -86,24 +98,35 @@ describe('push-slo-observer pure evaluatePushSloSnapshot guard', () => {
 
   it('runPushSloObserver con D1 mock: no alerta n=1, alerta n=20', async () => {
     // Mock DB prepares for n=1 case: one row
-    const makeEnv = (rows: Record<string, unknown>[]) => ({
-      DB: {
-        prepare: vi.fn(() => ({
-          bind: vi.fn(() => ({
-            all: vi.fn(async () => ({ results: rows })),
+    const makeEnv = (rows: Record<string, unknown>[]) =>
+      ({
+        DB: {
+          prepare: vi.fn(() => ({
+            bind: vi.fn(() => ({
+              all: vi.fn(async () => ({ results: rows })),
+            })),
           })),
-        })),
-      },
-    }) as any;
+        },
+      }) as any;
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
       const env1 = makeEnv([
-        { display_context: 'NORMAL', accepted_at: accepted, displayed_at: displayedSlow, event_created_at: base, status: 'DISPLAYED', created_at: base },
+        {
+          display_context: 'NORMAL',
+          accepted_at: accepted,
+          displayed_at: displayedSlow,
+          event_created_at: base,
+          status: 'DISPLAYED',
+          created_at: base,
+        },
       ]);
-      const snap1 = await runPushSloObserver(env1, { nowMs: Date.parse(base) + 3600 * 1000, windowHours: 24 });
+      const snap1 = await runPushSloObserver(env1, {
+        nowMs: Date.parse(base) + 3600 * 1000,
+        windowHours: 24,
+      });
       expect(snap1.alert).toBe(false);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('push_slo_snapshot'));
       expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('push_slo_violation'));
@@ -120,7 +143,10 @@ describe('push-slo-observer pure evaluatePushSloSnapshot guard', () => {
         created_at: base,
       }));
       const env20 = makeEnv(rows20);
-      const snap20 = await runPushSloObserver(env20, { nowMs: Date.parse(base) + 3600 * 1000, windowHours: 24 });
+      const snap20 = await runPushSloObserver(env20, {
+        nowMs: Date.parse(base) + 3600 * 1000,
+        windowHours: 24,
+      });
       expect(snap20.alert).toBe(true);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('push_slo_snapshot'));
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('push_slo_violation'));

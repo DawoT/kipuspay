@@ -75,7 +75,10 @@ function getDisplayedAt(row: PushSloRow): string | null {
 
 function getEventCreatedAt(row: PushSloRow): string | null {
   const v =
-    row.event_created_at ?? row.eventCreatedAt ?? (row as Record<string, unknown>).event_created_at ?? null;
+    row.event_created_at ??
+    row.eventCreatedAt ??
+    (row as Record<string, unknown>).event_created_at ??
+    null;
   // fallback for joined alias: e.created_at may come as event_created_at or created_at of event
   // if row has both created_at (delivery) and event_created_at, we already handled
   return typeof v === 'string' ? v : null;
@@ -174,7 +177,8 @@ export function evaluatePushSloSnapshot(
     // Evita m2Rate 0 con denominador 0
     // Solo si rows parece deliveries
     const hasAnyRelevant = rows.some(
-      (r) => getDisplayContext(r) !== null || getAcceptedAt(r) !== null || getDisplayedAt(r) !== null,
+      (r) =>
+        getDisplayContext(r) !== null || getAcceptedAt(r) !== null || getDisplayedAt(r) !== null,
     );
     if (hasAnyRelevant) m2Terminal = rows.length;
   }

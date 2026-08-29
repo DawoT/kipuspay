@@ -104,7 +104,7 @@ describe('Worker scheduled dispatch', () => {
 
   it('preserves all seven configured cron triggers', () => {
     expect(wranglerConfig).toMatch(
-      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*,\s*"0 \*\/6 \* \* \*"\s*,\s*"0 13 \* \* \*"\s*,\s*"\*\/15 \* \* \* \*"\s*\]/,
+      /"crons"\s*:\s*\[\s*"0 8 \* \* \*"\s*,\s*"30 8 \* \* \*"\s*,\s*"\*\/5 \* \* \* \*"\s*,\s*"30 3 \* \* \*"\s*,\s*"0 \*\/6 \* \* \*"\s*,\s*"0 13 \* \* \*"\s*,\s*"\*\/15 \* \* \* \*"\s*,?\s*\]/,
     );
   });
 
@@ -249,7 +249,9 @@ describe('Worker scheduled dispatch', () => {
   it('push SLO observer cron is best-effort (no throw on failure)', async () => {
     runPushSloObserver.mockRejectedValueOnce(new Error('D1_DOWN'));
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    await expect(worker.scheduled(event(PUSH_SLO_CRON), env(), {} as ExecutionContext)).resolves.toBeUndefined();
+    await expect(
+      worker.scheduled(event(PUSH_SLO_CRON), env(), {} as ExecutionContext),
+    ).resolves.toBeUndefined();
     expect(warning).toHaveBeenCalledWith(
       JSON.stringify({ event: 'push_slo_observer_failed', reason: 'OBSERVER_UNAVAILABLE' }),
     );
