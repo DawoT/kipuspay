@@ -9,6 +9,8 @@ sprints: "14–16"
 
 ### FASE 5 — Hardening, Cumplimiento y Lanzamiento
 
+> **Quality Gate referencia:** `Proceso §3 DoD` + `§8.1 RACI` — ver `docs/PROCESS.md` Anexo A (R/A/V) y `§4` Matriz. `SUITE GREEN` necesario pero no suficiente; requiere firma `A+V` independiente (sin `V` = `NO-GO`).
+
 #### Sprint 14 — Pruebas de Carga, Caos (Red + Storage + Dispositivo) y Auditoría de Seguridad
 **Agentes:** Staff QA/Chaos (owner), Staff Security (owner conjunto), Staff SRE (colaborador), Staff Frontend (colaborador)
 

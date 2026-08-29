@@ -2271,3 +2271,38 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0054
+timestamp_utc: 2026-08-29T01:15:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA B Doctrina & Ownership (maximo grado staff) — P1s cerrados
+agente_responsable: Staff Principal (orquestacion) — R: PM (B1/B4) + Data/Acid/SRE/POS/Analytics (B2) + Principal (B3) + Growth/Content (B5) + QA (B6)
+tipo: Correccion
+subtipo: doctrina, ownership y skills
+relacion: CORRIGE
+referencias_entradas: [0053, 0001]
+referencias_documentales: ["docs/PROCESS.md §1", "docs/PROCESS.md §3", "docs/PROCESS.md Anexo A", ".opencode/agents/kipus-*.md", "docs/GTM.md §3", "docs/architecture/03-auth-plan-enforcement.md §3", "docs/roadmap/fase-5.md", "docs/roadmap/fase-6b.md", "docs/roadmap/fase-6c.md", "docs/roadmap/fase-6d.md", "docs/roadmap/fase-6e.md", "docs/roadmap/fase-6h.md", "INDEX.md", ".opencode/skills/kipus-quality-gate/SKILL.md", ".opencode/stories/TEMPLATE.md", "AGENTS.md §5", "scripts/checks/gen_index.py"]
+prev_id: 0053
+prev_hash: 96169a8ba2783ba6bb6e3373c3bd01aece8ee097fbc716feab1aec77b3fcfb42
+entry_hash: 5f26e7a01c00f6abc1e2a96aae893f3c36106836deea2779effe474aaaa7e5a6
+ticket_or_adr: OLA-B-DOCTRINA-0001 — auditorias por olas 1-3 (P0/P1 doctrina, ownership, GTM, roadmap)
+test_ids: [V-13 dual, V-15, V-18, V-20, SUITE]
+entregable_afectado: doctrina staff (PROCESO 16 roles, DoD 1-59 FL C, ownership domain-*, GTM dominio, roadmap 6H, skills quality/template, INDEX 77 caps)
+descripcion: >
+  OLA B ejecutada a maximo grado staff: 6 frentes con evidencia.
+  B1 (PM): PROCESS.md §1 15→16 filas — Staff User Stories Gherkin (INDEX→capability→§, GTM §9).
+  B2 (Data/Acid/SRE/POS/Analytics): 5 agents con Owner de domain-cash/integrations/sales/catalog/ledger explícito (max 2 owners, 0 huérfanos).
+  B3 (Principal): PROCESS.md §3 DoD 1–53 → 1–59, FL y C (todo sprint packages/apps) — cierra loophole fiscal/remediación.
+  B4 (PM): 5 roadmaps fase-5/6b-e + nuevo fase-6h.md con anchor Quality Gate referencia §3 DoD + §8.1 RACI (SUITE necesario no suficiente, V≠R/A) + INDEX regenerado 429 líneas (77 caps + sprints 54-59).
+  B5 (Growth/Content): GTM.md §3 Nota de dominio staging pages.dev explícito vs prod admin.kipuspay.com (0534, §3 CORS) — Zero-Trust sin wildcard.
+  B6 (QA): kipus-quality-gate matriz Chaos §13.5 10 pasos 4b-4j (CAL-04) + CAL-02/CAL-08 + TEMPLATE.md checklist 6 familias + puente CAL-07.
+  Gate preservado: SUITE GREEN 32/32, V-13 dual, V-15, V-18 195 docs.
+evidencia: >
+  RED: §1 15 roles vs 16 agents, 4 dominios huérfanos, DoD hueco 54-59/FL/C, 5 fases sin anchor §3/§8.1, dominio prod sin nota, quality-gate sin matriz §13.5, TEMPLATE sin CAL-04.
+  GREEN: PROCESS.md 16 filas + DoD 1-59 FL C, 5 agents Owner de (grep ≥2 hits cada dominio), GTM nota, 6 roadmaps con anchor, fase-6h creada, quality-gate 10 pasos + TEMPLATE 6 familias, INDEX 77 caps, verify 32 GREEN, V-13 dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: PM/Data/QA re-ejecutados + V-13/V-15/V-18 GREEN", "Caveat: mismo sistema — countersignatura humana para liberatorios"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

@@ -11,6 +11,8 @@ sprints: "38–42"
 
 > Profundiza el inventario: dónde está cada unidad (ubicación), su identidad individual (serie), su masa (peso variable) y su comunicación con el anaquel (etiquetas), además del derecho del negocio a **su propio backup completo**. Detalle de entidades: Arquitectura §5.3 reglas 23 y 25; §5.6 regla 24; §5.8 regla 26; §5.9 regla 27. **Capabilities, no forks** (ADR-ARCH-002).
 
+> **Quality Gate referencia:** `Proceso §3 DoD` + `§8.1 RACI` — ver `docs/PROCESS.md` Anexo A (R/A/V) y `§4` Matriz. `SUITE GREEN` necesario pero no suficiente; requiere firma `A+V` independiente (sin `V` = `NO-GO`).
+
 #### Sprint 38 — Ubicaciones / racks por sucursal
 **Estado:** Cerrado
 **Capabilities:** `inventory.locations`  

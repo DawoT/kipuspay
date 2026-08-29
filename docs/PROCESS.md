@@ -48,6 +48,9 @@ owner: "@DawoT"
 | **Staff Content / Technical Writer** | Ninguna palabra de cara al cliente suena a manual técnico | Copywriting de conversión, documentación técnica, guiones de venta | Calibrar el mismo hecho técnico para tres audiencias distintas (cajero, dueño, comité) | Copy de landing, FAQ, guion de objeciones, ADRs narrados |
 | **Staff Data / Analytics Engineer** | El negocio se dirige con métricas reales, no con intuición | Instrumentación de eventos, dashboards de negocio, atribución | Elegir la métrica que realmente predice el resultado, no la que es fácil de medir | Dashboard de TTFS, activación, NRR, K-factor |
 | **Staff Product Manager (Agente Orquestador de Negocio)** | El roadmap técnico y el roadmap comercial nunca divergen | Priorización basada en impacto, descomposición de épicas | Decir "no" a features que no mueven una métrica de negocio real | Backlog priorizado, criterios de aceptación de negocio por sprint |
+| **Staff User Stories — Trazabilidad Gherkin** | Traducir capabilities/sprints a historias de uso REAL (cajero/dueño/contador) con criterios Gherkin trazables al spec | Gherkin, INDEX→capability→§, GTM §9, `INDEX.md` + `docs/architecture/01-principles.md` | Calibrar la misma regla para 3 audiencias sin re-escribirla | Historias `*.md` en `.opencode/stories/` con `capability→fase→§→test_ids` |
+
+> Agente ejecutable: `kipus-stories` — trazabilidad vía `Proceso §6` y `docs/architecture/01-principles.md §1.1` (ver `.opencode/agents/kipus-stories.md`).
 
 ---
 
@@ -95,7 +98,7 @@ Ningún sprint se cierra si el entregable no cumple **todo** lo siguiente (adem�
 - [ ] **Accesibilidad y UX:** contraste mínimo AA, targets táctiles ≥44×44px en pantallas de cobro, feedback visual optimista <100ms en flujos críticos, cero spinners sin contexto (estándares GTM §6.5).
 - [ ] **Copy de cara al cliente:** sin jerga técnica — pasa la prueba de "¿lo diría el dueño con su contador?" (GTM §1.1).
 - [ ] **Testing multi-capa:** cubierto por los tipos de test obligatorios de su capa (Sección 6), con evidencia de ejecución adjunta.
-- [ ] **TDD RED → GREEN verificable:** para cada capability de los sprints 1–53, el changelog incluye `ticket_or_adr`, `test_ids`, `red_commit_sha`, `red_run_id`, `expected_failure`, `green_commit_sha`, `green_run_id` y `ancestry_verified: true`. El run RED debe fallar por la aserción esperada, no por infraestructura; el commit RED debe ser ancestro del commit GREEN y del merge. CI conserva ambos logs y bloquea el merge si falta un campo, si el fallo no coincide con la aserción esperada o si el commit RED no precede a la implementación.
+- [ ] **TDD RED → GREEN verificable:** para cada capability de los sprints 1–59, FL y C (todo sprint con entregable en `packages/*`/`apps/*`), el changelog incluye `ticket_or_adr`, `test_ids`, `red_commit_sha`, `red_run_id`, `expected_failure`, `green_commit_sha`, `green_run_id` y `ancestry_verified: true`. El run RED debe fallar por la aserción esperada, no por infraestructura; el commit RED debe ser ancestro del commit GREEN y del merge. CI conserva ambos logs y bloquea el merge si falta un campo, si el fallo no coincide con la aserción esperada o si el commit RED no precede a la implementación.
 - [ ] **Documentación:** runbook o guía de uso interno actualizado; si el entregable cambia el comportamiento del sistema, la documentación de arquitectura se actualiza en el mismo sprint, no "después".
 - [ ] **Observabilidad:** métricas y alertas configuradas antes de considerar el entregable "en producción", no añadidas reactivamente tras un incidente.
 - [ ] **Plan de rollback:** existe, está escrito y fue ensayado al menos una vez en staging.

@@ -11,6 +11,8 @@ sprints: "43–45"
 
 > Convierte la promesa de vertical Servicios (GTM §2) en producto: preventa con retiro, ventas recurrentes/membresías y una caja móvil que acompaña al dueño y al vendedor. Pedido de cliente: Arquitectura §5.10; membresías: §5.11; regla 30: §5.12. **Capabilities, no forks** (ADR-ARCH-002).
 
+> **Quality Gate referencia:** `Proceso §3 DoD` + `§8.1 RACI` — ver `docs/PROCESS.md` Anexo A (R/A/V) y `§4` Matriz. `SUITE GREEN` necesario pero no suficiente; requiere firma `A+V` independiente (sin `V` = `NO-GO`).
+
 #### Sprint 43 — Preventa / pedido a cliente con retiro
 **Estado:** Software GREEN local condicionado; claim/producción/piloto NO-GO hasta QA humana, aprobación PM, firmas A+V y piloto externo de entrega
 **Capabilities:** `orders.customer_orders`  

@@ -94,6 +94,8 @@ kipuspay.pe (Home / Landing Principal)
 4. **`/comparar/[competidor]` es tráfico de intención alta** (alguien buscando activamente "alternativa a Bsale") y por eso su CTA es más directo y su copy omite la narrativa emocional de la landing principal — va derecho a la tabla comparativa (sección 5.7) y al CTA de prueba gratuita.
 5. **`/empezar` es el único punto de entrada al producto.** Ninguna otra ruta del sitio de marketing permite saltarse el flujo de RUC → Rubro → Primera venta — mantener un solo punto de entrada evita que existan "onboardings alternativos" no probados que degraden el Time-to-First-Sale (métrica clave, sección 9).
 
+> **Nota de dominio (LEDGER 0534, Arquitectura §3):** staging canónico `pages.dev` explícito (`kipuspay-app.pages.dev`, `kipuspay-pos-web-staging.pages.dev`, `kipuspay-web.pages.dev`) — `prod` `admin.kipuspay.com` solo tras compra de `kipuspay.com`. `ALLOWED_PLATFORM_ORIGINS` staging = 4 hosts explícitos sin wildcard `*.pages.dev` (Zero-Trust); `ALLOWED_ORIGINS` staging incluye `pages.dev` explícitos, prod solo canónicos tras migración (ver `apps/worker-api/wrangler.jsonc` y `docs/architecture/03-auth-plan-enforcement.md §3 CORS`).
+
 ### 3.2 Header y Footer — Consistencia entre Landings de Vertical
 
 Para que las cinco landings de vertical (sección 2) no se sientan como cinco sitios distintos, el header y el footer permanecen idénticos en estructura y posición en todas — solo cambia el contenido del cuerpo:

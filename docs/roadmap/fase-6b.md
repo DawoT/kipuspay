@@ -11,6 +11,8 @@ sprints: "28–32"
 
 > Extiende la capa comercial de FASE 6 (v8.1) con la profundidad retail que quedó fuera del Tier 1: devoluciones, 3-way de proveedores, promociones, variantes/UM y apartados/diario contable. **No reabre fiscal P0** (las NC reusan ADR-FISCAL-001; percepciones/retenciones siguen en backlog v10). **Numeración deliberada:** sprints 28–32 después de 27 para no renumerar FASE 7–8 (GTM cita "Sprint 23+/24+") ni romper referencias; comparten la minor **v8.1** porque son la misma capa comercial de FASE 6 entregada en profundidad. Detalle de entidades: Arquitectura §5.3 reglas 13–17. **Capabilities, no forks** (ADR-ARCH-002); cada claim GTM se descongela solo tras su Quality Gate.
 
+> **Quality Gate referencia:** `Proceso §3 DoD` + `§8.1 RACI` — ver `docs/PROCESS.md` Anexo A (R/A/V) y `§4` Matriz. `SUITE GREEN` necesario pero no suficiente; requiere firma `A+V` independiente (sin `V` = `NO-GO`).
+
 #### Sprint 28 — Devoluciones con política N días
 **Capabilities:** `sales.returns`  
 **Referencia:** Arquitectura §5.3 regla 13; ADR-FISCAL-001 (NC/NV_RETURN); GTM objeción devoluciones · **Agentes:** Staff Backend ACID (owner), Staff Fiscal, Staff Frontend (caja), Staff Mobile (Modo Dueño)
