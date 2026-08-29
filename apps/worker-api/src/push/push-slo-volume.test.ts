@@ -1,3 +1,4 @@
+/* eslint-disable no-secrets/no-secrets -- test fixture names, not secrets */
 import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
