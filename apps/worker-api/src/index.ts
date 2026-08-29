@@ -274,6 +274,7 @@ import {
   runListBackupsHttp,
   runMintBackupStepUpTokenHttp,
   runRestoreDryRunHttp,
+  runRewrapBackupHttp,
   type BackupActor,
   type BackupHttpResult,
 } from './backup/backup-routes.js';
@@ -2847,6 +2848,17 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       ),
     );
   });
+  // OLA M1 — rewrap v1→v2 sin re-cifrar payload (P0 L2). Owner + data.backup.rewrap + step-up BACKUP_REWRAP.
+  app.post('/api/backups/:id/rewrap', async (c) =>
+    backupResponse(
+      await runRewrapBackupHttp(c.env, trustedBackupActor(c.get('user'), c.get('jwt')), {
+        backupId: c.req.param('id'),
+        ...(c.req.header('x-step-up-token')
+          ? { stepUpToken: c.req.header('x-step-up-token')! }
+          : {}),
+      }),
+    ),
+  );
 
   // Sprint 48 — platform.dr: simulacro DR anual (owner + step-up, default-off).
   app.post('/api/dr/simulation', async (c) => {

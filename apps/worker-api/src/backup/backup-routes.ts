@@ -457,6 +457,8 @@ export async function runDownloadBackupHttp(
   };
 }
 
+// OLA M2: dry-run fail-closed — KMS unavailable → 503 (alineado con download); complejidad lineal visible.
+// eslint-disable-next-line complexity
 export async function runRestoreDryRunHttp(
   env: BackupRouteEnv,
   actor: BackupActor,
@@ -529,6 +531,23 @@ export async function runRestoreDryRunHttp(
       truncated: validation.truncated,
     });
   } catch (cause) {
+    const code =
+      cause &&
+      typeof cause === 'object' &&
+      'code' in cause &&
+      typeof (cause as { code?: unknown }).code === 'string'
+        ? (cause as { code: string }).code
+        : cause instanceof Error
+          ? cause.message
+          : '';
+    const isKmsUnavailable = code === 'BACKUP_KMS_UNAVAILABLE';
+    // OLA M2: fail-closed invariante 5 — KMS no disponible jamás 422; 503 alineado con runDownloadBackupHttp.
+    if (isKmsUnavailable) {
+      const ref = errorRef();
+      if (schedule) schedule(audit(false));
+      else await audit(false);
+      return result(503, { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: ref });
+    }
     const safe = safeRestoreValidationError(cause);
     if (schedule) schedule(audit(false));
     else await audit(false);
@@ -536,12 +555,149 @@ export async function runRestoreDryRunHttp(
   }
 }
 
+// OLA M1 — rewrap v1→v2 sin re-cifrar payload (P0 L2). Owner + data.backup.rewrap + step-up BACKUP_REWRAP 90s one-shot.
+// Usa unwrapDek(old) → wrapDek(active) sobre DEK en claro, UPDATE batched + appendBackupAudit BACKUP_REWRAPPED.
+// No toca data_backup_chunks/objects: ciphertext_hash idénticos antes/después.
+// eslint-disable-next-line complexity
+export async function runRewrapBackupHttp(
+  env: BackupRouteEnv,
+  actor: BackupActor,
+  input: { readonly backupId: string; readonly stepUpToken?: string },
+): Promise<BackupHttpResult> {
+  const denied = await preflight(env, actor, new Set(['owner']));
+  if (denied) return denied;
+  const permissionDenied = ownerPermission(actor, 'data.backup.rewrap');
+  if (permissionDenied) return permissionDenied;
+  if (!env.DB) return result(503, { code: 'BACKUP_D1_UNAVAILABLE', errorRef: errorRef() });
+  const row = await env.DB.prepare(
+    `SELECT id, status, wrapped_dek, kek_version, global_hash, manifest_r2_key
+     FROM data_backups WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL`,
+  )
+    .bind(actor.tenantId, input.backupId)
+    .first<{
+      id: string;
+      status: string;
+      wrapped_dek: ArrayBuffer | null;
+      kek_version: string | null;
+      global_hash: string | null;
+      manifest_r2_key: string | null;
+    }>();
+  if (!row || row.status !== 'READY' || !row.wrapped_dek || !row.kek_version) {
+    return result(404, { code: 'NOT_FOUND' });
+  }
+  const stepUpDenied = await consumeStepUpToken(env, actor, {
+    backupId: input.backupId,
+    action: 'BACKUP_REWRAP',
+    token: input.stepUpToken,
+  });
+  if (stepUpDenied) return stepUpDenied;
+  const kms = env.BACKUP_KMS;
+  if (!kms) return result(503, { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: errorRef() });
+  let plainDek: Uint8Array;
+  try {
+    if (kms.unwrapDek) {
+      plainDek = await kms.unwrapDek({
+        tenantId: actor.tenantId,
+        backupId: input.backupId,
+        wrappedDek: new Uint8Array(row.wrapped_dek),
+        kekVersion: row.kek_version,
+      });
+    } else if (kms.unwrap) {
+      plainDek = await kms.unwrap({
+        tenantId: actor.tenantId,
+        backupId: input.backupId,
+        wrappedDek: new Uint8Array(row.wrapped_dek),
+        kekVersion: row.kek_version,
+      });
+    } else {
+      throw new Error('BACKUP_KMS_UNAVAILABLE');
+    }
+  } catch {
+    return result(503, { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: errorRef() });
+  }
+  let rotated: { readonly wrappedDek: Uint8Array; readonly kekVersion: string };
+  try {
+    const activeVersion = kms.activeKeyVersion ? await kms.activeKeyVersion() : undefined;
+    if (kms.wrapDek) {
+      rotated = await kms.wrapDek({
+        tenantId: actor.tenantId,
+        backupId: input.backupId,
+        dek: plainDek,
+      });
+      // If KMS ignored activeVersion and returned same version, try explicit wrap if activeVersion differs
+      if (activeVersion && rotated.kekVersion !== activeVersion && kms.wrap) {
+        rotated = await kms.wrap({
+          tenantId: actor.tenantId,
+          backupId: input.backupId,
+          dek: plainDek,
+          kekVersion: activeVersion,
+        });
+      } else if (activeVersion && rotated.kekVersion !== activeVersion) {
+        // Fallback: treat as activeVersion
+        rotated = { wrappedDek: rotated.wrappedDek, kekVersion: activeVersion };
+      }
+    } else if (kms.wrap) {
+      rotated = activeVersion
+        ? await kms.wrap({
+            tenantId: actor.tenantId,
+            backupId: input.backupId,
+            dek: plainDek,
+            kekVersion: activeVersion,
+          })
+        : await kms.wrap({
+            tenantId: actor.tenantId,
+            backupId: input.backupId,
+            dek: plainDek,
+          });
+    } else {
+      throw new Error('BACKUP_KMS_UNAVAILABLE');
+    }
+  } catch {
+    return result(503, { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: errorRef() });
+  }
+  if (plainDek.byteLength !== 32) {
+    return result(503, { code: 'BACKUP_KMS_UNAVAILABLE', errorRef: errorRef() });
+  }
+  // Idempotent: already on active version → return 200 without mutating ciphertext
+  if (rotated.kekVersion === row.kek_version) {
+    return result(200, {
+      backupId: input.backupId,
+      kekVersion: rotated.kekVersion,
+      rewrapped: false,
+      alreadyActive: true,
+    });
+  }
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE data_backups SET wrapped_dek = ?, kek_version = ? WHERE tenant_id = ? AND id = ? AND status = 'READY'`,
+    ).bind(rotated.wrappedDek, rotated.kekVersion, actor.tenantId, input.backupId),
+  ]);
+  await appendBackupAudit(env.DB, {
+    tenantId: actor.tenantId,
+    actorUserId: actor.userId,
+    action: 'BACKUP_REWRAPPED',
+    backupId: input.backupId,
+    payload: {
+      backupId: input.backupId,
+      kekVersion: rotated.kekVersion,
+      prevKekVersion: row.kek_version,
+    },
+  });
+  return result(200, {
+    backupId: input.backupId,
+    kekVersion: rotated.kekVersion,
+    prevKekVersion: row.kek_version,
+    rewrapped: true,
+  });
+}
+
 /**
  * S42-H1: emite el step-up token de backup (SEC-09 / QG s42).
  * El consume existía (x-step-up-token) pero ningún endpoint lo emitía —
  * download/restore-dry-run/DR devolvían 401 en producción. Owner + permiso
- * + token one-shot TTL 90s con scope DATA_BACKUP_DOWNLOAD | PLATFORM_DR_SIMULATION.
+ * + token one-shot TTL 90s con scope DATA_BACKUP_DOWNLOAD | PLATFORM_DR_SIMULATION | BACKUP_REWRAP.
  */
+// eslint-disable-next-line complexity
 export async function runMintBackupStepUpTokenHttp(
   env: BackupRouteEnv | undefined,
   actor: BackupActor,
@@ -554,9 +710,6 @@ export async function runMintBackupStepUpTokenHttp(
   if (actor.role.toLowerCase() !== 'owner') {
     return result(403, { code: 'FORBIDDEN' });
   }
-  if (!actor.permissions?.includes('data.backup.download')) {
-    return result(403, { code: 'FORBIDDEN' });
-  }
   const backupId = typeof body.backupId === 'string' ? body.backupId : '';
   const rawAction = typeof body.action === 'string' ? body.action : 'DATA_BACKUP_DOWNLOAD';
   const action =
@@ -564,7 +717,23 @@ export async function runMintBackupStepUpTokenHttp(
       ? 'PLATFORM_DR_SIMULATION'
       : rawAction === 'DATA_BACKUP_RESTORE_DRY_RUN'
         ? 'DATA_BACKUP_RESTORE_DRY_RUN'
-        : 'DATA_BACKUP_DOWNLOAD';
+        : rawAction === 'BACKUP_REWRAP' || rawAction === 'DATA_BACKUP_REWRAP'
+          ? 'BACKUP_REWRAP'
+          : 'DATA_BACKUP_DOWNLOAD';
+  if (action === 'BACKUP_REWRAP') {
+    if (!actor.permissions?.includes('data.backup.rewrap')) {
+      return result(403, { code: 'FORBIDDEN' });
+    }
+  } else if (action === 'DATA_BACKUP_RESTORE_DRY_RUN') {
+    if (
+      !actor.permissions?.includes('data.backup.restore_dry_run') &&
+      !actor.permissions?.includes('data.backup.download')
+    ) {
+      return result(403, { code: 'FORBIDDEN' });
+    }
+  } else if (!actor.permissions?.includes('data.backup.download')) {
+    return result(403, { code: 'FORBIDDEN' });
+  }
   if (!backupId) {
     return result(400, { error: 'backupId required', code: 'BAD_REQUEST' });
   }

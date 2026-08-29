@@ -109,6 +109,7 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/backups/backup-1' },
   { method: 'GET', path: '/api/backups/backup-1/download' },
   { method: 'POST', path: '/api/backups/backup-1/restore-dry-run' },
+  { method: 'POST', path: '/api/backups/backup-1/rewrap' },
   { method: 'GET', path: '/api/customers' },
   { method: 'GET', path: '/api/customers/c1/consents' },
   { method: 'POST', path: '/api/customers/c1/consent' },

@@ -249,4 +249,134 @@ describe('production restore validation loader', () => {
     expect(safe.errorRef).toMatch(/^[0-9a-f-]{36}$/);
     expect(JSON.stringify(safe)).not.toContain('password');
   });
+
+  it('RED: manifest ciphertext_hash tampered must fail BACKUP_CIPHERTEXT_TAMPERED (paridad chunk)', async () => {
+    const dek = new Uint8Array(32).fill(11);
+    const aad = {
+      tenant_id: 'tenant-a',
+      backup_id: 'backup-a',
+      format: 'KPBK1' as const,
+      kind: 'MANIFEST' as const,
+      ordinal: 0,
+    };
+    const manifest = {
+      backup_id: 'backup-a',
+      epoch: 1,
+      exclusions: [],
+      format_version: 'KPBK1',
+      global_hash: ready.global_hash,
+      objects: [],
+      registry_version: D1_BACKUP_REGISTRY_VERSION,
+      schema_version: '0035',
+      tables: [],
+      tenant_id: 'tenant-a',
+    };
+    const encrypted = await encryptKpbk1Unit(
+      new TextEncoder().encode(canonicalJson(manifest)),
+      dek,
+      aad,
+      new Uint8Array(12).fill(9),
+    );
+    const sealed = new Uint8Array(encrypted.ciphertext.byteLength + encrypted.authTag.byteLength);
+    sealed.set(encrypted.ciphertext);
+    sealed.set(encrypted.authTag, encrypted.ciphertext.byteLength);
+    const hash = Array.from(
+      new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(sealed).buffer)),
+      (b) => b.toString(16).padStart(2, '0'),
+    ).join('');
+    // tamper one byte after hash was computed
+    const tampered = new Uint8Array(sealed);
+    tampered[0] = (tampered[0] ?? 0) ^ 1;
+    const readyWithHash = {
+      ...ready,
+      // task says backup.ciphertext_hash_manifest — support both names
+      ciphertext_hash_manifest: hash,
+      manifest_ciphertext_hash: hash,
+    };
+    const bucket = {
+      get: vi.fn().mockResolvedValue({
+        customMetadata: { nonce: encrypted.nonceHex },
+        arrayBuffer: () => Promise.resolve(tampered.buffer),
+      }),
+    };
+    await expect(
+      validateReadyBackup(
+        {
+          DB: dbWith(readyWithHash) as never,
+          BACKUPS: bucket,
+          BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(dek) },
+        },
+        { tenantId: 'tenant-a', backupId: 'backup-a' },
+      ),
+    ).rejects.toMatchObject({ code: 'BACKUP_CIPHERTEXT_TAMPERED' });
+  });
+
+  it('manifest with valid ciphertext_hash passes hash check (no false tamper)', async () => {
+    const dek = new Uint8Array(32).fill(13);
+    const aad = {
+      tenant_id: 'tenant-a',
+      backup_id: 'backup-a',
+      format: 'KPBK1' as const,
+      kind: 'MANIFEST' as const,
+      ordinal: 0,
+    };
+    const manifest = {
+      backup_id: 'backup-a',
+      epoch: 1,
+      exclusions: [],
+      format_version: 'KPBK1',
+      global_hash: ready.global_hash,
+      objects: [],
+      registry_version: D1_BACKUP_REGISTRY_VERSION,
+      schema_version: '0035',
+      tables: [],
+      tenant_id: 'tenant-a',
+    };
+    const encrypted = await encryptKpbk1Unit(
+      new TextEncoder().encode(canonicalJson(manifest)),
+      dek,
+      aad,
+      new Uint8Array(12).fill(10),
+    );
+    const sealed = new Uint8Array(encrypted.ciphertext.byteLength + encrypted.authTag.byteLength);
+    sealed.set(encrypted.ciphertext);
+    sealed.set(encrypted.authTag, encrypted.ciphertext.byteLength);
+    const hash = Array.from(
+      new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(sealed).buffer)),
+      (b) => b.toString(16).padStart(2, '0'),
+    ).join('');
+    const readyWithHash = {
+      ...ready,
+      ciphertext_hash_manifest: hash,
+      manifest_ciphertext_hash: hash,
+    };
+    const bucket = {
+      get: vi.fn().mockResolvedValue({
+        customMetadata: { nonce: encrypted.nonceHex },
+        arrayBuffer: () => Promise.resolve(sealed.buffer),
+      }),
+    };
+    // With correct hash the manifest decrypt succeeds; next failure is registry incomplete (empty tables vs expected)
+    // but must NOT be BACKUP_CIPHERTEXT_TAMPERED
+    await expect(
+      validateReadyBackup(
+        {
+          DB: dbWith(readyWithHash) as never,
+          BACKUPS: bucket,
+          BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(dek) },
+        },
+        { tenantId: 'tenant-a', backupId: 'backup-a' },
+      ),
+    ).rejects.not.toMatchObject({ code: 'BACKUP_CIPHERTEXT_TAMPERED' });
+    await expect(
+      validateReadyBackup(
+        {
+          DB: dbWith(readyWithHash) as never,
+          BACKUPS: bucket,
+          BACKUP_KMS: { unwrapDek: vi.fn().mockResolvedValue(dek) },
+        },
+        { tenantId: 'tenant-a', backupId: 'backup-a' },
+      ),
+    ).rejects.toMatchObject({ code: 'BACKUP_REGISTRY_INCOMPLETE' });
+  });
 });

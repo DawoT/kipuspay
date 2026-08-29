@@ -416,11 +416,18 @@ export async function executeBackupAttempt(
   }
 }
 
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  return Array.from(
+    new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(bytes).buffer)),
+    (b) => b.toString(16).padStart(2, '0'),
+  ).join('');
+}
+
 export async function publishBackupManifest(
   env: BackupWorkflowPhaseEnv,
   params: BackupWorkflowParams,
   exported: BackupExportResult,
-): Promise<{ readonly key: string; readonly etag: string }> {
+): Promise<{ readonly key: string; readonly etag: string; readonly ciphertextHash: string }> {
   await verifyExport(env, params, exported);
   const dek = await loadDek(env, params);
   const plaintext = encoder.encode(canonicalJson(exported.manifest));
@@ -434,6 +441,7 @@ export async function publishBackupManifest(
   const sealed = new Uint8Array(encrypted.ciphertext.byteLength + encrypted.authTag.byteLength);
   sealed.set(encrypted.ciphertext);
   sealed.set(encrypted.authTag, encrypted.ciphertext.byteLength);
+  const ciphertextHash = await sha256Hex(sealed);
   const key = `ready/${params.tenantId}/${params.backupId}/manifest.kpbk1`;
   const object = await env.BACKUPS.put(key, sealed, {
     customMetadata: {
@@ -441,17 +449,18 @@ export async function publishBackupManifest(
       globalHash: exported.globalHash,
       nonce: encrypted.nonceHex,
       publication: 'READY',
+      ciphertextHash,
     },
   });
   if (!object) throw new Error('BACKUP_MANIFEST_PUBLISH_FAILED');
-  return { key, etag: object.etag };
+  return { key, etag: object.etag, ciphertextHash };
 }
 
 export async function finalizeBackupReady(
   env: BackupWorkflowPhaseEnv,
   params: BackupWorkflowParams,
   exported: BackupExportResult,
-  manifest: { readonly key: string; readonly etag: string },
+  manifest: { readonly key: string; readonly etag: string; readonly ciphertextHash?: string },
 ): Promise<void> {
   await verifyExport(env, params, exported);
   const marker = await env.BACKUPS.head(manifest.key);
@@ -462,23 +471,33 @@ export async function finalizeBackupReady(
   ) {
     throw new Error('BACKUP_MANIFEST_VERIFY_FAILED');
   }
+  // Parity chunk: persist ciphertext_hash_manifest for manifest verification in validateReadyBackup
+  const ciphertextHashManifest =
+    manifest.ciphertextHash ??
+    marker.customMetadata?.ciphertextHash ??
+    (await (async () => {
+      const obj = await env.BACKUPS.get(manifest.key);
+      if (!obj) return null;
+      const sealed = new Uint8Array(await obj.arrayBuffer());
+      return sha256Hex(sealed);
+    })());
   await runD1AtomicPlan(
     env.DB,
     (plan) => {
       plan.guardState(
         `SELECT 1 FROM data_backups AS b
-         JOIN tenant_data_epochs AS e ON e.tenant_id = b.tenant_id
-         WHERE b.tenant_id = ? AND b.id = ? AND b.status = 'UPLOADING'
-           AND b.snapshot_epoch = e.epoch`,
+          JOIN tenant_data_epochs AS e ON e.tenant_id = b.tenant_id
+          WHERE b.tenant_id = ? AND b.id = ? AND b.status = 'UPLOADING'
+            AND b.snapshot_epoch = e.epoch`,
         [params.tenantId, params.backupId],
       );
       plan.add(
         env.DB.prepare(
           `UPDATE data_backups
-           SET status = 'READY', manifest_r2_key = ?, ready_at = CURRENT_TIMESTAMP,
-               global_hash = ?, plaintext_size_bytes = ?, ciphertext_size_bytes = ?,
-               chunk_count = ?, object_count = ?, multipart_upload_ref = NULL
-           WHERE tenant_id = ? AND id = ? AND status = 'UPLOADING'`,
+            SET status = 'READY', manifest_r2_key = ?, ready_at = CURRENT_TIMESTAMP,
+                global_hash = ?, plaintext_size_bytes = ?, ciphertext_size_bytes = ?,
+                chunk_count = ?, object_count = ?, multipart_upload_ref = NULL
+            WHERE tenant_id = ? AND id = ? AND status = 'UPLOADING'`,
         ).bind(
           manifest.key,
           exported.globalHash,
@@ -497,6 +516,18 @@ export async function finalizeBackupReady(
     },
     { guardId: `backup-ready:${params.tenantId}:${params.backupId}` },
   );
+  // Persist ciphertext_hash_manifest for manifest parity verification (P0 L2) — best-effort if column exists
+  if (ciphertextHashManifest) {
+    try {
+      await env.DB.prepare(
+        `UPDATE data_backups SET ciphertext_hash_manifest = ? WHERE tenant_id = ? AND id = ?`,
+      )
+        .bind(ciphertextHashManifest, params.tenantId, params.backupId)
+        .run();
+    } catch {
+      // column may not exist yet (pre-migration) — ignore for legacy
+    }
+  }
   const backup = await env.DB.prepare(
     `SELECT created_by_user_id FROM data_backups WHERE tenant_id = ? AND id = ?`,
   )
