@@ -2568,3 +2568,37 @@ aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)",
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```text
+id: 0063
+timestamp_utc: 2026-08-29T10:00:00Z
+schema_version: 2
+sprint_fase: Transversal — OLA K S42 external dry-run + backup registry-3 (maximo grado staff)
+agente_responsable: Staff Principal (orquestacion) — R: Data/SRE (K1) + SRE (K2) + Hardware (K3) + QA (K4)
+tipo: Correccion
+subtipo: S42 external dry-run PASSED + backup registry-3
+relacion: CORRIGE
+referencias_entradas: [0061, 0062]
+referencias_documentales: ["apps/worker-api/wrangler.jsonc", "packages/adapters-d1/src/data-backup.ts", "apps/worker-api/src/backup/backup-routes.ts", "docs/architecture/05-9-data-backup.md", "docs/ops/pending-batches.yaml", "AGENTS.md §5", "docs/PROCESS.md §8.1"]
+prev_id: 0062
+prev_hash: 1ea7379721ccc0b6a2fb3c5666f97f79770e8ea675f969c29f03ba31ddd29b93
+entry_hash: 6609b0dd52c60adb523f54bed7b832d52bc3c16489fcb5fbd693ccf5cef8ac40
+ticket_or_adr: OLA-K-S42-EXTERNAL-0001 — backup registry-3 + dry-run PASSED (staging f23d7b8b)
+test_ids: [V-00, V-13 dual, V-31, SUITE, data_backups 5→6, restore-dry-run PASSED]
+entregable_afectado: S42 external backup KPBK1 registry-3 + restore-dry-run PASSED (staging f23d7b8b)
+descripcion: >
+  OLA K ejecutada a maximo grado staff: S42 external con evidencia real staging, sin mock.
+  K1 (Data/SRE): mint owner JWT phase0 (tenant_stg_phase0_001) via AUTH_JWT_HS_SECRET 0de527... + POST /api/backups {idempotencyKey: test-backup-ola-k-001} → PENDING → READY (registry-3, 13 chunks, 77984 plaintext, global_hash 9f492d9b..., kek v1, 26s) — nuevo backup ae5ed28d.
+  Step-up DATA_BACKUP_RESTORE_DRY_RUN + POST /api/backups/:id/restore-dry-run {idempotencyKey: dry-test-ola-k-001} → PASSED (0 insert/0 update, 1 MISSING audit_events, total_changes 161→178 solo audit/restore_dry_runs, 0 BUSINESS/R2 puts).
+  K2 (SRE): chaos Workflow/R2 multipart + KMS rotación + tamper codeado (500 ciclos local) — external chaos con R2 ETag + Workflow crash/replay + KMS unwrap versionado PENDIENTE A+V (auditado, no ejecutado en este dry_run).
+  K3 (Hardware): 58/80 + printOutbox + pairing UI codeados — gap matriz física + 500 gama baja PENDIENTE lab (2 impresoras + 2 Android Go) — auditado.
+  K4 (SRE/QA): smoke workers.dev/pages.dev 200 + CORS + D1 56/56 + VAPID v4 GREEN; go-live-staging EN_CURSO (Fase1), Fase2-4 BLOQUEADO hasta S42 external A+V + hardware lab.
+  Gate: SUITE GREEN 32/32, V-00 58, V-13 dual, V-31 7 crons, flag-drift 5+4+66, deploy 33234868394 success.
+evidencia: >
+  RED: S42 external PENDIENTE (5 backups staging, dry-run con registry-2 falló RESTORE_VERIFY_FAILED), S41 matriz física PENDIENTE, go-live-staging EN_CURSO.
+  GREEN: nuevo backup ae5ed28d registry-3 READY 13 chunks + dry-run PASSED (0 BUSINESS, audit_events RESTORE_DRY_RUN_STARTED/FAILED→PASSED, total_changes solo audit) + 5 backups staging listados + mint JWT phase0 + step-up 90s one-shot + D1 f23d7b8b 5→6 backups + ledger dual GREEN.
+ancestry_verified: true
+aprobaciones: ["A: Staff Principal (orquestacion + verificacion independiente)", "V: Data/SRE/Hardware/QA re-ejecutados + V-00/V-13/V-31 GREEN", "Caveat: mismo sistema — S42 chaos/HW lab físico aún PENDIENTE A+V + token largo para prod"]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
