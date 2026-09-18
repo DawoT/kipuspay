@@ -26,7 +26,10 @@ export default defineConfig({
       : {},
   },
   webServer: {
-    command: `./node_modules/.bin/vite build && ./node_modules/.bin/vite preview --host 127.0.0.1 --port ${e2ePort} --strictPort`,
+    // El tsconfig.json del app extiende estáticamente ./.svelte-kit/tsconfig.json;
+    // con KIPUSPAY_E2E_OUT_DIR el sync del build escribe en otra carpeta y un
+    // clone fresco (CI) no tendría el extends target. Este sync previo lo genera.
+    command: `KIPUSPAY_E2E_OUT_DIR=.svelte-kit ./node_modules/.bin/svelte-kit sync && ./node_modules/.bin/vite build && ./node_modules/.bin/vite preview --host 127.0.0.1 --port ${e2ePort} --strictPort`,
     url: e2eBaseUrl,
     timeout: 120_000,
     // Reusar un preview ajeno oculta la revisión bajo prueba. Solo se permite

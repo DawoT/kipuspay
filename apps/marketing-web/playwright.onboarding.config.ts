@@ -34,7 +34,7 @@ export default defineConfig({
       },
     },
     {
-      command: `./node_modules/.bin/vite build && ./node_modules/.bin/vite preview --host 127.0.0.1 --port ${posPort} --strictPort`,
+      command: `KIPUSPAY_E2E_OUT_DIR=.svelte-kit ./node_modules/.bin/svelte-kit sync && ./node_modules/.bin/vite build && ./node_modules/.bin/vite preview --host 127.0.0.1 --port ${posPort} --strictPort`,
       cwd: posDir,
       url: posOrigin,
       timeout: 180_000,
