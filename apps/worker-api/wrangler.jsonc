@@ -21,6 +21,10 @@
         "name": "BRANCH_KDS_HUB_DO",
         "class_name": "BranchKdsHub",
       },
+      {
+        "name": "LPDP_OTP_STATE_DO",
+        "class_name": "LpdpSecurityShard",
+      },
     ],
   },
   "migrations": [
@@ -31,6 +35,16 @@
     {
       "tag": "v2-branch-kds-hub",
       "new_sqlite_classes": ["BranchKdsHub"],
+    },
+    {
+      "tag": "v3-lpdp-security-shard",
+      "new_sqlite_classes": ["LpdpSecurityShard"],
+    },
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["privacidad@kipuspay.com"],
     },
   ],
   "d1_databases": [
@@ -174,7 +188,7 @@
     "FEATURE_SALE_TIP": "0",
     "FEATURE_CASH_DRAWER": "0",
     "FEATURE_HARDWARE_DIAGNOSTICS": "0",
-    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
     "FEATURE_ORDERS_CUSTOMER_ORDERS": "0",
     "FEATURE_SALES_RECURRING": "0",
     "RECURRING_MANUAL_RUN_ENABLED": "0",
@@ -183,6 +197,7 @@
     "FEATURE_PAYMENTS_CARD_ACQUIRER": "0",
     "FEATURE_PAYMENTS_QR_WALLETS": "0",
     "PUSH_VAPID_PUBLIC_KEY": "",
+    "LPDP_OTP_FROM": "privacidad@kipuspay.com",
     "FEATURE_LPDP": "0",
     // Ola 5 kill-switch: 0 staging (fallback a PUBLIC_FEATURE_*), canario prod 1 tras 1 release sin incidentes; rollback instantáneo sin deploy (var → 0).
     "FEATURE_TENANT_CAPABILITIES_DYNAMIC": "0",
@@ -200,8 +215,18 @@
             "name": "BRANCH_KDS_HUB_DO",
             "class_name": "BranchKdsHub",
           },
+          {
+            "name": "LPDP_OTP_STATE_DO",
+            "class_name": "LpdpSecurityShard",
+          },
         ],
       },
+      "send_email": [
+        {
+          "name": "EMAIL",
+          "allowed_sender_addresses": ["privacidad@kipuspay.com"],
+        },
+      ],
       "kv_namespaces": [
         {
           "binding": "TENANT_KV",
@@ -287,7 +312,7 @@
       },
       "vars": {
         "FQDN": "https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev",
-        "POS_APP_ORIGIN": "https://kipuspay-pos-web-staging.pages.dev",
+        "POS_APP_ORIGIN": "https://kipuspay-app.pages.dev",
         "ALLOWED_ORIGINS": "https://kipuspay-pos-web-staging.pages.dev,https://kipuspay-web.pages.dev,https://kipuspay-app.pages.dev,https://kipuspay-marketing-web-staging.pages.dev,https://*.pages.dev,https://kipuspay.com,https://app.kipuspay.com",
         // Staging aún en pages.dev (dominio kipuspay.com pendiente de compra) — incluir hosts pages.dev explícitos para /platform/*.
         // Prod canónico será https://admin.kipuspay.com (sin wildcard pages.dev); remover pages.dev al comprar dominio.
@@ -358,7 +383,7 @@
         "FEATURE_SALE_TIP": "0",
         "FEATURE_CASH_DRAWER": "0",
         "FEATURE_HARDWARE_DIAGNOSTICS": "0",
-        "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+        "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
         "FEATURE_ORDERS_CUSTOMER_ORDERS": "0",
         "FEATURE_SALES_RECURRING": "0",
         "RECURRING_MANUAL_RUN_ENABLED": "0",
@@ -367,6 +392,7 @@
         "FEATURE_PAYMENTS_CARD_ACQUIRER": "0",
         "FEATURE_PAYMENTS_QR_WALLETS": "0",
         "PUSH_VAPID_PUBLIC_KEY": "BKIPWeAjjzcKM9C_dl2-EqC-5vVPt93xyB06pkn7GfbLcDzfpZNsj6sLakEyDl8bGaVjC_kZdC8a2BUnNd4uabs",
+        "LPDP_OTP_FROM": "privacidad@kipuspay.com",
         "FEATURE_LPDP": "0",
         // Ola 5 staging kill-switch 0 — prod canario 1 tras 1 release (ver features.ts header y ADR-ARCH-003).
         "FEATURE_TENANT_CAPABILITIES_DYNAMIC": "0",

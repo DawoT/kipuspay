@@ -27,12 +27,16 @@ function mockDb(opts: {
   origin?: { total_amount_cents: number } | null;
 }): D1Database {
   return {
-    prepare() {
+    prepare(sql: string) {
       return {
-        bind() {
+        bind(...args: unknown[]) {
+          void args;
           return {
             all: () => Promise.resolve({ results: opts.backlog ?? [] }),
-            first: () => Promise.resolve(opts.origin ?? null),
+            first: async () =>
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : (opts.origin ?? null),
           };
         },
       };
@@ -80,8 +84,8 @@ describe('owner E-A routes Sprint 26', () => {
     ).toBe(true);
   });
 
-  it('backlog flag off → 404; sin DB → 503; ok → items', async () => {
-    expect(await runOwnerBacklogHttp({} as WorkerEnv, 't1')).toMatchObject({ status: 404 });
+  it('capability tenant controla backlog; sin DB → 503; ok → items', async () => {
+    expect(await runOwnerBacklogHttp({} as WorkerEnv, 't1')).toMatchObject({ status: 503 });
     expect(
       await runOwnerBacklogHttp({ FEATURE_FISCAL_CIRCUIT_BREAKER: '1' } as WorkerEnv, 't1'),
     ).toMatchObject({ status: 503, body: { code: 'DB_UNAVAILABLE' } });
@@ -115,7 +119,7 @@ describe('owner E-A routes Sprint 26', () => {
 
   it('NC E-A exige confirmación y venta origen', async () => {
     expect(await runCreditNoteEaHttp({} as WorkerEnv, 't1', 'u1', {})).toMatchObject({
-      status: 404,
+      status: 400,
     });
     expect(
       await runCreditNoteEaHttp({ FEATURE_FISCAL_CPE: '1' } as WorkerEnv, 't1', 'u1', {
@@ -162,10 +166,7 @@ describe('owner E-A routes Sprint 26', () => {
   it('NC E-A propaga error de dominio', async () => {
     processCreditNoteAtomic.mockRejectedValue(new Error('CREDIT_NOTE_INVALID'));
     const res = await runCreditNoteEaHttp(
-      {
-        FEATURE_FISCAL_CPE: '1',
-        DB: mockDb({ origin: { total_amount_cents: 100 } }),
-      } as WorkerEnv,
+      { FEATURE_FISCAL_CPE: '1', DB: mockDb({ origin: { total_amount_cents: 100 } }) } as WorkerEnv,
       't1',
       'u1',
       { confirmed: true, originSaleId: 's1' },

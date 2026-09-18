@@ -3,11 +3,7 @@
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import {
-    isCashBlindZEnabled,
-    isClientOffloadingEnabled,
-    isHardwarePrintFallbackEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import {
     PEN_DENOMS,
     submitBlindClose,
@@ -50,8 +46,8 @@ import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   };
   const MOVEMENT_TYPES = Object.keys(MOVEMENT_LABELS) as CashMovementType[];
 
-  const blindOn = isCashBlindZEnabled();
-  const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
+  const blindOn = $derived($tenantCapabilities.has('cash.blind_z'));
+  const printOn = $derived($tenantCapabilities.has('hardware.print_fallback') || $tenantCapabilities.has('client.offloading'));
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let sessionId = $state(initCashSessionContext().sessionId);

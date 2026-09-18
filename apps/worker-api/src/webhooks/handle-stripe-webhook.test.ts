@@ -50,10 +50,12 @@ interface TenantKvPayload {
 function createMemDb() {
   const rows = new Map<string, Row>();
   const tenants = new Map<string, string>();
+  const statements: string[] = [];
   const keyOf = (source: string, eventId: string) => `${source}:${eventId}`;
 
   const db = {
     prepare(sql: string) {
+      statements.push(sql);
       return {
         bind(...args: unknown[]) {
           return {
@@ -90,12 +92,14 @@ function createMemDb() {
               if (sql.includes("status = 'PROCESSING'") && sql.includes('attempt_count')) {
                 const eventId = String(args[0]);
                 const row = rows.get(keyOf('stripe', eventId));
-                if (row) {
+                const cas = sql.includes("status = 'FAILED'");
+                if (row && (!cas || row.status === 'FAILED')) {
                   row.status = 'PROCESSING';
                   row.attempt_count += 1;
                   row.last_error = null;
+                  return Promise.resolve({ success: true, meta: { changes: 1 } });
                 }
-                return Promise.resolve({ success: true, meta: { changes: 1 } });
+                return Promise.resolve({ success: true, meta: { changes: 0 } });
               }
               if (sql.includes("status = 'PROCESSED'")) {
                 const eventId = String(args[0]);
@@ -128,7 +132,7 @@ function createMemDb() {
     },
   };
 
-  return { db: db as unknown as D1Database, rows, tenants };
+  return { db: db as unknown as D1Database, rows, tenants, statements };
 }
 
 function createEnv(opts: { secret?: string; doFail?: boolean; doRevoked?: boolean }): {
@@ -308,7 +312,7 @@ describe('handleStripeWebhook', () => {
     expect((res.body as { code?: string }).code).toBe('TIMESTAMP_EXPIRED');
   });
 
-  it('redelivery mientras PROCESSING → re-claim sin 500', async () => {
+  it('redelivery mientras PROCESSING → dedup atómico sin segundo efecto', async () => {
     const { env, mem } = createEnv({});
     mem.rows.set('stripe:evt_inflight', {
       id: 'we-inflight',
@@ -326,8 +330,37 @@ describe('handleStripeWebhook', () => {
     const res = await handleStripeWebhook(env, body, sig, nowMs);
 
     expect(res.status).toBe(200);
-    expect(mem.rows.get('stripe:evt_inflight')?.attempt_count).toBe(2);
-    expect(mem.rows.get('stripe:evt_inflight')?.status).toBe('PROCESSED');
+    expect(res.body).toEqual({ received: true, deduplicated: true });
+    expect(mem.rows.get('stripe:evt_inflight')?.attempt_count).toBe(1);
+    expect(mem.rows.get('stripe:evt_inflight')?.status).toBe('PROCESSING');
+  });
+
+  it('dos reintentos concurrentes desde FAILED → solo uno reclama el efecto (CAS)', async () => {
+    const { env, mem, doCalls } = createEnv({});
+    mem.rows.set('stripe:evt_failed_race', {
+      id: 'we-failed-race',
+      tenant_id: 't1',
+      source: 'stripe',
+      event_id: 'evt_failed_race',
+      status: 'FAILED',
+      attempt_count: 1,
+      last_error: 'previous failure',
+      processed_at: null,
+    });
+    const body = eventBody('customer.subscription.deleted', 't1', 'evt_failed_race');
+    const sig = await signStripeWebhookForTests(body, secret, ts);
+    const [first, second] = await Promise.all([
+      handleStripeWebhook(env, body, sig, nowMs),
+      handleStripeWebhook(env, body, sig, nowMs),
+    ]);
+
+    expect([first.status, second.status].sort()).toEqual([200, 200]);
+    expect([first.body, second.body]).toContainEqual({ received: true });
+    expect([first.body, second.body]).toContainEqual({ received: true, deduplicated: true });
+    expect(doCalls).toEqual(['/revoke']);
+    expect(mem.rows.get('stripe:evt_failed_race')?.status).toBe('PROCESSED');
+    expect(mem.rows.get('stripe:evt_failed_race')?.attempt_count).toBe(2);
+    expect(mem.statements).toContainEqual(expect.stringContaining("AND status = 'FAILED'"));
   });
 
   it('evento no-suscripción usa la partición external', async () => {

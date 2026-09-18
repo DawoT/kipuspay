@@ -325,7 +325,21 @@ export async function hydrateCapabilities(input: {
 }): Promise<CapabilitiesCache | null> {
   if (!input.tenantId) return null;
   const c = await readBoth(input.tenantId, input.storage, input.idb);
-  if (c) apply(c);
+  const activeTenantId = (() => {
+    try {
+      return safeLS(input.storage)?.getItem('kipuspay_tenant_id')?.trim() ?? '';
+    } catch {
+      return '';
+    }
+  })();
+  if (
+    !c ||
+    c.tenantId !== input.tenantId ||
+    (activeTenantId && activeTenantId !== input.tenantId)
+  ) {
+    return null;
+  }
+  apply(c);
   return c;
 }
 export async function setCapabilities(input: {
@@ -378,6 +392,10 @@ export async function loadCapabilities(input: {
   readonly idb?: CapabilitiesIdbPort | null;
   readonly apiBase?: string;
   readonly nowMs?: number;
+  /** Do not fall back to a cached grant after an identity/session revalidation response. */
+  readonly requireAuthoritative?: boolean;
+  /** Prevent an older tenant/token request from publishing after identity changes. */
+  readonly isCurrent?: () => boolean;
 }): Promise<{
   fromCache: boolean;
   stale: boolean;
@@ -386,6 +404,7 @@ export async function loadCapabilities(input: {
   epoch: number;
 }> {
   const nowMs = input.nowMs ?? Date.now();
+  const isCurrent = input.isCurrent ?? (() => true);
   let tenantId = input.tenantId ?? get(capabilitiesTenantId) ?? '';
   if (!tenantId) {
     const ls = safeLS(input.storage);
@@ -407,6 +426,7 @@ export async function loadCapabilities(input: {
         return h;
       })(),
     });
+    if (!isCurrent()) return { fromCache: false, stale: false, banner: null, caps: [], epoch: 0 };
     if (res.ok) {
       const body = (await res.json()) as { capabilities?: unknown; capabilitiesEpoch?: unknown };
       const capsRaw = Array.isArray(body.capabilities) ? body.capabilities : [];
@@ -415,6 +435,7 @@ export async function loadCapabilities(input: {
         typeof body.capabilitiesEpoch === 'number' && Number.isFinite(body.capabilitiesEpoch)
           ? body.capabilitiesEpoch
           : 0;
+      if (!isCurrent()) return { fromCache: false, stale: false, banner: null, caps: [], epoch: 0 };
       if (tenantId) {
         const cache = toCache(caps, epoch, nowMs, tenantId);
         apply(cache);
@@ -427,9 +448,14 @@ export async function loadCapabilities(input: {
       }
       return { fromCache: false, stale: false, banner: null, caps, epoch };
     }
+    if (input.requireAuthoritative) {
+      if (isCurrent())
+        await clearCapabilities({ tenantId, storage: input.storage, idb: input.idb });
+      return { fromCache: false, stale: false, banner: null, caps: [], epoch: 0 };
+    }
     if (tenantId) {
       const cached = await readBoth(tenantId, input.storage, input.idb);
-      if (cached) {
+      if (cached && isCurrent()) {
         apply(cached);
         const age = nowMs - cached.fetchedAt;
         const stale = age > STALE_THRESHOLD_MS;
@@ -450,9 +476,14 @@ export async function loadCapabilities(input: {
     }
     return { fromCache: false, stale: false, banner: null, caps: [], epoch: 0 };
   } catch {
+    if (!isCurrent()) return { fromCache: false, stale: false, banner: null, caps: [], epoch: 0 };
+    if (input.requireAuthoritative) {
+      await clearCapabilities({ tenantId, storage: input.storage, idb: input.idb });
+      return { fromCache: false, stale: false, banner: null, caps: [], epoch: 0 };
+    }
     if (tenantId) {
       const cached = await readBoth(tenantId, input.storage, input.idb);
-      if (cached) {
+      if (cached && isCurrent()) {
         apply(cached);
         const age = nowMs - cached.fetchedAt;
         const stale = age > STALE_THRESHOLD_MS;

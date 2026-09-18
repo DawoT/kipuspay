@@ -30,3 +30,22 @@ export function capabilitiesFromFlags(flags: PosCapabilityFlags): ReadonlySet<st
   if (flags.hardwareDiagnostics) set.add('hardware.diagnostics');
   return set;
 }
+
+/** Convierte el snapshot autoritativo de sesión en las claves del tour. */
+export function capabilitiesFromTenantSnapshot(snapshot: ReadonlySet<string>): ReadonlySet<string> {
+  const result = new Set(
+    capabilitiesFromFlags({
+      kds: snapshot.has('orders.kds'),
+      fefo: snapshot.has('inventory.batches'),
+      scale: snapshot.has('inventory.scale'),
+      promotions: snapshot.has('pricing.promotions'),
+      variants: snapshot.has('catalog.variants'),
+      quickAdd: snapshot.has('catalog.quick_add'),
+      shiftHandoff: snapshot.has('ops.shift_handoff'),
+      teamInvite: snapshot.has('ops.team_invite'),
+      hardwareDiagnostics: snapshot.has('hardware.diagnostics'),
+    }),
+  );
+  if (snapshot.has('fuel.dispatch')) result.add('fuel_station');
+  return result;
+}

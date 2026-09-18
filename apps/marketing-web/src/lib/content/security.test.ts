@@ -26,8 +26,8 @@ describe('security page content', () => {
     const flow = SECURITY_PAGE.sunatFlow.steps.map((s) => `${s.title} ${s.body}`).join(' ');
     expect(flow).toMatch(/SUNAT/);
     expect(flow).not.toMatch(/PSE|CDR|UBL|ACID|D1|Edge|Workers|HTTP\s*\d{3}|GTM-\d+/i);
-    expect(SECURITY_PAGE.retention.body).toMatch(/5 anos|5 años/);
-    expect(SECURITY_PAGE.retention.body).toMatch(/sin su nombre/);
+    expect(SECURITY_PAGE.retention.body).toMatch(/obligaciones legales de conservación/);
+    expect(SECURITY_PAGE.retention.body).not.toMatch(/5 anos|5 años/);
     expect(SECURITY_PAGE.sla.body).toMatch(/Enterprise/);
   });
 
@@ -50,5 +50,12 @@ describe('security page content', () => {
     expect(source).toMatch(/Sprints 42\/47/);
     expect(source).toMatch(/GTM-02/);
     expect(source).toMatch(/support_sla_enterprise/);
+  });
+
+  it('no presenta capacidades fiscales, privacidad ni SLA bloqueados como disponibles', () => {
+    const publicCopy = JSON.stringify(SECURITY_PAGE);
+    expect(publicCopy).not.toMatch(
+      /gu[ií]a el env[ií]o|env[ií]o a SUNAT ocurre solo|te avisamos|te avisan antes|exportar tu cat[aá]logo y tus ventas cuando quieras|anonimizamos|99\.9% de disponibilidad|la emisi[oó]n de comprobantes siguen activas/i,
+    );
   });
 });

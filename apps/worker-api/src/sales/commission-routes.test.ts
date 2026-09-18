@@ -55,7 +55,7 @@ function env(over: Partial<WorkerEnv> = {}): WorkerEnv {
           bind() {
             return stmt;
           },
-          first: () => Promise.resolve(null),
+          first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
           all: () => Promise.resolve({ results: [], success: true, meta: {} }),
         };
         return stmt;
@@ -70,14 +70,14 @@ describe('commission-routes', () => {
     expect(isSalesCommissionsEnabled({} as unknown as WorkerEnv)).toBe(false);
   });
 
-  it('404 when flag off', async () => {
+  it('503 when capability state is unavailable (fail closed)', async () => {
     const off = { FEATURE_SALES_COMMISSIONS: '0' } as unknown as WorkerEnv;
-    expect((await runListCommissionRatesHttp(off, 't1', 'admin')).status).toBe(404);
-    expect((await runUpsertCommissionRateHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runCreateCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runPayCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runVoidCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runOwnerCommissionsHttp(off, 't1', 'owner')).status).toBe(404);
+    expect((await runListCommissionRatesHttp(off, 't1', 'admin')).status).toBe(503);
+    expect((await runUpsertCommissionRateHttp(off, 't1', 'u1', 'admin', {})).status).toBe(503);
+    expect((await runCreateCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(503);
+    expect((await runPayCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(503);
+    expect((await runVoidCommissionPayoutHttp(off, 't1', 'u1', 'admin', {})).status).toBe(503);
+    expect((await runOwnerCommissionsHttp(off, 't1', 'owner')).status).toBe(503);
   });
 
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {

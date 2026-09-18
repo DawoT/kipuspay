@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { exportCustomer } from '@kipuspay/adapters-d1';
 import {
   runEraseCustomerHttp,
   runExportCustomerHttp,
@@ -44,16 +45,17 @@ vi.mock('@kipuspay/adapters-d1', () => ({
 }));
 
 function envWith(flags: Partial<WorkerEnv>): WorkerEnv {
+  const enabled = flags.FEATURE_LPDP === '1' || flags.FEATURE_LPDP === 'true' ? 1 : 0;
   return {
     FEATURE_LPDP: flags.FEATURE_LPDP,
     DB: {
       prepare: () => ({
         bind: () => ({
           all: () => Promise.resolve({ results: [] }),
-          first: () => Promise.resolve(null),
+          first: () => Promise.resolve({ enabled, config_json: '{}', epoch: 0 }),
         }),
         all: () => Promise.resolve({ results: [] }),
-        first: () => Promise.resolve(null),
+        first: () => Promise.resolve({ enabled, config_json: '{}', epoch: 0 }),
       }),
       batch: () => Promise.resolve([]),
     },
@@ -115,6 +117,17 @@ describe('customer LPDP (Sprint 47)', () => {
     const res = await runExportCustomerHttp(envWith({ FEATURE_LPDP: '1' }), adminActor, 'c1');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ customerId: 'c1', tenantId: 't1' });
+  });
+
+  it('export: error inesperado no expone SQL ni PII en la respuesta', async () => {
+    vi.mocked(exportCustomer).mockRejectedValueOnce(
+      new Error('SQLITE_BUSY: customer Ana Perez phone +51999999999'),
+    );
+    const res = await runExportCustomerHttp(envWith({ FEATURE_LPDP: '1' }), adminActor, 'c1');
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'INTERNAL_ERROR', code: 'INTERNAL_ERROR' });
+    expect(JSON.stringify(res.body)).not.toContain('SQLITE_BUSY');
+    expect(JSON.stringify(res.body)).not.toContain('Ana Perez');
   });
 
   it('erase: cashier → 403 FORBIDDEN (solo admin/owner/supervisor)', async () => {

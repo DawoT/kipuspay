@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
 import { mockOnboardingClaim } from './fixtures/onboarding-claim';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad lo desbloquea', async ({
   page,
@@ -27,6 +28,17 @@ test('S7-H1: boleta ≥ S/700 sin identidad muestra aviso SUNAT y la identidad l
     }),
   );
   await mockSellableCatalog(page);
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'cashier',
+    formalizationMode: 'ELECTRONIC_ISSUER',
+    capabilities: ['catalog.sellable', 'hardware.print_templates', 'pos.brand_qr', 'pos.checkout'],
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
+    },
+  });
   // Sesión de caja real vía el claim (fe de errata de walkthrough, Sprint 7):
   // el cobro requiere branch + cashRegisterSessionId; el fixture simula el
   // token de onboarding en la URL y el server del claim.

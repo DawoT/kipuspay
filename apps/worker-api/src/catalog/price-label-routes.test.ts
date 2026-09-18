@@ -23,12 +23,18 @@ const adapters = vi.hoisted(() => ({
 
 vi.mock('@kipuspay/adapters-d1', () => adapters);
 
-function env(flag?: string): WorkerEnv {
+function env(flag?: string, capabilityEnabled = flag ? 1 : 0): WorkerEnv {
   return {
     FEATURE_CATALOG_PRICE_LABELS: flag,
     DB: {
       prepare: vi.fn(() => ({
-        bind: vi.fn(() => ({ first: vi.fn().mockResolvedValue({ enabled: 1 }) })),
+        bind: vi.fn(() => ({
+          first: vi.fn().mockResolvedValue({
+            enabled: capabilityEnabled,
+            config_json: '{}',
+            epoch: 0,
+          }),
+        })),
       })),
     },
   } as unknown as WorkerEnv;
@@ -111,6 +117,17 @@ describe('catalog.price_labels Worker routes', () => {
         terminalId: 'terminal-jwt',
       }),
     );
+  });
+
+  it('requires the tenant capability even when the deployment kill switch is on', async () => {
+    await expect(
+      runCreatePriceLabelBatchHttp(env('1', 0), supervisor, {
+        products: [{ productId: 'product-1', copies: 1 }],
+        templateId: 'template-1',
+        idempotencyKey: 'tenant-disabled',
+      }),
+    ).resolves.toMatchObject({ status: 404, body: { code: 'FEATURE_OFF' } });
+    expect(adapters.createPriceLabelBatchAtomic).not.toHaveBeenCalled();
   });
 
   it('enforces RBAC for template configuration and explicit reprint', async () => {

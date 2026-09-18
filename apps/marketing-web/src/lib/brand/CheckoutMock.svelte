@@ -55,8 +55,8 @@
   <PhoneMockFrame
     {theme}
     title="Modo Mostrador · KipusPay"
-    statusBadge={activeSyncState === 'synced' ? 'Comprobante emitido · EN VIVO' : 'Turno Abierto · EN VIVO'}
-    statusTone="live"
+    statusBadge={activeSyncState === 'synced' ? 'Venta de ejemplo · sincronizada' : 'Ejemplo guardado localmente'}
+    statusTone="sync"
     ariaLabel={`Smartphone mostrando la pantalla de cobro de ${documentLabel}`}
   >
     <div class="pos-screen">

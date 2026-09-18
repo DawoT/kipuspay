@@ -1,27 +1,18 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s38-41 (docs/ops/legal_and_sales_guide.md §6): inventario — hoja ciega de
 // conteo físico (sin stock esperado hasta el review) y merma con evidencia +
 // aprobación.
 
-const SESSION = JSON.stringify({
-  userId: 'admin-e2e',
-  role: 'admin',
-  branchId: 'branch-e2e',
-});
-
 test('inventario: conteo ciego y merma con aprobación', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'admin',
+    verticalType: 'farmacias',
+    tradeName: 'Farmacia E2E',
+    capabilities: ['inventory.batches', 'inventory.bom'],
+  });
   await page.route('**/api/inventory/counts', (route) =>
     route.fulfill({
       status: 200,

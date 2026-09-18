@@ -4,31 +4,17 @@
 import { processSyncSalesBatch, resolveActiveTerminalSession } from '@kipuspay/adapters-d1';
 import type { OfflineSalePayload } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import {
-  isInventoryScaleEnabled,
-  isLedgerChartOfAccountsEnabled,
-  isLedgerStoreCreditEnabled,
-  isSalesCommissionsEnabled,
-  isSalesInstallmentsEnabled,
-} from '../auth/features.js';
-import {
-  isCatalogUomEnabled,
-  isInventoryBatchesEnabled,
-  isInventoryBomEnabled,
-  isLedgerArApEnabled,
-  isPricingListsEnabled,
-  isPricingPromotionsEnabled,
-  loadActiveShards,
-} from './offline-sale-route.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
+import { loadActiveShards } from './offline-sale-route.js';
 
 export function isOfflineSyncEnabled(env: WorkerEnv): boolean {
-  return env.FEATURE_OFFLINE_SYNC === '1' || env.FEATURE_OFFLINE_SYNC === 'true';
+  return env.FEATURE_OFFLINE_SYNC !== '0';
 }
 
 function syncPreflight(
   env: WorkerEnv,
 ): { status: 404 | 503; body: Record<string, unknown> } | null {
-  if (!isOfflineSyncEnabled(env)) {
+  if (env.FEATURE_OFFLINE_SYNC === '0') {
     return { status: 404, body: { error: 'FEATURE_OFFLINE_SYNC off', code: 'FEATURE_OFF' } };
   }
   if (!env.DB) {
@@ -39,6 +25,53 @@ function syncPreflight(
 
 function hasWeightMeasurement(sale: OfflineSalePayload): boolean {
   return sale.items.some((item) => item.weightMeasurement !== undefined);
+}
+
+type OptionalSaleCapability =
+  | 'ledger.store_credit'
+  | 'ledger.accounts_receivable'
+  | 'pricing.promotions'
+  | 'catalog.uom'
+  | 'ledger.chart_of_accounts'
+  | 'sales.installments'
+  | 'sales.commissions'
+  | 'inventory.scale'
+  | 'inventory.batches'
+  | 'inventory.bom'
+  | 'pricing.lists';
+
+async function resolveSaleCapabilities(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<Record<OptionalSaleCapability, boolean>> {
+  const resolver = new CapabilityResolver(env);
+  const capabilities: readonly OptionalSaleCapability[] = [
+    'ledger.store_credit',
+    'ledger.accounts_receivable',
+    'pricing.promotions',
+    'catalog.uom',
+    'ledger.chart_of_accounts',
+    'sales.installments',
+    'sales.commissions',
+    'inventory.scale',
+    'inventory.batches',
+    'inventory.bom',
+    'pricing.lists',
+  ];
+  const entries = await Promise.all(
+    capabilities.map(async (capability) => {
+      try {
+        await resolver.require(tenantId, capability);
+        return [capability, true] as const;
+      } catch (error) {
+        if (error instanceof CapabilityError && error.status === 404) {
+          return [capability, false] as const;
+        }
+        throw error;
+      }
+    }),
+  );
+  return Object.fromEntries(entries) as Record<OptionalSaleCapability, boolean>;
 }
 
 async function verifyWeightedTerminalBindings(
@@ -60,6 +93,7 @@ async function verifyWeightedTerminalBindings(
   }
 }
 
+// eslint-disable-next-line complexity -- offline reconciliation outcome matrix
 export async function runSyncSalesHttp(
   env: WorkerEnv,
   tenantId: string,
@@ -74,6 +108,32 @@ export async function runSyncSalesHttp(
   const sales: readonly OfflineSalePayload[] = body.sales ?? [];
   if (!Array.isArray(sales) || sales.length === 0) {
     return { status: 400, body: { error: 'sales[] required', code: 'BAD_REQUEST' } };
+  }
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'pos.checkout');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { error: error.code, code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
+  let capabilityOptions: Record<OptionalSaleCapability, boolean>;
+  try {
+    capabilityOptions = await resolveSaleCapabilities(env, tenantId);
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return { status: error.status, body: { error: error.code, code: error.code } };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
   }
   const hasWeightedSale = sales.some(hasWeightMeasurement);
   if (hasWeightedSale) {
@@ -102,23 +162,23 @@ export async function runSyncSalesHttp(
     sales,
     nowMs,
     kv,
-    isLedgerStoreCreditEnabled(env),
+    capabilityOptions['ledger.store_credit'],
     terminalId.trim(),
     {
       analyticsEngine: env.ANALYTICS_ENGINE,
       activeShards: await loadActiveShards(env),
-      ledgerArApEnabled: isLedgerArApEnabled(env),
-      pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
-      catalogUomEnabled: isCatalogUomEnabled(env),
-      ledgerChartOfAccountsEnabled: isLedgerChartOfAccountsEnabled(env),
-      salesInstallmentsEnabled: isSalesInstallmentsEnabled(env),
-      salesCommissionsEnabled: isSalesCommissionsEnabled(env),
-      inventoryScaleEnabled: isInventoryScaleEnabled(env),
+      ledgerArApEnabled: capabilityOptions['ledger.accounts_receivable'],
+      pricingPromotionsEnabled: capabilityOptions['pricing.promotions'],
+      catalogUomEnabled: capabilityOptions['catalog.uom'],
+      ledgerChartOfAccountsEnabled: capabilityOptions['ledger.chart_of_accounts'],
+      salesInstallmentsEnabled: capabilityOptions['sales.installments'],
+      salesCommissionsEnabled: capabilityOptions['sales.commissions'],
+      inventoryScaleEnabled: capabilityOptions['inventory.scale'],
       terminalId: terminalId.trim(),
       s18: {
-        inventoryBatches: isInventoryBatchesEnabled(env),
-        inventoryBom: isInventoryBomEnabled(env),
-        pricingLists: isPricingListsEnabled(env),
+        inventoryBatches: capabilityOptions['inventory.batches'],
+        inventoryBom: capabilityOptions['inventory.bom'],
+        pricingLists: capabilityOptions['pricing.lists'],
       },
     },
   );

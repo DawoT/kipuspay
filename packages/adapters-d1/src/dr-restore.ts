@@ -30,6 +30,24 @@ export interface DrTargetDb {
   batch(statements: readonly unknown[]): Promise<unknown>;
 }
 
+interface DrBatchResult {
+  readonly meta?: { readonly changes?: number };
+}
+
+class DrRestoreBatchError extends Error {
+  readonly table: string;
+  readonly offset: number;
+  readonly originalCause: unknown;
+
+  constructor(table: string, offset: number, cause: unknown) {
+    super('DR_RESTORE_BATCH_FAILED');
+    this.name = 'DrRestoreBatchError';
+    this.table = table;
+    this.offset = offset;
+    this.originalCause = cause;
+  }
+}
+
 export interface DrRestoreResult {
   readonly backupId: string;
   readonly tenantId: string;
@@ -103,8 +121,22 @@ export async function applyRestoreRowsToShard(input: {
     for (let offset = 0; offset < rows.length; offset += DR_BATCH_STATEMENTS) {
       const chunk = rows.slice(offset, offset + DR_BATCH_STATEMENTS);
       const statements = chunk.map((row) => insertOrIgnoreStatement(input.db, table, row));
-      await input.db.batch(statements);
-      rowsInserted += chunk.length;
+      let results: readonly DrBatchResult[];
+      try {
+        results = (await input.db.batch(statements)) as readonly DrBatchResult[];
+      } catch (cause) {
+        // Preserve the domain-safe failure while adding enough context to the
+        // DR audit to identify the failing table and batch. Do not expose the
+        // raw SQLite/provider error to the caller.
+        throw new DrRestoreBatchError(table, offset, cause);
+      }
+      for (const result of results) {
+        const changes = result.meta?.changes;
+        // Cada statement representa una sola fila. D1 puede incluir cambios
+        // derivados de triggers en `meta.changes`; contar el valor crudo
+        // inflaría la métrica aunque solo se haya insertado una fila.
+        if (typeof changes === 'number' && changes > 0) rowsInserted += 1;
+      }
     }
   }
   return { tables: order.length, rowsInserted };

@@ -1,12 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import {
-    isOwnerModeEnabled,
-    isReportingCatalogEnabled,
-    isStockTransfersEnabled,
-    isInventoryLocationsEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { buildChainRanking, type ChainBranchView } from '$lib/owner/chain-ranking';
   import {
     createMemoryOwnerRollupIdb,
@@ -21,12 +16,12 @@
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  const enabled = isOwnerModeEnabled();
+  const enabled = $derived($tenantCapabilities.has('owner.mode'));
   // rankingLive sigue siendo reporting_catalog (plan), pero la vista premium cadena
   // decora con operativo si stock.transfers / inventory.locations están activos
-  const rankingLive = isReportingCatalogEnabled();
-  const transfersOn = isStockTransfersEnabled();
-  const locationsOn = isInventoryLocationsEnabled();
+  const rankingLive = $derived($tenantCapabilities.has('reporting.catalog'));
+  const transfersOn = $derived($tenantCapabilities.has('stock.transfers'));
+  const locationsOn = $derived($tenantCapabilities.has('inventory.locations'));
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
   let branches = $state<Array<{ branch_id: string; net_sales_cents: number; doc_count: number }>>([]);

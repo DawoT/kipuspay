@@ -19,83 +19,92 @@ Abre solo los archivos que esta tabla te señale.
 
 | Capability | Sprint | Empaquetado GTM | Definida en | Línea |
 |---|---|---|---|---|
-| `pos.checkout` | 7 | Caja por modo / cobro offline-first | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 119 |
-| `pos.document_selector` | 7 | NV/01/03 según modo+régimen | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 120 |
-| `hardware.print_templates` | 7 | Tickets CPE/NV 58/80 (no ladder S25) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 121 |
-| `display.vitrina` | 7 | Customer display en cobro | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 122 |
-| `pos.offline_correlative_reserve` | 7 | Reserva tentativa local; server autoritativo | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 123 |
-| `ledger.accounts_receivable` | 8 | CxC + DAT-05 + compensación NC (E-D) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 124 |
-| `ledger.accounts_payable` | 8 | CxP + pagos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 125 |
-| `purchasing.orders` | 8 | Órdenes de compra (status mínimo; sin 3-way) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 126 |
-| `cash.register_expenses` | 8 | Egresos de caja chica | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 127 |
-| `owner.mode` | 8 | PWA Modo Dueño Hoy/Finanzas/Yo | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 128 |
-| `owner.offline_rollup` | 8 | Cache IDB rollup + banner antigüedad | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 129 |
-| `owner.push_alerts` | 8 | Push accionable Dueño (no `mobile.push` completo) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 130 |
-| `reporting.daily_rollups` | 9 | SoT financial rollups + cron shard | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 131 |
-| `reporting.product_rollups` | 9 | `daily_product_rollups` top/margen | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 132 |
-| `reporting.catalog` | 9 | Catálogo reportes retail plan+rol | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 133 |
-| `reporting.export` | 9 | Export CSV UTF-8 BOM | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 134 |
-| `reporting.shard_aggregator` | 9 | `Promise.all` sobre active_shards | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 135 |
-| `marketing.site` | 10 | Home + shell header/footer pre-venta | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 141 |
-| `marketing.vertical_landing` | 10 | Landings `/para/[vertical]` (content slug) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 142 |
-| `marketing.compare` | 10 | `/comparar/[competidor]` SEO intención | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 143 |
-| `marketing.claim_gate` | 10 | Feature destacada live vs roadmap+sprint | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 144 |
-| `marketing.referrals` | 12 | Códigos + atribución 1+1 mes (GTM §7.1) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 145 |
-| `marketing.content` | 12 | `/casos-de-exito` + `/blog` (GTM §7.3) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 146 |
-| `pos.brand_qr` | 12 | Pie “Emitido con KipusPay” + QR (GTM §7.2) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 147 |
-| `analytics.growth_metrics` | 12 | TTFS / upgrade / activation / NRR / K-factor (GTM §9) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 148 |
-| `cash.blind_z` | 17 | Retail / “cada sol cuadra” | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 154 |
-| `cash.discount_authz` | 17 | Retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 155 |
-| `ledger.credit_limit_cents` | 17 | Retail / CxC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 156 |
-| `audit.sensitive_actions` | 17 | Todos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 157 |
-| `inventory.batches` | 18 | Farmacias | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 158 |
-| `inventory.bom` | 18 | Retail / food | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 159 |
-| `pricing.lists` | 18 | Multi-lista | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 160 |
-| `orders.lifecycle` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 161 |
-| `orders.kds` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 162 |
-| `orders.split_bill` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 163 |
-| `stock.transfers` | 20 | Cadenas | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 164 |
-| `purchasing.partial_receive` | 20 | Cadenas / retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 165 |
-| `integrations.catalog_import` | 21 | Migración / objeción #1 | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 171 |
-| `payments.qr_wallets` | 22 | Cobro PE (Yape/Plin/MP) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 172 |
-| `payments.card_acquirer` | 22 | Retail / Culqi-Niubiz | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 173 |
-| `integrations.accounting_export` | 23 | Crece+ / contador | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 174 |
-| `integrations.api` | 23 | Cadena (API + webhooks) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 175 |
-| `messaging.whatsapp_receipt` | 24 | Post-venta / activación | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 176 |
-| `loyalty.points` | 24 | Cadena (fidelización light) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 177 |
-| `sales.returns` | 28–32 | Devoluciones con política N días | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 183 |
-| `purchasing.three_way` | 28–32 | Control de proveedor / OC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 184 |
-| `pricing.promotions` | 28–32 | Promos y tramos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 185 |
-| `catalog.variants` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 186 |
-| `catalog.uom` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 186 |
-| `sales.layaway` | 28–32 | Apartados | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 187 |
-| `ledger.chart_of_accounts` | 28–32 | Diario contable (retail) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 188 |
-| `sales.quotes` | 33–37 | Cotizaciones/presupuestos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 194 |
-| `purchasing.returns` | 33–37 | Devolución a proveedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 195 |
-| `ledger.store_credit` | 33–37 | Crédito de tienda / gift cards | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 196 |
-| `sales.installments` | 33–37 | Cuotas / pago en partes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 197 |
-| `sales.commissions` | 33–37 | Comisiones de vendedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 198 |
-| `inventory.locations` | 38–42 | Ubicaciones de inventario | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 204 |
-| `inventory.serials` | 38–42 | Números de serie | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 205 |
-| `inventory.scale` | 38–42 | Venta por peso / balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 206 |
-| `catalog.price_labels` | 38–42 | Etiquetas de precio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 207 |
-| `data.backup` | 38–42 | Export / restore del negocio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 208 |
-| `orders.customer_orders` | 43–45 | Preventa / pedido a cliente | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 214 |
-| `sales.recurring` | 43–45 | Recurrentes / membresías | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 215 |
-| `mobile.push` | 43–45 | Motor push operacional (owner.push_alerts = alias legado) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 216 |
-| `client.mobile_pos` | 43–45 | Caja móvil PWA sobre el POS único | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 217 |
-| `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 223 |
-| `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
-| `platform.dr` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
-| `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 225 |
-| `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
-| `sales.quick_line` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
-| `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 232 |
-| `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 233 |
-| `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 234 |
-| `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 235 |
-| `catalog.sellable` | C1 | Grid de catálogo vendible en la terminal (regla 38) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 236 |
-| `auth.cashier_login` | C2 | Login local del POS con PIN de cajero (ADR-0034) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 237 |
+| `pos.checkout` | 7 | Caja por modo / cobro offline-first | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 125 |
+| `pos.document_selector` | 7 | NV/01/03 según modo+régimen | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 126 |
+| `hardware.print_templates` | 7 | Tickets CPE/NV 58/80 (no ladder S25) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 127 |
+| `display.vitrina` | 7 | Customer display en cobro | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 128 |
+| `pos.offline_correlative_reserve` | 7 | Reserva tentativa local; server autoritativo | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 129 |
+| `ledger.accounts_receivable` | 8 | CxC + DAT-05 + compensación NC (E-D) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 130 |
+| `ledger.accounts_payable` | 8 | CxP + pagos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 131 |
+| `purchasing.orders` | 8 | Órdenes de compra (status mínimo; sin 3-way) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 132 |
+| `cash.register_expenses` | 8 | Egresos de caja chica | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 133 |
+| `owner.mode` | 8 | PWA Modo Dueño Hoy/Finanzas/Yo | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 134 |
+| `owner.offline_rollup` | 8 | Cache IDB rollup + banner antigüedad | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 135 |
+| `owner.push_alerts` | 8 | Push accionable Dueño (no `mobile.push` completo) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 136 |
+| `reporting.daily_rollups` | 9 | SoT financial rollups + cron shard | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 137 |
+| `reporting.product_rollups` | 9 | `daily_product_rollups` top/margen | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 138 |
+| `reporting.catalog` | 9 | Catálogo reportes retail plan+rol | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 139 |
+| `reporting.export` | 9 | Export CSV UTF-8 BOM | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 140 |
+| `reporting.shard_aggregator` | 9 | `Promise.all` sobre active_shards | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 141 |
+| `marketing.site` | 10 | Home + shell header/footer pre-venta | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 147 |
+| `marketing.vertical_landing` | 10 | Landings `/para/[vertical]` (content slug) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 148 |
+| `marketing.compare` | 10 | `/comparar/[competidor]` SEO intención | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 149 |
+| `marketing.claim_gate` | 10 | Feature destacada live vs roadmap+sprint | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 150 |
+| `marketing.referrals` | 12 | Códigos + atribución 1+1 mes (GTM §7.1) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 151 |
+| `marketing.content` | 12 | `/casos-de-exito` + `/blog` (GTM §7.3) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 152 |
+| `pos.brand_qr` | 12 | Pie “Emitido con KipusPay” + QR (GTM §7.2) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 153 |
+| `analytics.growth_metrics` | 12 | TTFS / upgrade / activation / NRR / K-factor (GTM §9) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 154 |
+| `cash.blind_z` | 17 | Retail / “cada sol cuadra” | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 160 |
+| `cash.policy` | 17 | Propinas y apertura de cajón | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 161 |
+| `billing.usage_overage` | 27 | Cobro de sobregiro de consumo | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 162 |
+| `cash.discount_authz` | 17 | Retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 163 |
+| `ledger.credit_limit_cents` | 17 | Retail / CxC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 164 |
+| `audit.sensitive_actions` | 17 | Todos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 165 |
+| `inventory.batches` | 18 | Farmacias | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 166 |
+| `inventory.bom` | 18 | Retail / food | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 167 |
+| `pricing.lists` | 18 | Multi-lista | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 168 |
+| `orders.lifecycle` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 169 |
+| `orders.kds` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 170 |
+| `orders.split_bill` | 19 | Restaurantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 171 |
+| `stock.transfers` | 20 | Cadenas | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 172 |
+| `purchasing.partial_receive` | 20 | Cadenas / retail | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 173 |
+| `integrations.catalog_import` | 21 | Migración / objeción #1 | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 179 |
+| `payments.qr_wallets` | 22 | Cobro PE (Yape/Plin/MP) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 180 |
+| `payments.card_acquirer` | 22 | Retail / Culqi-Niubiz | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 181 |
+| `integrations.accounting_export` | 23 | Crece+ / contador | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 182 |
+| `integrations.api` | 23 | Cadena (API + webhooks) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 183 |
+| `messaging.whatsapp_receipt` | 24 | Post-venta / activación | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 184 |
+| `loyalty.points` | 24 | Cadena (fidelización light) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 185 |
+| `sales.returns` | 28–32 | Devoluciones con política N días | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 191 |
+| `purchasing.three_way` | 28–32 | Control de proveedor / OC | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 192 |
+| `pricing.promotions` | 28–32 | Promos y tramos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 193 |
+| `catalog.variants` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 194 |
+| `catalog.uom` | 28–32 | Multi-variante / unidades | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 194 |
+| `sales.layaway` | 28–32 | Apartados | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 195 |
+| `ledger.chart_of_accounts` | 28–32 | Diario contable (retail) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 196 |
+| `sales.quotes` | 33–37 | Cotizaciones/presupuestos | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 202 |
+| `purchasing.returns` | 33–37 | Devolución a proveedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 203 |
+| `ledger.store_credit` | 33–37 | Crédito de tienda / gift cards | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 204 |
+| `sales.installments` | 33–37 | Cuotas / pago en partes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 205 |
+| `sales.commissions` | 33–37 | Comisiones de vendedor | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 206 |
+| `inventory.locations` | 38–42 | Ubicaciones de inventario | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 212 |
+| `inventory.serials` | 38–42 | Números de serie | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 213 |
+| `inventory.scale` | 38–42 | Venta por peso / balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 214 |
+| `catalog.price_labels` | 38–42 | Etiquetas de precio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 215 |
+| `data.backup` | 38–42 | Export / restore del negocio | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 216 |
+| `orders.customer_orders` | 43–45 | Preventa / pedido a cliente | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 222 |
+| `sales.recurring` | 43–45 | Recurrentes / membresías | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 223 |
+| `mobile.push` | 43–45 | Motor push operacional (owner.push_alerts = alias legado) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 224 |
+| `client.mobile_pos` | 43–45 | Caja móvil PWA sobre el POS único | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 225 |
+| `analytics.forecasting` | 46 | Predictiva (Cadena, freeze 46) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 231 |
+| `compliance.lpdp` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 232 |
+| `platform.dr` | 47–48 | LPDP / DR-BCP (Cadena) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 232 |
+| `analytics.agentic_insights` | 49 | Insight / briefing (Cadena/Enterprise, freeze 49) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 233 |
+| `catalog.quick_add` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 239 |
+| `sales.quick_line` | 50 | Escáner con cámara + venta rápida (gate 50) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 239 |
+| `ops.shift_handoff` | 51 | Handoff de turno sin cerrar caja (gate 51) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 240 |
+| `ops.team_invite` | 51 | Equipo: invitación + PIN/badge | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 241 |
+| `onboarding.tour` | 52 | Product Tour + checklist "segundo día" | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 242 |
+| `hardware.diagnostics` | 53 | Troubleshooter de impresora/balanza | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 243 |
+| `catalog.sellable` | C1 | Grid de catálogo vendible en la terminal (regla 38) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 244 |
+| `auth.cashier_login` | C2 | Login local del POS con PIN de cajero (ADR-0034) | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 245 |
+| `fuel.dispatch` | 54–59 | Despacho por surtidor con precio snapshot y volumen en microunits | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 251 |
+| `fuel.island_shift` | 54–59 | Reporte server-side por isla/manguera y turno | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 252 |
+| `fiscal.gre` | 7 | Guías de remisión electrónica | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 258 |
+| `fiscal.debit_note` | 7 | Notas de débito electrónicas | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 259 |
+| `fiscal.rc` | 7 | Resumen diario de boletas | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 260 |
+| `fiscal.cpe_portal` | 7 | Portal de consulta de comprobantes | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 261 |
+| `fiscal.withholdings` | 7 | Percepciones y retenciones | [`docs/architecture/01-principles.md`](docs/architecture/01-principles.md) | 262 |
 
 ## Sprints → fase, archivo y estado
 
@@ -175,58 +184,60 @@ Abre solo los archivos que esta tabla te señale.
 | `usage_events` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 212 |
 | `billing_overages` | §4.1 | [`docs/architecture/04-webhooks-metering.md`](docs/architecture/04-webhooks-metering.md) | 223 |
 | `fiscal_non_sale_outbox` | §5.2 | [`docs/architecture/05-2-fiscal-pipeline.md`](docs/architecture/05-2-fiscal-pipeline.md) | 102 |
-| `tenant_capabilities` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 63 |
-| `audit_events` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 73 |
-| `authorization_tokens` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 96 |
-| `fiscal_outbox` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 111 |
-| `cash_count_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 127 |
-| `tenant_discount_policies` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 141 |
-| `orders` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 148 |
-| `order_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 163 |
-| `stock_transfers` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 178 |
-| `stock_transfer_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 193 |
-| `purchase_receipts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 208 |
-| `purchase_receipt_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 218 |
-| `branch_stock_policies` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 235 |
-| `inventory_counts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 247 |
-| `inventory_count_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 261 |
-| `stock_losses` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 276 |
-| `cash_register_cash_movements` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 297 |
-| `sale_reprints` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 316 |
-| `return_policies` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 344 |
-| `sales_returns` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 353 |
-| `sale_return_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 371 |
-| `supplier_invoices` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 390 |
-| `supplier_invoice_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 418 |
-| `promotions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 430 |
-| `product_promotions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 444 |
-| `product_uoms` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 461 |
-| `sale_deposits` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 486 |
-| `sale_deposit_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 504 |
-| `sale_deposit_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 517 |
-| `chart_of_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 540 |
-| `journal_entries` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 550 |
-| `journal_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 571 |
-| `quotes` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 594 |
-| `quote_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 604 |
-| `supplier_returns` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 620 |
-| `supplier_return_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 634 |
-| `store_credit_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 651 |
-| `store_credit_transactions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 658 |
-| `sale_installments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 671 |
-| `sale_installment_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 683 |
-| `commission_rates` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 693 |
-| `commission_payouts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 702 |
-| `commission_accruals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 711 |
-| `inventory_locations` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 726 |
-| `inventory_location_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 737 |
-| `inventory_location_batch_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 748 |
-| `pos_terminals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 772 |
-| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 815 |
-| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 830 |
-| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 848 |
-| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 866 |
-| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 881 |
+| `tenant_capabilities` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 70 |
+| `audit_events` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 80 |
+| `authorization_tokens` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 103 |
+| `fiscal_outbox` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 118 |
+| `cash_count_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 134 |
+| `tenant_discount_policies` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 148 |
+| `orders` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 155 |
+| `order_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 170 |
+| `stock_transfers` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 185 |
+| `stock_transfer_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 200 |
+| `purchase_receipts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 215 |
+| `purchase_receipt_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 225 |
+| `branch_stock_policies` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 242 |
+| `inventory_counts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 254 |
+| `inventory_count_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 268 |
+| `stock_losses` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 283 |
+| `cash_register_cash_movements` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 304 |
+| `sale_reprints` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 323 |
+| `return_policies` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 351 |
+| `sales_returns` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 360 |
+| `sale_return_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 378 |
+| `supplier_invoices` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 397 |
+| `supplier_invoice_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 425 |
+| `promotions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 437 |
+| `product_promotions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 451 |
+| `product_uoms` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 468 |
+| `sale_deposits` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 493 |
+| `sale_deposit_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 511 |
+| `sale_deposit_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 524 |
+| `chart_of_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 547 |
+| `journal_entries` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 557 |
+| `journal_lines` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 578 |
+| `quotes` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 601 |
+| `quote_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 611 |
+| `supplier_returns` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 627 |
+| `supplier_return_items` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 641 |
+| `store_credit_accounts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 658 |
+| `store_credit_transactions` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 665 |
+| `sale_installments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 678 |
+| `sale_installment_payments` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 690 |
+| `commission_rates` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 700 |
+| `commission_payouts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 709 |
+| `commission_accruals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 718 |
+| `inventory_locations` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 733 |
+| `inventory_location_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 744 |
+| `inventory_location_batch_stock` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 755 |
+| `pos_terminals` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 779 |
+| `forecast_outputs` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 822 |
+| `consent_records` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 837 |
+| `insight_log` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 855 |
+| `ai_usage_counters` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 873 |
+| `cash_register_shifts` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 888 |
+| `fuel_catalog` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 917 |
+| `fuel_dispatches` | §5.3 | [`docs/architecture/05-3-commercial-ops.md`](docs/architecture/05-3-commercial-ops.md) | 931 |
 | `external_entity_map` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 27 |
 | `payment_captures` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 41 |
 | `api_keys` | §5.4 | [`docs/architecture/05-4-ecosystem-ports.md`](docs/architecture/05-4-ecosystem-ports.md) | 59 |

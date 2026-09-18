@@ -1,7 +1,7 @@
 <script lang="ts">
   
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
-  import { isInventoryLocationsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Badge from '$lib/ui/Badge.svelte';
@@ -25,7 +25,7 @@ import { apiFetch } from '$lib/auth/api-client';
     branch_quantity_microunits: number;
   };
 
-  const locationsOn = isInventoryLocationsEnabled();
+  const locationsOn = $derived($tenantCapabilities.has('inventory.locations'));
   let branchId = $state(initTenantBranchId());
   let code = $state('');
   let name = $state('');

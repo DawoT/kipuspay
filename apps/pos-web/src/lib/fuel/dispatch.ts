@@ -1,11 +1,13 @@
+import { calculateFuelDispatch, type FuelDispatchCommand } from '@kipuspay/domain-fuel';
+
 /**
  * Grifos — Despacho por surtidor (galones/monto) + detracción automática diésel.
  * Dominio puro: sin D1, sin red, sin deps npm. Dinero siempre INTEGER cents.
- * Offline-first: cálculo local <100ms; reconciliación autoritativa server-side.
+ * Offline-first: cálculo local <100ms sobre un snapshot firmado por servidor;
+ * reconciliación autoritativa server-side.
  * No jerga técnica en mensajes visibles (V-27).
  */
 
-export const FUEL_DETRACTION_RATE_BPS = 1000; // 10% Diésel B5 — badge en GasMock.svelte
 export const GALLON_MICROUNITS_PER_GALLON = 1_000_000;
 
 // Precios del día en cents por galón (snapshot del servidor; el cliente no impone precio final).
@@ -17,67 +19,19 @@ export interface FuelProduct {
   readonly unit: 'gal';
   readonly subjectToDetraction: boolean;
   readonly detractionRateBps: number | null;
+  /** Fiscal policy returned by the server. */
+  readonly igvRateBps: number;
 }
 
-export const FUEL_CATALOG: readonly FuelProduct[] = [
-  {
-    code: 'GASOHOL_84',
-    name: 'Gasohol 84',
-    priceCentsPerGallon: 1650,
-    unit: 'gal',
-    subjectToDetraction: false,
-    detractionRateBps: null,
-  },
-  {
-    code: 'GASOHOL_90',
-    name: 'Gasohol 90',
-    priceCentsPerGallon: 1720,
-    unit: 'gal',
-    subjectToDetraction: false,
-    detractionRateBps: null,
-  },
-  {
-    code: 'GASOHOL_95',
-    name: 'Gasohol 95',
-    priceCentsPerGallon: 1780,
-    unit: 'gal',
-    subjectToDetraction: false,
-    detractionRateBps: null,
-  },
-  {
-    code: 'GASOHOL_97',
-    name: 'Gasohol 97',
-    priceCentsPerGallon: 1850,
-    unit: 'gal',
-    subjectToDetraction: false,
-    detractionRateBps: null,
-  },
-  {
-    code: 'DIESEL_B5',
-    name: 'Diésel B5',
-    priceCentsPerGallon: 1620,
-    unit: 'gal',
-    subjectToDetraction: true,
-    detractionRateBps: FUEL_DETRACTION_RATE_BPS,
-  },
-  {
-    code: 'GLP',
-    name: 'GLP',
-    priceCentsPerGallon: 680,
-    unit: 'gal',
-    subjectToDetraction: false,
-    detractionRateBps: null,
-  },
-] as const;
-
-const FUEL_BY_CODE = new Map(FUEL_CATALOG.map((f) => [f.code, f]));
-
-export function getFuelByCode(code: string): FuelProduct | undefined {
-  return FUEL_BY_CODE.get(code);
+export function getFuelByCode(
+  code: string,
+  catalog: readonly FuelProduct[],
+): FuelProduct | undefined {
+  return catalog.find((fuel) => fuel.code === code);
 }
 
-export function isValidFuelCode(code: string): boolean {
-  return FUEL_BY_CODE.has(code);
+export function isValidFuelCode(code: string, catalog: readonly FuelProduct[]): boolean {
+  return getFuelByCode(code, catalog) !== undefined;
 }
 
 export function gallonsToMicrounits(gallons: number): number {
@@ -87,41 +41,9 @@ export function gallonsToMicrounits(gallons: number): number {
   return Math.round(gallons * GALLON_MICROUNITS_PER_GALLON);
 }
 
-function assertFuelCode(code: string): FuelProduct {
-  const fuel = getFuelByCode(code);
-  if (!fuel) throw new Error('INVALID_FUEL_CODE');
-  return fuel;
-}
-
 function assertPriceCents(price: number): number {
   if (!Number.isInteger(price) || price <= 0) throw new Error('INVALID_PRICE_CENTS');
   return price;
-}
-
-function computeSubtotalCents(gallonsMicro: number, priceCentsPerGallon: number): number {
-  // integer cents: micro * price / 1_000_000 con round half-up (server-side)
-  return Math.round((gallonsMicro * priceCentsPerGallon) / GALLON_MICROUNITS_PER_GALLON);
-}
-
-function computeIgvCents(subtotalCents: number): number {
-  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0)
-    throw new Error('INVALID_SUBTOTAL');
-  return Math.round((subtotalCents * 18) / 100);
-}
-
-export function computeDetractionForFuel(
-  totalCents: number,
-  fuelCode: string,
-  isBusinessInvoice: boolean,
-  documentType: string,
-): number {
-  const fuel = getFuelByCode(fuelCode);
-  if (!fuel?.subjectToDetraction) return 0;
-  if (!isBusinessInvoice) return 0;
-  if (documentType !== '01') return 0;
-  if (!Number.isSafeInteger(totalCents) || totalCents <= 0) throw new Error('INVALID_TOTAL');
-  const rate = fuel.detractionRateBps ?? FUEL_DETRACTION_RATE_BPS;
-  return Math.round((totalCents * rate) / 10_000);
 }
 
 export interface FuelDispatchInputByGallons {
@@ -148,71 +70,86 @@ export interface FuelDispatchResult {
   readonly priceCentsPerGallon: number;
   readonly subtotalCents: number;
   readonly igvCents: number;
+  readonly igvRateBps: number;
   readonly totalCents: number;
   readonly detractionCents: number;
+  readonly detractionRateBps: number;
   /** Total a cobrar (detracción informativa: se deposita aparte, no se resta del total). */
   readonly netPayableCents: number;
 }
 
-export function computeFuelDispatchByGallons(
+/**
+ * Computes a preview from the server catalog. Unlike the legacy convenience
+ * function above, this path accepts arbitrary tenant-defined fuel codes and
+ * uses the returned fiscal policy instead of a client catalogue.
+ */
+export function computeFuelDispatchByGallonsWithCatalog(
   input: FuelDispatchInputByGallons,
+  catalog: readonly FuelProduct[],
 ): FuelDispatchResult {
-  const fuel = assertFuelCode(input.fuelCode);
+  const fuel = catalog.find((candidate) => candidate.code === input.fuelCode);
+  if (!fuel) throw new Error('INVALID_FUEL_CODE');
   const gallonsMicro = gallonsToMicrounits(input.gallons);
   const price = assertPriceCents(input.priceCentsPerGallon ?? fuel.priceCentsPerGallon);
-  const subtotal = computeSubtotalCents(gallonsMicro, price);
-  const igv = computeIgvCents(subtotal);
-  const total = subtotal + igv;
-  const detra = computeDetractionForFuel(
-    total,
-    fuel.code,
-    input.isBusinessInvoice,
-    input.documentType,
-  );
+  const result = calculateFuelDispatch({
+    fuelCode: fuel.code,
+    volumeMicrounits: gallonsMicro,
+    priceCentsPerGallon: price,
+    igvRateBps: fuel.igvRateBps,
+    detractionRateBps: fuel.detractionRateBps ?? 0,
+    businessInvoice: fuel.subjectToDetraction && input.isBusinessInvoice,
+    documentType: input.documentType,
+  } satisfies FuelDispatchCommand);
   return {
     fuelCode: fuel.code,
     fuelName: fuel.name,
     gallonsMicrounits: gallonsMicro,
     gallons: gallonsMicro / GALLON_MICROUNITS_PER_GALLON,
     priceCentsPerGallon: price,
-    subtotalCents: subtotal,
-    igvCents: igv,
-    totalCents: total,
-    detractionCents: detra,
-    netPayableCents: total,
+    subtotalCents: result.subtotalCents,
+    igvCents: result.igvCents,
+    igvRateBps: fuel.igvRateBps,
+    totalCents: result.totalCents,
+    detractionCents: result.detractionCents,
+    detractionRateBps: fuel.detractionRateBps ?? 0,
+    netPayableCents: result.netPayableCents,
   };
 }
 
-export function computeFuelDispatchByAmount(input: FuelDispatchInputByAmount): FuelDispatchResult {
-  const fuel = assertFuelCode(input.fuelCode);
+/** Amount-mode counterpart for a server-provided catalog snapshot. */
+export function computeFuelDispatchByAmountWithCatalog(
+  input: FuelDispatchInputByAmount,
+  catalog: readonly FuelProduct[],
+): FuelDispatchResult {
+  const fuel = catalog.find((candidate) => candidate.code === input.fuelCode);
+  if (!fuel) throw new Error('INVALID_FUEL_CODE');
   const price = assertPriceCents(input.priceCentsPerGallon ?? fuel.priceCentsPerGallon);
-  if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0)
+  if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) {
     throw new Error('INVALID_AMOUNT_CENTS');
-  // amount = gallons * price -> gallonsMicro = round(amount * 1_000_000 / price)
+  }
   const gallonsMicro = Math.round((input.amountCents * GALLON_MICROUNITS_PER_GALLON) / price);
   if (gallonsMicro <= 0) throw new Error('INVALID_GALLONS');
-  const subtotal = computeSubtotalCents(gallonsMicro, price);
-  // Para modo monto, el amount del cajero es subtotal; pero el resultado normaliza por galones
-  // Si hay leve diferencia por redondeo (<1 cent por micro), respetamos el subtotal calculado de galones
-  // y exponemos ese subtotal como verdad. La diferencia es <2 cents y el servidor reconcilia.
-  const igv = computeIgvCents(subtotal);
-  const total = subtotal + igv;
-  const detra = computeDetractionForFuel(
-    total,
-    fuel.code,
-    input.isBusinessInvoice,
-    input.documentType,
-  );
+  const result = calculateFuelDispatch({
+    fuelCode: fuel.code,
+    volumeMicrounits: gallonsMicro,
+    priceCentsPerGallon: price,
+    igvRateBps: fuel.igvRateBps,
+    detractionRateBps: fuel.detractionRateBps ?? 0,
+    businessInvoice: fuel.subjectToDetraction && input.isBusinessInvoice,
+    documentType: input.documentType,
+  } satisfies FuelDispatchCommand);
   return {
     fuelCode: fuel.code,
     fuelName: fuel.name,
     gallonsMicrounits: gallonsMicro,
     gallons: gallonsMicro / GALLON_MICROUNITS_PER_GALLON,
     priceCentsPerGallon: price,
-    subtotalCents: subtotal,
-    igvCents: igv,
-    totalCents: total,
-    detractionCents: detra,
-    netPayableCents: total,
+    subtotalCents: result.subtotalCents,
+    igvCents: result.igvCents,
+    igvRateBps: fuel.igvRateBps,
+    totalCents: result.totalCents,
+    detractionCents: result.detractionCents,
+    detractionRateBps: fuel.detractionRateBps ?? 0,
+    netPayableCents: result.netPayableCents,
   };
 }

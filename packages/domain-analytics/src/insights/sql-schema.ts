@@ -45,10 +45,12 @@ export const INSIGHT_SCHEMA: Readonly<Record<string, InsightTableSchema>> = {
   },
   daily_product_rollups: {
     columns: {
+      branch_id: { name: 'branch_id', kind: 'text' },
       product_id: { name: 'product_id', kind: 'text' },
       report_date: { name: 'report_date', kind: 'date' },
-      qty_sold: { name: 'qty_sold', kind: 'int' },
-      gross_sales_cents: { name: 'gross_sales_cents', kind: 'int_cents' },
+      qty: { name: 'qty', kind: 'int' },
+      gross_cents: { name: 'gross_cents', kind: 'int_cents' },
+      cogs_cents: { name: 'cogs_cents', kind: 'int_cents' },
     },
   },
   forecast_outputs: {
@@ -57,6 +59,23 @@ export const INSIGHT_SCHEMA: Readonly<Record<string, InsightTableSchema>> = {
       forecast_date: { name: 'forecast_date', kind: 'date' },
       predicted_qty: { name: 'predicted_qty', kind: 'int' },
       predicted_gross_cents: { name: 'predicted_gross_cents', kind: 'int_cents' },
+    },
+  },
+  branch_product_stock: {
+    columns: {
+      branch_id: { name: 'branch_id', kind: 'text' },
+      product_id: { name: 'product_id', kind: 'text' },
+      stock: { name: 'stock', kind: 'int' },
+      updated_at: { name: 'updated_at', kind: 'date' },
+    },
+  },
+  accounts_receivable: {
+    columns: {
+      customer_id: { name: 'customer_id', kind: 'text' },
+      original_amount_cents: { name: 'original_amount_cents', kind: 'int_cents' },
+      balance_due_cents: { name: 'balance_due_cents', kind: 'int_cents' },
+      due_date: { name: 'due_date', kind: 'date' },
+      status: { name: 'status', kind: 'text' },
     },
   },
 };
@@ -92,21 +111,68 @@ export function buildInsightSelect(input: InsightSelectInput): InsightSqlResult 
     return { status: 'TOO_WIDE', message: TOO_WIDE_MESSAGE };
   }
   const params: unknown[] = [input.tenantId];
-  const where = [`t0.tenant_id = ?`];
-  if (input.branchId) {
-    where.push('t0.branch_id = ?');
-    params.push(input.branchId);
+  const where = ['t0.tenant_id = ?'];
+  const addBranch = () => {
+    if (input.branchId) {
+      where.push('t0.branch_id = ?');
+      params.push(input.branchId);
+    }
+  };
+  const addReportDate = () => {
+    if (input.reportDate) {
+      where.push('t0.report_date = ?');
+      params.push(input.reportDate);
+    }
+  };
+
+  let select: string;
+  let from: string;
+  let order: string;
+  switch (input.action) {
+    case 'TOP_PRODUCTS':
+      select = 'SELECT t0.product_id, SUM(t0.qty) AS qty, SUM(t0.gross_cents) AS gross_cents';
+      from = 'FROM daily_product_rollups AS t0';
+      addBranch();
+      addReportDate();
+      order = 'ORDER BY gross_cents DESC';
+      break;
+    case 'BREAKAGE':
+      select = 'SELECT t0.product_id, t0.branch_id, t0.stock';
+      from = 'FROM branch_product_stock AS t0';
+      addBranch();
+      where.push('t0.stock <= 0');
+      order = 'ORDER BY t0.updated_at DESC';
+      break;
+    case 'CASH_EXCEPTIONS':
+      select =
+        'SELECT t0.branch_id, t0.cash_expected_cents, t0.cash_counted_cents, t0.cash_diff_cents';
+      from = 'FROM daily_financial_rollups AS t0';
+      addBranch();
+      addReportDate();
+      where.push('t0.cash_diff_cents IS NOT NULL', 't0.cash_diff_cents <> 0');
+      order = 'ORDER BY ABS(t0.cash_diff_cents) DESC';
+      break;
+    case 'AGING':
+      select = 'SELECT t0.customer_id, t0.balance_due_cents, t0.due_date, t0.status';
+      from = 'FROM accounts_receivable AS t0';
+      where.push('t0.balance_due_cents > 0');
+      if (input.reportDate) {
+        where.push('date(t0.due_date) <= ?');
+        params.push(input.reportDate);
+      }
+      order = 'ORDER BY t0.due_date ASC';
+      break;
+    case 'SALES_SUMMARY':
+    default:
+      select = 'SELECT t0.gross_sales_cents, t0.doc_count';
+      from = 'FROM daily_financial_rollups AS t0';
+      addBranch();
+      addReportDate();
+      order = 'ORDER BY t0.report_date DESC';
+      break;
   }
-  if (input.reportDate) {
-    where.push('t0.report_date = ?');
-    params.push(input.reportDate);
-  }
-  const sql = [
-    'SELECT t0.gross_sales_cents, t0.doc_count',
-    'FROM daily_financial_rollups AS t0',
-    `WHERE ${where.join(' AND ')}`,
-    `ORDER BY t0.report_date DESC`,
-    `LIMIT ${LIMIT_CAPPED}`,
-  ].join('\n');
+  const sql = [select, from, `WHERE ${where.join(' AND ')}`, order, `LIMIT ${LIMIT_CAPPED}`].join(
+    '\n',
+  );
   return { status: 'OK', sql, params };
 }

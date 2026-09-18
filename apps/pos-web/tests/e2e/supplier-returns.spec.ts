@@ -1,26 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s34/GTM-20 (docs/ops/s34-supplier-returns-qg.md, guía §6): devolución a
 // proveedor — crear/cerrar/cancelar; el stock sale solo al CLOSED (0 CPE).
 
-const SESSION = JSON.stringify({
-  userId: 'admin-e2e',
-  role: 'admin',
-  branchId: 'branch-e2e',
-});
-
 test('devolución proveedor: crear, cerrar y cancelar', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
   await page.route('**/api/purchasing/returns', (route) =>
     route.fulfill({
       status: 200,
@@ -42,6 +26,14 @@ test('devolución proveedor: crear, cerrar y cancelar', async ({ page }) => {
       body: JSON.stringify({ status: 'CANCELED' }),
     }),
   );
+
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'admin',
+    verticalType: 'cadenas',
+    tradeName: 'Cadena E2E',
+    capabilities: ['purchasing.returns'],
+  });
 
   await page.goto('/admin/devolucion-proveedor');
   await expect(page.getByTestId('admin-supplier-return')).toBeVisible();

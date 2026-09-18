@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isCashBlindZEnabled,
+  resolveChartOfAccountsEnabled,
   runAuthzTokenMintHttp,
   runBlindCloseHttp,
   runCashMovementHttp,
@@ -9,7 +10,12 @@ import {
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 function mockEnv(
-  overrides: Partial<WorkerEnv> & { authzTokenRow?: unknown; approverRole?: string } = {},
+  overrides: Partial<WorkerEnv> & {
+    authzTokenRow?: unknown;
+    approverRole?: string;
+    pinRehashChanges?: number;
+    pinRehashThrows?: boolean;
+  } = {},
 ): WorkerEnv {
   const statements: unknown[] = [];
   const meta = {
@@ -38,6 +44,9 @@ function mockEnv(
         return stmt;
       },
       first<T>() {
+        if (sql.includes('tenant_capabilities')) {
+          return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+        }
         if (sql.includes('FROM tenant_discount_policies')) {
           return Promise.resolve({ max_amount_without_auth_cents: 2000 } as T);
         }
@@ -94,6 +103,9 @@ function mockEnv(
       },
       run<T>() {
         statements.push({ sql, binds });
+        if (sql.includes('UPDATE users SET pin_hash = ?') && overrides.pinRehashThrows) {
+          return Promise.reject(new Error('D1_UNAVAILABLE'));
+        }
         if (sql.includes('UPDATE users SET')) {
           if (sql.includes('pin_attempts = 0, pin_locked_until = NULL')) {
             lockout.pin_attempts = 0;
@@ -105,7 +117,11 @@ function mockEnv(
             }
           }
         }
-        return Promise.resolve(okResult<T>());
+        const result = okResult<T>();
+        if (sql.includes('UPDATE users SET pin_hash = ?')) {
+          result.meta.changes = overrides.pinRehashChanges ?? 1;
+        }
+        return Promise.resolve(result);
       },
       raw<T>(): Promise<[string[], ...T[]]> {
         return Promise.resolve([[] as string[], ...([] as T[])]);
@@ -166,10 +182,9 @@ describe('isCashBlindZEnabled', () => {
 });
 
 describe('runBlindCloseHttp', () => {
-  it('FEATURE_OFF sin flag', async () => {
+  it('sin DB capability state falla cerrado', async () => {
     const res = await runBlindCloseHttp({ FEATURE_CASH_BLIND_Z: '0' } as WorkerEnv, 't1', 'u1', {});
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe('FEATURE_OFF');
+    expect(res.status).toBe(503);
   });
 
   it('S17-H1: umbral de justificación viene de la política SERVER, nunca del cliente', async () => {
@@ -332,6 +347,24 @@ describe('S17-H2: minting de authorization_tokens con PIN supervisor', () => {
     expect(res.body.ttlSeconds).toBeLessThanOrEqual(90);
   });
 
+  it('rehash obsoleto por rotación concurrente → no emite token', async () => {
+    const res = await runAuthzTokenMintHttp(mockEnv({ pinRehashChanges: 0 }), 't1', 'sup-1', {
+      pin: '1234',
+      scope: 'DISCOUNT_OVERRIDE',
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('PIN_INVALID');
+  });
+
+  it('D1 no disponible durante rehash → 503 sin token', async () => {
+    const res = await runAuthzTokenMintHttp(mockEnv({ pinRehashThrows: true }), 't1', 'sup-1', {
+      pin: '1234',
+      scope: 'DISCOUNT_OVERRIDE',
+    });
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('PIN_VERIFICATION_UNAVAILABLE');
+  });
+
   it('PIN incorrecto → 403 y no emite token', async () => {
     const res = await runAuthzTokenMintHttp(mockEnv(), 't1', 'sup-1', {
       pin: '9999',
@@ -371,5 +404,18 @@ describe('G4 auditoría — aprobador de authz', () => {
     });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('FORBIDDEN_APPROVER');
+  });
+});
+
+describe('capability opcional de diario', () => {
+  it('revocación tenant desactiva el diario aunque el kill switch no lo bloquee', async () => {
+    const env = {
+      DB: {
+        prepare: () => ({
+          bind: () => ({ first: async () => ({ enabled: 0, config_json: '{}', epoch: 0 }) }),
+        }),
+      },
+    } as unknown as WorkerEnv;
+    await expect(resolveChartOfAccountsEnabled(env, 't1')).resolves.toBe(false);
   });
 });

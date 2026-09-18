@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isPurchasingReturnsEnabled, isPurchasingThreeWayEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -9,8 +9,8 @@
   import { workflowStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const threeWayOn = isPurchasingThreeWayEnabled();
-  const returnsOn = isPurchasingReturnsEnabled();
+  const threeWayOn = $derived($tenantCapabilities.has('purchasing.three_way'));
+  const returnsOn = $derived($tenantCapabilities.has('purchasing.returns'));
   let loading = $state(false);
   let openPos = $state<
     { id: string; status: string; totalAmountCents: number; supplierId: string }[]

@@ -11,7 +11,7 @@ owner: "@DawoT"
 |---|---|
 | Severidad tipica | SEV-1 (shard caído = caja detenida para ese tenant) |
 | Owner on-call | Staff SRE + Staff Backend ACID |
-| Ultima ensayada | 2026-08-16 (Sprint C4: dr-restore 6/6 + dr-routes 6/6 + dr-failover 5/5 con 500 ciclos + guards reales por API; el workflow del backup por Workflow requiere staging real — go-live) |
+| Ultima ensayada | 2026-09-17 (restore/RPO observados en staging con `registry-5`; la cifra RTO precede la corrección del cronómetro y requiere re-ensayo; no incluye cutover/rollback) |
 | Relaciona | Arquitectura §5.3 regla 32b · §5.9 regla 27 · ADR-0026 · Proceso §9.1 · Sprint 14/48 |
 
 ## Objetivos declarados
@@ -39,14 +39,14 @@ owner: "@DawoT"
    `POST /api/dr/simulation` con `x-step-up-token` (owner). El veredicto
    `PASSED` confirma que el snapshot es restaurable dentro del RTO.
 
-## Mitigación — Restore a shard DR
+## Simulacro — Restore a shard DR aislado
 
 > El apply del simulacro escribe en el binding `DR_DB` (shard DR aislado), jamás
 > en producción viva. Un shard nuevo se conecta por composición (wrangler var),
 > no por cambio de base de datos en caliente.
 
-1. Reconstruir el binding del shard afectado apuntando a `kipuspay-dr`
-   (migraciones aplicadas; el pool aplica las mismas migraciones).
+1. Usar únicamente un `DR_DB` aislado, con migraciones aplicadas; nunca
+   redirigir el binding del shard productivo durante el simulacro.
 2. Ejecutar el simulacro: `POST /api/dr/simulation` (owner + step-up).
    - `verdict: PASSED` → RPO/RTO ok; continuar.
    - `verdict: RTO_EXCEEDED` → revisar tamaño/tiempos de snapshot (chunks R2,
@@ -56,8 +56,20 @@ owner: "@DawoT"
 3. Verificar el replay de colas: el simulacro devuelve
    `replayDuplicatesBlocked ≥ 3` (offline sales, store-credit source_ref,
    fiscal outbox) — 0 duplicados de efectos.
-4. Apuntar el tráfico del tenant al shard restaurado (DNS/binding) y observar
-   `DR_SIMULATION_PASSED` + ventas nuevas committeadas.
+4. Registrar el resultado y detenerse. `DR_SIMULATION_PASSED` acredita solo la
+   restauración/verificación en el shard DR aislado; no autoriza cutover,
+   escritura productiva ni afirma que ventas nuevas hayan sido conmutadas.
+
+## Failover productivo — NO PROCEDIMENTADO
+
+El repositorio no implementa ni valida automáticamente cutover de tráfico,
+conmutación de bindings/DNS, ni rollback tras admitir escrituras en el shard
+restaurado. Ante una pérdida real de shard, mantener el tráfico sin cambios y
+escalar a Staff SRE + Staff Principal + PM para una decisión explícita y un
+plan de continuidad específico. No ejecutar pasos manuales de cutover basándose
+solo en este runbook o en un simulacro `PASSED`. Este apartado queda NO-GO hasta
+que exista procedimiento aprobado, prueba de rollback/cutover en staging y
+firmas QA/A/V independientes.
 
 ## Qué NO hacer
 
@@ -69,11 +81,13 @@ owner: "@DawoT"
 - NO prometer "DR multi-región" sin evidencia de staging: el QG S48 mantiene
   producción NO-GO hasta R2 externo + Workflow real + firmas A/V.
 
-## Rollback
+## Rollback del simulacro
 
-1. Revertir el binding del shard a la base original si el tráfico nuevo falla.
-2. El shard DR se puede re-simular idempotente: re-ejecutar el simulacro no
-   duplica filas (INSERT OR IGNORE por PK).
+No hay rollback de tráfico que documentar: el simulacro no conmuta tráfico ni
+escribe en producción. Puede repetirse idempotentemente sobre `DR_DB`
+(`INSERT OR IGNORE` por PK). El rollback de un cutover real está pendiente de
+un procedimiento aprobado y ensayado; no asumir que revertir un binding basta
+una vez que el shard nuevo haya aceptado escrituras.
 
 ## Escalamiento
 

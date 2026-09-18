@@ -19,3 +19,17 @@ sprints: "54–59"
 **Criterios:** `docs/ops/browser-functional-audit.md` + `docs/ops/6h-remediation-qg.md` — 0 `switch(vertical)`, bundle y jerga validados, `SUITE GREEN` + evidencia browser.
 
 **Quality Gate:** Staff Principal (A) + Staff QA/Chaos + Staff Security (V) — ver `docs/ops/6h-remediation-qg.md`.
+
+#### Subtrack Grifos — capabilities `fuel.dispatch` / `fuel.island_shift`
+
+La vertical Grifos se registra como bundle comercial de capabilities, no como
+`vertical === 'grifos'`. El catálogo, precios, tasas fiscales, stock y volumen
+son autoritativos del servidor; el POS solo calcula previews sobre un snapshot
+validado. `fuel.dispatch` cubre despacho idempotente/offline reconciliable,
+descuento de stock y vínculo ACID con venta/caja. `fuel.island_shift` cubre el
+reporte reproducible por isla/manguera enlazado al handoff y arqueo ciego.
+
+**Gate específico:** pruebas de idempotencia, no doble descuento, política
+fiscal configurable, cambio de precio, factura empresarial, conciliación de
+volumen/medidor y reporte de turno; sin claim comercial hasta evidencia de
+staging y piloto operativo.

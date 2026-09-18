@@ -7,12 +7,18 @@ import {
 
 import type { WorkerEnv } from '../auth/control-plane.js';
 
-function fakeEnv(overrides: Partial<Record<string, unknown>> = {}) {
+function fakeEnv(overrides: Partial<Record<string, unknown>> = {}, capabilityEnabled = 1) {
   const rows: unknown[] = [];
   const db = {
-    prepare: vi.fn(() => ({
+    prepare: vi.fn((sql: string) => ({
       bind: vi.fn(() => ({
-        first: vi.fn(() => Promise.resolve(rows.shift())),
+        first: vi.fn(() =>
+          Promise.resolve(
+            sql.includes('tenant_capabilities')
+              ? { enabled: capabilityEnabled, config_json: '{}', epoch: 0 }
+              : rows.shift(),
+          ),
+        ),
 
         all: vi.fn(() => Promise.resolve({ results: rows.splice(0) })),
         run: vi.fn(() => Promise.resolve({ success: true })),
@@ -49,13 +55,13 @@ describe('hardware-diagnostics routes (Sprint 53)', () => {
     expect(result.status).toBe(403);
   });
 
-  it('POST: capability off → 403 CAPABILITY_OFF', async () => {
-    const { env } = fakeEnv();
+  it('POST: capability off → 404 FEATURE_OFF', async () => {
+    const { env } = fakeEnv({}, 0);
     const result = await runReportHardwareDiagnosticsHttp(env, actor, {
       reports: [{ target: 'scale', ok: false, causeCode: 'SCALE_NOT_FOUND', testedAtIso: 'x' }],
     });
-    expect(result.status).toBe(403);
-    expect(result.body.code).toBe('CAPABILITY_OFF');
+    expect(result.status).toBe(404);
+    expect(result.body.code).toBe('FEATURE_OFF');
   });
 
   it('POST: reports inválidos → 400 HARDWARE_DIAG_INVALID', async () => {
@@ -106,10 +112,11 @@ describe('hardware-diagnostics routes (Sprint 53)', () => {
       causeCode: 'SCALE_NOT_FOUND',
       testedAtIso: '2026-08-12T20:00:00.000Z',
     });
-    db.rows.push(
-      { enabled: 1 },
-      { target: 'scale', payload_json: payloadJson, created_at: '2026-08-12T20:00:00Z' },
-    );
+    db.rows.push({
+      target: 'scale',
+      payload_json: payloadJson,
+      created_at: '2026-08-12T20:00:00Z',
+    });
     const result = await runListHardwareDiagnosticsHttp(env, actor, 10);
     expect(result.status).toBe(200);
     const reports = result.body.reports as

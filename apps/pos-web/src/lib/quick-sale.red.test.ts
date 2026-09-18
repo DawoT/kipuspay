@@ -35,7 +35,7 @@ describe('Sprint 50 quick-sale UI contract (GREEN)', () => {
   });
 
   it('catálogo: panel de escáner rápido gated por flag y con copy EMP-', () => {
-    expect(catalogSource).toContain('isCatalogQuickAddEnabled()');
+    expect(catalogSource).toContain("$tenantCapabilities.has('catalog.quick_add')");
     expect(catalogSource).toContain('data-testid="quick-add-panel"');
     expect(catalogSource).toContain('data-testid="quick-add-submit"');
     expect(catalogSource).toContain('EMP- es de vendedores y jamás crea un producto');

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
-  import { isSalesInstallmentsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -18,7 +18,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const installmentsOn = isSalesInstallmentsEnabled();
+  const installmentsOn = $derived($tenantCapabilities.has('sales.installments'));
   let session = $state<PosTenantSession>(defaultTenantSession());
   let installmentId = $state('');
   let message = $state('');

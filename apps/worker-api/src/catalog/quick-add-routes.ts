@@ -11,6 +11,7 @@
  */
 import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import { classifyScan, isReservedBarcode } from '@kipuspay/domain-catalog';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface QuickAddEnv {
   readonly FEATURE_CATALOG_QUICK_ADD?: string;
@@ -21,6 +22,7 @@ export interface QuickAddActor {
   readonly tenantId: string;
   readonly userId: string;
   readonly role: string;
+  readonly branchId?: string | undefined;
 }
 
 export interface HttpResult {
@@ -30,6 +32,20 @@ export interface HttpResult {
 
 export function isQuickAddEnabled(env: QuickAddEnv | undefined): boolean {
   return env?.FEATURE_CATALOG_QUICK_ADD === '1';
+}
+
+async function requireQuickAdd(env: QuickAddEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'catalog.quick_add');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status === 404 ? 404 : 503, {
+        code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+      });
+    }
+    return result(503, { code: 'CAPABILITY_UNAVAILABLE' });
+  }
 }
 
 const ADMIN_ROLES = new Set(['owner', 'admin']);
@@ -70,8 +86,9 @@ export async function runQuickAddHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isQuickAddEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
   if (!env.DB) return result(503, { code: 'QUICK_ADD_DB_UNAVAILABLE' });
+  const capabilityResult = await requireQuickAdd(env, actor.tenantId);
+  if (capabilityResult) return capabilityResult;
   if (!ADMIN_ROLES.has(actor.role.toLowerCase())) return result(403, { code: 'FORBIDDEN' });
   const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : '';
   const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -160,8 +177,9 @@ export async function runScanLookupHttp(
   actor: QuickAddActor,
   raw: string,
 ): Promise<HttpResult> {
-  if (!isQuickAddEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
   if (!env.DB) return result(503, { code: 'QUICK_ADD_DB_UNAVAILABLE' });
+  const capabilityResult = await requireQuickAdd(env, actor.tenantId);
+  if (capabilityResult) return capabilityResult;
   if (!ADMIN_ROLES.has(actor.role.toLowerCase())) return result(403, { code: 'FORBIDDEN' });
   const scope = classifyScan(raw);
   const db = env.DB as Db;

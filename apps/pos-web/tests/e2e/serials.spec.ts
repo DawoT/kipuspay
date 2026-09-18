@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // Sprint 39 + Sello QA Batch G: /admin/series — identidad física con
 // search/lease/dispose. El search real del sello detectó 3 gaps corregidos:
@@ -6,27 +7,13 @@ import { expect, test } from '@playwright/test';
 // el contrato (SCRAPPED/RMA_SUPPLIER vs DAMAGED/LOST/RETURN_TO_SUPPLIER),
 // (3) el select mapeaba mal `serial_id`. Copy honesto vía salesErrorCopy.
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('series: buscar y disponer con contrato real', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-      localStorage.setItem('kipuspay.onboarding.claim', JSON.stringify({ branchId: 'branch-e2e' }));
-      localStorage.setItem('kipuspay:pos-terminal-id', 'term-e2e');
-    },
-    [SESSION] as const,
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-serials',
+    role: 'owner',
+    capabilities: ['inventory.serials'],
+  });
   const dispositions: Array<Record<string, unknown>> = [];
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
 
   await page.route(/\/api\/inventory\/serials\?serialNumber=/, (route) =>
     route.fulfill({

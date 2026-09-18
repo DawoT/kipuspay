@@ -47,7 +47,9 @@
         {/each}
       </div>
       <p class="legal-note">
-        Si quieres ejercer un derecho de datos, escríbenos desde la cuenta de tu negocio.
+        Si eres titular de los datos, puedes ejercer tus derechos ARCO escribiendo a
+        <a href="mailto:privacidad@kipuspay.com">privacidad@kipuspay.com</a>. El autoservicio
+        de solicitudes está en validación y todavía no está disponible.
       </p>
     </div>
   </div>

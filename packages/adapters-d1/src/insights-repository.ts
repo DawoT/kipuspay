@@ -112,23 +112,24 @@ export async function consumeAiUsage(
   tokensIn: number,
   tokensOut: number,
 ): Promise<ConsumeAiUsageResult> {
-  await db
-    .prepare(
-      `INSERT OR IGNORE INTO ai_usage_counters
-         (tenant_id, usage_date, queries, tokens_in, tokens_out, quota_queries)
-       VALUES (?, ?, 0, 0, 0, 100)`,
-    )
-    .bind(tenantId, usageDate)
-    .run();
-  const res = await db
-    .prepare(
-      `UPDATE ai_usage_counters
-       SET queries = queries + 1, tokens_in = tokens_in + ?, tokens_out = tokens_out + ?
-       WHERE tenant_id = ? AND usage_date = ? AND queries < quota_queries`,
-    )
-    .bind(tokensIn, tokensOut, tenantId, usageDate)
-    .run();
-  if ((res.meta?.changes ?? 0) === 0) {
+  const results = await db.batch([
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO ai_usage_counters
+           (tenant_id, usage_date, queries, tokens_in, tokens_out, quota_queries)
+         VALUES (?, ?, 0, 0, 0, 100)`,
+      )
+      .bind(tenantId, usageDate),
+    db
+      .prepare(
+        `UPDATE ai_usage_counters
+         SET queries = queries + 1, tokens_in = tokens_in + ?, tokens_out = tokens_out + ?
+         WHERE tenant_id = ? AND usage_date = ? AND queries < quota_queries`,
+      )
+      .bind(tokensIn, tokensOut, tenantId, usageDate),
+  ]);
+  const res = results[1];
+  if ((res?.meta?.changes ?? 0) === 0) {
     throw new Error('AI_QUOTA_EXCEEDED');
   }
   return { consumed: true };

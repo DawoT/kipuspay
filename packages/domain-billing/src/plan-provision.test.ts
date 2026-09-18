@@ -43,14 +43,25 @@ describe('plan-provision — mapping canónico (migration 0064)', () => {
     expect(cadena).not.toContain('orders.lifecycle');
   });
 
-  it('enterprise = 77 caps (superset completo)', () => {
+  it('enterprise = 86 caps (superset completo)', () => {
     const cadena = new Set(getCapabilitiesForPlan('cadena'));
     const ent = getCapabilitiesForPlan('enterprise');
-    expect(ent.length).toBe(77);
+    expect(ent.length).toBe(86);
     for (const c of cadena) expect(ent).toContain(c);
     expect(ent).toContain('orders.kds');
     expect(ent).toContain('analytics.forecasting');
     expect(ent).toContain('marketing.site');
+    expect(ent).toContain('fuel.dispatch');
+    expect(ent).toContain('fuel.island_shift');
+    expect(ent).toContain('fiscal.rc');
+    expect(ent).toContain('fiscal.cpe_portal');
+    expect(ent).toContain('fiscal.withholdings');
+  });
+
+  it('enterprise conserva un conjunto canónico, único y estable', () => {
+    const enterprise = getCapabilitiesForPlan('enterprise');
+    expect(new Set(enterprise).size).toBe(enterprise.length);
+    expect(enterprise).toEqual(PLAN_CAPABILITIES.enterprise);
   });
 
   it('provisionCapabilitiesForPlan alias', () => {

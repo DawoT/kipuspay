@@ -22,12 +22,32 @@ import {
   type InsightFact,
 } from '@kipuspay/domain-analytics';
 import { assertCadenaPlusPlan, type HttpResult, type PlanProbe } from '../auth/plan-cadena.js';
-import { isAgenticInsightsEnabled } from '../auth/features.js';
-import { createWorkersAiGateway, type AiGateway } from '../ai/ai-gateway.js';
+import { createWorkersAiGateway, DEFAULT_AI_MODEL, type AiGateway } from '../ai/ai-gateway.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface InsightsKvLike {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, options?: { readonly expirationTtl?: number }): Promise<void>;
+}
+
+export async function persistInsightArtifacts(input: {
+  readonly writeLog: () => Promise<void>;
+  readonly writeCache: () => Promise<void>;
+}): Promise<{ readonly logMs: number; readonly cacheMs: number }> {
+  const measureBestEffort = async (operation: () => Promise<void>): Promise<number> => {
+    const startedAt = performance.now();
+    try {
+      await operation();
+    } catch {
+      // Audit and replay cache remain best-effort and do not block the answer.
+    }
+    return elapsedMs(startedAt);
+  };
+  const [logMs, cacheMs] = await Promise.all([
+    measureBestEffort(input.writeLog),
+    measureBestEffort(input.writeCache),
+  ]);
+  return { logMs, cacheMs };
 }
 
 export interface InsightsEnv {
@@ -79,7 +99,7 @@ function insightEnv(env: InsightsEnv) {
     kv: env.TENANT_KV ?? null,
     gateway: createWorkersAiGateway({
       binding: env.AI as never,
-      model: env.AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct',
+      model: env.AI_MODEL ?? DEFAULT_AI_MODEL,
     }),
     db: env.DB as Parameters<typeof runInsightSelect>[0]['db'],
   };
@@ -87,14 +107,36 @@ function insightEnv(env: InsightsEnv) {
 
 const ADMIN_ROLES = new Set(['owner', 'admin']);
 
+async function requireInsights(env: InsightsEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'analytics.agentic_insights');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status === 404 ? 404 : 503, {
+        code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        error: error.message,
+      });
+    }
+    return result(503, { code: 'CAPABILITY_UNAVAILABLE' });
+  }
+}
+
 export async function runInsightChatHttp(
   env: InsightsEnv,
   actor: InsightsActor,
   body: Readonly<Record<string, unknown>>,
 ): Promise<Response | HttpResult> {
-  if (!isAgenticInsightsEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
+  const requestStartedAt = performance.now();
+  const timings: Record<string, number> = {};
   if (!env.DB || !env.AI) return result(503, { code: 'INSIGHTS_DEPENDENCY_UNAVAILABLE' });
+  const capabilityStartedAt = performance.now();
+  const capabilityError = await requireInsights(env, actor.tenantId);
+  timings.capability = elapsedMs(capabilityStartedAt);
+  if (capabilityError) return capabilityError;
+  const planStartedAt = performance.now();
   const planDeny = await assertCadenaPlusPlan(env as unknown as PlanProbe, actor.tenantId);
+  timings.plan = elapsedMs(planStartedAt);
   if (planDeny) return planDeny;
   if (!ADMIN_ROLES.has(actor.role.toLowerCase())) return result(403, { code: 'FORBIDDEN' });
   const question = typeof body.question === 'string' ? body.question.trim() : '';
@@ -110,7 +152,7 @@ export async function runInsightChatHttp(
   if (idempotencyKey.length > 128 || !/^[A-Za-z0-9_-]{6,128}$/.test(idempotencyKey)) {
     return result(400, { code: 'IDEMPOTENCY_KEY_INVALID' });
   }
-  return executeInsightChat(env, actor, question, idempotencyKey);
+  return executeInsightChat(env, actor, question, idempotencyKey, requestStartedAt, timings);
 }
 
 async function executeInsightChat(
@@ -118,24 +160,32 @@ async function executeInsightChat(
   actor: InsightsActor,
   question: string,
   idempotencyKey: string,
+  startedAt: number,
+  timings: Record<string, number>,
 ): Promise<Response | HttpResult> {
   const sseStart = Date.now();
   const { kv, gateway, db } = insightEnv(env);
+  let stage = 'quota';
   const cacheKey = `insights:${actor.tenantId}:${idempotencyKey}`;
   if (kv) {
+    const cacheStartedAt = performance.now();
     const cached = await kv.get(cacheKey);
+    timings.cache = elapsedMs(cacheStartedAt);
     if (cached) {
+      timings.total = elapsedMs(startedAt);
       emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'CACHE_HIT');
-      return sse({ cached: true, text: cached });
+      return sse({ cached: true, text: cached }, timings);
     }
   }
 
-  const modelVersion = env.AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct';
+  const modelVersion = env.AI_MODEL ?? DEFAULT_AI_MODEL;
   try {
     // S49-H2: cupo fail-closed ANTES de invocar el LLM — sin cupo no se gasta
     // un solo token (el consumo post-hoc permitía gasto ilimitado por tenant).
     const { consumeAiUsage } = await import('@kipuspay/adapters-d1');
+    const quotaStartedAt = performance.now();
     const quota = await assertAiQuota(env, actor.tenantId);
+    timings.quota = elapsedMs(quotaStartedAt);
     if (quota) {
       emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'QUOTA_EXCEEDED');
       return quota;
@@ -145,8 +195,15 @@ async function executeInsightChat(
     // dedupea el registro final. La carrera de reenvío simultáneo con la
     // misma key puede invocar el LLM 2 veces (costo acotado por el cupo),
     // pero jamás duplica el cobro: consumeAiUsage es atómico.
-    const rawIntent = await gateway.routerIntent(question);
+    stage = 'router';
+    // Preguntas frecuentes y no ambiguas no necesitan un round-trip al LLM.
+    // Esto reduce latencia y coste; las preguntas ambiguas o peligrosas siguen
+    // pasando por el router whitelist y su validación fail-closed.
+    const routerStartedAt = performance.now();
+    const localIntent = fastPathIntent(question);
+    const rawIntent = localIntent ?? (await gateway.routerIntent(question));
     const intent = classifyIntent(rawIntent);
+    timings.router = elapsedMs(routerStartedAt);
     if (intent === 'UNSUPPORTED') {
       const text =
         'Aún no puedo responder eso. Pregunta por ventas del día, quiebre de stock, excepciones de caja, top productos o deudas.';
@@ -162,7 +219,8 @@ async function executeInsightChat(
         tokensOut: 0,
       });
       emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'UNSUPPORTED');
-      return sse({ text });
+      timings.total = elapsedMs(startedAt);
+      return sse({ text }, timings);
     }
 
     const plan = buildInsightSelect({ action: intent, tenantId: actor.tenantId });
@@ -179,15 +237,19 @@ async function executeInsightChat(
         tokensOut: 0,
       });
       emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'TOO_WIDE');
-      return sse({ text: plan.message });
+      timings.total = elapsedMs(startedAt);
+      return sse({ text: plan.message }, timings);
     }
 
+    stage = 'query';
+    const queryStartedAt = performance.now();
     const rows = await runInsightSelect({
       db,
       tenantId: actor.tenantId,
       sql: plan.sql,
       params: plan.params,
     });
+    timings.query = elapsedMs(queryStartedAt);
     const facts: InsightFact[] = rows.slice(0, 5).flatMap((row) =>
       Object.entries(row).map(([key, value]) => ({
         key,
@@ -196,15 +258,55 @@ async function executeInsightChat(
     );
     assertNoPiiInFacts(rows);
 
+    if (!hasMeaningfulFacts(facts)) {
+      const text = 'No hay datos suficientes para responder esta pregunta todavía.';
+      stage = 'metering';
+      const meteringStartedAt = performance.now();
+      await consumeAiUsage(db, actor.tenantId, todayLima(), 32, 0);
+      timings.metering = elapsedMs(meteringStartedAt);
+      stage = 'persist';
+      const persistStartedAt = performance.now();
+      const artifactTimings = await cacheAndLog(kv, gateway, db, actor, idempotencyKey, {
+        intent,
+        question,
+        text,
+        sql: plan.sql,
+        facts,
+        status: 'OK',
+        modelVersion,
+        tokensIn: 32,
+        tokensOut: 0,
+      });
+      timings.persist = elapsedMs(persistStartedAt);
+      timings.persist_d1 = artifactTimings.logMs;
+      timings.persist_kv = artifactTimings.cacheMs;
+      timings.total = elapsedMs(startedAt);
+      emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'OK');
+      return sse({ text }, timings);
+    }
+
     const prompt = buildPrompt(intent, question);
-    const text = await gateway.generateText(
-      prompt,
-      facts.map((fact) => `${fact.key}=${String(fact.value)}`),
-    );
+    stage = 'generate';
+    const generateStartedAt = performance.now();
+    // Las preguntas frecuentes no necesitan otro round-trip al proveedor:
+    // redactar desde los hechos ya validados mantiene el SLO SSE y evita que
+    // una respuesta conocida dependa de una inferencia no determinista.
+    const text = localIntent
+      ? buildFastPathResponse(intent, facts)
+      : await gateway.generateText(
+          prompt,
+          facts.map((fact) => `${fact.key}=${String(fact.value)}`),
+        );
+    timings.generate = elapsedMs(generateStartedAt);
     assertFactsVerbatim(facts, text);
 
+    stage = 'metering';
+    const meteringStartedAt = performance.now();
     await consumeAiUsage(db, actor.tenantId, todayLima(), 32, estimateTokens(text));
-    await cacheAndLog(kv, gateway, db, actor, idempotencyKey, {
+    timings.metering = elapsedMs(meteringStartedAt);
+    stage = 'persist';
+    const persistStartedAt = performance.now();
+    const artifactTimings = await cacheAndLog(kv, gateway, db, actor, idempotencyKey, {
       intent,
       question,
       text,
@@ -215,20 +317,113 @@ async function executeInsightChat(
       tokensIn: 32,
       tokensOut: estimateTokens(text),
     });
+    timings.persist = elapsedMs(persistStartedAt);
+    timings.persist_d1 = artifactTimings.logMs;
+    timings.persist_kv = artifactTimings.cacheMs;
+    timings.total = elapsedMs(startedAt);
     emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'OK');
-    return sse({ text });
+    return sse({ text }, timings);
   } catch (err) {
+    const errorRef = crypto.randomUUID();
+    console.warn(
+      JSON.stringify({
+        event: 'insights_failed',
+        tenantId: actor.tenantId,
+        stage,
+        reason: insightFailureReason(err),
+        errorRef,
+      }),
+    );
     if (err instanceof Error && err.message === 'AI_QUOTA_EXCEEDED') {
       emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'QUOTA_EXCEEDED');
       return result(402, { code: 'AI_QUOTA_EXCEEDED' });
     }
     emitSseAnalytics(env, actor.tenantId, Date.now() - sseStart, 'FAILED');
-    return result(422, { code: 'INSIGHTS_FAILED', errorRef: crypto.randomUUID() });
+    return result(422, { code: 'INSIGHTS_FAILED', errorRef });
   }
+}
+
+function hasMeaningfulFacts(facts: readonly InsightFact[]): boolean {
+  return facts.some((fact) =>
+    typeof fact.value === 'number'
+      ? Number.isFinite(fact.value) && fact.value !== 0
+      : fact.value.trim() !== '',
+  );
+}
+
+function insightFailureReason(
+  error: unknown,
+): 'AI_PROVIDER_ERROR' | 'D1_ERROR' | 'NLG_CONTRADICTION' | 'RUNTIME_ERROR' {
+  const message =
+    error instanceof Error ? error.message.toUpperCase() : String(error).toUpperCase();
+  if (message === 'NLG_CONTRADICTION') return 'NLG_CONTRADICTION';
+  if (message.includes('AI') || message.includes('MODEL') || message.includes('INFERENCE')) {
+    return 'AI_PROVIDER_ERROR';
+  }
+  if (message.includes('D1') || message.includes('SQLITE') || message.includes('DATABASE')) {
+    return 'D1_ERROR';
+  }
+  return 'RUNTIME_ERROR';
 }
 
 function buildPrompt(intent: string, question: string): string {
   return `Pregunta: ${question}\nIntención: ${intent}\nResponde en 1-2 frases, sin jerga técnica.`;
+}
+
+function buildFastPathResponse(intent: string, facts: readonly InsightFact[]): string {
+  const values = facts.map((fact) => String(fact.value));
+  if (intent === 'SALES_SUMMARY' && values.length >= 2) {
+    return `Ventas del día: S/ ${values[0]} en ${values[1]} comprobantes.`;
+  }
+  const labels: Readonly<Record<string, string>> = {
+    BREAKAGE: 'Alertas de stock',
+    CASH_EXCEPTIONS: 'Excepciones de caja',
+    TOP_PRODUCTS: 'Productos destacados',
+    AGING: 'Cuentas por cobrar',
+  };
+  return `${labels[intent] ?? 'Datos disponibles'}: ${values.join(', ')}.`;
+}
+
+function fastPathIntent(question: string): string | null {
+  const normalized = question
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  if (
+    /\b(borra|borrar|elimina|eliminar|drop|delete|modifica|modificar|actualiza|actualizar)\b/.test(
+      normalized,
+    )
+  ) {
+    return null;
+  }
+  if (/\b(top|producto|productos|mas vendido|mas vendidos|ranking)\b/.test(normalized)) {
+    return 'TOP_PRODUCTS';
+  }
+  if (/\b(quiebre|quiebres|agotado|agotados|sin stock|stockout)\b/.test(normalized)) {
+    return 'BREAKAGE';
+  }
+  if (
+    /\b(caja|cajas|cuadre|cuadres|diferencia|diferencias|cierre de caja|efectivo)\b/.test(
+      normalized,
+    )
+  ) {
+    return 'CASH_EXCEPTIONS';
+  }
+  if (
+    /\b(deuda|deudas|cobranza|vencida|vencido|vencidas|vencidos|credito|creditos|cuentas por cobrar)\b/.test(
+      normalized,
+    )
+  ) {
+    return 'AGING';
+  }
+  if (
+    /\b(venta|ventas|vendido|vendidos|facturacion|ingreso|ingresos|boleta|boletas|factura|facturas)\b/.test(
+      normalized,
+    )
+  ) {
+    return 'SALES_SUMMARY';
+  }
+  return null;
 }
 
 function estimateTokens(text: string): number {
@@ -258,36 +453,50 @@ async function cacheAndLog(
   actor: InsightsActor,
   idempotencyKey: string,
   input: LogInput,
-): Promise<void> {
-  await appendInsightLog(db, {
-    tenantId: actor.tenantId,
-    userId: actor.userId,
-    idempotencyKey,
-    interactionType: 'chat_query',
-    status: input.status,
-    sqlExecuted: input.sql,
-    factsJson: JSON.stringify(input.facts),
-    responseText: input.text,
-    modelVersion: input.modelVersion,
-    tokensIn: input.tokensIn,
-    tokensOut: input.tokensOut,
-  }).catch(() => undefined);
-  if (kv) {
-    await kv
-      .put(`insights:${actor.tenantId}:${idempotencyKey}`, input.text, {
+): Promise<{ readonly logMs: number; readonly cacheMs: number }> {
+  return persistInsightArtifacts({
+    writeLog: async () => {
+      await appendInsightLog(db, {
+        tenantId: actor.tenantId,
+        userId: actor.userId,
+        idempotencyKey,
+        interactionType: 'chat_query',
+        status: input.status,
+        sqlExecuted: input.sql,
+        factsJson: JSON.stringify(input.facts),
+        responseText: input.text,
+        modelVersion: input.modelVersion,
+        tokensIn: input.tokensIn,
+        tokensOut: input.tokensOut,
+      });
+    },
+    writeCache: async () => {
+      if (!kv) return;
+      await kv.put(`insights:${actor.tenantId}:${idempotencyKey}`, input.text, {
         expirationTtl: IDEMPOTENCY_CACHE_TTL_SECONDS,
-      })
-      .catch(() => undefined);
-  }
+      });
+    },
+  });
 }
 
-function sse(body: Readonly<Record<string, unknown>>): Response {
+function elapsedMs(startedAt: number): number {
+  return Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100);
+}
+
+function sse(
+  body: Readonly<Record<string, unknown>>,
+  timings: Readonly<Record<string, number>>,
+): Response {
   const payload = `data: ${JSON.stringify(body)}\n\n`;
+  const serverTiming = Object.entries(timings)
+    .map(([name, duration]) => `${name};dur=${duration}`)
+    .join(', ');
   return new Response(payload, {
     headers: {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache',
       connection: 'keep-alive',
+      'server-timing': serverTiming,
     },
   });
 }
@@ -316,11 +525,12 @@ export async function runBriefingHttp(
   actor: InsightsActor,
   date: string | null,
 ): Promise<HttpResult> {
-  if (!isAgenticInsightsEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
   // S49-H1: el briefing expone PII derivada (operadores de turno) — solo
   // admin/owner (nunca cashier).
   if (!ADMIN_ROLES.has(actor.role.toLowerCase())) return result(403, { code: 'FORBIDDEN' });
   if (!env.DB) return result(503, { code: 'INSIGHTS_DB_UNAVAILABLE' });
+  const capabilityError = await requireInsights(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env as unknown as PlanProbe, actor.tenantId);
   if (planDeny) return planDeny;
   const { kv } = insightEnv(env);

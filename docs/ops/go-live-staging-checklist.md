@@ -24,11 +24,14 @@ parcial. Claims GTM vendibles exigen evidencia externa + A+V.
   `go-live-fcm`).
 - `stg-vapid-public-var` → **done** (runtime var API).
 - `stg-tenant-fixture` → **done** (`tenant_stg_phase0_001`, session 200, step-up).
-- `stg-ci-etapas-6` → **file-done**; `stg-ci-etapas-6-run` → **WAIT** (prettier ubl local GREEN; GH `CLOUDFLARE_API_TOKEN` debe ser API Token CF largo, no OAuth wrangler).
+- `stg-ci-etapas-6` → **file-done**; `stg-ci-etapas-6-run` → **DONE** (run
+  33234868394 GREEN con artifact `deploy-staging-evidence` (gate + deploy + smoke).
 - `stg-flags-s42-s48` → **done** (runtime only).
 - `stg-s42-r2-workflow` → **done parcial** (backup READY + kek v1 + Workflow; chaos
   matrix / restore dry-run A+V pendientes).
-- `stg-s48-dr-sim` → **WAIT** (software `registry-2` STALE; live `DR_SIMULATION_PASSED` exige backup READY post-0056).
+- `stg-s48-dr-sim` → **DONE técnico / pendiente de firma A+V**: simulacro live
+  `DR_SIMULATION_PASSED` con backup `registry-2`, RTO 88.5 s, RPO transaccional
+  0, RPO rollup OK y replay deduplicado; ver evidencia en el tracker.
 - `go-live-staging` → **EN_CURSO** (nunca CERRADO en este ciclo).
 - `go-live-sunat` → **AGENDADO** (matriz sign-only + loop POS Worker-firma
   e-beta 2026-08-21: F001-11, FD01-3, FC01-2, B001-2 via RC-003; GTM-08 y T6
@@ -41,7 +44,7 @@ parcial. Claims GTM vendibles exigen evidencia externa + A+V.
 | `stg-secrets-real` | Staff Security | **done** | Store real; KMS redeploy; wrap vía backup READY |
 | `stg-vapid-public-var` | Staff Mobile | **done** | `PUSH_VAPID_PUBLIC_KEY` runtime + redeploy API |
 | `stg-tenant-fixture` | Staff SRE | **done** | Owner JWT + KV + session/step-up |
-| `stg-ci-etapas-6-run` | Staff SRE | **WAIT** | Prettier local GREEN + **reemplazar GH `CLOUDFLARE_API_TOKEN` OAuth por API Token CF** antes del deploy real |
+| `stg-ci-etapas-6-run` | Staff SRE | **DONE** | Run 33234868394 GREEN: gate + deploy + smoke y artifact `deploy-staging-evidence` |
 
 ## Handoff Fase 1 — EN_CURSO
 
@@ -49,7 +52,7 @@ parcial. Claims GTM vendibles exigen evidencia externa + A+V.
 |---|---|---|
 | `stg-flags-s42-s48` | **done** | Runtime `FEATURE_DATA_BACKUP=1` / `FEATURE_PLATFORM_DR=1` |
 | `stg-s42-r2-workflow` | **done parcial** | Backups `d31ef057…`, `8afaba63…` READY |
-| `stg-s48-dr-sim` | **WAIT** | Software `BACKUP_REGISTRY_STALE` (registry-2). Live: migrar 0056 + backup nuevo + simulacro `DR_DB` |
+| `stg-s48-dr-sim` | **DONE técnico / A+V pendiente** | Backup nuevo post-registry-2 y simulacro contra `DR_DB` completados; no cierra el bloque externo |
 
 Fixes de producto desplegados en staging (no liberatorios): step-up
 `meta.changes >= 1` (epoch trigger); mint step-up exige `backupId` también para DR /
@@ -68,7 +71,7 @@ Piloto acotado (Fase 2) puede ir antes de FCM/hardware (Fase 3).
 
 6. Runtime `FEATURE_DATA_BACKUP=1`, `FEATURE_PLATFORM_DR=1` — **done**.
 7. Matriz externa S42 — **parcial** (READY; falta dry-run/chaos A+V).
-8. `DR_SIMULATION` S48 — **WAIT** (`registry-2` + backup post-0056).
+8. `DR_SIMULATION` S48 — **DONE técnico / A+V pendiente** (backup `registry-2`, RTO 88.5 s, RPO transaccional 0 y rollup OK; no cierra el bloque externo).
 9. Flags piloto cobro/fiscal — **S12 WAIT A+V** (repo sigue `0`).
 
 ### Fase 2 — Piloto operable (mínimo producción real)

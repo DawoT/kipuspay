@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
-  import { capabilitiesFetchedAt, getStaleBanner, STALE_THRESHOLD_MS } from '$lib/tenant/capabilitiesStore';
+  import { capabilities as tenantCapabilities, capabilitiesFetchedAt, getStaleBanner, STALE_THRESHOLD_MS } from '$lib/tenant/capabilitiesStore';
   import { page } from '$app/state';
   import { fade } from 'svelte/transition';
   import { prefersReducedMotion } from 'svelte/motion';
@@ -13,7 +12,7 @@
 
   let { children } = $props();
 
-  let enabled = $derived(isOwnerModeEnabled());
+  let enabled = $derived($tenantCapabilities.has('owner.mode'));
   let capabilitiesStaleBanner = $derived.by(() => {
     const fetchedAt = $capabilitiesFetchedAt;
     if (fetchedAt === null) return null;
@@ -44,7 +43,7 @@
     sidebarOpen = !sidebarOpen;
   }
 
-  const insightsOn = isAgenticInsightsEnabled();
+  const insightsOn = $derived($tenantCapabilities.has('analytics.agentic_insights'));
   const navGroups = $derived(ownerSidebarGroups(insightsOn));
 
   function isActive(href: string) {

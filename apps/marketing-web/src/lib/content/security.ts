@@ -29,12 +29,12 @@ export const SECURITY_PAGE = {
     {
       id: 'ownership',
       title: 'Tus datos son tuyos.',
-      body: 'Puedes exportar tu catálogo y tus ventas cuando quieras, incluso al momento de cancelar. El borrado de datos personales respeta la retención fiscal que exige SUNAT: anonimizamos y conservamos el comprobante sin tu nombre.',
+      body: 'Las herramientas self-serve para exportación y solicitudes sobre datos personales aún están en preparación. Consulta la política de privacidad y sus canales de contacto para conocer las opciones vigentes.',
     },
     {
       id: 'sunat',
-      title: 'Acompañamiento para SUNAT.',
-      body: 'Cuando activas facturación, KipusPay guía el envío y los plazos. La aceptación final la decide SUNAT; nunca afirmamos "aceptado" antes de la respuesta oficial.',
+      title: 'Facturación sujeta a habilitación.',
+      body: 'Las opciones de facturación electrónica aún no están disponibles para activación general. SUNAT determina la aceptación de cada comprobante.',
     },
     {
       id: 'support',
@@ -47,32 +47,32 @@ export const SECURITY_PAGE = {
     'La nota de venta de control interno no es comprobante autorizado por SUNAT.',
     'Nunca apagamos la caja por un ticket de soporte o un pago de suscripción en periodo de gracia.',
   ] as const,
-  /** Proceso real de envío — los pasos sí son una secuencia (numeración válida). */
+  /** Información de estado para no presentar capacidades fiscales bloqueadas como disponibles. */
   sunatFlow: {
-    eyebrow: 'Así funciona el envío',
-    heading: 'De tu caja a SUNAT, paso a paso.',
+    eyebrow: 'Antes de facturar electrónicamente',
+    heading: 'Verifica la habilitación y los requisitos vigentes.',
     steps: [
       {
-        title: 'Vendes y el documento se genera',
-        body: 'La venta queda registrada al instante, con o sin internet. El comprobante nace en el momento del cobro, no después.',
+        title: 'La función depende de habilitación',
+        body: 'La emisión electrónica aún no está disponible para activación general. Las condiciones se comunicarán cuando el servicio y el negocio estén habilitados.',
       },
       {
-        title: 'KipusPay lo envía por ti',
-        body: 'Al activar la facturación, el envío a SUNAT ocurre solo: las facturas se envían de inmediato y las boletas se agrupan en el resumen del día.',
+        title: 'Consulta los requisitos aplicables',
+        body: 'Los requisitos y procedimientos tributarios dependen del tipo de comprobante y de la situación del negocio. Confirma la información vigente con SUNAT y otras fuentes oficiales aplicables.',
       },
       {
-        title: 'Se acerca un plazo y te avisamos',
-        body: 'Si algo está por vencer (envíos pendientes o bajas), la caja y el Modo Dueño te avisan antes de que el plazo te gane.',
+        title: 'No anticipes el resultado',
+        body: 'La aceptación la determina SUNAT. No consideres un comprobante aceptado hasta contar con la respuesta oficial correspondiente.',
       },
       {
-        title: 'SUNAT responde y eso es lo que cuenta',
-        body: 'La aceptación la decide SUNAT. KipusPay muestra el estado real de cada comprobante: pendiente, aceptado o rechazado. Nada de "aceptado" anticipado.',
+        title: 'Los estados requieren evidencia oficial',
+        body: 'KipusPay no debe presentar como aceptado un comprobante sin la respuesta oficial que confirme ese estado.',
       },
     ],
   },
   retention: {
     heading: 'Cuánto guardamos y por qué',
-    body: 'Los comprobantes fiscales se conservan alrededor de 5 años, como exige SUNAT. Si un cliente pide borrar sus datos, anonimizamos su nombre, correo, teléfono y dirección; los comprobantes se conservan sin su nombre. El borrado no es "cuando quieras": la retención fiscal va primero y siempre lo decimos.',
+    body: 'Los plazos de conservación dependen del tipo de información y de las obligaciones aplicables. Las solicitudes sobre datos personales requieren evaluación conforme a la política vigente y a las obligaciones legales de conservación.',
   },
   sla: {
     heading: 'Soporte según tu plan',
@@ -97,16 +97,16 @@ export const SECURITY_PAGE = {
     heading: 'Disponibilidad con números, no con promesas.',
     points: [
       {
-        title: '99.9% de disponibilidad mensual',
-        body: 'Es el compromiso contractual de la plataforma. La caja local, además, sigue cobrando e imprimiendo sin internet: el punto de venta no depende de la nube para vender.',
+        title: 'Disponibilidad del servicio',
+        body: 'La experiencia puede variar según la conexión y la configuración del equipo. La caja puede seguir registrando ventas sin internet según su configuración y capacidad local.',
       },
       {
         title: 'Si la caja no cobra, respondemos en horas',
         body: 'En Enterprise, respuesta en 1 hora calendario (atención continua). En los demás planes, 4 horas hábiles. El canal oficial es soporte@kipuspay.com.',
       },
       {
-        title: 'La caja nunca se apaga',
-        body: 'Ni por un pago en gracia ni por volumen: el cobro en tienda y la emisión de comprobantes siguen activos mientras se resuelve cualquier tema administrativo.',
+        title: 'La caja y la facturación son funciones distintas',
+        body: 'La continuidad del registro de ventas depende de la configuración local. Las funciones fiscales dependen de su propia habilitación y de las respuestas oficiales correspondientes.',
       },
     ],
   },

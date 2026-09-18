@@ -14,28 +14,28 @@ owner: "@DawoT"
 
 ## Evidencia automatizada
 
-| Check | Resultado |
-|---|---|
-| ADR-0025: lista explícita/default de sucursal, snapshot autoritativo y retry inmutable | GREEN |
-| Mig 0034 DAT-12: templates versionados, batches idempotentes e items snapshot | GREEN |
-| Down 0034 protegido ante templates no bootstrap, batches o items | GREEN |
-| DSL `PRICE_LABEL_V1`: nodos/campos allowlisted, sin HTML/CSS/script/URL | GREEN |
-| Barcode zero-dependency: EAN-8, EAN-13 y CODE128 con validación/checksum | GREEN |
-| Golden bytes deterministas 58/80 mm y precios INTEGER cents | GREEN |
-| D1: resolución server-side de lista/precio/producto/template y persistencia con `db.batch` | GREEN |
-| Retry conserva snapshot; reprint crea identidad nueva y `PRICE_LABEL_REPRINT` hash-chain | GREEN |
-| RBAC/capability/terminal: fail-closed y errores HTTP opacos | GREEN |
-| Outbox genérica: ACK por ítem, F5/cuota y 0 bloqueo de venta/cierre Z | GREEN |
-| WebUSB virtual: profile/endpoint allowlist, timeout, release y close en `finally` | GREEN |
-| WSS virtual: solo `wss:`, host allowlisted, nonce+item ACK, timeout y reconnect | GREEN |
-| Security Review: 0 critical/high/medium; gaps de integración fail-closed corregidos | GREEN |
-| Chaos `price-label-printing`: 500 ciclos, 0 duplicados/stale/mix/bloqueo de caja | GREEN |
-| D1 workerd: 115 tests de integración, incluida concurrencia/rollback | GREEN |
-| Unit: print 31, POS 81, adapters 248, Worker 504, chaos 74 | GREEN |
-| Cobertura: adapters 94.57% líneas/82.03% ramas; POS 79.83% líneas | GREEN |
-| Bundle POS | 111.92 kB gzip de 300 kB |
-| `scripts/verify.sh` | SUITE GREEN |
-| `scripts/quality.sh` sobre commit limpio | Quality Gate OK |
+| Check                                                                                      | Resultado                |
+| ------------------------------------------------------------------------------------------ | ------------------------ |
+| ADR-0025: lista explícita/default de sucursal, snapshot autoritativo y retry inmutable     | GREEN                    |
+| Mig 0034 DAT-12: templates versionados, batches idempotentes e items snapshot              | GREEN                    |
+| Down 0034 protegido ante templates no bootstrap, batches o items                           | GREEN                    |
+| DSL `PRICE_LABEL_V1`: nodos/campos allowlisted, sin HTML/CSS/script/URL                    | GREEN                    |
+| Barcode zero-dependency: EAN-8, EAN-13 y CODE128 con validación/checksum                   | GREEN                    |
+| Golden bytes deterministas 58/80 mm y precios INTEGER cents                                | GREEN                    |
+| D1: resolución server-side de lista/precio/producto/template y persistencia con `db.batch` | GREEN                    |
+| Retry conserva snapshot; reprint crea identidad nueva y `PRICE_LABEL_REPRINT` hash-chain   | GREEN                    |
+| RBAC/capability/terminal: fail-closed y errores HTTP opacos                                | GREEN                    |
+| Outbox genérica: ACK por ítem, F5/cuota y 0 bloqueo de venta/cierre Z                      | GREEN                    |
+| WebUSB virtual: profile/endpoint allowlist, timeout, release y close en `finally`          | GREEN                    |
+| WSS virtual: solo `wss:`, host allowlisted, nonce+item ACK, timeout y reconnect            | GREEN                    |
+| Security Review: 0 critical/high/medium; gaps de integración fail-closed corregidos        | GREEN                    |
+| Chaos `price-label-printing`: 500 ciclos, 0 duplicados/stale/mix/bloqueo de caja           | GREEN                    |
+| D1 workerd: 115 tests de integración, incluida concurrencia/rollback                       | GREEN                    |
+| Unit: print 31, POS 81, adapters 248, Worker 504, chaos 74                                 | GREEN                    |
+| Cobertura: adapters 94.57% líneas/82.03% ramas; POS 79.83% líneas                          | GREEN                    |
+| Bundle POS                                                                                 | 111.92 kB gzip de 300 kB |
+| `scripts/verify.sh`                                                                        | SUITE GREEN              |
+| `scripts/quality.sh` sobre commit limpio                                                   | Quality Gate OK          |
 
 ## Evidencia RED→GREEN
 
@@ -50,21 +50,21 @@ owner: "@DawoT"
 
 ## Matriz automatizada
 
-| Perfil | Fixture | Evidencia |
-|---|---|---|
-| ESC/POS 58 mm | golden bytes | nombre/precio/barcode, overflow, caracteres y checksum |
-| ESC/POS 80 mm | golden bytes | determinismo, copias, orden y precio INTEGER |
-| WebUSB | dispositivo inyectable | claim/interface/endpoint, disconnect, timeout y cleanup |
-| WSS LAN | socket inyectable | allowlist, binario, nonce+ACK, timeout, close y reconnect |
-| IndexedDB | puerto persistente | F5, cuota, corrupción, subset pendiente y cierre Z |
+| Perfil        | Fixture                | Evidencia                                                 |
+| ------------- | ---------------------- | --------------------------------------------------------- |
+| ESC/POS 58 mm | golden bytes           | nombre/precio/barcode, overflow, caracteres y checksum    |
+| ESC/POS 80 mm | golden bytes           | determinismo, copias, orden y precio INTEGER              |
+| WebUSB        | dispositivo inyectable | claim/interface/endpoint, disconnect, timeout y cleanup   |
+| WSS LAN       | socket inyectable      | allowlist, binario, nonce+ACK, timeout, close y reconnect |
+| IndexedDB     | puerto persistente     | F5, cuota, corrupción, subset pendiente y cierre Z        |
 
 ## Matriz física pendiente
 
-| Perfil | Evidencia requerida | Estado |
-|---|---|---|
-| Impresora térmica 58 mm WebUSB allowlisted | foto/ticket, fingerprint, endpoint, acentos, barcode escaneable, disconnect | NO-GO |
-| Impresora térmica 80 mm WebUSB allowlisted | foto/ticket, fingerprint, endpoint, corte, barcode escaneable, timeout | NO-GO |
-| Bridge WSS LAN paired/allowlisted | certificado, host, ACK/nonce, reconnect, pérdida de red | NO-GO |
+| Perfil                                     | Evidencia requerida                                                         | Estado |
+| ------------------------------------------ | --------------------------------------------------------------------------- | ------ |
+| Impresora térmica 58 mm WebUSB allowlisted | foto/ticket, fingerprint, endpoint, acentos, barcode escaneable, disconnect | NO-GO  |
+| Impresora térmica 80 mm WebUSB allowlisted | foto/ticket, fingerprint, endpoint, corte, barcode escaneable, timeout      | NO-GO  |
+| Bridge WSS LAN paired/allowlisted          | certificado, host, ACK/nonce, reconnect, pérdida de red                     | NO-GO  |
 
 Los fixtures demuestran el contrato de software, no compatibilidad física. Hasta anexar
 la evidencia anterior y obtener firmas A+V independientes, no se activa la capability
@@ -73,13 +73,13 @@ compatibles”.
 
 ## RACI
 
-| Rol | Quién | Firma |
-|---|---|---|
-| R | Staff Frontend + Staff Backend Datos | OK software |
-| A | Staff Principal + Staff Hardware | PENDIENTE evidencia física |
-| V | Staff QA independiente + Staff Hardware | PENDIENTE evidencia física |
-| Security | Staff Security Review | OK — 0 medium+ |
-| Claim | Staff PM | NO-GO |
+| Rol      | Quién                                   | Firma                      |
+| -------- | --------------------------------------- | -------------------------- |
+| R        | Staff Frontend + Staff Backend Datos    | OK software                |
+| A        | Staff Principal + Staff Hardware        | PENDIENTE evidencia física |
+| V        | Staff QA independiente + Staff Hardware | PENDIENTE evidencia física |
+| Security | Staff Security Review                   | OK — 0 medium+             |
+| Claim    | Staff PM                                | NO-GO                      |
 
 ## Cutover condicionado
 
@@ -102,3 +102,29 @@ compatibles”.
 - Playwright Chromium y dispositivos físicos no estuvieron disponibles en este entorno.
 - El claim GTM-17 de etiquetas permanece congelado; el software queda listo para piloto.
 - Backup/restore continúa en Sprint 42.
+
+## Canary reproducible de API staging
+
+`apps/worker-api/scripts/staging-price-labels-canary.mjs` ejecuta, contra
+Worker+D1 staging y con credenciales fuera del repositorio, el recorrido
+owner/admin → plantilla `PRICE_LABEL_V1` → lote con snapshot server-side →
+reimpresión → ACK por ítem. Requiere tokens separados para configuración y
+operación, además de un `productId`, `terminalId` y `terminalSessionId` del
+fixture aislado:
+
+```bash
+STAGING_PRICE_LABELS_OWNER_TOKEN='(secreto fuera de repo)' \
+STAGING_PRICE_LABELS_OPERATOR_TOKEN='(secreto fuera de repo)' \
+STAGING_PRICE_LABELS_TENANT_ID='(tenant del fixture)' \
+STAGING_PRICE_LABELS_PRODUCT_ID='(producto del fixture)' \
+STAGING_PRICE_LABELS_TERMINAL_ID='(terminal del fixture)' \
+STAGING_PRICE_LABELS_TERMINAL_SESSION_ID='(sesión activa del fixture)' \
+pnpm --filter @kipuspay/worker-api run canary:price-labels
+```
+
+El runner envía `x-tenant-id` explícito para no confundir el subdominio staging
+con un tenant (la defensa `TENANT_HINT_MISMATCH` permanece activa). Usa claves
+de idempotencia con timestamp, no imprime tokens ni payloads, termina con código
+2 si faltan variables y exige respuestas JSON válidas. El canary prueba el
+contrato de API; no convierte fixtures virtuales en evidencia de impresora
+física ni descongela GTM-17.

@@ -2,9 +2,11 @@
 apps/*/build/
 apps/*/functions/
 apps/*/.svelte-kit/
+apps/*/.svelte-kit-*/
 apps/*/.wrangler/
 # Artefactos de E2E / screenshots locales
 # Artefactos staff (PEM, envelope, XML firmado). No mezclar con doctrina.
+.agents/
 build/
 .claude/
 # Config y skills de agentes locales (tooling; no doctrina)
@@ -38,6 +40,8 @@ packages/*/.wrangler/
 __pycache__/
 # Python de los checks (scripts/checks/*.py se importan entre sí y generan caché)
 /quipu-premium-*.png
+# Evidencia local de auditorías (PNG/JSON; la citada en docs se regenera)
+docs/ops/evidence/
 # Scripts TEMP de auditoría de diseño (wave 4-5; no versionar)
 scripts/tmp/
 # Secretos / entorno
@@ -49,4 +53,5 @@ tmp-staff/
 .turbo/
 .vscode/
 .wrangler/
+.zcode/
 # Wrangler dev secrets (nunca versionar)

@@ -18,9 +18,21 @@ vi.mock('@kipuspay/adapters-d1', async (importOriginal) => ({
   voidBoletaAtomic: vi.fn(),
   buildDailySummary: vi.fn(),
   processFiscalDeadlines: vi.fn(),
+  runDailySummarySweep: vi.fn(),
 }));
 
 describe('fiscal-rc routes flags', () => {
+  const capabilityDb = () =>
+    ({
+      prepare: (sql: string) => ({
+        bind: () => ({
+          first: async () =>
+            sql.includes('tenant_capabilities')
+              ? { enabled: 1, config_json: '{}', epoch: 0 }
+              : null,
+        }),
+      }),
+    }) as unknown as D1Database;
   it('FEATURE_FISCAL_RC default off; FEATURE_CPE_PORTAL default ON (H4, opt-out con 0)', () => {
     expect(isFiscalRcEnabled({} as WorkerEnv)).toBe(false);
     expect(isFiscalRcEnabled({ FEATURE_FISCAL_RC: '0' } as WorkerEnv)).toBe(false);
@@ -89,13 +101,76 @@ describe('fiscal-rc routes flags', () => {
     expect(cron.status).toBe(404);
   });
 
+  it('daily sweep filters tenants by fiscal.rc and excludes revoked tenants', async () => {
+    vi.mocked(AdaptersD1.runDailySummarySweep).mockResolvedValueOnce({
+      summaryDate: '2026-08-08',
+      tenantsWithPending: 1,
+      results: [],
+    });
+    const db = {
+      prepare: (sql: string) => ({
+        bind: (..._params: unknown[]) => ({
+          all: async () =>
+            sql.includes('FROM tenant_capabilities')
+              ? { results: [{ tenant_id: 'enabled' }, { tenant_id: 'revoked' }] }
+              : { results: [] },
+          first: async () => {
+            if (!sql.includes('tenant_capabilities')) return null;
+            return sql.includes('tenant_id = ?') && _params[0] === 'revoked'
+              ? { enabled: 0, config_json: '{}', epoch: 0 }
+              : { enabled: 1, config_json: '{}', epoch: 0 };
+          },
+          run: async () => ({}),
+        }),
+      }),
+    } as unknown as D1Database;
+    const result = await runFiscalCronHttp({ FEATURE_FISCAL_RC: '1', DB: db } as WorkerEnv, {
+      action: 'daily-summary-sweep',
+      summaryDate: '2026-08-08',
+      nowMs: 0,
+    });
+    expect(result.status).toBe(200);
+    expect(AdaptersD1.runDailySummarySweep).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({ tenantIds: ['enabled'] }),
+    );
+  });
+
+  it('deadline sweep is tenant-gated instead of scanning every sale', async () => {
+    vi.mocked(AdaptersD1.processFiscalDeadlines).mockResolvedValue({
+      scanned: 1,
+      actions: [],
+    });
+    const db = {
+      prepare: (sql: string) => ({
+        bind: (...params: unknown[]) => ({
+          all: async () =>
+            sql.includes('FROM tenant_capabilities')
+              ? { results: [{ tenant_id: 'enabled' }, { tenant_id: 'revoked' }] }
+              : { results: [] },
+          first: async () =>
+            sql.includes('tenant_capabilities') && params[0] === 'revoked'
+              ? { enabled: 0, config_json: '{}', epoch: 0 }
+              : { enabled: 1, config_json: '{}', epoch: 0 },
+        }),
+      }),
+    } as unknown as D1Database;
+    const result = await runFiscalCronHttp({ FEATURE_FISCAL_RC: '1', DB: db } as WorkerEnv, {
+      action: 'deadlines',
+      nowMs: 0,
+    });
+    expect(result.status).toBe(200);
+    expect(AdaptersD1.processFiscalDeadlines).toHaveBeenCalledTimes(1);
+    expect(AdaptersD1.processFiscalDeadlines).toHaveBeenCalledWith(db, 0, { tenantId: 'enabled' });
+  });
+
   it('F5b-2: void 200 con DB; DB ausente → 503', async () => {
     vi.mocked(AdaptersD1.voidBoletaAtomic).mockResolvedValueOnce({
       saleId: 's1',
       voidStatus: 'VOIDED',
     } as never);
     const ok = await runVoidBoletaHttp(
-      { FEATURE_FISCAL_RC: '1', DB: {} as D1Database } as WorkerEnv,
+      { FEATURE_FISCAL_RC: '1', DB: capabilityDb() } as WorkerEnv,
       't1',
       's1',
     );
@@ -109,7 +184,7 @@ describe('fiscal-rc routes flags', () => {
   it('F5b-2: baja tras RC enviado → 422 VOID_AFTER_RC_SENT (edge E-C)', async () => {
     vi.mocked(AdaptersD1.voidBoletaAtomic).mockRejectedValueOnce(new Error('VOID_AFTER_RC_SENT'));
     const res = await runVoidBoletaHttp(
-      { FEATURE_FISCAL_RC: '1', DB: {} as D1Database } as WorkerEnv,
+      { FEATURE_FISCAL_RC: '1', DB: capabilityDb() } as WorkerEnv,
       't1',
       's1',
     );
@@ -120,7 +195,7 @@ describe('fiscal-rc routes flags', () => {
   it('F5b-2: venta inexistente → 404 SALE_NOT_FOUND', async () => {
     vi.mocked(AdaptersD1.voidBoletaAtomic).mockRejectedValueOnce(new Error('SALE_NOT_FOUND'));
     const res = await runVoidBoletaHttp(
-      { FEATURE_FISCAL_RC: '1', DB: {} as D1Database } as WorkerEnv,
+      { FEATURE_FISCAL_RC: '1', DB: capabilityDb() } as WorkerEnv,
       't1',
       'no-existe',
     );
@@ -131,7 +206,7 @@ describe('fiscal-rc routes flags', () => {
   it('F5b-2: error inesperado → 400 con código estable', async () => {
     vi.mocked(AdaptersD1.voidBoletaAtomic).mockRejectedValueOnce(new Error('ALGO_INESPERADO'));
     const res = await runVoidBoletaHttp(
-      { FEATURE_FISCAL_RC: '1', DB: {} as D1Database } as WorkerEnv,
+      { FEATURE_FISCAL_RC: '1', DB: capabilityDb() } as WorkerEnv,
       't1',
       's1',
     );
@@ -160,9 +235,14 @@ describe('F5b-6: portal CPE', () => {
 
   function dbWith(sale: unknown): D1Database {
     return {
-      prepare: () => ({
+      prepare: (sql: string) => ({
         bind: () => ({
-          first: () => Promise.resolve(sale),
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : sale,
+            ),
         }),
       }),
     } as unknown as D1Database;
@@ -420,9 +500,16 @@ describe('F5b-6: portal CPE', () => {
 describe('H4: enlace distribuible para el POS (/api/sales/:id/cpe-link)', () => {
   function dbWithStatus(sunat_status: string | null): D1Database {
     return {
-      prepare: () => ({
+      prepare: (sql: string) => ({
         bind: () => ({
-          first: () => Promise.resolve(sunat_status === null ? null : { sunat_status }),
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : sunat_status === null
+                  ? null
+                  : { sunat_status },
+            ),
         }),
       }),
     } as unknown as D1Database;
@@ -499,9 +586,14 @@ describe('H4: enlace distribuible para el POS (/api/sales/:id/cpe-link)', () => 
 describe('F5b-5: banner boletas del día sin RC (Dueño)', () => {
   function dbWithCount(n: number): D1Database {
     return {
-      prepare: () => ({
+      prepare: (sql: string) => ({
         bind: () => ({
-          first: () => Promise.resolve({ n }),
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : { n },
+            ),
         }),
       }),
     } as unknown as D1Database;

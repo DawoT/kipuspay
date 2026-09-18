@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { runQuickAddHttp, runScanLookupHttp, type QuickAddEnv } from './quick-add-routes.js';
 
+const envCapabilityEnabled = 1;
+
 function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   const first = (sql: string) => {
+    if (sql.includes('tenant_capabilities')) {
+      return { enabled: envCapabilityEnabled, config_json: '{}', epoch: 0 };
+    }
     if (sql.includes('FROM products')) {
       return overrides.product ?? null;
     }

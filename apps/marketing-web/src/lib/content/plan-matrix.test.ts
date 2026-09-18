@@ -74,4 +74,11 @@ describe('honestidad GTM freeze en la matriz', () => {
     expect(byArea.get('Control Interno')).toBe('available');
     expect(byArea.get('Hardware')).toBe('available');
   });
+
+  it('analítica predictiva y briefing siguen en roadmap con sus gates externos', () => {
+    const analytics = PLAN_MATRIX.find((row) => row.area === 'Analítica & Continuidad');
+    expect(analytics).toBeDefined();
+    expect(planMatrixAvailability(analytics!)).toBe('preparing');
+    expect(analytics?.summary).toMatch(/en preparación.*validación externa/i);
+  });
 });

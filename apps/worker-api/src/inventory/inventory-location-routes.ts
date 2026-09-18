@@ -8,6 +8,7 @@ import {
 import { allocateStockByLocation } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryLocationsEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 import {
   parseQuantityMicrounits,
   parseQuantityMicrounitsQuery,
@@ -35,27 +36,37 @@ const defaultQuantityParser: MicrounitsParser = (value) => {
   };
 };
 
-function featureOff(): HttpResult {
-  return {
-    status: 404,
-    body: { error: 'FEATURE_INVENTORY_LOCATIONS off', code: 'FEATURE_OFF' },
-  };
-}
-
-function gate(
+async function gate(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
   privileged = false,
-): HttpResult | null {
-  if (!isInventoryLocationsEnabled(env)) return featureOff();
+): Promise<HttpResult | null> {
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const operational = role === 'cashier' || role === 'admin' || role === 'owner';
   const allowed = privileged ? role === 'admin' || role === 'owner' : operational;
-  return allowed ? null : { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
+  if (!allowed) return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'inventory.locations');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 export async function runListInventoryLocationsHttp(
@@ -64,7 +75,7 @@ export async function runListInventoryLocationsHttp(
   role: string | undefined,
   query: { branchId?: string; includeInactive?: boolean },
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role);
+  const denied = await gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
@@ -87,7 +98,7 @@ export async function runCreateInventoryLocationHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
   const code = typeof body.code === 'string' ? body.code.trim() : '';
@@ -115,7 +126,7 @@ export async function runUpdateInventoryLocationHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
   const locationId = typeof body.locationId === 'string' ? body.locationId.trim() : '';
@@ -148,7 +159,7 @@ export async function runDeactivateInventoryLocationHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   const branchId = typeof body.branchId === 'string' ? body.branchId.trim() : '';
   const locationId = typeof body.locationId === 'string' ? body.locationId.trim() : '';
@@ -177,7 +188,7 @@ export async function runInventoryLocationStockHttp(
   role: string | undefined,
   query: { branchId?: string; locationId?: string; productId?: string },
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role);
+  const denied = await gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
@@ -212,7 +223,7 @@ export async function runInventoryLocationTransferHttp(
   body: Record<string, unknown>,
   parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   // US-04: parse tipado fail-closed de *Microunits (sin Number(): 400 estable
   // ante tipos inválidos, sin NaN ni 500). Helper inyectado que lanza → 400.
@@ -253,7 +264,7 @@ export async function runInventoryLocationPickingHttp(
   // con gramática canónica (el index.ts ya no coerciona con Number()).
   query: { branchId?: string; productId?: string; quantityMicrounits?: string | undefined },
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role);
+  const denied = await gate(env, tenantId, role);
   if (denied) return denied;
   const branchId = query.branchId?.trim() ?? '';
   const productId = query.productId?.trim() ?? '';

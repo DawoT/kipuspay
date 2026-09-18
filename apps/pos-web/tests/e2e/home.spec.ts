@@ -1,33 +1,32 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
 
+async function installCashierHome(page: import('@playwright/test').Page, tenantId: string) {
+  await installAuthenticatedTenant(page, {
+    tenantId,
+    role: 'cashier',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
+    },
+    capabilities: ['catalog.sellable', 'pos.checkout'],
+  });
+}
+
 test('home renderiza el total en soles', async ({ page }) => {
-  await page.route('**/api/catalog/sellable', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        items: [
-          {
-            productId: 'p1',
-            sku: 'SKU-1',
-            name: 'Producto demo',
-            unitPriceCents: 11800,
-            costCents: 4000,
-            stockMicrounits: 10000000,
-            barcode: null,
-            uomCode: 'NIU',
-            parentProductId: null,
-          },
-        ],
-      }),
-    }),
-  );
+  await installCashierHome(page, 't-home-total');
+  await mockSellableCatalog(page);
   await page.goto('/');
   await expect(page.getByTestId('tenant-name')).toBeVisible();
+  await expect(page.getByTestId('sellable-catalog')).toBeVisible();
   await page.getByTestId('add-line-p1').click();
+  await expect(page.getByTestId('total')).toContainText('139.24');
 });
+
 test('home muestra el catálogo vendible y el total al agregar', async ({ page }) => {
+  await installCashierHome(page, 't-home-catalog');
   await mockSellableCatalog(page);
   await page.goto('/');
   await expect(page.getByTestId('tenant-name')).toBeVisible();
@@ -38,6 +37,7 @@ test('home muestra el catálogo vendible y el total al agregar', async ({ page }
 });
 
 test('home refleja el estado de conexión real del terminal', async ({ page, context }) => {
+  await installCashierHome(page, 't-home-connectivity');
   await page.goto('/');
   const status = page.getByTestId('connection-status');
   await expect(status).toBeVisible();

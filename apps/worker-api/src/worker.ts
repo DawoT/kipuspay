@@ -20,6 +20,7 @@ import { runPushSloObserver } from './push/push-slo-observer.js';
 
 export { TenantState } from './auth/tenant-state.js';
 export { BranchKdsHub } from './orders/branch-kds-hub.js';
+export { LpdpSecurityShard } from './customers/lpdp-security-shard.js';
 export { BackupWorkflow } from './backup/backup-workflow-entrypoint.js';
 
 const DAILY_ROLLUP_CRON = '0 8 * * *';

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { isInventorySerialsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { apiFetch } from '$lib/auth/api-client';
   import { salesErrorCopy } from '$lib/ui/ops-copy';
 
-  const serialsOn = isInventorySerialsEnabled();
+  const serialsOn = $derived($tenantCapabilities.has('inventory.serials'));
   let serialNumber = $state('');
   let terminalId = $state('');
   let disposition = $state('RETURN_TO_STOCK');

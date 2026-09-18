@@ -106,7 +106,7 @@ function env(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
           first: vi.fn(async () =>
             sql.includes('SELECT o.customer_id')
               ? { customer_id: 'customer-a', phone: '+51999999999' }
-              : { enabled: 1 },
+              : { enabled: 1, config_json: '{}', epoch: 0 },
           ),
         };
         return statement;
@@ -118,14 +118,14 @@ function env(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
 }
 
 describe('Sprint 43 Worker customer-order routes (RED)', () => {
-  it('is default-off and returns opaque 404 while disabled', async () => {
+  it('disabled capability does not bypass RBAC', async () => {
     expect(isCustomerOrdersEnabled({} as WorkerEnv)).toBe(false);
     const response = await runCreateCustomerOrderHttp(
       env({ FEATURE_ORDERS_CUSTOMER_ORDERS: '0' } as Partial<WorkerEnv>),
       { tenantId: 'tenant-a', userId: 'user-a', role: 'admin' },
       {},
     );
-    expect(response).toMatchObject({ status: 404, body: { code: 'FEATURE_OFF' } });
+    expect(response).toMatchObject({ status: 403, body: { code: 'FORBIDDEN' } });
   });
 
   it.each([
@@ -398,7 +398,11 @@ describe('Sprint 43 Worker customer-order routes (RED)', () => {
         prepare: vi.fn((sql: string) => {
           const statement = {
             bind: vi.fn(() => statement),
-            first: vi.fn(async () => (sql.includes('tenant_capabilities') ? { enabled: 1 } : null)),
+            first: vi.fn(async () =>
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : null,
+            ),
           };
           return statement;
         }),

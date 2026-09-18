@@ -7,8 +7,13 @@
  * dispara una alerta nueva. push_events no tiene pruning → dedup duradera.
  */
 import type { D1Database } from '@cloudflare/workers-types';
+import {
+  CapabilityError,
+  CapabilityResolver,
+  type CapabilityResolverEnv,
+} from '../capabilities/capability-resolver.js';
 
-export interface CertExpiryEnv {
+export interface CertExpiryEnv extends CapabilityResolverEnv {
   readonly DB?: D1Database;
 }
 
@@ -27,6 +32,7 @@ function expiresAtMs(raw: string): number {
   return Number.isNaN(ms) ? Number.NaN : ms;
 }
 
+// eslint-disable-next-line complexity -- bounded certificate discovery and dedup
 export async function runCertExpiryScheduled(
   env: CertExpiryEnv,
   input: { nowMs?: number },
@@ -41,7 +47,6 @@ export async function runCertExpiryScheduled(
 
   // Ventana [hoy, hoy+30d] sobre idx_tenant_certificates_expires. Defensa en
   // profundidad: el módulo re-valida los límites aunque el SQL ya filtre.
-  const emptyResult: { results: CertRow[] } = { results: [] };
   const rows = await env.DB.prepare(
     `SELECT tc.tenant_id, tc.fingerprint_sha256, tc.expires_at
      FROM tenant_certificates tc
@@ -50,13 +55,22 @@ export async function runCertExpiryScheduled(
      ORDER BY tc.expires_at ASC`,
   )
     .bind(from, to)
-    .all<CertRow>()
-    .catch(() => emptyResult);
+    .all<CertRow>();
 
   let emitted = 0;
+  const capabilities = new CapabilityResolver(env);
   for (const row of rows.results ?? []) {
     const daysLeft = Math.ceil((expiresAtMs(row.expires_at) - nowMs) / 86_400_000);
     if (!Number.isFinite(daysLeft) || daysLeft < 0 || daysLeft > WINDOW_DAYS) continue;
+
+    // Owner lookup below is discovery only; push delivery remains gated by the
+    // authoritative tenant capability (including kill switch and epoch data).
+    try {
+      await capabilities.require(row.tenant_id, 'mobile.push');
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      throw error;
+    }
 
     const owner = await env.DB.prepare(
       `SELECT u.id FROM users u

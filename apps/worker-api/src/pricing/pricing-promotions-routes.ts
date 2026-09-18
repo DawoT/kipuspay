@@ -5,6 +5,7 @@
 import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import { parseMaxStackJson, parsePromoRuleJson, PROMO_RULE_INVALID } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isPricingPromotionsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PRICING_PROMOTIONS === '1' || env?.FEATURE_PRICING_PROMOTIONS === 'true';
@@ -15,15 +16,29 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(): HttpResult {
-  return {
-    status: 404,
-    body: { error: 'FEATURE_PRICING_PROMOTIONS off', code: 'FEATURE_OFF' },
-  };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requirePromotions(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'pricing.promotions');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 const APPLIES = new Set(['PRODUCT', 'CATEGORY', 'LIST', 'CART']);
@@ -172,11 +187,12 @@ export async function runCreatePromotionHttp(
     priceListIds?: readonly string[];
   },
 ): Promise<HttpResult> {
-  if (!isPricingPromotionsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
+  const capabilityResult = await requirePromotions(env, tenantId);
+  if (capabilityResult) return capabilityResult;
 
   const name = body.name?.trim() ?? '';
   const appliesTo = (body.appliesTo ?? '').trim().toUpperCase();
@@ -244,11 +260,12 @@ export async function runUpdatePromotionHttp(
     endsAt?: string | null;
   },
 ): Promise<HttpResult> {
-  if (!isPricingPromotionsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId || !promotionId.trim()) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
+  const capabilityResult = await requirePromotions(env, tenantId);
+  if (capabilityResult) return capabilityResult;
 
   const existing = await env.DB.prepare(
     `SELECT id FROM promotions WHERE tenant_id = ? AND id = ? LIMIT 1`,
@@ -312,11 +329,12 @@ export async function runListPromotionsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isPricingPromotionsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
+  const capabilityResult = await requirePromotions(env, tenantId);
+  if (capabilityResult) return capabilityResult;
 
   const rows = await env.DB.prepare(
     `SELECT id, name, active, applies_to, rule_json, max_stack_json, starts_at, ends_at, created_at

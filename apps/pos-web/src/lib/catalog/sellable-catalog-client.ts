@@ -73,6 +73,7 @@ export async function fetchSellableCatalog(input: {
   readonly authorization: string;
   readonly tenantId?: string;
   readonly branchId?: string;
+  readonly signal?: AbortSignal;
   readonly fetcher?: typeof fetch;
 }): Promise<SellableCatalogItem[]> {
   const fetcher = input.fetcher ?? fetch;
@@ -82,7 +83,11 @@ export async function fetchSellableCatalog(input: {
   if (input.tenantId) headers.set('x-tenant-id', input.tenantId);
   let response: Response;
   try {
-    response = await fetcher(`${base}/api/catalog/sellable`, { headers, credentials: 'include' });
+    response = await fetcher(`${base}/api/catalog/sellable`, {
+      headers,
+      credentials: 'include',
+      signal: input.signal,
+    });
   } catch {
     throw new SellableCatalogError('SELLABLE_OFFLINE');
   }

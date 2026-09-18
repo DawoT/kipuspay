@@ -1,18 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('P1a: el Modo Dueño emite una nota de débito y muestra serie-número', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-debit-note',
+    role: 'owner',
+    capabilities: ['owner.mode', 'fiscal.debit_note'],
+  });
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',

@@ -8,97 +8,18 @@
  *  GET /platform/tenants → lista tenants con plan_id, subscriptionStatus
  *
  * Seguridad: tenant_id del path param nunca del body, validación tenant existe,
- * capability en lista canónica 77, enabled 0/1, audit append-only, fail-closed 503.
+ * capability en lista canónica (incluye Grifos/fiscal), enabled 0/1, audit append-only, fail-closed 503.
  * Nunca toca session/store ni plan upgrade.
  */
 import type { PlatformAuthEnv } from './platform-auth.js';
 import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
+import { validateCapabilityConfig } from '../capabilities/capability-resolver.js';
+import {
+  CANONICAL_CAPABILITIES,
+  isCanonicalCapability,
+} from '../capabilities/canonical-capabilities.js';
 
-export const CANONICAL_CAPABILITIES: readonly string[] = [
-  'analytics.agentic_insights',
-  'analytics.forecasting',
-  'analytics.growth_metrics',
-  'audit.sensitive_actions',
-  'auth.cashier_login',
-  'cash.blind_z',
-  'cash.discount_authz',
-  'cash.register_expenses',
-  'catalog.price_labels',
-  'catalog.quick_add',
-  'catalog.sellable',
-  'catalog.uom',
-  'catalog.variants',
-  'client.mobile_pos',
-  'compliance.lpdp',
-  'data.backup',
-  'display.vitrina',
-  'hardware.diagnostics',
-  'hardware.print_templates',
-  'integrations.accounting_export',
-  'integrations.api',
-  'integrations.catalog_import',
-  'inventory.batches',
-  'inventory.bom',
-  'inventory.locations',
-  'inventory.scale',
-  'inventory.serials',
-  'ledger.accounts_payable',
-  'ledger.accounts_receivable',
-  'ledger.chart_of_accounts',
-  'ledger.credit_limit_cents',
-  'ledger.store_credit',
-  'loyalty.points',
-  'marketing.claim_gate',
-  'marketing.compare',
-  'marketing.content',
-  'marketing.referrals',
-  'marketing.site',
-  'marketing.vertical_landing',
-  'messaging.whatsapp_receipt',
-  'mobile.push',
-  'onboarding.tour',
-  'ops.shift_handoff',
-  'ops.team_invite',
-  'orders.customer_orders',
-  'orders.kds',
-  'orders.lifecycle',
-  'orders.split_bill',
-  'owner.mode',
-  'owner.offline_rollup',
-  'owner.push_alerts',
-  'payments.card_acquirer',
-  'payments.qr_wallets',
-  'platform.dr',
-  'pos.brand_qr',
-  'pos.checkout',
-  'pos.document_selector',
-  'pos.offline_correlative_reserve',
-  'pricing.lists',
-  'pricing.promotions',
-  'purchasing.orders',
-  'purchasing.partial_receive',
-  'purchasing.returns',
-  'purchasing.three_way',
-  'reporting.catalog',
-  'reporting.daily_rollups',
-  'reporting.export',
-  'reporting.product_rollups',
-  'reporting.shard_aggregator',
-  'sales.commissions',
-  'sales.installments',
-  'sales.layaway',
-  'sales.quick_line',
-  'sales.quotes',
-  'sales.recurring',
-  'sales.returns',
-  'stock.transfers',
-] as const;
-
-const CANONICAL_SET: ReadonlySet<string> = new Set(CANONICAL_CAPABILITIES);
-
-export function isCanonicalCapability(cap: string): boolean {
-  return CANONICAL_SET.has(cap);
-}
+export { CANONICAL_CAPABILITIES, isCanonicalCapability };
 
 async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
@@ -233,6 +154,15 @@ export async function runPatchTenantCapabilitiesHttp(
 
   const configNorm = normalizeConfigJson(body.config_json);
   if (!configNorm.ok) return configNorm.error;
+  if (!validateCapabilityConfig(capability, configNorm.configJsonStr)) {
+    return {
+      status: 400,
+      body: {
+        error: 'config_json does not match capability schema',
+        code: 'INVALID_CONFIG_SCHEMA',
+      },
+    };
+  }
 
   // Validate tenant exists
   try {

@@ -5,6 +5,28 @@
  * por el middleware).
  */
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
+
+async function requireReportingExport(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<{ status: 404 | 503; body: { error: string; code: string } } | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'reporting.export');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { error: error.code, code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'CAPABILITIES_UNAVAILABLE', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
+}
 
 export async function runExportCatalogCsvHttp(
   env: WorkerEnv | undefined,
@@ -17,6 +39,8 @@ export async function runExportCatalogCsvHttp(
   if (!env?.DB || !tenantId) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  const capabilityError = await requireReportingExport(env, tenantId);
+  if (capabilityError) return capabilityError;
   try {
     const rows = await env.DB.prepare(
       `SELECT id, sku, barcode, name, price_cents, stock, unit_code, is_active
@@ -90,6 +114,8 @@ export async function runExportSalesCsvHttp(
   if (!env?.DB || !tenantId) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  const capabilityError = await requireReportingExport(env, tenantId);
+  if (capabilityError) return capabilityError;
   const fromDate = (range.fromDate ?? '').trim();
   const toDate = (range.toDate ?? '').trim();
   try {

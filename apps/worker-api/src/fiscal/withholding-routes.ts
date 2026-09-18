@@ -5,6 +5,7 @@
  */
 import { processPerceptionAtomic, processRetentionAtomic } from '@kipuspay/adapters-d1';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface WithholdingEnv {
   readonly FEATURE_FISCAL_WITHHOLDINGS?: string;
@@ -15,13 +16,32 @@ export function isWithholdingsEnabled(env: WithholdingEnv | undefined): boolean 
   return env?.FEATURE_FISCAL_WITHHOLDINGS === '1';
 }
 
+async function requireWithholdings(
+  env: WithholdingEnv,
+  tenantId: string,
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'fiscal.withholdings');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
 export async function runPerceptionHttp(
   env: WithholdingEnv,
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isWithholdingsEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'WITHHOLDINGS_DB_UNAVAILABLE' } };
+  const capabilityError = await requireWithholdings(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   const originSaleId = typeof body.originSaleId === 'string' ? body.originSaleId : '';
   const series = typeof body.series === 'string' ? body.series : '';
@@ -59,8 +79,9 @@ export async function runRetentionHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isWithholdingsEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'WITHHOLDINGS_DB_UNAVAILABLE' } };
+  const capabilityError = await requireWithholdings(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   const originSupplierInvoiceId =
     typeof body.originSupplierInvoiceId === 'string' ? body.originSupplierInvoiceId : '';

@@ -30,6 +30,9 @@ function fakeDb(options: {
     prepare: (sql: string) => ({
       bind: (...args: unknown[]) => ({
         first: () => {
+          if (sql.includes('FROM tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+          }
           if (sql.includes("role = 'owner'")) {
             const owner = options.ownerIds?.[String(args[0] ?? '')];
             return Promise.resolve(owner ? { id: owner } : null);
@@ -71,6 +74,7 @@ describe('cert-expiry-scheduled (SEC-03, alerta T-30d)', () => {
       Promise.resolve({ queued: true, alreadyApplied: false, eventId: input.idempotencyKeyHash }),
     );
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         certs: [{ tenant_id: 't1', fingerprint_sha256: FP, expires_at: isoDaysFromNow(10) }],
         ownerIds: { t1: 'owner-1' },
@@ -104,6 +108,7 @@ describe('cert-expiry-scheduled (SEC-03, alerta T-30d)', () => {
       return Promise.resolve({ queued: true, alreadyApplied: false, eventId: 'e1' });
     });
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         certs: [{ tenant_id: 't1', fingerprint_sha256: FP, expires_at: isoDaysFromNow(20) }],
         ownerIds: { t1: 'owner-1' },
@@ -119,6 +124,7 @@ describe('cert-expiry-scheduled (SEC-03, alerta T-30d)', () => {
 
   it('rotación (huella nueva) → nueva alerta; certs distintos → alertas independientes', async () => {
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         certs: [
           { tenant_id: 't1', fingerprint_sha256: FP, expires_at: isoDaysFromNow(5) },
@@ -137,6 +143,7 @@ describe('cert-expiry-scheduled (SEC-03, alerta T-30d)', () => {
 
   it('fuera de ventana: vencido o a >30 días no alertan (el fake DB ya filtró; defensa en profundidad)', async () => {
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         certs: [
           { tenant_id: 't-old', fingerprint_sha256: FP, expires_at: isoDaysFromNow(-3) },
@@ -152,6 +159,7 @@ describe('cert-expiry-scheduled (SEC-03, alerta T-30d)', () => {
 
   it('sin owner con mobile.push → skip best-effort', async () => {
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         certs: [{ tenant_id: 't1', fingerprint_sha256: FP, expires_at: isoDaysFromNow(10) }],
         ownerIds: { t1: null },
@@ -165,6 +173,7 @@ describe('cert-expiry-scheduled (SEC-03, alerta T-30d)', () => {
   it('fallo de push en un tenant no tumba el barrido (best-effort)', async () => {
     appendPushEventAtomic.mockRejectedValueOnce(new Error('PUSH_DOWN'));
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         certs: [
           { tenant_id: 't1', fingerprint_sha256: FP, expires_at: isoDaysFromNow(10) },

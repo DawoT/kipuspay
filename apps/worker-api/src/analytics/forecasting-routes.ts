@@ -10,12 +10,8 @@ import {
 } from '@kipuspay/adapters-d1/forecast-repository';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { assertCadenaPlusPlan, type HttpResult } from '../auth/plan-cadena.js';
-import { isAnalyticsForecastingEnabled } from '../auth/features.js';
 import { detectBreakage } from '@kipuspay/domain-analytics';
-
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
@@ -27,6 +23,27 @@ function badRequest(reason: string): HttpResult {
 
 function forbiddenRole(): HttpResult {
   return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
+}
+
+async function requireForecasting(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'analytics.forecasting');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 export interface ForecastRow {
@@ -71,10 +88,11 @@ export async function runListForecastsHttp(
   branchId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isAnalyticsForecastingEnabled(env)) return featureOff('FEATURE_ANALYTICS_FORECASTING');
   if (!env?.DB) return dbUnavailable();
   // S46-H1: la analítica predictiva es Modo Dueño — nunca cashier.
   if (role !== 'owner' && role !== 'admin') return forbiddenRole();
+  const capabilityError = await requireForecasting(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
   if (!branchId) return badRequest('branchId required');
@@ -113,10 +131,11 @@ export async function runRefreshForecastHttp(
   branchId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isAnalyticsForecastingEnabled(env)) return featureOff('FEATURE_ANALYTICS_FORECASTING');
   if (!env?.DB) return dbUnavailable();
   // S46-H1: el refresh ESCRIBE forecast_outputs (mutación) — solo admin/owner.
   if (role !== 'owner' && role !== 'admin') return forbiddenRole();
+  const capabilityError = await requireForecasting(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
   if (!branchId) return badRequest('branchId required');
@@ -156,8 +175,10 @@ export async function runStockAlertsHttp(
   query: Record<string, string | undefined>,
   role = '',
 ): Promise<HttpResult> {
-  if (!isAnalyticsForecastingEnabled(env)) return featureOff('FEATURE_ANALYTICS_FORECASTING');
+  if (!env?.DB) return dbUnavailable();
   if (role !== 'owner' && role !== 'admin') return forbiddenRole();
+  const capabilityError = await requireForecasting(env, tenantId);
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;

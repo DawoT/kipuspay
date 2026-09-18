@@ -10,6 +10,7 @@ import {
   runShipTransferHttp,
 } from './transfer-receive-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { processPartialReceiveAtomic } from '@kipuspay/adapters-d1';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
   appendAuditEvent: vi.fn(async () => undefined),
@@ -52,7 +53,10 @@ function mockEnv(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
         bind() {
           return stmt;
         },
-        first: () => Promise.resolve(null),
+        first: () =>
+          sql.includes('tenant_capabilities')
+            ? Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 })
+            : Promise.resolve(null),
         all: <T>() => {
           if (sql.includes("status = 'IN_TRANSIT'")) {
             return Promise.resolve(
@@ -125,7 +129,7 @@ describe('runCreateTransferHttp', () => {
       'u1',
       {},
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(503);
   });
 
   it('crea DRAFT', async () => {
@@ -181,6 +185,47 @@ describe('runPartialReceivePoHttp', () => {
     expect(res.status).toBe(200);
     expect(res.body.apAmountCents).toBe(2000);
     expect(res.body.nextStatus).toBe('PARTIALLY_RECEIVED');
+  });
+
+  it('no deja que un flag global reactive CxP cuando la capability del tenant fue revocada', async () => {
+    const base = mockEnv({ FEATURE_PURCHASING_THREE_WAY: '1' });
+    interface Bound {
+      bind(...args: unknown[]): Bound;
+      first<T>(): Promise<T | null>;
+    }
+    const db = base.DB as unknown as { prepare: (sql: string) => Bound };
+    const originalPrepare = db.prepare.bind(db);
+    const scopedDb = {
+      ...db,
+      prepare(sql: string) {
+        const statement = originalPrepare(sql);
+        if (!sql.includes('tenant_capabilities')) return statement;
+        const originalBind = statement.bind.bind(statement);
+        statement.bind = (...args: unknown[]) => {
+          const bound = originalBind(...args);
+          const capability = args[1];
+          if (capability !== 'purchasing.three_way') return bound;
+          return {
+            ...bound,
+            first: async () => ({ enabled: 0, config_json: '{}', epoch: 0 }),
+          };
+        };
+        return statement;
+      },
+    };
+    const env = { ...base, DB: scopedDb as unknown as D1Database };
+    const res = await runPartialReceivePoHttp(env, 't1', 'u1', {
+      purchaseOrderId: 'po-1',
+      branchId: 'b1',
+      lines: [{ productId: 'p1', quantity: 4, unitCostCents: 500 }],
+    });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(processPartialReceiveAtomic)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      't1',
+      'u1',
+      expect.objectContaining({ deferAccountsPayable: false }),
+    );
   });
 });
 

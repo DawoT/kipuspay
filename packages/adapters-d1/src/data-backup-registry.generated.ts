@@ -13,7 +13,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-3'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL) + 0060 audit_chain_heads (DERIVED) + 0062 fiscal_rc_archive (H3: r2_rc_xml_key/r2_cdr_key en sunat_daily_summaries, r2_cdr_key en fiscal_outbox) + 0063 fiscal_rc_ticket_correlative (sunat_reception_ticket/correlative en sunat_daily_summaries)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-5'; // registry-4 plus ephemeral mobile push deliveries
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
   {
     name: 'accounts_payable',
@@ -782,6 +782,7 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
       'ready_at',
       'expires_at',
       'deleted_at',
+      'ciphertext_hash_manifest',
     ],
     r2References: ['manifest_r2_key'],
     tenantFrom: '"data_backups" AS t0',
@@ -909,10 +910,62 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
     tenantVia: [],
   },
   {
+    name: 'fuel_catalog',
+    classification: 'BUSINESS',
+    primaryKey: ['tenant_id', 'code'],
+    columns: [
+      'tenant_id',
+      'code',
+      'name',
+      'price_cents_per_gallon',
+      'igv_rate_bps',
+      'detraction_rate_bps',
+      'stock_microunits',
+      'active',
+      'updated_at',
+    ],
+    r2References: [],
+    tenantFrom: '"fuel_catalog" AS t0',
+    tenantPredicate: 't0."tenant_id" = ?',
+    tenantVia: [],
+  },
+  {
+    name: 'fuel_dispatches',
+    classification: 'BUSINESS',
+    primaryKey: ['tenant_id', 'dispatch_id'],
+    columns: [
+      'dispatch_id',
+      'tenant_id',
+      'idempotency_key',
+      'fuel_code',
+      'island_id',
+      'nozzle_id',
+      'plate',
+      'fleet_id',
+      'meter_reading_microunits',
+      'volume_microunits',
+      'price_cents_per_gallon',
+      'subtotal_cents',
+      'igv_cents',
+      'total_cents',
+      'detraction_cents',
+      'document_type',
+      'business_invoice',
+      'payment_method',
+      'sale_id',
+      'actor_user_id',
+      'created_at',
+    ],
+    r2References: [],
+    tenantFrom: '"fuel_dispatches" AS t0',
+    tenantPredicate: 't0."tenant_id" = ?',
+    tenantVia: [],
+  },
+  {
     name: 'growth_events',
     classification: 'EPHEMERAL',
     primaryKey: ['id'],
-    columns: ['id', 'tenant_id', 'event_type', 'occurred_at', 'meta_json'],
+    columns: ['id', 'tenant_id', 'event_type', 'occurred_at', 'meta_json', 'idempotency_key'],
     r2References: [],
     tenantFrom: '"growth_events" AS t0',
     tenantPredicate: 't0."tenant_id" = ?',
@@ -1674,7 +1727,7 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
   },
   {
     name: 'push_deliveries',
-    classification: 'BUSINESS',
+    classification: 'EPHEMERAL',
     primaryKey: ['id'],
     columns: [
       'id',
@@ -1707,6 +1760,7 @@ export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = [
     tenantFrom: '"push_deliveries" AS t0',
     tenantPredicate: 't0."tenant_id" = ?',
     tenantVia: [],
+    reason: 'operational control-plane state',
   },
   {
     name: 'push_events',

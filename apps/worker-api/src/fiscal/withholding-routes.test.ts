@@ -29,7 +29,15 @@ vi.mock('@kipuspay/adapters-d1', () => ({
 }));
 
 function envWith(overrides: Partial<WithholdingEnv> = {}): WithholdingEnv {
-  return { FEATURE_FISCAL_WITHHOLDINGS: '1', DB: {}, ...overrides };
+  return {
+    FEATURE_FISCAL_WITHHOLDINGS: '1',
+    DB: {
+      prepare: () => ({
+        bind: () => ({ first: async () => ({ enabled: 1, config_json: '{}', epoch: 0 }) }),
+      }),
+    },
+    ...overrides,
+  };
 }
 
 const actor = { tenantId: 't1', userId: 'u1', role: 'owner' };

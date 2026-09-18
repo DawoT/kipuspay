@@ -6,6 +6,9 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter(),
+    // E2E preview builds must not overwrite artifacts used by an unrelated
+    // local preview process from the shared worktree.
+    outDir: process.env.KIPUSPAY_E2E_OUT_DIR ?? '.svelte-kit',
   },
 };
 

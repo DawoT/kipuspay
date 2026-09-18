@@ -7,6 +7,7 @@ import {
 import { computeRecurringPeriod, computeRecurringProration } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isRecurringSalesEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export { isRecurringSalesEnabled };
 
@@ -108,20 +109,18 @@ async function preflight(
   operation: Operation,
 ): Promise<RecurringHttpResult | null> {
   void operation;
-  if (!isRecurringSalesEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
   if (!env?.DB) return result(503, { code: 'DB_UNAVAILABLE' });
   if (!actor.tenantId || !actor.userId || !canManage(actor)) {
     return result(403, { code: 'FORBIDDEN' });
   }
   try {
-    const capability = await env.DB.prepare(
-      `SELECT enabled FROM tenant_capabilities
-       WHERE tenant_id = ? AND capability = 'sales.recurring' LIMIT 1`,
-    )
-      .bind(actor.tenantId)
-      .first<{ enabled: number }>();
-    if (capability?.enabled !== 1) return result(404, { code: 'FEATURE_OFF' });
-  } catch {
+    await new CapabilityResolver(env).require(actor.tenantId, 'sales.recurring');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status === 404 ? 404 : 503, {
+        code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+      });
+    }
     return result(503, { code: 'CAPABILITY_UNAVAILABLE' });
   }
   return null;

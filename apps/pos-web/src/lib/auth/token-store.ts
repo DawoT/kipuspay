@@ -2,6 +2,33 @@ export const LOGIN_TOKEN_KEY = 'kipuspay_token';
 export const LOGIN_USER_KEY = 'kipuspay_user';
 export const LOGIN_TENANT_KEY = 'kipuspay_tenant_id';
 
+export type LoginIdentityChangeKind = 'token' | 'tenant';
+type LoginIdentityListener = (kind: LoginIdentityChangeKind) => void;
+const loginIdentityListeners = new Set<LoginIdentityListener>();
+
+export function createLoginIdentityGeneration() {
+  let currentGeneration = 0;
+  return {
+    next: () => ++currentGeneration,
+    isCurrent: (generation: number) => generation === currentGeneration,
+  };
+}
+
+export function subscribeLoginIdentityChanges(listener: LoginIdentityListener): () => void {
+  loginIdentityListeners.add(listener);
+  return () => loginIdentityListeners.delete(listener);
+}
+
+function publishLoginIdentityChange(kind: LoginIdentityChangeKind): void {
+  for (const listener of loginIdentityListeners) {
+    try {
+      listener(kind);
+    } catch {
+      // Observers must not interrupt credential persistence or login flow.
+    }
+  }
+}
+
 export interface LoginUserIdentity {
   readonly userId: string;
   readonly role: string;
@@ -40,6 +67,7 @@ export function writeLoginToken(
   token: string,
 ): void {
   safeSet(storage, LOGIN_TOKEN_KEY, token);
+  publishLoginIdentityChange('token');
 }
 
 export function clearLoginToken(storage: Pick<Storage, 'removeItem'> | null | undefined): void {
@@ -48,6 +76,7 @@ export function clearLoginToken(storage: Pick<Storage, 'removeItem'> | null | un
   } catch {
     // Sin storage: nada que limpiar.
   }
+  publishLoginIdentityChange('token');
 }
 
 export function resolveAuthorization(storage: Pick<Storage, 'getItem'> | null | undefined): string {
@@ -100,4 +129,5 @@ export function writeLoginTenantId(
   } catch {
     // Sin storage: el hint vive solo en memoria.
   }
+  publishLoginIdentityChange('tenant');
 }

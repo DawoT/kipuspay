@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isLedgerArApEnabled, isOwnerModeEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -11,8 +11,8 @@
   import Button from '$lib/ui/Button.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
 
-  const enabled = isOwnerModeEnabled();
-  const ledger = isLedgerArApEnabled();
+  const enabled = $derived($tenantCapabilities.has('owner.mode'));
+  const ledger = $derived($tenantCapabilities.has('ledger.accounts_receivable') || $tenantCapabilities.has('ledger.accounts_payable'));
 
   let ar = $state<
     { id: string; customerId: string; saleId: string; originalAmountCents: number; balanceDueCents: number; status: string; dueDate: string }[]

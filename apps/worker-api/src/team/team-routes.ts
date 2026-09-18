@@ -12,10 +12,51 @@
  */
 import { processTeamInviteAtomic, resolveSellerIdentifier } from '@kipuspay/adapters-d1';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface TeamEnv {
   readonly FEATURE_TEAM_INVITE?: string;
   readonly DB?: unknown;
+}
+
+async function validateInviteBranch(
+  db: unknown,
+  tenantId: string,
+  actor: QuickAddActor,
+  branchId: string,
+): Promise<HttpResult | null> {
+  if (!branchId) return null;
+  if (actor.role.toLowerCase() !== 'owner' && actor.branchId !== branchId) {
+    return { status: 403, body: { code: 'BRANCH_FORBIDDEN' } };
+  }
+  const row = await (
+    db as {
+      prepare(sql: string): {
+        bind(...params: unknown[]): { first<T>(): Promise<T | null> };
+      };
+    }
+  )
+    .prepare(
+      'SELECT id FROM branches WHERE tenant_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1',
+    )
+    .bind(tenantId, branchId)
+    .first<{ id: string }>();
+  return row ? null : { status: 404, body: { code: 'BRANCH_NOT_FOUND' } };
+}
+
+async function requireTeamInvite(env: TeamEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'ops.team_invite');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
 }
 
 export function isTeamInviteEnabled(env: TeamEnv | undefined): boolean {
@@ -24,13 +65,15 @@ export function isTeamInviteEnabled(env: TeamEnv | undefined): boolean {
 
 const ADMIN_ROLES = new Set(['owner', 'admin', 'supervisor']);
 
+// eslint-disable-next-line complexity -- invite validates capability, hierarchy, branch and uniqueness
 export async function runTeamInviteHttp(
   env: TeamEnv,
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isTeamInviteEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'TEAM_DB_UNAVAILABLE' } };
+  const capabilityError = await requireTeamInvite(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   if (!ADMIN_ROLES.has(actor.role.toLowerCase())) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
   }
@@ -49,6 +92,8 @@ export async function runTeamInviteHttp(
   if (invitedRank < 0 || invitedRank > actorRank) {
     return { status: 403, body: { code: 'FORBIDDEN_ROLE' } };
   }
+  const branchError = await validateInviteBranch(env.DB, actor.tenantId, actor, branchId);
+  if (branchError) return branchError;
   const invited = await processTeamInviteAtomic(env.DB as never, {
     tenantId: actor.tenantId,
     branchId: branchId || null,
@@ -72,8 +117,9 @@ export async function runResolveSellerHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isTeamInviteEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'TEAM_DB_UNAVAILABLE' } };
+  const capabilityError = await requireTeamInvite(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const identifier = typeof body.identifier === 'string' ? body.identifier : '';
   if (!identifier) {
     return { status: 400, body: { code: 'BAD_REQUEST', error: 'identifier required' } };

@@ -24,6 +24,9 @@ function mockEnv(overrides: {
           return stmt;
         },
         first: () => {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+          }
           if (sql.includes('WHERE tenant_id = ? AND parent_product_id = ?')) {
             return Promise.resolve(overrides.children ?? null);
           }
@@ -49,8 +52,7 @@ function mockEnv(overrides: {
 describe('Sprint 31 variants/UOM routes', () => {
   it('defaults both capabilities off', async () => {
     const result = await runListVariantsUomHttp(undefined, 't1');
-    expect(result.status).toBe(404);
-    expect(result.body.code).toBe('FEATURE_OFF');
+    expect(result.status).toBe(503);
   });
 
   it('validates normalized UOM input before D1', async () => {

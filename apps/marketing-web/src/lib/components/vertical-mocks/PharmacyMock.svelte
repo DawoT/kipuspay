@@ -118,7 +118,7 @@
       : activeTab === 'fefo'
         ? 'Control FEFO · Activo'
         : 'Fraccionamiento · Activo'}
-    statusTone="live"
+    statusTone="sync"
     ariaLabel="Smartphone mostrando interfaz interactiva de farmacia con control FEFO de lotes, recetas y venta fraccionada"
   >
     <div class="mock-screen">

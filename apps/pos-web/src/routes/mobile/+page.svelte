@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isMobilePosEnabled, isMobilePushEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import {
     configureMobilePushApi,
@@ -24,8 +24,8 @@
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
   }
 
-  const mobilePosOn = isMobilePosEnabled();
-  const mobilePushOn = isMobilePushEnabled();
+  const mobilePosOn = $derived($tenantCapabilities.has('client.mobile_pos'));
+  const mobilePushOn = $derived($tenantCapabilities.has('mobile.push'));
   const sessionState = readAdminAuthenticatedSessionState();
   let installPrompt = $state<InstallPromptEvent | null>(null);
   let status = $state('');

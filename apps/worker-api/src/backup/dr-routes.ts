@@ -20,6 +20,7 @@ import { D1_BACKUP_REGISTRY_VERSION, D1_BACKUP_TABLES } from '@kipuspay/adapters
 import type { BackupRow } from '@kipuspay/domain-integrations';
 import type { BackupKmsBinding } from './backup-workflow.js';
 import { validateReadyBackup, type BackupBucketLike } from './backup-restore-validator.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface DrRouteEnv {
   readonly FEATURE_PLATFORM_DR?: string;
@@ -38,6 +39,20 @@ export interface DrActor {
 export interface DrHttpResult {
   readonly status: number;
   readonly body: Readonly<Record<string, unknown>>;
+}
+
+export type DrSimulationVerdict = 'PASSED' | 'RTO_EXCEEDED' | 'RPO_VIOLATION';
+
+export function drSimulationVerdict(input: {
+  readonly rpoTxZero: boolean;
+  readonly rpoRollupOneDay: boolean;
+  readonly rtoOk: boolean;
+}): DrSimulationVerdict {
+  return input.rpoTxZero && input.rpoRollupOneDay && input.rtoOk
+    ? 'PASSED'
+    : input.rpoTxZero && input.rpoRollupOneDay
+      ? 'RTO_EXCEEDED'
+      : 'RPO_VIOLATION';
 }
 
 export function isPlatformDrEnabled(env: DrRouteEnv | undefined): boolean {
@@ -139,7 +154,34 @@ export async function runDrSimulationHttp(
     readonly nowMs?: number;
   },
 ): Promise<DrHttpResult> {
+  try {
+    return await runDrSimulationHttpUnsafe(env, actor, input);
+  } catch {
+    // The control-plane preflight must never surface a provider/runtime 500.
+    // Keep the simulation fail-closed and leave the one-shot token untouched;
+    // callers can retry after the dependency or request context recovers.
+    return result(503, { code: 'DR_CONTROL_PLANE_UNAVAILABLE' });
+  }
+}
+
+async function runDrSimulationHttpUnsafe(
+  env: DrRouteEnv,
+  actor: DrActor,
+  input: {
+    readonly backupId?: string;
+    readonly stepUpToken?: string;
+    readonly nowMs?: number;
+  },
+): Promise<DrHttpResult> {
   if (!isPlatformDrEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
+  try {
+    await new CapabilityResolver(env).require(actor.tenantId, 'platform.dr');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status, { code: error.status === 404 ? 'FEATURE_OFF' : error.code });
+    }
+    return result(503, { code: 'CAPABILITIES_UNAVAILABLE' });
+  }
   if (!env.DB || !env.DR_DB || !env.BACKUPS || !env.BACKUP_KMS) {
     return result(503, { code: 'DR_DEPENDENCY_UNAVAILABLE' });
   }
@@ -148,7 +190,15 @@ export async function runDrSimulationHttp(
   }
   const nowMs = input.nowMs ?? Date.now();
 
-  const backup = await selectLatestReadyBackup(env, actor.tenantId, input.backupId);
+  let backup: { id: string; global_hash: string } | null;
+  try {
+    backup = await selectLatestReadyBackup(env, actor.tenantId, input.backupId);
+  } catch {
+    // A transient D1 read must remain fail-closed and machine-actionable;
+    // leaking it as an unhandled 500 also prevents the simulation audit from
+    // distinguishing an unavailable control plane from a bad snapshot.
+    return result(503, { code: 'DR_D1_UNAVAILABLE' });
+  }
   if (!backup) return result(404, { code: 'NOT_FOUND' });
   const backupId = backup.id;
 
@@ -215,8 +265,6 @@ async function executeDrSimulation(
       nowMs,
     });
     await rebuildAuditChainHeadsOnDrShard({ db: env.DR_DB! });
-    const rtoMs = Date.now() - startedAtMs;
-
     const salesInManifest = collected.get('sales')?.length ?? 0;
     const verification = await verifyDrReplay({
       db: env.DR_DB!,
@@ -224,14 +272,16 @@ async function executeDrSimulation(
       expectedSalesCount: salesInManifest,
       nowMs,
     });
+    // RTO incluye la verificación final de RPO y el replay deduplicado; medir
+    // antes ocultaba su latencia y podía producir un falso PASSED.
+    const rtoMs = Date.now() - startedAtMs;
 
     const rtoOk = rtoMs <= RTO_TARGET_MS;
-    const verdict =
-      verification.rpoTxZero && verification.rpoRollupOneDay && rtoOk
-        ? 'PASSED'
-        : verification.rpoTxZero && verification.rpoRollupOneDay
-          ? 'RTO_EXCEEDED'
-          : 'RPO_VIOLATION';
+    const verdict = drSimulationVerdict({
+      rpoTxZero: verification.rpoTxZero,
+      rpoRollupOneDay: verification.rpoRollupOneDay,
+      rtoOk,
+    });
     const payload = {
       backupId,
       manifestHash: backup.global_hash,
@@ -250,8 +300,12 @@ async function executeDrSimulation(
       registryVersion: D1_BACKUP_REGISTRY_VERSION,
       verdict,
     };
-    await audit('DR_SIMULATION_PASSED', payload);
-    return result(200, payload);
+    if (verdict === 'PASSED') {
+      await audit('DR_SIMULATION_PASSED', payload);
+      return result(200, payload);
+    }
+    await audit('DR_SIMULATION_FAILED', payload);
+    return result(422, { code: verdict, ...payload });
   } catch (cause) {
     const coded =
       cause instanceof Error &&

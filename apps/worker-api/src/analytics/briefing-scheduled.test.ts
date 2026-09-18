@@ -39,6 +39,9 @@ function memoryDb(tenants: string[]): D1DatabaseLike {
       return Promise.resolve(d1Result([] as T[]));
     },
     first: <T = unknown>() => {
+      if (sql.includes('tenant_capabilities')) {
+        return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+      }
       if (sql.includes('SELECT COALESCE(SUM(gross_sales_cents)')) {
         return Promise.resolve({ gross_sales_cents: 118000, doc_count: 42 } as T | null);
       }
@@ -51,19 +54,19 @@ function memoryDb(tenants: string[]): D1DatabaseLike {
   });
   return {
     prepare: (sql: string) => ({ bind: () => bound(sql) }),
-    batch: () => Promise.resolve([]),
+    batch: (statements) => Promise.all(statements.map((statement) => statement.run())),
   };
 }
 
 describe('briefing cron (Sprint 49)', () => {
-  it('flag off → FEATURE_OFF sin tocar KV', async () => {
+  it('flag global no sustituye la capability tenant', async () => {
     const kv = memoryKv();
     const res = await runBriefingScheduled(
-      { FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '0', DB: memoryDb(['t1']), TENANT_KV: kv },
+      { FEATURE_ANALYTICS_AGENTIC_INSIGHTS: undefined, DB: memoryDb(['t1']), TENANT_KV: kv },
       { scheduledTime: Date.parse('2026-08-04T03:30:00.000Z') },
     );
-    expect(res.status).toBe('FEATURE_OFF');
-    expect(kv.map.size).toBe(0);
+    expect(res.status).toBe('COMPLETE');
+    expect(kv.map.size).toBe(1);
   });
 
   it('genera briefing del día cerrado y lo cachea en KV', async () => {

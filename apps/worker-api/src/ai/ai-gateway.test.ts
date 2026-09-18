@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWorkersAiGateway, type AiGatewayDependencies } from './ai-gateway.js';
+import {
+  createWorkersAiGateway,
+  DEFAULT_AI_MODEL,
+  type AiGatewayDependencies,
+} from './ai-gateway.js';
 
 function mockAiBinding(): AiGatewayDependencies['binding'] {
   const ai = {
@@ -12,6 +16,10 @@ function mockAiBinding(): AiGatewayDependencies['binding'] {
 }
 
 describe('insights AiGateway (Sprint 49)', () => {
+  it('usa por defecto un modelo Workers AI disponible en el catálogo staging', () => {
+    expect(DEFAULT_AI_MODEL).toBe('@cf/meta/llama-3.1-8b-instruct-fp8');
+  });
+
   it('implementa las tres operaciones del port', () => {
     const gateway = createWorkersAiGateway({
       binding: mockAiBinding(),
@@ -28,5 +36,15 @@ describe('insights AiGateway (Sprint 49)', () => {
     const text = await gateway.generateText('Pregunta', ['facto']);
     expect(text).toBe('deterministic');
     expect((binding.run as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe('m-1');
+  });
+
+  it('acota generación de redacción para proteger latencia y deriva', async () => {
+    const binding = mockAiBinding();
+    const gateway = createWorkersAiGateway({ binding, model: 'm-1' });
+    await gateway.generateText('Pregunta', ['gross_sales_cents=118000']);
+    expect((binding.run as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]).toMatchObject({
+      max_tokens: 96,
+      temperature: 0.1,
+    });
   });
 });

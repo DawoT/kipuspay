@@ -7,7 +7,7 @@ owner: "@DawoT"
 
 # Sprint 53 — Troubleshooter de hardware — Quality Gate
 
-**Estado software:** GREEN local
+**Estado software:** GREEN local + canary Workers/D1 staging técnico
 **Estado claim:** "asistente de impresora" descongelado-condicionado (GTM §4.1)
 **Estado producción/piloto:** NO-GO hasta staging real + firmas A/V independientes
 **Capability:** `hardware.diagnostics`, default-off
@@ -18,9 +18,10 @@ asistente visual en Admin → Configuración con los 4 botones normativos
 (impresora USB / impresoras en red / balanza / vitrina), estados ✓/✗ con causa
 comprensible y "paso siguiente" sin jerga técnica (validado por copy y por E2E),
 autodetección de ancho 58/80 mm, prueba de impresión <30 s y log `HARDWARE_DIAG`
-en `audit_events` (cadena de hashes, lectura admin para soporte remoto). No
-existe staging Cloudflare real, impresora/balanza físicas en QA humana ni
-firmas A+V independientes: producción y piloto NO-GO.
+en `audit_events` (cadena de hashes, lectura admin para soporte remoto). El
+canary staging verificó persistencia y lectura de reportes sintéticos; no
+sustituye impresora/balanza físicas en QA humana ni firmas A+V: producción y
+piloto NO-GO.
 
 ## Evidencia RED→GREEN
 
@@ -74,7 +75,7 @@ firmas A+V independientes: producción y piloto NO-GO.
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| Staging Cloudflare real (workers + D1) | NO-GO | Despliegue real con flag off y pruebas de humo |
+| Staging Cloudflare real (workers + D1) | PARCIAL GREEN | Canary con flag/capability on en tenant sintético; falta smoke con flag off y validación física |
 | Impresora térmica 58/80 física + balanza USB | NO-GO | QA humana con hardware real (≥90% de casos resueltos sin chat) |
 | Firmas A+V independientes | NO-GO | Staff QA/Chaos + Staff Principal firman el veredicto |
 
@@ -91,9 +92,19 @@ firmas A+V independientes: producción y piloto NO-GO.
 
 ## Veredicto
 
-**SOFTWARE-GREEN-CLAIM-LIVE (condicionado).** El software del Sprint 53 cumple la
+**SOFTWARE-GREEN-CANARY.** El software del Sprint 53 cumple la
 regla 37b y los criterios de aceptación del roadmap en entorno local con evidencia
 automatizada (unit, integración, E2E, gate documental y Quality Gate). El claim
 "asistente de impresora" queda descongelado-condicionado (GTM §4.1): no se vende
 hasta staging real + QA humana con hardware físico + firmas A+V independientes.
-Este QG cierra la FASE 6G y el roadmap completo de especificación.
+Este QG no cierra el go-live de hardware ni la FASE 6G operativa.
+
+## Evidencia staging — 2026-09-17
+
+En D1 `kipuspay-staging` se habilitaron `FEATURE_HARDWARE_DIAGNOSTICS=1` y la
+capability solo para `tenant_stg_cadena_001`; el Worker quedó desplegado en la
+versión `4a9306c7-6a2c-4d0c-9f6a-07dd2888857a`. Un POST autenticado con reportes
+`PRINTER_NOT_FOUND` y `SCALE_NOT_FOUND` devolvió **202** (`recorded: 2`); el GET
+admin devolvió **200** y los dos payloads canónicos. D1 confirmó dos filas
+`HARDWARE_DIAG` en `audit_events`. No hubo hardware físico conectado, por lo que
+la certificación 58/80 mm, USB/WSS y degradación de caja permanece NO-GO.

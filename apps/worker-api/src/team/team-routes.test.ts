@@ -17,6 +17,9 @@ beforeEach(async () => {
 
 function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   const first = (sql: string) => {
+    if (sql.includes('FROM tenant_capabilities'))
+      return { enabled: 1, config_json: '{}', epoch: 0 };
+    if (sql.includes('FROM branches')) return { id: 'b1' };
     if (sql.includes('FROM users') && sql.includes('badge_barcode = ?')) {
       return overrides.sellerByBadge ?? null;
     }
@@ -55,8 +58,8 @@ function envWith(overrides: Partial<TeamEnv> = {}): TeamEnv {
   return { FEATURE_TEAM_INVITE: '1', DB: mockDb(), ...overrides };
 }
 
-const owner = { tenantId: 't1', userId: 'u1', role: 'owner' };
-const cashier = { tenantId: 't1', userId: 'u2', role: 'cashier' };
+const owner = { tenantId: 't1', userId: 'u1', role: 'owner', branchId: 'b1' };
+const cashier = { tenantId: 't1', userId: 'u2', role: 'cashier', branchId: 'b1' };
 
 describe('ops.team_invite routes (Sprint 51)', () => {
   it('flag off → 404 FEATURE_OFF en invite y resolve', async () => {
@@ -105,6 +108,26 @@ describe('ops.team_invite routes (Sprint 51)', () => {
     expect(res.status).toBe(201);
     expect(res.body.badgeBarcode).toMatch(/^EMP-\d{5,}$/);
     expect(res.body.cashierPin).toMatch(/^\d{4}$/);
+  });
+
+  it('invite: supervisor no puede invitar a otra sucursal', async () => {
+    const res = await runTeamInviteHttp(
+      envWith(),
+      { tenantId: 't1', userId: 'u3', role: 'supervisor', branchId: 'b1' },
+      { email: 'otro@tienda.pe', role: 'cashier', branchId: 'b2' },
+    );
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('BRANCH_FORBIDDEN');
+  });
+
+  it('invite: admin con sucursal no puede invitar a otra sucursal', async () => {
+    const res = await runTeamInviteHttp(
+      envWith(),
+      { tenantId: 't1', userId: 'u4', role: 'admin', branchId: 'b1' },
+      { email: 'admin-otro@tienda.pe', role: 'cashier', branchId: 'b2' },
+    );
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('BRANCH_FORBIDDEN');
   });
 
   it('resolve: badge EMP- → vendedor por badge (edge 1A)', async () => {

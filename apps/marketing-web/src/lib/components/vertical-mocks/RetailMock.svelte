@@ -149,7 +149,7 @@
       : activeTab === 'balanza'
         ? 'Balanza USB · Estable'
         : 'Promociones · Activas'}
-    statusTone="live"
+    statusTone="sync"
     ariaLabel="Smartphone mostrando interfaz interactiva de retail con escáner, balanza digital y motor de promociones"
   >
     <div class="mock-screen">

@@ -7,6 +7,7 @@ import {
 import { decryptKpbk1Unit } from '@kipuspay/domain-integrations';
 import { safeBackupErrorCode } from './backup-errors.js';
 import { safeRestoreValidationError, validateReadyBackup } from './backup-restore-validator.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface BackupActor {
   readonly tenantId: string;
@@ -82,16 +83,11 @@ export function isDataBackupEnabled(env: BackupRouteEnv | undefined): boolean {
 }
 
 async function capability(env: BackupRouteEnv, tenantId: string): Promise<boolean | null> {
-  if (!env.DB) return true;
   try {
-    const row = await env.DB.prepare(
-      `SELECT enabled FROM tenant_capabilities
-         WHERE tenant_id = ? AND capability = 'data.backup' LIMIT 1`,
-    )
-      .bind(tenantId)
-      .first<{ enabled: number }>();
-    return row?.enabled === 1;
-  } catch {
+    await new CapabilityResolver(env as never).require(tenantId, 'data.backup');
+    return true;
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) return false;
     return null;
   }
 }
@@ -101,7 +97,7 @@ async function preflight(
   actor: BackupActor,
   roles: ReadonlySet<string>,
 ): Promise<BackupHttpResult | null> {
-  if (!isDataBackupEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
+  if (env.FEATURE_DATA_BACKUP === '0') return result(404, { code: 'FEATURE_OFF' });
   if (!actor.tenantId || !actor.userId || !roles.has(actor.role.toLowerCase())) {
     return result(403, { code: 'FORBIDDEN' });
   }
@@ -189,11 +185,11 @@ export async function runCreateBackupHttp(
   actor: BackupActor,
   body: Readonly<Record<string, unknown>>,
 ): Promise<BackupHttpResult> {
-  const denied = await preflight(env, actor, CREATE_ROLES);
-  if (denied) return denied;
   if (Object.keys(body).some((key) => key !== 'idempotencyKey')) {
     return result(400, { code: 'BACKUP_UNTRUSTED_FIELD' });
   }
+  const denied = await preflight(env, actor, CREATE_ROLES);
+  if (denied) return denied;
   const key = idempotency(body.idempotencyKey);
   if (!key) return result(400, { code: 'IDEMPOTENCY_KEY_INVALID' });
   const backupId = crypto.randomUUID();

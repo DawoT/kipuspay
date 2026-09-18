@@ -8,7 +8,7 @@ const source = readFileSync(
 
 describe('Sprint 47 customer panel UI contract (GREEN)', () => {
   it('gates the view behind FEATURE_LPDP and admin roles', () => {
-    expect(source).toContain('isLpdpEnabled()');
+    expect(source).toContain("$tenantCapabilities.has('compliance.lpdp')");
     expect(source).toContain("['owner', 'admin', 'supervisor']");
   });
 

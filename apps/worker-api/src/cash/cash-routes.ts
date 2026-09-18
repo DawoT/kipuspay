@@ -24,7 +24,7 @@ import {
   verifyPinHash,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { isLedgerChartOfAccountsEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isCashBlindZEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_CASH_BLIND_Z === '1' || env?.FEATURE_CASH_BLIND_Z === 'true';
@@ -35,12 +35,36 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireBlindZ(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'cash.blind_z');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
+}
+
+export async function resolveChartOfAccountsEnabled(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<boolean> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'ledger.chart_of_accounts');
+    return true;
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) return false;
+    throw error;
+  }
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -256,8 +280,9 @@ export async function runAuthzTokenMintHttp(
   approverUserId: string,
   body: AuthzTokenBody,
 ): Promise<HttpResult> {
-  if (!isCashBlindZEnabled(env)) return featureOff('FEATURE_CASH_BLIND_Z');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireBlindZ(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const scope = body.scope?.trim() ?? '';
   if (!AUTHZ_SCOPES.has(scope)) {
@@ -286,7 +311,15 @@ export async function runAuthzTokenMintHttp(
     return { status: 403, body: { error: 'PIN locked', code: 'PIN_LOCKED' } };
   }
 
-  const verified = await verifyPinHash(body.pin?.trim() ?? '', approver.pin_hash);
+  let verified: Awaited<ReturnType<typeof verifyPinHash>>;
+  try {
+    verified = await verifyPinHash(body.pin?.trim() ?? '', approver.pin_hash);
+  } catch {
+    return {
+      status: 503,
+      body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+    };
+  }
   if (!verified.ok) {
     const after = await recordPinFailure(env.DB, tenantId, approverUserId, nowMs);
     if (after.locked) {
@@ -295,9 +328,31 @@ export async function runAuthzTokenMintHttp(
     return { status: 403, body: { error: 'Invalid PIN', code: 'PIN_INVALID' } };
   }
   if (verified.needsRehash) {
-    await env.DB.prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ?')
-      .bind(await hashPinArgon2id(body.pin?.trim() ?? ''), tenantId, approverUserId)
-      .run();
+    let upgradedHash: string;
+    try {
+      upgradedHash = await hashPinArgon2id(body.pin?.trim() ?? '');
+    } catch {
+      return {
+        status: 503,
+        body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+      };
+    }
+    let rehash: D1Result;
+    try {
+      rehash = await env.DB.prepare(
+        'UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ? AND pin_hash = ?',
+      )
+        .bind(upgradedHash, tenantId, approverUserId, approver.pin_hash)
+        .run();
+    } catch {
+      return {
+        status: 503,
+        body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+      };
+    }
+    if ((rehash.meta?.changes ?? 0) !== 1) {
+      return { status: 403, body: { error: 'Invalid PIN', code: 'PIN_INVALID' } };
+    }
   }
   await clearPinLockout(env.DB, tenantId, approverUserId);
 
@@ -397,8 +452,16 @@ export async function runBlindCloseHttp(
     outboxPendingCount?: number;
   },
 ): Promise<HttpResult> {
-  if (!isCashBlindZEnabled(env)) return featureOff('FEATURE_CASH_BLIND_Z');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireBlindZ(env, tenantId);
+  if (capabilityError) return capabilityError;
+  let chartOfAccountsEnabled: boolean;
+  try {
+    chartOfAccountsEnabled = await resolveChartOfAccountsEnabled(env, tenantId);
+  } catch (error) {
+    const code = error instanceof CapabilityError ? error.code : 'CAPABILITIES_UNAVAILABLE';
+    return { status: 503, body: { error: code, code } };
+  }
 
   const sessionId = body.sessionId?.trim() ?? '';
   if (!sessionId) {
@@ -471,7 +534,7 @@ export async function runBlindCloseHttp(
     ),
   ];
 
-  if (isLedgerChartOfAccountsEnabled(env)) {
+  if (chartOfAccountsEnabled) {
     const cashJournal = planCashCountJournal({
       sourceId: sessionId,
       postDate: new Date().toISOString().slice(0, 10),
@@ -539,8 +602,9 @@ export async function runCashMovementHttp(
     authorizedByUserId?: string | null;
   },
 ): Promise<HttpResult> {
-  if (!isCashBlindZEnabled(env)) return featureOff('FEATURE_CASH_BLIND_Z');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireBlindZ(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const threshold = await loadCashPolicyThresholdCents(env.DB, tenantId);
   const parsed = parseCashMovementBody(body, threshold);
@@ -619,8 +683,9 @@ export async function runSaleReprintHttp(
     reason?: string | null;
   },
 ): Promise<HttpResult> {
-  if (!isCashBlindZEnabled(env)) return featureOff('FEATURE_CASH_BLIND_Z');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireBlindZ(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const saleId = body.saleId?.trim() ?? '';
   const branchId = body.branchId?.trim() ?? '';

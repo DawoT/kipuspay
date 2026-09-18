@@ -14,7 +14,11 @@ function buildDb(rows: unknown, opts: { throwOnBatch?: boolean; planId?: string 
         all: () => Promise.resolve({ results: rows, success: true }),
         first: () =>
           Promise.resolve(
-            sql.includes('FROM tenants') ? { plan_id: opts.planId ?? 'cadena' } : null,
+            sql.includes('tenant_capabilities')
+              ? { enabled: 1, config_json: '{}', epoch: 0 }
+              : sql.includes('FROM tenants')
+                ? { plan_id: opts.planId ?? 'cadena' }
+                : null,
           ),
         run: () => Promise.resolve({ results: [], success: true }),
       };
@@ -86,10 +90,15 @@ describe('forecasting routes', () => {
 
   it('denies non-Cadena plans with 403 PLAN_REQUIRES_CADENA', async () => {
     const denyDb = {
-      prepare: () => ({
+      prepare: (sql: string) => ({
         bind: () => ({
           all: () => Promise.resolve({ results: [], success: true }),
-          first: () => Promise.resolve({ plan_id: 'crece' }),
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : { plan_id: 'crece' },
+            ),
           run: () => Promise.resolve({ results: [], success: true }),
         }),
       }),

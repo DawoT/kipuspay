@@ -14,6 +14,8 @@ import type { SetupServerState } from '@kipuspay/domain-onboarding';
 
 function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   const first = (sql: string) => {
+    if (sql.includes('FROM tenant_capabilities'))
+      return { enabled: 1, config_json: '{}', epoch: 0 };
     if (sql.includes('FROM tenants')) return overrides.tenant ?? null;
     return null;
   };
@@ -111,12 +113,34 @@ describe('onboarding.tour routes (Sprint 52)', () => {
     expect(res.body.code).toBe('INVALID_META');
   });
 
+  it('growth event: exige idempotencyKey para evitar métricas duplicadas', async () => {
+    const res = await runGrowthEventHttp(envWith(), actor, { eventType: 'tour_started' });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+  });
+
+  it('growth event: limita meta_json a 4096 bytes', async () => {
+    const res = await runGrowthEventHttp(envWith(), actor, {
+      eventType: 'tour_started',
+      idempotencyKey: 'meta-too-large',
+      meta: { data: 'x'.repeat(4097) },
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('META_TOO_LARGE');
+  });
+
   it('growth event: inserta y responde 201', async () => {
     let inserted: { sql: string; params: unknown[] } | null = null;
     const db = {
       prepare(sql: string) {
         return {
           bind(...params: unknown[]) {
+            if (sql.includes('tenant_capabilities')) {
+              return {
+                first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
+                run: () => Promise.resolve({ meta: { changes: 1 } }),
+              };
+            }
             inserted = { sql, params };
             return { run: () => Promise.resolve({ meta: { changes: 1 } }) };
           },
@@ -125,18 +149,63 @@ describe('onboarding.tour routes (Sprint 52)', () => {
     };
     const res = await runGrowthEventHttp({ FEATURE_ONBOARDING_TOUR: '1', DB: db }, actor, {
       eventType: 'setup_checklist_step_completed',
+      idempotencyKey: 'checklist-logo-1',
       meta: { step: 'logo' },
     });
     expect(res.status).toBe(201);
     const captured = inserted as { sql: string; params: unknown[] } | null;
     expect(captured).not.toBeNull();
     if (captured) {
-      expect(captured.sql).toContain('INSERT INTO growth_events');
-      expect(captured.params).toHaveLength(4);
+      expect(captured.sql).toContain('INSERT OR IGNORE INTO growth_events');
+      expect(captured.params).toHaveLength(5);
       expect(captured.params[1]).toBe('t1');
       expect(captured.params[2]).toBe('setup_checklist_step_completed');
       expect(captured.params[3]).toBe('{"step":"logo"}');
+      expect(captured.params[4]).toBe('checklist-logo-1');
     }
+  });
+
+  it('growth event: replay con misma llave devuelve 200 sin duplicar', async () => {
+    let insertRuns = 0;
+    const db = {
+      prepare(sql: string) {
+        return {
+          bind(...params: unknown[]) {
+            void params;
+            if (sql.includes('tenant_capabilities')) {
+              return {
+                first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
+                run: () => Promise.resolve({ meta: { changes: 1 } }),
+              };
+            }
+            if (sql.includes('INSERT OR IGNORE')) {
+              return {
+                first: () => Promise.resolve(null),
+                run: () => {
+                  insertRuns += 1;
+                  return Promise.resolve({ meta: { changes: 0 } });
+                },
+              };
+            }
+            return {
+              first: () =>
+                Promise.resolve({ event_type: 'tour_started', meta_json: '{"vertical":"retail"}' }),
+              run: () => Promise.resolve({ meta: { changes: 0 } }),
+            };
+          },
+        };
+      },
+    };
+    const res = await runGrowthEventHttp({ FEATURE_ONBOARDING_TOUR: '1', DB: db }, actor, {
+      eventType: 'tour_started',
+      idempotencyKey: 'tour-retail-1',
+      meta: { vertical: 'retail' },
+    });
+    expect(res).toEqual({
+      status: 200,
+      body: { ok: true, eventType: 'tour_started', replayed: true },
+    });
+    expect(insertRuns).toBe(1);
   });
 
   it('lista growth_events del tenant (métricas owner, no demo local)', async () => {
@@ -145,6 +214,7 @@ describe('onboarding.tour routes (Sprint 52)', () => {
         return {
           bind() {
             return {
+              first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
               all: () =>
                 Promise.resolve({
                   results: [
@@ -161,7 +231,10 @@ describe('onboarding.tour routes (Sprint 52)', () => {
         };
       },
     };
-    const res = await runListGrowthEventsHttp({ DB: db }, 't1');
+    const res = await runListGrowthEventsHttp(
+      { DB: db },
+      { tenantId: 't1', userId: 'u1', role: 'owner' },
+    );
     expect(res.status).toBe(200);
     expect(res.body.events).toEqual([
       {
@@ -170,7 +243,51 @@ describe('onboarding.tour routes (Sprint 52)', () => {
         occurredAtIso: '2026-01-01T00:00:00.000Z',
       },
     ]);
-    expect((await runListGrowthEventsHttp({ DB: db }, '')).status).toBe(401);
+    expect(
+      (await runListGrowthEventsHttp({ DB: db }, { tenantId: '', userId: 'u1', role: 'owner' }))
+        .status,
+    ).toBe(401);
+  });
+
+  it('lista growth_events solo para owner/admin y no expone metadata arbitraria', async () => {
+    const db = {
+      prepare() {
+        return {
+          bind() {
+            return {
+              first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
+              all: () =>
+                Promise.resolve({
+                  results: [
+                    {
+                      tenantId: 't1',
+                      eventType: 'first_sale',
+                      occurredAtIso: '2026-01-01',
+                      metaJson: JSON.stringify({ step: 'done', email: 'pii@example.invalid' }),
+                    },
+                  ],
+                }),
+            };
+          },
+        };
+      },
+    };
+    expect(
+      (await runListGrowthEventsHttp({ DB: db }, { tenantId: 't1', userId: 'u2', role: 'cashier' }))
+        .status,
+    ).toBe(403);
+    const ownerResult = await runListGrowthEventsHttp(
+      { DB: db },
+      { tenantId: 't1', userId: 'u1', role: 'owner' },
+    );
+    expect(ownerResult.body.events).toEqual([
+      {
+        tenantId: 't1',
+        eventType: 'first_sale',
+        occurredAtIso: '2026-01-01',
+        meta: { step: 'done' },
+      },
+    ]);
   });
 
   it('el catálogo de eventos incluye los 11 tipos del CHECK 0044', () => {
@@ -383,7 +500,34 @@ describe('bootstrap persistente + claim de onboarding (M6A)', () => {
     expect(sql).toContain("'onboarding_started'");
     expect(sql).toContain('INSERT INTO branch_document_series');
     expect(sql).toContain('INSERT INTO payment_methods');
+    expect(sql).toContain('INSERT INTO tenant_capabilities');
+    expect(sql).toContain('onboarding_default');
   });
+
+  it('acepta grifos como vertical formal durante el bootstrap', async () => {
+    const { env } = captureEnv();
+    const res = await runBootstrapHttp(env, {
+      tradeName: 'Grifos Lima Sur',
+      verticalType: 'grifos',
+      formalizationMode: 'INTERNAL_CONTROL',
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.verticalType).toBe('grifos');
+  });
+
+  it.each(['farmacias', 'retail', 'servicios', 'cadenas'] as const)(
+    'acepta %s como vertical formal durante el bootstrap',
+    async (verticalType) => {
+      const { env } = captureEnv();
+      const res = await runBootstrapHttp(env, {
+        tradeName: `Tenant ${verticalType}`,
+        verticalType,
+        formalizationMode: 'INTERNAL_CONTROL',
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.verticalType).toBe(verticalType);
+    },
+  );
 
   it('idempotencia: tenant ya persistido → 409 sin duplicar (RED M6A)', async () => {
     const { env } = captureEnv({ tenantExists: true });

@@ -38,12 +38,15 @@ function env(over: Partial<WorkerEnv> = {}): WorkerEnv {
   return {
     FEATURE_SALES_QUOTES: '1',
     DB: {
-      prepare() {
+      prepare(sql: string) {
         const stmt = {
           bind() {
             return stmt;
           },
-          first: () => Promise.resolve(null),
+          first: () =>
+            sql.includes('tenant_capabilities')
+              ? Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 })
+              : Promise.resolve(null),
           all: () =>
             Promise.resolve({
               results: [
@@ -80,8 +83,8 @@ describe('quote routes', () => {
       'u1',
       {},
     );
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe('FEATURE_OFF');
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('DB_UNAVAILABLE');
   });
 
   it('creates quote without inventing prices from client', async () => {
@@ -223,7 +226,7 @@ describe('quote routes', () => {
       { FEATURE_SALES_QUOTES: '0' } as unknown as WorkerEnv,
       't1',
     );
-    expect(off.status).toBe(404);
+    expect(off.status).toBe(503);
     const noDb = await runListExpiredQuotesHttp(
       { FEATURE_SALES_QUOTES: '1' } as unknown as WorkerEnv,
       't1',

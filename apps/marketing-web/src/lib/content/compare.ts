@@ -5,64 +5,63 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
     slug: 'bsale',
     name: 'Bsale',
     title: 'KipusPay vs Bsale',
-    metaDescription:
-      'Compara KipusPay con Bsale: listo en 5 minutos, cobro continuo y control en vivo con Modo Dueño.',
+    metaDescription: 'Compara opciones de caja, configuración y reportes entre Bsale y KipusPay.',
     intro:
       'Descubre una experiencia de venta más ágil, fácil de configurar y con control total desde tu celular.',
-    hook: 'Tu mostrador siempre en marcha: cobro fluido y listo en 5 minutos.',
+    hook: 'Compara opciones para cobrar y supervisar tu negocio desde el celular.',
     whyMigrate: [
       {
         icon: 'senal',
-        title: 'Operación continua asegurada',
-        body: 'Sigue cobrando y emitiendo comprobantes con total estabilidad; la sincronización trabaja sola en segundo plano.',
+        title: 'Venta y sincronización',
+        body: 'La operación sin conexión y la sincronización dependen de la configuración de tu caja.',
       },
       {
         icon: 'reloj',
-        title: 'Puesta en marcha en 5 minutos',
-        body: 'Sin demoras ni instalaciones técnicas complejas: empieza a vender el mismo día desde cualquier equipo.',
+        title: 'Configuración guiada',
+        body: 'La puesta en marcha se completa por etapas; el tiempo depende de los datos y ajustes de tu negocio.',
       },
       {
         icon: 'panel',
         title: 'Modo Dueño en tu celular',
-        body: 'Supervisa tus ventas, caja y ganancias en tiempo real desde tu teléfono, con planes claros y transparentes.',
+        body: 'Consulta ventas y caja desde tu teléfono; la información se actualiza cuando sincronizan las sucursales y las funciones dependen de tu plan.',
       },
     ],
     rows: [
       {
         label: 'Empezar a usarlo',
-        reported: 'Coordinar instalación y capacitación previa',
-        kipus: 'Listo para cobrar en 5 minutos desde el navegador',
+        reported: 'La puesta en marcha depende del producto y de la configuración',
+        kipus: 'Guía de configuración por etapas; el tiempo depende de los datos del negocio',
       },
       {
         label: 'Equipo necesario',
-        reported: 'Hardware dedicado o periféricos específicos',
-        kipus: 'Cualquier tablet, celular o computadora que ya tengas',
+        reported: 'Los equipos y periféricos compatibles dependen del proveedor',
+        kipus: 'Los equipos y periféricos deben ser compatibles con KipusPay',
       },
     ],
     faq: [
       {
         q: '¿Puedo traer mi catálogo desde Bsale?',
-        a: 'Sí. Exportas tus productos a un archivo CSV desde tu panel anterior y los importas en KipusPay en un solo paso el mismo día.',
+        a: 'Si tu sistema anterior permite exportar el catálogo a CSV, puedes revisar el archivo e importarlo con la herramienta disponible en KipusPay.',
       },
       {
         q: '¿Pierdo mi historial de ventas al cambiarme?',
-        a: 'Tu historial se queda seguro donde está. En KipusPay inicias tu nuevo periodo desde el primer día y puedes operar ambos sistemas en paralelo mientras te adaptas.',
+        a: 'El historial del sistema anterior no se transfiere automáticamente. Antes de migrar, revisa qué información puedes exportar y qué requiere conservarse en cada sistema.',
       },
       {
         q: '¿Tengo que cambiar mi facturación antes de probar?',
-        a: 'No. Puedes comenzar con notas de venta de control interno para familiarizar a tu equipo y activar la facturación electrónica cuando decidas hacer el cambio definitivo.',
+        a: 'Puedes comenzar con ventas de control interno. Las opciones de facturación electrónica dependen de la habilitación de tu negocio; SUNAT determina la aceptación de cada comprobante.',
       },
       {
         q: '¿Cómo funciona la migración asistida de inventario y variantes?',
-        a: 'Nuestro importador reconoce automáticamente columnas de códigos de barra, precios, stock y variantes de talla o color, evitando la carga manual producto por producto.',
+        a: 'La importación depende del formato de tu archivo. Revisa las columnas admitidas por la herramienta antes de cargar productos, precios o variantes.',
       },
       {
         q: '¿Necesito comprar un certificado digital propio para SUNAT?',
-        a: 'No. KipusPay incluye la emisión tributaria con certificado digital gratuito integrado, sin trámites notariales ni pagos adicionales por renovación anual.',
+        a: 'Los requisitos de facturación dependen de la habilitación fiscal de tu negocio. Confirma las condiciones vigentes antes de iniciar el trámite.',
       },
       {
         q: '¿Puedo usar mis impresoras térmicas y lectores actuales de Bsale?',
-        a: 'Sí. KipusPay es compatible con las mismas impresoras térmicas USB/Bluetooth (58mm y 80mm) y lectores de barras que ya utilizas, sin necesidad de recomprar equipos.',
+        a: 'La compatibilidad depende del modelo de impresora o lector. Comprueba los periféricos compatibles antes de conectar o comprar un equipo.',
       },
     ],
   },
@@ -70,11 +69,10 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
     slug: 'alegra',
     name: 'Alegra',
     title: 'KipusPay vs Alegra',
-    metaDescription:
-      'Compara KipusPay con Alegra: punto de venta ágil, SUNAT automático y control desde el celular.',
+    metaDescription: 'Compara opciones de caja, configuración y reportes entre Alegra y KipusPay.',
     intro:
       'Diseñado específicamente para el ritmo de la caja y el mostrador del comercio en el Perú.',
-    hook: 'Agilidad en tu caja, facturación automática y control en tiempo real.',
+    hook: 'Conoce las opciones de caja y control comercial para tu negocio.',
     whyMigrate: [
       {
         icon: 'caja',
@@ -83,35 +81,35 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
       },
       {
         icon: 'senal',
-        title: 'Venta ágil y asegurada',
-        body: 'El cobro y registro se procesan de inmediato en tu equipo con máxima estabilidad en todo momento.',
+        title: 'Flujo de caja',
+        body: 'Revisa cómo se registran las ventas y qué opciones de operación sin conexión están disponibles para tu configuración.',
       },
       {
         icon: 'documento',
-        title: 'SUNAT al día y Modo Dueño',
-        body: 'Boletas y facturas 100% legales emitidas sin fricción y reportes en vivo en tu celular.',
+        title: 'Modo Dueño y formalización',
+        body: 'Consulta ventas desde el celular; los datos se actualizan cuando sincronizan las cajas. Las opciones fiscales dependen de su habilitación y SUNAT determina la aceptación.',
       },
     ],
     rows: [
       {
         label: 'Enfoque principal',
-        reported: 'Sistemas con foco contable tradicional',
-        kipus: 'Mostrador ágil: cobrar rápido y controlar el negocio',
+        reported: 'El enfoque y las funciones dependen del producto contratado',
+        kipus: 'Funciones de caja y control comercial según el plan',
       },
       {
         label: 'Experiencia en mostrador',
-        reported: 'Formularios con pasos múltiples',
-        kipus: 'Producto, total grande y cobro en un solo toque',
+        reported: 'Los pasos de cobro dependen del producto y de su configuración',
+        kipus: 'La pantalla muestra el producto, el total y la acción de cobro',
       },
     ],
     faq: [
       {
         q: '¿Puedo traer mi catálogo desde Alegra?',
-        a: 'Sí. Descargas el reporte de inventario en Excel o CSV desde Alegra y lo subes a KipusPay con nuestro asistente de importación en pocos minutos.',
+        a: 'Si puedes exportar el inventario a un formato admitido, revisa las columnas del archivo e impórtalo con la herramienta disponible en KipusPay. El tiempo depende del tamaño y la calidad de los datos.',
       },
       {
         q: '¿Y mi contador? ¿Cómo recibe la información de ventas?',
-        a: 'Puedes descargar resúmenes de ventas y reportes en Excel/CSV compatibles con sistemas contables como Concar y SIRE, manteniendo a tu contador al día sin fricciones.',
+        a: 'Puedes revisar las opciones de exportación de ventas disponibles en tu plan y confirmar con tu contador qué formato necesita.',
       },
       {
         q: '¿Tengo que migrar todas mis cajas o sucursales de golpe?',
@@ -119,11 +117,11 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
       },
       {
         q: '¿Qué diferencia hay en la velocidad de cobro frente a un sistema contable?',
-        a: 'KipusPay está diseñado para la agilidad de mostrador: pantalla táctil en un toque, cálculo automático de vueltos y emisión rápida para evitar colas en hora punta.',
+        a: 'La pantalla de caja muestra el total y los medios de pago. Las funciones fiscales dependen de la habilitación de tu negocio; SUNAT determina la aceptación de cada comprobante.',
       },
       {
         q: '¿Cómo se gestiona el certificado digital para boletas y facturas?',
-        a: 'El certificado digital viene incluido sin costo en tu suscripción. Solo vinculas tu RUC y usuario secundario de SUNAT en la configuración y empiezas a emitir.',
+        a: 'Los requisitos de facturación dependen de la habilitación fiscal de tu negocio. Confirma las condiciones vigentes antes de iniciar el trámite.',
       },
       {
         q: '¿Puedo importar mis listas de precios y clientes frecuentes?',
@@ -135,64 +133,62 @@ const BY_SLUG: Readonly<Record<CompetitorSlug, ComparePage>> = {
     slug: 'siigo',
     name: 'Siigo',
     title: 'KipusPay vs Siigo',
-    metaDescription:
-      'Compara KipusPay con Siigo: fácil de usar, listo en 5 minutos y control total en vivo.',
-    intro:
-      'Una solución ligera, potente e intuitiva que tu equipo aprende a usar en un solo turno.',
+    metaDescription: 'Compara opciones de caja, configuración y reportes entre Siigo y KipusPay.',
+    intro: 'Conoce las opciones de caja y gestión comercial disponibles para tu equipo.',
     hook: 'Todo lo que tu comercio necesita para vender rápido y crecer con orden.',
     whyMigrate: [
       {
         icon: 'reloj',
-        title: 'Se aprende en un turno',
-        body: 'Intuitivo y directo: tu equipo empieza a vender de inmediato sin capacitaciones complejas.',
+        title: 'Flujo de caja',
+        body: 'La pantalla organiza los pasos principales de una venta; el aprendizaje depende de la configuración y del equipo.',
       },
       {
         icon: 'panel',
-        title: 'Modo Dueño en vivo',
-        body: 'Revisa ventas, caja e ingresos en tiempo real desde tu celular, estés donde estés.',
+        title: 'Modo Dueño en el celular',
+        body: 'Consulta ventas y caja desde el celular; los datos se actualizan cuando sincronizan las sucursales y las funciones dependen de tu plan.',
       },
       {
         icon: 'senal',
-        title: 'Operación continua y estable',
-        body: 'Tu mostrador nunca se detiene: atiende, cobra e imprime con máxima fluidez en todo momento.',
+        title: 'Operación y sincronización',
+        body: 'La operación sin conexión y la sincronización dependen de la configuración de tu caja.',
       },
     ],
     rows: [
       {
         label: 'Curva de aprendizaje',
-        reported: 'Capacitaciones extensas por módulos',
-        kipus: 'Tu equipo lo domina en un turno de trabajo',
+        reported: 'El aprendizaje depende de la configuración y del equipo',
+        kipus: 'La pantalla organiza los pasos principales de una venta',
       },
       {
         label: 'Configuración inicial',
-        reported: 'Procesos largos de implementación',
-        kipus: 'Listo para tu primera venta en 5 minutos',
+        reported: 'La puesta en marcha depende del producto y de la configuración',
+        kipus: 'Guía de configuración por etapas; el tiempo depende de los datos del negocio',
       },
     ],
     faq: [
       {
         q: '¿Puedo traer mi catálogo desde Siigo?',
-        a: 'Sí. Exportas tus artículos a un archivo CSV y el importador de KipusPay mapea tus categorías, precios y existencias automáticamente.',
+        a: 'La importación depende del formato admitido y de la calidad del archivo. Revisa las columnas aceptadas antes de cargar productos, categorías, precios o existencias; no se garantiza un mapeo automático.',
       },
       {
         q: '¿Sirve si tengo varios locales y almacenes?',
-        a: 'Sí. Cada sucursal tiene su propia caja y puedes consultar el consolidado y ranking de ventas en tiempo real desde tu celular mediante Modo Dueño.',
+        a: 'Si tu plan incluye Modo Dueño, puedes revisar las ventas consolidadas; los datos se actualizan cuando sincronizan las sucursales.',
       },
       {
         q: '¿Necesito asistencia técnica para realizar la migración?',
-        a: 'El proceso es autoguiado y toma 5 minutos. Si tienes preguntas, nuestro equipo de soporte te acompaña por WhatsApp con personas reales en español.',
+        a: 'La puesta en marcha se completa por etapas; el tiempo depende de los datos y ajustes de tu negocio. Revisa los canales de soporte incluidos en tu plan.',
       },
       {
         q: '¿Cómo se transfieren los códigos de barras y lotes?',
-        a: 'El importador CSV incluye campos para código de barras, stock inicial y control de lotes con fechas de vencimiento para boticas y minimarkets.',
+        a: 'La importación depende del formato del archivo y de las funciones habilitadas para tu negocio. Revisa las columnas admitidas antes de cargar los datos.',
       },
       {
         q: '¿Debo pagar costos de mantenimiento o renovación de certificado?',
-        a: 'No. No cobramos licencias anuales de mantenimiento ni tarifas por certificado digital. Todo está incluido en tu mensualidad transparente.',
+        a: 'Los costos y requisitos de facturación dependen del plan y de la habilitación fiscal de tu negocio. Revisa las condiciones vigentes antes de contratar.',
       },
       {
         q: '¿Cuánto tarda mi personal en aprender a cobrar con KipusPay?',
-        a: 'La interfaz es tan intuitiva como una app de celular: un cajero nuevo aprende a registrar ventas, emitir boletas y cobrar con Yape o tarjeta en un turno de 15 minutos.',
+        a: 'El tiempo de aprendizaje varía según la experiencia del equipo y la configuración del negocio. La pantalla muestra el producto, el total y los pasos disponibles para cobrar.',
       },
     ],
   },
@@ -215,43 +211,43 @@ export function allCompares(): readonly ComparePage[] {
 export const COMPARE_ROWS: readonly CompareRow[] = [
   {
     label: 'Cobro continuo en hora punta',
-    reported: 'Se bloquea si se corta la conexión a internet',
-    kipus: 'Cobro fluido y guardado local seguro sin interrupciones',
+    reported: 'La venta sin conexión depende del producto y del plan',
+    kipus: 'La venta se guarda en el equipo y se sincroniza al volver la conexión',
   },
   {
     label: 'Equipos y hardware',
-    reported: 'Exige comprar equipos cautivos o licencias adicionales',
-    kipus: 'Funciona en cualquier tablet, celular o computadora que ya tengas',
+    reported: 'Los equipos y periféricos compatibles varían por producto',
+    kipus: 'Disponible en equipos compatibles; revisa los requisitos de tus periféricos',
   },
   {
     label: 'Puesta en marcha y migración',
-    reported: 'Semanas de espera, trámites y capacitaciones complejas',
-    kipus: 'Listo para vender en 5 minutos con importador asistido',
+    reported: 'El tiempo de configuración depende de tus datos y necesidades',
+    kipus: 'Alta guiada por etapas; el tiempo depende de la configuración de tu negocio',
   },
   {
     label: 'Modo Dueño en el celular',
-    reported: 'Módulo de escritorio o cobro extra por usuario adicional',
-    kipus: 'Ventas y arqueo en vivo desde tu celular sin costo extra',
+    reported: 'El acceso a reportes móviles depende del producto y del plan',
+    kipus: 'Consulta ventas y caja cuando tus locales sincronizan; funciones según tu plan',
   },
   {
-    label: 'Emisión SUNAT automática',
-    reported: 'Módulos contables complejos y demoras en la emisión',
-    kipus: 'Emisión en un solo toque, 100% legal y automática',
+    label: 'Facturación electrónica',
+    reported: 'Las condiciones dependen del producto y del plan contratado',
+    kipus: 'Las opciones dependen de la habilitación del negocio; SUNAT determina la aceptación',
   },
   {
     label: 'Actualizaciones de sistema',
-    reported: 'Cobros anuales por versión, parches o mantenimiento',
-    kipus: 'Actualizaciones automáticas continuas incluidas en tu plan',
+    reported: 'Las actualizaciones dependen del proveedor y del plan contratado',
+    kipus: 'Consulta las condiciones de actualización incluidas en tu plan',
   },
   {
     label: 'Curva de aprendizaje del cajero',
-    reported: 'Días de inducción por menús enredados y pantallas lentas',
-    kipus: 'Se aprende en un turno de 15 minutos sin complicaciones',
+    reported: 'El tiempo de aprendizaje depende del equipo y de la configuración',
+    kipus: 'La venta muestra el producto, el total y el paso para cobrar',
   },
   {
     label: 'Soporte y atención',
-    reported: 'Tickets con días de espera o respuestas de bots genéricos',
-    kipus: 'Soporte real por personas y WhatsApp en español',
+    reported: 'Los canales y horarios de soporte dependen del proveedor y del plan',
+    kipus: 'Consulta los canales de soporte disponibles en tu plan',
   },
 ];
 

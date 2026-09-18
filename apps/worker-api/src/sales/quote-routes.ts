@@ -11,6 +11,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import { markQuoteExpired, type QuoteStatus } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 import { isSalesQuotesEnabled } from '../auth/features.js';
 import {
   parseQuantityMicrounits,
@@ -38,12 +39,29 @@ const defaultQuantityParser: MicrounitsParser = (value) => {
   };
 };
 
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'FEATURE_SALES_QUOTES off', code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireSalesQuotes(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'sales.quotes');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 const CLIENT_422 = new Set([
@@ -72,14 +90,28 @@ function mapError(err: unknown): HttpResult {
   return { status, body: { error: code, code } };
 }
 
-function quoteOpts(env: WorkerEnv | undefined) {
+async function tenantCapabilityEnabled(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'catalog.uom' | 'pricing.lists' | 'ledger.chart_of_accounts',
+): Promise<boolean> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function quoteOpts(env: WorkerEnv, tenantId: string) {
   return {
-    catalogUomEnabled: env?.FEATURE_CATALOG_UOM === '1' || env?.FEATURE_CATALOG_UOM === 'true',
-    pricingListsEnabled:
-      env?.FEATURE_PRICING_LISTS === '1' || env?.FEATURE_PRICING_LISTS === 'true',
-    ledgerChartOfAccountsEnabled:
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
+    catalogUomEnabled: await tenantCapabilityEnabled(env, tenantId, 'catalog.uom'),
+    pricingListsEnabled: await tenantCapabilityEnabled(env, tenantId, 'pricing.lists'),
+    ledgerChartOfAccountsEnabled: await tenantCapabilityEnabled(
+      env,
+      tenantId,
+      'ledger.chart_of_accounts',
+    ),
   };
 }
 
@@ -90,7 +122,6 @@ export async function runCreateQuoteHttp(
   body: Record<string, unknown>,
   parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
-  if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -127,6 +158,8 @@ export async function runCreateQuoteHttp(
   if (!branchId || items.length === 0) {
     return { status: 400, body: { error: 'branchId and items required', code: 'BAD_REQUEST' } };
   }
+  const capabilityError = await requireSalesQuotes(env, tenantId);
+  if (capabilityError) return capabilityError;
   try {
     const result = await processQuoteCreateAtomic(
       env.DB,
@@ -138,7 +171,7 @@ export async function runCreateQuoteHttp(
         validUntilIso: typeof body.validUntilIso === 'string' ? body.validUntilIso : null,
         items,
       },
-      quoteOpts(env),
+      await quoteOpts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
@@ -152,10 +185,11 @@ export async function runSendQuoteHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  const capabilityError = await requireSalesQuotes(env, tenantId);
+  if (capabilityError) return capabilityError;
   const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
   if (!quoteId) return { status: 400, body: { error: 'quoteId required', code: 'BAD_REQUEST' } };
   try {
@@ -173,7 +207,6 @@ export async function runApproveQuoteHttp(
   role = '',
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -181,6 +214,8 @@ export async function runApproveQuoteHttp(
   if (role !== 'admin' && role !== 'owner' && role !== 'supervisor') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireSalesQuotes(env, tenantId);
+  if (capabilityError) return capabilityError;
   const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
   if (!quoteId) return { status: 400, body: { error: 'quoteId required', code: 'BAD_REQUEST' } };
   try {
@@ -198,7 +233,6 @@ export async function runConvertQuoteHttp(
   role = '',
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -206,6 +240,8 @@ export async function runConvertQuoteHttp(
   if (role !== 'owner' && role !== 'admin') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireSalesQuotes(env, tenantId);
+  if (capabilityError) return capabilityError;
   const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
   const cashRegisterSessionId =
     typeof body.cashRegisterSessionId === 'string' ? body.cashRegisterSessionId : '';
@@ -233,7 +269,7 @@ export async function runConvertQuoteHttp(
         creditOverrideTokenHash:
           typeof body.creditOverrideTokenHash === 'string' ? body.creditOverrideTokenHash : null,
       },
-      quoteOpts(env),
+      await quoteOpts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
@@ -247,10 +283,11 @@ export async function runCancelQuoteHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  const capabilityError = await requireSalesQuotes(env, tenantId);
+  if (capabilityError) return capabilityError;
   const quoteId = typeof body.quoteId === 'string' ? body.quoteId : '';
   const reason = typeof body.reason === 'string' ? body.reason : '';
   if (!quoteId || !reason.trim()) {
@@ -269,13 +306,14 @@ export async function runListExpiredQuotesHttp(
   tenantId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isSalesQuotesEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   // T-1: reporte Dueño solo admin/owner (nunca cashier).
   if (role !== 'owner' && role !== 'admin') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireSalesQuotes(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const nowIso = new Date().toISOString();
   const rows = await env.DB.prepare(

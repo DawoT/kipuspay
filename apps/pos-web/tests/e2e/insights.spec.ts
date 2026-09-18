@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 const briefing = {
   reportDate: '2026-08-03',
@@ -14,18 +15,11 @@ const briefing = {
 };
 
 test('dueño ve el resumen del servidor con banner de antigüedad', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-insights-briefing',
+    role: 'owner',
+    capabilities: ['analytics.agentic_insights', 'owner.mode'],
+  });
   await page.route('**/api/insights/briefing*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(briefing) }),
   );
@@ -36,18 +30,11 @@ test('dueño ve el resumen del servidor con banner de antigüedad', async ({ pag
 });
 
 test('asistente: pregunta responde con el texto del SSE', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-insights-assistant',
+    role: 'owner',
+    capabilities: ['analytics.agentic_insights', 'owner.mode'],
+  });
   await page.route('**/api/insights/briefing*', (route) =>
     route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }),
   );

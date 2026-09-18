@@ -34,6 +34,9 @@ function envWithBindCaptureGlobal(): { env: WorkerEnv; calls: BindCall[] } {
     },
     first: <T>() => {
       const sql = calls[calls.length - 1]!.sql;
+      if (sql.includes('tenant_capabilities')) {
+        return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+      }
       if (sql.includes('FROM payment_methods')) {
         return Promise.resolve({ code: 'yape' } as T);
       }

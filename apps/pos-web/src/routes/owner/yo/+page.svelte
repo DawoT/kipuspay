@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { computeGrowthMetrics, type GrowthEvent } from '$lib/growth/metrics';
   import { readTenantSession, writeTenantSession } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
@@ -8,8 +8,8 @@
   import { ownerOverflowLinks } from '$lib/ui/owner-nav';
   import { formalizationModeLabel } from '$lib/ui/ops-copy';
 
-  const enabled = isOwnerModeEnabled();
-  const moreLinks = ownerOverflowLinks(isAgenticInsightsEnabled());
+  const enabled = $derived($tenantCapabilities.has('owner.mode'));
+  const moreLinks = $derived(ownerOverflowLinks($tenantCapabilities.has('analytics.agentic_insights')));
   let planLabel = $state('Plan: Arranque (lectura)');
   let inviteUrl = $state('');
   let referralCode = $state('');

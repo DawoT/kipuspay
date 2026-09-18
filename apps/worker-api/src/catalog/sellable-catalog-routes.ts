@@ -1,18 +1,11 @@
 /** Sprint C1 — catálogo vendible para la terminal del POS (grid + buscador). */
 import { resolveVariantUnitPriceCents } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 interface HttpResult {
   readonly status: number;
   readonly body: Record<string, unknown>;
-}
-
-function flagOn(value: string | undefined): boolean {
-  return value === '1' || value === 'true';
-}
-
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'Catalog capability off', code: 'FEATURE_OFF' } };
 }
 
 interface SellableRow {
@@ -37,11 +30,27 @@ export async function runListSellableCatalogHttp(
   tenantId: string,
   branchId: string,
 ): Promise<HttpResult> {
-  if (!flagOn(env?.FEATURE_CATALOG_SELLABLE)) return featureOff();
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'catalog.sellable');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
   const branch = branchId.trim();
   const { results } = await env.DB.prepare(
     `WITH effective AS (

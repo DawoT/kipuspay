@@ -1,28 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // Guía §6: gastos de caja — egresos contra la sesión abierta; no reemplaza el
 // cierre Z; el arqueo se concilia al final del turno.
 
-const SESSION = JSON.stringify({
-  userId: 'cashier-e2e',
-  role: 'cashier',
-  branchId: 'branch-e2e',
-});
-const CLAIM = JSON.stringify({ branchId: 'branch-e2e', sessionId: 'session-e2e' });
-
 test('gastos de caja: registrar egreso contra la sesión', async ({ page }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-cash-expenses',
+    role: 'cashier',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
     },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+    capabilities: ['cash.register_expenses', 'pos.checkout'],
+  });
   await page.route('**/api/cash/expenses', (route) =>
     route.fulfill({
       status: 200,

@@ -1,28 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // Sprint 20 + Sello QA Batch G: /owner/transferencias — mercadería en
 // tránsito y discrepancias al recibir, verificado real (transferencia
 // IN_TRANSIT creada por API en el sello). Copy honesto, sin códigos.
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('owner transferencias: en tránsito, discrepancias y refresh', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-      localStorage.setItem('kipuspay.onboarding.claim', JSON.stringify({ branchId: 'branch-e2e' }));
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-transfers',
+    role: 'owner',
+    capabilities: ['owner.mode', 'stock.transfers'],
+  });
   await page.route('**/api/owner/transfers/pending', (route) =>
     route.fulfill({
       status: 200,
@@ -54,18 +42,11 @@ test('owner transferencias: en tránsito, discrepancias y refresh', async ({ pag
 });
 
 test('owner transferencias: estado vacío honesto', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-      localStorage.setItem('kipuspay.onboarding.claim', JSON.stringify({ branchId: 'branch-e2e' }));
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-transfers-empty',
+    role: 'owner',
+    capabilities: ['owner.mode', 'stock.transfers'],
+  });
   await page.route('**/api/owner/transfers/pending', (route) =>
     route.fulfill({
       status: 200,

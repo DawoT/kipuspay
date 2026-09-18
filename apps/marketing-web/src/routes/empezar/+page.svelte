@@ -229,7 +229,7 @@
       <span class="knot-dot" aria-hidden="true"></span>
       Onboarding · paso {step + 1} de 4
     </p>
-    <h1>Tu primera venta en menos de 5 minutos.</h1>
+    <h1>Prepara tu negocio para empezar a vender.</h1>
 
     {#if step === 0}
       <h2>Tu negocio</h2>

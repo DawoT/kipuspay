@@ -12,6 +12,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventoryScaleEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export { isInventoryScaleEnabled };
 
@@ -57,12 +58,22 @@ function safeFailure(error: unknown): ScaleHttpResult {
   return status ? { status, body: { code } } : { status: 500, body: { code: 'INTERNAL_ERROR' } };
 }
 
-function preflight(env: WorkerEnv, actor: ScaleActor): ScaleHttpResult | null {
-  if (!isInventoryScaleEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
+async function preflight(env: WorkerEnv, actor: ScaleActor): Promise<ScaleHttpResult | null> {
   if (!actor.tenantId || !actor.userId || !actor.terminalId || !actor.terminalSessionId) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
   }
   if (!env.DB) return { status: 503, body: { code: 'DB_UNAVAILABLE' } };
+  try {
+    await new CapabilityResolver(env).require(actor.tenantId, 'inventory.scale');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
   return null;
 }
 
@@ -91,7 +102,7 @@ export async function runSubmitWeightHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   const measurementId = text(body, 'measurementId');
   const saleItemId = text(body, 'saleItemId');
@@ -144,13 +155,12 @@ export async function runAuthorizeManualWeightHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  if (!isInventoryScaleEnabled(env)) {
-    return { status: 404, body: { code: 'FEATURE_OFF' } };
-  }
   if (!['supervisor', 'admin', 'owner'].includes(actor.role)) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
   }
   if (!env.DB) return { status: 503, body: { code: 'DB_UNAVAILABLE' } };
+  const capabilityError = await preflight(env, actor);
+  if (capabilityError) return capabilityError;
   const offlineSaleId = text(body, 'offlineSaleId');
   const saleItemId = text(body, 'saleItemId');
   const measurementId = text(body, 'measurementId');
@@ -197,7 +207,7 @@ export async function runConfigureWeightPolicyHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   if (!ADMIN_ROLES.has(actor.role)) return { status: 403, body: { code: 'FORBIDDEN' } };
 
@@ -222,7 +232,7 @@ export async function runRegisterScaleDeviceHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   if (!ADMIN_ROLES.has(actor.role)) return { status: 403, body: { code: 'FORBIDDEN' } };
   const protocol = text(body, 'protocol');
@@ -261,7 +271,7 @@ export async function runListScaleDevicesHttp(
   env: WorkerEnv,
   actor: ScaleActor,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   if (!['supervisor', 'admin', 'owner'].includes(actor.role)) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
@@ -283,7 +293,7 @@ export async function runDiagnoseScaleDeviceHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   try {
     const binding = await requireActorBinding(env, actor);
@@ -303,7 +313,7 @@ export async function runDisableScaleDeviceHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   if (!ADMIN_ROLES.has(actor.role)) return { status: 403, body: { code: 'FORBIDDEN' } };
   try {
@@ -324,11 +334,12 @@ export async function runRegisterTerminalSessionHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  if (!isInventoryScaleEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!actor.tenantId || !actor.userId || !ADMIN_ROLES.has(actor.role)) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
   }
   if (!env.DB) return { status: 503, body: { code: 'DB_UNAVAILABLE' } };
+  const capabilityError = await preflight(env, actor);
+  if (capabilityError) return capabilityError;
   const terminalId = text(body, 'terminalId');
   const cashRegisterSessionId = text(body, 'cashRegisterSessionId');
   const userId = text(body, 'userId');
@@ -353,7 +364,7 @@ export async function runHeartbeatScaleDeviceHttp(
   actor: ScaleActor,
   body: Record<string, unknown>,
 ): Promise<ScaleHttpResult> {
-  const denied = preflight(env, actor);
+  const denied = await preflight(env, actor);
   if (denied) return denied;
   const protocol = text(body, 'protocol');
   const heartbeatSequence = integer(body, 'heartbeatSequence');

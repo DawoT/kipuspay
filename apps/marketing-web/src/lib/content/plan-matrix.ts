@@ -92,8 +92,10 @@ export const PLAN_MATRIX: readonly PlanMatrixRow[] = [
   },
   {
     area: 'Analítica & Continuidad',
-    summary: 'Analítica predictiva de ventas y quiebres (estimación, no garantía).',
+    summary:
+      'En preparación: analítica predictiva y briefing operativo, sujetos a validación externa.',
     minPlan: 'cadena',
+    availability: 'preparing',
   },
   {
     area: 'Inteligencia AI',

@@ -7,7 +7,14 @@ const SECRET = 'test-secret-for-cashier-login';
 function mockEnv(
   pinHash: string | null,
   user?: Record<string, unknown> | null,
-): { FEATURE_AUTH_CASHIER_LOGIN: string; AUTH_JWT_HS_SECRET: string; DB: unknown } {
+  pinRehashChanges = 1,
+  pinRehashThrows = false,
+): {
+  FEATURE_AUTH_CASHIER_LOGIN: string;
+  AUTH_JWT_HS_SECRET: string;
+  DB: unknown;
+  capturedRehashes: Array<{ sql: string; values: unknown[] }>;
+} {
   const row =
     user === undefined
       ? {
@@ -19,13 +26,19 @@ function mockEnv(
         }
       : user;
   const lockout = { pin_attempts: 0, pin_locked_until: null as string | null };
+  const capturedRehashes: Array<{ sql: string; values: unknown[] }> = [];
   const db = {
     prepare(sql: string) {
+      let values: unknown[] = [];
       const stmt = {
-        bind() {
+        bind(...args: unknown[]) {
+          values = args;
           return stmt;
         },
         first: () => {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+          }
           if (sql.includes('pin_attempts') && sql.includes('pin_locked_until')) {
             return Promise.resolve({ ...lockout });
           }
@@ -33,7 +46,11 @@ function mockEnv(
         },
         all: () => Promise.resolve({ results: [] }),
         run: () => {
+          if (sql.includes('SET pin_hash = ?') && pinRehashThrows) {
+            return Promise.reject(new Error('D1_UNAVAILABLE'));
+          }
           if (sql.includes('UPDATE users SET')) {
+            if (sql.includes('SET pin_hash = ?')) capturedRehashes.push({ sql, values });
             if (sql.includes('pin_attempts = 0, pin_locked_until = NULL')) {
               lockout.pin_attempts = 0;
               lockout.pin_locked_until = null;
@@ -44,13 +61,21 @@ function mockEnv(
               }
             }
           }
-          return Promise.resolve({ success: true, meta: {} });
+          return Promise.resolve({
+            success: true,
+            meta: { changes: sql.includes('AND pin_hash = ?') ? pinRehashChanges : 1 },
+          });
         },
       };
       return stmt;
     },
   };
-  return { FEATURE_AUTH_CASHIER_LOGIN: '1', AUTH_JWT_HS_SECRET: SECRET, DB: db };
+  return {
+    FEATURE_AUTH_CASHIER_LOGIN: '1',
+    AUTH_JWT_HS_SECRET: SECRET,
+    DB: db,
+    capturedRehashes,
+  };
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -64,14 +89,22 @@ function decodePayload(token: string): Record<string, unknown> {
 }
 
 describe('Sprint C2 cashier login route', () => {
-  it('capability off → 404 FEATURE_OFF', async () => {
+  it('kill switch global explícito → 404 aunque exista capability', async () => {
+    const result = await runCashierLoginHttp(
+      { ...mockEnv(null), FEATURE_AUTH_CASHIER_LOGIN: '0' } as never,
+      { tenantId: 't1', identifier: 'u1', pin: '1234' },
+    );
+    expect(result).toMatchObject({ status: 404, body: { code: 'FEATURE_OFF' } });
+  });
+
+  it('sin estado de capabilities → 503 fail-closed', async () => {
     const result = await runCashierLoginHttp(undefined, {
       tenantId: 't1',
       identifier: 'u1',
       pin: '1234',
     });
-    expect(result.status).toBe(404);
-    expect(result.body.code).toBe('FEATURE_OFF');
+    expect(result.status).toBe(503);
+    expect(result.body.code).toBe('DB_UNAVAILABLE');
   });
 
   it('sin campos → 401', async () => {
@@ -120,6 +153,9 @@ describe('Sprint C2 cashier login route', () => {
       pin: '1234',
     });
     expect(result.status).toBe(200);
+    expect(env.capturedRehashes).toHaveLength(1);
+    expect(env.capturedRehashes[0]?.sql).toContain('AND pin_hash = ?');
+    expect(env.capturedRehashes[0]?.values[3]).toBe(pinHash);
     const token = result.body.token as string;
     const payload = decodePayload(token);
     expect(payload).toMatchObject({ sub: 'u1', tenantId: 't1', role: 'cashier', branchId: 'b1' });
@@ -129,6 +165,50 @@ describe('Sprint C2 cashier login route', () => {
     const verified = await verifyJwt({ AUTH_JWT_HS_SECRET: SECRET } satisfies JwtVerifyEnv, token);
     expect(verified?.tenantId).toBe('t1');
     expect(verified?.sub).toBe('u1');
+  });
+
+  it('PIN correcto de owner/admin no habilita login de caja', async () => {
+    const pinHash = await sha256Hex('1234');
+    const env = mockEnv(pinHash, {
+      id: 'owner-1',
+      tenant_id: 't1',
+      branch_id: 'b1',
+      role: 'owner',
+      pin_hash: pinHash,
+    });
+    const result = await runCashierLoginHttp(env as never, {
+      tenantId: 't1',
+      identifier: 'owner-1',
+      pin: '1234',
+    });
+    expect(result.status).toBe(403);
+    expect(result.body.code).toBe('ROLE_NOT_ALLOWED');
+    expect(result.body.token).toBeUndefined();
+  });
+
+  it('rehash concurrentemente obsoleto no emite sesión', async () => {
+    const pinHash = await sha256Hex('1234');
+    const env = mockEnv(pinHash, undefined, 0);
+    const result = await runCashierLoginHttp(env as never, {
+      tenantId: 't1',
+      identifier: 'u1',
+      pin: '1234',
+    });
+
+    expect(result.status).toBe(403);
+    expect(result.body.code).toBe('PIN_INVALID');
+    expect(result.body.token).toBeUndefined();
+  });
+
+  it('fallo D1 al re-hashear PIN legado → 503 sin sesión', async () => {
+    const env = mockEnv(await sha256Hex('1234'), undefined, 1, true);
+    const result = await runCashierLoginHttp(env as never, {
+      tenantId: 't1',
+      identifier: 'u1',
+      pin: '1234',
+    });
+    expect(result.status).toBe(503);
+    expect(result.body.code).toBe('PIN_VERIFICATION_UNAVAILABLE');
   });
 
   it('PIN incorrecto → PIN_INVALID y lockout en el 5º fallo (SEC-11)', async () => {

@@ -13,7 +13,14 @@
 
 export interface AiGatewayDependencies {
   readonly binding: {
-    run(model: string, input: { messages: unknown[] }): Promise<{ response: string }>;
+    run(
+      model: string,
+      input: {
+        messages: unknown[];
+        max_tokens?: number;
+        temperature?: number;
+      },
+    ): Promise<{ response: string }>;
   };
   readonly model: string;
   readonly maxTokens?: number;
@@ -30,6 +37,9 @@ export interface AiGateway {
   generateText(prompt: string, facts: readonly string[]): Promise<string>;
 }
 
+/** Model catalogado por Workers AI para el canary S49 (staging 2026-09-17). */
+export const DEFAULT_AI_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
+
 export function createWorkersAiGateway(dependencies: AiGatewayDependencies): AiGateway {
   const system = (body: string): unknown[] => [
     {
@@ -44,6 +54,8 @@ export function createWorkersAiGateway(dependencies: AiGatewayDependencies): AiG
         messages: system(
           `Clasifica esta pregunta en UNA de: SALES_SUMMARY, BREAKAGE, CASH_EXCEPTIONS, TOP_PRODUCTS, AGING. Responde solo con la acción. Pregunta: ${question}`,
         ),
+        max_tokens: 8,
+        temperature: 0,
       });
       return out.response.trim();
     },
@@ -55,6 +67,8 @@ export function createWorkersAiGateway(dependencies: AiGatewayDependencies): AiG
         messages: system(
           `${prompt}\nHechos (cítalos verbatim, sin inventar cifras):\n${facts.join('\n')}`,
         ),
+        max_tokens: 96,
+        temperature: 0.1,
       });
       return out.response.trim();
     },

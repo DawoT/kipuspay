@@ -1,13 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {
-    isLoyaltyPointsEnabled,
-    isMessagingWhatsAppEnabled,
-    isPaymentsCardAcquirerEnabled,
-    isPaymentsQrWalletsEnabled,
-    isPosCheckoutEnabled,
-    isPricingPromotionsEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Badge from '$lib/ui/Badge.svelte';
   import { pollCaptureStatus } from '$lib/payments/payment-capture';
@@ -17,12 +10,12 @@ import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   const MANUAL_CAPTURE_AMBER_COPY =
     'Sin conexión. Verifica visualmente la app del cliente antes de entregar el producto';
 
-  const checkoutOn = isPosCheckoutEnabled();
-  const walletsOn = isPaymentsQrWalletsEnabled();
-  const cardsOn = isPaymentsCardAcquirerEnabled();
-  const whatsappOn = isMessagingWhatsAppEnabled();
-  const loyaltyOn = isLoyaltyPointsEnabled();
-  const promosOn = isPricingPromotionsEnabled();
+  const checkoutOn = $derived($tenantCapabilities.has('pos.checkout'));
+  const walletsOn = $derived($tenantCapabilities.has('payments.qr_wallets'));
+  const cardsOn = $derived($tenantCapabilities.has('payments.card_acquirer'));
+  const whatsappOn = $derived($tenantCapabilities.has('messaging.whatsapp_receipt'));
+  const loyaltyOn = $derived($tenantCapabilities.has('loyalty.points'));
+  const promosOn = $derived($tenantCapabilities.has('pricing.promotions'));
 
   let methodCode = $state('cash');
   /** M4: fuente de verdad = navigator.onLine (nunca inventar online). */

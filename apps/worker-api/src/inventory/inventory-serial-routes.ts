@@ -8,6 +8,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isInventorySerialsEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export { isInventorySerialsEnabled };
 
@@ -16,25 +17,37 @@ export interface HttpResult {
   readonly body: Record<string, unknown>;
 }
 
-function gate(
+async function gate(
   env: WorkerEnv | undefined,
   tenantId: string,
   role: string | undefined,
   privileged = false,
-): HttpResult | null {
-  if (!isInventorySerialsEnabled(env)) {
-    return {
-      status: 404,
-      body: { error: 'FEATURE_INVENTORY_SERIALS off', code: 'FEATURE_OFF' },
-    };
-  }
+): Promise<HttpResult | null> {
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   const operational = role === 'cashier' || role === 'admin' || role === 'owner';
   const allowed = privileged ? role === 'admin' || role === 'owner' : operational;
-  return allowed ? null : { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
+  if (!allowed) return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'inventory.serials');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 function stringField(body: Record<string, unknown>, key: string): string {
@@ -69,7 +82,7 @@ export async function runConfigureSerialTrackingHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   const productId = stringField(body, 'productId');
   const serialTrackingMode = stringField(body, 'serialTrackingMode');
@@ -128,7 +141,7 @@ export async function runSearchSerialsHttp(
   role: string | undefined,
   query: { serialNumber?: string; productId?: string; status?: string },
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role);
+  const denied = await gate(env, tenantId, role);
   if (denied) return denied;
   const serialNumber = query.serialNumber?.trim().normalize('NFKC').toUpperCase() ?? '';
   const productId = query.productId?.trim() || null;
@@ -150,7 +163,7 @@ export async function runCreateSerialManifestHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   const branchId = stringField(body, 'branchId');
   const purchaseReceiptLineId = stringField(body, 'purchaseReceiptLineId');
@@ -191,7 +204,7 @@ export async function runAcquireSerialLeaseHttp(
   terminalId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role);
+  const denied = await gate(env, tenantId, role);
   if (denied) return denied;
   const serialId = stringField(body, 'serialId');
   const idempotencyKey = stringField(body, 'idempotencyKey');
@@ -219,7 +232,7 @@ export async function runReleaseSerialLeaseHttp(
   terminalId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role);
+  const denied = await gate(env, tenantId, role);
   if (denied) return denied;
   const serialId = stringField(body, 'serialId');
   const leaseToken = stringField(body, 'leaseToken');
@@ -247,7 +260,7 @@ export async function runDisposeSerialHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const denied = gate(env, tenantId, role, true);
+  const denied = await gate(env, tenantId, role, true);
   if (denied) return denied;
   const serialId = stringField(body, 'serialId');
   const disposition = stringField(body, 'disposition');

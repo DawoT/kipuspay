@@ -12,6 +12,11 @@ import {
   QUANTITY_MICROUNITS_BAD_REQUEST,
 } from '../http/quantity-input.js';
 import type { MicrounitsParser, MicrounitsParseResult } from '../http/microunits-input.js';
+import {
+  CapabilityError,
+  CapabilityResolver,
+  isCapabilityEnabled,
+} from '../capabilities/capability-resolver.js';
 
 export function isPurchasingReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_PURCHASING_RETURNS === '1' || env?.FEATURE_PURCHASING_RETURNS === 'true';
@@ -35,12 +40,32 @@ const defaultQuantityParser: MicrounitsParser = (value) => {
   };
 };
 
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'FEATURE_PURCHASING_RETURNS off', code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireSupplierReturns(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'purchasing.returns');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 const CLIENT_422 = new Set([
@@ -62,6 +87,9 @@ const CLIENT_422 = new Set([
 ]);
 
 function mapError(err: unknown): HttpResult {
+  if (err instanceof CapabilityError) {
+    return { status: 503, body: { error: err.code, code: err.code } };
+  }
   const code = err instanceof Error ? err.message : 'SUPPLIER_RETURN_FAILED';
   if (
     code === 'SUPPLIER_RETURN_NOT_FOUND' ||
@@ -75,12 +103,14 @@ function mapError(err: unknown): HttpResult {
   return { status, body: { error: code, code } };
 }
 
-function opts(env: WorkerEnv | undefined) {
+async function opts(env: WorkerEnv, tenantId: string) {
   return {
-    catalogUomEnabled: env?.FEATURE_CATALOG_UOM === '1' || env?.FEATURE_CATALOG_UOM === 'true',
-    ledgerChartOfAccountsEnabled:
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
+    catalogUomEnabled: await isCapabilityEnabled(env, tenantId, 'catalog.uom'),
+    ledgerChartOfAccountsEnabled: await isCapabilityEnabled(
+      env,
+      tenantId,
+      'ledger.chart_of_accounts',
+    ),
   };
 }
 
@@ -132,8 +162,9 @@ export async function runCreateSupplierReturnHttp(
   body: Record<string, unknown>,
   parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
-  if (!isPurchasingReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireSupplierReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
@@ -169,7 +200,7 @@ export async function runCreateSupplierReturnHttp(
           typeof body.supplierCreditNoteRef === 'string' ? body.supplierCreditNoteRef : null,
         items,
       },
-      opts(env),
+      await opts(env, tenantId),
     );
     return { status: 200, body: { ...result } };
   } catch (err) {
@@ -183,8 +214,9 @@ export async function runCloseSupplierReturnHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isPurchasingReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireSupplierReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
@@ -201,7 +233,7 @@ export async function runCloseSupplierReturnHttp(
         authorizedByUserId:
           typeof body.authorizedByUserId === 'string' ? body.authorizedByUserId : null,
       },
-      opts(env),
+      await opts(env, tenantId),
     );
     return { status: 200, body: { ...result } };
   } catch (err) {
@@ -215,8 +247,9 @@ export async function runCancelSupplierReturnHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isPurchasingReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireSupplierReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
@@ -235,8 +268,9 @@ export async function runOwnerSupplierReturnsHttp(
   tenantId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isPurchasingReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireSupplierReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   // T-1: reporte Dueño solo admin/owner (nunca cashier).
   if (role !== 'owner' && role !== 'admin') {

@@ -54,6 +54,9 @@ function createRecordingDb() {
           return stmt;
         },
         first<T>(): Promise<T | null> {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+          }
           if (sql.includes('offline_client_sale_id')) return Promise.resolve(null); // no sincronizada antes
           if (sql.includes('FROM tenants ')) {
             return Promise.resolve({

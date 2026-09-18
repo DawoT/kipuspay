@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { CHECKLIST_DISMISSED_KEY } from '@kipuspay/domain-onboarding';
-  import { isOnboardingTourEnabled, isDebitNoteEnabled, isWithholdingsEnabled } from '$lib/features';
   import { fetchSetupProgress } from '$lib/onboarding/tour-client';
   import { issueDebitNote } from '$lib/sales/debit-note';
   import { issuePerception, issueRetention } from '$lib/fiscal/withholdings';
@@ -10,16 +9,11 @@
   import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import {
-    isAgenticInsightsEnabled,
-    isFiscalCircuitBreakerEnabled,
-    isOwnerModeEnabled,
-    isLedgerStoreCreditEnabled,
-    isSalesCommissionsEnabled,
-    isSalesInstallmentsEnabled,
-    isSalesLayawayEnabled,
-    isSalesQuotesEnabled,
-  } from '$lib/features';
-  import { capabilitiesFetchedAt, getStaleBanner, STALE_THRESHOLD_MS } from '$lib/tenant/capabilitiesStore';
+    capabilities as tenantCapabilities,
+    capabilitiesFetchedAt,
+    getStaleBanner,
+    STALE_THRESHOLD_MS,
+  } from '$lib/tenant/capabilitiesStore.js';
   import {
     canOfferAnularEa,
     type AnularEaResult,
@@ -39,7 +33,7 @@
   import Skeleton from '$lib/ui/Skeleton.svelte';
  import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  let enabled = $derived(isOwnerModeEnabled());
+  let enabled = $derived($tenantCapabilities.has('owner.mode'));
   let capabilitiesStaleBanner = $derived.by(() => {
     const fetchedAt = $capabilitiesFetchedAt;
     if (fetchedAt === null) return null;
@@ -56,12 +50,12 @@
       return [];
     }
   });
-  const fiscalEa = isFiscalCircuitBreakerEnabled();
-  const layawayOn = isSalesLayawayEnabled();
-  const quotesOn = isSalesQuotesEnabled();
-  const storeCreditOn = isLedgerStoreCreditEnabled();
-  const installmentsOn = isSalesInstallmentsEnabled();
-  const commissionsOn = isSalesCommissionsEnabled();
+  const fiscalEa = $derived($tenantCapabilities.has('fiscal.rc'));
+  const layawayOn = $derived($tenantCapabilities.has('sales.layaway'));
+  const quotesOn = $derived($tenantCapabilities.has('sales.quotes'));
+  const storeCreditOn = $derived($tenantCapabilities.has('ledger.store_credit'));
+  const installmentsOn = $derived($tenantCapabilities.has('sales.installments'));
+  const commissionsOn = $derived($tenantCapabilities.has('sales.commissions'));
   const BRIEFING_PLAN_GATE_KEY = 'kipuspay_briefing_plan_gate';
   let snap = $state<OwnerRollupSnapshot | null>(null);
   let banner = $state<string | null>(null);
@@ -155,7 +149,7 @@
   }
 
   async function loadBriefing() {
-    if (!isAgenticInsightsEnabled() || typeof fetch === 'undefined') return;
+    if (!$tenantCapabilities.has('analytics.agentic_insights') || typeof fetch === 'undefined') return;
     try {
       if (localStorage.getItem(BRIEFING_PLAN_GATE_KEY) === 'deny') return;
       const response = await apiFetch('/api/insights/briefing', { storage: localStorage });
@@ -317,7 +311,7 @@
   });
 
   // Sprint 52 — Setup Checklist en el Modo Dueño (regla 37a, GTM §6.2).
-  const onboardingOn = isOnboardingTourEnabled();
+  const onboardingOn = $derived($tenantCapabilities.has('onboarding.tour'));
   let serverState = $state<{ logo: boolean; invoicing: boolean; team: boolean; catalog: boolean } | null>(null);
   let printerReady = $state(false);
   let checklistDismissed = $state(false);
@@ -330,7 +324,7 @@
   }
 
   // Backlog v10 P1a — Nota de Débito (ADR-FISCAL-003).
-  const debitNoteOn = isDebitNoteEnabled();
+  const debitNoteOn = $derived($tenantCapabilities.has('fiscal.debit_note'));
   let dnOriginSaleId = $state('');
   let dnSeries = $state('FC01');
   let dnMotiveCode = $state('02');
@@ -340,7 +334,7 @@
   let dnIssued = $state(false);
 
   // Backlog v10 P1c — Percepciones/Retenciones (ADR-FISCAL-005).
-  const withholdingsOn = isWithholdingsEnabled();
+  const withholdingsOn = $derived($tenantCapabilities.has('fiscal.withholdings'));
   let whBranchId = $state('');
   let whSaleId = $state('');
   let whInvoiceId = $state('');
@@ -545,7 +539,7 @@
       </StatusMessage>
     {/if}
 
-    {#if isAgenticInsightsEnabled() && briefing}
+    {#if $tenantCapabilities.has('analytics.agentic_insights') && briefing}
       <section class="ledger-card section-pad" data-testid="owner-briefing">
         <div class="card-head">
           <h2>Notas del negocio</h2>
@@ -558,7 +552,7 @@
         </ul>
       </section>
     {/if}
-    {#if isAgenticInsightsEnabled() && briefing === null}
+    {#if $tenantCapabilities.has('analytics.agentic_insights') && briefing === null}
       <StatusMessage tone="danger" data-testid="briefing-error">No se pudo cargar el resumen del negocio.</StatusMessage>
     {/if}
 

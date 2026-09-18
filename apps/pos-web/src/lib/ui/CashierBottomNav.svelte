@@ -1,11 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import Icon from '$lib/ui/Icon.svelte';
-  import {
-    isCustomerOrdersEnabled,
-    isPosCheckoutEnabled,
-    isShiftHandoffEnabled,
-  } from '$lib/features';
+  import { isCustomerOrdersEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { showCustomerOrderNavigation } from '$lib/customer-orders/customer-order-access';
 
   let {
@@ -14,8 +11,8 @@
     role?: string;
   } = $props();
 
-  const checkoutOn = isPosCheckoutEnabled();
-  const handoffOn = isShiftHandoffEnabled();
+  const checkoutOn = $derived($tenantCapabilities.has('pos.checkout'));
+  const handoffOn = $derived($tenantCapabilities.has('ops.shift_handoff'));
   const showPedidos = $derived(
     showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role }),
   );
@@ -73,15 +70,6 @@
         <span>Pedidos retiro</span>
       </a>
     {/if}
-    <a
-      href="/ayuda"
-      class="pos-nav-item"
-      class:active={isActive('/ayuda')}
-      data-testid="pos-nav-ayuda"
-    >
-      <Icon name="info" size={18} />
-      <span>Ayuda</span>
-    </a>
   </nav>
 {/if}
 

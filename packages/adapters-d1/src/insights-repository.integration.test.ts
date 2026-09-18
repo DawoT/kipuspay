@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { buildInsightSelect } from '@kipuspay/domain-analytics';
 import { describe, expect, it } from 'vitest';
 import {
   appendInsightLog,
@@ -48,6 +49,29 @@ describe('insights repository (Sprint 49 / PERF-12)', () => {
     expect(result.length).toBe(1);
     expect(result[0]?.gross_sales_cents).toBe(118000);
     expect(result[0]?.doc_count).toBe(42);
+  });
+
+  it('ejecuta las cinco consultas de intención contra el schema D1 real', async () => {
+    await seedInsightsTenant();
+    const actions = ['SALES_SUMMARY', 'TOP_PRODUCTS', 'BREAKAGE', 'CASH_EXCEPTIONS', 'AGING'];
+    for (const action of actions) {
+      const plan = buildInsightSelect({
+        action,
+        tenantId,
+        branchId: 'b-ins',
+        reportDate: '2026-08-03',
+      });
+      expect(plan.status).toBe('OK');
+      if (plan.status !== 'OK') continue;
+      await expect(
+        runInsightSelect({
+          db: env.DB,
+          tenantId,
+          sql: plan.sql,
+          params: plan.params,
+        }),
+      ).resolves.toBeInstanceOf(Array);
+    }
   });
 
   it('appendInsightLog es idempotente por (tenant, idempotency_key)', async () => {

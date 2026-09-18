@@ -7,14 +7,16 @@ owner: "@DawoT"
 
 # Sprint 44 — Ventas recurrentes y membresías — Quality Gate
 
-**Estado software:** GREEN local  
-**Estado claim/producción/rollout:** NO-GO condicionado  
-**Capability:** `sales.recurring`, default-off  
+**Estado software:** GREEN local + cron y settlement técnico staging
+**Estado claim/producción/rollout:** NO-GO condicionado
+**Capability:** `sales.recurring`, default-off
 **Spec:** Arquitectura §5.11 regla 29 · ADR-0028 · COM-10 · DAT-12 · SYN-12 · Roadmap FASE 6E
 
-El gate automatizado demuestra el contrato de software en entorno local. No existe
-evidencia de cron, staging o canary Cloudflare real ni QA humana y aprobación PM con
-firmas A+V independientes. Por ello este documento no autoriza GTM-25 ni producción.
+El gate automatizado demuestra el contrato de software en entorno local. El Cron
+Trigger `*/5` y un settlement controlado ya fueron observados en staging con un
+tenant sintético, incluyendo dos periodos consecutivos sin duplicar ocurrencias.
+Aún faltan QA humana y aprobación PM con firmas A+V independientes. Por ello este documento no autoriza
+GTM-25 ni producción.
 Sprint 44 no guarda tarjetas, no autocobra y no garantiza servicio recurrente después
 de la gracia.
 
@@ -135,26 +137,27 @@ independiente posterior.
 Durante GREEN se detectó que agregar recurrentes podía reemplazar el trigger de
 rollups. El fix conserva ambas expresiones y despacha por coincidencia exacta, incluso
 cuando coinciden a las 08:00 UTC. Cron desconocido falla seguro sin invocar handlers.
-La prueba es local; todavía no existe ejecución programada Cloudflare real.
+La ejecución programada Cloudflare real quedó observada en staging; el rollout
+vendible sigue bloqueado por los gates humanos y de canary ampliado.
 
 ## Evidencia externa pendiente
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| Cron Cloudflare real | PENDIENTE / NO-GO | Observar ambos triggers, lease, retry, catch-up y dispatch exacto con telemetría |
+| Cron Cloudflare real + settlement | GREEN técnico / QA pendiente | `*/5` observado en staging 2026-09-17: dos ticks con `tenants=1`, `processedPeriods=1`, `failures=0`; D1: 2 ocurrencias `SETTLED`, 2 ventas distintas, `11800` cents, periodos 16→17 y 17→18, sin duplicados |
 | Staging/canary | PENDIENTE / NO-GO | Ejecutar concurrencia, fiscal/CxC/usage/stock, rollback y runbook en bindings reales |
 | QA humana | PENDIENTE / NO-GO | Staff QA valida Admin, calendario, gracia, prorrateo, accesibilidad y POS ordinario |
 | Aprobación PM | PENDIENTE / NO-GO | Staff PM acepta alcance, copy acotado y residuales E2E |
 | Firma A+V independiente | PENDIENTE / NO-GO | Humanos independientes firman evidencia de staging/canary |
-| Security Review posterior | NO REALIZADA | Revisión limpia posterior a remediaciones; no sustituye A+V |
+| Security Review posterior | GREEN técnico, sin hallazgos S44 adicionales | Revisión independiente 2026-09-17; no sustituye A+V |
 
 ## RACI real
 
 | Rol | Estado |
 |---|---|
 | Staff Backend ACID + Staff Data + Staff Frontend | Software local GREEN |
-| Staff Security Review | 2 MEDIUM remediados; segunda revisión limpia no realizada |
-| Staff SRE | Runbook y dispatch local definidos; cron/staging/canary real pendiente |
+| Staff Security Review | 2 MEDIUM remediados; revisión independiente 2026-09-17 sin hallazgos S44 adicionales |
+| Staff SRE | Runbook y dispatch definidos; Cron `*/5` y settlement controlado observados en staging |
 | Staff QA independiente | PENDIENTE |
 | Staff PM A | PENDIENTE |
 | Staff Growth + Staff PM | GTM-25 NO-GO |
@@ -162,7 +165,7 @@ La prueba es local; todavía no existe ejecución programada Cloudflare real.
 ## Veredicto
 
 **SOFTWARE-GREEN-CLAIM-NO-GO.** El software y gate automatizado quedan GREEN local;
-la capability permanece default-off. GTM-25, producción y rollout siguen NO-GO hasta
-cron/staging/canary Cloudflare real, QA humana, aprobación PM y firmas A+V
-independientes. No se promete autocobro, tarjeta/token guardado, push ni servicio
+el dispatcher `*/5` y un settlement controlado tienen evidencia técnica staging,
+pero la capability vendible permanece bloqueada. GTM-25, producción y rollout siguen NO-GO hasta
+canary completo, QA humana, aprobación PM y firmas A+V independientes. No se promete autocobro, tarjeta/token guardado, push ni servicio
 recurrente ininterrumpido después de la gracia; push permanece en Sprint 45.

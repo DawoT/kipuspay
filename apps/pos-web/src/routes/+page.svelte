@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { maybeRunMarketingAutotest } from '$lib/autotest-bridge';
   import { formatCents } from '$lib/cents';
-  import { isCatalogQuickAddEnabled, isCatalogVariantsEnabled, isInventoryOpsEnabled, isInventoryScaleEnabled, isInventorySerialsEnabled, isOnboardingTourEnabled, isOrdersKdsEnabled, isPosCheckoutEnabled, isPricingPromotionsEnabled, isPrintTemplatesEnabled, isCashDrawerEnabled, isCatalogSellableEnabled, isSalesCommissionsEnabled, isSaleTipEnabled, isSaleFeedbackEnabled, isShiftHandoffEnabled, isTeamInviteEnabled, isHardwareDiagnosticsEnabled, isVitrinaEnabled } from '$lib/features';
+  import { isSaleFeedbackEnabled } from '$lib/features';
   import { resolveSeller } from '$lib/cash/shift-handoff';
   import { createPrinterTransport } from '$lib/print/printer-transport';
   import { PrintOutboxStore, createBrowserPrintIdb } from '$lib/print/print-outbox-store';
@@ -11,9 +11,12 @@
   import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
   import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import { playSaleSuccessFeedback } from '$lib/ui/feedback.js';
-  import { readLoginUser, writeLoginTenantId, type LoginUserIdentity } from '$lib/auth/token-store';
+  import { createLoginIdentityGeneration, readLoginUser, writeLoginTenantId, type LoginUserIdentity } from '$lib/auth/token-store';
   import { claimOnboardingFromUrlIfPresent, readLastOnboardingClaim, readLastOnboardingError } from '$lib/auth/onboarding-claim';
-  import { capabilitiesFromFlags } from '$lib/onboarding/capabilities';
+  import { capabilitiesFromTenantSnapshot } from '$lib/onboarding/capabilities';
+  import { capabilities as tenantCapabilities, capabilitiesTenantId, clearCapabilities, loadCapabilities } from '$lib/tenant/capabilitiesStore.js';
+  import { get } from 'svelte/store';
+  import { subscribeLoginIdentityChanges } from '$lib/auth/token-store';
   import { isTourEligible, readTourState, recordGrowthEvent, writeTourState } from '$lib/onboarding/tour-client';
   import { tourStepsFor, type TourStep } from '@kipuspay/domain-onboarding';
   import Tour from '$lib/ui/Tour.svelte';
@@ -22,6 +25,7 @@
   import CartPanel from '$lib/pos/CartPanel.svelte';
   import SerialInstrument from '$lib/pos/SerialInstrument.svelte';
   import ScaleInstrument from '$lib/pos/ScaleInstrument.svelte';
+  import FuelDispatchCard from '$lib/fuel/FuelDispatchCard.svelte';
   import CustomerIdentity from '$lib/pos/CustomerIdentity.svelte';
   import { chargeCartOffline, resolveChargeDocument } from '$lib/pos-checkout/charge';
   import { fetchBranchSeries } from '$lib/branch-series/client.js';
@@ -30,7 +34,7 @@
   import { publishVitrina } from '$lib/vitrina/channel';
   import { formalizationBannerMessage } from '@kipuspay/domain-fiscal-pe';
   import { buildTicketHtml } from '@kipuspay/print-templates';
-  import { defaultTenantSession, markTenantFirstSale, readTenantSession, tenantFromSearchParams, writeTenantSession, type PosTenantSession } from '$lib/tenant/session';
+  import { defaultTenantSession, isPosVertical, markTenantFirstSale, readTenantSession, tenantFromSearchParams, writeTenantSession, type PosTenantSession } from '$lib/tenant/session';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Modal from '$lib/ui/Modal.svelte';
@@ -40,20 +44,28 @@
   import MoneyInput from '$lib/ui/MoneyInput.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { fetchSellableCatalog, type SellableCatalogItem } from '$lib/catalog/sellable-catalog-client';
+  import { createSellableCatalogLoader } from '$lib/catalog/sellable-catalog-loader.js';
   import { renderQrToCanvas } from '$lib/print/qr-canvas';
+  import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session.js';
 
-  const checkoutOn = isPosCheckoutEnabled();
-  const commissionsOn = isSalesCommissionsEnabled();
-  const serialsOn = isInventorySerialsEnabled();
-  const scaleOn = isInventoryScaleEnabled();
-  const catalogOn = isCatalogSellableEnabled();
-  const tipOn = isSaleTipEnabled();
-  const drawerOn = isCashDrawerEnabled();
+  let capabilitiesSnapshot = $state<ReadonlySet<string>>(new Set());
+  const checkoutOn = $derived(capabilitiesSnapshot.has('pos.checkout'));
+  const commissionsOn = $derived(capabilitiesSnapshot.has('sales.commissions'));
+  const serialsOn = $derived(capabilitiesSnapshot.has('inventory.serials'));
+  const scaleOn = $derived(capabilitiesSnapshot.has('inventory.scale'));
+  const catalogOn = $derived(capabilitiesSnapshot.has('catalog.sellable'));
+  const tipOn = $derived(capabilitiesSnapshot.has('cash.policy'));
+  const drawerOn = $derived(capabilitiesSnapshot.has('cash.policy'));
+  const quickLineOn = $derived(capabilitiesSnapshot.has('sales.quick_line'));
   const saleFeedbackOn = isSaleFeedbackEnabled();
-  const teamOn = isTeamInviteEnabled();
-  const tourOn = isOnboardingTourEnabled();
+  const teamOn = $derived(capabilitiesSnapshot.has('ops.team_invite'));
+  const tourOn = $derived(capabilitiesSnapshot.has('onboarding.tour'));
+  const brandQrOn = $derived(capabilitiesSnapshot.has('pos.brand_qr'));
+  const vitrinaOn = $derived(capabilitiesSnapshot.has('display.vitrina'));
+  const printTemplatesOn = $derived(capabilitiesSnapshot.has('hardware.print_templates'));
 
   let session = $state<PosTenantSession>(defaultTenantSession());
+  const fuelOn = $derived(capabilitiesSnapshot.has('fuel.dispatch'));
   let loginUser = $state<LoginUserIdentity | null>(null);
   let lines = $state<CartLine[]>([]);
   let catalogItems = $state<SellableCatalogItem[]>([]);
@@ -82,6 +94,17 @@
   let onboardingNotice = $state('');
   let tourOpen = $state(false);
   let tourSteps = $state<readonly TourStep[]>([]);
+  const authenticatedSessionState = readAdminAuthenticatedSessionState();
+
+  $effect(() => {
+    const terminal = authenticatedSessionState?.current?.terminal;
+    if (terminal?.cashRegisterSessionId && authenticatedSessionState?.current?.branchId) {
+      onboardingSession = {
+        branchId: authenticatedSessionState.current.branchId,
+        sessionId: terminal.cashRegisterSessionId,
+      };
+    }
+  });
 
   const queue = new OfflineQueueStore(createBrowserOfflineIdb());
   const correlatives = new OfflineCorrelativeStore(1);
@@ -89,34 +112,246 @@
   const printOutbox = new PrintOutboxStore(printIdb);
   const banner = $derived(formalizationBannerMessage(session.formalizationMode));
   const chargeSettled = $derived(status === 'completado');
-  const capabilities = capabilitiesFromFlags({ kds: isOrdersKdsEnabled(), fefo: isInventoryOpsEnabled(), scale: isInventoryScaleEnabled(), promotions: isPricingPromotionsEnabled(), variants: isCatalogVariantsEnabled(), quickAdd: isCatalogQuickAddEnabled(), shiftHandoff: isShiftHandoffEnabled(), teamInvite: isTeamInviteEnabled(), hardwareDiagnostics: isHardwareDiagnosticsEnabled() });
+  const capabilities = $derived(capabilitiesFromTenantSnapshot(capabilitiesSnapshot));
 
   function handleAddLine(next: CartLine) {
     lines = addOrBumpLine(lines, next);
   }
 
   onMount(() => {
+    const catalogLoader = createSellableCatalogLoader({
+      fetchCatalog: ({ tenantId, signal }) =>
+        fetchSellableCatalog({
+          apiBase: resolveApiBase(localStorage),
+          authorization: resolveApiAuth(localStorage).authorization ?? '',
+          tenantId,
+          signal,
+        }),
+      onChange: (next) => {
+        catalogItems = [...next.items];
+        catalogLoading = next.loading;
+        catalogError = next.error;
+      },
+    });
+    let activeTenantId = localStorage.getItem('kipuspay_tenant_id')?.trim() || session.tenantId;
+    let activeToken = localStorage.getItem('kipuspay_token') ?? '';
+    let currentCapabilities = new Set(get(tenantCapabilities));
+    let currentCapabilitiesTenantId = get(capabilitiesTenantId);
+    let capabilitySubscriptionsReady = false;
+    const authIdentityGeneration = createLoginIdentityGeneration();
+    const refreshCatalog = () => {
+      const tenantId = activeTenantId || session.tenantId;
+      const enabled = capabilitiesSnapshot.has('catalog.sellable');
+      if (!enabled) lines = [];
+      void catalogLoader.refresh({ tenantId, enabled });
+    };
+    const syncCapabilities = () => {
+      if (!capabilitySubscriptionsReady) return;
+      capabilitiesSnapshot = currentCapabilitiesTenantId === activeTenantId
+        ? new Set(currentCapabilities)
+        : new Set();
+      refreshCatalog();
+    };
+    const unsubscribeCapabilities = tenantCapabilities.subscribe((value) => {
+      currentCapabilities = new Set(value);
+      syncCapabilities();
+    });
+    const unsubscribeCapabilitiesTenant = capabilitiesTenantId.subscribe((value) => {
+      currentCapabilitiesTenantId = value;
+      syncCapabilities();
+    });
+    capabilitySubscriptionsReady = true;
+    const syncAuthIdentity = () => {
+      const nextTenantId = localStorage.getItem('kipuspay_tenant_id')?.trim() || session.tenantId;
+      const nextToken = localStorage.getItem('kipuspay_token') ?? '';
+      const tenantChanged = nextTenantId !== activeTenantId;
+      const tokenChanged = nextToken !== activeToken;
+      if (!tenantChanged && !tokenChanged) return;
+      const generation = authIdentityGeneration.next();
+      const previousTenantId = activeTenantId;
+      activeTenantId = nextTenantId;
+      activeToken = nextToken;
+      lines = [];
+      capabilitiesSnapshot = new Set();
+      const clearedPreviousIdentity = clearCapabilities({ tenantId: previousTenantId, storage: localStorage });
+      syncCapabilities();
+      if (activeTenantId) {
+        const validatedTenantId = activeTenantId;
+        const validatedToken = activeToken;
+        const apiBase = resolveApiBase(localStorage);
+        void clearedPreviousIdentity.then(() => {
+          if (
+            !authIdentityGeneration.isCurrent(generation) ||
+            localStorage.getItem('kipuspay_tenant_id')?.trim() !== validatedTenantId ||
+            (localStorage.getItem('kipuspay_token') ?? '') !== validatedToken
+          ) return;
+          return loadCapabilities({
+            tenantId: validatedTenantId,
+            storage: localStorage,
+            apiBase,
+            requireAuthoritative: true,
+            isCurrent: () =>
+              authIdentityGeneration.isCurrent(generation) &&
+              localStorage.getItem('kipuspay_tenant_id')?.trim() === validatedTenantId &&
+              (localStorage.getItem('kipuspay_token') ?? '') === validatedToken,
+            fetcher: (url, init) =>
+              apiFetch(String(url), {
+                storage: localStorage,
+                apiBase,
+                allowUnauthorizedRedirect: false,
+                headers: Object.fromEntries(new Headers(init?.headers).entries()),
+              }),
+          });
+        });
+      }
+      refreshCatalog();
+    };
+    const unsubscribeLoginIdentity = subscribeLoginIdentityChanges(syncAuthIdentity);
+    const onStorageIdentityChange = (event: StorageEvent) => {
+      if (event.key === 'kipuspay_token' || event.key === 'kipuspay_tenant_id' || event.key === null) {
+        syncAuthIdentity();
+      }
+    };
+    window.addEventListener('storage', onStorageIdentityChange);
     void maybeRunMarketingAutotest(); if (typeof window === 'undefined') return;
-    const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
-    if (fromQs) { writeTenantSession(sessionStorage, fromQs); session = fromQs; writeLoginTenantId(localStorage, fromQs.tenantId); } else session = readTenantSession(sessionStorage);
-    if (session.tenantId && session.taxRegime === 'UNKNOWN') void (async () => { try { const res = await apiFetch('/api/tenant/context', { storage: localStorage }); if (!res.ok) return; const d = (await res.json()) as any; const mOk = d.formalizationMode==='INTERNAL_CONTROL'||d.formalizationMode==='FORMALIZING'||d.formalizationMode==='ELECTRONIC_ISSUER'; const rOk = d.taxRegime==='NRUS'||d.taxRegime==='RER'||d.taxRegime==='RMT'||d.taxRegime==='RG'||d.taxRegime==='UNKNOWN'; if(!mOk&&!rOk&&!d.tradeName) return; const n={...session,...(mOk?{formalizationMode:d.formalizationMode}:{}),...(rOk?{taxRegime:d.taxRegime}:{}),...(d.tradeName?{tradeName:d.tradeName}:{})} as PosTenantSession; if(n.taxRegime!==session.taxRegime||n.formalizationMode!==session.formalizationMode||n.tradeName!==session.tradeName){ writeTenantSession(sessionStorage,n); session=n; }} catch{}})();
-    loginUser=readLoginUser(localStorage);
-    void claimOnboardingFromUrlIfPresent().then((c)=>{ const s=readLastOnboardingClaim(); if(s) onboardingSession={branchId:s.branchId,sessionId:s.sessionId}; if(c) loginUser=readLoginUser(localStorage); else if(readLastOnboardingError()&&!readLoginUser(localStorage)) onboardingNotice=`No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;});
-    void loadSellableCatalog(); maybeShowTour();
-    const kd=(e:KeyboardEvent)=>{ if(e.key==='F9'&&isPosCheckoutEnabled()&&lines.length>0&&status!=='cobrando'){ e.preventDefault(); void onCharge(); }};
-    window.addEventListener('keydown',kd); return()=>window.removeEventListener('keydown',kd);
+    void (async () => {
+      // El layout y esta página montan en paralelo. Ningún request protegido
+      // puede adelantarse al claim single-flight del primer acceso.
+      const claimed = await claimOnboardingFromUrlIfPresent();
+      const fromQs = tenantFromSearchParams(new URLSearchParams(window.location.search));
+      if (fromQs) { writeTenantSession(sessionStorage, fromQs); session = fromQs; writeLoginTenantId(localStorage, fromQs.tenantId); } else session = readTenantSession(sessionStorage);
+      syncAuthIdentity();
+      syncCapabilities();
+      refreshCatalog();
+      if (session.tenantId) { try { const res = await apiFetch('/api/tenant/context', { storage: localStorage }); if (res.ok) { const d = (await res.json()) as Record<string, unknown>; const mOk = d.formalizationMode==='INTERNAL_CONTROL'||d.formalizationMode==='FORMALIZING'||d.formalizationMode==='ELECTRONIC_ISSUER'; const rOk = d.taxRegime==='NRUS'||d.taxRegime==='RER'||d.taxRegime==='RMT'||d.taxRegime==='RG'||d.taxRegime==='UNKNOWN'; const vOk = typeof d.verticalType === 'string' && isPosVertical(d.verticalType); if(mOk||rOk||vOk||typeof d.tradeName==='string'){ const n={...session,...(mOk?{formalizationMode:d.formalizationMode}:{}),...(rOk?{taxRegime:d.taxRegime}:{}),...(vOk?{verticalType:d.verticalType}:{}),...(typeof d.tradeName==='string'&&d.tradeName?{tradeName:d.tradeName}:{})} as PosTenantSession; if(n.taxRegime!==session.taxRegime||n.formalizationMode!==session.formalizationMode||n.verticalType!==session.verticalType||n.tradeName!==session.tradeName){ writeTenantSession(sessionStorage,n); session=n; } } } } catch{} }
+      loginUser=readLoginUser(localStorage);
+      const claimedSession=readLastOnboardingClaim();
+      if(claimedSession) onboardingSession={branchId:claimedSession.branchId,sessionId:claimedSession.sessionId};
+      if(!claimed&&readLastOnboardingError()&&!loginUser) onboardingNotice=`No pudimos iniciar tu sesión automáticamente (${readLastOnboardingError()}). Usa "Ingresar" con tu badge y PIN.`;
+      maybeShowTour();
+    })();
+    const kd=(e:KeyboardEvent)=>{ if(e.key==='F9'&&checkoutOn&&lines.length>0&&status!=='cobrando'){ e.preventDefault(); void onCharge(); }};
+    window.addEventListener('keydown',kd); return()=>{ window.removeEventListener('keydown',kd); window.removeEventListener('storage', onStorageIdentityChange); catalogLoader.dispose(); unsubscribeCapabilities(); unsubscribeCapabilitiesTenant(); unsubscribeLoginIdentity(); };
   });
 
   function maybeShowTour(){ if(!tourOn) return; if(!isTourEligible({hasSold:session.firstSaleAtIso!==null,localState:readTourState(localStorage,session.verticalType)})) return; const s=tourStepsFor({vertical:session.verticalType,role:'cashier',capabilities,hasSold:false}); if(s.length===0) return; tourSteps=s; tourOpen=true; void recordGrowthEvent('tour_started',{vertical:session.verticalType});}
   function onTourComplete(){ tourOpen=false; writeTourState(localStorage,session.verticalType,'completed'); void recordGrowthEvent('tour_completed',{steps:tourSteps.length});}
   function onTourDismiss(){ tourOpen=false; writeTourState(localStorage,session.verticalType,'dismissed'); void recordGrowthEvent('tour_dismissed',{step:0});}
   async function flushPendingSales(){ try{ const b=resolveApiBase(localStorage); await dispatchPendingSalesChunked(queue, createHttpSyncTransport({ endpointUrl: `${b}/api/v1/sync/sales`, bearerToken: localStorage.getItem('kipuspay_token')??undefined, tenantId: localStorage.getItem('kipuspay_tenant_id')??undefined})); }catch{}}
-  async function onCharge(){ status='cobrando'; if(!onboardingSession){ status='bloqueado'; message='No hay una sesión de caja abierta. Inicia sesión o abre la caja.'; return; } const branchId=onboardingSession.branchId; let branchSeries: readonly any[] = []; try{ branchSeries=await fetchBranchSeries(branchId);}catch{ branchSeries=[]; } const chargeDoc=resolveChargeDocument({ formalizationMode: session.formalizationMode, taxRegime: session.taxRegime, clientDocumentType: clientDocType, clientDocumentNumber: clientDocNumber.trim(), branchSeries }); if(isVitrinaEnabled()) publishVitrina({ totalCents: cartTotalCents(lines), itemCount: lines.length, documentType: chargeDoc.documentType, phase:'confirming', message:'Confirma el pago', ...(session.brandQrEnabled?{brandLabel:'Emitido con KipusPay'}:{})}); const outcome=await chargeCartOffline(lines,{ formalizationMode: session.formalizationMode, taxRegime: session.taxRegime, branchId, cashRegisterSessionId: onboardingSession?.sessionId??'', series: chargeDoc.series, clientDocumentType: clientDocType, clientDocumentNumber: clientDocNumber.trim(), clientName: clientName.trim(), paymentMethodId:'pm-cash', documentTypeOverride: chargeDoc.documentType, ...(commissionsOn&&sellerId.trim()?{sellerId:sellerId.trim()}:{}), ...(tipOn&&Number.isInteger(tipCents)&&tipCents>0?{tipCents: Math.round(tipCents)}:{})}, queue); if(!outcome.ok){ status='bloqueado'; message=outcome.message; return;} status='completado'; message=`Venta ${outcome.offlineSaleId} cobrada.`; if(saleFeedbackOn) playSaleSuccessFeedback(); if(drawerOn) void createPrinterTransport().openDrawer(); void flushPendingSales(); if(session.firstSaleAtIso===null){ const n=markTenantFirstSale(session,new Date().toISOString()); writeTenantSession(sessionStorage,n); session=n; void recordGrowthEvent('first_sale',{vertical:session.verticalType}); } if(isPrintTemplatesEnabled()){ const s=chargeDoc.series; const r=correlatives.reserve(outcome.offlineSaleId,s); const snap=buildSaleTicketSnapshot({ enterprise: session.tradeName, ruc:'', documentType: chargeDoc.documentType, series:s, number:r.tentativeNumber, totalCents: cartPayableCents(lines), items: lines.map(l=>({name:l.name, qty:l.quantity, totalCents:l.unitPriceCents*l.quantity})), ...(session.brandQrEnabled?{brandFooter:{enabled:true,label:'Emitido con KipusPay',shortUrl:'kipuspay.com',qrPayload:'https://kipuspay.com'}}:{})}); printPreview=buildTicketHtml(snapshotToTicketData(snap)); void enqueueAndPrintTicket({ outbox: printOutbox, transport: createPrinterTransport(buildPosPrinterEnv()), saleId: outcome.offlineSaleId, ticket: snap});}}
+  async function onCharge() {
+    status = 'cobrando';
+    const verifiedSession = authenticatedSessionState?.current;
+    const verifiedTerminal = verifiedSession?.terminal;
+    const cashSession =
+      verifiedSession?.branchId && verifiedTerminal?.cashRegisterSessionId
+        ? {
+            branchId: verifiedSession.branchId,
+            sessionId: verifiedTerminal.cashRegisterSessionId,
+          }
+        : onboardingSession;
+    if (!cashSession) {
+      status = 'bloqueado';
+      message = 'No hay una sesión de caja abierta. Inicia sesión o abre la caja.';
+      return;
+    }
+    const branchId = cashSession.branchId;
+    let branchSeries: readonly any[] = [];
+    try {
+      branchSeries = await fetchBranchSeries(branchId);
+    } catch {
+      branchSeries = [];
+    }
+    const chargeDoc = resolveChargeDocument({
+      formalizationMode: session.formalizationMode,
+      taxRegime: session.taxRegime,
+      clientDocumentType: clientDocType,
+      clientDocumentNumber: clientDocNumber.trim(),
+      branchSeries,
+    });
+    if (vitrinaOn)
+      publishVitrina({
+        totalCents: cartTotalCents(lines),
+        itemCount: lines.length,
+        documentType: chargeDoc.documentType,
+        phase: 'confirming',
+        message: 'Confirma el pago',
+        ...(brandQrOn && session.brandQrEnabled ? { brandLabel: 'Emitido con KipusPay' } : {}),
+      });
+    const outcome = await chargeCartOffline(
+      lines,
+      {
+        formalizationMode: session.formalizationMode,
+        taxRegime: session.taxRegime,
+        branchId,
+        cashRegisterSessionId: cashSession.sessionId,
+        series: chargeDoc.series,
+        clientDocumentType: clientDocType,
+        clientDocumentNumber: clientDocNumber.trim(),
+        clientName: clientName.trim(),
+        paymentMethodId: 'pm-cash',
+        documentTypeOverride: chargeDoc.documentType,
+        ...(commissionsOn && sellerId.trim() ? { sellerId: sellerId.trim() } : {}),
+        ...(tipOn && Number.isInteger(tipCents) && tipCents > 0
+          ? { tipCents: Math.round(tipCents) }
+          : {}),
+      },
+      queue,
+    );
+    if (!outcome.ok) {
+      status = 'bloqueado';
+      message = outcome.message;
+      return;
+    }
+    status = 'completado';
+    message = `Venta ${outcome.offlineSaleId} cobrada.`;
+    if (saleFeedbackOn) playSaleSuccessFeedback();
+    if (drawerOn) void createPrinterTransport().openDrawer();
+    void flushPendingSales();
+    if (session.firstSaleAtIso === null) {
+      const next = markTenantFirstSale(session, new Date().toISOString());
+      writeTenantSession(sessionStorage, next);
+      session = next;
+      void recordGrowthEvent('first_sale', { vertical: session.verticalType });
+    }
+    if (printTemplatesOn) {
+      const series = chargeDoc.series;
+      const reservation = correlatives.reserve(outcome.offlineSaleId, series);
+      const snapshot = buildSaleTicketSnapshot({
+        enterprise: session.tradeName,
+        ruc: '',
+        documentType: chargeDoc.documentType,
+        series,
+        number: reservation.tentativeNumber,
+        totalCents: cartPayableCents(lines),
+        items: lines.map((line) => ({
+          name: line.name,
+          qty: line.quantity,
+          totalCents: line.unitPriceCents * line.quantity,
+        })),
+        ...(brandQrOn && session.brandQrEnabled
+          ? {
+              brandFooter: {
+                enabled: true,
+                label: 'Emitido con KipusPay',
+                shortUrl: 'kipuspay.com',
+                qrPayload: 'https://kipuspay.com',
+              },
+            }
+          : {}),
+      });
+      printPreview = buildTicketHtml(snapshotToTicketData(snapshot));
+      void enqueueAndPrintTicket({
+        outbox: printOutbox,
+        transport: createPrinterTransport(buildPosPrinterEnv()),
+        saleId: outcome.offlineSaleId,
+        ticket: snapshot,
+      });
+    }
+  }
   function addProduct(item: SellableCatalogItem) {
     handleAddLine({ productId: item.productId, name: item.name, unitPriceCents: item.unitPriceCents, quantity: 1 });
   }
   $effect(()=>{ const h=printPreview; const c=previewContainer; if(!h||!c) return; c.querySelectorAll<HTMLElement>('[data-qr], [data-brand-qr]').forEach((el)=>{ const p=el.dataset.qr??el.dataset.brandQr??''; if(!p||el.dataset.qrRendered==='1') return; el.dataset.qrRendered='1'; const canvas=document.createElement('canvas'); renderQrToCanvas(canvas,p,120); canvas.setAttribute('data-testid','ticket-qr'); canvas.setAttribute('title',p); canvas.setAttribute('aria-label','Código QR del comprobante'); el.replaceChildren(canvas);});});
-  async function loadSellableCatalog(){ if(!catalogOn){ catalogLoading=false; return;} catalogLoading=true; catalogError=''; try{ catalogItems=await fetchSellableCatalog({ apiBase: resolveApiBase(localStorage), authorization: resolveApiAuth(localStorage).authorization??'', tenantId: resolveApiAuth(localStorage)['x-tenant-id']});}catch{ catalogError='No se pudo cargar el catálogo. La venta rápida sigue disponible.'; } finally{ catalogLoading=false;}}
   function addQuickSale(){ const name=quickName.trim(); if(!name||quickPriceCents===null||!Number.isInteger(quickPriceCents)||quickPriceCents<=0){ quickError='Ingresa un nombre y un precio válido.'; return;} if(quickPriceCents>QUICK_SALE_MAX_CENTS){ quickError=`El precio máximo sin autorización es S/ ${formatCents(QUICK_SALE_MAX_CENTS)}.`; return;} const next=genericLine(name, quickPriceCents); lines=addOrBumpLine(lines, genericLine(name, quickPriceCents)); quickSaleOpen=false; quickName=''; quickError='';}
   async function onResolveSeller(){ sellerResolveMsg=''; const r=await resolveSeller(sellerIdentifier); if(!r.ok){ sellerResolveMsg=r.message; return;} sellerId=r.userId; sellerResolvedName=r.email; sellerResolveOpen=false; sellerIdentifier='';}
   function removeLine(id:string){ lines=lines.filter(l=>l.productId!==id);}
@@ -164,9 +399,12 @@
       <p data-testid="checkout-off">El cobro está desactivado para esta tienda. Contacta a tu proveedor.</p>
     </div>
   {:else}
+    {#if fuelOn}
+      <FuelDispatchCard />
+    {/if}
     <div class="pos-main-grid">
       <div class="pos-instruments-col">
-        <SellableCatalog items={catalogItems} loading={catalogLoading} error={catalogError} catalogOn={catalogOn} bind:query={catalogQuery} onAdd={addProduct} onQuickSale={() => (quickSaleOpen = true)} />
+        <SellableCatalog items={catalogItems} loading={catalogLoading} error={catalogError} catalogOn={catalogOn} bind:query={catalogQuery} onAdd={addProduct} onQuickSale={quickLineOn ? () => (quickSaleOpen = true) : undefined} />
         {#if serialsOn}
           <SerialInstrument {catalogItems} onAddLine={handleAddLine} />
         {/if}
@@ -175,7 +413,7 @@
         {/if}
       </div>
       <div class="pos-cart-col">
-        <CartPanel bind:lines {status} {message} bind:tipCents {tipOn} {clientDocNumber} {clientName} {chargeSettled} onCharge={onCharge} onQuickSale={() => (quickSaleOpen = true)} onRemoveLine={removeLine} onUpdateQuantity={updateQuantity} />
+        <CartPanel bind:lines {status} {message} bind:tipCents {tipOn} {quickLineOn} {clientDocNumber} {clientName} {chargeSettled} onCharge={onCharge} onQuickSale={() => (quickSaleOpen = true)} onRemoveLine={removeLine} onUpdateQuantity={updateQuantity} />
         {#if printPreview}
           <div class="ledger-card print-preview-card" data-testid="print-preview">
             <div class="card-header"><h3>Vista Previa Ticket Térmico 80mm</h3><span class="badge badge-indigo">Listo para imprimir</span></div>

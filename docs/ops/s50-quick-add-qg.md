@@ -7,18 +7,18 @@ owner: "@DawoT"
 
 # Sprint 50 — Alta rápida de catálogo (catalog.quick_add + sales.quick_line) — Quality Gate
 
-**Estado software:** GREEN local  
+**Estado software:** GREEN local + canary Workers/D1 staging
 **Estado claim:** "sube tu catálogo con la cámara" descongelada (GTM §4.1, FASE 6G); producción/piloto NO-GO  
 **Capabilities:** `catalog.quick_add`, `sales.quick_line`, default-off (`FEATURE_CATALOG_QUICK_ADD`)  
 **Spec:** Arquitectura §5.3 regla 34 (edges 1A/2A) · Roadmap FASE 6G
 
-El gate automatizado demuestra el contrato en entorno local: clasificación de escaneo
+El gate automatizado demuestra el contrato en entorno local y el canary staging confirma la ruta HTTP autenticada: clasificación de escaneo
 por namespace (edge 1A: `EMP-` → vendedor, dígitos → producto, 0 falsos positivos en
 500 escaneos mixtos), upsert por barcode sin duplicar (índice único 0042), alta de
 producto en ~3s con audit `QUICK_ADD`, venta rápida genérica (edge 2A: `manualPriceCents`
 ≤ umbral sin authz, IGV default del tenant, `GENERIC_LINE` en audit, 0 descuento de
 stock, línea marcada pendiente de catalogar) y lector compartido zero-dependency.
-No existe staging Cloudflare real: producción y piloto NO-GO.
+El canary es sintético y aislado; producción y piloto siguen NO-GO.
 
 ## Evidencia RED→GREEN
 
@@ -82,7 +82,7 @@ Esta revisión no equivale a pentest.
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
 | Alta con cámara en <3s (gama baja) | PENDIENTE / NO-GO | QA humano con equipo físico |
-| Staging Cloudflare real | PENDIENTE / NO-GO | Bindings, CSP y latencia real |
+| Staging Cloudflare real | PARCIAL / NO-GO | quick-add 201 + scan 200 en Worker/D1; faltan cámara física, CSP/latencia observada y QA |
 | QA humana + A/V independiente | PENDIENTE / NO-GO | Flujo de caja validado por humanos |
 
 ## RACI real
@@ -98,8 +98,16 @@ Esta revisión no equivale a pentest.
 
 ## Veredicto
 
-**SOFTWARE-GREEN-CLAIM-LIVE.** El software y el gate automatizado quedan GREEN local y
-el claim **"sube tu catálogo con la cámara"** se descongela conforme al gate del
-Sprint 50 (Roadmap FASE 6G), con copy acotado (alta ~3s, venta rápida genérica sin
-stock y marcada para catalogar) y la capability default-off. Producción y piloto
-siguen NO-GO hasta staging real y firmas A/V independientes.
+**SOFTWARE-GREEN-CANARY.** El software y el gate automatizado quedan GREEN local;
+el canary staging confirmó alta autenticada **201** y scan **200** sobre un tenant
+sintético. El claim **"sube tu catálogo con la cámara"** permanece condicionado a
+cámara física de gama baja, validación de latencia/CSP y firmas A/V. Producción y
+piloto siguen NO-GO.
+
+## Evidencia S50 — canary staging 2026-09-17
+
+Con `catalog.quick_add` habilitado únicamente para `tenant_stg_cadena_001`, el
+Worker desplegado `6a45c6a0-497c-45b3-a41e-2c52a3c59883` creó el producto sintético
+`Canary producto S50` con barcode temporal y devolvió **201** (`created=true`). La
+consulta inmediata al lector compartido devolvió **200**, `PRODUCT_SCOPE` y el
+mismo producto. No se usó cámara física ni se incorporó el producto a ventas reales.

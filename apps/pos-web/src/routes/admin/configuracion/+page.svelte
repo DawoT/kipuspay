@@ -4,13 +4,6 @@
   import { advanceFormalization, enabledDocumentTypesFor } from '@kipuspay/domain-fiscal-pe';
   import { faqFor, type FaqItem } from '@kipuspay/domain-onboarding';
   import { causeLabel, nextStepFor, type DiagnosticReport } from '@kipuspay/domain-hardware';
-  import {
-    isCashDrawerEnabled,
-    isHardwareDiagnosticsEnabled,
-    isInventoryScaleEnabled,
-    isOnboardingTourEnabled,
-    isSaleTipEnabled,
-  } from '$lib/features';
   import { probeDrawer, runAllDiagnostics, runPrintTest } from '$lib/hardware/diagnostics';
   import { reportDiagnostics } from '$lib/hardware/diagnostics-client';
   import { probePrinterNetwork, probePrinterUsb, probeScale, probeVitrina } from '$lib/hardware/diagnostics';
@@ -22,6 +15,7 @@
     type PosTenantSession,
   } from '$lib/tenant/session';
   import { capabilitiesFromFlags } from '$lib/onboarding/capabilities';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { fetchSetupProgress, recordGrowthEvent } from '$lib/onboarding/tour-client';
   import SetupChecklist from '$lib/ui/SetupChecklist.svelte';
   import RcPendingBanner from '$lib/fiscal/RcPendingBanner.svelte';
@@ -43,6 +37,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   let planChanged = $state(false);
   let planSaving = $state(false);
   let planMessage = $state('');
+  const brandQrCapability = $derived($tenantCapabilities.has('pos.brand_qr'));
   // S11-E11: cancelación self-serve (POST /api/tenant/cancel).
   let cancelConfirmOpen = $state(false);
   let cancelMessage = $state('');
@@ -76,9 +71,9 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   let pendingMode = $state<FormalizationMode | null>(null);
   let error = $state('');
   let notice = $state('');
-  const scaleOn = isInventoryScaleEnabled();
+  const scaleOn = $derived($tenantCapabilities.has('inventory.scale'));
   // Sprint 53 — Troubleshooter de hardware (regla 37b, ADR-0033).
-  const hardwareOn = isHardwareDiagnosticsEnabled();
+  const hardwareOn = $derived($tenantCapabilities.has('hardware.diagnostics'));
   let hwReports = $state<Record<string, DiagnosticReport>>({});
   let hwBusyTarget = $state('');
   let hwPrintReport = $state<DiagnosticReport | null>(null);
@@ -115,8 +110,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   }
 
   // P2 — cajón de efectivo: prueba y política.
-  const drawerOn = isCashDrawerEnabled();
-  const tipPolicyOn = isSaleTipEnabled();
+  const cashPolicyOn = $derived($tenantCapabilities.has('cash.policy'));
   let hwDrawerBusy = $state(false);
   let drawerReport = $state<DiagnosticReport | null>(null);
   let tipMaxPercent = $state(25);
@@ -178,8 +172,8 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   let terminalId = $state('');
 
   // Sprint 52 — Setup Checklist "segundo día" (regla 37a, GTM §6.2).
-  const onboardingOn = isOnboardingTourEnabled();
-  const capabilities = capabilitiesFromFlags({
+  const onboardingOn = $derived($tenantCapabilities.has('onboarding.tour'));
+  const capabilities = $derived(capabilitiesFromFlags({
     kds: false,
     fefo: false,
     scale: scaleOn,
@@ -189,7 +183,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
     shiftHandoff: false,
     teamInvite: false,
     hardwareDiagnostics: hardwareOn,
-  });
+  }));
   let serverState = $state<{ logo: boolean; invoicing: boolean; team: boolean; catalog: boolean } | null>(null);
   let printerReady = $state(false);
   let checklistDismissed = $state(false);
@@ -209,7 +203,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
           printerReady = adapters.length > 0;
         });
     }
-    if (drawerOn || tipPolicyOn) {
+    if (cashPolicyOn) {
       void loadCashPolicy();
     }
   });
@@ -383,6 +377,10 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
   }
 
   function toggleBrandQr() {
+    if (!brandQrCapability) {
+      notice = 'La marca en comprobantes no está habilitada para este plan.';
+      return;
+    }
     session = { ...session, brandQrEnabled: !session.brandQrEnabled };
     writeTenantSession(sessionStorage, session);
     notice = session.brandQrEnabled
@@ -620,9 +618,9 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
         Pie “Emitido con KipusPay” + QR en boletas, notas de venta y vitrina. Activado por defecto; puedes desactivarlo.
       </p>
       <div class="status-toggle-row">
-        <p data-testid="brand-qr-state" class="state-pill" class:active={session.brandQrEnabled}>
-          <Icon name={session.brandQrEnabled ? 'check' : 'x'} size={14} />
-          <span>{session.brandQrEnabled ? 'Activado' : 'Desactivado'}</span>
+        <p data-testid="brand-qr-state" class="state-pill" class:active={brandQrCapability && session.brandQrEnabled}>
+          <Icon name={brandQrCapability && session.brandQrEnabled ? 'check' : 'x'} size={14} />
+          <span>{brandQrCapability && session.brandQrEnabled ? 'Activado' : 'Desactivado'}</span>
         </p>
         <Button
           variant="primary"
@@ -630,7 +628,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
           data-testid="toggle-brand-qr"
           onclick={toggleBrandQr}
         >
-          {session.brandQrEnabled ? 'Desactivar marca' : 'Activar marca'}
+          {brandQrCapability && session.brandQrEnabled ? 'Desactivar marca' : 'Activar marca'}
         </Button>
       </div>
     </section>
@@ -839,7 +837,7 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
         >
           {hwPrintBusy ? 'Imprimiendo…' : 'Imprimir prueba'}
         </Button>
-        {#if drawerOn}
+        {#if cashPolicyOn}
           <Button
             variant="secondary"
             size="sm"
@@ -927,36 +925,45 @@ import { resolveApiAuth, resolveApiBase, absolutizeApiUrl, apiFetch } from '$lib
         </div>
       {/if}
 
-      {#if drawerOn || tipPolicyOn}
-        <div class="policy-box" data-testid="cash-policy">
-          <h3>Política de caja (P2)</h3>
-          <div class="field-group">
-            <label for="tip-max-percent">Tope de propina (% del subtotal)</label>
-            <input
-              id="tip-max-percent"
-              type="number"
-              min="1"
-              max="100"
-              bind:value={tipMaxPercent}
-              data-testid="tip-max-percent"
-            />
-          </div>
-          <label class="checkbox-row">
-            <input
-              type="checkbox"
-              bind:checked={openDrawerOnCash}
-              data-testid="open-drawer-on-cash"
-            />
-            Abrir cajón tras cobros en efectivo y wallets (yape/plin/QR)
-          </label>
-          <Button variant="primary" size="sm" onclick={saveCashPolicy} data-testid="save-cash-policy">
-            Guardar política
-          </Button>
-          {#if policyMsg}
-            <p class="policy-msg" class:policy-ok={policyOk} data-testid="cash-policy-msg">{policyMsg}</p>
-          {/if}
+    </section>
+  {/if}
+
+  {#if cashPolicyOn}
+    <section id="cash-policy" class="ledger-card" aria-labelledby="cash-policy-title">
+      <div class="card-head">
+        <Icon name="shield" size={22} class="icon-amber" />
+        <div>
+          <p class="instrument-label">Caja · Políticas</p>
+          <h2 id="cash-policy-title">Política de caja</h2>
         </div>
-      {/if}
+      </div>
+      <div class="policy-box" data-testid="cash-policy">
+        <div class="field-group">
+          <label for="tip-max-percent">Tope de propina (% del subtotal)</label>
+          <input
+            id="tip-max-percent"
+            type="number"
+            min="1"
+            max="100"
+            bind:value={tipMaxPercent}
+            data-testid="tip-max-percent"
+          />
+        </div>
+        <label class="checkbox-row">
+          <input
+            type="checkbox"
+            bind:checked={openDrawerOnCash}
+            data-testid="open-drawer-on-cash"
+          />
+          Abrir cajón tras cobros en efectivo y wallets (yape/plin/QR)
+        </label>
+        <Button variant="primary" size="sm" onclick={saveCashPolicy} data-testid="save-cash-policy">
+          Guardar política
+        </Button>
+        {#if policyMsg}
+          <p class="policy-msg" class:policy-ok={policyOk} data-testid="cash-policy-msg">{policyMsg}</p>
+        {/if}
+      </div>
     </section>
   {/if}
 </main>

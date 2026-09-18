@@ -39,15 +39,15 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         q: '¿Qué pasa si se corta el internet en plena noche?',
-        a: 'Sigues cobrando igual. Cuando vuelve la señal, el envío de comprobantes se completa solo.',
+        a: 'Puedes seguir registrando ventas según la configuración de tu caja. Al volver la conexión, los datos pendientes se sincronizan; las funciones fiscales dependen de la habilitación del negocio y de la respuesta de SUNAT.',
       },
       {
         q: '¿Necesito una impresora especial?',
-        a: 'No. Empiezas con el comprobante digital y conectas la impresora térmica después; nunca bloquea el cobro.',
+        a: 'La impresión física es opcional y se puede configurar después. El documento disponible depende de la habilitación de tu negocio.',
       },
       {
         q: '¿Puedo dividir cuentas entre varios clientes en una misma mesa?',
-        a: 'Sí. Puedes separar consumos o cobrar partes iguales con distintos medios de pago (efectivo, tarjeta o billetera digital) emitiendo el comprobante correspondiente para cada comensal.',
+        a: 'Puedes separar consumos o cobrar partes iguales con distintos medios de pago. El documento disponible depende de la habilitación del negocio; SUNAT determina la aceptación de cada comprobante.',
       },
       {
         q: '¿Cómo controlo las recetas y el consumo de insumos en cocina?',
@@ -55,7 +55,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
     ],
     checkout: {
-      documentLabel: 'Boleta electrónica',
+      documentLabel: 'Ejemplo de venta',
       register: 'Caja salón',
       syncState: 'pending',
       caption: 'Ejemplo de una cuenta en hora punta.',
@@ -80,28 +80,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         icon: 'shield-check',
-        title: 'Boleta y factura en mesa',
-        description: 'Emisión directa ante SUNAT para cada comensal',
+        title: 'Documentos según habilitación',
+        description: 'Las opciones fiscales dependen de la habilitación del negocio',
       },
       {
         icon: 'sync',
         title: 'Caja continua en salón',
-        description: 'Cobra sin pausas aunque se corte la conexión',
+        description: 'La continuidad de la caja depende de su configuración y conexión disponible',
       },
     ],
     modules: [
       {
         id: 'kds-cocina',
-        title: 'KDS y Comandas de Cocina',
-        subtitle: 'Sincronización en tiempo real',
+        title: 'Comandas de cocina (en preparación)',
+        subtitle: 'Integración aún no disponible',
         icon: 'lightning',
         tag: 'OPERACIÓN SALÓN',
         description:
-          'Los pedidos tomados en mesa o mostrador se reflejan de inmediato en la pantalla de cocina con tiempos de preparación, notas y estados claros.',
+          'La integración entre las comandas de mesa y una pantalla de cocina está en preparación y aún no está disponible para uso general.',
         highlights: [
-          'Control de tiempos por plato en preparación',
-          'Alertas visuales de comandas listas para servir',
-          'Cero comandas de papel extraviadas en servicio',
+          'La disponibilidad se comunicará cuando se habilite',
+          'No se ofrece sincronización de cocina en este momento',
+          'La caja de venta continúa como flujo independiente',
         ],
       },
       {
@@ -111,11 +111,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'document',
         tag: 'EXPERIENCIA COMENSAL',
         description:
-          'Divide consumos individuales o partes iguales en segundos. Cada comensal puede pagar con su medio favorito emitiendo comprobante independiente.',
+          'Permite organizar consumos individuales o partes iguales y registrar los pagos por comensal. El documento disponible depende de la habilitación fiscal del negocio.',
         highlights: [
           'División en partes iguales o por ítem consumido',
           'Múltiples medios de pago en la misma mesa',
-          'Emisión de boletas y facturas separadas al instante',
+          'Documento disponible según la habilitación del negocio',
         ],
       },
       {
@@ -125,11 +125,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'panel',
         tag: 'GESTIÓN SALÓN',
         description:
-          'Visualiza el estado de cada mesa en tiempo real: libres, ocupadas, por cobrar o reservadas. Asigna mozos y rota mesas a máxima velocidad.',
+          'Consulta el estado registrado de cada mesa: libre, ocupada, por cobrar o reservada. Asigna mozos y organiza la rotación desde la caja.',
         highlights: [
           'Estados de mesa con código de color intuitivo',
           'Asignación de mozo y comensales por mesa',
-          'Consumo acumulado y tiempo de ocupación en vivo',
+          'Consumo acumulado y tiempo de ocupación registrados',
         ],
       },
     ],
@@ -139,13 +139,12 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     navLabel: 'Farmacias y boticas',
     shortLabel: 'Farmacias',
     title: 'KipusPay para farmacias',
-    pain: 'Despacha medicamentos en segundos, encuentra precios y presentaciones al instante y mantén el control estricto de tu inventario con total tranquilidad tributaria.',
-    hook: 'Atención ágil en mostrador, stock protegido y SUNAT al día.',
-    metaDescription:
-      'POS para farmacias y boticas: despacho ágil, control FEFO de lotes y emisión SUNAT sin demoras.',
+    pain: 'Encuentra precios y presentaciones de medicamentos y organiza el inventario de tu farmacia o botica.',
+    hook: 'Atención ágil en mostrador y control de inventario.',
+    metaDescription: 'POS para farmacias y boticas: despacho ágil, control de lotes y existencias.',
     points: [
       'Búsqueda instantánea por principio activo, nombre comercial y presentación',
-      'Emisión inmediata de boletas y facturas con DNI o RUC en un solo toque',
+      'Datos de cliente asociados al documento habilitado para el negocio',
       'Alertas automáticas de stock mínimo y control de lotes con vencimientos (FEFO)',
     ],
     pains: [
@@ -157,7 +156,8 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'documento',
         pain: 'Emisión de boletas y facturas con DNI/RUC genera demoras en hora punta.',
-        relief: 'Emisión automática y 100% legal ante SUNAT en segundos.',
+        relief:
+          'Las opciones de facturación dependen de la habilitación; SUNAT determina la aceptación de cada comprobante.',
       },
       {
         icon: 'cuaderno',
@@ -171,12 +171,12 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         a: 'Sí: control de vencimientos por lote (FEFO) para priorizar la salida de productos según su fecha de expiración, con descuento de inventario al vender y aviso de stock mínimo.',
       },
       {
-        q: '¿Puedo emitir boleta y factura?',
-        a: 'Sí, según tu etapa. Si aún te estás formalizando, cobras con nota de venta de control interno, siempre etiquetada como tal.',
+        q: '¿Qué documentos puedo usar en la caja?',
+        a: 'La nota de venta sirve para el control interno y no es un comprobante autorizado por SUNAT. Las opciones de facturación electrónica aún no están disponibles para activación general.',
       },
       {
-        q: '¿Cuánto demora cargar mi catálogo?',
-        a: 'Puedes importarlo desde un archivo CSV y cobrar el mismo día.',
+        q: '¿Cómo puedo cargar mi catálogo?',
+        a: 'Puedes revisar la plantilla CSV disponible y preparar los datos del catálogo antes de importarlos.',
       },
       {
         q: '¿Puedo buscar medicamentos por principio activo o laboratorio?',
@@ -188,7 +188,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
     ],
     checkout: {
-      documentLabel: 'Boleta electrónica',
+      documentLabel: 'Ejemplo de venta',
       register: 'Mostrador 1',
       syncState: 'synced',
       caption: 'Ejemplo de una venta de mostrador.',
@@ -218,8 +218,8 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         icon: 'shield-check',
-        title: 'SUNAT con DNI o RUC',
-        description: 'Emisión electrónica inmediata en un solo toque',
+        title: 'Facturación según habilitación',
+        description: 'Las opciones dependen de la habilitación fiscal del negocio',
       },
     ],
     modules: [
@@ -258,11 +258,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'document',
         tag: 'SUNAT & DIGEMID',
         description:
-          'Vincula recetas médicas y médicos tratantes a cada despacho. Emite boletas y facturas con validación inmediata de DNI o RUC en un solo toque.',
+          'Organiza la información de recetas médicas y médicos tratantes asociada a cada despacho. Las opciones de facturación dependen de la habilitación del negocio.',
         highlights: [
           'Búsqueda instantánea por principio activo',
           'Registro y verificación de receta médica',
-          'Emisión electrónica 100% legal en segundos',
+          'Opciones de facturación según la habilitación del negocio',
         ],
       },
     ],
@@ -272,13 +272,13 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     navLabel: 'Retail y minimarkets',
     shortLabel: 'Retail',
     title: 'KipusPay para retail y minimarkets',
-    pain: 'Todo lo que tu minimarket, ferretería o tienda necesita para despachar sin colas, registrar cada producto por código de barras y ver tus ganancias diarias en tiempo real.',
+    pain: 'Herramientas para que tu minimarket, ferretería o tienda registre productos por código de barras y organice sus ventas, stock y cierres de caja.',
     hook: 'Ventas rápidas, stock al día y control total de tus tiendas.',
     metaDescription:
-      'POS para retail y tiendas: escaneo ágil, inventario en tiempo real y arqueos automáticos sol a sol.',
+      'POS para retail y tiendas: escaneo de productos, control de inventario y arqueos de caja.',
     points: [
       'Escaneo ágil de productos con código de barras y venta rápida en un toque',
-      'Inventario actualizado en tiempo real que descuenta al instante en cada venta',
+      'Inventario que se actualiza con las ventas sincronizadas',
       'Arqueos automáticos y control sol a sol con Modo Dueño desde tu celular',
     ],
     pains: [
@@ -301,7 +301,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     faq: [
       {
         q: '¿Sirve si tengo dos o tres locales?',
-        a: 'Sí. Cada local tiene su caja y los ves juntos en Modo Dueño; el ranking de locales depende de tu plan.',
+        a: 'Puedes consultar la información disponible según el plan y la última sincronización. La antigüedad de los datos puede variar.',
       },
       {
         q: '¿Cómo sé si falta dinero en la caja?',
@@ -313,11 +313,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         q: '¿Es compatible con pistolas lectoras de código de barras?',
-        a: 'Sí. Cualquier lector de código de barras USB o Bluetooth funciona de inmediato al conectarlo, permitiendo un cobro ágil y continuo en mostrador.',
+        a: 'La compatibilidad depende del modelo del lector, el sistema operativo y el navegador. Confirma el modelo probado antes de comprar o conectarlo.',
       },
       {
         q: '¿Puedo vender por peso conectando una balanza digital?',
-        a: 'Sí. Puedes conectar una balanza digital compatible para lectura automática del peso o ingresar el peso manualmente en pantalla con cálculo instantáneo del precio total.',
+        a: 'La lectura automática depende del modelo de balanza. El ingreso manual puede estar disponible según la configuración y los permisos del negocio.',
       },
     ],
     checkout: {
@@ -347,12 +347,12 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'smartphone',
         title: 'Modo Dueño en el celular',
-        description: 'Ventas, arqueos y ganancias en tiempo real',
+        description: 'Ventas, arqueos y ganancias según la última sincronización',
       },
       {
         icon: 'shield-check',
-        title: '100% legal ante SUNAT',
-        description: 'Boletas y facturas emitidas en automático',
+        title: 'Facturación según habilitación',
+        description: 'Las opciones fiscales dependen de la habilitación del negocio',
       },
     ],
     modules: [
@@ -366,7 +366,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
           'Lectura continua con pistolas de código de barras USB y Bluetooth. Despacha sin colas en horas punta con cálculo instantáneo de vuelto.',
         highlights: [
           'Lectura EAN-13 en 0.1 segundos por producto',
-          'Calculadora interactiva de vuelto en tiempo real',
+          'Calculadora interactiva de vuelto durante el cobro',
           'Apertura automática de gaveta y ticket limpio',
         ],
       },
@@ -379,7 +379,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         description:
           'Conecta balanzas digitales para pesar carnes, frutas, verduras y embutidos. Captura el peso neto con tara y calcula el precio exacto al instante.',
         highlights: [
-          'Lectura USB y Bluetooth de peso estable en vivo',
+          'Lectura de peso sujeta a compatibilidad del modelo',
           'Tara automática y manual en mostrador',
           'Cálculo exacto sol a sol por gramo pesado',
         ],
@@ -405,14 +405,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     navLabel: 'Servicios y talleres',
     shortLabel: 'Servicios',
     title: 'KipusPay para servicios',
-    pain: 'El sistema ágil y directo para consultorios, talleres, salones de belleza y profesionales. Factura a empresas o emite boletas a tus clientes en segundos desde cualquier equipo.',
+    pain: 'Una caja para consultorios, talleres, salones de belleza y profesionales que necesitan registrar servicios, pagos y datos de clientes.',
     hook: 'Cobra tus servicios en un clic, sin complicaciones de inventario.',
     metaDescription:
       'POS para servicios y profesionales: cobra en segundos, factura a empresas y opera sin complicaciones.',
     points: [
       'Cobro ágil y directo de servicios sin exigencia de inventario ni campos innecesarios',
-      'Emisión de facturas electrónicas a empresas con RUC y boletas a clientes al instante',
-      'Listo para operar en 5 minutos desde cualquier tablet, computadora o celular',
+      'Registro de datos comerciales de clientes y servicios prestados',
+      'Configuración guiada desde una tablet, computadora o celular',
     ],
     pains: [
       {
@@ -423,12 +423,14 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'documento',
         pain: 'Emitir facturas a empresas o boletas a clientes toma demasiado tiempo.',
-        relief: 'Facturación electrónica ágil con validación de RUC y DNI al instante.',
+        relief:
+          'Las opciones de facturación dependen de la habilitación del negocio y de la respuesta de SUNAT.',
       },
       {
         icon: 'reloj',
         pain: 'Sistemas complejos que demoran días en configurarse y capacitar al personal.',
-        relief: 'Tu primera venta lista en menos de 5 minutos, fácil e intuitivo.',
+        relief:
+          'Prepara una primera venta con la guía; el tiempo depende de los datos y la configuración de tu negocio.',
       },
     ],
     faq: [
@@ -438,23 +440,23 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         q: '¿Puedo emitir factura a empresas?',
-        a: 'Sí. Al activar facturación electrónica, la caja te pide el RUC del cliente.',
+        a: 'Las opciones de facturación electrónica aún no están disponibles para activación general. SUNAT determina la aceptación de cada comprobante.',
       },
       {
         q: '¿Y si todavía no estoy formalizado?',
-        a: 'Empiezas con nota de venta de control interno y activas facturación desde Configuración, sin perder historial.',
+        a: 'Puedes empezar con una nota de venta de control interno. Las opciones de facturación electrónica aún no están disponibles para activación general.',
       },
       {
         q: '¿Puedo emitir cotizaciones antes de confirmar el trabajo?',
-        a: 'Sí. Creas una cotización con los servicios presupuestados y, cuando el cliente aprueba, la conviertes en comprobante de pago en un solo toque sin redigitar.',
+        a: 'Puedes registrar los servicios y revisar las opciones de cotización disponibles en tu plan. El documento de una venta depende de la habilitación del negocio.',
       },
       {
-        q: '¿Puedo registrar anticipos o pagos en cuotas por servicios realizados?',
-        a: 'Sí. Puedes registrar abonos parciales, controlar el saldo pendiente de cada cliente y emitir el comprobante correspondiente con total transparencia.',
+        q: '¿Puedo registrar anticipos o pagos parciales por servicios?',
+        a: 'Las opciones de abonos y cuentas por cobrar dependen de la configuración del negocio. El documento disponible depende de la habilitación fiscal.',
       },
     ],
     checkout: {
-      documentLabel: 'Factura electrónica',
+      documentLabel: 'Ejemplo de venta',
       register: 'Recepción',
       syncState: 'synced',
       caption: 'Ejemplo de un cobro sin inventario.',
@@ -478,8 +480,8 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         icon: 'shield-check',
-        title: '100% legal ante SUNAT',
-        description: 'Facturación electrónica sin trámites lentos',
+        title: 'Facturación según habilitación',
+        description: 'Las opciones fiscales dependen de la habilitación del negocio',
       },
       {
         icon: 'smartphone',
@@ -495,11 +497,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'document',
         tag: 'OPERACIONES B2B',
         description:
-          'Organiza mano de obra y repuestos en órdenes de trabajo estructuradas. Emite facturas electrónicas con validación directa de RUC ante SUNAT.',
+          'Organiza mano de obra y repuestos en órdenes de trabajo estructuradas. Los documentos disponibles dependen de la habilitación del negocio.',
         highlights: [
           'Desglose detallado de mano de obra y repuestos',
-          'Validación automática de estado y condición de RUC',
-          'Emisión inmediata de Factura electrónica B2B',
+          'Registro de los datos de facturación del cliente',
+          'Documento disponible según la habilitación del negocio',
         ],
       },
       {
@@ -518,16 +520,16 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         id: 'detracciones-sunat',
-        title: 'Detracciones SUNAT Automáticas',
-        subtitle: 'Cálculo SPOT sin errores',
+        title: 'Información tributaria',
+        subtitle: 'Sujeta a habilitación fiscal',
         icon: 'shield-check',
         tag: 'TRIBUTARIO SUNAT',
         description:
-          'Aplica el porcentaje de detracción SPOT correspondiente para servicios corporativos. Genera comprobantes con el monto neto y monto de detracción.',
+          'Las detracciones y los documentos tributarios dependen de la habilitación fiscal y de las reglas aplicables al negocio.',
         highlights: [
-          'Cálculo automático de tasa SPOT (12%)',
-          'Desglose transparente: Monto detracción y Neto',
-          'Leyenda legal tributaria obligatoria incluida',
+          'Consulta las reglas tributarias aplicables antes de operar',
+          'No se confirma aceptación sin respuesta oficial',
+          'La emisión depende de la habilitación fiscal',
         ],
       },
     ],
@@ -542,8 +544,8 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     metaDescription:
       'POS para cadenas y sucursales: supervisa todos tus locales, compara ventas y gestiona con Modo Dueño.',
     points: [
-      'Panel unificado para supervisar todas tus sucursales y cajas en tiempo real',
-      'Comparativa y ranking de locales en vivo con Modo Dueño en tu celular',
+      'Panel unificado para revisar sucursales y cajas a medida que sincronizan',
+      'Comparativa y ranking de locales según la información sincronizada y tu plan',
       'Transferencias de mercadería y control de inventario con trazabilidad total',
     ],
     pains: [
@@ -560,7 +562,8 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'reloj',
         pain: 'Los reportes consolidados llegan tarde para tomar decisiones operativas.',
-        relief: 'Información sincronizada en tiempo real disponible desde tu celular.',
+        relief:
+          'Consulta desde tu celular la información disponible según la última sincronización.',
       },
     ],
     faq: [
@@ -586,7 +589,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
     ],
     checkout: {
-      documentLabel: 'Boleta electrónica',
+      documentLabel: 'Ejemplo de venta',
       register: 'Local Centro · Caja 2',
       syncState: 'synced',
       caption: 'Ejemplo de una caja de sucursal.',
@@ -603,7 +606,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       {
         icon: 'institution',
         title: 'Control multi-local',
-        description: 'Métricas y stock de todas las sedes en vivo',
+        description: 'Métricas y stock según la última sincronización',
       },
       {
         icon: 'sync',
@@ -629,11 +632,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'smartphone',
         tag: 'MULTI-LOCAL',
         description:
-          'Supervisa las ventas, transacciones y arqueos de todas tus sucursales en vivo. Compara el rendimiento de tus locales desde cualquier lugar.',
+          'Consulta ventas, transacciones y arqueos disponibles de tus sucursales. Los datos se actualizan a medida que las cajas sincronizan.',
         highlights: [
-          'Ventas en vivo y métricas de todas las sedes',
+          'Ventas y métricas según la última sincronización',
           'Arqueos y cierres de turno transparentes',
-          'Acceso móvil para supervisión remota en tiempo real',
+          'Acceso móvil para supervisión remota según la última sincronización',
         ],
       },
       {
@@ -645,7 +648,7 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         description:
           'Despacha y recibe productos entre almacén central y sucursales. Controla guías de remisión internas y coteja cantidades sin descuadres.',
         highlights: [
-          'Solicitudes de despacho y recepción en vivo',
+          'Solicitudes de despacho y recepción registradas',
           'Descuento e ingreso automático en inventario',
           'Trazabilidad total de envíos sin diferencias',
         ],
@@ -671,13 +674,13 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
     navLabel: 'Grifos y estaciones de servicio',
     shortLabel: 'Grifos',
     title: 'KipusPay para grifos',
-    pain: 'Controla cada surtidor, cobra en segundos y emite facturas a flotas sin papel ni esperas. Tu estación siempre operativa y tu caja siempre cuadrada.',
-    hook: 'Surtidor activo, caja cuadrada y flota atendida sin papel.',
+    pain: 'Organiza los despachos por surtidor y registra los cobros y movimientos de caja de tu estación de servicio.',
+    hook: 'Despachos organizados y control de caja por turno.',
     metaDescription:
-      'POS para grifos y estaciones de servicio: control de surtidores, precios del día y facturación a flotas con cálculo automático de detracción.',
+      'POS para grifos y estaciones de servicio: registro de despachos, precios y movimientos por turno.',
     points: [
       'Cobro por monto o volumen en segundos: efectivo, tarjeta y saldo de flota en un solo toque',
-      'Facturación electrónica con cálculo automático de detracción al despachar diésel a flotas',
+      'Opciones de facturación sujetas a habilitación fiscal del negocio',
       'Control de precios por combustible y reporte de despachos por turno e isleta',
     ],
     pains: [
@@ -689,15 +692,15 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       },
       {
         icon: 'documento',
-        pain: 'Calcular la detracción del diésel a mano en cada factura a empresa genera errores con SUNAT.',
+        pain: 'Revisar los requisitos tributarios de cada operación con flotas puede consumir tiempo.',
         relief:
-          'El sistema calcula y separa el porcentaje de detracción al seleccionar diésel en la factura.',
+          'Las funciones fiscales dependen de la habilitación del negocio y de las reglas aplicables.',
       },
       {
         icon: 'caja',
         pain: 'Cuadrar la caja al cierre del turno con varios surtidores activos toma media hora.',
         relief:
-          'El reporte de turno por isleta está listo en segundos con despachos, montos y medios de pago.',
+          'Consulta el reporte de turno disponible para revisar despachos, montos y medios de pago registrados.',
       },
     ],
     faq: [
@@ -706,24 +709,24 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         a: 'Sí. Desde la misma pantalla gestionas todas las isletas activas y cobras cada despacho sin cambiar de vista.',
       },
       {
-        q: '¿Calcula solo la detracción para el diésel?',
-        a: 'Sí. Al registrar un despacho de diésel con factura a empresa, el sistema aplica la tasa y la muestra antes de cobrar.',
+        q: '¿Qué debo considerar para facturar un despacho?',
+        a: 'Las opciones de facturación electrónica aún no están disponibles para activación general. Los requisitos tributarios dependen de la operación y de las reglas vigentes.',
       },
       {
-        q: '¿Puedo facturar despachos a empresas de flota con RUC y placa?',
-        a: 'Sí. Registras el RUC, la placa y el tipo de combustible; el comprobante sale listo sin digitado extra.',
+        q: '¿Puedo registrar datos de una flota y sus vehículos?',
+        a: 'Las funciones de flota se habilitan según la configuración del negocio. Confirma su disponibilidad antes de depender de ellas en una operación.',
       },
       {
         q: '¿Qué pasa si se va el internet en pleno turno?',
-        a: 'Sigues registrando y cobrando sin pausas. Cuando la conexión vuelve, los comprobantes se envían solos.',
+        a: 'Puedes seguir registrando ventas según la configuración de tu caja. Al volver la conexión, se sincronizan los datos pendientes; no se promete envío fiscal automático.',
       },
       {
         q: '¿Cómo controlo el stock y las mermas de combustible en los tanques?',
-        a: 'El sistema registra cada despacho en tiempo real y te permite cotejar el volumen despachado contra el aforo de tus tanques para detectar mermas o diferencias al instante.',
+        a: 'El sistema registra los despachos y permite cotejar el volumen registrado contra el aforo de tus tanques para revisar posibles diferencias.',
       },
     ],
     checkout: {
-      documentLabel: 'Factura electrónica',
+      documentLabel: 'Ejemplo de venta',
       register: 'Caja central',
       syncState: 'synced',
       caption: 'Ejemplo de despacho de Gasohol 95 en isleta 2.',
@@ -733,28 +736,28 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
       ],
     },
     featuredClaimId: 'fuel_fleet',
-    heroPoster: '/media/og-grifos.png',
+    heroPoster: '/media/og-kipuspay.png',
     heroBadges: [
       {
         icon: 'lightning',
         title: 'Despacho por monto o volumen',
-        description: 'El cobro registra litros, galones o monto fijo sin errores manuales',
+        description: 'El registro por monto o volumen depende de la configuración de la estación',
       },
       {
         icon: 'document',
-        title: 'Detracción automática',
-        description: 'Incluida en cada factura de diésel a empresa, sin cálculo manual',
+        title: 'Facturación según habilitación',
+        description: 'Las opciones y cálculos fiscales dependen de la habilitación del negocio',
       },
       {
         icon: 'shield-check',
         title: 'Facturación a flotas',
-        description: 'RUC, placa y tipo de combustible en cada comprobante B2B',
+        description: 'Los datos registrados dependen del flujo habilitado para el negocio',
       },
       {
         icon: 'sync',
-        title: 'Caja continua sin internet',
+        title: 'Registro según conexión',
         description:
-          'Cobra sin pausas aunque la conexión falle; sincronización automática al volver',
+          'La continuidad y sincronización dependen de la configuración de la caja y la conexión disponible',
       },
     ],
     modules: [
@@ -765,9 +768,9 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'lightning',
         tag: 'OPERACIÓN EN PISTA',
         description:
-          'Visualiza el estado de cada isleta en tiempo real: libre, despachando o en espera de pago. Cobra en segundos sin interrumpir el flujo de la pista.',
+          'Consulta el estado registrado de cada isleta: libre, despachando o en espera de pago. Organiza el cobro desde la pantalla de pista.',
         highlights: [
-          'Estado en vivo de cada isleta con semáforo de color',
+          'Estado registrado de cada isleta con indicador visual',
           'Cobro por monto fijo o por volumen de galones',
           'Registro de placa y tipo de combustible por despacho',
         ],
@@ -779,11 +782,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'panel',
         tag: 'GESTIÓN COMERCIAL',
         description:
-          'Actualiza y publica en segundos los precios de cada combustible. El personal en pista ve siempre el precio vigente sin depender de pizarras ni papeles.',
+          'Organiza los precios registrados para cada combustible. La actualización en otras cajas depende de su conexión; consulta la hora de la última sincronización.',
         highlights: [
-          'Precios por combustible actualizables al instante',
+          'Precios por combustible con fecha de actualización visible',
           'Indicador de vigencia y última actualización',
-          'Badge automático de detracción en combustibles afectos',
+          'Información tributaria sujeta a habilitación fiscal',
         ],
       },
       {
@@ -793,11 +796,11 @@ const BY_SLUG: Readonly<Record<VerticalSlug, VerticalLanding>> = {
         icon: 'document',
         tag: 'FACTURACIÓN FLOTA',
         description:
-          'Gestiona las cuentas de tus clientes empresa: controla el saldo de cada tarjeta fleet, registra placa y odómetro por despacho y emite la factura con detracción incluida.',
+          'Organiza los datos de tus clientes empresa y los despachos asociados según las funciones habilitadas para tu negocio.',
         highlights: [
           'Saldo de cuenta y límite de crédito por empresa',
           'Registro de placa, odómetro y chofer en cada despacho',
-          'Cálculo automático de detracción para diésel en facturas B2B',
+          'Las funciones de facturación dependen de la habilitación fiscal',
         ],
       },
     ],

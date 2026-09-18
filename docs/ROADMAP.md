@@ -30,7 +30,7 @@ owner: "@DawoT"
 | 6E    | Servicios y Fuerza de Venta                                          | 43–45   | `[roadmap/fase-6e.md](roadmap/fase-6e.md)` |
 | 6F    | Analítica Predictiva, Compliance e Inteligencia del Negocio          | 46–49   | `[roadmap/fase-6f.md](roadmap/fase-6f.md)` |
 | 6G    | Flujo del Cliente                                                    | 50–53   | `[roadmap/fase-6g.md](roadmap/fase-6g.md)` |
-| 6H    | Remediación y Sello QA (auditoría browser)                           | 54–59   | `[ops/browser-functional-audit.md](ops/browser-functional-audit.md)` |
+| 6H    | Remediación, Sello QA y vertical Grifos (capabilities fuel)           | 54–59   | `[roadmap/fase-6h.md](roadmap/fase-6h.md)` |
 | FL    | Facturador Live (CPE fail-closed + CDR; GRE/02/20 después)           | FL-0–FL-5 | `[roadmap/fase-fiscal-live.md](roadmap/fase-fiscal-live.md)` |
 
 
@@ -85,10 +85,10 @@ owner: "@DawoT"
 | 38     | 6D   | Actualizada (inventory.locations + ADR-0022 + GTM-17 parcial)                                               | Cerrado                                         |
 | 39–42  | 6D   | Actualizada (FASE 6D reglas 24–27)                                                                          | Cerrado (QG s39–s42; ledgers 0423–0430)                       |
 | 43–45  | 6E   | Actualizada (S43–S44 GREEN local condicionado; S45 regla 30 en §5.12 + ADR-0029 + GTM-26)                  | Software GREEN local; QG `docs/ops/s43-customer-orders-qg.md`; claim/producción NO-GO hasta go-live externo; sellos batch G/H (ledgers 0431–0432) |
-| 46     | 6F   | Actualizada (Sprint 46 regla 31 — forecasting; ADR-0030; GTM-01 descongelado)                              | Software GREEN local; QG `docs/ops/s46-forecasting-qg.md`; producción/piloto NO-GO; sello batch F (ledger 0429) |
-| 47     | 6F   | Actualizada (Sprint 47 regla 32a — LPDP; ADR-0031; GTM-09 descongelado)                                    | Software GREEN local; QG `docs/ops/s47-lpdp-qg.md`; producción/piloto NO-GO; LPDP admin sellado (batch H, ledger 0432); self-serve titular en fase de cierre C3 |
-| 48     | 6F   | Actualizada (Sprint 48 regla 32b — DR/BCP)                                                                  | Software GREEN local (backup S42); restauración/simulacro en fase de cierre C4 |
-| 49     | 6F   | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica)                                       | Software GREEN local; QG `docs/ops/s49-insights-qg.md`; sellado (batch F, ledger 0429); producción NO-GO |
+| 46     | 6F   | Actualizada (Sprint 46 regla 31 — forecasting; ADR-0030; GTM-01 congelado hasta MAPE y validación externa) | Software GREEN local + canary parcial; MAPE/objetivo aprobado, cron Cloudflare, QA y firmas A+V pendientes; claim no vendible |
+| 47     | 6F   | Actualizada (Sprint 47 regla 32a — LPDP; ADR-0031; GTM-09 CONGELADO)                                        | OTP por correo + rate limit SQLite DO GREEN local; QG `docs/ops/s47-lpdp-qg.md`; sender real, revisión Security final, QA/A+V pendientes; staging/piloto/producción NO-GO |
+| 48     | 6F   | Actualizada (Sprint 48 regla 32b — DR/BCP)                                                                  | Software GREEN local; RTO histórico staging no califica y simulacro debe repetirse tras deploy; cutover/rollback, QA y A/V pendientes |
+| 49     | 6F   | Actualizada (Sprint 49 regla 33 — agentic insights + PERF-12 réplica)                                       | Software GREEN local + canary fast-path parcial; generación útil con facts no triviales, SLO general, Cron/KV, QA y A+V pendientes; GTM-10 congelado |
 | 50–53  | 6G   | Actualizada (FASE 6G reglas 34–37 — flujo del cliente)                                                      | Cerrado (QG s50–s53; sellos batches A–E, ledgers 0422–0428) |
 | 54–59  | 6H   | Actualizada (Fase 6H — Remediación y Sello QA; `docs/ops/browser-functional-audit.md`)                      | Cerrado (ledgers 0407–0434; QG `docs/ops/6h-remediation-qg.md`) |
 | FL-0   | FL   | Actualizada (fail-closed transporte/drain/UI; ADR-FISCAL-008)                                               | Software GREEN local; QG `docs/ops/fl-fiscal-live-qg.md`; GTM-08 WAIT |
@@ -97,9 +97,8 @@ owner: "@DawoT"
 | FL-3   | FL   | Actualizada (NC/ND + RC en canal acreditado)                                                                | WAIT canal FL-2; software GREEN |
 | FL-4   | FL   | Actualizada (pack GTM-08 + T6 opt-in)                                                                       | WAIT firmas A+V; no descongelar GTM-08 |
 | FL-5   | FL   | Actualizada (UBL GRE 31 / 02 / 20 + outbox; detracción NO-GO banco)                                         | Software GREEN local; flags git 0; claims Cadena WAIT |
-| C1–C5  | Cierre | Fase de cierre del proyecto: doctrina de claims, KDS/salón/split UI, LPDP self-serve, DR interno, sello final | Planificado (ledgers 0435–0439)                               |
+| C1–C5  | Cierre | Fase de cierre del proyecto: doctrina de claims, KDS/salón/split UI, LPDP self-serve, DR interno, sello final | C1/C2/C4/C5 registrados en 0435–0439; C3 reabierto para OTP, validación externa y A/V; claims sujetos a sus QG |
 | Go-live | Cierre | Staging Cloudflare real, sandbox SUNAT, Android físico, FCM/VAPID, impresoras — paquete por QG s41–s49      | Agenda al final (`pending-batches.yaml` bloque go-live)        |
 
 
 ---
-

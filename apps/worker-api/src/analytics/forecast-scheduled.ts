@@ -14,7 +14,7 @@ import {
 } from '@kipuspay/adapters-d1/forecast-repository';
 import type { D1DatabaseLike } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { isAnalyticsForecastingEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface ForecastScheduledInput {
   readonly scheduledTime?: number;
@@ -55,16 +55,6 @@ export async function runForecastScheduled(
   env: WorkerEnv,
   input: ForecastScheduledInput,
 ): Promise<ForecastScheduledResult> {
-  if (!isAnalyticsForecastingEnabled(env)) {
-    return {
-      status: 'FEATURE_OFF',
-      tenants: 0,
-      candidates: 0,
-      written: 0,
-      insufficient: 0,
-      failures: 0,
-    };
-  }
   if (!env.DB) {
     return {
       status: 'DB_UNAVAILABLE',
@@ -85,6 +75,15 @@ export async function runForecastScheduled(
   let failures = 0;
 
   for (const pair of pairs) {
+    try {
+      await new CapabilityResolver(env).require(pair.tenant_id, 'analytics.forecasting');
+    } catch (error) {
+      // A revoked tenant is skipped; an unavailable capability store must
+      // abort the job so the scheduler retries instead of silently producing
+      // a partial forecast.
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      throw error;
+    }
     const list = await listForecastCandidates(
       env.DB,
       pair.tenant_id,

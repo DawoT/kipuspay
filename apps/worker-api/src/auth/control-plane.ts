@@ -3,6 +3,24 @@ import { loadUserFromD1 } from './idp-user.js';
 import type { TenantAuthDeps } from './tenant-auth-middleware.js';
 import { verifyJwt, type JwtVerifyEnv } from './verify-jwt.js';
 import type { BackupKmsBinding } from '../backup/backup-workflow.js';
+import type {
+  LpdpOtpChallengeInput,
+  LpdpOtpConsumeResult,
+  LpdpRateLimitInput,
+  LpdpRateLimitResult,
+} from '../customers/lpdp-security-shard.js';
+
+interface LpdpSecurityShardStub {
+  consumeRateLimit(input: LpdpRateLimitInput): Promise<LpdpRateLimitResult>;
+  createOtpChallenge(input: LpdpOtpChallengeInput): Promise<void>;
+  consumeOtpChallenge(input: {
+    readonly challengeId: string;
+    readonly codeHash: string;
+    readonly nowMs: number;
+    readonly maxAttempts: number;
+  }): Promise<LpdpOtpConsumeResult>;
+  deleteOtpChallenge(challengeId: string): Promise<void>;
+}
 
 /** Bindings mínimos del plano de control (KV + DO). */
 export interface ControlPlaneEnv {
@@ -17,9 +35,15 @@ export interface ControlPlaneEnv {
       fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
     };
   };
+  readonly LPDP_OTP_STATE_DO?: {
+    getByName(name: string): LpdpSecurityShardStub;
+  };
 }
 
 export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
+  readonly EMAIL?: SendEmail;
+  readonly LPDP_OTP_FROM?: string;
+  readonly LPDP_OTP_HMAC_SECRET?: string;
   readonly DB?: D1Database;
   /** Alias local de DB para dedup SEC-08 (Arquitectura §4). */
   readonly WEBHOOK_EVENTS_DB?: D1Database;
@@ -103,6 +127,7 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_CATALOG_UOM?: string;
   /** Sprint C1: catálogo vendible para la terminal del POS. */
   readonly FEATURE_CATALOG_SELLABLE?: string;
+  readonly FEATURE_CATALOG_QUICK_ADD?: string;
   /** Sprint C2: login local del POS con PIN de cajero (ADR-0034). */
   readonly FEATURE_AUTH_CASHIER_LOGIN?: string;
   /** Sprint 32: apartados + diario (ADR-0016). */
@@ -213,6 +238,8 @@ export interface WorkerEnv extends ControlPlaneEnv, JwtVerifyEnv {
   readonly FEATURE_LOYALTY_POINTS?: string;
   /** Ola 2 — capabilities dinámicas SaaS (ADR-ARCH-003) — kill-switch global. */
   readonly FEATURE_TENANT_CAPABILITIES_DYNAMIC?: string;
+  /** Grifos: kill switch de plataforma; la autorización sigue siendo por tenant. */
+  readonly FEATURE_FUEL_STATION?: string;
   /** Sprint 47 — LPDP: inventario/consentimiento/export/erase de datos personales. */
   readonly FEATURE_LPDP?: string;
   readonly WA_ACCESS_TOKEN?: string;

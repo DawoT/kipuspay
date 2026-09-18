@@ -373,12 +373,12 @@ function scanShellInShellCaja(): Finding[] {
 function scanHandoffNavGated(): Finding[] {
   const nav = readFileSync(join(POS_SRC, 'lib/ui/CashierBottomNav.svelte'), 'utf8');
   const out: Finding[] = [];
-  if (!/isShiftHandoffEnabled/.test(nav)) {
+  if (!/tenantCapabilities\.has\(['"]ops\.shift_handoff['"]\)/.test(nav)) {
     out.push({
       id: 'HANDOFF_NAV_GATED',
       file: 'lib/ui/CashierBottomNav.svelte',
       line: 1,
-      detail: 'debe gatear handoff con isShiftHandoffEnabled',
+      detail: 'debe gatear handoff con capability ops.shift_handoff',
     });
   }
   if (!/\/caja\/handoff/.test(nav) || !/pos-nav-handoff/.test(nav)) {

@@ -127,16 +127,19 @@ async function claimEvent(
     .bind(eventId)
     .first<{ status: string }>();
 
-  if (prior?.status === 'PROCESSED') return 'deduplicated';
+  // PROCESSING también es propiedad de otra entrega concurrente. Reclamarlos
+  // aquí permitiría que ambas ejecuten efectos antes del markProcessed.
+  if (prior?.status === 'PROCESSED' || prior?.status === 'PROCESSING') return 'deduplicated';
+  if (prior?.status !== 'FAILED') return 'deduplicated';
 
-  await db
+  const reclaimed = await db
     .prepare(
       `UPDATE webhook_events SET status = 'PROCESSING', attempt_count = attempt_count + 1,
-       last_error = NULL WHERE source = 'stripe' AND event_id = ?`,
+       last_error = NULL WHERE source = 'stripe' AND event_id = ? AND status = 'FAILED'`,
     )
     .bind(eventId)
     .run();
-  return 'claimed';
+  return (reclaimed.meta?.changes ?? 0) === 1 ? 'claimed' : 'deduplicated';
 }
 
 async function markProcessed(db: D1Database, eventId: string): Promise<void> {

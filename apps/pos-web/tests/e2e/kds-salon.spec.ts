@@ -1,30 +1,36 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // Sprint C2 — KDS/comandas/salón/split descongelados: el flujo completo del
 // salón (crear comanda con catálogo real → enviar a cocina), el display de
 // cocina (replay de pendientes + marcar listo) y la división de cuentas.
 // Contrato nuevo tras el cierre del claim de comandas (Guía §16).
 
-const SESSION = JSON.stringify({
-  userId: 'cashier-e2e',
-  role: 'cashier',
-  branchId: 'branch-e2e',
-});
-const CLAIM = JSON.stringify({ branchId: 'branch-e2e', sessionId: 'session-e2e' });
+async function installRestaurantSession(page: Page) {
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'cashier',
+    branchId: 'branch-e2e',
+    verticalType: 'restaurantes',
+    tradeName: 'Restaurante E2E',
+    capabilities: ['orders.kds', 'orders.lifecycle', 'orders.split_bill', 'catalog.sellable'],
+    onboardingClaim: { branchId: 'branch-e2e', sessionId: 'session-e2e' },
+  });
+}
+
+async function installApiFallback(page: Page) {
+  await page.route('**/api/**', (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === '/api/auth/session' || pathname === '/api/tenant/context') {
+      return route.fallback();
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+}
 
 test('salón: crear comanda con catálogo real y enviar a cocina', async ({ page }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installRestaurantSession(page);
+  await installApiFallback(page);
   await page.route('**/api/catalog/sellable**', (route) =>
     route.fulfill({
       status: 200,
@@ -83,18 +89,8 @@ test('cocina: replay de comandas pendientes y marcar listo', async ({ page }) =>
       close() {}
     };
   });
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installRestaurantSession(page);
+  await installApiFallback(page);
   await page.route('**/api/kds/ws-ticket', (route) =>
     route.fulfill({
       status: 200,
@@ -139,18 +135,8 @@ test('cocina: replay de comandas pendientes y marcar listo', async ({ page }) =>
 });
 
 test('split: dividir cuenta en dos pagos', async ({ page }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installRestaurantSession(page);
+  await installApiFallback(page);
   const splitBodies: Array<Record<string, unknown>> = [];
   await page.route('**/api/orders/split', async (route) => {
     splitBodies.push(route.request().postDataJSON() as Record<string, unknown>);

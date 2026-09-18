@@ -8,6 +8,7 @@ import {
   runDailyRollupsCronHttp,
   runReportHttp,
   runReportsCatalogHttp,
+  runReportsCatalogTenantHttp,
   toCsv,
 } from './report-routes.js';
 
@@ -17,7 +18,7 @@ function mockEnv(
   opts: { kvShards?: string | null; noDb?: boolean } = {},
 ): WorkerEnv {
   const bound = {
-    first: () => Promise.resolve(null),
+    first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
     all: () => Promise.resolve({ results: all }),
     run: () => Promise.resolve({ success: true, results: [], meta: {} }),
   };
@@ -64,6 +65,19 @@ describe('reporting flags + catalog', () => {
     expect(body.reports).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'inventory-by-location' })]),
     );
+  });
+
+  it('catalog HTTP exige capability del tenant aunque el flag global esté activo', async () => {
+    const allowed = await runReportsCatalogTenantHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '1' }),
+      't1',
+    );
+    expect(allowed.status).toBe(200);
+    const killed = await runReportsCatalogTenantHttp(
+      mockEnv({ FEATURE_REPORTING_CATALOG: '0' }),
+      't1',
+    );
+    expect(killed.status).toBe(404);
   });
 
   it('Sprint 39 publica y ejecuta inventory-serial-warranty de forma aislada', async () => {
@@ -306,8 +320,8 @@ describe('reporting flags + catalog', () => {
     expect(csv).not.toContain('11.80');
   });
 
-  it('cron flag off / DB unavailable / on con shards vacíos', { timeout: 20_000 }, async () => {
-    expect((await runDailyRollupsCronHttp({} as WorkerEnv, {})).status).toBe(404);
+  it('cron sin DB / con DB y shards vacíos', { timeout: 20_000 }, async () => {
+    expect((await runDailyRollupsCronHttp({} as WorkerEnv, {})).status).toBe(503);
     expect(
       (
         await runDailyRollupsCronHttp(

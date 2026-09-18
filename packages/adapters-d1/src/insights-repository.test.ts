@@ -45,7 +45,7 @@ function mockDb(handlers: readonly SqlHandler[]): InsightSessionDb {
       const handler = match(sql);
       return { bind: (...params: unknown[]) => bound(handler, params) };
     },
-    batch: () => Promise.resolve([]),
+    batch: (statements) => Promise.all(statements.map((statement) => statement.run())),
     withSession: () => ({ prepare: (sql: string) => session(sql) }) as never,
   };
 }
@@ -93,6 +93,26 @@ describe('insights-repository unit (Sprint 49)', () => {
     await expect(consumeAiUsage(exhausted, 't1', '2026-08-04', 5, 10)).rejects.toThrow(
       'AI_QUOTA_EXCEEDED',
     );
+  });
+
+  it('consumeAiUsage agrupa la creación y el consumo del cupo en un solo batch D1', async () => {
+    const batchCalls: unknown[][] = [];
+    const db = {
+      prepare: (sql: string) => ({
+        bind: (...params: unknown[]) => {
+          void params;
+          return { sql, run: async () => ({ meta: { changes: 1 } }) };
+        },
+      }),
+      batch: async (statements: readonly { run: () => Promise<unknown> }[]) => {
+        batchCalls.push([...statements]);
+        return Promise.all(statements.map((statement) => statement.run()));
+      },
+    } as never;
+
+    await consumeAiUsage(db, 't1', '2026-08-04', 5, 10);
+    expect(batchCalls).toHaveLength(1);
+    expect(batchCalls[0]).toHaveLength(2);
   });
 
   it('runInsightSelect devuelve filas de la sesión réplica', async () => {

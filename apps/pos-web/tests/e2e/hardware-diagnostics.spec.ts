@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 /**
  * Sprint 53 — Troubleshooter de hardware (regla 37b / ADR-0033).
@@ -6,21 +7,12 @@ import { expect, test, type Page } from '@playwright/test';
  * mockear navigator.usb: Playwright inyecta la respuesta de cada probe.
  */
 
-async function mockSession(page: Page, role: string) {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: role === 'owner' ? 'owner-e2e' : 'cashier-e2e',
-        role,
-        branchId: 'branch-e2e',
-        terminal: null,
-        tradeName: 'Demo KipusPay',
-        formalizationMode: 'INTERNAL_CONTROL',
-      }),
-    }),
-  );
+async function mockSession(page: Page) {
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-hardware-diagnostics',
+    role: 'owner',
+    capabilities: ['hardware.diagnostics'],
+  });
 }
 
 async function mockDiagnosticsApi(page: Page, requests: unknown[]) {
@@ -70,7 +62,7 @@ async function gotoConfig(page: Page) {
 }
 
 test('todo el hardware funciona → estados ✓ con causa OK y ancho detectado', async ({ page }) => {
-  await mockSession(page, 'owner');
+  await mockSession(page);
   const requests: unknown[] = [];
   await mockDiagnosticsApi(page, requests);
   await installHardwareSeam(page, {
@@ -106,7 +98,7 @@ test('todo el hardware funciona → estados ✓ con causa OK y ancho detectado',
 test('impresora no encontrada → causa comprensible + siguiente paso, sin jerga técnica', async ({
   page,
 }) => {
-  await mockSession(page, 'owner');
+  await mockSession(page);
   await mockDiagnosticsApi(page, []);
   await installHardwareSeam(page, {
     printerUsb: { causeCode: 'PRINTER_NOT_FOUND' },
@@ -135,7 +127,7 @@ test('impresora no encontrada → causa comprensible + siguiente paso, sin jerga
 });
 
 test('prueba de impresión se completa dentro de 30 s', async ({ page }) => {
-  await mockSession(page, 'owner');
+  await mockSession(page);
   await mockDiagnosticsApi(page, []);
   await installHardwareSeam(page, {
     printerUsb: { causeCode: 'OK' },

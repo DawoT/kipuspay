@@ -9,7 +9,8 @@ import {
   type FormalizationMode,
 } from '@kipuspay/domain-fiscal-pe';
 
-export type VerticalType = 'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas';
+export type VerticalType =
+  'restaurantes' | 'farmacias' | 'retail' | 'servicios' | 'cadenas' | 'grifos';
 
 export interface TenantBootstrapInput {
   readonly tradeName: string;

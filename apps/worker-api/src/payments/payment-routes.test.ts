@@ -83,6 +83,9 @@ function mockEnv(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
           return stmt;
         },
         first: <T>() => {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+          }
           if (sql.includes('FROM payment_methods')) {
             return Promise.resolve({ code: 'yape' } as T);
           }
@@ -153,6 +156,9 @@ function concurrentCaptureDb(): { db: D1DatabaseLike; rows: () => CaptureRow[] }
           return bound;
         },
         first: <T>() => {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+          }
           if (sql.includes('FROM payment_methods')) {
             return Promise.resolve({ code: 'yape' } as T);
           }
@@ -216,9 +222,9 @@ function concurrentCaptureDb(): { db: D1DatabaseLike; rows: () => CaptureRow[] }
   return { db, rows: () => [...rowsByKey.values()] };
 }
 
-describe('payment flags', () => {
-  it('default off', () => {
-    expect(isQrWalletsEnabled({} as WorkerEnv)).toBe(false);
+describe('payment kill switches', () => {
+  it('solo 0 mata globalmente; ausencia no concede acceso tenant', () => {
+    expect(isQrWalletsEnabled({} as WorkerEnv)).toBe(true);
     expect(isCardAcquirerEnabled({ FEATURE_PAYMENTS_CARD_ACQUIRER: 'true' } as WorkerEnv)).toBe(
       true,
     );

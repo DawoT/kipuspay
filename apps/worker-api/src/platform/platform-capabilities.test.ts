@@ -255,7 +255,7 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
     expect(res.status).toBe(404);
   });
 
-  it('PATCH validación capability en lista canónica 77', async () => {
+  it('PATCH valida capabilities en la lista canónica vigente', async () => {
     const env = platformEnv({});
     const app = createApp();
     const bad = await app.request(
@@ -355,6 +355,26 @@ describe('Ola 3 — Control Plane SuperAdmin aislado (Option B fallback)', () =>
       env as unknown as Env,
     );
     expect(res.status).toBe(400);
+  });
+
+  it('PATCH rechaza tipos inválidos de la configuración de Grifos', async () => {
+    const env = platformEnv({});
+    const app = createApp();
+    const res = await app.request(
+      '/platform/tenants/t-1/capabilities',
+      {
+        method: 'PATCH',
+        headers: { 'x-platform-staff-token': 'staff-secret', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          capability: 'fuel.dispatch',
+          enabled: 1,
+          config_json: { priceCentsPerGallon: '1620' },
+        }),
+      },
+      env as unknown as Env,
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({ code: 'INVALID_CONFIG_SCHEMA' });
   });
 
   it('GET /platform/tenants/:id/capabilities lista completa', async () => {

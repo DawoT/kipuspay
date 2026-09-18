@@ -23,6 +23,7 @@ import {
   type PreparedSerialIdentity,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 // US-03: canal de idempotencia-key — reenvío exactamente-una-vez por endpoint mutante.
 import { INVENTORY_OPS_SCOPES, openIdempotencyGate } from '../http/idempotency-channel.js';
 
@@ -46,6 +47,32 @@ function featureOff(): HttpResult {
 
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireInventoryOps(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  let firstError: HttpResult | null = null;
+  for (const capability of ['inventory.batches', 'inventory.bom'] as const) {
+    try {
+      await new CapabilityResolver(env).require(tenantId, capability);
+      return null;
+    } catch (error) {
+      if (error instanceof CapabilityError) {
+        firstError ??= {
+          status: error.status === 404 ? 404 : 503,
+          body: {
+            error: error.message,
+            code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+          },
+        };
+      } else {
+        firstError ??= {
+          status: 503,
+          body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+        };
+      }
+    }
+  }
+  return firstError ?? featureOff();
 }
 
 /** 1 unidad = 1_000_000 microunidades (escala de cantidad del inventario). */
@@ -159,8 +186,9 @@ export async function runCreateInventoryCountHttp(
   userId: string,
   body: { branchId?: string; differenceThresholdCents?: number; idempotencyKey?: string },
 ): Promise<HttpResult> {
-  if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
   const db = env.DB;
   const branchId = body.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
@@ -220,7 +248,6 @@ export async function runSubmitCountReviewHttp(
     idempotencyKey?: string;
   },
 ): Promise<HttpResult> {
-  if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   // S39-H1: enviar a revisión un conteo con manifiestos seriales exige
   // admin/owner (nunca cashier).
@@ -253,6 +280,9 @@ export async function runSubmitCountReviewHttp(
       countedMicrounits: shaped.countedMicrounits,
     });
   }
+
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const count = await env.DB.prepare(
     `SELECT status, branch_id FROM inventory_counts WHERE id = ? AND tenant_id = ? LIMIT 1`,
@@ -470,8 +500,9 @@ export async function runApproveCountHttp(
     idempotencyKey?: string;
   },
 ): Promise<HttpResult> {
-  if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
   // S39-H1: aprobar un conteo con ajustes valorizados exige admin/owner del
   // usuario DE SESIÓN (el umbral ya es server-side; el rol no se negocia).
   if (role !== 'admin' && role !== 'owner') {
@@ -822,8 +853,9 @@ export async function runCreateStockLossHttp(
     idempotencyKey?: string;
   },
 ): Promise<HttpResult> {
-  if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
   const id = crypto.randomUUID();
   const branchId = body.branchId?.trim() ?? '';
   const productId = body.productId?.trim() ?? '';
@@ -931,8 +963,9 @@ export async function runApproveStockLossHttp(
   role = '',
   body: { lossId?: string; idempotencyKey?: string },
 ): Promise<HttpResult> {
-  if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
   // S39-H1: aprobar una merma valorizada exige admin/owner (nunca cashier).
   if (role !== 'admin' && role !== 'owner') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
@@ -1153,8 +1186,9 @@ export async function runRejectStockLossHttp(
   tenantId: string,
   body: { lossId?: string; idempotencyKey?: string },
 ): Promise<HttpResult> {
-  if (!isInventoryOpsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
   const lossId = body.lossId?.trim() ?? '';
   const row = await env.DB.prepare(
     `SELECT status FROM stock_losses WHERE id = ? AND tenant_id = ? LIMIT 1`,
@@ -1194,16 +1228,11 @@ export async function runOwnerStockAlertsHttp(
   tenantId: string,
   query: { branchId?: string; expiryWarnDays?: number },
 ): Promise<HttpResult> {
-  if (
-    !isInventoryOpsEnabled(env) &&
-    env?.FEATURE_OWNER_MODE !== '1' &&
-    env?.FEATURE_OWNER_MODE !== 'true'
-  ) {
-    return featureOff();
-  }
+  if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryOps(env, tenantId);
+  if (capabilityError) return capabilityError;
   const branchId = query.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
-  if (!env?.DB) return dbUnavailable();
   const warnDays = query.expiryWarnDays ?? 30;
   const nowIso = new Date().toISOString();
 

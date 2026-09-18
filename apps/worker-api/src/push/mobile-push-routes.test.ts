@@ -55,6 +55,8 @@ function resolveMockQueryResultA<T>(
         requested === 'client.mobile_pos'
           ? (options.clientCapability ?? 1)
           : (options.capability ?? 1),
+      config_json: '{}',
+      epoch: 0,
     } as T;
   }
   if (sql.includes('pos_terminal_sessions')) {
@@ -182,8 +184,8 @@ describe('mobile push route persistence and authorization', () => {
   it('fails closed when capability or terminal-session authorization is unavailable', async () => {
     const capabilityOff = routeEnv({ capability: 0 });
     await expect(listPushDevicesHttp(capabilityOff.env, owner)).resolves.toMatchObject({
-      status: 403,
-      body: { code: 'PUSH_SCOPE_FORBIDDEN' },
+      status: 404,
+      body: { code: 'FEATURE_OFF' },
     });
 
     const noTerminal = routeEnv({ terminal: null });
@@ -214,7 +216,7 @@ describe('mobile push route persistence and authorization', () => {
               first: () =>
                 Promise.resolve(
                   sql.includes('tenant_capabilities')
-                    ? { enabled: 1 }
+                    ? { enabled: 1, config_json: '{}', epoch: 0 }
                     : sql.includes('push_consents')
                       ? null
                       : sql.includes('FROM push_subscriptions') && values[0] === 'tenant-a'
@@ -606,7 +608,11 @@ describe('S45-H3: re-grant de consentimiento idempotente', () => {
           bind: () => ({
             run,
             first: () =>
-              Promise.resolve(sql.includes('tenant_capabilities') ? { enabled: 1 } : null),
+              Promise.resolve(
+                sql.includes('tenant_capabilities')
+                  ? { enabled: 1, config_json: '{}', epoch: 0 }
+                  : null,
+              ),
           }),
         }),
       },

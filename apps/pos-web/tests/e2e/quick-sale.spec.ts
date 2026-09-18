@@ -1,20 +1,17 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('caja: venta rápida agrega línea genérica sin bloquear el cobro', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'cashier-e2e',
-        role: 'cashier',
-        branchId: 'branch-e2e',
-        terminal: { terminalId: 'terminal-e2e', terminalSessionId: 'terminal-session-e2e' },
-        tradeName: 'Demo KipusPay',
-        formalizationMode: 'INTERNAL_CONTROL',
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-quick-sale',
+    role: 'cashier',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
+    },
+    capabilities: ['catalog.quick_add', 'onboarding.tour', 'pos.checkout', 'sales.quick_line'],
+  });
   await page.goto('/');
   // El tour del S52 se abre en la demo (capability quick_add); se cierra para
   // no interferir con el dialog de venta rápida.
@@ -31,18 +28,11 @@ test('caja: venta rápida agrega línea genérica sin bloquear el cobro', async 
 });
 
 test('catálogo: escáner rápido crea/actualiza producto y rechaza EMP-', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-quick-add',
+    role: 'owner',
+    capabilities: ['catalog.quick_add'],
+  });
   let quickAddBody: Record<string, unknown> | null = null;
   const corsHeaders = {
     'access-control-allow-origin': '*',

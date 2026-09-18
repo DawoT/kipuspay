@@ -3,15 +3,18 @@ import { isOwnerPushEnabled, runSendOwnerPushHttp } from './push-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
 function mockEnv(flags: Record<string, string>, all: Record<string, unknown>[] = []): WorkerEnv {
-  const bound = {
-    first: () => Promise.resolve(null),
+  const boundFor = (sql: string) => ({
+    first: () =>
+      Promise.resolve(
+        sql.includes('SELECT u.id') ? null : { enabled: 1, config_json: '{}', epoch: 0 },
+      ),
     all: () => Promise.resolve({ results: all }),
     run: () => Promise.resolve({ success: true, results: [], meta: {} }),
-  };
+  });
   return {
     ...flags,
     DB: {
-      prepare: () => ({ bind: () => bound }),
+      prepare: (sql: string) => ({ bind: () => boundFor(sql) }),
       batch: () => Promise.resolve([]),
     } as unknown as WorkerEnv['DB'],
   } as WorkerEnv;
@@ -23,9 +26,9 @@ describe('owner.push_alerts', () => {
     expect(isOwnerPushEnabled({ FEATURE_OWNER_PUSH: '1' } as WorkerEnv)).toBe(true);
   });
 
-  it('send best-effort: off → FEATURE_OFF; sin DB → 503; sin capability → queued=false', async () => {
+  it('send best-effort: sin estado → 503; sin capability → queued=false', async () => {
     const off = await runSendOwnerPushHttp({ FEATURE_OWNER_PUSH: '0' } as WorkerEnv, 't1', {});
-    expect(off.status).toBe(404);
+    expect(off.status).toBe(503);
 
     const noDb = await runSendOwnerPushHttp({ FEATURE_OWNER_PUSH: '1' } as WorkerEnv, 't1', {});
     expect(noDb.status).toBe(503);

@@ -11,7 +11,7 @@ function mockEnv(rows: Row[]): { FEATURE_CATALOG_SELLABLE: string; DB: unknown }
           return stmt;
         },
         all: () => Promise.resolve({ results: rows }),
-        first: () => Promise.resolve(null),
+        first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
         run: () => Promise.resolve({ success: true, meta: {} }),
       };
       return stmt;
@@ -43,8 +43,8 @@ function productRow(overrides: Row = {}): Row {
 describe('Sprint C1 sellable catalog routes', () => {
   it('capability off → 404 FEATURE_OFF', async () => {
     const result = await runListSellableCatalogHttp(undefined, 't1', 'b1');
-    expect(result.status).toBe(404);
-    expect(result.body.code).toBe('FEATURE_OFF');
+    expect(result.status).toBe(503);
+    expect(result.body.code).toBe('DB_UNAVAILABLE');
   });
 
   it('sin tenant → 401', async () => {

@@ -2,21 +2,25 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
+  import { isLpdpSelfServePublicEnabled } from '$lib/features';
 
   /**
    * Sprint C3 — LPDP ARCO self-serve del titular (regla 32a / GTM-09).
    * El cliente de la tienda ejercita sus derechos: verifica identidad con
-   * datos (tienda + DNI + nombre + teléfono), lee sus consentimientos,
+   * datos (tienda + DNI + nombre + teléfono + OTP por correo), lee sus consentimientos,
    * descarga su copia y puede anonimizar sus datos con doble confirmación.
    * Rutas públicas (el token de titular no habilita el panel admin).
    */
-  const STEPS = ['verify', 'panel'] as const;
+  const STEPS = ['verify', 'otp', 'panel'] as const;
+  const publicSelfServeEnabled = isLpdpSelfServePublicEnabled();
   let step = $state<(typeof STEPS)[number]>('verify');
   let tenantId = $state('');
   let documentNumber = $state('');
   let name = $state('');
   let phone = $state('');
   let token = $state('');
+  let challengeId = $state('');
+  let otpCode = $state('');
   let consents = $state<{ purpose: string; granted: boolean }[]>([]);
   let message = $state('');
   let messageOk = $state(false);
@@ -24,6 +28,7 @@
   let busy = $state(false);
   let confirmErase = $state(false);
   let understood = $state(false);
+  let requestStatus = $state<'verified' | 'copy-ready' | 'anonymized' | null>(null);
 
   async function verify() {
     alert = '';
@@ -35,8 +40,8 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ tenantId, documentNumber, name, phone }),
       });
-      const body = (await res.json()) as { token?: string; error?: string; code?: string };
-      if (!res.ok || !body.token) {
+      const body = (await res.json()) as { challengeId?: string; message?: string; error?: string; code?: string };
+      if (!res.ok || !body.challengeId) {
         alert = body.code === 'TITULAR_VERIFY_FAILED'
           ? 'Los datos no coinciden con el titular registrado. Verifica DNI, nombre, teléfono y tienda.'
           : body.code === 'RATE_LIMITED'
@@ -44,8 +49,37 @@
             : 'No se pudo verificar tu identidad. Reintenta en unos minutos.';
         return;
       }
+      challengeId = body.challengeId;
+      otpCode = '';
+      message = body.message ?? 'Si los datos coinciden, enviaremos un código al correo asociado.';
+      messageOk = true;
+      step = 'otp';
+    } catch {
+      alert = 'No se pudo verificar tu identidad. Reintenta en unos minutos.';
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function verifyOtp() {
+    alert = '';
+    busy = true;
+    try {
+      const res = await fetch('/api/lpdp/titular/verify-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ challengeId, code: otpCode }),
+      });
+      const body = (await res.json()) as { token?: string; code?: string };
+      if (!res.ok || !body.token) {
+        alert = body.code === 'RATE_LIMITED'
+          ? 'Demasiados intentos. Espera un momento e inténtalo de nuevo.'
+          : 'El código no es válido o venció. Revisa el correo e inténtalo de nuevo.';
+        return;
+      }
       token = body.token;
       await loadConsents();
+      requestStatus = 'verified';
       step = 'panel';
     } catch {
       alert = 'No se pudo verificar tu identidad. Reintenta en unos minutos.';
@@ -96,6 +130,7 @@
       URL.revokeObjectURL(url);
       message = 'Copia descargada. Conserva este archivo; es la evidencia de tu solicitud.';
       messageOk = true;
+      requestStatus = 'copy-ready';
     } catch {
       alert = 'No se pudo generar la copia. Reintenta.';
     }
@@ -115,8 +150,11 @@
     }
     message = 'Tus datos fueron anonimizados. Los comprobantes fiscales se conservan como exige SUNAT, sin tu nombre.';
     messageOk = true;
+    requestStatus = 'anonymized';
     step = 'verify';
     token = '';
+    challengeId = '';
+    otpCode = '';
     consents = [];
     confirmErase = false;
     understood = false;
@@ -131,7 +169,11 @@
       <p class="page-eyebrow"><Icon name="shield" size={12} /> Derechos de datos personales</p>
       <h1 class="page-title">Mis datos</h1>
       <p class="page-lede">
-        Accede a tu copia, revisa tus consentimientos o pide la anonimización de tus datos en esta tienda.
+        {#if publicSelfServeEnabled}
+          Accede a tu copia, revisa tus consentimientos o pide la anonimización de tus datos en esta tienda.
+        {:else}
+          Para ejercer tus derechos sobre datos personales, escribe a privacidad@kipuspay.com.
+        {/if}
       </p>
     </div>
   </div>
@@ -149,7 +191,25 @@
     </StatusMessage>
   {/if}
 
-  {#if step === 'verify'}
+  {#if requestStatus}
+    <div class="request-status" role="status" aria-live="polite" data-testid="lpdp-request-status">
+      <strong>Estado de tu solicitud:</strong>
+      {#if requestStatus === 'verified'}
+        Identidad verificada; puedes gestionar tus datos.
+      {:else if requestStatus === 'copy-ready'}
+        Copia lista para descargar y conservar.
+      {:else}
+        Anonimización completada.
+      {/if}
+    </div>
+  {/if}
+
+  {#if !publicSelfServeEnabled}
+    <div class="ledger-card section-pad" role="status" data-testid="lpdp-unavailable">
+      <h2>Autoservicio en validación</h2>
+      <p>Esta opción todavía no está disponible. Puedes ejercer tus derechos escribiendo a <a href="mailto:privacidad@kipuspay.com">privacidad@kipuspay.com</a>.</p>
+    </div>
+  {:else if step === 'verify'}
     <div class="ledger-card section-pad" data-testid="lpdp-verify">
       <h2>Verifica tu identidad</h2>
       <p>
@@ -174,6 +234,18 @@
       </div>
       <Button variant="primary" size="full" data-testid="lpdp-verify-btn" onclick={verify} disabled={busy}>
         {busy ? 'Verificando…' : 'Verificar identidad'}
+      </Button>
+    </div>
+  {:else if step === 'otp'}
+    <div class="ledger-card section-pad" data-testid="lpdp-otp">
+      <h2>Revisa tu correo</h2>
+      <p>Si los datos coinciden, enviamos un código de seis dígitos al correo asociado. El código vence en cinco minutos.</p>
+      <div class="field-group">
+        <label for="lpdp-otp-code">Código de verificación</label>
+        <input id="lpdp-otp-code" data-testid="lpdp-otp-code" bind:value={otpCode} inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" />
+      </div>
+      <Button variant="primary" size="full" data-testid="lpdp-otp-btn" onclick={verifyOtp} disabled={busy || !/^\d{6}$/.test(otpCode)}>
+        {busy ? 'Validando…' : 'Confirmar código'}
       </Button>
     </div>
   {:else}
@@ -243,6 +315,19 @@
     padding-top: 1rem;
     margin-top: 1rem;
     border-top: 1px solid var(--border-subtle);
+  }
+
+  .request-status {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.5rem;
+    color: var(--muted);
+    background: var(--surface-subtle);
+  }
+
+  .request-status strong {
+    color: var(--ink);
   }
   .lpdp-block:first-of-type {
     border-top: none;

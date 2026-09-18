@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { fetchDaySales } from '$lib/cash/day-sales';
-  import { isFiscalRcEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import { apiFetch, resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
   import Icon from '$lib/ui/Icon.svelte';
   import Badge from '$lib/ui/Badge.svelte';
@@ -17,7 +17,7 @@
   let totalTodayCents = $state(0);
   let loading = $state(true);
   let errorMsg = $state('');
-  const voidOn = isFiscalRcEnabled();
+  const voidOn = $derived($tenantCapabilities.has('fiscal.rc'));
   let voidMsg = $state('');
 
   async function voidBoleta(saleId: string) {

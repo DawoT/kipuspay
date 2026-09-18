@@ -28,6 +28,7 @@ import {
   type RcSubmitResult,
 } from '@kipuspay/domain-fiscal-pe';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isFiscalRcEnabled(env: WorkerEnv): boolean {
   return env.FEATURE_FISCAL_RC === '1';
@@ -39,6 +40,25 @@ export function isCpePortalEnabled(env: WorkerEnv): boolean {
   // explícito con FEATURE_CPE_PORTAL='0'. El fail-closed real vive en
   // CPE_PORTAL_SECRET: sin secreto el portal responde 503 (token impredecible).
   return env.FEATURE_CPE_PORTAL !== '0';
+}
+
+async function requireFiscalCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'fiscal.rc' | 'fiscal.cpe_portal',
+): Promise<{ status: number; body: Record<string, unknown> } | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
 }
 
 /** Puerto RC fail-closed: rechazo 503 tipado, nunca ACCEPTED sin CDR real. */
@@ -162,9 +182,11 @@ export async function runVoidBoletaHttp(
   saleId: string,
   userId = 'system',
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!isFiscalRcEnabled(env)) {
+  if (env.FEATURE_FISCAL_RC === '0') {
     return { status: 404, body: { error: 'FEATURE_FISCAL_RC off', code: 'FEATURE_OFF' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.rc');
+  if (capabilityError) return capabilityError;
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -188,9 +210,11 @@ export async function runRcPendingBannerHttp(
   tenantId: string,
   nowMs: number = Date.now(),
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!isFiscalRcEnabled(env)) {
+  if (env.FEATURE_FISCAL_RC === '0') {
     return { status: 404, body: { error: 'FEATURE_FISCAL_RC off', code: 'FEATURE_OFF' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.rc');
+  if (capabilityError) return capabilityError;
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -222,9 +246,11 @@ export async function runOwnerAlertsHttp(
   env: WorkerEnv,
   tenantId: string,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!isFiscalRcEnabled(env)) {
+  if (env.FEATURE_FISCAL_RC === '0') {
     return { status: 404, body: { error: 'FEATURE_FISCAL_RC off', code: 'FEATURE_OFF' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.rc');
+  if (capabilityError) return capabilityError;
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -344,6 +370,7 @@ async function serveCpePortalFile(
   };
 }
 
+// eslint-disable-next-line complexity -- portal token, CPE status and retention guards
 export async function runCpePortalHttp(
   env: WorkerEnv,
   tenantId: string,
@@ -352,9 +379,11 @@ export async function runCpePortalHttp(
   nowMs: number = Date.now(),
   file?: string,
 ): Promise<CpePortalResult> {
-  if (!isCpePortalEnabled(env)) {
+  if (env.FEATURE_CPE_PORTAL === '0') {
     return { status: 404, body: { error: 'FEATURE_CPE_PORTAL off', code: 'FEATURE_OFF' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.cpe_portal');
+  if (capabilityError) return capabilityError;
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -443,9 +472,11 @@ export async function runCpeLinkHttp(
   saleId: string,
   baseUrl: string,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!isCpePortalEnabled(env)) {
+  if (env.FEATURE_CPE_PORTAL === '0') {
     return { status: 404, body: { error: 'FEATURE_CPE_PORTAL off', code: 'FEATURE_OFF' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.cpe_portal');
+  if (capabilityError) return capabilityError;
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
@@ -474,6 +505,7 @@ export async function runCpeLinkHttp(
   return { status: 200, body: { url } };
 }
 
+// eslint-disable-next-line complexity -- cron action matrix remains tenant-gated
 export async function runFiscalCronHttp(
   env: WorkerEnv,
   body: {
@@ -483,8 +515,12 @@ export async function runFiscalCronHttp(
     readonly nowMs?: number;
   },
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!isFiscalRcEnabled(env)) {
+  if (env.FEATURE_FISCAL_RC === '0') {
     return { status: 404, body: { error: 'FEATURE_FISCAL_RC off', code: 'FEATURE_OFF' } };
+  }
+  if (body.tenantId) {
+    const capabilityError = await requireFiscalCapability(env, body.tenantId, 'fiscal.rc');
+    if (capabilityError) return capabilityError;
   }
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
@@ -493,19 +529,81 @@ export async function runFiscalCronHttp(
   const nowMs = body.nowMs ?? Date.now();
   const signer = rcSigner(env);
   if (body.action === 'deadlines') {
-    const result = await processFiscalDeadlines(
-      db,
-      nowMs,
-      body.tenantId ? { tenantId: body.tenantId } : {},
-    );
-    return { status: 200, body: { ...result } };
+    if (body.tenantId) {
+      const result = await processFiscalDeadlines(db, nowMs, { tenantId: body.tenantId });
+      return { status: 200, body: { ...result } };
+    }
+    // A global deadline sweep must never read every sale and infer access from
+    // data presence. Discover and revalidate only tenants with fiscal.rc.
+    let rows: { results?: { tenant_id: string }[] };
+    try {
+      rows = await env.DB.prepare(
+        `SELECT DISTINCT tenant_id FROM tenant_capabilities
+         WHERE capability = 'fiscal.rc' AND enabled = 1
+         ORDER BY tenant_id LIMIT 5000`,
+      )
+        .bind()
+        .all<{ tenant_id: string }>();
+    } catch {
+      return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+    }
+    const aggregate = {
+      scanned: 0,
+      actions: [] as Array<{
+        saleId: string;
+        alert: string;
+        suggestCreditNoteEa: boolean;
+      }>,
+    };
+    for (const row of rows.results ?? []) {
+      try {
+        await new CapabilityResolver(env).require(row.tenant_id, 'fiscal.rc');
+      } catch (error) {
+        if (error instanceof CapabilityError && error.status === 404) continue;
+        return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+      }
+      const result = await processFiscalDeadlines(db, nowMs, { tenantId: row.tenant_id });
+      aggregate.scanned += result.scanned;
+      aggregate.actions.push(...result.actions);
+    }
+    return { status: 200, body: aggregate };
   }
   if (body.action === 'daily-summary-sweep') {
     // F5b-1: cron diario — RC para todos los emisores con boletas del día.
     const summaryDate = body.summaryDate ?? summaryDateLima(nowMs);
+    // Un job global no puede inferir autorización desde la existencia de una
+    // venta. Descubrimos únicamente tenants con fiscal.rc habilitada y
+    // revalidamos cada uno mediante el resolver (kill switch, epoch y D1
+    // fail-closed incluidos) antes de entregarlos al sweep ACID.
+    let capabilityRows: { results?: { tenant_id: string }[] };
+    try {
+      capabilityRows = await env.DB.prepare(
+        `SELECT DISTINCT tenant_id
+         FROM tenant_capabilities
+         WHERE capability = 'fiscal.rc' AND enabled = 1
+         ORDER BY tenant_id
+         LIMIT 5000`,
+      )
+        .bind()
+        .all<{ tenant_id: string }>();
+    } catch {
+      return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+    }
+    const authorizedTenantIds: string[] = [];
+    for (const row of capabilityRows.results ?? []) {
+      try {
+        await new CapabilityResolver(env).require(row.tenant_id, 'fiscal.rc');
+        authorizedTenantIds.push(row.tenant_id);
+      } catch (error) {
+        if (error instanceof CapabilityError && error.status !== 404) {
+          return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+        }
+      }
+    }
     const result = await runDailySummarySweep(db, {
       summaryDate,
       nowMs,
+      tenantIds: authorizedTenantIds,
       cdr: buildRcCdrPort(env),
       ...(signer ? { signer } : {}),
     });

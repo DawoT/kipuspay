@@ -149,7 +149,7 @@
       class:active={viewMode === 'interactive'}
       onclick={() => (viewMode = 'interactive')}
     >
-      Simulación en vivo
+      Vista interactiva
     </button>
     <button
       type="button"
@@ -165,8 +165,8 @@
     <PhoneMockFrame
       theme="dark"
       title="Modo Dueño · KipusPay"
-      statusBadge="Cajas en línea · EN VIVO"
-      statusTone="live"
+      statusBadge="Datos de ejemplo · última sincronización"
+      statusTone="sync"
       ariaLabel="Smartphone mostrando la aplicación Modo Dueño"
     >
       <div class="owner-screen">
@@ -275,7 +275,7 @@
         loading="lazy"
       />
       <p class="photo-caption">
-        Modo Dueño: métricas consolidadas de ventas, medios de pago y arqueo de turnos en tiempo real.
+        Modo Dueño: ejemplo de métricas consolidadas; los datos reales se actualizan cuando sincronizan las cajas.
       </p>
     </div>
   {/if}

@@ -11,7 +11,7 @@ function env(): WorkerEnv {
           bind() {
             return stmt;
           },
-          first: () => Promise.resolve(null),
+          first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
           all: () =>
             Promise.resolve({
               results: [{ id: 'j1', account_code: '1011' }],
@@ -40,7 +40,7 @@ function envWithBindCapture(): { env: WorkerEnv; calls: BindCapture[] } {
       calls[calls.length - 1]!.args = args;
       return stmt;
     },
-    first: () => Promise.resolve(null),
+    first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
     all: () =>
       Promise.resolve({
         results: [{ id: 'j1', account_code: '1011' }],
@@ -83,7 +83,7 @@ function literalDbEnv(): { env: WorkerEnv; sqls: string[]; bound: unknown[][] } 
             bound.push(args);
             return this;
           },
-          first: () => Promise.resolve(null),
+          first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
           all: () => {
             const args = bound[bound.length - 1] ?? [];
             const allSafe = args.every((v) => typeof v === 'string' && SAFE_LITERAL.test(v));
@@ -128,7 +128,7 @@ describe('journal routes', () => {
         branchId: 'b1',
       },
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(503);
   });
 
   it('503 without DB and 400 without range', async () => {
@@ -160,8 +160,8 @@ describe('journal routes', () => {
       branchId: 'b1',
     });
     expect(res.status).toBe(200);
-    expect(calls.length).toBe(1);
-    const { sql, args } = calls[0]!;
+    expect(calls.length).toBe(2);
+    const { sql, args } = calls[1]!;
     // El filtro multitenant vive en el SQL con placeholder, no por concatenación.
     expect(sql).toContain('je.tenant_id = ?');
     expect(args).toEqual(['tenant-A', 'b1', '2026-08-01', '2026-08-07']);
@@ -195,14 +195,14 @@ describe('journal routes', () => {
       branchId: idempotencyKey,
     });
     expect(resKey.status).toBe(200);
-    expect(callsKey.length).toBe(1);
+    expect(callsKey.length).toBe(2);
     // prepare recibió '?': el WHERE lleva el placeholder, jamás el literal.
-    expect(callsKey[0]!.sql).toContain('je.tenant_id = ?');
-    expect(callsKey[0]!.sql).toContain('je.branch_id = ?');
-    expect(callsKey[0]!.sql).toContain('date(?)');
+    expect(callsKey[1]!.sql).toContain('je.tenant_id = ?');
+    expect(callsKey[1]!.sql).toContain('je.branch_id = ?');
+    expect(callsKey[1]!.sql).toContain('date(?)');
     // El payload de inyección va por bind (args), no interpolado en el SQL.
-    expect(callsKey[0]!.sql).not.toContain(idempotencyKey);
-    expect(callsKey[0]!.args).toContain(idempotencyKey);
+    expect(callsKey[1]!.sql).not.toContain(idempotencyKey);
+    expect(callsKey[1]!.args).toContain(idempotencyKey);
 
     const { env: envMeta, calls: callsMeta } = envWithBindCapture();
     const resMeta = await runListJournalHttp(envMeta, 't1', {
@@ -211,8 +211,8 @@ describe('journal routes', () => {
       branchId: rtlMetadata,
     });
     expect(resMeta.status).toBe(200);
-    expect(callsMeta[0]!.sql).not.toContain('\u202E');
-    expect(callsMeta[0]!.args).toContain(rtlMetadata);
+    expect(callsMeta[1]!.sql).not.toContain('\u202E');
+    expect(callsMeta[1]!.args).toContain(rtlMetadata);
   });
 
   it('SEC-04: inyección SQL en branchId/fromDate/toDate → 0 filas y NUNCA 500 (parámetros literales)', async () => {

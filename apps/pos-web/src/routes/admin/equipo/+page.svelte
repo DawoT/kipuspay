@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { isTeamInviteEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Button from '$lib/ui/Button.svelte';
   import { inviteTeamMember } from '$lib/cash/shift-handoff';
   import Icon from '$lib/ui/Icon.svelte';
 
-  const teamOn = isTeamInviteEnabled();
+  const teamOn = $derived($tenantCapabilities.has('ops.team_invite'));
 
   let email = $state('');
   let role = $state('cashier');

@@ -26,7 +26,7 @@ Cuenta: `c5b18f62cb7e73fcd2ece5822936d699` (cristian.pcalderon@gmail.com).
 | Marketing Pages | https://kipuspay-web.pages.dev |
 | Browser smoke | `apps/pos-web/scripts/staging-browser-smoke.mjs` (Playwright) |
 
-Smoke navegador (2026-08-17): marketing 200 (soft-launch copy), POS shell login
+Smoke navegador (2026-09-16 Lima): marketing 200 (sitio activo), POS shell login
 visible, `fetch(/health)` desde origen POS con CORS OK.
 
 **Canónico temporal (D0, sin dominio comprado):** esas URLs `*.pages.dev` /
@@ -48,8 +48,8 @@ hasta sprint **DM** (compra + zona Cloudflare). Stripe return URLs usan
 | Secrets Store | `kipuspay-kms-staging` `6c5d2aff785644d39ca233efe0d0ed34` (stubs) |
 | Workflow | `kipuspay-data-backup-staging` (bound on API) |
 
-Migraciones D1: `DB` y `DR_DB` en paridad **56/56** (`0000`–`0055`, auditoría
-2026-08-17). Si un `wrangler d1 migrations apply` batch falla con
+Migraciones D1: `DB` y `DR_DB` en paridad **68/68** (`0000`–`0068`, revalidado
+2026-09-17). Si un `wrangler d1 migrations apply` batch falla con
 `incomplete input`, aplicar **one-by-one** en el orden de
 `packages/adapters-d1/migrations/*.sql`. Scripts:
 
@@ -115,7 +115,7 @@ del repo. Si se despliega a mano sin `--keep-vars`, re-pasar
 | Stripe / PSE / FCM SA | **Pendiente** (FCM stub en Secrets Store → `go-live-fcm`) |
 | VAPID | **Real** (Secrets Store + runtime `PUSH_VAPID_PUBLIC_KEY`) |
 | `FEATURE_*` | Repo `"0"`; staging runtime backup/DR `"1"` (keep-vars) |
-| Marketing soft-launch | `PUBLIC_FEATURE_MARKETING_SITE=0` (intencional) |
+| Marketing soft-launch | Repo default `0`; deploy staging fuerza `1` solo durante el build Pages |
 | CORS | pages.dev POS + marketing |
 | Fixture owner | `tenant_stg_phase0_001` / `user_stg_owner_001` (creds fuera de repo) |
 
@@ -129,21 +129,120 @@ Procedimiento de flags: `docs/ops/go-live-staging-checklist.md` § Flags runtime
 | POS / marketing Pages | 200 (re-verificado) |
 | worker-fiscal-staging | 404 (RPC-only, esperado) |
 | worker-kms-staging | 404 (RPC-only, esperado) |
-| Playwright `staging-browser-smoke.mjs` | GREEN (POS+API CORS; mkt soft-launch; CSP inline avisos en mkt) |
-| D1 `kipuspay-staging` `d1_migrations` | 56 filas (0000–0055) — `d1:migrate:staging:list` OK |
-| D1 `kipuspay-dr-staging` `d1_migrations` | 56 filas — **paridad OK** (`d1:migrate:staging:dr` OK, gap `stg-dr-migrate` cerrado) |
+| Playwright `staging-browser-smoke.mjs` | GREEN (POS+API CORS + marketing Pages canónico; sin console fatals) |
+| D1 `kipuspay-staging` `d1_migrations` | 68 filas (hasta 0068) — `d1:migrate:staging:list` OK; sin pendientes (2026-09-17) |
+| D1 `kipuspay-dr-staging` `d1_migrations` | 68 filas (hasta 0068) — **paridad OK**; sin pendientes (`d1:migrate:staging:dr`, 2026-09-17) |
 | Bindings (wrangler staging) | R2 backups, Workflow backup, KMS service, AI, Analytics |
 | Secrets Store | **Reales** KEK backup/push + VAPID (FCM SA stub; `stg-secrets-real` closed) |
 | `PUSH_VAPID_PUBLIC_KEY` | set (runtime var API staging) |
-| `FEATURE_*` | repo `"0"`; runtime staging `FEATURE_DATA_BACKUP=1` `FEATURE_PLATFORM_DR=1` |
-| Crons en config | **desplegados y verificados**: API schedules muestra las 6 expresiones (modified_on 01:08:04Z, deploy activo `9daaf9b6`); coinciden con top-level y handlers de `worker.ts` |
-| Deploy activo API staging | version `691e6096-862d-4632-b5cb-871f0eddc683` (2026-08-20 Fase 1) |
+| `FEATURE_*` | repo `"0"`; runtime staging conserva flags explícitas para C3/S44/S46/S49/S50–S53: backup, DR, LPDP, recurring, forecasting, insights, quick-add, shift/team, onboarding, customer-orders y hardware diagnostics |
+| Crons en config | **desplegados y verificados**: API schedules muestra las 7 expresiones configuradas; coinciden con top-level y handlers de `worker.ts` |
+| Deploy activo API staging | version `aeed1d31-2e75-4d98-bc95-4a85248df082` (2026-09-17, S49 intent sources + fast path + C2 fixes + flags acumuladas S44/S46/S49/S50–S53) |
 | Workflow `kipuspay-data-backup-staging` | READY backups `d31ef057…`, `8afaba63…` (kek_version=v1) |
 | Secrets del worker | `AUTH_JWT_HS_SECRET` (rotado Fase 0; material solo en ops local) |
 | Evidencia S42 externa | Parcial GREEN (READY); chaos/dry-run A+V pendiente |
-| Evidencia S48 externa | WAIT — software `registry-2` STALE; live `DR_SIMULATION_PASSED` exige backup post-0056 |
+| Evidencia S48 externa | GREEN técnico — simulacro `registry-5` vigente `PASSED`; A+V externo y claim de producción pendientes |
+
+### Evidencia C3 LPDP titular — canary staging 2026-09-17
+
+Se habilitó `FEATURE_LPDP=1` únicamente en el Worker API de staging y se creó un
+titular sintético aislado en `tenant_stg_phase0_001`. El flujo real desde
+`https://kipuspay-app.pages.dev/lpdp` pasó verify **200**, consents **200**, export
+**200**, erase **200** y replay del mismo token después de anonimizar **401**. La
+consulta D1 confirmó `pii_erased=1`, `name IS NULL` y `phone IS NULL`. El token no
+se imprimió ni se archivó; la respuesta de export se guardó solo como artefacto
+temporal local para verificar el status.
+
+Esto es evidencia técnica de canary, no aprobación de QA/PM ni firma A/V. El claim
+de producción y la exposición a clientes reales permanecen bloqueados.
+
+### Evidencia S43 — Pedido y retiro real staging 2026-09-17
+
+Con `orders.customer_orders` habilitado solo para el tenant sintético, el Worker
+staging pasó creación **201**, listado/detalle **200**, lease **201**, fulfill
+**200** y replay **200**. D1 confirmó una orden `FULFILLED`, un fulfillment
+`CONSUMED` y una sola venta asociada; el replay devolvió el mismo `saleId` sin
+filas adicionales. El fixture incluyó cliente, producto, supervisor, terminal y
+sesión de caja sintéticos; no hubo envío a WhatsApp ni a otro canal externo.
+
+La evidencia no sustituye parciales, carreras, expiración, rollback, QA humana ni
+firma A/V; GTM-24 y el piloto externo permanecen bloqueados.
+
+### Evidencia S46 — Forecast Cadena staging 2026-09-17
+
+El tenant Cadena sintético `tenant_stg_cadena_001` recibió 14 rollups diarios y
+capability `analytics.forecasting`. El refresh autenticado devolvió `200`,
+`written=1`, `insufficient=0`; el listado devolvió `200` con una salida
+`holt-winters-v1` y disclaimer. Dos refresh consecutivos dejaron una sola fila en
+`forecast_outputs`. El tenant `arranque` devolvió `403 PLAN_REQUIRES_CADENA` con la
+misma flag/capability, sin modificar su plan ni generar outputs.
+
+El canary no demuestra Cron diario, Workers AI, AE, latencia productiva ni QA/A+V.
+
+### Evidencia S49 — Insights Workers AI staging 2026-09-17
+
+El mismo tenant Cadena sintético ejecutó el chat contra Workers AI real en la
+versión anterior `a974c70a-6838-428a-a911-c7fe5b47c69d`, con el
+modelo `@cf/meta/llama-3.1-8b-instruct-fp8`. Con facts vacíos o todo-cero, el
+endpoint devolvió **200 SSE** con respuesta determinista y sin generación. Con
+facts no triviales, una salida que introdujo cifras no sustentadas fue rechazada
+**422 INSIGHTS_FAILED** con razón `NLG_CONTRADICTION`; el texto contradictorio no
+se devolvió al cliente. El nuevo deploy `aeed1d31-2e75-4d98-bc95-4a85248df082`
+evita ahora tanto el router como la redacción Workers AI para preguntas frecuentes
+y construye la respuesta desde facts validados; pasó la prueba local 15/15. Falta
+repetir el canary autenticado para medir P95 real. El briefing Cron 3:30/KV, la QA
+humana y las firmas A/V siguen pendientes; el canary no desbloquea producción ni
+piloto.
+
+### Evidencia S44 — Cron Trigger real staging 2026-09-17
+
+El tail de Cloudflare observó el Cron Trigger `*/5` en la versión
+`5ef66cdc-8d6e-43a6-b141-0fcb6af5c811`: `recurring_scheduler_complete` con
+`tenants=1`, `processedPeriods=1`, `failures=0` y sin excepciones. Un segundo tick
+también completó un periodo (`catchUpCapped=false`). D1 confirmó dos ocurrencias
+`SETTLED`, dos ventas distintas y `11800` cents agregados en dos periodos
+consecutivos. La capability, el plan y los datos fueron sintéticos y aislados al
+tenant de staging; QA/A+V y concurrencia ampliada siguen pendientes.
+
+### Revalidación C4 autenticada — 2026-09-16 Lima
+
+El fixture `user_stg_owner_001` autenticó correctamente contra el Worker actual:
+`GET /api/auth/session` devolvió `200` con `tenant_stg_phase0_001`; el listado de
+backups también devolvió `200`. La revalidación no es liberatoria: en
+`tenant_capabilities` están habilitadas `data.backup` y `platform.dr`, sin habilitar
+`compliance.lpdp`; los backups READY visibles inicialmente estaban vencidos. El
+simulacro `DR_SIMULATION_PASSED` anterior permanece como evidencia histórica, no como
+prueba vigente de restore.
+
+La primera revalidación con el snapshot vigente `d3a693c6-f472-49f6-85fd-9e02b4d304f8`
+sí alcanzó el motor de restore y terminó en `DR_SIMULATION_FAILED` por
+`FOREIGN KEY constraint failed` (04:01:33Z). Esto reabre C4: el snapshot vigente no
+puede considerarse restaurable hasta aislar la tabla/lote y repetir el simulacro.
+Las corridas posteriores fueron detenidas al observar un `500 INTERNAL_ERROR` sin
+nuevo evento de auditoría; tras desplegar la barrera fail-closed `1af0ecd5`, el mismo
+canary responde `503 DR_CONTROL_PLANE_UNAVAILABLE` y deja el step-up sin consumir.
+No se relanzan automáticamente para evitar duplicar el efecto del simulacro.
+
+Después del cambio de registry, el backup `9ccf1d32-bf33-4618-b7d6-2823b6f0cd44`
+llegó `READY` con `registry-5`, `112` tablas y sin `push_deliveries`. El simulacro
+controlado alcanzó `DR_DB` y aplicó `112` tablas / `4` filas nuevas en `91.073 s`,
+con `rpoTxZero=true`, `replayDuplicatesBlocked=3`, pero `rpoRollupOneDay=false`
+porque el fixture solo contiene rollups hasta `2026-08-21`. El resultado fue
+`RPO_VIOLATION`; C4 sigue NO-GO hasta repetir con datos recientes y firma A/V.
 
 Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`.
+
+### Repetición C4 vigente — 2026-09-17 Lima
+
+El fixture de drill usa la fecha cerrada anterior en Lima y una PK diaria nueva.
+El backup `651d4a97-68d7-4002-82e3-4e1780ed6620` quedó READY con `registry-5` y
+12 chunks. El simulacro autenticado devolvió HTTP 200 `PASSED`: rollup vigente
+`2026-09-16`, `rpoTxZero=true`, `rpoRollupOneDay=true`, `rtoMs=29629`, 112 tablas
+aplicadas, 7 filas nuevas y 3 duplicados bloqueados. Esta es evidencia histórica
+de restore/RPO, pero una revisión posterior detectó que el cronómetro se detenía
+antes de la verificación final. La cifra RTO no es completa; repetir el simulacro
+tras desplegar la corrección local de C4. La evidencia A/V y el claim de producción
+siguen pendientes.
 
 ## Auditoría 2026-08-20 (Fase 0 humano + Fase 1)
 
@@ -153,7 +252,7 @@ Worker script id staging API: `1d35e1ae2ce54ff5b969dea0f5fc3624`.
 | `worker-kms` staging | Redeploy Fase 0; bindings Secrets Store |
 | Tenant fixture | `tenant_stg_phase0_001` + owner + TENANT_KV; `/api/auth/session` 200 |
 | S42 create backup | `202` → `READY`; Workflow + R2 + `kek_version=v1` |
-| S48 `POST /api/dr/simulation` | WAIT (código `BACKUP_REGISTRY_STALE` si backup es registry-1; no skip) |
+| S48 `POST /api/dr/simulation` | DONE técnico (`DR_SIMULATION_PASSED`, backup `registry-2`); A+V externo pendiente |
 | CI `deploy-staging.yml` dry_run | WAIT: prettier ubl local GREEN; **GH token debe ser API Token CF (no OAuth)** |
 | `go-live-staging` | EN_CURSO (no CERRADO) |
 
@@ -169,8 +268,8 @@ Secrets + VAPID + tenant GREEN. CI run WAIT (token CF largo).
 
 ### Handoff Fase 1 — EN_CURSO
 
-Flags + S42 READY GREEN parcial. S48 WAIT `BACKUP_REGISTRY_STALE` (backup
-nuevo `registry-2`). Flags cobro/fiscal S12 WAIT A+V.
+Flags + S42 READY GREEN parcial. S48 `DR_SIMULATION_PASSED` técnico con backup
+`registry-2`; A+V externo pendiente. Flags cobro/fiscal S12 WAIT A+V.
 
 ### Siguientes fases
 

@@ -47,7 +47,8 @@ function env(overrides: Partial<WorkerEnv> = {}): WorkerEnv {
             return statement;
           }),
           first: vi.fn(async () => {
-            if (sql.includes('tenant_capabilities')) return { enabled: 1 };
+            if (sql.includes('tenant_capabilities'))
+              return { enabled: 1, config_json: '{}', epoch: 0 };
             if (sql.includes('FROM branches')) return { allowed: 1 };
             if (sql.includes('FROM recurring_plans')) {
               if (bound[0] === 'tenant-b' && bound[1] === 'plan-owned-by-a') return null;

@@ -59,7 +59,10 @@ describe('Sprint 45 mobile push DDL 0038 contract (RED)', () => {
     expect(registry.get('push_privacy_settings')).toMatchObject({ classification: 'SENSITIVE' });
     expect(registry.get('push_subscriptions')).toMatchObject({ classification: 'SENSITIVE' });
     expect(registry.get('push_events')).toMatchObject({ classification: 'BUSINESS' });
-    expect(registry.get('push_deliveries')).toMatchObject({ classification: 'BUSINESS' });
+    // Deliveries reference SENSITIVE subscriptions, which are intentionally
+    // excluded from KPBK1. They are operational queue state and must not make
+    // an isolated DR restore depend on live device credentials.
+    expect(registry.get('push_deliveries')).toMatchObject({ classification: 'EPHEMERAL' });
     for (const table of tables) {
       expect(migration0038).toContain(`epoch_${table}_insert`);
       expect(migration0038).toContain(`epoch_${table}_update`);

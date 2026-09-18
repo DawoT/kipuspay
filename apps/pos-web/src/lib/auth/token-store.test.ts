@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createLoginIdentityGeneration,
   clearLoginToken,
   readLoginToken,
   readLoginUser,
   resolveAuthorization,
+  subscribeLoginIdentityChanges,
   writeLoginToken,
+  writeLoginTenantId,
   writeLoginUser,
 } from './token-store';
 
@@ -25,6 +28,17 @@ function memoryStorage(): Storage {
 }
 
 describe('token-store', () => {
+  it('invalida una respuesta A antigua después de una transición A → B → A', () => {
+    const identity = createLoginIdentityGeneration();
+    const firstA = identity.next();
+
+    identity.next();
+    const currentA = identity.next();
+
+    expect(identity.isCurrent(firstA)).toBe(false);
+    expect(identity.isCurrent(currentA)).toBe(true);
+  });
+
   it('escribe y lee el token', () => {
     const storage = memoryStorage();
     writeLoginToken(storage, 'jwt-abc');
@@ -36,6 +50,21 @@ describe('token-store', () => {
     writeLoginToken(storage, 'jwt-abc');
     clearLoginToken(storage);
     expect(readLoginToken(storage)).toBeNull();
+  });
+
+  it('notifica cambios de token/tenant para que la sesión POS revalide su catálogo', () => {
+    const storage = memoryStorage();
+    const changes: string[] = [];
+    const unsubscribe = subscribeLoginIdentityChanges((kind) => changes.push(kind));
+
+    writeLoginToken(storage, 'jwt-abc');
+    writeLoginTenantId(storage, 'tenant-a');
+    clearLoginToken(storage);
+    writeLoginUser(storage, { userId: 'u1', role: 'owner', branchId: 'b1' });
+    unsubscribe();
+    writeLoginToken(storage, 'jwt-next');
+
+    expect(changes).toEqual(['token', 'tenant', 'token']);
   });
 
   it('guarda la identidad del cajero del login (userId/role/branch)', () => {

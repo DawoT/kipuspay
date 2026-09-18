@@ -16,6 +16,14 @@ authority: derivada
 - **Entorno:** worker `wrangler dev` :8787 (flags de `wrangler.jsonc` + `FEATURE_CATALOG_SELLABLE` añadido), POS `vite preview` :4173 (todos los `PUBLIC_FEATURE_*`), marketing :5180. D1 local con migraciones aplicadas hasta 0055.
 - **Tenants de prueba:** `t_5f812e8a700e43a8` (Auditoria Comercio), `t_2d48a0ef885f499b` (Casa Aurora), `t_597a6e05c1564b68` (Offline Test). Todos `INTERNAL_CONTROL`, plan Arranque, trial hasta 2026-09-14.
 
+> **Corte histórico.** Las tablas y los hallazgos F-1…F-13 de las secciones 1–5
+> son el snapshot inicial de esta auditoría (2026-08-15); no describen el estado
+> actual del código. El veredicto vigente de remediación está en §6.1, donde cada
+> hallazgo queda trazado a su fix y evidencia. La suite CLI actual y el cierre
+> interno C1–C5 no sustituyen la auditoría headed externa: mientras no exista un
+> navegador visible y staging real, el go-live permanece NO-GO según
+> `docs/ops/claims-go-live.md`.
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -259,3 +267,33 @@ Fixes F-11/F-12 verificados en navegador: `/ayuda` (6 badges "En preparación"),
 
 - El working tree contenía cambios concurrentes de FASE F+ (densidad/copy post-0406, entradas de ledger 0411/0412) escritos por un segundo agente de producto. No se tocan: se respetan sus archivos y sus entradas; Sprint 57 commiteó solo sus propios archivos (git `M ` vs ` M`) y encadenó `0413` a `0412`.
 - Próximo cierre: Quality Gate de implementación (Proceso §8.1) con evidencia runtime y firma RACI (A + V independiente).
+
+### 6.6 Continuidad C1 — comprobación externa (2026-09-16)
+
+El deployment vigente de marketing es `https://9386780f.kipuspay-web.pages.dev/`.
+La comprobación posterior al redeploy devolvió HTTP 200 en `/privacidad`, en
+`https://kipuspay-pos-web-staging.pages.dev/lpdp` y en el endpoint `/health` del
+Worker API de staging. La política pública mantiene visible el enlace de ejercicio
+ARCO hacia el POS.
+
+Esto confirma disponibilidad y navegación headless del entorno publicado; no
+acredita la inspección headed humana, hardware físico, flags LPDP habilitados ni
+firmas A/V. El go-live continúa NO-GO conforme a `claims-go-live.md`.
+
+### 6.7 Cierre técnico headed reproducible (2026-09-17)
+
+Con Chrome real en `DISPLAY=:0`, Playwright CLI navegó sin rutas interceptadas
+la landing, `/empezar` y el login del POS; se capturaron snapshots, screenshots
+y una traza con su log de red en `.playwright-cli/`. La navegación del login
+confirmó shell visible y campos de badge/usuario y PIN. El primer pase detectó
+que el POS pedía `/favicon.png` con 404; se corrigió el enlace a
+`/icons/kipuspay-pos-192.svg`, se construyó y desplegó `kipuspay-app` (alias
+`https://kipuspay-app.pages.dev/`), y la segunda comprobación devolvió favicon
+HTTP 200.
+
+El único error restante de consola es el `401` esperado de
+`GET /api/auth/session` sin credenciales; la advertencia DOM sobre el campo PIN
+fue eliminada envolviendo los controles en un formulario con submit nativo. Esto
+cierra la evidencia headed técnica de C1, pero no
+la validación humana de UX, hardware físico ni las firmas A/V; el go-live sigue
+NO-GO conforme a `claims-go-live.md`.

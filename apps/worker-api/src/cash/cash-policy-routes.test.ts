@@ -7,6 +7,7 @@ import {
 
 function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   const first = (sql: string) => {
+    if (sql.includes('tenant_capabilities')) return { enabled: 1, config_json: '{}', epoch: 0 };
     if (sql.includes('FROM tenant_discount_policies'))
       return overrides.policy ?? { tip_max_percent: 25, open_drawer_on_cash: 1 };
     return null;

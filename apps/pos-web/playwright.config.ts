@@ -1,5 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
+// The suite launcher chooses a free port once and passes it to every Playwright
+// process. Direct CLI usage keeps a stable fallback for debugging.
+const e2ePort = process.env.KIPUSPAY_E2E_PORT ?? '41731';
+const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -8,8 +13,10 @@ export default defineConfig({
   workers: 4,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: e2eBaseUrl,
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     // El Service Worker intercepta GETs same-origin y esquivaba los mocks
     // page.route de los fixtures (regresión s43/s44): bloqueado por defecto.
     // Los specs que prueban el SW (mobile-low-end) lo re-habilitan con test.use.
@@ -19,65 +26,20 @@ export default defineConfig({
       : {},
   },
   webServer: {
-    command: 'pnpm build && pnpm preview',
-    url: 'http://localhost:4173',
-    reuseExistingServer: true,
+    command: `./node_modules/.bin/vite build && ./node_modules/.bin/vite preview --host 127.0.0.1 --port ${e2ePort} --strictPort`,
+    url: e2eBaseUrl,
+    timeout: 120_000,
+    // Reusar un preview ajeno oculta la revisión bajo prueba. Solo se permite
+    // en una depuración local que lo pida explícitamente.
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === '1',
     env: {
       PUBLIC_ENABLE_DEV_HARNESS: '1',
-      PUBLIC_FEATURE_ORDERS_CUSTOMER_ORDERS: '1',
-      PUBLIC_FEATURE_ORDERS_KDS: '1',
-      PUBLIC_FEATURE_POS_CHECKOUT: '1',
-      PUBLIC_FEATURE_SALES_RECURRING: '1',
-      PUBLIC_FEATURE_MOBILE_PUSH: '1',
-      PUBLIC_FEATURE_CLIENT_MOBILE_POS: '1',
-      PUBLIC_FEATURE_OWNER_MODE: '1',
-      PUBLIC_FEATURE_FISCAL_CIRCUIT_BREAKER: '1',
-      PUBLIC_FEATURE_ANALYTICS_FORECASTING: '1',
+      // UI titular bajo prueba solo en preview local; staging sigue con flag 0.
       PUBLIC_FEATURE_LPDP: '1',
-      PUBLIC_FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '1',
-      PUBLIC_FEATURE_CATALOG_QUICK_ADD: '1',
-      PUBLIC_FEATURE_SHIFT_HANDOFF: '1',
-      PUBLIC_FEATURE_TEAM_INVITE: '1',
-      PUBLIC_FEATURE_ONBOARDING_TOUR: '1',
-      PUBLIC_FEATURE_SALES_DEBIT_NOTE: '1',
-      PUBLIC_FEATURE_GRE: '1',
-      PUBLIC_FEATURE_FISCAL_WITHHOLDINGS: '1',
-      PUBLIC_FEATURE_SALE_TIP: '1',
-      PUBLIC_FEATURE_CASH_DRAWER: '1',
-      PUBLIC_FEATURE_CATALOG_SELLABLE: '1',
-      PUBLIC_FEATURE_PRINT_TEMPLATES: '1',
-      PUBLIC_FEATURE_HARDWARE_DIAGNOSTICS: '1',
-      PUBLIC_FEATURE_SALES_COMMISSIONS: '1',
-      PUBLIC_FEATURE_VITRINA: '1',
-      PUBLIC_FEATURE_DATA_BACKUP: '1',
-      PUBLIC_FEATURE_CASH_BLIND_Z: '1',
-      PUBLIC_FEATURE_LEDGER_STORE_CREDIT: '1',
-      PUBLIC_FEATURE_PURCHASING_THREE_WAY: '1',
-      PUBLIC_FEATURE_LEDGER_AR_AP: '1',
-      PUBLIC_FEATURE_PAYMENTS_QR_WALLETS: '1',
-      PUBLIC_FEATURE_SALES_RETURNS: '1',
-      PUBLIC_FEATURE_SALES_LAYAWAY: '1',
-      PUBLIC_FEATURE_SALES_QUOTES: '1',
-      PUBLIC_FEATURE_SALES_INSTALLMENTS: '1',
-      PUBLIC_FEATURE_CATALOG_VARIANTS: '1',
-      PUBLIC_FEATURE_CATALOG_UOM: '1',
-      PUBLIC_FEATURE_PRICING_PROMOTIONS: '1',
-      PUBLIC_FEATURE_PURCHASING_ORDERS: '1',
-      PUBLIC_FEATURE_PURCHASING_PARTIAL_RECEIVE: '1',
-      PUBLIC_FEATURE_PURCHASING_RETURNS: '1',
-      PUBLIC_FEATURE_INVENTORY_BATCHES: '1',
-      PUBLIC_FEATURE_INVENTORY_BOM: '1',
-      PUBLIC_FEATURE_INVENTORY_LOCATIONS: '1',
-      PUBLIC_FEATURE_INVENTORY_SERIALS: '1',
-      PUBLIC_FEATURE_INTEGRATIONS_API: '1',
-      PUBLIC_FEATURE_CATALOG_IMPORT: '1',
-      PUBLIC_FEATURE_ACCOUNTING_EXPORT: '1',
-      PUBLIC_FEATURE_LEDGER_CHART_OF_ACCOUNTS: '1',
-      PUBLIC_FEATURE_STOCK_TRANSFERS: '1',
-      PUBLIC_FEATURE_PAYMENTS_CARD_ACQUIRER: '1',
-      PUBLIC_FEATURE_REPORTING_CATALOG: '1',
-      PUBLIC_FEATURE_CASH_EXPENSES: '1',
-      PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC: '0', // Ola 5 kill-switch default off (ADR-ARCH-003)
+      // El wrangler.jsonc del app apunta a staging para deploy; los E2E
+      // locales no deben emitir requests a ningún Worker remoto.
+      PUBLIC_API_BASE: '',
+      KIPUSPAY_E2E_OUT_DIR: process.env.KIPUSPAY_E2E_OUT_DIR ?? '.svelte-kit-e2e',
     },
   },
 });

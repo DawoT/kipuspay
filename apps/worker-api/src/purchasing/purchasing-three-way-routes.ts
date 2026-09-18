@@ -4,6 +4,11 @@
 import { processSupplierInvoiceMatchAtomic } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { parseFiniteNumber, parseMoneyInteger } from '../http/money-input.js';
+import {
+  CapabilityError,
+  CapabilityResolver,
+  isCapabilityEnabled,
+} from '../capabilities/capability-resolver.js';
 
 interface InvoiceLine {
   readonly productId: string;
@@ -62,15 +67,29 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(): HttpResult {
-  return {
-    status: 404,
-    body: { error: 'FEATURE_PURCHASING_THREE_WAY off', code: 'FEATURE_OFF' },
-  };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireThreeWay(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'purchasing.three_way');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 const CLIENT_422 = new Set([
@@ -84,6 +103,9 @@ const CLIENT_422 = new Set([
 ]);
 
 function mapError(err: unknown): HttpResult {
+  if (err instanceof CapabilityError) {
+    return { status: 503, body: { error: err.code, code: err.code } };
+  }
   const code = err instanceof Error ? err.message : 'INVOICE_MATCH_FAILED';
   const status =
     code === 'PO_NOT_FOUND'
@@ -183,7 +205,6 @@ export async function runMatchSupplierInvoiceHttp(
     authorizedByUserId?: string | null;
   },
 ): Promise<HttpResult> {
-  if (!isPurchasingThreeWayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -191,6 +212,8 @@ export async function runMatchSupplierInvoiceHttp(
 
   const parsed = parseMatchBody(body);
   if (!parsed.ok) return parsed.result;
+  const capabilityError = await requireThreeWay(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   try {
     const result = await processSupplierInvoiceMatchAtomic(env.DB, tenantId, userId, {
@@ -203,9 +226,7 @@ export async function runMatchSupplierInvoiceHttp(
       priceDiffOverride: parsed.priceDiffOverride,
       overrideReason: parsed.overrideReason,
       authorizedByUserId: parsed.authorizedByUserId,
-      chartOfAccountsEnabled:
-        env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-        env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
+      chartOfAccountsEnabled: await isCapabilityEnabled(env, tenantId, 'ledger.chart_of_accounts'),
     });
     return {
       status: 200,
@@ -227,7 +248,6 @@ export async function runOwnerThreeWayReportHttp(
   tenantId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isPurchasingThreeWayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -236,6 +256,8 @@ export async function runOwnerThreeWayReportHttp(
   if (role !== 'owner' && role !== 'admin') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireThreeWay(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const openPos = await env.DB.prepare(
     `SELECT id, branch_id, supplier_id, status, total_amount_cents, created_at

@@ -18,6 +18,7 @@
     message = '',
     tipCents = $bindable<number | null>(0),
     tipOn = false,
+    quickLineOn = false,
     clientDocNumber = '',
     clientName = '',
     chargeSettled = false,
@@ -31,6 +32,7 @@
     message: string;
     tipCents?: number | null;
     tipOn?: boolean;
+    quickLineOn?: boolean;
     clientDocNumber?: string;
     clientName?: string;
     chargeSettled?: boolean;
@@ -109,9 +111,11 @@
         title="El carrito está vacío"
         description="Agrega un producto del catálogo o cobra una venta rápida."
       >
-        <Button variant="secondary" data-testid="empty-cart-quick" onclick={onQuickSale}>
-          Venta rápida
-        </Button>
+        {#if quickLineOn}
+          <Button variant="secondary" data-testid="empty-cart-quick" onclick={onQuickSale}>
+            Venta rápida
+          </Button>
+        {/if}
       </EmptyState>
     {:else}
       {#each lines as line (line.productId + (line.saleItemId ?? '') + (line.weightMeasurement?.measurementId ?? '') + (line.serialId ?? '') + (line.uomId ?? ''))}
@@ -218,16 +222,18 @@
         {chargeButtonLabel(formatCents(payableCents))}
       </Button>
     </div>
-    <Button
-      variant="secondary"
-      size="xl"
-      data-testid="quick-sale"
-      style="margin-top: 0.5rem"
-      onclick={onQuickSale}
-      icon="plus"
-    >
-      Venta rápida (sin catálogo)
-    </Button>
+    {#if quickLineOn}
+      <Button
+        variant="secondary"
+        size="xl"
+        data-testid="quick-sale"
+        style="margin-top: 0.5rem"
+        onclick={onQuickSale}
+        icon="plus"
+      >
+        Venta rápida (sin catálogo)
+      </Button>
+    {/if}
   </div>
 </section>
 

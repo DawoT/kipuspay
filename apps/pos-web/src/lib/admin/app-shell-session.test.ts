@@ -29,6 +29,7 @@ describe('authenticated app-shell session', () => {
           terminal: {
             terminalId: 'terminal-a',
             terminalSessionId: 'terminal-session-a',
+            cashRegisterSessionId: 'cash-session-a',
           },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -47,6 +48,7 @@ describe('authenticated app-shell session', () => {
         verified: true,
         terminalId: 'terminal-a',
         terminalSessionId: 'terminal-session-a',
+        cashRegisterSessionId: 'cash-session-a',
       },
     });
     const bootstrap = fetcher.mock.calls[0] as [string, RequestInit];
@@ -73,7 +75,11 @@ describe('authenticated app-shell session', () => {
           userId: 'user-a',
           role: 'cashier',
           branchId: 'branch-a',
-          terminal: { terminalId: 'terminal-a', terminalSessionId: 'terminal-session-a' },
+          terminal: {
+            terminalId: 'terminal-a',
+            terminalSessionId: 'terminal-session-a',
+            cashRegisterSessionId: 'cash-session-a',
+          },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),

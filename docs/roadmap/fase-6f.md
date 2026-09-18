@@ -20,9 +20,9 @@ sprints: "46–49"
 - `forecast_outputs` versionados (`model_version`); salida = **sugerencias** al Dueño (reposición, alertas) — nunca decisiones automáticas de precio/stock.
 - Gated a plan **Cadena**; disclaimer en UI ("estimación, no garantía").
 
-**Criterios de aceptación:** forecast no muta D1 de ventas ni stock; 0 acción automática sobre precio/inventario; métricas de precisión (MAPE) publicadas; gating Cadena respetado — plan inferior = **403 `PLAN_REQUIRES_CADENA`** semántico (patrón Sprint 23/ADR-0030) y **402 Plan Guard** solo por trial/past_due, **sin tocar arqueo**.
+**Criterios de aceptación:** forecast no muta D1 de ventas ni stock; 0 acción automática sobre precio/inventario; MAPE medido y publicado contra un objetivo/umbral aprobado previamente por Staff Data + PM (actualmente no hay MAPE documentado ni umbral acordado); gating Cadena respetado — plan inferior = **403 `PLAN_REQUIRES_CADENA`** semántico (patrón Sprint 23/ADR-0030) y **402 Plan Guard** solo por trial/past_due, **sin tocar arqueo**.
 
-**Quality Gate:** Staff Data (métricas) + Staff PM; Staff Growth **descongela** claim "analítica predictiva" en GTM §4.1 solo tras este gate.
+**Quality Gate:** Staff Data (MAPE y objetivo) + Staff PM + validación cron/canary externo + QA y firmas A+V independientes. El canary técnico parcial no libera claims: GTM-01 permanece CONGELADO y solo se describe como roadmap hasta completar el gate.
 
 ---
 
@@ -69,7 +69,6 @@ sprints: "46–49"
 
 **Criterios de aceptación:** 0 discrepancias numéricas entre el texto NLG y los hechos D1 en 500 casos (Staff QA, anti-alucinación); 0 fuga de datos entre tenants en suite multi-tenant (tenant_id del JWT forzado en `WHERE`, jamás del prompt); P95 <2s en chat SSE y <10ms en lectura de briefing KV; gating Cadena/Enterprise respetado; 0 datos cacheados stale presentados como en vivo (banner de briefing); **límite de memoria (edge A): consulta simulada de 100k filas → el validador fuerza `LIMIT 50`/agregación, 0 OOM del isolate, respuesta "demasiado amplio → descarga el Excel"**; **benchmark gama baja (R-02): ningún sprint de FASE 6F/6G se cierra sin pasar la suite de estrés en emulador Android con 1 GB de RAM disponible — re-materialización de rollup tardío (edge D) + reconciliación de cola concurrentes sin `QuotaExceededError` ni pérdida de ventas**; **idempotencia (edge B): reenvío con la misma `insight_idempotency_key` tras corte de red → respuesta cacheada sin re-invocar al LLM y `ai_usage_counters` sin incremento extra (0 doble cobro)**; **schema PII-free (edge C): suite de prompts adversos de PII ("¿quién es mi mejor cliente?", "dame correos") → 0 `email`/`phone`/`address`/`document_number` en `facts_json` ni en la respuesta (seudónimo + `customer_id`)**.
 
-**Quality Gate:** Staff Data (0 discrepancias) + Staff Security (multi-tenant) + Staff QA; Staff Growth **descongela** claim "El único POS que viene con un Gerente de Operaciones incluido" en GTM §4.1 solo tras este gate; Staff Principal aprueba el cierre según RACI.
+**Quality Gate:** Staff Data (0 discrepancias) + Staff Security (multi-tenant) + Staff QA + Staff Principal según RACI; además, demostrar generación válida con facts no triviales, SLO general (no solo fast path), Cron/KV real y firmas A+V. Hasta cerrar todo, GTM-10 permanece CONGELADO; no usar “Gerente de Operaciones” como claim disponible.
 
 ---
-

@@ -17,7 +17,9 @@ import { signHs256, verifyJwt } from '../auth/verify-jwt.js';
 import { CASHIER_SESSION_TTL_SECONDS } from '../auth/cashier-login-route.js';
 import type { FormalizationMode } from '@kipuspay/domain-fiscal-pe';
 import { computeSetupProgress, type SetupServerState } from '@kipuspay/domain-onboarding';
+import { provisionCapabilitiesForPlan } from '@kipuspay/domain-billing';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 /** Bindings del bootstrap/claim: DB + KV (con put/delete) + secret HS256. */
 export interface BootstrapHttpEnv {
@@ -40,6 +42,7 @@ const VERTICALS: readonly VerticalType[] = [
   'retail',
   'servicios',
   'cadenas',
+  'grifos',
 ];
 
 const MODES: readonly FormalizationMode[] = [
@@ -114,6 +117,7 @@ async function generateOwnerCredentials(): Promise<OwnerCredentials> {
 interface PersistedBootstrap {
   readonly tenantId: string;
   readonly tradeName: string;
+  readonly verticalType: VerticalType;
   readonly branchId: string;
   readonly planId: string;
   readonly formalizationMode: string;
@@ -168,6 +172,12 @@ async function persistAndMintToken(
         ownerBadge: credentials.ownerBadge,
         ownerPinHash: credentials.ownerPinHash,
         nowIso: new Date(nowMs).toISOString(),
+        capabilities: [
+          ...provisionCapabilitiesForPlan(domain.planId),
+          // El primer cobro ocurre antes de subir catálogo (GTM §6.2).
+          // Es un default de onboarding, no cambia el bundle del plan.
+          'sales.quick_line',
+        ],
       },
     );
   } catch (err) {
@@ -206,6 +216,7 @@ async function persistAndMintToken(
     persisted: {
       tenantId: domain.tenantId,
       tradeName: domain.tradeName,
+      verticalType: domain.verticalType,
       branchId: credentials.branchId,
       planId: domain.planId,
       formalizationMode: domain.formalizationMode,
@@ -268,6 +279,7 @@ export async function runBootstrapHttp(
     body: {
       tenantId: persisted.tenantId,
       tradeName: persisted.tradeName,
+      verticalType: persisted.verticalType,
       branchId: persisted.branchId,
       planId: persisted.planId,
       formalizationMode: persisted.formalizationMode,
@@ -503,6 +515,24 @@ export function isOnboardingTourEnabled(env: OnboardingEnv | undefined): boolean
   return env?.FEATURE_ONBOARDING_TOUR === '1';
 }
 
+async function requireOnboardingTour(
+  env: OnboardingEnv,
+  tenantId: string,
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'onboarding.tour');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
 /** Catálogo cerrado de growth events (espejo del CHECK de la migración 0044). */
 export const GROWTH_EVENT_TYPES = [
   'onboarding_started',
@@ -554,8 +584,9 @@ export async function runSetupProgressHttp(
   env: OnboardingEnv,
   actor: QuickAddActor,
 ): Promise<HttpResult> {
-  if (!isOnboardingTourEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'ONBOARDING_DB_UNAVAILABLE' } };
+  const capabilityError = await requireOnboardingTour(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   let row: SetupRow;
   try {
     row = await loadSetupRow(env.DB as SetupDb, actor.tenantId);
@@ -587,8 +618,21 @@ export async function runGrowthEventHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isOnboardingTourEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'ONBOARDING_DB_UNAVAILABLE' } };
+  const capabilityError = await requireOnboardingTour(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
+  const parsed = parseGrowthEventInput(body);
+  if ('status' in parsed) return parsed;
+  return persistGrowthEvent(env.DB, actor.tenantId, parsed);
+}
+
+interface GrowthEventInput {
+  readonly eventType: GrowthEventType;
+  readonly metaJson: string | null;
+  readonly idempotencyKey: string;
+}
+
+function parseGrowthEventInput(body: Record<string, unknown>): GrowthEventInput | HttpResult {
   const eventType = typeof body.eventType === 'string' ? body.eventType : '';
   if (!GROWTH_EVENT_TYPES.includes(eventType as GrowthEventType)) {
     return {
@@ -600,32 +644,78 @@ export async function runGrowthEventHttp(
   if (meta !== null && (typeof meta !== 'object' || Array.isArray(meta))) {
     return { status: 422, body: { code: 'INVALID_META' } };
   }
-  const db = env.DB as unknown as {
-    prepare(sql: string): {
-      bind(...params: unknown[]): { run(): Promise<{ meta?: { changes?: number } }> };
+  const idempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey.trim() : '';
+  if (!idempotencyKey) return { status: 422, body: { code: 'IDEMPOTENCY_KEY_REQUIRED' } };
+  if (idempotencyKey.length > 128 || !/^[A-Za-z0-9_-]{6,128}$/.test(idempotencyKey)) {
+    return { status: 422, body: { code: 'IDEMPOTENCY_KEY_INVALID' } };
+  }
+  const metaJson = meta === null ? null : JSON.stringify(meta);
+  if (metaJson !== null && new TextEncoder().encode(metaJson).byteLength > 4096) {
+    return { status: 422, body: { code: 'META_TOO_LARGE' } };
+  }
+  return { eventType: eventType as GrowthEventType, metaJson, idempotencyKey };
+}
+
+interface GrowthEventDb {
+  prepare(sql: string): {
+    bind(...params: unknown[]): {
+      run(): Promise<{ meta?: { changes?: number } }>;
+      first<T>(): Promise<T | null>;
     };
   };
-  await db
+}
+
+async function persistGrowthEvent(
+  rawDb: unknown,
+  tenantId: string,
+  input: GrowthEventInput,
+): Promise<HttpResult> {
+  const db = rawDb as GrowthEventDb;
+  const inserted = await db
     .prepare(
-      `INSERT INTO growth_events (id, tenant_id, event_type, occurred_at, meta_json)
-       VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)`,
+      `INSERT OR IGNORE INTO growth_events
+         (id, tenant_id, event_type, occurred_at, meta_json, idempotency_key)
+       VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?)`,
     )
-    .bind(
-      crypto.randomUUID(),
-      actor.tenantId,
-      eventType,
-      meta === null ? null : JSON.stringify(meta),
-    )
+    .bind(crypto.randomUUID(), tenantId, input.eventType, input.metaJson, input.idempotencyKey)
     .run();
-  return { status: 201, body: { ok: true, eventType } };
+  if ((inserted.meta?.changes ?? 0) !== 0) {
+    return { status: 201, body: { ok: true, eventType: input.eventType } };
+  }
+  const existing = await db
+    .prepare(
+      `SELECT event_type, meta_json FROM growth_events
+       WHERE tenant_id = ? AND idempotency_key = ? LIMIT 1`,
+    )
+    .bind(tenantId, input.idempotencyKey)
+    .first<{ event_type: string; meta_json: string | null }>();
+  if (existing?.event_type === input.eventType && existing.meta_json === input.metaJson) {
+    return { status: 200, body: { ok: true, eventType: input.eventType, replayed: true } };
+  }
+  return { status: 409, body: { code: 'GROWTH_IDEMPOTENCY_MISMATCH' } };
 }
 
 export async function runListGrowthEventsHttp(
   env: OnboardingEnv,
-  tenantId: string,
+  actor: QuickAddActor,
 ): Promise<HttpResult> {
+  const tenantId = actor.tenantId;
   if (!tenantId) return { status: 401, body: { code: 'UNAUTHORIZED' } };
+  if (!['owner', 'admin'].includes(actor.role.toLowerCase())) {
+    return { status: 403, body: { code: 'FORBIDDEN' } };
+  }
   if (!env.DB) return { status: 503, body: { code: 'ONBOARDING_DB_UNAVAILABLE' } };
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'analytics.growth_metrics');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
   const db = env.DB as unknown as {
     prepare(sql: string): {
       bind(...params: unknown[]): {
@@ -651,7 +741,13 @@ export async function runListGrowthEventsHttp(
       try {
         const parsed: unknown = JSON.parse(row.metaJson);
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          meta = parsed as Record<string, unknown>;
+          const safeKeys = ['step', 'source', 'surface', 'vertical', 'reason'];
+          const safeMeta: Record<string, unknown> = {};
+          for (const key of safeKeys) {
+            const value = (parsed as Record<string, unknown>)[key];
+            if (typeof value === 'string' && value.length <= 128) safeMeta[key] = value;
+          }
+          if (Object.keys(safeMeta).length > 0) meta = safeMeta;
         }
       } catch {
         meta = undefined;

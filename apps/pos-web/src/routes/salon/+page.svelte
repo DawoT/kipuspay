@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isOrdersKdsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -10,28 +10,38 @@
   import { tenantBranchId } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
 
-  const enabled = isOrdersKdsEnabled();
+  let capabilitiesSnapshot = $state<ReadonlySet<string>>(new Set());
+  const enabled = $derived(capabilitiesSnapshot.has('orders.kds'));
   let branchId = $state('default');
   let tableLabel = $state('1');
   let productId = $state('');
   let quantity = $state(1);
   let sellable = $state<{ productId: string; name: string; priceCents: number }[]>([]);
 
+  let catalogRequested = $state(false);
+  async function loadCatalog() {
+    catalogRequested = true;
+    try {
+      const res = await apiFetch(`/api/catalog/sellable?branchId=${encodeURIComponent(branchId)}`, { storage: localStorage });
+      const body = res.ok ? await res.json() : { items: [] };
+      sellable = (body.items ?? []).map((i: { productId: string; name: string; unitPriceCents: number }) => ({
+        productId: i.productId,
+        name: i.name,
+        priceCents: i.unitPriceCents,
+      }));
+    } catch { /* catálogo opcional: la pantalla conserva estado vacío */ }
+  }
+
+  $effect(() => {
+    if (enabled && !catalogRequested) void loadCatalog();
+  });
+
   onMount(() => {
+    const unsubscribeCapabilities = tenantCapabilities.subscribe((value) => {
+      capabilitiesSnapshot = new Set(value);
+    });
     branchId = tenantBranchId(localStorage) || 'default';
-    if (!enabled) return;
-    void apiFetch(`/api/catalog/sellable?branchId=${encodeURIComponent(branchId)}`, {
-      storage: localStorage,
-    })
-      .then((res) => (res.ok ? res.json() : { items: [] }))
-      .then((body) => {
-        sellable = (body.items ?? []).map((i: { productId: string; name: string; unitPriceCents: number }) => ({
-          productId: i.productId,
-          name: i.name,
-          priceCents: i.unitPriceCents,
-        }));
-      })
-      .catch(() => {});
+    return unsubscribeCapabilities;
   });
   let orderId = $state('');
   let status = $state('');

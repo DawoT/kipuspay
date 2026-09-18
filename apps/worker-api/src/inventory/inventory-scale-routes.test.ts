@@ -29,9 +29,15 @@ const adapters = vi.hoisted(() => ({
 vi.mock('@kipuspay/adapters-d1', () => adapters);
 
 function env(flag = '1'): WorkerEnv {
+  const statement = {
+    bind: vi.fn(),
+    first: vi.fn(() => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 })),
+    all: vi.fn(() => Promise.resolve({ results: [] })),
+  };
+  statement.bind.mockReturnValue(statement);
   return {
     FEATURE_INVENTORY_SCALE: flag,
-    DB: { prepare: vi.fn() },
+    DB: { prepare: vi.fn(() => statement) },
   } as unknown as WorkerEnv;
 }
 

@@ -2,7 +2,7 @@
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isSalesQuotesEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -35,7 +35,7 @@
     validateOneTapRequest,
   } from '$lib/quotes/quote-one-tap';
 
-  const quotesOn = isSalesQuotesEnabled();
+  const quotesOn = $derived($tenantCapabilities.has('sales.quotes'));
   let session = $state<PosTenantSession>(defaultTenantSession());
   let productId = $state('p1');
   let enteredMicrounits = $state(1_000_000);

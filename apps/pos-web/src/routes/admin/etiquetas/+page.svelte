@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import {
     createPriceLabelClient,
-    isCatalogPriceLabelsEnabled,
     priceLabelUiState,
   } from '$lib/catalog/price-label-client';
   import { readAdminAuthenticatedSession } from '$lib/admin/authenticated-session';
@@ -13,6 +12,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
 import { resolveApiBase } from '$lib/auth/api-client';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
 
   type ProductRow = {
     id: string;
@@ -22,7 +22,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
     copies: number;
   };
 
-  const enabled = isCatalogPriceLabelsEnabled();
+  const enabled = $derived($tenantCapabilities.has('catalog.price_labels'));
   const adminSession = readAdminAuthenticatedSession();
   const authenticated = adminSession !== null;
   let online = $state(true);
@@ -31,13 +31,7 @@ import { resolveApiBase } from '$lib/auth/api-client';
   let templateId = $state('shelf-standard');
   let templateVersion = $state('v3 · vigente');
   let priceListId = $state('');
-  let statusMessage = $state(
-    !authenticated
-      ? 'Sesión no autenticada. Inicia sesión de nuevo para administrar etiquetas.'
-      : enabled
-      ? 'Listo para crear un lote con precios resueltos por el servidor.'
-      : 'Las etiquetas de precio no están activas para este negocio.',
-  );
+  let statusMessage = $state('');
   let busy = $state(false);
   let batchId = $state('');
   let acknowledged = $state(0);
@@ -69,6 +63,11 @@ import { resolveApiBase } from '$lib/auth/api-client';
     : null;
 
   onMount(() => {
+    statusMessage = !authenticated
+      ? 'Sesión no autenticada. Inicia sesión de nuevo para administrar etiquetas.'
+      : enabled
+        ? 'Listo para crear un lote con precios resueltos por el servidor.'
+        : 'Las etiquetas de precio no están activas para este negocio.';
     const updateConnection = () => {
       online = navigator.onLine;
       if (!online) {

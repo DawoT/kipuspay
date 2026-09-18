@@ -10,7 +10,11 @@ const SESSION = JSON.stringify({
   role: 'cashier',
   branchId: 'branch-e2e',
 });
-const CLAIM = JSON.stringify({ branchId: 'branch-e2e', sessionId: 'session-e2e' });
+const CLAIM = JSON.stringify({
+  branchId: 'branch-e2e',
+  sessionId: 'session-e2e',
+  tenantId: 't-e2e',
+});
 
 test('vitrina: pantalla del cliente con total en vivo', async ({ page }) => {
   await page.addInitScript(
@@ -19,6 +23,15 @@ test('vitrina: pantalla del cliente con total en vivo', async ({ page }) => {
       localStorage.setItem('kipuspay.onboarding.claim', claim);
       localStorage.setItem('kipuspay_token', 'jwt-e2e');
       localStorage.setItem('kipuspay_tenant_id', 't-e2e');
+      localStorage.setItem(
+        'kipuspay.capabilities.v1:t-e2e',
+        JSON.stringify({
+          tenantId: 't-e2e',
+          caps: ['display.vitrina', 'pos.checkout'],
+          epoch: 1,
+          fetchedAt: Date.now(),
+        }),
+      );
     },
     [SESSION, CLAIM] as const,
   );
@@ -39,6 +52,15 @@ test('kiosk: cobra con sesión y producto real del catálogo', async ({ page }) 
       localStorage.setItem('kipuspay_token', 'jwt-e2e');
       localStorage.setItem('kipuspay_tenant_id', 't-e2e');
       localStorage.setItem('kipuspay:pos-terminal-id', 'terminal-e2e');
+      localStorage.setItem(
+        'kipuspay.capabilities.v1:t-e2e',
+        JSON.stringify({
+          tenantId: 't-e2e',
+          caps: ['display.vitrina', 'pos.checkout', 'hardware.print_templates'],
+          epoch: 1,
+          fetchedAt: Date.now(),
+        }),
+      );
     },
     [SESSION, CLAIM] as const,
   );

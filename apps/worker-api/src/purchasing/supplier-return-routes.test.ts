@@ -47,6 +47,7 @@ function env(over: Partial<WorkerEnv> = {}): WorkerEnv {
           bind() {
             return stmt;
           },
+          first: async () => ({ enabled: 1, config_json: '{}', epoch: 0 }),
           all: () => Promise.resolve({ results: [], success: true, meta: {} }),
         };
         return stmt;
@@ -68,7 +69,7 @@ describe('supplier-return-routes', () => {
       'u1',
       {},
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(503);
   });
 
   it('create/close/cancel 200', async () => {

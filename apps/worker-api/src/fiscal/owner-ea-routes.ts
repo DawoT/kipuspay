@@ -3,6 +3,7 @@
  */
 import { processCreditNoteAtomic, type D1DatabaseLike } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 function asD1(db: D1Database): D1DatabaseLike {
   return db;
@@ -14,16 +15,48 @@ export function isFiscalCircuitBreakerFlag(env: WorkerEnv): boolean {
   );
 }
 
+async function requireFiscalCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'fiscal.rc' | 'fiscal.cpe_portal',
+): Promise<{ status: number; body: Record<string, unknown> } | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
+async function optionalCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'ledger.accounts_receivable' | 'ledger.chart_of_accounts' | 'sales.commissions',
+): Promise<boolean> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return true;
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) return false;
+    throw error;
+  }
+}
+
 export async function runOwnerBacklogHttp(
   env: WorkerEnv,
   tenantId: string,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!isFiscalCircuitBreakerFlag(env) && env.FEATURE_FISCAL_RC !== '1') {
-    return { status: 404, body: { error: 'FEATURE_OFF', code: 'FEATURE_OFF' } };
-  }
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.rc');
+  if (capabilityError) return capabilityError;
   const rows = await env.DB.prepare(
     `SELECT id, document_type, sunat_status, total_amount_cents
      FROM sales
@@ -68,9 +101,6 @@ export async function runCreditNoteEaHttp(
   if (!tenantId) {
     return { status: 401, body: { error: 'UNAUTHORIZED', code: 'UNAUTHORIZED' } };
   }
-  if (!isFiscalCircuitBreakerFlag(env) && env.FEATURE_FISCAL_CPE !== '1') {
-    return { status: 404, body: { error: 'FEATURE_OFF', code: 'FEATURE_OFF' } };
-  }
   if (!body.confirmed) {
     return {
       status: 400,
@@ -80,6 +110,8 @@ export async function runCreditNoteEaHttp(
   if (!env.DB) {
     return { status: 503, body: { error: 'DB unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  const capabilityError = await requireFiscalCapability(env, tenantId, 'fiscal.cpe_portal');
+  if (capabilityError) return capabilityError;
   const originSaleId = body.originSaleId ?? '';
   const series = body.series ?? 'FC01';
   const motiveCode = body.motiveCode ?? '01';
@@ -92,6 +124,11 @@ export async function runCreditNoteEaHttp(
     if (!origin) {
       return { status: 404, body: { error: 'SALE_NOT_FOUND', code: 'SALE_NOT_FOUND' } };
     }
+    const [ledgerArApEnabled, chartOfAccountsEnabled, salesCommissionsEnabled] = await Promise.all([
+      optionalCapability(env, tenantId, 'ledger.accounts_receivable'),
+      optionalCapability(env, tenantId, 'ledger.chart_of_accounts'),
+      optionalCapability(env, tenantId, 'sales.commissions'),
+    ]);
     const result = await processCreditNoteAtomic(
       asD1(env.DB),
       tenantId,
@@ -105,12 +142,9 @@ export async function runCreditNoteEaHttp(
       },
       series,
       {
-        ledgerArApEnabled: env.FEATURE_LEDGER_AR_AP === '1' || env.FEATURE_LEDGER_AR_AP === 'true',
-        chartOfAccountsEnabled:
-          env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-          env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
-        salesCommissionsEnabled:
-          env.FEATURE_SALES_COMMISSIONS === '1' || env.FEATURE_SALES_COMMISSIONS === 'true',
+        ledgerArApEnabled,
+        chartOfAccountsEnabled,
+        salesCommissionsEnabled,
       },
     );
     return {
@@ -121,6 +155,9 @@ export async function runCreditNoteEaHttp(
       },
     };
   } catch (e) {
+    if (e instanceof CapabilityError) {
+      return { status: 503, body: { error: e.code, code: e.code } };
+    }
     const msg = e instanceof Error ? e.message : 'NC_FAILED';
     return { status: 400, body: { error: msg, code: msg } };
   }

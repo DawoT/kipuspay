@@ -7,14 +7,15 @@ owner: "@DawoT"
 
 # Sprint 43 — Pedidos de cliente con retiro — Quality Gate
 
-**Estado software:** GREEN local  
+**Estado software:** GREEN local + canary técnico staging
 **Estado claim/producción/piloto:** NO-GO condicionado  
 **Capability:** `orders.customer_orders`, default-off  
 **Spec:** Arquitectura §5.10 regla 28 · ADR-0027 · COM-05 · COM-09 · DAT-12 · SYN-12 · Roadmap FASE 6E
 
-El gate automatizado demuestra el contrato de software en entorno local. No existe
-evidencia de staging ni entrega externa de WhatsApp, y Web Push permanece en Sprint
-45. Tampoco existen firmas humanas independientes de Staff QA y Staff PM como A+V.
+El gate automatizado demuestra el contrato de software en entorno local. Un canary
+controlado de creación, lease, retiro y replay ya pasó en staging; no existe aún
+entrega externa de WhatsApp, y Web Push permanece en Sprint 45. Tampoco existen
+firmas humanas independientes de Staff QA y Staff PM como A+V.
 Por ello este documento no autoriza activación en producción, piloto de entrega ni el
 claim GTM-24.
 
@@ -121,11 +122,35 @@ sucursal y sesión de terminal activos, más tests negativos. No se ejecutó una
 Security Review limpia. La evidencia afirma remediación implementada y suites GREEN,
 no una certificación de seguridad independiente posterior.
 
+Como comprobación auxiliar del C2, un agente distinto hizo el 2026-09-17 una lectura
+estática solo de las modificaciones locales actuales en `customer-order-routes.ts`,
+los caminos D1/dominio relacionados y los tests de rutas. No observó regresiones
+accionables de los tres puntos históricos (scope de sucursal para caja y sesión de
+terminal activa resuelta server-side para lease/fulfillment). El propio agente indicó
+que no era la revisión formal `security-review` exigida por el procedimiento; por eso
+esta comprobación no cierra la segunda Security Review ni modifica el NO-GO. Después
+de esa lectura pasaron los tests enfocados de rutas y residuales (**19/19**); son
+evidencia funcional local y no certificación independiente.
+
+## Evidencia staging — canary técnico 2026-09-17
+
+Con `orders.customer_orders` habilitado únicamente para el tenant sintético
+`tenant_stg_phase0_001`, el Worker staging ejecutó creación (`201`), listado y
+detalle (`200`), emisión de lease (`201`), retiro (`200`) y replay del mismo
+`idempotencyKey` (`200`). D1 confirmó una orden `FULFILLED`, un fulfillment
+`CONSUMED` y una sola venta asociada; el replay devolvió el mismo `saleId` y no
+creó filas adicionales. El producto, cliente, usuario supervisor, terminal y
+sesión de caja fueron fixtures sintéticos; no se enviaron avisos ni mensajes
+externos.
+
+Esto demuestra el recorrido técnico en bindings reales, no una certificación de
+concurrencia, hardware, WhatsApp, QA humana ni aprobación A/V.
+
 ## Limitaciones externas y condición de cierre
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| Staging real | PENDIENTE / NO-GO | Ejecutar creación, parciales, carreras, expiry y rollback con telemetría reproducible |
+| Staging real | GREEN técnico parcial / NO-GO liberatorio | Canary creación→lease→retiro→replay GREEN; faltan parciales, carreras, expiry y rollback con telemetría reproducible |
 | Entrega externa WhatsApp | PENDIENTE / NO-GO | Piloto con opt-in, timeout/retry/escalado, dedup y evidencia de no bloqueo de caja |
 | Web Push | FUERA DE S43 | Pertenece a Sprint 45; Sprint 43 no promete entrega push |
 | QA humana | PENDIENTE / NO-GO | Staff QA valida flujo autenticado, offline/F5, conflictos, accesibilidad y regresión de caja |

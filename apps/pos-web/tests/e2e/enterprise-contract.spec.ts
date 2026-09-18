@@ -1,25 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockOnboardingClaim } from './fixtures/onboarding-claim';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
-async function mockPastDueSession(page: Page) {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-        billing: {
-          subscriptionStatus: 'past_due',
-          trialEndsAt: null,
-          pastGracePeriod: false,
-        },
-      }),
-    }),
-  );
+async function mockPastDueSession(page: Page, pastGracePeriod = false) {
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'owner',
+    capabilities: ['analytics.agentic_insights', 'catalog.sellable', 'owner.mode', 'pos.checkout'],
+    billing: { subscriptionStatus: 'past_due', trialEndsAt: null, pastGracePeriod },
+  });
 }
 
 test('claim 200 → caja visible (token de onboarding)', async ({ page }) => {
@@ -89,23 +79,7 @@ test('cancel UX: export catálogo y ventas autenticados', async ({ page }) => {
 test('past_due post-gracia: banner de gestión pausada; owner premium → 402', async ({ page }) => {
   const ownerStatuses: number[] = [];
   await mockOnboardingClaim(page);
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-        billing: {
-          subscriptionStatus: 'past_due',
-          trialEndsAt: null,
-          pastGracePeriod: true,
-        },
-      }),
-    }),
-  );
+  await mockPastDueSession(page, true);
   await page.route('**/api/insights/briefing**', (route) => {
     ownerStatuses.push(402);
     route.fulfill({

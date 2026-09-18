@@ -169,6 +169,31 @@ describe('Sprint 42 D1 backup schema and registry', () => {
 });
 
 describe('Sprint 42 epoch reader and dry-run', () => {
+  it('uses a first-primary D1 session for authoritative snapshot reads', async () => {
+    const primaryPrepare = vi.fn(() => ({
+      bind: vi.fn(() => ({ all: vi.fn().mockResolvedValue({ results: [] }) })),
+    }));
+    const withSession = vi.fn(() => ({ prepare: primaryPrepare }));
+    const replicaPrepare = vi.fn();
+    const db = {
+      prepare: replicaPrepare,
+      batch: vi.fn(),
+      withSession,
+    };
+    const reader = createBackupSnapshotReader({ db });
+
+    await reader.readTablePage({
+      tenantId: 'tenant-a',
+      tableName: 'sales',
+      after: null,
+      limit: 10,
+    });
+
+    expect(withSession).toHaveBeenCalledWith('first-primary');
+    expect(primaryPrepare).toHaveBeenCalled();
+    expect(replicaPrepare).not.toHaveBeenCalled();
+  });
+
   it('retries epoch drift from zero, then aborts without blocking POS', async () => {
     const epochs = [4, 5, 5, 6, 6, 7];
     const readEpoch = vi.fn(async () => epochs.shift() ?? 7);

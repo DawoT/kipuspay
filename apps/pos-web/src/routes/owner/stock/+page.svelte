@@ -1,11 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {
-    isCatalogUomEnabled,
-    isCatalogVariantsEnabled,
-    isInventoryOpsEnabled,
-    isOwnerModeEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -13,9 +8,9 @@
   import { stockKindLabel, uomLabel } from '$lib/ui/ops-copy';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  const ownerOn = isOwnerModeEnabled();
-  const invOn = isInventoryOpsEnabled();
-  const variantsOn = isCatalogVariantsEnabled() || isCatalogUomEnabled();
+  const ownerOn = $derived($tenantCapabilities.has('owner.mode'));
+  const invOn = $derived($tenantCapabilities.has('inventory.batches') || $tenantCapabilities.has('inventory.bom'));
+  const variantsOn = $derived($tenantCapabilities.has('catalog.variants') || $tenantCapabilities.has('catalog.uom'));
 
   let branchId = $state('');
   let status = $state('');

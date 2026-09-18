@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kipuspay-lpdp-security-tests",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-06",
+  "durable_objects": {
+    "bindings": [{ "name": "LPDP_OTP_STATE_DO", "class_name": "LpdpSecurityShard" }],
+  },
+  "migrations": [{ "tag": "v1-lpdp-security-test", "new_sqlite_classes": ["LpdpSecurityShard"] }],
+}

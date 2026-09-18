@@ -28,8 +28,40 @@ DEPLOY_TARGETS = [
     "@kipuspay/marketing-web",
 ]
 
+# Flags de capabilities que staging debe conservar explícitamente. `--keep-vars`
+# por sí solo no basta: las vars definidas en wrangler.jsonc pueden sobrescribir
+# el estado del dashboard durante un redeploy.
+STAGING_API_FLAGS = [
+    "FEATURE_CATALOG_QUICK_ADD",
+    "FEATURE_SHIFT_HANDOFF",
+    "FEATURE_TEAM_INVITE",
+    "FEATURE_ONBOARDING_TOUR",
+    "FEATURE_HARDWARE_DIAGNOSTICS",
+    "FEATURE_ORDERS_CUSTOMER_ORDERS",
+    "FEATURE_ANALYTICS_FORECASTING",
+    "FEATURE_ANALYTICS_AGENTIC_INSIGHTS",
+    "FEATURE_LPDP",
+    "FEATURE_SALES_RECURRING",
+    "RECURRING_MANUAL_RUN_ENABLED",
+    "FEATURE_DATA_BACKUP",
+    "FEATURE_PLATFORM_DR",
+    "FEATURE_MOBILE_PUSH",
+    "FEATURE_CLIENT_MOBILE_POS",
+]
+
+STAGING_PROFILES = {
+    "baseline": [],
+    "s43-orders": ["FEATURE_ORDERS_CUSTOMER_ORDERS"],
+    "s44-recurring": ["FEATURE_SALES_RECURRING", "RECURRING_MANUAL_RUN_ENABLED"],
+    "s45-push": ["FEATURE_MOBILE_PUSH", "FEATURE_CLIENT_MOBILE_POS"],
+    "s46-forecast": ["FEATURE_ANALYTICS_FORECASTING"],
+    "s48-dr": ["FEATURE_DATA_BACKUP", "FEATURE_PLATFORM_DR"],
+    "s49-insights": ["FEATURE_ANALYTICS_AGENTIC_INSIGHTS"],
+}
+
 MARKERS = {
     "workflow_dispatch": r"workflow_dispatch\s*:",
+    "capability_profile": r"capability_profile\s*:",
     "gate_documental": r"scripts/verify\.sh",
     "deploy_script": r"deploy:staging",
     "artifact_evidence": r"actions/upload-artifact",
@@ -72,6 +104,64 @@ def order_violations(body: str) -> list[str]:
     return out
 
 
+def profile_violations(body: str) -> list[str]:
+    """El API de staging requiere un perfil explícito; sin él el helper aborta.
+
+    La entrada manual evita que un redeploy vuelva a encender capabilities de otro
+    sprint. Se exige además que el valor viaje específicamente al paso del API.
+    """
+    out: list[str] = []
+    profile_match = re.search(r"^(?P<indent>\s*)capability_profile\s*:\s*$", body, re.M)
+    if not profile_match:
+        out.append("falta capability_profile en workflow_dispatch")
+    else:
+        indent = len(profile_match.group("indent"))
+        lines = body[profile_match.end() :].splitlines()
+        block: list[str] = []
+        for line in lines:
+            if line.strip() and len(line) - len(line.lstrip()) <= indent:
+                break
+            block.append(line.strip())
+        if "type: choice" not in block or "required: true" not in block:
+            out.append("capability_profile debe ser choice obligatorio")
+        options = [line[2:].strip() for line in block if line.startswith("- ")]
+        if set(options) != set(STAGING_PROFILES) or len(options) != len(STAGING_PROFILES):
+            out.append("opciones capability_profile no coinciden con perfiles staging autorizados")
+    if not re.search(
+        r"STAGING_DEPLOY_PROFILE\s*:\s*\$\{\{\s*inputs\.capability_profile\s*\}\}",
+        body,
+    ):
+        out.append("falta capability_profile explícito para deploy worker-api staging")
+    return out
+
+
+def helper_violations(helper_body: str) -> list[str]:
+    """Verifica el contrato fail-closed del helper de capabilities staging."""
+    out: list[str] = []
+    if 'profile="${STAGING_DEPLOY_PROFILE:-}"' not in helper_body:
+        out.append("helper staging sin STAGING_DEPLOY_PROFILE obligatorio")
+    flags_match = re.search(r"flags=\(\s*(?P<flags>.*?)\s*\)", helper_body, re.S)
+    flags = set(re.findall(r"(?:FEATURE_[A-Z_]+|RECURRING_MANUAL_RUN_ENABLED)", flags_match.group("flags") if flags_match else ""))
+    if flags != set(STAGING_API_FLAGS):
+        out.append("helper staging con inventario de flags distinto al contrato")
+    if 'args+=(--var "$flag:0")' not in helper_body:
+        out.append("helper staging no aplica default-off a todas las capabilities")
+    if 'args+=(--var "$flag:1")' not in helper_body:
+        out.append("helper staging no aplica únicamente el allowlist del perfil")
+    case_match = re.search(r'case "\$profile" in(?P<cases>.*?)\n\s*esac', helper_body, re.S)
+    cases = case_match.group("cases") if case_match else ""
+    actual: dict[str, list[str]] = {}
+    for match in re.finditer(r"^\s*([\w-]+)\)\s*(?:enabled=\(([^)]*)\)\s*)?;;", cases, re.M):
+        actual[match.group(1)] = re.findall(r"(?:FEATURE_[A-Z_]+|RECURRING_MANUAL_RUN_ENABLED)", match.group(2) or "")
+    if actual != STAGING_PROFILES:
+        out.append("allowlist de perfiles staging no coincide con el contrato")
+    if "FEATURE_LPDP" in {flag for enabled in actual.values() for flag in enabled}:
+        out.append("LPDP no puede habilitarse desde perfiles staging")
+    if not re.search(r"\*\)\s*\n\s*echo .*\n\s*exit 2", cases):
+        out.append("helper staging no rechaza perfiles desconocidos")
+    return out
+
+
 def violations(root: str) -> list[str]:
     body = read_workflow(root)
     out: list[str] = []
@@ -80,10 +170,11 @@ def violations(root: str) -> list[str]:
         if miss:
             out.append(miss)
     out.extend(order_violations(body))
+    out.extend(profile_violations(body))
     # Anti-deriva: todo deploy Workers debe preservar runtime vars (--keep-vars)
     # Pages usa build-time PUBLIC_* y no aplica keep-vars (ver OLA C4).
     # Solo valida si los package.json existen (selftest usa tmp sin monorepo).
-    workers_keep_vars = ["@kipuspay/worker-kms", "@kipuspay/worker-api", "@kipuspay/worker-fiscal"]
+    workers_keep_vars = ["@kipuspay/worker-kms", "@kipuspay/worker-fiscal"]
     import json, pathlib
     for target in workers_keep_vars:
         pkg = pathlib.Path(root) / "apps" / target.split("/")[-1] / "package.json"
@@ -98,6 +189,24 @@ def violations(root: str) -> list[str]:
                 out.append(f"{target} deploy:staging sin --keep-vars (anti-deriva)")
         except Exception as e:
             out.append(f"{target} package.json ilegible: {e}")
+
+    api_pkg = pathlib.Path(root) / "apps" / "worker-api" / "package.json"
+    if api_pkg.exists():
+        try:
+            api_data = json.loads(api_pkg.read_text(encoding="utf-8"))
+            api_script = api_data.get("scripts", {}).get("deploy:staging", "")
+            helper = pathlib.Path(root) / "scripts" / "deploy-worker-api-staging.sh"
+            if "deploy-worker-api-staging.sh" not in api_script:
+                out.append("@kipuspay/worker-api deploy:staging sin helper de flags acumuladas")
+            elif not helper.exists():
+                out.append("falta scripts/deploy-worker-api-staging.sh para el deploy del API")
+            else:
+                helper_body = helper.read_text(encoding="utf-8")
+                if "--keep-vars" not in helper_body:
+                    out.append("@kipuspay/worker-api helper staging sin --keep-vars")
+                out.extend(helper_violations(helper_body))
+        except Exception as e:
+            out.append(f"@kipuspay/worker-api package.json ilegible: {e}")
     return out
 
 

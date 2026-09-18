@@ -34,17 +34,19 @@ describe('features soft-launch', () => {
     expect(on).toBe(true);
   });
 
-  it('wiring: un solo nombre y default off en build (soft-launch real)', () => {
+  it('wiring: default off local y activación explícita solo en deploy staging', () => {
     const pkg = readFileSync(new URL('../../package.json', import.meta.url), 'utf8');
     const wrangler = readFileSync(new URL('../../wrangler.jsonc', import.meta.url), 'utf8');
     const envExample = readFileSync(new URL('../../env.example', import.meta.url), 'utf8');
 
-    expect(pkg).not.toMatch(/PUBLIC_FEATURE_MARKETING_SITE=1/);
+    expect(pkg).toMatch(/PUBLIC_FEATURE_MARKETING_SITE=1/);
     expect(wrangler).toContain('PUBLIC_FEATURE_MARKETING_SITE');
     expect(wrangler).not.toContain('"FEATURE_MARKETING_SITE"');
     const envLine = envExample.split('\n').find((l) => l.includes('PUBLIC_FEATURE_MARKETING_SITE'));
     expect(envLine).toBeDefined();
     expect(envLine?.trim().endsWith('0')).toBe(true);
-    expect(wrangler).toContain('kipuspay-pos-web-staging.pages.dev');
+    expect(pkg).toContain('PUBLIC_POS_ORIGIN=https://kipuspay-app.pages.dev');
+    expect(wrangler).toContain('"PUBLIC_POS_ORIGIN": "https://kipuspay-app.pages.dev"');
+    expect(envExample).toContain('PUBLIC_POS_ORIGIN=https://kipuspay-app.pages.dev');
   });
 });

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import pathlib
 import sys
 import tempfile
 
@@ -431,6 +432,18 @@ def main() -> int:
     GOOD_WF = """
 on:
   workflow_dispatch:
+    inputs:
+      capability_profile:
+        type: choice
+        required: true
+        options:
+          - baseline
+          - s43-orders
+          - s44-recurring
+          - s45-push
+          - s46-forecast
+          - s48-dr
+          - s49-insights
 jobs:
   gate:
     steps:
@@ -441,6 +454,8 @@ jobs:
       - name: kms
         run: pnpm --filter @kipuspay/worker-kms run deploy:staging
       - name: api
+        env:
+          STAGING_DEPLOY_PROFILE: ${{ inputs.capability_profile }}
         run: pnpm --filter @kipuspay/worker-api run deploy:staging
       - name: fiscal
         run: pnpm --filter @kipuspay/worker-fiscal run deploy:staging
@@ -453,6 +468,9 @@ jobs:
     BAD_NO_WD = GOOD_WF.replace("  workflow_dispatch:\n", "")
     BAD_NO_GATE = GOOD_WF.replace("      - run: bash scripts/verify.sh\n", "")
     BAD_NO_ARTIFACT = GOOD_WF.replace("      - uses: actions/upload-artifact@v4\n", "")
+    BAD_NO_PROFILE = GOOD_WF.replace(
+        "        env:\n          STAGING_DEPLOY_PROFILE: ${{ inputs.capability_profile }}\n", ""
+    )
     BAD_ORDER = GOOD_WF.replace(
         "pnpm --filter @kipuspay/worker-api run deploy:staging",
         "pnpm --filter @kipuspay/worker-fiscal run deploy:staging",
@@ -462,8 +480,32 @@ jobs:
 
     with _tf.TemporaryDirectory() as tmp:
         os.makedirs(f"{tmp}/.github/workflows", exist_ok=True)
+        os.makedirs(f"{tmp}/apps/worker-api", exist_ok=True)
+        os.makedirs(f"{tmp}/scripts", exist_ok=True)
         open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(GOOD_WF)
+        open(f"{tmp}/apps/worker-api/package.json", "w").write(
+            '{"scripts":{"deploy:staging":"bash ../../scripts/deploy-worker-api-staging.sh"}}'
+        )
+        safe_helper = (pathlib.Path(HERE).parent / "deploy-worker-api-staging.sh").read_text(
+            encoding="utf-8"
+        )
+        open(f"{tmp}/scripts/deploy-worker-api-staging.sh", "w").write(safe_helper)
         expect(cc.violations(tmp) == [], "V-31 marcó un workflow correcto como violación")
+        open(f"{tmp}/scripts/deploy-worker-api-staging.sh", "w").write(
+            safe_helper.replace('args+=(--var "$flag:0")', 'args+=(--var "$flag:1")')
+        )
+        expect(
+            any("default-off" in v for v in cc.violations(tmp)),
+            "V-31 no detecta helper que activa todas las capabilities, incluido LPDP",
+        )
+        open(f"{tmp}/scripts/deploy-worker-api-staging.sh", "w").write(safe_helper)
+        open(f"{tmp}/apps/worker-api/package.json", "w").write(
+            '{"scripts":{"deploy:staging":"wrangler deploy --env staging --keep-vars"}}'
+        )
+        expect(
+            any("flags" in v for v in cc.violations(tmp)),
+            "V-31 no exige el bundle de flags acumuladas en el deploy del API",
+        )
         open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_NO_WD)
         expect(
             any("workflow_dispatch" in v for v in cc.violations(tmp)),
@@ -478,6 +520,11 @@ jobs:
         expect(
             any("artifact" in v for v in cc.violations(tmp)),
             "V-31 no exige artifact de evidencia",
+        )
+        open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_NO_PROFILE)
+        expect(
+            any("capability_profile" in v for v in cc.violations(tmp)),
+            "V-31 no exige un perfil explícito para el deploy de staging",
         )
         open(f"{tmp}/.github/workflows/deploy-staging.yml", "w").write(BAD_ORDER)
         expect(

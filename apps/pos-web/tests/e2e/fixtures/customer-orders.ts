@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test';
+import { installAuthenticatedTenant } from './authenticated-tenant';
 
 export type CustomerOrderE2eRole = 'cashier' | 'supervisor' | 'admin' | 'owner';
 
@@ -57,22 +58,22 @@ export async function installAuthenticatedCustomerOrderFixture(
     lastCreateBody: null,
     lastRequestHeaders: {},
   };
-  await page.addInitScript(() => {
-    localStorage.setItem('kipuspay:pos-terminal-id', 'terminal-e2e');
-  });
-  await page.route('**/api/auth/session', async (route) => {
-    const owner = harness.role === 'owner';
-    await json(route, {
-      userId: `${harness.role}-e2e`,
-      role: harness.role,
-      branchId: owner ? '' : 'branch-e2e',
-      terminal: owner
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-customer-orders-e2e',
+    role: initialRole,
+    branchId: initialRole === 'owner' ? '' : 'branch-e2e',
+    terminal:
+      initialRole === 'owner'
         ? null
         : {
             terminalId: 'terminal-e2e',
             terminalSessionId: 'terminal-session-e2e',
+            cashRegisterSessionId: 'cash-session-e2e',
           },
-    });
+    capabilities: ['orders.customer_orders', 'pos.checkout'],
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('kipuspay:pos-terminal-id', 'terminal-e2e');
   });
   await page.route('**/api/orders/customer-orders**', async (route) => {
     const request = route.request();

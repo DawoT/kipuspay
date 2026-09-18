@@ -8,6 +8,7 @@ import {
   runListOverdueLayawaysHttp,
 } from './layaway-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { processLayawayConvertAtomic } from '@kipuspay/adapters-d1';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
   appendAuditEvent: vi.fn(async () => undefined),
@@ -37,12 +38,15 @@ function env(over: Partial<WorkerEnv> = {}): WorkerEnv {
   return {
     FEATURE_SALES_LAYAWAY: '1',
     DB: {
-      prepare() {
+      prepare(sql: string) {
         const stmt = {
           bind() {
             return stmt;
           },
-          first: () => Promise.resolve(null),
+          first: () =>
+            sql.includes('tenant_capabilities')
+              ? Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 })
+              : Promise.resolve(null),
           all: () =>
             Promise.resolve({
               results: [
@@ -80,8 +84,8 @@ describe('layaway routes', () => {
       'u1',
       {},
     );
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe('FEATURE_OFF');
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('DB_UNAVAILABLE');
   });
 
   it('creates layaway without inventing prices from client', async () => {
@@ -172,6 +176,45 @@ describe('layaway routes', () => {
     expect(cancel.body.status).toBe('CANCELLED');
   });
 
+  it('no usa FEATURE_LEDGER_AR_AP para reactivar CxC revocada por tenant', async () => {
+    const base = env({ FEATURE_LEDGER_AR_AP: '1' });
+    const original = base.DB!.prepare.bind(base.DB);
+    const scoped = {
+      ...base.DB,
+      prepare(sql: string) {
+        const stmt = original(sql);
+        if (!sql.includes('tenant_capabilities')) return stmt;
+        const bind = stmt.bind.bind(stmt);
+        stmt.bind = (...args: unknown[]) => {
+          const bound = bind(...args);
+          if (args[1] !== 'ledger.accounts_receivable') return bound;
+          return { ...bound, first: async () => ({ enabled: 0, config_json: '{}', epoch: 0 }) };
+        };
+        return stmt;
+      },
+    };
+    const res = await runConvertLayawayHttp(
+      { ...base, DB: scoped as unknown as D1Database },
+      't1',
+      'u1',
+      {
+        depositId: 'd1',
+        cashRegisterSessionId: 's1',
+        series: 'NV01',
+        documentType: 'NV',
+        remainingAsCredit: true,
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(vi.mocked(processLayawayConvertAtomic)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      't1',
+      'u1',
+      expect.objectContaining({ saleOpts: { ledgerArApEnabled: false } }),
+      expect.anything(),
+    );
+  });
+
   it('maps domain errors to 404/422', async () => {
     const { processLayawayDepositAtomic, processLayawayConvertAtomic } =
       await import('@kipuspay/adapters-d1');
@@ -202,7 +245,7 @@ describe('layaway routes', () => {
       { FEATURE_SALES_LAYAWAY: '0' } as unknown as WorkerEnv,
       't1',
     );
-    expect(off.status).toBe(404);
+    expect(off.status).toBe(503);
     const noDb = await runListOverdueLayawaysHttp(
       { FEATURE_SALES_LAYAWAY: '1' } as unknown as WorkerEnv,
       't1',

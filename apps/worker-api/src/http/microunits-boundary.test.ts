@@ -32,10 +32,20 @@ const dummyStmt = {
   run: () => Promise.resolve({ success: true }),
 };
 
+const capabilityStmt = {
+  bind: () => capabilityStmt,
+  first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
+  all: () => Promise.resolve({ results: [], success: true, meta: {} }),
+  run: () => Promise.resolve({ success: true }),
+};
+
 function env(flags: Record<string, string>): WorkerEnv {
   return {
     ...flags,
-    DB: { prepare: () => dummyStmt, batch: () => Promise.resolve([]) },
+    DB: {
+      prepare: (sql: string) => (sql.includes('tenant_capabilities') ? capabilityStmt : dummyStmt),
+      batch: () => Promise.resolve([]),
+    },
   } as unknown as WorkerEnv;
 }
 

@@ -63,7 +63,7 @@ describe('home — arco narrativo GTM §5', () => {
     expect(HOME.trust.items).toHaveLength(4);
     const titles = HOME.trust.items.map((i) => i.title).join(' ');
     expect(titles).toMatch(/cifrada/i);
-    expect(titles).toMatch(/SUNAT/);
+    expect(titles).toMatch(/habilitación/i);
   });
 
   it('FAQ (5.9): objeciones reales, mínimo 8', () => {
@@ -116,13 +116,85 @@ describe('home — honestidad de claims (GTM §4.1.1 / GTM-12)', () => {
     expect(faqText).not.toMatch(/\b(PSE|CDR|UBL|ACID)\b/i);
   });
 
-  it('activación honesta: promesa de marca, no métrica inventada', () => {
-    expect(HOME.activation).toMatch(/5 minutos/);
-    expect(HOME.activation).not.toMatch(/\d+ min \d+ seg/);
+  it('activación invita a avanzar sin prometer una duración universal', () => {
+    expect(HOME.activation).toMatch(/paso a paso/i);
+    expect(HOME.activation).not.toMatch(/\b5 minutos\b/i);
+  });
+
+  it('no publica claims fiscales bloqueados ni presenta datos como tiempo real', () => {
+    const visibleClaimCopy = JSON.stringify(HOME);
+
+    expect(visibleClaimCopy).not.toMatch(
+      /factura en automático|100% legal|en tiempo real|enviamos tus comprobantes|se encarga del envío|guiamos el envío|reintenta el envío|envío de comprobantes|emisión y el estado de comprobantes|se acerca al plazo|plazo de declaración|estado de tus comprobantes|5 minutos/i,
+    );
+    expect(visibleClaimCopy).toMatch(
+      /las opciones de facturación electrónica dependen de su habilitación/i,
+    );
+    expect(visibleClaimCopy).toMatch(/SUNAT determina la aceptación/i);
+    expect(visibleClaimCopy).toMatch(/a medida que las cajas sincronizan/i);
+  });
+
+  it('la tabla comparativa del inicio no inventa fallos de competidores', () => {
+    const comparisonCopy = COMPARE_ROWS.map(({ reported, kipus }) => `${reported} ${kipus}`).join(
+      ' ',
+    );
+    expect(comparisonCopy).not.toMatch(
+      /se bloquea|exige comprar|semanas de espera|cobro extra|100% legal|en tiempo real|en vivo|envía comprobantes|emisión sunat automática|5 minutos|15 minutos|tickets con días/i,
+    );
+  });
+
+  it('las páginas comparativas no prometen claims fiscales o de tiempo bloqueados', () => {
+    const comparisonPagesCopy = JSON.stringify(allCompares());
+    expect(comparisonPagesCopy).not.toMatch(
+      /100% legal|factura(?:ción)? autom[aá]tica|(?:en )?tiempo real|en vivo|5 minutos|15 minutos|emite comprobantes|certificado digital gratuito/i,
+    );
   });
 });
 
 describe('landings verticales — contenido de rubro', () => {
+  it('no publica claims universales fiscales, de tiempo real o de activación', () => {
+    const verticalCopy = JSON.stringify(allVerticals());
+    expect(verticalCopy).not.toMatch(
+      /100% legal|factura(?:ción)? autom[aá]tica|(?:en )?tiempo real|5 minutos|15 minutos|se encarga del envío|reintenta el envío|envío de comprobantes/i,
+    );
+  });
+
+  it('no presenta envío, aceptación ni cálculos fiscales bloqueados como disponibles', () => {
+    const verticalCopy = JSON.stringify(
+      allVerticals().map((vertical) => ({
+        hook: vertical.hook,
+        metaDescription: vertical.metaDescription,
+        points: vertical.points,
+        reliefs: vertical.pains.map((pain) => pain.relief),
+        faqAnswers: vertical.faq.map((faq) => faq.a),
+        documentLabel: vertical.checkout.documentLabel,
+        heroBadges: vertical.heroBadges,
+        modules: vertical.modules,
+      })),
+    );
+    expect(verticalCopy).not.toMatch(
+      /SUNAT al d[ií]a|emisi[oó]n directa ante SUNAT|emisi[oó]n inmediata de boletas|emisi[oó]n de boletas y facturas|emitir boleta y factura|emitir factura a empresas|validaci[oó]n inmediata de DNI o RUC|detracci[oó]n (?:SUNAT )?autom[aá]tica|detracci[oó]n incluida|facturaci[oó]n electr[oó]nica sin tr[aá]mites/i,
+    );
+  });
+
+  it('no promete compatibilidad universal ni resultados no medidos en las verticales', () => {
+    const verticalCopy = JSON.stringify(
+      allVerticals().map((vertical) => ({
+        pain: vertical.pain,
+        hook: vertical.hook,
+        metaDescription: vertical.metaDescription,
+        points: vertical.points,
+        reliefs: vertical.pains.map((pain) => pain.relief),
+        faqAnswers: vertical.faq.map((faq) => faq.a),
+        heroBadges: vertical.heroBadges,
+        modules: vertical.modules,
+      })),
+    );
+    expect(verticalCopy).not.toMatch(
+      /cualquier lector|funciona de inmediato|sin errores manuales|siempre el precio vigente|reporte .* listo en segundos|sin pausas aunque|se reflejan de inmediato|cero comandas .* extraviadas|comprobante independiente|sin descuadres garantizados/i,
+    );
+  });
+
   it('cada rubro se nombra, nunca se muestra el slug crudo', () => {
     for (const v of allVerticals()) {
       expect(v.navLabel.length).toBeGreaterThan(4);
@@ -187,7 +259,7 @@ describe('comparativas — diferenciadas y defendibles', () => {
       'Equipos y hardware',
       'Puesta en marcha y migración',
       'Modo Dueño en el celular',
-      'Emisión SUNAT automática',
+      'Facturación electrónica',
       'Actualizaciones de sistema',
       'Curva de aprendizaje del cajero',
       'Soporte y atención',

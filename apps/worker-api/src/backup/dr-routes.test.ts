@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { D1_BACKUP_REGISTRY_VERSION } from '@kipuspay/adapters-d1';
-import { runDrSimulationHttp, type DrRouteEnv } from './dr-routes.js';
+import { drSimulationVerdict, runDrSimulationHttp, type DrRouteEnv } from './dr-routes.js';
 
 function rawImpl<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
 function rawImpl<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>;
@@ -33,6 +33,9 @@ function mockDb(options?: { readonly stepUpChanges?: number }): D1Database {
       return stmt(sql);
     },
     first: <T = Record<string, unknown>>() => {
+      if (sql.includes('tenant_capabilities')) {
+        return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+      }
       if (sql.includes('FROM data_backups')) {
         return Promise.resolve({
           id: 'bk-dr-1',
@@ -85,8 +88,28 @@ function mockEnv(options?: { readonly stepUpChanges?: number }): DrRouteEnv {
 const actor = { tenantId: 't1', userId: 'u1', role: 'owner' };
 
 describe('platform.dr simulation route (Sprint 48)', () => {
+  it('clasifica el resultado como PASSED solo si RPO transaccional, rollup y RTO cumplen', () => {
+    expect(drSimulationVerdict({ rpoTxZero: true, rpoRollupOneDay: true, rtoOk: true })).toBe(
+      'PASSED',
+    );
+    expect(drSimulationVerdict({ rpoTxZero: true, rpoRollupOneDay: true, rtoOk: false })).toBe(
+      'RTO_EXCEEDED',
+    );
+    expect(drSimulationVerdict({ rpoTxZero: true, rpoRollupOneDay: false, rtoOk: true })).toBe(
+      'RPO_VIOLATION',
+    );
+  });
+
   it('flag off → 404 FEATURE_OFF (fail-closed)', async () => {
     const env = { ...mockEnv(), FEATURE_PLATFORM_DR: '0' };
+    const res = await runDrSimulationHttp(env, actor, { nowMs: Date.now() });
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe('FEATURE_OFF');
+  });
+
+  it('flag ausente → 404 FEATURE_OFF (fail-closed)', async () => {
+    const env = { ...mockEnv() };
+    delete env.FEATURE_PLATFORM_DR;
     const res = await runDrSimulationHttp(env, actor, { nowMs: Date.now() });
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('FEATURE_OFF');
@@ -123,6 +146,50 @@ describe('platform.dr simulation route (Sprint 48)', () => {
       nowMs: Date.now(),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('fallo al consultar el backup → 503 fail-closed, no 500 crudo', async () => {
+    const env = mockEnv();
+    const db = env.DB as unknown as { prepare(sql: string): { bind(): unknown } };
+    const original = db.prepare.bind(db);
+    db.prepare = (sql: string) => {
+      const statement = original(sql) as {
+        bind(): { first<T>(): Promise<T | null> };
+        first<T>(): Promise<T | null>;
+      };
+      if (sql.includes('FROM data_backups')) {
+        const failing = {
+          ...statement,
+          first: async () => {
+            throw new Error('D1_ERROR: transient read failure');
+          },
+        };
+        failing.bind = () => failing;
+        return failing;
+      }
+      return statement;
+    };
+
+    const res = await runDrSimulationHttp(env, actor, {
+      stepUpToken: 'tok',
+      nowMs: Date.now(),
+    });
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('DR_D1_UNAVAILABLE');
+  });
+
+  it('fallo inesperado del preflight → 503 estable, fail-closed y sin consumir step-up', async () => {
+    const brokenActor = Object.defineProperty({ tenantId: 't1', userId: 'u1' }, 'role', {
+      get: () => {
+        throw new Error('request context unavailable');
+      },
+    }) as unknown as typeof actor;
+    const res = await runDrSimulationHttp(mockEnv(), brokenActor, {
+      stepUpToken: 'tok',
+      nowMs: Date.now(),
+    });
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ code: 'DR_CONTROL_PLANE_UNAVAILABLE' });
   });
 
   it('dependencia ausente (sin DR_DB) → 503 fail-closed', async () => {

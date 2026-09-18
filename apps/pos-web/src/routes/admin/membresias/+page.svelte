@@ -19,10 +19,10 @@
     type RecurringPlanSummary,
     type RecurringPricingPolicy,
   } from '$lib/recurring-sales/recurring-sales-client';
-  import { isRecurringSalesEnabled } from '$lib/features';
-import { resolveApiBase } from '$lib/auth/api-client';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
+  import { resolveApiBase } from '$lib/auth/api-client';
 
-  const enabled = isRecurringSalesEnabled();
+  const enabled = $derived($tenantCapabilities.has('sales.recurring'));
   const sessionState = readAdminAuthenticatedSessionState();
   const session = $derived(sessionState?.current ?? null);
   const roleAllowed = $derived(['owner', 'admin'].includes(session?.role?.toLowerCase() ?? ''));

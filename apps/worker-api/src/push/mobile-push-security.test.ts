@@ -56,7 +56,7 @@ describe('Sprint 45 push API security boundary', () => {
         first: vi.fn(() =>
           Promise.resolve(
             sql.includes('tenant_capabilities')
-              ? { enabled: 1 }
+              ? { enabled: 1, config_json: '{}', epoch: 0 }
               : sql.includes('push_privacy_settings')
                 ? { amounts_enabled: 0, policy_version: 's45-v1' }
                 : null,

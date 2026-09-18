@@ -99,7 +99,7 @@ describe('Fase K — FEATURE_* residuales quedan en "0" (sin flip local)', () =>
     const wranglerPath = join(dirname(fileURLToPath(import.meta.url)), '../wrangler.jsonc');
     const wrangler = readFileSync(wranglerPath, 'utf8');
     expect(wrangler).toContain('kipuspay-app.pages.dev');
-    expect(wrangler).toContain('POS_APP_ORIGIN');
+    expect(wrangler).toMatch(/"POS_APP_ORIGIN": "https:\/\/kipuspay-app\.pages\.dev"/);
     expect(wrangler).not.toMatch(/"POS_APP_ORIGIN": "https:\/\/app\.kipuspay\.com"/);
   });
 });

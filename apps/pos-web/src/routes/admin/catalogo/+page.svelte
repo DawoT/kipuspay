@@ -1,10 +1,5 @@
 <script lang="ts">
-  import {
-    isCatalogQuickAddEnabled,
-    isCatalogUomEnabled,
-    isCatalogVariantsEnabled,
-    isInventorySerialsEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Badge from '$lib/ui/Badge.svelte';
@@ -19,10 +14,10 @@
   import { catalogItemLabel, salesErrorCopy } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const variantsOn = isCatalogVariantsEnabled();
-  const uomOn = isCatalogUomEnabled();
-  const serialsOn = isInventorySerialsEnabled();
-  const quickAddOn = isCatalogQuickAddEnabled();
+  const variantsOn = $derived($tenantCapabilities.has('catalog.variants'));
+  const uomOn = $derived($tenantCapabilities.has('catalog.uom'));
+  const serialsOn = $derived($tenantCapabilities.has('inventory.serials'));
+  const quickAddOn = $derived($tenantCapabilities.has('catalog.quick_add'));
   let scanBarcode = $state('');
   let scanName = $state('');
   let scanPriceCents = $state<number | null>(null);

@@ -41,7 +41,8 @@ function createRewrapDb(input: {
           sql,
           params,
           first: vi.fn(() => {
-            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('tenant_capabilities'))
+              return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
             if (sql.includes('FROM data_backups') && sql.includes('tenant_id')) {
               if (sql.includes('SELECT')) {
                 if (status !== 'READY')

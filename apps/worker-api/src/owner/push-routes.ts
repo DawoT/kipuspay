@@ -4,6 +4,7 @@
  * el contrato real es subscribePushDeviceHttp (mobile-push-routes).
  */
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isOwnerPushEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_OWNER_PUSH === '1' || env?.FEATURE_OWNER_PUSH === 'true';
@@ -19,11 +20,19 @@ export async function runSendOwnerPushHttp(
   tenantId: string,
   body: { title?: string; body?: string },
 ): Promise<HttpResult> {
-  if (!isOwnerPushEnabled(env)) {
-    return { status: 404, body: { error: 'FEATURE_OWNER_PUSH off', code: 'FEATURE_OFF' } };
-  }
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'owner.push_alerts');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
   }
   // S45-H4: la tabla legacy push_subscriptions fue dropeada por la 0038
   // (columnas endpoint/p256dh/auth en claro). El push al Dueño ahora se

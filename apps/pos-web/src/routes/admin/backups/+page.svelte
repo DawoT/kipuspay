@@ -3,7 +3,6 @@
   import {
     backupOfflineWarning,
     createDataBackupClient,
-    isDataBackupEnabled,
     type BackupSummary,
   } from '$lib/data-backup-client';
   import {
@@ -16,6 +15,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
 
   let role = $state<'owner' | 'admin'>('admin');
   let items = $state<readonly BackupSummary[]>([]);
@@ -27,7 +27,7 @@
   let error = $state('');
   let stepUpToken = $state('');
   let selected = $state<BackupSummary | null>(null);
-  const enabled = isDataBackupEnabled();
+  const enabled = $derived($tenantCapabilities.has('data.backup'));
   let sessionState = $state<AdminAuthenticatedSessionState | null>(null);
   let authenticatedFetch: typeof fetch | null = null;
 

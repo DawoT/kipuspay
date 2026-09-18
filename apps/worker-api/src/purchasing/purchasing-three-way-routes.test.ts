@@ -22,7 +22,7 @@ describe('purchasing-three-way-routes', () => {
         lines: [{ productId: 'p1', invoicedQty: 1, invoiceUnitCostCents: 100 }],
       },
     );
-    expect(res).toMatchObject({ status: 404, body: { code: 'FEATURE_OFF' } });
+    expect(res).toMatchObject({ status: 503, body: { code: 'DB_UNAVAILABLE' } });
   });
 
   it('flag on sin DB → 503', async () => {
@@ -56,7 +56,7 @@ describe('purchasing-three-way-routes', () => {
       FEATURE_PURCHASING_THREE_WAY: '1',
       DB: {
         prepare: () => ({
-          bind: () => ({ all }),
+          bind: () => ({ first: async () => ({ enabled: 1, config_json: '{}', epoch: 0 }), all }),
         }),
       },
     } as unknown as WorkerEnv;
@@ -81,7 +81,7 @@ describe('purchasing-three-way-routes', () => {
       FEATURE_PURCHASING_THREE_WAY: '1',
       DB: {
         prepare: () => ({
-          bind: () => ({ all }),
+          bind: () => ({ first: async () => ({ enabled: 1, config_json: '{}', epoch: 0 }), all }),
         }),
       },
     } as unknown as WorkerEnv;
@@ -97,6 +97,7 @@ describe('purchasing-three-way-routes', () => {
       DB: {
         prepare: (sql?: string) => ({
           bind: () => ({
+            first: async () => ({ enabled: 1, config_json: '{}', epoch: 0 }),
             all: vi
               .fn()
               .mockResolvedValue({ results: [] })
@@ -120,8 +121,13 @@ describe('purchasing-three-way-routes', () => {
     const env = {
       FEATURE_PURCHASING_THREE_WAY: '1',
       DB: {
-        prepare: () => ({
-          bind: () => ({ first, all }),
+        prepare: (sql?: string) => ({
+          bind: () => ({
+            first: sql?.includes('tenant_capabilities')
+              ? async () => ({ enabled: 1, config_json: '{}', epoch: 0 })
+              : first,
+            all,
+          }),
         }),
       },
     } as unknown as WorkerEnv;

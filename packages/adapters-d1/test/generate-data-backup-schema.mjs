@@ -135,6 +135,10 @@ const ephemeral = new Set([
   'inventory_ops_idempotency',
   'loyalty_reservations',
   'pos_terminal_sessions',
+  // Delivery rows reference push_subscriptions, which is SENSITIVE and is
+  // intentionally excluded from KPBK1. They are rebuildable queue state, not
+  // authoritative business records.
+  'push_deliveries',
   'restore_dry_runs',
   'serial_terminal_leases',
   'tenant_data_epochs',
@@ -218,7 +222,7 @@ export interface D1BackupTableRegistryEntry {
   readonly reason?: string;
 }
 
-export const D1_BACKUP_REGISTRY_VERSION = 'registry-3'; // 0056 tenant_certificates (SECRET) + 0057 inventory_ops_idempotency + 0058 fiscal_non_sale_outbox (EPHEMERAL) + 0060 audit_chain_heads (DERIVED) + 0062 fiscal_rc_archive (H3: r2_rc_xml_key/r2_cdr_key en sunat_daily_summaries, r2_cdr_key en fiscal_outbox) + 0063 fiscal_rc_ticket_correlative (sunat_reception_ticket/correlative en sunat_daily_summaries)
+export const D1_BACKUP_REGISTRY_VERSION = 'registry-5'; // registry-4 plus ephemeral mobile push deliveries
 export const D1_BACKUP_TABLES: readonly D1BackupTableRegistryEntry[] = ${JSON.stringify(registry, null, 2)};
 `;
 writeFileSync(
@@ -258,6 +262,8 @@ const introducedAfterSprint42 = new Set([
   'tenant_sol_credentials',
   'inventory_ops_idempotency',
   'fiscal_non_sale_outbox',
+  'fuel_catalog',
+  'fuel_dispatches',
 ]);
 const epochTables = registry.filter(
   (entry) =>

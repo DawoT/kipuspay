@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
   import { createForecastingClient } from '$lib/forecasting/forecasting-client';
-  import { isAnalyticsForecastingEnabled, isOwnerModeEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -10,8 +10,8 @@
   import { stockKindLabel } from '$lib/ui/ops-copy';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  const ownerOn = isOwnerModeEnabled();
-  const forecastOn = isAnalyticsForecastingEnabled();
+  const ownerOn = $derived($tenantCapabilities.has('owner.mode'));
+  const forecastOn = $derived($tenantCapabilities.has('analytics.forecasting'));
 
   let branchId = $state('');
   let status = $state('');

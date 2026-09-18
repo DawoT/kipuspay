@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isShiftHandoffEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { defaultTenantSession, readTenantSession, type PosTenantSession } from '$lib/tenant/session';
   import { issueShiftPin, transferShift, type ShiftTransferResult } from '$lib/cash/shift-handoff';
   import Icon from '$lib/ui/Icon.svelte';
@@ -11,7 +11,7 @@
   import MoneyInput from '$lib/ui/MoneyInput.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
-  const shiftOn = isShiftHandoffEnabled();
+  const shiftOn = $derived($tenantCapabilities.has('ops.shift_handoff'));
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let sessionId = $state('');

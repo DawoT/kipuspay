@@ -1,26 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // guía Parte I §7.1 (referidos) y §2.1: Modo Dueño — Yo: plan, código de
 // referido real y enlace de invitación (un mes gratis para ambos).
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('yo dueño: plan, código de referido y enlace de invitación', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-profile',
+    role: 'owner',
+    capabilities: ['owner.mode'],
+  });
   await page.route('**/api/growth/events', (route) =>
     route.fulfill({
       status: 200,

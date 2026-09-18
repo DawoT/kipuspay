@@ -17,9 +17,14 @@ function mockDb(opts?: {
       opts?.onBatch?.(stmts);
       return Promise.resolve([]);
     },
-    prepare: () => ({
+    prepare: (sql: string) => ({
       bind: () => ({
-        first: () => Promise.resolve(opts?.first ?? null),
+        first: () =>
+          Promise.resolve(
+            sql.includes('tenant_capabilities')
+              ? { enabled: 1, config_json: '{}', epoch: 0 }
+              : (opts?.first ?? null),
+          ),
         all: () => Promise.resolve({ results: opts?.allResults ?? [] }),
         run: () => Promise.resolve({ success: true }),
       }),
@@ -41,8 +46,8 @@ describe('pricing promotions routes', () => {
       'u1',
       { name: 'x', appliesTo: 'CART', ruleJson: { kind: 'percent', percent: 10 } },
     );
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe('FEATURE_OFF');
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('DB_UNAVAILABLE');
   });
 
   it('flag on sin DB → 503', async () => {

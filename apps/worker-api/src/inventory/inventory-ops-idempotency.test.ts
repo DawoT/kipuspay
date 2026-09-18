@@ -35,6 +35,9 @@ function opsEnvWithIdempotency(opts: { countStatus?: string; stockFound?: boolea
         __sql: sql,
         __values: values,
         first: async <T>() => {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+          }
           if (sql.includes('FROM inventory_ops_idempotency')) {
             selects++;
             const [tenantId, scope, key] = values as [string, string, string];

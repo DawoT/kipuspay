@@ -30,14 +30,14 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
         id: 'primeros-pasos',
         question: '¿Cómo empiezo a vender con KipusPay y cuánto demora?',
         answer:
-          'Creas tu cuenta, eliges tu rubro e importas tu catálogo de productos. En menos de 5 minutos estás listo para emitir tu primera venta desde cualquier celular, tablet o computadora.',
+          'El tiempo de configuración depende de los datos y ajustes de tu negocio. Puedes preparar el catálogo con las herramientas disponibles y seguir la guía de inicio paso a paso.',
       },
       {
         id: 'activar-facturacion',
         question: '¿Cómo activo la emisión de boletas y facturas electrónicas?',
         availability: 'preparing',
         answer:
-          'Ingresas tu RUC y datos del negocio en la configuración. KipusPay se encarga del envío automático a SUNAT por ti. No necesitas comprar certificados adicionales.',
+          'La emisión electrónica aún no está disponible para activación general. Las condiciones se informarán cuando el servicio y tu negocio estén habilitados; SUNAT determina la aceptación de cada comprobante.',
       },
       {
         id: 'sin-internet',
@@ -49,7 +49,7 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
         id: 'limite-offline',
         question: '¿Cuántas ventas puedo hacer sin internet?',
         answer:
-          'Puedes continuar operando durante toda tu jornada. Al reconectarse el equipo, el sistema procesa los comprobantes pendientes automáticamente.',
+          'La continuidad depende de la configuración y el almacenamiento disponible en tu caja. Al recuperar la conexión, se sincronizan las ventas pendientes; no se promete envío fiscal automático.',
       },
       {
         id: 'no-formalizado',
@@ -62,7 +62,7 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
         question: '¿Cómo funcionan los pedidos con retiro por WhatsApp?',
         availability: 'preparing',
         answer:
-          'Tu cliente reserva sin pagar y recibe un aviso por WhatsApp cuando su pedido está listo para recoger. El pago se hace en tienda al momento de la entrega.',
+          'Esta opción aún no está disponible. Cuando se habilite, publicaremos los canales de aviso y las condiciones del pedido con retiro.',
       },
     ],
   },
@@ -70,37 +70,37 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
     id: 'hardware',
     title: 'Impresoras y Equipos compatibles',
     description:
-      'Compatibilidad con impresoras térmicas 58/80mm, gavetas de dinero, balanzas y lectores.',
+      'La compatibilidad de impresoras, gavetas, balanzas y lectores depende del modelo y del equipo usado.',
     items: [
       {
         id: 'impresora-compatible',
         question: '¿Qué impresoras puedo usar para imprimir tickets?',
         answer:
-          'Funciona con impresoras térmicas Bluetooth, USB y de red (Ethernet/Wi-Fi) de 58mm y 80mm de marcas estándar como Epson, Xprinter y compatibles. También puedes enviar tickets por WhatsApp directamente al cliente.',
+          'La compatibilidad depende del modelo de impresora, la conexión y el sistema operativo. Confirma el modelo probado antes de comprar o conectar un periférico.',
       },
       {
         id: 'equipos-soporte',
         question: '¿Necesito comprar una máquina especial?',
         answer:
-          'No. Puedes usar cualquier celular, tablet o computadora con navegador web. El sistema se adapta a la pantalla que ya tienes sin requerir terminales costosos ni licencias por equipo.',
+          'No necesariamente. Los equipos y navegadores compatibles dependen de sus características; verifica tu modelo antes de incorporarlo a la operación.',
       },
       {
         id: 'gaveta-dinero',
         question: '¿Cómo se conecta una gaveta de dinero con conexión RJ11?',
         answer:
-          'La gaveta se conecta directamente al puerto RJ11 de tu impresora térmica. Cada vez que registras un cobro en efectivo o abres turno, la señal de impresión abre la gaveta de forma automática.',
+          'Algunas impresoras permiten conectar una gaveta por RJ11. La compatibilidad y el comportamiento dependen de ambos modelos; confírmalos antes de comprar o conectar el equipo.',
       },
       {
         id: 'balanza-digital',
         question: '¿Cómo funcionan las balanzas digitales para venta por peso?',
         answer:
-          'Puedes conectar una balanza digital compatible para lectura automática del peso al colocar el producto, o ingresar el peso manualmente en pantalla con autorización asistida y cálculo instantáneo del precio.',
+          'La lectura automática depende del modelo de balanza y de su conexión. El ingreso manual puede estar disponible según la configuración y los permisos del negocio.',
       },
       {
         id: 'lector-codigos',
         question: '¿Qué lectores de código de barras son compatibles?',
         answer:
-          'Cualquier lector de código de barras USB o Bluetooth (pistolas láser 1D y lectores 2D para códigos QR) funciona de forma nativa sin drivers especiales al conectarlo a tu computadora, tablet o celular.',
+          'La compatibilidad depende del modelo del lector, el sistema operativo y el navegador del equipo. Confirma el modelo probado antes de comprar o conectar un periférico.',
       },
     ],
   },
@@ -108,13 +108,13 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
     id: 'sunat',
     title: 'Facturación Electrónica y SUNAT',
     description:
-      'Emisión de boletas, facturas, notas de crédito y cumplimiento tributario sin complicaciones.',
+      'Información sobre documentos internos y opciones de facturación sujetas a habilitación.',
     items: [
       {
         id: 'boleta-vs-factura',
         question: '¿Emite boletas y facturas válidas para SUNAT?',
         answer:
-          'Cuando activas facturación electrónica, KipusPay se encarga del envío y te acompaña en el proceso; la aceptación final siempre depende de SUNAT. Si aún te formalizas, empiezas con nota de venta de control interno, claramente etiquetada.',
+          'Las opciones de facturación electrónica aún no están disponibles para activación general. Una nota de venta es un documento de control interno, no un comprobante autorizado por SUNAT.',
       },
       {
         id: 'nota-de-venta-vs-boleta',
@@ -132,19 +132,20 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
         id: 'comprobantes-anulados',
         question: '¿Cómo anulo una venta o hago una nota de crédito?',
         answer:
-          'Desde el historial de ventas seleccionas la transacción y eliges anular o emitir nota de crédito. El ajuste se envía a SUNAT de forma automática.',
+          'Las opciones de anulación y nota de crédito dependen de la habilitación fiscal del negocio. No se debe considerar un comprobante aceptado sin la respuesta oficial correspondiente.',
       },
       {
         id: 'certificado-digital',
         question: '¿Necesito comprar un certificado digital para emitir comprobantes electrónicos?',
+        availability: 'preparing',
         answer:
-          'No. KipusPay incluye el certificado digital tributario sin costo adicional para emitir boletas y facturas legalmente ante SUNAT, ahorrándote trámites notariales y renovaciones anuales.',
+          'La certificación aún no está disponible para activación. Las condiciones y requisitos se comunicarán cuando la facturación electrónica esté habilitada; no afirmamos que un certificado esté incluido ni que no tenga costo.',
       },
       {
         id: 'envio-sunat-offline',
         question: '¿Qué pasa si se corta el internet y no se envían mis boletas?',
         answer:
-          'Sigues cobrando. KipusPay reintenta el envío y el resumen diario al volver la señal, y te avisa si se acerca el plazo legal. No apagamos la caja.',
+          'Puedes seguir registrando ventas según la configuración de tu caja. Al volver la conexión, los datos pendientes se sincronizan; los envíos fiscales y sus plazos dependen de la habilitación del servicio y de las reglas aplicables.',
       },
     ],
   },
@@ -218,7 +219,8 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
   {
     id: 'inventario',
     title: 'Inventario y Gestión de Productos',
-    description: 'Control de stock en tiempo real, variantes, lotes FEFO y compras a proveedores.',
+    description:
+      'Herramientas para registrar productos, existencias, variantes y compras a proveedores.',
     items: [
       {
         id: 'importar-catalogo',
@@ -242,7 +244,7 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
         id: 'lotes-vencimientos-fefo',
         question: '¿Cómo controlo los lotes y vencimientos de productos (FEFO)?',
         answer:
-          'El sistema permite registrar número de lote y fecha de expiración, priorizando la venta del lote más próximo a vencer (criterio FEFO) y descontando stock en tiempo real.',
+          'Puedes registrar lotes y vencimientos cuando estas funciones estén habilitadas en tu plan. La disponibilidad y el flujo de selección se muestran en la caja según la configuración activa.',
       },
       {
         id: 'tres-way',
@@ -279,25 +281,26 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
   {
     id: 'planes',
     title: 'Planes, Modo Dueño y Exportación Contable',
-    description: 'Monitoreo en vivo desde tu celular, reportes contables y gestión de suscripción.',
+    description:
+      'Consulta las opciones de reportes, gestión de plan y funciones disponibles en cada etapa.',
     items: [
       {
         id: 'modo-dueno',
         question: '¿Cómo funciona el Modo Dueño desde mi celular?',
         answer:
-          'Desde tu teléfono revisas en tiempo real las ventas totales, el arqueo de cada caja y las ganancias del día a medida que las sucursales sincronizan, sin necesidad de estar físicamente en el local.',
+          'Desde tu teléfono puedes consultar la información disponible de ventas y caja. Los datos se actualizan a medida que las sucursales sincronizan. Es una vista de consulta y su fecha de actualización puede variar.',
       },
       {
         id: 'exportacion-contable',
-        question: '¿Puedo exportar mis ventas a sistemas contables como Concar, SIRE o Contasis?',
+        question: '¿Qué formatos de exportación puedo consultar para mi contador?',
         answer:
-          'Sí. Puedes descargar tus reportes en formatos estructurados CSV y Excel compatibles con los formatos del SIRE y los principales sistemas contables como Concar y Contasis, facilitando el trabajo mensual de tu contador.',
+          'La disponibilidad de reportes y formatos depende de las funciones habilitadas en tu plan. Revisa el archivo disponible con tu contador antes de incorporarlo a otro sistema.',
       },
       {
         id: 'diario-contable',
         question: '¿Mi contador puede ver el diario?',
         answer:
-          'En el plan Cadena, sí: el diario se genera solo con cada venta, cobro y arqueo. La pantalla es de lectura; el export Contasis/Concar usa los mismos asientos.',
+          'La disponibilidad del diario y de formatos de exportación depende de las funciones habilitadas en tu plan. Revisa cualquier archivo con tu contador antes de incorporarlo a otro sistema.',
       },
       {
         id: 'cambio-plan',
@@ -314,28 +317,30 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
       {
         id: 'exportar-cancelar',
         question: '¿Puedo llevarme mis datos si decido cancelar?',
+        availability: 'preparing',
         answer:
-          'Tus datos son tuyos: exportas todo tu catálogo y tus ventas en CSV antes o al momento de cancelar. El borrado de datos personales respeta la retención fiscal que exige SUNAT.',
+          'La exportación self-serve al cancelar aún no está disponible. Publicaremos los formatos, alcance y procedimiento cuando esta función esté habilitada.',
       },
       {
         id: 'anonimizacion',
         question: '¿Qué pasa si un cliente pide borrar sus datos personales?',
+        availability: 'preparing',
         answer:
-          'Anonimizamos su nombre, correo, teléfono y dirección. El comprobante fiscal se conserva sin su nombre durante los 5 años que exige SUNAT.',
+          'El flujo self-serve de solicitudes y anonimización aún no está disponible. Para ejercer derechos sobre datos personales, usa el canal de contacto publicado en la política de privacidad; la atención debe considerar las obligaciones legales de conservación.',
       },
       {
         id: 'insights-diario',
         question: '¿Cómo funciona el asistente de insights diarios?',
         availability: 'preparing',
         answer:
-          'En Enterprise, cada mañana recibes un resumen breve de tu negocio: ventas, productos por agotarse y excepciones de caja, calculado sobre tus números reales. Puedes hacerle preguntas en lenguaje natural sobre tu operación.',
+          'Esta opción aún no está disponible. Se informará su alcance y disponibilidad cuando se habilite.',
       },
       {
         id: 'membresias',
         question: '¿Cómo funcionan las membresías y las ventas recurrentes?',
         availability: 'preparing',
         answer:
-          'Defines el ciclo (semanal o mensual) y el sistema genera la venta periódica con su comprobante y su cuenta por cobrar, con un periodo de gracia para el cliente.',
+          'Esta opción aún no está disponible. No genera cobros ni ventas periódicas en este momento.',
       },
     ],
   },

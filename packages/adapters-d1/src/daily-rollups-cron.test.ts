@@ -3,9 +3,21 @@ import {
   closedLimaWindow,
   parseActiveShards,
   runDailyRollupsCron,
+  runRollupsForShard,
   type ShardBinding,
 } from './daily-rollups-cron.js';
 import type { D1DatabaseLike } from './index.js';
+import { rematerializeDailyRollup } from './rollup-rematerialize.js';
+
+vi.mock('./rollup-rematerialize.js', () => ({
+  rematerializeDailyRollup: vi.fn(async () => ({
+    rematerialized: true,
+    reportDate: '2026-08-04',
+    grossSalesCents: 100,
+    docCount: 1,
+    productRowCount: 1,
+  })),
+}));
 
 describe('daily-rollups-cron puro', () => {
   it('closedLimaWindow: día Lima anterior a scheduledTime', () => {
@@ -75,5 +87,32 @@ describe('daily-rollups-cron puro', () => {
     // fast arranca sin esperar a slow (Promise.all)
     expect(started.indexOf('fast')).toBeLessThan(started.indexOf('slow') + 2);
     vi.clearAllTimers();
+  });
+
+  it('omite product rollups cuando el tenant no tiene la capability', async () => {
+    const db = {
+      prepare: () => ({
+        bind: () => ({
+          all: () => Promise.resolve({ results: [{ tenant_id: 't1', branch_id: 'b1' }] }),
+        }),
+      }),
+    } as unknown as D1DatabaseLike;
+
+    await runRollupsForShard(
+      { shardKey: 'D1_SHARD_01', db },
+      '2026-08-04',
+      undefined,
+      new Set(['t1']),
+      new Set(),
+    );
+
+    expect(vi.mocked(rematerializeDailyRollup)).toHaveBeenCalledWith(
+      db,
+      't1',
+      'b1',
+      '2026-08-04',
+      undefined,
+      { includeProductRollups: false },
+    );
   });
 });

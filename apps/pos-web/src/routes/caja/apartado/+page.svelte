@@ -3,7 +3,7 @@
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isSalesLayawayEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -19,7 +19,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const layawayOn = isSalesLayawayEnabled();
+  const layawayOn = $derived($tenantCapabilities.has('sales.layaway'));
   let session = $state<PosTenantSession>(defaultTenantSession());
   let productId = $state('p1');
   let enteredMicrounits = $state(1_000_000);

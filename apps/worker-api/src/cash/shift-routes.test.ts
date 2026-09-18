@@ -3,8 +3,13 @@ import { runIssueShiftPinHttp, runShiftTransferHttp, type ShiftEnv } from './shi
 
 function mockDb(overrides: Partial<Record<string, unknown>> = {}): unknown {
   const first = (sql: string) => {
+    if (sql.includes('FROM tenant_capabilities'))
+      return { enabled: 1, config_json: '{}', epoch: 0 };
     if (sql.includes('FROM cash_register_sessions')) {
       return overrides.session ?? null;
+    }
+    if (sql.includes('FROM users')) {
+      return { id: 'u1' };
     }
     if (sql.includes('FROM cash_register_shifts') && sql.includes('ended_at IS NULL')) {
       return overrides.outgoingShift ?? null;
@@ -35,7 +40,7 @@ function envWith(overrides: Partial<ShiftEnv> = {}): ShiftEnv {
   return { FEATURE_SHIFT_HANDOFF: '1', DB: mockDb(), ...overrides };
 }
 
-const actor = { tenantId: 't1', userId: 'u1', role: 'cashier' };
+const actor = { tenantId: 't1', userId: 'u1', role: 'cashier', branchId: 'b1' };
 
 describe('ops.shift_handoff routes (Sprint 51)', () => {
   it('flag off → 404 FEATURE_OFF en pin y transfer', async () => {
@@ -63,6 +68,16 @@ describe('ops.shift_handoff routes (Sprint 51)', () => {
     expect(res.status).toBe(404);
   });
 
+  it('pin: owner/admin no puede emitir PIN', async () => {
+    const res = await runIssueShiftPinHttp(
+      envWith(),
+      { ...actor, role: 'owner' },
+      { sessionId: 's1' },
+    );
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
+  });
+
   it('pin: devuelve el PIN en claro una sola vez con TTL', async () => {
     const env = envWith({
       DB: mockDb({
@@ -86,6 +101,16 @@ describe('ops.shift_handoff routes (Sprint 51)', () => {
   it('transfer: valida campos requeridos', async () => {
     const res = await runShiftTransferHttp(envWith(), actor, { sessionId: 's1' });
     expect(res.status).toBe(400);
+  });
+
+  it('transfer: owner/admin no puede ser operador entrante', async () => {
+    const res = await runShiftTransferHttp(
+      envWith(),
+      { ...actor, role: 'owner' },
+      { sessionId: 's1', pin: '123456', outgoingUserId: 'u2' },
+    );
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN_ROLE');
   });
 
   it('transfer: PIN inválido → 401 PIN_INVALID', async () => {

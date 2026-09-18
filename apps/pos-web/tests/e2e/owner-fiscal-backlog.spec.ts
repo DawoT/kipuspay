@@ -1,24 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 /**
  * FL-0.3 — Dueño no muestra "aceptada" si el API mock no trae CDR (PENDING).
  */
 test('Dueño: backlog PENDING no dice aceptada', async ({ page }) => {
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-fiscal-backlog',
+    role: 'owner',
+    capabilities: ['owner.mode', 'fiscal.rc'],
+  });
   await page.route('**/api/fiscal/owner-backlog*', (route) =>
     route.fulfill({
       status: 200,
@@ -36,14 +27,6 @@ test('Dueño: backlog PENDING no dice aceptada', async ({ page }) => {
       }),
     }),
   );
-  await page.addInitScript(() => {
-    localStorage.setItem('kipuspay_token', 'jwt-owner-e2e');
-    localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    localStorage.setItem(
-      'kipuspay_user',
-      JSON.stringify({ userId: 'owner-e2e', role: 'owner', branchId: 'branch-e2e' }),
-    );
-  });
   await page.goto('/owner');
   await expect(page.getByTestId('owner-fiscal-backlog')).toBeVisible();
   const badge = page.getByTestId('backlog-status');

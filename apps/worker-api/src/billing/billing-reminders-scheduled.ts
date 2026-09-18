@@ -6,6 +6,7 @@
  * (idempotency_key_hash sobre appendPushEventAtomic).
  */
 import type { D1Database } from '@cloudflare/workers-types';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface BillingRemindersEnv {
   readonly DB?: D1Database;
@@ -20,6 +21,7 @@ export function reminderDayFor(remindersInWindow: number, max = MAX_REMINDERS): 
   return remindersInWindow + 1;
 }
 
+// eslint-disable-next-line complexity -- bounded reminder/discovery pipeline
 export async function runBillingRemindersScheduled(
   env: BillingRemindersEnv,
   input: { nowMs?: number },
@@ -31,13 +33,17 @@ export async function runBillingRemindersScheduled(
   const rows = await env.DB.prepare(
     `SELECT tenant_id FROM tenants
      WHERE subscription_status = 'past_due' AND deleted_at IS NULL`,
-  )
-    .all<{ tenant_id: string }>()
-    .catch(() => ({ results: [] as { tenant_id: string }[] }));
+  ).all<{ tenant_id: string }>();
 
   let emitted = 0;
   for (const row of rows.results ?? []) {
     const tenantId = row.tenant_id;
+    try {
+      await new CapabilityResolver(env).require(tenantId, 'mobile.push');
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      throw error;
+    }
     const existing = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM push_events
        WHERE tenant_id = ? AND event_type = 'BILLING_REMINDER'

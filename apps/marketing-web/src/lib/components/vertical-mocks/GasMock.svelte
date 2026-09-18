@@ -193,9 +193,9 @@
     statusBadge={activeTab === 'surtidor'
       ? 'Isleta 2 · Despachando'
       : activeTab === 'precios'
-        ? 'Precios · En vivo'
+        ? 'Precios · Ejemplo'
         : 'Flota · B2B'}
-    statusTone="live"
+    statusTone="sync"
     ariaLabel="Smartphone mostrando interfaz de control de surtidores, precios de combustibles y gestión de flota para grifo"
   >
     <div class="mock-screen">

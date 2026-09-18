@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { isOrdersKdsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -17,7 +17,8 @@
     type KdsOrder,
   } from '$lib/kds/kds-board';
 
-  const enabled = isOrdersKdsEnabled();
+  let capabilitiesSnapshot = $state<ReadonlySet<string>>(new Set());
+  const enabled = $derived(capabilitiesSnapshot.has('orders.kds'));
   let branchId = $state('default');
   let events = $state<{ type: string; orderId: string; orderItemId?: string; at: number }[]>([]);
   let pending = $state<KdsOrder[]>([]);
@@ -27,6 +28,7 @@
   let showUrgentOnly = $state(false);
   let preparingItems = $state<Set<string>>(new Set());
   let tick: ReturnType<typeof setInterval> | null = null;
+  let started = $state(false);
 
   async function loadPending() {
     try {
@@ -195,14 +197,20 @@
   );
 
   onMount(() => {
+    const unsubscribeCapabilities = tenantCapabilities.subscribe((value) => {
+      capabilitiesSnapshot = new Set(value);
+    });
     branchId = tenantBranchId(localStorage) || 'default';
-    if (enabled) {
-      void loadPending();
-      void connect();
-      tick = setInterval(() => {
-        nowMs = Date.now();
-      }, 10_000);
-    }
+    return unsubscribeCapabilities;
+  });
+  $effect(() => {
+    if (!enabled || started) return;
+    started = true;
+    void loadPending();
+    void connect();
+    tick = setInterval(() => {
+      nowMs = Date.now();
+    }, 10_000);
   });
   onDestroy(() => {
     ws?.close();

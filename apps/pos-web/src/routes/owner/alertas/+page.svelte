@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isOwnerModeEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { stockKindLabel } from '$lib/ui/ops-copy';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  const enabled = isOwnerModeEnabled();
+  const enabled = $derived($tenantCapabilities.has('owner.mode'));
 
   let stockAlerts = $state<{ product_id: string; product_name: string; status: string; daysCovered: number | null }[]>([]);
   let uncaptured = $state<{ id: string; amount_cents: number; acquirer: string; status: string }[]>([]);

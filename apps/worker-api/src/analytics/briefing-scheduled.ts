@@ -8,6 +8,7 @@
 import { consumeAiUsage, listBriefingFacts, type D1DatabaseLike } from '@kipuspay/adapters-d1';
 import { buildBriefing } from '@kipuspay/domain-analytics';
 import type { InsightsKv } from '@kipuspay/adapters-d1';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface BriefingScheduledInput {
   readonly scheduledTime?: number;
@@ -37,8 +38,6 @@ export async function runBriefingScheduled(
   env: BriefingEnv,
   input: BriefingScheduledInput = {},
 ): Promise<BriefingScheduledResult> {
-  if (!isBriefingEnabled(env))
-    return { status: 'FEATURE_OFF', tenants: 0, written: 0, failures: 0 };
   if (!env.DB || !env.TENANT_KV) {
     return { status: 'DB_UNAVAILABLE', tenants: 0, written: 0, failures: 0 };
   }
@@ -58,6 +57,14 @@ export async function runBriefingScheduled(
   let failures = 0;
   for (const row of tenants.results ?? []) {
     const tenantId = row.tenant_id;
+    try {
+      await new CapabilityResolver(env as never).require(tenantId, 'analytics.agentic_insights');
+    } catch (error) {
+      // Revocation is expected and simply removes the tenant from this run;
+      // an unavailable capability store is fail-closed and must be retried.
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      throw error;
+    }
     try {
       const facts = await listBriefingFacts(env.DB, tenantId, reportDate);
       const briefing = buildBriefing({

@@ -50,10 +50,10 @@
 </script>
 
 <svelte:head>
-  <title>KipusPay — Atiende más rápido, factura en automático y controla tu negocio</title>
+  <title>KipusPay — Atiende más rápido, organiza tu caja y controla tu negocio</title>
   <meta
     name="description"
-    content="Punto de venta y facturación electrónica para comercios del Perú. Cobra en segundos, factura a SUNAT y controla tu negocio con Modo Dueño."
+    content="Punto de venta y gestión comercial para comercios del Perú. Modo Dueño muestra datos actualizados cuando tus cajas sincronizan. Las opciones de facturación electrónica dependen de su habilitación; SUNAT determina la aceptación de cada comprobante."
   />
   <meta property="og:title" content="KipusPay" />
   <meta property="og:description" content={HOME.subheadline} />
@@ -65,7 +65,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta
     name="twitter:title"
-    content="KipusPay — Atiende más rápido, factura en automático y controla tu negocio"
+    content="KipusPay — Atiende más rápido, organiza tu caja y controla tu negocio"
   />
   <meta name="twitter:description" content={HOME.subheadline} />
   <meta name="twitter:image" content={ogImageFor()} />

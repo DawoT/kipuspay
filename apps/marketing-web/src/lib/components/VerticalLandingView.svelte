@@ -13,7 +13,7 @@
   import GasMock from '$lib/components/vertical-mocks/GasMock.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { allVerticals, otherVerticals } from '$lib/content/verticals';
-  import { casesForRubro, simulationForRubro } from '$lib/content/cases';
+  import { casesForRubro } from '$lib/content/cases';
   import { goto } from '$app/navigation';
 
   let { landing }: { landing: VerticalLanding } = $props();
@@ -21,7 +21,6 @@
   const allV = allVerticals();
   const others = $derived(otherVerticals(landing.slug));
   const verticalCases = $derived(casesForRubro(landing.slug));
-  const simulation = $derived(simulationForRubro(landing.slug));
 </script>
 
 <article
@@ -167,10 +166,10 @@
             <span class="knot-dot" aria-hidden="true"></span>
             Así se ve en tu mostrador
           </p>
-          <h2>La pantalla que usa tu equipo, no una demo de catálogo.</h2>
+          <h2>Ejemplo de pantalla del producto.</h2>
           <p class="section-lead">
-            El producto arriba, el total grande y el botón de cobrar. Debajo, la costura que avisa
-            que la venta ya quedó guardada.
+            Interfaz ilustrativa con datos de muestra; las funciones disponibles dependen de la
+            habilitación y configuración de cada cuenta.
           </p>
         </div>
         <div class="product-screen" use:reveal>
@@ -246,81 +245,32 @@
     </section>
   {/if}
 
-  <section class="section section-paper" data-testid="vertical-cases">
-    <div class="section-frame">
-      <div class="section-gutter" aria-hidden="true" use:reveal>
-        <QuipuSectionMark state="synced" tone="paper" />
-      </div>
-      <div class="section-body">
-        <div class="sec-head" use:reveal>
-          <p class="eyebrow">
-            <span class="knot-dot" aria-hidden="true"></span>
-            Impacto operativo real
-          </p>
-          <h2>Mediciones de mostrador en {landing.navLabel.toLowerCase()}</h2>
-          <p class="section-lead">
-            Tiempos de atención y comparativas antes vs con KipusPay medidas en operaciones reales de tu rubro.
-          </p>
+  {#if verticalCases.length > 0}
+    <section class="section section-paper" data-testid="vertical-cases">
+      <div class="section-frame">
+        <div class="section-gutter" aria-hidden="true" use:reveal>
+          <QuipuSectionMark state="synced" tone="paper" />
         </div>
-
-        {#if simulation}
-          <div class="sim-card-featured" use:reveal>
-            <div class="sim-card-header">
-              <div>
-                <span class="sim-badge">{simulation.archetype}</span>
-                <span class="sim-location">📍 {simulation.location} · {simulation.dailyTransactions}</span>
-              </div>
-            </div>
-            <h3 class="sim-headline">{simulation.headline}</h3>
-
-            <div class="sim-flow-grid">
-              <div class="sim-flow-col sim-before">
-                <span class="sim-tag">El problema previo</span>
-                <p>{simulation.operationalChallenge}</p>
-              </div>
-              <div class="sim-flow-col sim-after">
-                <span class="sim-tag sim-tag-kipus">La solución con KipusPay</span>
-                <p>{simulation.kipusSolution}</p>
-              </div>
-            </div>
-
-            <div class="sim-metrics-grid">
-              {#each simulation.metrics as m}
-                <div class="sim-metric-box">
-                  <span class="sim-metric-label">{m.label}</span>
-                  <div class="sim-metric-vals">
-                    <span class="sim-val-before">Antes: {m.before}</span>
-                    <span class="sim-val-arrow" aria-hidden="true">→</span>
-                    <strong class="sim-val-after">{m.withKipus}</strong>
-                  </div>
-                  <span class="sim-metric-gain">{m.improvement}</span>
-                </div>
-              {/each}
-            </div>
-
-            <blockquote class="sim-quote">
-              <p>“{simulation.ownerTakeaway}”</p>
-              <cite>— Balance operativo de mostrador</cite>
-            </blockquote>
+        <div class="section-body">
+          <div class="sec-head" use:reveal>
+            <p class="eyebrow">
+              <span class="knot-dot" aria-hidden="true"></span>
+              Casos autorizados
+            </p>
+            <h2>Historias de {landing.navLabel.toLowerCase()}</h2>
           </div>
-        {/if}
-
-        {#if verticalCases.length > 0}
-          <div class="vertical-cases-extra" use:reveal>
-            <h3>Testimonios autorizados</h3>
-            <ul class="case-list">
-              {#each verticalCases as c (c.id)}
-                <li data-testid="caso-item">
-                  <p class="quote">“{c.quote}”</p>
-                  <p class="who">{c.businessName} · {c.rubro}</p>
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
+          <ul class="case-list">
+            {#each verticalCases as c (c.id)}
+              <li data-testid="caso-item">
+                <p class="quote">“{c.quote}”</p>
+                <p class="who">{c.businessName} · {c.rubro}</p>
+              </li>
+            {/each}
+          </ul>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  {/if}
 
   <section class="section">
     <div class="section-frame">

@@ -1,18 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('P1c: Modo Dueño emite percepción y retención con montos server-side', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-withholdings',
+    role: 'owner',
+    capabilities: ['owner.mode', 'fiscal.withholdings'],
+  });
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',

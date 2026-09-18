@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import type { D1Database } from '@cloudflare/workers-types';
 import { isBillingUsageOverageEnabled, runMeterOverageCronHttp } from './meter-overage-routes.js';
 
 vi.mock('@kipuspay/adapters-d1', () => ({
@@ -15,6 +16,18 @@ vi.mock('@kipuspay/adapters-d1', () => ({
   }),
 }));
 
+function capabilityDb(): D1Database {
+  return {
+    prepare: (sql: string) => ({
+      bind: () => ({
+        all: async () => ({ results: [{ tenant_id: 't1' }] }),
+        first: async () =>
+          sql.includes('tenant_capabilities') ? { enabled: 1, config_json: '{}', epoch: 0 } : null,
+      }),
+    }),
+  } as unknown as D1Database;
+}
+
 describe('meter-overage routes', () => {
   it('flag default off', () => {
     expect(isBillingUsageOverageEnabled({} as WorkerEnv)).toBe(false);
@@ -26,8 +39,8 @@ describe('meter-overage routes', () => {
     );
   });
 
-  it('flag off → 404; sin DB → 503; ok → 200', async () => {
-    expect(await runMeterOverageCronHttp({} as WorkerEnv)).toMatchObject({ status: 404 });
+  it('sin rol → 403; sin DB → 503; ok → 200', async () => {
+    expect(await runMeterOverageCronHttp({} as WorkerEnv)).toMatchObject({ status: 403 });
     expect(
       await runMeterOverageCronHttp(
         { FEATURE_BILLING_USAGE_OVERAGE: '1' } as WorkerEnv,
@@ -38,7 +51,7 @@ describe('meter-overage routes', () => {
     const ok = await runMeterOverageCronHttp(
       {
         FEATURE_BILLING_USAGE_OVERAGE: '1',
-        DB: {} as D1Database,
+        DB: capabilityDb(),
         STRIPE_SECRET_KEY: 'sk_test',
       } as WorkerEnv,
       undefined,
@@ -52,7 +65,7 @@ describe('meter-overage routes', () => {
 describe('S27-H2 guard del cron de cobro', () => {
   it('sin rol → 403 FORBIDDEN_ADMIN (cobra dinero: no cualquier rol)', async () => {
     const res = await runMeterOverageCronHttp(
-      { FEATURE_BILLING_USAGE_OVERAGE: '1', DB: {} as D1Database } as WorkerEnv,
+      { FEATURE_BILLING_USAGE_OVERAGE: '1', DB: capabilityDb() } as WorkerEnv,
       undefined,
       undefined,
     );
@@ -61,7 +74,7 @@ describe('S27-H2 guard del cron de cobro', () => {
 
   it('rol cashier → 403 FORBIDDEN_ADMIN', async () => {
     const res = await runMeterOverageCronHttp(
-      { FEATURE_BILLING_USAGE_OVERAGE: '1', DB: {} as D1Database } as WorkerEnv,
+      { FEATURE_BILLING_USAGE_OVERAGE: '1', DB: capabilityDb() } as WorkerEnv,
       undefined,
       'cashier',
     );
@@ -72,7 +85,7 @@ describe('S27-H2 guard del cron de cobro', () => {
     const res = await runMeterOverageCronHttp(
       {
         FEATURE_BILLING_USAGE_OVERAGE: '1',
-        DB: {} as D1Database,
+        DB: capabilityDb(),
         STRIPE_SECRET_KEY: 'sk_test',
       } as WorkerEnv,
       undefined,

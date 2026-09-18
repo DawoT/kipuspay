@@ -20,6 +20,31 @@ vi.mock('../integrations/integration-routes.js', () => ({
   enqueuePublicEventForTenant: vi.fn(() => Promise.reject(new Error('ENQUEUE_DB_FAILURE'))),
 }));
 
+function capabilityDb(disabled: readonly string[] = []): WorkerEnv['DB'] {
+  return {
+    prepare: (sql: string) => {
+      let capability = '';
+      const stmt = {
+        bind: (_tenantId?: string, capabilityName?: string) => {
+          capability = capabilityName ?? '';
+          return stmt;
+        },
+        first: async () =>
+          sql.includes('tenant_capabilities')
+            ? {
+                enabled: disabled.includes(capability) ? 0 : 1,
+                config_json: '{}',
+                epoch: 0,
+              }
+            : null,
+        all: async () => ({ results: [] }),
+        run: async () => ({ success: true, results: [], meta: {} }),
+      };
+      return stmt;
+    },
+  } as unknown as WorkerEnv['DB'];
+}
+
 const tenant: AuthTenantSnapshot = {
   id: 't1',
   status: 'active',
@@ -54,27 +79,8 @@ describe('isFiscalCpeEnabled', () => {
 
 describe('runOfflineSaleHttp', () => {
   it('flag off → 404 FEATURE_DISABLED', async () => {
-    const res = await runOfflineSaleHttp(undefined, 't1', 'u1', {
-      offlineSaleId: 'x',
-      branchId: 'b',
-      cashRegisterSessionId: 's',
-      documentType: 'NV',
-      series: 'NV01',
-      clientDocumentType: '1',
-      clientDocumentNumber: '1',
-      clientName: 'C',
-      items: [{ productId: 'p', quantity: 1 }],
-      payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
-    });
-    expect(res).toEqual({
-      status: 404,
-      body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' },
-    });
-  });
-
-  it('flag on sin DB → 503', async () => {
     const res = await runOfflineSaleHttp(
-      { FEATURE_ACID_OFFLINE_SALE: '1' } as WorkerEnv,
+      { FEATURE_ACID_OFFLINE_SALE: '0' } as WorkerEnv,
       't1',
       'u1',
       {
@@ -90,8 +96,55 @@ describe('runOfflineSaleHttp', () => {
         payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
       },
     );
+    expect(res).toEqual({
+      status: 404,
+      body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' },
+    });
+  });
+
+  it('flag on sin DB → 503', async () => {
+    const res = await runOfflineSaleHttp(
+      { FEATURE_ACID_OFFLINE_SALE: '1' } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        FEATURE_ACID_OFFLINE_SALE: '0',
+        offlineSaleId: 'x',
+        branchId: 'b',
+        cashRegisterSessionId: 's',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        items: [{ productId: 'p', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
+      },
+    );
     expect(res.status).toBe(503);
     expect(res.body.code).toBe('DB_UNAVAILABLE');
+  });
+
+  it('override de descuento sin capability cash.discount_authz → 404', async () => {
+    const res = await runOfflineSaleHttp(
+      { FEATURE_ACID_OFFLINE_SALE: '1', DB: capabilityDb(['cash.discount_authz']) },
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'discount-override',
+        branchId: 'b',
+        cashRegisterSessionId: 's',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        discountAuthorizationTokenHash: 'token-hash',
+        items: [{ productId: 'p', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm', amountCents: 1 }],
+      },
+    );
+    expect(res).toMatchObject({ status: 404, body: { code: 'CAPABILITY_DISABLED' } });
   });
 
   it('CPE con FEATURE_FISCAL_CPE off → 404', async () => {
@@ -122,7 +175,16 @@ describe('runOfflineSaleHttp', () => {
         FEATURE_ACID_OFFLINE_SALE: '1',
         FEATURE_INTEGRATIONS_API: '1',
         DB: {
-          prepare: () => ({ bind: () => ({ run: () => Promise.resolve({ success: true }) }) }),
+          prepare: (sql: string) => {
+            if (sql.includes('tenant_capabilities')) {
+              const stmt = {
+                bind: () => stmt,
+                first: async () => ({ enabled: 1, config_json: '{}', epoch: 0 }),
+              };
+              return stmt;
+            }
+            return { bind: () => ({ run: () => Promise.resolve({ success: true }) }) };
+          },
         },
         TENANT_KV: {
           get: () => Promise.resolve(null),
@@ -151,7 +213,7 @@ describe('runOfflineSaleHttp', () => {
 
   it('deriva asignaciones seriales usando el terminal autenticado por cabecera', async () => {
     await runOfflineSaleHttp(
-      { FEATURE_ACID_OFFLINE_SALE: '1', DB: {} } as WorkerEnv,
+      { FEATURE_ACID_OFFLINE_SALE: '1', DB: capabilityDb() } as WorkerEnv,
       't1',
       'u1',
       {
@@ -200,7 +262,7 @@ describe('runOfflineSaleHttp', () => {
       {
         FEATURE_ACID_OFFLINE_SALE: '1',
         FEATURE_INVENTORY_SCALE: '1',
-        DB: {},
+        DB: capabilityDb(),
       } as WorkerEnv,
       't1',
       'u1',
@@ -242,6 +304,33 @@ describe('runOfflineSaleHttp', () => {
       }),
     );
   });
+
+  it('no deja que FEATURE_INVENTORY_SCALE reactive una capability revocada', async () => {
+    await runOfflineSaleHttp(
+      {
+        FEATURE_ACID_OFFLINE_SALE: '1',
+        FEATURE_INVENTORY_SCALE: '1',
+        DB: capabilityDb(['inventory.scale']),
+      } as WorkerEnv,
+      't1',
+      'u1',
+      {
+        offlineSaleId: 'revoked-scale',
+        branchId: 'b1',
+        cashRegisterSessionId: 's1',
+        documentType: 'NV',
+        series: 'NV01',
+        clientDocumentType: '1',
+        clientDocumentNumber: '1',
+        clientName: 'C',
+        items: [{ productId: 'p1', quantity: 1 }],
+        payments: [{ paymentMethodId: 'pm', amountCents: 100 }],
+      },
+    );
+    expect(vi.mocked(processOfflineSaleAtomic).mock.calls.at(-1)?.[4]).toEqual(
+      expect.objectContaining({ inventoryScaleEnabled: false }),
+    );
+  });
 });
 
 describe('hot path P95 ANALYTICS_ENGINE writer', () => {
@@ -249,7 +338,7 @@ describe('hot path P95 ANALYTICS_ENGINE writer', () => {
     const writeDataPoint = vi.fn();
     const env = {
       FEATURE_ACID_OFFLINE_SALE: '1',
-      DB: {},
+      DB: capabilityDb(),
       ANALYTICS_ENGINE: { writeDataPoint },
       TENANT_KV: { get: () => Promise.resolve(null) },
     } as unknown as WorkerEnv;
@@ -318,7 +407,7 @@ describe('hot path P95 ANALYTICS_ENGINE writer', () => {
     const writeDataPoint = vi.fn();
     const env = {
       FEATURE_ACID_OFFLINE_SALE: '1',
-      DB: {},
+      DB: capabilityDb(),
       ANALYTICS_ENGINE: { writeDataPoint },
       TENANT_KV: { get: () => Promise.resolve(null) },
     } as unknown as WorkerEnv;
@@ -387,7 +476,7 @@ describe('hot path P95 ANALYTICS_ENGINE writer', () => {
     });
     const env = {
       FEATURE_ACID_OFFLINE_SALE: '1',
-      DB: {},
+      DB: capabilityDb(),
       ANALYTICS_ENGINE: { writeDataPoint },
       TENANT_KV: { get: () => Promise.resolve(null) },
     } as unknown as WorkerEnv;

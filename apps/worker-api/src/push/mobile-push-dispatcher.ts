@@ -1,7 +1,7 @@
 import { claimPushDeliveries, type ClaimedPushDelivery } from '@kipuspay/adapters-d1';
 import { buildLockscreenPayload, evaluatePushPrivacy } from '@kipuspay/domain-integrations';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { isMobilePushEnabled } from './mobile-push-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 type Provider = 'WEB_PUSH' | 'FCM_HTTP_V1';
 type ProviderStatus = 'ACCEPTED' | 'RETRY' | 'FAILED' | 'INVALID';
@@ -248,7 +248,21 @@ async function deliveryContext(
 }
 
 function failureReason(cause: unknown, prefix: string): string {
-  const detail = cause instanceof Error ? cause.message : String(cause);
+  const raw = cause instanceof Error ? cause.message : String(cause);
+  // Los proveedores pueden devolver endpoints, tokens o PII. Solo persistimos
+  // códigos operativos estables; el resto se reduce a una clase genérica.
+  const safeDetails = new Set(['KMS_DOWN', 'D1_TIMEOUT', 'RPC disconnected']);
+  const isStableCode =
+    raw.length > 0 &&
+    raw.length <= 80 &&
+    [...raw].every(
+      (char) =>
+        (char >= 'A' && char <= 'Z') ||
+        (char >= '0' && char <= '9') ||
+        char === '_' ||
+        char === ':',
+    );
+  const detail = safeDetails.has(raw) || isStableCode ? raw : 'PROVIDER_ERROR';
   return `${prefix}:${detail}`.slice(0, 200);
 }
 
@@ -491,6 +505,7 @@ async function dispatchOne(
   return raw.status === 'ACCEPTED' ? 'accepted' : raw.status === 'RETRY' ? 'retry' : 'failed';
 }
 
+// eslint-disable-next-line complexity -- bounded dispatcher paging and provider outcomes
 export async function runMobilePushDispatcher(
   env: WorkerEnv,
   options: { readonly scheduledTime?: number; readonly pageSize?: number } = {},
@@ -501,7 +516,7 @@ export async function runMobilePushDispatcher(
   readonly retry: number;
   readonly failed: number;
 }> {
-  if (!isMobilePushEnabled(env) || !env.DB || !env.PUSH_KMS) {
+  if (!env.DB || !env.PUSH_KMS) {
     return { tenants: 0, claimed: 0, accepted: 0, retry: 0, failed: 0 };
   }
   const nowMs = options.scheduledTime ?? Date.now();
@@ -531,6 +546,14 @@ export async function runMobilePushDispatcher(
     .all<{ tenant_id: string }>();
   const summary = { tenants: 0, claimed: 0, accepted: 0, retry: 0, failed: 0 };
   for (const { tenant_id: tenantId } of tenantRows.results ?? []) {
+    try {
+      await new CapabilityResolver(env).require(tenantId, 'mobile.push');
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      // Do not acknowledge a partial discovery when the authoritative
+      // capability store is unavailable; the scheduler must retry.
+      throw error;
+    }
     summary.tenants += 1;
     await materializeDeliveries(env, tenantId, now);
     const workerIdHash = crypto.randomUUID();
@@ -592,7 +615,12 @@ export async function dispatchPushNow(
   readonly failed: number;
 }> {
   const summary = { claimed: 0, accepted: 0, retry: 0, failed: 0 };
-  if (!isMobilePushEnabled(env) || !env.DB || !env.PUSH_KMS) return summary;
+  if (!env.DB || !env.PUSH_KMS) return summary;
+  try {
+    await new CapabilityResolver(env).require(scope.tenantId, 'mobile.push');
+  } catch {
+    return summary;
+  }
   const nowMs = options.nowMs ?? Date.now();
   try {
     const now = new Date(nowMs).toISOString();

@@ -1,19 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { mockOnboardingClaim } from './fixtures/onboarding-claim';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('P1b: inventario emite una GRE con serie T y muestra el resultado', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e', // S10-D7: branch real del claim
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'owner',
+    capabilities: ['fiscal.gre', 'inventory.batches'],
+  });
   // S10-D7: la página usa el branch real del login (claim); sin claim el
   // branch queda vacío y la validación cliente rechaza la emisión.
   await mockOnboardingClaim(page);

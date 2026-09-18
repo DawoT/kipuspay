@@ -10,7 +10,7 @@ import {
   shipStockTransferAtomic,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { isPurchasingThreeWayEnabled } from '../purchasing/purchasing-three-way-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isStockTransfersEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_STOCK_TRANSFERS === '1' || env?.FEATURE_STOCK_TRANSFERS === 'true';
@@ -23,17 +23,48 @@ export function isPartialReceiveEnabled(env: WorkerEnv | undefined): boolean {
   );
 }
 
+async function tenantThreeWayEnabled(env: WorkerEnv, tenantId: string): Promise<boolean> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'purchasing.three_way');
+    return true;
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) return false;
+    throw error;
+  }
+}
+
 export interface HttpResult {
   status: number;
   body: Record<string, unknown>;
 }
 
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireInventoryCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'stock.transfers' | 'purchasing.partial_receive',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 function mapDomainError(e: unknown): HttpResult {
@@ -69,8 +100,9 @@ export async function runCreateTransferHttp(
     }[];
   },
 ): Promise<HttpResult> {
-  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryCapability(env, tenantId, 'stock.transfers');
+  if (capabilityError) return capabilityError;
   const fromBranchId = body.fromBranchId?.trim() ?? '';
   const toBranchId = body.toBranchId?.trim() ?? '';
   if (!fromBranchId || !toBranchId) {
@@ -103,8 +135,9 @@ export async function runShipTransferHttp(
   userId: string,
   body: { transferId?: string },
 ): Promise<HttpResult> {
-  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryCapability(env, tenantId, 'stock.transfers');
+  if (capabilityError) return capabilityError;
   const transferId = body.transferId?.trim() ?? '';
   if (!transferId) {
     return { status: 400, body: { error: 'transferId required', code: 'BAD_REQUEST' } };
@@ -131,8 +164,9 @@ export async function runReceiveTransferHttp(
     }[];
   },
 ): Promise<HttpResult> {
-  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryCapability(env, tenantId, 'stock.transfers');
+  if (capabilityError) return capabilityError;
   const transferId = body.transferId?.trim() ?? '';
   if (!transferId) {
     return { status: 400, body: { error: 'transferId required', code: 'BAD_REQUEST' } };
@@ -159,8 +193,9 @@ export async function runCancelTransferHttp(
   userId: string,
   body: { transferId?: string },
 ): Promise<HttpResult> {
-  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryCapability(env, tenantId, 'stock.transfers');
+  if (capabilityError) return capabilityError;
   const transferId = body.transferId?.trim() ?? '';
   if (!transferId) {
     return { status: 400, body: { error: 'transferId required', code: 'BAD_REQUEST' } };
@@ -190,8 +225,13 @@ export async function runPartialReceivePoHttp(
     }[];
   },
 ): Promise<HttpResult> {
-  if (!isPartialReceiveEnabled(env)) return featureOff('FEATURE_PURCHASING_PARTIAL_RECEIVE');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryCapability(
+    env,
+    tenantId,
+    'purchasing.partial_receive',
+  );
+  if (capabilityError) return capabilityError;
   const poId = body.purchaseOrderId?.trim() ?? '';
   const branchId = body.branchId?.trim() ?? '';
   if (!poId || !branchId) {
@@ -201,7 +241,7 @@ export async function runPartialReceivePoHttp(
     };
   }
   try {
-    const deferAccountsPayable = isPurchasingThreeWayEnabled(env);
+    const deferAccountsPayable = await tenantThreeWayEnabled(env, tenantId);
     const result = await processPartialReceiveAtomic(env.DB, tenantId, userId, {
       purchaseOrderId: poId,
       branchId,
@@ -217,6 +257,12 @@ export async function runPartialReceivePoHttp(
     });
     return { status: 200, body: { ...result } };
   } catch (e) {
+    if (e instanceof CapabilityError) {
+      return {
+        status: e.status === 404 ? 200 : 503,
+        body: e.status === 404 ? {} : { error: e.code, code: e.code },
+      };
+    }
     return mapDomainError(e);
   }
 }
@@ -225,8 +271,9 @@ export async function runOwnerPendingTransfersHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isStockTransfersEnabled(env)) return featureOff('FEATURE_STOCK_TRANSFERS');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireInventoryCapability(env, tenantId, 'stock.transfers');
+  if (capabilityError) return capabilityError;
 
   const pending = await env.DB.prepare(
     `SELECT id, from_branch_id, to_branch_id, status, shipped_at, created_by_user_id

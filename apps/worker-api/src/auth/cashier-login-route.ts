@@ -8,6 +8,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import { signHs256 } from './verify-jwt.js';
 import type { WorkerEnv } from './control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 interface HttpResult {
   readonly status: number;
@@ -15,10 +16,7 @@ interface HttpResult {
 }
 
 export const CASHIER_SESSION_TTL_SECONDS = 12 * 60 * 60;
-
-function flagOn(value: string | undefined): boolean {
-  return value === '1' || value === 'true';
-}
+const CASHIER_ROLES = new Set(['cashier', 'supervisor']);
 
 function featureOff(): HttpResult {
   return { status: 404, body: { error: 'Auth capability off', code: 'FEATURE_OFF' } };
@@ -94,28 +92,48 @@ async function verifyPinWithLockout(
   pin: string,
   storedPinHash: string,
   nowMs: number,
-): Promise<'ok' | 'locked' | 'invalid'> {
-  const verified = await verifyPinHash(pin, storedPinHash);
+): Promise<'ok' | 'locked' | 'invalid' | 'unavailable'> {
+  let verified: Awaited<ReturnType<typeof verifyPinHash>>;
+  try {
+    verified = await verifyPinHash(pin, storedPinHash);
+  } catch {
+    return 'unavailable';
+  }
   if (!verified.ok) {
     const after = await recordPinFailure(db, tenantId, userId, nowMs);
     if (after.locked) return 'locked';
     return 'invalid';
   }
   if (verified.needsRehash) {
-    await db
-      .prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ?')
-      .bind(await hashPinArgon2id(pin), tenantId, userId)
-      .run();
+    let upgradedHash: string;
+    try {
+      upgradedHash = await hashPinArgon2id(pin);
+    } catch {
+      return 'unavailable';
+    }
+    let rehash: D1Result;
+    try {
+      rehash = await db
+        .prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ? AND pin_hash = ?')
+        .bind(upgradedHash, tenantId, userId, storedPinHash)
+        .run();
+    } catch {
+      return 'unavailable';
+    }
+    if ((rehash.meta?.changes ?? 0) !== 1) return 'invalid';
   }
   await clearPinLockout(db, tenantId, userId);
   return 'ok';
 }
 
+// eslint-disable-next-line complexity -- authentication policy branches are explicit
 export async function runCashierLoginHttp(
   env: WorkerEnv | undefined,
   body: { tenantId?: unknown; identifier?: unknown; pin?: unknown },
 ): Promise<HttpResult> {
-  if (!flagOn(env?.FEATURE_AUTH_CASHIER_LOGIN)) return featureOff();
+  // Global flag is a deployment kill switch only; tenant capability remains
+  // the authority for enabling cashier login.
+  if (env?.FEATURE_AUTH_CASHIER_LOGIN === '0') return featureOff();
   const invalid = credentialError(body);
   if (invalid) return invalid;
   const tenantId = typeof body.tenantId === 'string' ? body.tenantId.trim() : '';
@@ -124,12 +142,32 @@ export async function runCashierLoginHttp(
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'auth.cashier_login');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { error: error.code, code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
 
   const user = await resolveLoginUser(env.DB, tenantId, identifier);
   if (!user?.pin_hash) {
     return user
       ? { status: 403, body: { error: 'PIN not configured', code: 'PIN_NOT_CONFIGURED' } }
       : { status: 403, body: { error: 'Invalid credentials', code: 'PIN_INVALID' } };
+  }
+  if (!CASHIER_ROLES.has(user.role.toLowerCase())) {
+    return {
+      status: 403,
+      body: { error: 'Role not allowed for cashier login', code: 'ROLE_NOT_ALLOWED' },
+    };
   }
 
   const nowMs = Date.now();
@@ -151,6 +189,12 @@ export async function runCashierLoginHttp(
   }
   if (pinResult === 'invalid') {
     return { status: 403, body: { error: 'Invalid credentials', code: 'PIN_INVALID' } };
+  }
+  if (pinResult === 'unavailable') {
+    return {
+      status: 503,
+      body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+    };
   }
   return sessionResult(env, user, nowMs);
 }

@@ -7,6 +7,11 @@ import {
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isLedgerStoreCreditEnabled } from '../auth/features.js';
+import {
+  CapabilityError,
+  CapabilityResolver,
+  isCapabilityEnabled,
+} from '../capabilities/capability-resolver.js';
 import { parseMoneyInteger } from '../http/money-input.js';
 
 export { isLedgerStoreCreditEnabled };
@@ -16,12 +21,23 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'FEATURE_LEDGER_STORE_CREDIT off', code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireStoreCredit(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'ledger.store_credit');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
 }
 
 const CLIENT_422 = new Set([
@@ -37,6 +53,9 @@ const CLIENT_422 = new Set([
 ]);
 
 function mapError(err: unknown): HttpResult {
+  if (err instanceof CapabilityError) {
+    return { status: 503, body: { error: err.code, code: err.code } };
+  }
   const code = err instanceof Error ? err.message : 'STORE_CREDIT_FAILED';
   if (code === 'STORE_CREDIT_ACCOUNT_NOT_FOUND') {
     return { status: 404, body: { error: code, code } };
@@ -45,11 +64,13 @@ function mapError(err: unknown): HttpResult {
   return { status, body: { error: code, code } };
 }
 
-function opts(env: WorkerEnv | undefined) {
+async function opts(env: WorkerEnv, tenantId: string) {
   return {
-    ledgerChartOfAccountsEnabled:
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
+    ledgerChartOfAccountsEnabled: await isCapabilityEnabled(
+      env,
+      tenantId,
+      'ledger.chart_of_accounts',
+    ),
   };
 }
 
@@ -58,7 +79,7 @@ function privileged(role: string | undefined): boolean {
 }
 
 export function runIssueStoreCreditHttp(env: WorkerEnv | undefined): HttpResult {
-  if (!isLedgerStoreCreditEnabled(env)) return featureOff();
+  void env;
   return {
     status: 400,
     body: {
@@ -75,7 +96,6 @@ export async function runExpireStoreCreditHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isLedgerStoreCreditEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -83,6 +103,8 @@ export async function runExpireStoreCreditHttp(
   if (!privileged(role)) {
     return { status: 403, body: { error: 'Admin/Owner required', code: 'FORBIDDEN' } };
   }
+  const capabilityError = await requireStoreCredit(env, tenantId);
+  if (capabilityError) return capabilityError;
   const customerId = typeof body.customerId === 'string' ? body.customerId : '';
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   if (!customerId || !branchId) {
@@ -97,7 +119,7 @@ export async function runExpireStoreCreditHttp(
       tenantId,
       userId,
       { customerId, branchId },
-      opts(env),
+      await opts(env, tenantId),
     );
     return { status: 200, body: { ...result } };
   } catch (err) {
@@ -163,7 +185,6 @@ export async function runAdjustStoreCreditHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isLedgerStoreCreditEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -171,6 +192,8 @@ export async function runAdjustStoreCreditHttp(
   if (!privileged(role)) {
     return { status: 403, body: { error: 'Admin/Owner required', code: 'FORBIDDEN' } };
   }
+  const capabilityError = await requireStoreCredit(env, tenantId);
+  if (capabilityError) return capabilityError;
   const parsed = parseAdjustBody(body, userId);
   if (!parsed.ok) return parsed.result;
   // S35-H1: el autorizador registrado en el ajuste (si no es el caller) debe
@@ -193,7 +216,7 @@ export async function runAdjustStoreCreditHttp(
       tenantId,
       userId,
       { ...parsed.parsed },
-      opts(env),
+      await opts(env, tenantId),
     );
     return { status: 200, body: { ...result } };
   } catch (err) {
@@ -207,13 +230,14 @@ export async function runOwnerStoreCreditHttp(
   tenantId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isLedgerStoreCreditEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   // T-1: reporte Dueño solo admin/owner (nunca cashier).
   if (role !== 'owner' && role !== 'admin') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireStoreCredit(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const issued = await env.DB.prepare(
     `SELECT COALESCE(SUM(amount_cents), 0) AS cents FROM store_credit_transactions

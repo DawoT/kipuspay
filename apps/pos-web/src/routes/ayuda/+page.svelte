@@ -1,8 +1,8 @@
 <script lang="ts">
   import Icon from '$lib/ui/Icon.svelte';
-  import { isClientOffloadingEnabled, isHardwarePrintFallbackEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
 
-  const printOn = isHardwarePrintFallbackEnabled() || isClientOffloadingEnabled();
+  const printOn = $derived($tenantCapabilities.has('hardware.print_fallback') || $tenantCapabilities.has('client.offloading'));
 </script>
 
 <svelte:head><title>Ayuda · KipusPay</title></svelte:head>

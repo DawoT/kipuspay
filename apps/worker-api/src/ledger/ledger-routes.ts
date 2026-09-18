@@ -12,6 +12,11 @@ import {
   type PurchaseOrderStatus,
 } from '@kipuspay/domain-cash';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import {
+  CapabilityError,
+  CapabilityResolver,
+  isCapabilityEnabled,
+} from '../capabilities/capability-resolver.js';
 
 export function isLedgerArApEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_LEDGER_AR_AP === '1' || env?.FEATURE_LEDGER_AR_AP === 'true';
@@ -34,20 +39,59 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireLedgerCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'ledger.accounts_receivable' | 'ledger.accounts_payable',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
+}
+
+async function requireCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'purchasing.orders' | 'cash.register_expenses' | 'owner.mode',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
 }
 
 export async function runListArHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isLedgerArApEnabled(env)) return featureOff('FEATURE_LEDGER_AR_AP');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireLedgerCapability(
+    env,
+    tenantId,
+    'ledger.accounts_receivable',
+  );
+  if (capabilityError) return capabilityError;
   const rows = await env.DB.prepare(
     `SELECT id, customer_id, sale_id, original_amount_cents, balance_due_cents, status, due_date
      FROM accounts_receivable WHERE tenant_id = ? ORDER BY due_date ASC LIMIT 200`,
@@ -76,8 +120,13 @@ export async function runPayArHttp(
     cashRegisterSessionId?: string;
   },
 ): Promise<HttpResult> {
-  if (!isLedgerArApEnabled(env)) return featureOff('FEATURE_LEDGER_AR_AP');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireLedgerCapability(
+    env,
+    tenantId,
+    'ledger.accounts_receivable',
+  );
+  if (capabilityError) return capabilityError;
   const arId = body.accountsReceivableId ?? '';
   const amountCents = body.amountCents ?? 0;
   const paymentMethod = body.paymentMethod ?? 'cash';
@@ -140,8 +189,9 @@ export async function runListApHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isLedgerArApEnabled(env)) return featureOff('FEATURE_LEDGER_AR_AP');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireLedgerCapability(env, tenantId, 'ledger.accounts_payable');
+  if (capabilityError) return capabilityError;
   const rows = await env.DB.prepare(
     `SELECT id, supplier_id, purchase_order_id, original_amount_cents, balance_due_cents, status, due_date
      FROM accounts_payable WHERE tenant_id = ? ORDER BY due_date ASC LIMIT 200`,
@@ -169,8 +219,9 @@ export async function runPayApHttp(
     cashRegisterSessionId?: string;
   },
 ): Promise<HttpResult> {
-  if (!isLedgerArApEnabled(env)) return featureOff('FEATURE_LEDGER_AR_AP');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireLedgerCapability(env, tenantId, 'ledger.accounts_payable');
+  if (capabilityError) return capabilityError;
   const apId = body.accountsPayableId ?? '';
   const amountCents = body.amountCents ?? 0;
   const paymentMethod = body.paymentMethod ?? 'transfer';
@@ -236,8 +287,9 @@ export async function runCreateApHttp(
     dueDateIso?: string;
   },
 ): Promise<HttpResult> {
-  if (!isLedgerArApEnabled(env)) return featureOff('FEATURE_LEDGER_AR_AP');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireLedgerCapability(env, tenantId, 'ledger.accounts_payable');
+  if (capabilityError) return capabilityError;
   try {
     const plan = planCreateAp({
       id: crypto.randomUUID(),
@@ -332,7 +384,8 @@ export async function runCreatePoHttp(
     }[];
   },
 ): Promise<HttpResult> {
-  if (!isPurchasingOrdersEnabled(env)) return featureOff('FEATURE_PURCHASING_ORDERS');
+  const capabilityError = await requireCapability(env as WorkerEnv, tenantId, 'purchasing.orders');
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const branchId = body.branchId ?? '';
   const supplierId = body.supplierId ?? '';
@@ -366,7 +419,8 @@ export async function runTransitionPoHttp(
   tenantId: string,
   body: { purchaseOrderId?: string; toStatus?: PurchaseOrderStatus },
 ): Promise<HttpResult> {
-  if (!isPurchasingOrdersEnabled(env)) return featureOff('FEATURE_PURCHASING_ORDERS');
+  const capabilityError = await requireCapability(env as WorkerEnv, tenantId, 'purchasing.orders');
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const poId = body.purchaseOrderId ?? '';
   const to = body.toStatus;
@@ -405,7 +459,12 @@ export async function runCreateExpenseHttp(
     accountsPayableId?: string;
   },
 ): Promise<HttpResult> {
-  if (!isCashExpensesEnabled(env)) return featureOff('FEATURE_CASH_EXPENSES');
+  const capabilityError = await requireCapability(
+    env as WorkerEnv,
+    tenantId,
+    'cash.register_expenses',
+  );
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   try {
     const plan = planCreateExpense({
@@ -452,10 +511,18 @@ export async function runOwnerDaySummaryHttp(
   tenantId: string,
   reportDate: string,
 ): Promise<HttpResult> {
-  if (!isOwnerModeEnabled(env)) return featureOff('FEATURE_OWNER_MODE');
+  const capabilityError = await requireCapability(env as WorkerEnv, tenantId, 'owner.mode');
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
     return { status: 400, body: { error: 'Invalid reportDate', code: 'BAD_REQUEST' } };
+  }
+  let catalogOn: boolean;
+  try {
+    catalogOn = await isCapabilityEnabled(env, tenantId, 'reporting.catalog');
+  } catch (error) {
+    const code = error instanceof CapabilityError ? error.code : 'CAPABILITIES_UNAVAILABLE';
+    return { status: 503, body: { error: code, code } };
   }
   const rows = await env.DB.prepare(
     `SELECT branch_id, report_date, gross_sales_cents, net_sales_cents, doc_count,
@@ -483,8 +550,6 @@ export async function runOwnerDaySummaryHttp(
     }),
     { grossSalesCents: 0, netSalesCents: 0, docCount: 0 },
   );
-  const catalogOn =
-    env?.FEATURE_REPORTING_CATALOG === '1' || env?.FEATURE_REPORTING_CATALOG === 'true';
   return {
     status: 200,
     body: {

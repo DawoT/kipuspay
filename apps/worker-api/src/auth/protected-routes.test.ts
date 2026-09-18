@@ -240,6 +240,9 @@ const PROTECTED_ROUTES: ReadonlyArray<{ method: string; path: string }> = [
   { method: 'GET', path: '/api/branches/b1/series' },
   { method: 'GET', path: '/api/tenant/context' },
   { method: 'POST', path: '/api/pos/terminals/pairing' },
+  { method: 'POST', path: '/api/fuel/dispatches' },
+  { method: 'GET', path: '/api/fuel/island-shift-report' },
+  { method: 'GET', path: '/api/fuel/catalog' },
 ];
 
 const tenant: AuthTenantSnapshot = {

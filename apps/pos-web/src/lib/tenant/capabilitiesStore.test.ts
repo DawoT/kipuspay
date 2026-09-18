@@ -15,6 +15,7 @@ import {
   isCapabilitiesStale,
   __test__,
 } from './capabilitiesStore.js';
+import type { CapabilitiesCache, CapabilitiesIdbPort } from './capabilitiesStore.js';
 import { get } from 'svelte/store';
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
@@ -133,6 +134,75 @@ describe('capabilitiesStore — has, load, cache, stale, tenant isolation', () =
     await hydrateCapabilities({ tenantId: 'tenant-a', storage, idb });
     expect(has('pos.checkout')).toBe(true);
     expect(has('owner.mode')).toBe(false);
+  });
+
+  it('ignora hidratación tardía de tenant A después de cambiar a tenant B', async () => {
+    const storage = memoryStorage({ kipuspay_tenant_id: 'tenant-a' });
+    let finishRead!: (value: CapabilitiesCache | undefined) => void;
+    const delayedIdb: CapabilitiesIdbPort = {
+      get: () =>
+        new Promise((resolve) => {
+          finishRead = resolve;
+        }),
+      set: async () => {},
+      del: async () => {},
+    };
+    const pending = hydrateCapabilities({ tenantId: 'tenant-a', storage, idb: delayedIdb });
+
+    storage.setItem('kipuspay_tenant_id', 'tenant-b');
+    await setCapabilities({ caps: ['pos.checkout'], epoch: 2, tenantId: 'tenant-b', storage });
+    finishRead({ caps: ['owner.mode'], epoch: 1, fetchedAt: 100, tenantId: 'tenant-a' });
+    await pending;
+
+    expect(get(capabilitiesTenantId)).toBe('tenant-b');
+    expect(has('pos.checkout')).toBe(true);
+    expect(has('owner.mode')).toBe(false);
+  });
+
+  it('limpia snapshot activo si sesión devuelve 503 y se exige autorización vigente', async () => {
+    const storage = memoryStorage({ kipuspay_tenant_id: 'tenant-a' });
+    await setCapabilities({
+      caps: ['catalog.sellable', 'pos.checkout'],
+      epoch: 4,
+      tenantId: 'tenant-a',
+      storage,
+    });
+    const result = await loadCapabilities({
+      fetcher: async () =>
+        new Response(JSON.stringify({ code: 'CAPABILITIES_UNAVAILABLE' }), { status: 503 }),
+      tenantId: 'tenant-a',
+      storage,
+      requireAuthoritative: true,
+    });
+
+    expect(result.caps).toEqual([]);
+    expect(get(capabilitiesTenantId)).toBeNull();
+    expect(has('catalog.sellable')).toBe(false);
+    expect(storage.getItem(CAPS_LS_PREFIX + 'tenant-a')).toBeNull();
+  });
+
+  it('limpia snapshot activo si falla la red y se exige autorización vigente', async () => {
+    const storage = memoryStorage({ kipuspay_tenant_id: 'tenant-a' });
+    await setCapabilities({
+      caps: ['catalog.sellable', 'pos.checkout'],
+      epoch: 4,
+      tenantId: 'tenant-a',
+      storage,
+    });
+
+    const result = await loadCapabilities({
+      fetcher: async () => {
+        throw new Error('network unavailable');
+      },
+      tenantId: 'tenant-a',
+      storage,
+      requireAuthoritative: true,
+    });
+
+    expect(result.caps).toEqual([]);
+    expect(get(capabilitiesTenantId)).toBeNull();
+    expect(has('catalog.sellable')).toBe(false);
+    expect(storage.getItem(CAPS_LS_PREFIX + 'tenant-a')).toBeNull();
   });
 
   it('loadCapabilities success: fetch sorted + persist + stores', async () => {
@@ -431,13 +501,13 @@ describe('capabilitiesStore — integración con app-shell-session (mock)', () =
     expect(getStaleBanner()).toContain('no en vivo');
   });
 
-  it('features.ts delegación: dynamic 0 usa flag, dynamic 1 usa store', async () => {
+  it('features.ts delegación: las capabilities del store son autoritativas', async () => {
     const mod = await import('../features.js');
-    // dynamic 0: flagOn true aunque store vacío
+    // Un flag de despliegue no puede habilitar una capability ausente.
     vi.stubEnv('PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC', '0');
     vi.stubEnv('PUBLIC_FEATURE_OWNER_MODE', '1');
     await setCapabilities({ caps: [], epoch: 0, tenantId: 'tenant-a' });
-    expect(mod.isOwnerModeEnabled()).toBe(true);
+    expect(mod.isOwnerModeEnabled()).toBe(false);
     vi.stubEnv('PUBLIC_FEATURE_OWNER_MODE', '0');
     expect(mod.isOwnerModeEnabled()).toBe(false);
     // dynamic 1, flag 0 pero store tiene cap => true
@@ -462,14 +532,14 @@ describe('capabilitiesStore — integración con app-shell-session (mock)', () =
     expect(mod.isInventoryOpsEnabled()).toBe(true);
     await setCapabilities({ caps: [], epoch: 1, tenantId: 'tenant-a' });
     expect(mod.isInventoryOpsEnabled()).toBe(false);
-    // fallback flag OR
+    // Los flags públicos no habilitan módulos comerciales.
     vi.stubEnv('PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC', '0');
     vi.stubEnv('PUBLIC_FEATURE_INVENTORY_BATCHES', '1');
     vi.stubEnv('PUBLIC_FEATURE_INVENTORY_BOM', '');
-    expect(mod.isInventoryOpsEnabled()).toBe(true);
+    expect(mod.isInventoryOpsEnabled()).toBe(false);
     vi.stubEnv('PUBLIC_FEATURE_INVENTORY_BATCHES', '');
     vi.stubEnv('PUBLIC_FEATURE_INVENTORY_BOM', '1');
-    expect(mod.isInventoryOpsEnabled()).toBe(true);
+    expect(mod.isInventoryOpsEnabled()).toBe(false);
     vi.stubEnv('PUBLIC_FEATURE_INVENTORY_BATCHES', '');
     vi.stubEnv('PUBLIC_FEATURE_INVENTORY_BOM', '');
     expect(mod.isInventoryOpsEnabled()).toBe(false);

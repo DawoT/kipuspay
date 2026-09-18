@@ -3,7 +3,7 @@
    * Kiosko thin: mismos guards fiscales que caja (chargeCartOffline).
    */
   import { formatCents } from '$lib/cents';
-  import { isPosCheckoutEnabled, isPrintTemplatesEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { chargeCartOffline } from '$lib/pos-checkout/charge';
   import { createMemoryOfflineIdb, OfflineQueueStore } from '$lib/offline-sync/offline-queue';
   import Icon from '$lib/ui/Icon.svelte';
@@ -23,7 +23,8 @@
   import { buildSaleTicketSnapshot } from '$lib/print/offload-compile';
   import { buildPosPrinterEnv } from '$lib/print/printer-runtime';
 
-  const enabled = isPosCheckoutEnabled();
+  const enabled = $derived($tenantCapabilities.has('pos.checkout'));
+  const printOn = $derived($tenantCapabilities.has('hardware.print_templates'));
   const queue = new OfflineQueueStore(createMemoryOfflineIdb());
   const correlatives = new OfflineCorrelativeStore(1);
   const printOutbox = new PrintOutboxStore(createBrowserPrintIdb());
@@ -108,7 +109,7 @@
     );
     status = outcome.ok ? 'charged' : 'blocked';
     message = outcome.ok ? `Pagado · ${documentKindLabel(outcome.documentType)}` : outcome.message;
-    if (!outcome.ok || !isPrintTemplatesEnabled()) return;
+    if (!outcome.ok || !printOn) return;
     const tenantAfter = readTenantSession(sessionStorage);
     const reserve = correlatives.reserve(outcome.offlineSaleId, series);
     const snapshot = buildSaleTicketSnapshot({

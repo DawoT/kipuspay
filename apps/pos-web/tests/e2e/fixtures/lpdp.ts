@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test';
+import { installAuthenticatedTenant } from './authenticated-tenant';
 
 export interface LpdpE2eHarness {
   role: 'owner' | 'admin' | 'supervisor';
@@ -50,13 +51,15 @@ export async function installAuthenticatedLpdpFixture(
     exportCalls: 0,
     consentBodies: [],
   };
-  await page.route('**/api/auth/session', async (route) => {
-    await json(route, {
-      userId: `${initialRole}-e2e`,
-      role: initialRole,
-      branchId: 'branch-e2e',
-      terminal: { terminalId: 'terminal-e2e', terminalSessionId: 'terminal-session-e2e' },
-    });
+  await installAuthenticatedTenant(page, {
+    tenantId: 'tenant-e2e',
+    role: initialRole,
+    capabilities: ['compliance.lpdp'],
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
+    },
   });
   await page.route('**/api/customers?*', async (route) => {
     await json(route, { items: [customer, erasedCustomer], tenantId: 'tenant-e2e' });

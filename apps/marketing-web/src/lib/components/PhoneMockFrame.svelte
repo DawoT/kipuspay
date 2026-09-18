@@ -16,8 +16,8 @@
     theme = 'dark',
     time: explicitTime,
     title = 'KipusPay',
-    statusBadge = 'EN VIVO',
-    statusTone = 'live',
+    statusBadge = 'EJEMPLO',
+    statusTone = 'sync',
     ariaLabel = 'Smartphone mostrando interfaz interactiva de KipusPay',
     children,
   }: Props = $props();

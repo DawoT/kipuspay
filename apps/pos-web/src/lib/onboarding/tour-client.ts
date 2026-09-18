@@ -75,11 +75,32 @@ export async function recordGrowthEvent(
     await fetch(`${apiBase().replace(/\/$/, '')}/api/growth/events`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ eventType, meta }),
+      body: JSON.stringify({
+        eventType,
+        meta,
+        idempotencyKey: growthEventIdempotencyKey(eventType, meta),
+      }),
     });
   } catch {
     // La métrica nunca debe romper el cobro ni el tour.
   }
+}
+
+/**
+ * The same UI event may be retried after a network timeout. A stable, scoped
+ * key makes that retry a no-op server-side without putting PII in the key.
+ */
+export function growthEventIdempotencyKey(
+  eventType: GrowthEventType,
+  meta?: Record<string, unknown>,
+): string {
+  const input = `${eventType}:${JSON.stringify(meta ?? null)}`;
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${eventType}-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 export type TourLocalState = typeof TOUR_DISMISSED | typeof TOUR_COMPLETED | null;

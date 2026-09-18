@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isCatalogImportEnabled, runCatalogImportHttp } from './catalog-import-routes.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
 
-function mockEnv(): WorkerEnv {
+function mockEnv(capabilityEnabled = true): WorkerEnv {
   const meta = {
     duration: 0,
     size_after: 0,
@@ -26,6 +26,13 @@ function mockEnv(): WorkerEnv {
         return stmt;
       },
       first<T>() {
+        if (sql.includes('tenant_capabilities')) {
+          return Promise.resolve({
+            enabled: capabilityEnabled ? 1 : 0,
+            config_json: '{}',
+            epoch: 0,
+          } as T);
+        }
         if (sql.includes('FROM taxes')) {
           return Promise.resolve({ id: 'tax-igv' } as T);
         }
@@ -112,7 +119,7 @@ describe('isCatalogImportEnabled', () => {
 describe('runCatalogImportHttp', () => {
   it('FEATURE_OFF sin flag', async () => {
     const env = {
-      DB: mockEnv().DB,
+      DB: mockEnv(false).DB,
       TENANT_KV: mockEnv().TENANT_KV,
       TENANT_STATE_DO: mockEnv().TENANT_STATE_DO,
     } as unknown as WorkerEnv;

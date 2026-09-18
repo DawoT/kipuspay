@@ -46,7 +46,16 @@ function intactDb(): WorkerEnv['DB'] {
     throw new Error('D1 debe permanecer intacto');
   };
   return {
-    prepare: vi.fn(boom),
+    prepare: vi.fn((sql: string) => {
+      if (sql.includes('tenant_capabilities')) {
+        const stmt = {
+          bind: () => stmt,
+          first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
+        };
+        return stmt;
+      }
+      return boom();
+    }),
     batch: vi.fn(boom),
   } as unknown as WorkerEnv['DB'];
 }
@@ -73,13 +82,30 @@ function selectableDb(): WorkerEnv['DB'] {
     run: () => Promise.resolve({ results: [], success: true, meta: {} }),
   };
   return {
-    prepare: vi.fn(() => stmt),
+    prepare: vi.fn((sql: string) => {
+      if (sql.includes('tenant_capabilities')) {
+        const capability = {
+          bind: () => capability,
+          first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
+        };
+        return capability;
+      }
+      return stmt;
+    }),
     batch: vi.fn(() => Promise.resolve([])),
   } as unknown as WorkerEnv['DB'];
 }
 
 function env(feature: string, db: WorkerEnv['DB']): WorkerEnv {
   return { [feature]: '1', DB: db } as unknown as WorkerEnv;
+}
+
+/** El resolver de capabilities debe consultar D1 antes de validar la operación.
+ * Estas aserciones aíslan ese preflight de cualquier acceso de negocio. */
+function businessPrepareCalls(db: WorkerEnv['DB']): unknown[][] {
+  return (db.prepare as unknown as { mock: { calls: unknown[][] } }).mock.calls.filter(
+    ([sql]) => typeof sql !== 'string' || !sql.includes('tenant_capabilities'),
+  );
 }
 
 /** Objeto con referencia circular (bajo Number() no revienta pero es basura). */
@@ -243,7 +269,7 @@ describe('rutas: tipos inválidos → 400 estable, D1 intacto', () => {
     );
     expectStableInvalid(transferRes);
     expect(atomicMocks.processInventoryLocationTransferAtomic).not.toHaveBeenCalled();
-    expect(transferDb.prepare).not.toHaveBeenCalled();
+    expect(businessPrepareCalls(transferDb)).toHaveLength(0);
   });
 
   it('picking (query GET crudo): basura → 400 BAD_REQUEST con D1 intacto', async () => {
@@ -260,7 +286,7 @@ describe('rutas: tipos inválidos → 400 estable, D1 intacto', () => {
       expect(res.status).toBe(400);
       expect(res.body['code']).toBe('BAD_REQUEST');
     }
-    expect(db.prepare).not.toHaveBeenCalled();
+    expect(businessPrepareCalls(db)).toHaveLength(0);
   });
 
   it('picking: dígitos válidos del wire llegan al SELECT como entero', async () => {
@@ -272,7 +298,7 @@ describe('rutas: tipos inválidos → 400 estable, D1 intacto', () => {
       { branchId: 'b1', productId: 'p1', quantityMicrounits: '250000' },
     );
     expect(res.status).toBe(200);
-    expect(db.prepare).toHaveBeenCalledTimes(1);
+    expect(businessPrepareCalls(db)).toHaveLength(1);
     expect((res.body['items'] as unknown[]).length).toBe(1);
   });
 });
@@ -358,7 +384,7 @@ describe('US-04 ráfaga 100 con aserción de estado-módulo', () => {
     }
     expect(tenantsCallingAdapter.size).toBe(50);
     // D1 jamás fue tocado directamente (todo pasó por el adaptador mockeado).
-    expect(db.prepare).not.toHaveBeenCalled();
+    expect(businessPrepareCalls(db)).toHaveLength(0);
     expect(db.batch).not.toHaveBeenCalled();
     // el módulo quedó exactamente igual que antes de la ráfaga
     expect(moduleFingerprint()).toBe(before);
@@ -464,8 +490,8 @@ describe('US-04 helper inyectado que lanza → D1 intacto', () => {
     );
     expectStableInvalid(transferRes);
     expect(atomicMocks.processInventoryLocationTransferAtomic).not.toHaveBeenCalled();
-    expect(layawayDb.prepare).not.toHaveBeenCalled();
-    expect(returnDb.prepare).not.toHaveBeenCalled();
-    expect(transferDb.prepare).not.toHaveBeenCalled();
+    expect(businessPrepareCalls(layawayDb)).toHaveLength(0);
+    expect(businessPrepareCalls(returnDb)).toHaveLength(0);
+    expect(businessPrepareCalls(transferDb)).toHaveLength(0);
   });
 });

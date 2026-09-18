@@ -48,7 +48,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
             bind: () => ({
               first: () => {
                 if (sql.includes('tenant_capabilities')) {
-                  return Promise.resolve({ enabled: 1 });
+                  return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
                 }
                 if (sql.includes('push_consents')) {
                   return Promise.resolve({ id: 'consent-rbac', device_fingerprint: 'df' });
@@ -98,7 +98,7 @@ describe('Sprint 45 push API, RBAC, and ACK contract (RED)', () => {
               first: () =>
                 Promise.resolve(
                   sql.includes('tenant_capabilities')
-                    ? { enabled: 1 }
+                    ? { enabled: 1, config_json: '{}', epoch: 0 }
                     : sql.includes('push_consents')
                       ? { id: 'consent-forged', device_fingerprint: 'df' }
                       : null,

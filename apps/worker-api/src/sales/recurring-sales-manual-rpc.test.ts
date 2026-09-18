@@ -86,7 +86,8 @@ async function rpcEnv(input: {
           return statement;
         }),
         first: vi.fn(async () => {
-          if (sql.includes('tenant_capabilities')) return { enabled: 1 };
+          if (sql.includes('tenant_capabilities'))
+            return { enabled: 1, config_json: '{}', epoch: 0 };
           if (sql.includes('FROM authorization_tokens')) {
             const serialized = JSON.stringify(params);
             if (

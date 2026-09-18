@@ -8,7 +8,7 @@ owner: "@DawoT"
 # Sprint 48 — DR/BCP (platform.dr) — Quality Gate
 
 **Estado software:** GREEN local  
-**Estado claim:** DR/BCP Cadena (GTM §4.1) descongelado con copy acotado; producción/piloto NO-GO  
+**Estado claim:** DR/BCP Cadena (GTM-18 / GTM §4.1) congelado/condicionado; producción/piloto NO-GO
 **Capability:** `platform.dr`, default-off (`FEATURE_PLATFORM_DR`)  
 **Spec:** Arquitectura §5.3 regla 32b · §5.9 regla 27 · Roadmap FASE 6F
 
@@ -18,8 +18,8 @@ verificación RPO=0 tx / RPO≤1d rollups y replay de colas sin duplicados, RTO 
 contra el objetivo de 30 min, y simulacro anual automatizado
 (`POST /api/dr/simulation`, owner + step-up) que registra `DR_SIMULATION_*` en el
 audit con `rto_ms`. El game day chaos `dr-failover` (500 ciclos) valida el loop
-completo. No existe staging Cloudflare real (R2/Workflow/KMS externos): eso mantiene
-producción y piloto NO-GO.
+completo. El simulacro técnico contra staging Cloudflare (R2/Workflow/KMS y
+`DR_DB`) está cerrado; la evidencia humana/A+V mantiene producción y piloto NO-GO.
 
 ## Evidencia RED→GREEN
 
@@ -76,15 +76,81 @@ Tests de trazabilidad:
 
 Esta revisión no equivale a pentest.
 
+### Remediación C4 — métrica de filas aplicadas (2026-09-16)
+
+`applyRestoreRowsToShard()` ahora cuenta `rowsInserted` a partir de si cada
+statement reporta cambios, no sumando el valor crudo de `meta.changes`. D1 puede
+incluir cambios derivados de triggers en ese campo y la métrica anterior reportaba
+14 para 7 filas. El ciclo TDD fue RED con el re-run esperando 0 filas nuevas y
+GREEN tras el ajuste; la suite DR dirigida pasó **7/7**. El segundo restore ahora
+conserva la idempotencia y su telemetría refleja el efecto real. Esto corrige la
+observabilidad local; no altera la evidencia externa ni las firmas A/V.
+
+### Remediación C4 — deliveries push efímeros y veredicto fail-closed (2026-09-16)
+
+`push_deliveries` referencia `push_subscriptions`, que es `SENSITIVE` y no viaja en
+KPBK1. Se clasificó como `EPHEMERAL` en el generador del registry y se elevó la
+versión a `registry-5`; los backups `registry-4` quedan stale-safe. Además, un
+simulacro con `RPO_VIOLATION` o `RTO_EXCEEDED` ahora audita `DR_SIMULATION_FAILED` y
+devuelve HTTP 422, nunca `DR_SIMULATION_PASSED`/200. Tests dirigidos: Worker 11/11;
+canary staging `registry-5`: restore aplicado, `rpoTxZero=true`, RPO de rollup fallido
+por fixture antiguo. La repetición vigente se documenta abajo.
+
+La suite completa de integración de adapters volvió a GREEN tras corregir el
+generador de migraciones: **48 archivos / 338 tests**, incluido `dr-restore` 9/9.
+La causa era que el generador añadía triggers de `fuel_catalog`/`fuel_dispatches`
+(migración 0066) dentro de `0035_sprint42_data_backup.sql`; ahora esas tablas están
+marcadas como posteriores a Sprint 42 y sus triggers solo viven en 0066.
+
+## Evidencia técnica staging — 2026-08-22 / 2026-08-29
+
+El cierre live documentado en `pending-batches.yaml` ejecutó
+`DR_SIMULATION_PASSED` contra `DR_DB` con backup `registry-2`, 111 tablas y 43
+filas, venta restaurada, rollup rematerializado, RTO 88.5 s, RPO transaccional 0,
+RPO de rollup OK y tres replays deduplicados. El workflow de despliegue posterior
+`33234868394` terminó GREEN en gate + deploy + smoke y publicó el artifact
+`deploy-staging-evidence`, que contiene los despliegues de KMS/API/fiscal y Pages.
+Esto acredita el tramo técnico reproducible; no sustituye ejecución humana,
+revisión A/V ni un claim de producción.
+
+### Cierre técnico C4 — simulacro staging vigente (2026-09-17 Lima)
+
+Se aplicó el fixture `seed-dr-drill-staging.sql` con una venta diaria de PK nueva,
+se creó un backup `registry-5` READY y se repitió el simulacro autenticado contra
+Cloudflare. Resultado histórico observado: **HTTP 200 / `PASSED`**, `rpoTxZero=true`,
+`rpoRollupOneDay=true`, `rollupLatestDay=2026-09-16`, `rtoMs=29629` frente a
+`rtoTargetMs=1800000`, 112 tablas aplicadas, 7 filas nuevas y 3 duplicados
+bloqueados. La auditoría registró `DR_SIMULATION_STARTED` y
+`DR_SIMULATION_PASSED`. La PK diaria evita que `INSERT OR IGNORE` del restore
+confunda un simulacro nuevo con una fila histórica ya aplicada en `DR_DB`. Una
+revisión del cronómetro detectó que aquella versión calculaba `rtoMs` antes de
+`verifyDrReplay`; por tanto, la restauración y los checks RPO siguen siendo
+evidencia observada, pero los 29.629 ms no son una medición RTO completa. No
+citar esa cifra como objetivo satisfecho: repetir la simulación tras desplegar
+la medición corregida.
+
+### Remediación C4 — RTO incluye verificación final (2026-09-17)
+
+El cronómetro ahora se detiene después de `verifyDrReplay`, incluyendo la
+verificación RPO y el replay deduplicado. RED: test con latencia de verificación
+mayor al objetivo devolvía HTTP 200 `PASSED` y fallaba la expectativa. GREEN: con
+la duración incluida devuelve HTTP 422 `RTO_EXCEEDED` y reporta el tiempo completo.
+Evidencia local: `dr-rto-measurement.test.ts` + `dr-routes.test.ts`, **13/13**;
+ESLint y TypeScript del Worker API GREEN; build Worker `--dry-run` completado.
+Este parche aún no está desplegado y no sustituye revisión independiente, firmas
+A/V ni nueva evidencia staging.
+
 ## Evidencia externa pendiente
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| R2 externo + multipart real | PENDIENTE / NO-GO | Heredado del QG S42 |
-| Workflow Cloudflare real | PENDIENTE / NO-GO | Crash/replay/checkpoint en staging |
-| KMS externo y rotación | PENDIENTE / NO-GO | Unwrap versionado real |
-| Simulacro en staging real | PENDIENTE / NO-GO | `rto_ms` medido contra `DR_DB` de staging |
-| QA humana + A/V independiente | PENDIENTE / NO-GO | Game day ejecutado por humanos |
+| R2 externo + multipart real | GREEN técnico / A+V pendiente | Artifact `deploy-staging-evidence` + backup `registry-2` |
+| Workflow Cloudflare real | GREEN técnico / A+V pendiente | Workflow staging desplegado y replay del simulacro |
+| KMS externo y rotación | GREEN técnico / A+V pendiente | KEK v1 + unwrap versionado en cierre live |
+| Simulacro de restore aislado en staging | Restore/RPO GREEN; RTO por re-ensayar | La corrida `registry-5` observó `PASSED` y RPOs GREEN, pero su métrica `rtoMs=29629` precedió a la corrección y excluyó parte de la verificación; requiere nueva corrida con el Worker corregido |
+| Medición RTO corregida | GREEN local / staging pendiente | Test RED→GREEN demuestra que la latencia de `verifyDrReplay` ahora cuenta en RTO y puede forzar `RTO_EXCEEDED`; falta desplegar y repetir el simulacro staging |
+| Cutover y rollback de tráfico | PENDIENTE / NO-GO | Procedimiento implementado o aprobado y ensayo staging con reversión y escrituras posteriores |
+| QA humana + A/V independiente | PENDIENTE / NO-GO | Game day humano, incluyendo cutover/rollback y revisión independiente |
 
 ## RACI real
 
@@ -93,15 +159,16 @@ Esta revisión no equivale a pentest.
 | Staff SRE (owner) | Simulacro, RTO/RPO, game day, runbook GREEN local |
 | Staff Backend ACID | Restore apply + verifyDrReplay GREEN local |
 | Staff Principal V | Revisión del restore/apply: 0 hallazgos medium+ |
-| Staff QA independiente | PENDIENTE (staging real) |
+| Staff QA independiente | PENDIENTE (cutover/rollback y operación humana) |
 | Staff PM A | PENDIENTE |
 | Staff Growth | Copy DR/BCP Cadena acotada (post-gate, GTM §4.1) |
 
 ## Veredicto
 
-**SOFTWARE-GREEN-CLAIM-LIVE.** El software y el gate automatizado quedan GREEN local y
-el claim **DR/BCP (Cadena, gate Sprint 48)** se descongela conforme al roadmap, con
-copy acotado (RPO/RTO declarados y verificados localmente). Producción y piloto siguen
-NO-GO hasta staging Cloudflare real (R2/Workflow/KMS), QA humana y firmas A+V
-independientes. El runbook de recuperación (`docs/runbooks/dr-bcp-recovery.md`) queda
-ensayado vía game day local.
+**SOFTWARE-GREEN-CLAIM-CONDICIONADO.** El software y la simulación de restore
+aislado quedan GREEN; el simulacro de staging acredita solo la restauración y sus
+métricas dentro de `DR_DB`. GTM-18 permanece congelado: no publicar RPO/RTO como
+garantía comercial ni declarar failover productivo. Cutover/rollback, QA humana y
+firmas A/V independientes siguen pendientes. El runbook
+(`docs/runbooks/dr-bcp-recovery.md`) cubre el simulacro, pero declara explícitamente
+NO-GO el failover productivo.

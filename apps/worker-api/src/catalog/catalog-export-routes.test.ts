@@ -4,9 +4,16 @@ import { runExportCatalogCsvHttp, runExportSalesCsvHttp } from './catalog-export
 function env(rows: unknown[] | null) {
   return {
     DB: {
-      prepare: vi.fn(() => ({
+      prepare: vi.fn((sql: string) => ({
         bind: vi.fn(() => ({
           all: vi.fn(() => Promise.resolve({ results: rows ?? [] })),
+          first: vi.fn(() =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : null,
+            ),
+          ),
         })),
       })),
     },
@@ -55,6 +62,25 @@ describe('runExportCatalogCsvHttp (S11-E10)', () => {
   it('sin DB o sin tenant → 503 fail-closed', async () => {
     expect((await runExportCatalogCsvHttp(undefined, 't1')).status).toBe(503);
     expect((await runExportCatalogCsvHttp(env([]), '')).status).toBe(503);
+  });
+
+  it('tenant capability revocada → 404 aunque exista DB', async () => {
+    const revoked = {
+      DB: {
+        prepare: vi.fn((sql: string) => ({
+          bind: vi.fn(() => ({
+            first: vi.fn(() =>
+              Promise.resolve(
+                sql.includes('tenant_capabilities')
+                  ? { enabled: 0, config_json: '{}', epoch: 0 }
+                  : null,
+              ),
+            ),
+          })),
+        })),
+      },
+    } as never;
+    expect((await runExportCatalogCsvHttp(revoked, 't1')).status).toBe(404);
   });
 });
 

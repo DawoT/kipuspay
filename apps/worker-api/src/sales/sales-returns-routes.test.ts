@@ -22,7 +22,7 @@ describe('sales-returns-routes', () => {
         lines: [{ originalSaleItemId: 'i1', qty: 1 }],
       },
     );
-    expect(res).toMatchObject({ status: 404, body: { code: 'FEATURE_OFF' } });
+    expect(res).toMatchObject({ status: 503, body: { code: 'DB_UNAVAILABLE' } });
   });
 
   it('flag on sin DB → 503', async () => {
@@ -65,6 +65,9 @@ describe('sales-returns-routes', () => {
   it('S28-H3: PUT policy admin crea fila + audita RETURN_POLICY_UPDATE', async () => {
     const sqls: string[] = [];
     const first = vi.fn((...rest: unknown[]): Promise<unknown> => {
+      if (String(rest[0]).includes('tenant_capabilities')) {
+        return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+      }
       void rest;
       return Promise.resolve(null);
     });
@@ -104,14 +107,18 @@ describe('sales-returns-routes', () => {
 
   it('policy GET flag off → 404; on → 200 default', async () => {
     const off = await runGetReturnPolicyHttp({ FEATURE_SALES_RETURNS: '0' } as WorkerEnv, 't1');
-    expect(off.status).toBe(404);
+    expect(off.status).toBe(503);
 
     const first = vi.fn().mockResolvedValue(null);
     const env = {
       FEATURE_SALES_RETURNS: '1',
       DB: {
-        prepare: () => ({
-          bind: () => ({ first }),
+        prepare: (sql: string) => ({
+          bind: () => ({
+            first: sql.includes('tenant_capabilities')
+              ? async () => ({ enabled: 1, config_json: '{}', epoch: 0 })
+              : first,
+          }),
         }),
       },
     } as unknown as WorkerEnv;

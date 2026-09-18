@@ -1,5 +1,20 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
+
+async function installA11yTenant(page: Page, caps: string[]) {
+  await installAuthenticatedTenant(page, {
+    tenantId: 'tenant-a11y',
+    capabilities: caps,
+    role: 'owner',
+    branchId: 'branch-a11y',
+    tradeName: 'A11y Comercio',
+  });
+  await page.route('**/api/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+  );
+  await page.route('**/api/auth/session', (route) => route.fulfill({ status: 401, body: '{}' }));
+}
 
 /**
  * S15-H1: WCAG 2.1 AA — pantallas críticas sin cobertura axe previa.
@@ -38,6 +53,11 @@ async function expectTouchTargets(page: import('@playwright/test').Page, label: 
 test('S15-H1: Modo Dueño Hoy sin violaciones axe critical/serious y targets ≥44px', async ({
   page,
 }) => {
+  await installA11yTenant(page, [
+    'owner.mode',
+    'ledger.accounts_receivable',
+    'ledger.accounts_payable',
+  ]);
   await page.goto('/owner');
   await expect(page.getByTestId('owner-hoy')).toBeVisible();
   await expectNoBlockingA11y(page, 'owner');
@@ -45,24 +65,32 @@ test('S15-H1: Modo Dueño Hoy sin violaciones axe critical/serious y targets ≥
 });
 
 test('S15-H1: Modo Dueño Finanzas sin violaciones axe critical/serious', async ({ page }) => {
+  await installA11yTenant(page, [
+    'owner.mode',
+    'ledger.accounts_receivable',
+    'ledger.accounts_payable',
+  ]);
   await page.goto('/owner/finanzas');
   await expect(page.locator('main, .page-shell, .page-masthead').first()).toBeVisible();
   await expectNoBlockingA11y(page, 'owner/finanzas');
 });
 
 test('S15-H1: Modo Vitrina sin violaciones axe critical/serious', async ({ page }) => {
+  await installA11yTenant(page, ['display.vitrina']);
   await page.goto('/vitrina');
   await expect(page.locator('main, .page-shell').first()).toBeVisible();
   await expectNoBlockingA11y(page, 'vitrina');
 });
 
 test('S15-H1: Caja (cuotas) sin violaciones axe critical/serious', async ({ page }) => {
+  await installA11yTenant(page, ['pos.checkout', 'sales.installments']);
   await page.goto('/caja/cuotas');
   await expect(page.locator('main, .page-shell').first()).toBeVisible();
   await expectNoBlockingA11y(page, 'caja/cuotas');
 });
 
 test('S15-H1: Caja (devoluciones) sin violaciones axe critical/serious', async ({ page }) => {
+  await installA11yTenant(page, ['pos.checkout', 'sales.returns']);
   await page.goto('/caja/devolucion');
   await expect(page.locator('main, .page-shell').first()).toBeVisible();
   await expectNoBlockingA11y(page, 'caja/devolucion');
@@ -71,6 +99,7 @@ test('S15-H1: Caja (devoluciones) sin violaciones axe critical/serious', async (
 test('FASE F: Cocina tablero sin violaciones axe critical/serious y targets ≥44px', async ({
   page,
 }) => {
+  await installA11yTenant(page, ['orders.kds']);
   await page.goto('/kds');
   await expect(page.getByTestId('kds-root')).toBeVisible();
   await expectNoBlockingA11y(page, 'kds');
@@ -80,6 +109,7 @@ test('FASE F: Cocina tablero sin violaciones axe critical/serious y targets ≥4
 test('FASE F: Salón tablero sin violaciones axe critical/serious y targets ≥44px', async ({
   page,
 }) => {
+  await installA11yTenant(page, ['orders.kds', 'orders.split_bill']);
   await page.goto('/salon');
   await expect(page.getByTestId('salon-root')).toBeVisible();
   await expectNoBlockingA11y(page, 'salon');

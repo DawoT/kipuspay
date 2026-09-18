@@ -102,6 +102,31 @@ describe('persistBootstrap (M6A — adapters-d1)', () => {
     expect(kvDelete).toHaveLength(0);
   });
 
+  it('aprovisiona las capabilities iniciales dentro del mismo batch del tenant', async () => {
+    const { db, statements } = mockDb();
+    const bootstrap = {
+      ...input(),
+      capabilities: ['pos.checkout', 'catalog.sellable', 'sales.quick_line'],
+    };
+
+    await persistBootstrap(
+      db,
+      () => Promise.resolve(),
+      () => Promise.resolve(),
+      bootstrap,
+    );
+
+    const capabilityStatements = statements.filter((statement) =>
+      statement.sql.includes('INSERT INTO tenant_capabilities'),
+    );
+    expect(capabilityStatements).toHaveLength(3);
+    expect(capabilityStatements.map((statement) => statement.binds)).toEqual([
+      ['t_bootstrap', 'pos.checkout'],
+      ['t_bootstrap', 'catalog.sellable'],
+      ['t_bootstrap', 'sales.quick_line'],
+    ]);
+  });
+
   it('revierte el KV si el batch falla (reintentos seguros)', async () => {
     const { db } = mockDb();
     const failing = {

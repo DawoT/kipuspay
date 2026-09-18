@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capabilitiesFromFlags } from './capabilities';
+import { capabilitiesFromFlags, capabilitiesFromTenantSnapshot } from './capabilities';
 
 describe('capabilitiesFromFlags (ADR-ARCH-002)', () => {
   it('solo las capabilities habilitadas pasan al tour', () => {
@@ -37,5 +37,19 @@ describe('capabilitiesFromFlags (ADR-ARCH-002)', () => {
       hardwareDiagnostics: false,
     });
     expect(set.size).toBe(0);
+  });
+});
+
+describe('capabilitiesFromTenantSnapshot', () => {
+  it('deriva el tour solo del snapshot tenant-authoritative', () => {
+    const result = capabilitiesFromTenantSnapshot(
+      new Set(['orders.kds', 'pricing.promotions', 'ops.team_invite']),
+    );
+    expect(result).toEqual(new Set(['kds', 'promotions', 'team_invite']));
+  });
+
+  it('expone fuel_station al tour cuando el tenant tiene fuel.dispatch', () => {
+    const result = capabilitiesFromTenantSnapshot(new Set(['fuel.dispatch']));
+    expect(result).toEqual(new Set(['fuel_station']));
   });
 });

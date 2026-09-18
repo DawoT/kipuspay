@@ -157,9 +157,27 @@ describe('platform.dr restore apply (Sprint 48)', () => {
 
     // Re-ejecutar el simulacro: INSERT OR IGNORE → 0 filas nuevas, 0 duplicados.
     const second = await applyRestoreRowsToShard({ db: env.DR_DB, rowsByTable });
-    expect(second.rowsInserted).toBe(7);
+    expect(second.rowsInserted).toBe(0);
     const count = await env.DR_DB.prepare(`SELECT COUNT(*) AS n FROM sales`).first<{ n: number }>();
     expect(count?.n).toBe(1);
+  });
+
+  it('applyRestoreRowsToShard: conserva tabla y lote cuando D1 rechaza una FK', async () => {
+    const rowsByTable = new Map<string, BackupRow[]>([
+      ['tenants', [{ id: tenantId, business_name: 'DR SAC', vertical_type: 'retail' }]],
+    ]);
+    const failingDb = {
+      prepare: env.DR_DB.prepare.bind(env.DR_DB),
+      batch: async () => {
+        throw new Error('D1_ERROR: FOREIGN KEY constraint failed');
+      },
+    };
+
+    await expect(applyRestoreRowsToShard({ db: failingDb, rowsByTable })).rejects.toMatchObject({
+      message: 'DR_RESTORE_BATCH_FAILED',
+      table: 'tenants',
+      offset: 0,
+    });
   });
 
   it('verifyDrReplay: RPO=0 tx, RPO≤1d rollups y 0 duplicados en replay de colas', async () => {

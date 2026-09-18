@@ -14,6 +14,7 @@ import {
 import { createWhatsAppMessagingSender } from '@kipuspay/adapters-messaging';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isCustomerOrdersEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export { isCustomerOrdersEnabled };
 
@@ -122,7 +123,6 @@ async function preflight(
   actor: CustomerOrderActor,
   operation: Operation,
 ): Promise<CustomerOrderHttpResult | null> {
-  if (!isCustomerOrdersEnabled(env)) return result(404, { code: 'FEATURE_OFF' });
   if (!env?.DB) return result(503, { code: 'DB_UNAVAILABLE' });
   if (!actor.tenantId || !actor.userId || !roleAllowed(actor.role, operation)) {
     return result(403, { code: 'FORBIDDEN' });
@@ -135,14 +135,13 @@ async function preflight(
     return result(403, { code: 'FORBIDDEN' });
   }
   try {
-    const capability = await env.DB.prepare(
-      `SELECT enabled FROM tenant_capabilities
-       WHERE tenant_id = ? AND capability = 'orders.customer_orders' LIMIT 1`,
-    )
-      .bind(actor.tenantId)
-      .first<{ enabled: number }>();
-    if (capability?.enabled !== 1) return result(404, { code: 'FEATURE_OFF' });
-  } catch {
+    await new CapabilityResolver(env).require(actor.tenantId, 'orders.customer_orders');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status === 404 ? 404 : 503, {
+        code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+      });
+    }
     return result(503, { code: 'CAPABILITY_UNAVAILABLE' });
   }
   return null;
@@ -277,6 +276,11 @@ export async function runCreateCustomerOrderHttp(
     });
     return result(created.alreadyApplied ? 200 : 201, { ...created });
   } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status === 404 ? 404 : 503, {
+        code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+      });
+    }
     return errorResult(error);
   }
 }
@@ -386,7 +390,6 @@ export async function runRepriceExpiredCustomerOrderHttp(
 }
 
 // Capability, opt-in, target lookup and post-commit transport remain fail-closed at one seam.
-// eslint-disable-next-line complexity
 export async function runDispatchCustomerOrderNoticeHttp(
   env: WorkerEnv | undefined,
   actor: CustomerOrderActor,
@@ -395,20 +398,10 @@ export async function runDispatchCustomerOrderNoticeHttp(
   const denied = await preflight(env, actor, 'EXPIRE');
   if (denied) return denied;
   const body = objectBody(rawBody);
-  if (env?.FEATURE_MESSAGING_WHATSAPP !== '1' && env?.FEATURE_MESSAGING_WHATSAPP !== 'true') {
-    return result(404, { code: 'FEATURE_OFF' });
-  }
   const db = env?.DB;
   if (!db) return result(503, { code: 'DB_UNAVAILABLE' });
   try {
-    const capability = await db
-      .prepare(
-        `SELECT enabled FROM tenant_capabilities
-       WHERE tenant_id = ? AND capability = 'messaging.whatsapp' LIMIT 1`,
-      )
-      .bind(actor.tenantId)
-      .first<{ enabled: number }>();
-    if (capability?.enabled !== 1) return result(404, { code: 'FEATURE_OFF' });
+    await new CapabilityResolver(env).require(actor.tenantId, 'messaging.whatsapp_receipt');
     const sender = createWhatsAppMessagingSender({
       ...(env?.WA_ACCESS_TOKEN ? { WA_ACCESS_TOKEN: env.WA_ACCESS_TOKEN } : {}),
       ...(env?.WA_PHONE_NUMBER_ID ? { WA_PHONE_NUMBER_ID: env.WA_PHONE_NUMBER_ID } : {}),
@@ -451,6 +444,11 @@ export async function runDispatchCustomerOrderNoticeHttp(
       ),
     );
   } catch (error) {
+    if (error instanceof CapabilityError) {
+      return result(error.status === 404 ? 404 : 503, {
+        code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+      });
+    }
     return errorResult(error);
   }
 }

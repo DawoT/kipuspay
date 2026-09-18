@@ -1,6 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
 
 describe('features flags default off', () => {
+  it('mantiene oculto el autoservicio público LPDP salvo publicación explícita', async () => {
+    vi.resetModules();
+    vi.stubEnv('PUBLIC_FEATURE_LPDP', '');
+    const disabled = await import('./features.js');
+    expect(disabled.isLpdpSelfServePublicEnabled()).toBe(false);
+
+    vi.resetModules();
+    vi.stubEnv('PUBLIC_FEATURE_LPDP', '1');
+    const enabled = await import('./features.js');
+    expect(enabled.isLpdpSelfServePublicEnabled()).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
+  it('no habilita una capability comercial por un PUBLIC_FEATURE cuando el snapshot está apagado', async () => {
+    vi.resetModules();
+    vi.stubEnv('PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC', '0');
+    vi.stubEnv('PUBLIC_FEATURE_POS_CHECKOUT', '1');
+    const mod = await import('./features.js');
+    expect(mod.isPosCheckoutEnabled()).toBe(false);
+  });
+
   it('checkout/print/vitrina/owner off sin env', async () => {
     vi.resetModules();
     vi.stubEnv('PUBLIC_FEATURE_POS_CHECKOUT', '');

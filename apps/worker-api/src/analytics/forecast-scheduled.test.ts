@@ -23,7 +23,10 @@ function buildDb(overrides: Partial<D1DatabaseLike> = {}): D1DatabaseLike {
           results: sql.includes('GROUP BY product_id') ? candidateRows() : pairRows(),
           success: true,
         }),
-      first: () => Promise.resolve(null),
+      first: () =>
+        Promise.resolve(
+          sql.includes('tenant_capabilities') ? { enabled: 1, config_json: '{}', epoch: 0 } : null,
+        ),
       run: () => Promise.resolve({ results: [], success: true }),
     }),
   });
@@ -35,15 +38,15 @@ function env(overrides: Record<string, unknown> = {}): unknown {
 }
 
 describe('runForecastScheduled', () => {
-  it('returns FEATURE_OFF when the flag is disabled', async () => {
+  it('ignora un flag ausente/positivo como habilitación y usa la capability tenant', async () => {
     const result = await runForecastScheduled(
-      env({ FEATURE_ANALYTICS_FORECASTING: '0' }) as never,
+      env({ FEATURE_ANALYTICS_FORECASTING: undefined }) as never,
       {
         scheduledTime: NOW,
       },
     );
-    expect(result.status).toBe('FEATURE_OFF');
-    expect(result.candidates).toBe(0);
+    expect(result.status).toBe('COMPLETE');
+    expect(result.tenants).toBe(2);
   });
 
   it('returns DB_UNAVAILABLE without a DB binding', async () => {
@@ -51,6 +54,23 @@ describe('runForecastScheduled', () => {
       scheduledTime: NOW,
     });
     expect(result.status).toBe('DB_UNAVAILABLE');
+  });
+
+  it('fails closed when the capability store is unavailable', async () => {
+    const unavailableDb = {
+      prepare: (sql: string) => {
+        if (sql.includes('tenant_capabilities')) throw new Error('D1_DOWN');
+        return {
+          bind: () => ({
+            all: () => Promise.resolve({ results: pairRows(), success: true }),
+          }),
+        };
+      },
+      batch: () => Promise.resolve([]),
+    } as unknown as D1DatabaseLike;
+    await expect(
+      runForecastScheduled({ DB: unavailableDb } as never, { scheduledTime: NOW }),
+    ).rejects.toMatchObject({ code: 'CAPABILITIES_UNAVAILABLE' });
   });
 
   it('runs candidates for every tenant/branch pair', async () => {
@@ -73,7 +93,12 @@ describe('runForecastScheduled', () => {
       prepare: () => ({
         bind: () => ({
           all: () => Promise.resolve({ results: [], success: true }),
-          first: () => Promise.resolve(null),
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : null,
+            ),
           run: () => Promise.resolve({ results: [], success: true }),
         }),
       }),
@@ -106,7 +131,12 @@ describe('runForecastScheduled', () => {
                   : historyRows,
               success: true,
             }),
-          first: () => Promise.resolve(null),
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : null,
+            ),
           run: () => Promise.resolve({ results: [], success: true }),
         }),
       }),

@@ -1,7 +1,7 @@
 <script lang="ts">
   
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
-  import { isGreEnabled, isInventoryOpsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { issueRemissionGuide } from '$lib/inventory/remission-guide';
   import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
@@ -9,8 +9,8 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const invOn = isInventoryOpsEnabled();
-  const greOn = isGreEnabled();
+  const invOn = $derived($tenantCapabilities.has('inventory.batches') || $tenantCapabilities.has('inventory.bom'));
+  const greOn = $derived($tenantCapabilities.has('fiscal.gre'));
   let branchId = $state(initTenantBranchId());
   let productId = $state('p1');
   let countedQty = $state(0);

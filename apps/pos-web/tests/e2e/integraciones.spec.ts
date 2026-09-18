@@ -1,29 +1,22 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s23 (guía §6, Cadena+): integraciones — export contable (Contasis/Concar),
 // claves de acceso con revocación inmediata, webhooks HTTPS con avisos
 // sale.created/cpe.accepted/cpe.rejected e import de catálogo CSV.
 
-const SESSION = JSON.stringify({
-  userId: 'admin-e2e',
-  role: 'admin',
-  branchId: 'branch-e2e',
-});
-
 test('integraciones: export contable, clave con revocación y webhook con secret', async ({
   page,
 }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-integrations',
+    role: 'admin',
+    capabilities: [
+      'integrations.accounting_export',
+      'integrations.api',
+      'integrations.catalog_import',
+    ],
+  });
   await page.route('**/api/integrations/accounting/export', (route) =>
     route.fulfill({
       status: 200,

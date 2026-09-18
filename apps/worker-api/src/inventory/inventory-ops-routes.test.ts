@@ -43,6 +43,9 @@ function mockDbEnv(
       },
       run: () => Promise.resolve({ success: true }),
       first: () => {
+        if (sql.includes('tenant_capabilities')) {
+          return Promise.resolve({ enabled: feature ? 1 : 0, config_json: '{}', epoch: 0 });
+        }
         if (sql.includes('tenant_discount_policies')) {
           return Promise.resolve({ max_amount_without_auth_cents: 2000 });
         }
@@ -1167,7 +1170,7 @@ describe('owner stock alerts', () => {
     expect(res.status).toBe(404);
   });
 
-  it('permite owner mode sin inventory flags', async () => {
+  it('owner mode no sustituye la capability de inventario', async () => {
     const res = await runOwnerStockAlertsHttp(
       mockDbEnv({
         feature: false,
@@ -1196,8 +1199,7 @@ describe('owner stock alerts', () => {
       't1',
       { branchId: 'b1', expiryWarnDays: 30 },
     );
-    expect(res.status).toBe(200);
-    expect(Number(res.body.alertCount)).toBeGreaterThan(0);
+    expect(res.status).toBe(404);
   });
 
   it('DB unavailable', async () => {

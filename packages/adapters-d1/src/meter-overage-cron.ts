@@ -19,6 +19,7 @@ export interface MeterOverageCronDeps {
   readonly nowMs?: number;
   /** Inyectable para tests sin red. */
   readonly reportFn?: typeof reportMeteredOverage;
+  readonly allowedTenantIds?: ReadonlySet<string>;
 }
 
 export interface MeterOverageCronResult {
@@ -64,6 +65,7 @@ export async function runMeterOverageCron(
   const errors: string[] = [];
 
   for (const row of list) {
+    if (deps.allowedTenantIds && !deps.allowedTenantIds.has(row.tenant_id)) continue;
     const planId = row.plan_id ?? 'arranque';
     const quota = planQuotaForPlanId(planId);
     const units = overageUnits(row.doc_count, row.overage_reported_thru, quota);

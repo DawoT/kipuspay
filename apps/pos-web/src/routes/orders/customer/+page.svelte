@@ -10,7 +10,7 @@
     type CustomerOrderStatus,
     type CustomerOrderSummaryDto,
   } from '$lib/customer-orders/customer-order-client';
-  import { isCustomerOrdersEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import {
     CustomerOrderFulfillmentQueue,
     createIndexedDbCustomerOrderQueue,
@@ -19,7 +19,7 @@
   } from '$lib/offline-sync/customer-order-fulfillment-queue';
   import { resolveApiBase } from '$lib/auth/api-client';
 
-  const enabled = isCustomerOrdersEnabled();
+  const enabled = $derived($tenantCapabilities.has('orders.customer_orders'));
   const sessionState = readAdminAuthenticatedSessionState();
   const session = $derived(sessionState?.current ?? null);
   const access = $derived(customerOrderAccess(session?.role ?? ''));

@@ -11,10 +11,28 @@
  */
 import { issueShiftPinAtomic, processShiftTransferAtomic } from '@kipuspay/adapters-d1';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface ShiftEnv {
   readonly FEATURE_SHIFT_HANDOFF?: string;
   readonly DB?: unknown;
+}
+
+const SHIFT_ROLES = new Set(['cashier', 'supervisor']);
+
+async function requireShiftHandoff(env: ShiftEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'ops.shift_handoff');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
 }
 
 export function isShiftHandoffEnabled(env: ShiftEnv | undefined): boolean {
@@ -26,8 +44,9 @@ export async function runIssueShiftPinHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isShiftHandoffEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'SHIFT_DB_UNAVAILABLE' } };
+  const capabilityError = await requireShiftHandoff(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   // S51-H3: emitir el PIN de handoff lo hace quien opera la caja
   // (cashier/supervisor) — jamás admin/owner ajeno ni un rol sin turno.
   const role = actor.role.toLowerCase();
@@ -42,6 +61,7 @@ export async function runIssueShiftPinHttp(
     tenantId: actor.tenantId,
     userId: actor.userId,
     sessionId,
+    branchId: actor.branchId,
   });
   if (!issued.ok) return { status: issued.status, body: issued.body };
   return {
@@ -61,8 +81,12 @@ export async function runShiftTransferHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isShiftHandoffEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'SHIFT_DB_UNAVAILABLE' } };
+  const capabilityError = await requireShiftHandoff(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
+  if (!SHIFT_ROLES.has(actor.role.toLowerCase())) {
+    return { status: 403, body: { code: 'FORBIDDEN_ROLE' } };
+  }
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const pin = typeof body.pin === 'string' ? body.pin.trim() : '';
   const outgoingUserId = typeof body.outgoingUserId === 'string' ? body.outgoingUserId.trim() : '';
@@ -94,6 +118,7 @@ export async function runShiftTransferHttp(
     sessionId,
     outgoingUserId,
     incomingUserId: actor.userId,
+    branchId: actor.branchId,
     pin,
     interimCountCents: interimCountCents,
   });

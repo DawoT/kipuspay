@@ -7,7 +7,7 @@ owner: "@DawoT"
 
 # Fase 6H — Remediación y Sello QA — Quality Gate final
 
-**Estado software:** GREEN local (sprouts 54–58 cerrados)  
+**Estado software:** GREEN local + canaries parciales en Workers/D1 staging (sprouts 54–58 cerrados)
 **Estado claim:** hallazgos F-1..F-13 cerrados; features congeladas reflejadas en su
 estado real; **producción/piloto NO-GO** (sin staging Cloudflare real ni QA humana
 independiente)  
@@ -68,7 +68,7 @@ pentest ni certificación.
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| Staging/canary Cloudflare real | PENDIENTE / NO-GO | Flags y rutas en bindings reales; migraciones `--remote` |
+| Staging/canary Cloudflare real | PARCIAL / NO-GO | Canaries S43/S44/S46/S47/S49/S52/S53 en bindings reales; faltan suites ampliadas y validación humana |
 | QA humana independiente | PENDIENTE / NO-GO | Staff QA valida flujos reales con worker + D1 remoto |
 | Push + CI (verify/quality/security/codeql) | PENDIENTE | Se cierra con el push de esta rama |
 
@@ -106,8 +106,10 @@ yape-plin-visual, nc-reduce-cxc). Suites finales: **marketing 10/10** y **POS
 
 ## Veredicto
 
-**SOFTWARE-GREEN-CLAIM-LIVE.** El software y el gate automatizado quedan **GREEN
-local**: hallazgos F-1..F-13 cerrados con evidencia RED→GREEN, gate V-30 activo,
-suite e2e completa 81/81, smoke D1 del runbook F-10 exitoso y features congeladas
-bajo contrato de regresión. **Producción y piloto siguen NO-GO** hasta staging
-Cloudflare real, QA humana independiente y verificación en CI tras el push.
+**SOFTWARE-GREEN-CANARY-PARCIAL.** El software y el gate automatizado quedan
+**GREEN local** y existen canaries técnicos aislados en Workers/D1 staging para
+LPDP, pedidos/retiro, recurrencia, forecasting, insights, onboarding y
+diagnósticos de hardware. Esto no equivale a QA humana, firma A/V, certificación
+de hardware, SLO productivo ni validación externa de servicios. **Producción y
+piloto siguen NO-GO** hasta cerrar esas evidencias y la verificación en CI tras
+el push.

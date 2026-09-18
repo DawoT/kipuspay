@@ -102,8 +102,8 @@ describe('capabilities-revoked-offline — SYN-06 offline-first con capabilities
     expect(delivered.size).toBe(CYCLES);
   });
 
-  it('rollback instantáneo: dynamic 0 restaura flag sin perder cola', async () => {
-    // Revocada en dynamic 1 → cambia a 0 sin deploy, flag POS_CHECKOUT=1 restaura UI
+  it('un kill switch no puede restaurar una capability ausente, sin perder la cola', async () => {
+    // Revocada en el snapshot; cambiar el flag global no restaura la UI
     vi.stubEnv('PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC', '1');
     await setCapabilities({ caps: [], epoch: 1, tenantId: 'tenant-revoked' });
     expect(has('pos.checkout')).toBe(false);
@@ -111,11 +111,10 @@ describe('capabilities-revoked-offline — SYN-06 offline-first con capabilities
     // dynamic 1 → false
     expect(feat.isPosCheckoutEnabled()).toBe(false);
 
-    // Rollback instantáneo: var a 0, flag 1
+    // El kill switch global no puede habilitar el módulo por sí solo.
     vi.stubEnv('PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC', '0');
     vi.stubEnv('PUBLIC_FEATURE_POS_CHECKOUT', '1');
-    // Necesita re-import? isDynamic lee env dinámico cada call, no cacheado
-    expect(feat.isPosCheckoutEnabled()).toBe(true);
+    expect(feat.isPosCheckoutEnabled()).toBe(false);
     // Cola offline sigue intacta tras rollback (no se limpia)
     const idb = createMemoryOfflineIdb();
     const queue = new OfflineQueueStore(idb);

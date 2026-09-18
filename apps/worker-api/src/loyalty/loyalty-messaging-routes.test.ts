@@ -63,6 +63,14 @@ function envWith(
             return stmt;
           },
           first: () => {
+            if (sql.includes('tenant_capabilities')) {
+              const enabled =
+                flags.FEATURE_LOYALTY_POINTS === '1' ||
+                flags.FEATURE_LOYALTY_POINTS === 'true' ||
+                flags.FEATURE_MESSAGING_WHATSAPP === '1' ||
+                flags.FEATURE_MESSAGING_WHATSAPP === 'true';
+              return Promise.resolve({ enabled: enabled ? 1 : 0, config_json: '{}', epoch: 0 });
+            }
             if (sql.includes('FROM tenants')) return Promise.resolve({ plan_id: planId });
             if (sql.includes('FROM messaging_opt_ins') && sql.includes('SELECT id')) {
               return Promise.resolve(flags.hasExistingOpt ? { id: 'mo1' } : null);
@@ -99,9 +107,9 @@ describe('loyalty-messaging flags', () => {
 });
 
 describe('loyalty HTTP', () => {
-  it('feature off → 404', async () => {
+  it('feature off remains denied', async () => {
     const res = await runLoyaltyReserveHttp(envWith({}), 't1', {});
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   it('DB unavailable', async () => {

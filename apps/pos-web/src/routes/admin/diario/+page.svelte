@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { isLedgerChartOfAccountsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { formatCents } from '$lib/cents';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const journalOn = isLedgerChartOfAccountsEnabled();
+  const journalOn = $derived($tenantCapabilities.has('ledger.chart_of_accounts'));
   let fromDate = $state('2026-08-01');
   let toDate = $state('2026-08-07');
   let branchId = $state('b1');

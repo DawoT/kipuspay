@@ -56,6 +56,9 @@ function dispatcherEnv(contexts: Readonly<Record<string, Record<string, unknown>
         return Promise.resolve({ results: [{ tenant_id: 'tenant-a' } as T] });
       },
       first<T>() {
+        if (sql.includes('tenant_capabilities')) {
+          return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+        }
         const firstArg = statement.bindings[0];
         const id = typeof firstArg === 'string' ? firstArg : '';
         return Promise.resolve((contexts[id] ?? null) as T | null);
@@ -522,7 +525,7 @@ describe('ADR-0036 inline dispatch (dispatchPushNow)', () => {
       hasMore: false,
     });
     const fixture = dispatcherEnv({ [failing.id]: context(failing.id) });
-    fixture.sendWebPush.mockRejectedValue(new Error('KMS_DOWN'));
+    fixture.sendWebPush.mockRejectedValue(new Error('provider endpoint token=secret-value'));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
@@ -540,9 +543,11 @@ describe('ADR-0036 inline dispatch (dispatchPushNow)', () => {
         batch.some(({ sql }) => sql.includes('UPDATE push_deliveries')),
       );
       expect(completion?.[0]?.bindings[0]).toBe('RETRY');
-      expect(completion?.[0]?.bindings).toContain('SEND_ERROR:KMS_DOWN');
+      expect(completion?.[0]?.bindings).toContain('SEND_ERROR:PROVIDER_ERROR');
+      expect(completion?.[0]?.bindings.join('|')).not.toContain('secret-value');
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"event":"push_send_failed"'));
-      expect(warnSpy.mock.calls[0]?.[0]).toContain('SEND_ERROR:KMS_DOWN');
+      expect(warnSpy.mock.calls[0]?.[0]).toContain('SEND_ERROR:PROVIDER_ERROR');
+      expect(warnSpy.mock.calls[0]?.[0]).not.toContain('secret-value');
     } finally {
       warnSpy.mockRestore();
     }

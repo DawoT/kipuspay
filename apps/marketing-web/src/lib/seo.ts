@@ -12,7 +12,9 @@ export function pageTitle(title: string): string {
  * Sin `slug` (o 'home') devuelve la tarjeta de marca; solo los rubros y
  * comparativas tienen tarjeta propia.
  */
+const SOCIAL_IMAGE_SLUGS = new Set(['restaurantes', 'farmacias', 'retail', 'servicios', 'cadenas']);
+
 export function ogImageFor(slug?: string): string {
-  const asset = slug && slug !== 'home' ? slug : 'kipuspay';
+  const asset = slug && SOCIAL_IMAGE_SLUGS.has(slug) ? slug : 'kipuspay';
   return absoluteUrl(`/media/og-${asset}.png`);
 }

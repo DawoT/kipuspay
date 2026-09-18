@@ -29,7 +29,8 @@ function makeDb(input: { readonly registryVersion?: string; readonly globalHash?
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...params: unknown[]) => ({
         first: vi.fn(() => {
-          if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+          if (sql.includes('tenant_capabilities'))
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
           if (sql.includes('SELECT global_hash')) return Promise.resolve({ global_hash: hash });
           if (sql.includes('SELECT manifest_r2_key')) {
             return Promise.resolve({

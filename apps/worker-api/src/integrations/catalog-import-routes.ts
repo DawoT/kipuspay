@@ -10,6 +10,7 @@ import {
 } from '@kipuspay/domain-integrations';
 import { CatalogImporter } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface HttpResult {
   status: number;
@@ -22,16 +23,27 @@ export function isCatalogImportEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_CATALOG_IMPORT === '1' || env?.FEATURE_CATALOG_IMPORT === 'true';
 }
 
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
 }
 
 function badRequest(reason: string): HttpResult {
   return { status: 400, body: { error: reason, code: 'BAD_REQUEST' } };
+}
+
+async function requireCatalogImport(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'integrations.catalog_import');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
 }
 
 function resolveSource(value: unknown): CatalogImportSource | null {
@@ -62,11 +74,12 @@ async function importCatalog(
   source: CatalogImportSource | null,
   userRole?: string,
 ): Promise<HttpResult> {
-  if (!isCatalogImportEnabled(env)) return featureOff('FEATURE_CATALOG_IMPORT');
   if (!userRole || !isAdminRole(userRole)) {
     return { status: 403, body: { error: 'admin role required', code: 'FORBIDDEN_ADMIN' } };
   }
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireCatalogImport(env, tenantId);
+  if (capabilityError) return capabilityError;
   if (!source) return badRequest('source debe ser bsale, alegra o csv');
   if (!Array.isArray(body.rows)) return badRequest('rows requerido');
   if (body.mode !== 'preview' && body.mode !== 'commit') {

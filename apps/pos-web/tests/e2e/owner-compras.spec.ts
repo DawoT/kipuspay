@@ -1,26 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s29/guía §6: Modo Dueño — compras: órdenes abiertas, recepciones sin
 // facturar y ajustes de precio (resumen server-side).
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('compras dueño: resumen de órdenes, sin facturar y ajustes', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-purchasing',
+    role: 'owner',
+    capabilities: ['owner.mode', 'purchasing.three_way', 'purchasing.returns'],
+  });
   await page.route('**/api/owner/purchasing/three-way', (route) =>
     route.fulfill({
       status: 200,

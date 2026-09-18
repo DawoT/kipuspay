@@ -184,8 +184,8 @@ bloquea el merge por sí solo (`AGENTS §5`).
 ### **13.8 Presupuesto de bundle y cero-dependencia (CAL-06)**
 
 1. **Baseline:** `scripts/checks/bundle_budget.py` lee `size-limit.config.js` y el
-   artefacto de build; falla si el JS emitido del POS supera el presupuesto (inicial:
-   **220 kB** gz para `apps/pos-web`; se re-baselinea solo con ADR).
+   artefacto de build; falla si el JS emitido del POS supera el presupuesto (**320 kB**
+   gz para `apps/pos-web`, re-baselineado por ADR-0040).
 2. **Cero dependencia npm runtime nueva en el POS** (invariante 10, §7.5): un check de
    diff en CI compara `apps/pos-web/package.json` contra el baseline; cualquier `dependencies`
    nueva sin ADR rompe CI (CAL-06). Las dependencias de **dev** no se limitan. El baseline

@@ -1,44 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // Parte I §3.3 de docs/ops/legal_and_sales_guide.md: toda Nota de Venta impresa
 // lleva la leyenda "NOTA DE VENTA — Documento de control interno no válido
 // para fines tributarios". La caja de un tenant INTERNAL_CONTROL solo emite NV.
 
-const SESSION = JSON.stringify({
-  userId: 'cashier-e2e',
-  role: 'cashier',
-  branchId: 'branch-e2e',
-});
-const CLAIM = JSON.stringify({ branchId: 'branch-e2e', sessionId: 'session-e2e' });
-
 test('ticket de NV imprime la leyenda de control interno (cero engaño fiscal)', async ({
   page,
 }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-      localStorage.setItem('kipuspay:pos-terminal-id', 'terminal-e2e');
-    },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'cashier-e2e',
-        role: 'cashier',
-        branchId: 'branch-e2e',
-        terminal: { terminalId: 'terminal-e2e', terminalSessionId: 'terminal-session-e2e' },
-      }),
-    }),
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
   await page.route('**/api/catalog/sellable', (route) =>
     route.fulfill({
       status: 200,
@@ -56,6 +25,22 @@ test('ticket de NV imprime la leyenda de control interno (cero engaño fiscal)',
   await page.route('**/api/v1/sync/sales', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
   );
+
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'cashier',
+    capabilities: [
+      'catalog.sellable',
+      'pos.checkout',
+      'sales.quick_line',
+      'hardware.print_templates',
+    ],
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'session-e2e',
+    },
+  });
 
   await page.goto('/');
   await page.getByRole('button', { name: 'Venta rápida (sin catálogo)' }).click();

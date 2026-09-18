@@ -34,4 +34,47 @@ describe('cash-session (S10-D7, sin valores demo)', () => {
     expect(ctx.branchId).not.toContain('demo');
     expect(ctx.sessionId).not.toContain('demo');
   });
+
+  it('en browser usa localStorage por defecto para completar la caja', async () => {
+    vi.resetModules();
+    const storage = memoryStorage({
+      kipuspay_tenant_id: 'tenant-browser',
+      kipuspay_user: JSON.stringify({ userId: 'u1', role: 'owner', branchId: 'branch-browser' }),
+      'kipuspay.onboarding.claim': JSON.stringify({
+        branchId: 'branch-browser',
+        sessionId: 'cash-session-browser',
+        tenantId: 'tenant-browser',
+      }),
+    });
+    vi.stubGlobal('localStorage', storage);
+    try {
+      const { cashSessionContext } = await import('./cash-session.js');
+      expect(cashSessionContext()).toEqual({
+        branchId: 'branch-browser',
+        sessionId: 'cash-session-browser',
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('no mezcla una sesión de caja persistida de otro tenant o sucursal', async () => {
+    vi.resetModules();
+    const storage = memoryStorage({
+      kipuspay_tenant_id: 'tenant-current',
+      kipuspay_user: JSON.stringify({ userId: 'u2', role: 'owner', branchId: 'branch-current' }),
+      'kipuspay.onboarding.claim': JSON.stringify({
+        branchId: 'branch-old',
+        sessionId: 'cash-session-old',
+        tenantId: 'tenant-old',
+      }),
+    });
+    vi.stubGlobal('localStorage', storage);
+    try {
+      const { cashSessionContext } = await import('./cash-session.js');
+      expect(cashSessionContext()).toEqual({ branchId: 'branch-current', sessionId: '' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

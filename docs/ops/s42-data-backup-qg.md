@@ -119,8 +119,11 @@ acotado a tenant/user/action/backup y TTL corto, hash plaintext antes de enqueue
 errores/códigos allowlisted con `error_ref` opaco. También cubre KMS productivo y
 elimina shortcuts de tenant de test.
 
-No se ejecutó una segunda Security Review limpia. La evidencia solo afirma remediación
-implementada y tests GREEN; la validación independiente permanece pendiente.
+La segunda revisión independiente del cierre (2026-09-17) incluyó las superficies
+de backup/DR y no reportó hallazgos adicionales en ellas. La revisión sí encontró
+un HIGH en el reclaim CAS de webhooks y un MEDIUM en la correspondencia de claims
+LPDP; ambos fueron remediados y están documentados en el QG C5. La validación
+humana A/V y la matriz externa permanecen pendientes.
 
 ## Matriz residual externa
 
@@ -142,7 +145,7 @@ implementada y tests GREEN; la validación independiente permanece pendiente.
 | Rol | Quién | Estado |
 |---|---|---|
 | R | Staff SRE + Staff Data | Software local GREEN |
-| Security | Staff Security | Hallazgos emitidos y remediados; segunda revisión independiente no realizada |
+| Security | Staff Security | Hallazgos emitidos y remediados; revisión independiente 2026-09-17 sin hallazgos S42 adicionales |
 | A | Staff Principal | PENDIENTE para staging/producción/claim |
 | V | Staff Security o Staff QA independiente | PENDIENTE; no hay firma humana independiente |
 | Claim | Staff Growth + Staff PM | NO-GO |

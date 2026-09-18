@@ -1,26 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s8 (guía §6): Modo Dueño — Finanzas consolida CxC y CxP; el diario
 // contable sigue en solo lectura.
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('finanzas dueño: AR/AP con diario en solo lectura', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-finances',
+    role: 'owner',
+    capabilities: ['owner.mode', 'ledger.accounts_receivable', 'ledger.accounts_payable'],
+  });
   await page.route('**/api/ledger/ar', (route) =>
     route.fulfill({
       status: 200,

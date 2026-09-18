@@ -26,6 +26,7 @@ test('login con badge y PIN inicia sesión y redirige al terminal', async ({ pag
     },
   });
   await page.goto('/login?tenant=t-e2e');
+  await expect(page.getByTestId('login-card').locator('form')).toHaveCount(1);
   await page.getByTestId('login-identifier').fill('EMP-12345');
   await page.getByTestId('login-pin').fill('1234');
   await page.getByTestId('login-submit').click();

@@ -97,7 +97,11 @@ describe('authenticated app-shell session route', () => {
   it('returns only a server-verified active terminal session for cash roles', async () => {
     await expect(
       runAuthenticatedSessionHttp(
-        env({ terminal_id: 'terminal-a', terminal_session_id: 'terminal-session-a' }),
+        env({
+          terminal_id: 'terminal-a',
+          terminal_session_id: 'terminal-session-a',
+          cash_register_session_id: 'cash-session-a',
+        }),
         cashier,
         'terminal-a',
       ),
@@ -110,6 +114,7 @@ describe('authenticated app-shell session route', () => {
         terminal: {
           terminalId: 'terminal-a',
           terminalSessionId: 'terminal-session-a',
+          cashRegisterSessionId: 'cash-session-a',
         },
         capabilities: [],
         capabilitiesEpoch: 0,
@@ -275,7 +280,7 @@ describe('Ola 2 — capabilities dinámicas (ADR-ARCH-003)', () => {
     expect(epochQueried).toBe(false);
   });
 
-  it('kill-switch con flag undefined (default 0) también bloquea D1', async () => {
+  it('flag undefined mantiene discovery dinámico por defecto', async () => {
     let capsQueried = false;
     const envOff = {
       DB: {
@@ -296,7 +301,7 @@ describe('Ola 2 — capabilities dinámicas (ADR-ARCH-003)', () => {
     const res = await runAuthenticatedSessionHttp(envOff, cashier, 'terminal-a');
     expect(res.status).toBe(200);
     expect(res.body.capabilities).toEqual([]);
-    expect(capsQueried).toBe(false);
+    expect(capsQueried).toBe(true);
   });
 
   it('owner también recibe capabilities + epoch (no solo cashier)', async () => {

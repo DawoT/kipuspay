@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { isStockTransfersEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { workflowStatusLabel } from '$lib/ui/ops-copy';
-import { apiFetch } from '$lib/auth/api-client';
+  import { apiFetch } from '$lib/auth/api-client';
 
-  const xferOn = isStockTransfersEnabled();
+  const xferOn = $derived($tenantCapabilities.has('stock.transfers'));
   let fromBranchId = $state('b-origen');
   let toBranchId = $state('b-destino');
   let productId = $state('p1');

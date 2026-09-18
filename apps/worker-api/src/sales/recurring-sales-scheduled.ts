@@ -1,7 +1,7 @@
 import { runRecurringScheduler } from '@kipuspay/adapters-d1/process-recurring-sale-atomic';
 import { readAuditChainHead, runD1AtomicPlan } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import { isRecurringSalesEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export class RecurringScheduledError extends Error {
   readonly code: string;
@@ -104,15 +104,10 @@ function parseReplay(value: string | null): RecurringManualRpcResult | null {
 
 async function tenantRecurringEnabled(env: WorkerEnv, tenantId: string): Promise<boolean> {
   try {
-    const row = await env
-      .DB!.prepare(
-        `SELECT enabled FROM tenant_capabilities
-         WHERE tenant_id = ? AND capability = 'sales.recurring' LIMIT 1`,
-      )
-      .bind(tenantId)
-      .first<{ enabled: number }>();
-    return row?.enabled === 1;
-  } catch {
+    await new CapabilityResolver(env).require(tenantId, 'sales.recurring');
+    return true;
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) return false;
     fail('RECURRING_CAPABILITY_UNAVAILABLE');
   }
 }
@@ -293,14 +288,6 @@ export async function runRecurringManualRpc(
   env: WorkerEnv,
   input: RecurringManualRpcInput,
 ): Promise<RecurringManualRpcResult> {
-  if (!isRecurringSalesEnabled(env)) {
-    return {
-      status: 'FEATURE_OFF',
-      processedPeriods: 0,
-      failures: 0,
-      catchUpCapped: false,
-    };
-  }
   if (!env.DB) fail('RECURRING_DB_UNAVAILABLE');
   const tenantId = input.tenantId?.trim() ?? '';
   const now = iso(Date.now());
@@ -357,15 +344,6 @@ export async function runRecurringSalesScheduled(
   env: WorkerEnv,
   input: RecurringScheduledInput,
 ): Promise<RecurringScheduledResult> {
-  if (!isRecurringSalesEnabled(env)) {
-    return {
-      status: 'FEATURE_OFF',
-      processedPeriods: 0,
-      failures: 0,
-      catchUpCapped: false,
-      tenants: 0,
-    };
-  }
   if (!env.DB) fail('RECURRING_DB_UNAVAILABLE');
   const now = iso(input.scheduledTime ?? Date.now());
   let tenantIds: string[];
@@ -384,6 +362,7 @@ export async function runRecurringSalesScheduled(
   let failures = 0;
   let catchUpCapped = false;
   for (const tenantId of tenantIds) {
+    if (!(await tenantRecurringEnabled(env, tenantId))) continue;
     const outcome = await runRecurringScheduler(env.DB, {
       now,
       tenantId,

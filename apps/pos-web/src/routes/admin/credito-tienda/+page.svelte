@@ -2,14 +2,14 @@
   
   import { tenantBranchId } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
-  import { isLedgerStoreCreditEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { ledgerSignLabel, salesErrorCopy } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const creditOn = isLedgerStoreCreditEnabled();
+  const creditOn = $derived($tenantCapabilities.has('ledger.store_credit'));
   let customerId = $state('');
   let amountCents = $state(100);
   let adjustSign = $state<'CREDIT' | 'DEBIT'>('CREDIT');

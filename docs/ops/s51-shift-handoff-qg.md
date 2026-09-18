@@ -7,7 +7,7 @@ owner: "@DawoT"
 
 # Sprint 51 — Handoff de turno + Equipo (ops.shift_handoff + ops.team_invite) — Quality Gate
 
-**Estado software:** GREEN local  
+**Estado software:** GREEN local + canary Workers/D1 staging
 **Estado claim:** "cambia de turno sin cerrar caja" y "atribuye la venta al vendedor con su badge" descongelados (GTM §4.1, FASE 6G); producción/piloto NO-GO  
 **Capabilities:** `ops.shift_handoff`, `ops.team_invite`, default-off (`FEATURE_SHIFT_HANDOFF`, `FEATURE_TEAM_INVITE`)  
 **Spec:** Arquitectura §5.3 reglas 35–36 (edges 1A/1C) · Roadmap FASE 6G
@@ -17,7 +17,7 @@ sesión OPEN en <5 s con PIN de un solo uso (hash + TTL, guard SQL dentro del
 batch), reuso/expiración → 401, conteo ligero intermedio con diferencia auditada
 sin bloquear, invitación única por email con badge `EMP-` + PIN de caja,
 atribución <1 s por badge/PIN (fail-closed) y desglose del Z por tramo en el
-Modo Dueño (edge 1C). No existe staging Cloudflare real: producción y piloto NO-GO.
+Modo Dueño (edge 1C). El canary es sintético y aislado; producción y piloto siguen NO-GO.
 
 ## Evidencia RED→GREEN
 
@@ -82,7 +82,7 @@ Esta revisión no equivale a pentest.
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
 | Transferencia <5 s en hardware real | PENDIENTE / NO-GO | QA humano con equipo físico |
-| Staging Cloudflare real | PENDIENTE / NO-GO | Bindings, CSP y latencia real |
+| Staging Cloudflare real | PARCIAL / NO-GO | invite 201 y handoff 200 con replay 401 en Worker/D1; faltan hardware, carga y QA |
 | QA humana + A/V independiente | PENDIENTE / NO-GO | Flujo de turnos validado por humanos |
 
 ## RACI real
@@ -98,9 +98,16 @@ Esta revisión no equivale a pentest.
 
 ## Veredicto
 
-**SOFTWARE-GREEN-CLAIM-LIVE.** El software y el gate automatizado quedan GREEN local y
-los claims **"cambia de turno sin cerrar caja"** y **"atribuye la venta al vendedor
-con su badge"** se descongelan conforme al gate del Sprint 51 (Roadmap FASE 6G),
-con copy acotado (handoff por PIN de un solo uso, la sesión nunca se cierra en el
-cambio de operador, conteo intermedio opcional) y las capabilities default-off.
-Producción y piloto siguen NO-GO hasta staging real y firmas A/V independientes.
+**SOFTWARE-GREEN-CANARY.** El software y el gate automatizado quedan GREEN local;
+el canary staging confirmó invitación **201**, handoff **200** con sesión OPEN y
+replay del PIN **401 `PIN_NOT_ISSUED`**. Los claims **"cambia de turno sin cerrar
+caja"** y **"atribuye la venta al vendedor con su badge"** permanecen condicionados
+a QA humana, carga/hardware y firmas A/V. Producción y piloto siguen NO-GO.
+
+## Evidencia S51 — canary staging 2026-09-17
+
+En `tenant_stg_cadena_001` se creó un cajero sintético con `EMP-01083` y se
+preparó una sesión OPEN aislada `session_s51_canary_001`. La emisión del PIN
+temporal devolvió **200**; la transferencia al operador entrante devolvió **200**
+con `interimCountCents=0`, y el replay inmediato devolvió **401**
+`PIN_NOT_ISSUED`. La sesión no se cerró. No se usó caja ni hardware físico.

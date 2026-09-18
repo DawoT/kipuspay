@@ -62,6 +62,12 @@ function mockEnv(
         return stmt;
       },
       first<T>() {
+        if (sql.includes('FROM branches')) {
+          return Promise.resolve({ id: 'b1' } as T);
+        }
+        if (sql.includes('tenant_capabilities')) {
+          return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 } as T);
+        }
         if (sql.includes('FROM products')) {
           return Promise.resolve({ name: 'Pizza', price_cents: 5000 } as T);
         }
@@ -181,22 +187,33 @@ describe('isOrdersKdsEnabled', () => {
 
 describe('runCreateOrderHttp', () => {
   it('FEATURE_OFF sin flag', async () => {
-    const res = await runCreateOrderHttp({ FEATURE_ORDERS_KDS: '0' } as WorkerEnv, 't1', 'u1', {});
-    expect(res.status).toBe(404);
-    expect(res.body.code).toBe('FEATURE_OFF');
+    const res = await runCreateOrderHttp(
+      { FEATURE_ORDERS_KDS: '0' } as WorkerEnv,
+      't1',
+      'u1',
+      {},
+      [],
+    );
+    expect(res.status).toBe(503);
   });
 
   it('exige branchId', async () => {
-    const res = await runCreateOrderHttp(mockEnv(), 't1', 'u1', {});
+    const res = await runCreateOrderHttp(mockEnv(), 't1', 'u1', {}, ['b1']);
     expect(res.status).toBe(400);
   });
 
   it('crea orden con precio servidor (ignora cliente)', async () => {
-    const res = await runCreateOrderHttp(mockEnv(), 't1', 'u1', {
-      branchId: 'b1',
-      tableLabel: 'T1',
-      items: [{ productId: 'p1', quantity: 2, unitPriceCents: 1 }],
-    });
+    const res = await runCreateOrderHttp(
+      mockEnv(),
+      't1',
+      'u1',
+      {
+        branchId: 'b1',
+        tableLabel: 'T1',
+        items: [{ productId: 'p1', quantity: 2, unitPriceCents: 1 }],
+      },
+      ['b1'],
+    );
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('OPEN');
     expect(res.body.itemCount).toBe(1);
@@ -205,7 +222,7 @@ describe('runCreateOrderHttp', () => {
 
 describe('runFireOrderHttp', () => {
   it('dispara a FIRED y notifica KDS', async () => {
-    const res = await runFireOrderHttp(mockEnv(), 't1', { orderId: 'o1' });
+    const res = await runFireOrderHttp(mockEnv(), 't1', { orderId: 'o1' }, ['b1']);
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('FIRED');
     expect(res.body.kdsVisible).toBe(true);
@@ -216,13 +233,34 @@ describe('runFireOrderHttp', () => {
     (env.BRANCH_KDS_HUB_DO as unknown as { get: () => unknown }).get = () => ({
       fetch: () => Promise.resolve(Response.json({ ok: true, listeners: 0, delivered: 0 })),
     });
-    const res = await runFireOrderHttp(env, 't1', { orderId: 'o1' });
+    const res = await runFireOrderHttp(env, 't1', { orderId: 'o1' }, ['b1']);
     expect(res.status).toBe(200);
     expect(res.body.kdsVisible).toBe(false);
   });
 });
 
 describe('runKdsPendingHttp (Sprint C2 — replay del display de cocina)', () => {
+  it('rechaza un branchId explícito que no pertenece al tenant', async () => {
+    const env = {
+      FEATURE_ORDERS_KDS: '1',
+      DB: {
+        prepare: (sql: string) => ({
+          bind: () => ({
+            first: () =>
+              Promise.resolve(
+                sql.includes('tenant_capabilities')
+                  ? { enabled: 1, config_json: '{}', epoch: 0 }
+                  : null,
+              ),
+            all: () => Promise.resolve({ results: [] }),
+          }),
+        }),
+      },
+    } as never;
+    const result = await runKdsPendingHttp(env, 't1', 'foreign-branch', ['foreign-branch']);
+    expect(result).toMatchObject({ status: 403, body: { code: 'FORBIDDEN_BRANCH' } });
+  });
+
   it('devuelve las comandas FIRED con sus ítems pendientes', async () => {
     const env = mockEnv(
       {},
@@ -240,7 +278,7 @@ describe('runKdsPendingHttp (Sprint C2 — replay del display de cocina)', () =>
         ],
       },
     );
-    const res = await runKdsPendingHttp(env, 't1', 'b1');
+    const res = await runKdsPendingHttp(env, 't1', 'b1', ['b1']);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       orders: [
@@ -255,10 +293,11 @@ describe('runKdsPendingHttp (Sprint C2 — replay del display de cocina)', () =>
   });
 
   it('FEATURE_OFF y branchId requerido (fail-closed)', async () => {
-    expect((await runKdsPendingHttp(mockEnv({ FEATURE_ORDERS_KDS: '0' }), 't1', 'b1')).status).toBe(
-      404,
-    );
-    expect((await runKdsPendingHttp(mockEnv(), '', 'b1')).status).toBe(400);
+    expect(
+      (await runKdsPendingHttp(mockEnv({ FEATURE_ORDERS_KDS: '0' }), 't1', 'b1', ['b1'])).status,
+    ).toBe(404);
+    expect((await runKdsPendingHttp(mockEnv(), '', 'b1', ['b1'])).status).toBe(400);
+    expect((await runKdsPendingHttp(mockEnv(), 't1', 'branch-b', ['b1'])).status).toBe(403);
   });
 });
 
@@ -277,6 +316,7 @@ describe('runMarkItemsReadyHttp', () => {
       ),
       't1',
       { orderId: 'o1', orderItemIds: ['i1', 'i2'] },
+      ['b1'],
     );
     expect(res.status).toBe(200);
     expect(res.body.itemReadyCount).toBe(2);
@@ -286,19 +326,31 @@ describe('runMarkItemsReadyHttp', () => {
 
 describe('runCancelOrderItemHttp', () => {
   it('403 READY sin token', async () => {
-    const res = await runCancelOrderItemHttp(mockEnv(), 't1', 'u1', {
-      orderItemId: 'item-1',
-      authorizedCancelBy: 'mgr',
-    });
+    const res = await runCancelOrderItemHttp(
+      mockEnv(),
+      't1',
+      'u1',
+      {
+        orderItemId: 'item-1',
+        authorizedCancelBy: 'mgr',
+      },
+      ['b1'],
+    );
     expect(res.status).toBe(403);
   });
 
   it('cancela READY con token', async () => {
-    const res = await runCancelOrderItemHttp(mockEnv(), 't1', 'u1', {
-      orderItemId: 'item-1',
-      authorizedCancelBy: 'mgr',
-      authTokenHash: 'abc',
-    });
+    const res = await runCancelOrderItemHttp(
+      mockEnv(),
+      't1',
+      'u1',
+      {
+        orderItemId: 'item-1',
+        authorizedCancelBy: 'mgr',
+        authTokenHash: 'abc',
+      },
+      ['b1'],
+    );
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('CANCELLED');
   });
@@ -306,37 +358,55 @@ describe('runCancelOrderItemHttp', () => {
 
 describe('runSplitBillHttp', () => {
   it('exige sesión/series/método', async () => {
-    const res = await runSplitBillHttp(mockEnv({}, { orderStatus: 'READY' }), 't1', 'u1', {
-      orderId: 'o1',
-      portions: [{ saleId: 's1', itemIds: ['i1', 'i2'] }],
-    });
+    const res = await runSplitBillHttp(
+      mockEnv({}, { orderStatus: 'READY' }),
+      't1',
+      'u1',
+      {
+        orderId: 'o1',
+        portions: [{ saleId: 's1', itemIds: ['i1', 'i2'] }],
+      },
+      ['b1'],
+    );
     expect(res.status).toBe(400);
   });
 
   it('split → PAID con 2 sales', async () => {
-    const res = await runSplitBillHttp(mockEnv({}, { orderStatus: 'READY' }), 't1', 'u1', {
-      orderId: 'o1',
-      cashRegisterSessionId: 'sess1',
-      series: 'NV01',
-      paymentMethodId: 'pm1',
-      portions: [
-        { saleId: 's1', itemIds: ['i1'] },
-        { saleId: 's2', itemIds: ['i2'] },
-      ],
-    });
+    const res = await runSplitBillHttp(
+      mockEnv({}, { orderStatus: 'READY' }),
+      't1',
+      'u1',
+      {
+        orderId: 'o1',
+        cashRegisterSessionId: 'sess1',
+        series: 'NV01',
+        paymentMethodId: 'pm1',
+        portions: [
+          { saleId: 's1', itemIds: ['i1'] },
+          { saleId: 's2', itemIds: ['i2'] },
+        ],
+      },
+      ['b1'],
+    );
     expect(res.status).toBe(200);
     expect(res.body.orderStatus).toBe('PAID');
     expect(res.body.portions).toHaveLength(2);
   });
 
   it('rechaza orden no cobrable', async () => {
-    const res = await runSplitBillHttp(mockEnv({}, { orderStatus: 'OPEN' }), 't1', 'u1', {
-      orderId: 'o1',
-      cashRegisterSessionId: 'sess1',
-      series: 'NV01',
-      paymentMethodId: 'pm1',
-      portions: [{ saleId: 's1', itemIds: ['i1', 'i2'] }],
-    });
+    const res = await runSplitBillHttp(
+      mockEnv({}, { orderStatus: 'OPEN' }),
+      't1',
+      'u1',
+      {
+        orderId: 'o1',
+        cashRegisterSessionId: 'sess1',
+        series: 'NV01',
+        paymentMethodId: 'pm1',
+        portions: [{ saleId: 's1', itemIds: ['i1', 'i2'] }],
+      },
+      ['b1'],
+    );
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('ORDER_NOT_BILLABLE');
   });

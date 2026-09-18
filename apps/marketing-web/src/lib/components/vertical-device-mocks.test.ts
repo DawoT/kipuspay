@@ -54,11 +54,22 @@ const FORBIDDEN_JARGON = [
 ];
 
 describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)', () => {
+  it('marca los datos de los mockups como ejemplos y no presenta estados fiscales o live falsos', () => {
+    for (const mock of ALL_MOCKS) {
+      expect(mock.code, mock.name).not.toMatch(
+        /EN VIVO|en vivo|VALIDADA SUNAT|100% LEGAL|Factura electrónica emitida ✓/i,
+      );
+    }
+    expect(VERTICAL_LANDING_VIEW).not.toMatch(/no una demo de catálogo/i);
+    expect(VERTICAL_LANDING_VIEW).toContain('Interfaz ilustrativa con datos de muestra');
+    expect(CHAIN_MOCK).not.toMatch(/98% meta global|Ranking Metas 98%/);
+  });
+
   describe('1. Encapsulación y Chasis Universal PhoneMockFrame (theme="dark")', () => {
     it.each(ALL_MOCKS)('$name encapsula PhoneMockFrame con theme="dark"', ({ code }) => {
       expect(code).toContain('PhoneMockFrame');
       expect(code).toContain('theme');
-      expect(code).toMatch(/statusTone="live"/);
+      expect(code).toMatch(/statusTone="sync"/);
     });
 
     it.each(ALL_MOCKS)(
@@ -93,7 +104,7 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
 
     it('ChainMock configura título y badge reactivo multi-local de cadenas', () => {
       expect(CHAIN_MOCK).toContain('Modo Dueño Cadenas · KipusPay');
-      expect(CHAIN_MOCK).toContain('3 Locales en vivo');
+      expect(CHAIN_MOCK).toContain('3 locales · ejemplo');
     });
 
     it('GasMock configura título y badge reactivo de grifo y estación de servicio', () => {
@@ -239,7 +250,7 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
         expect(SERVICES_MOCK).toContain('OP. GRAVADA');
         expect(SERVICES_MOCK).toContain('I.G.V. (18%)');
         expect(SERVICES_MOCK).toContain('data-testid="services-charge-btn"');
-        expect(SERVICES_MOCK).toContain('Factura electrónica emitida ✓');
+        expect(SERVICES_MOCK).toContain('EJEMPLO DE DOCUMENTO · NO ENVIADO');
       });
 
       it('Vista 2 [Historial Placa]: incluye consulta de placa, kilometraje y servicios previos', () => {
@@ -309,7 +320,7 @@ describe('Suite de Mockups de Dispositivos Interactivos por Vertical (KipusPay)'
         expect(CHAIN_MOCK).toContain('88% de la meta diaria');
 
         expect(CHAIN_MOCK).toContain('Total consolidado: S/ 12,450.00');
-        expect(CHAIN_MOCK).toContain('98% meta global');
+        expect(CHAIN_MOCK).toContain('Meta global · ejemplo');
       });
     });
 

@@ -1,11 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import {
-    isOwnerModeEnabled,
-    isPaymentsCardAcquirerEnabled,
-    isPaymentsQrWalletsEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -13,8 +9,8 @@
   import { paymentStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const ownerOn = isOwnerModeEnabled();
-  const payOn = isPaymentsQrWalletsEnabled() || isPaymentsCardAcquirerEnabled();
+  const ownerOn = $derived($tenantCapabilities.has('owner.mode'));
+  const payOn = $derived($tenantCapabilities.has('payments.qr_wallets') || $tenantCapabilities.has('payments.card_acquirer'));
 
   let status = $state('');
   let loading = $state(false);

@@ -14,6 +14,7 @@ import {
   processOrderBillingAtomic,
 } from '@kipuspay/adapters-d1/process-order-billing-atomic';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 import {
   branchKdsHubName,
   KDS_WS_TICKET_TTL_SECONDS,
@@ -32,12 +33,59 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireOrderCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'orders.kds' | 'orders.split_bill' | 'orders.lifecycle',
+): Promise<HttpResult | null> {
+  if (!env.DB) return dbUnavailable();
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
+}
+
+async function requireKds(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  return requireOrderCapability(env, tenantId, 'orders.kds');
+}
+
+async function requireKdsBranchAccess(
+  env: WorkerEnv,
+  tenantId: string,
+  branchId: string,
+  allowedBranches: readonly string[],
+  role?: string,
+): Promise<HttpResult | null> {
+  const denied: HttpResult = {
+    status: 403,
+    body: { error: 'Branch access denied', code: 'FORBIDDEN_BRANCH' },
+  };
+  const tenantWide = allowedBranches.length === 0 && (role === 'owner' || role === 'admin');
+  if (!tenantWide && !allowedBranches.includes(branchId)) return denied;
+  // El scope explícito también se contrasta: users.branch_id no tiene FK a branches.
+  if (!env.DB) return dbUnavailable();
+  try {
+    const branch = await env.DB.prepare(
+      `SELECT id FROM branches WHERE tenant_id = ? AND id = ? LIMIT 1`,
+    )
+      .bind(tenantId, branchId)
+      .first<{ id: string }>();
+    return branch ? null : denied;
+  } catch {
+    return dbUnavailable();
+  }
 }
 
 /**
@@ -108,11 +156,20 @@ export async function runCreateOrderHttp(
       unitPriceCents?: number;
     }[];
   },
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  const capabilityError = await requireOrderCapability(
+    env as WorkerEnv,
+    tenantId,
+    'orders.lifecycle',
+  );
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const branchId = body.branchId?.trim() ?? '';
   if (!branchId) return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
+  const branchError = await requireKdsBranchAccess(env, tenantId, branchId, allowedBranches, role);
+  if (branchError) return branchError;
   const items = body.items ?? [];
   if (items.length === 0) {
     return { status: 422, body: { error: 'ORDER_REQUIRES_ITEMS', code: 'ORDER_REQUIRES_ITEMS' } };
@@ -172,8 +229,11 @@ export async function runFireOrderHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: { orderId?: string },
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  const capabilityError = await requireKds(env as WorkerEnv, tenantId);
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const orderId = body.orderId?.trim() ?? '';
   if (!orderId) return { status: 400, body: { error: 'orderId required', code: 'BAD_REQUEST' } };
@@ -184,6 +244,14 @@ export async function runFireOrderHttp(
     .bind(orderId, tenantId)
     .first<{ status: OrderStatus; branch_id: string }>();
   if (!order) return { status: 404, body: { error: 'Order not found', code: 'NOT_FOUND' } };
+  const branchError = await requireKdsBranchAccess(
+    env,
+    tenantId,
+    order.branch_id,
+    allowedBranches,
+    role,
+  );
+  if (branchError) return branchError;
   try {
     assertOrderTransition(order.status, 'FIRED');
   } catch (e) {
@@ -222,8 +290,11 @@ export async function runMarkItemsReadyHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   body: { orderId?: string; orderItemIds?: readonly string[] },
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  const capabilityError = await requireKds(env as WorkerEnv, tenantId);
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const orderId = body.orderId?.trim() ?? '';
   if (!orderId) return { status: 400, body: { error: 'orderId required', code: 'BAD_REQUEST' } };
@@ -234,6 +305,14 @@ export async function runMarkItemsReadyHttp(
     .bind(orderId, tenantId)
     .first<{ status: OrderStatus; branch_id: string }>();
   if (!order) return { status: 404, body: { error: 'Order not found', code: 'NOT_FOUND' } };
+  const branchError = await requireKdsBranchAccess(
+    env,
+    tenantId,
+    order.branch_id,
+    allowedBranches,
+    role,
+  );
+  if (branchError) return branchError;
 
   const itemsRes = await env.DB.prepare(
     `SELECT id, status FROM order_items WHERE order_id = ? AND tenant_id = ?`,
@@ -306,6 +385,7 @@ export async function runMarkItemsReadyHttp(
 }
 /* eslint-enable complexity */
 
+/* eslint-disable complexity -- HTTP cancel: branch scope, atomic auth and KDS notification */
 export async function runCancelOrderItemHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -315,11 +395,32 @@ export async function runCancelOrderItemHttp(
     authorizedCancelBy?: string | null;
     authTokenHash?: string | null;
   },
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  const capabilityError = await requireKds(env as WorkerEnv, tenantId);
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const itemId = body.orderItemId?.trim() ?? '';
   if (!itemId) return { status: 400, body: { error: 'orderItemId required', code: 'BAD_REQUEST' } };
+
+  const meta = await env.DB.prepare(
+    `SELECT oi.order_id, o.branch_id FROM order_items oi
+     INNER JOIN orders o ON o.id = oi.order_id AND o.tenant_id = oi.tenant_id
+     WHERE oi.id = ? AND oi.tenant_id = ? LIMIT 1`,
+  )
+    .bind(itemId, tenantId)
+    .first<{ order_id: string; branch_id: string }>();
+  if (!meta)
+    return { status: 404, body: { error: 'ORDER_ITEM_NOT_FOUND', code: 'ORDER_ITEM_NOT_FOUND' } };
+  const branchError = await requireKdsBranchAccess(
+    env,
+    tenantId,
+    meta.branch_id,
+    allowedBranches,
+    role,
+  );
+  if (branchError) return branchError;
 
   try {
     const res = await cancelOrderItemAtomic(env.DB, tenantId, userId, {
@@ -328,21 +429,12 @@ export async function runCancelOrderItemHttp(
       authorizedByUserId: body.authorizedCancelBy ?? null,
     });
 
-    const meta = await env.DB.prepare(
-      `SELECT oi.order_id, o.branch_id FROM order_items oi
-       INNER JOIN orders o ON o.id = oi.order_id AND o.tenant_id = oi.tenant_id
-       WHERE oi.id = ? AND oi.tenant_id = ? LIMIT 1`,
-    )
-      .bind(itemId, tenantId)
-      .first<{ order_id: string; branch_id: string }>();
-    if (meta) {
-      await notifyKds(env, tenantId, meta.branch_id, {
-        type: 'ITEM_CANCELLED',
-        orderId: meta.order_id,
-        orderItemId: itemId,
-        firedAtMs: Date.now(),
-      });
-    }
+    await notifyKds(env, tenantId, meta.branch_id, {
+      type: 'ITEM_CANCELLED',
+      orderId: meta.order_id,
+      orderItemId: itemId,
+      firedAtMs: Date.now(),
+    });
 
     return { status: 200, body: { id: res.id, status: res.status } };
   } catch (e) {
@@ -356,31 +448,37 @@ export async function runCancelOrderItemHttp(
     return { status, body: { error: msg, code: msg } };
   }
 }
+/* eslint-enable complexity */
 
 /* eslint-disable complexity -- HTTP split: session/series + billing adapter errors */
 /**
- * S19-H1 / Sprint C2: comandas pendientes de la sucursal (replay del display
- * de cocina). Devuelve las órdenes FIRED con sus ítems FIRED/PENDING para
- * que un KDS que conecta tarde no pierda las comandas en cocina.
+ * S19-H1 / Sprint C2: comandas activas de la sucursal (replay del display
+ * de cocina). Conserva estados FIRED/READY y sus ítems FIRED/READY/PENDING
+ * para que una reconexión no pierda trabajo en preparación ni listo para servir.
  */
 export async function runKdsPendingHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   branchId: string,
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !branchId) {
     return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
   }
+  const branchError = await requireKdsBranchAccess(env, tenantId, branchId, allowedBranches, role);
+  if (branchError) return branchError;
+  const capabilityError = await requireKds(env, tenantId);
+  if (capabilityError) return capabilityError;
   const rows = await env.DB.prepare(
     `SELECT o.id AS order_id, o.table_label, o.created_at AS fired_at,
             i.id AS item_id, i.product_name, i.quantity, i.status AS item_status
      FROM orders o
      INNER JOIN order_items i
        ON i.tenant_id = o.tenant_id AND i.order_id = o.id
-     WHERE o.tenant_id = ? AND o.branch_id = ? AND o.status = 'FIRED'
-       AND i.status IN ('FIRED', 'PENDING')
+     WHERE o.tenant_id = ? AND o.branch_id = ? AND o.status IN ('FIRED', 'READY')
+       AND i.status IN ('FIRED', 'READY', 'PENDING')
      ORDER BY o.created_at ASC, i.id ASC`,
   )
     .bind(tenantId, branchId)
@@ -429,8 +527,15 @@ export async function runSplitBillHttp(
     /** S19-H2: 'NV' (control interno) | '03' (boleta). Default NV. */
     documentType?: 'NV' | '03';
   },
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
+  const capabilityError = await requireOrderCapability(
+    env as WorkerEnv,
+    tenantId,
+    'orders.split_bill',
+  );
+  if (capabilityError) return capabilityError;
   if (!env?.DB) return dbUnavailable();
   const orderId = body.orderId?.trim() ?? '';
   if (!orderId) return { status: 400, body: { error: 'orderId required', code: 'BAD_REQUEST' } };
@@ -447,6 +552,21 @@ export async function runSplitBillHttp(
       },
     };
   }
+
+  const order = await env.DB.prepare(
+    `SELECT branch_id FROM orders WHERE id = ? AND tenant_id = ? LIMIT 1`,
+  )
+    .bind(orderId, tenantId)
+    .first<{ branch_id: string }>();
+  if (!order) return { status: 404, body: { error: 'ORDER_NOT_FOUND', code: 'ORDER_NOT_FOUND' } };
+  const branchError = await requireKdsBranchAccess(
+    env,
+    tenantId,
+    order.branch_id,
+    allowedBranches,
+    role,
+  );
+  if (branchError) return branchError;
 
   try {
     const result = await processOrderBillingAtomic(env.DB, tenantId, userId, {
@@ -496,12 +616,12 @@ export async function runKdsWebSocketHttp(
   branchId: string,
   request: Request,
 ): Promise<Response> {
-  if (!isOrdersKdsEnabled(env)) {
-    return Response.json({ error: 'FEATURE_ORDERS_KDS off', code: 'FEATURE_OFF' }, { status: 404 });
-  }
   if (!branchId.trim()) {
     return Response.json({ error: 'branchId required', code: 'BAD_REQUEST' }, { status: 400 });
   }
+  const capabilityError = await requireKds(env as WorkerEnv, tenantId);
+  if (capabilityError)
+    return Response.json(capabilityError.body, { status: capabilityError.status });
   const hub = env?.BRANCH_KDS_HUB_DO;
   if (!hub) {
     return Response.json(
@@ -523,11 +643,22 @@ export async function runMintKdsWsTicketHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   branchId: string,
+  allowedBranches: readonly string[],
+  role?: string,
 ): Promise<HttpResult> {
-  if (!isOrdersKdsEnabled(env)) return featureOff('FEATURE_ORDERS_KDS');
   if (!tenantId.trim() || !branchId.trim()) {
     return { status: 400, body: { error: 'branchId required', code: 'BAD_REQUEST' } };
   }
+  const branchError = await requireKdsBranchAccess(
+    env as WorkerEnv,
+    tenantId,
+    branchId,
+    allowedBranches,
+    role,
+  );
+  if (branchError) return branchError;
+  const capabilityError = await requireKds(env as WorkerEnv, tenantId);
+  if (capabilityError) return capabilityError;
   const kv = env?.TENANT_KV as KdsTicketKv | undefined;
   if (!kv?.put) {
     return {

@@ -25,6 +25,9 @@ interface World {
   sellerByBadge?: { id: string; email: string; role: string; badge_barcode: string } | null;
   sellerByPin?: { id: string; email: string; role: string; badge_barcode: string | null } | null;
   guardFails?: boolean;
+  pinRehashChanges?: number;
+  pinRehashThrows?: boolean;
+  operatorAllowed?: boolean;
 }
 
 const OPEN_SESSION = {
@@ -45,6 +48,9 @@ function mockDb(world: World = {}): never {
     }
     if (sql.includes('FROM tenant_discount_policies'))
       return world.policy ?? { interim_required: 0 };
+    if (sql.includes("role IN ('cashier', 'supervisor')")) {
+      return world.operatorAllowed === false ? null : { id: 'u1' };
+    }
     if (sql.includes('FROM users') && sql.includes('email = ?')) return world.existingUser ?? null;
     if (sql.includes('badge_barcode = ?')) return world.sellerByBadge ?? null;
     if (sql.includes('pin_hash = ?')) return world.sellerByPin ?? null;
@@ -57,7 +63,18 @@ function mockDb(world: World = {}): never {
       return {
         sql,
         first: () => Promise.resolve(first(sql)),
-        run: () => Promise.resolve({ meta: { changes: 1 } }),
+        run: () => {
+          if (sql.includes('UPDATE users SET pin_hash = ?') && world.pinRehashThrows) {
+            return Promise.reject(new Error('D1_UNAVAILABLE'));
+          }
+          return Promise.resolve({
+            meta: {
+              changes: sql.includes('UPDATE users SET pin_hash = ?')
+                ? (world.pinRehashChanges ?? 1)
+                : 1,
+            },
+          });
+        },
         all: () => {
           if (sql.includes('pin_hash IS NOT NULL') && world.sellerByPin) {
             return Promise.resolve({
@@ -114,6 +131,33 @@ describe('processShiftHandoffAtomic (unit, Sprint 51)', () => {
       expect(res.status).toBe(404);
     });
 
+    it('403 si el operador no está activo en la sucursal de la sesión', async () => {
+      const res = await issueShiftPinAtomic(mockDb(worldWith({ operatorAllowed: false })), {
+        tenantId: 't1',
+        userId: 'u1',
+        sessionId: 's1',
+      });
+      expect(res).toMatchObject({
+        ok: false,
+        status: 403,
+        body: { code: 'SHIFT_ACTOR_NOT_ALLOWED' },
+      });
+    });
+
+    it('403 si el branchId declarado no coincide con la sesión', async () => {
+      const res = await issueShiftPinAtomic(mockDb(worldWith()), {
+        tenantId: 't1',
+        userId: 'u1',
+        sessionId: 's1',
+        branchId: 'b2',
+      });
+      expect(res).toMatchObject({
+        ok: false,
+        status: 403,
+        body: { code: 'SHIFT_BRANCH_MISMATCH' },
+      });
+    });
+
     it('422 si la sesión está cerrada', async () => {
       const res = await issueShiftPinAtomic(
         mockDb(worldWith({ session: { ...OPEN_SESSION, status: 'CLOSED' } })),
@@ -151,6 +195,39 @@ describe('processShiftHandoffAtomic (unit, Sprint 51)', () => {
   });
 
   describe('processShiftTransferAtomic', () => {
+    it('403 si el entrante o saliente no está autorizado en la sucursal', async () => {
+      const res = await processShiftTransferAtomic(mockDb(worldWith({ operatorAllowed: false })), {
+        tenantId: 't1',
+        sessionId: 's1',
+        outgoingUserId: 'u1',
+        incomingUserId: 'u2',
+        pin: '123456',
+        nowIso: NOW,
+      });
+      expect(res).toMatchObject({
+        ok: false,
+        status: 403,
+        body: { code: 'SHIFT_ACTOR_NOT_ALLOWED' },
+      });
+    });
+
+    it('403 si el branchId declarado no coincide con la sesión', async () => {
+      const res = await processShiftTransferAtomic(mockDb(worldWith()), {
+        tenantId: 't1',
+        sessionId: 's1',
+        outgoingUserId: 'u1',
+        incomingUserId: 'u2',
+        branchId: 'b2',
+        pin: '123456',
+        nowIso: NOW,
+      });
+      expect(res).toMatchObject({
+        ok: false,
+        status: 403,
+        body: { code: 'SHIFT_BRANCH_MISMATCH' },
+      });
+    });
+
     it('404 si la sesión no existe', async () => {
       const res = await processShiftTransferAtomic(mockDb(worldWith({ session: null })), {
         tenantId: 't1',
@@ -427,6 +504,37 @@ describe('processShiftHandoffAtomic (unit, Sprint 51)', () => {
       expect(res.ok).toBe(true);
       if (!res.ok) return;
       expect(res.seller.resolvedBy).toBe('pin');
+    });
+
+    it('no atribuye el PIN si el rehash pierde contra una rotación concurrente', async () => {
+      const res = await resolveSellerIdentifier(
+        mockDb(
+          worldWith({
+            sellerByPin: { id: 'u9', email: 'v@t.pe', role: 'cashier', badge_barcode: null },
+            pinRehashChanges: 0,
+          }),
+        ),
+        't1',
+        '1234',
+      );
+      expect(res.ok).toBe(false);
+    });
+
+    it('D1 no disponible durante rehash → devuelve indisponibilidad, no atribuye vendedor', async () => {
+      const res = await resolveSellerIdentifier(
+        mockDb(
+          worldWith({
+            sellerByPin: { id: 'u9', email: 'v@t.pe', role: 'cashier', badge_barcode: null },
+            pinRehashThrows: true,
+          }),
+        ),
+        't1',
+        '1234',
+      );
+      expect(res.ok).toBe(false);
+      if (res.ok) return;
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe('PIN_VERIFICATION_UNAVAILABLE');
     });
 
     it('fail-closed ante identificador desconocido', async () => {

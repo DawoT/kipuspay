@@ -44,6 +44,30 @@ describe('insights sql-schema estricto (Sprint 49 / PERF-12)', () => {
     expect(result.sql).toMatch(/^\s*SELECT/);
   });
 
+  it('construye una fuente de hechos distinta para cada intención soportada', () => {
+    const cases = [
+      ['TOP_PRODUCTS', 'daily_product_rollups'],
+      ['BREAKAGE', 'branch_product_stock'],
+      ['CASH_EXCEPTIONS', 'daily_financial_rollups'],
+      ['AGING', 'accounts_receivable'],
+    ] as const;
+    for (const [action, table] of cases) {
+      const result = buildInsightSelect({
+        action,
+        tenantId: 't1',
+        branchId: 'b1',
+        reportDate: '2026-08-03',
+      });
+      expect(result.status).toBe('OK');
+      if (result.status !== 'OK') continue;
+      expect(result.sql).toContain(`FROM ${table}`);
+      expect(result.sql).toMatch(/tenant_id = \?/);
+      expect(result.sql).toMatch(/LIMIT\s+50/);
+    }
+    expect(buildInsightSelect({ action: 'TOP_PRODUCTS', tenantId: 't1' }).status).toBe('OK');
+    expect(buildInsightSelect({ action: 'AGING', tenantId: 't1' }).status).toBe('OK');
+  });
+
   it('listas amplias sin agregación → TOO_WIDE con copy de descarga', () => {
     const result = buildInsightSelect({
       action: 'RAW_ITEMS',

@@ -34,6 +34,7 @@ function env(flag = '1'): WorkerEnv {
   const prepare = () => {
     const stmt = {
       bind: () => stmt,
+      first: () => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 }),
       all: () =>
         Promise.resolve({
           results: [
@@ -57,7 +58,7 @@ function env(flag = '1'): WorkerEnv {
 }
 
 describe('inventory-location-routes', () => {
-  it('default off y feature-off 404', async () => {
+  it('kill switch off returns feature-off', async () => {
     expect(isInventoryLocationsEnabled({} as WorkerEnv)).toBe(false);
     expect((await runListInventoryLocationsHttp(env('0'), 't1', 'cashier', {})).status).toBe(404);
   });

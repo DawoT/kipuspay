@@ -79,8 +79,13 @@ export async function runRollupsForShard(
   shard: ShardBinding,
   reportDate: string,
   kv?: InsightsKv,
+  allowedTenantIds?: ReadonlySet<string>,
+  allowedProductRollupTenantIds?: ReadonlySet<string>,
 ): Promise<ShardRollupResult> {
-  const pairs = await listTenantBranchesForDay(shard.db, reportDate);
+  const discovered = await listTenantBranchesForDay(shard.db, reportDate);
+  const pairs = allowedTenantIds
+    ? discovered.filter((pair) => allowedTenantIds.has(pair.tenantId))
+    : discovered;
   let grossSalesCents = 0;
   let productRowCount = 0;
   for (const pair of pairs) {
@@ -90,6 +95,7 @@ export async function runRollupsForShard(
       pair.branchId,
       reportDate,
       kv,
+      { includeProductRollups: allowedProductRollupTenantIds?.has(pair.tenantId) ?? true },
     );
     grossSalesCents += r.grossSalesCents;
     productRowCount += r.productRowCount;
@@ -117,11 +123,21 @@ export async function runDailyRollupsCron(
   shards: readonly ShardBinding[],
   scheduledTimeMs: number,
   kv?: InsightsKv,
+  allowedTenantIds?: ReadonlySet<string>,
+  allowedProductRollupTenantIds?: ReadonlySet<string>,
 ): Promise<DailyRollupsCronResult> {
   const started = Date.now();
   const { reportDateLima } = closedLimaWindow(scheduledTimeMs);
   const results = await Promise.all(
-    shards.map((shard) => runRollupsForShard(shard, reportDateLima, kv)),
+    shards.map((shard) =>
+      runRollupsForShard(
+        shard,
+        reportDateLima,
+        kv,
+        allowedTenantIds,
+        allowedProductRollupTenantIds,
+      ),
+    ),
   );
   return {
     reportDate: reportDateLima,

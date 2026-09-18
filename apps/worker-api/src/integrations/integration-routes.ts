@@ -24,6 +24,7 @@ import {
 } from '@kipuspay/domain-integrations';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { assertCadenaPlusPlan, isCadenaPlusPlan } from '../auth/plan-cadena.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface HttpResult {
   status: number;
@@ -40,6 +41,30 @@ export function isAccountingExportEnabled(env: WorkerEnv | undefined): boolean {
 
 export function isIntegrationsApiEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_INTEGRATIONS_API === '1' || env?.FEATURE_INTEGRATIONS_API === 'true';
+}
+
+async function requireIntegrationsApi(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env ?? {}).require(tenantId, 'integrations.api');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: {
+          error: error.code === 'CAPABILITY_DISABLED' ? 'FEATURE_INTEGRATIONS_API off' : error.code,
+          code: error.code === 'CAPABILITY_DISABLED' ? 'FEATURE_OFF' : error.code,
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
 }
 
 function featureOff(flag: string): HttpResult {
@@ -90,8 +115,10 @@ export async function runAccountingExportHttp(
   body: Record<string, unknown>,
   actorUserId?: string,
 ): Promise<HttpResult> {
-  if (!isAccountingExportEnabled(env)) return featureOff('FEATURE_ACCOUNTING_EXPORT');
+  if (env?.FEATURE_ACCOUNTING_EXPORT === '0') return featureOff('FEATURE_ACCOUNTING_EXPORT');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireCapability(env, tenantId, 'integrations.accounting_export');
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -104,9 +131,18 @@ export async function runAccountingExportHttp(
   }
 
   try {
-    const fromJournal =
-      env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-      env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true';
+    let fromJournal = false;
+    try {
+      await new CapabilityResolver(env).require(tenantId, 'ledger.chart_of_accounts');
+      fromJournal = true;
+    } catch (error) {
+      if (!(error instanceof CapabilityError && error.status === 404)) {
+        return {
+          status: 503,
+          body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+        };
+      }
+    }
     const entries = await exportAccountingEntries(
       env.DB,
       tenantId,
@@ -147,13 +183,33 @@ export async function runAccountingExportHttp(
   }
 }
 
+async function requireCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'integrations.accounting_export',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
 export async function runCreateApiKeyHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
   createdByUserId: string,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireIntegrationsApi(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -191,8 +247,9 @@ export async function runListApiKeysHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireIntegrationsApi(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -210,8 +267,9 @@ export async function runRevokeApiKeyHttp(
   tenantId: string,
   keyId: string,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireIntegrationsApi(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -263,8 +321,9 @@ export async function runCreateWebhookEndpointHttp(
   tenantId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireIntegrationsApi(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -316,8 +375,9 @@ export async function runListWebhookEndpointsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireIntegrationsApi(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -335,8 +395,9 @@ export async function runDeleteWebhookEndpointHttp(
   tenantId: string,
   endpointId: string,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireIntegrationsApi(env, tenantId);
+  if (capabilityError) return capabilityError;
   const planDeny = await assertCadenaPlusPlan(env, tenantId);
   if (planDeny) return planDeny;
 
@@ -427,10 +488,11 @@ export async function runPublicSalesListHttp(
   env: WorkerEnv | undefined,
   authorization: string | undefined,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
   const auth = await resolveApiKeyTenant(env, authorization);
   if ('status' in auth) return auth;
+  const capabilityError = await requireIntegrationsApi(env, auth.tenantId);
+  if (capabilityError) return capabilityError;
 
   const rows = await env.DB.prepare(
     `SELECT id, branch_id, document_type, series, number, total_amount_cents, issued_at_lima, sunat_status
@@ -446,10 +508,11 @@ export async function runPublicDocumentsListHttp(
   env: WorkerEnv | undefined,
   authorization: string | undefined,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
   const auth = await resolveApiKeyTenant(env, authorization);
   if ('status' in auth) return auth;
+  const capabilityError = await requireIntegrationsApi(env, auth.tenantId);
+  if (capabilityError) return capabilityError;
 
   const rows = await env.DB.prepare(
     `SELECT id, document_type, series, number, sunat_status, total_amount_cents, issued_at_lima
@@ -470,7 +533,12 @@ export async function enqueuePublicEventForTenant(
   eventId: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  if (!isIntegrationsApiEnabled(env) || !env.DB) return;
+  if (!env.DB) return;
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'integrations.api');
+  } catch {
+    return;
+  }
   const endpoints = await env.DB.prepare(
     `SELECT id, events_json FROM webhook_endpoints
      WHERE tenant_id = ? AND status = 'active'`,
@@ -575,7 +643,6 @@ export async function runDrainWebhookDeliveriesHttp(
   userId?: string,
   userRole?: string,
 ): Promise<HttpResult> {
-  if (!isIntegrationsApiEnabled(env)) return featureOff('FEATURE_INTEGRATIONS_API');
   if (!env?.DB) return dbUnavailable();
 
   if (!userId || !isAdminRole(userRole)) {
@@ -600,6 +667,15 @@ export async function runDrainWebhookDeliveriesHttp(
   let delivered = 0;
   let failed = 0;
   for (const row of due.results ?? []) {
+    try {
+      await new CapabilityResolver(env).require(row.tenant_id, 'integrations.api');
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      return {
+        status: 503,
+        body: { error: 'Capability state unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+      };
+    }
     const success = await processSingleWebhookDelivery(env.DB, env.TENANT_KV, row);
     if (success) delivered += 1;
     else failed += 1;

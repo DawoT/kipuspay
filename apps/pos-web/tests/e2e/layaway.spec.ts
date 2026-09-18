@@ -1,31 +1,22 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // GTM-14 (docs/ops/legal_and_sales_guide.md §2.1/§6): apartados — reserva
 // mercadería con adelantos; el comprobante nace solo al convertir a venta.
 // Incluye el contrato de copy de errores: cero códigos técnicos al operador
 // (F-5/V-27, salesErrorCopy).
 
-const SESSION = JSON.stringify({
-  userId: 'cashier-e2e',
-  role: 'cashier',
-  branchId: 'branch-e2e',
-});
-const CLAIM = JSON.stringify({ branchId: 'branch-e2e', sessionId: 'session-e2e' });
-
 test('apartado: crear con abono, abonar y convertir a venta', async ({ page }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-      localStorage.setItem('kipuspay:pos-terminal-id', 'terminal-e2e');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-layaway-create',
+    role: 'cashier',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
     },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+    capabilities: ['pos.checkout', 'sales.layaway'],
+  });
   await page.route('**/api/sales/layaways', (route) =>
     route.fulfill({
       status: 200,
@@ -77,18 +68,16 @@ test('apartado: crear con abono, abonar y convertir a venta', async ({ page }) =
 test('apartado: el error del servidor se traduce a copy de negocio (nunca código)', async ({
   page,
 }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-layaway-errors',
+    role: 'cashier',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
     },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+    capabilities: ['pos.checkout', 'sales.layaway'],
+  });
   await page.route('**/api/sales/layaways', (route) =>
     route.fulfill({
       status: 422,

@@ -2,6 +2,7 @@ import { parseActiveShards, processOfflineSaleAtomic } from '@kipuspay/adapters-
 import { InsufficientStockError, type OfflineSalePayload } from '@kipuspay/domain-sales';
 import { ExpiredBatchError, InsufficientBatchStockError } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isAcidOfflineSaleEnabled(env: WorkerEnv | undefined): boolean {
   const flag = env?.FEATURE_ACID_OFFLINE_SALE;
@@ -43,7 +44,6 @@ export function isCatalogUomEnabled(env: WorkerEnv | undefined): boolean {
 }
 
 import {
-  isInventoryScaleEnabled,
   isLedgerChartOfAccountsEnabled,
   isLedgerStoreCreditEnabled,
   isSalesCommissionsEnabled,
@@ -145,6 +145,53 @@ function mapError(error: unknown): { status: number; body: Record<string, unknow
   return { status: 500, body: { error: msg, code: 'OFFLINE_SALE_FAILED' } };
 }
 /* eslint-enable complexity */
+
+type OptionalSaleCapability =
+  | 'ledger.store_credit'
+  | 'ledger.accounts_receivable'
+  | 'pricing.promotions'
+  | 'catalog.uom'
+  | 'ledger.chart_of_accounts'
+  | 'sales.installments'
+  | 'sales.commissions'
+  | 'inventory.scale'
+  | 'inventory.batches'
+  | 'inventory.bom'
+  | 'pricing.lists';
+
+async function resolveSaleCapabilities(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<Record<OptionalSaleCapability, boolean>> {
+  const resolver = new CapabilityResolver(env);
+  const capabilities: readonly OptionalSaleCapability[] = [
+    'ledger.store_credit',
+    'ledger.accounts_receivable',
+    'pricing.promotions',
+    'catalog.uom',
+    'ledger.chart_of_accounts',
+    'sales.installments',
+    'sales.commissions',
+    'inventory.scale',
+    'inventory.batches',
+    'inventory.bom',
+    'pricing.lists',
+  ];
+  const entries = await Promise.all(
+    capabilities.map(async (capability) => {
+      try {
+        await resolver.require(tenantId, capability);
+        return [capability, true] as const;
+      } catch (error) {
+        if (error instanceof CapabilityError && error.status === 404) {
+          return [capability, false] as const;
+        }
+        throw error;
+      }
+    }),
+  );
+  return Object.fromEntries(entries) as Record<OptionalSaleCapability, boolean>;
+}
 
 export interface OfflineSaleHttpResult {
   status: number;
@@ -251,6 +298,7 @@ export async function loadActiveShards(env: WorkerEnv | undefined): Promise<read
 /**
  * Pipeline HTTP de venta offline (feature flag + DB + motor ACID).
  */
+// eslint-disable-next-line complexity -- offline sale capability and ACID error matrix
 export async function runOfflineSaleHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
@@ -260,7 +308,7 @@ export async function runOfflineSaleHttp(
   terminalId = '',
   scheduleFiscalProduce?: (task: Promise<unknown>) => void,
 ): Promise<OfflineSaleHttpResult> {
-  if (!isAcidOfflineSaleEnabled(env)) {
+  if (env?.FEATURE_ACID_OFFLINE_SALE === '0') {
     return { status: 404, body: { error: 'Feature disabled', code: 'FEATURE_DISABLED' } };
   }
   const isCpe =
@@ -268,11 +316,49 @@ export async function runOfflineSaleHttp(
     payload.documentType === '03' ||
     payload.documentType === '07' ||
     payload.documentType === '08';
-  if (isCpe && !isFiscalCpeEnabled(env)) {
+  if (isCpe && env?.FEATURE_FISCAL_CPE === '0') {
     return { status: 404, body: { error: 'Fiscal CPE disabled', code: 'FEATURE_DISABLED' } };
   }
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+  }
+  // Los tokens de autorización son operaciones premium explícitas: una venta
+  // ordinaria no requiere estas capabilities, pero un override nunca puede
+  // saltarse el plan del tenant.
+  try {
+    const resolver = new CapabilityResolver(env);
+    await resolver.require(tenantId, 'pos.checkout');
+    await resolver.require(tenantId, 'pos.document_selector');
+    await resolver.require(tenantId, 'pos.offline_correlative_reserve');
+    if (payload.discountAuthorizationTokenHash?.trim()) {
+      await resolver.require(tenantId, 'cash.discount_authz');
+    }
+    if (payload.creditOverrideTokenHash?.trim()) {
+      await resolver.require(tenantId, 'ledger.credit_limit_cents');
+    }
+    if (payload.items.some((item) => item.isUncatalogued === true)) {
+      await resolver.require(tenantId, 'sales.quick_line');
+    }
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return { status: error.status, body: { error: error.code, code: error.code } };
+    }
+    return {
+      status: 503,
+      body: { error: 'CAPABILITIES_UNAVAILABLE', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
+  let capabilityOptions: Record<OptionalSaleCapability, boolean>;
+  try {
+    capabilityOptions = await resolveSaleCapabilities(env, tenantId);
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return { status: error.status, body: { error: error.code, code: error.code } };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
   }
   try {
     const serialAssignments = payload.items
@@ -286,22 +372,22 @@ export async function runOfflineSaleHttp(
     const result = await processOfflineSaleAtomic(env.DB, tenantId, userId, payload, {
       analyticsEngine: env.ANALYTICS_ENGINE,
       activeShards: await loadActiveShards(env),
-      ledgerArApEnabled: isLedgerArApEnabled(env),
-      pricingPromotionsEnabled: isPricingPromotionsEnabled(env),
-      catalogUomEnabled: isCatalogUomEnabled(env),
-      ledgerChartOfAccountsEnabled: isLedgerChartOfAccountsEnabled(env),
-      storeCreditEnabled: isLedgerStoreCreditEnabled(env),
+      ledgerArApEnabled: capabilityOptions['ledger.accounts_receivable'],
+      pricingPromotionsEnabled: capabilityOptions['pricing.promotions'],
+      catalogUomEnabled: capabilityOptions['catalog.uom'],
+      ledgerChartOfAccountsEnabled: capabilityOptions['ledger.chart_of_accounts'],
+      storeCreditEnabled: capabilityOptions['ledger.store_credit'],
       storeCreditOnline: true,
       storeCreditActorIsAdminOrOwner: actorIsAdminOrOwner,
-      salesInstallmentsEnabled: isSalesInstallmentsEnabled(env),
-      salesCommissionsEnabled: isSalesCommissionsEnabled(env),
-      inventoryScaleEnabled: isInventoryScaleEnabled(env),
+      salesInstallmentsEnabled: capabilityOptions['sales.installments'],
+      salesCommissionsEnabled: capabilityOptions['sales.commissions'],
+      inventoryScaleEnabled: capabilityOptions['inventory.scale'],
       terminalId: terminalId.trim(),
       serialAssignments,
       s18: {
-        inventoryBatches: isInventoryBatchesEnabled(env),
-        inventoryBom: isInventoryBomEnabled(env),
-        pricingLists: isPricingListsEnabled(env),
+        inventoryBatches: capabilityOptions['inventory.batches'],
+        inventoryBom: capabilityOptions['inventory.bom'],
+        pricingLists: capabilityOptions['pricing.lists'],
       },
     });
     const saleId = 'saleId' in result && typeof result.saleId === 'string' ? result.saleId : '';

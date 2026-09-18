@@ -17,14 +17,7 @@
     showCashOperatingNavigation,
     showCustomerOrderNavigation,
   } from '$lib/customer-orders/customer-order-access';
-  import {
-    isCustomerOrdersEnabled,
-    isLpdpEnabled,
-    isMobilePosEnabled,
-    isMobilePushEnabled,
-    isRecurringSalesEnabled,
-    isTeamInviteEnabled,
-  } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { registerUnifiedPosServiceWorker } from '$lib/mobile/mobile-push-pwa';
   import { applyThemeToDocument, readDocumentTheme } from '$lib/ui/theme';
   import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
@@ -110,7 +103,7 @@
               { href: '/caja/gastos', label: 'Gastos de caja', icon: 'dollar' as IconName },
             ]
           : []),
-        ...(showCustomerOrderNavigation({ enabled: isCustomerOrdersEnabled(), role: authenticatedSession?.role ?? '' })
+        ...(showCustomerOrderNavigation({ enabled: $tenantCapabilities.has('orders.customer_orders'), role: authenticatedSession?.role ?? '' })
           ? [{ href: '/orders/customer', label: 'Pedidos retiro', icon: 'package' as IconName }]
           : []),
       ],
@@ -127,10 +120,10 @@
         { href: '/admin/comisiones', label: 'Comisiones', icon: 'percent' as IconName },
         { href: '/admin/promociones', label: 'Promociones', icon: 'gift' as IconName },
         { href: '/admin/credito-tienda', label: 'Crédito tienda', icon: 'dollar' as IconName },
-        ...(isRecurringSalesEnabled() && ['owner', 'admin'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+        ...($tenantCapabilities.has('sales.recurring') && ['owner', 'admin'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
           ? [{ href: '/admin/membresias', label: 'Membresías', icon: 'star' as IconName }]
           : []),
-        ...(isLpdpEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+        ...($tenantCapabilities.has('compliance.lpdp') && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
           ? [{ href: '/admin/clientes', label: 'Clientes', icon: 'user' as IconName }]
           : []),
       ],
@@ -184,7 +177,7 @@
       items: [
         { href: '/admin/configuracion', label: 'Configuración', icon: 'settings' as IconName },
         { href: '/admin/integraciones', label: 'Integraciones', icon: 'link' as IconName },
-        ...(isTeamInviteEnabled() && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
+        ...($tenantCapabilities.has('ops.team_invite') && ['owner', 'admin', 'supervisor'].includes(authenticatedSession?.role?.toLowerCase() ?? '')
           ? [{ href: '/admin/equipo', label: 'Equipo', icon: 'user' as IconName }]
           : []),
       ],
@@ -199,7 +192,7 @@
         { href: '/kds', label: 'Cocina', icon: 'chef-hat' as IconName },
         { href: '/kiosk', label: 'Kiosko', icon: 'monitor' as IconName },
         { href: '/vitrina', label: 'Vitrina', icon: 'eye' as IconName },
-        ...(isMobilePosEnabled() || isMobilePushEnabled()
+        ...($tenantCapabilities.has('client.mobile_pos') || $tenantCapabilities.has('mobile.push')
           ? [{ href: '/mobile', label: 'Dispositivo Móvil', icon: 'smartphone' as IconName }]
           : []),
       ],
@@ -292,7 +285,7 @@
       }
     }
 
-    if (isMobilePosEnabled() || isMobilePushEnabled()) {
+    if ($tenantCapabilities.has('client.mobile_pos') || $tenantCapabilities.has('mobile.push')) {
       try {
         await registerUnifiedPosServiceWorker();
       } catch {

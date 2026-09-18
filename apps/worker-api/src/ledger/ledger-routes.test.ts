@@ -27,14 +27,38 @@ function mockEnv(
 ): WorkerEnv {
   const first = opts?.first ?? null;
   const all = opts?.all ?? [];
-  const bound = {
-    first: () => Promise.resolve(first),
+  const boundFor = (sql: string, args: unknown[] = []) => ({
+    first: () =>
+      Promise.resolve(
+        sql.includes('tenant_capabilities')
+          ? {
+              enabled:
+                args[1] === 'purchasing.orders'
+                  ? flags.FEATURE_PURCHASING_ORDERS === '0'
+                    ? 0
+                    : 1
+                  : args[1] === 'cash.register_expenses'
+                    ? flags.FEATURE_CASH_EXPENSES === '0'
+                      ? 0
+                      : 1
+                    : args[1] === 'owner.mode'
+                      ? flags.FEATURE_OWNER_MODE === '0'
+                        ? 0
+                        : 1
+                      : flags.FEATURE_LEDGER_AR_AP === '1'
+                        ? 1
+                        : 0,
+              config_json: '{}',
+              epoch: 0,
+            }
+          : first,
+      ),
     all: () => Promise.resolve({ results: all }),
     run: () => Promise.resolve({ success: true, results: [], meta: {} }),
-  };
+  });
   const db = {
-    prepare: () => ({
-      bind: () => bound,
+    prepare: (sql: string) => ({
+      bind: (...args: unknown[]) => boundFor(sql, args),
     }),
     batch: (stmts: Array<{ run: () => Promise<unknown> }>) =>
       Promise.all(stmts.map((s) => s.run())),
@@ -53,12 +77,11 @@ describe('ledger / owner flags', () => {
     expect(isOwnerModeEnabled({ FEATURE_OWNER_MODE: 'true' } as WorkerEnv)).toBe(true);
   });
 
-  it('list AR/AP flag off → 404 FEATURE_OFF', async () => {
+  it('list AR/AP without DB state fails closed', async () => {
     const ar = await runListArHttp({ FEATURE_LEDGER_AR_AP: '0' } as WorkerEnv, 't1');
-    expect(ar.status).toBe(404);
-    expect(ar.body.code).toBe('FEATURE_OFF');
+    expect(ar.status).toBe(503);
     const ap = await runListApHttp({ FEATURE_LEDGER_AR_AP: '0' } as WorkerEnv, 't1');
-    expect(ap.status).toBe(404);
+    expect(ap.status).toBe(503);
   });
 
   it('list AR/AP sin DB → 503; con DB → 200', async () => {

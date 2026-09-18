@@ -28,6 +28,7 @@ interface BoundStatement {
 interface BackupD1 {
   prepare(sql: string): BoundStatement;
   batch(statements: readonly unknown[]): Promise<unknown>;
+  withSession?(constraint: 'first-primary'): Pick<BackupD1, 'prepare'>;
 }
 
 export type BackupAuditAction =
@@ -281,11 +282,17 @@ interface SnapshotReaderDependencies {
 
 export function createBackupSnapshotReader(dependencies: SnapshotReaderDependencies) {
   const db = dependencies.db;
+  // A backup is a point-in-time export of authoritative business data. When
+  // D1 read replication is enabled, the first read must target the primary;
+  // otherwise a freshly committed sale can be absent from the snapshot even
+  // though the control-plane write already succeeded. The session then keeps
+  // every subsequent page sequentially consistent.
+  const readDb = db?.withSession?.('first-primary') ?? db;
   const readEpoch =
     dependencies.readEpoch ??
     (async (tenantId: string): Promise<number> => {
-      if (!db) return 0;
-      const row = await db
+      if (!readDb) return 0;
+      const row = await readDb
         .prepare(`SELECT epoch FROM tenant_data_epochs WHERE tenant_id = ?`)
         .bind(tenantId)
         .first<{ epoch: number }>();
@@ -298,14 +305,14 @@ export function createBackupSnapshotReader(dependencies: SnapshotReaderDependenc
     readonly after: Readonly<Record<string, unknown>> | null;
     readonly limit: number;
   }): Promise<BackupTablePage> => {
-    if (!db) throw codedError('BACKUP_D1_UNAVAILABLE');
+    if (!readDb) throw codedError('BACKUP_D1_UNAVAILABLE');
     if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 1000) {
       throw codedError('BACKUP_PAGE_LIMIT_INVALID');
     }
     const entry = businessTable(input.tableName);
     const keyset = keysetWhere(entry, input.after);
     const orderBy = entry.primaryKey.map((column) => `t0."${column}" ASC`).join(', ');
-    const statement = db.prepare(
+    const statement = readDb.prepare(
       `SELECT ${selectedColumns(entry)}
        FROM ${entry.tenantFrom}
        WHERE ${entry.tenantPredicate}${keyset.sql}

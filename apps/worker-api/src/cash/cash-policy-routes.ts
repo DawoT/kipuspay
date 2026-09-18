@@ -7,6 +7,7 @@
  * Gating: FEATURE_SALE_TIP / FEATURE_CASH_DRAWER default-off → 404.
  */
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface CashPolicyEnv {
   readonly FEATURE_SALE_TIP?: string;
@@ -24,7 +25,12 @@ interface PolicyDb {
 }
 
 export function isCashPolicyEnabled(env: CashPolicyEnv | undefined): boolean {
-  return env?.FEATURE_SALE_TIP === '1' || env?.FEATURE_CASH_DRAWER === '1';
+  return (
+    env?.FEATURE_SALE_TIP === '1' ||
+    env?.FEATURE_SALE_TIP === 'true' ||
+    env?.FEATURE_CASH_DRAWER === '1' ||
+    env?.FEATURE_CASH_DRAWER === 'true'
+  );
 }
 
 const ADMIN_ROLES = new Set(['owner', 'admin']);
@@ -33,8 +39,9 @@ export async function runGetCashPolicyHttp(
   env: CashPolicyEnv,
   actor: QuickAddActor,
 ): Promise<HttpResult> {
-  if (!isCashPolicyEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'CASH_POLICY_DB_UNAVAILABLE' } };
+  const capabilityError = await requireCashPolicy(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const row = await (env.DB as unknown as PolicyDb)
     .prepare(
       `SELECT tip_max_percent, open_drawer_on_cash
@@ -51,9 +58,28 @@ export async function runGetCashPolicyHttp(
   };
 }
 
-function policyPreflight(env: CashPolicyEnv, actor: QuickAddActor): HttpResult | null {
-  if (!isCashPolicyEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
+async function requireCashPolicy(env: CashPolicyEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'cash.policy');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
+async function policyPreflight(
+  env: CashPolicyEnv,
+  actor: QuickAddActor,
+): Promise<HttpResult | null> {
   if (!env.DB) return { status: 503, body: { code: 'CASH_POLICY_DB_UNAVAILABLE' } };
+  const capabilityError = await requireCashPolicy(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   if (!ADMIN_ROLES.has(actor.role.toLowerCase())) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
   }
@@ -132,7 +158,7 @@ export async function runPatchCashPolicyHttp(
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  const gate = policyPreflight(env, actor);
+  const gate = await policyPreflight(env, actor);
   if (gate) return gate;
   const parsed = parseCashPolicyPatch(body);
   if (!parsed.ok) {

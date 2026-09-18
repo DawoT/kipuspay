@@ -134,6 +134,7 @@ export async function expireLoyaltyReservationsAtomic(
   db: D1DatabaseLike,
   nowIso?: string,
   limit = 100,
+  allowedTenantIds?: ReadonlySet<string>,
 ): Promise<{ readonly expired: number; readonly ids: readonly string[] }> {
   const cutoff = nowIso ?? new Date().toISOString().replace('T', ' ').substring(0, 19);
   const { results } = await db
@@ -148,6 +149,7 @@ export async function expireLoyaltyReservationsAtomic(
   const rows = results ?? [];
   const ids: string[] = [];
   for (const row of rows) {
+    if (allowedTenantIds && !allowedTenantIds.has(row.tenant_id)) continue;
     assertLoyaltyTransition(row.status, 'EXPIRED');
     await runD1AtomicPlan(db, (plan) => {
       plan.add(

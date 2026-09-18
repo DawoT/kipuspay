@@ -1,30 +1,21 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // GTM-22 (docs/ops/legal_and_sales_guide.md §6): cuotas — cronograma CxC con
 // cobro restringido a Supervisor/Dueño ("El capital baja la deuda; el interés
 // no.").
 
-const SESSION = JSON.stringify({
-  userId: 'supervisor-e2e',
-  role: 'supervisor',
-  branchId: 'branch-e2e',
-});
-const CLAIM = JSON.stringify({ branchId: 'branch-e2e', sessionId: 'session-e2e' });
-
 test('cuotas: crear plan y cobrar cuota como supervisor', async ({ page }) => {
-  await page.addInitScript(
-    ([session, claim]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay.onboarding.claim', claim);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-      localStorage.setItem('kipuspay:pos-terminal-id', 'terminal-e2e');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-installments',
+    role: 'supervisor',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
     },
-    [SESSION, CLAIM] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+    capabilities: ['pos.checkout', 'sales.installments'],
+  });
   await page.route('**/api/sales/installments', (route) =>
     route.fulfill({
       status: 200,

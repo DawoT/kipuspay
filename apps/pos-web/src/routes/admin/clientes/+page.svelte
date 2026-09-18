@@ -2,7 +2,7 @@
   import Icon from '$lib/ui/Icon.svelte';
   import Skeleton from '$lib/ui/Skeleton.svelte';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
-  import { isLpdpEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import {
     createLpdpClient,
     type ConsentDto,
@@ -10,7 +10,7 @@
   } from '$lib/customers/customer-lpdp-client';
   import { resolveApiBase } from '$lib/auth/api-client';
 
-  const enabled = isLpdpEnabled();
+  const enabled = $derived($tenantCapabilities.has('compliance.lpdp'));
   const sessionState = readAdminAuthenticatedSessionState();
   const session = $derived(sessionState?.current ?? null);
   const roleAllowed = $derived(

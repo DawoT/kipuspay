@@ -1,13 +1,13 @@
 <script lang="ts">
   import { env } from '$env/dynamic/public';
-  import { isAccountingExportEnabled, isCatalogImportEnabled, isIntegrationsApiEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const exportOn = isAccountingExportEnabled();
-  const apiOn = isIntegrationsApiEnabled();
-  const importOn = isCatalogImportEnabled();
+  const exportOn = $derived($tenantCapabilities.has('integrations.accounting_export'));
+  const apiOn = $derived($tenantCapabilities.has('integrations.api'));
+  const importOn = $derived($tenantCapabilities.has('integrations.catalog_import'));
 
   let fromDate = $state('2026-08-01');
   let toDate = $state('2026-08-05');

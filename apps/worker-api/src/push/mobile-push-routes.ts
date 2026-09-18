@@ -6,6 +6,7 @@ import {
 import { buildLockscreenPayload, evaluatePushPrivacy } from '@kipuspay/domain-integrations';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { dispatchPushNow, isInlinePushDispatchEnabled } from './mobile-push-dispatcher.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export type PushPurpose = 'OWNER_ALERTS' | 'OPERATIONAL_MOBILE';
 type PushRole = 'owner' | 'admin' | 'supervisor' | 'cashier';
@@ -95,25 +96,20 @@ function purposeAllowed(actor: PushActor, purpose: PushPurpose): boolean {
     : MOBILE_ROLES.has(actorRole as PushRole);
 }
 
-async function tenantCapabilityEnabled(
+async function requirePushCapability(
   env: Partial<WorkerEnv>,
   tenantId: string,
   capability: 'mobile.push' | 'client.mobile_pos',
-): Promise<boolean> {
-  if (!env.DB) return false;
-  const row = await env.DB.prepare(
-    `SELECT enabled FROM tenant_capabilities
-     WHERE tenant_id = ? AND capability IN (?, ?)
-     ORDER BY CASE capability WHEN ? THEN 0 ELSE 1 END LIMIT 1`,
-  )
-    .bind(
-      tenantId,
-      capability,
-      capability === 'mobile.push' ? 'owner.push_alerts' : capability,
-      capability,
-    )
-    .first<{ enabled: number }>();
-  return row?.enabled === 1;
+): Promise<PushHttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return error.status === 404 ? featureOff() : unavailable('REVOCATION_UNAVAILABLE');
+    }
+    return unavailable('REVOCATION_UNAVAILABLE');
+  }
 }
 
 async function activeTerminal(
@@ -150,7 +146,6 @@ async function authorize(
   actor: PushActor,
   purpose: PushPurpose,
 ): Promise<{ result?: PushHttpResult; terminal?: ActiveTerminal | null }> {
-  if (!isMobilePushEnabled(env)) return { result: featureOff() };
   if (!actor.tenantId || !actor.userId || !purposeAllowed(actor, purpose)) {
     return { result: forbidden() };
   }
@@ -163,14 +158,15 @@ async function authorize(
     return { result: unavailable('PUSH_D1_UNAVAILABLE') };
   }
   try {
-    if (!(await tenantCapabilityEnabled(env, actor.tenantId, 'mobile.push'))) {
-      return { result: forbidden() };
-    }
+    const pushCapability = await requirePushCapability(env, actor.tenantId, 'mobile.push');
+    if (pushCapability) return { result: pushCapability };
     if (purpose === 'OPERATIONAL_MOBILE') {
-      if (!isClientMobilePosEnabled(env)) return { result: featureOff() };
-      if (!(await tenantCapabilityEnabled(env, actor.tenantId, 'client.mobile_pos'))) {
-        return { result: forbidden() };
-      }
+      const clientCapability = await requirePushCapability(
+        env,
+        actor.tenantId,
+        'client.mobile_pos',
+      );
+      if (clientCapability) return { result: clientCapability };
       const terminal = await activeTerminal(env, actor);
       if (!terminal || terminal.branch_id !== actor.branchId) {
         return { result: unavailable('TERMINAL_SESSION_UNAVAILABLE') };
@@ -663,12 +659,12 @@ export async function getPushPrivacyPolicyHttp(
   env: Partial<WorkerEnv>,
   actor: PushActor,
 ): Promise<PushHttpResult> {
-  if (!isMobilePushEnabled(env)) return featureOff();
   if (!actor.tenantId || !actor.userId) return forbidden();
   if (!env.DB) return unavailable('DB_UNAVAILABLE');
   let setting;
   try {
-    if (!(await tenantCapabilityEnabled(env, actor.tenantId, 'mobile.push'))) return forbidden();
+    const capabilityError = await requirePushCapability(env, actor.tenantId, 'mobile.push');
+    if (capabilityError) return capabilityError;
     setting = await privacySetting(env, actor.tenantId);
   } catch {
     return unavailable('REVOCATION_UNAVAILABLE');
@@ -688,7 +684,6 @@ export async function updatePushPrivacyPolicyHttp(
   actor: PushActor,
   body: Record<string, unknown>,
 ): Promise<PushHttpResult> {
-  if (!isMobilePushEnabled(env)) return featureOff();
   const authorization = await authorize(env, actor, 'OWNER_ALERTS');
   if (authorization.result) return authorization.result;
   if (!env.DB) return unavailable('DB_UNAVAILABLE');
@@ -882,7 +877,6 @@ export async function acknowledgeDisplayedHttp(
   actor: PushActor,
   body: Record<string, unknown>,
 ): Promise<PushHttpResult> {
-  if (!isMobilePushEnabled(env)) return featureOff();
   const receipt = text(body, 'receipt');
   const deliveryId = text(body, 'deliveryId');
   const displayedAt = text(body, 'displayedAt');
@@ -899,6 +893,8 @@ export async function acknowledgeDisplayedHttp(
     nowMs,
   );
   if (!verified.ok) return verified.response;
+  const capabilityError = await requirePushCapability(env, actor.tenantId, 'mobile.push');
+  if (capabilityError) return capabilityError;
   const claims = verified.claims;
   const receiptHash = await sha256(receipt);
   const row = await loadAckRow(env.DB, actor, deliveryId, receiptHash);

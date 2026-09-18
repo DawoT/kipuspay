@@ -118,7 +118,10 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
         text: 'Pedidos con retiro por WhatsApp y membresías recurrentes',
         availability: 'preparing',
       },
-      { text: 'Analítica predictiva de ventas y quiebres (estimación, no garantía)' },
+      {
+        text: 'En preparación: analítica predictiva de ventas y quiebres, pendiente de validación externa.',
+        availability: 'preparing',
+      },
       {
         text: 'Continuidad del negocio ante desastres (DR)',
         availability: 'preparing',
@@ -137,7 +140,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     features: [
       { text: 'SLA contractual prioritario: respuesta en 1 hora cuando la caja no cobra' },
       {
-        text: 'Asistente Gerente de Operaciones: resumen diario y consultas de tu negocio',
+        text: 'En preparación: briefing operativo y consultas del negocio, pendiente de validación externa.',
         availability: 'preparing',
       },
       { text: 'Account manager dedicado y onboarding asistido' },

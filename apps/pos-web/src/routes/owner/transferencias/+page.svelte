@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isOwnerModeEnabled, isStockTransfersEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -8,8 +8,8 @@
   import { workflowStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const ownerOn = isOwnerModeEnabled();
-  const xferOn = isStockTransfersEnabled();
+  const ownerOn = $derived($tenantCapabilities.has('owner.mode'));
+  const xferOn = $derived($tenantCapabilities.has('stock.transfers'));
 
   let status = $state('');
   let loading = $state(false);

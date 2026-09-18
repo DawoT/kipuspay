@@ -11,6 +11,7 @@
  */
 import { processDebitNoteAtomic } from '@kipuspay/adapters-d1';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface DebitNoteEnv {
   readonly FEATURE_SALES_DEBIT_NOTE?: string;
@@ -21,13 +22,29 @@ export function isDebitNoteEnabled(env: DebitNoteEnv | undefined): boolean {
   return env?.FEATURE_SALES_DEBIT_NOTE === '1';
 }
 
+async function requireDebitNote(env: DebitNoteEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'fiscal.debit_note');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
 export async function runDebitNoteHttp(
   env: DebitNoteEnv,
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isDebitNoteEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'DEBIT_NOTE_DB_UNAVAILABLE' } };
+  const capabilityError = await requireDebitNote(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const originSaleId = typeof body.originSaleId === 'string' ? body.originSaleId.trim() : '';
   const series = typeof body.series === 'string' ? body.series.trim() : '';
   const motiveCode = typeof body.motiveCode === 'string' ? body.motiveCode.trim() : '';

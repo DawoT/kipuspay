@@ -10,6 +10,7 @@ interface SessionBootstrapDto {
   readonly terminal: {
     readonly terminalId: string;
     readonly terminalSessionId: string;
+    readonly cashRegisterSessionId: string;
   } | null;
   readonly capabilities?: readonly string[];
   readonly capabilitiesEpoch?: number;
@@ -32,7 +33,11 @@ function isTerminalDto(terminal: unknown): boolean {
   if (terminal === null) return true;
   if (typeof terminal !== 'object' || Array.isArray(terminal)) return false;
   const row = terminal as Record<string, unknown>;
-  return typeof row.terminalId === 'string' && typeof row.terminalSessionId === 'string';
+  return (
+    typeof row.terminalId === 'string' &&
+    typeof row.terminalSessionId === 'string' &&
+    typeof row.cashRegisterSessionId === 'string'
+  );
 }
 
 function isCapabilitiesDto(value: unknown): boolean {
@@ -130,7 +135,8 @@ export async function loadAuthenticatedAppShellSession(input: {
   }
   if (!isBootstrapDto(value)) return null;
   // Ola 2 — poblar capabilitiesStore desde session (cache IDB+LS, tenant-isolated, epoch+fethchedAt)
-  // Maneja FEATURE_TENANT_CAPABILITIES_DYNAMIC: cuando 0, server envía []/0 y el store queda vacío (fallback a flags en features.ts)
+  // Cuando el kill switch está en 0, server envía []/0 y el POS queda
+  // fail-closed; ningún PUBLIC_FEATURE habilita una capability por omisión.
   try {
     const caps = Array.isArray(value.capabilities) ? value.capabilities.map(String).sort() : [];
     const epoch =
@@ -164,6 +170,7 @@ export async function loadAuthenticatedAppShellSession(input: {
         verified: true as const,
         terminalId: value.terminal.terminalId,
         terminalSessionId: value.terminal.terminalSessionId,
+        cashRegisterSessionId: value.terminal.cashRegisterSessionId,
       }
     : null;
   const authenticatedFetch: typeof fetch = async (request, init = {}) => {

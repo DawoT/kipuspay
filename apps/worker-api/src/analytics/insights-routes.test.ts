@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   runBriefingHttp,
   runInsightChatHttp,
+  persistInsightArtifacts,
   type InsightsEnv,
   type InsightsKvLike,
 } from './insights-routes.js';
@@ -40,6 +41,9 @@ function mockDb() {
           return Promise.resolve({ results: [] });
         },
         first: () => {
+          if (sql.includes('tenant_capabilities')) {
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+          }
           if (sql.includes('FROM tenants')) {
             return Promise.resolve({ plan_id: 'cadena' });
           }
@@ -61,7 +65,8 @@ function mockDb() {
   return {
     runCalls,
     prepare: (sql: string) => stmt(sql),
-    batch: () => Promise.resolve([]),
+    batch: (statements: readonly { run: () => unknown }[]) =>
+      Promise.resolve(statements.map((statement) => statement.run())),
     withSession: () => ({
       prepare: (sql: string) => stmt(sql),
     }),
@@ -78,9 +83,9 @@ function envWith(
     run: vi
       .fn((model: string) => {
         aiRuns.push(model);
-        return Promise.resolve({ response: 'SALES_SUMMARY' });
+        return Promise.resolve({ response: 'Ventas del día: S/ 118000 en 42 comprobantes.' });
       })
-      .mockResolvedValueOnce({ response: 'SALES_SUMMARY' })
+      .mockResolvedValueOnce({ response: 'Ventas del día: S/ 118000 en 42 comprobantes.' })
       .mockResolvedValueOnce({ response: 'Ventas del día: S/ 118000 en 42 comprobantes.' }),
   };
   return {
@@ -97,6 +102,27 @@ function envWith(
 const actor = { tenantId: 't1', userId: 'u1', role: 'owner' };
 
 describe('insights routes (Sprint 49)', () => {
+  it('persiste log y cache en paralelo para no sumar las dos latencias', async () => {
+    let started = 0;
+    let releaseBoth!: () => void;
+    const bothStarted = new Promise<void>((resolve) => {
+      releaseBoth = resolve;
+    });
+    const operation = async () => {
+      started += 1;
+      if (started === 2) releaseBoth();
+      await bothStarted;
+    };
+
+    await Promise.race([
+      persistInsightArtifacts({ writeLog: operation, writeCache: operation }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('PERSISTENCE_SERIALIZED')), 50),
+      ),
+    ]);
+    expect(started).toBe(2);
+  });
+
   it('flag off → 404 FEATURE_OFF', async () => {
     const env = envWith({ FEATURE_ANALYTICS_AGENTIC_INSIGHTS: '0' });
     const res = await runInsightChatHttp(env, actor, {
@@ -129,7 +155,7 @@ describe('insights routes (Sprint 49)', () => {
     expect(runCalls.some((sql) => sql.includes('UPDATE ai_usage_counters'))).toBe(false);
   });
 
-  it('flujo completo → SSE con texto (LLM llamado una vez)', async () => {
+  it('pregunta frecuente → SSE fact-backed sin round-trip al LLM', async () => {
     const env = envWith();
     const res = await runInsightChatHttp(env, actor, {
       question: '¿cómo van las ventas de ayer?',
@@ -138,8 +164,35 @@ describe('insights routes (Sprint 49)', () => {
     expect(res).toBeInstanceOf(Response);
     const text = await (res as Response).text();
     expect(text).toContain('data:');
-    expect((env.AI as { run: ReturnType<typeof vi.fn> }).run.mock.calls).toHaveLength(2);
+    expect(text).toContain('Ventas del día: S/ 118000 en 42 comprobantes.');
+    const serverTiming = (res as Response).headers.get('server-timing') ?? '';
+    for (const stage of [
+      'capability',
+      'plan',
+      'quota',
+      'router',
+      'query',
+      'generate',
+      'metering',
+      'persist',
+      'persist_d1',
+      'persist_kv',
+      'total',
+    ]) {
+      expect(serverTiming).toContain(`${stage};dur=`);
+    }
+    expect((env.AI as { run: ReturnType<typeof vi.fn> }).run.mock.calls).toHaveLength(0);
     expect(env.kv.map.has('insights:t1:key-ok-full')).toBe(true);
+  });
+
+  it('pregunta de ventas reconocida localmente → omite el round-trip del router LLM', async () => {
+    const env = envWith();
+    const res = await runInsightChatHttp(env, actor, {
+      question: '¿cómo van las ventas de ayer?',
+      idempotencyKey: 'key-local-route',
+    });
+    expect(res).toBeInstanceOf(Response);
+    expect((env.AI as { run: ReturnType<typeof vi.fn> }).run.mock.calls).toHaveLength(0);
   });
 
   it('edge B: reenvío con la misma idempotencyKey → cacheada sin LLM ni metering', async () => {
@@ -166,6 +219,72 @@ describe('insights routes (Sprint 49)', () => {
     env.kv.map.set('insights:t1:2026-08-03', '{"bullets":[]}');
     const found = await runBriefingHttp(env, actor, '2026-08-03');
     expect(found.status).toBe(200);
+  });
+
+  it('fallo del proveedor registra etapa y motivo acotado sin filtrar secretos', async () => {
+    const env = envWith();
+    const ai = env.AI as { run: ReturnType<typeof vi.fn> };
+    ai.run.mockReset().mockRejectedValue(new Error('provider token=secret-value'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const res = await runInsightChatHttp(env, actor, {
+        question: '¿qué ocurrió recientemente?',
+        idempotencyKey: 'key-provider-fail',
+      });
+      expect((res as { status: number }).status).toBe(422);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"event":"insights_failed"'));
+      const diagnostic = warnSpy.mock.calls[0]?.[0] as string;
+      expect(diagnostic).toContain('"stage":"router"');
+      expect(diagnostic).not.toContain('secret-value');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('sin hechos devuelve respuesta determinista y no pide redacción al LLM', async () => {
+    const env = envWith();
+    const db = env.DB as ReturnType<typeof mockDb>;
+    db.withSession = () =>
+      ({
+        prepare: () => ({
+          bind: () => ({
+            all: () => Promise.resolve({ results: [{ gross_sales_cents: 0, doc_count: 0 }] }),
+          }),
+        }),
+      }) as unknown as ReturnType<ReturnType<typeof mockDb>['withSession']>;
+
+    const res = await runInsightChatHttp(env, actor, {
+      question: '¿cómo van las ventas?',
+      idempotencyKey: 'key-no-facts',
+    });
+    expect(res).toBeInstanceOf(Response);
+    const text = await (res as Response).text();
+    expect(text).toContain('No hay datos suficientes');
+    expect((env.AI as { run: ReturnType<typeof vi.fn> }).run).toHaveBeenCalledTimes(0);
+  });
+
+  it('rechazo anti-alucinación registra NLG_CONTRADICTION sin exponer la respuesta', async () => {
+    const env = envWith();
+    const ai = env.AI as { run: ReturnType<typeof vi.fn> };
+    ai.run.mockReset().mockResolvedValueOnce({ response: 'SALES_SUMMARY' }).mockResolvedValueOnce({
+      response: 'Las ventas fueron 9999 soles.',
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const res = await runInsightChatHttp(env, actor, {
+        question: '¿qué ocurrió recientemente?',
+        idempotencyKey: 'key-nlg-fail',
+      });
+      expect((res as { status: number }).status).toBe(422);
+      const diagnostic = warnSpy.mock.calls[0]?.[0] as string;
+      expect(diagnostic).toContain('"stage":"generate"');
+      expect(diagnostic).toContain('"reason":"NLG_CONTRADICTION"');
+      expect(diagnostic).not.toContain('9999');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 

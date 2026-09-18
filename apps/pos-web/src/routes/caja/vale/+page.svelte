@@ -2,7 +2,7 @@
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isLedgerStoreCreditEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import {
     defaultTenantSession,
     readTenantSession,
@@ -16,7 +16,7 @@
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const creditOn = isLedgerStoreCreditEnabled();
+  const creditOn = $derived($tenantCapabilities.has('ledger.store_credit'));
   let session = $state<PosTenantSession>(defaultTenantSession());
   let customerDoc = $state('20100000000');
   let customerName = $state('Cliente vale');

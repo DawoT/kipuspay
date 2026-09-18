@@ -1,13 +1,13 @@
 <script lang="ts">
   import { formatCents } from '$lib/cents';
-  import { isPurchasingReturnsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const returnsOn = isPurchasingReturnsEnabled();
+  const returnsOn = $derived($tenantCapabilities.has('purchasing.returns'));
   let purchaseReceiptId = $state('');
   let supplierInvoiceId = $state('');
   let productId = $state('');

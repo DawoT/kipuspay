@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockOnboardingClaim } from './fixtures/onboarding-claim';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 /**
  * F-4 (auditoría browser) — el claim del onboarding vive en memoria
@@ -11,18 +12,16 @@ import { mockSellableCatalog } from './fixtures/sellable-catalog';
 test('F-4: el cobro sobrevive a un reload tras el claim de onboarding', async ({ page }) => {
   await mockOnboardingClaim(page);
   await mockSellableCatalog(page);
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'cashier',
+    capabilities: ['catalog.sellable', 'pos.checkout'],
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
+    },
+  });
   await page.goto('/?onboarding_token=e2e-claim');
   await expect(page.getByTestId('tenant-name')).toBeVisible();
   await page.reload();

@@ -258,10 +258,11 @@ por `(external_auth_id = ? OR id = ?)`: los JWT de IdP externo siguen por
 ciclo de caja: la sesión de terminal (`pos_terminal_sessions` ACTIVE + caja
 abierta) sigue viviendo en `GET /api/auth/session`. La sesión ausente o
 revocada abre `/login` sin revelar detalle ni redirección arbitraria (§5.12).
-Deuda normativa documentada (ADR-0034): los `pin_hash` emitidos por TEAM_INVITE
-son SHA-256 hex (SEC-03 pide argon2id; no hay runtime argon2 en el worker y los
-hashes existentes no son verificables con argon2) — la migración es un sprint
-propio.
+ADR-0041 resuelve la deuda de runtime: el Worker usa un módulo WASM Argon2id
+estático compatible con Workerd, verifica los SHA-256 legados y los re-hashea
+tras login válido. Un hash nuevo nunca degrada a SHA-256. El `cashRegisterSessionId`
+devuelto por `GET /api/auth/session` es la fuente preferida del POS para cobrar
+con la caja ACTIVE verificada; ver ADR-0041.
 
 ## CORS entre apps (`ALLOWED_ORIGINS`, M6B/M6D)
 

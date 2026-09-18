@@ -52,6 +52,13 @@ test('empezar → POS propaga &autotest=boleta al redirect', async ({ page }) =>
     .click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('button', { name: 'Crear mi cuenta' }).click();
+  await page.route('https://app.kipuspay.com/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>ok</title>',
+    }),
+  );
   await page.getByTestId('onboarding-go-pos').click();
   await page.waitForURL(/autotest=boleta/);
   expect(page.url()).toContain('autotest=boleta');

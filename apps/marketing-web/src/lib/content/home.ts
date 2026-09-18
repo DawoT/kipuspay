@@ -1,13 +1,13 @@
 export const HOME = {
   brand: 'KipusPay',
-  eyebrow: 'PUNTO DE VENTA Y FACTURACIÓN ELECTRÓNICA · PERÚ',
-  headline: 'Atiende más rápido, factura en automático y controla tu negocio desde el celular.',
+  eyebrow: 'PUNTO DE VENTA Y GESTIÓN COMERCIAL · PERÚ',
+  headline: 'Atiende más rápido, organiza tu caja y controla tu negocio desde el celular.',
   subheadline:
-    'La solución completa de caja y facturación electrónica diseñada para el comercio peruano. Cobra en segundos con cualquier medio de pago, emite tus boletas a SUNAT sin complicaciones y mira tus ventas y ganancias en tiempo real con Modo Dueño. Todo en orden, sin colas y listo para usar en 5 minutos.',
+    'Una solución de caja y gestión para el comercio peruano. Cobra con efectivo, tarjetas y billeteras digitales; Modo Dueño muestra datos actualizados a medida que tus cajas sincronizan. Las opciones de facturación electrónica dependen de su habilitación y SUNAT determina la aceptación de cada comprobante. Configura tu negocio con una guía paso a paso, a tu ritmo.',
   ctaPrimary: 'Probar gratis ahora',
   ctaSecondary: 'Ver cómo funciona',
-  trustLine: '100% legal ante SUNAT · Sin contratos de permanencia',
-  activation: 'Tu primera venta en 5 minutos',
+  trustLine: 'La aceptación de comprobantes depende de SUNAT · Sin contratos de permanencia',
+  activation: 'Configuración guiada, paso a paso',
   heroBadges: [
     {
       icon: 'lightning',
@@ -16,18 +16,18 @@ export const HOME = {
     },
     {
       icon: 'smartphone',
-      title: 'Modo Dueño en vivo',
-      description: 'Ventas, caja y stock en tiempo real desde tu celular',
+      title: 'Control de tu negocio',
+      description: 'Ventas, caja y stock según la última sincronización',
     },
     {
       icon: 'shield-check',
-      title: '100% legal ante SUNAT',
-      description: 'Boletas y facturas emitidas en automático',
+      title: 'Facturación según habilitación',
+      description: 'SUNAT determina la aceptación de cada comprobante',
     },
     {
       icon: 'sync',
-      title: 'Operación fluida continua',
-      description: 'Tu mostrador nunca se detiene',
+      title: 'Continúa atendiendo si falla la conexión',
+      description: 'Las ventas pendientes se sincronizan cuando vuelve internet',
     },
   ],
   pillars: [
@@ -43,17 +43,17 @@ export const HOME = {
       key: 'continuity',
       icon: 'senal',
       eyebrow: 'Confiabilidad total',
-      title: 'Venta asegurada: Tu mostrador funciona con total fluidez, siempre.',
+      title: 'Continúa atendiendo cuando la conexión falla.',
       description:
-        'Diseñado para el ritmo real del comercio en el Perú. Sigue cobrando, emitiendo comprobantes e imprimiendo con máxima estabilidad en todo momento. La sincronización trabaja sola en segundo plano sin interrumpir tu venta.',
+        'Puedes seguir registrando ventas y consultar su estado en pantalla. Al volver internet, la información pendiente se sincroniza en segundo plano.',
     },
     {
       key: 'control',
       icon: 'balanza',
-      eyebrow: 'Modo Dueño y SUNAT',
+      eyebrow: 'Modo Dueño y formalización',
       title: 'Cuentas claras y tranquilidad total: Cada sol en su lugar.',
       description:
-        'Cierra el día en un clic con arqueos automáticos y revisa tus ingresos en tiempo real desde tu celular con Modo Dueño. Emite boletas y facturas 100% legales ante SUNAT a tiempo y sin estrés contable.',
+        'Cierra el día en un clic con arqueos automáticos y revisa tus ingresos desde el celular con Modo Dueño, actualizados a medida que las cajas sincronizan. Las opciones de facturación electrónica dependen de su habilitación; SUNAT determina la aceptación de cada comprobante.',
     },
   ],
   steps: [
@@ -73,14 +73,14 @@ export const HOME = {
   product: {
     eyebrow: 'La caja por dentro',
     headline: 'Esto es lo que ve tu cajero.',
-    body: 'Una pantalla que se aprende en un turno: el producto, el total grande y el botón de cobrar. Arriba, el documento que emite tu negocio según tu etapa. Abajo, la costura que avisa que la venta ya está guardada y se termina de enviar sola.',
+    body: 'Una pantalla que organiza la venta: el producto, el total grande y el botón de cobrar. El documento disponible depende de la etapa y habilitación de tu negocio. La venta queda guardada y su estado se muestra en pantalla.',
     points: [
       'El total manda: es lo único que se mira antes de cobrar',
       'El documento correcto para tu etapa, sin confundir nota de venta con boleta',
       'La venta se guarda primero y se envía después, sin bloquear la caja',
     ],
     demo: {
-      documentLabel: 'Boleta electrónica',
+      documentLabel: 'Nota de venta',
       register: 'Caja 1',
       syncState: 'pending',
       caption: 'Ejemplo de pantalla: la venta ya está cobrada.',
@@ -94,7 +94,7 @@ export const HOME = {
   offline: {
     eyebrow: 'Confiabilidad total',
     headline: 'El internet se corta. Tus ventas, no.',
-    body: 'Si tu conexión falla, KipusPay sigue funcionando con total fluidez: cobras, imprimes y sigues atendiendo. Cuando la señal regresa, todo se sincroniza solo — el envío de comprobantes y el resumen diario incluidos — y te avisa si algo se acerca al plazo legal.',
+    body: 'Si tu conexión falla, puedes seguir registrando ventas según la configuración de tu caja. Cuando la señal regresa, la información pendiente se sincroniza. Las funciones fiscales dependen de la habilitación de tu negocio y de las respuestas de SUNAT.',
     withOthers: 'Dejas de vender',
     withKipus: 'Sigues cobrando; se sincroniza después',
   },
@@ -111,7 +111,7 @@ export const HOME = {
   owner: {
     eyebrow: 'Modo Dueño',
     headline: 'Sabe cómo te va, sin estar ahí.',
-    body: 'Desde tu celular, ve las ventas de todos tus locales y cuánto ganaste hoy, actualizado a medida que las cajas sincronizan — antes de que termine el día. Como revisar tu cuenta bancaria, pero de tu negocio.',
+    body: 'Consulta desde tu celular las ventas registradas de tus locales y la información financiera disponible. Los datos se actualizan cuando sincronizan las cajas; la antigüedad de la información puede variar.',
     note: 'Los reportes avanzados dependen de tu plan.',
   },
   trust: {
@@ -130,8 +130,8 @@ export const HOME = {
       },
       {
         icon: 'sello',
-        title: 'Acompañamiento para SUNAT.',
-        body: 'Guiamos el envío, los plazos y los estados; la aceptación final siempre depende de SUNAT.',
+        title: 'Facturación según habilitación.',
+        body: 'Las opciones dependen de la habilitación de tu negocio; SUNAT determina la aceptación de cada comprobante.',
       },
       {
         icon: 'personas',
@@ -143,11 +143,11 @@ export const HOME = {
   faq: [
     {
       q: '¿Necesito internet para usarlo?',
-      a: 'Solo la primera vez, para configurarlo. Después funciona sin conexión cuando la necesites: sigues cobrando y, al volver la señal, KipusPay sincroniza solo y te avisa si algo se acerca al plazo de declaración.',
+      a: 'Si la conexión se interrumpe, puedes seguir registrando ventas según la configuración de tu caja. Al volver internet, los datos pendientes se sincronizan; las funciones fiscales dependen de la habilitación de tu negocio.',
     },
     {
       q: '¿Emite boletas y facturas válidas para SUNAT?',
-      a: 'Cuando activas facturación electrónica, KipusPay se encarga del envío y te acompaña en el proceso; la aceptación final siempre depende de SUNAT. Si aún te formalizas, empiezas con nota de venta de control interno, claramente etiquetada.',
+      a: 'Las opciones de facturación electrónica dependen de su habilitación y de tu configuración fiscal; SUNAT determina la aceptación de cada comprobante. Si aún te formalizas, puedes usar una nota de venta de control interno, claramente etiquetada.',
     },
     {
       q: '¿Qué es una nota de venta y en qué se diferencia de una boleta?',
@@ -159,15 +159,15 @@ export const HOME = {
     },
     {
       q: '¿Puedo usar KipusPay si aún no estoy formalizado?',
-      a: 'Sí. Eliges control interno, cobras con nota de venta y activas facturación desde Configuración cuando estés listo, sin perder historial.',
+      a: 'Sí. Puedes empezar con una nota de venta para control interno. Las opciones de facturación electrónica aún no están disponibles para activación general.',
     },
     {
       q: '¿Cómo subo todos mis productos?',
       a: 'Puedes importar tu catálogo desde un archivo CSV y empezar a cobrar el mismo día.',
     },
     {
-      q: '¿Qué pasa si se corta el internet y no se envían mis boletas?',
-      a: 'Sigues cobrando. KipusPay reintenta el envío y el resumen diario al volver la señal, y te avisa si se acerca el plazo legal. No apagamos la caja.',
+      q: '¿Qué pasa si se corta internet durante una venta?',
+      a: 'Puedes seguir registrando ventas según la configuración de tu caja. Al volver internet, los datos pendientes se sincronizan. Las opciones de facturación dependen de la habilitación de tu negocio; SUNAT determina la aceptación de cada comprobante.',
     },
     {
       q: '¿Puedo cambiar de plan cuando crezca mi negocio?',
@@ -223,7 +223,7 @@ export const HOME = {
     },
     {
       q: '¿Mi contador puede ver el diario?',
-      a: 'En el plan Cadena, sí: el diario se genera solo con cada venta, cobro y arqueo. La pantalla es de lectura; el export Contasis/Concar usa los mismos asientos.',
+      a: 'La disponibilidad del diario y de formatos de exportación depende de las funciones habilitadas en tu plan. Revisa cualquier archivo con tu contador antes de incorporarlo a otro sistema.',
     },
     {
       q: '¿Necesito comprar un equipo especial?',
@@ -231,7 +231,7 @@ export const HOME = {
     },
     {
       q: '¿Puedo llevarme mis datos si decido cancelar?',
-      a: 'Tus datos son tuyos: exportas todo tu catálogo y tus ventas en CSV antes o al momento de cancelar. El borrado de datos personales respeta la retención fiscal que exige SUNAT.',
+      a: 'La exportación self-serve al cancelar y el flujo de borrado aún no están disponibles. Publicaremos el alcance y el procedimiento cuando esas funciones estén habilitadas.',
     },
     {
       q: '¿Puedo vender al crédito?',

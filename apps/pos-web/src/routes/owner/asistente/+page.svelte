@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { isAgenticInsightsEnabled, isOwnerModeEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { readAdminAuthenticatedSessionState } from '$lib/admin/authenticated-session';
   import { createInsightsClient, type BriefingDto } from '$lib/insights/insights-client';
   import Button from '$lib/ui/Button.svelte';
 import { resolveApiBase } from '$lib/auth/api-client';
 
-  const ownerEnabled = isOwnerModeEnabled();
-  const insightsEnabled = isAgenticInsightsEnabled();
+  const ownerEnabled = $derived($tenantCapabilities.has('owner.mode'));
+  const insightsEnabled = $derived($tenantCapabilities.has('analytics.agentic_insights'));
   const sessionState = readAdminAuthenticatedSessionState();
   const session = $derived(sessionState?.current ?? null);
   const api = $derived(

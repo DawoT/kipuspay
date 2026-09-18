@@ -18,11 +18,21 @@ export function tenantBranchId(storage?: Pick<Storage, 'getItem'> | null): strin
 }
 
 export function cashSessionContext(storage?: Pick<Storage, 'getItem'> | null): CashSessionContext {
-  const branchId = tenantBranchId(storage);
+  const resolvedStorage = storage ?? (typeof localStorage === 'undefined' ? null : localStorage);
+  const branchId = tenantBranchId(resolvedStorage);
+  let tenantId = '';
+  try {
+    tenantId = resolvedStorage?.getItem('kipuspay_tenant_id')?.trim() ?? '';
+  } catch {
+    // Sin identidad de tenant verificable no se reutiliza una caja persistida.
+  }
   const onboarding = readLastOnboardingClaim();
   return {
     branchId,
-    sessionId: onboarding?.sessionId ?? '',
+    sessionId:
+      branchId && tenantId && onboarding?.branchId === branchId && onboarding.tenantId === tenantId
+        ? onboarding.sessionId
+        : '',
   };
 }
 

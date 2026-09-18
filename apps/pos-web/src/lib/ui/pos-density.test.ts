@@ -83,4 +83,10 @@ describe('FASE F densidad POS', () => {
     expect(LAYOUT).toMatch(/status-pill-label/);
     expect(LAYOUT).not.toMatch(/@media \(max-width: 768px\)/);
   });
+
+  it('navegación inferior del cajero no supera cinco destinos primarios', () => {
+    const nav = readFileSync(join(POS_SRC, 'lib/ui/CashierBottomNav.svelte'), 'utf8');
+    const destinations = nav.match(/data-testid="pos-nav-[^"]+"/g) ?? [];
+    expect(destinations.length).toBeLessThanOrEqual(5);
+  });
 });

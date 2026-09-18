@@ -6,6 +6,7 @@
  */
 import { expireCustomerOrderAtomic } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export async function runExpireOrdersScheduled(
   env: WorkerEnv,
@@ -27,8 +28,12 @@ export async function runExpireOrdersScheduled(
     .bind(nowIso)
     .all<{ tenant_id: string; id: string; branch_id: string }>();
   let expired = 0;
+  const capabilities = new CapabilityResolver(env);
   for (const row of rows.results ?? []) {
     try {
+      // SQL discovery is only a candidate list. Re-read authoritative state so
+      // revocation/kill-switch changes take effect before releasing stock.
+      await capabilities.require(row.tenant_id, 'orders.customer_orders');
       const result = await expireCustomerOrderAtomic(env.DB, {
         tenantId: row.tenant_id,
         orderId: row.id,
@@ -37,7 +42,8 @@ export async function runExpireOrdersScheduled(
         idempotencyKey: `expire-cron:${row.id}:${nowIso}`,
       });
       if (result.status === 'EXPIRED' && !result.alreadyApplied) expired += 1;
-    } catch {
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status !== 404) throw error;
       // Pedido ya terminal o conflicto de carrera: se reintenta en el próximo tick.
     }
   }

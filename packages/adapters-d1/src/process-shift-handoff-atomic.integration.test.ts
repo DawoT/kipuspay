@@ -120,7 +120,9 @@ describe('shift handoff — edge de integración (Sprint 51)', () => {
       tenantId,
       sessionId,
       outgoingUserId,
-      incomingUserId: 'u-otro',
+      // Mantener ambos operadores autorizados permite alcanzar el guard de
+      // PIN single-use; un usuario cross-branch se rechaza antes (403).
+      incomingUserId,
       pin: issued.pin,
       branchId,
       nowIso: '2026-08-12T12:00:02.000Z',

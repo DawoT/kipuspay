@@ -1,12 +1,16 @@
 <script lang="ts">
   import { formatCents } from '$lib/cents';
-  import { isFuelStationEnabled, isWithholdingsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import {
-    FUEL_CATALOG,
-    computeFuelDispatchByAmount,
-    computeFuelDispatchByGallons,
+    computeFuelDispatchByAmountWithCatalog,
+    computeFuelDispatchByGallonsWithCatalog,
+    GALLON_MICROUNITS_PER_GALLON,
+    type FuelProduct,
     type FuelDispatchResult,
   } from './dispatch.js';
+  import { createFuelDispatch, fetchFuelCatalog, type FuelCatalogSnapshot } from './fuel-client.js';
+  import { onMount } from 'svelte';
+  import { cashSessionContext } from '$lib/admin/cash-session';
   import Icon from '$lib/ui/Icon.svelte';
   import Badge from '$lib/ui/Badge.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -19,48 +23,88 @@
     onDispatch?: (result: FuelDispatchResult & { plate: string; islandId: string }) => void;
   } = $props();
 
-  const fuelOn = isFuelStationEnabled();
-  const withholdingsOn = isWithholdingsEnabled();
+  let capabilitiesSnapshot = $state<ReadonlySet<string>>(new Set());
+  const fuelOn = $derived(capabilitiesSnapshot.has('fuel.dispatch'));
+  const withholdingsOn = $derived(capabilitiesSnapshot.has('fiscal.withholdings'));
 
-  let fuelCode = $state('DIESEL_B5');
+  let fuelCode = $state('');
   let islandId = $state('isla-1');
   let plate = $state('');
   let gallonsInput = $state('10');
   let amountMode = $state<'gallons' | 'amount'>('gallons');
   let amountInput = $state('5000'); // cents
+  // El catálogo y la política fiscal siempre provienen del servidor. No hay
+  // precios, códigos ni tasas de respaldo en el cliente.
+  let catalog = $state<FuelProduct[]>([]);
+  let catalogError = $state('');
+
+  onMount(() => {
+    const unsubscribeCapabilities = tenantCapabilities.subscribe((value) => {
+      capabilitiesSnapshot = new Set(value);
+    });
+    let active = true;
+    void fetchFuelCatalog()
+      .then((items) => {
+        if (!active || items.length === 0) return;
+        const nextCatalog = items.flatMap((item: FuelCatalogSnapshot) => {
+          if (!item.code || !Number.isSafeInteger(item.priceCentsPerGallon) || item.priceCentsPerGallon <= 0) return [];
+          const detractionRateBps = item.detractionRateBps ?? 0;
+          const igvRateBps = item.igvRateBps;
+          if (igvRateBps === undefined || !Number.isSafeInteger(igvRateBps) || igvRateBps < 0) return [];
+          return [{
+            code: item.code,
+            name: item.name ?? item.code,
+            priceCentsPerGallon: item.priceCentsPerGallon,
+            igvRateBps,
+            unit: 'gal' as const,
+            subjectToDetraction: detractionRateBps > 0,
+            detractionRateBps,
+          }];
+        });
+        catalog = nextCatalog;
+        if (!nextCatalog.some((fuel) => fuel.code === fuelCode)) fuelCode = nextCatalog[0]!.code;
+      })
+      .catch(() => {
+        if (active) catalogError = 'No se pudo actualizar el catálogo; se usará el último snapshot disponible.';
+      });
+    return () => {
+      active = false;
+      unsubscribeCapabilities();
+    };
+  });
 
   // precio del día: snapshot del catálogo (servidor impone el precio final)
-  const selectedFuel = $derived(FUEL_CATALOG.find((f) => f.code === fuelCode) ?? FUEL_CATALOG[2]!);
-  // factura a empresa? Heurística premium: si placa y RUC-like se detecta B2B, muestra detracción
-  // Por ahora switch simple para demo cajero apurado (44px target)
-  let isBusinessInvoice = $state(true);
+  const selectedFuel = $derived(catalog.find((f) => f.code === fuelCode) ?? catalog[0]);
+  let isBusinessInvoice = $state(false);
 
   let preview: FuelDispatchResult | null = $state(null);
   let previewError = $state('');
+  let charging = $state(false);
+  let pendingIdentity = $state<{ dispatchId: string; idempotencyKey: string } | null>(null);
 
   function recompute() {
     previewError = '';
+    pendingIdentity = null;
     try {
+      if (!selectedFuel) throw new Error('Catálogo no disponible');
       if (amountMode === 'gallons') {
         const g = Number(gallonsInput);
         if (!Number.isFinite(g)) throw new Error('Galones no válidos');
-        preview = computeFuelDispatchByGallons({
+        preview = computeFuelDispatchByGallonsWithCatalog({
           fuelCode,
           gallons: g,
-          priceCentsPerGallon: selectedFuel.priceCentsPerGallon,
           isBusinessInvoice: withholdingsOn ? isBusinessInvoice : false,
           documentType: isBusinessInvoice ? '01' : '03',
-        });
+        }, catalog);
       } else {
         const cents = Number(amountInput);
         if (!Number.isInteger(cents)) throw new Error('Monto no válido');
-        preview = computeFuelDispatchByAmount({
+        preview = computeFuelDispatchByAmountWithCatalog({
           fuelCode,
           amountCents: cents,
-          priceCentsPerGallon: selectedFuel.priceCentsPerGallon,
           isBusinessInvoice: withholdingsOn ? isBusinessInvoice : false,
           documentType: isBusinessInvoice ? '01' : '03',
-        });
+        }, catalog);
       }
     } catch (e) {
       preview = null;
@@ -75,22 +119,63 @@
     void amountInput;
     void amountMode;
     void isBusinessInvoice;
-    void selectedFuel.priceCentsPerGallon;
+    void selectedFuel?.priceCentsPerGallon;
     recompute();
   });
 
-  function handleCobrar() {
+  async function handleCobrar() {
     if (!preview) return;
-    onDispatch?.({ ...preview, plate: plate.trim(), islandId });
+    charging = true;
+    previewError = '';
+    try {
+      pendingIdentity ??= { dispatchId: crypto.randomUUID(), idempotencyKey: crypto.randomUUID() };
+      const cash = cashSessionContext();
+      const authoritative = await createFuelDispatch({
+        dispatchId: pendingIdentity?.dispatchId ?? crypto.randomUUID(),
+        idempotencyKey: pendingIdentity?.idempotencyKey ?? crypto.randomUUID(),
+        fuelCode: preview.fuelCode,
+        volumeMicrounits: preview.gallonsMicrounits,
+        businessInvoice: withholdingsOn && isBusinessInvoice,
+        documentType: isBusinessInvoice ? '01' : '03',
+        islandId,
+        nozzleId: islandId,
+        paymentMethod: 'cash',
+        branchId: cash.branchId,
+        cashRegisterSessionId: cash.sessionId,
+        plate: plate.trim(),
+      });
+      pendingIdentity = null;
+      onDispatch?.({
+        ...preview,
+        totalCents: authoritative.totalCents,
+        detractionCents: authoritative.detractionCents ?? preview.detractionCents,
+        netPayableCents: authoritative.totalCents,
+        plate: plate.trim(),
+        islandId,
+      });
+    } catch {
+      previewError = 'No se pudo confirmar el despacho. Revisa la conexión e inténtalo otra vez.';
+    } finally {
+      charging = false;
+    }
   }
 
   const islands = ['isla-1', 'isla-2', 'isla-3', 'isla-4'] as const;
+
+  function formatRateBps(rateBps: number): string {
+    return `${rateBps / 100}%`;
+  }
 </script>
 
 {#if !fuelOn}
   <div class="feature-off-banner" data-testid="fuel-off">
     <Icon name="info" size={18} />
     <span>El módulo de surtidores no está activo para esta tienda. Contacta a tu proveedor.</span>
+  </div>
+{:else if catalog.length === 0}
+  <div class="feature-off-banner" data-testid="fuel-catalog-unavailable">
+    <Icon name="info" size={18} />
+    <span>No hay un catálogo de combustibles disponible para esta tienda.</span>
   </div>
 {:else}
   <section class="ledger-card fuel-card" data-testid="fuel-dispatch-card" aria-label="Despacho por surtidor">
@@ -100,7 +185,7 @@
         <h2 class="card-title">Despacho en pista</h2>
       </div>
       <span class="price-badge tabular-nums" data-testid="fuel-price">
-        S/ {formatCents(selectedFuel.priceCentsPerGallon)} por galón
+        S/ {formatCents(selectedFuel!.priceCentsPerGallon)} por galón
       </span>
     </div>
 
@@ -110,8 +195,8 @@
     <div class="fuel-grid">
       <Field label="Combustible" id="fuel-code">
         <select id="fuel-code" bind:value={fuelCode} data-testid="fuel-select" class="fuel-select">
-          {#each FUEL_CATALOG as f}
-            <option value={f.code}>{f.name}{f.subjectToDetraction ? ' · detracción 10%' : ''}</option>
+          {#each catalog as f}
+            <option value={f.code}>{f.name}{f.subjectToDetraction ? ` · detracción ${formatRateBps(f.detractionRateBps ?? 0)}` : ''}</option>
           {/each}
         </select>
       </Field>
@@ -123,6 +208,10 @@
         </select>
       </Field>
     </div>
+
+    {#if catalogError}
+      <p class="preview-hint" role="status">{catalogError}</p>
+    {/if}
 
     <!-- Placa (opcional, para flota) -->
     <Field label="Placa (opcional)" id="fuel-plate">
@@ -176,10 +265,10 @@
     {/if}
 
     <!-- Factura a empresa? (solo si withholdingsOn) -->
-    {#if withholdingsOn && selectedFuel.subjectToDetraction}
+    {#if withholdingsOn && selectedFuel?.subjectToDetraction}
       <label class="checkbox-row" data-testid="fuel-b2b-row">
         <input type="checkbox" bind:checked={isBusinessInvoice} data-testid="fuel-b2b-check" />
-        <span>Factura a empresa (con detracción 10%)</span>
+        <span>Factura a empresa (con detracción {formatRateBps(selectedFuel?.detractionRateBps ?? 0)})</span>
         <Badge variant="warning">Detracción</Badge>
       </label>
     {/if}
@@ -191,14 +280,14 @@
       <div class="preview-box" data-testid="fuel-preview">
         <div class="preview-row">
           <span class="preview-label">Volumen</span>
-          <strong class="tabular-nums">{Math.floor(preview.gallonsMicrounits / 1000000)}.{String(preview.gallonsMicrounits % 1000000).padStart(6, '0').slice(0, 3)} gal</strong>
+          <strong class="tabular-nums">{Math.floor(preview.gallonsMicrounits / GALLON_MICROUNITS_PER_GALLON)}.{String(preview.gallonsMicrounits % GALLON_MICROUNITS_PER_GALLON).padStart(6, '0').slice(0, 3)} gal</strong>
         </div>
         <div class="preview-row">
           <span class="preview-label">Subtotal</span>
           <span class="tabular-nums">S/ {formatCents(preview.subtotalCents)}</span>
         </div>
         <div class="preview-row">
-          <span class="preview-label">IGV 18%</span>
+          <span class="preview-label">IGV {formatRateBps(preview.igvRateBps)}</span>
           <span class="tabular-nums">S/ {formatCents(preview.igvCents)}</span>
         </div>
         <div class="preview-row total-row">
@@ -209,7 +298,7 @@
           <div class="detraction-box" data-testid="fuel-detraction">
             <Icon name="shield" size={16} />
             <div class="detraction-text">
-              <strong>Detracción 10% · S/ {formatCents(preview.detractionCents)}</strong>
+              <strong>Detracción {formatRateBps(preview.detractionRateBps)} · S/ {formatCents(preview.detractionCents)}</strong>
               <span class="detraction-hint">Monto a depositar aparte. No se descuenta del total a cobrar.</span>
             </div>
           </div>
@@ -227,7 +316,7 @@
       size="xl"
       data-testid="fuel-charge"
       onclick={handleCobrar}
-      disabled={!preview}
+      disabled={!preview || charging}
       icon="zap"
       aria-label="Cobrar despacho"
     >

@@ -9,8 +9,8 @@ const buttonSource = readFileSync(new URL('../ui/Button.svelte', import.meta.url
 
 describe('Sprint 49 assistant UI contract (GREEN)', () => {
   it('gates detrás de OWNER_MODE y AGENTIC_INSIGHTS', () => {
-    expect(source).toContain('isOwnerModeEnabled()');
-    expect(source).toContain('isAgenticInsightsEnabled()');
+    expect(source).toContain("$tenantCapabilities.has('owner.mode')");
+    expect(source).toContain("$tenantCapabilities.has('analytics.agentic_insights')");
     expect(source).toContain('El asistente no está activo para este negocio.');
   });
 

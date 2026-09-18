@@ -8,14 +8,10 @@
  */
 import { auditChainClaimStatements, readAuditChainHead } from '@kipuspay/adapters-d1';
 import { parseHardwareDiagAuditPayload } from '@kipuspay/domain-hardware';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 export interface HardwareDiagEnv {
   readonly FEATURE_HARDWARE_DIAGNOSTICS?: string;
   readonly DB?: D1Database;
-}
-
-/** Sprint 53 — flag default off (mismo patrón que onboarding-routes). */
-function isHardwareDiagnosticsEnabled(env: HardwareDiagEnv | undefined): boolean {
-  return env?.FEATURE_HARDWARE_DIAGNOSTICS === '1' || env?.FEATURE_HARDWARE_DIAGNOSTICS === 'true';
 }
 
 export interface HardwareDiagActor {
@@ -77,19 +73,7 @@ async function buildHardwareDiagAuditStatement(
   };
 }
 
-async function capabilityEnabled(env: HardwareDiagEnv, tenantId: string): Promise<boolean> {
-  if (!env.DB) return false;
-  const row = await env.DB.prepare(
-    `SELECT enabled FROM tenant_capabilities
-     WHERE tenant_id = ? AND capability = 'hardware.diagnostics' LIMIT 1`,
-  )
-    .bind(tenantId)
-    .first<{ enabled: number }>();
-  return row?.enabled === 1;
-}
-
-function denied(env: HardwareDiagEnv, actor: HardwareDiagActor): HardwareDiagHttpResult | null {
-  if (!isHardwareDiagnosticsEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
+function denied(actor: HardwareDiagActor): HardwareDiagHttpResult | null {
   if (!ADMIN_ROLES.has(actor.role)) return { status: 403, body: { code: 'FORBIDDEN' } };
   if (!actor.tenantId) return { status: 403, body: { code: 'FORBIDDEN' } };
   return null;
@@ -100,10 +84,15 @@ export async function runReportHardwareDiagnosticsHttp(
   actor: HardwareDiagActor,
   body: unknown,
 ): Promise<HardwareDiagHttpResult> {
-  const pre = denied(env, actor);
+  const pre = denied(actor);
   if (pre) return pre;
-  if (!(await capabilityEnabled(env, actor.tenantId))) {
-    return { status: 403, body: { code: 'CAPABILITY_OFF' } };
+  try {
+    await new CapabilityResolver(env).require(actor.tenantId, 'hardware.diagnostics');
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) {
+      return { status: 404, body: { code: 'FEATURE_OFF' } };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
   }
   if (env.DB === undefined || env.DB === null)
     return { status: 503, body: { code: 'DB_UNAVAILABLE' } };
@@ -164,10 +153,15 @@ export async function runListHardwareDiagnosticsHttp(
   actor: HardwareDiagActor,
   limit: number,
 ): Promise<HardwareDiagHttpResult> {
-  const pre = denied(env, actor);
+  const pre = denied(actor);
   if (pre) return pre;
-  if (!(await capabilityEnabled(env, actor.tenantId))) {
-    return { status: 403, body: { code: 'CAPABILITY_OFF' } };
+  try {
+    await new CapabilityResolver(env).require(actor.tenantId, 'hardware.diagnostics');
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) {
+      return { status: 404, body: { code: 'FEATURE_OFF' } };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
   }
   if (env.DB === undefined || env.DB === null)
     return { status: 503, body: { code: 'DB_UNAVAILABLE' } };

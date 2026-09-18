@@ -194,6 +194,11 @@ import {
   runUpsertPriceLabelTemplateHttp,
 } from './catalog/price-label-routes.js';
 import {
+  runCreateFuelDispatchHttp,
+  runFuelCatalogHttp,
+  runFuelIslandShiftReportHttp,
+} from './fuel/fuel-dispatch-routes.js';
+import {
   acknowledgeDisplayedHttp,
   grantPushConsentHttp,
   listPushDevicesHttp,
@@ -212,7 +217,7 @@ import {
   isAdvancedReportId,
   runDailyRollupsCronHttp,
   runReportHttp,
-  runReportsCatalogHttp,
+  runReportsCatalogTenantHttp,
 } from './reports/report-routes.js';
 import { runStaffDailyRollupsHttp } from './reports/run-rollups-staff-routes.js';
 import {
@@ -306,6 +311,7 @@ import {
   runTitularEraseHttp,
   runTitularExportHttp,
   runTitularVerifyHttp,
+  runTitularVerifyOtpHttp,
 } from './customers/titular-lpdp-routes.js';
 import {
   runCancelCustomerOrderHttp,
@@ -602,32 +608,41 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return runKdsWebSocketHttp(c.env, claimed.tenantId, claimed.branchId, c.req.raw);
   });
 
-  // LPDP ARCO self-serve del titular (Sprint C3): identidad por datos y
-  // token de corta duración (scope lpdp_titular). Públicas ANTES del
-  // middleware JWT; el verify no exige sesión admin pero sí rate-limit.
+  // LPDP ARCO self-serve del titular (Sprint C3): cotejo inicial más OTP al
+  // correo registrado antes de emitir token. Públicas antes del middleware
+  // JWT; verify y verify-otp aplican límites atómicos propios.
   app.post('/api/lpdp/titular/verify', async (c) => {
-    const { decision } = await enforceRateLimit({
-      kv: c.env?.TENANT_KV,
-      key: rateLimitKey(clientIp(c.req.raw), 'lpdp-titular-verify'),
-      limit: 30,
-      windowSeconds: 3600,
-    });
-    if (!decision.allowed) {
-      return c.json({ error: 'Too many attempts', code: 'RATE_LIMITED' }, 429);
-    }
+    c.header('Cache-Control', 'no-store');
     const body: unknown = await c.req.json().catch(() => ({}));
-    const result = await runTitularVerifyHttp(c.env, (body ?? {}) as Record<string, unknown>);
-    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
+    const result = await runTitularVerifyHttp(
+      c.env,
+      (body ?? {}) as Record<string, unknown>,
+      clientIp(c.req.raw),
+    );
+    return c.json(result.body, result.status as 202 | 400 | 403 | 404 | 422 | 429 | 503);
+  });
+  app.post('/api/lpdp/titular/verify-otp', async (c) => {
+    c.header('Cache-Control', 'no-store');
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const result = await runTitularVerifyOtpHttp(
+      c.env,
+      (body ?? {}) as Record<string, unknown>,
+      clientIp(c.req.raw),
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 429 | 503);
   });
   app.get('/api/lpdp/titular/export', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const result = await runTitularExportHttp(c.env, c.req.header('authorization') ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
   });
   app.get('/api/lpdp/titular/consents', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const result = await runTitularConsentsHttp(c.env, c.req.header('authorization') ?? '');
     return c.json(result.body, result.status as 200 | 401 | 404 | 422 | 503);
   });
   app.post('/api/lpdp/titular/consent', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const body: unknown = await c.req.json().catch(() => ({}));
     const result = await runTitularConsentHttp(
       c.env,
@@ -637,6 +652,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 422 | 503);
   });
   app.post('/api/lpdp/titular/erase', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const body: unknown = await c.req.json().catch(() => ({}));
     const result = await runTitularEraseHttp(
       c.env,
@@ -742,7 +758,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     const tenantId = jwt?.tenantId ?? '';
     const body: { saleId?: string } = await c.req.json();
     const result = await runVoidBoletaHttp(c.env, tenantId, body.saleId ?? '');
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
 
   app.get('/api/fiscal/owner-alerts', async (c) => {
@@ -1246,28 +1262,36 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
+      user?.allowedBranches ?? [],
+      user?.role,
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/orders/fire', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runFireOrderHttp(
       c.env,
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
+      user?.allowedBranches ?? [],
+      user?.role,
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/orders/items/ready', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json();
     const result = await runMarkItemsReadyHttp(
       c.env,
       jwt?.tenantId ?? '',
       body as Record<string, unknown>,
+      user?.allowedBranches ?? [],
+      user?.role,
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/orders/items/cancel', async (c) => {
     const jwt = c.get('jwt');
@@ -1278,14 +1302,23 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
+      user?.allowedBranches ?? [],
+      user?.role,
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.get('/api/orders/kds-pending', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const branchId = c.req.query('branchId') ?? '';
-    const result = await runKdsPendingHttp(c.env, jwt?.tenantId ?? '', branchId);
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    const result = await runKdsPendingHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      branchId,
+      user?.allowedBranches ?? [],
+      user?.role,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/orders/split', async (c) => {
     const jwt = c.get('jwt');
@@ -1296,11 +1329,14 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       jwt?.tenantId ?? '',
       user?.userId ?? jwt?.sub ?? '',
       body as Record<string, unknown>,
+      user?.allowedBranches ?? [],
+      user?.role,
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/kds/ws-ticket', async (c) => {
     const jwt = c.get('jwt');
+    const user = c.get('user');
     const body: unknown = await c.req.json().catch(() => ({}));
     const branchId =
       body &&
@@ -1308,8 +1344,14 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
       typeof (body as { branchId?: unknown }).branchId === 'string'
         ? (body as { branchId: string }).branchId
         : (c.req.query('branchId') ?? '');
-    const result = await runMintKdsWsTicketHttp(c.env, jwt?.tenantId ?? '', branchId);
-    return c.json(result.body, result.status as 200 | 400 | 404 | 503);
+    const result = await runMintKdsWsTicketHttp(
+      c.env,
+      jwt?.tenantId ?? '',
+      branchId,
+      user?.allowedBranches ?? [],
+      user?.role,
+    );
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 503);
   });
   app.get('/api/orders/customer-orders', async (c) => {
     const branchId = c.req.query('branchId');
@@ -1812,12 +1854,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         tenantId: jwt?.tenantId ?? '',
         userId: jwt?.sub ?? '',
         role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+        branchId: (c.get('user') as { branchId?: string } | undefined)?.branchId,
       },
       body && typeof body === 'object' && !Array.isArray(body)
         ? (body as Record<string, unknown>)
         : {},
     );
-    return c.json(result.body, result.status as 200 | 400 | 404 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/cash/shifts/transfer', async (c) => {
     const jwt = c.get('jwt');
@@ -1828,12 +1871,13 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         tenantId: jwt?.tenantId ?? '',
         userId: jwt?.sub ?? '',
         role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+        branchId: (c.get('user') as { branchId?: string } | undefined)?.branchId,
       },
       body && typeof body === 'object' && !Array.isArray(body)
         ? (body as Record<string, unknown>)
         : {},
     );
-    return c.json(result.body, result.status as 200 | 400 | 401 | 404 | 409 | 422 | 503);
+    return c.json(result.body, result.status as 200 | 400 | 401 | 403 | 404 | 409 | 422 | 503);
   });
   app.post('/api/team/invites', async (c) => {
     const jwt = c.get('jwt');
@@ -1844,6 +1888,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         tenantId: jwt?.tenantId ?? '',
         userId: jwt?.sub ?? '',
         role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+        branchId: (c.get('user') as { branchId?: string } | undefined)?.branchId,
       },
       body && typeof body === 'object' && !Array.isArray(body)
         ? (body as Record<string, unknown>)
@@ -1860,6 +1905,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
         tenantId: jwt?.tenantId ?? '',
         userId: jwt?.sub ?? '',
         role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+        branchId: (c.get('user') as { branchId?: string } | undefined)?.branchId,
       },
       body && typeof body === 'object' && !Array.isArray(body)
         ? (body as Record<string, unknown>)
@@ -1895,7 +1941,11 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
   });
   app.get('/api/growth/events', async (c) => {
     const jwt = c.get('jwt');
-    const result = await runListGrowthEventsHttp(c.env, jwt?.tenantId ?? '');
+    const result = await runListGrowthEventsHttp(c.env, {
+      tenantId: jwt?.tenantId ?? '',
+      userId: jwt?.sub ?? '',
+      role: (c.get('user') as { role?: string } | undefined)?.role ?? '',
+    });
     return c.json(result.body, result.status as 200 | 401 | 503);
   });
   app.get('/api/catalog/variants-uom', async (c) => {
@@ -2325,6 +2375,46 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     );
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 500 | 503);
   });
+  app.post('/api/fuel/dispatches', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const body: unknown = await c.req.json();
+    const result = await runCreateFuelDispatchHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: user?.userId ?? jwt?.sub ?? '',
+        role: user?.role ?? '',
+      },
+      body as Record<string, unknown>,
+    );
+    return c.json(result.body, result.status as 200 | 201 | 400 | 403 | 404 | 422 | 503);
+  });
+  app.get('/api/fuel/island-shift-report', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runFuelIslandShiftReportHttp(
+      c.env,
+      {
+        tenantId: jwt?.tenantId ?? '',
+        userId: user?.userId ?? jwt?.sub ?? '',
+        role: user?.role ?? '',
+      },
+      c.req.query('islandId') ?? '',
+      c.req.query('cashRegisterSessionId') ?? '',
+    );
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
+  app.get('/api/fuel/catalog', async (c) => {
+    const jwt = c.get('jwt');
+    const user = c.get('user');
+    const result = await runFuelCatalogHttp(c.env, {
+      tenantId: jwt?.tenantId ?? '',
+      userId: user?.userId ?? jwt?.sub ?? '',
+      role: user?.role ?? '',
+    });
+    return c.json(result.body, result.status as 200 | 403 | 404 | 503);
+  });
   app.post('/api/inventory/counts/submit-review', async (c) => {
     const jwt = c.get('jwt');
     const body: unknown = await c.req.json();
@@ -2485,8 +2575,9 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     if (user?.role) opts.role = user.role;
     return opts;
   };
-  app.get('/api/reports/catalog', (c) => {
-    const result = runReportsCatalogHttp(c.env);
+  app.get('/api/reports/catalog', async (c) => {
+    const jwt = c.get('jwt') as { tenantId?: string } | undefined;
+    const result = await runReportsCatalogTenantHttp(c.env, jwt?.tenantId ?? '');
     return c.json(result.body, result.status as 200 | 404);
   });
   // S11-E10: export del catálogo en CSV (Guía Legal Q4 — el cliente exporta
@@ -2746,6 +2837,7 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   // Sprint 47 — LPDP (FEATURE_LPDP, default-off; ADR-0031).
   app.get('/api/customers', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const result = await runListCustomersHttp(
       c.env,
       trustedLpdpActor(c),
@@ -2755,10 +2847,12 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.get('/api/customers/:id/consents', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const result = await runListConsentsHttp(c.env, trustedLpdpActor(c), c.req.param('id'));
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/customers/:id/consent', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const body: unknown = await c.req.json();
     const result = await runWriteConsentHttp(
       c.env,
@@ -2771,10 +2865,12 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.get('/api/customers/:id/export', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const result = await runExportCustomerHttp(c.env, trustedLpdpActor(c), c.req.param('id'));
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
   app.post('/api/customers/:id/erase', async (c) => {
+    c.header('Cache-Control', 'no-store');
     const result = await runEraseCustomerHttp(c.env, trustedLpdpActor(c), c.req.param('id'));
     return c.json(result.body, result.status as 200 | 400 | 403 | 404 | 422 | 503);
   });
@@ -2862,18 +2958,26 @@ export function createApp(authDeps: TenantAuthDeps = defaultFailClosedDeps()) {
 
   // Sprint 48 — platform.dr: simulacro DR anual (owner + step-up, default-off).
   app.post('/api/dr/simulation', async (c) => {
-    const body: { backupId?: string } = await c.req.json();
-    const result = await runDrSimulationHttp(
-      c.env,
-      trustedBackupActor(c.get('user'), c.get('jwt')),
-      {
-        ...(typeof body.backupId === 'string' && body.backupId ? { backupId: body.backupId } : {}),
-        ...(c.req.header('x-step-up-token')
-          ? { stepUpToken: c.req.header('x-step-up-token')! }
-          : {}),
-      },
-    );
-    return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
+    try {
+      const body: { backupId?: string } = await c.req.json();
+      const result = await runDrSimulationHttp(
+        c.env,
+        trustedBackupActor(c.get('user'), c.get('jwt')),
+        {
+          ...(typeof body.backupId === 'string' && body.backupId
+            ? { backupId: body.backupId }
+            : {}),
+          ...(c.req.header('x-step-up-token')
+            ? { stepUpToken: c.req.header('x-step-up-token')! }
+            : {}),
+        },
+      );
+      return c.json(result.body, result.status as 200 | 401 | 403 | 404 | 422 | 503);
+    } catch {
+      // Keep malformed request/context and runtime failures fail-closed. The
+      // one-shot token is only consumed inside the guarded simulation path.
+      return c.json({ code: 'DR_CONTROL_PLANE_UNAVAILABLE' }, 503);
+    }
   });
 
   // Sprint 49 — insights (analytics.agentic_insights, Cadena+, default-off).

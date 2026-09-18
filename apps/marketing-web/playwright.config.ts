@@ -22,6 +22,9 @@ export default defineConfig({
     timeout: 180_000,
     env: {
       PUBLIC_FEATURE_MARKETING_SITE: '1',
+      // Keep the contract test on the canonical production-shaped redirect.
+      // Local full-stack onboarding uses playwright.onboarding.config.ts.
+      PUBLIC_POS_ORIGIN: 'https://app.kipuspay.com',
     },
   },
 });

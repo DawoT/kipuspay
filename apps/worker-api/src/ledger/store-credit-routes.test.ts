@@ -39,6 +39,9 @@ function env(over: Partial<WorkerEnv> = {}, approverRole: string | null = 'admin
             return stmt;
           },
           first: () => {
+            if (sql.includes('tenant_capabilities')) {
+              return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+            }
             if (sql.includes('FROM users')) {
               return Promise.resolve(approverRole ? { role: approverRole } : null);
             }
@@ -58,11 +61,11 @@ describe('store-credit-routes', () => {
     expect(isLedgerStoreCreditEnabled({} as unknown as WorkerEnv)).toBe(false);
   });
 
-  it('404 when flag off', async () => {
+  it('issue endpoint is always rejected; mutations fail closed without DB', async () => {
     const issued = runIssueStoreCreditHttp({
       FEATURE_LEDGER_STORE_CREDIT: '0',
     } as unknown as WorkerEnv);
-    expect(issued.status).toBe(404);
+    expect(issued.status).toBe(400);
     const res = await runExpireStoreCreditHttp(
       { FEATURE_LEDGER_STORE_CREDIT: '0' } as unknown as WorkerEnv,
       't1',
@@ -70,7 +73,7 @@ describe('store-credit-routes', () => {
       'admin',
       {},
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(503);
   });
 
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {

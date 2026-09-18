@@ -27,7 +27,7 @@ describe('pricing content', () => {
     expect(crece?.badge).toBe('Más elegido');
   });
 
-  it('el copy público de precios no filtra jerga interna (M1)', () => {
+  it('el copy público no filtra jerga interna y solo cita sprints de claims en roadmap (M1)', () => {
     const all = [
       ...PRICING_PLANS.flatMap((p) => [
         ...p.limits,
@@ -88,7 +88,7 @@ describe('pricing content', () => {
       }
     });
 
-    it('Cadena: KDS, transferencias, 3-way, importadores, Yape/Plin, export contable, API, puntos, devoluciones NC, diario, cotizaciones, vales, cuotas, racks, pedidos WhatsApp, membresías, analítica con disclaimer y DR', () => {
+    it('Cadena: KDS, transferencias, 3-way, importadores, Yape/Plin, export contable, API, puntos, devoluciones NC, diario, cotizaciones, vales, cuotas, racks, pedidos WhatsApp, membresías y DR', () => {
       const f = features('cadena');
       for (const expected of [
         'comandas',
@@ -107,19 +107,36 @@ describe('pricing content', () => {
         'rack',
         'whatsapp',
         'membresía',
-        'analítica',
         'continuidad',
       ]) {
         expect(f.toLowerCase()).toContain(expected);
       }
-      expect(f.toLowerCase()).toMatch(/estimación, no garantía|estimacion, no garantia/);
       expect(f.toLowerCase()).not.toContain('no disponibles hoy');
     });
 
-    it('Enterprise: SLA prioritario 1 hora y asistente de insights diario', () => {
+    it('mantiene analítica predictiva y briefing como roadmap en preparación, no claims vendibles', () => {
+      const cadena = PRICING_PLANS.find((p) => p.id === 'cadena');
+      const forecast = cadena?.features.find((feature) =>
+        /analítica predictiva/i.test(feature.text),
+      );
+      expect(forecast).toBeDefined();
+      expect(pricingFeatureAvailability(forecast!)).toBe('preparing');
+      expect(pricingFeatureText(forecast!)).toMatch(/en preparación.*validación externa/i);
+
+      const enterprise = PRICING_PLANS.find((p) => p.id === 'enterprise');
+      const briefing = enterprise?.features.find((feature) =>
+        /briefing operativo/i.test(feature.text),
+      );
+      expect(briefing).toBeDefined();
+      expect(pricingFeatureAvailability(briefing!)).toBe('preparing');
+      expect(pricingFeatureText(briefing!)).toMatch(/en preparación.*validación externa/i);
+      expect(pricingFeatureText(briefing!)).not.toMatch(/Gerente de Operaciones/i);
+    });
+
+    it('Enterprise: SLA prioritario 1 hora y account manager, sin claim de asistente disponible', () => {
       const f = features('enterprise');
       expect(f.toLowerCase()).toContain('1 hora');
-      expect(f.toLowerCase()).toContain('asistente');
+      expect(f.toLowerCase()).not.toContain('gerente de operaciones');
       expect(f.toLowerCase()).toContain('account manager');
     });
   });

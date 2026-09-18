@@ -228,25 +228,61 @@ function consentUpdateStatements(
   consentId: string,
   purpose: string,
   plan: ConsentChangePlan,
+  existing: ConsentRecord | undefined,
 ): D1Bound {
   if (plan.kind === 'NOOP') {
     throw new Error('CONSENT_NOOP');
   }
-  const stmt = db.prepare(
-    `INSERT INTO consent_records (
+  const expectedGuard = existing
+    ? `consent_records.granted = ?
+       AND COALESCE(consent_records.granted_at, '') = COALESCE(?, '')
+       AND COALESCE(consent_records.revoked_at, '') = COALESCE(?, '')`
+    : '0';
+  const sql = `INSERT INTO consent_records (
        id, tenant_id, customer_id, purpose, granted,
        granted_at, revoked_at, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     )
+     SELECT ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+     WHERE EXISTS (
+       SELECT 1 FROM customers
+       WHERE tenant_id = ? AND id = ? AND pii_erased = 0
+     )
      ON CONFLICT(tenant_id, customer_id, purpose)
      DO UPDATE SET
        granted = excluded.granted,
        granted_at = excluded.granted_at,
-       revoked_at = excluded.revoked_at`,
-  );
+       revoked_at = excluded.revoked_at
+     WHERE ${expectedGuard}`;
+  const guarded = db.prepare(sql);
+  const expected = existing
+    ? [existing.granted ? 1 : 0, existing.grantedAtIso, existing.revokedAtIso]
+    : [];
   if (plan.kind === 'GRANT') {
-    return stmt.bind(consentId, tenantId, customerId, purpose, 1, plan.grantedAtIso, null);
+    return guarded.bind(
+      consentId,
+      tenantId,
+      customerId,
+      purpose,
+      1,
+      plan.grantedAtIso,
+      null,
+      tenantId,
+      customerId,
+      ...expected,
+    );
   }
-  return stmt.bind(consentId, tenantId, customerId, purpose, 0, null, plan.revokedAtIso);
+  return guarded.bind(
+    consentId,
+    tenantId,
+    customerId,
+    purpose,
+    0,
+    null,
+    plan.revokedAtIso,
+    tenantId,
+    customerId,
+    ...expected,
+  );
 }
 
 /** Registra o revoca un consentimiento por propósito (LPDP-01), un solo batch. */
@@ -258,13 +294,22 @@ export async function writeConsent(
   granted: boolean,
   nowIso: string,
 ): Promise<{ kind: 'GRANT' | 'REVOKE' | 'NOOP' }> {
-  const current = await listConsents(db, tenantId, customerId);
-  const existing = current.find((c) => c.purpose === purpose);
-  const plan = planConsentChange(purpose, granted, nowIso, existing);
-  if (plan.kind === 'NOOP') return { kind: 'NOOP' };
   const consentId = [tenantId, customerId, purpose].join(':');
-  await db.batch([consentUpdateStatements(db, tenantId, customerId, consentId, purpose, plan)]);
-  return { kind: plan.kind };
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const current = await listConsents(db, tenantId, customerId);
+    const existing = current.find((c) => c.purpose === purpose);
+    const plan = planConsentChange(purpose, granted, nowIso, existing);
+    if (plan.kind === 'NOOP') return { kind: 'NOOP' };
+    const [result] = await db.batch([
+      consentUpdateStatements(db, tenantId, customerId, consentId, purpose, plan, existing),
+    ]);
+    // D1 puede incluir cambios derivados de triggers en `meta.changes`; el
+    // consentimiento se representa por un statement, por lo que cualquier
+    // cantidad positiva confirma que la mutación principal ocurrió.
+    const changes = result?.meta?.changes;
+    if (typeof changes === 'number' && changes > 0) return { kind: plan.kind };
+  }
+  throw new Error('CONSENT_CONCURRENT_MODIFICATION');
 }
 
 /**
@@ -341,19 +386,12 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
   profileSets.push('pii_erased = 1');
   profileSets.push('erased_at = ?');
   profileParams.push(input.nowIso);
-  // S47-H1: guard CAS ANTES del batch — el UPDATE del perfil es la llave
-  // del erase (pii_erased = 0): solo el ganador de una carrera lo afecta
-  // (changes = 1); el perdedor aborta sin anonimizar ni bifurcar la audit.
   const profileUpdate = db
     .prepare(
       `UPDATE customers SET ${profileSets.join(', ')}
-       WHERE tenant_id = ? AND id = ? AND pii_erased = 0`,
+       WHERE tenant_id = ? AND id = ? AND pii_erased = 0 AND deleted_at IS NULL`,
     )
     .bind(...profileParams, input.tenantId, input.customerId);
-  const profileResult = await profileUpdate.run();
-  const affected =
-    (profileResult as { meta?: { changes?: number } } | undefined)?.meta?.changes ?? 0;
-  if (affected === 0) throw new Error('ALREADY_ERASED');
 
   for (const snapshot of plan.fiscalSnapshots) {
     statements.push(
@@ -361,9 +399,20 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
         .prepare(
           `UPDATE sales
            SET client_name = ?, client_document_number = ?
-           WHERE tenant_id = ? AND id = ?`,
+           WHERE tenant_id = ? AND id = ?
+             AND EXISTS (
+               SELECT 1 FROM customers
+               WHERE tenant_id = ? AND id = ? AND pii_erased = 0 AND deleted_at IS NULL
+             )`,
         )
-        .bind(ANONYMIZED_NAME, ANONYMIZED_DOCUMENT, input.tenantId, snapshot.saleId),
+        .bind(
+          ANONYMIZED_NAME,
+          ANONYMIZED_DOCUMENT,
+          input.tenantId,
+          snapshot.saleId,
+          input.tenantId,
+          input.customerId,
+        ),
     );
   }
 
@@ -373,9 +422,13 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
         .prepare(
           `UPDATE consent_records
            SET granted = 0, revoked_at = ?
-           WHERE tenant_id = ? AND id = ?`,
+           WHERE tenant_id = ? AND id = ?
+             AND EXISTS (
+               SELECT 1 FROM customers
+               WHERE tenant_id = ? AND id = ? AND pii_erased = 0 AND deleted_at IS NULL
+             )`,
         )
-        .bind(input.nowIso, input.tenantId, consent.consentId),
+        .bind(input.nowIso, input.tenantId, consent.consentId, input.tenantId, input.customerId),
     );
   }
 
@@ -398,7 +451,11 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
         `INSERT INTO audit_events (
            id, tenant_id, branch_id, actor_user_id, action,
            entity_type, entity_id, payload_json, prev_hash, row_hash, created_at
-         ) VALUES (?, ?, ?, ?, 'LPDP_ERASE', 'customer', ?, ?, ?, ?, ?)`,
+        ) SELECT ?, ?, ?, ?, 'LPDP_ERASE', 'customer', ?, ?, ?, ?, ?
+          WHERE EXISTS (
+            SELECT 1 FROM customers
+            WHERE tenant_id = ? AND id = ? AND pii_erased = 0 AND deleted_at IS NULL
+          )`,
       )
       .bind(
         auditId,
@@ -410,13 +467,28 @@ export async function eraseCustomer(db: D1DatabaseLike, input: EraseInput): Prom
         prevAuditHash,
         rowHash,
         input.nowIso,
+        input.tenantId,
+        input.customerId,
       ),
   );
 
-  await db.batch([
-    ...statements,
-    ...auditChainClaimStatements(db, input.tenantId, prevAuditHash, [rowHash]),
-  ]);
+  const eraseGuardId = crypto.randomUUID();
+  try {
+    await db.batch([
+      ...statements,
+      ...auditChainClaimStatements(db, input.tenantId, prevAuditHash, [rowHash]),
+      profileUpdate,
+      db.prepare(`INSERT INTO atomic_guards (id, ok) VALUES (?, changes())`).bind(eraseGuardId),
+      db.prepare(`DELETE FROM atomic_guards WHERE id = ?`).bind(eraseGuardId),
+    ]);
+  } catch (error) {
+    const current = await db
+      .prepare(`SELECT pii_erased FROM customers WHERE tenant_id = ? AND id = ?`)
+      .bind(input.tenantId, input.customerId)
+      .first<{ pii_erased: number }>();
+    if (!current || current.pii_erased === 1) throw new Error('ALREADY_ERASED', { cause: error });
+    throw error;
+  }
 
   return {
     customerId: input.customerId,

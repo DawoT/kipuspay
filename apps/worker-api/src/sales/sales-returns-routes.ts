@@ -4,6 +4,7 @@
 import { appendAuditEvent, processReturnAtomic } from '@kipuspay/adapters-d1';
 import { parseReturnPolicyRow } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isSalesReturnsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_SALES_RETURNS === '1' || env?.FEATURE_SALES_RETURNS === 'true';
@@ -14,12 +15,47 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'FEATURE_SALES_RETURNS off', code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireSalesReturns(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'sales.returns');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
+}
+
+async function returnCapabilityEnabled(
+  env: WorkerEnv,
+  tenantId: string,
+  capability:
+    | 'ledger.accounts_receivable'
+    | 'ledger.chart_of_accounts'
+    | 'ledger.store_credit'
+    | 'sales.commissions',
+): Promise<boolean> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return true;
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) return false;
+    throw error;
+  }
 }
 
 const CLIENT_ERRORS = new Set([
@@ -121,7 +157,6 @@ export async function runCreateSalesReturnHttp(
     refundMethod?: string | null;
   },
 ): Promise<HttpResult> {
-  if (!isSalesReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -129,14 +164,30 @@ export async function runCreateSalesReturnHttp(
 
   const parsed = parseCreateReturnBody(body);
   if (!parsed.ok) return parsed.result;
+  const capabilityError = await requireSalesReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
 
-  const ledgerArApEnabled = env.FEATURE_LEDGER_AR_AP === '1' || env.FEATURE_LEDGER_AR_AP === 'true';
-  const chartOfAccountsEnabled =
-    env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' || env.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true';
-  const storeCreditEnabled =
-    env.FEATURE_LEDGER_STORE_CREDIT === '1' || env.FEATURE_LEDGER_STORE_CREDIT === 'true';
-  const salesCommissionsEnabled =
-    env.FEATURE_SALES_COMMISSIONS === '1' || env.FEATURE_SALES_COMMISSIONS === 'true';
+  let ledgerArApEnabled: boolean;
+  let chartOfAccountsEnabled: boolean;
+  let storeCreditEnabled: boolean;
+  let salesCommissionsEnabled: boolean;
+  try {
+    [ledgerArApEnabled, chartOfAccountsEnabled, storeCreditEnabled, salesCommissionsEnabled] =
+      await Promise.all([
+        returnCapabilityEnabled(env, tenantId, 'ledger.accounts_receivable'),
+        returnCapabilityEnabled(env, tenantId, 'ledger.chart_of_accounts'),
+        returnCapabilityEnabled(env, tenantId, 'ledger.store_credit'),
+        returnCapabilityEnabled(env, tenantId, 'sales.commissions'),
+      ]);
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return { status: error.status, body: { error: error.code, code: error.code } };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
 
   try {
     const result = await processReturnAtomic(
@@ -178,11 +229,12 @@ export async function runGetReturnPolicyHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isSalesReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
+  const capabilityError = await requireSalesReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const row = await env.DB.prepare(
     `SELECT window_days, by_payment_method_json, refund_to_original_method, allow_turn_closed_with_auth
@@ -212,11 +264,12 @@ export async function runListSalesReturnsHttp(
   tenantId: string,
   saleId: string,
 ): Promise<HttpResult> {
-  if (!isSalesReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
   }
+  const capabilityError = await requireSalesReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
   const id = saleId.trim();
   if (!id) {
     return { status: 400, body: { error: 'saleId required', code: 'BAD_REQUEST' } };
@@ -269,7 +322,6 @@ export async function runUpsertReturnPolicyHttp(
   role: string,
   body: unknown,
 ): Promise<HttpResult> {
-  if (!isSalesReturnsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !actorUserId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -277,6 +329,8 @@ export async function runUpsertReturnPolicyHttp(
   if (role !== 'admin' && role !== 'owner') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireSalesReturns(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const input = (body ?? {}) as Record<string, unknown>;
   const windowDays = input.windowDays;

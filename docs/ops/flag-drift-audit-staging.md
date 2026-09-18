@@ -71,7 +71,7 @@ Addendum 2026-08-23 (d83b5aa): PUSH_VAPID_PUBLIC_KEY migra de DRIFT-RISK→FIXED
 | `POS_APP_ORIGIN` | (no existe) | POS pages.dev | ALIGNED | Bootstrap sección URLs + nogate test D0 (exige pages.dev; prohíbe app.kipuspay.com sin dominio comprado). |
 | `ALLOWED_ORIGINS` | localhost dev (puertos 4173/5173/5174) | pages.dev POS + marketing | ALIGNED | Bootstrap sección CORS. |
 | `KDS_BROADCAST_TOKEN` | literal dev | literal staging | ALIGNED | Placeholder de repo para broadcast KDS; DESCONOCIDO si existe override runtime. Revisar antes de producción. |
-| `AI_MODEL` | llama-3.1-8b-instruct | igual | ALIGNED | Sin intención distinta documentada. |
+| `AI_MODEL` | llama-3.1-8b-instruct-fp8 | igual | ALIGNED | Catálogo Workers AI staging verificado; reemplaza el identificador legacy no disponible. |
 | `FISCAL_PSE_ENDPOINT_URL` | (no existe) | pse.kipuspay.staging.invalid | INTENTIONAL-OFF | Fail-closed deliberado (tracker gap `sunat-pse-ose`: isAccreditedPseEndpoint rechaza .invalid) hasta URL PSE real de A. |
 | `RECURRING_MANUAL_RUN_ENABLED` | `"0"` | `"0"` | INTENTIONAL-OFF | Sin intención runtime documentada; s44 sigue blocked en tracker. |
 | Resto de `FEATURE_*` en `"0"` (64 vars) | `"0"` | `"0"` | INTENTIONAL-OFF | Doctrina repo-0: flips solo runtime con A+V (checklist Flags runtime; nogate test). Listado completo abajo. |
@@ -114,7 +114,7 @@ Verificado: `PUSH_VAPID_PUBLIC_KEY` staging `BKIPWeAjjzcKM9C_dl2-EqC-5vVPt93xyB0
 
 | Var | Valor | Estado | Justificación |
 | --- | --- | --- | --- |
-| `PUBLIC_FEATURE_MARKETING_SITE` | `"0"` | INTENTIONAL-OFF | Soft-launch explícito (bootstrap Secrets/flags: «intencional»; checklist Fase 2 ítem 14: activar solo en build Pages al abrir piloto). |
+| `PUBLIC_FEATURE_MARKETING_SITE` | repo `"0"`; build staging `"1"` | INTENTIONAL-BUILD | Soft-launch explícito: default local apagado; `marketing-web deploy:staging` lo activa solo durante el build Pages. |
 | `PUBLIC_POS_ORIGIN` | POS pages.dev | ALIGNED | Bootstrap canónico temporal D0. |
 
 Sin cambios.

@@ -8,8 +8,8 @@ const source = readFileSync(
 
 describe('Sprint 46 owner forecast UI contract (GREEN)', () => {
   it('gates the view behind OWNER_MODE and ANALYTICS_FORECASTING and never fakes data', () => {
-    expect(source).toContain('isOwnerModeEnabled()');
-    expect(source).toContain('isAnalyticsForecastingEnabled()');
+    expect(source).toContain("$tenantCapabilities.has('owner.mode')");
+    expect(source).toContain("$tenantCapabilities.has('analytics.forecasting')");
     expect(source).toContain('Sin pronósticos');
   });
 

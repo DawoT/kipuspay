@@ -8,6 +8,19 @@ on:
         type: boolean
         required: false
         default: false
+      capability_profile:
+        description: "Canario de capability para worker-api staging"
+        type: choice
+        required: true
+        default: baseline
+        options:
+          - baseline
+          - s43-orders
+          - s44-recurring
+          - s45-push
+          - s46-forecast
+          - s48-dr
+          - s49-insights
 
 permissions:
   contents: read
@@ -169,6 +182,8 @@ jobs:
         run: pnpm --filter @kipuspay/worker-kms run deploy:staging 2>&1 | tee deploy-logs/10-worker-kms.log
 
       - name: Deploy worker-api (staging)
+        env:
+          STAGING_DEPLOY_PROFILE: ${{ inputs.capability_profile }}
         run: pnpm --filter @kipuspay/worker-api run deploy:staging 2>&1 | tee deploy-logs/20-worker-api.log
 
       - name: Deploy worker-fiscal (staging)
@@ -184,6 +199,8 @@ jobs:
         run: pnpm --filter @kipuspay/pos-web exec playwright install --with-deps chromium
 
       - name: Evidencia - smoke de staging (health + navegador)
+        env:
+          STAGING_EVIDENCE_DIR: deploy-logs/browser
         run: node apps/pos-web/scripts/staging-browser-smoke.mjs 2>&1 | tee deploy-logs/60-staging-smoke.log
 
       - name: Subir evidencia del deploy

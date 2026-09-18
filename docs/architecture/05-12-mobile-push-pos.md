@@ -237,8 +237,9 @@ CREATE INDEX idx_push_deliveries_slo
 
 La migración física 0038 debe crear triggers de epoch `insert/update/delete` para
 las cuatro tablas y registrarlas en KPBK1: consentimientos y suscripciones como
-`SENSITIVE`; eventos y deliveries como `BUSINESS`, sin exportar ciphertext o
-receipts fuera de su política. El down es child-first, protegido por
+`SENSITIVE`; eventos como `BUSINESS` y deliveries como `EPHEMERAL`: las entregas
+son estado operativo reconstruible y dependen de suscripciones sensibles que no
+viajan en KPBK1. No se exportan ciphertext o receipts fuera de su política. El down es child-first, protegido por
 `MOBILE_PUSH_DOWN_PROTECTED`, exige backup verificado y versión de registry/epoch
 compatible antes de eliminar datos.
 

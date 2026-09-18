@@ -1,28 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // Catálogo exacto (docs/ops/legal_and_sales_guide.md §6): variantes y UOM con
 // el stock siempre en la unidad base. Cubre el flujo real del editor y el
 // bug de rol corregido (privileged normalizaba en mayúsculas y bloqueaba al
 // owner real con 403).
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('catálogo: escáner crea producto y el editor asigna padre de variante', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    capabilities: ['catalog.quick_add', 'catalog.uom', 'catalog.variants'],
+  });
   await page.route('**/api/catalog/quick-add', (route) =>
     route.fulfill({
       status: 201,

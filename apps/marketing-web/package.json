@@ -8,11 +8,12 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy:staging": "pnpm build && wrangler pages deploy .svelte-kit/cloudflare --project-name kipuspay-web --branch main",
+    "deploy:staging": "PUBLIC_FEATURE_MARKETING_SITE=1 PUBLIC_POS_ORIGIN=https://kipuspay-app.pages.dev pnpm build && wrangler pages deploy .svelte-kit/cloudflare --project-name kipuspay-web --branch main",
     "lint": "svelte-kit sync && eslint src --max-warnings 0",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "svelte-kit sync && vitest run --coverage",
     "test:unit": "svelte-kit sync && vitest run --coverage",
+    "e2e:onboarding": "playwright test --config=playwright.onboarding.config.ts",
     "bundle": "size-limit --config size-limit.config.js"
   },
   "devDependencies": {

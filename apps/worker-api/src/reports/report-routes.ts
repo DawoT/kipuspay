@@ -3,6 +3,7 @@
  * Lectura desde rollups/D1 agregados — nunca hot path de venta.
  */
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isReportingRollupsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_REPORTING_ROLLUPS === '1' || env?.FEATURE_REPORTING_ROLLUPS === 'true';
@@ -28,6 +29,52 @@ function featureOff(flag: string): HttpResult {
 
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireReporting(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'reporting.catalog' | 'reporting.export',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
+}
+
+async function reportingRollupTenants(
+  env: WorkerEnv,
+  capability:
+    'reporting.daily_rollups' | 'reporting.product_rollups' | 'reporting.shard_aggregator',
+): Promise<ReadonlySet<string>> {
+  if (!env.DB) throw new Error('DB_UNAVAILABLE');
+  const rows = await env.DB.prepare(
+    `SELECT DISTINCT tenant_id FROM tenant_capabilities
+     WHERE capability = ? AND enabled = 1
+     ORDER BY tenant_id LIMIT 5000`,
+  )
+    .bind(capability)
+    .all<{ tenant_id: string }>();
+  const enabled = new Set<string>();
+  for (const row of rows.results ?? []) {
+    try {
+      await new CapabilityResolver(env).require(row.tenant_id, capability);
+      enabled.add(row.tenant_id);
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status !== 404) throw error;
+      // Revoked tenants are excluded; unavailable capability state aborts the
+      // job so it cannot silently report a partial rollup.
+    }
+  }
+  return enabled;
 }
 
 const ARRIVAL_REPORTS = new Set([
@@ -101,7 +148,7 @@ export function toCsv(
 }
 
 export function runReportsCatalogHttp(env: WorkerEnv | undefined): HttpResult {
-  if (!isReportingCatalogEnabled(env)) return featureOff('FEATURE_REPORTING_CATALOG');
+  if (env?.FEATURE_REPORTING_CATALOG === '0') return featureOff('FEATURE_REPORTING_CATALOG');
   return {
     status: 200,
     body: {
@@ -109,6 +156,34 @@ export function runReportsCatalogHttp(env: WorkerEnv | undefined): HttpResult {
       source: 'd1_rollups',
       reports: listCatalogEntries(),
     },
+  };
+}
+
+/** Tenant-authoritative catalog endpoint used by the authenticated HTTP route. */
+export async function runReportsCatalogTenantHttp(
+  env: WorkerEnv | undefined,
+  tenantId: string,
+): Promise<HttpResult> {
+  if (!env?.DB) return dbUnavailable();
+  if (!tenantId.trim())
+    return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'reporting.catalog');
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { error: error.code, code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
+  return {
+    status: 200,
+    body: { live: false, source: 'd1_rollups', reports: listCatalogEntries() },
   };
 }
 
@@ -129,8 +204,9 @@ export async function runReportHttp(
   reportId: string,
   opts: { reportDate?: string; format?: string; branchId?: string; role?: string },
 ): Promise<HttpResult> {
-  if (!isReportingCatalogEnabled(env)) return featureOff('FEATURE_REPORTING_CATALOG');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireReporting(env, tenantId, 'reporting.catalog');
+  if (capabilityError) return capabilityError;
   // Arqueo/cierre Z y reportes arranque siguen abiertos a cashier (nunca 402
   // ni bloqueo del operador; GTM §4.1 "el POS que no se cae").
   const roleGuard = advancedRoleGuard(reportId, opts.role);
@@ -165,7 +241,8 @@ export async function runReportHttp(
 
   const wantCsv = opts.format === 'csv';
   if (wantCsv) {
-    if (!isReportingExportEnabled(env)) return featureOff('FEATURE_REPORTING_EXPORT');
+    const exportCapabilityError = await requireReporting(env, tenantId, 'reporting.export');
+    if (exportCapabilityError) return exportCapabilityError;
     const csv = reportToCsv(reportId, payload);
     return {
       status: 200,
@@ -470,15 +547,56 @@ export async function runDailyRollupsCronHttp(
   env: WorkerEnv | undefined,
   body: { scheduledTimeMs?: number },
 ): Promise<HttpResult> {
-  if (!isReportingRollupsEnabled(env)) return featureOff('FEATURE_REPORTING_ROLLUPS');
   if (!env?.DB) return dbUnavailable();
+  let allowedTenantIds: ReadonlySet<string>;
+  try {
+    allowedTenantIds = await reportingRollupTenants(env, 'reporting.daily_rollups');
+  } catch {
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
+  let allowedShardAggregatorTenantIds: ReadonlySet<string>;
+  try {
+    allowedShardAggregatorTenantIds = await reportingRollupTenants(
+      env,
+      'reporting.shard_aggregator',
+    );
+  } catch {
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
+  // The shard fan-out is itself tenant-gated. A tenant without the
+  // aggregator capability must not be included merely because its daily
+  // rollup capability is enabled.
+  allowedTenantIds = new Set(
+    [...allowedTenantIds].filter((tenantId) => allowedShardAggregatorTenantIds.has(tenantId)),
+  );
   const { runDailyRollupsCron, parseActiveShards } = await import('@kipuspay/adapters-d1');
+  let allowedProductRollupTenantIds: ReadonlySet<string>;
+  try {
+    allowedProductRollupTenantIds = await reportingRollupTenants(env, 'reporting.product_rollups');
+  } catch {
+    return {
+      status: 503,
+      body: { error: 'Capabilities unavailable', code: 'CAPABILITIES_UNAVAILABLE' },
+    };
+  }
   const shardKeys = parseActiveShards(
     typeof env.TENANT_KV?.get === 'function' ? await env.TENANT_KV.get('active_shards') : '["DB"]',
   );
   // Local/dev: single binding DB as first shard.
   const shards = [{ shardKey: shardKeys[0] ?? 'DB', db: env.DB }];
-  const result = await runDailyRollupsCron(shards, body.scheduledTimeMs ?? Date.now());
+  const result = await runDailyRollupsCron(
+    shards,
+    body.scheduledTimeMs ?? Date.now(),
+    undefined,
+    allowedTenantIds,
+    allowedProductRollupTenantIds,
+  );
   return {
     status: 200,
     body: {

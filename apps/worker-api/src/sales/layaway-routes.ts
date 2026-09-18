@@ -10,18 +10,14 @@ import {
 } from '@kipuspay/adapters-d1';
 import { markLayawayOverdue } from '@kipuspay/domain-sales';
 import type { WorkerEnv } from '../auth/control-plane.js';
-import {
-  isLedgerArApEnabled,
-  isLedgerChartOfAccountsEnabled,
-  isSalesLayawayEnabled,
-} from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 import {
   parseQuantityMicrounits,
   QUANTITY_MICROUNITS_BAD_REQUEST,
 } from '../http/quantity-input.js';
 import type { MicrounitsParser } from '../http/microunits-input.js';
 
-export { isLedgerChartOfAccountsEnabled, isSalesLayawayEnabled } from '../auth/features.js';
+export { isSalesLayawayEnabled } from '../auth/features.js';
 
 export interface HttpResult {
   status: number;
@@ -41,12 +37,29 @@ const defaultQuantityParser: MicrounitsParser = (value) => {
   };
 };
 
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'FEATURE_SALES_LAYAWAY off', code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireLayaway(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'sales.layaway');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 const CLIENT_422 = new Set([
@@ -76,12 +89,24 @@ function mapError(err: unknown): HttpResult {
   return { status, body: { error: code, code } };
 }
 
-function chartOpts(env: WorkerEnv | undefined) {
+async function chartOpts(env: WorkerEnv, tenantId: string) {
+  const enabled = async (
+    capability:
+      'catalog.uom' | 'pricing.lists' | 'ledger.chart_of_accounts' | 'ledger.accounts_receivable',
+  ): Promise<boolean> => {
+    try {
+      await new CapabilityResolver(env).require(tenantId, capability);
+      return true;
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 404) return false;
+      throw error;
+    }
+  };
   return {
-    chartOfAccountsEnabled: isLedgerChartOfAccountsEnabled(env),
-    catalogUomEnabled: env?.FEATURE_CATALOG_UOM === '1' || env?.FEATURE_CATALOG_UOM === 'true',
-    pricingListsEnabled:
-      env?.FEATURE_PRICING_LISTS === '1' || env?.FEATURE_PRICING_LISTS === 'true',
+    chartOfAccountsEnabled: await enabled('ledger.chart_of_accounts'),
+    catalogUomEnabled: await enabled('catalog.uom'),
+    pricingListsEnabled: await enabled('pricing.lists'),
+    ledgerArApEnabled: await enabled('ledger.accounts_receivable'),
   };
 }
 
@@ -92,7 +117,6 @@ export async function runCreateLayawayHttp(
   body: Record<string, unknown>,
   parseMicrounits: MicrounitsParser = defaultQuantityParser,
 ): Promise<HttpResult> {
-  if (!isSalesLayawayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -134,6 +158,8 @@ export async function runCreateLayawayHttp(
       body: { error: 'branchId, session and items required', code: 'BAD_REQUEST' },
     };
   }
+  const capabilityError = await requireLayaway(env, tenantId);
+  if (capabilityError) return capabilityError;
   try {
     const result = await processLayawayCreateAtomic(
       env.DB,
@@ -153,10 +179,13 @@ export async function runCreateLayawayHttp(
               }
             : null,
       },
-      chartOpts(env),
+      await chartOpts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
+    if (err instanceof CapabilityError) {
+      return { status: 503, body: { error: err.code, code: err.code } };
+    }
     return mapError(err);
   }
 }
@@ -167,7 +196,6 @@ export async function runDepositLayawayHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesLayawayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -181,6 +209,8 @@ export async function runDepositLayawayHttp(
       body: { error: 'depositId, session and amount required', code: 'BAD_REQUEST' },
     };
   }
+  const capabilityError = await requireLayaway(env, tenantId);
+  if (capabilityError) return capabilityError;
   try {
     const result = await processLayawayDepositAtomic(
       env.DB,
@@ -192,7 +222,7 @@ export async function runDepositLayawayHttp(
         paymentMethod: typeof body.paymentMethod === 'string' ? body.paymentMethod : 'cash',
         amountCents,
       },
-      chartOpts(env),
+      await chartOpts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
@@ -206,7 +236,6 @@ export async function runConvertLayawayHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesLayawayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -224,7 +253,10 @@ export async function runConvertLayawayHttp(
       body: { error: 'depositId, session and series required', code: 'BAD_REQUEST' },
     };
   }
+  const capabilityError = await requireLayaway(env, tenantId);
+  if (capabilityError) return capabilityError;
   try {
+    const capabilityOptions = await chartOpts(env, tenantId);
     const result = await processLayawayConvertAtomic(
       env.DB,
       tenantId,
@@ -237,12 +269,15 @@ export async function runConvertLayawayHttp(
         remainingAsCredit: body.remainingAsCredit === true,
         creditOverrideTokenHash:
           typeof body.creditOverrideTokenHash === 'string' ? body.creditOverrideTokenHash : null,
-        saleOpts: { ledgerArApEnabled: isLedgerArApEnabled(env) },
+        saleOpts: { ledgerArApEnabled: capabilityOptions.ledgerArApEnabled },
       },
-      chartOpts(env),
+      capabilityOptions,
     );
     return { status: 200, body: result };
   } catch (err) {
+    if (err instanceof CapabilityError) {
+      return { status: 503, body: { error: err.code, code: err.code } };
+    }
     return mapError(err);
   }
 }
@@ -253,7 +288,6 @@ export async function runCancelLayawayHttp(
   userId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesLayawayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId)
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -262,6 +296,8 @@ export async function runCancelLayawayHttp(
   if (!depositId || !reason.trim()) {
     return { status: 400, body: { error: 'depositId and reason required', code: 'BAD_REQUEST' } };
   }
+  const capabilityError = await requireLayaway(env, tenantId);
+  if (capabilityError) return capabilityError;
   try {
     const result = await processLayawayCancelAtomic(
       env.DB,
@@ -273,7 +309,7 @@ export async function runCancelLayawayHttp(
           typeof body.cashRegisterSessionId === 'string' ? body.cashRegisterSessionId : null,
         reason,
       },
-      chartOpts(env),
+      await chartOpts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
@@ -285,9 +321,10 @@ export async function runListOverdueLayawaysHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isSalesLayawayEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  const capabilityError = await requireLayaway(env, tenantId);
+  if (capabilityError) return capabilityError;
   const nowIso = new Date().toISOString();
   const rows = await env.DB.prepare(
     `SELECT d.id, d.branch_id, d.status, d.due_date, d.snapshot_total_cents,

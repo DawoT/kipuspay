@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 async function expectNoBlockingA11y(page: import('@playwright/test').Page, label: string) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -10,6 +11,11 @@ async function expectNoBlockingA11y(page: import('@playwright/test').Page, label
 }
 
 test('modal venta rápida: axe sin violaciones critical/serious', async ({ page }) => {
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-modal-a11y',
+    role: 'cashier',
+    capabilities: ['catalog.quick_add', 'onboarding.tour', 'pos.checkout', 'sales.quick_line'],
+  });
   await page.goto('/');
   if (await page.getByTestId('tour').isVisible()) {
     await page.getByTestId('tour-next').click();
@@ -21,6 +27,11 @@ test('modal venta rápida: axe sin violaciones critical/serious', async ({ page 
 });
 
 test('modal venta rápida: foco en diálogo, trap de Tab y cierre con Escape', async ({ page }) => {
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-modal-a11y',
+    role: 'cashier',
+    capabilities: ['catalog.quick_add', 'onboarding.tour', 'pos.checkout', 'sales.quick_line'],
+  });
   await page.goto('/');
   if (await page.getByTestId('tour').isVisible()) {
     await page.getByTestId('tour-next').click();

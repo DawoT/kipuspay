@@ -2,15 +2,10 @@
  * Feature flags cliente (PUBLIC_*) — Ola 5: kill-switch + deprecación progresiva.
  * Default off. SvelteKit: $env/dynamic/public. Ola 2: migración progresiva a capabilitiesStore.
  *
- * Kill-switch: FEATURE_TENANT_CAPABILITIES_DYNAMIC (y PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC)
- * - Default 0 en staging y local (ver apps/pos-web/wrangler.jsonc y apps/worker-api/wrangler.jsonc: vars + staging.vars).
- * - Canario a 1 en prod tras 1 release sin incidentes (ADR-ARCH-003 § Activación Ola 5).
- * - Rollback instantáneo sin deploy: setear var a "0" en Cloudflare dashboard / wrangler vars y
- *   el branch POS vuelve a gating por PUBLIC_FEATURE_* flags (fallback), sin re-deploy de código.
- *   Server: GET /api/auth/session deja de poblar capabilities y responde []/0; UI usa flags.
- * - Deprecación: todos los PUBLIC_FEATURE_* quedan @deprecated desde Ola 2-5, se mantienen 1 release
- *   tras canario 1 para rollback seguro; borrar solo tras ledger 0531+ y V-24 verificado.
- * Zero-dep: solo Svelte store + Web Platform APIs; bundle V-24 <310kB (actual 309.25).
+ * Las capabilities del tenant son la única fuente de habilitación comercial del POS.
+ * Los PUBLIC_FEATURE_* restantes solo cubren funciones de despliegue no comerciales o
+ * kill switches; nunca pueden convertir una capability ausente en habilitada.
+ * Zero-dep: solo Svelte store + Web Platform APIs; bundle V-24 <320kB (ADR-0040).
  */
 import { env } from '$env/dynamic/public';
 import { has as hasCap } from './tenant/capabilitiesStore.js';
@@ -26,21 +21,19 @@ function pub(name: string): string | undefined {
 /** @deprecated Ola 5 — PUBLIC_FEATURE_* se deprecará 1 release después de canario dynamic=1 (no borrar aún para rollback). */
 const PF = 'PUBLIC_FEATURE_';
 
-function isDynamic(): boolean {
-  const v =
-    (env as Record<string, string | undefined>)['PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC'] ??
-    (env as Record<string, string | undefined>)['FEATURE_TENANT_CAPABILITIES_DYNAMIC'];
-  return v === '1' || v === 'true';
-}
-
-function capOrFlag(cap: string, flagSuffix: string): boolean {
-  if (isDynamic()) return hasCap(cap);
-  return flagOn(pub(PF + flagSuffix));
+function capOrFlag(cap: string, _flagSuffix: string): boolean {
+  void _flagSuffix;
+  return hasCap(cap);
 }
 
 /** @deprecated Ola 2 — delega a capabilitiesStore.has('pos.checkout') si dynamic 1, sino PUBLIC_FEATURE_POS_CHECKOUT */
 export function isPosCheckoutEnabled(): boolean {
   return capOrFlag('pos.checkout', 'POS_CHECKOUT');
+}
+
+/** Marca QR en comprobantes: capability tenant pos.brand_qr. */
+export function isBrandQrEnabled(): boolean {
+  return hasCap('pos.brand_qr');
 }
 
 /** @deprecated Ola 2 — delega a capabilitiesStore */
@@ -65,8 +58,7 @@ export function isOwnerPushEnabled(): boolean {
 
 /** @deprecated Ola 2 — delega a capabilitiesStore */
 export function isLedgerArApEnabled(): boolean {
-  if (isDynamic()) return hasCap('ledger.accounts_receivable') || hasCap('ledger.accounts_payable');
-  return flagOn(pub(PF + 'LEDGER_AR_AP'));
+  return hasCap('ledger.accounts_receivable') || hasCap('ledger.accounts_payable');
 }
 
 /** @deprecated Ola 2 — delega a capabilitiesStore */
@@ -79,9 +71,9 @@ export function isPurchasingOrdersEnabled(): boolean {
   return capOrFlag('purchasing.orders', 'PURCHASING_ORDERS');
 }
 
-/** @deprecated Ola 2 — fallback a flag (capability fiscal no canonica) */
+/** @deprecated Ola 2 — capability fiscal tenant-authoritative */
 export function isFiscalRcEnabled(): boolean {
-  return flagOn(pub(PF + 'FISCAL_RC'));
+  return hasCap('fiscal.rc');
 }
 
 /** @deprecated Ola 2 — delega a capabilitiesStore */
@@ -101,8 +93,7 @@ export function isCashBlindZEnabled(): boolean {
 
 /** Sprint 18 — FEFO / BOM / conteo / merma / alertas. @deprecated Ola 2 */
 export function isInventoryOpsEnabled(): boolean {
-  if (isDynamic()) return hasCap('inventory.batches') || hasCap('inventory.bom');
-  return flagOn(pub(PF + 'INVENTORY_BATCHES')) || flagOn(pub(PF + 'INVENTORY_BOM'));
+  return hasCap('inventory.batches') || hasCap('inventory.bom');
 }
 
 /** Sprint 40 — balanza y venta por peso variable. @deprecated Ola 2 */
@@ -113,6 +104,11 @@ export function isInventoryScaleEnabled(): boolean {
 /** Sprint 19 — comandas / KDS / split. @deprecated Ola 2 */
 export function isOrdersKdsEnabled(): boolean {
   return capOrFlag('orders.kds', 'ORDERS_KDS');
+}
+
+/** División de cuenta desde orden: capability tenant orders.split_bill. */
+export function isOrdersSplitBillEnabled(): boolean {
+  return hasCap('orders.split_bill');
 }
 
 /** Sprint 20 — transferencias entre sucursales. @deprecated Ola 2 */
@@ -280,6 +276,11 @@ export function isLpdpEnabled(): boolean {
   return capOrFlag('compliance.lpdp', 'LPDP');
 }
 
+/** Gate de publicación del portal titular; la autorización final sigue en Worker/capability. */
+export function isLpdpSelfServePublicEnabled(): boolean {
+  return flagOn(pub(`${PF}LPDP`));
+}
+
 /** Sprint 49 — inteligencia del negocio (asistente + briefing); siempre default-off. @deprecated Ola 2 */
 export function isAgenticInsightsEnabled(): boolean {
   return capOrFlag('analytics.agentic_insights', 'ANALYTICS_AGENTIC_INSIGHTS');
@@ -307,17 +308,17 @@ export function isOnboardingTourEnabled(): boolean {
 
 /** Backlog v10 P1a — Nota de Débito; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isDebitNoteEnabled(): boolean {
-  return flagOn(pub(PF + 'SALES_DEBIT_NOTE'));
+  return hasCap('fiscal.debit_note');
 }
 
-/** Backlog v10 P2 — propinas en el cobro; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
+/** Backlog v10 P2 — propinas en el cobro: capability tenant cash.policy. */
 export function isSaleTipEnabled(): boolean {
-  return flagOn(pub(PF + 'SALE_TIP'));
+  return hasCap('cash.policy');
 }
 
-/** Backlog v10 P2 — cajón de efectivo; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
+/** Backlog v10 P2 — cajón de efectivo: capability tenant cash.policy. */
 export function isCashDrawerEnabled(): boolean {
-  return flagOn(pub(PF + 'CASH_DRAWER'));
+  return hasCap('cash.policy');
 }
 
 /** GTM §6.5 — feedback sonoro/háptico al completar venta; default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
@@ -327,12 +328,12 @@ export function isSaleFeedbackEnabled(): boolean {
 
 /** Backlog v10 P1c — Percepciones/Retenciones; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isWithholdingsEnabled(): boolean {
-  return flagOn(pub(PF + 'FISCAL_WITHHOLDINGS'));
+  return hasCap('fiscal.withholdings');
 }
 
 /** Backlog v10 P1b — Guía de Remisión Electrónica; siempre default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isGreEnabled(): boolean {
-  return flagOn(pub(PF + 'GRE'));
+  return hasCap('fiscal.gre');
 }
 
 /** Sprint 53 — Troubleshooter de hardware (ADR-0033); siempre default-off. @deprecated Ola 2 */
@@ -350,6 +351,11 @@ export function isCatalogSellableEnabled(): boolean {
   return capOrFlag('catalog.sellable', 'CATALOG_SELLABLE');
 }
 
+/** Línea rápida sin catálogo: capability tenant sales.quick_line. */
+export function isQuickLineEnabled(): boolean {
+  return hasCap('sales.quick_line');
+}
+
 /** Sprint 42 — respaldos D1 y DR; siempre default-off. @deprecated Ola 2 */
 export function isDataBackupEnabled(): boolean {
   return capOrFlag('data.backup', 'DATA_BACKUP');
@@ -357,5 +363,5 @@ export function isDataBackupEnabled(): boolean {
 
 /** Grifos — Surtidores e isla de despacho (precio del día + detracción diésel); default-off. @deprecated Ola 5 — PUBLIC flag, borrar tras canario 1. */
 export function isFuelStationEnabled(): boolean {
-  return flagOn(pub(PF + 'FUEL_STATION'));
+  return hasCap('fuel.dispatch');
 }

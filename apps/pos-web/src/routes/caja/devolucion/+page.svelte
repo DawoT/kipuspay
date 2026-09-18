@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isLedgerStoreCreditEnabled, isSalesReturnsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import { submitSalesReturn } from '$lib/sales/returns-client';
   import {
     defaultTenantSession,
@@ -17,8 +17,8 @@
   import Money from '$lib/ui/Money.svelte';
 import { resolveApiAuth, resolveApiBase } from '$lib/auth/api-client';
 
-  const returnsOn = isSalesReturnsEnabled();
-  const storeCreditOn = isLedgerStoreCreditEnabled();
+  const returnsOn = $derived($tenantCapabilities.has('sales.returns'));
+  const storeCreditOn = $derived($tenantCapabilities.has('ledger.store_credit'));
 
   let session = $state<PosTenantSession>(defaultTenantSession());
   let originSaleId = $state('');

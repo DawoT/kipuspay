@@ -387,10 +387,11 @@ export async function processCommissionPayoutAtomic(
 ): Promise<{ payoutId: string; grossCents: number; status: 'OPEN' }> {
   const open = await db
     .prepare(
-      `SELECT COALESCE(SUM(amount_cents), 0) AS cents
-       FROM commission_accruals
-       WHERE tenant_id = ? AND seller_id = ? AND reversed_at IS NULL
-         AND date(created_at) >= ? AND date(created_at) <= ?`,
+      `SELECT COALESCE(SUM(a.amount_cents), 0) AS cents
+       FROM commission_accruals AS a
+       JOIN sales AS s ON s.tenant_id = a.tenant_id AND s.id = a.sale_id
+       WHERE a.tenant_id = ? AND a.seller_id = ? AND a.reversed_at IS NULL
+         AND date(s.issued_at_lima) >= ? AND date(s.issued_at_lima) <= ?`,
     )
     .bind(
       tenantId,

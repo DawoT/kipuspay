@@ -1,26 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s32 (guía §6): diario contable SOLO LECTURA — los asientos nacen con la
 // venta, el cobro, el apartado y el arqueo; jamás se mutan desde la UI.
 
-const SESSION = JSON.stringify({
-  userId: 'admin-e2e',
-  role: 'admin',
-  branchId: 'branch-e2e',
-});
-
 test('diario: solo lectura con prueba de inmutabilidad', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-journal',
+    role: 'admin',
+    capabilities: ['ledger.chart_of_accounts'],
+  });
   await page.route('**/api/ledger/journal**', (route) => {
     if (route.request().method() === 'POST') {
       return route.fulfill({

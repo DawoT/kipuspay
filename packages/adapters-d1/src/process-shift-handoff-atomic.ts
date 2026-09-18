@@ -75,6 +75,24 @@ async function loadSession(
     }>();
 }
 
+async function operatorAllowedForBranch(
+  db: D1DatabaseLike,
+  tenantId: string,
+  userId: string,
+  branchId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT id FROM users
+       WHERE tenant_id = ? AND id = ? AND branch_id = ?
+         AND role IN ('cashier', 'supervisor')
+         AND is_active = 1 AND deleted_at IS NULL LIMIT 1`,
+    )
+    .bind(tenantId, userId, branchId)
+    .first<{ id: string }>();
+  return row !== null;
+}
+
 export type IssueShiftPinResult =
   | { ok: true; shiftId: string; pin: string; pinHash: string; expiresAtIso: string }
   | { ok: false; status: number; body: { error: string; code: string } };
@@ -86,7 +104,13 @@ export type IssueShiftPinResult =
  */
 export async function issueShiftPinAtomic(
   db: D1DatabaseLike,
-  input: { tenantId: string; userId: string; sessionId: string; nowIso?: string },
+  input: {
+    tenantId: string;
+    userId: string;
+    sessionId: string;
+    branchId?: string | undefined;
+    nowIso?: string;
+  },
 ): Promise<IssueShiftPinResult> {
   const nowIso = input.nowIso ?? new Date().toISOString();
   const session = await loadSession(db, input.tenantId, input.sessionId);
@@ -94,6 +118,27 @@ export async function issueShiftPinAtomic(
     return { ok: false, status: 404, body: { error: 'Session not found', code: 'NOT_FOUND' } };
   if (session.status !== 'OPEN') {
     return { ok: false, status: 422, body: { error: 'Session not open', code: 'SESSION_CLOSED' } };
+  }
+  if (input.branchId !== undefined && input.branchId !== session.branch_id) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Session branch mismatch', code: 'SHIFT_BRANCH_MISMATCH' },
+    };
+  }
+  if (
+    !(await operatorAllowedForBranch(
+      db,
+      input.tenantId,
+      input.userId,
+      input.branchId ?? session.branch_id,
+    ))
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Operator not allowed for this branch', code: 'SHIFT_ACTOR_NOT_ALLOWED' },
+    };
   }
 
   const activeShift = await db
@@ -201,6 +246,7 @@ async function loadInterimExpectedCashCents(
  * hash + TTL): dos usos concurrentes no pueden consumir el mismo PIN. La
  * diferencia del conteo intermedio se audita pero no bloquea.
  */
+// eslint-disable-next-line complexity -- transferencia atómica: sesión, operadores, PIN, política y guard CAS
 export async function processShiftTransferAtomic(
   db: D1DatabaseLike,
   input: {
@@ -209,7 +255,7 @@ export async function processShiftTransferAtomic(
     outgoingUserId: string;
     incomingUserId: string;
     pin: string;
-    branchId?: string;
+    branchId?: string | undefined;
     interimCountCents?: number | null;
     nowIso?: string;
   },
@@ -221,6 +267,24 @@ export async function processShiftTransferAtomic(
     return { ok: false, status: 404, body: { error: 'Session not found', code: 'NOT_FOUND' } };
   if (session.status !== 'OPEN') {
     return { ok: false, status: 422, body: { error: 'Session not open', code: 'SESSION_CLOSED' } };
+  }
+  if (input.branchId !== undefined && input.branchId !== session.branch_id) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Session branch mismatch', code: 'SHIFT_BRANCH_MISMATCH' },
+    };
+  }
+  const branchId = input.branchId ?? session.branch_id;
+  if (
+    !(await operatorAllowedForBranch(db, input.tenantId, input.incomingUserId, branchId)) ||
+    !(await operatorAllowedForBranch(db, input.tenantId, input.outgoingUserId, branchId))
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: 'Operator not allowed for this branch', code: 'SHIFT_ACTOR_NOT_ALLOWED' },
+    };
   }
 
   const outgoingShift = await db
@@ -285,7 +349,7 @@ export async function processShiftTransferAtomic(
   const built = buildShiftTransfer({
     sessionId: input.sessionId,
     tenantId: input.tenantId,
-    branchId: input.branchId ?? session.branch_id,
+    branchId,
     outgoingUserId: input.outgoingUserId,
     incomingUserId: input.incomingUserId,
     pin: input.pin,
@@ -632,13 +696,52 @@ export async function resolveSellerIdentifier(
       }>();
     let seller: (typeof pinHolders.results)[number] | null = null;
     for (const candidate of pinHolders.results ?? []) {
-      const verified = await verifyPinWithStoredHash(raw, candidate.pin_hash);
+      let verified: Awaited<ReturnType<typeof verifyPinWithStoredHash>>;
+      try {
+        verified = await verifyPinWithStoredHash(raw, candidate.pin_hash);
+      } catch {
+        return {
+          ok: false,
+          status: 503,
+          body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+        };
+      }
       if (verified.ok) {
         if (verified.needsRehash) {
-          await db
-            .prepare('UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ?')
-            .bind(await hashPinArgon2id(raw), tenantId, candidate.id)
-            .run();
+          let upgradedHash: string;
+          try {
+            upgradedHash = await hashPinArgon2id(raw);
+          } catch {
+            return {
+              ok: false,
+              status: 503,
+              body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+            };
+          }
+          let rehashChanges: number;
+          try {
+            const rehash = await db
+              .prepare(
+                'UPDATE users SET pin_hash = ? WHERE tenant_id = ? AND id = ? AND pin_hash = ?',
+              )
+              .bind(upgradedHash, tenantId, candidate.id, candidate.pin_hash)
+              .run();
+            const changes = rehash.meta?.changes;
+            rehashChanges = typeof changes === 'number' ? changes : 0;
+          } catch {
+            return {
+              ok: false,
+              status: 503,
+              body: { error: 'PIN verification unavailable', code: 'PIN_VERIFICATION_UNAVAILABLE' },
+            };
+          }
+          if (rehashChanges !== 1) {
+            return {
+              ok: false,
+              status: 404,
+              body: { error: 'Unknown seller PIN', code: 'UNKNOWN_IDENTIFIER' },
+            };
+          }
         }
         seller = candidate;
         break;

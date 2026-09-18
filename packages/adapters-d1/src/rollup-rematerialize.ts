@@ -18,6 +18,10 @@ export interface RematerializeResult {
   readonly productRowCount: number;
 }
 
+export interface RematerializeOptions {
+  readonly includeProductRollups?: boolean;
+}
+
 function limaDateFromIssuedAtLima(issuedAtLima: string): string {
   return issuedAtLima.slice(0, 10);
 }
@@ -125,6 +129,7 @@ export async function rematerializeDailyRollup(
   branchId: string,
   reportDate: string,
   kv?: InsightsKv,
+  options: RematerializeOptions = {},
 ): Promise<RematerializeResult> {
   const agg = await db
     .prepare(
@@ -188,7 +193,10 @@ export async function rematerializeDailyRollup(
       ),
   ]);
 
-  const productRowCount = await rematerializeProductRollups(db, tenantId, branchId, reportDate);
+  const productRowCount =
+    options.includeProductRollups === false
+      ? 0
+      : await rematerializeProductRollups(db, tenantId, branchId, reportDate);
 
   if (kv) {
     await kv.delete(`insights:${tenantId}:${reportDate}`);

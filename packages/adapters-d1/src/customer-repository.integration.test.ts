@@ -202,6 +202,118 @@ describe('customer-repository LPDP (Sprint 47)', () => {
     });
   });
 
+  it('erase revierte perfil, snapshots y consentimientos si falla el batch de anonimización', async () => {
+    const t = uniqueId('t');
+    const c = uniqueId('c');
+    const saleId = uniqueId('s');
+    await seedCustomer(t, c, '44445555', 'Falla Batch', 'batch@example.com');
+    await seedSale(t, saleId, c, 'Falla Batch', '44445555');
+    await writeConsent(env.DB, t, c, 'marketing', true, NOW);
+    await env.DB.prepare(
+      `CREATE TRIGGER fail_lpdp_erase_audit BEFORE INSERT ON audit_events
+       WHEN NEW.tenant_id = '${t}' AND NEW.action = 'LPDP_ERASE'
+       BEGIN SELECT RAISE(ABORT, 'TEST_LPDP_ERASE_AUDIT_FAILURE'); END`,
+    ).run();
+
+    try {
+      await expect(
+        eraseCustomer(env.DB, {
+          tenantId: t,
+          branchId: uniqueId('b'),
+          actorUserId: uniqueId('u'),
+          customerId: c,
+          nowIso: NOW,
+        }),
+      ).rejects.toThrow('TEST_LPDP_ERASE_AUDIT_FAILURE');
+    } finally {
+      await env.DB.prepare('DROP TRIGGER fail_lpdp_erase_audit').run();
+    }
+
+    const customer = await getCustomer(env.DB, t, c);
+    expect(customer).toMatchObject({
+      pii_erased: 0,
+      name: 'Falla Batch',
+      email: 'batch@example.com',
+    });
+    const sale = await env.DB.prepare(
+      `SELECT client_name, client_document_number FROM sales WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(t, saleId)
+      .first<{ client_name: string; client_document_number: string }>();
+    expect(sale).toEqual({ client_name: 'Falla Batch', client_document_number: '44445555' });
+    expect((await listConsents(env.DB, t, c))[0]).toMatchObject({
+      granted: true,
+      revokedAtIso: null,
+    });
+    const audit = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM audit_events WHERE tenant_id = ? AND action = 'LPDP_ERASE' AND entity_id = ?`,
+    )
+      .bind(t, c)
+      .first<{ n: number }>();
+    expect(audit?.n).toBe(0);
+  });
+
+  it('erase revierte todo si el CAS final del perfil no modifica una fila', async () => {
+    const t = uniqueId('t');
+    const c = uniqueId('c');
+    const saleId = uniqueId('s');
+    await seedCustomer(t, c, '44446666', 'CAS Ignorado', 'cas@example.com');
+    await seedSale(t, saleId, c, 'CAS Ignorado', '44446666');
+    await writeConsent(env.DB, t, c, 'marketing', true, NOW);
+    const initialHead = await env.DB.prepare(
+      `SELECT last_hash FROM audit_chain_heads WHERE tenant_id = ?`,
+    )
+      .bind(t)
+      .first<{ last_hash: string }>();
+    await env.DB.prepare(
+      `CREATE TRIGGER ignore_lpdp_profile_update BEFORE UPDATE ON customers
+       WHEN OLD.tenant_id = '${t}' AND OLD.id = '${c}'
+       BEGIN SELECT RAISE(IGNORE); END`,
+    ).run();
+
+    try {
+      await expect(
+        eraseCustomer(env.DB, {
+          tenantId: t,
+          branchId: uniqueId('b'),
+          actorUserId: uniqueId('u'),
+          customerId: c,
+          nowIso: NOW,
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await env.DB.prepare('DROP TRIGGER ignore_lpdp_profile_update').run();
+    }
+
+    expect(await getCustomer(env.DB, t, c)).toMatchObject({
+      pii_erased: 0,
+      name: 'CAS Ignorado',
+      email: 'cas@example.com',
+    });
+    const sale = await env.DB.prepare(
+      `SELECT client_name, client_document_number FROM sales WHERE tenant_id = ? AND id = ?`,
+    )
+      .bind(t, saleId)
+      .first<{ client_name: string; client_document_number: string }>();
+    expect(sale).toEqual({ client_name: 'CAS Ignorado', client_document_number: '44446666' });
+    expect((await listConsents(env.DB, t, c))[0]).toMatchObject({
+      granted: true,
+      revokedAtIso: null,
+    });
+    const audit = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM audit_events WHERE tenant_id = ? AND action = 'LPDP_ERASE' AND entity_id = ?`,
+    )
+      .bind(t, c)
+      .first<{ n: number }>();
+    expect(audit?.n).toBe(0);
+    const finalHead = await env.DB.prepare(
+      `SELECT last_hash FROM audit_chain_heads WHERE tenant_id = ?`,
+    )
+      .bind(t)
+      .first<{ last_hash: string }>();
+    expect(finalHead).toEqual(initialHead);
+  });
+
   it('erase es idempotente fail-closed: ALREADY_ERASED en fila ya anonimizada', async () => {
     const t = uniqueId('t');
     const c = uniqueId('c');

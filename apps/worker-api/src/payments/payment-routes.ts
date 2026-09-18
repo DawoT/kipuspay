@@ -20,15 +20,14 @@ import {
 import { createPaymentAcquirer } from '@kipuspay/adapters-payments-pe';
 import { parseMoneyToCents } from '../http/money-input.js';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isQrWalletsEnabled(env: WorkerEnv | undefined): boolean {
-  return env?.FEATURE_PAYMENTS_QR_WALLETS === '1' || env?.FEATURE_PAYMENTS_QR_WALLETS === 'true';
+  return env?.FEATURE_PAYMENTS_QR_WALLETS !== '0';
 }
 
 export function isCardAcquirerEnabled(env: WorkerEnv | undefined): boolean {
-  return (
-    env?.FEATURE_PAYMENTS_CARD_ACQUIRER === '1' || env?.FEATURE_PAYMENTS_CARD_ACQUIRER === 'true'
-  );
+  return env?.FEATURE_PAYMENTS_CARD_ACQUIRER !== '0';
 }
 
 export interface HttpResult {
@@ -78,6 +77,50 @@ function flagForMethod(code: PaymentMethodCode, env: WorkerEnv): HttpResult | nu
     return featureOff('FEATURE_PAYMENTS_CARD_ACQUIRER');
   }
   return null;
+}
+
+async function requirePaymentCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  code: PaymentMethodCode,
+): Promise<HttpResult | null> {
+  const capability = isWalletMethod(code) ? 'payments.qr_wallets' : 'payments.card_acquirer';
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
+}
+
+async function requireAnyPaymentCapability(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<HttpResult | null> {
+  let unavailable = false;
+  for (const capability of ['payments.qr_wallets', 'payments.card_acquirer'] as const) {
+    try {
+      await new CapabilityResolver(env).require(tenantId, capability);
+      return null;
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 503) unavailable = true;
+    }
+  }
+  return unavailable
+    ? { status: 503, body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' } }
+    : { status: 404, body: { error: 'Payment capability off', code: 'FEATURE_OFF' } };
 }
 
 function secretFor(env: WorkerEnv, acquirer: PaymentAcquirerCode): string | null {
@@ -155,6 +198,8 @@ export async function runPaymentChargeHttp(
   }
   const flagErr = flagForMethod(pm.code, env);
   if (flagErr) return flagErr;
+  const capabilityErr = await requirePaymentCapability(env, tenantId, pm.code);
+  if (capabilityErr) return capabilityErr;
 
   const acquirer = methodCodeToAcquirer(pm.code);
   if (!acquirer) {
@@ -253,10 +298,11 @@ export async function runPaymentCaptureGetHttp(
   tenantId: string,
   captureId: string,
 ): Promise<HttpResult> {
-  if (!isQrWalletsEnabled(env) && !isCardAcquirerEnabled(env)) {
-    return featureOff('FEATURE_PAYMENTS_*');
-  }
   if (!env?.DB) return dbUnavailable();
+  if (!tenantId.trim())
+    return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  const capabilityError = await requireAnyPaymentCapability(env, tenantId);
+  if (capabilityError) return capabilityError;
   const row = await env.DB.prepare(
     `SELECT id, status, acquirer, acquirer_ref, amount_cents, sale_id
      FROM payment_captures WHERE id = ? AND tenant_id = ? LIMIT 1`,
@@ -335,6 +381,27 @@ export async function runPaymentWebhookHttp(
         body: { ok: false, code: 'CAPTURE_NOT_MATERIALIZED', retryable: true },
       };
     }
+    const webhookCapability =
+      acquirer === 'yape' || acquirer === 'plin' || acquirer === 'mercadopago'
+        ? 'payments.qr_wallets'
+        : 'payments.card_acquirer';
+    try {
+      await new CapabilityResolver(env).require(row.tenant_id, webhookCapability);
+    } catch (error) {
+      if (error instanceof CapabilityError) {
+        return {
+          status: error.status === 404 ? 404 : 503,
+          body: {
+            error: error.message,
+            code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+          },
+        };
+      }
+      return {
+        status: 503,
+        body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
     if (row.status !== 'PENDING') {
       // Ya materializado en estado terminal: dedup-ack para frenar reintentos.
       try {
@@ -379,10 +446,9 @@ export async function runOwnerUncapturedPaymentsHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!isQrWalletsEnabled(env) && !isCardAcquirerEnabled(env)) {
-    return featureOff('FEATURE_PAYMENTS_*');
-  }
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireAnyPaymentCapability(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const rows = await env.DB.prepare(
     `SELECT id, sale_id, acquirer, status, amount_cents, acquirer_ref, created_at

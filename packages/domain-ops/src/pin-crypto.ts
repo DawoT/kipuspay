@@ -1,8 +1,8 @@
 /**
  * PIN de caja con argon2id (SEC-03: m=64MiB, t=3, p=1) + compatibilidad con
  * los hashes SHA-256 hex legados (emitidos por TEAM_INVITE antes del Sprint
- * G2). El runtime es argon2-browser (MIT, Antelle) con el wasm embebido en
- * base64, vendorizado en ./vendor/ (parcheado para la ruta "embedded").
+ * G2). El runtime es argon2-browser (MIT, Antelle), vendorizado en ./vendor/;
+ * Workers usa el mismo WASM como módulo estático para evitar compilación dinámica.
  */
 import type { Argon2Api } from './vendor/argon2-bundled.js';
 
@@ -13,13 +13,6 @@ export const ARGON2_HASH_LEN = 32;
 
 const PHC_PREFIX = '$argon2id$';
 
-export interface PinVerification {
-  readonly ok: boolean;
-  readonly needsRehash: boolean;
-}
-
-/** Detecta el runtime Cloudflare Workers (donde el wasm del vendor argon2
- * puede estar bloqueado por CSP del embedder). */
 function isWorkerdRuntime(): boolean {
   try {
     const g = globalThis as unknown as { navigator?: { userAgent?: string } };
@@ -29,6 +22,11 @@ function isWorkerdRuntime(): boolean {
   } catch {
     return false;
   }
+}
+
+export interface PinVerification {
+  readonly ok: boolean;
+  readonly needsRehash: boolean;
 }
 
 function ensureWorkerGlobal(): void {
@@ -43,14 +41,16 @@ let argon2Promise: Promise<Argon2Api> | null = null;
 function loadArgon2(): Promise<Argon2Api> {
   ensureWorkerGlobal();
   if (!argon2Promise) {
-    argon2Promise = import('./vendor/argon2-bundled.js')
-      .then((m) => m.default)
-      .catch((error: unknown) => {
-        // El wasm del vendor puede estar bloqueado; propagamos el fallo para
-        // que el caller degrade a SHA-256 con salt (nunca crashea el isolate).
-        argon2Promise = null;
-        throw error;
-      });
+    argon2Promise = (
+      isWorkerdRuntime()
+        ? import('./argon2-worker-runtime.js').then((runtime) => runtime.loadWorkerArgon2())
+        : import('./vendor/argon2-bundled.js').then((m) => m.default)
+    ).catch((error: unknown) => {
+      // No degradar hashes nuevos a SHA-256: sin Argon2 disponible, el
+      // enrolamiento debe fallar explícitamente.
+      argon2Promise = null;
+      throw error;
+    });
   }
   return argon2Promise;
 }
@@ -68,65 +68,40 @@ export async function hashPinArgon2id(
   opts: { mem?: number; time?: number; parallelism?: number } = {},
 ): Promise<string> {
   ensureWorkerGlobal();
-  // En Cloudflare Workers el wasm del vendor puede estar bloqueado por el
-  // CSP del embedder (el abort rompe el isolate ANTES del catch). Detección
-  // temprana: degradamos a SHA-256 con salt — formato legado que
-  // verifyPinHash acepta (needsRehash=true en producción).
-  if (isWorkerdRuntime()) return fallbackSha256(pin);
-  // El Wasm de argon2 puede estar bloqueado (entornos de test workerd, CSP
-  // estricto): la compilación ocurre dentro de argon2.hash(), no en la carga
-  // del módulo. Degradación fail-safe a SHA-256 con salt — el formato legado
-  // que verifyPinHash ya acepta (needsRehash=true en producción).
-  const fallback = async (): Promise<string> => fallbackSha256(pin);
-  let argon2: Argon2Api;
-  try {
-    argon2 = await loadArgon2();
-  } catch {
-    return fallback();
-  }
-  try {
-    const result = await argon2.hash({
-      pass: pin,
-      salt: randomSaltBase64(),
-      time: opts.time ?? ARGON2_TIME,
-      mem: opts.mem ?? ARGON2_MEM_KIB,
-      parallelism: opts.parallelism ?? ARGON2_PARALLELISM,
-      hashLen: ARGON2_HASH_LEN,
-      type: argon2.ArgonType.Argon2id,
-    });
-    return result.encoded;
-  } catch {
-    return fallback();
-  }
-}
-
-async function fallbackSha256(pin: string): Promise<string> {
-  // Salt HEX (32 chars) — verifyPinHash exige `[0-9a-f]+:[0-9a-f]{64}`
-  // para el formato con salt (el base64 no matchea el regex).
-  const saltBytes = new Uint8Array(16);
-  crypto.getRandomValues(saltBytes);
-  const salt = [...saltBytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${pin}`));
-  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${salt}:${hex}`;
+  const argon2 = await loadArgon2();
+  const result = await argon2.hash({
+    pass: pin,
+    salt: randomSaltBase64(),
+    time: opts.time ?? ARGON2_TIME,
+    mem: opts.mem ?? ARGON2_MEM_KIB,
+    parallelism: opts.parallelism ?? ARGON2_PARALLELISM,
+    hashLen: ARGON2_HASH_LEN,
+    type: argon2.ArgonType.Argon2id,
+  });
+  return result.encoded;
 }
 
 async function verifyArgon2(pin: string, stored: string): Promise<boolean> {
   ensureWorkerGlobal();
-  if (isWorkerdRuntime()) return false; // no se puede compilar wasm aquí
-  let argon2: Argon2Api;
-  try {
-    argon2 = await loadArgon2();
-  } catch {
-    // Wasm bloqueado → no podemos verificar un hash PHC; fail-closed (0
-    // acceso por omisión) en lugar de un falso positivo.
-    return false;
-  }
+  const argon2: Argon2Api = await loadArgon2();
   try {
     await argon2.verify({ pass: pin, encoded: stored });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // argon2-browser surfaces a password mismatch as this Argon2-specific
+    // message. Other errors (WASM/runtime/memory failures) must not be counted
+    // as a bad credential by the caller.
+    const message =
+      typeof error === 'object' && error !== null && 'message' in error
+        ? String(error.message)
+        : '';
+    if (
+      message.includes('The password does not match the supplied hash') ||
+      message === 'Decoding failed'
+    ) {
+      return false;
+    }
+    throw error;
   }
 }
 

@@ -170,9 +170,9 @@
     statusBadge={activeTab === 'comanda'
       ? `${activeTable.label} · Salón`
       : activeTab === 'kds'
-        ? 'KDS Cocina · En vivo'
-        : 'Mapa Salón · En vivo'}
-    statusTone="live"
+        ? 'KDS Cocina · En preparación'
+        : 'Mapa Salón · Ejemplo'}
+    statusTone="sync"
     ariaLabel="Smartphone mostrando interfaz interactiva de comandas, KDS cocina y mapa de salón para restaurante"
   >
     <div class="mock-screen">

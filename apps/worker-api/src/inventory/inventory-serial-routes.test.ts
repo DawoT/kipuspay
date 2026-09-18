@@ -23,6 +23,7 @@ vi.mock('@kipuspay/adapters-d1', () => adapters);
 function env(flag = '1'): WorkerEnv {
   const statement = {
     bind: vi.fn(),
+    first: vi.fn(() => Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 })),
     all: vi.fn(() =>
       Promise.resolve({
         results: [
@@ -110,8 +111,8 @@ describe('inventory-serial-routes', () => {
       { serialNumber: ' SN-001 ' },
     );
     expect(response.status).toBe(200);
-    expect(vi.mocked(db.prepare).mock.calls[0]?.[0]).toContain('serial_number_normalized = ?');
-    const statement = vi.mocked(db.prepare).mock.results[0]?.value;
+    expect(vi.mocked(db.prepare).mock.calls[1]?.[0]).toContain('serial_number_normalized = ?');
+    const statement = vi.mocked(db.prepare).mock.results[1]?.value;
     expect(statement.bind).toHaveBeenCalledWith('tenant-jwt', expect.stringMatching(/^SN-001$/));
   });
 

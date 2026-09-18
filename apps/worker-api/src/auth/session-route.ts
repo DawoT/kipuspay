@@ -8,10 +8,9 @@ export interface AuthenticatedSessionHttpResult {
 }
 
 function isCapDynamicEnabled(env: WorkerEnv): boolean {
-  return (
-    env.FEATURE_TENANT_CAPABILITIES_DYNAMIC === '1' ||
-    env.FEATURE_TENANT_CAPABILITIES_DYNAMIC === 'true'
-  );
+  // Discovery is tenant-authoritative by default. The deployment flag is a
+  // kill switch only; it must never be required to expose the snapshot.
+  return env.FEATURE_TENANT_CAPABILITIES_DYNAMIC !== '0';
 }
 
 const CAP_CACHE_TTL_MS = 10_000;
@@ -128,7 +127,8 @@ export async function runAuthenticatedSessionHttp(
   }
   try {
     const terminal = await env.DB.prepare(
-      `SELECT t.id AS terminal_id, s.id AS terminal_session_id
+      `SELECT t.id AS terminal_id, s.id AS terminal_session_id,
+              s.cash_register_session_id AS cash_register_session_id
        FROM pos_terminals t
        JOIN pos_terminal_sessions s ON s.tenant_id = t.tenant_id
          AND s.terminal_id = t.id AND s.status = 'ACTIVE'
@@ -137,7 +137,11 @@ export async function runAuthenticatedSessionHttp(
        LIMIT 1`,
     )
       .bind(user.tenantId, terminalId, user.branchId, user.userId, user.branchId)
-      .first<{ terminal_id: string; terminal_session_id: string }>();
+      .first<{
+        terminal_id: string;
+        terminal_session_id: string;
+        cash_register_session_id: string;
+      }>();
     if (!terminal) {
       return { status: 403, body: { code: 'TERMINAL_SESSION_REQUIRED' } };
     }
@@ -150,6 +154,7 @@ export async function runAuthenticatedSessionHttp(
         terminal: {
           terminalId: terminal.terminal_id,
           terminalSessionId: terminal.terminal_session_id,
+          cashRegisterSessionId: terminal.cash_register_session_id,
         },
         capabilities,
         capabilitiesEpoch,

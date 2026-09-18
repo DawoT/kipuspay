@@ -110,6 +110,15 @@ const ENTERPRISE_CAPS: readonly string[] = [
   'marketing.content',
   'pos.brand_qr',
   'analytics.growth_metrics',
+  'fuel.dispatch',
+  'fuel.island_shift',
+  'fiscal.rc',
+  'fiscal.cpe_portal',
+  'fiscal.withholdings',
+  'fiscal.gre',
+  'fiscal.debit_note',
+  'billing.usage_overage',
+  'cash.policy',
 ] as const;
 
 export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {

@@ -1,0 +1,6 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kipuspay-pin-crypto-test",
+  "main": "test/fixtures/pin-crypto-worker.ts",
+  "compatibility_date": "2026-08-06",
+}

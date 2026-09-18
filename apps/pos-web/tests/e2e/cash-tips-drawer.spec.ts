@@ -1,40 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('P2: propina en el cobro — total con propina y tope visible', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'cashier-e2e',
-        role: 'cashier',
-        branchId: 'branch-e2e',
-        terminal: { terminalId: 'terminal-e2e', terminalSessionId: 'terminal-session-e2e' },
-      }),
-    }),
-  );
-  await page.route('**/api/catalog/sellable', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        items: [
-          {
-            productId: 'p1',
-            sku: 'SKU-1',
-            name: 'Producto demo',
-            unitPriceCents: 11800,
-            costCents: 4000,
-            stockMicrounits: 10000000,
-            barcode: null,
-            uomCode: 'NIU',
-            parentProductId: null,
-          },
-        ],
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-cash-tips',
+    role: 'cashier',
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 'cash-session-e2e',
+    },
+    capabilities: ['cash.policy', 'pos.checkout', 'catalog.sellable'],
+  });
+  await mockSellableCatalog(page);
   await page.goto('/');
   await expect(page.getByTestId('tip-cents')).toBeVisible();
   await page.getByTestId('add-line-p1').click();
@@ -46,18 +25,11 @@ test('P2: propina en el cobro — total con propina y tope visible', async ({ pa
 });
 
 test('P2: política de caja en configuración — tope y cajón, guardado', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-cash-policy',
+    role: 'owner',
+    capabilities: ['cash.policy'],
+  });
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'PATCH, OPTIONS',
@@ -84,8 +56,20 @@ test('P2: política de caja en configuración — tope y cajón, guardado', asyn
     });
   });
 
+  const sessionResponse = page.waitForResponse((response) =>
+    response.url().endsWith('/api/auth/session'),
+  );
   await page.goto('/admin/configuracion');
+  const bootstrap = await sessionResponse;
+  expect(bootstrap.status()).toBe(200);
+  expect(await bootstrap.json()).toMatchObject({ capabilities: ['cash.policy'] });
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem('kipuspay.capabilities.v1:t-cash-policy') ?? ''),
+    )
+    .toContain('cash.policy');
   await expect(page.getByTestId('cash-policy')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Impresora, balanza y vitrina' })).toHaveCount(0);
   await page.getByTestId('tip-max-percent').fill('20');
   await page.getByTestId('open-drawer-on-cash').uncheck();
   await page.getByTestId('save-cash-policy').click();
@@ -94,18 +78,11 @@ test('P2: política de caja en configuración — tope y cajón, guardado', asyn
 });
 
 test('P2: botón "Probar cajón" en el troubleshooter', async ({ page }) => {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        userId: 'owner-e2e',
-        role: 'owner',
-        branchId: 'branch-e2e',
-        terminal: null,
-      }),
-    }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-cash-drawer',
+    role: 'owner',
+    capabilities: ['cash.policy', 'hardware.diagnostics'],
+  });
   await page.goto('/admin/configuracion');
   await expect(page.getByTestId('hw-drawer-test')).toBeVisible();
 });

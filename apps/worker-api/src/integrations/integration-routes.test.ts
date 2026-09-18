@@ -67,6 +67,9 @@ function mockEnv(planId = 'cadena'): WorkerEnv {
             return stmt;
           },
           first: async () => {
+            if (sql.includes('FROM tenant_capabilities')) {
+              return { enabled: 1, config_json: '{}', epoch: 0 };
+            }
             if (sql.includes('FROM tenants')) return { plan_id: planId };
             if (sql.includes('SELECT id, key_prefix FROM api_keys')) {
               return { id: 'k1', key_prefix: 'kp_live_abcdef01' };

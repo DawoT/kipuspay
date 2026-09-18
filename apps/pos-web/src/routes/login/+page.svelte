@@ -97,6 +97,11 @@
       busy = false;
     }
   }
+
+  function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
+    void onSubmit();
+  }
 </script>
 
 <svelte:head>
@@ -128,36 +133,38 @@
       </StatusMessage>
     {/if}
 
-    <Field label="Badge o usuario" id="login-identifier">
-      <Input
-        id="login-identifier"
-        data-testid="login-identifier"
-        bind:value={identifier}
-        autocomplete="off"
-        placeholder="EMP-12345 o usuario"
-      />
-    </Field>
-    <Field label="PIN de caja" id="login-pin">
-      <Input
-        id="login-pin"
-        data-testid="login-pin"
-        type="password"
-        bind:value={pin}
-        autocomplete="off"
-        inputmode="numeric"
-        placeholder="••••"
-      />
-    </Field>
+    <form class="login-form" onsubmit={handleSubmit}>
+      <Field label="Badge o usuario" id="login-identifier">
+        <Input
+          id="login-identifier"
+          data-testid="login-identifier"
+          bind:value={identifier}
+          autocomplete="off"
+          placeholder="EMP-12345 o usuario"
+        />
+      </Field>
+      <Field label="PIN de caja" id="login-pin">
+        <Input
+          id="login-pin"
+          data-testid="login-pin"
+          type="password"
+          bind:value={pin}
+          autocomplete="off"
+          inputmode="numeric"
+          placeholder="••••"
+        />
+      </Field>
 
-    <Button
-      size="full"
-      data-testid="login-submit"
-      onclick={onSubmit}
-      busy={busy}
-      icon="key"
-    >
-      {busy ? 'Iniciando…' : 'Iniciar sesión'}
-    </Button>
+      <Button
+        type="submit"
+        size="full"
+        data-testid="login-submit"
+        busy={busy}
+        icon="key"
+      >
+        {busy ? 'Iniciando…' : 'Iniciar sesión'}
+      </Button>
+    </form>
   </div>
 </div>
 
@@ -197,6 +204,13 @@
   .login-card :global(.field-group) {
     width: 100%;
     text-align: left;
+  }
+
+  .login-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .page-title {

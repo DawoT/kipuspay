@@ -23,6 +23,9 @@ function fakeDb(options: {
           const tenantId = args[0] ?? '';
           return {
             first: () => {
+              if (sql.includes('SELECT tc.enabled')) {
+                return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
+              }
               if (sql.includes('COUNT(*)')) {
                 return Promise.resolve({ n: options.counts?.[tenantId] ?? 0 });
               }
@@ -59,7 +62,7 @@ describe('billing-reminders (S9-A3 anti-apagado)', () => {
   });
 
   it('sin tenants past_due → sin reminders', async () => {
-    const env = { DB: fakeDb({ tenants: [] }) } as never;
+    const env = { FEATURE_MOBILE_PUSH: '1', DB: fakeDb({ tenants: [] }) } as never;
     const res = await runBillingRemindersScheduled(env, { nowMs: Date.now() });
     expect(res).toEqual({ remindersEmitted: 0, tenantsScanned: 0 });
     expect(appendPushEventAtomic).not.toHaveBeenCalled();
@@ -67,6 +70,7 @@ describe('billing-reminders (S9-A3 anti-apagado)', () => {
 
   it('tenants past_due con owner push → emite recordatorio día 1 idempotente por día', async () => {
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         tenants: [{ tenant_id: 't-past-due' }],
         counts: { 't-past-due': 0 },
@@ -91,6 +95,7 @@ describe('billing-reminders (S9-A3 anti-apagado)', () => {
 
   it('ya emitió 3 recordatorios → no emite más', async () => {
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         tenants: [{ tenant_id: 't-past-due' }],
         counts: { 't-past-due': 3 },
@@ -112,6 +117,7 @@ describe('billing-reminders (S9-A3 anti-apagado)', () => {
 
   it('sin capability mobile.push en el owner → skip (best-effort, no rompe)', async () => {
     const env = {
+      FEATURE_MOBILE_PUSH: '1',
       DB: fakeDb({
         tenants: [{ tenant_id: 't-x' }],
         counts: { 't-x': 0 },

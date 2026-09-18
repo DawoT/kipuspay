@@ -6,6 +6,7 @@ import { createWhatsAppMessagingSender } from '@kipuspay/adapters-messaging';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { assertCadenaPlusPlan, type HttpResult } from '../auth/plan-cadena.js';
 import { runSendOwnerPushHttp } from '../owner/push-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export function isLoyaltyPointsEnabled(env: WorkerEnv | undefined): boolean {
   return env?.FEATURE_LOYALTY_POINTS === '1' || env?.FEATURE_LOYALTY_POINTS === 'true';
@@ -15,12 +16,27 @@ export function isMessagingWhatsAppEnabled(env: WorkerEnv | undefined): boolean 
   return env?.FEATURE_MESSAGING_WHATSAPP === '1' || env?.FEATURE_MESSAGING_WHATSAPP === 'true';
 }
 
-function featureOff(flag: string): HttpResult {
-  return { status: 404, body: { error: `${flag} off`, code: 'FEATURE_OFF' } };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'loyalty.points' | 'messaging.whatsapp_receipt',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE' },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
+  }
 }
 
 /** S24-H2: la acreditación de puntos es una operación de negocio — solo
@@ -40,11 +56,12 @@ export async function runLoyaltyReserveHttp(
   body: Record<string, unknown>,
   userRole?: string,
 ): Promise<HttpResult> {
-  if (!isLoyaltyPointsEnabled(env)) return featureOff('FEATURE_LOYALTY_POINTS');
   if (!userRole || !isAdminRole(userRole)) {
     return { status: 403, body: { error: 'admin role required', code: 'FORBIDDEN_ADMIN' } };
   }
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireCapability(env, tenantId, 'loyalty.points');
+  if (capabilityError) return capabilityError;
   const plan = await assertCadenaPlusPlan(env, tenantId);
   if (plan) return plan;
   const customerId = typeof body.customerId === 'string' ? body.customerId : '';
@@ -71,8 +88,9 @@ export async function runLoyaltyBalanceHttp(
   tenantId: string,
   customerId: string,
 ): Promise<HttpResult> {
-  if (!isLoyaltyPointsEnabled(env)) return featureOff('FEATURE_LOYALTY_POINTS');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireCapability(env, tenantId, 'loyalty.points');
+  if (capabilityError) return capabilityError;
   const plan = await assertCadenaPlusPlan(env, tenantId);
   if (plan) return plan;
   if (!customerId.trim()) {
@@ -95,8 +113,9 @@ export async function runMessagingOptInHttp(
   tenantId: string,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isMessagingWhatsAppEnabled(env)) return featureOff('FEATURE_MESSAGING_WHATSAPP');
   if (!env?.DB) return dbUnavailable();
+  const capabilityError = await requireCapability(env, tenantId, 'messaging.whatsapp_receipt');
+  if (capabilityError) return capabilityError;
   const plan = await assertCadenaPlusPlan(env, tenantId);
   if (plan) return plan;
   const customerId = typeof body.customerId === 'string' ? body.customerId : '';
@@ -131,10 +150,30 @@ export async function runMessagingOptInHttp(
 }
 
 export async function runExpireLoyaltyCronHttp(env: WorkerEnv | undefined): Promise<HttpResult> {
-  if (!isLoyaltyPointsEnabled(env)) return featureOff('FEATURE_LOYALTY_POINTS');
   if (!env?.DB) return dbUnavailable();
+  let rows: { results?: { tenant_id: string }[] };
   try {
-    const result = await expireLoyaltyReservationsAtomic(env.DB);
+    rows = await env.DB.prepare(
+      `SELECT DISTINCT tenant_id FROM tenant_capabilities
+         WHERE capability = 'loyalty.points' AND enabled = 1 LIMIT 5000`,
+    )
+      .bind()
+      .all<{ tenant_id: string }>();
+  } catch {
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+  const allowedTenantIds = new Set<string>();
+  for (const row of rows.results ?? []) {
+    try {
+      await new CapabilityResolver(env).require(row.tenant_id, 'loyalty.points');
+      allowedTenantIds.add(row.tenant_id);
+    } catch (error) {
+      if (error instanceof CapabilityError && error.status === 404) continue;
+      return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+    }
+  }
+  try {
+    const result = await expireLoyaltyReservationsAtomic(env.DB, undefined, 100, allowedTenantIds);
     return { status: 200, body: { expired: result.expired, ids: result.ids } };
   } catch (e) {
     return mapErr(e);
@@ -153,7 +192,12 @@ export async function trySendWhatsAppReceipt(
     readonly representationUrl: string;
   },
 ): Promise<{ sent: boolean; reason?: string }> {
-  if (!isMessagingWhatsAppEnabled(env) || !env?.DB) {
+  if (!env?.DB) {
+    return { sent: false, reason: 'FEATURE_OFF' };
+  }
+  try {
+    await new CapabilityResolver(env).require(input.tenantId, 'messaging.whatsapp_receipt');
+  } catch {
     return { sent: false, reason: 'FEATURE_OFF' };
   }
   try {

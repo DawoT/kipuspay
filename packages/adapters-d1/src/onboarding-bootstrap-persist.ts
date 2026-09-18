@@ -23,6 +23,7 @@ export interface BootstrapPersistenceInput {
   readonly ownerBadge: string;
   readonly ownerPinHash: string;
   readonly nowIso: string;
+  readonly capabilities?: readonly string[];
 }
 
 export type BootstrapKvPut = (
@@ -89,6 +90,14 @@ export async function persistBootstrap(
       )
       .bind(input.tenantId),
   ];
+  const capabilityStatements = [...new Set(input.capabilities ?? [])].map((capability) =>
+    db
+      .prepare(
+        `INSERT INTO tenant_capabilities (tenant_id, capability, enabled, config_json)
+         VALUES (?, ?, 1, '{"source":"onboarding_default"}')`,
+      )
+      .bind(input.tenantId, capability),
+  );
   try {
     await db.batch([
       db
@@ -157,6 +166,7 @@ export async function persistBootstrap(
         ),
       ...seriesStatements,
       ...paymentMethodStatements,
+      ...capabilityStatements,
     ]);
   } catch (err) {
     await kvDelete(`tenant:${input.tenantId}`);

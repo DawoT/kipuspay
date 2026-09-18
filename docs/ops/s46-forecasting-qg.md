@@ -7,8 +7,8 @@ owner: "@DawoT"
 
 # Sprint 46 — Analítica predictiva — Quality Gate
 
-**Estado software:** GREEN local  
-**Estado claim:** GTM-01 descongelado (disclaimer "estimación, no garantía")  
+**Estado software:** GREEN local + canary técnico staging
+**Estado claim vigente (reconciliación C5, 2026-09-17):** GTM-01 CONGELADO; solo roadmap. No hay MAPE/umbral aprobado documentado ni cron Cloudflare validado con QA y firmas A+V.
 **Estado producción/piloto:** NO-GO hasta cron/staging Cloudflare real + A+V independiente  
 **Capability:** `analytics.forecasting`, default-off  
 **Spec:** Arquitectura §5.3 regla 31 · ADR-0030 · DAT-12 · Principio 9 · Roadmap FASE 6F
@@ -16,8 +16,11 @@ owner: "@DawoT"
 El gate automatizado demuestra el contrato de software en entorno local: forecast
 determinista sobre `daily_product_rollups` (D1, exacto), sugerencias al Dueño sin
 decisión automática de precio/stock, gating Cadena 403/402 sin tocar arqueo y UI en
-Modo Dueño. No existe evidencia de cron o staging/canary Cloudflare real ni QA humana
-y aprobación PM con firmas A+V independientes: eso mantiene producción y piloto NO-GO.
+Modo Dueño. El canary staging negativo confirmó el bloqueo `403 PLAN_REQUIRES_CADENA`
+para el tenant `arranque` aun con flag/capability habilitados, y un tenant Cadena
+sintético pasó refresh/listado idempotente. No existe todavía cron real, QA humana y
+aprobación PM con firmas A+V
+independientes: eso mantiene producción y piloto NO-GO.
 
 ## Evidencia RED→GREEN
 
@@ -62,6 +65,14 @@ frentes **ajenos a Sprint 46**, preservados tal cual estaban:
 
 Los conteos pertenecen al monorepo en GREEN/HEAD y pueden aumentar con suites
 posteriores; no se reducen para presentar un número histórico.
+
+### Actualización de evidencia vigente — 2026-09-17
+
+La corrida completa posterior de `scripts/quality.sh` terminó `Quality Gate OK`
+con lint, typecheck, tests unitarios e integración, chaos y bundle dentro de
+los umbrales actuales. El canary staging de Cadena sigue siendo evidencia
+técnica parcial: cron Cloudflare observado y firmas QA/A+V independientes aún
+son requisitos separados del software GREEN.
 
 ## Cobertura contractual
 
@@ -109,10 +120,22 @@ muestreados. Esta revisión de código no equivale a pentest ni certificación L
 
 ## Evidencia externa pendiente
 
+### Evidencia staging — canary Cadena técnico 2026-09-17
+
+En el tenant sintético `tenant_stg_cadena_001`, con 14 rollups diarios y la
+capability aislada, el refresh autenticado devolvió `200` con `written=1` e
+`insufficient=0`; el listado devolvió `200`, una salida `holt-winters-v1`, fecha
+`2026-09-17` y disclaimer de estimación. Dos refresh consecutivos mantuvieron una
+sola fila en `forecast_outputs` (idempotencia D1). El mismo endpoint sobre el tenant
+`arranque` devolvió `403 PLAN_REQUIRES_CADENA` sin alterar datos.
+
+Esto valida el contrato positivo/negativo en bindings staging, pero no la ejecución
+del Cron Trigger diario, latencia real ni la aprobación de QA/A+V.
+
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
 | Cron Cloudflare real | PENDIENTE / NO-GO | Observar `30 8 * * *`, dispatch por flag y reescritura idempotente en D1 real |
-| Staging/canary | PENDIENTE / NO-GO | Gating 403/402, AE dashboards y rollback en bindings reales |
+| Staging/canary | GREEN técnico parcial / NO-GO liberatorio | Tenant `arranque`: `403 PLAN_REQUIRES_CADENA`; tenant Cadena sintético: refresh/listado `200`, una salida `holt-winters-v1` y una fila tras dos refresh. Faltan Cron Trigger, AE, rollback, QA y A+V |
 | QA humana | PENDIENTE / NO-GO | Staff QA valida Previsiones, disclaimer, quiebre y POS ordinario intacto |
 | Aprobación PM | PENDIENTE / NO-GO | Staff PM acepta alcance, copy acotado y residuales del WIP ajeno |
 | Firma A+V independiente | PENDIENTE / NO-GO | Humanos independientes firman evidencia de staging/canary |
@@ -128,14 +151,13 @@ muestreados. Esta revisión de código no equivale a pentest ni certificación L
 | Staff SRE | Cron dispatch local; staging/canary Cloudflare real pendiente |
 | Staff QA independiente | PENDIENTE |
 | Staff PM A | PENDIENTE |
-| Staff Growth | GTM-01 descongelado con disclaimer; producción/piloto NO-GO |
+| Staff Growth | GTM-01 CONGELADO; solo roadmap hasta MAPE aprobado/medido, validación externa y firmas A+V |
 
 ## Veredicto
 
-**SOFTWARE-GREEN-CLAIM-LIVE.** El software y gate automatizado quedan GREEN local y la
-claim **GTM-01 "analítica predictiva" de Cadena se descongela** conforme al gate del
-Sprint 46 (Roadmap FASE 6F), siempre con disclaimer "estimación, no garantía", sin
-decisión automática de precio/stock y con la capability default-off. Producción y
-piloto siguen NO-GO hasta cron/staging Cloudflare real, QA humana, aprobación PM y
-firmas A+V independientes. Los 5 tests RED de contratos ajenos y el format de
+**SOFTWARE-GREEN; CLAIM CONGELADO.** La frase histórica de descongelado queda supersedida
+por la reconciliación C5: el software y gating local están GREEN, pero no existe MAPE
+medido/documentado ni objetivo aprobado, y faltan cron/staging Cloudflare real, QA
+humana, aprobación PM y firmas A+V independientes. GTM-01 solo puede aparecer como
+roadmap en preparación; producción y piloto permanecen NO-GO. Los 5 tests RED de contratos ajenos y el format de
 `app.css` son WIP no commiteado ajeno a este sprint y se preservan sin modificar.

@@ -1,8 +1,7 @@
 <script lang="ts">
-  
   import { initTenantBranchId, initCashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
-  import { isInventorySerialsEnabled, isPartialReceiveEnabled, isPurchasingOrdersEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { purchasingErrorCopy } from '$lib/ui/ops-copy';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
@@ -10,9 +9,9 @@
   import { workflowStatusLabel } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const recvOn = isPartialReceiveEnabled();
-  const serialsOn = isInventorySerialsEnabled();
-  const ordersOn = isPurchasingOrdersEnabled();
+  const recvOn = $derived($tenantCapabilities.has('purchasing.partial_receive'));
+  const serialsOn = $derived($tenantCapabilities.has('inventory.serials'));
+  const ordersOn = $derived($tenantCapabilities.has('purchasing.orders'));
   let purchaseOrderId = $state('');
   let supplierId = $state('');
   let poTotalCents = $state(0);

@@ -32,9 +32,10 @@ describe('help.ts content module', () => {
       .join(' ')
       .toLowerCase();
 
-    // 1. Impresoras térmicas Epson/Xprinter 58/80mm
-    expect(hardwareText).toMatch(/58mm|80mm/);
-    expect(hardwareText).toMatch(/epson|xprinter/);
+    // 1. Impresoras: compatibilidad sujeta al modelo verificado
+    expect(hardwareText).toMatch(/compatibilidad/);
+    expect(hardwareText).toMatch(/modelo/);
+    expect(hardwareText).not.toMatch(/cualquier impresora|compatibles con todos|epson|xprinter/i);
 
     // 2. Gavetas de dinero RJ11
     expect(hardwareText).toMatch(/rj11/);
@@ -46,16 +47,14 @@ describe('help.ts content module', () => {
     // 4. Lectores de código de barras
     expect(hardwareText).toMatch(/código de barras|lector/);
 
-    // 5. Exportación contable SIRE/Concar/Contasis
+    // 5. Exportación contable
     const planesSection = allHelpCategories().find((c) => c.id === 'planes');
     expect(planesSection).toBeDefined();
     const planesText = planesSection!.items
       .map((i) => `${i.question} ${i.answer}`)
       .join(' ')
       .toLowerCase();
-    expect(planesText).toMatch(/concar/);
-    expect(planesText).toMatch(/sire/);
-    expect(planesText).toMatch(/contasis/);
+    expect(planesText).toMatch(/exportaci[oó]n/);
   });
 
   it('permite buscar items por palabra clave en pregunta o respuesta', () => {
@@ -63,7 +62,7 @@ describe('help.ts content module', () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results.some((r) => r.question.toLowerCase().includes('internet'))).toBe(true);
 
-    const printerResults = searchHelpItems('epson');
+    const printerResults = searchHelpItems('impresora');
     expect(printerResults.length).toBeGreaterThan(0);
 
     const rj11Results = searchHelpItems('rj11');
@@ -95,7 +94,7 @@ describe('help.ts content module', () => {
       'crédito',
       'cuenta por cobrar',
       'anonimiz',
-      '5 años',
+      'conservación',
     ]) {
       expect(all).toContain(keyword);
     }
@@ -109,6 +108,41 @@ describe('help.ts content module', () => {
       .map((i) => `${i.question} ${i.answer}`)
       .join(' ');
     expect(all).not.toMatch(/\b(PSE|CDR|UBL|ACID|D1|Edge|Workers|SEV-\d)\b/i);
+  });
+
+  it('no afirma capacidades fiscales congeladas ni promete plazos universales', () => {
+    const publicHelp = JSON.stringify(allHelpCategories());
+    expect(publicHelp).not.toMatch(
+      /en menos de 5 minutos|env[ií]o autom[aá]tico a SUNAT|se encarga del env[ií]o|procesa los comprobantes pendientes autom[aá]ticamente|aviso por WhatsApp|reintenta el env[ií]o|se acerca el plazo legal|certificado digital tributario sin costo|legalmente ante SUNAT|se env[ií]a a SUNAT de forma autom[aá]tica|se env[ií]an solos/i,
+    );
+  });
+
+  it('los temas en preparación no describen como operativas capacidades bloqueadas', () => {
+    const pendingItems = allHelpCategories()
+      .flatMap((category) => category.items)
+      .filter((item) => item.availability === 'preparing');
+    expect(pendingItems.length).toBeGreaterThan(0);
+    for (const item of pendingItems) {
+      expect(`${item.question} ${item.answer}`).toMatch(/en preparación|aún no está disponible/i);
+    }
+  });
+
+  it('Modo Dueño describe datos sincronizados, no tiempo real', () => {
+    const ownerItem = allHelpCategories()
+      .flatMap((category) => category.items)
+      .find((item) => item.id === 'modo-dueno');
+    expect(ownerItem).toBeDefined();
+    expect(`${ownerItem?.question} ${ownerItem?.answer}`).not.toMatch(/tiempo real|en vivo/i);
+  });
+
+  it('no garantiza compatibilidad de exportación contable antes de verificar formatos', () => {
+    const exportItem = allHelpCategories()
+      .flatMap((category) => category.items)
+      .find((item) => item.id === 'exportacion-contable');
+    expect(exportItem).toBeDefined();
+    expect(`${exportItem?.question} ${exportItem?.answer}`).not.toMatch(
+      /formatos? .*compatibles.*(?:SIRE|Concar|Contasis)|descargar.*compatibles con/i,
+    );
   });
 
   it('F-11: claims congelados llevan availability preparing (guía Q1/Q7/§6)', () => {

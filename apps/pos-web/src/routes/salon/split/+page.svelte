@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isOrdersKdsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
@@ -8,7 +8,8 @@
   import { publishVitrina, vitrinaMessageForPhase } from '$lib/vitrina/channel';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const enabled = isOrdersKdsEnabled();
+  let capabilitiesSnapshot = $state<ReadonlySet<string>>(new Set());
+  const enabled = $derived(capabilitiesSnapshot.has('orders.split_bill'));
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   let orderId = $state('');
   let itemA = $state('');
@@ -20,7 +21,11 @@
   let error = $state('');
 
   onMount(() => {
+    const unsubscribeCapabilities = tenantCapabilities.subscribe((value) => {
+      capabilitiesSnapshot = new Set(value);
+    });
     sessionId = cashSessionContext(localStorage).sessionId;
+    return unsubscribeCapabilities;
   });
 
   async function splitBill() {

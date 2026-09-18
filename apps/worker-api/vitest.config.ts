@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 const isVolumeRun = process.argv.some((arg) => arg.includes('push-slo-volume'));
+const isLpdpSecurityRun = process.argv.some((arg) => arg.includes('lpdp-security.integration'));
 
 export default defineConfig(async () => {
   if (isVolumeRun) {
@@ -31,11 +32,35 @@ export default defineConfig(async () => {
     };
   }
 
+  if (isLpdpSecurityRun) {
+    const { cloudflareTest } = await import('@cloudflare/vitest-pool-workers');
+    return {
+      plugins: [
+        cloudflareTest({
+          wrangler: { configPath: './wrangler.lpdp-test.jsonc' },
+          miniflare: { compatibilityDate: '2026-08-06' },
+        }),
+      ],
+      test: {
+        include: ['src/customers/lpdp-security.integration.test.ts'],
+        fileParallelism: false,
+        passWithNoTests: false,
+      },
+    };
+  }
+
   return {
     test: {
       include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
-      exclude: ['src/push/push-slo-volume.test.ts'],
+      exclude: [
+        'src/push/push-slo-volume.test.ts',
+        // Esta suite importa cloudflare:workers y solo corre con el branch Workerd de arriba.
+        'src/customers/lpdp-security.integration.test.ts',
+      ],
       environment: 'node',
+      // Argon2/PIN crypto tests contend for CPU under the monorepo's parallel
+      // quality run; serializing files keeps the verification gate deterministic.
+      fileParallelism: false,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary'],

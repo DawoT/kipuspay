@@ -8,6 +8,11 @@ import {
   type InstallmentPlanItemInput,
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import {
+  CapabilityError,
+  CapabilityResolver,
+  isCapabilityEnabled,
+} from '../capabilities/capability-resolver.js';
 import { isSalesInstallmentsEnabled } from '../auth/features.js';
 import { isMoneyInteger, parseMoneyInteger } from '../http/money-input.js';
 
@@ -41,15 +46,29 @@ export interface HttpResult {
   body: Record<string, unknown>;
 }
 
-function featureOff(): HttpResult {
-  return {
-    status: 404,
-    body: { error: 'FEATURE_SALES_INSTALLMENTS off', code: 'FEATURE_OFF' },
-  };
-}
-
 function dbUnavailable(): HttpResult {
   return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
+}
+
+async function requireInstallments(env: WorkerEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, 'sales.installments');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
 }
 
 const CLIENT_422 = new Set([
@@ -69,6 +88,9 @@ const CLIENT_422 = new Set([
 ]);
 
 function mapError(err: unknown): HttpResult {
+  if (err instanceof CapabilityError) {
+    return { status: 503, body: { error: err.code, code: err.code } };
+  }
   const code = err instanceof Error ? err.message : 'INSTALLMENT_FAILED';
   if (code === 'INSTALLMENT_NOT_FOUND' || code === 'INSTALLMENT_SALE_NOT_FOUND') {
     return { status: 404, body: { error: code, code } };
@@ -77,11 +99,13 @@ function mapError(err: unknown): HttpResult {
   return { status, body: { error: code, code } };
 }
 
-function opts(env: WorkerEnv | undefined) {
+async function opts(env: WorkerEnv, tenantId: string) {
   return {
-    ledgerChartOfAccountsEnabled:
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === '1' ||
-      env?.FEATURE_LEDGER_CHART_OF_ACCOUNTS === 'true',
+    ledgerChartOfAccountsEnabled: await isCapabilityEnabled(
+      env,
+      tenantId,
+      'ledger.chart_of_accounts',
+    ),
   };
 }
 
@@ -97,7 +121,6 @@ export async function runCreateInstallmentPlanHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesInstallmentsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -105,6 +128,8 @@ export async function runCreateInstallmentPlanHttp(
   if (!supervisorOrAbove(role)) {
     return { status: 403, body: { error: 'Supervisor+ required', code: 'FORBIDDEN' } };
   }
+  const capabilityError = await requireInstallments(env, tenantId);
+  if (capabilityError) return capabilityError;
   const saleId = typeof body.saleId === 'string' ? body.saleId : '';
   const branchId = typeof body.branchId === 'string' ? body.branchId : '';
   const items = parseInstallmentItems(body.items);
@@ -133,7 +158,7 @@ export async function runCreateInstallmentPlanHttp(
           typeof body.creditOverrideTokenHash === 'string' ? body.creditOverrideTokenHash : null,
         actorIsSupervisorOrAbove: true,
       },
-      opts(env),
+      await opts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
@@ -148,7 +173,6 @@ export async function runPayInstallmentHttp(
   role: string | undefined,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isSalesInstallmentsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId || !userId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -156,6 +180,8 @@ export async function runPayInstallmentHttp(
   if (!supervisorOrAbove(role)) {
     return { status: 403, body: { error: 'Supervisor+ required', code: 'FORBIDDEN' } };
   }
+  const capabilityError = await requireInstallments(env, tenantId);
+  if (capabilityError) return capabilityError;
   const parsed = parsePayInstallmentBody(body);
   if (!parsed.ok) {
     return {
@@ -172,7 +198,7 @@ export async function runPayInstallmentHttp(
       tenantId,
       userId,
       parsed.input,
-      opts(env),
+      await opts(env, tenantId),
     );
     return { status: 200, body: result };
   } catch (err) {
@@ -231,7 +257,6 @@ export async function runOwnerInstallmentsOverdueHttp(
   tenantId: string,
   role = '',
 ): Promise<HttpResult> {
-  if (!isSalesInstallmentsEnabled(env)) return featureOff();
   if (!env?.DB) return dbUnavailable();
   if (!tenantId) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -240,6 +265,8 @@ export async function runOwnerInstallmentsOverdueHttp(
   if (role !== 'owner' && role !== 'admin') {
     return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN_ROLE' } };
   }
+  const capabilityError = await requireInstallments(env, tenantId);
+  if (capabilityError) return capabilityError;
 
   const items = await listOverdueInstallments(env.DB, tenantId, new Date().toISOString());
   return { status: 200, body: { items } };

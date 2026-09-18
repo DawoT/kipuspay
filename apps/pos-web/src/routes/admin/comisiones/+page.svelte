@@ -3,12 +3,12 @@
   import { tenantBranchId } from '$lib/admin/cash-session';
   import { apiFetch } from '$lib/auth/api-client';
   import { formatCents } from '$lib/cents';
-  import { isSalesCommissionsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
-  const commissionsOn = isSalesCommissionsEnabled();
+  const commissionsOn = $derived($tenantCapabilities.has('sales.commissions'));
   let sellerId = $state('');
   let ratePercent = $state(5);
   let rateAmountCents = $state<number | null>(null);

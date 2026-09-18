@@ -8,6 +8,7 @@
 import { processRemissionGuideAtomic } from '@kipuspay/adapters-d1';
 import type { RemissionGuideRequest } from '@kipuspay/domain-fiscal-pe';
 import type { HttpResult, QuickAddActor } from '../catalog/quick-add-routes.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export interface GreEnv {
   readonly FEATURE_GRE?: string;
@@ -40,13 +41,29 @@ export function isGreEnabled(env: GreEnv | undefined): boolean {
   return env?.FEATURE_GRE === '1';
 }
 
+async function requireGre(env: GreEnv, tenantId: string): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env as never).require(tenantId, 'fiscal.gre');
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status,
+        body: { code: error.status === 404 ? 'FEATURE_OFF' : error.code },
+      };
+    }
+    return { status: 503, body: { code: 'CAPABILITIES_UNAVAILABLE' } };
+  }
+}
+
 export async function runRemissionGuideHttp(
   env: GreEnv,
   actor: QuickAddActor,
   body: Record<string, unknown>,
 ): Promise<HttpResult> {
-  if (!isGreEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'GRE_DB_UNAVAILABLE' } };
+  const capabilityError = await requireGre(env, actor.tenantId);
+  if (capabilityError) return capabilityError;
   const parsed = parseRemissionBody(body);
   if (!parsed.ok) {
     return { status: 400, body: { code: 'BAD_REQUEST', error: 'GRE fields incomplete' } };

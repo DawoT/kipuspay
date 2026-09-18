@@ -120,7 +120,7 @@
       : activeTab === 'historial'
         ? 'Historial ABC-123'
         : 'SPOT SUNAT 12%'}
-    statusTone="live"
+    statusTone="sync"
     ariaLabel="Smartphone mostrando interfaz interactiva de servicios, taller, historial por placa y cálculo de detracción SUNAT"
   >
     <div class="mock-screen">
@@ -220,8 +220,8 @@
 
           <!-- Validation Stamp -->
           <div class="invoice-stamp-card">
-            <span class="stamp-code">FACTURA: F001-000492 · VALIDADA SUNAT</span>
-            <span class="stamp-badge">100% LEGAL</span>
+            <span class="stamp-code">EJEMPLO DE DOCUMENTO · NO ENVIADO</span>
+            <span class="stamp-badge">MUESTRA</span>
           </div>
 
           <!-- Action Button -->
@@ -236,11 +236,11 @@
             >
               {#if isCharging}
                 <span class="btn-spinner" aria-hidden="true"></span>
-                <span>Generando comprobante tributario…</span>
+                <span>Registrando ejemplo…</span>
               {:else if isPaid}
-                <span>Factura electrónica emitida ✓</span>
+                <span>Venta de ejemplo registrada · sin envío fiscal</span>
               {:else}
-                <span>Emitir Factura S/ {formatCents(total_cents)}</span>
+                <span>Simular cobro S/ {formatCents(total_cents)}</span>
               {/if}
             </button>
           </div>

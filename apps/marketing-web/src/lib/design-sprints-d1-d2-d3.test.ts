@@ -52,9 +52,10 @@ describe('Sprints D1, D2 y D3 — Diseño Premium y Pulido UI/UX Staff', () => {
       );
     });
 
-    it('OwnerModeMock incluye indicador palpitante .pulse-dot-live con @keyframes livePulse y copy EN VIVO', () => {
+    it('OwnerModeMock identifica sus datos como ejemplo y conserva las preferencias de movimiento', () => {
       expect(OWNER_MOCK).toContain('pulse-dot-live');
-      expect(OWNER_MOCK).toContain('Cajas en línea · EN VIVO');
+      expect(OWNER_MOCK).toContain('Datos de ejemplo · última sincronización');
+      expect(OWNER_MOCK).not.toContain('EN VIVO');
       expect(OWNER_MOCK).toMatch(/@keyframes livePulse\s*\{/);
       expect(OWNER_MOCK).toMatch(
         /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.pulse-dot-live\s*\{[^}]*animation:\s*none;/,

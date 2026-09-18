@@ -1,26 +1,15 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s8/guía §6: Modo Dueño — locales: ranking por sucursal calculado por el
 // servidor, con resumen guardado offline.
 
-const SESSION = JSON.stringify({
-  userId: 'owner-e2e',
-  role: 'owner',
-  branchId: 'branch-e2e',
-});
-
 test('locales dueño: ranking por sucursal server-side', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-locales',
+    role: 'owner',
+    capabilities: ['owner.mode', 'reporting.catalog'],
+  });
   await page.route('**/api/owner/day-summary**', (route) =>
     route.fulfill({
       status: 200,

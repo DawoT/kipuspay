@@ -6,9 +6,10 @@ describe('OwnerModeMock component', () => {
   it('el archivo Svelte existe y renderiza el contenedor y conmutador de vista', () => {
     const svelteContent = readFileSync(new URL('./OwnerModeMock.svelte', import.meta.url), 'utf8');
     expect(svelteContent).toContain('data-testid="owner-mode-mock"');
-    expect(svelteContent).toContain('Simulación en vivo');
+    expect(svelteContent).toContain('Vista interactiva');
     expect(svelteContent).toContain('Fotografía del dispositivo');
     expect(svelteContent).toContain('/media/mockup-modo-dueno.jpg');
+    expect(svelteContent).not.toMatch(/EN VIVO|tiempo real/i);
   });
 
   it('todos los montos están definidos en céntimos enteros (V-21 / CAL-01)', () => {

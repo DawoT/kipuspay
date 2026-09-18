@@ -17,6 +17,199 @@ const authedApp = createApp({
 });
 
 describe('worker-api', () => {
+  it('marca todas las respuestas self-serve LPDP como no-store, incluso cuando el feature está apagado', async () => {
+    const app = createApp();
+    const requests = [
+      { path: '/api/lpdp/titular/verify', method: 'POST', body: '{}' },
+      { path: '/api/lpdp/titular/verify-otp', method: 'POST', body: '{}' },
+      { path: '/api/lpdp/titular/export', method: 'GET' },
+      { path: '/api/lpdp/titular/consents', method: 'GET' },
+      { path: '/api/lpdp/titular/consent', method: 'POST', body: '{}' },
+      { path: '/api/lpdp/titular/erase', method: 'POST', body: '{}' },
+    ];
+
+    for (const request of requests) {
+      const response = await app.request(
+        request.path,
+        {
+          method: request.method,
+          ...(request.body
+            ? { body: request.body, headers: { 'content-type': 'application/json' } }
+            : {}),
+        },
+        { FEATURE_LPDP: '0' } as never,
+      );
+      expect(response.headers.get('Cache-Control'), request.path).toBe('no-store');
+    }
+
+    const adminRequests = [
+      { path: '/api/customers', method: 'GET' },
+      { path: '/api/customers/customer-1/consents', method: 'GET' },
+      { path: '/api/customers/customer-1/consent', method: 'POST', body: '{}' },
+      { path: '/api/customers/customer-1/export', method: 'GET' },
+      { path: '/api/customers/customer-1/erase', method: 'POST' },
+    ];
+    for (const request of adminRequests) {
+      const response = await authedApp.request(
+        request.path,
+        {
+          method: request.method,
+          headers: {
+            authorization: 'Bearer tok',
+            ...(request.body ? { 'content-type': 'application/json' } : {}),
+          },
+          ...(request.body ? { body: request.body } : {}),
+        },
+        { FEATURE_LPDP: '0' } as never,
+      );
+      expect(response.headers.get('Cache-Control'), request.path).toBe('no-store');
+    }
+  });
+
+  it('rechaza la verificación pública LPDP si falta el servicio de reto/limitador', async () => {
+    const response = await createApp().request(
+      '/api/lpdp/titular/verify',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: 'tenant-1',
+          documentNumber: '12345678',
+          name: 'Ana',
+          phone: '999111222',
+        }),
+      },
+      {
+        FEATURE_LPDP: '1',
+        AUTH_JWT_HS_SECRET: 'unit-test-secret',
+        DB: {} as D1Database,
+      } as never,
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ code: 'VERIFICATION_UNAVAILABLE' });
+  });
+
+  it('bloquea operaciones KDS fuera de las sucursales permitidas del usuario', async () => {
+    const branchScopedApp = createApp({
+      verifyJwt: () => Promise.resolve({ tenantId: 't1', sub: 'u1' }),
+      getTenant: () => Promise.resolve(active),
+      checkRevocation: () => Promise.resolve({ available: true, revoked: false }),
+      loadUser: () =>
+        Promise.resolve({
+          ok: true as const,
+          user: {
+            userId: 'u1',
+            tenantId: 't1',
+            branchId: 'branch-a',
+            allowedBranches: ['branch-a'],
+            role: 'cashier' as const,
+            permissions: [],
+          },
+        }),
+    });
+    const db = {
+      prepare: (sql: string) => ({
+        bind: () => ({
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : sql.includes('FROM orders')
+                  ? { status: 'READY', branch_id: 'branch-b' }
+                  : { order_id: 'order-other', branch_id: 'branch-b', id: 'order-other' },
+            ),
+          all: () => Promise.resolve({ results: [] }),
+        }),
+      }),
+    };
+    const requests: Array<{ method: string; path: string; body?: Record<string, unknown> }> = [
+      { method: 'GET', path: '/api/orders/kds-pending?branchId=branch-b' },
+      { method: 'POST', path: '/api/kds/ws-ticket', body: { branchId: 'branch-b' } },
+      {
+        method: 'POST',
+        path: '/api/orders',
+        body: { branchId: 'branch-b', items: [{ productId: 'p1', quantity: 1 }] },
+      },
+      { method: 'POST', path: '/api/orders/fire', body: { orderId: 'order-other' } },
+      {
+        method: 'POST',
+        path: '/api/orders/items/ready',
+        body: { orderId: 'order-other', orderItemIds: ['item-other'] },
+      },
+      { method: 'POST', path: '/api/orders/items/cancel', body: { orderItemId: 'item-other' } },
+      {
+        method: 'POST',
+        path: '/api/orders/split',
+        body: {
+          orderId: 'order-other',
+          cashRegisterSessionId: 'session',
+          series: 'NV01',
+          paymentMethodId: 'cash',
+          portions: [{ saleId: 'sale', itemIds: ['item-other'] }],
+        },
+      },
+    ];
+    for (const request of requests) {
+      const response = await branchScopedApp.request(
+        request.path,
+        {
+          method: request.method,
+          headers: {
+            authorization: 'Bearer tok',
+            ...(request.body ? { 'content-type': 'application/json' } : {}),
+          },
+          ...(request.body ? { body: JSON.stringify(request.body) } : {}),
+        },
+        { DB: db, FEATURE_ORDERS_KDS: '1' } as never,
+      );
+      expect(response.status, `${request.method} ${request.path}`).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({ code: 'FORBIDDEN_BRANCH' });
+    }
+  });
+
+  it('conserva acceso tenant-wide para owner sin sucursal asignada', async () => {
+    const ownerApp = createApp({
+      verifyJwt: () => Promise.resolve({ tenantId: 't1', sub: 'owner-1' }),
+      getTenant: () => Promise.resolve(active),
+      checkRevocation: () => Promise.resolve({ available: true, revoked: false }),
+      loadUser: () =>
+        Promise.resolve({
+          ok: true as const,
+          user: {
+            userId: 'owner-1',
+            tenantId: 't1',
+            branchId: '',
+            allowedBranches: [],
+            role: 'owner' as const,
+            permissions: [],
+          },
+        }),
+    });
+    const db = {
+      prepare: (sql: string) => ({
+        bind: () => ({
+          first: () =>
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : sql.includes('FROM branches')
+                  ? { id: 'branch-a' }
+                  : null,
+            ),
+          all: () => Promise.resolve({ results: [] }),
+        }),
+      }),
+    };
+    const response = await ownerApp.request(
+      '/api/orders/kds-pending?branchId=branch-a',
+      { headers: { authorization: 'Bearer tok' } },
+      { DB: db, FEATURE_ORDERS_KDS: '1' } as never,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ orders: [] });
+  });
+
   it('CORS /api/push/* (ADR-0035): la respuesta del handler lleva ACAO, no solo el preflight', async () => {
     const res = await authedApp.request(
       '/api/push/privacy',
@@ -294,10 +487,22 @@ describe('catálogo vendible del POS (C1 — fe de errata)', () => {
   });
 
   it('devuelve 404 FEATURE_OFF sin el flag (JWT válido mockeado)', async () => {
-    const res = await authedApp.request('/api/catalog/sellable', {
-      method: 'GET',
-      headers: { authorization: 'Bearer tok', 'x-tenant-id': 't1' },
-    });
+    const res = await authedApp.request(
+      '/api/catalog/sellable',
+      {
+        method: 'GET',
+        headers: { authorization: 'Bearer tok', 'x-tenant-id': 't1' },
+      },
+      {
+        DB: {
+          prepare: () => ({
+            bind: () => ({
+              first: () => Promise.resolve({ enabled: 0, config_json: '{}', epoch: 0 }),
+            }),
+          }),
+        },
+      },
+    );
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body).toMatchObject({ code: 'FEATURE_OFF' });

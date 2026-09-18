@@ -7,14 +7,11 @@ import {
   resolveVariantUnitPriceCents,
 } from '@kipuspay/domain-inventory';
 import type { WorkerEnv } from '../auth/control-plane.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 interface HttpResult {
   readonly status: number;
   readonly body: Record<string, unknown>;
-}
-
-function flagOn(value: string | undefined): boolean {
-  return value === '1' || value === 'true';
 }
 
 function privileged(role: string | undefined): boolean {
@@ -22,8 +19,39 @@ function privileged(role: string | undefined): boolean {
   return normalized === 'admin' || normalized === 'owner';
 }
 
-function featureOff(): HttpResult {
-  return { status: 404, body: { error: 'Catalog capability off', code: 'FEATURE_OFF' } };
+async function requireCapability(
+  env: WorkerEnv,
+  tenantId: string,
+  capability: 'catalog.variants' | 'catalog.uom',
+): Promise<HttpResult | null> {
+  try {
+    await new CapabilityResolver(env).require(tenantId, capability);
+    return null;
+  } catch (error) {
+    if (error instanceof CapabilityError) {
+      return {
+        status: error.status === 404 ? 404 : 503,
+        body: {
+          error: error.message,
+          code: error.status === 404 ? 'FEATURE_OFF' : 'CAPABILITY_UNAVAILABLE',
+        },
+      };
+    }
+    return {
+      status: 503,
+      body: { error: 'Capability unavailable', code: 'CAPABILITY_UNAVAILABLE' },
+    };
+  }
+}
+
+async function requireAnyCatalogCapability(
+  env: WorkerEnv,
+  tenantId: string,
+): Promise<HttpResult | null> {
+  const variants = await requireCapability(env, tenantId, 'catalog.variants');
+  if (!variants) return null;
+  const uom = await requireCapability(env, tenantId, 'catalog.uom');
+  return uom ?? variants;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -73,13 +101,12 @@ export async function runListVariantsUomHttp(
   env: WorkerEnv | undefined,
   tenantId: string,
 ): Promise<HttpResult> {
-  if (!flagOn(env?.FEATURE_CATALOG_VARIANTS) && !flagOn(env?.FEATURE_CATALOG_UOM)) {
-    return featureOff();
-  }
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
   if (!tenantId) return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
+  const capabilityError = await requireAnyCatalogCapability(env, tenantId);
+  if (capabilityError) return capabilityError;
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.name, p.sku, p.parent_product_id, p.variant_price_override_cents,
             p.is_sellable, p.price_cents AS variant_list_price_cents,
@@ -146,7 +173,6 @@ export async function runUpdateVariantHttp(
   productId: string,
   body: { parentProductId?: string | null; variantPriceOverrideCents?: number | null },
 ): Promise<HttpResult> {
-  if (!flagOn(env?.FEATURE_CATALOG_VARIANTS)) return featureOff();
   if (!privileged(role)) return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
   if (!tenantId || !userId || !productId.trim()) {
     return { status: 401, body: { error: 'Unauthorized', code: 'UNAUTHORIZED' } };
@@ -158,6 +184,8 @@ export async function runUpdateVariantHttp(
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  const capabilityError = await requireCapability(env, tenantId, 'catalog.variants');
+  if (capabilityError) return capabilityError;
   const parent = body.parentProductId?.trim() || null;
   const prev = await env.DB.prepare(
     `SELECT parent_product_id FROM products
@@ -258,7 +286,6 @@ export async function runUpsertProductUomHttp(
     isBase?: boolean;
   },
 ): Promise<HttpResult> {
-  if (!flagOn(env?.FEATURE_CATALOG_UOM)) return featureOff();
   if (!privileged(role)) return { status: 403, body: { error: 'Forbidden', code: 'FORBIDDEN' } };
   let uomCode: string;
   try {
@@ -284,6 +311,8 @@ export async function runUpsertProductUomHttp(
   if (!env?.DB) {
     return { status: 503, body: { error: 'Database unavailable', code: 'DB_UNAVAILABLE' } };
   }
+  const capabilityError = await requireCapability(env, tenantId, 'catalog.uom');
+  if (capabilityError) return capabilityError;
   const id = body.id?.trim() || crypto.randomUUID();
   const isBase = body.isBase === true ? 1 : 0;
   const statements: D1PreparedStatement[] = [];

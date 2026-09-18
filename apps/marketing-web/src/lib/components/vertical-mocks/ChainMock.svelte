@@ -140,11 +140,11 @@
     {theme}
     title="Modo Dueño Cadenas · KipusPay"
     statusBadge={activeTab === 'ventas'
-      ? '3 Locales en vivo'
+      ? '3 locales · ejemplo'
       : activeTab === 'transferencias'
         ? 'Stock Multi-Sede'
-        : 'Ranking Metas 98%'}
-    statusTone="live"
+      : 'Ranking · ejemplo'}
+    statusTone="sync"
     ariaLabel="Smartphone mostrando interfaz interactiva de Modo Dueño para cadenas, transferencias y ranking de locales"
   >
     <div class="mock-screen">
@@ -205,7 +205,7 @@
           <div class="revenue-hero-card">
             <div class="hero-top-row">
               <span class="hero-label">{currentBranch.name} · Ventas de hoy</span>
-              <span class="live-tag">EN VIVO</span>
+              <span class="live-tag">EJEMPLO</span>
             </div>
             <p class="hero-amount tabular-nums">
               <span class="currency">S/</span>
@@ -357,7 +357,7 @@
           <div class="ranking-global-card">
             <div class="rg-top">
               <span class="rg-label">Total consolidado: S/ 12,450.00</span>
-              <span class="rg-meta-tag">98% meta global</span>
+              <span class="rg-meta-tag">Meta global · ejemplo</span>
             </div>
             <div class="rg-progress-bar">
               <div class="rg-progress-fill" style="width: 98%;"></div>

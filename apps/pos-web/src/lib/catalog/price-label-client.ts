@@ -49,6 +49,7 @@ export interface VerifiedTerminalContext {
   readonly verified: true;
   readonly terminalId: string;
   readonly terminalSessionId: string;
+  readonly cashRegisterSessionId?: string;
 }
 
 export interface PriceLabelAcknowledgement {

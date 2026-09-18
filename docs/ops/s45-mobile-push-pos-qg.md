@@ -7,15 +7,18 @@ owner: "@DawoT"
 
 # Sprint 45 — Push móvil y caja PWA Android — Quality Gate
 
-**Estado software:** GREEN local  
+**Estado software:** GREEN local + hardening de dispatcher verificado
 **Estado claim/producción/piloto:** NO-GO condicionado  
 **Capabilities:** `mobile.push`, `client.mobile_pos`, default-off  
 **Spec:** Arquitectura §5.12 regla 30 · ADR-0029 · COM-11 · DAT-12 · Roadmap FASE 6E
 
 El gate automatizado demuestra software local, bindings simulados y navegador
-emulado. No demuestra entrega Web Push/FCM real ni comportamiento de un Android
-físico. Sin staging real y firmas Mobile+QA+Security A+V independientes, este
-documento no autoriza GTM-26, producción, piloto ni una certificación externa.
+emulado. El hardening posterior también cubre TTL de test compatible con el cron
+`*/5` y errores inline persistidos/logueados. La evidencia H4 añadida abajo
+demuestra un recorrido Web Push parcial en un dispositivo físico, pero no entrega
+FCM real ni certificación de Android de gama baja. Sin staging completo y firmas
+Mobile+QA+Security A+V independientes, este documento no autoriza GTM-26,
+producción, piloto ni una certificación externa.
 
 ## Evidencia RED→GREEN
 
@@ -106,6 +109,15 @@ cuentan como entrega.
 Es una simulación de software determinista. El p95 4412 ms no prueba el SLO de red,
 provider, radio, doze ni dispositivo real.
 
+### Reejecución local del volumen SLO — 2026-09-16 (Lima)
+
+`pnpm --filter @kipuspay/worker-api exec vitest run
+src/push/push-slo-volume.test.ts` pasó **2/2** en el pool Workerd local. La
+ejecución confirmó 20 entregas, ACK `DISPLAYED` para 20/20, fan-out 16 + backstop
+4, p95 E2E menor a 10 s y ausencia de alerta con el guard n≥20. Sigue siendo
+evidencia de software/emulación: no cambia el estado de SLO real ni reemplaza
+Android físico, provider externo o firmas A/V.
+
 ## PWA y low-end emulado
 
 Playwright verifica onboarding a 360/375 px, axe sin impacto critical/serious y
@@ -116,6 +128,17 @@ cola final cero; limita crecimiento de heap a 32 MiB e interacción p95 a 200 ms
 La palabra **emulado** es parte del resultado: no existe evidencia física de Android
 de gama baja, Chrome/WebView del fabricante, presión real de storage, background
 sync, radio intermitente, doze ni políticas OEM.
+
+### Evidencia H4 parcial — dispositivo físico Web Push
+
+El 2026-08-24 se verificó en un Zebra Z2466 conectado por USB/ADB el recorrido
+Web Push contra staging: login real, suscripción `WEB_PUSH`, entrega
+`ACCEPTED`→`DISPLAYED` en **4.8 s**, `ack_consumed_at` atómico y notificación
+visible en la bandeja. Esta evidencia demuestra un dispositivo físico y el
+camino VAPID, pero no demuestra Android Go de 1 GB, presión de almacenamiento,
+doze/background ni el volumen necesario para el SLO ≥99%; tampoco demuestra el
+canal `FCM_HTTP_V1` nativo. Por eso el claim y la certificación de gama baja
+siguen bloqueados.
 
 ## Security Review
 
@@ -132,7 +155,7 @@ Staff Security V independiente permanece pendiente junto a Mobile y QA.
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| Web Push VAPID staging real | PENDIENTE / NO-GO | Consentimiento, rotación/revocación, provider acceptance y ACK `DISPLAYED` con telemetría real |
+| Web Push VAPID staging real | PARCIAL / NO-GO | H4 físico confirma un ACK `DISPLAYED` de 4.8 s; falta volumen ≥99%, matriz normal/offline/doze, rotación/revocación completa y firma A+V |
 | FCM HTTP v1 staging real | PENDIENTE / NO-GO | OAuth/service account en Secrets/KMS, token stale, cuotas/retry y ACK real sin FCM legacy |
 | SLO real | PENDIENTE / NO-GO | p95 evento→display <10 s y `DISPLAYED` >=99% en matriz normal; offline/doze etiquetados |
 | Android físico gama baja | PENDIENTE / NO-GO | 500 ventas exactas bajo reload/upgrade, storage pressure, background y doze sin pérdida/duplicado |

@@ -82,18 +82,25 @@ describe('tour client (Sprint 52)', () => {
   });
 
   it('recordGrowthEvent: envía el evento y jamás lanza (métrica no rompe el cobro)', async () => {
-    let sent: { eventType: unknown; meta: unknown } | null = null;
+    let sent: { eventType: unknown; meta: unknown; idempotencyKey?: unknown } | null = null;
     const fetchMock = vi.fn((_url: unknown, init?: RequestInit) => {
       const rawBody = init?.body;
       sent = JSON.parse(typeof rawBody === 'string' ? rawBody : '{}') as {
         eventType: unknown;
         meta: unknown;
+        idempotencyKey?: unknown;
       };
       return Promise.resolve(new Response('{"ok":true}', { status: 201 }));
     }) as unknown as typeof fetch;
     vi.stubGlobal('fetch', fetchMock);
     await recordGrowthEvent('setup_checklist_step_completed', { step: 'logo' });
-    expect(sent).toEqual({ eventType: 'setup_checklist_step_completed', meta: { step: 'logo' } });
+    expect(sent).toMatchObject({
+      eventType: 'setup_checklist_step_completed',
+      meta: { step: 'logo' },
+    });
+    expect((sent as { idempotencyKey?: unknown } | null)?.idempotencyKey).toMatch(
+      /^setup_checklist_step_completed-[0-9a-f]{8}$/,
+    );
   });
 
   it('recordGrowthEvent: sin red no lanza (fire-and-forget)', async () => {

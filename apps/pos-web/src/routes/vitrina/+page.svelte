@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { formatCents } from '$lib/cents';
-  import { isVitrinaEnabled } from '$lib/features';
 
   import Icon from '$lib/ui/Icon.svelte';
   import BrandKnot from '$lib/ui/BrandKnot.svelte';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore.js';
   import { subscribeVitrina, type VitrinaSnapshot } from '$lib/vitrina/channel';
   import { vitrinaHeading, vitrinaPhaseLabel } from '$lib/vitrina/vitrina-copy';
 
-  const enabled = isVitrinaEnabled();
+  const enabled = $derived($tenantCapabilities.has('display.vitrina'));
   let snap = $state<VitrinaSnapshot>({
     totalCents: 0,
     itemCount: 0,
@@ -39,12 +39,17 @@
         <div class="brand-logo">
           <BrandKnot size={18} />
         </div>
-        <p class="page-eyebrow">Pantalla de Cliente</p>
+        <p class="page-eyebrow">Tu compra</p>
         <h1 class="page-title">{vitrinaHeading(snap.brandLabel)}</h1>
       </div>
 
       <div class="phase-badge">
-        <span class="badge {snap.phase === 'charged' ? 'badge-success' : 'badge-warning'}" data-testid="vitrina-phase">
+        <span
+          class="badge {snap.phase === 'charged' ? 'badge-success' : 'badge-warning'}"
+          data-testid="vitrina-phase"
+          role="status"
+          aria-live="polite"
+        >
           {vitrinaPhaseLabel(snap.phase)}
         </span>
       </div>
@@ -56,7 +61,16 @@
         </span>
       </div>
 
-      <p class="vitrina-msg" data-testid="vitrina-message">{snap.message}</p>
+      {#if snap.itemCount > 0 || snap.documentType !== '—'}
+        <div class="purchase-meta" aria-label="Detalle de compra">
+          {#if snap.itemCount > 0}<span>{snap.itemCount} {snap.itemCount === 1 ? 'artículo' : 'artículos'}</span>{/if}
+          {#if snap.documentType !== '—'}<span>{snap.documentType}</span>{/if}
+        </div>
+      {/if}
+
+      <p class="vitrina-msg" data-testid="vitrina-message" role="status" aria-live="polite">
+        {snap.message}
+      </p>
 
       {#if snap.phase === 'charged'}
         <div class="brand-footer">
@@ -90,6 +104,7 @@
     flex-direction: column;
     align-items: center;
     gap: 1.25rem;
+    padding: clamp(1.25rem, 4vw, 2rem);
   }
 
   .vitrina-masthead {
@@ -142,6 +157,21 @@
     font-size: 1.125rem;
     color: var(--text-main);
     line-height: 1.4;
+  }
+
+  .purchase-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  .purchase-meta span + span::before {
+    content: '·';
+    margin-right: 0.5rem;
+    color: var(--accent-primary);
   }
 
   .brand-footer {

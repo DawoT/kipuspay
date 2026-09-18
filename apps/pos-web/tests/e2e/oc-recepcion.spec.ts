@@ -16,6 +16,29 @@ test('OC: crear con líneas, enviar y recibir parcialmente', async ({ page }) =>
       localStorage.setItem('kipuspay_user', session);
       localStorage.setItem('kipuspay_token', 'jwt-e2e');
       localStorage.setItem('kipuspay_tenant_id', 't-e2e');
+      localStorage.setItem(
+        'kipuspay.capabilities.v1:t-e2e',
+        JSON.stringify({
+          caps: ['purchasing.orders', 'purchasing.partial_receive', 'inventory.serials'],
+          epoch: 1,
+          fetchedAt: Date.now(),
+          tenantId: 't-e2e',
+        }),
+      );
+      sessionStorage.setItem(
+        'kipuspay.pos.tenant.v1',
+        JSON.stringify({
+          tenantId: 't-e2e',
+          tradeName: 'Cadena E2E',
+          verticalType: 'cadenas',
+          formalizationMode: 'INTERNAL_CONTROL',
+          taxRegime: 'RG',
+          onboardingStartedAtIso: null,
+          firstSaleAtIso: null,
+          brandQrEnabled: true,
+          referralCode: null,
+        }),
+      );
     },
     [SESSION] as const,
   );
@@ -80,6 +103,29 @@ test('OC: los errores del servidor se traducen a copy de negocio', async ({ page
       localStorage.setItem('kipuspay_user', session);
       localStorage.setItem('kipuspay_token', 'jwt-e2e');
       localStorage.setItem('kipuspay_tenant_id', 't-e2e');
+      localStorage.setItem(
+        'kipuspay.capabilities.v1:t-e2e',
+        JSON.stringify({
+          caps: ['purchasing.orders', 'purchasing.partial_receive', 'inventory.serials'],
+          epoch: 1,
+          fetchedAt: Date.now(),
+          tenantId: 't-e2e',
+        }),
+      );
+      sessionStorage.setItem(
+        'kipuspay.pos.tenant.v1',
+        JSON.stringify({
+          tenantId: 't-e2e',
+          tradeName: 'Cadena E2E',
+          verticalType: 'cadenas',
+          formalizationMode: 'INTERNAL_CONTROL',
+          taxRegime: 'RG',
+          onboardingStartedAtIso: null,
+          firstSaleAtIso: null,
+          brandQrEnabled: true,
+          referralCode: null,
+        }),
+      );
     },
     [SESSION] as const,
   );

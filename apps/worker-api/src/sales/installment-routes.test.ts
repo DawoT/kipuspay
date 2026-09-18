@@ -45,12 +45,15 @@ function env(over: Partial<WorkerEnv> = {}): WorkerEnv {
   return {
     FEATURE_SALES_INSTALLMENTS: '1',
     DB: {
-      prepare() {
+      prepare(sql: string) {
         const stmt = {
           bind() {
             return stmt;
           },
-          first: () => Promise.resolve(null),
+          first: () =>
+            sql.includes('tenant_capabilities')
+              ? Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 })
+              : Promise.resolve(null),
           all: () => Promise.resolve({ results: [], success: true, meta: {} }),
         };
         return stmt;
@@ -67,9 +70,9 @@ describe('installment-routes', () => {
 
   it('404 when flag off', async () => {
     const off = { FEATURE_SALES_INSTALLMENTS: '0' } as unknown as WorkerEnv;
-    expect((await runCreateInstallmentPlanHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runPayInstallmentHttp(off, 't1', 'u1', 'admin', {})).status).toBe(404);
-    expect((await runOwnerInstallmentsOverdueHttp(off, 't1')).status).toBe(404);
+    expect((await runCreateInstallmentPlanHttp(off, 't1', 'u1', 'admin', {})).status).toBe(503);
+    expect((await runPayInstallmentHttp(off, 't1', 'u1', 'admin', {})).status).toBe(503);
+    expect((await runOwnerInstallmentsOverdueHttp(off, 't1')).status).toBe(503);
   });
 
   it('T-1: reporte Dueño con cashier → 403 FORBIDDEN_ROLE', async () => {

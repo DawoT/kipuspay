@@ -110,7 +110,13 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | Concepto | Uso permitido | Uso prohibido |
 |---|---|---|
 | `vertical_type` / `TenantContext.vertical` | Onboarding, playbooks, analytics, empaquetado GTM | `if` / `switch` en sale, stock, fiscal, caja |
-| `tenant_capabilities` (flags o filas) | Runtime: habilitar módulos y policies | Sustituir cumplimiento SUNAT o ACID |
+| `tenant_capabilities` (filas) | Única autoridad runtime para habilitar módulos y policies | Sustituir cumplimiento SUNAT o ACID |
+
+Los `FEATURE_*` del Worker son únicamente kill-switches de despliegue: un valor
+explícito `"0"` revoca globalmente la capability, mientras que ausencia,
+`"1"` o `"true"` no la concede. El acceso requiere siempre una fila vigente en
+`tenant_capabilities` y un `tenant_data_epochs.epoch` válido; la UI y los
+snapshots de sesión solo sirven para descubrimiento.
 
 **Capabilities canónicas (FASE 3 / experiencia premium → flags):**
 
@@ -152,6 +158,8 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | Capability | Sprint (Roadmap) | Empaquetado GTM típico |
 |---|---|---|
 | `cash.blind_z` | 17 | Retail / “cada sol cuadra” |
+| `cash.policy` | 17 | Propinas y apertura de cajón |
+| `billing.usage_overage` | 27 | Cobro de sobregiro de consumo |
 | `cash.discount_authz` | 17 | Retail |
 | `ledger.credit_limit_cents` | 17 | Retail / CxC |
 | `audit.sensitive_actions` | 17 | Todos |
@@ -236,7 +244,23 @@ Regla: `packages/domain-*` **sin** imports de Hono, D1, Svelte ni SDK SUNAT. Wor
 | `catalog.sellable` | C1 | Grid de catálogo vendible en la terminal (regla 38) |
 | `auth.cashier_login` | C2 | Login local del POS con PIN de cajero (ADR-0034) |
 
+**Capabilities canónicas (FASE 6H, Grifos, sprints 54–59):**
+
+| Capability | Sprint (Roadmap) | Empaquetado GTM típico |
+|---|---|---|
+| `fuel.dispatch` | 54–59 | Despacho por surtidor con precio snapshot y volumen en microunits |
+| `fuel.island_shift` | 54–59 | Reporte server-side por isla/manguera y turno |
+
+**Capabilities canónicas (fiscal premium / backlog v10):**
+
+| Capability | Sprint (Roadmap) | Empaquetado GTM típico |
+|---|---|---|
+| `fiscal.gre` | 7 | Guías de remisión electrónica |
+| `fiscal.debit_note` | 7 | Notas de débito electrónicas |
+| `fiscal.rc` | 7 | Resumen diario de boletas |
+| `fiscal.cpe_portal` | 7 | Portal de consulta de comprobantes |
+| `fiscal.withholdings` | 7 | Percepciones y retenciones |
+
 > FASE 8 (sprints 25–27) no introduce capabilities de producto: añade infraestructura transversal (`print outbox` §7.5, `cupo` §4.1, `FiscalTransport/breaker` §8.1) — no forman parte del empaquetado GTM.
 
 Playbooks de onboarding (farmacia vs resto) **activan bundles de capabilities**; no crean forks de código.
-

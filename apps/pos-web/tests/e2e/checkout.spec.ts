@@ -1,7 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 import { mockSellableCatalog } from './fixtures/sellable-catalog';
 
-test('home con checkout off muestra demo', async ({ page }) => {
+test('home con catálogo y checkout habilitados suma una línea', async ({ page }) => {
+  await installAuthenticatedTenant(page, {
+    tenantId: 'tenant-checkout',
+    capabilities: ['catalog.sellable', 'pos.checkout'],
+  });
   await page.route('**/api/catalog/sellable', (route) =>
     route.fulfill({
       status: 200,
@@ -30,6 +35,10 @@ test('home con checkout off muestra demo', async ({ page }) => {
 });
 
 test('home agrega productos del catálogo real y suma el total', async ({ page }) => {
+  await installAuthenticatedTenant(page, {
+    tenantId: 'tenant-checkout',
+    capabilities: ['catalog.sellable', 'pos.checkout'],
+  });
   await mockSellableCatalog(page);
   await page.goto('/');
   await expect(page.getByTestId('tenant-name')).toBeVisible();

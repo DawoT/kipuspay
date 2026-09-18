@@ -1126,6 +1126,8 @@ export async function runDailySummarySweep(
     readonly summaryDate: string;
     readonly nowMs: number;
     readonly limit?: number;
+    /** Tenants previamente autorizados por el control-plane capability resolver. */
+    readonly tenantIds?: readonly string[];
     /** C6: puerto RC real; sin él el sweep usa el mock (staging only). */
     readonly cdr?: RcCdrPort;
     /**
@@ -1182,7 +1184,9 @@ export async function runDailySummarySweep(
   for (const row of pending.results ?? []) {
     tenantSet.add(row.tenant_id);
   }
-  const tenants = Array.from(tenantSet);
+  const tenants = Array.from(tenantSet).filter((tenantId) =>
+    input.tenantIds ? input.tenantIds.includes(tenantId) : true,
+  );
 
   const results: DailySummarySweepResult['results'][number][] = [];
   for (const tenantId of tenants) {

@@ -2,15 +2,15 @@
   
   import { initTenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { formatCents } from '$lib/cents';
-  import { isLedgerArApEnabled, isPurchasingThreeWayEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { workflowStatusLabel } from '$lib/ui/ops-copy';
 import { apiFetch } from '$lib/auth/api-client';
 
-  const threeWayOn = isPurchasingThreeWayEnabled();
-  const apPayOn = isLedgerArApEnabled();
+  const threeWayOn = $derived($tenantCapabilities.has('purchasing.three_way'));
+  const apPayOn = $derived($tenantCapabilities.has('ledger.accounts_payable'));
   let accountsPayableId = $state('');
   let apPayCents = $state(0);
   let purchaseOrderId = $state('');

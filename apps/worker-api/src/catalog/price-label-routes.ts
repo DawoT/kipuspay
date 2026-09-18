@@ -11,6 +11,7 @@ import {
 } from '@kipuspay/adapters-d1';
 import type { WorkerEnv } from '../auth/control-plane.js';
 import { isCatalogPriceLabelsEnabled } from '../auth/features.js';
+import { CapabilityError, CapabilityResolver } from '../capabilities/capability-resolver.js';
 
 export { isCatalogPriceLabelsEnabled };
 
@@ -90,32 +91,21 @@ function hasUntrustedSnapshotField(body: Record<string, unknown>): boolean {
   });
 }
 
-async function capabilityEnabled(env: WorkerEnv, tenantId: string): Promise<boolean> {
-  if (!env.DB || !tenantId) return false;
-  const capability = await env.DB.prepare(
-    `SELECT 1 AS enabled FROM tenant_capabilities
-     WHERE tenant_id = ? AND capability = 'catalog.price_labels' AND enabled = 1 LIMIT 1`,
-  )
-    .bind(tenantId)
-    .first<{ enabled: number }>();
-  return capability?.enabled === 1;
-}
-
 async function tenantPreflight(
   env: WorkerEnv,
   actor: PriceLabelActor,
   roles: ReadonlySet<string>,
 ): Promise<HttpResult | null> {
-  if (!isCatalogPriceLabelsEnabled(env)) return { status: 404, body: { code: 'FEATURE_OFF' } };
   if (!env.DB) return { status: 503, body: { code: 'DB_UNAVAILABLE' } };
   if (!actor.tenantId || !actor.userId || !roles.has(actor.role.toLowerCase())) {
     return { status: 403, body: { code: 'FORBIDDEN' } };
   }
   try {
-    if (!(await capabilityEnabled(env, actor.tenantId))) {
+    await new CapabilityResolver(env).require(actor.tenantId, 'catalog.price_labels');
+  } catch (error) {
+    if (error instanceof CapabilityError && error.status === 404) {
       return { status: 404, body: { code: 'FEATURE_OFF' } };
     }
-  } catch {
     return { status: 503, body: { code: 'CAPABILITY_UNAVAILABLE' } };
   }
   return null;

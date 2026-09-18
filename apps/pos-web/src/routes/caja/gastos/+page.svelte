@@ -2,14 +2,14 @@
   import { tenantBranchId, cashSessionContext } from '$lib/admin/cash-session';
   import { apiFetch } from '$lib/auth/api-client';
   import { formatCents } from '$lib/cents';
-  import { isCashExpensesEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import Field from '$lib/ui/Field.svelte';
   import Input from '$lib/ui/Input.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
 
-  const expensesOn = isCashExpensesEnabled();
+  const expensesOn = $derived($tenantCapabilities.has('cash.register_expenses'));
   let category = $state<'SUPPLIES' | 'TRANSPORT' | 'OTHER'>('OTHER');
   let amountCents = $state(0);
   let description = $state('');

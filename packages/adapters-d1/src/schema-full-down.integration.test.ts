@@ -62,6 +62,7 @@ import {
   DOWN_0061_TENANT_SOL_CREDENTIALS,
   DOWN_0062_FISCAL_RC_ARCHIVE,
   DOWN_0063_FISCAL_RC_TICKET_AND_CORRELATIVE,
+  DOWN_0066_GRIFOS_FUEL_DISPATCH,
 } from './migrations-down.js';
 
 async function paymentMethodsPkColumns(): Promise<string[]> {
@@ -83,6 +84,7 @@ describe('D1 full down chain (isolate limpio post-migrate)', () => {
     ).first<{ value: string }>();
     expect(markerBefore?.value).toBe('1');
 
+    await env.DB.exec(DOWN_0066_GRIFOS_FUEL_DISPATCH);
     await env.DB.exec(DOWN_0063_FISCAL_RC_TICKET_AND_CORRELATIVE);
     await env.DB.exec(DOWN_0062_FISCAL_RC_ARCHIVE);
     await env.DB.exec(DOWN_0061_TENANT_SOL_CREDENTIALS);

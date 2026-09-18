@@ -1,27 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 // s20 (guía §6): transferencias entre sucursales — crear, enviar, recibir o
 // cancelar; conservación total origen + destino + merma (received + shrink =
 // sent).
 
-const SESSION = JSON.stringify({
-  userId: 'admin-e2e',
-  role: 'admin',
-  branchId: 'branch-e2e',
-});
-
 test('transferencias: crear, enviar y recibir con merma', async ({ page }) => {
-  await page.addInitScript(
-    ([session]) => {
-      localStorage.setItem('kipuspay_user', session);
-      localStorage.setItem('kipuspay_token', 'jwt-e2e');
-      localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    },
-    [SESSION] as const,
-  );
-  await page.route('**/api/**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
-  );
   await page.route('**/api/inventory/transfers', (route) =>
     route.fulfill({
       status: 200,
@@ -43,6 +27,14 @@ test('transferencias: crear, enviar y recibir con merma', async ({ page }) => {
       body: JSON.stringify({ status: 'RECEIVED', receivedQty: 9, shrinkQty: 1 }),
     }),
   );
+
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-e2e',
+    role: 'admin',
+    verticalType: 'cadenas',
+    tradeName: 'Cadena E2E',
+    capabilities: ['stock.transfers'],
+  });
 
   await page.goto('/admin/transferencias');
   await expect(page.getByTestId('admin-transferencias')).toBeVisible();

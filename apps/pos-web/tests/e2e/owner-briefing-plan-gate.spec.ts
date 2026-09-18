@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 /**
  * F-3 (auditoría browser) — el resumen agéntico (/api/insights/briefing)
@@ -11,8 +12,10 @@ test('F-3: sin plan Cadena el briefing se oculta y el gate evita re-consultas', 
   page,
 }) => {
   let briefingCalls = 0;
-  await page.route('**/api/**', (route) => {
-    void route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-owner-briefing',
+    role: 'owner',
+    capabilities: ['owner.mode', 'analytics.agentic_insights'],
   });
   await page.route('**/api/insights/briefing*', (route) => {
     briefingCalls += 1;
@@ -21,14 +24,6 @@ test('F-3: sin plan Cadena el briefing se oculta y el gate evita re-consultas', 
       contentType: 'application/json',
       body: JSON.stringify({ error: 'Requires Cadena plan', code: 'PLAN_REQUIRES_CADENA' }),
     });
-  });
-  await page.addInitScript(() => {
-    localStorage.setItem('kipuspay_token', 'jwt-owner-e2e');
-    localStorage.setItem('kipuspay_tenant_id', 't-e2e');
-    localStorage.setItem(
-      'kipuspay_user',
-      JSON.stringify({ userId: 'owner-e2e', role: 'owner', branchId: 'b-e2e' }),
-    );
   });
   await page.goto('/owner');
   await expect(page.getByTestId('owner-hoy')).toBeVisible();

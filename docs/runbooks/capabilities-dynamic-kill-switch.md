@@ -29,12 +29,12 @@ Que ve el operador o dashboard:
 
 Quien pierde que:
 
-- **POS checkout**: nunca bloqueado por capabilities (SYN-06, AGENTS invariante 7, ADR-ARCH-003). `pos.checkout` nunca 402; offline queue sigue encolando aunque `store.has('pos.checkout')=false`. UI puede ocultar botón pero venta sigue via fallback flag.
-- **Modo Dueño / premium**: gating por `has('owner.mode')` — si dynamic=1 y store vacío, dueño ve fallback a flags OFF (función oculta). No es pérdida de venta, es degradación UX.
+- **POS checkout**: nunca bloqueado por capabilities (SYN-06, AGENTS invariante 7, ADR-ARCH-003). `pos.checkout` nunca 402; offline queue sigue encolando aunque `store.has('pos.checkout')=false`. La UI oculta el botón, pero la venta offline no se pierde.
+- **Modo Dueño / premium**: gating por `has('owner.mode')`; si el snapshot está vacío, la función queda oculta. No es pérdida de venta, es degradación UX.
 - **Billing/plan**: reconciliación atómica no depende del fetch P95; epoch lag solo retrasa visibilidad hasta 10s (KV TTL 10s).
 - **Venta offline revocada**: la venta ACEPTADA en caja jamás se pierde aunque capability revocada entre encolado y sync (SYN-06). Ver chaos hw-android-offline / capabilities-revoked-offline.
 
-¿La venta sigue abierta? **Sí** — siempre. Kill-switch a 0 restaura UI por flags sin perder cola.
+¿La venta sigue abierta? **Sí** — siempre. Kill-switch a 0 oculta las superficies premium sin perder cola.
 
 ## Diagnóstico rápido (<5 min)
 
@@ -49,7 +49,7 @@ Quien pierde que:
 
 2. **Chequear sesión**:
    `curl -H "x-tenant-id: demo" https://api.../api/auth/session | jq '{caps: .capabilities, epoch: .capabilitiesEpoch}'`
-   - `dynamic=0` → `[] / 0` (fallback a flags, correcto).
+   - `dynamic=0` → `[] / 0` (fail-closed, correcto).
    - `dynamic=1` → lista sorted + epoch >0 (SoT D1). Si 503 → DB/KV caído, ver logs.
 
 3. **Dashboard SRE** (TODO métricas mínimas si fácil, sino este runbook es la evidencia):
@@ -72,7 +72,7 @@ Pasos ordenados y reversibles. Preferir feature flag / degradación antes que de
      PUBLIC_FEATURE_TENANT_CAPABILITIES_DYNAMIC = "0"
      # Guardar → instant rollback sin redeploy de código (vars se propagan en <30s).
      ```
-   - Verificar: `GET /api/auth/session` vuelve a `[]/0`; POS `store.has()` cae a `false` y `features.ts` usa `PUBLIC_FEATURE_*` flags (1 en staging para checkout/owner). No se pierde cola offline.
+   - Verificar: `GET /api/auth/session` vuelve a `[]/0`; POS `store.has()` cae a `false` y las superficies premium permanecen ocultas. No se pierde cola offline.
 
 2. **Si 503 CAPABILITIES_UNAVAILABLE**:
    - Es fail-closed correcto (SRE §9.1, AGENTS invariante 5). No autorizar acceso por omisión.
@@ -90,7 +90,7 @@ Como volver al estado anterior y como verificar que volvió.
   2. No tocar DDL (Ola1), session (Ola2), platform (Ola3), plan (Ola4) más que doc. El artefacto anterior sigue siendo el mismo; solo cambia var.
   3. Verificación:
      - `curl /api/auth/session` → `capabilities: []`, `capabilitiesEpoch: 0`.
-     - POS: `localStorage` clear o `has('owner.mode')` → `PUBLIC_FEATURE_OWNER_MODE` flag (1 en staging).
+     - POS: `localStorage` clear o `has('owner.mode')` → `false` hasta que vuelva el snapshot tenant-authoritative.
      - `scripts/verify.sh` sigue SUITE GREEN; `pnpm --filter pos-web test -- capabilitiesStore` 19/19 verde con dynamic 0.
      - Cola offline intacta: `await queue.listPending()` mismo length (SYN-06).
 
@@ -116,7 +116,11 @@ Como volver al estado anterior y como verificar que volvió.
 
 ## Notas Ola 5
 
-- `features.ts` migración progresiva ya delega a `store.has()` si dynamic 1, sino `PUBLIC_FEATURE_*`. Todas las `isXEnabled()` marcadas `@deprecated Ola 5` pero **no borradas** hasta 0531+ para rollback.
+- `features.ts` usa el snapshot solo para descubrimiento/UI; las rutas y jobs
+  consultan `CapabilityResolver` contra D1. Un `PUBLIC_FEATURE_*` no puede
+  reactivar una capability revocada ni sustituir una fila tenant-authoritative.
+  Los flags públicos restantes se reservan para superficies de despliegue no
+  comerciales (por ejemplo transporte o hardware).
 - Bundle V-24: `size-limit.config.js` 310kB gz, actual 309.25 — zero-dep (Web Platform APIs + Svelte store puro).
 - V-07/V-23: 0 `switch(vertical)`; V-15 INDEX sincronizado; SUITE GREEN.
 - DDL/session/platform/plan no tocados salvo kill-switch doc — como exige Ola 5.

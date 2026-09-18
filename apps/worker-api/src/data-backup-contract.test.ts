@@ -59,7 +59,8 @@ function downloadDb(input: {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...params: unknown[]) => ({
         first: vi.fn(() => {
-          if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+          if (sql.includes('tenant_capabilities'))
+            return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
           if (sql.includes('FROM data_backups')) {
             if (params[0] !== backupTenant) return Promise.resolve(null);
             return Promise.resolve({
@@ -130,6 +131,18 @@ const env = (overrides: Record<string, unknown> = {}) =>
       createMultipartUpload: vi.fn(),
       resumeMultipartUpload: vi.fn(),
       abortMultipartUpload: vi.fn(),
+    },
+    DB: {
+      prepare: () => ({
+        bind: () => ({
+          first: () =>
+            Promise.resolve({
+              enabled: overrides.FEATURE_DATA_BACKUP === '1' ? 1 : 0,
+              config_json: '{}',
+              epoch: 0,
+            }),
+        }),
+      }),
     },
     ...overrides,
   }) as never;
@@ -225,7 +238,8 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
       prepare: vi.fn((sql: string) => ({
         bind: vi.fn((...params: unknown[]) => ({
           first: vi.fn(() => {
-            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('tenant_capabilities'))
+              return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
             if (sql.includes('FROM data_backups')) {
               if (params[0] !== 'tenant-a') return Promise.resolve(null);
               return Promise.resolve({
@@ -322,7 +336,11 @@ describe('data.backup Worker flags, RBAC and tenant boundary', () => {
       prepare: vi.fn((sql: string) => ({
         bind: vi.fn(() => ({
           first: vi.fn(() =>
-            Promise.resolve(sql.includes('tenant_capabilities') ? { enabled: 1 } : unsafe),
+            Promise.resolve(
+              sql.includes('tenant_capabilities')
+                ? { enabled: 1, config_json: '{}', epoch: 0 }
+                : unsafe,
+            ),
           ),
           all: vi.fn(() => Promise.resolve({ results: [unsafe] })),
           run: vi.fn().mockResolvedValue({ meta: { changes: 0 } }),
@@ -476,7 +494,8 @@ describe('data.backup Workflow, R2 and KMS contracts', () => {
           sql,
           params,
           first: vi.fn(() => {
-            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('tenant_capabilities'))
+              return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
             if (sql.includes('SELECT global_hash')) {
               return Promise.resolve({ global_hash: 'a'.repeat(64) });
             }
@@ -529,7 +548,8 @@ describe('data.backup Workflow, R2 and KMS contracts', () => {
       prepare: vi.fn((sql: string) => ({
         bind: vi.fn((...params: unknown[]) => ({
           first: vi.fn(() => {
-            if (sql.includes('tenant_capabilities')) return Promise.resolve({ enabled: 1 });
+            if (sql.includes('tenant_capabilities'))
+              return Promise.resolve({ enabled: 1, config_json: '{}', epoch: 0 });
             if (sql.includes('SELECT global_hash')) {
               return Promise.resolve({ global_hash: 'a'.repeat(64) });
             }

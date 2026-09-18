@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { isPricingPromotionsEnabled } from '$lib/features';
+  import { capabilities as tenantCapabilities } from '$lib/tenant/capabilitiesStore';
   import Icon from '$lib/ui/Icon.svelte';
   import Button from '$lib/ui/Button.svelte';
   import StatusMessage from '$lib/ui/StatusMessage.svelte';
   import { catalogItemLabel } from '$lib/ui/ops-copy';
   import { apiFetch } from '$lib/auth/api-client';
 
-  const promosOn = isPricingPromotionsEnabled();
+  const promosOn = $derived($tenantCapabilities.has('pricing.promotions'));
   let name = $state('2x1 fin de semana');
   let appliesTo = $state('PRODUCT');
   let productId = $state('p1');

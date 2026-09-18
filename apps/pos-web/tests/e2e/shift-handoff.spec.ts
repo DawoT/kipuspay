@@ -1,28 +1,19 @@
 import { expect, test } from '@playwright/test';
-
-function authSession(role: string) {
-  return {
-    userId: role === 'owner' ? 'owner-e2e' : 'cashier-e2e',
-    role,
-    branchId: 'branch-e2e',
-    terminal: null,
-  };
-}
-
-async function mockSession(page: import('@playwright/test').Page, role: string) {
-  await page.route('**/api/auth/session', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(authSession(role)),
-    }),
-  );
-}
+import { installAuthenticatedTenant } from './fixtures/authenticated-tenant';
 
 test('caja: handoff de turno genera PIN de un solo uso y transfiere sin cerrar', async ({
   page,
 }) => {
-  await mockSession(page, 'cashier');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-handoff',
+    role: 'cashier',
+    capabilities: ['ops.shift_handoff'],
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 's-e2e',
+    },
+  });
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',
@@ -87,7 +78,11 @@ test('caja: handoff de turno genera PIN de un solo uso y transfiere sin cerrar',
 test('admin: invitación de equipo emite badge EMP- y PIN de caja una sola vez', async ({
   page,
 }) => {
-  await mockSession(page, 'owner');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-team',
+    role: 'owner',
+    capabilities: ['ops.team_invite'],
+  });
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',
@@ -117,7 +112,16 @@ test('admin: invitación de equipo emite badge EMP- y PIN de caja una sola vez',
 });
 
 test('caja: atribución de vendedor en <1s por badge o PIN en el carrito', async ({ page }) => {
-  await mockSession(page, 'cashier');
+  await installAuthenticatedTenant(page, {
+    tenantId: 't-seller',
+    role: 'cashier',
+    capabilities: ['catalog.sellable', 'ops.team_invite', 'pos.checkout', 'sales.commissions'],
+    terminal: {
+      terminalId: 'terminal-e2e',
+      terminalSessionId: 'terminal-session-e2e',
+      cashRegisterSessionId: 's-e2e',
+    },
+  });
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',

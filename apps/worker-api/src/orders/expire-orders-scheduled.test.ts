@@ -14,7 +14,12 @@ function mockDb(orders: Array<Record<string, string>>) {
               ? orders.map((row) => ({ tenant_id: 't1', id: row.id, branch_id: 'b1' }))
               : [],
           }),
-        first: () => Promise.resolve(null),
+        first: () =>
+          Promise.resolve(
+            sql.includes('FROM tenant_capabilities')
+              ? { enabled: 1, config_json: '{}', epoch: 0 }
+              : null,
+          ),
         run: () => Promise.resolve({ success: true }),
       };
       return stmt;
@@ -26,9 +31,12 @@ function mockDb(orders: Array<Record<string, string>>) {
 describe('S43-H2: expire-orders-scheduled', () => {
   it('expira pedidos vencidos y devuelve el conteo', async () => {
     const db = mockDb([{ id: 'order-1' }, { id: 'order-2' }]);
-    const expired = await runExpireOrdersScheduled({ DB: db } as never, {
-      scheduledTime: Date.parse('2026-08-08T12:00:00.000Z'),
-    });
+    const expired = await runExpireOrdersScheduled(
+      { DB: db, FEATURE_ORDERS_CUSTOMER_ORDERS: '1' } as never,
+      {
+        scheduledTime: Date.parse('2026-08-08T12:00:00.000Z'),
+      },
+    );
     expect(expired.scanned).toBe(2);
     expect(expired.expired).toBeGreaterThanOrEqual(0);
   });
