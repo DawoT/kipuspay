@@ -15653,3 +15653,64 @@ aprobaciones: [Staff SRE, Staff Security, Staff Principal]
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+
+```
+id: 0535
+timestamp_utc: 2026-09-19T00:21:52Z
+schema_version: 2
+sprint_fase: Transversal — Consolidación WIP 11 temas + ciclo RED→GREEN de CI e2e-pos
+agente_responsable: Staff Principal (agente; delegación de firma A de @DawoT registrada 2026-09-18; V: kipus-verify/kipus-security CI + re-ejecución staff)
+tipo: Entrega
+subtipo: consolidación de trabajo en curso + higiene de repo + fixes de CI
+relacion: amplia
+referencias_entradas: [0534]
+referencias_documentales: ["packages/domain-fuel", "apps/worker-api/src/capabilities/canonical-capabilities.ts", "docs/adr/ADR-0040-pos-bundle-budget-320kb.md", "docs/adr/ADR-0041-argon2id-workers-runtime.md", "docs/adr/ADR-0042-lpdp-email-otp.md", "docs/ops/pending-batches.yaml", "docs/architecture/05-3-commercial-ops.md"]
+prev_id: 0534
+prev_hash: 982beb455d742a29f5a470887835387616ac4435ac7a7bbe33b1988c3d569086
+entry_hash: 6e016c496d333f021afcb6733c105c81141d6f254b21030f7ba4448b71ab6a80
+ticket_or_adr: ADR-ARCH-003; ADR-0040; ADR-0041; ADR-0042; stg-s48-dr-sim; WIP-CONSOL-2026-09-18
+test_ids: [canonical-capabilities.test, dr-rto-measurement.test, SUITE, V-13, V-20]
+entregable_afectado: monorepo completo (417 archivos modificados + 56 nuevos): packages/domain-fuel (grifos s54-59), apps/worker-api/src/capabilities + barrido plan-gate ~120 rutas (ADR-ARCH-003), migraciones 0066-0068 espejadas, lpdp-security-shard + ADR-0042, fix DR-RTO (dr-routes.ts: RTO incluye verifyDrReplay + veredicto fail-closed 422), argon2id workerd vendorizado + ADR-0041, infra e2e local-stack + configs playwright, marketing content/onboarding-e2e, operational-seed + deploy-worker-api-staging.sh perfiles, checks ci_cd/selftest + presupuesto 320kB (ADR-0040), docs INDEX/GTM/ROADMAP/tracker
+descripcion: >
+  Consolidación del WIP acumulado 2026-08-29..09-17 en un commit por decisión del
+  owner (@DawoT, delegación de firmas A al agente staff 2026-09-18; V con caveat
+  mismo-sistema según precedente 0068; A+V humanas externas reservadas a QG
+  liberatorios). Temas: (1) fuel/grifos vertical con microunits y capability
+  fuel.dispatch/fuel.island_shift; (2) capabilities dinámicas con control-plane
+  PATCH + barrido transversal de rutas; (3) LPDP shard seguridad
+  tenant+documento; (4) fix stg-s48-dr-sim: RTO ahora mide hasta verifyDrReplay
+  y no-PASSED audita DR_SIMULATION_FAILED con HTTP 422; (5) pin-crypto argon2id
+  con wasm vendorizado 28kB; (6) suite local-stack (8 specs reales Worker+D1) con
+  runner dedicado; (7) marketing content y onboarding-e2e; (8) operational-seed
+  con validador; (9) gate CAL-06 a 320kB; (10) .gitignore evidencia local
+  (docs/ops/evidence, .zcode, .agents); (11) test nuevo
+  canonical-capabilities.test (5/5) que cierra el único hueco de cobertura
+  detectado en la auditoría del WIP. Ciclo RED→GREEN de CI: el WIP ocultaba 3
+  defectos de integración que solo el CI fresco revela.
+evidencia: >
+  RED CI 35406373248 (commit 8185a32): job e2e-pos, 84 errores "Tsconfig not
+  found .svelte-kit/tsconfig.json" en clone fresco — con KIPUSPAY_E2E_OUT_DIR el
+  sync del build escribe en otra carpeta y el extends estático del tsconfig no
+  resuelve; local pasaba porque .svelte-kit de dev existe (reproducido local
+  moviendo .svelte-kit). GREEN parcial ed25d19 (run 35407096239): sync previo con
+  outDir default en las 4 configs con outDir alternativo; fallo siguiente:
+  video retain-on-failure exige ffmpeg de Playwright (ffmpeg-1011) ausente en
+  runner. GREEN parcial 2575b8e (run 35407744151): paso "playwright install
+  ffmpeg"; 131 passed / 8 failed — los 8 eran tests/local-stack/*.real.spec.ts
+  (stack real wrangler+D1) levantados por el config default. GREEN final
+  0bef0c6 (run 35408446909): testIgnore tests/local-stack/** → quality+e2e-pos
+  success; kipus-verify 35408446845, kipus-security 35408446899 y CodeQL
+  35408446904 success. Local: Quality Gate OK (unit+integration+chaos 7
+  escenarios+copy+bundle 317.62/320kB), verify.sh SUITE GREEN 32/32 (V-00..V-31),
+  suites worker-api/pos-web/marketing-web/chaos/domain-fuel exit 0.
+red_commit_sha: 8185a32db50332874b96796e6a2f63a8e0dcd621
+red_run_id: "35406373248"
+expected_failure: "e2e-pos CI: 84x Tsconfig not found .svelte-kit/tsconfig.json (clone fresco) → luego ffmpeg-1011 ausente → luego 8 local-stack real specs ECONNREFUSED en preview mockeado"
+green_commit_sha: 0bef0c63966b637ad16a65a9ffe661544ca4f9a0
+green_run_id: "35408446909"
+ancestry_verified: true
+aprobaciones: [A: Staff Principal (agente, delegación @DawoT 2026-09-18), V: kipus-verify+kipus-security CI GREEN + re-ejecución local staff (caveat mismo sistema)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
