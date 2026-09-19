@@ -1,0 +1,103 @@
+name: staging-canary
+
+# Canario sintético continuo contra el piloto canónico temporal
+# (*.pages.dev / *.workers.dev — D0; kipuspay.com es WAIT-DOMINIO).
+# Checklist ítem 12 (Proceso §6): SLO canario; dos fallos consecutivos alertan.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_failure:
+        description: 'Fuerza un fallo para probar la alerta (prueba del canario)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: staging-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Health HTTP de los 3 hosts
+        run: |
+          set -euo pipefail
+          API=https://kipuspay-worker-api-staging.cristian-pcalderon.workers.dev
+          POS=https://kipuspay-app.pages.dev
+          MKT=https://kipuspay-web.pages.dev
+          mkdir -p canary-logs
+          for pair in "api $API/health" "pos $POS/" "mkt $MKT/"; do
+            set -- $pair
+            code=$(curl -s -o "canary-logs/$1.html" -w '%{http_code}' --max-time 20 "$2")
+            echo "$1=$code" | tee -a canary-logs/health.txt
+            [ "$code" = "200" ] || { echo "host $1 fallo con $code"; exit 1; }
+          done
+          body=$(cat canary-logs/api.html)
+          echo "$body" | grep -q '"status":"ok"' || { echo "health body inesperado: $body"; exit 1; }
+
+      - name: Install Playwright Chromium (smoke navegador)
+        run: pnpm --filter @kipuspay/pos-web exec playwright install --with-deps chromium
+
+      - name: Smoke navegador staging
+        env:
+          STAGING_EVIDENCE_DIR: canary-logs/browser
+        run: node apps/pos-web/scripts/staging-browser-smoke.mjs 2>&1 | tee canary-logs/smoke.log
+
+      - name: Forzar fallo (prueba de alerta)
+        if: ${{ inputs.force_failure }}
+        run: |
+          echo "Fallo forzado por workflow_dispatch (prueba de la ruta de alerta)"
+          exit 1
+
+      - name: Alerta en 2 fallos consecutivos
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_FAILURE_WEBHOOK_URL: ${{ secrets.CI_FAILURE_WEBHOOK_URL }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          prev=$(gh run list --workflow staging-canary --status completed --limit 1 \
+            --json conclusion --jq '.[0].conclusion' 2>/dev/null || echo none)
+          echo "Conclusión de la corrida anterior: $prev"
+          if [ "$prev" = "failure" ]; then
+            echo "Dos fallos consecutivos: enviando alerta"
+            if [ -n "$CI_FAILURE_WEBHOOK_URL" ]; then
+              curl -s -S -X POST -H "Content-Type: application/json" \
+                -d "{\"text\":\"staging-canary: 2 fallos consecutivos (run $RUN_ID) — revisar https://github.com/${GITHUB_REPOSITORY}/actions/runs/$RUN_ID\"}" \
+                "$CI_FAILURE_WEBHOOK_URL" || true
+            else
+              echo "CI_FAILURE_WEBHOOK_URL no configurado; alerta solo en este log."
+            fi
+          else
+            echo "Fallo aislado: sin alerta (Proceso §6 exige 2 consecutivos)."
+          fi
+
+      - name: Subir evidencia del canario
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-canary-${{ github.run_id }}
+          path: canary-logs/
+          retention-days: 7
+          if-no-files-found: ignore
