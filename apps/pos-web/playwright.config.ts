@@ -7,6 +7,10 @@ const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
 
 export default defineConfig({
   testDir: './tests',
+  // tests/local-stack exige el stack real (wrangler dev + D1) que solo
+  // provisiona run-local-stack-e2e.mjs con playwright.local-stack.config.ts;
+  // en el preview mockeado no pueden correr y en CI fresco fallan ECONNREFUSED.
+  testIgnore: 'tests/local-stack/**',
   fullyParallel: true,
   // Contención del preview bajo carga: acotado a 4 workers evita timeouts
   // intermitentes del webServer con la suite completa.
