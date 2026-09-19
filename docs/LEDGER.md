@@ -15776,3 +15776,62 @@ aprobaciones: [A: Staff Principal (agente, delegación @DawoT 2026-09-18), V: ev
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+
+```
+id: 0537
+timestamp_utc: 2026-09-19T01:03:03Z
+schema_version: 2
+sprint_fase: Sprint 42 — matriz residual externa: dry-run + tamper R2 staff-ejecutados (staging real)
+agente_responsable: Staff SRE + Staff Data (agente; delegación A de @DawoT 2026-09-18; V: audit trail server-side + re-ejecución reproducible)
+tipo: Entrega
+subtipo: evidencia externa chaos/dry-run de backup
+relacion: amplia
+referencias_entradas: [0536]
+referencias_documentales: ["docs/ops/s42-data-backup-qg.md", "docs/ops/pending-batches.yaml", "docs/architecture/05-9-data-backup.md", "packages/adapters-d1/src/data-backup.ts", "packages/adapters-d1/src/backup-restore-validator.ts"]
+prev_id: 0536
+prev_hash: b1aea8c2a8e0006e6077f90d8f4a264e2fa10a2f8a092c01480b1752d1047848
+entry_hash: 9ef8e49682698b15ed48d9c63e99f73bd01271dedcb28237f88e42ada368e386
+ticket_or_adr: stg-s42-r2-workflow; QG s42 matriz residual
+test_ids: [backup-restore-validator.test, data-backup.restore-validate.test, SUITE, V-13]
+entregable_afectado: docs/ops/s42-data-backup-qg.md (matriz residual externa) + docs/ops/pending-batches.yaml (stg-s42-r2-workflow)
+descripcion: >
+  Evidencia staff-ejecutada contra staging Cloudflare real (tenant
+  tenant_stg_phase0_001, backup f4af808e-4354-4961-9e7a-562180b34f2e,
+  registry-5, 24 chunks, KEK v2, Workflow kipuspay-data-backup-staging):
+  (1) Restore dry-run externo PASSED (75.2s): insertCount/updateCount/
+  conflictCount/missingObjectCount = 0; únicas diferencias = 3 audit_events
+  posteriores al snapshot (los propios eventos del drill); telemetría
+  independiente: audit_events RESTORE_DRY_RUN_STARTED/PASSED firmados por el
+  motor confirman cero writes de negocio. (2) Tamper adversarial R2: corrupción
+  de 1 byte en el chunk accounts_receivable/0.bin (ciphertext) detectada
+  fail-closed con 422 BACKUP_CIPHERTEXT_TAMPERED en 2.4s; A/B: restaurado el
+  objeto original, el dry-run vuelve a PASSED — la detección AEAD/hash funciona
+  contra R2 real y el error no expone material. (3) Rotación KEK verificada:
+  todos los backups recientes nacen con kek_version=v2 (flip ola-o vigente).
+  Workflow crash externo y Secrets Store no se forzaron (se documentan
+  honestamente como PENDIENTE en la matriz; idempotencia cubierta por
+  chaos-harness local 500 ciclos). A+V humano externo sigue PENDIENTE: la
+  matriz no cierra, el claim GTM sigue congelado.
+evidencia: >
+  Comandos reproducibles (JWT owner + x-tenant-id + step-up one-shot): POST
+  /api/backups/f4af808e/restore-dry-run → 200 {"status":"PASSED",
+  insertCount:0, updateCount:0, conflictCount:0, missingObjectCount:0} en
+  75.239s; wrangler r2 object put (chunk corrompido) → dry-run → 422
+  {"code":"BACKUP_CIPHERTEXT_TAMPERED","errorRef":"5092783a-adb3-40bc-a06d-
+  74608ec8633b"} en 2.369s; wrangler r2 object put (original) → dry-run →
+  200 PASSED de nuevo. audit_events: RESTORE_DRY_RUN_PASSED x2 (incluye
+  histórica), RESTORE_DRY_RUN_FAILED x3 (históricas), STARTED x5. D1:
+  data_backups f4af808e READY kek_version=v2 chunk_count=24. El flujo del
+  dry-run deja COUNT(*)=0 en restore_dry_runs post-run: cero persistencia de
+  diffs fuera de R2 y cero writes de negocio verificados por audit trail.
+red_commit_sha: N/A — evidencia runtime sin cambio de código
+red_run_id: N/A
+expected_failure: "sin validador de tamper, el dry-run habría aceptado el chunk corrupto y un restore real habría insertado datos violando AEAD; sin telemetría, cero writes sería una afirmación sin prueba"
+green_commit_sha: eabd4c79c4ebef22236349e15f93d285858eebff
+green_run_id: "dryrun-tamper-staging-2026-09-19"
+ancestry_verified: true
+aprobaciones: [A: Staff Principal (agente, delegación @DawoT 2026-09-18), V: audit_events server-side + comandos reproducibles (caveat mismo sistema; A+V humano externo PENDIENTE)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```

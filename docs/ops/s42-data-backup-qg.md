@@ -129,12 +129,12 @@ humana A/V y la matriz externa permanecen pendientes.
 
 | Evidencia requerida | Estado | Condición de cierre |
 |---|---|---|
-| Cloudflare staging real | PENDIENTE / NO-GO | Ejecutar matriz en cuenta y tenant de staging controlados |
-| R2 externo + multipart real | PENDIENTE / NO-GO | Timeout/partial/resume/abort/cleanup y tamper con evidencia |
-| Workflow externo | PENDIENTE / NO-GO | Crash/replay/checkpoint/idempotencia y publicación atómica |
+| Cloudflare staging real | **STAFF-EJECUTADO (2026-09-19)** | Matriz ejecutada contra staging real (tenant `tenant_stg_phase0_001`, backup `f4af808e` registry-5, 24 chunks, KEK v2); pendiente A+V humano |
+| R2 externo + multipart real | **TAMPER STAFF-EJECUTADO / resto PENDIENTE** | Tamper de 1 byte en chunk `accounts_receivable/0.bin` detectado fail-closed: 422 `BACKUP_CIPHERTEXT_TAMPERED` en 2.4 s; A/B con chunk restaurado → `PASSED`. Timeout/partial/resume/abort/cleanup siguen sin evidencia externa (chaos-harness local 500 ciclos GREEN) |
+| Workflow externo | PENDIENTE (honesto) | Crash/replay/checkpoint no forzados en staging (ventana de run ~15 s no permite cancelación útil); idempotencia cubierta por chaos-harness local + backups READY consecutivos; requiere game-day con manipulación de dashboard |
 | Secrets Store externo | PENDIENTE / NO-GO | Confirmar cero material secreto en D1/R2/logs |
-| KMS externo y rotación KEK | PENDIENTE / NO-GO | Unwrap versionado, indisponibilidad y rotación real |
-| Restore dry-run externo | PENDIENTE / NO-GO | Cero writes D1/R2 demostrado con telemetría independiente |
+| KMS externo y rotación KEK | **ROTACIÓN VERIFICADA (2026-09-19)** | Backups nuevos nacen con `kek_version=v2` (flip ola-o vigente, registry-5); unwrap versionado + indisponibilidad KMS externa siguen PENDIENTE |
+| Restore dry-run externo | **STAFF-EJECUTADO (2026-09-19)** | `PASSED` (75.2 s): insert/update/conflict/missing = 0; diferencias = 3 `audit_events` posteriores al snapshot; telemetría independiente (audit_events server-side + restore_dry_runs) confirma cero writes de negocio |
 | Restore apply/cutover | FUERA DE S42 / NO-GO | Pertenece a Sprint 48; ensayo, rollback y aprobación propios |
 | RPO/RTO | NO MEDIDO / NO-GO | Medición y aceptación en Sprint 48 |
 | Borrado inmediato LPDP | NO IMPLEMENTADO / NO-GO | Sprint 47; no prometer eliminación inmediata |

@@ -436,7 +436,7 @@ sprints_cierre:
         status: closed
       - id: stg-s42-r2-workflow
         severity: medium
-        detail: 'Backup KPBK1 READY en staging (backup vigente 651d4a97-68d7-4002-82e3-4e1780ed6620; registry-5, 12 chunks, kek_version=v1; Workflow+R2). La simulación DR vigente pasó; matriz chaos/dry-run externa y A+V siguen pendientes.'
+        detail: 'Backup KPBK1 READY en staging (backup vigente f4af808e-4354-4961-9e7a-562180b34f2e; registry-5, 24 chunks, kek_version=v2). 2026-09-19 evidencia staff contra staging real: restore dry-run PASSED (0 inserts/updates/conflicts/missing; diffs = 3 audit_events post-snapshot; cero writes de negocio) y tamper de 1 byte en chunk R2 detectado fail-closed (422 BACKUP_CIPHERTEXT_TAMPERED en 2.4s, A/B con chunk restaurado → PASSED). QG s42 matriz actualizada. Workflow crash externo y Secrets Store siguen sin evidencia externa; A+V humano sigue pendiente.'
         can_auto_fix: false
         status: closed
       - id: stg-s48-dr-sim
