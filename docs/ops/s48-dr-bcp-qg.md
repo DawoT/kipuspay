@@ -137,8 +137,26 @@ mayor al objetivo devolvía HTTP 200 `PASSED` y fallaba la expectativa. GREEN: c
 la duración incluida devuelve HTTP 422 `RTO_EXCEEDED` y reporta el tiempo completo.
 Evidencia local: `dr-rto-measurement.test.ts` + `dr-routes.test.ts`, **13/13**;
 ESLint y TypeScript del Worker API GREEN; build Worker `--dry-run` completado.
-Este parche aún no está desplegado y no sustituye revisión independiente, firmas
-A/V ni nueva evidencia staging.
+
+### Drill staging con Worker corregido (2026-09-19) — fail-closed verificado en vivo + gap de diseño nuevo
+
+Deploy `fb6b570c` (perfil `s48-dr`). Drill completo: seed venta ayer Lima →
+rollup 2026-09-17 → backup `f4af808e-4354-4961-9e7a-562180b34f2e` READY →
+step-up one-shot → `POST /api/dr/simulation` → **HTTP 422
+`DR_SIMULATION_FAILED` a los 83.7 s** (RTO ahora incluye replay; audit
+`DR_SIMULATION_FAILED`, errorRef `02ffab5b…`). El fail-closed corregido funciona
+en vivo y dejó de ocultar latencia/verificación.
+
+**Hallazgo raíz (bloqueante, nuevo):** `DR_RESTORE_BATCH_FAILED` en
+`recurring_plans`. Sonda directa en `DR_DB`:
+`FOREIGN KEY constraint failed: SQLITE_CONSTRAINT_FOREIGNKEY (7500)` — el
+backup excluye `users` (SECRET, §5.9) y 22 tablas BUSINESS declaran
+`FK → users(tenant_id, id)`. Los PASSED históricos (08-22, 09-17) eran fixtures
+sin filas en esas tablas. Un restore real de datos con ventas/órdenes/etiquetas
+creadas por usuarios fallaría igual: **gap de diseño de DR**. Decisión:
+**ADR-0043** — proyección de identidad de tablas SECRET (sin credenciales) +
+sprint dedicado + nueva corrida con datos que ejerciten las 22 FKs.
+Evidencia: `docs/ops/evidence/s48-dr-rto-2026-09-19/` (respuesta íntegra).
 
 ## Evidencia externa pendiente
 
@@ -147,8 +165,8 @@ A/V ni nueva evidencia staging.
 | R2 externo + multipart real | GREEN técnico / A+V pendiente | Artifact `deploy-staging-evidence` + backup `registry-2` |
 | Workflow Cloudflare real | GREEN técnico / A+V pendiente | Workflow staging desplegado y replay del simulacro |
 | KMS externo y rotación | GREEN técnico / A+V pendiente | KEK v1 + unwrap versionado en cierre live |
-| Simulacro de restore aislado en staging | Restore/RPO GREEN; RTO por re-ensayar | La corrida `registry-5` observó `PASSED` y RPOs GREEN, pero su métrica `rtoMs=29629` precedió a la corrección y excluyó parte de la verificación; requiere nueva corrida con el Worker corregido |
-| Medición RTO corregida | GREEN local / staging pendiente | Test RED→GREEN demuestra que la latencia de `verifyDrReplay` ahora cuenta en RTO y puede forzar `RTO_EXCEEDED`; falta desplegar y repetir el simulacro staging |
+| Simulacro de restore aislado en staging | **NO-GO honesto** (2026-09-19) | `DR_SIMULATION_FAILED` 422 con fail-closed corregido: FK→users insatisfacible con SECRET excluido. Requiere ADR-0043 implementado + nueva corrida con datos que ejerciten las 22 tablas con FK→users |
+| Medición RTO corregida | **GREEN staging (2026-09-19)** | Deploy `fb6b570c`: drill midió 83.7 s incluyendo verifyDrReplay y falló cerrado con 422 — la medición ya no oculta latencia |
 | Cutover y rollback de tráfico | PENDIENTE / NO-GO | Procedimiento implementado o aprobado y ensayo staging con reversión y escrituras posteriores |
 | QA humana + A/V independiente | PENDIENTE / NO-GO | Game day humano, incluyendo cutover/rollback y revisión independiente |
 

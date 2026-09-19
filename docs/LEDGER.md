@@ -15714,3 +15714,65 @@ aprobaciones: [A: Staff Principal (agente, delegación @DawoT 2026-09-18), V: ki
 estado_gov: GOV-APROBADO
 estado: Vigente
 ```
+
+```
+id: 0536
+timestamp_utc: 2026-09-19T00:50:05Z
+schema_version: 2
+sprint_fase: Sprint 48 — drill staging con RTO corregido; hallazgo FK→SECRET (ADR-0043)
+agente_responsable: Staff SRE + Staff Principal (agente; delegación A de @DawoT 2026-09-18; auditoría Staff Security consultada por ADR)
+tipo: Correccion
+subtipo: verificación runtime fail-closed + hallazgo de diseño DR
+relacion: CORRIGE
+referencias_entradas: [0535]
+referencias_documentales: ["docs/adr/ADR-0043-dr-restore-secret-fk-identity.md", "docs/ops/s48-dr-bcp-qg.md", "docs/ops/pending-batches.yaml", "docs/architecture/05-9-data-backup.md", "packages/adapters-d1/src/dr-restore.ts"]
+prev_id: 0535
+prev_hash: 6e016c496d333f021afcb6733c105c81141d6f254b21030f7ba4448b71ab6a80
+entry_hash: b1aea8c2a8e0006e6077f90d8f4a264e2fa10a2f8a092c01480b1752d1047848
+ticket_or_adr: ADR-0043; stg-s48-dr-sim
+test_ids: [dr-rto-measurement.test, dr-routes.test, SUITE, V-13]
+entregable_afectado: deploy worker-api-staging fb6b570c (perfil s48-dr) + docs/ops/s48-dr-bcp-qg.md + docs/ops/pending-batches.yaml + docs/adr/ADR-0043
+descripcion: >
+  Primera corrida DR con el RTO corregido (0535) desplegado en staging: seed de
+  venta ayer Lima + rollup diario, backup f4af808e READY, step-up one-shot y
+  POST /api/dr/simulation → HTTP 422 DR_SIMULATION_FAILED a los 83.7 s con RTO
+  incluyendo verifyDrReplay: el fail-closed corregido funciona en vivo y ya no
+  oculta latencia ni verificación. La corrida honesta expuso un gap de diseño
+  bloqueante: el backup excluye users (SECRET, §5.9 Regla 27) y 22 tablas
+  BUSINESS declaran FK→users(tenant_id, id) — sonda directa en DR_DB confirmó
+  FOREIGN KEY constraint failed (SQLITE_CONSTRAINT_FOREIGNKEY 7500) en
+  recurring_plans; los PASSED históricos (08-22, 09-17) eran fixtures sin filas
+  en esas tablas, y un restore real con datos de negocio fallaría igual. D1 no
+  permite desactivar FKs y defer_foreign_keys no aplica (el padre nunca se
+  restaura). Decisión ADR-0043 (aceptada por Staff Principal delegado): KPBK1
+  gana proyección de identidad de tablas SECRET padre de FKs (users: id,
+  tenant_id, branch_id, email, role, is_active, deleted_at, created_at — sin
+  password_hash/pin_hash/external_auth_id/badge_barcode), validador fail-closed
+  por columnas declaradas, credenciales siguen excluidas y re-provisión
+  documentada post-restore. stg-s48-dr-sim permanece abierto: requiere
+  implementación ADR-0043 + nueva corrida con datos que ejerciten las 22 FKs.
+  Veredicto producción NO-GO se mantiene.
+evidencia: >
+  Staging real 2026-09-19: deploy fb6b570c (7 crons + Workflow intactos);
+  /api/backups 200; backup f4af808e-4354-4961-9e7a-562180b34f2e READY (poll 2x10s);
+  step-up PLATFORM_DR_SIMULATION one-shot 90s; POST /api/dr/simulation →
+  422 {"code":"DR_SIMULATION_FAILED","errorRef":"02ffab5b-003b-41fd-aef8-133ecdf4477b"}
+  en 83.740s; audit_events: DR_SIMULATION_STARTED + DR_SIMULATION_FAILED
+  (detail DR_RESTORE_BATCH_FAILED, table recurring_plans, errorRef
+  911f8131-863d-4e78-88ac-e9bb2239c306). Sonda DR_DB: INSERT OR IGNORE completo
+  → "FOREIGN KEY constraint failed: SQLITE_CONSTRAINT_FOREIGNKEY (extended:
+  SQLITE_CONSTRAINT_FOREIGNKEY) [code: 7500]"; live users=15/branches=13,
+  DR_DB users=0/branches=1 (restore 09-17). Migraciones DB y DR_DB en paridad
+  (0068 top). Respuesta íntegra del drill en
+  docs/ops/evidence/s48-dr-rto-2026-09-19/ (artefacto local, no doctrina).
+  La DB live jamás fue escrita por el restore (solo audit DR_SIMULATION_*).
+red_commit_sha: N/A — verificación runtime del fix ya ledgerado en 0535; sin cambio de código en esta entrada
+red_run_id: N/A
+expected_failure: "sin el fix de 0535, el drill habría devuelto 200 PASSED ocultando la latencia de verifyDrReplay y el gap FK→SECRET habría seguido invisible"
+green_commit_sha: 3c577b42b21a92e73f4d3436d0cdf6a855a407e7
+green_run_id: "drill-staging-fb6b570c-2026-09-19"
+ancestry_verified: true
+aprobaciones: [A: Staff Principal (agente, delegación @DawoT 2026-09-18), V: evidencia audit_events + sonda FK re-ejecutable (caveat mismo sistema)]
+estado_gov: GOV-APROBADO
+estado: Vigente
+```
